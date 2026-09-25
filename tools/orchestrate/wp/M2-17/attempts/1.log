@@ -1,0 +1,16 @@
+Implemented a verified partial M2-17:
+  - Resident X-Trans demosaic and highlight handling.
+  - Fused tone → curves → color → effects → display at output resolution.
+  - Cached operator constants and local-tone pipelines.
+  - Shared-memory separable box means.
+  - Adaptive classification recognizes newly resident controls.
+
+The exact requested test/clippy/fmt command passed: 591 tests passed, 0 failed, 16 ignored. All changes are allowlisted; no local target directory or commits.
+
+Before/after NEF measurements cover 15 operators at L2, full L0, and a 1024×1024 region. The performance targets remain unproven. Downsampled guidance and per-image hashed LUT/vignette-map caches are unfinished, and full-resolution presence still falls back to CPU.
+
+Reports:
+  /Users/rutmehta/Developer/tessera/.worktrees/M2-17/tools/orchestrate/wp/M2-17/validation.md
+  /Users/rutmehta/Developer/tessera/.worktrees/M2-17/tools/orchestrate/wp/M2-17/benchmark-results.md
+
+RESULT: FAIL incomplete operator coverage and caching; <16 ms screen and <100 ms regional targets not demonstrated.

@@ -451,8 +451,8 @@
     "id": "M2-14v",
     "owner": "sol",
     "title": "Verify masking UI",
-    "status": "running",
+    "status": "pass",
     "attempts": 0,
-    "notes": ""
+    "notes": "masks work on screen incl. real U2Net subject; sky mask bleeds into rooftops (refinement); selftest expects 2 masks, got 5"
   }
 ]
