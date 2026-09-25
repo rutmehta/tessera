@@ -1,0 +1,8 @@
+{
+  "wp": "M0-06",
+  "status": "pass",
+  "attempts": 2,
+  "last_test_exit": 0,
+  "violations": [],
+  "note": "verified manually by coordinator after harness self-edit broke the run"
+}

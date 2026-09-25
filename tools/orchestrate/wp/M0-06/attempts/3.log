@@ -1,0 +1,5 @@
+Implemented the standalone `libraw-ffi` crate with vendored LibRaw 0.22.2 and its CDDL/LGPL license files. I excluded two duplicate implementation files from the build to fix the linker errors, and fixed the Clippy failures.
+
+`cargo test` passed (2 tests; no fixture-dependent failures), and `cargo clippy -- -D warnings` passed. The LibRaw C++ sources still emit compiler warnings, but they do not fail these checks.
+
+RESULT: PASS

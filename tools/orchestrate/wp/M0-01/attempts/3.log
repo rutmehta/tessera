@@ -1,0 +1,3 @@
+`bash ci.sh` passed: formatting, Clippy, workspace tests, and `cargo-deny` all succeeded. The licence check still prints warnings for allowed licences and an `lcms2` exception that aren’t encountered in the current dependency graph; it reports no violations.
+
+I couldn’t verify the fixture downloads: `fixtures/fetch.sh` was not present in the files available to this run, and the kanban task/workspace environment variables were unset. **RESULT: FAIL — fixture script/download requirement unverified.**

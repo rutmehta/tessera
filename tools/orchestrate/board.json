@@ -1,0 +1,58 @@
+[
+  {
+    "id": "M0-02",
+    "owner": "luna",
+    "title": "Orchestration harness",
+    "status": "merged",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M0-01",
+    "owner": "luna",
+    "title": "Cargo workspace scaffold",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M0-03",
+    "owner": "opus",
+    "title": "engine-api contracts",
+    "status": "merged",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M0-04",
+    "owner": "opus",
+    "title": "macOS app shell",
+    "status": "merged",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M0-05",
+    "owner": "sol",
+    "title": "computer-use smoke",
+    "status": "todo",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M0-06",
+    "owner": "luna",
+    "title": "libraw-ffi crate",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M0-07",
+    "owner": "luna",
+    "title": "GPU spike wgpu vs MSL",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  }
+]
