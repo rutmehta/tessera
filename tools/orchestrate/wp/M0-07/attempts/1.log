@@ -1,0 +1,16 @@
+M0-07 verified on Apple M4. The required build/run/assertion command passes, along with five unit tests and report validation.
+
+GPU medians, wgpu vs native Metal:
+  Demosaic:      4.342 vs 4.109 ms (1.06×)
+  Guided filter: 50.677 vs 50.649 ms (1.00×)
+  Oklab LUT:     6.130 vs 5.952 ms (1.03×)
+
+Recommendation: go for compute. All three meet the 1.5× performance threshold. Maximum wgpu error is 4.47e-6, below 1e-4.
+
+HDR caveat: ExtendedSrgbLinear configured successfully. ExtendedDisplayP3 crashed with SIGBUS in native configuration. Separate probe processes capture that failure without killing the benchmark. The display reported headroom 1.0, so this does not validate HDR presentation.
+
+Reports:
+  /Users/rutmehta/Developer/tessera/.worktrees/M0-07/spikes/gpu-bench/REPORT.md
+  /Users/rutmehta/Developer/tessera/.worktrees/M0-07/spikes/gpu-bench/report.json
+
+RESULT: PASS

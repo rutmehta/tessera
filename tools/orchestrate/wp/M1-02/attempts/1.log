@@ -1,0 +1,12 @@
+Implemented M1-02 with SQLite migrations, WAL/mmap, FTS5, R*Tree, incremental scanning, sidecar hooks, metadata extraction, paged queries, facets, keyword hierarchy, and selection round trips.
+
+Verification passed:
+  cargo test -p index
+  cargo clippy -p index --all-targets -- -D warnings
+  cargo fmt --check
+
+Ignored 100,000-image benchmark also passed: text search 13.3 ms, faceted query 68.1 ms.
+
+Only allowed paths changed. engine-api and existing fixtures were untouched. CARGO_TARGET_DIR remained outside the repository. No commit created.
+
+RESULT: PASS

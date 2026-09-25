@@ -1,3 +1,18 @@
-The required test command passed with `CARGO_TARGET_DIR` set outside the worktree, and `REPORT.md` was produced. But the work package is not complete: the current spike only runs simplified WGSL proxies. It does not implement native Metal kernels, timestamp-query timings, CPU-reference error measurements, or the HDR-surface test.
+Verified M0-07 on Apple M4. Retained the real WGSL/native Metal implementation, added rejection of invalid timing samples, and regenerated both reports.
 
-RESULT: FAIL required benchmark and HDR measurements are not implemented
+Median GPU times, wgpu / Metal:
+  Demosaic: 4.473 / 3.924 ms
+  Guided filter: 49.420 / 49.444 ms
+  Oklab LUT: 6.040 / 5.921 ms
+
+Recommendation: go for compute. All three meet the 1.5× timing gate and 1e-4 accuracy threshold.
+
+HDR caveat: ExtendedSrgbLinear configured successfully. ExtendedDisplayP3 crashed its isolated probe with SIGBUS, recorded as failure. Display headroom was 1.0.
+
+Required build/run/assertion passed, along with six unit tests, formatting, and report validation. CARGO_TARGET_DIR stayed external. No paths outside spikes/** were modified; pre-existing fixtures/raw was untouched.
+
+Reports:
+  /Users/rutmehta/Developer/tessera/.worktrees/M0-07/spikes/gpu-bench/REPORT.md
+  /Users/rutmehta/Developer/tessera/.worktrees/M0-07/spikes/gpu-bench/report.json
+
+RESULT: PASS

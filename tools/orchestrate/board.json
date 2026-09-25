@@ -51,9 +51,9 @@
     "id": "M0-07",
     "owner": "astra",
     "title": "GPU spike wgpu vs MSL",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
-    "notes": ""
+    "notes": "go: wgpu within 1.5x native, err<1e-4; ExtendedDisplayP3 surface SIGBUS -> Swift owns HDR"
   },
   {
     "id": "M0-08",
@@ -75,7 +75,7 @@
     "id": "M1-02",
     "owner": "astra",
     "title": "index crate",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },

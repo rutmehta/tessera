@@ -1,0 +1,9 @@
+Implemented M1-01 within the allowed paths. Includes Bayer/X-Trans metadata, largest-JPEG extraction, packed u16 decoding, normalized level-zero CFA tiles, regression tests, and Criterion benchmarks. engine-api is unchanged.
+
+The required test, clippy, and formatting command passed. All five RAW fixtures decoded successfully during verification. Benchmark estimates: DNG 30.004 ms, RAF 25.197 ms, ARW 48.555 ms, NEF 359.05 ms, CR3 156.94 ms.
+
+Caveat: the shared fixture directory disappeared externally afterward, so the final rerun exercised the required absent-fixture skips. The DNG has no JPEG preview and returns None.
+
+Evidence: /Users/rutmehta/Developer/tessera/.worktrees/M1-01/tools/orchestrate/wp/M1-01/evidence/RESULTS.md
+
+RESULT: PASS

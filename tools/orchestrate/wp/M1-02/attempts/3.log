@@ -1,0 +1,7 @@
+Verified the index implementation and fixed recipe-sidecar invalidation for dotted filenames such as photo.v1.cr3, with a regression test.
+
+Required test, clippy, and formatting commands all passed. The 100,000-image benchmark also passed: text search 8.48 ms, facets 40.36 ms. Engine-api was untouched.
+
+The prior attempt’s untracked fixtures/raw symlink remains. Removing it would violate your explicit allowed-path restriction, so the scope failure is unresolved.
+
+RESULT: FAIL pre-existing out-of-scope fixtures/raw symlink requires authorized cleanup
