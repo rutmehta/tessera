@@ -33,7 +33,7 @@ for ((n=1;n<=MAX;n++)); do
   violation_text="${violations[*]-}"
   previous="$(printf '%s\n' "$testout" | tail -n 200) violations: $violation_text hermes_exit=$hrc"
 done
-if [[ $status == pass ]]; then git -C "$WT" add -A; git -C "$WT" commit -m "wp($WP): $(head -n 1 "$BRIEF" | sed 's/^# *//')"; fi
+if [[ $status == pass ]]; then git -C "$WT" add -A; git -C "$WT" diff --cached --quiet || git -C "$WT" commit -q -m "wp($WP): $(head -n 1 "$BRIEF" | sed 's/^# *//')"; fi
 if [[ $status != pass && $n -gt $MAX ]]; then status=escalate; fi
 python3 - "$BASE/verdict.json" "$WP" "$status" "$n" "$last_exit" "${violation_text:-}" <<'PY'
 import json,sys,pathlib
