@@ -2,6 +2,18 @@ use super::*;
 use crate::resident::{DisplayHistogram, ResidentBatch, ResidentOutput, SurfaceTarget};
 
 impl Renderer {
+    pub(super) fn supports_resident(&self, r: &Resolved<'_>) -> bool {
+        let s = r.settings;
+        matches!(r.cfa, CfaLayout::Bayer(_))
+            && self.ops.begin_resident().is_some()
+            && s.color == Default::default()
+            && s.effects == Default::default()
+            && s.geometry == Default::default()
+            && s.tone.texture == 0.0
+            && s.tone.clarity == 0.0
+            && s.tone.dehaze == 0.0
+            && s.tone.curves == Default::default()
+    }
     /// Direct display render to an RGBA8 IOSurface. Returns false if the
     /// backend/settings require the conventional CPU tile delivery path.
     pub fn render_to_surface(
@@ -14,7 +26,7 @@ impl Renderer {
     ) -> EngineResult<bool> {
         cancel.check()?;
         let r = self.resolve(image, settings)?;
-        if level > MAX_LEVEL || has_m2_settings(settings) || !matches!(r.cfa, CfaLayout::Bayer(_)) {
+        if level > MAX_LEVEL || !self.supports_resident(&r) {
             return Ok(false);
         }
         let Some(batch) = self.ops.begin_resident() else {
@@ -46,7 +58,7 @@ impl Renderer {
     ) -> EngineResult<Option<DisplayHistogram>> {
         cancel.check()?;
         let r = self.resolve(image, settings)?;
-        if level > MAX_LEVEL || has_m2_settings(settings) || !matches!(r.cfa, CfaLayout::Bayer(_)) {
+        if level > MAX_LEVEL || !self.supports_resident(&r) {
             return Ok(None);
         }
         let Some(batch) = self.ops.begin_resident() else {
@@ -84,8 +96,25 @@ impl Renderer {
         let key = |stage, c| PipelineGraph::memo_key(r.image.id(), &r.chain, stage, c);
         let cache_dem = self.config.graph.node(StageId::Demosaic).cacheable;
         let cache_wb = self.config.graph.node(StageId::WhiteBalance).cacheable;
-        let mut finished = Vec::with_capacity(coords.len());
+        let cache_detail = self.config.graph.node(StageId::Detail).cacheable;
+        let halo = pipeline_cpu::detail_halo(&r.settings.detail);
+        let mut detailed = HashMap::new();
+        let mut needed = BTreeSet::new();
         for &c in coords {
+            if halo > 0
+                && cache_detail
+                && let Some(t) = batch.cached(&key(StageId::Detail, c))?
+            {
+                detailed.insert(c, t);
+            } else if halo > 0 {
+                needed.extend(gather_sources(r.image.level_extent(c.level), c, halo, 1));
+            } else {
+                needed.insert(c);
+            }
+        }
+        let mut balanced = HashMap::new();
+        let mut finished = Vec::with_capacity(coords.len());
+        for c in needed {
             cancel.check()?;
             let t = if cache_wb && let Some(t) = batch.cached(&key(StageId::WhiteBalance, c))? {
                 t
@@ -174,7 +203,9 @@ impl Renderer {
                     let t = sampled
                         .ok_or_else(|| engine_api::EngineError::internal("no resample sources"))?;
                     if cache_dem {
-                        batch.cache(level_key, &t)?
+                        // This is an extra checkpoint not present in the scalar
+                        // graph. Do not add a second f16 rounding before WB.
+                        batch.cache_exact(level_key, &t)?
                     } else {
                         t
                     }
@@ -187,6 +218,25 @@ impl Renderer {
                 } else {
                     t
                 }
+            };
+            balanced.insert(c, t);
+        }
+        for &c in coords {
+            cancel.check()?;
+            let t = if let Some(t) = detailed.remove(&c) {
+                t
+            } else if halo > 0 {
+                let t = batch.gather(r.image.level_extent(c.level), c, halo, 1, &balanced)?;
+                let t = batch.run(&Op::Detail(&r.settings.detail), &t)?;
+                if cache_detail {
+                    batch.cache(key(StageId::Detail, c), &t)?
+                } else {
+                    t
+                }
+            } else {
+                // Disabled Detail still validates all controls, just as the
+                // scalar reference does (zero halo is not a validation bypass).
+                batch.run(&Op::Detail(&r.settings.detail), &balanced[&c])?
             };
             let t = if output == RenderOutput::Display {
                 batch.run_chain(

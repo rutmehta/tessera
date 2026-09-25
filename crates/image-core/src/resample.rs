@@ -34,7 +34,7 @@ fn axis(origin: u32, len: u32, halo: u16, n: u32, period: u32) -> Vec<u32> {
         .collect()
 }
 
-/// Interior extent of a level-0 tile in a frame of size `frame`.
+/// Interior extent of a tile in its level's frame of size `frame`.
 pub(crate) fn interior(frame: Extent, coord: TileCoord) -> Extent {
     let (ox, oy) = coord.pixel_origin(TILE_SIZE);
     Extent::new(
@@ -43,7 +43,7 @@ pub(crate) fn interior(frame: Extent, coord: TileCoord) -> Extent {
     )
 }
 
-/// Level-0 tiles of `frame` that [`gather`] reads for `coord` with `halo`.
+/// Same-level tiles of `frame` that [`gather`] reads for `coord` with `halo`.
 pub(crate) fn gather_sources(
     frame: Extent,
     coord: TileCoord,
@@ -61,11 +61,11 @@ pub(crate) fn gather_sources(
         .map(|v| v / TILE_SIZE)
         .collect();
     rows.iter()
-        .flat_map(|&y| cols.iter().map(move |&x| TileCoord::new(0, x, y)))
+        .flat_map(|&y| cols.iter().map(move |&x| TileCoord::new(coord.level, x, y)))
         .collect()
 }
 
-/// Assembles the level-0 tile `coord` with `halo` from halo-free `F32`
+/// Assembles the same-level tile `coord` with `halo` from halo-free `F32`
 /// neighbour tiles, clamping to the same CFA phase at the frame edges.
 pub(crate) fn gather(
     frame: Extent,
@@ -80,7 +80,7 @@ pub(crate) fn gather(
     let ys = axis(oy, e.height, halo, frame.height, period);
     let lookup = |x: u32, y: u32| -> EngineResult<&Tile> {
         tiles
-            .get(&TileCoord::new(0, x / TILE_SIZE, y / TILE_SIZE))
+            .get(&TileCoord::new(coord.level, x / TILE_SIZE, y / TILE_SIZE))
             .ok_or_else(|| EngineError::internal(format!("gather for {coord}: source missing")))
     };
     let channels = lookup(xs[0], ys[0])?.layout().channels;

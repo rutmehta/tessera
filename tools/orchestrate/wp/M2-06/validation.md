@@ -1,5 +1,21 @@
 # M2-06 implementation and host validation
 
+## M2-06b: native revision-2 defaults reconciled
+
+The resident path now executes default sharpening/chroma NR at output resolution
+with real-neighbour halos and a Detail memo boundary before Tone. WB matrices
+remain at output resolution and sensor crop/CFA phase is preserved. The original
+model tests retain their no-host-execution assertion and numerical tolerances.
+See `../M2-06b/validation.md` for implementation, regression and full command logs.
+
+The exact workspace test / requested Clippy / fmt chain passed: 467 tests passed,
+0 failed, 12 ignored. Two consecutive final-code Apple M4 NEF L2 IOSurface runs
+measured tone medians 4.8 / 4.2 ms and WB medians 23 / 21 ms, meeting both M2-06
+median targets with revision-2 defaults active. A prior final-code run was slower
+(10.4 / 46 ms), retained in the M2-06b report. Full-pixel-readback benchmarking
+measured 6.490 ms tone / 23.663 ms WB and is not the interactive surface path.
+X-Trans and extended controls retain their documented hybrid barriers.
+
 ## Latest retry: presentation calibration corrected
 
 The existing resident implementation was present at the start of this retry.

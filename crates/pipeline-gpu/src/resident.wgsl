@@ -14,6 +14,11 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     } else if p[0] == 1u {
         if i >= p[1] { return; }
         dst[i] = bitcast<u32>(unpack2x16float(src[i/2u])[i%2u]);
+    } else if p[0] == 3u {
+        // Strip the immutable neighbour halo after Detail, before memoization.
+        if i >= p[1] { return; }
+        let area = p[2]*p[3]; let c = i/area; let xy = i%area;
+        dst[i] = src[c*p[6] + (xy/p[2]+p[4])*p[5] + xy%p[2]+p[4]];
     } else {
         // One source tile contributes to each overlapping output block.
         // Dispatches are ordered; dst begins zeroed. No atomics or giant atlas.

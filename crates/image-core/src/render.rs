@@ -306,7 +306,7 @@ impl Renderer {
     ) -> EngineResult<()> {
         cancel.check()?;
         let r = self.resolve(image, settings)?;
-        if has_m2_settings(settings) {
+        if has_m2_settings(settings) && !self.supports_resident(&r) {
             self.run_m2(image, settings, coords, output, cancel, sink)
         } else {
             self.run(&r, coords, output, cancel, sink)
@@ -335,7 +335,7 @@ impl Renderer {
         for level in (viewport.finest_level..=viewport.coarsest_level).rev() {
             let extent = Self::output_extent(image, settings, level)?;
             let coords = Self::tiles_in_extent(extent, level, viewport.rect.at_level(level));
-            if has_m2_settings(settings) {
+            if has_m2_settings(settings) && !self.supports_resident(&r) {
                 self.run_m2(image, settings, &coords, output, cancel, sink)?;
             } else {
                 self.run(&r, &coords, output, cancel, sink)?;
@@ -394,6 +394,8 @@ impl Renderer {
         // active area; previews do expensive M2 work only at preview resolution.
         let mut base = settings.clone();
         base.detail = Default::default();
+        base.detail.sharpening.amount = 0.0;
+        base.detail.noise_reduction.color = 0.0;
         base.tone = Default::default();
         base.color = Default::default();
         base.effects = Default::default();

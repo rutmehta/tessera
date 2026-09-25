@@ -52,6 +52,7 @@ pub struct GpuStageOp {
     pub(crate) surface_pipeline: wgpu::ComputePipeline,
     pub(crate) zero_pipeline: wgpu::ComputePipeline,
     pub(crate) histogram_pipeline: wgpu::ComputePipeline,
+    pub(crate) detail_pipelines: Vec<wgpu::ComputePipeline>,
 }
 impl GpuStageOp {
     pub fn new(context: Arc<GpuContext>) -> Self {
@@ -144,6 +145,7 @@ impl GpuStageOp {
                     cache: None,
                 });
         Self {
+            detail_pipelines: crate::detail::pipelines(&context).expect("valid Detail pipelines"),
             context,
             counters: Arc::default(),
             resident_cache: crate::resident::cache(budget),

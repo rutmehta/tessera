@@ -111,15 +111,22 @@ fn resident_graph_one_submission_and_warm_edits_without_uploads() {
     );
     let cpu = Renderer::new(RendererConfig::default());
     let image = common::synthetic(906, 700, 533, common::RGGB, [3, 5, 690, 521]);
-    for level in [0, 2] {
+    for level in [0, 1, 2, 12] {
         let mut s = DevelopSettings::default();
         let rect = PixelRect::full(image.level_extent(level));
-        for change in 0..3 {
+        for change in 0..5 {
             if change == 1 {
                 s.tone.exposure += 0.3;
             }
             if change == 2 {
                 s.white_balance.mode = engine_api::recipe::settings::WhiteBalanceMode::Daylight;
+            }
+            if change == 3 {
+                s.detail.sharpening.amount = 80.0;
+            }
+            if change == 4 {
+                s.detail.sharpening.amount = 0.0;
+                s.detail.noise_reduction.color = 0.0;
             }
             let before = gpu.stats();
             let a = r.render_region(&image, &s, level, rect).unwrap();
@@ -130,6 +137,7 @@ fn resident_graph_one_submission_and_warm_edits_without_uploads() {
                 assert_eq!(after.uploads - before.uploads, 0);
             }
             let b = cpu.render_region(&image, &s, level, rect).unwrap();
+            assert_eq!(a.len(), b.len());
             for (a, b) in a.iter().zip(&b) {
                 let max_difference = a
                     .samples::<u8>()
@@ -175,6 +183,55 @@ fn resident_cache_budget_is_bounded() {
         .unwrap();
     assert!(gpu.cache_bytes() <= 4096);
     assert_eq!(a[0].samples::<u8>().unwrap(), b[0].samples::<u8>().unwrap());
+}
+
+#[test]
+fn partial_preview_gathers_unrequested_detail_neighbours_without_cache() {
+    use engine_api::{jobs::CancellationToken, tile::TileCoord};
+    use image_core::RenderOutput;
+    let gpu = Arc::new(GpuStageOp::with_cache_budget(
+        Arc::new(GpuContext::new().unwrap()),
+        0,
+    ));
+    let r = Renderer::with_ops(
+        gpu.clone(),
+        Arc::new(TileCache::new(0)),
+        RendererConfig::default(),
+    );
+    let cpu = Renderer::new(RendererConfig::default());
+    let image = common::synthetic(908, 700, 533, common::RGGB, [3, 5, 690, 521]);
+    let settings = DevelopSettings::default();
+    let coords = [TileCoord::new(1, 1, 1)];
+    let render = |renderer: &Renderer| {
+        let mut tiles = Vec::new();
+        renderer
+            .render_tiles(
+                &image,
+                &settings,
+                &coords,
+                RenderOutput::Display,
+                &CancellationToken::new(),
+                &mut |t| tiles.push(t),
+            )
+            .unwrap();
+        tiles
+    };
+    let a = render(&r);
+    let b = render(&cpu);
+    assert_eq!(a.len(), 1);
+    assert_eq!(b.len(), 1);
+    assert_eq!(a[0].coord(), coords[0]);
+    assert_eq!(a[0].layout(), b[0].layout());
+    assert!(
+        a[0].samples::<u8>()
+            .unwrap()
+            .iter()
+            .zip(b[0].samples::<u8>().unwrap())
+            .all(|(a, b)| a.abs_diff(*b) <= 2)
+    );
+    assert_eq!(gpu.stats().submissions, 1);
+    assert_eq!(gpu.stats().readbacks, 1);
+    assert_eq!(gpu.cache_bytes(), 0);
 }
 
 #[test]

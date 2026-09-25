@@ -21,6 +21,7 @@ use std::{
 struct Model {
     cache: Mutex<HashMap<MemoKey, Tile>>,
     matrix_pixels: std::sync::atomic::AtomicU64,
+    detail_pixels: std::sync::atomic::AtomicU64,
 }
 struct Batch<'a> {
     owner: &'a Model,
@@ -65,6 +66,10 @@ impl ResidentBatch for Batch<'_> {
         self.pending.insert(key, t.clone());
         Ok(resident(to_f32(&t)?))
     }
+    fn cache_exact(&mut self, key: MemoKey, tile: &ResidentTile) -> EngineResult<ResidentTile> {
+        self.pending.insert(key, cpu(tile));
+        Ok(tile.clone())
+    }
     fn upload(&mut self, tile: &Tile) -> EngineResult<ResidentTile> {
         Ok(resident(tile.clone()))
     }
@@ -75,7 +80,30 @@ impl ResidentBatch for Batch<'_> {
                 std::sync::atomic::Ordering::Relaxed,
             );
         }
-        CpuStageOp.run(StageId::Tone, op, cpu(tile)).map(resident)
+        let t = CpuStageOp.run(StageId::Tone, op, cpu(tile))?;
+        if matches!(op, Op::Detail(_)) {
+            let l = t.layout();
+            self.owner
+                .detail_pixels
+                .fetch_add(l.extent.area(), std::sync::atomic::Ordering::Relaxed);
+            let mut data = Vec::new();
+            for c in 0..l.channels as usize {
+                for y in 0..l.extent.height as usize {
+                    let start =
+                        c * l.plane_len() + (y + l.halo as usize) * l.stride() + l.halo as usize;
+                    data.extend_from_slice(
+                        &t.samples::<f32>()?[start..start + l.extent.width as usize],
+                    );
+                }
+            }
+            return Tile::from_samples(
+                t.coord(),
+                engine_api::tile::TileLayout { halo: 0, ..l },
+                data,
+            )
+            .map(resident);
+        }
+        Ok(resident(t))
     }
     fn gather(
         &mut self,
@@ -148,7 +176,7 @@ fn resident_graph_preserves_crop_phase_parity_and_edit_invalidation() {
     let image = common::synthetic(1008, 517, 269, common::RGGB, [3, 5, 511, 261]);
     for level in [0, 2, 5, 12] {
         let mut settings = DevelopSettings::default();
-        for change in 0..4 {
+        for change in 0..6 {
             if change == 1 {
                 settings.tone.exposure = 0.3;
             }
@@ -159,10 +187,19 @@ fn resident_graph_preserves_crop_phase_parity_and_edit_invalidation() {
                 settings.linearize.highlight_reconstruction =
                     engine_api::recipe::settings::HighlightReconstruction::Clip;
             }
+            if change == 4 {
+                settings.detail.sharpening.amount = 80.0;
+            }
+            if change == 5 {
+                settings.detail.sharpening.amount = 0.0;
+                settings.detail.noise_reduction.color = 0.0;
+            }
             let rect = PixelRect::full(image.level_extent(level));
             let a = r.render_region(&image, &settings, level, rect).unwrap();
             let b = cpu.render_region(&image, &settings, level, rect).unwrap();
             let again = r.render_region(&image, &settings, level, rect).unwrap();
+            assert_eq!(a.len(), b.len());
+            assert_eq!(a.len(), again.len());
             for ((a, b), again) in a.iter().zip(&b).zip(&again) {
                 assert_eq!(a.coord(), b.coord());
                 assert_eq!(a.layout(), b.layout());
@@ -226,5 +263,61 @@ fn preview_matrices_run_only_at_output_resolution() {
             .matrix_pixels
             .load(std::sync::atomic::Ordering::Relaxed),
         2 * extent.area()
+    );
+    let pixels = || {
+        model
+            .detail_pixels
+            .load(std::sync::atomic::Ordering::Relaxed)
+    };
+    assert_eq!(
+        pixels(),
+        extent.area(),
+        "default Detail runs at preview resolution"
+    );
+    let mut settings = DevelopSettings::default();
+    settings.tone.exposure = 0.3;
+    r.render_region(&image, &settings, 2, PixelRect::full(extent))
+        .unwrap();
+    assert_eq!(pixels(), extent.area(), "tone reuses Detail");
+    settings.white_balance.mode = WhiteBalanceMode::Daylight;
+    r.render_region(&image, &settings, 2, PixelRect::full(extent))
+        .unwrap();
+    assert_eq!(pixels(), 2 * extent.area(), "WB invalidates Detail");
+    assert_eq!(
+        model
+            .matrix_pixels
+            .load(std::sync::atomic::Ordering::Relaxed),
+        4 * extent.area()
+    );
+    settings.detail.sharpening.amount = 80.0;
+    r.render_region(&image, &settings, 2, PixelRect::full(extent))
+        .unwrap();
+    assert_eq!(
+        pixels(),
+        3 * extent.area(),
+        "Detail edits invalidate only Detail"
+    );
+    assert_eq!(
+        model
+            .matrix_pixels
+            .load(std::sync::atomic::Ordering::Relaxed),
+        4 * extent.area()
+    );
+}
+
+#[test]
+fn disabled_detail_still_validates_controls() {
+    let r = Renderer::with_ops(
+        Arc::new(Model::default()),
+        Arc::new(TileCache::new(0)),
+        RendererConfig::default(),
+    );
+    let image = common::synthetic(12346, 41, 39, common::RGGB, [1, 1, 39, 37]);
+    let mut settings = DevelopSettings::default();
+    settings.detail.sharpening.amount = -1.0;
+    settings.detail.noise_reduction.color = 0.0;
+    assert!(
+        r.render_region(&image, &settings, 2, PixelRect::full(image.level_extent(2)))
+            .is_err()
     );
 }
