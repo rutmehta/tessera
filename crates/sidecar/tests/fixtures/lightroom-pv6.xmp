@@ -1,0 +1,21 @@
+<?xpacket begin="﻿" id="W5M0MpCehiHzreSzNTczkc9d"?>
+<!-- Authored test fixture, NOT captured Lightroom output. See FINDINGS.md for source format. -->
+<x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="Adobe XMP Core">
+ <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+  <rdf:Description rdf:about=""
+   xmlns:crs="http://ns.adobe.com/camera-raw-settings/1.0/"
+   xmlns:xmp="http://ns.adobe.com/xap/1.0/"
+   crs:ProcessVersion="15.4" crs:Exposure2012="+1.25" crs:WhiteBalance="Custom"
+   crs:Temperature="6200" crs:Tint="12" crs:PostCropVignetteStyle="2" xmp:Rating="3">
+   <crs:ToneCurvePV2012><rdf:Seq><rdf:li>0, 0</rdf:li><rdf:li>128, 140</rdf:li><rdf:li>255, 255</rdf:li></rdf:Seq></crs:ToneCurvePV2012>
+   <crs:MaskGroupBasedCorrections><rdf:Seq><rdf:li><rdf:Description
+    crs:What="Correction" crs:CorrectionName="Foreground" crs:CorrectionAmount="1"
+    crs:CorrectionActive="true" crs:LocalExposure2012="0.5">
+    <crs:CorrectionMasks><rdf:Seq><rdf:li crs:What="Mask/Gradient" crs:MaskActive="true"
+     crs:MaskInverted="false" crs:ZeroX="0.2" crs:ZeroY="0.3" crs:FullX="0.8" crs:FullY="0.9"/>
+    </rdf:Seq></crs:CorrectionMasks>
+   </rdf:Description></rdf:li></rdf:Seq></crs:MaskGroupBasedCorrections>
+  </rdf:Description>
+ </rdf:RDF>
+</x:xmpmeta>
+<?xpacket end="w"?>
