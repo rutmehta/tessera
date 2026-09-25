@@ -7,3 +7,5 @@ Fix three things, together, as native revision 2:
 3. **Regenerate the goldens** (`fixtures/golden/*.png`) from the new defaults and bump `NATIVE_CURRENT.revision` to 2 in engine-api (this is the one engine-api change allowed here; update the CONTRACTS.md change log). Confirm pipeline-gpu tests still pass against the new CPU reference (its ops delegate for anything unported).
 Also enable in `apps/mac` the Basic-panel sliders that were disabled for lack of operators (Texture, Clarity, Dehaze, Vibrance, Saturation now exist since M2-04): remove the disabled state and tooltips; nothing else in Swift.
 `cargo test --workspace --release`, clippy -D warnings on pipeline-cpu/pipeline-gpu/image-core/engine-api, fmt, `(cd apps/mac && swift build)`.
+
+Scope update: crates/sidecar/** and crates/tessera-ffi/** are now in your allowed paths. Update the sidecar revision assertion and the FFI develop session (new WB slider inverse; stop stripping the newly enabled Basic controls). The test command is the full workspace.
