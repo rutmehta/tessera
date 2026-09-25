@@ -11,6 +11,10 @@ struct RuleTextField: NSViewRepresentable {
     var diagnostic: RuleDiagnostic?
     var placeholder: String
     var onSubmit: () -> Void = {}
+    /// Borderless, for embedding in a `FieldContainer` (the filter bar's search field).
+    var plain = false
+    /// Monospaced grammar text (the smart-album rule).
+    var monospaced = false
 
     final class Coordinator: NSObject, NSTextFieldDelegate {
         var parent: RuleTextField
@@ -45,10 +49,17 @@ struct RuleTextField: NSViewRepresentable {
         let field = NSTextField(string: text)
         field.delegate = context.coordinator
         field.placeholderString = placeholder
-        field.font = .monospacedSystemFont(ofSize: 11.5, weight: .regular)
-        field.bezelStyle = .roundedBezel
-        field.isBordered = true
-        field.focusRingType = .exterior
+        field.font = monospaced ? Theme.NSFonts.labelMono : Theme.NSFonts.label
+        if plain {
+            field.isBordered = false
+            field.isBezeled = false
+            field.drawsBackground = false
+            field.focusRingType = .none
+        } else {
+            field.bezelStyle = .roundedBezel
+            field.isBordered = true
+            field.focusRingType = .exterior
+        }
         field.cell?.isScrollable = true
         field.cell?.wraps = false
         field.lineBreakMode = .byClipping
@@ -74,8 +85,8 @@ struct RuleTextField: NSViewRepresentable {
     static func highlight(_ field: NSTextField, text: String, diagnostic: RuleDiagnostic?) {
         let marks: [NSAttributedString.Key: Any] = [
             .underlineStyle: NSUnderlineStyle.thick.rawValue | NSUnderlineStyle.patternDot.rawValue,
-            .underlineColor: Theme.reject,
-            .backgroundColor: Theme.reject.withAlphaComponent(0.22),
+            .underlineColor: Theme.Palette.reject,
+            .backgroundColor: Theme.Palette.reject.withAlphaComponent(0.22),
         ]
         var range = diagnostic.map { $0.nsRange(in: text) }
         let length = (text as NSString).length
@@ -92,8 +103,8 @@ struct RuleTextField: NSViewRepresentable {
             return
         }
         let attributed = NSMutableAttributedString(string: text, attributes: [
-            .font: field.font ?? NSFont.systemFont(ofSize: 11.5),
-            .foregroundColor: NSColor.labelColor,
+            .font: field.font ?? Theme.NSFonts.label,
+            .foregroundColor: Theme.Palette.textPrimary,
         ])
         if let r = range, NSMaxRange(r) <= length { attributed.addAttributes(marks, range: r) }
         if field.attributedStringValue != attributed { field.attributedStringValue = attributed }
@@ -107,13 +118,11 @@ struct RuleMessage: View {
 
     var body: some View {
         if let d = diagnostic {
-            Text(d.message)
-                .font(.system(size: 11))
-                .foregroundStyle(Color(nsColor: Theme.reject))
+            StatusLine(text: d.message, kind: .error)
                 .lineLimit(2)
                 .accessibilityIdentifier("ruleDiagnostic")
         } else {
-            Text(hint).font(.system(size: 11)).foregroundStyle(.tertiary).lineLimit(1)
+            Text(hint).font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary).lineLimit(1)
         }
     }
 }

@@ -15,24 +15,22 @@ struct MasksPanel: View {
     var body: some View {
         let ready = model.developStatus == .ready
         let _ = masks.revision
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: Theme.Space.s) {
+            HStack(spacing: Theme.Space.s) {
                 Toggle(isOn: Binding(get: { masks.active }, set: { masks.setActive($0) })) {
-                    Text("Masking").font(.system(size: 11))
+                    Text("Show mask tools").font(Theme.Fonts.caption).foregroundStyle(Theme.textPrimary)
                 }
-                .toggleStyle(.switch)
-                .controlSize(.mini)
+                .toggleStyle(.checkbox)
+                .controlSize(.small)
                 .help("Show the mask tools on the loupe (M)")
                 Spacer()
                 createMenu
             }
             if masks.list.groups.isEmpty {
-                Text(ready ? "No masks. Pick a tool on the loupe or from Create; AI masks run on this Mac."
+                Hint(ready ? "No masks. Pick a tool on the loupe or from Create; AI masks run on this Mac."
                            : "Open a RAW in the loupe (E)")
-                    .font(.system(size: 10)).foregroundStyle(.tertiary)
-                    .fixedSize(horizontal: false, vertical: true)
             } else {
-                VStack(spacing: 2) {
+                VStack(spacing: Theme.Space.xxs) {
                     ForEach(masks.list.groups, id: \.id) { g in row(g) }
                 }
             }
@@ -60,10 +58,9 @@ struct MasksPanel: View {
                 Button(MaskTool.luminanceRange.title) { arm(.luminanceRange) }
             }
         } label: {
-            Label("Create", systemImage: "plus").font(.system(size: 11))
+            Label("Create", systemImage: "plus")
         }
-        .menuStyle(.borderlessButton)
-        .fixedSize()
+        .menuStyle(ThemeMenuStyle(height: Theme.Height.small))
         .help("New mask")
     }
 
@@ -77,47 +74,44 @@ struct MasksPanel: View {
 
     private func row(_ g: MaskGroupInfo) -> some View {
         let selected = g.id == masks.list.selectedID
-        return HStack(spacing: 8) {
+        return HStack(spacing: Theme.Space.s) {
             thumbnail(g)
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: Theme.Space.xxs) {
                 if renaming == g.id {
                     TextField("Name", text: $name)
                         .textFieldStyle(.plain)
-                        .font(.system(size: 11))
+                        .font(Theme.Fonts.caption)
                         .onSubmit { masks.rename(g.id, to: name); renaming = nil }
                         .onExitCommand { renaming = nil }
                 } else {
-                    Text(g.name).font(.system(size: 11, weight: selected ? .semibold : .regular)).lineLimit(1)
+                    Text(g.name).font(selected ? Theme.Fonts.captionSemibold : Theme.Fonts.caption)
+                        .foregroundStyle(Theme.textPrimary).lineLimit(1)
                 }
-                HStack(spacing: 3) {
+                HStack(spacing: Theme.Space.xs) {
                     ForEach(Array(g.components.enumerated()), id: \.offset) { i, c in
-                        if i > 0 { Text(c.combine.sign).font(.system(size: 9)).foregroundStyle(.tertiary) }
-                        Image(systemName: c.kind.symbol).font(.system(size: 9))
-                            .foregroundStyle(c.invert ? Color(nsColor: Theme.accent) : .secondary)
+                        if i > 0 { Text(c.combine.sign).font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary) }
+                        Image(systemName: c.kind.symbol).font(Theme.Fonts.iconSmall)
+                            .foregroundStyle(c.invert ? Theme.accent : Theme.textSecondary)
                     }
-                    if g.invert { Text("inverted").font(.system(size: 9)).foregroundStyle(.tertiary) }
+                    if g.invert { Text("inverted").font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary) }
                     if g.components.contains(where: { if case .failed = $0.ai { true } else { false } }) {
-                        Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 9))
-                            .foregroundStyle(Color(nsColor: Theme.reject))
+                        Image(systemName: "exclamationmark.triangle.fill").font(Theme.Fonts.iconSmall)
+                            .foregroundStyle(Theme.reject)
                     }
                     if g.components.contains(where: { if case .pending = $0.ai { true } else { false } }) {
-                        ProgressView().controlSize(.mini).scaleEffect(0.6).frame(width: 10, height: 10)
+                        ProgressView().controlSize(.mini).scaleEffect(0.6).frame(width: Theme.Space.m, height: Theme.Space.m)
                     }
                 }
             }
             Spacer(minLength: 0)
-            Button {
+            IconButton(symbol: g.enabled ? "eye" : "eye.slash",
+                       help: g.enabled ? "Hide this mask's adjustments" : "Show this mask's adjustments",
+                       size: Theme.Height.small) {
                 masks.setEnabled(g.id, !g.enabled)
-            } label: {
-                Image(systemName: g.enabled ? "eye" : "eye.slash").font(.system(size: 11))
-                    .foregroundStyle(g.enabled ? .secondary : .tertiary)
-                    .frame(width: 20, height: 20).contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
-            .help(g.enabled ? "Hide this mask's adjustments" : "Show this mask's adjustments")
         }
-        .padding(4)
-        .background(RoundedRectangle(cornerRadius: 5).fill(selected ? Color.white.opacity(0.09) : Color.clear))
+        .padding(Theme.Space.xs)
+        .background(RoundedRectangle(cornerRadius: Theme.Radius.control).fill(selected ? Theme.accentSubtle : Theme.clear))
         .contentShape(Rectangle())
         .onTapGesture(count: 2) { name = g.name; renaming = g.id }
         .onTapGesture { masks.select(g.id) }
@@ -132,26 +126,26 @@ struct MasksPanel: View {
 
     private func thumbnail(_ g: MaskGroupInfo) -> some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 3).fill(Color.black.opacity(0.5))
+            RoundedRectangle(cornerRadius: Theme.Radius.chip).fill(Theme.well)
             if let image = masks.thumbnails[g.id] {
                 Image(decorative: image, scale: 1).resizable().interpolation(.medium).aspectRatio(contentMode: .fit)
             } else {
                 Image(systemName: g.components.first?.kind.symbol ?? "circle.dashed")
-                    .font(.system(size: 12)).foregroundStyle(.tertiary)
+                    .font(Theme.Fonts.icon).foregroundStyle(Theme.textTertiary)
             }
         }
-        .frame(width: 34, height: 26)
-        .clipShape(RoundedRectangle(cornerRadius: 3))
-        .opacity(g.enabled ? 1 : 0.45)
+        .frame(width: 36, height: 28)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.chip))
+        .opacity(g.enabled ? 1 : Theme.Opacity.hidden)
     }
 
     // MARK: Selected group
 
     private func detail(_ g: MaskGroupInfo) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Divider().padding(.vertical, 2)
-            HStack {
-                Text("COMPONENTS").font(.system(size: 9, weight: .semibold)).tracking(0.6).foregroundStyle(.tertiary)
+        VStack(alignment: .leading, spacing: Theme.Space.xs) {
+            Hairline().padding(.vertical, Theme.Space.xs)
+            HStack(spacing: Theme.Space.xs) {
+                Text("Components").font(Theme.Fonts.captionMedium).foregroundStyle(Theme.textSecondary)
                 Spacer()
                 ForEach([MaskCombineMode.add, .subtract, .intersect], id: \.self) { mode in
                     Menu {
@@ -166,51 +160,55 @@ struct MasksPanel: View {
                             if !(t == .brush && mode != .add) { Button(t.title) { masks.arm(t, combine: mode) } }
                         }
                     } label: {
-                        Text(mode.title).font(.system(size: 10))
+                        Text(mode.title)
                     }
-                    .menuStyle(.borderlessButton)
-                    .fixedSize()
+                    .menuStyle(ThemeMenuStyle(height: Theme.Height.small))
                     .help("\(mode.title) a component \(mode == .add ? "to" : mode == .subtract ? "from" : "with") this mask")
                 }
             }
             ForEach(Array(g.components.enumerated()), id: \.offset) { i, c in componentRow(g, i, c) }
-            HStack(spacing: 8) {
+            HStack(spacing: Theme.Space.s) {
                 Toggle("Invert", isOn: Binding(get: { g.invert }, set: { _ in masks.invertSelected() }))
-                    .toggleStyle(.checkbox).font(.system(size: 11))
+                    .toggleStyle(.checkbox).font(Theme.Fonts.caption).controlSize(.small)
                     .help("Invert the whole mask (X)")
                 Spacer()
-                Button("Reset Sliders") { masks.resetParams() }.controlSize(.small)
+                Button("Reset Sliders") { masks.resetParams() }.buttonStyle(.theme(.bordered, height: Theme.Height.small))
             }
-            MaskAmountSlider(masks: masks, groupID: g.id).frame(height: 30)
-            ForEach(LocalParam.sections, id: \.0) { section in
-                Text(section.0).font(.system(size: 10, weight: .medium)).foregroundStyle(.tertiary).padding(.top, 2)
-                ForEach(section.1) { p in
-                    MaskParamSlider(masks: masks, param: p, groupID: g.id).frame(height: 30)
+            VStack(alignment: .leading, spacing: 0) {
+                MaskAmountSlider(masks: masks, groupID: g.id).frame(height: Theme.Height.slider)
+                ForEach(LocalParam.sections, id: \.0) { section in
+                    SubHeader(section.0)
+                    ForEach(section.1) { p in
+                        MaskParamSlider(masks: masks, param: p, groupID: g.id).frame(height: Theme.Height.slider)
+                    }
                 }
             }
         }
     }
 
     private func componentRow(_ g: MaskGroupInfo, _ i: Int, _ c: MaskComponentInfo) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: c.kind.symbol).font(.system(size: 11)).frame(width: 16)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(c.title).font(.system(size: 11)).lineLimit(1)
+        HStack(spacing: Theme.Space.s - Theme.Space.xxs) {
+            Image(systemName: c.kind.symbol).font(Theme.Fonts.iconSmall).foregroundStyle(Theme.textSecondary)
+                .frame(width: Theme.Space.l)
+            VStack(alignment: .leading, spacing: Theme.Space.xxs) {
+                Text(c.title).font(Theme.Fonts.caption).foregroundStyle(Theme.textPrimary).lineLimit(1)
                 switch c.ai {
                 case .pending(let f, let m):
                     let live = c.aiKey.flatMap { masks.list.progress[$0] }
                     ProgressView(value: Double(live?.fraction ?? f)) {
-                        Text(live?.message ?? m).font(.system(size: 9)).foregroundStyle(.secondary)
+                        Text(live?.message ?? m).font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
                     }
                     .controlSize(.mini)
                 case .failed(let m):
-                    HStack(spacing: 4) {
-                        Text(m).font(.system(size: 9)).foregroundStyle(Color(nsColor: Theme.reject)).lineLimit(2)
-                        if let key = c.aiKey { Button("Retry") { masks.retry(key) }.controlSize(.mini) }
+                    HStack(spacing: Theme.Space.xs) {
+                        StatusLine(text: m, kind: .error).lineLimit(2)
+                        if let key = c.aiKey {
+                            Button("Retry") { masks.retry(key) }.buttonStyle(.theme(.bordered, height: Theme.Height.small))
+                        }
                     }
                 default:
                     if !c.rendered {
-                        Text("Kept, not drawn by this version").font(.system(size: 9)).foregroundStyle(.tertiary)
+                        Text("Kept, not drawn by this version").font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary)
                     }
                 }
             }
@@ -221,30 +219,20 @@ struct MasksPanel: View {
                         Button(m.title) { masks.setComponentMode(i, combine: m, invert: c.invert) }
                     }
                 } label: {
-                    Text(c.combine.sign).font(.system(size: 11, weight: .semibold)).frame(width: 14)
+                    Text(c.combine.sign).font(Theme.Fonts.captionSemibold)
                 }
-                .menuStyle(.borderlessButton)
-                .menuIndicator(.hidden)
-                .fixedSize()
+                .menuStyle(IconMenuStyle())
                 .help("\(c.combine.title) (change how this component combines)")
             }
-            Button {
+            IconButton(symbol: "circle.righthalf.filled", help: "Invert this component", on: c.invert, size: Theme.Height.small) {
                 masks.setComponentMode(i, combine: c.combine, invert: !c.invert)
-            } label: {
-                Image(systemName: "circle.righthalf.filled").font(.system(size: 10))
-                    .foregroundStyle(c.invert ? Color(nsColor: Theme.accent) : .secondary)
             }
-            .buttonStyle(.plain)
-            .help("Invert this component")
-            Button {
+            IconButton(symbol: "xmark", help: g.components.count == 1 ? "Delete the mask" : "Remove this component",
+                       size: Theme.Height.small) {
                 masks.removeComponent(i)
-            } label: {
-                Image(systemName: "xmark").font(.system(size: 9)).foregroundStyle(.tertiary)
             }
-            .buttonStyle(.plain)
-            .help(g.components.count == 1 ? "Delete the mask" : "Remove this component")
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, Theme.Space.xxs)
     }
 }
 

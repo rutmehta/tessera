@@ -10,9 +10,9 @@ struct MaskToolbar: View {
 
     var body: some View {
         let ready = model.developStatus == .ready
-        VStack(spacing: 6) {
+        VStack(spacing: Theme.Space.xs) {
             if masks.active {
-                HStack(spacing: 2) {
+                HStack(spacing: Theme.Space.xxs) {
                     ForEach([MaskTool.brush, .linear, .radial, .colorRange, .luminanceRange], id: \.self) { t in
                         toolButton(t)
                     }
@@ -26,98 +26,62 @@ struct MaskToolbar: View {
                     overlayControls
                     separator
                     Button("Done") { masks.setActive(false) }
-                        .buttonStyle(.plain)
-                        .font(.system(size: 11, weight: .medium))
-                        .padding(.horizontal, 8)
+                        .buttonStyle(.theme(.borderless, height: Theme.Height.large))
                         .help("Leave masking (M)")
                 }
-                .padding(4)
-                .background(bar)
-                if masks.tool == .brush { brushHUD.padding(.horizontal, 10).padding(.vertical, 5).background(bar) }
+                .padding(Theme.Space.xs)
+                .background(HUDBackground())
+                if masks.tool == .brush {
+                    brushHUD
+                        .padding(.horizontal, Theme.Space.m)
+                        .frame(height: Theme.Height.large + Theme.Space.xs)
+                        .background(HUDBackground())
+                }
                 if masks.list.busy, let p = masks.list.progress.values.first {
-                    HStack(spacing: 6) {
-                        ProgressView(value: Double(p.fraction)).frame(width: 90).controlSize(.small)
-                        Text(p.message).font(.system(size: 10)).foregroundStyle(.secondary)
+                    HStack(spacing: Theme.Space.s) {
+                        ProgressView(value: Double(p.fraction)).frame(width: 96).controlSize(.small)
+                        Text(p.message).font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
                     }
-                    .padding(.horizontal, 10).padding(.vertical, 4).background(bar)
+                    .padding(.horizontal, Theme.Space.m)
+                    .frame(height: Theme.Height.large)
+                    .background(HUDBackground())
                 }
-            } else if ready {
-                HStack {
-                    Spacer()
-                    Button {
-                        masks.setActive(true)
-                    } label: {
-                        Label("Masks", systemImage: "circle.lefthalf.striped.horizontal")
-                            .font(.system(size: 11, weight: .medium))
-                            .padding(.horizontal, 8).padding(.vertical, 4)
-                            .background(bar)
-                    }
-                    .buttonStyle(.plain)
-                    .help("Local adjustments with masks (M)")
-                }
-                .padding(.top, 28)
             }
             Spacer()
         }
-        .padding(10)
+        // Below the loupe's 32 pt information strip, never over its text.
+        .padding(.top, Theme.Height.sectionHeader + Theme.Space.xs)
         .disabled(!ready)
-        .animation(.easeOut(duration: 0.12), value: masks.active)
-        .animation(.easeOut(duration: 0.12), value: masks.tool)
-    }
-
-    private var bar: some View {
-        RoundedRectangle(cornerRadius: 7)
-            .fill(Color(nsColor: NSColor(calibratedWhite: 0.1, alpha: 0.88)))
-            .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(Color.white.opacity(0.08)))
+        .tint(Theme.accent)
     }
 
     private var separator: some View {
-        Rectangle().fill(Color.white.opacity(0.12)).frame(width: 1, height: 18).padding(.horizontal, 4)
+        Hairline(vertical: true).frame(height: Theme.Height.small).padding(.horizontal, Theme.Space.xs)
     }
 
     private func toolButton(_ t: MaskTool) -> some View {
-        let on = masks.tool == t
-        return Button {
+        IconButton(symbol: t.symbol, help: "\(t.title) — \(t.hint)", on: masks.tool == t, size: Theme.Height.large) {
             masks.target = nil
-            masks.tool = on ? nil : t
-        } label: {
-            Image(systemName: t.symbol)
-                .font(.system(size: 12, weight: .medium))
-                .frame(width: 28, height: 24)
-                .foregroundStyle(on ? Color.black.opacity(0.85) : Color.primary)
-                .background(RoundedRectangle(cornerRadius: 5).fill(on ? Color(nsColor: Theme.accent) : Color.clear))
-                .contentShape(Rectangle())
+            masks.tool = masks.tool == t ? nil : t
         }
-        .buttonStyle(.plain)
-        .help("\(t.title) — \(t.hint)")
     }
 
     private func aiButton(_ title: String, _ symbol: String, _ request: AiMaskRequest) -> some View {
         Button {
             masks.runAI(request, title: title, option: NSEvent.modifierFlags.contains(.option))
         } label: {
-            HStack(spacing: 3) {
-                Image(systemName: symbol).font(.system(size: 11))
-                Text(title).font(.system(size: 11))
-            }
-            .padding(.horizontal, 6)
-            .frame(height: 24)
-            .contentShape(Rectangle())
+            Label(title, systemImage: symbol).labelStyle(.titleAndIcon)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.theme(.borderless, height: Theme.Height.large))
         .help("Select the \(title.lowercased()) with the on-device model (⌥ subtracts from the selected mask)")
     }
 
     private var overlayControls: some View {
-        HStack(spacing: 4) {
-            Button {
+        HStack(spacing: Theme.Space.xxs) {
+            IconButton(symbol: masks.overlayOn ? "eye.fill" : "eye.slash", help: "Show the mask overlay (O)",
+                       on: masks.overlayOn, size: Theme.Height.large) {
                 masks.overlayOn.toggle()
-            } label: {
-                Image(systemName: masks.overlayOn ? "eye.fill" : "eye.slash")
-                    .font(.system(size: 11)).frame(width: 24, height: 24).contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
-            .help("Show the mask overlay (O)")
             Menu {
                 ForEach(MaskOverlayColor.allCases, id: \.self) { c in
                     Button(c.rawValue.capitalized) { masks.overlayColor = c; masks.overlayOn = true }
@@ -127,33 +91,32 @@ struct MaskToolbar: View {
                     Button(String(format: "Opacity %.0f%%", o * 100)) { masks.overlayOpacity = o }
                 }
             } label: {
-                Circle().fill(Color(red: Double(masks.overlayColor.rgb.r), green: Double(masks.overlayColor.rgb.g),
-                                    blue: Double(masks.overlayColor.rgb.b)))
-                    .overlay(Circle().strokeBorder(Color.white.opacity(0.4)))
-                    .frame(width: 12, height: 12)
+                Circle().fill(Color(nsColor: NSColor(srgbRed: CGFloat(masks.overlayColor.rgb.r),   // lint:allow (user overlay colour)
+                                                     green: CGFloat(masks.overlayColor.rgb.g),
+                                                     blue: CGFloat(masks.overlayColor.rgb.b), alpha: 1)))
+                    .overlay(Circle().strokeBorder(Theme.hairlineStrong))
+                    .frame(width: Theme.Space.m, height: Theme.Space.m)
             }
-            .menuStyle(.borderlessButton)
-            .menuIndicator(.hidden)
-            .fixedSize()
+            .menuStyle(IconMenuStyle())
             .help("Overlay colour (⇧O)")
         }
     }
 
     private var brushHUD: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: Theme.Space.l) {
             hudSlider("Size", value: $masks.brushSize, range: 2...400, format: "%.0f pt")
             hudSlider("Feather", value: $masks.brushFeather, range: 0...100, format: "%.0f")
             hudSlider("Flow", value: $masks.brushFlow, range: 1...100, format: "%.0f")
-            Text("⌥ erase  [ ] size").font(.system(size: 10)).foregroundStyle(.tertiary)
+            Text("⌥ erase  ·  [ ] size").font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary)
         }
     }
 
     private func hudSlider(_ title: String, value: Binding<Double>, range: ClosedRange<Double>, format: String) -> some View {
-        HStack(spacing: 5) {
-            Text(title).font(.system(size: 10)).foregroundStyle(.secondary)
+        HStack(spacing: Theme.Space.s - Theme.Space.xxs) {
+            Text(title).font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
             Slider(value: value, in: range).controlSize(.mini).frame(width: 80)
             Text(String(format: format, value.wrappedValue))
-                .font(.system(size: 10).monospacedDigit()).foregroundStyle(.secondary).frame(width: 40, alignment: .leading)
+                .font(Theme.Fonts.captionNumeric).foregroundStyle(Theme.textPrimary).frame(width: 40, alignment: .leading)
         }
     }
 }

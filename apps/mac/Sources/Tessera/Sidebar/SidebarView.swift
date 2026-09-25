@@ -4,13 +4,13 @@ import TesseraCore
 
 /// Left sidebar: library sources, folders, albums (with album groups and smart albums, nestable
 /// and reorderable by drag), and the culling presets. Plain text rows with counts; no icon
-/// column. AppKit `NSOutlineView` for drag-and-drop, inline rename and context menus.
+/// column. AppKit `NSOutlineView` for drag-and-drop, inline rename and context menus; the
+/// source-list material shows through (no painted background).
 struct SidebarView: View {
     let model: AppModel
 
     var body: some View {
         SidebarOutline(model: model, snapshot: SidebarSnapshot(model: model))
-            .background(Color(nsColor: Theme.windowBackground))
     }
 }
 
@@ -75,6 +75,10 @@ final class SidebarRow: NSObject {
     var count: Int?
     var swatch: NSColor?
     var outlined = false
+    /// Nesting inside a section that is not an outline level (subfolders of the open folder).
+    var indent = 0
+    /// Disambiguation after the title in tertiary text (a recent folder's parent).
+    var detail: String?
     var badge: String?
     var tooltip: String?
     var children: [SidebarRow] = []
@@ -128,9 +132,9 @@ final class SidebarController: NSObject, NSOutlineViewDataSource, NSOutlineViewD
         outline.style = .sourceList
         outline.backgroundColor = .clear
         outline.floatsGroupRows = false
-        outline.indentationPerLevel = 12
+        outline.indentationPerLevel = Theme.Space.m
         outline.rowSizeStyle = .custom
-        outline.intercellSpacing = NSSize(width: 0, height: 2)
+        outline.intercellSpacing = NSSize(width: 0, height: 0)
         outline.dataSource = self
         outline.delegate = self
         outline.registerForDraggedTypes([.sidebarNode])
@@ -216,12 +220,14 @@ final class SidebarController: NSObject, NSOutlineViewDataSource, NSOutlineViewD
         current.tooltip = s.folder?.path
         folders.children = [current]
         for sub in s.subfolders {
-            let r = SidebarRow(.folder(sub), key: "folder:\(sub.path)", title: "   " + sub.lastPathComponent)
+            let r = SidebarRow(.folder(sub), key: "folder:\(sub.path)", title: sub.lastPathComponent)
+            r.indent = 1
             r.tooltip = sub.path
             folders.children.append(r)
         }
         for url in s.recents {
             let r = SidebarRow(.folder(url), key: "recent:\(url.path)", title: url.lastPathComponent)
+            r.detail = url.deletingLastPathComponent().lastPathComponent
             r.tooltip = url.path
             folders.children.append(r)
         }
@@ -234,7 +240,7 @@ final class SidebarController: NSObject, NSOutlineViewDataSource, NSOutlineViewD
                 let handle = node.handle ?? node.name
                 r.count = s.albumCounts[handle] ?? node.imageCount
                 if handle == s.basketTarget {
-                    r.swatch = Theme.basket
+                    r.swatch = Theme.Palette.basket
                     r.badge = "B"
                     r.tooltip = "Basket target: B adds here. ⌫ in this album removes from the album only."
                 } else {
@@ -255,7 +261,7 @@ final class SidebarController: NSObject, NSOutlineViewDataSource, NSOutlineViewD
         if !hasTarget {
             let r = SidebarRow(.pendingBasket(s.basketTarget), key: "basket:\(s.basketTarget)", title: s.basketTarget)
             r.count = s.albumCounts[s.basketTarget] ?? 0
-            r.swatch = Theme.basket
+            r.swatch = Theme.Palette.basket
             r.badge = "B"
             r.tooltip = "Basket target: created on the first B"
             albums.children.insert(r, at: 0)
@@ -263,9 +269,9 @@ final class SidebarController: NSObject, NSOutlineViewDataSource, NSOutlineViewD
 
         let cull = SidebarRow(.header(.cull), key: "hdr:cull", title: "Culling")
         let presets: [(LibrarySource, String, Int?, NSColor?)] = [
-            (.decision(.keep), "src:decision:\(Decision.keep)", s.keep, Theme.keep),
+            (.decision(.keep), "src:decision:\(Decision.keep)", s.keep, Theme.Palette.keep),
             (.decision(.undecided), "src:decision:\(Decision.undecided)", s.undecided, nil),
-            (.decision(.reject), "src:decision:\(Decision.reject)", s.reject, Theme.reject),
+            (.decision(.reject), "src:decision:\(Decision.reject)", s.reject, Theme.Palette.reject),
         ] + [UInt8(6), 7, 8, 9].map { m in (LibrarySource.mark(m), "src:mark:\(m)", nil, MarkStyle.color(m)) }
         cull.children = presets.map { source, key, count, swatch in
             let r = SidebarRow(.source(source), key: key, title: source.title)
@@ -308,7 +314,11 @@ final class SidebarController: NSObject, NSOutlineViewDataSource, NSOutlineViewD
     }
 
     func outlineView(_ outlineView: NSOutlineView, heightOfRowByItem item: Any) -> CGFloat {
-        (item as? SidebarRow)?.isHeader == true ? 26 : 22
+        (item as? SidebarRow)?.isHeader == true ? Theme.Height.large : Theme.Height.row
+    }
+
+    func outlineView(_ outlineView: NSOutlineView, rowViewForItem item: Any) -> NSTableRowView? {
+        SidebarRowView()
     }
 
     func outlineViewItemDidCollapse(_ notification: Notification) {
@@ -510,6 +520,19 @@ final class ClosureMenuItem: NSMenuItem {
     }
 }
 
+/// Selection: the subtle accent fill with the control radius (not the system accent slab), so
+/// text keeps its own colour and the sidebar has one accent.
+final class SidebarRowView: NSTableRowView {
+    override var isEmphasized: Bool { get { false } set {} }
+
+    override func drawSelection(in dirtyRect: NSRect) {
+        guard selectionHighlightStyle != .none else { return }
+        let r = bounds.insetBy(dx: Theme.Space.s, dy: 0)
+        Theme.Palette.accentSubtle.setFill()
+        NSBezierPath(roundedRect: r, xRadius: Theme.Radius.control, yRadius: Theme.Radius.control).fill()
+    }
+}
+
 final class SidebarHeaderCell: NSTableCellView {
     static let identifier = NSUserInterfaceItemIdentifier("SidebarHeaderCell")
     private let label = NSTextField(labelWithString: "")
@@ -518,8 +541,8 @@ final class SidebarHeaderCell: NSTableCellView {
     init() {
         super.init(frame: .zero)
         identifier = Self.identifier
-        label.font = .systemFont(ofSize: 10, weight: .semibold)
-        label.textColor = Theme.textSecondary
+        label.font = Theme.NSFonts.captionSemibold
+        label.textColor = Theme.Palette.textTertiary
         label.translatesAutoresizingMaskIntoConstraints = false
         add.translatesAutoresizingMaskIntoConstraints = false
         add.isBordered = false
@@ -530,27 +553,29 @@ final class SidebarHeaderCell: NSTableCellView {
         addSubview(label)
         addSubview(add)
         NSLayoutConstraint.activate([
-            label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 2),
-            label.centerYAnchor.constraint(equalTo: centerYAnchor, constant: 2),
-            add.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -6),
-            add.centerYAnchor.constraint(equalTo: centerYAnchor, constant: 1),
-            add.widthAnchor.constraint(equalToConstant: 24),
+            label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: Theme.Space.xxs),
+            label.firstBaselineAnchor.constraint(equalTo: bottomAnchor, constant: -Theme.Space.s),
+            add.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -Theme.Space.xs),
+            add.centerYAnchor.constraint(equalTo: label.centerYAnchor),
+            add.widthAnchor.constraint(equalToConstant: Theme.Height.small),
+            add.heightAnchor.constraint(equalToConstant: Theme.Height.small),
         ])
     }
 
     required init?(coder: NSCoder) { fatalError() }
 
     func configure(title: String, addMenu: NSMenu?) {
-        label.stringValue = title.uppercased()
+        label.stringValue = title
         add.isHidden = addMenu == nil
         guard let addMenu else { return }
         let menu = NSMenu()
-        let plus = NSMenuItem(title: "+", action: nil, keyEquivalent: "")
-        plus.attributedTitle = NSAttributedString(string: "+", attributes: [
-            .font: NSFont.systemFont(ofSize: 14, weight: .regular), .foregroundColor: Theme.textSecondary])
+        let plus = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        plus.image = NSImage(systemSymbolName: "plus", accessibilityDescription: "Add")?
+            .withSymbolConfiguration(.init(pointSize: 11, weight: .medium))
         menu.addItem(plus)
         for i in addMenu.items { menu.addItem(i.copy() as! NSMenuItem) }
         add.menu = menu
+        add.contentTintColor = Theme.Palette.textTertiary
     }
 }
 
@@ -558,7 +583,9 @@ final class SidebarCell: NSTableCellView {
     static let identifier = NSUserInterfaceItemIdentifier("SidebarCell")
     private let swatch = NSView()
     private let badge = NSTextField(labelWithString: "")
+    private let detail = NSTextField(labelWithString: "")
     private let count = NSTextField(labelWithString: "")
+    private var leading: NSLayoutConstraint?
 
     init() {
         super.init(frame: .zero)
@@ -570,41 +597,55 @@ final class SidebarCell: NSTableCellView {
         title.drawsBackground = false
         textField = title
         swatch.wantsLayer = true
-        swatch.layer?.cornerRadius = 2
-        badge.font = .monospacedSystemFont(ofSize: 9, weight: .bold)
-        badge.textColor = Theme.basket
-        badge.wantsLayer = true
-        badge.layer?.borderColor = Theme.basket.withAlphaComponent(0.6).cgColor
-        badge.layer?.borderWidth = 1
-        badge.layer?.cornerRadius = 2
+        swatch.layer?.cornerRadius = Theme.Space.xxs
+        badge.font = Theme.NSFonts.captionMedium
+        badge.textColor = Theme.Palette.textTertiary
         badge.alignment = .center
-        count.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
-        count.textColor = .secondaryLabelColor
+        badge.wantsLayer = true
+        badge.layer?.cornerRadius = Theme.Radius.chip
+        badge.layer?.borderWidth = Theme.Space.hairline
+        detail.font = Theme.NSFonts.caption
+        detail.textColor = Theme.Palette.textTertiary
+        detail.lineBreakMode = .byTruncatingTail
+        count.font = Theme.NSFonts.captionNumeric
+        count.textColor = Theme.Palette.textTertiary
         count.alignment = .right
-        for v in [swatch, title, badge, count] as [NSView] {
+        for v in [swatch, title, badge, detail, count] as [NSView] {
             v.translatesAutoresizingMaskIntoConstraints = false
             addSubview(v)
         }
         title.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        detail.setContentCompressionResistancePriority(.defaultLow - 1, for: .horizontal)
         count.setContentCompressionResistancePriority(.required, for: .horizontal)
         badge.setContentCompressionResistancePriority(.required, for: .horizontal)
+        let leading = swatch.leadingAnchor.constraint(equalTo: leadingAnchor, constant: Theme.Space.xxs)
+        self.leading = leading
         NSLayoutConstraint.activate([
-            swatch.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 2),
+            leading,
             swatch.centerYAnchor.constraint(equalTo: centerYAnchor),
-            swatch.widthAnchor.constraint(equalToConstant: 8),
-            swatch.heightAnchor.constraint(equalToConstant: 8),
-            title.leadingAnchor.constraint(equalTo: swatch.trailingAnchor, constant: 8),
+            swatch.widthAnchor.constraint(equalToConstant: Theme.Space.s),
+            swatch.heightAnchor.constraint(equalToConstant: Theme.Space.s),
+            title.leadingAnchor.constraint(equalTo: swatch.trailingAnchor, constant: Theme.Space.s),
             title.centerYAnchor.constraint(equalTo: centerYAnchor),
-            badge.leadingAnchor.constraint(equalTo: title.trailingAnchor, constant: 6),
+            detail.leadingAnchor.constraint(equalTo: title.trailingAnchor, constant: Theme.Space.xs),
+            detail.firstBaselineAnchor.constraint(equalTo: title.firstBaselineAnchor),
+            badge.leadingAnchor.constraint(equalTo: detail.trailingAnchor, constant: Theme.Space.xs),
             badge.centerYAnchor.constraint(equalTo: centerYAnchor),
-            badge.widthAnchor.constraint(greaterThanOrEqualToConstant: 13),
-            count.leadingAnchor.constraint(greaterThanOrEqualTo: badge.trailingAnchor, constant: 6),
-            count.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -6),
-            count.centerYAnchor.constraint(equalTo: centerYAnchor),
+            badge.widthAnchor.constraint(equalToConstant: Theme.Height.chip),
+            badge.heightAnchor.constraint(equalToConstant: Theme.Height.chip),
+            count.leadingAnchor.constraint(greaterThanOrEqualTo: badge.trailingAnchor, constant: Theme.Space.xs),
+            count.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -Theme.Space.s),
+            count.firstBaselineAnchor.constraint(equalTo: title.firstBaselineAnchor),
         ])
     }
 
     required init?(coder: NSCoder) { fatalError() }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        badge.layer?.borderColor = Theme.Palette.hairlineStrong.cgColor(for: self)
+        swatch.layer?.borderColor = Theme.Palette.textTertiary.cgColor(for: self)
+    }
 
     func configure(_ row: SidebarRow) {
         guard let title = textField else { return }
@@ -612,23 +653,21 @@ final class SidebarCell: NSTableCellView {
         title.isEditable = false
         let group = row.node?.kind == .group
         let secondary: Bool = switch row.kind {
-        case .folder, .currentFolder: row.key.hasPrefix("recent:") || row.title.hasPrefix("   ")
+        case .folder, .currentFolder: row.key.hasPrefix("recent:") || row.indent > 0
         default: false
         }
-        title.font = .systemFont(ofSize: 12, weight: group || row.key == "folder:current" ? .medium : .regular)
-        title.textColor = secondary ? .secondaryLabelColor : .labelColor
+        title.font = group || row.key == "folder:current" ? Theme.NSFonts.labelMedium : Theme.NSFonts.label
+        title.textColor = secondary ? Theme.Palette.textSecondary : Theme.Palette.textPrimary
+        leading?.constant = Theme.Space.xxs + CGFloat(row.indent) * Theme.Space.m
         swatch.layer?.backgroundColor = row.swatch?.cgColor ?? NSColor.clear.cgColor
-        swatch.layer?.borderWidth = row.outlined ? 1 : 0
-        swatch.layer?.borderColor = Theme.textSecondary.cgColor
+        swatch.layer?.borderWidth = row.outlined ? Theme.Space.hairline : 0
+        swatch.layer?.borderColor = Theme.Palette.textTertiary.cgColor(for: self)
+        detail.stringValue = row.detail ?? ""
+        detail.isHidden = row.detail == nil
         badge.stringValue = row.badge ?? ""
         badge.isHidden = row.badge == nil
-        if row.badge == "⌂" {
-            badge.textColor = Theme.textSecondary
-            badge.layer?.borderWidth = 0
-        } else {
-            badge.textColor = Theme.basket
-            badge.layer?.borderWidth = 1
-        }
+        badge.layer?.borderWidth = row.badge == "⌂" ? 0 : Theme.Space.hairline
+        badge.layer?.borderColor = Theme.Palette.hairlineStrong.cgColor(for: self)
         count.stringValue = row.count.map { $0.formatted() } ?? ""
         toolTip = row.tooltip
         setAccessibilityLabel(row.title)

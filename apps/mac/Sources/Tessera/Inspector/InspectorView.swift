@@ -10,7 +10,7 @@ struct InspectorView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                PanelSection("Histogram") { HistogramPanel(model: model).frame(height: 86) }
+                PanelSection("Histogram") { HistogramPanel(model: model).frame(height: HistogramView.height) }
                 PanelSection("Image") { ImageInfoPanel(model: model) }
                 PanelSection("Selection") { SelectionPanel(model: model) }
                 if model.isEngineBacked {
@@ -36,69 +36,15 @@ struct InspectorView: View {
             }
         }
         .scrollIndicators(.never)
-        .background(Color(nsColor: Theme.windowBackground))
-    }
-}
-
-struct PanelSection<Content: View>: View {
-    let title: String
-    @ViewBuilder var content: Content
-    /// Open/closed state persists per panel.
-    @AppStorage private var expanded: Bool
-
-    init(_ title: String, expanded: Bool = true, @ViewBuilder content: () -> Content) {
-        self.title = title
-        self.content = content()
-        _expanded = AppStorage(wrappedValue: expanded, "InspectorPanel." + title)
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Button {
-                expanded.toggle()
-            } label: {
-                HStack {
-                    Text(title.uppercased())
-                        .font(.system(size: 10, weight: .semibold))
-                        .tracking(0.8)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Text(expanded ? "–" : "+")
-                        .font(.system(size: 12, weight: .regular, design: .monospaced))
-                        .foregroundStyle(.tertiary)
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 9)
-            if expanded {
-                content
-                    .padding(.horizontal, 14)
-                    .padding(.bottom, 12)
-            }
-            Divider().opacity(0.5)
-        }
-    }
-}
-
-private struct InfoRow: View {
-    let label: String
-    let value: String
-    var body: some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(label).foregroundStyle(.secondary).frame(width: 74, alignment: .leading)
-            Text(value).foregroundStyle(.primary).lineLimit(1).truncationMode(.middle)
-            Spacer(minLength: 0)
-        }
-        .font(.system(size: 11))
+        .background(Theme.panel)
+        .tint(Theme.accent)
     }
 }
 
 struct ImageInfoPanel: View {
     let model: AppModel
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: Theme.Space.xs) {
             if let item = model.focusedItem {
                 InfoRow(label: "File", value: item.name)
                 InfoRow(label: "Type", value: item.kind.rawValue)
@@ -109,7 +55,7 @@ struct ImageInfoPanel: View {
                         + (model.focusedIsBest ? " · suggested best" : ""))
                 InfoRow(label: "Status", value: statusText)
             } else {
-                Text("No image selected").font(.system(size: 11)).foregroundStyle(.secondary)
+                Hint("No image selected")
             }
         }
     }
@@ -136,63 +82,77 @@ struct SelectionPanel: View {
     let model: AppModel
     var body: some View {
         let s = model.focusedState
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 4) {
-                DecisionChip(title: "Reject", key: "X", on: s.decision == .reject, color: Theme.reject) { model.perform(.reject) }
-                DecisionChip(title: "Undecided", key: "U", on: s.decision == .undecided, color: Theme.textSecondary) { model.perform(.undecided) }
-                DecisionChip(title: "Keep", key: "P", on: s.decision == .keep, color: Theme.keep) { model.perform(.keep) }
+        VStack(alignment: .leading, spacing: Theme.Space.s) {
+            HStack(spacing: Theme.Space.xs) {
+                DecisionChip(title: "Reject", key: "X", on: s.decision == .reject, color: Theme.Palette.reject) { model.perform(.reject) }
+                DecisionChip(title: "Undecided", key: "U", on: s.decision == .undecided, color: Theme.Palette.textSecondary) { model.perform(.undecided) }
+                DecisionChip(title: "Keep", key: "P", on: s.decision == .keep, color: Theme.Palette.keep) { model.perform(.keep) }
             }
-            HStack(spacing: 4) {
+            HStack(spacing: Theme.Space.xs) {
                 ForEach(1...3, id: \.self) { g in
-                    DecisionChip(title: CullState.gradeNames[g], key: "\(g)", on: s.grade == g, color: Theme.keep) {
+                    DecisionChip(title: CullState.gradeNames[g], key: "\(g)", on: s.grade == g, color: Theme.Palette.keep) {
                         model.perform(.grade(UInt8(g)))
                     }
                 }
             }
-            HStack(spacing: 4) {
+            HStack(spacing: Theme.Space.xs) {
                 ForEach(6...9, id: \.self) { m in
-                    DecisionChip(title: "", key: "\(m)", on: s.mark == m, color: MarkStyle.color(UInt8(m))) {
+                    DecisionChip(title: "", key: "\(m)", on: s.mark == m, color: MarkStyle.color(UInt8(m)), swatch: true) {
                         model.perform(.mark(UInt8(m)))
                     }
                     .help(MarkStyle.name(UInt8(m)))
                 }
-                DecisionChip(title: model.basketTarget, key: "B", on: s.inBasket, color: Theme.basket) { model.perform(.toggleBasket) }
+                DecisionChip(title: model.basketTarget, key: "B", on: s.inBasket, color: Theme.Palette.basket) { model.perform(.toggleBasket) }
                     .help("Add to / remove from the basket target album")
             }
             if s.mark != 0 {
-                Text("Mark: \(MarkStyle.name(s.mark))").font(.system(size: 11)).foregroundStyle(.secondary)
+                Hint("Mark: \(MarkStyle.name(s.mark))")
             }
             if model.selectionCount > 1 {
-                Text("Applies to \(model.selectionCount) selected images").font(.system(size: 11)).foregroundStyle(.secondary)
+                Hint("Applies to \(model.selectionCount) selected images")
             }
         }
     }
 }
 
+/// A cull action with its key. On: the semantic colour as a 1 px outline, a subtle tint and
+/// the title in that colour; off: a neutral bordered control. One height (24), radius 6.
 struct DecisionChip: View {
     let title: String
     let key: String
     let on: Bool
     let color: NSColor
+    /// Marks show their colour as a swatch even when off.
+    var swatch = false
     let action: () -> Void
+    @State private var hovering = false
 
     var body: some View {
+        let c = Color(nsColor: color)
         Button(action: action) {
-            HStack(spacing: 4) {
-                Text(key).font(.system(size: 10, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(on ? Color.black.opacity(0.75) : .secondary)
+            HStack(spacing: Theme.Space.xs + Theme.Space.xxs) {
+                if swatch {
+                    RoundedRectangle(cornerRadius: Theme.Space.xxs).fill(c).frame(width: Theme.Space.s, height: Theme.Space.s)
+                }
+                Text(key).font(Theme.Fonts.caption).monospacedDigit()
+                    .foregroundStyle(on ? c : Theme.textTertiary)
                 if !title.isEmpty {
-                    Text(title).font(.system(size: 11))
-                        .foregroundStyle(on ? Color.black.opacity(0.85) : .primary)
+                    Text(title).font(Theme.Fonts.caption).lineLimit(1)
+                        .foregroundStyle(on ? c : Theme.textPrimary)
                 }
             }
-            .padding(.horizontal, 7)
-            .frame(minWidth: 24, minHeight: 22)
-            .background(RoundedRectangle(cornerRadius: 4).fill(on ? Color(nsColor: color) : Color.white.opacity(0.06)))
-            .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Color(nsColor: color).opacity(on ? 0 : 0.35), lineWidth: 1))
+            .padding(.horizontal, Theme.Space.s)
+            .frame(minWidth: Theme.Height.regular, minHeight: Theme.Height.regular, maxHeight: Theme.Height.regular)
+            .background(RoundedRectangle(cornerRadius: Theme.Radius.control)
+                .fill(on ? c.opacity(0.16) : hovering ? Theme.hover : Theme.raised))
+            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.control)
+                .strokeBorder(on ? c.opacity(0.7) : Theme.hairline, lineWidth: Theme.Space.hairline))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .accessibilityLabel(title.isEmpty ? "Key \(key)" : "\(title), key \(key)")
+        .accessibilityAddTraits(on ? .isSelected : [])
     }
 }
 
@@ -202,9 +162,10 @@ struct BasicPanel: View {
         let id = model.focusedItem?.id
         let ready = model.developStatus == .ready
         let revision = model.developRevision
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: Theme.Space.xs) {
                 Button("Reset") { model.resetDevelop() }
+                    .buttonStyle(.theme(.bordered, height: Theme.Height.small))
                     .help("Reset all develop settings (one undo step)")
                 Menu("Snapshots") {
                     Button("New Snapshot…") { model.promptSnapshot() }
@@ -214,17 +175,17 @@ struct BasicPanel: View {
                         Button(name) { model.restoreSnapshot(name) }
                     }
                 }
-                .fixedSize()
-                Spacer()
-                Text(statusText).font(.system(size: 10)).foregroundStyle(.tertiary).lineLimit(1)
+                .menuStyle(ThemeMenuStyle(height: Theme.Height.small))
+                Spacer(minLength: Theme.Space.xs)
+                Text(statusText).font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary).lineLimit(1)
             }
-            .controlSize(.small)
             .disabled(!ready)
+            .padding(.bottom, Theme.Space.xs)
             ForEach(BasicKey.sections, id: \.0) { section in
-                Text(section.0).font(.system(size: 10, weight: .medium)).foregroundStyle(.tertiary).padding(.top, 4)
+                SubHeader(section.0)
                 ForEach(section.1) { key in
                     AdjustmentSlider(model: model, key: key, itemID: ready ? id : nil, revision: revision)
-                        .frame(height: 30)
+                        .frame(height: Theme.Height.slider)
                 }
             }
         }

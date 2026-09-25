@@ -62,18 +62,18 @@ final class CurveEditorView: NSView, DevelopKeyHandling {
 
     private var channelColor: NSColor {
         switch channel {
-        case .red: NSColor(srgbRed: 0.95, green: 0.35, blue: 0.32, alpha: 1)
-        case .green: NSColor(srgbRed: 0.40, green: 0.85, blue: 0.40, alpha: 1)
-        case .blue: NSColor(srgbRed: 0.40, green: 0.55, blue: 1.0, alpha: 1)
-        default: NSColor(calibratedWhite: 0.92, alpha: 1)
+        case .red: Theme.Palette.channelRed
+        case .green: Theme.Palette.channelGreen
+        case .blue: Theme.Palette.channelBlue
+        default: Theme.Palette.plotLine
         }
     }
 
     // MARK: Drawing
 
     override func draw(_ dirtyRect: NSRect) {
-        NSColor(calibratedWhite: 0.08, alpha: 1).setFill()
-        NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: 4, yRadius: 4).fill()
+        Theme.Palette.plotWell.setFill()
+        NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: Theme.Radius.chip, yRadius: Theme.Radius.chip).fill()
         let plot = self.plot
         drawHistogram(in: plot)
         // Quarter grid and the identity diagonal.
@@ -85,12 +85,12 @@ final class CurveEditorView: NSView, DevelopKeyHandling {
             grid.move(to: CGPoint(x: plot.minX, y: plot.minY + plot.height * f))
             grid.line(to: CGPoint(x: plot.maxX, y: plot.minY + plot.height * f))
         }
-        NSColor(calibratedWhite: 1, alpha: 0.08).setStroke()
+        Theme.Palette.plotGrid.setStroke()
         grid.lineWidth = 1
         grid.stroke()
         let diagonal = NSBezierPath()
         diagonal.move(to: point(0, 0)); diagonal.line(to: point(1, 1))
-        NSColor(calibratedWhite: 1, alpha: 0.14).setStroke()
+        Theme.Palette.plotGuide.setStroke()
         diagonal.setLineDash([3, 3], count: 2, phase: 0)
         diagonal.stroke()
 
@@ -102,9 +102,9 @@ final class CurveEditorView: NSView, DevelopKeyHandling {
             let v = value(h)
             let out = mode == .point ? curve.evaluate(v.x) : parametric.evaluate(v.x)
             let text = String(format: "%.0f → %.0f", v.x * 100, out * 100) as NSString
-            let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.monospacedDigitSystemFont(ofSize: 9, weight: .regular),
-                                                        .foregroundColor: NSColor(calibratedWhite: 0.7, alpha: 1)]
-            text.draw(at: NSPoint(x: plot.minX + 4, y: plot.maxY - 14), withAttributes: attrs)
+            let attrs: [NSAttributedString.Key: Any] = [.font: Theme.NSFonts.captionNumeric,
+                                                        .foregroundColor: Theme.Palette.plotText]
+            text.draw(at: NSPoint(x: plot.minX + Theme.Space.xs, y: plot.maxY - Theme.Space.l), withAttributes: attrs)
         }
     }
 
@@ -126,7 +126,7 @@ final class CurveEditorView: NSView, DevelopKeyHandling {
         }
         p.line(to: CGPoint(x: plot.maxX, y: plot.minY))
         p.close()
-        (mode == .point ? channelColor : NSColor(calibratedWhite: 1, alpha: 1)).withAlphaComponent(0.13).setFill()
+        (mode == .point ? channelColor : Theme.Palette.plotLine).withAlphaComponent(0.13).setFill()
         p.fill()
     }
 
@@ -147,11 +147,11 @@ final class CurveEditorView: NSView, DevelopKeyHandling {
         // Region under the pointer or being dragged.
         let active = dragRegion?.index ?? hover.flatMap { plot.contains($0) ? region(at: $0) : nil }
         if let i = active {
-            NSColor(calibratedWhite: 1, alpha: 0.05).setFill()
+            Theme.Palette.plotGrid.setFill()
             NSRect(x: plot.minX + plot.width * edges[i], y: plot.minY,
                    width: plot.width * (edges[i + 1] - edges[i]), height: plot.height).fill()
         }
-        NSColor(calibratedWhite: 0.93, alpha: 1).setStroke()
+        Theme.Palette.plotLine.setStroke()
         curvePath(parametric.evaluate).stroke()
         // Split handles below the plot.
         for (i, s) in parametric.splits.enumerated() {
@@ -161,18 +161,18 @@ final class CurveEditorView: NSView, DevelopKeyHandling {
             tri.line(to: CGPoint(x: x - 5, y: bounds.minY + 4))
             tri.line(to: CGPoint(x: x + 5, y: bounds.minY + 4))
             tri.close()
-            (dragSplit?.index == i ? Theme.accent : NSColor(calibratedWhite: 0.7, alpha: 1)).setFill()
+            (dragSplit?.index == i ? Theme.Palette.accent : Theme.Palette.plotText).setFill()
             tri.fill()
             let tick = NSBezierPath()
             tick.move(to: CGPoint(x: x, y: plot.minY)); tick.line(to: CGPoint(x: x, y: plot.maxY))
-            NSColor(calibratedWhite: 1, alpha: 0.06).setStroke()
+            Theme.Palette.plotGrid.setStroke()
             tick.stroke()
         }
     }
 
     private func drawPoint(in plot: NSRect) {
         if parametric.amounts.contains(where: { $0 != 0 }) {
-            NSColor(calibratedWhite: 1, alpha: 0.18).setStroke()
+            Theme.Palette.plotGuide.setStroke()
             curvePath(parametric.evaluate).stroke()
         }
         channelColor.setStroke()
@@ -182,9 +182,9 @@ final class CurveEditorView: NSView, DevelopKeyHandling {
             let r = NSRect(x: c.x - 4, y: c.y - 4, width: 8, height: 8)
             let dot = NSBezierPath(ovalIn: r)
             if i == selected {
-                Theme.accent.setFill(); dot.fill()
+                Theme.Palette.accent.setFill(); dot.fill()
             } else {
-                NSColor(calibratedWhite: 0.08, alpha: 1).setFill(); dot.fill()
+                Theme.Palette.plotWell.setFill(); dot.fill()
                 channelColor.setStroke(); dot.lineWidth = 1.5; dot.stroke()
             }
         }

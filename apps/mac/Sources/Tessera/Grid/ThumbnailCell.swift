@@ -4,8 +4,8 @@ import TesseraCore
 enum CellStyle {
     case grid, filmstrip
 
-    var captionHeight: CGFloat { self == .grid ? 22 : 0 }
-    var imageInset: CGFloat { self == .grid ? 8 : 4 }
+    var captionHeight: CGFloat { self == .grid ? Theme.Height.small : 0 }
+    var imageInset: CGFloat { self == .grid ? Theme.Space.s - Theme.Space.xxs : Theme.Space.xxs }
 }
 
 /// Recycled grid / filmstrip cell. Image in a plain CALayer (GPU-composited, no redraw on scroll);
@@ -47,7 +47,7 @@ final class ThumbnailCell: NSCollectionViewItem {
         v.altGroup = item.groupID % 2 == 1
         v.overlay.set(item: item, state: state, status: status, basketTarget: basketTarget,
                       suggestedBest: suggestedBest, groupIndex: groupIndex, groupSize: groupSize, style: style)
-        v.imageLayer.opacity = state.decision == .reject ? 0.32 : 1
+        v.imageLayer.opacity = state.decision == .reject ? Theme.Opacity.rejectedImage : 1
         name = item.name
         self.suggestedBest = suggestedBest
         updateAccessibility(state: state, status: status, basketTarget: basketTarget)
@@ -75,7 +75,7 @@ final class ThumbnailCell: NSCollectionViewItem {
     }
 
     func update(state: CullState, status: ItemStatus, basketTarget: String) {
-        cellView.imageLayer.opacity = state.decision == .reject ? 0.32 : 1
+        cellView.imageLayer.opacity = state.decision == .reject ? Theme.Opacity.rejectedImage : 1
         cellView.overlay.set(state: state, status: status, basketTarget: basketTarget)
         updateAccessibility(state: state, status: status, basketTarget: basketTarget)
     }
@@ -108,7 +108,7 @@ final class ThumbnailCellView: NSView {
         super.init(frame: frame)
         wantsLayer = true
         layerContentsRedrawPolicy = .onSetNeedsDisplay
-        layer?.cornerRadius = 3
+        layer?.cornerRadius = Theme.Radius.control
         imageLayer.contentsGravity = .resizeAspect
         imageLayer.minificationFilter = .trilinear
         imageLayer.actions = ["contents": NSNull(), "opacity": NSNull(), "bounds": NSNull(), "position": NSNull()]
@@ -123,12 +123,20 @@ final class ThumbnailCellView: NSView {
     override var wantsUpdateLayer: Bool { true }
     override var isFlipped: Bool { true }
 
+    /// No tile: the photo sits on the canvas. Selection is a subtle accent fill, focus a 2 px
+    /// accent ring; alternate burst groups get a faint fill so group boundaries read.
     override func updateLayer() {
         guard let layer else { return }
-        let bg: NSColor = isSelectedCell ? Theme.cellSelected : (altGroup ? Theme.cellBackgroundAlt : Theme.cellBackground)
-        layer.backgroundColor = bg.cgColor
-        layer.borderWidth = isFocusedCell ? 2 : 0
-        layer.borderColor = Theme.accent.cgColor
+        let bg: NSColor = isSelectedCell ? Theme.Palette.accentSubtle : (altGroup ? Theme.Palette.groupAlt : .clear)
+        layer.backgroundColor = bg.cgColor(for: self)
+        layer.borderWidth = isFocusedCell ? Theme.Space.xxs : 0
+        layer.borderColor = Theme.Palette.accent.cgColor(for: self)
+    }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        needsDisplay = true
+        overlay.needsDisplay = true
     }
 
     func setImage(_ image: CGImage?) {
@@ -197,95 +205,107 @@ final class BadgeOverlayView: NSView {
     }
 
     /// Bottom-right status text: derived phase (unedited is implicit) and albums other than the
-    /// basket target, whose membership already shows as the blue pill.
+    /// basket target, whose membership already shows as the basket chip.
     private var statusText: String? {
         var parts: [String] = []
-        if status.phase != .unedited { parts.append(status.phase.rawValue.uppercased()) }
+        if status.phase != .unedited { parts.append(status.phase.rawValue.capitalized) }
         let others = status.albums.filter { $0 != basketTarget }
-        if others.count == 1 { parts.append("IN " + others[0].uppercased()) }
-        else if others.count > 1 { parts.append("IN \(others.count) ALBUMS") }
+        if others.count == 1 { parts.append("In " + others[0]) }
+        else if others.count > 1 { parts.append("In \(others.count) albums") }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
-    private static let pillFont = NSFont.systemFont(ofSize: 9.5, weight: .bold)
-    private static let smallPillFont = NSFont.systemFont(ofSize: 8, weight: .bold)
-    private static let captionFont = NSFont.systemFont(ofSize: 10.5, weight: .regular)
-    private static let captionFontMono = NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .regular)
+    private typealias OnImage = Theme.Palette.OnImage
 
+    /// Chips (DESIGN.md §4.4): one family, 16 pt tall, radius 4, 11 pt medium, sentence case.
+    /// Filled = a fact about the photo (decision, mark, basket); outlined over a scrim = a hint
+    /// (suggested best) or derived status. The filmstrip shows single-glyph chips only.
     override func draw(_ dirtyRect: NSRect) {
         let small = style == .filmstrip
-        let font = small ? Self.smallPillFont : Self.pillFont
-        let pad: CGFloat = small ? 3 : 5
+        let pad = small ? Theme.Space.xxs : Theme.Space.xs
+        let gap = Theme.Space.xs
         let r = imageRect
 
-        // Decision / grade (top-left), then the group's suggested best as an outlined pill.
+        // Decision / grade (top-left), then the group's suggested best.
         var x = r.minX + pad
         if let text = state.badgeText {
-            let tw = small && state.decision == .keep ? (state.grade > 0 ? "\(state.grade)" : "K") : (small ? "X" : text)
-            drawPill(tw, color: state.decision.color, font: font, at: NSPoint(x: x, y: r.minY + pad), textColor: .black)
-            x += pillSize(tw, font: font).width + 4
+            let t = small ? (state.decision == .keep ? (state.grade > 0 ? "\(state.grade)" : "K") : "X") : text
+            x += drawChip(t, fill: state.decision.chipColor, text: OnImage.ink,
+                          at: NSPoint(x: x, y: r.minY + pad), maxWidth: r.width / 2).width + gap
         }
         if suggestedBest, !small {
-            drawOutlinedPill("SUGGESTED", color: Theme.keep, font: font, at: NSPoint(x: x, y: r.minY + pad))
+            drawChip("Suggested", fill: OnImage.scrim, text: OnImage.keep, outline: OnImage.keep,
+                     at: NSPoint(x: x, y: r.minY + pad), maxWidth: r.maxX - x - pad - Theme.Height.chip - gap)
         }
-        // Mark (top-right): coloured chip with the key number
+        // Mark (top-right): a square chip in the mark colour with its key.
         if state.mark != 0 {
-            let s = "\(state.mark)"
-            let size = pillSize(s, font: font)
-            drawPill(s, color: MarkStyle.color(state.mark), font: font,
-                     at: NSPoint(x: r.maxX - pad - size.width, y: r.minY + pad), textColor: .black)
+            let size = chipSize("\(state.mark)", square: true)
+            drawChip("\(state.mark)", fill: MarkStyle.color(state.mark), text: OnImage.ink,
+                     at: NSPoint(x: r.maxX - pad - size.width, y: r.minY + pad), square: true)
         }
-        // Basket target membership (bottom-left): the album's name, as "in album X".
+        // Basket target membership (bottom-left): the album's name.
+        let bottom = r.maxY - pad - Theme.Height.chip
+        var basketWidth: CGFloat = 0
         if state.inBasket {
-            let s = small ? "B" : basketTarget.uppercased()
-            let size = pillSize(s, font: font)
-            drawPill(s, color: Theme.basket, font: font, at: NSPoint(x: r.minX + pad, y: r.maxY - pad - size.height), textColor: .black)
+            basketWidth = drawChip(small ? "B" : basketTarget, fill: OnImage.basket, text: OnImage.ink,
+                                   at: NSPoint(x: r.minX + pad, y: bottom), maxWidth: r.width * 0.55).width
         }
-        // Derived status (bottom-right)
+        // Derived status (bottom-right).
         if !small, let s = statusText {
-            let size = pillSize(s, font: font)
-            drawOutlinedPill(s, color: Theme.statusText, font: font,
-                             at: NSPoint(x: r.maxX - pad - size.width, y: r.maxY - pad - size.height))
+            let maxW = r.width - 2 * pad - basketWidth - gap
+            let size = chipSize(s, maxWidth: maxW)
+            drawChip(s, fill: OnImage.scrim, text: OnImage.text, at: NSPoint(x: r.maxX - pad - size.width, y: bottom), maxWidth: maxW)
         }
-        // Caption
+        // Caption: name (secondary) and group (tertiary, tabular) on one baseline.
         if style == .grid {
-            let y = bounds.height - style.captionHeight + 2
             let para = NSMutableParagraphStyle()
             para.lineBreakMode = .byTruncatingMiddle
-            let groupAttrs: [NSAttributedString.Key: Any] = [.font: Self.captionFontMono, .foregroundColor: Theme.textSecondary]
-            let gw = (groupText as NSString).size(withAttributes: groupAttrs).width
-            (groupText as NSString).draw(at: NSPoint(x: bounds.width - 8 - gw, y: y + 1), withAttributes: groupAttrs)
-            let nameAttrs: [NSAttributedString.Key: Any] = [.font: Self.captionFont, .foregroundColor: Theme.textPrimary, .paragraphStyle: para]
-            (name as NSString).draw(in: NSRect(x: 8, y: y, width: max(bounds.width - 24 - gw, 10), height: 16), withAttributes: nameAttrs)
+            let groupAttrs: [NSAttributedString.Key: Any] = [.font: Theme.NSFonts.captionNumeric,
+                                                             .foregroundColor: Theme.Palette.textTertiary]
+            let nameAttrs: [NSAttributedString.Key: Any] = [.font: Theme.NSFonts.caption,
+                                                            .foregroundColor: Theme.Palette.textSecondary, .paragraphStyle: para]
+            let font = Theme.NSFonts.caption
+            let lineHeight = ceil(font.ascender - font.descender)
+            let y = r.maxY + floor((style.captionHeight - lineHeight) / 2)
+            let gw = ceil((groupText as NSString).size(withAttributes: groupAttrs).width)
+            (groupText as NSString).draw(at: NSPoint(x: r.maxX - gw, y: y), withAttributes: groupAttrs)
+            (name as NSString).draw(in: NSRect(x: r.minX, y: y, width: max(r.width - gw - Theme.Space.s, 10), height: lineHeight),
+                                    withAttributes: nameAttrs)
         }
     }
 
-    private func pillSize(_ text: String, font: NSFont) -> NSSize {
-        let s = (text as NSString).size(withAttributes: [.font: font])
-        return NSSize(width: ceil(s.width) + (style == .filmstrip ? 6 : 10), height: ceil(s.height) + 2)
+    private static let chipFont = Theme.NSFonts.captionMedium
+
+    private func chipSize(_ text: String, square: Bool = false, maxWidth: CGFloat = .greatestFiniteMagnitude) -> NSSize {
+        let h = Theme.Height.chip
+        if square || text.count == 1 { return NSSize(width: h, height: h) }
+        let w = ceil((text as NSString).size(withAttributes: [.font: Self.chipFont]).width) + 2 * (Theme.Space.s - Theme.Space.xxs)
+        return NSSize(width: min(w, maxWidth), height: h)
     }
 
-    private func drawOutlinedPill(_ text: String, color: NSColor, font: NSFont, at origin: NSPoint) {
-        let size = pillSize(text, font: font)
+    @discardableResult
+    private func drawChip(_ text: String, fill: NSColor, text color: NSColor, outline: NSColor? = nil,
+                          at origin: NSPoint, square: Bool = false, maxWidth: CGFloat = .greatestFiniteMagnitude) -> NSSize {
+        let size = chipSize(text, square: square, maxWidth: maxWidth)
+        guard size.width >= Theme.Height.chip else { return .zero }
         let rect = NSRect(origin: origin, size: size)
-        NSColor(calibratedWhite: 0, alpha: 0.55).setFill()
-        let path = NSBezierPath(roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), xRadius: 3, yRadius: 3)
+        let path = NSBezierPath(roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), xRadius: Theme.Radius.chip, yRadius: Theme.Radius.chip)
+        fill.setFill()
         path.fill()
-        color.setStroke()
-        path.lineWidth = 1
-        path.stroke()
-        let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color]
-        let ts = (text as NSString).size(withAttributes: attrs)
-        (text as NSString).draw(at: NSPoint(x: rect.midX - ts.width / 2, y: rect.midY - ts.height / 2), withAttributes: attrs)
-    }
-
-    private func drawPill(_ text: String, color: NSColor, font: NSFont, at origin: NSPoint, textColor: NSColor) {
-        let size = pillSize(text, font: font)
-        let rect = NSRect(origin: origin, size: size)
-        color.setFill()
-        NSBezierPath(roundedRect: rect, xRadius: 3, yRadius: 3).fill()
-        let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: textColor.withAlphaComponent(0.85)]
-        let ts = (text as NSString).size(withAttributes: attrs)
-        (text as NSString).draw(at: NSPoint(x: rect.midX - ts.width / 2, y: rect.midY - ts.height / 2), withAttributes: attrs)
+        if let outline {
+            outline.withAlphaComponent(0.7).setStroke()
+            path.lineWidth = Theme.Space.hairline
+            path.stroke()
+        }
+        let para = NSMutableParagraphStyle()
+        para.alignment = .center
+        para.lineBreakMode = .byTruncatingTail
+        let attrs: [NSAttributedString.Key: Any] = [.font: Self.chipFont, .foregroundColor: color, .paragraphStyle: para]
+        let font = Self.chipFont
+        let lineHeight = ceil(font.ascender - font.descender)
+        let inset = square || text.count == 1 ? 0 : Theme.Space.xs
+        (text as NSString).draw(in: NSRect(x: rect.minX + inset, y: rect.midY - lineHeight / 2,
+                                           width: rect.width - 2 * inset, height: lineHeight), withAttributes: attrs)
+        return size
     }
 }

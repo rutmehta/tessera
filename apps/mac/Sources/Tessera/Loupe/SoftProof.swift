@@ -26,7 +26,7 @@ final class SoftProof {
     var simulatePaper = false { didSet { if simulatePaper != oldValue { save(); refresh() } } }
     var gamutWarning = false { didSet { if gamutWarning != oldValue { save(); onChange?() } } }
     /// Warning overlay colour (sRGB).
-    var warningColor = Color(red: 1, green: 0, blue: 1) { didSet { onChange?() } }
+    var warningColor = Color(red: 1, green: 0, blue: 1) { didSet { onChange?() } }   // lint:allow (proofing convention: magenta)
 
     private(set) var profiles: [PrinterProfile] = []
     /// The LUT in use (nil: proofing off or not ready).
@@ -151,35 +151,40 @@ struct SoftProofPanel: View {
     @Bindable var proof: SoftProof
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Toggle("Soft proofing  (S)", isOn: Binding(get: { proof.enabled }, set: { _ in proof.toggle() }))
-                .font(.system(size: 11))
+        VStack(alignment: .leading, spacing: Theme.Space.s) {
+            Toggle("Soft proofing", isOn: Binding(get: { proof.enabled }, set: { _ in proof.toggle() }))
+                .help("Soft proofing (S)")
                 .accessibilityIdentifier("softproof-toggle")
-            HStack {
-                Picker("Profile", selection: Binding(get: { proof.profilePath ?? "" },
-                                                     set: { proof.profilePath = $0.isEmpty ? nil : $0 })) {
-                    if proof.profiles.isEmpty { Text("None").tag("") }
-                    ForEach(proof.profiles, id: \.path) { p in Text(p.name).tag(p.path) }
-                }
-                Button("Other…") { proof.chooseProfileFile() }.controlSize(.small)
+            HStack(spacing: Theme.Space.s) {
+                Text("Profile").foregroundStyle(Theme.textSecondary).frame(width: Theme.Width.label - Theme.Space.l, alignment: .leading)
+                MenuPicker(selection: Binding(get: { proof.profilePath ?? "" },
+                                              set: { proof.profilePath = $0.isEmpty ? nil : $0 }),
+                           options: proof.profiles.isEmpty ? [("", "None")] : proof.profiles.map { ($0.path, $0.name) })
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .help("Printer / press profile to simulate")
+                Button("Other…") { proof.chooseProfileFile() }.buttonStyle(.theme(.bordered, height: Theme.Height.small))
             }
-            Picker("Intent", selection: $proof.intent) {
-                ForEach(SoftProof.Intent.allCases) { Text($0.title).tag($0) }
+            HStack(spacing: Theme.Space.s) {
+                Text("Intent").foregroundStyle(Theme.textSecondary).frame(width: Theme.Width.label - Theme.Space.l, alignment: .leading)
+                SegmentedPicker(selection: $proof.intent, segments: SoftProof.Intent.allCases.map { .init(value: $0, title: $0.title) },
+                                height: Theme.Height.small)
             }
-            .pickerStyle(.segmented)
             Toggle("Simulate paper and ink", isOn: $proof.simulatePaper)
             Toggle("Black point compensation", isOn: $proof.blackPointCompensation)
             HStack {
-                Toggle("Gamut warning  (⇧S)", isOn: $proof.gamutWarning)
+                Toggle("Gamut warning", isOn: $proof.gamutWarning)
+                    .help("Gamut warning (⇧S)")
                 Spacer()
                 ColorPicker("", selection: $proof.warningColor, supportsOpacity: false).labelsHidden()
+                    .help("Gamut warning colour")
             }
             if !proof.status.isEmpty {
-                Text(proof.status).font(.system(size: 10)).foregroundStyle(.secondary)
+                Text(proof.status).font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
                     .accessibilityIdentifier("softproof-status")
             }
         }
-        .font(.system(size: 11))
+        .font(Theme.Fonts.caption)
+        .toggleStyle(.checkbox)
         .controlSize(.small)
         .onAppear { proof.loadProfiles() }
     }

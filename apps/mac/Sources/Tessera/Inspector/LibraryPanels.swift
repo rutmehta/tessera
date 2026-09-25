@@ -13,12 +13,11 @@ struct KeywordsPanel: View {
     var body: some View {
         let applied = library.metadata?.keywords ?? []
         let n = max(model.selectionCount, 1)
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Theme.Space.s) {
             if applied.isEmpty {
-                Text(model.focusedItem == nil ? "No image selected" : "No keywords")
-                    .font(.system(size: 11)).foregroundStyle(.secondary)
+                Hint(model.focusedItem == nil ? "No image selected" : "No keywords")
             } else {
-                FlowRow(spacing: 4) {
+                FlowRow(spacing: Theme.Space.xs) {
                     ForEach(applied, id: \.self) { k in
                         KeywordChip(name: k, mixed: library.mixed.contains("keywords")) {
                             library.applyKeywords([k], add: false)
@@ -28,7 +27,8 @@ struct KeywordsPanel: View {
             }
             TextField(n > 1 ? "Add keywords to \(n) photos (comma separated)" : "Add keywords (comma separated)", text: $entry)
                 .textFieldStyle(.roundedBorder)
-                .font(.system(size: 11))
+                .font(Theme.Fonts.caption)
+                .controlSize(.small)
                 .onSubmit {
                     library.applyKeywords(entry.split(separator: ",").map(String.init), add: true)
                     entry = ""
@@ -36,17 +36,17 @@ struct KeywordsPanel: View {
                 .disabled(model.focusedItem == nil)
                 .accessibilityIdentifier("keywordEntry")
             HStack {
-                Text("Keyword list").font(.system(size: 10, weight: .medium)).foregroundStyle(.tertiary)
+                SubHeader("Keyword List")
                 Spacer()
                 Button("New…") { library.newKeyword(parent: nil) }
-                    .buttonStyle(.link).font(.system(size: 11))
+                    .buttonStyle(.theme(.borderless, height: Theme.Height.small))
+                    .padding(.top, Theme.Space.s)
             }
             if library.keywords.isEmpty {
-                Text("Keywords you add appear here as a hierarchy. Searching a parent finds its children.")
-                    .font(.system(size: 11)).foregroundStyle(.tertiary)
+                Hint("Keywords you add appear here as a hierarchy. Searching a parent finds its children.")
             } else {
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 1) {
+                    VStack(alignment: .leading, spacing: 0) {
                         ForEach(library.keywords, id: \.name) { k in
                             KeywordTreeRow(keyword: k, applied: applied.contains(k.name), library: library,
                                            all: library.keywords, selectionCount: n)
@@ -64,16 +64,20 @@ private struct KeywordChip: View {
     let mixed: Bool
     let remove: () -> Void
     var body: some View {
-        HStack(spacing: 3) {
-            Text(name).font(.system(size: 11))
-            Button(action: remove) { Text("×").font(.system(size: 11, weight: .semibold)) }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
-                .help("Remove from the selected photos")
+        HStack(spacing: Theme.Space.xs) {
+            Text(name).font(Theme.Fonts.caption).foregroundStyle(mixed ? Theme.textSecondary : Theme.textPrimary)
+            Button(action: remove) {
+                Image(systemName: "xmark").font(Theme.Fonts.iconSmall).foregroundStyle(Theme.textTertiary)
+            }
+            .buttonStyle(.plain)
+            .help("Remove from the selected photos")
+            .accessibilityLabel("Remove \(name)")
         }
-        .padding(.horizontal, 6).padding(.vertical, 2)
-        .background(RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(mixed ? 0.04 : 0.08)))
-        .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Color.white.opacity(0.1)))
+        .padding(.horizontal, Theme.Space.s - Theme.Space.xxs)
+        .frame(height: Theme.Height.small)
+        .background(RoundedRectangle(cornerRadius: Theme.Radius.chip).fill(Theme.raised))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.chip)
+            .strokeBorder(mixed ? Theme.hairline : Theme.hairlineStrong, style: StrokeStyle(lineWidth: Theme.Space.hairline, dash: mixed ? [2, 2] : [])))
     }
 }
 
@@ -85,27 +89,26 @@ private struct KeywordTreeRow: View {
     let selectionCount: Int
 
     var body: some View {
-        HStack(spacing: 6) {
-            Text(applied ? "✓" : " ").font(.system(size: 10, weight: .bold, design: .monospaced))
-                .foregroundStyle(Color(nsColor: Theme.keep)).frame(width: 10)
+        HStack(spacing: Theme.Space.s - Theme.Space.xxs) {
+            Image(systemName: "checkmark").font(Theme.Fonts.iconSmall)
+                .foregroundStyle(Theme.accent).opacity(applied ? 1 : 0).frame(width: Theme.Space.m)
+                .accessibilityHidden(!applied)
             Text(keyword.name)
-                .font(.system(size: 11))
-                .foregroundStyle(keyword.inTree ? .primary : .secondary)
-                .padding(.leading, CGFloat(keyword.depth) * 12)
+                .font(Theme.Fonts.caption)
+                .foregroundStyle(keyword.inTree ? Theme.textPrimary : Theme.textSecondary)
+                .padding(.leading, CGFloat(keyword.depth) * Theme.Space.m)
                 .lineLimit(1)
                 .help(keyword.inTree ? "" : "Found in sidecars; not in the keyword list")
             Spacer(minLength: 4)
             if keyword.count > 0 {
-                Text(keyword.count.formatted()).font(.system(size: 10).monospacedDigit()).foregroundStyle(.tertiary)
+                Text(keyword.count.formatted()).font(Theme.Fonts.captionNumeric).foregroundStyle(Theme.textTertiary)
             }
-            Button { library.applyKeywords([keyword.name], add: true) } label: { Text("+").frame(width: 12) }
-                .buttonStyle(.plain).foregroundStyle(.secondary)
-                .help("Add to \(selectionCount) selected photo\(selectionCount == 1 ? "" : "s")")
-            Button { library.applyKeywords([keyword.name], add: false) } label: { Text("−").frame(width: 12) }
-                .buttonStyle(.plain).foregroundStyle(.secondary)
-                .help("Remove from \(selectionCount) selected photo\(selectionCount == 1 ? "" : "s")")
+            IconButton(symbol: "plus", help: "Add to \(selectionCount) selected photo\(selectionCount == 1 ? "" : "s")",
+                       size: Theme.Height.small) { library.applyKeywords([keyword.name], add: true) }
+            IconButton(symbol: "minus", help: "Remove from \(selectionCount) selected photo\(selectionCount == 1 ? "" : "s")",
+                       size: Theme.Height.small) { library.applyKeywords([keyword.name], add: false) }
         }
-        .padding(.vertical, 1)
+        .frame(height: Theme.Height.regular)
         .contentShape(Rectangle())
         .contextMenu {
             Button("New Keyword Inside “\(keyword.name)”…") { library.newKeyword(parent: keyword.name) }
@@ -127,7 +130,7 @@ private struct KeywordTreeRow: View {
 
 /// Wrapping row of chips.
 struct FlowRow: Layout {
-    var spacing: CGFloat = 4
+    var spacing: CGFloat = Theme.Space.xs
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let width = proposal.width ?? 240
@@ -168,9 +171,9 @@ struct MetadataPanel: View {
     @State private var targets: [Int] = []
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: Theme.Space.xs) {
             if model.focusedItem == nil {
-                Text("No image selected").font(.system(size: 11)).foregroundStyle(.secondary)
+                Hint("No image selected")
             } else {
                 field("Title", .title, key: "title")
                 field("Caption", .caption, key: "caption", lines: 3)
@@ -180,17 +183,19 @@ struct MetadataPanel: View {
                 Text(model.selectionCount > 1
                      ? "Edits apply to \(model.selectionCount) selected photos (XMP sidecars)."
                      : "Saved to the photo's XMP sidecar when you press Return or leave the field.")
-                    .font(.system(size: 10)).foregroundStyle(.tertiary)
+                    .font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
                 if let fields = library.metadata?.fields, !fields.isEmpty {
-                    Divider().padding(.vertical, 4)
+                    Hairline().padding(.vertical, Theme.Space.s)
                     ForEach(Array(fields.enumerated()), id: \.offset) { _, f in
-                        HStack(alignment: .firstTextBaseline) {
-                            Text(f.name).foregroundStyle(.secondary).frame(width: 96, alignment: .leading)
+                        HStack(alignment: .firstTextBaseline, spacing: Theme.Space.s) {
+                            Text(f.name).foregroundStyle(Theme.textSecondary).frame(width: Theme.Width.label, alignment: .leading)
                                 .lineLimit(1).truncationMode(.tail)
-                            Text(f.value).lineLimit(2).truncationMode(.middle).textSelection(.enabled)
+                            Text(f.value).foregroundStyle(Theme.textPrimary).lineLimit(2).truncationMode(.middle).textSelection(.enabled)
                             Spacer(minLength: 0)
                         }
-                        .font(.system(size: 11))
+                        .font(Theme.Fonts.caption)
+                        .monospacedDigit()
                         .help("\(f.group): \(f.name)")
                     }
                 }
@@ -206,13 +211,14 @@ struct MetadataPanel: View {
 
     private func field(_ label: String, _ f: Field, key: String, prompt: String = "", lines: Int = 1) -> some View {
         let mixed = library.mixed.contains(key)
-        return HStack(alignment: .firstTextBaseline) {
-            Text(label).font(.system(size: 11)).foregroundStyle(.secondary).frame(width: 64, alignment: .leading)
+        return HStack(alignment: .firstTextBaseline, spacing: Theme.Space.s) {
+            Text(label).font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary).frame(width: Theme.Width.label, alignment: .leading)
             TextField(mixed ? "Mixed" : prompt, text: Binding(get: { values[f] ?? "" }, set: { values[f] = $0 }),
                       axis: lines > 1 ? .vertical : .horizontal)
                 .lineLimit(1...max(lines, 1))
                 .textFieldStyle(.roundedBorder)
-                .font(.system(size: 11))
+                .font(Theme.Fonts.caption)
+                .controlSize(.small)
                 .focused($focus, equals: f)
                 .onSubmit { commit(f) }
                 .accessibilityIdentifier("iptc-\(key)")

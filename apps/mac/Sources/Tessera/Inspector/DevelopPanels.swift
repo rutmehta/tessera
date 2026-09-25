@@ -89,35 +89,9 @@ extension View {
     }
 }
 
-private struct SubHeader: View {
-    let title: String
-    init(_ title: String) { self.title = title }
-    var body: some View {
-        Text(title).font(.system(size: 10, weight: .medium)).foregroundStyle(.tertiary).padding(.top, 4)
-    }
-}
-
-private struct ToolButton: View {
-    let symbol: String
-    let help: String
-    let on: Bool
-    let action: () -> Void
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 11, weight: .medium))
-                .frame(width: 22, height: 20)
-                .foregroundStyle(on ? Color.black.opacity(0.85) : Color.primary)
-                .background(RoundedRectangle(cornerRadius: 4).fill(on ? Color(nsColor: Theme.accent) : Color.white.opacity(0.07)))
-        }
-        .buttonStyle(.plain)
-        .help(help)
-    }
-}
-
 private func swatch(_ hue: Double, l: Double = 0.7, c: Double = 0.13) -> NSColor {
     let rgb = OkLab.srgb(l: l, c: c, hue: hue)
-    return NSColor(srgbRed: rgb.r, green: rgb.g, blue: rgb.b, alpha: 1)
+    return NSColor(srgbRed: rgb.r, green: rgb.g, blue: rgb.b, alpha: 1)   // lint:allow (OkLab hue swatch, data not chrome)
 }
 
 // MARK: - Tone curve
@@ -128,48 +102,42 @@ struct ToneCurvePanel: View {
 
     var body: some View {
         let ready = model.developStatus == .ready
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                Picker("", selection: $tools.curveMode) {
-                    ForEach(DevelopTools.CurveMode.allCases, id: \.self) { Text($0.rawValue).tag($0) }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
+        VStack(alignment: .leading, spacing: Theme.Space.s) {
+            HStack(spacing: Theme.Space.s) {
+                SegmentedPicker(selection: $tools.curveMode, segments: DevelopTools.CurveMode.allCases.map {
+                    .init(value: $0, title: $0.rawValue)
+                }, height: Theme.Height.small, fill: false)
                 .fixedSize()
-                Spacer()
+                Spacer(minLength: 0)
                 if tools.curveMode == .point {
-                    Picker("", selection: $tools.curveChannel) {
-                        ForEach(CurveChannel.allCases) { Text($0 == .luminance ? "L" : String($0.title.prefix($0 == .rgb ? 3 : 1))).tag($0) }
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
+                    SegmentedPicker(selection: $tools.curveChannel, segments: CurveChannel.allCases.map {
+                        .init(value: $0, title: $0 == .luminance ? "L" : String($0.title.prefix($0 == .rgb ? 3 : 1)), help: $0.title)
+                    }, height: Theme.Height.small, fill: false)
                     .fixedSize()
                     .help("Point curve channel: RGB, Red, Green, Blue or Luminance")
                 }
             }
-            .controlSize(.small)
             CurveEditor(model: model, tools: tools)
-                .frame(height: 188)
+                .aspectRatio(1, contentMode: .fit)
             if tools.curveMode == .parametric {
                 ForEach(ParametricRegion.allCases, id: \.self) { r in
-                    ControlSlider(control: r.control).frame(height: 30)
+                    ControlSlider(control: r.control).frame(height: Theme.Height.slider)
                 }
             } else {
-                HStack(spacing: 6) {
+                HStack(spacing: Theme.Space.xs) {
                     Menu("Curve Presets") {
                         ForEach(PointCurve.presets, id: \.0) { name, curve in
                             Button(name) { tools.setPointCurve(curve, channel: tools.curveChannel, final: true); tools.bump() }
                         }
                     }
-                    .fixedSize()
+                    .menuStyle(ThemeMenuStyle(height: Theme.Height.small))
                     Button("Reset \(tools.curveChannel.title)") {
                         tools.setPointCurve(.identity, channel: tools.curveChannel, final: true); tools.bump()
                     }
+                    .buttonStyle(.theme(.bordered, height: Theme.Height.small))
                     Spacer()
                 }
-                .controlSize(.small)
-                Text("Click to add a point, drag to move, double-click to remove. Arrows nudge the selected point (⇧ ×10).")
-                    .font(.system(size: 10)).foregroundStyle(.tertiary).fixedSize(horizontal: false, vertical: true)
+                Hint("Click to add a point, drag to move, double-click to remove. Arrows nudge the selected point (⇧ ×10).")
             }
         }
         .disabled(!ready)
@@ -238,22 +206,18 @@ struct HSLPanel: View {
 
     var body: some View {
         let ready = model.developStatus == .ready
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                Picker("", selection: $property) {
-                    ForEach(HSLProperty.allCases) { Text($0.title).tag($0) }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                Spacer(minLength: 4)
-                ToolButton(symbol: "scope", help: "Targeted adjustment: drag up/down on a colour in the loupe to change its \(property.title.lowercased())",
-                           on: tools.hslPicker == property) { tools.toggleHSLPicker(property) }
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: Theme.Space.s) {
+                SegmentedPicker(selection: $property, segments: HSLProperty.allCases.map { .init(value: $0, title: $0.title) },
+                                height: Theme.Height.small)
+                IconButton(symbol: "scope", help: "Targeted adjustment: drag up/down on a colour in the loupe to change its \(property.title.lowercased())",
+                           on: tools.hslPicker == property, size: Theme.Height.small) { tools.toggleHSLPicker(property) }
                     .disabled(!ready)
             }
-            .controlSize(.small)
+            .padding(.bottom, Theme.Space.xs)
             ForEach(HueBand.allCases) { band in
                 ControlSlider(control: property.control(band), trackColors: colors(band, property))
-                    .frame(height: 30)
+                    .frame(height: Theme.Height.slider)
             }
         }
         .onChange(of: property) { _, p in if tools.hslPicker != nil { tools.toggleHSLPicker(p) } }
@@ -283,41 +247,37 @@ struct ColorGradingPanel: View {
 
     private static let tabs: [(String, GradeRange?)] = [("3-Way", nil), ("Shadows", .shadows), ("Midtones", .midtones),
                                                           ("Highlights", .highlights), ("Global", .global)]
+    private static let symbols = ["", "circle.bottomhalf.filled", "circle.lefthalf.filled", "circle.tophalf.filled", "globe"]
 
     var body: some View {
         let ready = model.developStatus == .ready
-        VStack(alignment: .leading, spacing: 6) {
-            Picker("", selection: $mode) {
-                ForEach(Self.tabs.indices, id: \.self) { Text(Self.tabs[$0].0).tag($0) }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .controlSize(.small)
+        VStack(alignment: .leading, spacing: Theme.Space.s) {
+            // Icons keep five modes inside the inspector's minimum width (no layout jump).
+            SegmentedPicker(selection: $mode, segments: Self.tabs.indices.map { i in
+                .init(value: i, title: i == 0 ? "3-Way" : "", symbol: i == 0 ? nil : Self.symbols[i], help: Self.tabs[i].0)
+            }, height: Theme.Height.small)
             if let range = Self.tabs[mode].1 {
-                GradeWheel(range: range).frame(height: 150)
-                ControlSlider(control: range.hue).frame(height: 30)
-                ControlSlider(control: range.saturation).frame(height: 30)
-                ControlSlider(control: range.luminance).frame(height: 30)
+                SubHeader(range.title)
+                GradeWheel(range: range).frame(height: 144)
+                ControlSlider(control: range.hue).frame(height: Theme.Height.slider)
+                ControlSlider(control: range.saturation).frame(height: Theme.Height.slider)
+                ControlSlider(control: range.luminance).frame(height: Theme.Height.slider)
             } else {
-                HStack(alignment: .top, spacing: 8) {
+                HStack(alignment: .top, spacing: Theme.Space.m) {
                     ForEach([GradeRange.shadows, .midtones, .highlights]) { range in
-                        VStack(spacing: 2) {
-                            GradeWheel(range: range).frame(height: 76)
-                            Text(range.title).font(.system(size: 10)).foregroundStyle(.secondary)
-                            ControlSlider(control: range.luminance, title: "Lum").frame(height: 30)
+                        VStack(spacing: Theme.Space.xs) {
+                            GradeWheel(range: range).frame(height: 72)
+                            ControlSlider(control: range.luminance, title: range.title).frame(height: Theme.Height.slider)
                         }
                     }
                 }
-                HStack(spacing: 8) {
-                    GradeWheel(range: .global).frame(width: 76, height: 76)
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text("Global").font(.system(size: 10)).foregroundStyle(.secondary)
-                        ControlSlider(control: GradeRange.global.luminance).frame(height: 30)
-                    }
+                HStack(alignment: .center, spacing: Theme.Space.m) {
+                    GradeWheel(range: .global).frame(width: 72, height: 72)
+                    ControlSlider(control: GradeRange.global.luminance, title: "Global").frame(height: Theme.Height.slider)
                 }
             }
-            ControlSlider(control: GradeRange.blending).frame(height: 30)
-            ControlSlider(control: GradeRange.balance).frame(height: 30)
+            ControlSlider(control: GradeRange.blending).frame(height: Theme.Height.slider)
+            ControlSlider(control: GradeRange.balance).frame(height: Theme.Height.slider)
         }
         .disabled(!ready)
     }
@@ -369,32 +329,34 @@ struct DetailPanel: View {
 
     var body: some View {
         let ready = model.developStatus == .ready
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .bottom) {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .center) {
                 SubHeader("Sharpening")
                 Spacer()
-                ToolButton(symbol: "scope", help: "Choose the 1:1 preview area in the loupe", on: tools.detailPicking) {
+                IconButton(symbol: "scope", help: "Choose the 1:1 preview area in the loupe", on: tools.detailPicking,
+                           size: Theme.Height.small) {
                     tools.toggleDetailPicking()
                 }
                 .disabled(!ready)
+                .padding(.top, Theme.Space.s)
             }
             if ready {
-                DetailPreview1to1().frame(height: 120)
+                DetailPreview1to1().frame(height: 120).padding(.vertical, Theme.Space.xs)
             }
-            ControlSlider(control: DetailControls.amount).frame(height: 30)
-            ControlSlider(control: DetailControls.radius).frame(height: 30)
-            ControlSlider(control: DetailControls.detail).frame(height: 30)
+            ControlSlider(control: DetailControls.amount).frame(height: Theme.Height.slider)
+            ControlSlider(control: DetailControls.radius).frame(height: Theme.Height.slider)
+            ControlSlider(control: DetailControls.detail).frame(height: Theme.Height.slider)
             ControlSlider(control: DetailControls.masking,
                           onDragBegan: { mods in if mods.contains(.option) { tools.setMaskingPreview(true) } },
                           onDragEnded: { tools.setMaskingPreview(false) })
-                .frame(height: 30)
+                .frame(height: Theme.Height.slider)
                 .help("Hold ⌥ while dragging to see the edge mask (white is sharpened)")
             SubHeader("Noise Reduction")
             ForEach(DetailControls.luminanceNoise) { c in
-                ControlSlider(control: c).frame(height: 30)
+                ControlSlider(control: c).frame(height: Theme.Height.slider)
             }
             ForEach(DetailControls.colorNoise) { c in
-                ControlSlider(control: c).frame(height: 30)
+                ControlSlider(control: c).frame(height: Theme.Height.slider)
             }
         }
         .disabled(!ready)
@@ -410,27 +372,24 @@ struct EffectsPanel: View {
 
     var body: some View {
         let ready = model.developStatus == .ready
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 0) {
             SubHeader("Post-Crop Vignetting")
             HStack {
-                Text("Style").font(.system(size: 11))
+                Text("Style").font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
                 Spacer()
-                Picker("", selection: Binding(
+                MenuPicker(selection: Binding(
                     get: { _ = revision; return VignetteStyle(rawValue: tools.string(VignetteStyle.path) ?? "") ?? .highlightPriority },
                     set: { tools.apply(DevelopController.patch(VignetteStyle.path, $0.rawValue), final: true,
-                                       label: "Vignette Style: \($0.title)"); tools.bump() })) {
-                    ForEach(VignetteStyle.allCases) { Text($0.title).tag($0) }
-                }
-                .labelsHidden()
-                .fixedSize()
+                                       label: "Vignette Style: \($0.title)"); tools.bump() }),
+                           options: VignetteStyle.allCases.map { ($0, $0.title) })
             }
-            .controlSize(.small)
+            .frame(height: Theme.Height.large)
             ForEach(EffectsControls.vignette) { c in
-                ControlSlider(control: c).frame(height: 30)
+                ControlSlider(control: c).frame(height: Theme.Height.slider)
             }
             SubHeader("Grain")
             ForEach(EffectsControls.grain) { c in
-                ControlSlider(control: c).frame(height: 30)
+                ControlSlider(control: c).frame(height: Theme.Height.slider)
             }
         }
         .disabled(!ready)
@@ -446,59 +405,56 @@ struct CropPanel: View {
 
     var body: some View {
         let ready = model.developStatus == .ready
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: Theme.Space.xs) {
+            HStack(spacing: Theme.Space.xs) {
                 if tools.cropActive {
                     Button("Done") { tools.commitCrop() }.keyboardShortcut(.defaultAction)
+                        .buttonStyle(.theme(.primary, height: Theme.Height.small))
                     Button("Cancel") { tools.cancelCrop() }
+                        .buttonStyle(.theme(.bordered, height: Theme.Height.small))
                 } else {
                     Button("Crop & Straighten") { tools.beginCrop() }
+                        .buttonStyle(.theme(.bordered, height: Theme.Height.small))
                         .help("Open the crop tool in the loupe (R)")
                 }
                 Spacer()
-                ToolButton(symbol: "level", help: "Straighten: draw along a horizon or vertical in the loupe",
-                           on: tools.straightening) {
+                IconButton(symbol: "level", help: "Straighten: draw along a horizon or vertical in the loupe",
+                           on: tools.straightening, size: Theme.Height.small) {
                     if !tools.cropActive { tools.beginCrop() }
                     tools.straightening.toggle()
                     tools.onLoupeToolChange?()
                 }
                 Button("Reset") { tools.resetCrop() }
+                    .buttonStyle(.theme(.bordered, height: Theme.Height.small))
             }
-            .controlSize(.small)
-            HStack(spacing: 6) {
-                Text("Aspect").font(.system(size: 11))
+            HStack(spacing: Theme.Space.xs) {
+                Text("Aspect").font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
                 Spacer()
-                Picker("", selection: Binding(get: { tools.cropAspect }, set: { tools.setCropAspect($0) })) {
-                    ForEach(CropAspect.presets) { Text($0.title).tag($0) }
-                }
-                .labelsHidden()
-                .fixedSize()
-                ToolButton(symbol: tools.cropPortrait ? "rectangle.portrait" : "rectangle",
-                           help: "Swap landscape / portrait (X)", on: false) {
+                MenuPicker(selection: Binding(get: { tools.cropAspect }, set: { tools.setCropAspect($0) }),
+                           options: CropAspect.presets.map { ($0, $0.title) })
+                IconButton(symbol: tools.cropPortrait ? "rectangle.portrait" : "rectangle",
+                           help: "Swap landscape / portrait (X)", on: false, size: Theme.Height.small) {
                     if !tools.cropActive { tools.beginCrop() }
                     tools.flipCropOrientation()
                 }
             }
             .controlSize(.small)
-            CropAngleSlider(tools: tools).frame(height: 30)
-            HStack(spacing: 6) {
-                Text("Overlay").font(.system(size: 11))
+            .frame(height: Theme.Height.regular)
+            CropAngleSlider(tools: tools).frame(height: Theme.Height.slider)
+            HStack(spacing: Theme.Space.xs) {
+                Text("Overlay").font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
                 Spacer()
-                Picker("", selection: Binding(get: { tools.cropOverlay },
-                                              set: { tools.cropOverlay = $0; tools.onLoupeToolChange?() })) {
-                    ForEach(CropOverlay.allCases, id: \.self) { Text($0.title).tag($0) }
-                }
-                .labelsHidden()
-                .fixedSize()
+                MenuPicker(selection: Binding(get: { tools.cropOverlay },
+                                              set: { tools.cropOverlay = $0; tools.onLoupeToolChange?() }),
+                           options: CropOverlay.allCases.map { ($0, $0.title) })
             }
-            .controlSize(.small)
+            .frame(height: Theme.Height.regular)
             Toggle("Constrain to image", isOn: $tools.constrainCrop)
-                .font(.system(size: 11))
+                .font(Theme.Fonts.caption)
                 .controlSize(.small)
-            Text(tools.cropActive
+            Hint(tools.cropActive
                  ? "Drag handles to crop, inside to move, outside to rotate. Return applies, Esc cancels, O cycles overlays."
                  : "R opens the crop tool in the loupe.")
-                .font(.system(size: 10)).foregroundStyle(.tertiary).fixedSize(horizontal: false, vertical: true)
         }
         .disabled(!ready)
     }
@@ -542,23 +498,21 @@ struct PresetsPanel: View {
 
     var body: some View {
         let ready = model.developStatus == .ready
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: Theme.Space.xs) {
             if tools.presets.isEmpty {
-                Text("No presets yet. Save the current look (all or some panels) to reuse it on other photos.")
-                    .font(.system(size: 10)).foregroundStyle(.tertiary).fixedSize(horizontal: false, vertical: true)
+                Hint("No presets yet. Save the current look (all or some panels) to reuse it on other photos.")
             }
             ForEach(tools.presets) { p in
                 Button { tools.applyPreset(p) } label: {
                     HStack {
-                        Text(p.name).font(.system(size: 11)).lineLimit(1)
+                        Text(p.name).font(Theme.Fonts.caption).foregroundStyle(Theme.textPrimary).lineLimit(1)
                         Spacer()
                         Text(p.groups.count == PresetGroup.allCases.count ? "All" : "\(p.groups.count) panels")
-                            .font(.system(size: 9)).foregroundStyle(.tertiary)
+                            .font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary)
                     }
-                    .padding(.vertical, 3)
-                    .contentShape(Rectangle())
+                    .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.theme(.borderless, height: Theme.Height.regular))
                 .help(p.groups.map(\.title).joined(separator: ", "))
                 .contextMenu { Button("Delete “\(p.name)”") { tools.deletePreset(p) } }
             }
@@ -566,29 +520,31 @@ struct PresetsPanel: View {
                 name = "Preset \(tools.presets.count + 1)"
                 saving = true
             }
-            .controlSize(.small)
+            .buttonStyle(.theme(.bordered, height: Theme.Height.small))
             .popover(isPresented: $saving, arrowEdge: .leading) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("New Preset").font(.headline)
-                    TextField("Name", text: $name).frame(width: 220)
-                    Text("Include").font(.system(size: 11)).foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: Theme.Space.s) {
+                    Text("New Preset").font(Theme.Fonts.title)
+                    TextField("Name", text: $name).textFieldStyle(.roundedBorder).frame(width: 220)
+                    SubHeader("Include")
                     ForEach(PresetGroup.allCases) { g in
                         Toggle(g.title, isOn: Binding(get: { groups.contains(g) },
                                                       set: { if $0 { groups.insert(g) } else { groups.remove(g) } }))
-                            .font(.system(size: 11))
+                            .font(Theme.Fonts.caption)
                     }
-                    HStack {
+                    HStack(spacing: Theme.Space.s) {
                         Spacer()
-                        Button("Cancel") { saving = false }
+                        Button("Cancel") { saving = false }.buttonStyle(.themeBordered)
                         Button("Save") {
                             tools.savePreset(name: name.trimmingCharacters(in: .whitespaces), groups: groups)
                             saving = false
                         }
                         .keyboardShortcut(.defaultAction)
+                        .buttonStyle(.themePrimary)
                         .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || groups.isEmpty)
                     }
                 }
-                .padding(14)
+                .padding(Theme.Space.l)
+                .tint(Theme.accent)
             }
         }
         .disabled(!ready)
@@ -603,23 +559,22 @@ struct SnapshotsPanel: View {
     var body: some View {
         let ready = model.developStatus == .ready
         let names = model.developHistory?.snapshots ?? []
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: Theme.Space.xs) {
             if names.isEmpty {
-                Text("Snapshots name a state you can return to.").font(.system(size: 10)).foregroundStyle(.tertiary)
+                Hint("Snapshots name a state you can return to.")
             }
             ForEach(names, id: \.self) { n in
                 Button { model.restoreSnapshot(n) } label: {
-                    HStack {
-                        Image(systemName: "camera.viewfinder").font(.system(size: 10)).foregroundStyle(.secondary)
-                        Text(n).font(.system(size: 11)).lineLimit(1)
+                    HStack(spacing: Theme.Space.s) {
+                        Image(systemName: "camera.viewfinder").font(Theme.Fonts.iconSmall).foregroundStyle(Theme.textSecondary)
+                        Text(n).font(Theme.Fonts.caption).foregroundStyle(Theme.textPrimary).lineLimit(1)
                         Spacer()
                     }
-                    .padding(.vertical, 3)
-                    .contentShape(Rectangle())
+                    .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.theme(.borderless, height: Theme.Height.regular))
             }
-            Button("New Snapshot…") { model.promptSnapshot() }.controlSize(.small)
+            Button("New Snapshot…") { model.promptSnapshot() }.buttonStyle(.theme(.bordered, height: Theme.Height.small))
         }
         .disabled(!ready)
     }
@@ -637,19 +592,21 @@ struct HistoryPanel: View {
         let key = "\(model.developRevision)|\(model.developHistory?.entries ?? 0)|\(model.developHistory?.headLabel ?? "")"
         VStack(alignment: .leading, spacing: 0) {
             if items.isEmpty {
-                Text(ready ? "No edits yet" : "Open a RAW in the loupe").font(.system(size: 10)).foregroundStyle(.tertiary)
+                Hint(ready ? "No edits yet" : "Open a RAW in the loupe")
             }
             ForEach(items.reversed(), id: \.id) { item in HistoryRow(item: item, tools: tools) }
             if !items.isEmpty {
                 let atBase = !items.contains { $0.isHead }
                 Button { tools.checkout(nil) } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "circle.dashed").font(.system(size: 9)).frame(width: 14)
-                        Text("Original").font(.system(size: 11))
+                    HStack(spacing: Theme.Space.s - Theme.Space.xxs) {
+                        Image(systemName: "circle.dashed").font(Theme.Fonts.iconSmall).foregroundStyle(Theme.textTertiary)
+                            .frame(width: Theme.Space.l)
+                        Text("Original").font(Theme.Fonts.caption).foregroundStyle(Theme.textPrimary)
                         Spacer()
                     }
-                    .padding(.vertical, 3).padding(.horizontal, 4)
-                    .background(RoundedRectangle(cornerRadius: 3).fill(atBase ? Color(nsColor: Theme.accent).opacity(0.22) : .clear))
+                    .padding(.horizontal, Theme.Space.xs)
+                    .frame(height: Theme.Height.regular)
+                    .background(RoundedRectangle(cornerRadius: Theme.Radius.chip).fill(atBase ? Theme.accentSubtle : Theme.clear))
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -665,39 +622,39 @@ private struct HistoryRow: View {
     let tools: DevelopTools
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: Theme.Space.s - Theme.Space.xxs) {
             if item.toggles == nil && item.applied {
                 Toggle("", isOn: Binding(get: { item.enabled }, set: { tools.setStep(item, enabled: $0) }))
                     .toggleStyle(.checkbox)
                     .labelsHidden()
                     .controlSize(.mini)
-                    .frame(width: 14)
+                    .frame(width: Theme.Space.l)
                     .help(item.enabled ? "Turn this step off (recorded as a new step)" : "Turn this step back on")
             } else {
                 Image(systemName: item.toggles != nil ? "arrow.uturn.left" : "circle")
-                    .font(.system(size: 8)).foregroundStyle(.tertiary).frame(width: 14)
+                    .font(Theme.Fonts.iconSmall).foregroundStyle(Theme.textTertiary).frame(width: Theme.Space.l)
             }
             Button { tools.checkout(item.id) } label: {
-                HStack(spacing: 4) {
+                HStack(spacing: Theme.Space.xs) {
                     if item.author.hasPrefix("agent") {
-                        Text("AI").font(.system(size: 8, weight: .bold)).padding(.horizontal, 3)
-                            .background(RoundedRectangle(cornerRadius: 2).fill(Color.purple.opacity(0.5)))
+                        Chip(text: "AI", color: Theme.accent, style: .outlined, height: Theme.Height.chip)
                     }
-                    if let g = item.group { Text(g).font(.system(size: 9)).foregroundStyle(.secondary) }
+                    if let g = item.group { Text(g).font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary) }
                     Text(item.label)
-                        .font(.system(size: 11))
+                        .font(Theme.Fonts.caption)
                         .strikethrough(!item.enabled)
-                        .foregroundStyle(item.applied ? .primary : .tertiary)
+                        .foregroundStyle(item.applied ? Theme.textPrimary : Theme.textTertiary)
                         .lineLimit(1)
                     Spacer()
-                    Text(Self.time(item.timestampMs)).font(.system(size: 9)).foregroundStyle(.tertiary)
+                    Text(Self.time(item.timestampMs)).font(Theme.Fonts.captionNumeric).foregroundStyle(Theme.textTertiary)
                 }
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
         }
-        .padding(.vertical, 3).padding(.horizontal, 4)
-        .background(RoundedRectangle(cornerRadius: 3).fill(item.isHead ? Color(nsColor: Theme.accent).opacity(0.22) : .clear))
+        .padding(.horizontal, Theme.Space.xs)
+        .frame(height: Theme.Height.regular)
+        .background(RoundedRectangle(cornerRadius: Theme.Radius.chip).fill(item.isHead ? Theme.accentSubtle : Theme.clear))
     }
 
     private static func time(_ ms: Int64) -> String {

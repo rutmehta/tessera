@@ -60,11 +60,15 @@ final class BrowserController: NSObject, NSCollectionViewDataSource, NSCollectio
             layout.targetWidth = model.thumbnailSize
             layout.heightRatio = 0.72
             layout.extraHeight = style.captionHeight
+            // Cells carry a 6 pt inset of their own, so photos start on the 12 pt gutter.
+            layout.spacing = Theme.Space.xs
+            let edge = Theme.Space.gutter - style.imageInset
+            layout.inset = NSEdgeInsets(top: edge, left: edge, bottom: edge, right: edge)
             layout.onColumnsChange = { [weak model] cols in model?.gridColumns = cols }
         case .filmstrip:
             layout.heightRatio = 0.72
-            layout.spacing = 4
-            layout.inset = NSEdgeInsets(top: 6, left: 8, bottom: 6, right: 8)
+            layout.spacing = Theme.Space.xxs
+            layout.inset = NSEdgeInsets(top: Theme.Space.xs, left: Theme.Space.s, bottom: Theme.Space.xs, right: Theme.Space.s)
         }
 
         collectionView.collectionViewLayout = layout
@@ -80,13 +84,13 @@ final class BrowserController: NSObject, NSCollectionViewDataSource, NSCollectio
             model?.viewMode = .loupe
         }
 
-                collectionView.autoresizingMask = style == .grid ? [.width] : []
+        collectionView.autoresizingMask = style == .grid ? [.width] : []
         scrollView.documentView = collectionView
         scrollView.hasVerticalScroller = style == .grid
         scrollView.hasHorizontalScroller = style == .filmstrip
         scrollView.autohidesScrollers = true
         scrollView.drawsBackground = true
-        scrollView.backgroundColor = Theme.gridBackground
+        scrollView.backgroundColor = Theme.Palette.canvas
         scrollView.scrollerStyle = .overlay
         scrollView.setAccessibilityIdentifier(style == .grid ? "grid" : "filmstrip")
 
@@ -199,7 +203,7 @@ final class BrowserController: NSObject, NSCollectionViewDataSource, NSCollectio
         let insetBottom = clip.contentInsets.bottom
         switch style {
         case .grid:
-            let margin: CGFloat = layout.spacing + 4
+            let margin: CGFloat = layout.spacing + Theme.Space.xs
             let top = visible.minY + insetTop
             let bottom = visible.maxY - insetBottom
             if center {
