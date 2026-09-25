@@ -1,0 +1,7 @@
+# WP M1-12 — Engine ↔ Swift bridge (UniFFI)
+
+Read docs/11 §1.2, §1.5, crates/engine-api/CONTRACTS.md, crates/index, crates/sidecar, crates/previews, apps/mac/README.md. Create `crates/tessera-ffi` (workspace member; add it) exposing a narrow command/metadata API over UniFFI 0.32 (proc-macro style):
+- `Engine::open(app_support_dir)`; `index_folder(path) -> FolderHandle` (incremental scan via `index`), `list_images(query) -> Vec<ImageSummary>` (id, path, capture time, orientation, selection, recipe hash), `set_selection(image_id, Selection)` (writes sidecar via `sidecar`, updates index), `embedded_preview(image_id, max_px) -> Vec<u8>` (JPEG bytes via `previews` fast path), `get_recipe/set_recipe_json`, and an event callback interface for background progress (scan progress, preview ready).
+- Build: `uniffi-bindgen` generates Swift into `apps/mac/Sources/TesseraFFI/`; a `build-ffi.sh` produces a universal-ish `libtessera_ffi.a` for arm64 + module map, and a `Package.swift` binary/system-library target so `swift build` in apps/mac links it. Document in apps/mac/README.md.
+- Wire the app: replace `StubLibrary` folder scanning with the FFI (keep the stub as a fallback flag), persist decisions through `set_selection` so X/P/U survive relaunch, and load thumbnails from `embedded_preview`. Keep all keyboard behaviour.
+- Tests: Rust unit tests for the API; a Swift test that opens `fixtures/raw`, lists 5 images, sets a decision, reopens and reads it back. `swift build && swift test` in apps/mac and `cargo test -p tessera-ffi` must pass.
