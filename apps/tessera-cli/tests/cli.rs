@@ -90,6 +90,55 @@ fn index_is_incremental_and_lists_every_image() {
 }
 
 #[test]
+fn prune_reports_and_removes_only_missing_files() {
+    let temp = tempfile::tempdir().unwrap();
+    let photos = temp.path().join("photos");
+    std::fs::create_dir(&photos).unwrap();
+    let gone = photos.join("gone.jpg");
+    let live = photos.join("live.jpg");
+    for photo in [&gone, &live] {
+        image::RgbImage::new(2, 2).save(photo).unwrap();
+    }
+    let app = temp.path().join("app");
+    json(&app, &["index", photos.to_str().unwrap()]);
+    std::fs::remove_file(&gone).unwrap();
+    assert_eq!(
+        json(&app, &["index", "prune", "--dry-run"]),
+        serde_json::json!({"images":1,"files":1,"dry_run":true})
+    );
+    assert_eq!(json(&app, &["ls"]).as_array().unwrap().len(), 2);
+    assert_eq!(
+        json(&app, &["index", "prune"]),
+        serde_json::json!({"images":1,"files":1,"dry_run":false})
+    );
+    assert_eq!(json(&app, &["ls"]).as_array().unwrap().len(), 1);
+    assert_eq!(json(&app, &["index", "prune"])["files"], 0);
+    assert_eq!(
+        json(&app, &["index", photos.to_str().unwrap()])["changed"],
+        0
+    );
+}
+
+#[test]
+fn app_dir_flag_overrides_environment() {
+    let temp = tempfile::tempdir().unwrap();
+    let env_dir = temp.path().join("env");
+    let flag_dir = temp.path().join("flag");
+    let mut cmd = Command::new(assert_cmd::cargo::cargo_bin!("tessera"));
+    cmd.env("TESSERA_APP_DIR", &env_dir)
+        .args(["index", "prune"])
+        .assert()
+        .success();
+    assert!(env_dir.join("index.sqlite").exists());
+    cli(&flag_dir)
+        .env("TESSERA_APP_DIR", &env_dir)
+        .args(["index", "prune"])
+        .assert()
+        .success();
+    assert!(flag_dir.join("index.sqlite").exists());
+}
+
+#[test]
 fn cull_round_trip_and_reindex_sidecars() {
     let temp = tempfile::tempdir().unwrap();
     let photos = temp.path().join("photos");

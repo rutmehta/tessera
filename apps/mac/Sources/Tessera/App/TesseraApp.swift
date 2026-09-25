@@ -30,6 +30,7 @@ struct TesseraApp: App {
 ///
 /// Launch arguments (used by the acceptance script and benchmarks):
 ///   --folder <path>   open this folder instead of the remembered one
+///   --app-dir <path>  store the index and caches here (overrides TESSERA_APP_DIR)
 ///   --stub <count>    load <count> synthetic items (e.g. 20000)
 ///   --benchmark       run the grid scroll benchmark after loading
 ///   --seed-scores     (hidden test aid) write deterministic synthetic focus / closed-eyes scores

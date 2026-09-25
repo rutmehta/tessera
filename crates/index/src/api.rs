@@ -19,6 +19,13 @@ pub struct Score {
     pub model: String,
 }
 
+/// Rows that would be (or were) removed by pruning missing originals.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PruneCounts {
+    pub images: usize,
+    pub files: usize,
+}
+
 /// A face ordinal is local to an image, not a persistent person identity.
 #[derive(Debug, Clone, PartialEq)]
 pub struct FaceRecord {
@@ -64,6 +71,9 @@ pub struct Index(pub(crate) Core);
 impl Index {
     pub fn open(path: impl AsRef<Path>) -> EngineResult<Self> {
         Core::open(path).map(Self).map_err(Into::into)
+    }
+    pub fn prune_missing(&mut self, dry_run: bool) -> EngineResult<PruneCounts> {
+        self.0.prune_missing(dry_run).map_err(Into::into)
     }
     pub fn scan(
         &mut self,

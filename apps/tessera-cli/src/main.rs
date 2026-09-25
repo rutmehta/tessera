@@ -57,13 +57,23 @@ enum Command {
     #[command(subcommand)]
     Cull(Cull),
     Index {
-        dir: PathBuf,
+        dir: Option<PathBuf>,
+        #[command(subcommand)]
+        command: Option<IndexCommand>,
     },
     Ls {
         #[arg(long)]
         query: Option<String>,
         #[arg(long, value_parser = ["keep", "reject", "undecided"])]
         decision: Option<String>,
+    },
+}
+#[derive(Subcommand)]
+enum IndexCommand {
+    /// Remove catalog rows for files that no longer exist on disk.
+    Prune {
+        #[arg(long)]
+        dry_run: bool,
     },
 }
 #[derive(Subcommand)]
@@ -141,8 +151,13 @@ fn all() -> Query {
 fn run(cli: &Cli) -> Result<Value> {
     let app = match &cli.app_dir {
         Some(path) => path.clone(),
-        None => PathBuf::from(std::env::var_os("HOME").context("HOME is not set; use --app-dir")?)
-            .join("Library/Application Support/Tessera"),
+        None => match std::env::var_os("TESSERA_APP_DIR").filter(|value| !value.is_empty()) {
+            Some(path) => PathBuf::from(path),
+            None => {
+                PathBuf::from(std::env::var_os("HOME").context("HOME is not set; use --app-dir")?)
+                    .join("Library/Application Support/Tessera")
+            }
+        },
     };
     if matches!(cli.command, Command::Mcp) {
         let executable = std::env::var_os("TESSERA_MCP_BIN")
@@ -262,13 +277,24 @@ fn run(cli: &Cli) -> Result<Value> {
             media::preview(image, out, *max)?;
             Ok(json!({"out":out}))
         }
-        Command::Index { dir } => {
+        Command::Index {
+            dir: Some(dir),
+            command: None,
+        } => {
             let start = Instant::now();
             let changed = index.scan(dir, &catalog::Reader, &catalog::RawMetadata)?;
             Ok(
                 json!({"changed":changed,"total":index.search(&all())?.len(),"ms":start.elapsed().as_secs_f64()*1000.}),
             )
         }
+        Command::Index {
+            dir: None,
+            command: Some(IndexCommand::Prune { dry_run }),
+        } => {
+            let counts = index.prune_missing(*dry_run)?;
+            Ok(json!({"images":counts.images,"files":counts.files,"dry_run":dry_run}))
+        }
+        Command::Index { .. } => anyhow::bail!("use index DIR or index prune [--dry-run]"),
         Command::Cull(command) => culling(&mut index, command),
         Command::Develop(command) => {
             let image = match command {

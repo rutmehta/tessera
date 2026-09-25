@@ -3,7 +3,8 @@
 `cargo run -p tessera-cli --release -- <command>` (binary: `tessera`).
 On macOS worktrees keep `CARGO_TARGET_DIR` outside the checkout.
 
-Global `--app-dir PATH` and `--json` work before or after subcommands. The default
+Global `--app-dir PATH` and `--json` work before or after subcommands. `--app-dir`
+overrides `TESSERA_APP_DIR`; when neither is set the default
 app directory is `$HOME/Library/Application Support/Tessera`; its rebuildable
 catalog is `index.sqlite`. JSON goes to stdout, diagnostics to stderr. Without
 `--json`, results are pretty-printed JSON. Exit status: 0 success, 1 operational
@@ -13,6 +14,11 @@ Commands:
 
 - `index DIR`: incremental recursive scan, reporting changed count, catalog total,
   and elapsed milliseconds. Sidecar selection, captions, and keywords are loaded.
+- `index prune [--dry-run]`: count missing originals in the selected app directory's
+  catalog and remove their image/file rows and search/dependent state. Dry-run
+  reports the same counts without changing the index. This does not delete photos
+  or sidecars. Inspect `--dry-run` before pruning a real catalog; disconnected
+  drives also count as missing.
 - `ls [--query TEXT] [--decision keep|reject|undecided]`: all matching images,
   without the catalog API's default 100-row limit. Query uses the index's FTS syntax.
 - `cull set IMAGE --decision X|U|P [--grade 1|2|3] [--mark NAME]`:

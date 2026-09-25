@@ -35,9 +35,13 @@ if os.environ.get('CI'):
     # only meaningful on a real Mac. Signature checks above still run on CI.
     print('CI: skipping bundle launch smoke test')
 else:
-    result = subprocess.run([str(app / 'Contents/MacOS/Tessera'), '--stub', '0',
+    import tempfile
+    smoke = tempfile.TemporaryDirectory(prefix='tessera-bundle-smoke-')
+    result = subprocess.run([str(app / 'Contents/MacOS/Tessera'), '--app-dir', smoke.name,
+                             '--stub', '0',
                              '--develop-selftest', '--bundle-selftest'],
                             capture_output=True, text=True, timeout=30)
+    smoke.cleanup()
     assert result.returncode == 0, (result.returncode, result.stderr)
     assert 'bundle-selftest: launched' in result.stderr, result.stderr
     assert result.stderr.count('Sparkle updates not configured for this build') == 1, result.stderr

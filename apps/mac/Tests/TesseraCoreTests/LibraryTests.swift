@@ -9,6 +9,16 @@ import TesseraFFI
 /// Library bridge (M2-12): rule diagnostics mapped to Swift string ranges, the rule tree
 /// round trip, album ordering and the filter bar, all on scratch folders.
 final class LibraryTests: XCTestCase {
+    func testSupportDirectoryResolution() {
+        let env = ["TESSERA_APP_DIR": "/tmp/tessera-test-env"]
+        XCTAssertEqual(EngineLibrary.supportDirectory(arguments: ["Tessera"], environment: env).path,
+                       "/tmp/tessera-test-env")
+        XCTAssertEqual(EngineLibrary.supportDirectory(arguments: ["Tessera", "--app-dir", "/tmp/tessera-test-arg"],
+                                                     environment: env).path, "/tmp/tessera-test-arg")
+        XCTAssertTrue(EngineLibrary.supportDirectory(arguments: ["Tessera"], environment: [:]).path
+            .hasSuffix("/Library/Application Support/Tessera"))
+    }
+
     private var root: URL {
         URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
     }
