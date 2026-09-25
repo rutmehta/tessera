@@ -24,7 +24,10 @@ extension StubLibrary: PhotoLibrary {
 public final class EngineImageReference: Sendable, Hashable {
     public let engine: Engine
     public let imageID: String
-    init(engine: Engine, imageID: String) { self.engine = engine; self.imageID = imageID }
+    let previewEvents: PreviewEvents
+    init(engine: Engine, imageID: String, previewEvents: PreviewEvents) {
+        self.engine = engine; self.imageID = imageID; self.previewEvents = previewEvents
+    }
     public static func == (lhs: EngineImageReference, rhs: EngineImageReference) -> Bool { lhs === rhs }
     public func hash(into hasher: inout Hasher) { hasher.combine(ObjectIdentifier(self)) }
 }
@@ -73,6 +76,8 @@ public final class EngineLibrary: PhotoLibrary {
         let support = appSupport ?? fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Tessera", isDirectory: true)
         let engine = try Engine.open(appSupportDir: support.path)
+        let previewEvents = PreviewEvents()
+        engine.setEventListener(listener: previewEvents)
         let handle = try engine.indexFolder(path: folder.path)
         let session = try engine.openCullSession(folder: handle.path)
         try session.setBasketTarget(name: basketTarget)
@@ -103,7 +108,8 @@ public final class EngineLibrary: PhotoLibrary {
                 items.append(PhotoItem(id: items.count, url: url, name: url.lastPathComponent,
                                        kind: StubLibrary.kind(forExtension: url.pathExtension) ?? .raw,
                                        captureDate: date, pixelWidth: 0, pixelHeight: 0, groupID: g,
-                                       engineImage: EngineImageReference(engine: engine, imageID: row.id)))
+                                       engineImage: EngineImageReference(engine: engine, imageID: row.id,
+                                                                                    previewEvents: previewEvents)))
                 ids.append(row.id)
                 states.append(CullController.state(from: row.selection, inBasket: row.inBasket))
             }

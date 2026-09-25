@@ -58,6 +58,15 @@ cursor (`decide`, `grade`, `mark`, `toggleBasket`), one-step batches (`decideIma
 selection and basket membership plus the cursor, so the app never re-reads the whole library.
 Auto-advance is off in bridge sessions: the app advances in its display order. Only ids and small
 records cross the bridge.
+`embeddedPreview` returns `PreviewResponse(bytes: Data?, pending: Bool)`: cache hits include
+bytes immediately. RAW cache hits emit no event; cold RAW requests return pending while the engine worker runs.
+`EngineLibrary` installs one shared listener per engine. `ThumbnailLoader` subscribes before
+requesting, buffers readiness by image ID and size, and retries only on `PreviewReady` (no polling).
+Waiting suspends a Swift task rather than occupying the decode queue or main thread. Completion
+runs on MainActor; reuse, cancellation, and library resets suppress stale delivery and reset-time
+cache writes. Subscriptions are removed on completion/cancellation. A failed background job also
+signals completion via `PreviewReady`; the retry surfaces its error and ends the wait.
+No full-RAW fallback is performed in Swift.
 `ImageQuery` accepts folder, FTS text, decision, limit (0 = all), and offset. Folder paths are
 canonical paths returned by `indexFolder`; filtering includes descendants. RAW capture times
 are Unix seconds as strings; JPEG EXIF capture times are local ISO date-times. Recipe JSON is
@@ -70,8 +79,11 @@ clients must dispatch UI changes to MainActor. Folder scans and preview requests
 off-main in the app. Selection writes are synchronous before auto-advance, including undo/redo;
 failures are shown in the status bar. The SQLite cache lives at
 `~/Library/Application Support/Tessera/index.sqlite`, with a bounded JPEG preview cache beside it.
-Embedded previews are camera-rendered, not developed previews, and do not fall back to a full RAW
-decode when a camera JPEG is missing. They are limited to the requested maximum dimension.
+Sufficient embedded JPEGs stay on the camera-rendered fast path. Missing JPEGs or JPEGs smaller
+than one eighth along either sensor axis use the CPU pipeline with bilinear demosaic and default
+settings, downsampled in linear light. RAW work runs through `jobs` at `Priority::Preview`.
+Both paths apply EXIF orientation and store a JPEG pyramid keyed by source bytes, requested size,
+orientation and the default recipe hash. Applying edited recipes is a later feature.
 
 Rust tests exercise persistence, incremental scanning, filtering/pagination, recipe validation,
 unknown-field preservation, JPEG dimensions and callbacks. Swift's bridge test copies the real

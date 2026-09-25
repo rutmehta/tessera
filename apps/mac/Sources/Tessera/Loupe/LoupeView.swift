@@ -20,6 +20,11 @@ final class LoupeController: LibraryObserver {
     private var request: PreviewRequest?
     private var prefetch: [PreviewRequest] = []
 
+    deinit {
+        request?.cancel()
+        prefetch.forEach { $0.cancel() }
+    }
+
     init(model: AppModel) {
         self.model = model
         view.onColorInfoChange = { [weak model] info in

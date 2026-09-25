@@ -8,6 +8,9 @@ license = "MIT"
 path = "src/lib.rs"
 
 [dependencies]
+engine-api = { path = "../engine-api" }
+raw-decode = { path = "../raw-decode" }
+pipeline-cpu = { path = "../pipeline-cpu" }
 blake3 = "1"
 image = { workspace = true }
 thiserror = { workspace = true }

@@ -131,7 +131,7 @@
     "id": "M1-06",
     "owner": "opus",
     "title": "Pipeline graph + scheduler",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
@@ -139,7 +139,7 @@
     "id": "M1-08",
     "owner": "astra",
     "title": "Export crate",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
@@ -171,6 +171,46 @@
     "id": "M1-14",
     "owner": "astra",
     "title": "Rendered preview fallback (no embedded JPEG)",
+    "status": "merged",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M1-09",
+    "owner": "opus",
+    "title": "Culling UX on real engine",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M1-11",
+    "owner": "astra",
+    "title": "tessera CLI",
+    "status": "merged",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M1-07",
+    "owner": "astra",
+    "title": "GPU operator ports",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-02",
+    "owner": "astra",
+    "title": "Sidecar develop export completeness",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M3-02",
+    "owner": "astra",
+    "title": "Faces + quality signals",
     "status": "running",
     "attempts": 0,
     "notes": ""

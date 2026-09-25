@@ -1,0 +1,9 @@
+Implemented M1-08 in crates/export with JPEG/PNG/TIFF, embedded ICC and XMP, Lanczos-3 resizing, sharpening presets, selection sidecars, and bounded parallel export with cancellation/resume.
+
+Verified the exact required test, Clippy, and formatting command chain. The ignored five-fixture benchmark also passed. Changes are confined to allowed paths; nothing committed.
+
+Known limitation: TIFF16 is encoded correctly, but the current CPU renderer supplies 8-bit sRGB. The renderer boundary is isolated for the later swap.
+
+Handoff: tools/orchestrate/wp/M1-08/VERIFICATION.md
+
+RESULT: PASS

@@ -1,0 +1,15 @@
+Implemented M1-11 within the allowed paths.
+
+The CLI supports indexing/search, culling, Basic develop edits, rendering through image_core::Renderer, embedded previews, Lightroom import, and model registry/CoreML checks. Export remains the requested unavailable stub.
+
+Verification passed:
+  cargo test -p tessera-cli --release
+  cargo clippy -p tessera-cli --all-targets -- -D warnings
+  cargo fmt --check
+
+The actual five-RAW fixture workflow passed, including PNG dimensions and Canon JPEG preview output. CARGO_TARGET_DIR stayed external. No commits made.
+
+Documentation: apps/tessera-cli/README.md
+Verification log: tools/orchestrate/wp/M1-11/verification.log
+
+RESULT: PASS

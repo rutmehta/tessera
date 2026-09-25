@@ -1,0 +1,4 @@
+# WP M1-11b — `tessera export` subcommand
+
+`crates/export` is merged (read its lib.rs: ExportSettings, export_one, export_batch). Replace the "not available" stub in apps/tessera-cli with a real `tessera export <image|dir|--query> --out <dir> --format jpeg|png|tiff [--quality 90] [--long-edge N] [--fit WxH] [--color-space srgb|p3|rec2020|prophoto] [--sharpen screen|matte|glossy] [--metadata all|copyright|none] [--name "{name}-{seq}"] [--jobs N]` with progress on stderr and a JSON summary on `--json`. Ctrl-C cancels via the export crate's cancellation token and leaves no partial files. Tests (assert_cmd): export two fixtures to JPEG long-edge 800 → two files with correct dimensions; `--metadata none` → no XMP packet; cancellation test can be unit-level in the crate if the CLI test is impractical.
+`cargo test -p tessera-cli --release`, clippy -D warnings, fmt.

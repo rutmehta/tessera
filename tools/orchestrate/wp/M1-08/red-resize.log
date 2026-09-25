@@ -1,0 +1,183 @@
+error[E0433]: cannot find type `Resize` in this scope
+  --> crates/export/tests/resize.rs:10:33
+   |
+10 |     for (resize, expected) in [(Resize::None, (120,80)), (Resize::LongEdge(60), (60,40)), (Resize::Fit(50,20), (30,20)), (Resize::Pe...
+   |                                 ^^^^^^ use of undeclared type `Resize`
+   |
+help: a struct with a similar name exists
+   |
+10 -     for (resize, expected) in [(Resize::None, (120,80)), (Resize::LongEdge(60), (60,40)), (Resize::Fit(50,20), (30,20)), (Resize::Percent(25.0), (30,20)), (Resize::Percent(200.0), (240,160))] {
+10 +     for (resize, expected) in [(Recipe::None, (120,80)), (Resize::LongEdge(60), (60,40)), (Resize::Fit(50,20), (30,20)), (Resize::Percent(25.0), (30,20)), (Resize::Percent(200.0), (240,160))] {
+   |
+
+error[E0433]: cannot find type `Resize` in this scope
+  --> crates/export/tests/resize.rs:10:59
+   |
+10 |     for (resize, expected) in [(Resize::None, (120,80)), (Resize::LongEdge(60), (60,40)), (Resize::Fit(50,20), (30,20)), (Resize::Pe...
+   |                                                           ^^^^^^ use of undeclared type `Resize`
+   |
+help: a struct with a similar name exists
+   |
+10 -     for (resize, expected) in [(Resize::None, (120,80)), (Resize::LongEdge(60), (60,40)), (Resize::Fit(50,20), (30,20)), (Resize::Percent(25.0), (30,20)), (Resize::Percent(200.0), (240,160))] {
+10 +     for (resize, expected) in [(Resize::None, (120,80)), (Recipe::LongEdge(60), (60,40)), (Resize::Fit(50,20), (30,20)), (Resize::Percent(25.0), (30,20)), (Resize::Percent(200.0), (240,160))] {
+   |
+
+error[E0433]: cannot find type `Resize` in this scope
+  --> crates/export/tests/resize.rs:10:92
+   |
+10 |     for (resize, expected) in [(Resize::None, (120,80)), (Resize::LongEdge(60), (60,40)), (Resize::Fit(50,20), (30,20)), (Resize::Pe...
+   |                                                                                            ^^^^^^ use of undeclared type `Resize`
+   |
+help: a struct with a similar name exists
+   |
+10 -     for (resize, expected) in [(Resize::None, (120,80)), (Resize::LongEdge(60), (60,40)), (Resize::Fit(50,20), (30,20)), (Resize::Percent(25.0), (30,20)), (Resize::Percent(200.0), (240,160))] {
+10 +     for (resize, expected) in [(Resize::None, (120,80)), (Resize::LongEdge(60), (60,40)), (Recipe::Fit(50,20), (30,20)), (Resize::Percent(25.0), (30,20)), (Resize::Percent(200.0), (240,160))] {
+   |
+
+error[E0433]: cannot find type `Resize` in this scope
+  --> crates/export/tests/resize.rs:10:123
+   |
+10 | ...), (60,40)), (Resize::Fit(50,20), (30,20)), (Resize::Percent(25.0), (30,20)), (Resize::Percent(200.0), (240,160))] {
+   |                                                 ^^^^^^ use of undeclared type `Resize`
+   |
+help: a struct with a similar name exists
+   |
+10 -     for (resize, expected) in [(Resize::None, (120,80)), (Resize::LongEdge(60), (60,40)), (Resize::Fit(50,20), (30,20)), (Resize::Percent(25.0), (30,20)), (Resize::Percent(200.0), (240,160))] {
+10 +     for (resize, expected) in [(Resize::None, (120,80)), (Resize::LongEdge(60), (60,40)), (Resize::Fit(50,20), (30,20)), (Recipe::Percent(25.0), (30,20)), (Resize::Percent(200.0), (240,160))] {
+   |
+
+error[E0433]: cannot find type `Resize` in this scope
+  --> crates/export/tests/resize.rs:10:157
+   |
+10 | ...(30,20)), (Resize::Percent(25.0), (30,20)), (Resize::Percent(200.0), (240,160))] {
+   |                                                 ^^^^^^ use of undeclared type `Resize`
+   |
+help: a struct with a similar name exists
+   |
+10 -     for (resize, expected) in [(Resize::None, (120,80)), (Resize::LongEdge(60), (60,40)), (Resize::Fit(50,20), (30,20)), (Resize::Percent(25.0), (30,20)), (Resize::Percent(200.0), (240,160))] {
+10 +     for (resize, expected) in [(Resize::None, (120,80)), (Resize::LongEdge(60), (60,40)), (Resize::Fit(50,20), (30,20)), (Resize::Percent(25.0), (30,20)), (Recipe::Percent(200.0), (240,160))] {
+   |
+
+error[E0433]: cannot find type `SharpenFor` in this scope
+  --> crates/export/tests/resize.rs:12:29
+   |
+12 |         for sharpen_for in [SharpenFor::None, SharpenFor::Screen, SharpenFor::Matte, SharpenFor::Glossy] {
+   |                             ^^^^^^^^^^ use of undeclared type `SharpenFor`
+
+error[E0433]: cannot find type `SharpenFor` in this scope
+  --> crates/export/tests/resize.rs:12:47
+   |
+12 |         for sharpen_for in [SharpenFor::None, SharpenFor::Screen, SharpenFor::Matte, SharpenFor::Glossy] {
+   |                                               ^^^^^^^^^^ use of undeclared type `SharpenFor`
+
+error[E0433]: cannot find type `SharpenFor` in this scope
+  --> crates/export/tests/resize.rs:12:67
+   |
+12 |         for sharpen_for in [SharpenFor::None, SharpenFor::Screen, SharpenFor::Matte, SharpenFor::Glossy] {
+   |                                                                   ^^^^^^^^^^ use of undeclared type `SharpenFor`
+
+error[E0433]: cannot find type `SharpenFor` in this scope
+  --> crates/export/tests/resize.rs:12:86
+   |
+12 |         for sharpen_for in [SharpenFor::None, SharpenFor::Screen, SharpenFor::Matte, SharpenFor::Glossy] {
+   |                                                                                      ^^^^^^^^^^ use of undeclared type `SharpenFor`
+
+error[E0560]: struct `export::ExportSettings` has no field named `resize`
+  --> crates/export/tests/resize.rs:14:79
+   |
+14 | ...   let settings = ExportSettings { format: Format::Tiff { bits:16 }, resize, sharpen_for, output_dir: dir.path().into(), ..Defaul...
+   |                                                                         ^^^^^^ `export::ExportSettings` does not have this field
+   |
+   = note: available fields are: `color_space`, `metadata`, `naming`
+
+error[E0560]: struct `export::ExportSettings` has no field named `sharpen_for`
+  --> crates/export/tests/resize.rs:14:87
+   |
+14 | ...Format::Tiff { bits:16 }, resize, sharpen_for, output_dir: dir.path().into(), ..Default::default() };
+   |                                      ^^^^^^^^^^^ `export::ExportSettings` does not have this field
+   |
+   = note: available fields are: `color_space`, `metadata`, `naming`
+
+error[E0433]: cannot find type `Resize` in this scope
+  --> crates/export/tests/resize.rs:25:20
+   |
+25 |     for resize in [Resize::LongEdge(0), Resize::Fit(0,1), Resize::Percent(f64::NAN), Resize::Percent(-1.0), Resize::Percent(f64::INF...
+   |                    ^^^^^^ use of undeclared type `Resize`
+   |
+help: a struct with a similar name exists
+   |
+25 -     for resize in [Resize::LongEdge(0), Resize::Fit(0,1), Resize::Percent(f64::NAN), Resize::Percent(-1.0), Resize::Percent(f64::INFINITY), Resize::Percent(1e20)] {
+25 +     for resize in [Recipe::LongEdge(0), Resize::Fit(0,1), Resize::Percent(f64::NAN), Resize::Percent(-1.0), Resize::Percent(f64::INFINITY), Resize::Percent(1e20)] {
+   |
+
+error[E0433]: cannot find type `Resize` in this scope
+  --> crates/export/tests/resize.rs:25:41
+   |
+25 |     for resize in [Resize::LongEdge(0), Resize::Fit(0,1), Resize::Percent(f64::NAN), Resize::Percent(-1.0), Resize::Percent(f64::INF...
+   |                                         ^^^^^^ use of undeclared type `Resize`
+   |
+help: a struct with a similar name exists
+   |
+25 -     for resize in [Resize::LongEdge(0), Resize::Fit(0,1), Resize::Percent(f64::NAN), Resize::Percent(-1.0), Resize::Percent(f64::INFINITY), Resize::Percent(1e20)] {
+25 +     for resize in [Resize::LongEdge(0), Recipe::Fit(0,1), Resize::Percent(f64::NAN), Resize::Percent(-1.0), Resize::Percent(f64::INFINITY), Resize::Percent(1e20)] {
+   |
+
+error[E0433]: cannot find type `Resize` in this scope
+  --> crates/export/tests/resize.rs:25:59
+   |
+25 |     for resize in [Resize::LongEdge(0), Resize::Fit(0,1), Resize::Percent(f64::NAN), Resize::Percent(-1.0), Resize::Percent(f64::INF...
+   |                                                           ^^^^^^ use of undeclared type `Resize`
+   |
+help: a struct with a similar name exists
+   |
+25 -     for resize in [Resize::LongEdge(0), Resize::Fit(0,1), Resize::Percent(f64::NAN), Resize::Percent(-1.0), Resize::Percent(f64::INFINITY), Resize::Percent(1e20)] {
+25 +     for resize in [Resize::LongEdge(0), Resize::Fit(0,1), Recipe::Percent(f64::NAN), Resize::Percent(-1.0), Resize::Percent(f64::INFINITY), Resize::Percent(1e20)] {
+   |
+
+error[E0433]: cannot find type `Resize` in this scope
+  --> crates/export/tests/resize.rs:25:86
+   |
+25 |     for resize in [Resize::LongEdge(0), Resize::Fit(0,1), Resize::Percent(f64::NAN), Resize::Percent(-1.0), Resize::Percent(f64::INF...
+   |                                                                                      ^^^^^^ use of undeclared type `Resize`
+   |
+help: a struct with a similar name exists
+   |
+25 -     for resize in [Resize::LongEdge(0), Resize::Fit(0,1), Resize::Percent(f64::NAN), Resize::Percent(-1.0), Resize::Percent(f64::INFINITY), Resize::Percent(1e20)] {
+25 +     for resize in [Resize::LongEdge(0), Resize::Fit(0,1), Resize::Percent(f64::NAN), Recipe::Percent(-1.0), Resize::Percent(f64::INFINITY), Resize::Percent(1e20)] {
+   |
+
+error[E0433]: cannot find type `Resize` in this scope
+  --> crates/export/tests/resize.rs:25:109
+   |
+25 | ...e::Percent(f64::NAN), Resize::Percent(-1.0), Resize::Percent(f64::INFINITY), Resize::Percent(1e20)] {
+   |                                                 ^^^^^^ use of undeclared type `Resize`
+   |
+help: a struct with a similar name exists
+   |
+25 -     for resize in [Resize::LongEdge(0), Resize::Fit(0,1), Resize::Percent(f64::NAN), Resize::Percent(-1.0), Resize::Percent(f64::INFINITY), Resize::Percent(1e20)] {
+25 +     for resize in [Resize::LongEdge(0), Resize::Fit(0,1), Resize::Percent(f64::NAN), Resize::Percent(-1.0), Recipe::Percent(f64::INFINITY), Resize::Percent(1e20)] {
+   |
+
+error[E0433]: cannot find type `Resize` in this scope
+  --> crates/export/tests/resize.rs:25:141
+   |
+25 | ...rcent(-1.0), Resize::Percent(f64::INFINITY), Resize::Percent(1e20)] {
+   |                                                 ^^^^^^ use of undeclared type `Resize`
+   |
+help: a struct with a similar name exists
+   |
+25 -     for resize in [Resize::LongEdge(0), Resize::Fit(0,1), Resize::Percent(f64::NAN), Resize::Percent(-1.0), Resize::Percent(f64::INFINITY), Resize::Percent(1e20)] {
+25 +     for resize in [Resize::LongEdge(0), Resize::Fit(0,1), Resize::Percent(f64::NAN), Resize::Percent(-1.0), Resize::Percent(f64::INFINITY), Recipe::Percent(1e20)] {
+   |
+
+error[E0560]: struct `export::ExportSettings` has no field named `resize`
+  --> crates/export/tests/resize.rs:27:41
+   |
+27 |         let settings = ExportSettings { resize, output_dir: dir.path().into(), ..Default::default() };
+   |                                         ^^^^^^ `export::ExportSettings` does not have this field
+   |
+   = note: available fields are: `format`, `color_space`, `metadata`, `naming`
+
+Some errors have detailed explanations: E0433, E0560.
+For more information about an error, try `rustc --explain E0433`.
+error: could not compile `export` (test "resize") due to 18 previous errors

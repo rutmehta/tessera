@@ -19,7 +19,7 @@ final class BridgeTests: XCTestCase {
         return temp
     }
 
-    func testRawFixturesPersistAcrossReopenThroughTheSession() throws {
+    @MainActor func testRawFixturesPersistAcrossReopenThroughTheSession() async throws {
         let fixture = root.appendingPathComponent("../../fixtures/raw").standardizedFileURL
         let temp = try scratch()
         let photos = temp.appendingPathComponent("raw")
@@ -29,7 +29,7 @@ final class BridgeTests: XCTestCase {
         XCTAssertEqual(library.items.count, 5)
         let cull = library.makeCullController()
         XCTAssertTrue(cull.isEngineBacked)
-        let item = try XCTUnwrap(library.items.first)
+        let item = try XCTUnwrap(library.items.first { $0.name == "sample.dng" })
         try cull.apply(.reject, to: [item.id])
         try cull.apply(.mark(6), to: [item.id])
         let reopened = try EngineLibrary.scan(folder: photos, appSupport: support)
@@ -37,15 +37,22 @@ final class BridgeTests: XCTestCase {
         let state = reopened.makeCullController()[found.id]
         XCTAssertEqual(state.decision, .reject)
         XCTAssertEqual(state.mark, 6)
-        XCTAssertNotNil(ThumbnailLoader.render(found, tier: .thumbnail))
 
+        // M1-14: a cold RAW preview completes through the worker callback.
+        let loader = ThumbnailLoader()
+        let ready = expectation(description: "cold RAW preview completes from worker callback")
+        let request = loader.request(found, tier: .thumbnail) { image in
+            XCTAssertGreaterThan(image.width, 0)
+            ready.fulfill()
+        }
+        await fulfillment(of: [ready], timeout: 30)
+        XCTAssertFalse(request?.isCancelled ?? true)
+        XCTAssertNotNil(loader.cached(found, tier: .thumbnail))
         let ref = try XCTUnwrap(found.engineImage)
-        let events = BridgeEvents()
-        ref.engine.setEventListener(listener: events)
-        _ = try ref.engine.indexFolder(path: photos.path)
-        _ = try ref.engine.embeddedPreview(imageId: ref.imageID, maxPx: 128)
-        XCTAssertEqual(events.count, 3)
-        ref.engine.setEventListener(listener: nil)
+        let cached = try ref.engine.embeddedPreview(imageId: ref.imageID, maxPx: 384)
+        XCTAssertFalse(cached.pending)
+        XCTAssertNotNil(cached.bytes)
+        XCTAssertNotNil(ThumbnailLoader.render(found, tier: .thumbnail))
     }
 
     /// Three near-duplicate frames (A), one opposite frame (B) and a two-frame pair (C).
@@ -251,9 +258,3 @@ final class BridgeTests: XCTestCase {
     }
 }
 
-private final class BridgeEvents: EngineEventListener, @unchecked Sendable {
-    private let lock = NSLock()
-    private var events: [EngineEvent] = []
-    var count: Int { lock.withLock { events.count } }
-    func onEvent(event: EngineEvent) { lock.withLock { events.append(event) } }
-}

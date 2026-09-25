@@ -122,8 +122,9 @@ fn recipe_preview_and_callback_round_trip() {
         .unwrap();
     assert_eq!(engine.get_recipe(row.id.clone()).unwrap(), json);
     assert!(engine.set_recipe_json(row.id.clone(), "{}".into()).is_err());
-    let bytes = engine.embedded_preview(row.id.clone(), 16).unwrap();
-    let preview = image::load_from_memory(&bytes).unwrap();
+    let bytes = engine.clone().embedded_preview(row.id.clone(), 16).unwrap();
+    assert!(!bytes.pending);
+    let preview = image::load_from_memory(&bytes.bytes.unwrap()).unwrap();
     assert_eq!((preview.width(), preview.height()), (16, 8));
     assert!(engine.embedded_preview(row.id, 0).is_err());
     let events = events.0.lock().unwrap();
