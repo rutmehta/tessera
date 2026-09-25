@@ -12,6 +12,7 @@ import TesseraCore
 ///   K keep the group's suggested best and reject the rest · C compare · ⌫ remove from album
 ///   Compare: ← → pick side · Return choose this · Z fit/1:1 · Esc back
 ///   Masking (loupe): M on/off · O overlay (⇧ colour) · [ ] brush size (⇧ feather) · X invert · ⌫ delete
+///   Develop (loupe): S soft proofing on/off · ⇧S gamut warning
 /// A develop control that handles keys itself while focused (the curve editor's point nudge).
 @MainActor protocol DevelopKeyHandling: AnyObject {
     func handleDevelopKey(_ event: NSEvent) -> Bool
@@ -84,6 +85,14 @@ final class KeyRouter {
         case "k": model.keepBestRejectRest()
         case "c": comparing ? model.exitCompare() : model.enterCompare()
         case "z" where comparing: model.toggleCompareZoom()
+        case "s" where loupe:
+            if shift {
+                SoftProof.shared.gamutWarning.toggle()
+                model.statusMessage = "Gamut warning \(SoftProof.shared.gamutWarning ? "on" : "off")"
+            } else {
+                SoftProof.shared.toggle()
+                model.statusMessage = "Soft proofing \(SoftProof.shared.enabled ? "on" : "off")"
+            }
         case "g": model.viewMode = .grid
         case "e": model.viewMode = .loupe
         default: return false

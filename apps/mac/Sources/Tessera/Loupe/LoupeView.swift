@@ -40,6 +40,10 @@ final class LoupeController: LibraryObserver {
             view?.render()
         }
         MaskTools.shared.onOverlayFrame = { [weak view] f in view?.present(maskOverlay: f) }
+        SoftProof.shared.onChange = { [weak view] in
+            let proof = SoftProof.shared
+            view?.setSoftProof(proof.lut, warning: proof.warningRGB)
+        }
     }
 
     func libraryDidReload() {
@@ -86,6 +90,7 @@ final class LoupeController: LibraryObserver {
 
     /// The model's develop session changed (opened, closed): attach it if it is ours.
     func developDidChange() {
+        if SoftProof.shared.develop !== model.develop { SoftProof.shared.attach(model.develop) }
         guard model.viewMode == .loupe, let develop = model.develop, develop.itemID == shownID else { return }
         view.attach(develop: develop)
     }

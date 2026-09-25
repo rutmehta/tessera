@@ -39,6 +39,10 @@ final class MetalLoupeView: NSView {
     private var lastDisplayShape: (Int, Int)?
     /// The selected mask's overlay plane (masking mode), shown over engine frames.
     private var maskOverlay: LoupeRenderer.MaskOverlay?
+    /// Soft proof (M2-20): applied to engine frames only (they are the sRGB viewport contract).
+    private var proofLUT: LoupeRenderer.ProofLUT?
+    /// Identity of the uploaded LUT (profile + options), so warning-colour changes do not re-upload.
+    private var proofKey: [UInt16]?
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -257,8 +261,26 @@ final class MetalLoupeView: NSView {
             let lin = { (v: Float) in v <= 0.04045 ? v / 12.92 : powf((v + 0.055) / 1.055, 2.4) }
             overlay?.tint = SIMD4(lin(c.r), lin(c.g), lin(c.b), Float(tools.overlayOpacity))
         }
+        let proof = currentFrame?.pixelFormat == .rgba8Unorm_srgb ? proofLUT : nil
         lastEncodeTime = renderer.draw(in: metalLayer, texture: texture, frame: currentFrame, placement: placement,
-                                       background: Theme.loupeBackgroundLinear, overlay: overlay)
+                                       background: Theme.loupeBackgroundLinear, overlay: overlay, proof: proof)
+    }
+
+    /// Shows (or, with nil, stops) soft proofing with `lut`; `warning.w` > 0 paints out-of-gamut colours.
+    func setSoftProof(_ lut: SoftProofLut?, warning: SIMD4<Float>) {
+        guard let lut, let renderer else {
+            proofLUT = nil
+            proofKey = nil
+            render()
+            return
+        }
+        if proofKey != lut.rgba || proofLUT == nil {
+            guard let texture = renderer.makeProofTexture(size: Int(lut.size), rgba: lut.rgba) else { return }
+            proofLUT = LoupeRenderer.ProofLUT(texture: texture, size: Int(lut.size), warning: warning)
+            proofKey = lut.rgba
+        }
+        proofLUT?.warning = warning
+        render()
     }
 
     /// Shows (or clears) the selected mask's overlay plane from the attached session.

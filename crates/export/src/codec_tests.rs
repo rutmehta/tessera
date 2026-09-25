@@ -28,8 +28,11 @@ fn shared_profiles_are_reused_and_tiff_quantizes_target_encoded_pixels() {
         encode(
             &mut bytes,
             &image,
-            Format::Tiff { bits: 16 },
-            space,
+            Encoding {
+                format: Format::Tiff { bits: 16 },
+                space,
+                dpi: None,
+            },
             None,
             &CancellationToken::new(),
         )
@@ -89,9 +92,69 @@ fn cancel_during_encoding_stops_writes() {
         };
         let image = image::Rgb32FImage::from_pixel(64, 64, image::Rgb([0.2, 0.3, 0.4]));
         assert_eq!(
-            encode(&mut writer, &image, format, ColorSpace::Srgb, None, &cancel),
+            encode(
+                &mut writer,
+                &image,
+                Encoding {
+                    format,
+                    space: ColorSpace::Srgb,
+                    dpi: None
+                },
+                None,
+                &cancel
+            ),
             Err(engine_api::EngineError::Cancelled)
         );
         assert!(writer.inner.get_ref().len() < 100);
     }
+}
+
+#[test]
+fn density_is_recorded_in_every_container() {
+    let image = image::Rgb32FImage::from_pixel(6, 4, image::Rgb([0.2, 0.3, 0.4]));
+    let bytes = |format, dpi| {
+        let mut out = std::io::Cursor::new(Vec::new());
+        encode(
+            &mut out,
+            &image,
+            Encoding {
+                format,
+                space: ColorSpace::Srgb,
+                dpi,
+            },
+            None,
+            &CancellationToken::new(),
+        )
+        .unwrap();
+        out.into_inner()
+    };
+    // JFIF APP0: "JFIF\0", version (2), units (1 = dots per inch), X density, Y density.
+    let jpeg = bytes(Format::Jpeg { quality: 90 }, Some(300));
+    let at = jpeg.windows(5).position(|w| w == b"JFIF\0").unwrap();
+    assert_eq!(&jpeg[at + 7..at + 12], &[1, 1, 44, 1, 44]);
+    let jpeg = bytes(Format::Jpeg { quality: 90 }, None);
+    let at = jpeg.windows(5).position(|w| w == b"JFIF\0").unwrap();
+    assert_eq!(jpeg[at + 7], 0, "no density: aspect ratio only");
+
+    let png = bytes(Format::Png, Some(300));
+    let reader = png::Decoder::new(std::io::Cursor::new(png))
+        .read_info()
+        .unwrap();
+    let dims = reader.info().pixel_dims.unwrap();
+    assert_eq!((dims.xppu, dims.unit), (11811, png::Unit::Meter));
+
+    let tiff = bytes(Format::Tiff { bits: 8 }, Some(240));
+    let mut decoder = tiff::decoder::Decoder::new(std::io::Cursor::new(tiff)).unwrap();
+    assert_eq!(
+        decoder
+            .get_tag_u32_vec(tiff::tags::Tag::XResolution)
+            .unwrap(),
+        vec![240, 1]
+    );
+    assert_eq!(
+        decoder
+            .get_tag_u32(tiff::tags::Tag::ResolutionUnit)
+            .unwrap(),
+        2
+    );
 }

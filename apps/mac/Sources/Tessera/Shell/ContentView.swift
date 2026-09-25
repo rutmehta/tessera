@@ -44,6 +44,8 @@ struct ContentView: View {
                     .animation(.easeOut(duration: 0.18), value: model.toast)
                 }
                 LightroomImportProgressBar(importer: model.lightroomImport)
+                ExportProgressBar(exporter: model.exporter)
+                PrintProgressBar(printing: model.printing)
                 StatusBar(model: model)
                 if model.showFilmstrip {
                     Divider()
@@ -60,6 +62,12 @@ struct ContentView: View {
         }
         .sheet(isPresented: $model.showLightroomImport) {
             LightroomImportSheet(importer: model.lightroomImport)
+        }
+        .sheet(isPresented: $model.showExport) {
+            ExportSheet(exporter: model.exporter)
+        }
+        .sheet(isPresented: $model.showPrint) {
+            PrintSheet(printing: model.printing, model: model)
         }
         .sheet(isPresented: Binding(get: { model.collections.editor != nil },
                                     set: { if !$0 { model.collections.editor = nil } })) {
@@ -174,7 +182,16 @@ struct LoupeOverlay: View {
                     }
                 }
                 Spacer()
-                Text(model.loupeInfo).font(.system(size: 10)).foregroundStyle(.secondary)
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(model.loupeInfo).font(.system(size: 10)).foregroundStyle(.secondary)
+                    if SoftProof.shared.enabled {
+                        Text(SoftProof.shared.lut.map { "SOFT PROOF · \($0.profileName)" + (SoftProof.shared.gamutWarning ? " · GAMUT WARNING" : "") }
+                             ?? SoftProof.shared.status)
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(Color(nsColor: Theme.accent))
+                            .accessibilityIdentifier("softproof-badge")
+                    }
+                }
             }
             Spacer()
             Text("← → group    ↑ ↓ frame in group    X U P decide    1 2 3 grade    K keep best    C compare    ⌘Z undo    Esc grid")
@@ -210,13 +227,27 @@ struct ToastView: View {
     let model: AppModel
     let toast: Toast
     var body: some View {
-        HStack(spacing: 12) {
-            Text(toast.message).font(.system(size: 12)).lineLimit(1)
-            if toast.undoable {
-                Button("Undo  ⌘Z") { model.undo() }
-                    .buttonStyle(.plain)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(Color(nsColor: Theme.accent))
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 12) {
+                Text(toast.message).font(.system(size: 12)).lineLimit(1)
+                if toast.undoable {
+                    Button("Undo  ⌘Z") { model.undo() }
+                        .buttonStyle(.plain)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Color(nsColor: Theme.accent))
+                }
+                if !toast.details.isEmpty {
+                    Button("Dismiss") { model.toast = nil }
+                        .buttonStyle(.plain)
+                        .font(.system(size: 11)).foregroundStyle(.secondary)
+                }
+            }
+            ForEach(Array(toast.details.prefix(5).enumerated()), id: \.offset) { _, line in
+                Text(line).font(.system(size: 11)).foregroundStyle(Color(nsColor: Theme.reject))
+                    .lineLimit(1).truncationMode(.middle)
+            }
+            if toast.details.count > 5 {
+                Text("and \(toast.details.count - 5) more").font(.system(size: 11)).foregroundStyle(.secondary)
             }
         }
         .padding(.horizontal, 14)

@@ -20,6 +20,17 @@ struct AppCommands: Commands {
             Button("Import Lightroom Catalog…") { model.presentLightroomImport() }
                 .keyboardShortcut("i", modifiers: [.command, .shift])
                 .disabled(model.lightroomImport.isRunning)
+            Divider()
+            Button("Export…") { model.presentExport() }
+                .keyboardShortcut("e", modifiers: [.command, .shift])
+                .disabled(model.exporter.isRunning)
+        }
+        CommandGroup(replacing: .printItem) {
+            Button("Page Setup…") { model.printing.pageSetup() }
+                .keyboardShortcut("p", modifiers: [.command, .shift])
+            Button("Print…") { model.presentPrint() }
+                .keyboardShortcut("p", modifiers: .command)
+                .disabled(model.printing.isRunning)
         }
         // Always enabled: SwiftUI can leave a stale disabled state on menu items, which would
         // swallow ⌘Z. The engine's session is the source of truth and reports "Nothing to undo".
@@ -107,6 +118,11 @@ struct AppCommands: Commands {
                 }
             }
             .disabled((model.developHistory?.snapshots ?? []).isEmpty)
+            Divider()
+            Toggle("Soft Proofing    (S)", isOn: Binding(get: { SoftProof.shared.enabled },
+                                                          set: { _ in SoftProof.shared.toggle() }))
+            Toggle("Gamut Warning    (⇧S)", isOn: Binding(get: { SoftProof.shared.gamutWarning },
+                                                            set: { SoftProof.shared.gamutWarning = $0 }))
         }
         CommandMenu("Debug") {
             Toggle("Show Render Timing", isOn: Binding(get: { model.showRenderReadout },

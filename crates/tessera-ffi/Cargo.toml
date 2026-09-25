@@ -23,6 +23,8 @@ pipeline-cpu = { path = "../pipeline-cpu" }
 pipeline-gpu = { path = "../pipeline-gpu" }
 ml-runtime = { path = "../ml-runtime" }
 ml-segment = { path = "../ml-segment" }
+export = { path = "../export" }
+ml-enhance = { path = "../ml-enhance" }
 anyhow.workspace = true
 blake3.workspace = true
 uniffi = { workspace = true, features = ["cli"] }
@@ -35,6 +37,7 @@ image.workspace = true
 kamadak-exif.workspace = true
 
 [dev-dependencies]
+lcms2.workspace = true
 import-lrcat = { path = "../import-lrcat", features = ["fixture"] }
 
 [[bin]]

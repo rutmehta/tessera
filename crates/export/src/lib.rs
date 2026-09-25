@@ -72,6 +72,18 @@ pub struct ExportSettings {
     pub sharpen_for: SharpenFor,
     pub naming: String,
     pub output_dir: PathBuf,
+    /// Pixel density recorded in the file (JFIF, PNG pHYs, TIFF resolution
+    /// tags). Metadata only: it never resamples. None records no density.
+    pub dpi: Option<u32>,
+    /// Rotate/flip RAW renders from sensor orientation into the EXIF
+    /// orientation (what a viewer shows). Off by default: existing callers
+    /// receive sensor-oriented pixels, as before.
+    pub apply_orientation: bool,
+    /// Render from a 1/2, 1/4 or 1/8 binned source (1, 2, 4 or 8) before
+    /// `resize`, for outputs much smaller than the original. The caller picks
+    /// a scale that still covers the output size. Ignored with AI masks or
+    /// super-resolution (both need full resolution).
+    pub render_scale: u32,
 }
 impl Default for ExportSettings {
     fn default() -> Self {
@@ -83,15 +95,28 @@ impl Default for ExportSettings {
             sharpen_for: SharpenFor::None,
             naming: "{name}-{seq}".into(),
             output_dir: ".".into(),
+            dpi: None,
+            apply_orientation: false,
+            render_scale: 1,
         }
     }
 }
 
 /// Render directly to the document profile in float, without an sRGB intermediate.
+#[cfg(test)]
 fn render_full(
     image: &ExportImage<'_>,
     recipe: &Recipe,
     space: ColorSpace,
+) -> EngineResult<image::Rgb32FImage> {
+    render_scaled(image, recipe, space, 1)
+}
+
+fn render_scaled(
+    image: &ExportImage<'_>,
+    recipe: &Recipe,
+    space: ColorSpace,
+    scale: u32,
 ) -> EngineResult<image::Rgb32FImage> {
     if ai_masks::active(&recipe.settings) {
         return encode_output_profile(render_full_float(image, recipe)?, recipe, space);
@@ -104,7 +129,7 @@ fn render_full(
     Ok(pipeline_cpu::render_managed_scaled(
         &settings,
         &image.source,
-        1,
+        scale,
         &mut pipeline_cpu::OutputContext {
             registry: &mut registry,
             target: pipeline_cpu::OutputTarget::Export(&target),
@@ -157,6 +182,93 @@ pub fn export_one(
 ) -> EngineResult<PathBuf> {
     let cancel = CancellationToken::new();
     prepare(image, recipe, settings, &cancel)?.commit(&cancel)
+}
+
+/// One export with a caller-owned cancellation token and optional explicit
+/// super-resolution model and segmentation backend (for recipes with AI
+/// masks; see [`needs_segmenter`]). Streaming callers decode, export and drop
+/// one image at a time instead of holding a whole batch of RAWs in memory.
+pub fn export_one_cancellable(
+    image: &ExportImage<'_>,
+    recipe: &Recipe,
+    settings: &ExportSettings,
+    cancel: &CancellationToken,
+    upscale: Option<&mut ml_enhance::SuperResolution>,
+    segmenter: Option<&mut dyn mask_ai::MaskSegmenter>,
+) -> EngineResult<PathBuf> {
+    prepare_with_segmenter(image, recipe, settings, cancel, upscale, segmenter)?.commit(cancel)
+}
+
+/// Whether rendering `recipe` needs a segmentation backend (enabled AI masks).
+pub fn needs_segmenter(recipe: &Recipe) -> bool {
+    ai_masks::active(&recipe.settings)
+}
+
+/// Rendered pixels without writing a file (print, contact sheets): the same
+/// pipeline, orientation, resize and output sharpening as an export, in the
+/// document colour space `space` (encoded floats, 0–1).
+///
+/// `scale` (1, 2, 4 or 8) renders from a binned source for small outputs; it
+/// is ignored (1) when AI masks need the full-resolution segmentation input.
+pub fn render_pixels(
+    image: &ExportImage<'_>,
+    recipe: &Recipe,
+    render: &RenderRequest,
+    cancel: &CancellationToken,
+    segmenter: Option<&mut dyn mask_ai::MaskSegmenter>,
+) -> EngineResult<image::Rgb32FImage> {
+    cancel.check()?;
+    recipe.validate()?;
+    if !matches!(render.scale, 1 | 2 | 4 | 8) {
+        return Err(EngineError::invalid("scale", "must be 1, 2, 4 or 8"));
+    }
+    let rgb = if ai_masks::active(&recipe.settings) {
+        let rgb = ai_masks::render(&image.source, &recipe.settings, segmenter)?;
+        encode_output_profile(rgb, recipe, render.color_space)?
+    } else {
+        render_scaled(image, recipe, render.color_space, render.scale)?
+    };
+    cancel.check()?;
+    let rgb = orient(rgb, source_orientation(&image.source));
+    let rgb = filter::resize(rgb, render.resize, cancel)?;
+    filter::sharpen(rgb, render.sharpen_for, cancel)
+}
+
+/// See [`render_pixels`].
+#[derive(Clone, Copy, Debug)]
+pub struct RenderRequest {
+    pub color_space: ColorSpace,
+    pub resize: Resize,
+    pub sharpen_for: SharpenFor,
+    pub scale: u32,
+}
+
+/// Built-in document profile ICC bytes (for tagging rendered pixels).
+pub fn color_space_icc(space: ColorSpace) -> EngineResult<Vec<u8>> {
+    let mut registry = color_mgmt::Registry::new();
+    Ok(codec::profile(&mut registry, space)?.icc_bytes().to_vec())
+}
+
+fn source_orientation(source: &RenderSource<'_>) -> u16 {
+    match source {
+        RenderSource::Cfa { metadata, .. } => metadata.orientation,
+        RenderSource::Rgb(_) => 1,
+    }
+}
+
+/// Sensor → display orientation (EXIF 1–8).
+fn orient(rgb: image::Rgb32FImage, orientation: u16) -> image::Rgb32FImage {
+    use image::imageops::*;
+    match orientation {
+        2 => flip_horizontal(&rgb),
+        3 => rotate180(&rgb),
+        4 => flip_vertical(&rgb),
+        5 => rotate90(&flip_vertical(&rgb)),
+        6 => rotate90(&rgb),
+        7 => rotate90(&flip_horizontal(&rgb)),
+        8 => rotate270(&rgb),
+        _ => rgb,
+    }
 }
 
 fn prepare(
@@ -264,27 +376,37 @@ fn prepare_with_segmenter(
         cancel.check()?;
         encode_output_profile(upscale_rgb(rgb, upscale)?, recipe, settings.color_space)?
     } else {
-        render_full(image, recipe, settings.color_space)?
+        if !matches!(settings.render_scale, 1 | 2 | 4 | 8) {
+            return Err(EngineError::invalid("render_scale", "must be 1, 2, 4 or 8"));
+        }
+        render_scaled(image, recipe, settings.color_space, settings.render_scale)?
     };
     cancel.check()?;
+    let rgb = if settings.apply_orientation {
+        orient(rgb, source_orientation(&image.source))
+    } else {
+        rgb
+    };
     let rgb = filter::resize(rgb, settings.resize, cancel)?;
     let rgb = filter::sharpen(rgb, settings.sharpen_for, cancel)?;
     let packet = metadata_packet(image, recipe, settings.metadata)?;
     fs::create_dir_all(&settings.output_dir)
         .map_err(|e| EngineError::io_at(&settings.output_dir, &e))?;
-    let mut temp = tempfile::NamedTempFile::new_in(&settings.output_dir).map_err(encode_error)?;
+    let mut temp = new_output_temp(&settings.output_dir)?;
     codec::encode(
         temp.as_file_mut(),
         &rgb,
-        settings.format,
-        settings.color_space,
+        codec::Encoding {
+            format: settings.format,
+            space: settings.color_space,
+            dpi: settings.dpi,
+        },
         packet.as_ref().map(XmpPacket::serialize),
         cancel,
     )?;
     temp.as_file().sync_all().map_err(encode_error)?;
     let side_temp = if let Some(packet) = &packet {
-        let mut temp =
-            tempfile::NamedTempFile::new_in(&settings.output_dir).map_err(encode_error)?;
+        let mut temp = new_output_temp(&settings.output_dir)?;
         temp.write_all(packet.serialize().as_bytes())
             .map_err(encode_error)?;
         temp.as_file().sync_all().map_err(encode_error)?;
@@ -299,6 +421,20 @@ fn prepare_with_segmenter(
         path,
         side_path,
     })
+}
+
+/// A temporary file that becomes an output: readable like any exported
+/// document (0644), not the 0600 of a private temporary file.
+fn new_output_temp(dir: &std::path::Path) -> EngineResult<tempfile::NamedTempFile> {
+    let temp = tempfile::NamedTempFile::new_in(dir).map_err(encode_error)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        temp.as_file()
+            .set_permissions(fs::Permissions::from_mode(0o644))
+            .map_err(encode_error)?;
+    }
+    Ok(temp)
 }
 
 fn upscale_rgb(

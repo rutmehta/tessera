@@ -1,9 +1,11 @@
 //! ICC profiles, display transforms and soft proofing.
 mod display;
 mod lut;
+mod printer;
 mod transform;
 pub use display::DisplayProfile;
 pub use lut::Lut3d;
+pub use printer::*;
 use std::{collections::HashMap, path::Path, sync::Arc};
 pub use transform::*;
 

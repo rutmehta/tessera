@@ -25,7 +25,7 @@ Notes:
    export CARGO_TARGET_DIR="$HOME/.cache/tessera-target/verify"
    (cd apps/mac && ./build-ffi.sh && swift build && swift test && Support/make-app.sh release)
    ```
-   Expect: `swift test` reports `Executed 46 tests, with 0 failures` (XCTest, all suites) and the Swift Testing line
+   Expect: `swift test` reports `Executed 55 tests, with 0 failures` (XCTest, all suites) and the Swift Testing line
    `Test run with 5 tests in 2 suites passed`; the last line reads `Built …/apps/mac/build/Tessera.app`.
    Also run `cargo test -p tessera-ffi -p cull -p image-core -p library --release 2>&1 | grep "test result"`. Expect only `ok.` lines.
 2. Create scratch data (a fresh folder each run; do not reuse an old path):
@@ -481,3 +481,97 @@ renders, so the ΔE values below only show that the comparison works.
 ## Verdict (Lightroom import)
 
 PASS when steps 63–72 meet their expectations. Record the fidelity values seen in step 68 (they are informational).
+
+## O. Export, soft proofing and print (M2-20)
+
+File ▸ Export… (⇧⌘E) exports the selection or the current album with a preset and editable settings; it runs
+without a sheet (progress strip with Cancel) and ends in a results toast. Develop ▸ Soft Proofing (S in the loupe)
+simulates a printer profile in the loupe, with a gamut warning (⇧S). File ▸ Print… (⌘P) lays out single pages,
+contact sheets or custom cells, renders every photo with the engine at the print resolution, and prints, saves a
+PDF or saves JPEG pages. Exports of full RAWs render on the CPU reference pipeline: allow up to a minute per photo
+on large files (the Web preset renders at half size and is faster).
+
+73. **Tests.**
+    ```sh
+    cargo test -p tessera-ffi -p export -p color-mgmt --release 2>&1 | grep "test result"
+    (cd apps/mac && swift test --filter ExportPrintTests 2>&1 | grep Executed)
+    ```
+    Expect only `ok.` lines (the tessera-ffi `export` suite: `8 passed`; export `orientation`: `2 passed`;
+    color-mgmt `printer`: `2 passed`) and `Executed 9 tests, with 0 failures`.
+74. **Scratch RAWs.**
+    ```sh
+    mkdir -p "$SCR/raw3" && cp -L fixtures/raw/nikon-nef.NEF fixtures/raw/sony-arw.ARW fixtures/raw/canon-cr3.CR3 "$SCR/raw3/"
+    open -n apps/mac/build/Tessera.app --args --app-dir "$SCR/appdir" --folder "$SCR/raw3"
+    ```
+    Expect `Opened raw3: 3 images (3 RAW)`.
+75. **Export sheet.** Click a cell, press **⌘A**, choose **File ▸ Export…** (⇧⌘E). 📸 Expect the sheet **Export** with
+    `Selected photos (3)` top right, Preset **Web 2048 sRGB** and the summary `2048 px long edge · JPEG 85 · sRGB · 72 dpi`;
+    sections Location (folder `…/Pictures/Tessera Export`, `If a file exists: Add a number`, `After export: show in
+    Finder`), File Naming (template `{name}`, buttons `{name}` `{seq}` `{date}`, `Example: <first photo>.jpg, …`), File
+    Settings (JPEG selected, Quality 85, Colour space sRGB), Image Sizing (Long edge 2048 pixels, Resolution 72, Upscale
+    Off), Output (Sharpen for Screen, Metadata All metadata). The button reads **Export 3 Photos**.
+76. **Presets and fields.** Open the Preset menu: `Custom`, then **Web 2048 sRGB, Full-size JPEG, 16-bit TIFF ProPhoto,
+    Print 300 dpi**. Choose **16-bit TIFF ProPhoto**: the summary reads `Full size · TIFF 16-bit · ProPhoto RGB · 300 dpi`
+    and File Settings shows TIFF with Bit depth 16-bit. Choose **Print 300 dpi**: Long edge `12` **inches**, summary
+    starts `12 in long edge · JPEG 95`. Choose **Web 2048 sRGB** again. Click `{seq}` after the template: the example
+    becomes `<name>1.jpg, …`; replace the template with `{nme}`: the example turns red, `Unknown token {nme} …`, and the
+    Export button is disabled. Set the template back to `{name}`. Change Quality: the preset menu shows **Custom**.
+    Choose **Web 2048 sRGB** once more.
+77. **Export (non-modal).** Click **Choose…**, press ⇧⌘G, paste `$SCR/web` (expanded; create it with **New Folder** if
+    needed), **Choose**. Click **Export 3 Photos**. 📸 Expect the sheet to close and a strip above the status bar:
+    `Exporting · Selected photos`, a progress bar, `0 / 3` … `2 / 3`, the current file name and **Cancel Export**; the
+    grid still scrolls and accepts clicks. When it finishes: a toast `Exported 3 photos to web in … s`, the status
+    message says the same, and the three cells show the **EXPORTED** status pill.
+78. **Files and dimensions.**
+    ```sh
+    ls "$SCR/web"
+    for f in "$SCR"/web/*.jpg; do sips -g pixelWidth -g pixelHeight -g dpiWidth "$f" | tail -3 | tr '\n' ' '; echo; done
+    ls "$SCR/appdir/ExportPresets"
+    ```
+    Expect `canon-cr3.jpg nikon-nef.jpg sony-arw.jpg` (each with a `.jpg.xmp` metadata sidecar); sizes
+    `2048 × 2048` (the CR3 fixture is square), `2048 × 1367` and `2048 × 1364`, all `dpiWidth: 72`; the presets folder
+    lists four `.json` files.
+79. **Conflicts, cancel and failures.** ⇧⌘E, **Export 3 Photos** again. Expect `canon-cr3-2.jpg` etc. (nothing is
+    overwritten). ⇧⌘E once more and click **Cancel Export** while the strip shows `0 / 3` or `1 / 3`: the toast reads
+    `Export cancelled: <n> photos written to web`, and no partial files remain (`ls -A "$SCR/web" | grep -c '^\.tmp'`
+    prints 0).
+    Now set **If a file exists** to **Skip the photo** and export again: the toast reads `Exported 0 photos to web; 3
+    failed` and lists `nikon-nef.NEF: nikon-nef.jpg already exists` (one line per photo) in red, with **Dismiss**.
+80. **Soft proofing.** Click **nikon-nef.NEF**, press **Return** and wait for the develop render. Press **S**. 📸 Expect
+    the loupe's top-right to read `SOFT PROOF · <profile>` (the first installed printer profile, e.g. `Generic CMYK
+    Profile`) and the picture to look duller (the simulated print). Expand the inspector's **SOFT PROOFING** panel: the
+    toggle is on and the status reads `Proofing <profile> · <n>% of colours out of gamut`. Press **⇧S**: saturated
+    colours that the printer cannot reproduce (the sky, the pink cloud) turn **magenta**, and the badge adds
+    `GAMUT WARNING`; change the warning colour in the panel: the overlay follows. Tick **Simulate paper and ink**: white
+    turns slightly grey. Press **S** again: the normal rendering returns. The History panel gained no entry, and
+    **Develop ▸ Soft Proofing** is unchecked.
+81. **Print to PDF: contact sheet.** Press **Esc**, **⌘A**, **File ▸ Print…** (⌘P). 📸 Expect the sheet **Print ·
+    Selection · 3 photos** with a page preview on the left, `Paper <name> · 8.50 × 11.00 in · Portrait` (or A4) and
+    **Page Setup…**, the Layout segments **Single image | Contact sheet | Custom cells**, margins in inches, Rotate to fit,
+    Resolution, Print sharpening, JPEG pages at, and Colour handling. Choose **Contact sheet**: Rows 5, Columns 4,
+    `20 per page · 1 page`, and the preview shows three thumbnails with their file names. Set Rows **1** and Columns
+    **2**: `2 per page · 2 pages`; the arrows under the preview step through `Page 1 of 2` and `Page 2 of 2`. Click
+    **Save as PDF…**, save as `$SCR/sheet.pdf`. Expect the strip `Saving PDF · rendering for print`, `1 / 3` …, then the
+    toast `Saved 2 pages to sheet.pdf`.
+    ```sh
+    swift apps/mac/Support/pdf-page-count.swift "$SCR/sheet.pdf"
+    sips -s format png "$SCR/sheet.pdf" --out "$SCR/sheet.png" && open "$SCR/sheet.png"
+    ```
+    Expect `2 pages, 8.5 × 11.0 in` (or `8.3 × 11.7 in` on A4) and a first page with two developed photos turned to fit
+    their cells, each captioned with its file name.
+82. **Print to file (JPEG) and application-managed colour.** ⌘P, set **JPEG pages at** 150 dpi, **Save as JPEG…** as
+    `$SCR/pages.jpg`. Expect the toast `Saved 2 JPEG pages at 150 dpi` and
+    `sips -g pixelWidth -g dpiWidth "$SCR/pages-1.jpg"` → `1275` (Letter; `1240` on A4) and `150`. ⌘P again, choose
+    **Tessera manages colour**, Profile `Generic CMYK Profile (CMYK)`, Intent Perceptual, **Save as PDF…** as
+    `$SCR/cmyk.pdf`: the PDF is written (`swift apps/mac/Support/pdf-page-count.swift "$SCR/cmyk.pdf"` → `2 pages`).
+    **Print…** opens the system print dialog as a sheet on the main window (its PDF menu works too); click Cancel.
+83. **Headless variant (optional).** Quit, then
+    ```sh
+    apps/mac/build/Tessera.app/Contents/MacOS/Tessera --app-dir "$SCR/appdir-st" --folder "$SCR/raw3" \
+      --export-selftest "$SCR/web-st" --print-pdf-selftest "$SCR/st.pdf" 2>&1 | grep selftest
+    ```
+    Expect `export-selftest: 3 exported, 0 failed, cancelled no, …` and `print-selftest: ok, 1 page(s) expected → …/st.pdf`.
+
+## Verdict (export, soft proof, print)
+
+PASS when steps 73–83 meet their expectations (step 83 is optional). Record the export time of step 77.

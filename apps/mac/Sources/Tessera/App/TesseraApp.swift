@@ -41,6 +41,8 @@ struct TesseraApp: App {
 ///                     (60 display-rate steps, then mouse-up) and print frame timings to stderr
 ///   --develop-panels-selftest  open the first photo in the loupe and drag one control of each develop
 ///                     panel likewise (TESSERA_SELFTEST_CROP=1|commit also opens/applies a crop)
+///   --export-selftest <dir>   (test aid) export every photo with the first (Web) preset into <dir>, then quit
+///   --print-pdf-selftest <file.pdf>  (test aid) print a 5 × 4 contact sheet of every photo to a PDF, then quit
 ///   --keys "<k> <k>…" after loading, feed these keys through the culling key map (self-test aid);
 ///                     tokens: single characters, left right up down return esc delete,
 ///                     prefixes "opt-" / "shift-" / "cmd-" (⌘ tokens go to the menu bar); "wait" idles one step
@@ -100,6 +102,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 MainActor.assumeIsolated {
                     model.presentLightroomImport(catalog: URL(fileURLWithPath: (catalog as NSString).expandingTildeInPath))
                 }
+            }
+        }
+        let exportDir = value(after: "--export-selftest").map { URL(fileURLWithPath: ($0 as NSString).expandingTildeInPath) }
+        let printPDF = value(after: "--print-pdf-selftest").map { URL(fileURLWithPath: ($0 as NSString).expandingTildeInPath) }
+        if exportDir != nil || printPDF != nil {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                MainActor.assumeIsolated { model.runOutputSelfTest(exportTo: exportDir, pdf: printPDF) }
             }
         }
         if args.contains("--front") {   // test aid: show the window without activating the app

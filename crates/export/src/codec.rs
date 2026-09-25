@@ -19,11 +19,19 @@ pub(crate) fn profile(registry: &mut Registry, space: ColorSpace) -> EngineResul
         .map_err(encode_error)
 }
 
+/// Container choices for one encode.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Encoding {
+    pub format: Format,
+    pub space: ColorSpace,
+    /// Pixel density to record (metadata only).
+    pub dpi: Option<u32>,
+}
+
 pub(crate) fn encode(
     writer: &mut (impl Write + Seek),
     rgb: &image::Rgb32FImage,
-    format: Format,
-    space: ColorSpace,
+    encoding: Encoding,
     xmp: Option<&str>,
     cancel: &CancellationToken,
 ) -> EngineResult<()> {
@@ -31,7 +39,7 @@ pub(crate) fn encode(
         inner: writer,
         cancel,
     };
-    let result = encode_inner(&mut writer, rgb, format, space, xmp, cancel);
+    let result = encode_inner(&mut writer, rgb, encoding, xmp, cancel);
     cancel.check()?;
     result
 }
@@ -70,11 +78,12 @@ impl<W: Seek> Seek for CancelWriter<'_, W> {
 fn encode_inner(
     writer: &mut (impl Write + Seek),
     rgb: &image::Rgb32FImage,
-    format: Format,
-    space: ColorSpace,
+    encoding: Encoding,
     xmp: Option<&str>,
     cancel: &CancellationToken,
 ) -> EngineResult<()> {
+    let Encoding { format, space, dpi } = encoding;
+    let dpi = dpi.filter(|d| (1..=u32::from(u16::MAX)).contains(d));
     // render_full supplies destination-encoded float RGB. Quantize only here;
     // a second CMM conversion would double-encode the document colour space.
     let mut registry = Registry::new();
@@ -101,6 +110,10 @@ fn encode_inner(
     match format {
         Format::Jpeg { quality } => {
             let mut encoder = jpeg_encoder::Encoder::new(writer, quality);
+            if let Some(dpi) = dpi {
+                let dpi = dpi as u16;
+                encoder.set_density(jpeg_encoder::Density::Inch { x: dpi, y: dpi });
+            }
             encoder.add_icc_profile(&icc).map_err(encode_error)?;
             if let Some(text) = xmp {
                 let mut packet = b"http://ns.adobe.com/xap/1.0/\0".to_vec();
@@ -121,6 +134,15 @@ fn encode_inner(
             info.color_type = png::ColorType::Rgb;
             info.bit_depth = png::BitDepth::Eight;
             info.icc_profile = Some(icc.into());
+            if let Some(dpi) = dpi {
+                // pHYs is per metre: 1 inch = 0.0254 m.
+                let ppm = (f64::from(dpi) / 0.0254).round() as u32;
+                info.pixel_dims = Some(png::PixelDimensions {
+                    xppu: ppm,
+                    yppu: ppm,
+                    unit: png::Unit::Meter,
+                });
+            }
             let mut encoder = png::Encoder::with_info(writer, info).map_err(encode_error)?;
             if let Some(text) = xmp {
                 encoder
@@ -133,8 +155,8 @@ fn encode_inner(
         }
         Format::Tiff { bits } => {
             use tiff::{
-                encoder::{TiffEncoder, colortype},
-                tags::Tag,
+                encoder::{Rational, TiffEncoder, colortype},
+                tags::{ResolutionUnit, Tag},
             };
             let mut encoder = TiffEncoder::new(writer).map_err(encode_error)?;
             macro_rules! write_tiff {
@@ -151,6 +173,9 @@ fn encode_inner(
                             .encoder()
                             .write_tag(Tag::Unknown(700), text.as_bytes())
                             .map_err(encode_error)?;
+                    }
+                    if let Some(dpi) = dpi {
+                        image.resolution(ResolutionUnit::Inch, Rational { n: dpi, d: 1 });
                     }
                     image.write_data($data).map_err(encode_error)?;
                 }};
