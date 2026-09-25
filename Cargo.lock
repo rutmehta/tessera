@@ -3365,6 +3365,7 @@ dependencies = [
 name = "tessera-ffi"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "blake3",
  "cull",
  "engine-api",
@@ -3374,6 +3375,8 @@ dependencies = [
  "jobs",
  "kamadak-exif",
  "library",
+ "ml-runtime",
+ "ml-segment",
  "pipeline-cpu",
  "pipeline-gpu",
  "previews",

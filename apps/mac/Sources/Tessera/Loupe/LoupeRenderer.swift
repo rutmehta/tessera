@@ -52,13 +52,28 @@ final class LoupeRenderer {
         var keep: SIMD4<Float>
         /// (dim factor, background, 0, 0).
         var misc: SIMD4<Float>
+        /// Mask overlay colour (linear) and opacity in `.w`; 0 disables the overlay.
+        var tint: SIMD4<Float>
+        /// Valid fraction of the overlay surface (like `uvScale` for the frame).
+        var overlayScale: SIMD2<Float>
+        var pad: SIMD2<Float>
+    }
+
+    /// The selected mask as an 8-bit alpha plane over the frame (M2-14).
+    struct MaskOverlay {
+        var texture: MTLTexture
+        /// Valid fraction of the surface (content size / surface size).
+        var scale: SIMD2<Float>
+        /// Linear colour and opacity.
+        var tint: SIMD4<Float>
     }
 
     private static let source = """
     #include <metal_stdlib>
     using namespace metal;
 
-    struct Uniforms { float4 row0; float4 row1; float2 uvScale; float ratio; int orientation; float4 keep; float4 misc; };
+    struct Uniforms { float4 row0; float4 row1; float2 uvScale; float ratio; int orientation; float4 keep; float4 misc;
+                      float4 tint; float2 overlayScale; float2 pad; };
     struct VOut { float4 position [[position]]; };
 
     vertex VOut loupe_vertex(uint vid [[vertex_id]]) {
@@ -85,6 +100,7 @@ final class LoupeRenderer {
     // Input is linear (sRGB-decoding texture or linear half float) in the layer's colour space;
     // values above 1.0 in half-float frames are EDR headroom and pass through untouched.
     fragment half4 loupe_fragment(VOut in [[stage_in]], texture2d<half> tex [[texture(0)]],
+                                  texture2d<half> mask [[texture(1)]],
                                   sampler s [[sampler(0)]], constant Uniforms &u [[buffer(0)]]) {
         float3 p = float3(in.position.xy, 1);
         float2 d = float2(dot(u.row0.xyz, p), dot(u.row1.xyz, p));
@@ -103,6 +119,13 @@ final class LoupeRenderer {
                + tex.sample(s, min(max(st + float2( o.x, -o.y), 0.0), limit)).rgb
                + tex.sample(s, min(max(st + float2(-o.x,  o.y), 0.0), limit)).rgb
                + tex.sample(s, min(max(st + float2( o.x,  o.y), 0.0), limit)).rgb) * 0.25h;
+        }
+        if (u.tint.w > 0.0) {
+            // Mask overlay: same orientation and valid-region mapping as the frame.
+            float2 msize = float2(mask.get_width(), mask.get_height());
+            float2 mt = min(orient(d, u.orientation) * u.overlayScale, u.overlayScale - 0.5 / msize);
+            half a = mask.sample(s, mt).r * half(u.tint.w);
+            c = mix(c, half3(u.tint.rgb), a);
         }
         if (u.keep.z > u.keep.x && (p.x < u.keep.x || p.y < u.keep.y || p.x > u.keep.z || p.y > u.keep.w)) {
             c = mix(bg, c, half(u.misc.x));
@@ -140,7 +163,7 @@ final class LoupeRenderer {
     /// Encodes and presents one frame. `placement` nil = aspect fit. Returns the CPU encode time.
     @discardableResult
     func draw(in layer: CAMetalLayer, texture: MTLTexture?, frame: LoupeFrame?, placement: LoupePlacement?,
-              background: Float, dim: Float = 0.35) -> Double {
+              background: Float, dim: Float = 0.35, overlay: MaskOverlay? = nil) -> Double {
         let t0 = CACurrentMediaTime()
         let size = layer.drawableSize
         guard size.width >= 1, size.height >= 1, let drawable = layer.nextDrawable(),
@@ -163,10 +186,13 @@ final class LoupeRenderer {
                              ratio: Float(contentOnScreen / max(place.pixelsPerImageWidth, 1)),
                              orientation: Int32(frame.orientation),
                              keep: SIMD4(Float(keep.minX), Float(keep.minY), Float(keep.maxX), Float(keep.maxY)),
-                             misc: SIMD4(dim, background, 0, 0))
+                             misc: SIMD4(dim, background, 0, 0),
+                             tint: overlay?.tint ?? .zero,
+                             overlayScale: overlay?.scale ?? SIMD2(1, 1), pad: .zero)
             enc.setRenderPipelineState(pipeline)
             enc.setFragmentBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 0)
             enc.setFragmentTexture(texture, index: 0)
+            enc.setFragmentTexture(overlay?.texture ?? texture, index: 1)
             enc.setFragmentSamplerState(sampler, index: 0)
             enc.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4)
         }

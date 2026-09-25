@@ -159,7 +159,9 @@ pub struct Engine {
     jobs: jobs::ThreadPoolScheduler,
     /// Develop renderer and memo cache shared by every session (lazy: the
     /// Metal context is created on the first develop session).
-    renderer: std::sync::OnceLock<(Arc<image_core::Renderer>, String)>,
+    renderer: std::sync::OnceLock<backend::Backend>,
+    /// AI mask segmentation (loaded on first use; see `develop::masks`).
+    segmenter: develop::SegmenterSlot,
     preview_states: Mutex<std::collections::HashMap<preview::RequestKey, preview::State>>,
     listener: Mutex<Option<Arc<dyn EngineEventListener>>>,
 }
@@ -180,7 +182,8 @@ impl Engine {
         &self,
         image: &image_core::RawImage,
     ) -> (Arc<image_core::Renderer>, String) {
-        self.renderer.get_or_init(|| backend::select(image)).clone()
+        let backend = self.renderer.get_or_init(|| backend::select(image));
+        (Arc::new(backend.renderer()), backend.name.clone())
     }
     fn lock(&self) -> Result<MutexGuard<'_, Catalog>> {
         self.catalog.lock().map_err(failure)
@@ -240,6 +243,7 @@ impl Engine {
             .map_err(failure)?,
             jobs: jobs::ThreadPoolScheduler::new(3),
             renderer: std::sync::OnceLock::new(),
+            segmenter: Default::default(),
             preview_states: Mutex::new(std::collections::HashMap::new()),
             listener: Mutex::new(None),
         }))

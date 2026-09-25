@@ -64,7 +64,7 @@ struct CropView: Equatable {
 @MainActor
 final class LoupeToolOverlay: NSView {
     weak var loupe: MetalLoupeView?
-    private var tools: DevelopTools { .shared }
+    var tools: DevelopTools { .shared }
 
     private enum Drag {
         case resize(sx: Int, sy: Int)
@@ -94,7 +94,11 @@ final class LoupeToolOverlay: NSView {
     }
     required init?(coder: NSCoder) { fatalError() }
 
-    private var armed: Bool { tools.cropActive || tools.hslPicker != nil || tools.detailPicking }
+    private var armed: Bool { tools.cropActive || tools.hslPicker != nil || tools.detailPicking || masks.active }
+    var masks: MaskTools { .shared }
+    /// Mask gesture in progress and the last pointer position (brush cursor).
+    var maskDrag: MaskDrag?
+    var pointer: CGPoint?
 
     override func hitTest(_ point: NSPoint) -> NSView? { armed ? super.hitTest(point) : nil }
 
@@ -133,7 +137,9 @@ final class LoupeToolOverlay: NSView {
     // MARK: Drawing
 
     override func draw(_ dirtyRect: NSRect) {
-        if tools.cropActive, let g = tools.crop, let view = loupe?.cropView {
+        if masks.active, !tools.cropActive {
+            drawMasks()
+        } else if tools.cropActive, let g = tools.crop, let view = loupe?.cropView {
             drawCrop(g, view)
         } else if let p = tools.hslPicker {
             hint("Drag up or down on a colour in the photo to adjust its \(p.title.lowercased()) · Esc to finish")
@@ -142,7 +148,7 @@ final class LoupeToolOverlay: NSView {
         }
     }
 
-    private func hint(_ text: String) {
+    func hint(_ text: String) {
         let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 11, weight: .medium),
                                                     .foregroundColor: NSColor(calibratedWhite: 0.92, alpha: 1)]
         let str = text as NSString
@@ -253,17 +259,26 @@ final class LoupeToolOverlay: NSView {
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
         if let tracking { removeTrackingArea(tracking) }
-        let t = NSTrackingArea(rect: .zero, options: [.mouseMoved, .activeInKeyWindow, .inVisibleRect, .cursorUpdate],
+        let t = NSTrackingArea(rect: .zero, options: [.mouseMoved, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect, .cursorUpdate],
                                owner: self, userInfo: nil)
         addTrackingArea(t)
         tracking = t
     }
 
     override func cursorUpdate(with event: NSEvent) { updateCursor(convert(event.locationInWindow, from: nil)) }
-    override func mouseMoved(with event: NSEvent) { updateCursor(convert(event.locationInWindow, from: nil)) }
+    override func mouseMoved(with event: NSEvent) {
+        let p = convert(event.locationInWindow, from: nil)
+        if masks.active { pointer = p; needsDisplay = true }
+        updateCursor(p)
+    }
+    override func mouseExited(with event: NSEvent) {
+        pointer = nil
+        needsDisplay = true
+    }
 
-    private func updateCursor(_ p: CGPoint) {
+    func updateCursor(_ p: CGPoint) {
         guard armed else { return }
+        if masks.active, !tools.cropActive { maskCursor(p); return }
         if tools.hslPicker != nil || tools.detailPicking || tools.straightening { NSCursor.crosshair.set(); return }
         guard let g = tools.crop, let view = loupe?.cropView else { return }
         let box = view.box(g)
@@ -281,6 +296,7 @@ final class LoupeToolOverlay: NSView {
     override func mouseDown(with event: NSEvent) {
         let p = convert(event.locationInWindow, from: nil)
         dragStart = p
+        if masks.active, !tools.cropActive { maskMouseDown(p, event); return }
         if let _ = tools.hslPicker {
             guard let rgb = loupe?.sampleColor(at: p), let t = tools.beginTargetedHSL(sample: rgb) else {
                 tools.model.statusMessage = "No colour there to adjust (neutral or outside the photo)"
@@ -324,6 +340,7 @@ final class LoupeToolOverlay: NSView {
 
     override func mouseDragged(with event: NSEvent) {
         let p = convert(event.locationInWindow, from: nil)
+        if maskDrag != nil { maskMouseDragged(p, event); return }
         let fine = event.modifierFlags.contains(.option) ? 0.25 : 1.0
         switch drag {
         case .targeted(let t, let start):
@@ -362,6 +379,7 @@ final class LoupeToolOverlay: NSView {
 
     override func mouseUp(with event: NSEvent) {
         let p = convert(event.locationInWindow, from: nil)
+        if maskDrag != nil { maskMouseUp(p, event); return }
         switch drag {
         case .targeted(let t, let start):
             tools.dragTargetedHSL(t, delta: ((start.y - p.y) * 0.5).rounded(), final: true)
