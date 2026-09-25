@@ -226,8 +226,10 @@ https://colour.readthedocs.io/en/master/_modules/colour/temperature/krystek1985.
 All five fixture whites fit the domain with the calibrated inverse; fixture
 tests cover as-shot identity within 1e-4, first-touch continuity, monotonic
 +500 K warming, and +50 tint toward magenta from each as-shot coordinate.
-The FFI's independent McCamy/vertical-v slider initialization also must be replaced
-by this helper; that call site is outside M2-04b's allowed paths.
+The FFI uses this same unrounded inverse for slider initialization. A first
+single-slider edit from AsShot seeds the other coordinate from that inverse,
+not the recipe's informational default. Its Basic adapter passes through
+Texture, Clarity, Dehaze, Vibrance and Saturation.
 Presets remain Daylight/Flash D55, Cloudy D65, Shade D75, Tungsten A, Fluorescent F2.
 Preset temperature/tint fields are informational; Custom makes them authoritative.
 

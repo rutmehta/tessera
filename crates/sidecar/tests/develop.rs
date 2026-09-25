@@ -72,7 +72,7 @@ fn native_recipe_exports_best_effort_pv6_with_companion() {
         XmpPacket::from_recipe(&recipe, &Metadata::default(), &MarkPreset::lightroom()).unwrap();
     let xml = packet.serialize();
     assert!(xml.contains("<crs:ProcessVersion>15.4</crs:ProcessVersion>"));
-    assert!(xml.contains("<ts:NativeRevision>1</ts:NativeRevision>"));
+    assert!(xml.contains("<ts:NativeRevision>2</ts:NativeRevision>"));
     let back = packet.to_recipe().unwrap().recipe;
     assert_eq!(back.process_version, ProcessVersion::NATIVE_CURRENT);
     assert_eq!(back.settings, recipe.settings);

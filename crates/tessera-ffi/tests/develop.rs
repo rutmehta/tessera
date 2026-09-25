@@ -222,6 +222,58 @@ fn mean(h: &[u32]) -> f64 {
 // ─────────────────────────────── session tests ───────────────────────────────
 
 #[test]
+fn as_shot_sliders_round_trip_on_every_fixture_and_single_slider_touch() {
+    use engine_api::recipe::settings::WhiteBalanceMode;
+    use engine_api::{color::ColorMatrix3, recipe::DevelopSettings};
+    for ext in ["arw", "cr3", "nef", "raf", "dng"] {
+        let Some(h) = harness(ext) else { continue };
+        let session = h
+            .engine
+            .clone()
+            .open_develop_session(h.image_id.clone())
+            .unwrap();
+        let info = session.info();
+        let raw = image_core::RawImage::open(engine_api::id::ImageId::default(), &h.raw).unwrap();
+        let m = raw.metadata();
+        let camera = pipeline_cpu::camera_to_xyz(ColorMatrix3(std::array::from_fn(|r| {
+            m.cam_xyz[r].map(f64::from)
+        })))
+        .unwrap();
+        let expected = pipeline_cpu::as_shot_temperature_tint(camera, m.as_shot_wb).unwrap();
+        assert_eq!(
+            (info.as_shot_temperature, info.as_shot_tint),
+            expected,
+            "{ext}: unrounded inverse"
+        );
+        let original = pipeline_cpu::white_balance_matrix(
+            &DevelopSettings::default().white_balance,
+            camera,
+            m.as_shot_wb,
+        )
+        .unwrap();
+        for (key, value) in [("temperature", expected.0), ("tint", expected.1)] {
+            session.reset().unwrap();
+            session
+                .set_settings(
+                    serde_json::json!({"white_balance": {key: value}}).to_string(),
+                    false,
+                )
+                .unwrap();
+            let settings: DevelopSettings =
+                serde_json::from_str(&session.get_settings_json().unwrap()).unwrap();
+            assert_eq!(settings.white_balance.mode, WhiteBalanceMode::Custom);
+            let custom =
+                pipeline_cpu::white_balance_matrix(&settings.white_balance, camera, m.as_shot_wb)
+                    .unwrap();
+            for (a, b) in original.0.iter().flatten().zip(custom.0.iter().flatten()) {
+                assert!((a - b).abs() < 1e-4, "{ext}: first {key} touch jumps");
+            }
+        }
+        session.close().unwrap();
+    }
+}
+
+#[test]
 fn session_renders_into_surfaces_and_persists_undoable_edits() {
     let Some(h) = harness("arw") else { return };
     let mut open = Open::new(&h.engine, &h.image_id);
