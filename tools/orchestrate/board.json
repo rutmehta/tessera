@@ -35,9 +35,9 @@
     "id": "M0-05",
     "owner": "sol",
     "title": "computer-use smoke",
-    "status": "fail",
+    "status": "pass",
     "attempts": 0,
-    "notes": "harness OK; app showed no images under Sol, not reproducible manually; rerun after rename"
+    "notes": "end-to-end OK on real engine; DNG thumbnail blank (no embedded JPEG) -> M1-14"
   },
   {
     "id": "M0-06",
