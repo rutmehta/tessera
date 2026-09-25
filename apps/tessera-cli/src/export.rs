@@ -36,6 +36,9 @@ pub struct Options {
     name: String,
     #[arg(long, value_parser = clap::value_parser!(u32).range(1..))]
     jobs: Option<u32>,
+    /// Apply x2/x4 super-resolution before resize/sharpen (serial; ignores --jobs).
+    #[arg(long, value_parser = ["2", "4"])]
+    upscale: Option<String>,
 }
 
 fn paths(index: &Index, options: &Options) -> Result<Vec<PathBuf>> {
@@ -169,19 +172,82 @@ fn packet(path: &Path) -> Result<Option<XmpPacket>> {
     }
 }
 
-pub fn run(index: &Index, options: &Options) -> Result<Value> {
+// Check the entire SR selection before loading weights or publishing any wave.
+// Only naming metadata is read here; decoded pixels remain one-image-at-a-time.
+fn preflight_upscale(
+    paths: &[PathBuf],
+    settings: &ExportSettings,
+    cancel: &CancellationToken,
+) -> Result<()> {
+    let mut names = std::collections::HashSet::new();
+    let extension = match settings.format {
+        Format::Jpeg { .. } => "jpg",
+        Format::Png => "png",
+        Format::Tiff { .. } => "tif",
+    };
+    for (index, path) in paths.iter().enumerate() {
+        cancel.check()?;
+        let name = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .context("image filename is not UTF-8")?;
+        let ext = path
+            .extension()
+            .and_then(|s| s.to_str())
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        let date = if settings.naming.contains("{date}")
+            && !matches!(ext.as_str(), "jpg" | "jpeg" | "png" | "tif" | "tiff")
+        {
+            let source = raw_decode::RawSource::open(path)?;
+            chrono::DateTime::from_timestamp(source.metadata().capture_time, 0)
+                .map(|time| time.format("%Y%m%d").to_string())
+                .unwrap_or_default()
+        } else {
+            String::new()
+        };
+        let name = export::filename(&settings.naming, name, index + 1, &date, extension)?;
+        ensure!(names.insert(name.to_lowercase()), "duplicate output names");
+    }
+    Ok(())
+}
+
+pub fn run(index: &Index, app_dir: &Path, options: &Options) -> Result<Value> {
     let settings = settings(options)?;
     let paths = paths(index, options)?;
     ensure!(!paths.is_empty(), "no images matched export input");
     let cancel = CancellationToken::new();
     let signal = cancel.clone();
     ctrlc::set_handler(move || signal.cancel()).context("install Ctrl-C handler")?;
+    let mut upscale = if let Some(factor) = &options.upscale {
+        preflight_upscale(&paths, &settings, &cancel)?;
+        let manifest = app_dir.join("models.toml");
+        let registry = ml_runtime::ModelRegistry::open(&manifest, app_dir.join("models"))
+            .with_context(|| format!("open model registry {}", manifest.display()))?;
+        cancel.check()?;
+        let model = ml_enhance::SuperResolution::load(
+            &registry,
+            factor.parse()?,
+            // Dynamic SR shapes can trigger CoreML native diagnostics on stdout,
+            // corrupting the CLI JSON protocol even when CPU fallback succeeds.
+            ml_runtime::SessionOptions::cpu(),
+        )
+        .with_context(|| format!("load x{factor} super-resolution model"))?;
+        cancel.check()?;
+        Some(model)
+    } else {
+        None
+    };
     let mut completed = 0;
     let mut outputs = Vec::new();
     let mut errors = Vec::new();
     // Decode only one wave at a time; the export crate bounds render/encode workers.
     let cores = std::thread::available_parallelism().map_or(1, |n| n.get());
-    let jobs = options.jobs.map_or(cores, |n| (n as usize).min(cores));
+    let jobs = if upscale.is_some() {
+        1
+    } else {
+        options.jobs.map_or(cores, |n| (n as usize).min(cores))
+    };
     for (wave, chunk) in paths.chunks(jobs).enumerate() {
         if cancel.is_cancelled() {
             break;
@@ -218,21 +284,20 @@ pub fn run(index: &Index, options: &Options) -> Result<Value> {
                 recipe: &image.recipe,
             })
             .collect();
-        let report = export::export_batch_with_jobs(
-            &items,
-            &settings,
-            |progress| {
-                let path = &chunk[loaded[progress.index].0 - wave * jobs - 1];
-                eprintln!(
-                    "{}/{} exported: {}",
-                    completed + progress.completed,
-                    paths.len(),
-                    path.display()
-                );
-            },
-            &cancel,
-            jobs,
-        )?;
+        let progress = |progress: export::Progress| {
+            let path = &chunk[loaded[progress.index].0 - wave * jobs - 1];
+            eprintln!(
+                "{}/{} exported: {}",
+                completed + progress.completed,
+                paths.len(),
+                path.display()
+            );
+        };
+        let report = if let Some(model) = upscale.as_mut() {
+            export::export_batch_upscaled(&items, &settings, progress, &cancel, model)?
+        } else {
+            export::export_batch_with_jobs(&items, &settings, progress, &cancel, jobs)?
+        };
         for (result, (seq, _)) in report.results.into_iter().zip(&loaded) {
             match result {
                 Ok(output) => {
@@ -299,4 +364,38 @@ fn load(path: &Path) -> Result<Loaded> {
         metadata,
         pixels,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use clap::Parser;
+
+    #[test]
+    fn upscale_parser_accepts_only_two_or_four() {
+        for (factor, valid) in [
+            ("2", true),
+            ("4", true),
+            ("0", false),
+            ("1", false),
+            ("3", false),
+            ("8", false),
+        ] {
+            assert_eq!(
+                crate::Cli::try_parse_from([
+                    "tessera",
+                    "export",
+                    "input.png",
+                    "--out",
+                    "out",
+                    "--format",
+                    "png",
+                    "--upscale",
+                    factor,
+                ])
+                .is_ok(),
+                valid,
+                "factor {factor}"
+            );
+        }
+    }
 }

@@ -1,0 +1,11 @@
+   Compiling ml-enhance v0.1.0 (/Users/rutmehta/Developer/tessera/.worktrees/M3-05/crates/ml-enhance)
+error[E0432]: unresolved imports `ml_enhance::Denoiser`, `ml_enhance::DENOISE_SHA256`
+ --> crates/ml-enhance/tests/denoiser.rs:1:18
+  |
+1 | use ml_enhance::{Denoiser, DENOISE_SHA256};
+  |                  ^^^^^^^^  ^^^^^^^^^^^^^^ no `DENOISE_SHA256` in the root
+  |                  |
+  |                  no `Denoiser` in the root
+
+For more information about this error, try `rustc --explain E0432`.
+error: could not compile `ml-enhance` (test "denoiser") due to 1 previous error

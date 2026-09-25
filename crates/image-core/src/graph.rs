@@ -126,7 +126,19 @@ impl PipelineGraph {
         before: &DevelopSettings,
         after: &DevelopSettings,
     ) -> Option<StageId> {
-        before.first_dirty_stage(after)
+        Self::stage_chain(
+            before,
+            ParamHash::default(),
+            pipeline_cpu::POST_DENOISE_ADAPTER,
+        )
+        .iter()
+        .zip(Self::stage_chain(
+            after,
+            ParamHash::default(),
+            pipeline_cpu::POST_DENOISE_ADAPTER,
+        ))
+        .find(|(a, b)| a.1 != b.1)
+        .map(|(a, _)| a.0)
     }
 
     /// Implemented stages that a change from `before` to `after` re-runs
@@ -156,8 +168,29 @@ impl PipelineGraph {
             .collect()
     }
 
+    /// Renderer-local contract: raw Denoise remains reserved. RGB settings and
+    /// colour/model adapter revision belong to the Demosaic tail and successors.
+    pub fn stage_chain(
+        settings: &DevelopSettings,
+        seed: ParamHash,
+        adapter_revision: &str,
+    ) -> [(StageId, ParamHash); StageId::COUNT] {
+        let mut hashes = settings.stage_hashes();
+        hashes[StageId::Denoise.index()].1 =
+            DevelopSettings::default().stage_hashes()[StageId::Denoise.index()].1;
+        hashes[StageId::Demosaic.index()].1 = ParamHash::chain(
+            hashes[StageId::Demosaic.index()].1,
+            ParamHash::of(StageId::Demosaic, &(&settings.denoise, adapter_revision)),
+        );
+        let mut acc = seed;
+        hashes.map(|(stage, hash)| {
+            acc = ParamHash::chain(acc, hash);
+            (stage, acc)
+        })
+    }
+
     /// Memo key for `stage`'s output tile. `chain` is
-    /// `DevelopSettings::stage_chain(process_version.chain_seed())`.
+    /// `PipelineGraph::stage_chain(settings, process_version.chain_seed(), revision)`.
     pub fn memo_key(
         image: ImageId,
         chain: &[(StageId, ParamHash); StageId::COUNT],

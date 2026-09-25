@@ -88,13 +88,23 @@ fn render_with_transform(
     scale: u32,
     transform: &Transform,
 ) -> EngineResult<ManagedOutput> {
+    let pixels = render_output_linear_scaled(settings, source, scale)?;
+    output_with_transform(settings, pixels, transform)
+}
+
+/// Tone-mapped linear Rec.2020 floats, before output gamut mapping or encoding.
+/// Allows enhancement in linear light before the final managed output stage.
+pub fn render_output_linear_scaled(
+    settings: &DevelopSettings,
+    source: &RenderSource<'_>,
+    scale: u32,
+) -> EngineResult<image::Rgb32FImage> {
     // Only the resolved proof control is consumed here. All other validation,
     // including rejecting unsupported HDR, remains in the reference renderer.
     let mut linear_settings = settings.clone();
     linear_settings.output.proof_profile = None;
     let rgb = crate::render_linear_scaled(&linear_settings, source, scale)?;
     let mut pixels = image::Rgb32FImage::new(rgb.width(), rgb.height());
-    let mut gamut_warnings = Vec::with_capacity(pixels.as_raw().len() / 3);
     for (i, pixel) in pixels.pixels_mut().enumerate() {
         let v = std::array::from_fn(|c| rgb.planes()[c][i]);
         let y = crate::luminance(v);
@@ -103,6 +113,29 @@ fn render_with_transform(
         } else {
             v.map(|c| c * crate::sigmoid(y, SigmoidSettings::default()) / y)
         };
+        *pixel = image::Rgb(toned);
+    }
+    Ok(pixels)
+}
+
+/// Convert tone-mapped linear Rec.2020 to the selected output profile once.
+pub fn output_managed_linear(
+    settings: &DevelopSettings,
+    pixels: image::Rgb32FImage,
+    context: &mut OutputContext<'_>,
+) -> EngineResult<ManagedOutput> {
+    let transform = context.resolve(settings)?;
+    output_with_transform(settings, pixels, &transform)
+}
+
+fn output_with_transform(
+    settings: &DevelopSettings,
+    mut pixels: image::Rgb32FImage,
+    transform: &Transform,
+) -> EngineResult<ManagedOutput> {
+    let mut gamut_warnings = Vec::with_capacity(pixels.as_raw().len() / 3);
+    for pixel in pixels.pixels_mut() {
+        let toned = pixel.0;
         gamut_warnings.push(transform.gamut_warning(toned));
         let mut encoded = transform.apply(toned);
         if settings.output.gamut_mapping == engine_api::recipe::settings::GamutMapping::Perceptual

@@ -85,7 +85,14 @@ pub fn render_linear_scaled_with_depth(
     depth: &[f32],
     options: crate::LensBlurOptions,
 ) -> EngineResult<Image> {
-    render_linear_impl(settings, source, scale, context, Some((depth, options)))
+    render_linear_impl(
+        settings,
+        source,
+        scale,
+        context,
+        Some((depth, options)),
+        None,
+    )
 }
 
 /// Render with caller-owned database or user profile, without changing recipe schema.
@@ -95,7 +102,18 @@ pub fn render_linear_scaled_with_lens(
     scale: u32,
     context: &crate::LensContext<'_>,
 ) -> EngineResult<Image> {
-    render_linear_impl(settings, source, scale, context, None)
+    render_linear_impl(settings, source, scale, context, None, None)
+}
+
+/// Full reference renderer with caller-owned post-demosaic inference.
+pub fn render_linear_scaled_with_denoise(
+    settings: &DevelopSettings,
+    source: &RenderSource<'_>,
+    scale: u32,
+    context: &crate::LensContext<'_>,
+    denoiser: Option<&dyn crate::PostDemosaicDenoise>,
+) -> EngineResult<Image> {
+    render_linear_impl(settings, source, scale, context, None, denoiser)
 }
 
 fn render_linear_impl(
@@ -104,6 +122,7 @@ fn render_linear_impl(
     scale: u32,
     context: &crate::LensContext<'_>,
     depth: Option<(&[f32], crate::LensBlurOptions)>,
+    denoiser: Option<&dyn crate::PostDemosaicDenoise>,
 ) -> EngineResult<Image> {
     if depth.is_some() {
         let mut without_blur = settings.clone();
@@ -119,6 +138,12 @@ fn render_linear_impl(
         RenderSource::Rgb(image) => {
             if image.planes().len() != 3 {
                 return Err(EngineError::invalid("RGB", "three planes required"));
+            }
+            if crate::denoise_active(&settings.denoise) {
+                return Err(EngineError::invalid(
+                    "denoise",
+                    "post-demosaic denoise requires a CFA source",
+                ));
             }
             let crop = [0, 0, image.width(), image.height()];
             let correction = crate::resolve_lens(image, &settings.lens, None, context)?;
@@ -227,6 +252,7 @@ fn render_linear_impl(
                     )?;
                 }
             }
+            out = crate::post_demosaic_denoise(out, camera_xyz, &settings.denoise, denoiser)?;
             for coord in out.coords() {
                 let mut t = out.tile(coord, 0, 1)?;
                 // Contract ordering is CameraProfile THEN WhiteBalance.
@@ -383,6 +409,8 @@ pub fn validate_settings(s: &DevelopSettings) -> EngineResult<()> {
     }
     let default = DevelopSettings::default();
     let mut supported = default.clone();
+    crate::validate_denoise(&s.denoise)?;
+    supported.denoise = s.denoise.clone();
     supported.linearize = s.linearize.clone();
     supported.demosaic.method = s.demosaic.method;
     supported.white_balance = s.white_balance.clone();

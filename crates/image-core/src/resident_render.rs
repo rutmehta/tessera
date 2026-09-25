@@ -4,7 +4,8 @@ use crate::resident::{DisplayHistogram, ResidentBatch, ResidentOutput, SurfaceTa
 impl Renderer {
     pub(super) fn supports_resident(&self, r: &Resolved<'_>) -> bool {
         let s = r.settings;
-        matches!(r.cfa, CfaLayout::Bayer(_))
+        !pipeline_cpu::denoise_active(&s.denoise)
+            && matches!(r.cfa, CfaLayout::Bayer(_))
             && self.ops.begin_resident().is_some()
             && s.color == Default::default()
             // Local adjustment operators/rasterization use the whole-image

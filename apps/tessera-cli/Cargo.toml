@@ -18,6 +18,7 @@ raw-decode = { path = "../../crates/raw-decode" }
 previews = { path = "../../crates/previews" }
 import-lrcat = { path = "../../crates/import-lrcat" }
 ml-runtime = { path = "../../crates/ml-runtime" }
+ml-enhance = { path = "../../crates/ml-enhance" }
 export = { path = "../../crates/export" }
 pipeline-cpu = { path = "../../crates/pipeline-cpu" }
 clap = { version = "4", features = ["derive"] }
