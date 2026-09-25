@@ -3,6 +3,7 @@ use clap::{Parser, Subcommand};
 use index::{Index, Query};
 use serde_json::{Value, json};
 use std::{path::PathBuf, process::ExitCode, time::Instant};
+mod agent_edit;
 mod catalog;
 mod develop;
 mod export;
@@ -22,6 +23,8 @@ struct Cli {
 }
 #[derive(Subcommand)]
 enum Command {
+    #[command(subcommand)]
+    Agent(agent_edit::Command),
     /// Serve engine tools through the tessera-mcp stdio executable.
     Mcp,
     #[command(subcommand)]
@@ -225,6 +228,7 @@ fn run(cli: &Cli) -> Result<Value> {
     std::fs::create_dir_all(&app)?;
     let mut index = Index::open(app.join("index.sqlite"))?;
     match &cli.command {
+        Command::Agent(command) => agent_edit::run(&app, &mut index, command),
         Command::Mcp => unreachable!("MCP replaces this process before opening the catalog"),
         Command::Export(options) => export::run(&index, &app, options),
         Command::Ml(command) => models::run(&app, matches!(command, Ml::Check)),
