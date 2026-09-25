@@ -3272,6 +3272,7 @@ dependencies = [
  "index",
  "jobs",
  "kamadak-exif",
+ "library",
  "pipeline-cpu",
  "pipeline-gpu",
  "previews",

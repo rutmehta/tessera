@@ -278,6 +278,10 @@ impl Index {
     pub fn tag(&self, id: ImageId, keyword: &str) -> EngineResult<()> {
         self.0.tag(id, keyword).map_err(Into::into)
     }
+    /// Replaces keyword parents/closure from the library's keyword tree.
+    pub fn sync_keyword_tree(&self, pairs: &[(String, Option<String>)]) -> EngineResult<()> {
+        self.0.sync_keyword_tree(pairs).map_err(Into::into)
+    }
     pub fn images_with_keyword(&self, name: &str) -> EngineResult<Vec<ImageId>> {
         self.0.images_with_keyword(name).map_err(Into::into)
     }

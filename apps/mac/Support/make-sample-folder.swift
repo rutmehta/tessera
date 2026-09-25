@@ -80,7 +80,11 @@ for i in 0..<count {
     let dest = CGImageDestinationCreateWithURL(url as CFURL, UTType.jpeg.identifier as CFString, 1, nil)!
     let props: [CFString: Any] = [
         kCGImageDestinationLossyCompressionQuality: 0.8,
-        kCGImagePropertyExifDictionary: [kCGImagePropertyExifDateTimeOriginal: fmt.string(from: t)],
+        kCGImagePropertyExifDictionary: [kCGImagePropertyExifDateTimeOriginal: fmt.string(from: t),
+                                         kCGImagePropertyExifLensModel: group % 2 == 0 ? "Sim 35mm F1.4" : "Sim 85mm F1.8"],
+        // Two simulated bodies (alternating bursts) give the filter bar's camera facet values.
+        kCGImagePropertyTIFFDictionary: [kCGImagePropertyTIFFMake: "Tessera",
+                                         kCGImagePropertyTIFFModel: group % 3 == 0 ? "Sim B" : "Sim A"],
     ]
     CGImageDestinationAddImage(dest, img, props as CFDictionary)
     CGImageDestinationFinalize(dest)

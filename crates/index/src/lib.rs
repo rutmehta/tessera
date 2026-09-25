@@ -272,6 +272,17 @@ impl Core {
                 query,
             )?,
             keywords: self.keyword_counts(query)?,
+            grades: self.counts(
+                &format!("SELECT CAST(s.grade AS TEXT),count(*) {base} AND s.grade IS NOT NULL GROUP BY s.grade"),
+                query,
+            )?,
+            marks: self.counts(
+                &format!("SELECT s.mark,count(*) {base} AND s.mark IS NOT NULL AND s.mark!='' GROUP BY s.mark"),
+                query,
+            )?,
+            total: self.counts(&format!("SELECT '',count(*) {base}"), query)?
+                .first()
+                .map_or(0, |(_, n)| *n),
         })
     }
     fn counts(&self, sql: &str, query: &Query) -> Result<Vec<(String, u64)>> {
@@ -371,6 +382,34 @@ impl Core {
             self.conn.execute("INSERT OR IGNORE INTO keyword_closure SELECT ancestor_id,?,depth+1 FROM keyword_closure WHERE descendant_id=?",params![id,pid])?;
         }
         Ok(id)
+    }
+    /// Makes the keyword hierarchy match `(name, parent)` pairs (parents listed
+    /// before children). Keywords not listed keep their tags and become roots
+    /// only if their listed parent disappeared; the closure is rebuilt.
+    pub fn sync_keyword_tree(&self, pairs: &[(String, Option<String>)]) -> Result<()> {
+        let tx = self.conn.unchecked_transaction()?;
+        for (name, _) in pairs {
+            tx.execute("INSERT OR IGNORE INTO keyword(name) VALUES(?)", [name])?;
+        }
+        for (name, parent) in pairs {
+            tx.execute(
+                "UPDATE keyword SET parent_id=(SELECT id FROM keyword WHERE name=?) WHERE name=?",
+                params![parent, name],
+            )?;
+        }
+        tx.execute("DELETE FROM keyword_closure", [])?;
+        // Depth bound guards against cycles in hand-edited documents.
+        tx.execute_batch(
+            "WITH RECURSIVE up(descendant_id,ancestor_id,depth) AS (
+                SELECT id,id,0 FROM keyword
+                UNION ALL
+                SELECT up.descendant_id,k.parent_id,up.depth+1 FROM up JOIN keyword k ON k.id=up.ancestor_id
+                WHERE k.parent_id IS NOT NULL AND up.depth<64)
+             INSERT OR IGNORE INTO keyword_closure(ancestor_id,descendant_id,depth)
+                SELECT ancestor_id,descendant_id,min(depth) FROM up GROUP BY ancestor_id,descendant_id;",
+        )?;
+        tx.commit()?;
+        Ok(())
     }
     /// Attaches a keyword to an image.
     pub fn tag(&self, id: ImageId, keyword: &str) -> Result<()> {
@@ -537,6 +576,12 @@ pub struct Facets {
     pub lenses: Vec<(String, u64)>,
     pub keywords: Vec<(String, u64)>,
     pub decisions: Vec<(String, u64)>,
+    /// Keep grades "1".."3" (ungraded images are not counted).
+    pub grades: Vec<(String, u64)>,
+    /// Mark names (unmarked images are not counted).
+    pub marks: Vec<(String, u64)>,
+    /// Matching images, ignoring pagination.
+    pub total: u64,
 }
 fn filter_sql(q: &Query) -> String {
     let mut s = String::new();

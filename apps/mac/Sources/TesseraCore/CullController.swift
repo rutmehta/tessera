@@ -304,6 +304,27 @@ public final class CullController {
         }
     }
 
+    /// Re-reads library.json after album changes made outside the session (sidebar edits, add
+    /// to album): album lists, basket flags and counts, and derived statuses.
+    public func reloadLibrary() {
+        let before = Dictionary(albums.map { ($0.name, Set($0.members)) }, uniquingKeysWith: { a, _ in a })
+        refreshAlbums()
+        guard case .engine = backend else { return }
+        let members = Set(albums.first { $0.name == basketTarget }?.members ?? [])
+        for id in states.indices where states[id].inBasket != members.contains(id) {
+            states[id].inBasket.toggle()
+        }
+        recount()
+        // Derived status reads each recipe: refresh only images whose album list changed.
+        let after = Dictionary(albums.map { ($0.name, Set($0.members)) }, uniquingKeysWith: { a, _ in a })
+        var changed = Set<Int>()
+        for name in Set(before.keys).union(after.keys) where before[name] != after[name] {
+            changed.formUnion(before[name] ?? [])
+            changed.formUnion(after[name] ?? [])
+        }
+        refreshStatuses(changed.sorted())
+    }
+
     public func members(ofAlbum name: String) -> [Int] {
         albums.first { $0.name == name }?.members ?? []
     }

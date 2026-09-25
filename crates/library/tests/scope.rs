@@ -68,6 +68,7 @@ fn compiled_filters_and_nested_project_scope_use_real_sql() {
         name: "Best".into(),
         parent: Some(1),
         search,
+        scoped: true,
     });
     let q = lib.smart_query(20).unwrap();
     assert_eq!(index.search(&q).unwrap(), vec![ImageId(1), ImageId(2)]);
