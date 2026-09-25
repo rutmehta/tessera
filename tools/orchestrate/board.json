@@ -222,5 +222,29 @@
     "status": "merged",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M1-10",
+    "owner": "opus",
+    "title": "Develop UI on the engine",
+    "status": "todo",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-04",
+    "owner": "astra",
+    "title": "M2 operators CPU reference",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M3-03",
+    "owner": "astra",
+    "title": "Embeddings, duplicates, NL search",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
