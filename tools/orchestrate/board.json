@@ -181,7 +181,7 @@
     "title": "Culling UX on real engine",
     "status": "merged",
     "attempts": 0,
-    "notes": ""
+    "notes": "Sol acceptance 28/32; 4 misses were verifier procedure (grep counted .xmp; menu path), not app bugs"
   },
   {
     "id": "M1-11",
@@ -227,7 +227,7 @@
     "id": "M1-10",
     "owner": "opus",
     "title": "Develop UI on the engine",
-    "status": "todo",
+    "status": "running",
     "attempts": 0,
     "notes": ""
   },
