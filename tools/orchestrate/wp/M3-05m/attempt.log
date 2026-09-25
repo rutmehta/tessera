@@ -1,0 +1,11 @@
+Committed merge as 2872d77 on wp/M3-05. Both render wrappers and validation rules are preserved, upscale uses linear floats before output-profile conversion, and all 12 model entries remain.
+
+Verification using the requested CARGO_TARGET_DIR:
+  Workspace release tests: 702 passed, 15 ignored.
+  Targeted clippy with -D warnings: passed.
+  Workspace fmt check: passed.
+
+Tests passed with RUST_TEST_THREADS=1 after concurrent runs hit unrelated FFI timing failures. I did not modify main. The pre-existing untracked tools/orchestrate/wp/brief.md remains untouched.
+
+RESULT: PASS
+EXIT 0
