@@ -1,0 +1,9 @@
+Verified the implementation and added RAW_DECODE_FIXTURES support so real-fixture tests run without touching the dangling fixtures/raw symlink.
+
+The required test, Clippy, and formatting command passed. All five RAW formats decoded successfully. Criterion timings: CR3 160.74 ms, ARW 51.227 ms, NEF 375.30 ms, RAF 26.248 ms, DNG 34.648 ms.
+
+The supplied DNG has no embedded JPEG, so preview returns None. Other fixtures passed JPEG validation.
+
+Changes stayed within allowed paths. engine-api and pre-existing out-of-scope files were untouched. Evidence: tools/orchestrate/wp/M1-01/VERIFICATION.md.
+
+RESULT: PASS

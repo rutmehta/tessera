@@ -1,0 +1,8 @@
+Implemented and tested atomic recipe/XMP storage, vector-clock LWW merging, namespace-aware metadata, foreign XML preservation, selection mapping, and PV6 exposure/curve/linear-mask import.
+
+Ran successfully:
+cargo test -p sidecar && cargo clippy -p sidecar --all-targets -- -D warnings && cargo fmt --check
+
+Engine-api is unchanged. Findings and remaining gaps are documented in tools/orchestrate/wp/M1-03/FINDINGS.md.
+
+RESULT: FAIL Full develop export is incomplete: native ProcessVersion needs an export policy, and nonempty PointColors, LensBlur, retouch, and non-linear masks still need translators.

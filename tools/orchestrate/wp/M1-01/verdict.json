@@ -1,7 +1,11 @@
 {
   "wp": "M1-01",
-  "status": "pass",
-  "attempts": 3,
+  "status": "escalate",
+  "attempts": 4,
   "last_test_exit": 0,
-  "violations": []
+  "violations": [
+    "fixtures/raw",
+    "tools/orchestrate/wp/M0-05/evidence/transcript.log",
+    "tools/orchestrate/wp/M0-05/runner.log"
+  ]
 }

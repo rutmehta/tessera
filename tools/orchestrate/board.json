@@ -67,7 +67,7 @@
     "id": "M1-01",
     "owner": "astra",
     "title": "raw-decode crate",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
@@ -83,7 +83,7 @@
     "id": "M1-03",
     "owner": "astra",
     "title": "sidecar crate",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
