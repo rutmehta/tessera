@@ -1,0 +1,10 @@
+# Tiny deterministic fixture. Production entries use https:// URLs.
+[[models]]
+id = "test/conv"
+version = "1"
+task = "test-convolution"
+dtype = "fp32"
+sha256 = "c64f58321fa5cfeca15daf11a4db55e9546e057d9d812acbf4f23e38f860d901"
+download_url = "file:tests/data/conv.onnx"
+inputs = [{ name = "input", shape = [1, 3, 64, 64], dtype = "fp32" }]
+outputs = [{ name = "output", shape = [1, 3, 64, 64], dtype = "fp32" }]
