@@ -1,0 +1,1 @@
+RESULT: FAIL — I read `crates/engine-api/CONTRACTS.md` and confirmed the previews crate is still a stub. I did not implement or run the requested test command, so this work package is not complete. The Kanban task tools also could not orient or update a task because `HERMES_KANBAN_TASK` is unset.

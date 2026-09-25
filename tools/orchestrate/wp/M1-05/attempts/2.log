@@ -1,0 +1,4 @@
+RESULT: FAIL — The required test command passes, but `pipeline-cpu` is still incomplete: it lacks CFA input/demosaicing (including RCD and X-Trans), camera-matrix rendering, PNG golden tests, and the requested `OPERATORS.md` formulas. I did not change any files.
+
+⚠️ File-mutation verifier: 1 file(s) were NOT modified this turn despite any wording above that may suggest otherwise. Run `git status` or `read_file` to confirm.
+  • `/Users/rutmehta/Developer/tessera/.worktrees/M1-05/crates/pipeline-cpu/src/lib.rs` — [patch] Patch validation failed (no files were modified): • `/Users/rutmehta/Developer/tessera/.worktrees/M1-05/crates/pipeline-cpu/src/lib.rs`: hunk 2 (no hint) not found — Found 33 matche…

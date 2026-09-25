@@ -1,0 +1,3 @@
+RESULT: PASS
+
+Implemented `raw-decode` and the Criterion benchmark. The requested test, clippy, and formatting command completed with exit code 0. The Kanban completion call could not be recorded because no task ID was available in this session.

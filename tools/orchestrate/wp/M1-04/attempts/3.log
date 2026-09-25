@@ -1,0 +1,5 @@
+Implemented the previews crate with content-addressed keys, JPEG quality 90 encoding, Lanczos downscaling, orientation handling, cache reuse, and size-cap eviction.
+
+Verification passed: `cargo test -p previews` (3 passed, 1 ignored), `cargo clippy -p previews --all-targets -- -D warnings`, and `cargo fmt --check`. `git diff --check` passed.
+
+RESULT: PASS

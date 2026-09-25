@@ -1,0 +1,5 @@
+Implemented the Tessera rename across the CLI, macOS package and app identifiers, documentation, and orchestration cache path. `bash ci.sh`, `swift build`, `swift test`, and the Tessera `xcodebuild` command all passed; the forbidden-name scan scoped to this worktree also passed.
+
+The exact requested command returned failure at its final grep: searching `..` includes neighboring worktrees, which still contain historical names. I left those outside the allowed worktree untouched.
+
+RESULT: FAIL exact test command’s final grep finds legacy names in sibling worktrees outside M0-08
