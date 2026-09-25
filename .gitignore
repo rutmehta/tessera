@@ -1,6 +1,6 @@
 .worktrees/
 target/
 .build/
-fixtures/raw/
+fixtures/raw
 .DS_Store
 *.xcuserstate
