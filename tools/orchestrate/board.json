@@ -339,7 +339,7 @@
     "id": "M2-09c",
     "owner": "astra",
     "title": "GPU geometry parity (fix main)",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },

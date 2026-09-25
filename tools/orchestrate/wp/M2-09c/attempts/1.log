@@ -1,0 +1,11 @@
+Implemented M2-09c within the allowed paths.
+
+GPU geometry now uses WGSL only for crop/straighten. Extended settings delegate to CpuStageOp, preserving CPU validation and results. Added parity, fallback transfer-count, repeatability, and cancellation coverage. Documented the readback and re-upload costs.
+
+The required command passed: workspace release tests, strict pipeline-gpu Clippy, and formatting. Tests reported 528 passed, 0 failed, 13 ignored.
+
+This checkout still rejects orientation/constrain-crop on CPU. Lens mapping is separate from Op::Geometry. The optional composed WGSL port remains deferred.
+
+Evidence: tools/orchestrate/wp/M2-09c/validation.md and validation.log. No commits made.
+
+RESULT: PASS
