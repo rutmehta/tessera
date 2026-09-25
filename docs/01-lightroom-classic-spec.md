@@ -31,6 +31,8 @@ The implementation notes assume the shared engine described in [04-implementatio
 
 ### 1.1 Catalog
 
+> Our implementation departs from the `.lrcat` model; see [05-catalog-storage-and-import.md](05-catalog-storage-and-import.md). This section documents Lightroom's behaviour for parity and import.
+
 **What it does.** A single-file database of every imported photo: file path, capture metadata, user metadata, develop settings, history, collections membership, flags. Supports Open/Create/Optimize/Back up, multiple catalogs, "Import from Another Catalog" merge, "Export as Catalog" subset extraction, catalog upgrade between versions.
 
 **Data model.**
@@ -88,6 +90,8 @@ The implementation notes assume the shared engine described in [04-implementatio
 - Faces: detector (RetinaFace-class CNN) → alignment → 512-d embedding (ArcFace-class) → agglomerative clustering under a distance threshold; store `FaceRegion` (normalized rect, embedding, personId, confidence, confirmed flag). Writes MWG-RS region XMP so other apps see names.
 
 ### 1.5 Flags, ratings, color labels, stacks, virtual copies
+
+> Our selection model replaces flags/ratings/labels; see [06-culling-and-selection.md](06-culling-and-selection.md). Stacks and virtual copies are kept as-is.
 
 **What it does.** Pick/Reject/Unflagged; 0–5 stars; Red/Yellow/Green/Blue/Purple + custom label sets; Auto-Stack by capture time; manual stacks (collapse/expand/promote); Virtual Copies (extra develop recipes on the same file); "Set as Master".
 
@@ -155,6 +159,8 @@ The implementation notes assume the shared engine described in [04-implementatio
 ---
 
 ## 2. Develop module — the raw pipeline
+
+> SOTA upgrades to every stage below, plus camera/lens coverage and display colour management, are specified in [07-image-quality-and-color.md](07-image-quality-and-color.md).
 
 The Develop module UI panels, in order: Histogram · Tool strip (Crop, Healing, Redeye, Masking, Lens Blur) · Basic · Tone Curve · HSL/Color · Color Grading · Detail · Lens Corrections · Transform · Effects · Calibration. Plus: Presets, Snapshots, History, Collections on the left; Before/After, Soft Proofing, Reference View, Copy/Paste/Sync/Auto Sync, Previous, Reset in the toolbar.
 
