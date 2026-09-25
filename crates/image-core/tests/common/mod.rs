@@ -33,6 +33,7 @@ pub fn metadata(width: u32, height: u32, cfa: CfaLayout, crop: [u32; 4]) -> RawM
         focal_mm: 50.0,
         capture_time: 0,
         orientation: 1,
+        opcode_lists: [None, None, None],
         width,
         height,
         cfa_layout: cfa,
