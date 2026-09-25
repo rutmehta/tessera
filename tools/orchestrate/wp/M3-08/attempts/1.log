@@ -1,0 +1,7 @@
+Implemented tessera-mcp library/server and tessera mcp CLI integration, with derived schemas, Agent history, image tools, resources, and protocol tests.
+
+Independently ran the exact required command: 34 tests passed, clippy -D warnings passed, and cargo fmt --check passed. External CARGO_TARGET_DIR preserved. Only allowed paths changed. engine-api unchanged.
+
+Engine gaps are documented in crates/tessera-mcp/README.md: typed comparison lacks image fields, non-develop history is audit-only, and unavailable AI-mask/export options return explicit Unsupported errors.
+
+RESULT: PASS

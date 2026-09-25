@@ -443,7 +443,7 @@
     "id": "M3-08",
     "owner": "astra",
     "title": "MCP tool server + console",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
