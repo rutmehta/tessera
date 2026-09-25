@@ -672,6 +672,147 @@ fileprivate struct FfiConverterData: FfiConverterRustBuffer {
 
 
 /**
+ * Cancels a running `export_batch` (or print render) from another thread.
+ */
+public protocol CancelFlagProtocol: AnyObject, Sendable {
+    
+    func cancel() 
+    
+    func isCancelled()  -> Bool
+    
+}
+/**
+ * Cancels a running `export_batch` (or print render) from another thread.
+ */
+open class CancelFlag: CancelFlagProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_tessera_ffi_fn_clone_cancelflag(self.handle, $0) }
+    }
+public convenience init() {
+    let handle =
+        try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_constructor_cancelflag_new(uniffiCallStatus
+    )
+}
+    self.init(unsafeFromHandle: handle)
+}
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_tessera_ffi_fn_free_cancelflag(handle, $0) }
+    }
+
+    
+
+    
+open func cancel()  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_cancelflag_cancel(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+}
+}
+    
+open func isCancelled() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_cancelflag_is_cancelled(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCancelFlag: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = CancelFlag
+
+    public static func lift(_ handle: UInt64) throws -> CancelFlag {
+        return CancelFlag(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: CancelFlag) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CancelFlag {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: CancelFlag, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCancelFlag_lift(_ handle: UInt64) throws -> CancelFlag {
+    return try FfiConverterTypeCancelFlag.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCancelFlag_lower(_ value: CancelFlag) -> UInt64 {
+    return FfiConverterTypeCancelFlag.lower(value)
+}
+
+
+
+
+
+
+/**
  * Owns its own index connection (WAL) so the engine's catalog lock is never
  * held across a culling pass. Calls are synchronous; dispatch off the main
  * thread for large queues.
@@ -1814,6 +1955,14 @@ public protocol DevelopSessionProtocol: AnyObject, Sendable {
     
     func updateMaskGroup(groupId: UInt32, patch: MaskGroupPatch, interactive: Bool) throws 
     
+    /**
+     * Soft proofing toggle for this session's viewport: `Some` returns the
+     * presentation LUT for the simulated print, `None` turns proofing off
+     * (returns `None`). The render, recipe and history are untouched.
+     * Blocking on first use of a profile (tens of milliseconds).
+     */
+    func softProof(options: SoftProofOptions?) throws  -> SoftProofLut?
+    
 }
 open class DevelopSession: DevelopSessionProtocol, @unchecked Sendable {
     fileprivate let handle: UInt64
@@ -2503,6 +2652,22 @@ open func updateMaskGroup(groupId: UInt32, patch: MaskGroupPatch, interactive: B
 }
 }
     
+    /**
+     * Soft proofing toggle for this session's viewport: `Some` returns the
+     * presentation LUT for the simulated print, `None` turns proofing off
+     * (returns `None`). The render, recipe and history are untouched.
+     * Blocking on first use of a profile (tens of milliseconds).
+     */
+open func softProof(options: SoftProofOptions?)throws  -> SoftProofLut?  {
+    return try  FfiConverterOptionTypeSoftProofLut.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_soft_proof(
+            self.uniffiCloneHandle(),
+        FfiConverterOptionTypeSoftProofOptions.lower(options),uniffiCallStatus
+    )
+})
+}
+    
 
     
 }
@@ -2583,6 +2748,44 @@ public protocol EngineProtocol: AnyObject, Sendable {
      * raw): call off the main thread. One session per visible image.
      */
     func openDevelopSession(imageId: String) throws  -> DevelopSession
+    
+    func deleteExportPreset(name: String) throws 
+    
+    /**
+     * Exports `target` with `settings_json` (`ExportOptions`) into its
+     * destination. Blocking: call off the main thread. Per-image failures
+     * (unreadable source, existing file with `on_conflict: skip`, …) are
+     * reported per item; settings, destination and naming problems fail the
+     * whole call before anything is written. After a cancel the report lists
+     * the images already written; nothing half-written is left behind.
+     */
+    func exportBatch(target: ExportTarget, settingsJson: String, listener: ExportProgressListener?, cancel: CancelFlag?) throws  -> ExportReport
+    
+    /**
+     * Export presets: the shipped ones (installed into the app directory on
+     * first use, then editable like any other) in their order, then the
+     * user's alphabetically.
+     */
+    func exportPresets() throws  -> [ExportPreset]
+    
+    func renameExportPreset(name: String, newName: String) throws 
+    
+    /**
+     * Renders one photo for printing: develop settings, orientation, fit to
+     * the box, print sharpening, then colour for the chosen handling.
+     * Blocking; `cancel` stops between stages.
+     */
+    func renderForPrint(request: PrintRenderRequest, cancel: CancelFlag?) throws  -> PrintImage
+    
+    /**
+     * Re-installs the shipped presets (replacing edits to them; others stay).
+     */
+    func restoreDefaultExportPresets() throws 
+    
+    /**
+     * Creates or replaces the preset called `name`.
+     */
+    func saveExportPreset(name: String, settingsJson: String) throws 
     
     /**
      * Reads (a temporary copy of) the catalog. Blocking: call off the main thread.
@@ -2770,6 +2973,100 @@ open func openDevelopSession(imageId: String)throws  -> DevelopSession  {
         FfiConverterString.lower(imageId),uniffiCallStatus
     )
 })
+}
+    
+open func deleteExportPreset(name: String)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_delete_export_preset(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(name),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Exports `target` with `settings_json` (`ExportOptions`) into its
+     * destination. Blocking: call off the main thread. Per-image failures
+     * (unreadable source, existing file with `on_conflict: skip`, …) are
+     * reported per item; settings, destination and naming problems fail the
+     * whole call before anything is written. After a cancel the report lists
+     * the images already written; nothing half-written is left behind.
+     */
+open func exportBatch(target: ExportTarget, settingsJson: String, listener: ExportProgressListener?, cancel: CancelFlag?)throws  -> ExportReport  {
+    return try  FfiConverterTypeExportReport_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_export_batch(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeExportTarget_lower(target),
+        FfiConverterString.lower(settingsJson),
+        FfiConverterOptionTypeExportProgressListener.lower(listener),
+        FfiConverterOptionTypeCancelFlag.lower(cancel),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Export presets: the shipped ones (installed into the app directory on
+     * first use, then editable like any other) in their order, then the
+     * user's alphabetically.
+     */
+open func exportPresets()throws  -> [ExportPreset]  {
+    return try  FfiConverterSequenceTypeExportPreset.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_export_presets(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+open func renameExportPreset(name: String, newName: String)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_rename_export_preset(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(name),
+        FfiConverterString.lower(newName),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Renders one photo for printing: develop settings, orientation, fit to
+     * the box, print sharpening, then colour for the chosen handling.
+     * Blocking; `cancel` stops between stages.
+     */
+open func renderForPrint(request: PrintRenderRequest, cancel: CancelFlag?)throws  -> PrintImage  {
+    return try  FfiConverterTypePrintImage_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_render_for_print(
+            self.uniffiCloneHandle(),
+        FfiConverterTypePrintRenderRequest_lower(request),
+        FfiConverterOptionTypeCancelFlag.lower(cancel),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Re-installs the shipped presets (replacing edits to them; others stay).
+     */
+open func restoreDefaultExportPresets()throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_restore_default_export_presets(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Creates or replaces the preset called `name`.
+     */
+open func saveExportPreset(name: String, settingsJson: String)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_save_export_preset(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(name),
+        FfiConverterString.lower(settingsJson),uniffiCallStatus
+    )
+}
 }
     
     /**
@@ -3077,6 +3374,210 @@ public func FfiConverterTypeEngineEventListener_lift(_ handle: UInt64) throws ->
 #endif
 public func FfiConverterTypeEngineEventListener_lower(_ value: EngineEventListener) -> UInt64 {
     return FfiConverterTypeEngineEventListener.lower(value)
+}
+
+
+
+
+
+
+/**
+ * Called on the exporting thread before each image and after the last.
+ */
+public protocol ExportProgressListener: AnyObject, Sendable {
+    
+    func onProgress(progress: ExportProgress) 
+    
+}
+/**
+ * Called on the exporting thread before each image and after the last.
+ */
+open class ExportProgressListenerImpl: ExportProgressListener, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_tessera_ffi_fn_clone_exportprogresslistener(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_tessera_ffi_fn_free_exportprogresslistener(handle, $0) }
+    }
+
+    
+
+    
+open func onProgress(progress: ExportProgress)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_exportprogresslistener_on_progress(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeExportProgress_lower(progress),uniffiCallStatus
+    )
+}
+}
+    
+
+    
+}
+
+
+
+// Put the implementation in a struct so we don't pollute the top-level namespace
+fileprivate struct UniffiCallbackInterfaceExportProgressListener {
+
+    // Create the VTable using a series of closures.
+    // Swift automatically converts these into C callback functions.
+    //
+    // Store the vtable directly.
+    static let vtable: UniffiVTableCallbackInterfaceExportProgressListener = UniffiVTableCallbackInterfaceExportProgressListener(
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            do {
+                try FfiConverterTypeExportProgressListener.handleMap.remove(handle: uniffiHandle)
+            } catch {
+                print("Uniffi callback interface ExportProgressListener: handle missing in uniffiFree")
+            }
+        },
+        uniffiClone: { (uniffiHandle: UInt64) -> UInt64 in
+            do {
+                return try FfiConverterTypeExportProgressListener.handleMap.clone(handle: uniffiHandle)
+            } catch {
+                fatalError("Uniffi callback interface ExportProgressListener: handle missing in uniffiClone")
+            }
+        },
+        onProgress: { (
+            uniffiHandle: UInt64,
+            progress: RustBuffer,
+            uniffiOutReturn: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> () in
+                guard let uniffiObj = try? FfiConverterTypeExportProgressListener.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.onProgress(
+                     progress: try FfiConverterTypeExportProgress_lift(progress)
+                )
+            }
+
+            
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        }
+    )
+
+    // Rust stores this pointer for future callback invocations, so it must live
+    // for the process lifetime (not just for the init function call).
+    //
+    // `nonisolated(unsafe)` is needed under Swift 6 strict concurrency.
+    // This is safe because the pointee is initialized once during static init
+    // and never mutated by either side of the FFI.  Its fields are C function pointers.
+    nonisolated(unsafe) static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceExportProgressListener> = {
+        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceExportProgressListener>.allocate(capacity: 1)
+        ptr.initialize(to: vtable)
+        return UnsafePointer(ptr)
+    }()
+}
+
+private func uniffiCallbackInitExportProgressListener() {
+    uniffi_tessera_ffi_fn_init_callback_vtable_exportprogresslistener(UniffiCallbackInterfaceExportProgressListener.vtablePtr)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeExportProgressListener: FfiConverter {
+    fileprivate static let handleMap = UniffiHandleMap<ExportProgressListener>()
+
+    typealias FfiType = UInt64
+    typealias SwiftType = ExportProgressListener
+
+    public static func lift(_ handle: UInt64) throws -> ExportProgressListener {
+        if ((handle & 1) == 0) {
+            // Rust-generated handle, construct a new class that uses the handle to implement the
+            // interface
+            return ExportProgressListenerImpl(unsafeFromHandle: handle)
+        } else {
+            // Swift-generated handle, get the object from the handle map
+            return try handleMap.remove(handle: handle)
+        }
+    }
+
+    public static func lower(_ value: ExportProgressListener) -> UInt64 {
+         if let rustImpl = value as? ExportProgressListenerImpl {
+             // Rust-implemented object.  Clone the handle and return it
+            return rustImpl.uniffiCloneHandle()
+         } else {
+            // Swift object, generate a new vtable handle and return that.
+            return handleMap.insert(obj: value)
+         }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ExportProgressListener {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: ExportProgressListener, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeExportProgressListener_lift(_ handle: UInt64) throws -> ExportProgressListener {
+    return try FfiConverterTypeExportProgressListener.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeExportProgressListener_lower(_ value: ExportProgressListener) -> UInt64 {
+    return FfiConverterTypeExportProgressListener.lower(value)
 }
 
 
@@ -4916,6 +5417,288 @@ public func FfiConverterTypeDevelopInfo_lift(_ buf: RustBuffer) throws -> Develo
 #endif
 public func FfiConverterTypeDevelopInfo_lower(_ value: DevelopInfo) -> RustBuffer {
     return FfiConverterTypeDevelopInfo.lower(value)
+}
+
+
+public struct ExportItemResult: Equatable, Hashable {
+    public var imageId: String
+    /**
+     * Source file name.
+     */
+    public var name: String
+    public var outputPath: String?
+    public var error: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(imageId: String, 
+        /**
+         * Source file name.
+         */name: String, outputPath: String?, error: String?) {
+        self.imageId = imageId
+        self.name = name
+        self.outputPath = outputPath
+        self.error = error
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ExportItemResult: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeExportItemResult: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ExportItemResult {
+        return
+            try ExportItemResult(
+                imageId: FfiConverterString.read(from: &buf), 
+                name: FfiConverterString.read(from: &buf), 
+                outputPath: FfiConverterOptionString.read(from: &buf), 
+                error: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ExportItemResult, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.imageId, into: &buf)
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterOptionString.write(value.outputPath, into: &buf)
+        FfiConverterOptionString.write(value.error, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeExportItemResult_lift(_ buf: RustBuffer) throws -> ExportItemResult {
+    return try FfiConverterTypeExportItemResult.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeExportItemResult_lower(_ value: ExportItemResult) -> RustBuffer {
+    return FfiConverterTypeExportItemResult.lower(value)
+}
+
+
+public struct ExportPreset: Equatable, Hashable {
+    public var name: String
+    /**
+     * `ExportOptions` JSON.
+     */
+    public var settingsJson: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(name: String, 
+        /**
+         * `ExportOptions` JSON.
+         */settingsJson: String) {
+        self.name = name
+        self.settingsJson = settingsJson
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ExportPreset: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeExportPreset: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ExportPreset {
+        return
+            try ExportPreset(
+                name: FfiConverterString.read(from: &buf), 
+                settingsJson: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ExportPreset, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterString.write(value.settingsJson, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeExportPreset_lift(_ buf: RustBuffer) throws -> ExportPreset {
+    return try FfiConverterTypeExportPreset.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeExportPreset_lower(_ value: ExportPreset) -> RustBuffer {
+    return FfiConverterTypeExportPreset.lower(value)
+}
+
+
+public struct ExportProgress: Equatable, Hashable {
+    /**
+     * Images finished (written or failed) so far.
+     */
+    public var done: UInt32
+    public var total: UInt32
+    public var exported: UInt32
+    public var failed: UInt32
+    /**
+     * Source file name being rendered next (empty when finished).
+     */
+    public var current: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Images finished (written or failed) so far.
+         */done: UInt32, total: UInt32, exported: UInt32, failed: UInt32, 
+        /**
+         * Source file name being rendered next (empty when finished).
+         */current: String) {
+        self.done = done
+        self.total = total
+        self.exported = exported
+        self.failed = failed
+        self.current = current
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ExportProgress: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeExportProgress: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ExportProgress {
+        return
+            try ExportProgress(
+                done: FfiConverterUInt32.read(from: &buf), 
+                total: FfiConverterUInt32.read(from: &buf), 
+                exported: FfiConverterUInt32.read(from: &buf), 
+                failed: FfiConverterUInt32.read(from: &buf), 
+                current: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ExportProgress, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.done, into: &buf)
+        FfiConverterUInt32.write(value.total, into: &buf)
+        FfiConverterUInt32.write(value.exported, into: &buf)
+        FfiConverterUInt32.write(value.failed, into: &buf)
+        FfiConverterString.write(value.current, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeExportProgress_lift(_ buf: RustBuffer) throws -> ExportProgress {
+    return try FfiConverterTypeExportProgress.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeExportProgress_lower(_ value: ExportProgress) -> RustBuffer {
+    return FfiConverterTypeExportProgress.lower(value)
+}
+
+
+public struct ExportReport: Equatable, Hashable {
+    public var destination: String
+    /**
+     * Input order. Images not reached after a cancel have neither path nor error.
+     */
+    public var items: [ExportItemResult]
+    public var exported: UInt32
+    public var failed: UInt32
+    public var cancelled: Bool
+    public var seconds: Double
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(destination: String, 
+        /**
+         * Input order. Images not reached after a cancel have neither path nor error.
+         */items: [ExportItemResult], exported: UInt32, failed: UInt32, cancelled: Bool, seconds: Double) {
+        self.destination = destination
+        self.items = items
+        self.exported = exported
+        self.failed = failed
+        self.cancelled = cancelled
+        self.seconds = seconds
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ExportReport: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeExportReport: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ExportReport {
+        return
+            try ExportReport(
+                destination: FfiConverterString.read(from: &buf), 
+                items: FfiConverterSequenceTypeExportItemResult.read(from: &buf), 
+                exported: FfiConverterUInt32.read(from: &buf), 
+                failed: FfiConverterUInt32.read(from: &buf), 
+                cancelled: FfiConverterBool.read(from: &buf), 
+                seconds: FfiConverterDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ExportReport, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.destination, into: &buf)
+        FfiConverterSequenceTypeExportItemResult.write(value.items, into: &buf)
+        FfiConverterUInt32.write(value.exported, into: &buf)
+        FfiConverterUInt32.write(value.failed, into: &buf)
+        FfiConverterBool.write(value.cancelled, into: &buf)
+        FfiConverterDouble.write(value.seconds, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeExportReport_lift(_ buf: RustBuffer) throws -> ExportReport {
+    return try FfiConverterTypeExportReport.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeExportReport_lower(_ value: ExportReport) -> RustBuffer {
+    return FfiConverterTypeExportReport.lower(value)
 }
 
 
@@ -8446,6 +9229,286 @@ public func FfiConverterTypePreviewResponse_lower(_ value: PreviewResponse) -> R
 }
 
 
+/**
+ * Interleaved 8-bit device pixels plus the ICC profile that describes them.
+ */
+public struct PrintImage: Equatable, Hashable {
+    public var width: UInt32
+    public var height: UInt32
+    /**
+     * 3 (RGB), 4 (CMYK) or 1 (gray).
+     */
+    public var channels: UInt32
+    public var data: Data
+    public var icc: Data
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(width: UInt32, height: UInt32, 
+        /**
+         * 3 (RGB), 4 (CMYK) or 1 (gray).
+         */channels: UInt32, data: Data, icc: Data) {
+        self.width = width
+        self.height = height
+        self.channels = channels
+        self.data = data
+        self.icc = icc
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension PrintImage: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePrintImage: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PrintImage {
+        return
+            try PrintImage(
+                width: FfiConverterUInt32.read(from: &buf), 
+                height: FfiConverterUInt32.read(from: &buf), 
+                channels: FfiConverterUInt32.read(from: &buf), 
+                data: FfiConverterData.read(from: &buf), 
+                icc: FfiConverterData.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PrintImage, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.width, into: &buf)
+        FfiConverterUInt32.write(value.height, into: &buf)
+        FfiConverterUInt32.write(value.channels, into: &buf)
+        FfiConverterData.write(value.data, into: &buf)
+        FfiConverterData.write(value.icc, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePrintImage_lift(_ buf: RustBuffer) throws -> PrintImage {
+    return try FfiConverterTypePrintImage.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePrintImage_lower(_ value: PrintImage) -> RustBuffer {
+    return FfiConverterTypePrintImage.lower(value)
+}
+
+
+/**
+ * Application-managed colour: convert into the printer profile's device space.
+ */
+public struct PrintProfile: Equatable, Hashable {
+    public var path: String
+    public var intent: RenderingIntent
+    public var blackPointCompensation: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(path: String, intent: RenderingIntent, blackPointCompensation: Bool) {
+        self.path = path
+        self.intent = intent
+        self.blackPointCompensation = blackPointCompensation
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension PrintProfile: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePrintProfile: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PrintProfile {
+        return
+            try PrintProfile(
+                path: FfiConverterString.read(from: &buf), 
+                intent: FfiConverterTypeRenderingIntent.read(from: &buf), 
+                blackPointCompensation: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PrintProfile, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.path, into: &buf)
+        FfiConverterTypeRenderingIntent.write(value.intent, into: &buf)
+        FfiConverterBool.write(value.blackPointCompensation, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePrintProfile_lift(_ buf: RustBuffer) throws -> PrintProfile {
+    return try FfiConverterTypePrintProfile.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePrintProfile_lower(_ value: PrintProfile) -> RustBuffer {
+    return FfiConverterTypePrintProfile.lower(value)
+}
+
+
+public struct PrintRenderRequest: Equatable, Hashable {
+    public var imageId: String
+    /**
+     * The picture is scaled to fit this box (pixels at the print resolution),
+     * keeping its aspect.
+     */
+    public var maxWidth: UInt32
+    public var maxHeight: UInt32
+    public var sharpening: PrintSharpening
+    /**
+     * None: printer-managed colour (Display P3 pixels, matched by the driver).
+     */
+    public var profile: PrintProfile?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(imageId: String, 
+        /**
+         * The picture is scaled to fit this box (pixels at the print resolution),
+         * keeping its aspect.
+         */maxWidth: UInt32, maxHeight: UInt32, sharpening: PrintSharpening, 
+        /**
+         * None: printer-managed colour (Display P3 pixels, matched by the driver).
+         */profile: PrintProfile?) {
+        self.imageId = imageId
+        self.maxWidth = maxWidth
+        self.maxHeight = maxHeight
+        self.sharpening = sharpening
+        self.profile = profile
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension PrintRenderRequest: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePrintRenderRequest: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PrintRenderRequest {
+        return
+            try PrintRenderRequest(
+                imageId: FfiConverterString.read(from: &buf), 
+                maxWidth: FfiConverterUInt32.read(from: &buf), 
+                maxHeight: FfiConverterUInt32.read(from: &buf), 
+                sharpening: FfiConverterTypePrintSharpening.read(from: &buf), 
+                profile: FfiConverterOptionTypePrintProfile.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PrintRenderRequest, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.imageId, into: &buf)
+        FfiConverterUInt32.write(value.maxWidth, into: &buf)
+        FfiConverterUInt32.write(value.maxHeight, into: &buf)
+        FfiConverterTypePrintSharpening.write(value.sharpening, into: &buf)
+        FfiConverterOptionTypePrintProfile.write(value.profile, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePrintRenderRequest_lift(_ buf: RustBuffer) throws -> PrintRenderRequest {
+    return try FfiConverterTypePrintRenderRequest.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePrintRenderRequest_lower(_ value: PrintRenderRequest) -> RustBuffer {
+    return FfiConverterTypePrintRenderRequest.lower(value)
+}
+
+
+public struct PrinterProfile: Equatable, Hashable {
+    public var name: String
+    public var path: String
+    /**
+     * "RGB", "CMYK" or "Gray".
+     */
+    public var colorSpace: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(name: String, path: String, 
+        /**
+         * "RGB", "CMYK" or "Gray".
+         */colorSpace: String) {
+        self.name = name
+        self.path = path
+        self.colorSpace = colorSpace
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension PrinterProfile: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePrinterProfile: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PrinterProfile {
+        return
+            try PrinterProfile(
+                name: FfiConverterString.read(from: &buf), 
+                path: FfiConverterString.read(from: &buf), 
+                colorSpace: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PrinterProfile, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterString.write(value.path, into: &buf)
+        FfiConverterString.write(value.colorSpace, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePrinterProfile_lift(_ buf: RustBuffer) throws -> PrinterProfile {
+    return try FfiConverterTypePrinterProfile.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePrinterProfile_lower(_ value: PrinterProfile) -> RustBuffer {
+    return FfiConverterTypePrinterProfile.lower(value)
+}
+
+
 public struct RuleCheck: Equatable, Hashable {
     /**
      * Text for the rule: normalized when it came from items, else the input.
@@ -9044,6 +10107,160 @@ public func FfiConverterTypeSessionImage_lower(_ value: SessionImage) -> RustBuf
 
 
 /**
+ * `size`³ nodes, red fastest, then green, then blue. Each node is RGBA
+ * 16-bit unorm: the proofed colour in display-encoded sRGB, and alpha 65535
+ * where the printer cannot reproduce the colour (ΔE76 > 2 after a clipped
+ * round trip), else 0.
+ */
+public struct SoftProofLut: Equatable, Hashable {
+    public var size: UInt32
+    public var rgba: [UInt16]
+    /**
+     * The simulated profile's description.
+     */
+    public var profileName: String
+    /**
+     * Share of LUT nodes out of the printer's gamut (0–1), for the panel.
+     */
+    public var outOfGamut: Float
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(size: UInt32, rgba: [UInt16], 
+        /**
+         * The simulated profile's description.
+         */profileName: String, 
+        /**
+         * Share of LUT nodes out of the printer's gamut (0–1), for the panel.
+         */outOfGamut: Float) {
+        self.size = size
+        self.rgba = rgba
+        self.profileName = profileName
+        self.outOfGamut = outOfGamut
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SoftProofLut: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSoftProofLut: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SoftProofLut {
+        return
+            try SoftProofLut(
+                size: FfiConverterUInt32.read(from: &buf), 
+                rgba: FfiConverterSequenceUInt16.read(from: &buf), 
+                profileName: FfiConverterString.read(from: &buf), 
+                outOfGamut: FfiConverterFloat.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SoftProofLut, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.size, into: &buf)
+        FfiConverterSequenceUInt16.write(value.rgba, into: &buf)
+        FfiConverterString.write(value.profileName, into: &buf)
+        FfiConverterFloat.write(value.outOfGamut, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSoftProofLut_lift(_ buf: RustBuffer) throws -> SoftProofLut {
+    return try FfiConverterTypeSoftProofLut.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSoftProofLut_lower(_ value: SoftProofLut) -> RustBuffer {
+    return FfiConverterTypeSoftProofLut.lower(value)
+}
+
+
+public struct SoftProofOptions: Equatable, Hashable {
+    /**
+     * ICC output profile to simulate (see `printer_profiles`).
+     */
+    public var profilePath: String
+    public var intent: RenderingIntent
+    public var blackPointCompensation: Bool
+    /**
+     * Absolute colorimetric proof-to-display leg: show paper white and ink black.
+     */
+    public var simulatePaper: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * ICC output profile to simulate (see `printer_profiles`).
+         */profilePath: String, intent: RenderingIntent, blackPointCompensation: Bool, 
+        /**
+         * Absolute colorimetric proof-to-display leg: show paper white and ink black.
+         */simulatePaper: Bool) {
+        self.profilePath = profilePath
+        self.intent = intent
+        self.blackPointCompensation = blackPointCompensation
+        self.simulatePaper = simulatePaper
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SoftProofOptions: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSoftProofOptions: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SoftProofOptions {
+        return
+            try SoftProofOptions(
+                profilePath: FfiConverterString.read(from: &buf), 
+                intent: FfiConverterTypeRenderingIntent.read(from: &buf), 
+                blackPointCompensation: FfiConverterBool.read(from: &buf), 
+                simulatePaper: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SoftProofOptions, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.profilePath, into: &buf)
+        FfiConverterTypeRenderingIntent.write(value.intent, into: &buf)
+        FfiConverterBool.write(value.blackPointCompensation, into: &buf)
+        FfiConverterBool.write(value.simulatePaper, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSoftProofOptions_lift(_ buf: RustBuffer) throws -> SoftProofOptions {
+    return try FfiConverterTypeSoftProofOptions.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSoftProofOptions_lower(_ value: SoftProofOptions) -> RustBuffer {
+    return FfiConverterTypeSoftProofOptions.lower(value)
+}
+
+
+/**
  * Surface size to allocate for a viewport: exactly the extent of `level`.
  */
 public struct SurfacePlan: Equatable, Hashable {
@@ -9523,6 +10740,92 @@ public func FfiConverterTypeEngineEvent_lift(_ buf: RustBuffer) throws -> Engine
 #endif
 public func FfiConverterTypeEngineEvent_lower(_ value: EngineEvent) -> RustBuffer {
     return FfiConverterTypeEngineEvent.lower(value)
+}
+
+
+
+
+public enum ExportTarget: Equatable, Hashable {
+    
+    case images(imageIds: [String]
+    )
+    /**
+     * A manual album of `library.json`, in album order.
+     */
+    case album(libraryPath: String, albumId: Int64
+    )
+    case query(query: ImageQuery
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension ExportTarget: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeExportTarget: FfiConverterRustBuffer {
+    typealias SwiftType = ExportTarget
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ExportTarget {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .images(imageIds: try FfiConverterSequenceString.read(from: &buf)
+        )
+        
+        case 2: return .album(libraryPath: try FfiConverterString.read(from: &buf), albumId: try FfiConverterInt64.read(from: &buf)
+        )
+        
+        case 3: return .query(query: try FfiConverterTypeImageQuery.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: ExportTarget, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .images(imageIds):
+            writeInt(&buf, Int32(1))
+            FfiConverterSequenceString.write(imageIds, into: &buf)
+            
+        
+        case let .album(libraryPath,albumId):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(libraryPath, into: &buf)
+            FfiConverterInt64.write(albumId, into: &buf)
+            
+        
+        case let .query(query):
+            writeInt(&buf, Int32(3))
+            FfiConverterTypeImageQuery.write(query, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeExportTarget_lift(_ buf: RustBuffer) throws -> ExportTarget {
+    return try FfiConverterTypeExportTarget.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeExportTarget_lower(_ value: ExportTarget) -> RustBuffer {
+    return FfiConverterTypeExportTarget.lower(value)
 }
 
 
@@ -10100,6 +11403,79 @@ public func FfiConverterTypeMaskComponentType_lower(_ value: MaskComponentType) 
 
 
 
+public enum PrintSharpening: Equatable, Hashable {
+    
+    case none
+    case matte
+    case glossy
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension PrintSharpening: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePrintSharpening: FfiConverterRustBuffer {
+    typealias SwiftType = PrintSharpening
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PrintSharpening {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .none
+        
+        case 2: return .matte
+        
+        case 3: return .glossy
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: PrintSharpening, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .none:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .matte:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .glossy:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePrintSharpening_lift(_ buf: RustBuffer) throws -> PrintSharpening {
+    return try FfiConverterTypePrintSharpening.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePrintSharpening_lower(_ value: PrintSharpening) -> RustBuffer {
+    return FfiConverterTypePrintSharpening.lower(value)
+}
+
+
+
+
 public enum RangeKind: Equatable, Hashable {
     
     case color
@@ -10161,6 +11537,86 @@ public func FfiConverterTypeRangeKind_lift(_ buf: RustBuffer) throws -> RangeKin
 #endif
 public func FfiConverterTypeRangeKind_lower(_ value: RangeKind) -> RustBuffer {
     return FfiConverterTypeRangeKind.lower(value)
+}
+
+
+
+
+public enum RenderingIntent: Equatable, Hashable {
+    
+    case perceptual
+    case relativeColorimetric
+    case saturation
+    case absoluteColorimetric
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension RenderingIntent: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRenderingIntent: FfiConverterRustBuffer {
+    typealias SwiftType = RenderingIntent
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RenderingIntent {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .perceptual
+        
+        case 2: return .relativeColorimetric
+        
+        case 3: return .saturation
+        
+        case 4: return .absoluteColorimetric
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: RenderingIntent, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .perceptual:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .relativeColorimetric:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .saturation:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .absoluteColorimetric:
+            writeInt(&buf, Int32(4))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRenderingIntent_lift(_ buf: RustBuffer) throws -> RenderingIntent {
+    return try FfiConverterTypeRenderingIntent.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRenderingIntent_lower(_ value: RenderingIntent) -> RustBuffer {
+    return FfiConverterTypeRenderingIntent.lower(value)
 }
 
 
@@ -10689,6 +12145,30 @@ fileprivate struct FfiConverterOptionData: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeCancelFlag: FfiConverterRustBuffer {
+    typealias SwiftType = CancelFlag?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeCancelFlag.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeCancelFlag.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeDevelopListener: FfiConverterRustBuffer {
     typealias SwiftType = DevelopListener?
 
@@ -10729,6 +12209,30 @@ fileprivate struct FfiConverterOptionTypeEngineEventListener: FfiConverterRustBu
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeEngineEventListener.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeExportProgressListener: FfiConverterRustBuffer {
+    typealias SwiftType = ExportProgressListener?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeExportProgressListener.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeExportProgressListener.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -10857,6 +12361,30 @@ fileprivate struct FfiConverterOptionTypeMaskThumbnail: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypePrintProfile: FfiConverterRustBuffer {
+    typealias SwiftType = PrintProfile?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypePrintProfile.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypePrintProfile.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeRuleDiagnostic: FfiConverterRustBuffer {
     typealias SwiftType = RuleDiagnostic?
 
@@ -10873,6 +12401,54 @@ fileprivate struct FfiConverterOptionTypeRuleDiagnostic: FfiConverterRustBuffer 
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeRuleDiagnostic.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeSoftProofLut: FfiConverterRustBuffer {
+    typealias SwiftType = SoftProofLut?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeSoftProofLut.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeSoftProofLut.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeSoftProofOptions: FfiConverterRustBuffer {
+    typealias SwiftType = SoftProofOptions?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeSoftProofOptions.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeSoftProofOptions.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -10923,6 +12499,31 @@ fileprivate struct FfiConverterOptionSequenceString: FfiConverterRustBuffer {
         case 1: return try FfiConverterSequenceString.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceUInt16: FfiConverterRustBuffer {
+    typealias SwiftType = [UInt16]
+
+    public static func write(_ value: [UInt16], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterUInt16.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [UInt16] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [UInt16]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterUInt16.read(from: &buf))
+        }
+        return seq
     }
 }
 
@@ -11121,6 +12722,56 @@ fileprivate struct FfiConverterSequenceTypeDefectThreshold: FfiConverterRustBuff
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeDefectThreshold.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeExportItemResult: FfiConverterRustBuffer {
+    typealias SwiftType = [ExportItemResult]
+
+    public static func write(_ value: [ExportItemResult], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeExportItemResult.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ExportItemResult] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ExportItemResult]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeExportItemResult.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeExportPreset: FfiConverterRustBuffer {
+    typealias SwiftType = [ExportPreset]
+
+    public static func write(_ value: [ExportPreset], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeExportPreset.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ExportPreset] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ExportPreset]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeExportPreset.read(from: &buf))
         }
         return seq
     }
@@ -11729,6 +13380,31 @@ fileprivate struct FfiConverterSequenceTypeMetadataField: FfiConverterRustBuffer
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypePrinterProfile: FfiConverterRustBuffer {
+    typealias SwiftType = [PrinterProfile]
+
+    public static func write(_ value: [PrinterProfile], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypePrinterProfile.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [PrinterProfile] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [PrinterProfile]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypePrinterProfile.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeRuleItem: FfiConverterRustBuffer {
     typealias SwiftType = [RuleItem]
 
@@ -11776,6 +13452,54 @@ fileprivate struct FfiConverterSequenceTypeSessionImage: FfiConverterRustBuffer 
     }
 }
 /**
+ * Describes one profile file (for "Other…"); fails unless it is an output profile.
+ */
+public func describePrinterProfile(path: String)throws  -> PrinterProfile  {
+    return try  FfiConverterTypePrinterProfile_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_func_describe_printer_profile(
+        FfiConverterString.lower(path),uniffiCallStatus
+    )
+})
+}
+/**
+ * The file name a template gives (with extension), or the reason it is not
+ * a safe name. The Export sheet's live example and the engine agree on this.
+ */
+public func exportFilename(template: String, name: String, sequence: UInt32, date: String, `extension`: String)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_func_export_filename(
+        FfiConverterString.lower(template),
+        FfiConverterString.lower(name),
+        FfiConverterUInt32.lower(sequence),
+        FfiConverterString.lower(date),
+        FfiConverterString.lower(`extension`),uniffiCallStatus
+    )
+})
+}
+/**
+ * Validates export settings JSON and returns it normalized (defaults filled).
+ */
+public func normalizeExportSettings(json: String)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_func_normalize_export_settings(
+        FfiConverterString.lower(json),uniffiCallStatus
+    )
+})
+}
+/**
+ * Installed ICC output (printer/paper) profiles from the ColorSync folders.
+ */
+public func printerProfiles() -> [PrinterProfile]  {
+    return try!  FfiConverterSequenceTypePrinterProfile.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_func_printer_profiles(uniffiCallStatus
+    )
+})
+}
+/**
  * Counts and diagnostics without an engine (for a quick look at a catalog).
  */
 public func inspectLrcat(path: String)throws  -> LrcatSummary  {
@@ -11801,6 +13525,18 @@ private let initializationResult: InitializationResult = {
     let scaffolding_contract_version = ffi_tessera_ffi_uniffi_contract_version()
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_func_describe_printer_profile() != 56173) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_func_export_filename() != 32005) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_func_normalize_export_settings() != 16218) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_func_printer_profiles() != 11903) {
+        return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_func_inspect_lrcat() != 44625) {
         return InitializationResult.apiChecksumMismatch
@@ -11830,6 +13566,27 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_engine_open_develop_session() != 22073) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_delete_export_preset() != 3289) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_export_batch() != 38114) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_export_presets() != 10384) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_rename_export_preset() != 64111) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_render_for_print() != 46075) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_restore_default_export_presets() != 29543) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_save_export_preset() != 19780) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_engine_open_lrcat() != 51145) {
@@ -12072,10 +13829,22 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_developsession_update_mask_group() != 1513) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tessera_ffi_checksum_method_developsession_soft_proof() != 41513) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_tessera_ffi_checksum_method_masklistener_overlay_ready() != 57155) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_masklistener_ai_progress() != 54199) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_cancelflag_cancel() != 15413) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_cancelflag_is_cancelled() != 13553) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_exportprogresslistener_on_progress() != 45316) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_lrcatimport_apply() != 64251) {
@@ -12216,9 +13985,13 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_constructor_engine_open() != 29039) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tessera_ffi_checksum_constructor_cancelflag_new() != 985) {
+        return InitializationResult.apiChecksumMismatch
+    }
 
     uniffiCallbackInitDevelopListener()
     uniffiCallbackInitEngineEventListener()
+    uniffiCallbackInitExportProgressListener()
     uniffiCallbackInitLrcatProgressListener()
     uniffiCallbackInitMaskListener()
     return InitializationResult.ok

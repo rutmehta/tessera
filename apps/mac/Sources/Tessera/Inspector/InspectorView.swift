@@ -27,6 +27,7 @@ struct InspectorView: View {
                     PanelSection("Detail", expanded: false) { DetailPanel(model: model, tools: tools) }
                     PanelSection("Effects", expanded: false) { EffectsPanel(model: model, tools: tools) }
                     PanelSection("Crop & Straighten", expanded: false) { CropPanel(model: model, tools: tools) }
+                    PanelSection("Soft Proofing", expanded: false) { SoftProofPanel(proof: .shared) }
                     PanelSection("Presets", expanded: false) { PresetsPanel(model: model, tools: tools) }
                     PanelSection("Snapshots", expanded: false) { SnapshotsPanel(model: model) }
                     PanelSection("History", expanded: false) { HistoryPanel(model: model, tools: tools) }

@@ -51,6 +51,8 @@ struct Toast: Identifiable, Equatable {
     let id = UUID()
     var message: String
     var undoable: Bool
+    /// Extra lines under the message (export failures), shown longer.
+    var details: [String] = []
 }
 
 /// AppKit views (grid, filmstrip, loupe) observe the model through this protocol instead of SwiftUI
@@ -119,6 +121,11 @@ final class AppModel {
     /// File ▸ Import Lightroom Catalog… (sheet; the import itself runs non-modally).
     let lightroomImport = LightroomImportController()
     var showLightroomImport = false
+    /// File ▸ Export… and File ▸ Print… (WP M2-20; see AppModel+Output.swift).
+    let exporter = ExportController()
+    var showExport = false
+    let printing = PrintController()
+    var showPrint = false
     /// Albums, groups, smart albums, the filter bar, keywords and metadata (library.json).
     let collections = LibraryModel()
     var viewMode: ViewMode = .grid {
@@ -199,6 +206,7 @@ final class AppModel {
             DispatchQueue.main.async { self?.showLightroomImport = true }
         }
         lightroomImport.openLibrary = { [weak self] folder, message in self?.openFolder(folder, message: message) }
+        installOutputHandlers()
     }
 
     /// Opens the import sheet (a finished report stays until Done; a running import has no sheet).
@@ -620,11 +628,11 @@ final class AppModel {
 
     // MARK: Toast
 
-    func showToast(_ message: String, undoable: Bool) {
-        let t = Toast(message: message, undoable: undoable)
+    func showToast(_ message: String, undoable: Bool, details: [String] = []) {
+        let t = Toast(message: message, undoable: undoable, details: details)
         toast = t
         Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .seconds(5))
+            try? await Task.sleep(for: .seconds(details.isEmpty ? 5 : 15))
             if self?.toast?.id == t.id { self?.toast = nil }
         }
     }
@@ -913,6 +921,14 @@ final class AppModel {
         if positionOfID.indices.contains(itemID), positionOfID[itemID] >= 0 { positions.insert(positionOfID[itemID]) }
         refreshFocusSummary()
         liveObservers.forEach { $0.thumbnailsDidChange(positions); $0.itemsDidChange(positions) }
+    }
+
+    /// Items whose derived status changed outside a cull action (an export): redraw their cells.
+    func libraryItemsChanged(_ itemIDs: [Int]) {
+        var positions = IndexSet()
+        for id in itemIDs where positionOfID.indices.contains(id) && positionOfID[id] >= 0 { positions.insert(positionOfID[id]) }
+        refreshFocusSummary()
+        liveObservers.forEach { $0.itemsDidChange(positions) }
     }
 
     /// `--develop-selftest`: the Exposure slider's own path (coalesced per display frame, then a

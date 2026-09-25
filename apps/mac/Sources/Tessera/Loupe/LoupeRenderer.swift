@@ -40,6 +40,8 @@ final class LoupeRenderer {
     private let queue: MTLCommandQueue
     private let pipeline: MTLRenderPipelineState
     private let sampler: MTLSamplerState
+    /// Bound when no proof is active (Metal wants every declared texture bound).
+    private let emptyLUT: MTLTexture
 
     struct Uniforms {
         var row0: SIMD4<Float>
@@ -57,6 +59,18 @@ final class LoupeRenderer {
         /// Valid fraction of the overlay surface (like `uvScale` for the frame).
         var overlayScale: SIMD2<Float>
         var pad: SIMD2<Float>
+        /// Soft proof (M2-20): x > 0 applies the 3D LUT, y = its size.
+        var proof: SIMD4<Float> = .zero
+        /// Gamut warning colour (linear) in rgb; w > 0 paints out-of-gamut texels.
+        var warn: SIMD4<Float> = .zero
+    }
+
+    /// Soft-proof LUT (viewport sRGB → simulated print in sRGB, alpha = out of gamut).
+    struct ProofLUT {
+        var texture: MTLTexture
+        var size: Int
+        /// Linear warning colour; `.w` 0 disables the gamut warning.
+        var warning: SIMD4<Float>
     }
 
     /// The selected mask as an 8-bit alpha plane over the frame (M2-14).
@@ -73,7 +87,7 @@ final class LoupeRenderer {
     using namespace metal;
 
     struct Uniforms { float4 row0; float4 row1; float2 uvScale; float ratio; int orientation; float4 keep; float4 misc;
-                      float4 tint; float2 overlayScale; float2 pad; };
+                      float4 tint; float2 overlayScale; float2 pad; float4 proof; float4 warn; };
     struct VOut { float4 position [[position]]; };
 
     vertex VOut loupe_vertex(uint vid [[vertex_id]]) {
@@ -100,7 +114,7 @@ final class LoupeRenderer {
     // Input is linear (sRGB-decoding texture or linear half float) in the layer's colour space;
     // values above 1.0 in half-float frames are EDR headroom and pass through untouched.
     fragment half4 loupe_fragment(VOut in [[stage_in]], texture2d<half> tex [[texture(0)]],
-                                  texture2d<half> mask [[texture(1)]],
+                                  texture2d<half> mask [[texture(1)]], texture3d<float> lut [[texture(2)]],
                                   sampler s [[sampler(0)]], constant Uniforms &u [[buffer(0)]]) {
         float3 p = float3(in.position.xy, 1);
         float2 d = float2(dot(u.row0.xyz, p), dot(u.row1.xyz, p));
@@ -119,6 +133,16 @@ final class LoupeRenderer {
                + tex.sample(s, min(max(st + float2( o.x, -o.y), 0.0), limit)).rgb
                + tex.sample(s, min(max(st + float2(-o.x,  o.y), 0.0), limit)).rgb
                + tex.sample(s, min(max(st + float2( o.x,  o.y), 0.0), limit)).rgb) * 0.25h;
+        }
+        if (u.proof.x > 0.0) {
+            // Soft proof: the frame is linear sRGB; the LUT maps encoded sRGB to the simulated print.
+            float3 lin = clamp(float3(c), 0.0, 1.0);
+            float3 enc = select(1.055 * pow(lin, 1.0 / 2.4) - 0.055, lin * 12.92, lin <= 0.0031308);
+            float n = u.proof.y;
+            float4 p = lut.sample(s, enc * ((n - 1.0) / n) + 0.5 / n);
+            float3 out = select(pow((p.rgb + 0.055) / 1.055, 2.4), p.rgb / 12.92, p.rgb <= 0.04045);
+            c = half3(out);
+            if (u.warn.w > 0.0 && p.a > 0.5) { c = half3(u.warn.rgb); }
         }
         if (u.tint.w > 0.0) {
             // Mask overlay: same orientation and valid-region mapping as the frame.
@@ -156,14 +180,38 @@ final class LoupeRenderer {
         sd.mipFilter = .notMipmapped
         sd.sAddressMode = .clampToEdge
         sd.tAddressMode = .clampToEdge
+        sd.rAddressMode = .clampToEdge
         guard let sampler = device.makeSamplerState(descriptor: sd) else { return nil }
         self.sampler = sampler
+        let empty = MTLTextureDescriptor()
+        empty.textureType = .type3D
+        empty.pixelFormat = .rgba16Unorm
+        empty.width = 1; empty.height = 1; empty.depth = 1
+        empty.usage = .shaderRead
+        guard let lut = device.makeTexture(descriptor: empty) else { return nil }
+        emptyLUT = lut
+    }
+
+    /// Uploads an engine soft-proof LUT (`size`³ RGBA16 unorm, red fastest).
+    func makeProofTexture(size: Int, rgba: [UInt16]) -> MTLTexture? {
+        guard size > 1, rgba.count == size * size * size * 4 else { return nil }
+        let desc = MTLTextureDescriptor()
+        desc.textureType = .type3D
+        desc.pixelFormat = .rgba16Unorm
+        desc.width = size; desc.height = size; desc.depth = size
+        desc.usage = .shaderRead
+        guard let texture = device.makeTexture(descriptor: desc) else { return nil }
+        rgba.withUnsafeBytes { raw in
+            texture.replace(region: MTLRegionMake3D(0, 0, 0, size, size, size), mipmapLevel: 0, slice: 0,
+                            withBytes: raw.baseAddress!, bytesPerRow: size * 8, bytesPerImage: size * size * 8)
+        }
+        return texture
     }
 
     /// Encodes and presents one frame. `placement` nil = aspect fit. Returns the CPU encode time.
     @discardableResult
     func draw(in layer: CAMetalLayer, texture: MTLTexture?, frame: LoupeFrame?, placement: LoupePlacement?,
-              background: Float, dim: Float = 0.35, overlay: MaskOverlay? = nil) -> Double {
+              background: Float, dim: Float = 0.35, overlay: MaskOverlay? = nil, proof: ProofLUT? = nil) -> Double {
         let t0 = CACurrentMediaTime()
         let size = layer.drawableSize
         guard size.width >= 1, size.height >= 1, let drawable = layer.nextDrawable(),
@@ -188,11 +236,14 @@ final class LoupeRenderer {
                              keep: SIMD4(Float(keep.minX), Float(keep.minY), Float(keep.maxX), Float(keep.maxY)),
                              misc: SIMD4(dim, background, 0, 0),
                              tint: overlay?.tint ?? .zero,
-                             overlayScale: overlay?.scale ?? SIMD2(1, 1), pad: .zero)
+                             overlayScale: overlay?.scale ?? SIMD2(1, 1), pad: .zero,
+                             proof: proof.map { SIMD4(1, Float($0.size), 0, 0) } ?? .zero,
+                             warn: proof?.warning ?? .zero)
             enc.setRenderPipelineState(pipeline)
             enc.setFragmentBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 0)
             enc.setFragmentTexture(texture, index: 0)
             enc.setFragmentTexture(overlay?.texture ?? texture, index: 1)
+            enc.setFragmentTexture(proof?.texture ?? emptyLUT, index: 2)
             enc.setFragmentSamplerState(sampler, index: 0)
             enc.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4)
         }
