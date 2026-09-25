@@ -1,0 +1,11 @@
+Added guided-filter moment reuse and skipped the unused fine-scale filter for Clarity-only edits. Regression tests verify reduced dispatch counts and exact output agreement with the previous GPU graph.
+
+Ran the required command chain: 594 tests passed, 16 ignored; Clippy and fmt passed. The first run hit the existing preview callback timeout; the full retry passed without weakening tests.
+
+Fresh NEF measurements put L2 Clarity at 65.265 → 56.187 ms, still above 16 ms. Full-resolution CPU fallbacks, downsampled guidance, and hashed per-image LUT/map caches remain unfinished.
+
+Validation and complete per-operator measurements:
+  /Users/rutmehta/Developer/tessera/.worktrees/M2-17/tools/orchestrate/wp/M2-17/validation.md
+  /Users/rutmehta/Developer/tessera/.worktrees/M2-17/tools/orchestrate/wp/M2-17/presence-benchmark-results.md
+
+RESULT: FAIL M2-17 performance targets and remaining GPU/cache coverage are not complete.

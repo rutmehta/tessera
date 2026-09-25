@@ -435,7 +435,7 @@
     "id": "M2-14b",
     "owner": "astra",
     "title": "Flaky Swift tests + AI masks in export",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
@@ -454,5 +454,13 @@
     "status": "pass",
     "attempts": 0,
     "notes": "masks work on screen incl. real U2Net subject; sky mask bleeds into rooftops (refinement); selftest expects 2 masks, got 5"
+  },
+  {
+    "id": "M2-17b",
+    "owner": "opus",
+    "title": "Interactive performance redesign",
+    "status": "todo",
+    "attempts": 0,
+    "notes": ""
   }
 ]

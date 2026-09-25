@@ -1,0 +1,17 @@
+Implemented and verified M2-14b.
+
+Fixed a reproduced cache-at-delivery failure: NSCache could discard the image before its callback. ThumbnailLoader now uses an explicit cost-bounded cache and publishes on MainActor immediately before delivery. Tests await specific callbacks without weakening assertions.
+
+Export installs per-export MaskHooks using shared segmentation code. The fake-segmenter regression verifies that Subject + local exposure changes exported pixels versus an unmasked export.
+
+Verification passed:
+  Exact requested Rust tests, clippy, fmt, FFI build, Swift build and tests.
+  Ten complete Swift test runs under RUST_TEST_THREADS=1 cargo test --workspace --release load.
+  Every stress run passed 37 XCTest tests and 5 Swift Testing tests.
+
+Known limitation: AI masks combined with lens warps still return an explicit error rather than exporting misaligned masks.
+
+Only allowed paths changed. No commit made. Report and logs:
+  /Users/rutmehta/Developer/tessera/.worktrees/M2-14b/tools/orchestrate/wp/M2-14b/RESULT.md
+
+RESULT: PASS

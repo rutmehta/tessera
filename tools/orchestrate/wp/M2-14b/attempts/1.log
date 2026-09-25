@@ -1,0 +1,12 @@
+Implemented within the allowed paths, without committing.
+
+- Fixed stale preview requests repopulating invalidated caches. Added a red→green regression and callback-specific waits.
+- Added shared AI-mask segmentation/composition for FFI and export. Subject-mask exposure export passes decoded-pixel comparisons against an unmasked export.
+- Your exact acceptance command passed.
+- All 10 complete Swift runs passed under concurrent RUST_TEST_THREADS=1 cargo test --workspace --release load. The workspace suite passed too.
+
+Remaining: the two original intermittent failures did not reproduce, so their root cause remains unproven. AI masks combined with lens warps still explicitly error rather than export misaligned pixels.
+
+Report and logs: /Users/rutmehta/Developer/tessera/.worktrees/M2-14b/tools/orchestrate/wp/M2-14b/RESULT.md
+
+RESULT: FAIL original flaky-test root cause remains unproven; AI-mask exports with lens warps remain unsupported.
