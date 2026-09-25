@@ -494,5 +494,21 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M3-09",
+    "owner": "astra",
+    "title": "Style profile auto-edit (agentic phase 1)",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-13bv",
+    "owner": "sol",
+    "title": "Verify Lightroom import flow",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
