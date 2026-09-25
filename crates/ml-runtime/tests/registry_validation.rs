@@ -1,7 +1,13 @@
 use ml_runtime::ModelRegistry;
 
 fn source_manifest() -> String {
-    include_str!("../models.toml").replace(
+    // Version-mutation tests use only the local fixture, not production entries
+    // whose revision strings are independent of the fixture's version counter.
+    let fixture = include_str!("../models.toml")
+        .split("[[models]]")
+        .nth(1)
+        .expect("local convolution fixture");
+    format!("[[models]]{fixture}").replace(
         "file:tests/data/conv.onnx",
         &format!("file:{}/tests/data/conv.onnx", env!("CARGO_MANIFEST_DIR")),
     )

@@ -1,6 +1,8 @@
 //! SQLite photo catalog and search index.
 mod api;
+mod semantic;
 pub use api::{FaceRecord, ImageInfo, Index, Scanner, Score};
+pub use semantic::SemanticSearch;
 use std::{path::Path, time::UNIX_EPOCH};
 
 use engine_api::{
@@ -509,6 +511,9 @@ fn basic_metadata(path: &Path) -> Result<Metadata> {
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct Query {
     pub text: Option<String>,
+    /// Natural-language vector query. Use `Index::search_with_semantic`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub semantic: Option<String>,
     pub folder: Option<String>,
     pub decision: Option<Decision>,
     pub grade: Option<Grade>,

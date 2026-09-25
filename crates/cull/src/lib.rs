@@ -9,7 +9,9 @@ pub use engine_api::{
     id::ImageId,
     recipe::{Decision, Grade, Mark, Selection},
 };
-pub use grouping::{Group, GroupingOptions, LargestFile, Scorer, dhash, dhash_jpeg};
+pub use grouping::{
+    Group, GroupingOptions, GroupingStrategy, LargestFile, Scorer, dhash, dhash_jpeg,
+};
 use index::{Index, Query};
 pub use library::{Album, DerivedStatus, Library, Status};
 use std::{
@@ -18,6 +20,8 @@ use std::{
 };
 
 /// A folder (recursive) or an index query, including its explicit pagination.
+// Keep the public Source::Query(Query) construction API as Query gains facets.
+#[allow(clippy::large_enum_variant)]
 pub enum Source {
     Folder(PathBuf),
     Query(Query),
@@ -89,6 +93,7 @@ pub struct CullSession<I> {
     groups: Vec<Group>,
     preview_errors: Vec<(ImageId, EngineError)>,
     scorer: Option<Box<dyn Scorer>>,
+    grouping_strategy: Option<Box<dyn GroupingStrategy>>,
     library: Option<PathBuf>,
     basket_target: Option<String>,
 }
@@ -169,6 +174,7 @@ impl<I: Deref<Target = Index>> CullSession<I> {
             groups: Vec::new(),
             preview_errors: Vec::new(),
             scorer: None,
+            grouping_strategy: None,
             library: folder.map(|p| p.join("library.json")),
             basket_target: None,
         };

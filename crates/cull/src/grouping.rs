@@ -23,6 +23,21 @@ impl Default for GroupingOptions {
         }
     }
 }
+/// Supplies undirected edges for connected-component grouping in place of the
+/// default burst OR dHash policy. Implementations should be symmetric.
+/// Each unordered pair is evaluated once, in review-queue order. Hashes are
+/// absent when previews are unavailable or `near_duplicates` is disabled.
+pub trait GroupingStrategy: Send + Sync {
+    fn related(
+        &self,
+        a: &ImageInfo,
+        b: &ImageInfo,
+        hash_a: Option<u64>,
+        hash_b: Option<u64>,
+        options: GroupingOptions,
+    ) -> bool;
+}
+
 /// Higher is better. Ties pick the first image in review order.
 pub trait Scorer: Send + Sync {
     fn score(&self, image: &ImageInfo) -> f64;
@@ -93,7 +108,12 @@ impl<I: Deref<Target = Index>> CullSession<I> {
     pub fn set_scorer(&mut self, scorer: Box<dyn Scorer>) {
         self.scorer = Some(scorer);
     }
-    /// Connected components of burst and dHash edges. Missing times/hashes never
+    /// Install a replacement edge policy; takes effect on the next `regroup`.
+    pub fn set_grouping_strategy(&mut self, strategy: Box<dyn GroupingStrategy>) {
+        self.grouping_strategy = Some(strategy);
+    }
+    /// Connected components of strategy edges, or default burst and dHash edges.
+    /// Missing times/hashes in the default policy never
     /// match each other. Group and member order follow the original review queue.
     pub fn regroup(&mut self, options: GroupingOptions) -> EngineResult<()> {
         if !options.burst_gap_seconds.is_finite() || options.burst_gap_seconds < 0. {
@@ -108,32 +128,51 @@ impl<I: Deref<Target = Index>> CullSession<I> {
             .map(|id| self.index.image_info(*id))
             .collect::<EngineResult<Vec<_>>>()?;
         let mut parents: Vec<_> = (0..infos.len()).collect();
-        let mut timed: Vec<_> = infos
-            .iter()
-            .enumerate()
-            .filter_map(|(n, i)| i.capture_seconds.map(|t| (n, t)))
-            .collect();
-        timed.sort_by(|a, b| a.1.total_cmp(&b.1).then(a.0.cmp(&b.0)));
-        for pair in timed.windows(2) {
-            if pair[1].1 - pair[0].1 <= options.burst_gap_seconds {
-                join(&mut parents, pair[0].0, pair[1].0);
-            }
-        }
         let mut errors = Vec::new();
-        if options.near_duplicates {
-            let mut hashes: Vec<(usize, u64)> = Vec::new();
-            for (n, info) in infos.iter().enumerate() {
-                match preview_hash(info) {
-                    Ok(Some(hash)) => {
-                        for &(m, other) in &hashes {
-                            if (hash ^ other).count_ones() <= 6 {
-                                join(&mut parents, m, n);
-                            }
-                        }
-                        hashes.push((n, hash));
+        if let Some(strategy) = &self.grouping_strategy {
+            let mut hashes = vec![None; infos.len()];
+            if options.near_duplicates {
+                for (n, info) in infos.iter().enumerate() {
+                    match preview_hash(info) {
+                        Ok(hash) => hashes[n] = hash,
+                        Err(error) => errors.push((info.id, error)),
                     }
-                    Ok(None) => {}
-                    Err(error) => errors.push((info.id, error)),
+                }
+            }
+            for n in 0..infos.len() {
+                for m in 0..n {
+                    if strategy.related(&infos[m], &infos[n], hashes[m], hashes[n], options) {
+                        join(&mut parents, m, n);
+                    }
+                }
+            }
+        } else {
+            let mut timed: Vec<_> = infos
+                .iter()
+                .enumerate()
+                .filter_map(|(n, i)| i.capture_seconds.map(|t| (n, t)))
+                .collect();
+            timed.sort_by(|a, b| a.1.total_cmp(&b.1).then(a.0.cmp(&b.0)));
+            for pair in timed.windows(2) {
+                if pair[1].1 - pair[0].1 <= options.burst_gap_seconds {
+                    join(&mut parents, pair[0].0, pair[1].0);
+                }
+            }
+            if options.near_duplicates {
+                let mut hashes: Vec<(usize, u64)> = Vec::new();
+                for (n, info) in infos.iter().enumerate() {
+                    match preview_hash(info) {
+                        Ok(Some(hash)) => {
+                            for &(m, other) in &hashes {
+                                if (hash ^ other).count_ones() <= 6 {
+                                    join(&mut parents, m, n);
+                                }
+                            }
+                            hashes.push((n, hash));
+                        }
+                        Ok(None) => {}
+                        Err(error) => errors.push((info.id, error)),
+                    }
                 }
             }
         }

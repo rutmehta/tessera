@@ -65,6 +65,19 @@ pub struct Session {
 }
 impl Session {
     pub fn load(path: impl AsRef<Path>, options: SessionOptions) -> Result<Self> {
+        Self::load_with_dimensions(path, options, &[])
+    }
+    /// Pins named symbolic ONNX dimensions before graph optimization and EP
+    /// partitioning. The same overrides apply if CoreML falls back to CPU.
+    pub fn load_with_dimensions(
+        path: impl AsRef<Path>,
+        options: SessionOptions,
+        dimensions: &[(&str, i64)],
+    ) -> Result<Self> {
+        ensure!(
+            dimensions.iter().all(|(_, size)| *size > 0),
+            "dimension overrides must be positive"
+        );
         let dir = tempfile::tempdir()?;
         let build = |coreml: bool| -> Result<ort::session::Session> {
             let mut builder = ort::session::Session::builder()?
@@ -74,6 +87,11 @@ impl Session {
                 .map_err(ort::Error::<()>::from)?
                 .with_profiling(dir.path().join(if coreml { "coreml" } else { "cpu" }))
                 .map_err(ort::Error::<()>::from)?;
+            for &(name, size) in dimensions {
+                builder = builder
+                    .with_dimension_override(name, size)
+                    .map_err(ort::Error::<()>::from)?;
+            }
             if coreml {
                 builder = builder
                     .with_execution_providers([
@@ -124,6 +142,9 @@ impl Session {
                     OrtTensor::from_array((spec.shape.clone(), vec![half::f16::ZERO; len]))?
                         .into_dyn()
                 }
+                crate::Dtype::Int64 => {
+                    OrtTensor::from_array((spec.shape.clone(), vec![0i64; len]))?.into_dyn()
+                }
                 crate::Dtype::Int8 => {
                     OrtTensor::from_array((spec.shape.clone(), vec![0i8; len]))?.into_dyn()
                 }
@@ -133,6 +154,78 @@ impl Session {
         self.inner.run(inputs)?;
         self.runs += 1;
         Ok(())
+    }
+    /// Executes named tensors and preserves arbitrary output ranks and batches.
+    /// Supply every model input exactly once, in any order. F32 inputs are
+    /// converted to fp16 when required by the model; I64 inputs remain exact.
+    /// Outputs follow model declaration order and fp16 values are widened to fp32.
+    /// Non-floating outputs and incompatible input shapes/types return errors.
+    /// This does not normalize data or change tensor dimensions.
+    pub fn run_tensors(
+        &mut self,
+        inputs: &[(&str, crate::TensorInput)],
+    ) -> Result<Vec<crate::TensorOutput>> {
+        ensure!(
+            inputs.len() == self.inner.inputs().len(),
+            "expected every model input exactly once"
+        );
+        let mut names = BTreeSet::new();
+        let mut values = Vec::with_capacity(inputs.len());
+        for (name, input) in inputs {
+            ensure!(names.insert(*name), "duplicate input: {name}");
+            ensure!(
+                self.inner.inputs().iter().any(|i| i.name() == *name),
+                "unknown input: {name}"
+            );
+            let value = match input {
+                crate::TensorInput::I64 { shape, data } => {
+                    OrtTensor::from_array((shape.clone(), data.clone()))?.into_dyn()
+                }
+                crate::TensorInput::F32 { shape, data } => {
+                    if self.inner.inputs().iter().any(|i| {
+                        i.name() == *name
+                            && i.dtype().tensor_type()
+                                == Some(ort::value::TensorElementType::Float16)
+                    }) {
+                        OrtTensor::from_array((
+                            shape.clone(),
+                            data.iter()
+                                .copied()
+                                .map(half::f16::from_f32)
+                                .collect::<Vec<_>>(),
+                        ))?
+                        .into_dyn()
+                    } else {
+                        OrtTensor::from_array((shape.clone(), data.clone()))?.into_dyn()
+                    }
+                }
+            };
+            values.push((*name, value));
+        }
+        let outputs = self.inner.run(values)?;
+        self.runs += 1;
+        outputs
+            .iter()
+            .map(|(name, value)| {
+                let (shape, data) = if value.dtype().tensor_type()
+                    == Some(ort::value::TensorElementType::Float16)
+                {
+                    let (shape, data) = value.try_extract_tensor::<half::f16>()?;
+                    (shape, data.iter().map(|v| v.to_f32()).collect::<Vec<_>>())
+                } else {
+                    let (shape, data) = value.try_extract_tensor::<f32>()?;
+                    (shape, data.to_vec())
+                };
+                Ok(crate::TensorOutput {
+                    name: name.to_owned(),
+                    shape: shape
+                        .iter()
+                        .map(|&d| usize::try_from(d))
+                        .collect::<std::result::Result<_, _>>()?,
+                    data,
+                })
+            })
+            .collect()
     }
     pub fn run(&mut self, input: &Tensor) -> Result<Tensor> {
         ensure!(
