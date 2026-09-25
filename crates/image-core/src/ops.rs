@@ -49,6 +49,34 @@ pub enum Op<'a> {
 pub trait StageOp: Send + Sync {
     /// Runs `op`, which belongs to `stage`, on `input`.
     fn run(&self, stage: StageId, op: &Op<'_>, input: Tile) -> EngineResult<Tile>;
+
+    /// Preferred submission size. One retains the renderer's CPU parallelism.
+    fn batch_size(&self) -> usize {
+        1
+    }
+
+    /// Runs a contiguous chain on each tile, preserving input order. No halo
+    /// gathering, resampling or cache access happens inside a chain. The GPU
+    /// override keeps intermediates resident and reads only the final output.
+    /// Empty chains are identity. Cancellation is checked between operations.
+    fn run_chain_batch(
+        &self,
+        chain: &[(StageId, Op<'_>)],
+        inputs: Vec<Tile>,
+        cancel: &engine_api::jobs::CancellationToken,
+    ) -> EngineResult<Vec<Tile>> {
+        cancel.check()?;
+        inputs
+            .into_iter()
+            .map(|mut tile| {
+                for (stage, op) in chain {
+                    cancel.check()?;
+                    tile = self.run(*stage, op, tile)?;
+                }
+                Ok(tile)
+            })
+            .collect()
+    }
 }
 
 /// Scalar reference operators from `pipeline-cpu`.
@@ -113,5 +141,23 @@ impl<O: StageOp> StageOp for CountingStageOp<O> {
     fn run(&self, stage: StageId, op: &Op<'_>, input: Tile) -> EngineResult<Tile> {
         self.counts[stage.index()].fetch_add(1, Ordering::Relaxed);
         self.inner.run(stage, op, input)
+    }
+
+    fn batch_size(&self) -> usize {
+        self.inner.batch_size()
+    }
+
+    fn run_chain_batch(
+        &self,
+        chain: &[(StageId, Op<'_>)],
+        inputs: Vec<Tile>,
+        cancel: &engine_api::jobs::CancellationToken,
+    ) -> EngineResult<Vec<Tile>> {
+        cancel.check()?;
+        // Count scheduled invocations, including a batch that later fails.
+        for (stage, _) in chain {
+            self.counts[stage.index()].fetch_add(inputs.len() as u64, Ordering::Relaxed);
+        }
+        self.inner.run_chain_batch(chain, inputs, cancel)
     }
 }
