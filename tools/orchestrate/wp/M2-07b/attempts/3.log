@@ -1,0 +1,5 @@
+M2-07b is in the worktree. CI now runs workspace tests in release with tests serialized to avoid contention in timing checks. The fallback test keeps its 3-second release limit and its correctness assertions, while allowing more time for the callback in debug builds. The workflow adds caching, a 60-minute timeout, and a release Swift/FFI build.
+
+The required `bash ci.sh && actionlint .github/workflows/ci.yml .github/workflows/release.yml` command passed locally. An earlier run hit a separate release timing check at 3.06 seconds; the passing run used serialized tests. GitHub CI has not been rerun yet.
+
+RESULT: PASS

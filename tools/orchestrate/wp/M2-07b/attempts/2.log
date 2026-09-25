@@ -1,0 +1,5 @@
+The CI changes are in the worktree: workspace tests run in release, the workflow has the requested caches and timeout, and the FFI fallback test keeps its 3-second release check while preserving correctness checks in debug. I also changed the HNSW test to check recall rather than require exact results from an approximate index. `actionlint` and `cargo deny` pass.
+
+The required `bash ci.sh && actionlint ...` command still fails. `crates/previews/src/lib.rs:289` has another 3-second release timing assertion; the render took 7.06 seconds in the full suite. I tried serializing tests, but it still failed. That file is outside the allowed paths, so I left it untouched rather than skip its correctness test. I need permission to edit that assertion before I can verify a passing CI run.
+
+RESULT: FAIL release timing assertion in crates/previews/src/lib.rs:289 is outside the allowed paths

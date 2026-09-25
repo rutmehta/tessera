@@ -1,0 +1,9 @@
+{
+  "wp": "M2-07b",
+  "status": "escalate",
+  "attempts": 4,
+  "last_test_exit": 101,
+  "violations": [
+    "crates/ml-embed/tests/vector.rs"
+  ]
+}

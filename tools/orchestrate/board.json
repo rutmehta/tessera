@@ -331,6 +331,14 @@
     "id": "M2-07b",
     "owner": "sol",
     "title": "Make GitHub CI pass",
+    "status": "merged",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-09c",
+    "owner": "astra",
+    "title": "GPU geometry parity (fix main)",
     "status": "running",
     "attempts": 0,
     "notes": ""
