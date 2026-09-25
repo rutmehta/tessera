@@ -30,8 +30,9 @@ Written 2026-09-25. Covers how docs 01–10 get built, by which model, in what o
 |---|---|---|---|
 | **Fable 5.1** (coordinator) | this session | Work-package (WP) decomposition, interface contracts (crate APIs, JSON/XMP schemas, SQLite schema), the task board, merges to `main`, escalation decisions, golden-image sign-off | Leaf coding |
 | **Opus 5.5** (design workhorse) | `Agent` tool, `model: "opus"`, `isolation: "worktree"` | Architecture packages (pipeline graph, tile/cache design, color-science operator design), SwiftUI app and culling UX, design review of any diff touching a public API or UI | Mechanical ports, parsers, fixture wrangling |
-| **GPT-6 Luna** (executor) | `hermes -z "<brief>" --provider openai-codex -m gpt-6-luna --yolo --ignore-user-config --in <worktree>` | Every task with a mechanical oracle: codecs, parsers, `.lrcat` reader, SQLite index, XMP round-trip, CPU reference kernels, GPU kernel ports against the CPU reference, benchmarks, unit tests, scaffolding | Deciding design questions; touching files outside its WP allow-list |
-| **GPT-6 Sol** (verifier) | `hermes -z "<acceptance>" --provider openai-codex -m gpt-6-sol -t computer_use --yolo --ignore-user-config`, one at a time; evidence saved with `screencapture -x` | Build + launch the mac app, drive it per the WP's acceptance script, screenshot, report pass/fail with evidence | Editing source |
+| **GPT-6 Astra** (primary executor, 2026-09-25 routing update) | `hermes -z "<brief>" --provider openai-codex -m gpt-6-astra --yolo --ignore-user-config --in <worktree>` via `run-luna.sh <wp> --model gpt-6-astra` | Any substantive crate or feature with a test oracle: pipeline operators, index, sidecar/XMP, decoders, GPU spikes, importers. Default choice when unsure. | Deciding contract changes; touching files outside its WP allow-list |
+| **GPT-6 Luna** (cheap executor) | same runner, `--model gpt-6-luna` | Mechanical work where a weak oracle is enough: scaffolding, fixture scripts, renames, doc sweeps, retries of a failing test on a small crate | Substantive crates (in practice it stops at honest partial work) |
+| **GPT-6 Sol** (verifier + mid-tier executor) | `verify-sol.sh <wp>` (computer_use, one at a time, evidence via `screencapture -x`); also `run-luna.sh <wp> --model gpt-6-sol` for medium tasks such as wide mechanical refactors | Build + launch the mac app, drive it per the WP's acceptance script, screenshot, report pass/fail with evidence | Editing source |
 
 **Luna loop** (scripted in `tools/orchestrate/run-luna.sh`): prompt = WP brief + interface contract + allowed paths + the test command. After the run, the script runs `cargo test -p <crate>` and `cargo clippy`. On failure it re-invokes Luna with the failure log appended, up to 3 attempts. After 3 failures the WP is flagged for Opus (design problem) or me (spec problem).
 
@@ -41,7 +42,7 @@ Written 2026-09-25. Covers how docs 01–10 get built, by which model, in what o
 
 **Concurrency**: Opus 2–3 agents, Luna 4–6 codex processes, Sol 1. Each WP runs in its own git worktree on branch `wp/<id>`; I merge into `main` after the gate for that WP passes.
 
-**Cost policy**: Luna first for anything with a test oracle, even if it fails twice. Opus first only when the task is under-specified, cross-cutting, or a matter of taste. Fable never codes leaves.
+**Cost policy (revised)**: Astra first for substantive packages; Luna for mechanical ones; Sol for verification and medium refactors; Opus for architecture, UI and reviews. Escalate Astra failures to Opus. Fable never codes leaves. Lessons: never edit a runner script while a run is active (bash reads scripts incrementally), always invoke the harness with absolute paths, and a "test passes" verdict is only as strong as the test, so briefs must include completeness checks (e.g. minimum test counts, required API items) rather than only "cargo test".
 
 ## 3. Repository layout (created in Milestone 0)
 
