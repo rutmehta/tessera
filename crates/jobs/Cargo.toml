@@ -6,3 +6,7 @@ license = "MIT"
 
 [lib]
 path = "src/lib.rs"
+
+[dependencies]
+engine-api = { path = "../engine-api" }
+num_cpus = "1.17"
