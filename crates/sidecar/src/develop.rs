@@ -9,6 +9,11 @@ use engine_api::{
 };
 use serde_json::{Value, json};
 
+#[path = "masks.rs"]
+mod masks;
+#[path = "structures.rs"]
+mod structures;
+
 /// Import result. Warnings identify settings retained in XMP but not renderable by this engine.
 #[derive(Debug, Clone)]
 pub struct ImportedRecipe {
@@ -41,7 +46,8 @@ impl XmpPacket {
             };
             let ns = key.namespace().uri();
             // Unchanged targets retain source spelling, ancillary data and opaque structures.
-            if tree.property(ns, key.xmp_name()).is_some()
+            if key != CrsKey::ProcessVersion
+                && tree.property(ns, key.xmp_name()).is_some()
                 && value.pointer(path) == original.pointer(path)
             {
                 continue;
@@ -53,7 +59,19 @@ impl XmpPacket {
                 owned.push((PRIVATE, NATIVE_REVISION_PROPERTY));
             }
         }
-        Self::parse(tree.replace(&self.xml, &owned, &body)?)
+        // Refresh the companion after all CRS edits, including retained opaque data.
+        owned.push((PRIVATE, "LensProfileSource"));
+        body += &text(
+            "ts:LensProfileSource",
+            value["settings"]["lens"]["profile"]["kind"]
+                .as_str()
+                .ok_or_else(|| error("lens profile source"))?,
+        );
+        owned.push((PRIVATE, "ExportHash"));
+        let xml = tree.replace(&self.xml, &owned, &body)?;
+        let tree = Tree::parse(&xml)?;
+        let hash = crs_hash(&tree)?;
+        Self::parse(tree.replace(&xml, &[], &text("ts:ExportHash", &hash))?)
     }
     /// Import all table keys, recording a single valid history edit. Informational keys
     /// (Enhance already-applied metadata) go to `Recipe::provenance` verbatim. Original XMP is
@@ -123,6 +141,50 @@ impl XmpPacket {
             .with_recipe(recipe)
     }
 }
+/// Namespace-resolved, length-delimited JSON makes prefix/attribute ordering irrelevant.
+/// Include unknown CRS properties and complete nested trees, not only mapped sliders.
+/// Array order remains significant. This is an edit detector, not authentication.
+fn crs_hash(tree: &Tree) -> EngineResult<String> {
+    fn node_value(tree: &Tree, n: &Node) -> Value {
+        if n.children.is_empty() && n.attrs.is_empty() {
+            return json!(n.text.trim());
+        }
+        let mut attrs: Vec<_> = n
+            .attrs
+            .iter()
+            .map(|a| (&a.ns, &a.local, &a.value))
+            .collect();
+        attrs.sort();
+        let children: Vec<_> = n
+            .children
+            .iter()
+            .map(|i| {
+                let c = &tree.nodes[*i];
+                json!([c.ns, c.local, node_value(tree, c)])
+            })
+            .collect();
+        json!([n.text.trim(), attrs, children])
+    }
+    let mut properties = Vec::new();
+    for desc in tree.descriptions() {
+        for a in &desc.attrs {
+            if a.ns == CRS {
+                properties.push(json!([a.local, a.value.trim()]));
+            }
+        }
+        for i in &desc.children {
+            let n = &tree.nodes[*i];
+            if n.ns == CRS {
+                properties.push(json!([n.local, node_value(tree, n)]));
+            }
+        }
+    }
+    properties.sort_by_cached_key(Value::to_string);
+    Ok(blake3::hash(&serde_json::to_vec(&properties)?)
+        .to_hex()
+        .to_string())
+}
+
 fn unsupported(key: CrsKey) -> EngineError {
     EngineError::Unsupported {
         what: format!("{key} cannot be translated losslessly"),
@@ -159,7 +221,12 @@ fn decode(key: CrsKey, tree: &Tree, doc: &mut Value) -> EngineResult<()> {
     let next = match key {
         ProcessVersion => serde_json::to_value(engine_api::recipe::ProcessVersion::from_xmp(
             &s,
-            tree.value(PRIVATE, NATIVE_REVISION_PROPERTY).as_deref(),
+            if tree.value(PRIVATE, "ExportHash").as_deref() == Some(crs_hash(tree)?.as_str()) {
+                tree.value(PRIVATE, NATIVE_REVISION_PROPERTY)
+            } else {
+                None
+            }
+            .as_deref(),
         )?)?,
         WhiteBalance => json!(if s == "As Shot" {
             "as_shot".into()
@@ -188,13 +255,14 @@ fn decode(key: CrsKey, tree: &Tree, doc: &mut Value) -> EngineResult<()> {
             Some(v) => v,
             None => return Ok(()),
         },
-        MaskGroupBasedCorrections => import_masks(tree)?,
+        MaskGroupBasedCorrections => masks::import_masks(tree)?,
+        PointColors | LensBlur | RetouchAreas | RetouchInfo => structures::decode(key, tree)?,
         Look => {
             let Some(Property::Node(n)) = tree.property(CRS, key.xmp_name()) else {
                 return Err(unsupported(key));
             };
             let name = field(tree, n, "Name");
-            if name.is_empty() {
+            if name.is_empty() && field(tree, n, "Amount").is_empty() {
                 Value::Null
             } else {
                 json!({"style":name,"amount":num_field(tree,n,"Amount",1.0)?*100.0})
@@ -202,12 +270,31 @@ fn decode(key: CrsKey, tree: &Tree, doc: &mut Value) -> EngineResult<()> {
         }
         _ => match key.value_type() {
             CrsValueType::PointList => {
+                let Some(Property::Node(root)) = tree.property(CRS, key.xmp_name()) else {
+                    return Err(error("curve requires RDF sequence"));
+                };
                 let points = tree
-                    .list(CRS, key.xmp_name())
+                    .items(root)
                     .iter()
                     .map(|p| {
-                        let (x, y) = p.split_once(',').ok_or_else(|| error("bad curve point"))?;
-                        Ok(json!({"x":number(x)?/255.0,"y":number(y)?/255.0}))
+                        let (x, y) = p
+                            .text
+                            .split_once(',')
+                            .ok_or_else(|| error("bad curve point"))?;
+                        let mut xy = [number(x)? / 255.0, number(y)? / 255.0];
+                        for (i, name) in ["x", "y"].iter().enumerate() {
+                            if let Some(a) =
+                                p.attrs.iter().find(|a| a.ns == PRIVATE && a.local == *name)
+                            {
+                                let precise = number(&a.value)?;
+                                // Native sub-grid precision survives only while Adobe's visible
+                                // point still matches. External curve edits take precedence.
+                                if (precise * 255.0).round() == xy[i] * 255.0 {
+                                    xy[i] = precise;
+                                }
+                            }
+                        }
+                        Ok(json!({"x":xy[0],"y":xy[1]}))
                     })
                     .collect::<EngineResult<Vec<_>>>()?;
                 json!(points)
@@ -310,7 +397,8 @@ fn encode(key: CrsKey, doc: &Value) -> EngineResult<String> {
             };
             v["profile"][field].as_str().unwrap_or("").into()
         }
-        MaskGroupBasedCorrections => return export_masks(v),
+        MaskGroupBasedCorrections => return masks::export_masks(v),
+        PointColors | LensBlur | RetouchAreas | RetouchInfo => return structures::encode(key, v),
         Look => {
             let name = format!("crs:{key}").replace("crs:crs:", "crs:");
             let body = if v.is_null() {
@@ -334,16 +422,18 @@ fn encode(key: CrsKey, doc: &Value) -> EngineResult<String> {
                     .iter()
                     .map(|p| {
                         format!(
-                            "{}, {}",
+                            "<rdf:li ts:x=\"{}\" ts:y=\"{}\">{}, {}</rdf:li>",
+                            p["x"],
+                            p["y"],
                             (p["x"].as_f64().unwrap_or(0.0) * 255.0).round(),
                             (p["y"].as_f64().unwrap_or(0.0) * 255.0).round()
                         )
                     })
                     .collect::<Vec<_>>();
-                return Ok(container(
-                    &format!("crs:{}", key.xmp_name()),
-                    "Seq",
-                    &points,
+                let name = key.qualified_name();
+                return Ok(format!(
+                    "<{name}><rdf:Seq>{}</rdf:Seq></{name}>",
+                    points.concat()
                 ));
             }
             CrsValueType::Structure => {
@@ -374,6 +464,14 @@ fn encode(key: CrsKey, doc: &Value) -> EngineResult<String> {
 /// current value. A disabled profile wins; any identifying field yields a named profile.
 fn lens_profile(tree: &Tree) -> EngineResult<Option<Value>> {
     let get = |name: &str| tree.value(CRS, name).unwrap_or_default();
+    let source = if tree.value(PRIVATE, "ExportHash").as_deref() == Some(crs_hash(tree)?.as_str()) {
+        tree.value(PRIVATE, "LensProfileSource").unwrap_or_default()
+    } else {
+        String::new()
+    };
+    if matches!(source.as_str(), "embedded" | "auto_calibrated") {
+        return Ok(Some(json!({"kind":source})));
+    }
     let enable = get("LensProfileEnable");
     if !enable.is_empty() && !bool_value(&enable)? {
         return Ok(Some(json!({"kind":"none"})));
@@ -390,7 +488,7 @@ fn lens_profile(tree: &Tree) -> EngineResult<Option<Value>> {
         get("LensProfileFilename"),
         get("LensProfileDigest"),
     );
-    if !(name.is_empty() && filename.is_empty() && digest.is_empty()) {
+    if source == "database" || !(name.is_empty() && filename.is_empty() && digest.is_empty()) {
         return Ok(Some(json!({
             "kind": "database",
             "profile": {"name": name, "filename": filename, "digest": digest, "setup": setup},
@@ -434,120 +532,4 @@ fn num_field(tree: &Tree, n: &Node, name: &str, default: f64) -> EngineResult<f6
     } else {
         number(&s)
     }
-}
-fn import_masks(tree: &Tree) -> EngineResult<Value> {
-    let Some(Property::Node(n)) = tree.property(CRS, "MaskGroupBasedCorrections") else {
-        return Err(error("masks require a sequence"));
-    };
-    let mut masks = Vec::new();
-    for (id, item) in tree.items(n).iter().enumerate() {
-        let n = resource(tree, item);
-        let mut local = serde_json::to_value(engine_api::recipe::LocalAdjustment::default())?;
-        local["id"] = json!(id);
-        local["name"] = json!(field(tree, n, "CorrectionName"));
-        local["enabled"] = json!(!matches!(
-            field(tree, n, "CorrectionActive").as_str(),
-            "false" | "False" | "0"
-        ));
-        local["amount"] = json!(num_field(tree, n, "CorrectionAmount", 1.0)? * 100.0);
-        for (name, path) in LOCAL_PARAMS {
-            let s = field(tree, n, name);
-            if !s.is_empty() {
-                local["params"][*path] = json!(number(&s)?);
-            }
-        }
-        let mut components = Vec::new();
-        if let Some(m) = n
-            .children
-            .iter()
-            .map(|i| &tree.nodes[*i])
-            .find(|c| c.ns == CRS && c.local == "CorrectionMasks")
-        {
-            for c in tree.items(m) {
-                if matches!(
-                    field(tree, c, "MaskActive").as_str(),
-                    "False" | "false" | "0"
-                ) {
-                    continue;
-                }
-                let kind = field(tree, c, "What");
-                let mut component = match kind.as_str() {
-                    "Mask/Gradient" => {
-                        json!({"kind":"linear", "start":[num_field(tree,c,"FullX",0.0)?,num_field(tree,c,"FullY",0.0)?], "end":[num_field(tree,c,"ZeroX",1.0)?,num_field(tree,c,"ZeroY",1.0)?]})
-                    }
-                    _ => return Err(error(format!("unsupported mask kind {kind}"))),
-                };
-                component["invert"] = json!(matches!(
-                    field(tree, c, "MaskInverted").as_str(),
-                    "true" | "True" | "1"
-                ));
-                component["combine"] = json!("add");
-                components.push(component);
-            }
-        }
-        local["components"] = json!(components);
-        masks.push(local);
-    }
-    Ok(json!(masks))
-}
-const LOCAL_PARAMS: &[(&str, &str)] = &[
-    ("LocalExposure2012", "exposure"),
-    ("LocalContrast2012", "contrast"),
-    ("LocalHighlights2012", "highlights"),
-    ("LocalShadows2012", "shadows"),
-    ("LocalWhites2012", "whites"),
-    ("LocalBlacks2012", "blacks"),
-    ("LocalTemperature", "temperature"),
-    ("LocalTint", "tint"),
-    ("LocalHue", "hue"),
-    ("LocalSaturation", "saturation"),
-    ("LocalTexture", "texture"),
-    ("LocalClarity2012", "clarity"),
-    ("LocalDehaze", "dehaze"),
-    ("LocalSharpness", "sharpness"),
-    ("LocalLuminanceNoise", "noise"),
-    ("LocalMoire", "moire"),
-    ("LocalDefringe", "defringe"),
-];
-fn export_masks(v: &Value) -> EngineResult<String> {
-    let mut items = String::new();
-    for local in v.as_array().ok_or_else(|| error("mask array"))? {
-        let mut body = text("crs:What", "Correction")
-            + &text("crs:CorrectionName", local["name"].as_str().unwrap_or(""))
-            + &text("crs:CorrectionActive", &local["enabled"].to_string())
-            + &text(
-                "crs:CorrectionAmount",
-                &(local["amount"].as_f64().unwrap_or(100.0) / 100.0).to_string(),
-            );
-        for (name, path) in LOCAL_PARAMS {
-            body += &text(&format!("crs:{name}"), &local["params"][*path].to_string());
-        }
-        let mut components = String::new();
-        for c in local["components"]
-            .as_array()
-            .ok_or_else(|| error("mask components"))?
-        {
-            if c["kind"] != "linear" || c["combine"] != "add" {
-                return Err(unsupported(CrsKey::MaskGroupBasedCorrections));
-            }
-            let mut b = text("crs:What", "Mask/Gradient")
-                + &text("crs:MaskActive", "true")
-                + &text("crs:MaskInverted", &c["invert"].to_string());
-            for (key, point, idx) in [
-                ("FullX", "start", 0),
-                ("FullY", "start", 1),
-                ("ZeroX", "end", 0),
-                ("ZeroY", "end", 1),
-            ] {
-                b += &text(&format!("crs:{key}"), &c[point][idx].to_string());
-            }
-            components += &format!("<rdf:li rdf:parseType=\"Resource\">{b}</rdf:li>");
-        }
-        body +=
-            &format!("<crs:CorrectionMasks><rdf:Seq>{components}</rdf:Seq></crs:CorrectionMasks>");
-        items += &format!("<rdf:li rdf:parseType=\"Resource\">{body}</rdf:li>");
-    }
-    Ok(format!(
-        "<crs:MaskGroupBasedCorrections><rdf:Seq>{items}</rdf:Seq></crs:MaskGroupBasedCorrections>"
-    ))
 }

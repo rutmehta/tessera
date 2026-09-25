@@ -1,383 +1,215 @@
-//! Camera Raw XMP translation, retaining unsupported source properties.
-use engine_api::recipe::crs::CRS_NAMESPACE;
+//! Lightroom catalog XMP adapter. All recipe translation belongs to sidecar.
 use engine_api::{
     EngineError, EngineResult,
-    recipe::{CrsKey, CrsValueType, DevelopSettings, EditMeta, ProcessVersion, Recipe},
+    recipe::{CrsKey, CrsValueType, ProcessVersion, Recipe},
 };
 use roxmltree::{Document, Node};
-use serde_json::{Value, json};
+use serde_json::json;
+use sidecar::XmpPacket;
+use std::{collections::BTreeMap, ops::Range};
 
 const RDF: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
+const CRS: &str = engine_api::recipe::crs::CRS_NAMESPACE;
 
-/// Imports CRS properties. Unsupported or invalid properties are retained under
-/// their `crs:` names in `unknown`, with a diagnostic for each occurrence.
+struct Property<'a> {
+    namespace: &'a str,
+    name: &'a str,
+    raw: &'a str,
+    range: Range<usize>,
+    node: Option<Node<'a, 'a>>,
+}
+
+/// Import through the shared codec. The catalog version remains authoritative for
+/// Adobe XMP; a hash-verified native companion is interpreted only by sidecar.
+/// Compatibility diagnostics retain individual properties as well as the exact
+/// original packet, even when a legacy spelling needs normalization for decoding.
 pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<String>)> {
     let doc = Document::parse(text).map_err(|e| EngineError::Decode {
         format: "xmp".into(),
         message: e.to_string(),
     })?;
-    let mut recipe = Recipe {
-        process_version: ProcessVersion::from_crs(process_version)?,
-        ..Recipe::default()
+    if doc.root_element().has_tag_name((RDF, "Description")) {
+        // Catalog rows commonly store a bare Description, unlike sidecar files.
+        let wrapped = format!("<rdf:RDF xmlns:rdf=\"{RDF}\">{text}</rdf:RDF>");
+        let (mut recipe, warnings) = parse(&wrapped, process_version)?;
+        recipe.unknown.insert("sidecar_xmp".into(), json!(text));
+        return Ok((recipe, warnings));
+    }
+    let catalog_version = ProcessVersion::from_crs(process_version)?;
+    let mut properties = Vec::new();
+    for desc in doc.descendants().filter(|n| {
+        n.has_tag_name((RDF, "Description"))
+            && n.parent().is_some_and(|p| p.has_tag_name((RDF, "RDF")))
+    }) {
+        for a in desc.attributes() {
+            if let Some(namespace) = a.namespace() {
+                properties.push(Property {
+                    namespace,
+                    name: a.name(),
+                    raw: a.value(),
+                    range: a.range(),
+                    node: None,
+                });
+            }
+        }
+        for n in desc.children().filter(Node::is_element) {
+            properties.push(Property {
+                namespace: n.tag_name().namespace().unwrap_or(""),
+                name: n.tag_name().name(),
+                raw: if n.children().any(|c| c.is_element()) {
+                    &text[n.range()]
+                } else {
+                    n.text().unwrap_or("")
+                },
+                range: n.range(),
+                node: Some(n),
+            });
+        }
+    }
+    let original = XmpPacket::parse(text)?.to_recipe()?;
+    let verified_native = properties.iter().any(|p| {
+        p.namespace == CRS && p.name == "ProcessVersion" && ProcessVersion::from_crs(p.raw).is_ok()
+    }) && original
+        .recipe
+        .process_version
+        .crs_value()
+        .is_some_and(|v| v.native_revision.is_some());
+    let mut diagnostics = Vec::new();
+    let mut removed = Vec::new();
+    let mut seen = BTreeMap::<(&str, &str), usize>::new();
+    let mut accepted = BTreeMap::<(&str, &str), usize>::new();
+    for (i, p) in properties.iter().enumerate() {
+        let key = CrsKey::from_xmp(p.namespace, p.name);
+        if key.is_none() && p.namespace != CRS {
+            continue;
+        }
+        let qualified = key.map_or_else(|| format!("crs:{}", p.name), |k| k.qualified_name());
+        if let Some(previous) = seen.insert((p.namespace, p.name), i) {
+            diagnostics.push((
+                qualified.clone(),
+                properties[previous].raw,
+                "duplicate property superseded".to_string(),
+            ));
+        }
+        // Retain the catalog's strict numeric diagnostics. This checks the shared
+        // table, not a second translation or list of recipe paths.
+        let invalid = key
+            .filter(|_| !verified_native)
+            .and_then(|k| match k.value_type() {
+                CrsValueType::Real { .. } | CrsValueType::Integer { .. }
+                    if !k.is_informational() =>
+                {
+                    match p.raw.trim().parse::<f64>() {
+                        Ok(n) if n.is_finite() && k.value_type().accepts(n) => None,
+                        _ => Some("number outside CRS range".to_string()),
+                    }
+                }
+                CrsValueType::PointList => p.node.and_then(|n| validate_curve(n).err()),
+                CrsValueType::Choice(choices) if !choices.contains(&p.raw.trim()) => {
+                    Some("unknown choice".into())
+                }
+                CrsValueType::Boolean
+                    if !matches!(
+                        p.raw.trim().to_ascii_lowercase().as_str(),
+                        "true" | "false" | "0" | "1"
+                    ) =>
+                {
+                    Some("invalid boolean".into())
+                }
+                _ => None,
+            });
+        if let Some(reason) = invalid {
+            diagnostics.push((qualified, p.raw, reason));
+            removed.push(p.range.clone());
+            continue;
+        }
+        if let Some(previous) = accepted.insert((p.namespace, p.name), i) {
+            removed.push(properties[previous].range.clone());
+        }
+        if key.is_none() {
+            diagnostics.push((qualified, p.raw, "unsupported property".into()));
+        } else if key == Some(CrsKey::ProcessVersion) {
+            match ProcessVersion::from_crs(p.raw) {
+                Ok(pv) if pv != catalog_version => diagnostics.push((
+                    qualified,
+                    p.raw,
+                    "XMP/catalog process versions disagree".into(),
+                )),
+                Err(_) => (), // Shared codec supplies malformed-version diagnostics.
+                _ => (),
+            }
+        }
+    }
+    let mut normalized = text.to_string();
+    removed.sort_by_key(|r| r.start);
+    for range in removed.iter().rev() {
+        normalized.replace_range(range.clone(), "");
+    }
+    normalized = normalize_legacy_masks(&normalized)?;
+    let imported = if normalized == text {
+        original
+    } else {
+        XmpPacket::parse(normalized)?.to_recipe()?
     };
-    let mut state = serde_json::to_value(&recipe)?;
-    let mut warnings = Vec::new();
-    if recipe.process_version.revision <= 2 {
+    let mut recipe = imported.recipe;
+    let mut warnings = imported.warnings;
+    // Absent/invalid XMP versions cannot smuggle the default native revision in.
+    let valid_xmp_version = accepted
+        .get(&(CRS, "ProcessVersion"))
+        .is_some_and(|i| ProcessVersion::from_crs(properties[*i].raw).is_ok());
+    if !valid_xmp_version
+        || recipe
+            .process_version
+            .crs_value()
+            .is_some_and(|v| v.native_revision.is_none())
+    {
+        recipe.process_version = catalog_version;
+    }
+    for p in &properties {
+        let Some(key) = CrsKey::from_xmp(p.namespace, p.name) else {
+            continue;
+        };
+        let qualified = key.qualified_name();
+        if warnings
+            .iter()
+            .any(|w| w.starts_with(&format!("{qualified}:")))
+        {
+            // The codec reports the reason; add the legacy per-property payload
+            // without duplicating its warning.
+            retain(&mut recipe, &qualified, p.raw);
+        } else if key == CrsKey::MaskGroupBasedCorrections {
+            diagnostics.push((
+                qualified,
+                p.raw,
+                "mask source retained; Adobe metadata/raster fidelity is not guaranteed".into(),
+            ));
+        }
+    }
+    for (key, raw, reason) in diagnostics {
+        retain(&mut recipe, &key, raw);
+        warnings.push(format!("{key}: {reason}; source preserved"));
+    }
+    if catalog_version.revision <= 2 {
         warnings.push(
             "legacy Adobe PV1/2: best-effort translation; rendering fidelity is not guaranteed"
                 .into(),
         );
     }
-    let mut seen = std::collections::BTreeMap::<String, String>::new();
-    for node in doc.descendants().filter(|n| {
-        n.has_tag_name((RDF, "Description"))
-            && !n
-                .ancestors()
-                .any(|a| a.tag_name().namespace() == Some(CRS_NAMESPACE))
-    }) {
-        for attr in node
-            .attributes()
-            .filter(|a| a.namespace() == Some(CRS_NAMESPACE))
-        {
-            if let Some(previous) = seen.insert(attr.name().into(), attr.value().into()) {
-                preserve(
-                    &mut recipe,
-                    &mut warnings,
-                    attr.name(),
-                    &previous,
-                    "duplicate property superseded",
-                );
-            }
-            apply(
-                attr.name(),
-                attr.value(),
-                None,
-                &mut state,
-                &mut recipe,
-                &mut warnings,
-            );
-        }
-        for child in node
-            .children()
-            .filter(|n| n.tag_name().namespace() == Some(CRS_NAMESPACE))
-        {
-            let raw = if child.children().any(|n| n.is_element()) {
-                &text[child.range()]
-            } else {
-                child.text().unwrap_or("")
-            };
-            if let Some(previous) = seen.insert(child.tag_name().name().into(), raw.into()) {
-                preserve(
-                    &mut recipe,
-                    &mut warnings,
-                    child.tag_name().name(),
-                    &previous,
-                    "duplicate property superseded",
-                );
-            }
-            apply(
-                child.tag_name().name(),
-                raw,
-                Some(child),
-                &mut state,
-                &mut recipe,
-                &mut warnings,
-            );
-        }
-    }
-    let settings: DevelopSettings = serde_json::from_value(state["settings"].clone())?;
-    recipe.edit(EditMeta::user("Import Lightroom XMP", 0), |s| *s = settings)?;
+    recipe.unknown.insert("sidecar_xmp".into(), json!(text));
     recipe.validate()?;
     Ok((recipe, warnings))
 }
 
-fn preserve(recipe: &mut Recipe, warnings: &mut Vec<String>, name: &str, raw: &str, reason: &str) {
-    let key = format!("crs:{name}");
-    match recipe.unknown.entry(key.clone()) {
-        std::collections::btree_map::Entry::Vacant(e) => {
-            e.insert(json!(raw));
-        }
-        std::collections::btree_map::Entry::Occupied(mut e) => {
-            if !e.get().is_array() {
-                let first = e.get().clone();
-                e.insert(json!([first]));
-            }
-            e.get_mut().as_array_mut().unwrap().push(json!(raw));
-        }
-    }
-    warnings.push(format!("{key}: {reason}; source preserved"));
-}
-
-fn apply(
-    name: &str,
-    raw: &str,
-    _node: Option<Node<'_, '_>>,
-    state: &mut Value,
-    recipe: &mut Recipe,
-    warnings: &mut Vec<String>,
-) {
-    let result = (|| -> Result<(), String> {
-        let key = CrsKey::from_xmp_name(name).ok_or("unsupported property")?;
-        if key == CrsKey::ProcessVersion {
-            let pv = ProcessVersion::from_crs(raw).map_err(|e| e.to_string())?;
-            if pv != recipe.process_version {
-                return Err("XMP/catalog process versions disagree".into());
-            }
-            return Ok(());
-        }
-        let path = key.recipe_path().ok_or("legacy property has no mapping")?;
-        if key == CrsKey::MaskGroupBasedCorrections {
-            let adjustments = masks(_node.ok_or("mask group requires RDF")?, recipe, warnings)?;
-            state
-                .pointer_mut(path)
-                .ok_or("mapping target missing")?
-                .as_array_mut()
-                .ok_or("mask target is not an array")?
-                .extend(adjustments);
-            preserve(
-                recipe,
-                warnings,
-                name,
-                raw,
-                "mask source retained; Adobe metadata/raster fidelity is not guaranteed",
-            );
-            return Ok(());
-        }
-        let mut value = if key.value_type() == CrsValueType::PointList {
-            curve(_node.ok_or("curve requires an RDF sequence")?)?
-        } else {
-            scalar(key, raw)?
-        };
-        match key {
-            CrsKey::WhiteBalance => value = json!(raw.trim().to_lowercase().replace(' ', "_")),
-            CrsKey::AutoLateralCA | CrsKey::CropConstrainToWarp | CrsKey::HDREditMode => {
-                value = json!(value.as_f64() == Some(1.0))
-            }
-            CrsKey::PostCropVignetteStyle => {
-                value = json!(match value.as_f64().unwrap() as u8 {
-                    1 => "highlight_priority",
-                    2 => "color_priority",
-                    _ => "paint_overlay",
-                })
-            }
-            CrsKey::PerspectiveUpright => {
-                value = json!(match value.as_f64().unwrap() as u8 {
-                    0 => "off",
-                    1 => "auto",
-                    2 => "level",
-                    3 => "vertical",
-                    4 => "full",
-                    _ => "guided",
-                })
-            }
-            CrsKey::LensProfileEnable => {
-                value = json!({"kind": if value.as_f64() == Some(0.0) { "none" } else { "auto" }})
-            }
-            // A digest is not a profile identifier; Adobe model/profile metadata
-            // cannot be substituted for an engine resource identifier.
-            CrsKey::CameraProfileDigest
-            | CrsKey::LensProfileName
-            | CrsKey::LensProfileFilename
-            | CrsKey::LensProfileDigest
-            | CrsKey::LensProfileSetup
-            | CrsKey::EnhanceDenoiseAlreadyApplied
-            | CrsKey::EnhanceDenoiseVersion
-            | CrsKey::EnhanceDetailsAlreadyApplied
-            | CrsKey::HasCrop => {
-                return Err("requires unsupported resource or compound translation".into());
-            }
-            CrsKey::DefringePurpleHueLo
-            | CrsKey::DefringePurpleHueHi
-            | CrsKey::DefringeGreenHueLo
-            | CrsKey::DefringeGreenHueHi => {
-                let index = usize::from(name.ends_with("Hi"));
-                state.pointer_mut(path).ok_or("mapping target missing")?[index] =
-                    json!(value.as_f64().unwrap() * 3.6);
-                return Ok(());
-            }
-            _ => {}
-        }
-        let mut candidate = state.clone();
-        *candidate
-            .pointer_mut(path)
-            .ok_or("mapping target missing")? = value;
-        serde_json::from_value::<DevelopSettings>(candidate["settings"].clone())
-            .map_err(|e| e.to_string())?;
-        *state = candidate;
-        Ok(())
-    })();
-    if let Err(reason) = result {
-        preserve(recipe, warnings, name, raw, &reason);
-    }
-}
-
-// Resource properties may live on rdf:li or its rdf:Description wrapper.
-fn resource<'a, 'i>(node: Node<'a, 'i>) -> Node<'a, 'i> {
-    node.children()
-        .find(|n| n.has_tag_name((RDF, "Description")))
-        .unwrap_or(node)
-}
-fn property<'a>(node: Node<'a, '_>, key: &str) -> Option<&'a str> {
-    let node = resource(node);
-    node.attribute((CRS_NAMESPACE, key)).or_else(|| {
-        node.children()
-            .find(|n| n.has_tag_name((CRS_NAMESPACE, key)))
-            .and_then(|n| n.text())
-    })
-}
-fn number(node: Node<'_, '_>, key: &str) -> Result<f32, String> {
-    let value: f32 = property(node, key)
-        .ok_or_else(|| format!("missing {key}"))?
-        .trim()
-        .parse()
-        .map_err(|_| format!("invalid {key}"))?;
-    if !value.is_finite() {
-        return Err(format!("non-finite {key}"));
-    }
-    Ok(value)
-}
-fn flag(node: Node<'_, '_>, key: &str, default: bool) -> Result<bool, String> {
-    match property(node, key).map(|s| s.trim().to_ascii_lowercase()) {
-        None => Ok(default),
-        Some(s) if s == "true" || s == "1" => Ok(true),
-        Some(s) if s == "false" || s == "0" => Ok(false),
-        _ => Err(format!("invalid {key}")),
-    }
-}
-fn component(node: Node<'_, '_>) -> Result<engine_api::recipe::MaskComponent, String> {
-    use engine_api::recipe::mask::MaskCombine;
-    use engine_api::recipe::{MaskComponent, MaskKind};
-    let kind = match property(node, "What").ok_or("missing mask What")? {
-        "Mask/Gradient" => MaskKind::Linear {
-            start: [number(node, "StartX")?, number(node, "StartY")?],
-            end: [number(node, "EndX")?, number(node, "EndY")?],
-        },
-        "Mask/CircularGradient" => {
-            let left = number(node, "Left")?;
-            let right = number(node, "Right")?;
-            let top = number(node, "Top")?;
-            let bottom = number(node, "Bottom")?;
-            if left >= right || top >= bottom {
-                return Err("invalid radial bounds".into());
-            }
-            MaskKind::Radial {
-                center: [(left + right) / 2.0, (top + bottom) / 2.0],
-                radii: [(right - left) / 2.0, (bottom - top) / 2.0],
-                angle: if property(node, "Angle").is_some() {
-                    number(node, "Angle")?
-                } else {
-                    0.0
-                },
-                feather: number(node, "Feather")?,
-            }
-        }
-        "Mask/Sky" => MaskKind::Sky { model: None },
-        "Mask/Subject" => MaskKind::Subject { model: None },
-        "Mask/Background" => MaskKind::Background { model: None },
-        other => return Err(format!("unsupported mask {other}")),
-    };
-    let mut c = MaskComponent::new(kind);
-    c.invert = flag(node, "MaskInverted", false)?;
-    c.combine = match property(node, "MaskBlendMode").unwrap_or("0") {
-        "0" | "Add" => MaskCombine::Add,
-        "1" | "Subtract" => MaskCombine::Subtract,
-        "2" | "Intersect" => MaskCombine::Intersect,
-        _ => return Err("unsupported mask blend mode".into()),
-    };
-    Ok(c)
-}
-fn masks(
-    node: Node<'_, '_>,
-    recipe: &mut Recipe,
-    warnings: &mut Vec<String>,
-) -> Result<Vec<Value>, String> {
-    use engine_api::recipe::LocalAdjustment;
-    let seq = node
-        .children()
-        .find(|n| n.has_tag_name((RDF, "Seq")))
-        .ok_or("missing mask group sequence")?;
-    let mut result = Vec::new();
-    for item in seq.children().filter(|n| n.is_element()) {
-        let translated = (|| -> Result<LocalAdjustment, String> {
-            if !item.has_tag_name((RDF, "li")) {
-                return Err("invalid mask group item".into());
-            }
-            let item = resource(item);
-            let mut a = LocalAdjustment {
-                name: property(item, "CorrectionName").unwrap_or("").into(),
-                enabled: flag(item, "CorrectionActive", true)?,
-                invert: flag(item, "CorrectionInverted", false)?,
-                ..LocalAdjustment::default()
-            };
-            if property(item, "CorrectionAmount").is_some() {
-                a.amount = number(item, "CorrectionAmount")? * 100.0;
-            }
-            let mut params = serde_json::to_value(&a.params).map_err(|e| e.to_string())?;
-            for (source, target, scale) in [
-                ("LocalExposure2012", "exposure", 1.0),
-                ("LocalContrast2012", "contrast", 100.0),
-                ("LocalHighlights2012", "highlights", 100.0),
-                ("LocalShadows2012", "shadows", 100.0),
-                ("LocalWhites2012", "whites", 100.0),
-                ("LocalBlacks2012", "blacks", 100.0),
-                ("LocalTemperature", "temperature", 100.0),
-                ("LocalTint", "tint", 100.0),
-                ("LocalSaturation", "saturation", 100.0),
-                ("LocalTexture", "texture", 100.0),
-                ("LocalClarity2012", "clarity", 100.0),
-                ("LocalDehaze", "dehaze", 100.0),
-                ("LocalSharpness", "sharpness", 100.0),
-                ("LocalLuminanceNoise", "noise", 100.0),
-                ("LocalMoire", "moire", 100.0),
-                ("LocalDefringe", "defringe", 100.0),
-                ("LocalHue", "hue", 1.0),
-            ] {
-                if property(item, source).is_some() {
-                    let n = number(item, source)? * scale;
-                    if !n.is_finite() {
-                        return Err(format!("out of range {source}"));
-                    }
-                    params[target] = json!(n);
-                }
-            }
-            a.params = serde_json::from_value(params).map_err(|e| e.to_string())?;
-            let container = item
-                .children()
-                .find(|n| n.has_tag_name((CRS_NAMESPACE, "CorrectionMasks")))
-                .ok_or("missing CorrectionMasks")?;
-            let components = container
-                .children()
-                .find(|n| n.has_tag_name((RDF, "Seq")))
-                .ok_or("missing component sequence")?;
-            for child in components.children().filter(|n| n.is_element()) {
-                a.components.push(component(resource(child))?);
-            }
-            if a.components.is_empty() {
-                return Err("empty mask group".into());
-            }
-            Ok(a)
-        })();
-        match translated {
-            Ok(mut a) => {
-                a.id = recipe.allocate_mask_id();
-                result.push(serde_json::to_value(a).map_err(|e| e.to_string())?);
-            }
-            Err(e) => warnings.push(format!(
-                "crs:MaskGroupBasedCorrections: group not applied: {e}"
-            )),
-        }
-    }
-    Ok(result)
-}
-
-fn curve(node: Node<'_, '_>) -> Result<Value, String> {
+// Catalog curve validation is stricter than the shared codec's permissive
+// point reader. Validate source shape only; sidecar still performs all decoding.
+fn validate_curve(node: Node<'_, '_>) -> Result<(), String> {
     let seq = node
         .children()
         .find(|n| n.has_tag_name((RDF, "Seq")))
         .ok_or("missing RDF sequence")?;
-    let mut points = Vec::new();
     let mut previous = -1.0;
-    for item in seq.children().filter(|n| n.is_element()) {
+    let mut count = 0;
+    for item in seq.children().filter(Node::is_element) {
         if !item.has_tag_name((RDF, "li")) || item.children().any(|n| n.is_element()) {
             return Err("invalid curve item".into());
         }
@@ -397,39 +229,216 @@ fn curve(node: Node<'_, '_>) -> Result<Value, String> {
             return Err("invalid or unordered curve points".into());
         }
         previous = values[0];
-        points.push(json!({"x": values[0] / 255.0, "y": values[1] / 255.0}));
+        count += 1;
     }
-    if points.len() < 2 {
+    // Empty lists are the shared writer's representation of a default curve.
+    if count == 1 {
         return Err("curve needs at least two points".into());
     }
-    Ok(json!(points))
+    Ok(())
 }
 
-fn scalar(key: CrsKey, raw: &str) -> Result<Value, String> {
-    let text = raw.trim();
-    match key.value_type() {
-        CrsValueType::Real { .. } | CrsValueType::Integer { .. } => {
-            let n: f64 = text.parse().map_err(|_| "invalid number")?;
-            if !n.is_finite() || !key.value_type().accepts(n) {
-                return Err("number outside CRS range".into());
-            }
-            Ok(json!(n))
+fn retain(recipe: &mut Recipe, key: &str, raw: &str) {
+    match recipe.unknown.entry(key.to_string()) {
+        std::collections::btree_map::Entry::Vacant(e) => {
+            e.insert(json!(raw));
         }
-        CrsValueType::Boolean => match text.to_ascii_lowercase().as_str() {
-            "true" | "1" => Ok(json!(true)),
-            "false" | "0" => Ok(json!(false)),
-            _ => Err("invalid boolean".into()),
-        },
-        CrsValueType::Text => Ok(json!(raw)),
-        CrsValueType::Choice(choices) if choices.contains(&text) => Ok(json!(text)),
-        CrsValueType::Choice(_) => Err("unknown choice".into()),
-        _ => Err("unsupported structured property".into()),
+        std::collections::btree_map::Entry::Occupied(mut e) => {
+            if !e.get().is_array() {
+                let first = e.get().clone();
+                e.insert(json!([first]));
+            }
+            e.get_mut().as_array_mut().unwrap().push(json!(raw));
+        }
     }
+}
+
+// Older catalog exports used Start/End instead of Adobe's Full/Zero names.
+// Rename only namespace-resolved mask geometry, never text or foreign fields.
+fn normalize_legacy_masks(text: &str) -> EngineResult<String> {
+    let doc = Document::parse(text).map_err(|e| EngineError::Decode {
+        format: "xmp".into(),
+        message: e.to_string(),
+    })?;
+    let mut edits = Vec::new();
+    for n in doc.descendants().filter(|n| {
+        n.ancestors()
+            .any(|a| a.has_tag_name((CRS, "MaskGroupBasedCorrections")))
+    }) {
+        for (old, new) in [
+            ("StartX", "FullX"),
+            ("StartY", "FullY"),
+            ("EndX", "ZeroX"),
+            ("EndY", "ZeroY"),
+        ] {
+            if n.attribute((CRS, new)).is_none()
+                && !n.children().any(|c| c.has_tag_name((CRS, new)))
+            {
+                if let Some(a) = n
+                    .attributes()
+                    .find(|a| a.namespace() == Some(CRS) && a.name() == old)
+                {
+                    let range = a.range();
+                    let raw = &text[range.clone()];
+                    let end = raw.find('=').unwrap_or(raw.len());
+                    let name = raw[..end].trim_end();
+                    let start = range.start + name.len() - old.len();
+                    edits.push((start..start + old.len(), new));
+                }
+                for c in n.children().filter(|c| c.has_tag_name((CRS, old))) {
+                    let range = c.range();
+                    let raw = &text[range.clone()];
+                    let end = raw.find([' ', '>', '/']).unwrap_or(raw.len());
+                    edits.push((range.start + end - old.len()..range.start + end, new));
+                    if let Some(close) = raw.rfind("</") {
+                        let end = raw[close..].find('>').unwrap() + close;
+                        edits.push((range.start + end - old.len()..range.start + end, new));
+                    }
+                }
+            }
+        }
+    }
+    edits.sort_by_key(|(r, _)| r.start);
+    let mut result = text.to_string();
+    for (range, value) in edits.into_iter().rev() {
+        result.replace_range(range, value);
+    }
+    Ok(result)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn shared_codec_imports_namespaced_profiles_aux_and_lens_blur() {
+        let source = xml(
+            r#"xmlns:a="http://ns.adobe.com/exif/1.0/aux/" crs:ProcessVersion="15.4" crs:CameraProfile="Adobe Color" crs:CameraProfileDigest="ABC" crs:LensProfileEnable="1" crs:LensProfileSetup="Custom" crs:LensProfileName="My lens" crs:LensProfileFilename="lens.lcp" crs:LensProfileDigest="DEF" a:EnhanceDenoiseAlreadyApplied="True" a:EnhanceDenoiseVersion="7" a:EnhanceDenoiseLumaAmount="50""#,
+            r#"<crs:LensBlur crs:Active="True" crs:BlurAmount="27"/>"#,
+        );
+        let expected = sidecar::XmpPacket::parse(&source)
+            .unwrap()
+            .to_recipe()
+            .unwrap();
+        let (actual, warnings) = parse(&source, "15.4").unwrap();
+        assert_eq!(actual.settings, expected.recipe.settings);
+        assert_eq!(actual.provenance, expected.recipe.provenance);
+        assert_eq!(warnings, expected.warnings);
+        assert_eq!(actual.unknown["sidecar_xmp"], source);
+    }
+
+    #[test]
+    fn catalog_version_fallback_disagreement_and_native_hash() {
+        for value in ["11.0", "99.0"] {
+            let source = xml(&format!("crs:ProcessVersion=\"{value}\""), "");
+            let (r, w) = parse(&source, "15.4").unwrap();
+            assert_eq!(r.process_version, ProcessVersion::adobe(6));
+            assert_eq!(r.unknown["crs:ProcessVersion"], value);
+            assert!(!w.is_empty());
+            if value == "11.0" {
+                assert!(
+                    w.iter()
+                        .any(|w| w.contains("XMP/catalog process versions disagree"))
+                );
+            }
+        }
+        let original = Recipe::default();
+        let packet = XmpPacket::from_recipe(
+            &original,
+            &sidecar::Metadata::default(),
+            &sidecar::MarkPreset::lightroom(),
+        )
+        .unwrap();
+        let changed = packet
+            .serialize()
+            .replace(
+                "<crs:Exposure2012>0.0</crs:Exposure2012>",
+                "<crs:Exposure2012>1</crs:Exposure2012>",
+            )
+            .replace(
+                "<crs:Exposure2012>0</crs:Exposure2012>",
+                "<crs:Exposure2012>1</crs:Exposure2012>",
+            );
+        assert_ne!(changed, packet.serialize());
+        assert_eq!(
+            XmpPacket::parse(&changed)
+                .unwrap()
+                .to_recipe()
+                .unwrap()
+                .recipe
+                .process_version,
+            ProcessVersion::adobe(6)
+        );
+        for source in [packet.serialize().to_string(), changed] {
+            let expected = XmpPacket::parse(&source).unwrap().to_recipe().unwrap();
+            let (actual, warnings) = parse(&source, "15.4").unwrap();
+            assert_eq!(
+                actual.process_version, expected.recipe.process_version,
+                "{warnings:?}"
+            );
+            assert_eq!(actual.settings, expected.recipe.settings);
+            assert_eq!(actual.unknown["sidecar_xmp"], source);
+        }
+    }
+
+    #[test]
+    fn native_structures_and_renamed_namespaces_use_shared_codec() {
+        let mut recipe = Recipe::default();
+        recipe.edit(Default::default(), |s| {
+            s.color.point_colors = serde_json::from_value(json!([{"source_lch":[0.65,0.21,312.3],"hue_shift":-23.4,"saturation_shift":17.2,"luminance_shift":-9.3,"range":43.2}])).unwrap();
+            s.effects.lens_blur = serde_json::from_value(json!({"amount":63.2,"focus_range":[0.13,0.72],"bokeh":"custom <&>","depth_model":null})).unwrap();
+            s.locals.retouch = serde_json::from_value(json!([{"id":4,"kind":{"kind":"heal","source_offset":[-0.23,0.17]},"target":{"kind":"implicit"},"opacity":72.3,"feather":23.4,"enabled":true}])).unwrap();
+            s.locals.adjustments = serde_json::from_value(json!([{"id":7,"name":"brush", "enabled":true,"amount":87.0,"invert":true,"params":{"exposure":0.25},"components":[{"kind":"brush","combine":"subtract","invert":true,"strokes":[{"points":[[0.1,0.2,0.7]],"radius":0.023,"feather":34.2,"flow":65.7,"erase":true}]}]}])).unwrap();
+        }).unwrap();
+        let packet = XmpPacket::from_recipe(
+            &recipe,
+            &sidecar::Metadata::default(),
+            &sidecar::MarkPreset::lightroom(),
+        )
+        .unwrap();
+        let renamed = packet
+            .serialize()
+            .replace("crs:", "camera:")
+            .replace("xmlns:crs=", "xmlns:camera=");
+        for source in [packet.serialize(), renamed.as_str()] {
+            let expected = XmpPacket::parse(source).unwrap().to_recipe().unwrap();
+            let (actual, _) = parse(source, "15.4").unwrap();
+            assert_eq!(actual.settings, recipe.settings);
+            assert_eq!(actual.settings, expected.recipe.settings);
+            assert_eq!(actual.process_version, recipe.process_version);
+            assert_eq!(actual.ids, expected.recipe.ids);
+            assert_eq!(actual.unknown["sidecar_xmp"], source);
+            actual.validate().unwrap();
+        }
+    }
+
+    #[test]
+    fn foreign_namespace_and_opaque_structures_are_retained_not_applied() {
+        let source = xml(
+            r#"xmlns:fake="urn:not-camera-raw" fake:Exposure2012="4" crs:EnhanceDenoiseVersion="7""#,
+            r#"<crs:PointColors><rdf:Seq><rdf:li>opaque Adobe data</rdf:li></rdf:Seq></crs:PointColors><crs:RetouchInfo><rdf:Seq><rdf:li>opaque retouch</rdf:li></rdf:Seq></crs:RetouchInfo>"#,
+        );
+        let (actual, warnings) = parse(&source, "15.4").unwrap();
+        assert_eq!(
+            actual.settings,
+            XmpPacket::parse(&source)
+                .unwrap()
+                .to_recipe()
+                .unwrap()
+                .recipe
+                .settings
+        );
+        assert!(actual.provenance.properties.is_empty());
+        for key in [
+            "crs:PointColors",
+            "crs:RetouchInfo",
+            "crs:EnhanceDenoiseVersion",
+        ] {
+            assert!(actual.unknown.contains_key(key));
+            assert!(warnings.iter().any(|w| w.starts_with(key)));
+        }
+        assert_eq!(actual.unknown["sidecar_xmp"], source);
+    }
+
     #[test]
     fn process_versions_and_legacy_warning() {
         for (source, revision) in [
@@ -480,6 +489,27 @@ mod tests {
         assert!(w.iter().any(|s| s.contains("Mask/Future")));
     }
     #[test]
+    fn malformed_duplicate_does_not_erase_previous_valid_choice() {
+        let source = xml(
+            r#"crs:WhiteBalance="Daylight""#,
+            "<crs:WhiteBalance>FutureMode</crs:WhiteBalance>",
+        );
+        let (recipe, warnings) = parse(&source, "15.4").unwrap();
+        let (expected, _) = parse(&xml(r#"crs:WhiteBalance="Daylight""#, ""), "15.4").unwrap();
+        assert_eq!(
+            recipe.settings.white_balance,
+            expected.settings.white_balance
+        );
+        assert!(warnings.iter().any(|w| w.contains("duplicate")));
+        assert!(
+            recipe.unknown["crs:WhiteBalance"]
+                .as_array()
+                .unwrap()
+                .contains(&json!("FutureMode"))
+        );
+    }
+
+    #[test]
     fn duplicate_properties_preserve_the_superseded_value() {
         let (r, w) = parse(
             &xml(
@@ -498,10 +528,14 @@ mod tests {
         let (r, w) = parse(&xml(r#"crs:Exposure2012="NaN" crs:Future="keep""#, r#"<crs:ToneCurvePV2012><rdf:Seq><rdf:li>0, 0</rdf:li><rdf:li>128, 160</rdf:li><rdf:li>255, 255</rdf:li></rdf:Seq></crs:ToneCurvePV2012><crs:Look><rdf:Description crs:Name="retain me"/></crs:Look>"#), "15.4").unwrap();
         assert_eq!(r.settings.tone.curves.rgb.0.len(), 3);
         assert_eq!(r.settings.tone.curves.rgb.0[2].x, 1.0);
-        assert_eq!(w.len(), 3);
+        assert_eq!(w.len(), 2);
         assert_eq!(r.unknown["crs:Exposure2012"], "NaN");
+        assert_eq!(
+            r.settings.camera_profile.look.as_ref().unwrap().style,
+            "retain me".into()
+        );
         assert!(
-            r.unknown["crs:Look"]
+            r.unknown["sidecar_xmp"]
                 .as_str()
                 .unwrap()
                 .contains("retain me")
@@ -517,10 +551,14 @@ mod tests {
         assert_eq!(a.name, "Gradient");
         assert_eq!(a.params.exposure, 0.5);
         assert!(a.components[0].invert);
-        assert!(matches!(
+        assert_eq!(
             a.components[0].kind,
-            engine_api::recipe::MaskKind::Linear { .. }
-        ));
+            engine_api::recipe::MaskKind::Linear {
+                start: [0.1, 0.2],
+                end: [0.8, 0.9]
+            }
+        );
+        assert_eq!(r.unknown["sidecar_xmp"], xml("", body));
         assert!(r.unknown.contains_key("crs:MaskGroupBasedCorrections"));
         assert!(!w.is_empty());
         r.validate().unwrap();

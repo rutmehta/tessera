@@ -18,7 +18,8 @@ pub(crate) fn error(e: impl std::fmt::Display) -> EngineError {
     }
 }
 pub(crate) fn escape(s: &str) -> String {
-    quick_xml::escape::escape(s).into_owned()
+    // Literal CR is normalized to LF by XML readers; a character reference is not.
+    quick_xml::escape::escape(s).replace('\r', "&#13;")
 }
 pub(crate) fn text(name: &str, value: &str) -> String {
     format!("<{name}>{}</{name}>", escape(value))

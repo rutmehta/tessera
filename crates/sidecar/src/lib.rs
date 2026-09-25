@@ -62,11 +62,22 @@ pub struct SidecarPaths {
 /// Recipe envelope includes synchronization metadata without changing engine-api's contract.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct RecipeDocument {
+    #[serde(deserialize_with = "deserialize_recipe")]
     pub recipe: Recipe,
     #[serde(default)]
     pub vector_clock: BTreeMap<String, u64>,
     #[serde(default)]
     pub last_writer: WriteStamp,
+}
+
+// Use the engine's upgrade path for both disk reads and direct envelope deserialization.
+fn deserialize_recipe<'de, D>(deserializer: D) -> Result<Recipe, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value = serde_json::Value::deserialize(deserializer)?;
+    let bytes = serde_json::to_vec(&value).map_err(serde::de::Error::custom)?;
+    Recipe::from_json(&bytes).map_err(serde::de::Error::custom)
 }
 
 /// Stable last-writer order, independent of the merged vector clock.
@@ -135,9 +146,8 @@ impl Sidecar {
     /// Read a recipe envelope.
     pub fn read_recipe(path: impl AsRef<Path>) -> EngineResult<RecipeDocument> {
         let path = path.as_ref();
-        let mut document: RecipeDocument =
+        let document: RecipeDocument =
             serde_json::from_slice(&fs::read(path).map_err(|e| EngineError::io_at(path, &e))?)?;
-        document.recipe.selection = document.recipe.selection.normalized();
         document.recipe.validate()?;
         Ok(document)
     }
