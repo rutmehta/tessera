@@ -1,0 +1,16 @@
+Fixed automatic backend calibration to measure actual IOSurface presentation and histogram work, rather than GPU pixel readback. Added regression coverage and owned temporary surfaces.
+
+Required test/clippy/fmt command passed: 92 tests passed, 0 failed, 7 ignored.
+
+M4 NEF level-2 benchmark:
+    GPU tone median: 4.1 ms
+    GPU WB median:   7 ms
+    GPU first frame: 481 ms versus CPU 256 ms
+
+Both interactive targets pass. All changes remain within allowed paths, with the external CARGO_TARGET_DIR preserved. No commits made.
+
+Full M2-06 remains incomplete: X-Trans and extended M2 controls still cross CPU/GPU barriers.
+
+Evidence: tools/orchestrate/wp/M2-06/validation.md
+
+RESULT: FAIL whole-chain GPU residency remains incomplete for X-Trans and extended M2 controls.

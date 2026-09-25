@@ -1,0 +1,9 @@
+Implemented M2-06b. Default sharpening/NR now stays GPU-resident at output resolution, with correct halos and Detail cache invalidation. WB/crop parity checks retain their original tolerances.
+
+Verification passed: 467 workspace tests, requested Clippy, and fmt. An unrelated HNSW test failed once and passed on the full retry without changes.
+
+NEF L2 on Apple M4: two consecutive final-code runs measured tone medians of 4.8 / 4.2 ms and WB medians of 23 / 21 ms. Slower measurements and the separate full-readback benchmark are documented in tools/orchestrate/wp/M2-06b/validation.md.
+
+Only allowed paths changed. External CARGO_TARGET_DIR preserved. No commits made.
+
+RESULT: PASS

@@ -283,7 +283,7 @@
     "id": "M2-08",
     "owner": "astra",
     "title": "Masks and local adjustments",
-    "status": "todo",
+    "status": "running",
     "attempts": 0,
     "notes": ""
   },
@@ -315,7 +315,7 @@
     "id": "M2-13",
     "owner": "opus",
     "title": "Develop panels UI",
-    "status": "todo",
+    "status": "running",
     "attempts": 0,
     "notes": ""
   },
@@ -323,7 +323,7 @@
     "id": "M2-06b",
     "owner": "astra",
     "title": "Reconcile resident model with rev 2 defaults (fix main)",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   }
