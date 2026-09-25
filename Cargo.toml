@@ -30,6 +30,7 @@ tracing = "0.1"
 bytemuck = { version = "1", features = ["derive"] }
 half = "2"
 zune-jpeg = "0.5"
+image = { version = "0.25", default-features = false, features = ["jpeg"] }
 jxl-oxide = "0.12"
 lcms2 = "6"
 ort = "=2.0.0-rc.13"
