@@ -1,6 +1,9 @@
 //! Read-only Lightroom catalog translation. No original photos or catalogs are changed.
 //! The import plan is explicit: callers decide when and where to persist it.
+#[cfg(feature = "fixture")]
+pub mod fixture;
 pub mod lua;
+pub mod previews;
 pub mod xmp;
 pub use lua::SavedSearch;
 
@@ -38,6 +41,14 @@ pub struct ImportedImage {
     pub faces: Vec<SourceRow>,
     pub history: Vec<SourceRow>,
     pub snapshots: Vec<SourceRow>,
+    /// Source selection columns (`Adobe_images.rating`, `pick`, `colorLabels`),
+    /// kept so a host can preview how they map before committing.
+    #[serde(default)]
+    pub rating: Option<i64>,
+    #[serde(default)]
+    pub pick: Option<i64>,
+    #[serde(default)]
+    pub color_label: Option<String>,
 }
 
 pub use library::{Album, AlbumGroup, Keyword, Library, SmartAlbum};
@@ -51,6 +62,9 @@ pub struct Stack {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImportPlan {
     pub schema_version: String,
+    /// `AgLibraryRootFolder` rows (`id_local`, `absolutePath`, ...), for relocation.
+    #[serde(default)]
+    pub roots: Vec<SourceRow>,
     pub folders: Vec<SourceRow>,
     pub images: Vec<ImportedImage>,
     pub library: Library,
@@ -73,16 +87,16 @@ pub struct Summary {
     pub stacks: usize,
     pub faces: usize,
 }
-fn decode(message: impl ToString) -> EngineError {
+pub(crate) fn decode(message: impl ToString) -> EngineError {
     EngineError::Decode {
         format: "lrcat".into(),
         message: message.to_string(),
     }
 }
-fn number(row: &SourceRow, key: &str) -> Option<i64> {
+pub(crate) fn number(row: &SourceRow, key: &str) -> Option<i64> {
     row.get(key).and_then(Value::as_i64)
 }
-fn text(row: &SourceRow, key: &str) -> Option<String> {
+pub(crate) fn text(row: &SourceRow, key: &str) -> Option<String> {
     row.get(key).filter(|v| !v.is_null()).map(|v| {
         v.as_str()
             .map(str::to_owned)
@@ -95,7 +109,7 @@ fn required_id(row: &SourceRow, key: &str) -> EngineResult<i64> {
 fn required_text(row: &SourceRow, key: &str) -> EngineResult<String> {
     text(row, key).ok_or_else(|| decode(format!("missing column {key}")))
 }
-fn rows(
+pub(crate) fn rows(
     c: &Connection,
     table: &str,
     required: bool,
@@ -147,7 +161,7 @@ fn sidecar(path: &Path, suffix: &str) -> PathBuf {
 }
 /// Copy both SQLite and its WAL before opening. Do not let SQLite create a SHM
 /// file alongside the original. Concurrent changes abort rather than lose edits.
-fn copied_catalog(path: &Path) -> EngineResult<(tempfile::TempDir, PathBuf)> {
+pub(crate) fn copied_catalog(path: &Path) -> EngineResult<(tempfile::TempDir, PathBuf)> {
     fn stamp(p: &Path) -> EngineResult<Option<(u64, std::time::SystemTime)>> {
         match std::fs::metadata(p) {
             Ok(m) => Ok(Some((m.len(), m.modified()?))),
@@ -170,7 +184,7 @@ fn copied_catalog(path: &Path) -> EngineResult<(tempfile::TempDir, PathBuf)> {
     }
     Ok((temp, dest))
 }
-fn open_copy(path: &Path) -> EngineResult<Connection> {
+pub(crate) fn open_copy(path: &Path) -> EngineResult<Connection> {
     // Percent encoding protects ?, #, %, colon and non-ASCII path components.
     let bytes = path.as_os_str().as_encoded_bytes();
     let mut uri = String::from("file:");
@@ -521,11 +535,15 @@ pub fn import(path: impl AsRef<Path>) -> EngineResult<ImportPlan> {
             faces: source_rows(&faces),
             history,
             snapshots,
+            rating: number(image, "rating"),
+            pick: number(image, "pick"),
+            color_label: text(image, "colorLabels").filter(|s| !s.is_empty()),
         });
     }
     result.sort_by_key(|r| r.catalog_id);
     Ok(ImportPlan {
         schema_version,
+        roots,
         folders,
         images: result,
         library,

@@ -56,6 +56,12 @@ public final class EngineLibrary: PhotoLibrary {
 
     public static let defaultBasketTarget = "Selects"
 
+    /// `~/Library/Application Support/Tessera`: the index and preview caches.
+    public static var defaultSupportDirectory: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("Tessera", isDirectory: true)
+    }
+
     private init(title: String, folder: URL, items: [PhotoItem], groups: [Range<Int>], subfolders: [URL],
                  scanDuration: TimeInterval, engine: Engine, session: CullSession, imageIDs: [String],
                  states: [CullState], statuses: [ItemStatus], best: [Int], previewErrors: [String]) {
@@ -73,8 +79,7 @@ public final class EngineLibrary: PhotoLibrary {
                             basketTarget: String = defaultBasketTarget) throws -> EngineLibrary {
         let start = Date()
         let fm = FileManager.default
-        let support = appSupport ?? fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Tessera", isDirectory: true)
+        let support = appSupport ?? defaultSupportDirectory
         let engine = try Engine.open(appSupportDir: support.path)
         let previewEvents = PreviewEvents()
         engine.setEventListener(listener: previewEvents)

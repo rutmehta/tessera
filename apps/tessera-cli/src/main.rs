@@ -68,9 +68,17 @@ enum Ml {
 #[derive(Subcommand)]
 enum Import {
     Lrcat {
-        file: PathBuf,
-        #[arg(long, conflicts_with = "apply", required_unless_present = "apply")]
+        #[arg(required_unless_present = "make_fixture")]
+        file: Option<PathBuf>,
+        #[arg(
+            long,
+            conflicts_with = "apply",
+            required_unless_present_any = ["apply", "make_fixture"]
+        )]
         inspect: bool,
+        /// Write the synthetic test catalog (JPEG originals, Previews.lrdata) into DIR.
+        #[arg(long, value_name = "DIR", conflicts_with_all = ["inspect", "apply", "file"])]
+        make_fixture: Option<PathBuf>,
         #[arg(long, requires = "dest")]
         apply: bool,
         #[arg(long, requires = "apply")]
@@ -159,8 +167,19 @@ fn run(cli: &Cli) -> Result<Value> {
             file,
             inspect,
             dest,
+            make_fixture,
             ..
         }) => {
+            if let Some(dir) = make_fixture {
+                let fixture = import_lrcat::fixture::write(dir)?;
+                return Ok(serde_json::json!({
+                    "catalog": fixture.catalog,
+                    "photos": fixture.photos,
+                    "previews": fixture.previews,
+                    "moved_root": import_lrcat::fixture::MOVED_ROOT,
+                }));
+            }
+            let file = file.as_ref().context("a catalog path is required")?;
             if *inspect {
                 Ok(serde_json::to_value(import_lrcat::inspect(file)?)?)
             } else {

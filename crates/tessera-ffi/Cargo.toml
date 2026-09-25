@@ -16,6 +16,8 @@ previews = { path = "../previews" }
 raw-decode = { path = "../raw-decode" }
 cull = { path = "../cull" }
 library = { path = "../library" }
+import-lrcat = { path = "../import-lrcat" }
+color-mgmt = { path = "../color-mgmt" }
 image-core = { path = "../image-core" }
 pipeline-cpu = { path = "../pipeline-cpu" }
 pipeline-gpu = { path = "../pipeline-gpu" }
@@ -25,13 +27,15 @@ anyhow.workspace = true
 blake3.workspace = true
 uniffi = { workspace = true, features = ["cli"] }
 rusqlite.workspace = true
+serde.workspace = true
 serde_json.workspace = true
+tempfile.workspace = true
 thiserror.workspace = true
 image.workspace = true
 kamadak-exif.workspace = true
 
 [dev-dependencies]
-tempfile.workspace = true
+import-lrcat = { path = "../import-lrcat", features = ["fixture"] }
 
 [[bin]]
 name = "uniffi-bindgen"

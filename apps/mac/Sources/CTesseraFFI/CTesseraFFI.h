@@ -285,6 +285,13 @@ typedef void (*UniffiCallbackInterfaceMaskListenerMethod1)(uint64_t, RustBuffer,
     );
 
 #endif
+#ifndef UNIFFI_FFIDEF_CALLBACK_INTERFACE_LRCAT_PROGRESS_LISTENER_METHOD0
+#define UNIFFI_FFIDEF_CALLBACK_INTERFACE_LRCAT_PROGRESS_LISTENER_METHOD0
+typedef void (*UniffiCallbackInterfaceLrcatProgressListenerMethod0)(uint64_t, RustBuffer, void* _Nonnull, 
+        RustCallStatus *_Nonnull uniffiCallStatus
+    );
+
+#endif
 #ifndef UNIFFI_FFIDEF_V_TABLE_CALLBACK_INTERFACE_ENGINE_EVENT_LISTENER
 #define UNIFFI_FFIDEF_V_TABLE_CALLBACK_INTERFACE_ENGINE_EVENT_LISTENER
 typedef struct UniffiVTableCallbackInterfaceEngineEventListener {
@@ -313,6 +320,15 @@ typedef struct UniffiVTableCallbackInterfaceMaskListener {
     UniffiCallbackInterfaceMaskListenerMethod0 _Nonnull overlayReady;
     UniffiCallbackInterfaceMaskListenerMethod1 _Nonnull aiProgress;
 } UniffiVTableCallbackInterfaceMaskListener;
+
+#endif
+#ifndef UNIFFI_FFIDEF_V_TABLE_CALLBACK_INTERFACE_LRCAT_PROGRESS_LISTENER
+#define UNIFFI_FFIDEF_V_TABLE_CALLBACK_INTERFACE_LRCAT_PROGRESS_LISTENER
+typedef struct UniffiVTableCallbackInterfaceLrcatProgressListener {
+    UniffiCallbackInterfaceFree _Nonnull uniffiFree;
+    UniffiCallbackInterfaceClone _Nonnull uniffiClone;
+    UniffiCallbackInterfaceLrcatProgressListenerMethod0 _Nonnull onProgress;
+} UniffiVTableCallbackInterfaceLrcatProgressListener;
 
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_CLONE_ENGINE
@@ -373,6 +389,11 @@ uint64_t uniffi_tessera_ffi_fn_method_engine_open_library(uint64_t ptr, RustBuff
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_OPEN_DEVELOP_SESSION
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_OPEN_DEVELOP_SESSION
 uint64_t uniffi_tessera_ffi_fn_method_engine_open_develop_session(uint64_t ptr, RustBuffer image_id, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_OPEN_LRCAT
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_OPEN_LRCAT
+uint64_t uniffi_tessera_ffi_fn_method_engine_open_lrcat(uint64_t ptr, RustBuffer path, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_OPEN_CULL_SESSION
@@ -845,6 +866,66 @@ void uniffi_tessera_ffi_fn_method_masklistener_overlay_ready(uint64_t ptr, RustB
 void uniffi_tessera_ffi_fn_method_masklistener_ai_progress(uint64_t ptr, RustBuffer update, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_CLONE_LRCATIMPORT
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_CLONE_LRCATIMPORT
+uint64_t uniffi_tessera_ffi_fn_clone_lrcatimport(uint64_t handle, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_FREE_LRCATIMPORT
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_FREE_LRCATIMPORT
+void uniffi_tessera_ffi_fn_free_lrcatimport(uint64_t handle, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_LRCATIMPORT_APPLY
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_LRCATIMPORT_APPLY
+RustBuffer uniffi_tessera_ffi_fn_method_lrcatimport_apply(uint64_t ptr, RustBuffer options, RustBuffer listener, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_LRCATIMPORT_CANCEL
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_LRCATIMPORT_CANCEL
+void uniffi_tessera_ffi_fn_method_lrcatimport_cancel(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_LRCATIMPORT_DEFAULT_OPTIONS
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_LRCATIMPORT_DEFAULT_OPTIONS
+RustBuffer uniffi_tessera_ffi_fn_method_lrcatimport_default_options(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_LRCATIMPORT_PLAN
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_LRCATIMPORT_PLAN
+RustBuffer uniffi_tessera_ffi_fn_method_lrcatimport_plan(uint64_t ptr, RustBuffer options, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_LRCATIMPORT_SUMMARY
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_LRCATIMPORT_SUMMARY
+RustBuffer uniffi_tessera_ffi_fn_method_lrcatimport_summary(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_LRCATIMPORT_FIDELITY_SAMPLE
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_LRCATIMPORT_FIDELITY_SAMPLE
+RustBuffer uniffi_tessera_ffi_fn_method_lrcatimport_fidelity_sample(uint64_t ptr, RustBuffer options, uint32_t n, uint32_t thumb_px, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_CLONE_LRCATPROGRESSLISTENER
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_CLONE_LRCATPROGRESSLISTENER
+uint64_t uniffi_tessera_ffi_fn_clone_lrcatprogresslistener(uint64_t handle, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_FREE_LRCATPROGRESSLISTENER
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_FREE_LRCATPROGRESSLISTENER
+void uniffi_tessera_ffi_fn_free_lrcatprogresslistener(uint64_t handle, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_INIT_CALLBACK_VTABLE_LRCATPROGRESSLISTENER
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_INIT_CALLBACK_VTABLE_LRCATPROGRESSLISTENER
+void uniffi_tessera_ffi_fn_init_callback_vtable_lrcatprogresslistener(const UniffiVTableCallbackInterfaceLrcatProgressListener* _Nonnull vtable
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_LRCATPROGRESSLISTENER_ON_PROGRESS
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_LRCATPROGRESSLISTENER_ON_PROGRESS
+void uniffi_tessera_ffi_fn_method_lrcatprogresslistener_on_progress(uint64_t ptr, RustBuffer progress, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_CLONE_CULLSESSION
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_CLONE_CULLSESSION
 uint64_t uniffi_tessera_ffi_fn_clone_cullsession(uint64_t handle, RustCallStatus *_Nonnull out_status
@@ -1043,6 +1124,11 @@ RustBuffer uniffi_tessera_ffi_fn_method_cullsession_toggle_basket(uint64_t ptr, 
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_UNDO
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_UNDO
 RustBuffer uniffi_tessera_ffi_fn_method_cullsession_undo(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_FUNC_INSPECT_LRCAT
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_FUNC_INSPECT_LRCAT
+RustBuffer uniffi_tessera_ffi_fn_func_inspect_lrcat(RustBuffer path, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_FFI_TESSERA_FFI_RUSTBUFFER_ALLOC
@@ -1305,6 +1391,12 @@ void ffi_tessera_ffi_rust_future_free_void(uint64_t handle
 void ffi_tessera_ffi_rust_future_complete_void(uint64_t handle, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_FUNC_INSPECT_LRCAT
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_FUNC_INSPECT_LRCAT
+uint16_t uniffi_tessera_ffi_checksum_func_inspect_lrcat(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_EMBEDDED_PREVIEW
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_EMBEDDED_PREVIEW
 uint16_t uniffi_tessera_ffi_checksum_method_engine_embedded_preview(void
@@ -1356,6 +1448,12 @@ uint16_t uniffi_tessera_ffi_checksum_method_engine_open_library(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_OPEN_DEVELOP_SESSION
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_OPEN_DEVELOP_SESSION
 uint16_t uniffi_tessera_ffi_checksum_method_engine_open_develop_session(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_OPEN_LRCAT
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_OPEN_LRCAT
+uint16_t uniffi_tessera_ffi_checksum_method_engine_open_lrcat(void
     
 );
 #endif
@@ -1842,6 +1940,48 @@ uint16_t uniffi_tessera_ffi_checksum_method_masklistener_overlay_ready(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_MASKLISTENER_AI_PROGRESS
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_MASKLISTENER_AI_PROGRESS
 uint16_t uniffi_tessera_ffi_checksum_method_masklistener_ai_progress(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_LRCATIMPORT_APPLY
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_LRCATIMPORT_APPLY
+uint16_t uniffi_tessera_ffi_checksum_method_lrcatimport_apply(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_LRCATIMPORT_CANCEL
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_LRCATIMPORT_CANCEL
+uint16_t uniffi_tessera_ffi_checksum_method_lrcatimport_cancel(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_LRCATIMPORT_DEFAULT_OPTIONS
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_LRCATIMPORT_DEFAULT_OPTIONS
+uint16_t uniffi_tessera_ffi_checksum_method_lrcatimport_default_options(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_LRCATIMPORT_PLAN
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_LRCATIMPORT_PLAN
+uint16_t uniffi_tessera_ffi_checksum_method_lrcatimport_plan(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_LRCATIMPORT_SUMMARY
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_LRCATIMPORT_SUMMARY
+uint16_t uniffi_tessera_ffi_checksum_method_lrcatimport_summary(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_LRCATIMPORT_FIDELITY_SAMPLE
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_LRCATIMPORT_FIDELITY_SAMPLE
+uint16_t uniffi_tessera_ffi_checksum_method_lrcatimport_fidelity_sample(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_LRCATPROGRESSLISTENER_ON_PROGRESS
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_LRCATPROGRESSLISTENER_ON_PROGRESS
+uint16_t uniffi_tessera_ffi_checksum_method_lrcatprogresslistener_on_progress(void
     
 );
 #endif
