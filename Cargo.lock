@@ -1026,6 +1026,8 @@ dependencies = [
  "image",
  "jpeg-encoder",
  "lcms2",
+ "ml-enhance",
+ "ml-runtime",
  "pipeline-cpu",
  "png 0.17.16",
  "rayon",
@@ -1866,6 +1868,16 @@ dependencies = [
  "sha2",
  "tempfile",
  "tokenizers",
+]
+
+[[package]]
+name = "ml-enhance"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "engine-api",
+ "ml-runtime",
+ "tempfile",
 ]
 
 [[package]]

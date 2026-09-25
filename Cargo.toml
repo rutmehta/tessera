@@ -16,6 +16,7 @@ members = [
     "crates/cull",
     "crates/ml-runtime",
     "crates/ml-embed",
+    "crates/ml-enhance",
     "crates/ml-faces",
     "crates/ml-quality",
     "crates/jobs",

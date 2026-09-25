@@ -7,6 +7,8 @@ license = "Apache-2.0"
 [dependencies]
 engine-api = { path = "../engine-api" }
 pipeline-cpu = { path = "../pipeline-cpu" }
+ml-enhance = { path = "../ml-enhance" }
+ml-runtime = { path = "../ml-runtime" }
 sidecar = { path = "../sidecar" }
 image = { workspace = true }
 lcms2 = { workspace = true }

@@ -16,7 +16,7 @@ mod lens_resolve;
 mod optics;
 mod render;
 mod upright;
-pub use display::{SigmoidSettings, display, sigmoid, srgb_oetf};
+pub use display::{SigmoidSettings, display, display_float, sigmoid, srgb_oetf};
 pub use image::Image;
 pub use lens_resolve::{CorrectionSource, LensContext, ResolvedLens, resolve_lens};
 pub use render::{

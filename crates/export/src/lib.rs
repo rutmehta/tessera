@@ -91,6 +91,35 @@ fn render_full(image: &ExportImage<'_>, recipe: &Recipe) -> EngineResult<image::
     )
 }
 
+/// Enhancement input remains float through the display transform. Keep the
+/// legacy renderer above for byte-identical enhance-off exports.
+fn render_full_float(image: &ExportImage<'_>, recipe: &Recipe) -> EngineResult<image::Rgb32FImage> {
+    let rgb = pipeline_cpu::render_linear_scaled(&recipe.settings, &image.source, 1)?;
+    let mut out = image::Rgb32FImage::new(rgb.width(), rgb.height());
+    for coord in rgb.coords() {
+        let tile = pipeline_cpu::display_float(
+            &rgb.tile(coord, 0, 1)?,
+            pipeline_cpu::SigmoidSettings::default(),
+            recipe.settings.output.gamut_mapping,
+        )?;
+        let layout = tile.layout();
+        let n = layout.plane_len();
+        let data = tile.samples::<f32>()?;
+        let (ox, oy) = coord.pixel_origin(engine_api::tile::TILE_SIZE);
+        for y in 0..layout.extent.height {
+            for x in 0..layout.extent.width {
+                let i = (y * layout.extent.width + x) as usize;
+                out.put_pixel(
+                    ox + x,
+                    oy + y,
+                    image::Rgb([data[i], data[n + i], data[2 * n + i]]),
+                );
+            }
+        }
+    }
+    Ok(out)
+}
+
 fn encode_error(e: impl std::fmt::Display) -> EngineError {
     EngineError::invalid("export", e.to_string())
 }
@@ -109,6 +138,30 @@ fn prepare(
     recipe: &Recipe,
     settings: &ExportSettings,
     cancel: &CancellationToken,
+) -> EngineResult<PreparedExport> {
+    prepare_enhanced(image, recipe, settings, cancel, None)
+}
+
+/// Export with an explicitly loaded x2/x4 model, before resize and output
+/// sharpening. Existing export settings and the enhance-off path are unchanged.
+/// Loading/downloading weights is the caller's responsibility, never an
+/// implicit effect of an ordinary export.
+pub fn export_one_upscaled(
+    image: &ExportImage<'_>,
+    recipe: &Recipe,
+    settings: &ExportSettings,
+    upscale: &mut ml_enhance::SuperResolution,
+) -> EngineResult<PathBuf> {
+    let cancel = CancellationToken::new();
+    prepare_enhanced(image, recipe, settings, &cancel, Some(upscale))?.commit(&cancel)
+}
+
+fn prepare_enhanced(
+    image: &ExportImage<'_>,
+    recipe: &Recipe,
+    settings: &ExportSettings,
+    cancel: &CancellationToken,
+    upscale: Option<&mut ml_enhance::SuperResolution>,
 ) -> EngineResult<PreparedExport> {
     cancel.check()?;
     recipe.validate()?;
@@ -130,7 +183,13 @@ fn prepare(
     {
         return Err(EngineError::invalid("output", "destination already exists"));
     }
-    let rgb = render_full(image, recipe)?;
+    let rgb = if let Some(upscale) = upscale {
+        let rgb = render_full_float(image, recipe)?;
+        cancel.check()?;
+        upscale_rgb(rgb, upscale)?
+    } else {
+        render_full(image, recipe)?
+    };
     cancel.check()?;
     let rgb = filter::resize(rgb, settings.resize, cancel)?;
     let rgb = filter::sharpen(rgb, settings.sharpen_for, cancel)?;
@@ -164,6 +223,40 @@ fn prepare(
         path,
         side_path,
     })
+}
+
+fn upscale_rgb(
+    rgb: image::Rgb32FImage,
+    model: &mut ml_enhance::SuperResolution,
+) -> EngineResult<image::Rgb32FImage> {
+    let (width, height) = rgb.dimensions();
+    let factor = u32::try_from(model.factor()).map_err(encode_error)?;
+    let out_width = width
+        .checked_mul(factor)
+        .ok_or_else(|| encode_error("upscale width overflow"))?;
+    let out_height = height
+        .checked_mul(factor)
+        .ok_or_else(|| encode_error("upscale height overflow"))?;
+    let mut planar = Vec::with_capacity(rgb.as_raw().len());
+    for c in 0..3 {
+        planar.extend(rgb.pixels().map(|p| p[c]));
+    }
+    let input = ml_runtime::Tensor::new(3, height as usize, width as usize, planar)
+        .map_err(encode_error)?;
+    let output = model
+        .super_resolution(&input, model.factor())
+        .map_err(encode_error)?;
+    let n = output.data().len() / 3;
+    Ok(image::Rgb32FImage::from_fn(
+        out_width,
+        out_height,
+        |x, y| {
+            let i = y as usize * out_width as usize + x as usize;
+            image::Rgb(std::array::from_fn(|c| {
+                output.data()[c * n + i].clamp(0.0, 1.0)
+            }))
+        },
+    ))
 }
 
 struct PreparedExport {
@@ -274,6 +367,28 @@ pub fn filename(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn enhancement_render_does_not_quantize_model_input() {
+        let pixels = pipeline_cpu::Image::new(8, 6, vec![vec![0.18; 48]; 3]).unwrap();
+        let image = super::ExportImage {
+            source: pipeline_cpu::RenderSource::Rgb(&pixels),
+            name: "float",
+            sequence: 1,
+            date: "20260925",
+            metadata: None,
+        };
+        let output = super::render_full_float(&image, &Default::default()).unwrap();
+        assert_eq!(output.dimensions(), (8, 6));
+        assert!(
+            output
+                .as_raw()
+                .iter()
+                .any(|v| (v * 255.0 - (v * 255.0).round()).abs() > 0.01)
+        );
+        // No ordered dither should be injected ahead of the restoration net.
+        assert!(output.pixels().all(|p| p == output.get_pixel(0, 0)));
+    }
+
     #[test]
     fn naming_tokens_and_path_safety() {
         assert_eq!(

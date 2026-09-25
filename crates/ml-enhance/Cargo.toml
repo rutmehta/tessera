@@ -1,0 +1,13 @@
+[package]
+name = "ml-enhance"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+
+[dependencies]
+anyhow.workspace = true
+engine-api = { path = "../engine-api" }
+ml-runtime = { path = "../ml-runtime" }
+
+[dev-dependencies]
+tempfile.workspace = true
