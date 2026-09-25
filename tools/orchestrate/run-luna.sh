@@ -6,15 +6,16 @@ usage(){ echo "Usage: run-luna.sh <wp-id> [--model MODEL] [--test CMD] [--max-at
 WP=$1; shift
 MODEL=gpt-6-luna; TEST_CMD=; MAX=3; PATHS='tools/orchestrate/wp/'"$WP"'/**'
 while [[ $# -gt 0 ]]; do case "$1" in --model) MODEL=$2; shift 2;; --test) TEST_CMD=$2; shift 2;; --max-attempts) MAX=$2; shift 2;; --paths) PATHS=$2; shift 2;; *) usage;; esac; done
+export CARGO_TARGET_DIR="$HOME/.cache/photo-engine-target/$WP"; mkdir -p "$CARGO_TARGET_DIR"
 BASE="$ROOT/tools/orchestrate/wp/$WP"; BRIEF="$BASE/brief.md"; WT="$ROOT/.worktrees/$WP"
 [[ -f $BRIEF ]] || { echo "Missing $BRIEF" >&2; exit 2; }
 mkdir -p "$BASE/attempts"
 if [[ ! -d $WT ]]; then mkdir -p "$ROOT/.worktrees"; git -C "$ROOT" worktree add -b "wp/$WP" "$WT" main; fi
 python3 - "$BRIEF" "$BASE/prompt.txt" "$WT" "$PATHS" "$TEST_CMD" <<'PY'
-import pathlib,sys
+import pathlib,sys,os
 brief,out,wt,paths,test=sys.argv[1:]
 t=pathlib.Path(brief).read_text()
-p=f'''You are implementing work package {pathlib.Path(brief).parent.name}. Work only inside the worktree at {wt}. Only touch allowed paths matching: {paths}. Run this test command yourself before finishing: {test or '(no test command supplied)'}. Finish by printing a line RESULT: PASS or RESULT: FAIL <reason>.\n\n{t}'''
+p=f'''You are implementing work package {pathlib.Path(brief).parent.name}. Work only inside the worktree at {wt}. Only touch allowed paths matching: {paths}. IMPORTANT: the repo path contains a colon, which breaks cargo on macOS unless CARGO_TARGET_DIR points outside the repo. It is already exported in your environment as {os.environ.get('CARGO_TARGET_DIR','')}; keep it set for every cargo command (never build into ./target, never commit target/). Run this test command yourself before finishing: {test or '(no test command supplied)'}. Finish by printing a line RESULT: PASS or RESULT: FAIL <reason>.\n\n{t}'''
 pathlib.Path(out).write_text(p)
 PY
 status=fail; last_exit=0; violations=(); previous=''
