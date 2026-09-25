@@ -84,42 +84,56 @@ impl Default for ExportSettings {
     }
 }
 
-/// The only renderer integration point. M1 returns display-encoded sRGB8;
-/// a future Renderer adapter can return higher precision pixels here.
-fn render_full(image: &ExportImage<'_>, recipe: &Recipe) -> EngineResult<image::Rgb32FImage> {
-    Ok(
-        image::DynamicImage::ImageRgb8(pipeline_cpu::render(&recipe.settings, &image.source)?)
-            .into_rgb32f(),
-    )
+/// Render directly to the document profile in float, without an sRGB intermediate.
+fn render_full(
+    image: &ExportImage<'_>,
+    recipe: &Recipe,
+    space: ColorSpace,
+) -> EngineResult<image::Rgb32FImage> {
+    let mut registry = color_mgmt::Registry::new();
+    let target = codec::profile(&mut registry, space)?;
+    let mut settings = recipe.settings.clone();
+    // Proofing is a display-only preview, never baked into a file export.
+    settings.output.proof_profile = None;
+    Ok(pipeline_cpu::render_managed_scaled(
+        &settings,
+        &image.source,
+        1,
+        &mut pipeline_cpu::OutputContext {
+            registry: &mut registry,
+            target: pipeline_cpu::OutputTarget::Export(&target),
+            proof: None,
+            options: color_mgmt::TransformOptions::default(),
+        },
+    )?
+    .pixels)
 }
 
-/// Enhancement input remains float through the display transform. Keep the
-/// legacy renderer above for byte-identical enhance-off exports.
+/// Enhancement input is tone-mapped linear Rec.2020, never encoded sRGB.
 fn render_full_float(image: &ExportImage<'_>, recipe: &Recipe) -> EngineResult<image::Rgb32FImage> {
-    let rgb = pipeline_cpu::render_linear_scaled(&recipe.settings, &image.source, 1)?;
-    let mut out = image::Rgb32FImage::new(rgb.width(), rgb.height());
-    for coord in rgb.coords() {
-        let tile = pipeline_cpu::display_float(
-            &rgb.tile(coord, 0, 1)?,
-            pipeline_cpu::SigmoidSettings::default(),
-            recipe.settings.output.gamut_mapping,
-        )?;
-        let layout = tile.layout();
-        let n = layout.plane_len();
-        let data = tile.samples::<f32>()?;
-        let (ox, oy) = coord.pixel_origin(engine_api::tile::TILE_SIZE);
-        for y in 0..layout.extent.height {
-            for x in 0..layout.extent.width {
-                let i = (y * layout.extent.width + x) as usize;
-                out.put_pixel(
-                    ox + x,
-                    oy + y,
-                    image::Rgb([data[i], data[n + i], data[2 * n + i]]),
-                );
-            }
-        }
-    }
-    Ok(out)
+    pipeline_cpu::render_output_linear_scaled(&recipe.settings, &image.source, 1)
+}
+
+fn encode_output_profile(
+    rgb: image::Rgb32FImage,
+    recipe: &Recipe,
+    space: ColorSpace,
+) -> EngineResult<image::Rgb32FImage> {
+    let mut registry = color_mgmt::Registry::new();
+    let target = codec::profile(&mut registry, space)?;
+    let mut settings = recipe.settings.clone();
+    settings.output.proof_profile = None;
+    Ok(pipeline_cpu::output_managed_linear(
+        &settings,
+        rgb,
+        &mut pipeline_cpu::OutputContext {
+            registry: &mut registry,
+            target: pipeline_cpu::OutputTarget::Export(&target),
+            proof: None,
+            options: color_mgmt::TransformOptions::default(),
+        },
+    )?
+    .pixels)
 }
 
 fn encode_error(e: impl std::fmt::Display) -> EngineError {
@@ -188,9 +202,9 @@ fn prepare_enhanced(
     let rgb = if let Some(upscale) = upscale {
         let rgb = render_full_float(image, recipe)?;
         cancel.check()?;
-        upscale_rgb(rgb, upscale)?
+        encode_output_profile(upscale_rgb(rgb, upscale)?, recipe, settings.color_space)?
     } else {
-        render_full(image, recipe)?
+        render_full(image, recipe, settings.color_space)?
     };
     cancel.check()?;
     let rgb = filter::resize(rgb, settings.resize, cancel)?;
@@ -241,7 +255,9 @@ fn upscale_rgb(
         .ok_or_else(|| encode_error("upscale height overflow"))?;
     let mut planar = Vec::with_capacity(rgb.as_raw().len());
     for c in 0..3 {
-        planar.extend(rgb.pixels().map(|p| p[c]));
+        // The restoration model requires bounded input. Clip only at its
+        // linear Rec.2020 boundary, not through an intermediate sRGB gamut.
+        planar.extend(rgb.pixels().map(|p| p[c].clamp(0.0, 1.0)));
     }
     let input = ml_runtime::Tensor::new(3, height as usize, width as usize, planar)
         .map_err(encode_error)?;
@@ -389,6 +405,44 @@ mod tests {
         );
         // No ordered dither should be injected ahead of the restoration net.
         assert!(output.pixels().all(|p| p == output.get_pixel(0, 0)));
+        // Middle grey stays linear, rather than being sRGB-encoded before SR.
+        assert!((output.get_pixel(0, 0)[0] - 0.18).abs() < 1e-5);
+    }
+
+    #[test]
+    fn enhancement_output_matches_managed_render_for_every_profile() {
+        use super::*;
+        let pixels =
+            pipeline_cpu::Image::new(8, 6, vec![vec![0.4; 48], vec![0.1; 48], vec![0.02; 48]])
+                .unwrap();
+        let image = ExportImage {
+            source: RenderSource::Rgb(&pixels),
+            name: "managed",
+            sequence: 1,
+            date: "",
+            metadata: None,
+        };
+        let mut recipe = Recipe::default();
+        // Both export paths ignore a display-only proof, even if unresolved.
+        recipe.settings.output.proof_profile = Some(
+            engine_api::color::IccProfileHandle::from_profile_bytes(b"display-only proof"),
+        );
+        let linear = render_full_float(&image, &recipe).unwrap();
+        let mut outputs = Vec::new();
+        for space in [
+            ColorSpace::Srgb,
+            ColorSpace::DisplayP3,
+            ColorSpace::Rec2020,
+            ColorSpace::ProPhoto,
+        ] {
+            let direct = render_full(&image, &recipe, space).unwrap();
+            // Stand in for an identity enhancement to isolate the boundary:
+            // no second tone curve, no intermediate sRGB, no double encoding.
+            let enhanced = encode_output_profile(linear.clone(), &recipe, space).unwrap();
+            assert_eq!(direct, enhanced);
+            outputs.push(enhanced);
+        }
+        assert!(outputs.windows(2).all(|pair| pair[0] != pair[1]));
     }
 
     #[test]

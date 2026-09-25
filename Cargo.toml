@@ -1,6 +1,8 @@
 [workspace]
 resolver = "2"
 members = [
+    "crates/merge",
+    "crates/color-mgmt",
     "crates/lens",
     "crates/export",
     "crates/image-core",
@@ -19,6 +21,8 @@ members = [
     "crates/ml-enhance",
     "crates/ml-faces",
     "crates/ml-quality",
+    "crates/ml-segment",
+    "crates/ml-depth",
     "crates/jobs",
     "crates/engine-api",
     "crates/tessera-ffi",

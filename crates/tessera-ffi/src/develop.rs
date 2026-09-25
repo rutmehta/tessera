@@ -20,6 +20,22 @@
 //! interactive drag on a screen level above [`DRAG_BUDGET_PX`] the session
 //! renders one level coarser; `commit` (mouse-up) refines to the screen level.
 //!
+//! # Develop panels (M2-13)
+//!
+//! [`renderable`] passes Basic, Detail, tone curves, HSL, grading, post-crop
+//! effects and crop/straighten, sanitized so a recipe can never fail a render.
+//! A crop changes the output extent: frames report the cropped picture as
+//! `display_width × display_height` (top-left in the uncropped-size surface).
+//! Interactive renders adapt their level per [`RenderClass`] to keep frames
+//! within [`INTERACTIVE_BUDGET_MS`] (heavy M2 operators run on the whole-level
+//! chain, so they drag at a proxy level), and a drag queues behind its
+//! in-flight frame instead of cancelling it, so slow frames still show
+//! progress. The crop tool renders the whole frame (`set_crop_editing`); the
+//! masking preview draws the sharpening gate (`set_masking_preview`); a 1:1
+//! crop renders into its own surface (`render_detail_preview`); history steps
+//! can be checked out or toggled off/on (`history_items`,
+//! `checkout_history`, `set_history_step_enabled`).
+//!
 //! # History and persistence
 //!
 //! `set_settings` changes only the live state. `commit` records one
@@ -30,12 +46,20 @@
 //! previews keyed by the new recipe hash.
 
 use crate::{Engine, Result, catalog, failure, now_ms, parse_id, surface::Surface};
+
+#[path = "masks.rs"]
+mod masks;
 use engine_api::{
     color::ColorMatrix3,
+    id::{HistoryEntryId, ImageId},
     jobs::{Job, JobContext, JobHandle, Priority, Scheduler},
     recipe::{
         DevelopSettings, EditMeta, Recipe,
-        settings::{DemosaicMethod, DisplayTransform, HighlightReconstruction, WhiteBalanceMode},
+        history::{Author, HistoryEntry, apply_change},
+        settings::{
+            Curve, DemosaicMethod, DisplayTransform, GradeWheel, HighlightReconstruction, HueBands,
+            ParametricCurve, WhiteBalanceMode,
+        },
     },
     stage::StageId,
     tile::{TILE_SIZE, Tile},
@@ -43,6 +67,8 @@ use engine_api::{
 use image_core::{
     PixelRect, ProgressiveRenderJob, RawImage, RenderOutput, Renderer, Viewport, render::MAX_LEVEL,
 };
+pub(crate) use masks::SegmenterSlot;
+pub use masks::*;
 use serde_json::Value;
 use std::{
     path::{Path, PathBuf},
@@ -57,6 +83,10 @@ use std::{
 /// Interactive drags on screen levels larger than this render one level
 /// coarser until the drag is committed.
 pub const DRAG_BUDGET_PX: u64 = 4_200_000;
+/// Interactive frames should land within one display refresh.
+pub const INTERACTIVE_BUDGET_MS: f64 = 16.0;
+/// At most this many levels coarser than the screen level while dragging.
+const MAX_DRAG_OFFSET: u8 = 4;
 /// Quiet period after the last history change before sidecars are written.
 pub const SAVE_DEBOUNCE: Duration = Duration::from_millis(400);
 
@@ -100,6 +130,45 @@ pub struct FrameInfo {
     pub generation: u64,
     /// Earliest pipeline stage the change invalidated, if any.
     pub dirty_stage: Option<String>,
+    /// Size of the whole picture at the render's finest level: the cropped
+    /// output extent (the level extent when uncropped or in the crop tool).
+    /// Hosts aspect-fit this, not the surface, so crops display correctly.
+    pub display_width: u32,
+    pub display_height: u32,
+    /// The frame shows a diagnostic overlay (e.g. the sharpening mask), not
+    /// the developed image; it has no histogram of its own.
+    pub is_overlay: bool,
+}
+
+/// One step of the develop history, as shown in the History panel.
+#[derive(Clone, Debug, PartialEq, uniffi::Record)]
+pub struct HistoryItem {
+    pub id: u64,
+    pub label: String,
+    /// "user", "agent:<name>", "import:<source>", "preset:<style>" or "sync:<image>".
+    pub author: String,
+    /// Named group (e.g. one agent run), if any.
+    pub group: Option<String>,
+    pub timestamp_ms: i64,
+    /// On the path from the base to the current state (false: undone steps
+    /// that redo would reapply).
+    pub applied: bool,
+    pub is_head: bool,
+    /// False when the step has been turned off with a step toggle.
+    pub enabled: bool,
+    /// The step is itself a toggle of another step (shown as such, not toggleable).
+    pub toggles: Option<u64>,
+}
+
+/// A rendered 1:1 detail crop.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, uniffi::Record)]
+pub struct DetailPreview {
+    /// Top-left of the crop in level-0 active-area pixels (sensor orientation).
+    pub x: u32,
+    pub y: u32,
+    /// Pixels written, anchored top-left in the surface.
+    pub width: u32,
+    pub height: u32,
 }
 
 /// 256-bin histograms of the displayed (sRGB-encoded) frame.
@@ -173,6 +242,92 @@ struct State {
     histogram: Histogram,
     frame: Option<Arc<Frame>>,
     closed: bool,
+    /// Crop tool active: render without geometry.
+    crop_editing: bool,
+    /// Show the sharpening edge mask instead of the image.
+    masking_preview: bool,
+    /// Levels coarser than the screen level that interactive renders of
+    /// each [`RenderClass`] use, adapted to the measured frame times.
+    drag: [DragLevel; 2],
+    /// Generation of the interactive render still in flight, if any.
+    interactive_in_flight: Option<u64>,
+    /// Interactive changes arrived while it ran: render the latest state
+    /// when it completes instead of cancelling it (no starvation when a
+    /// frame takes longer than the host's change cadence).
+    interactive_pending: bool,
+    /// Brush stroke in progress.
+    masks: masks::MaskState,
+}
+
+/// Settings whose interactive cost differs by an order of magnitude: the
+/// light class stays on the fused (GPU-resident) path; heavy settings use
+/// the whole-level M2 operator chain.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum RenderClass {
+    Light = 0,
+    Heavy = 1,
+}
+
+impl RenderClass {
+    fn of(s: &DevelopSettings) -> Self {
+        let t = &s.tone;
+        if s.color == Default::default()
+            && s.effects == Default::default()
+            && s.geometry == Default::default()
+            && t.texture == 0.0
+            && t.clarity == 0.0
+            && t.dehaze == 0.0
+            && t.curves == Default::default()
+            && s.locals.adjustments.is_empty()
+        {
+            Self::Light
+        } else {
+            Self::Heavy
+        }
+    }
+}
+
+/// Adaptive interactive level of one render class: the offset below the
+/// screen level and a smoothed frame time measured at that offset.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+struct DragLevel {
+    offset: u8,
+    ms: Option<f64>,
+}
+
+impl DragLevel {
+    const fn starting_at(offset: u8) -> Self {
+        Self { offset, ms: None }
+    }
+
+    /// Records an interactive frame: coarser when the smoothed time is over
+    /// the budget, finer only when the next finer level (several times the
+    /// pixels, plus fixed costs) is expected to fit.
+    fn record(&mut self, ms: f64) {
+        let smoothed = self.ms.map_or(ms, |m| 0.6 * m + 0.4 * ms);
+        let next = if smoothed > INTERACTIVE_BUDGET_MS {
+            (self.offset + 1).min(MAX_DRAG_OFFSET)
+        } else if smoothed * 2.5 < INTERACTIVE_BUDGET_MS {
+            self.offset.saturating_sub(1)
+        } else {
+            self.offset
+        };
+        *self = if next == self.offset {
+            Self {
+                offset: next,
+                ms: Some(smoothed),
+            }
+        } else {
+            Self::starting_at(next)
+        };
+    }
+}
+
+impl State {
+    /// Settings the viewport draws for the live state.
+    fn drawn(&self) -> DevelopSettings {
+        renderable_with(&self.live, !self.crop_editing)
+    }
 }
 
 /// Advances only after presentation; cancelled work keeps its unpresented slot.
@@ -221,6 +376,11 @@ pub(crate) struct Shared {
     save: Mutex<SaveState>,
     save_cv: Condvar,
     file_hash: OnceLock<std::result::Result<blake3::Hasher, String>>,
+    /// Scene-linear luminance feeding Detail at one level, for the masking
+    /// preview (recomputed only when upstream settings or the level change).
+    mask_source: Mutex<Option<Arc<MaskSource>>>,
+    /// Local-adjustment masks: AI rasters, overlay, observed rasters.
+    masks: Arc<masks::MaskShared>,
 }
 
 #[derive(uniffi::Object)]
@@ -231,10 +391,20 @@ pub struct DevelopSession {
 
 // ─────────────────────────── settings helpers ───────────────────────────
 
-/// The supported Basic controls; every other field keeps its native defaults.
-/// Unsupported settings stay in the recipe and XMP
-/// but are not drawn; see [`ignored_settings`].
+/// The controls this pipeline renders: Basic, Detail, tone curves, HSL,
+/// grading, post-crop effects and crop/straighten. Values are sanitized to
+/// the operators' declared ranges so a hand-edited or imported recipe can
+/// never fail a render: invalid curves or split points fall back to
+/// identity/defaults. Every other field keeps its native defaults.
+/// Unsupported settings stay in the recipe and XMP but are not drawn; see
+/// [`ignored_settings`].
 pub fn renderable(s: &DevelopSettings) -> DevelopSettings {
+    renderable_with(s, true)
+}
+
+/// [`renderable`], optionally without geometry (the crop tool shows the
+/// whole, unrotated frame and draws the crop over it).
+pub fn renderable_with(s: &DevelopSettings, geometry: bool) -> DevelopSettings {
     let mut r = DevelopSettings::default();
     r.linearize.highlight_reconstruction = match s.linearize.highlight_reconstruction {
         m @ (HighlightReconstruction::Clip | HighlightReconstruction::ReconstructColor) => m,
@@ -265,14 +435,127 @@ pub fn renderable(s: &DevelopSettings) -> DevelopSettings {
         (&mut r.color.vibrance, s.color.vibrance),
         (&mut r.color.saturation, s.color.saturation),
     ] {
-        *dst = finite_or(src, 0.0).clamp(-100.0, 100.0);
+        *dst = bipolar(src);
     }
     r.tone.display_transform = match t.display_transform {
         d @ (DisplayTransform::Native | DisplayTransform::Sigmoid) => d,
         _ => r.tone.display_transform,
     };
+    // Tone curves.
+    let (pc, rc) = (&t.curves.parametric, &mut r.tone.curves.parametric);
+    rc.shadows = bipolar(pc.shadows);
+    rc.darks = bipolar(pc.darks);
+    rc.lights = bipolar(pc.lights);
+    rc.highlights = bipolar(pc.highlights);
+    let splits = [pc.shadow_split, pc.midtone_split, pc.highlight_split];
+    if splits.iter().all(|v| v.is_finite())
+        && 0.0 < splits[0]
+        && splits[0] < splits[1]
+        && splits[1] < splits[2]
+        && splits[2] < 100.0
+    {
+        (rc.shadow_split, rc.midtone_split, rc.highlight_split) = (splits[0], splits[1], splits[2]);
+    } else {
+        let d = ParametricCurve::default();
+        (rc.shadow_split, rc.midtone_split, rc.highlight_split) =
+            (d.shadow_split, d.midtone_split, d.highlight_split);
+    }
+    r.tone.curves.rgb = point_curve(&t.curves.rgb);
+    r.tone.curves.red = point_curve(&t.curves.red);
+    r.tone.curves.green = point_curve(&t.curves.green);
+    r.tone.curves.blue = point_curve(&t.curves.blue);
+    r.tone.curves.luminance = point_curve(&t.curves.luminance);
+    // HSL and colour grading.
+    let hsl = &s.color.hsl;
+    r.color.hsl.hue = bands(&hsl.hue);
+    r.color.hsl.saturation = bands(&hsl.saturation);
+    r.color.hsl.luminance = bands(&hsl.luminance);
+    let g = &s.color.grading;
+    let rg = &mut r.color.grading;
+    rg.shadows = wheel(&g.shadows);
+    rg.midtones = wheel(&g.midtones);
+    rg.highlights = wheel(&g.highlights);
+    rg.global = wheel(&g.global);
+    rg.blending = finite_or(g.blending, 50.0).clamp(0.0, 100.0);
+    rg.balance = bipolar(g.balance);
+    // Detail.
+    let (sh, rs) = (&s.detail.sharpening, &mut r.detail.sharpening);
+    rs.amount = finite_or(sh.amount, 40.0).clamp(0.0, 150.0);
+    rs.radius = finite_or(sh.radius, 1.0).clamp(0.5, 3.0);
+    rs.detail = unit(sh.detail, 25.0);
+    rs.masking = unit(sh.masking, 0.0);
+    let (nr, rn) = (&s.detail.noise_reduction, &mut r.detail.noise_reduction);
+    rn.luminance = unit(nr.luminance, 0.0);
+    rn.luminance_detail = unit(nr.luminance_detail, 50.0);
+    rn.luminance_contrast = unit(nr.luminance_contrast, 0.0);
+    rn.color = unit(nr.color, 25.0);
+    rn.color_detail = unit(nr.color_detail, 50.0);
+    rn.color_smoothness = unit(nr.color_smoothness, 50.0);
+    // Effects (lens blur is not in this pipeline).
+    let (v, rv) = (&s.effects.vignette, &mut r.effects.vignette);
+    rv.style = v.style;
+    rv.amount = bipolar(v.amount);
+    rv.midpoint = unit(v.midpoint, 50.0);
+    rv.roundness = bipolar(v.roundness);
+    rv.feather = unit(v.feather, 50.0);
+    rv.highlights = unit(v.highlights, 0.0);
+    let (gr, rgr) = (&s.effects.grain, &mut r.effects.grain);
+    rgr.amount = unit(gr.amount, 0.0);
+    rgr.size = unit(gr.size, 25.0);
+    rgr.roughness = unit(gr.roughness, 50.0);
+    // Crop and straighten; the aspect lock is a UI hint that draws nothing.
+    let crop = &s.geometry.crop;
+    if geometry && crop.rect.is_valid() && crop.angle.is_finite() && crop.angle.abs() <= 45.0 {
+        r.geometry.crop.rect = crop.rect;
+        r.geometry.crop.angle = crop.angle;
+    }
+
     r.output.gamut_mapping = s.output.gamut_mapping;
+    r.locals = masks::renderable_locals(&s.locals);
     r
+}
+
+fn bipolar(v: f32) -> f32 {
+    finite_or(v, 0.0).clamp(-100.0, 100.0)
+}
+
+fn unit(v: f32, default: f32) -> f32 {
+    finite_or(v, default).clamp(0.0, 100.0)
+}
+
+fn bands(b: &HueBands) -> HueBands {
+    HueBands {
+        red: bipolar(b.red),
+        orange: bipolar(b.orange),
+        yellow: bipolar(b.yellow),
+        green: bipolar(b.green),
+        aqua: bipolar(b.aqua),
+        blue: bipolar(b.blue),
+        purple: bipolar(b.purple),
+        magenta: bipolar(b.magenta),
+    }
+}
+
+fn wheel(w: &GradeWheel) -> GradeWheel {
+    GradeWheel {
+        hue: finite_or(w.hue, 0.0).rem_euclid(360.0),
+        saturation: unit(w.saturation, 0.0),
+        luminance: bipolar(w.luminance),
+    }
+}
+
+/// A point curve the operator accepts (finite knots in [0,1], strictly
+/// increasing x, nondecreasing y), or identity. Identity curves render as the
+/// empty default so they keep the fast path and a clean recipe hash.
+fn point_curve(c: &Curve) -> Curve {
+    let valid =
+        c.0.iter()
+            .all(|p| (0.0..=1.0).contains(&p.x) && (0.0..=1.0).contains(&p.y))
+            && c.0.windows(2).all(|w| w[0].x < w[1].x && w[0].y <= w[1].y);
+    if !valid || c.is_identity() {
+        return Curve::default();
+    }
+    c.clone()
 }
 
 fn finite_or(v: f32, default: f32) -> f32 {
@@ -281,7 +564,10 @@ fn finite_or(v: f32, default: f32) -> f32 {
 
 /// JSON pointers of settings present in `s` that the viewport does not render.
 pub fn ignored_settings(s: &DevelopSettings) -> Vec<String> {
-    let (Ok(a), Ok(b)) = (serde_json::to_value(s), serde_json::to_value(renderable(s))) else {
+    let mut drawn = renderable(s);
+    // The aspect lock is a crop-tool hint, not an undrawn setting.
+    drawn.geometry.crop.aspect = s.geometry.crop.aspect;
+    let (Ok(a), Ok(b)) = (serde_json::to_value(s), serde_json::to_value(drawn)) else {
         return Vec::new();
     };
     engine_api::recipe::history::diff(&b, &a)
@@ -353,6 +639,10 @@ impl Engine {
         let recipe = catalog::document(&path, id)?.recipe;
         let image = RawImage::open(id, &path)?;
         let (renderer, backend) = self.develop_renderer(&image);
+        let masks = masks::MaskShared::new(&image);
+        renderer
+            .mask_cache()
+            .set_hooks(Some(Arc::new(masks::Hooks(masks.clone()))));
         let screen_level = default_level(&image);
         let shared = Arc::new(Shared {
             engine: Arc::downgrade(&self),
@@ -374,6 +664,13 @@ impl Engine {
                 histogram: Histogram::default(),
                 frame: None,
                 closed: false,
+                crop_editing: false,
+                masking_preview: false,
+                // Heavy drags start coarser and adapt from there.
+                drag: [DragLevel::starting_at(0), DragLevel::starting_at(2)],
+                interactive_in_flight: None,
+                interactive_pending: false,
+                masks: Default::default(),
             }),
             render_serial: Mutex::new(()),
             generation: AtomicU64::new(0),
@@ -381,6 +678,8 @@ impl Engine {
             save: Mutex::new(SaveState::default()),
             save_cv: Condvar::new(),
             file_hash: OnceLock::new(),
+            mask_source: Mutex::new(None),
+            masks,
         });
         let writer = {
             let shared = shared.clone();
@@ -456,13 +755,40 @@ impl Shared {
         if st.closed {
             return;
         }
+        // A drag never cancels its own in-flight frame: the latest state
+        // follows as soon as it lands, so slow frames still show progress.
+        if interactive
+            && !st.masking_preview
+            && st.job.is_some()
+            && st.interactive_in_flight == Some(st.generation)
+        {
+            st.interactive_pending = true;
+            return;
+        }
+        st.interactive_pending = false;
         st.generation += 1;
         let generation = st.generation;
         self.generation.store(generation, Ordering::SeqCst);
         if let Some(job) = st.job.take() {
             job.cancel();
         }
-        let settings = renderable(&st.live);
+        if st.masking_preview {
+            // The overlay does not change `rendered`: leaving the preview
+            // re-renders the image from the same baseline.
+            let job = MaskJob {
+                shared: Arc::downgrade(self),
+                generation,
+                level: st.screen_level,
+                upstream: mask_upstream(&st.live),
+                masking: renderable(&st.live).detail.sharpening.masking,
+            };
+            if let Some(engine) = self.engine.upgrade() {
+                st.job = Some(engine.jobs.submit(Box::new(job), None));
+            }
+            return;
+        }
+        let settings = st.drawn();
+        masks::ensure_ai_jobs(self, &settings);
         let dirty = match &st.rendered {
             Some(prev) => prev.first_dirty_stage(&settings),
             None => Some(StageId::Decode),
@@ -470,8 +796,10 @@ impl Shared {
         st.rendered = Some(settings.clone());
         let target = st.screen_level;
         let area = self.image.level_extent(target).area();
-        let first = if interactive && area > DRAG_BUDGET_PX {
-            (target + 1).min(MAX_LEVEL)
+        let class = RenderClass::of(&settings);
+        let first = if interactive {
+            let budget = if area > DRAG_BUDGET_PX { 1 } else { 0 };
+            (target + st.drag[class as usize].offset.max(budget)).min(MAX_LEVEL)
         } else {
             target
         };
@@ -483,8 +811,10 @@ impl Shared {
         };
         let expected: Vec<(u8, usize)> = (finest..=first)
             .map(|l| {
-                let n = Renderer::tiles_for(&self.image, l, viewport.rect.at_level(l)).len();
-                (l, n)
+                let (cols, rows) = Renderer::output_extent(&self.image, &settings, l)
+                    .unwrap_or_else(|_| self.image.level_extent(l))
+                    .tile_grid(TILE_SIZE);
+                (l, (cols * rows) as usize)
             })
             .collect();
         let surface = Arc::new(Mutex::new(None));
@@ -499,6 +829,8 @@ impl Shared {
             settings: settings.clone(),
             dirty: dirty.map(stage_name),
             current: None,
+            screen_level: target,
+            adapt: interactive.then_some(class),
         }));
         let cpu_sink = sink.clone();
         let job = DevelopJob {
@@ -518,8 +850,20 @@ impl Shared {
             shared: Arc::downgrade(self),
             generation,
         };
+        st.interactive_in_flight = interactive.then_some(generation);
         if let Some(engine) = self.engine.upgrade() {
             st.job = Some(engine.jobs.submit(Box::new(job), None));
+        }
+    }
+
+    /// An interactive render finished (or failed): start the one queued
+    /// behind it, if any.
+    fn interactive_done(self: &Arc<Self>, st: &mut State, generation: u64) {
+        if st.interactive_in_flight == Some(generation) {
+            st.interactive_in_flight = None;
+            if std::mem::take(&mut st.interactive_pending) {
+                self.render(st, true);
+            }
         }
     }
 
@@ -613,7 +957,8 @@ impl Shared {
             })
             .as_ref()
             .map_err(failure)?;
-        let e = self.image.level_extent(frame.level);
+        // The cropped picture when the recipe crops.
+        let e = Renderer::output_extent(&self.image, &frame.settings, frame.level)?;
         let mut rgb = image::RgbImage::new(e.width, e.height);
         // Pixel consumers render the immutable recipe, never a mutable surface ring.
         let tiles = frame.pixels(|settings, level| {
@@ -674,6 +1019,10 @@ struct LevelSink {
     settings: DevelopSettings,
     dirty: Option<String>,
     current: Option<LevelWriter>,
+    /// Level the host's surfaces are planned for (the frame's display size).
+    screen_level: u8,
+    /// Interactive render: its final frame time adapts the drag level.
+    adapt: Option<RenderClass>,
 }
 
 struct LevelWriter {
@@ -752,7 +1101,12 @@ impl LevelSink {
 
     fn publish(&self, shared: &Arc<Shared>, done: LevelWriter, hist: Hist, lazy_pixels: bool) {
         let render_ms = self.started.elapsed().as_secs_f64() * 1000.0;
-        let extent = shared.image.level_extent(done.level);
+        let output = |level| {
+            Renderer::output_extent(&shared.image, &self.settings, level)
+                .unwrap_or_else(|_| shared.image.level_extent(level))
+        };
+        let extent = output(done.level);
+        let display = output(self.screen_level);
         let (width, height) = match &done.surface {
             Some(s) => (extent.width.min(s.width()), extent.height.min(s.height())),
             None => (extent.width, extent.height),
@@ -777,6 +1131,12 @@ impl LevelSink {
                 generation: self.generation,
             };
             st.rendered_level = Some(done.level);
+            if let Some(class) = self.adapt.filter(|_| done.level == self.finest_level) {
+                st.drag[class as usize].record(render_ms);
+            }
+            if done.level == self.finest_level {
+                shared.interactive_done(&mut st, self.generation);
+            }
             st.frame = Some(Arc::new(Frame {
                 level: done.level,
                 settings: self.settings.clone(),
@@ -794,8 +1154,12 @@ impl LevelSink {
                 render_ms,
                 generation: self.generation,
                 dirty_stage: self.dirty.clone(),
+                display_width: display.width,
+                display_height: display.height,
+                is_overlay: false,
             });
         }
+        masks::publish_overlay(shared, &self.settings, done.level, self.generation);
     }
 }
 
@@ -953,9 +1317,13 @@ impl Job for DevelopJob {
             && !matches!(e, engine_api::EngineError::Cancelled)
             && let Some(s) = shared.upgrade()
             && s.generation.load(Ordering::SeqCst) == generation
-            && let Some(l) = s.listener()
         {
-            l.render_failed(e.to_string());
+            if let Ok(mut st) = s.state.lock() {
+                s.interactive_done(&mut st, generation);
+            }
+            if let Some(l) = s.listener() {
+                l.render_failed(e.to_string());
+            }
         }
         result
     }
@@ -1101,8 +1469,15 @@ impl DevelopSession {
         if next == st.live && st.rendered.is_some() && !interactive {
             return Ok(());
         }
+        // Changes that draw nothing (the aspect lock, crop edits while the crop
+        // tool shows the whole frame) update the live state without a render.
+        let unchanged = !st.masking_preview
+            && st.rendered_level == Some(st.screen_level)
+            && st.rendered.as_ref() == Some(&renderable_with(&next, !st.crop_editing));
         st.live = next;
-        self.shared.render(&mut st, interactive);
+        if !unchanged {
+            self.shared.render(&mut st, interactive);
+        }
         Ok(())
     }
 
@@ -1113,7 +1488,7 @@ impl DevelopSession {
             let mut st = self.shared.lock()?;
             let recorded = self.shared.commit_pending(&mut st, &label)?;
             if st.rendered_level != Some(st.screen_level)
-                || st.rendered.as_ref() != Some(&renderable(&st.live))
+                || st.rendered.as_ref() != Some(&st.drawn())
             {
                 self.shared.render(&mut st, false);
             }
@@ -1223,6 +1598,187 @@ impl DevelopSession {
         Ok(())
     }
 
+    /// Crop tool on/off. While on, the viewport renders the whole unrotated
+    /// frame (geometry is kept in the settings) so the host can draw and
+    /// edit the crop over it; off renders the cropped result again.
+    pub fn set_crop_editing(&self, editing: bool) -> Result<()> {
+        let mut st = self.shared.lock()?;
+        if st.crop_editing != editing {
+            st.crop_editing = editing;
+            self.shared.render(&mut st, false);
+        }
+        Ok(())
+    }
+
+    /// Shows the sharpening Masking gate (white = sharpened) instead of the
+    /// image while on; frames report `is_overlay`. Settings changes keep
+    /// updating the overlay.
+    pub fn set_masking_preview(&self, enabled: bool) -> Result<()> {
+        let mut st = self.shared.lock()?;
+        if st.masking_preview != enabled {
+            st.masking_preview = enabled;
+            self.shared.render(&mut st, false);
+        }
+        Ok(())
+    }
+
+    /// The history as a list: the applied steps from the oldest, then the
+    /// undone steps redo would reapply.
+    pub fn history_items(&self) -> Result<Vec<HistoryItem>> {
+        Ok(history_items(&self.shared.lock()?.recipe)?)
+    }
+
+    /// Moves to the state after history step `id` (`None`: the base state),
+    /// committing pending changes first. Later steps stay listed until a
+    /// new edit branches from there.
+    pub fn checkout_history(&self, id: Option<u64>) -> Result<bool> {
+        self.history_move(|r| {
+            let target = id.map(HistoryEntryId);
+            if let Some(t) = target {
+                r.history
+                    .entry(t)
+                    .ok_or_else(|| engine_api::EngineError::not_found("history entry", t))?;
+            }
+            if r.history.head == target {
+                return Ok(false);
+            }
+            r.checkout(target).map(|()| true)
+        })
+    }
+
+    /// Turns an applied step's changes off (or back on) as a new undoable
+    /// step: the state is the history replayed without the disabled steps.
+    pub fn set_history_step_enabled(&self, id: u64, enabled: bool) -> Result<bool> {
+        let changed = {
+            let mut st = self.shared.lock()?;
+            self.shared.commit_pending(&mut st, "Edit")?;
+            let h = &st.recipe.history;
+            let lineage = h.lineage(h.head)?;
+            let Some(step) = lineage.iter().find(|e| e.id.0 == id) else {
+                return Err(failure("only applied history steps can be toggled"));
+            };
+            if toggle_of(step).is_some() {
+                return Err(failure("a step toggle cannot itself be toggled"));
+            }
+            let mut off = disabled_steps(&lineage);
+            if off.contains(&id) != enabled {
+                return Ok(false);
+            }
+            if enabled {
+                off.remove(&id);
+            } else {
+                off.insert(id);
+            }
+            let next = replay_without(&h.base, &lineage, &off)?;
+            let label = format!(
+                "{} {}",
+                if enabled { "Turn On" } else { "Turn Off" },
+                step.meta.label
+            );
+            let meta = EditMeta {
+                rationale: Some(format!(
+                    "{TOGGLE_MARKER}:{id}:{}",
+                    if enabled { "on" } else { "off" }
+                )),
+                ..EditMeta::user(label, now_ms())
+            };
+            // A step that later steps fully override changes nothing and is
+            // not recorded.
+            let recorded = st
+                .recipe
+                .edit(meta.clone(), |s| *s = next.clone())?
+                .is_some();
+            if !recorded {
+                return Ok(false);
+            }
+            st.live = st.recipe.settings.clone();
+            self.shared.render(&mut st, false);
+            true
+        };
+        if changed {
+            self.shared.schedule_save();
+        }
+        Ok(changed)
+    }
+
+    /// Renders a 1:1 (level 0) crop of the live settings centred on
+    /// (`center_x`, `center_y`), normalized active-area coordinates in sensor
+    /// orientation, into an RGBA8 IOSurface of `width × height`. Blocking:
+    /// call off the main thread. Crop and post-crop effects are not applied
+    /// (the crop shows sensor pixels); global dehaze statistics come from the
+    /// window.
+    pub fn render_detail_preview(
+        &self,
+        iosurface_id: u32,
+        width: u32,
+        height: u32,
+        center_x: f32,
+        center_y: f32,
+    ) -> Result<DetailPreview> {
+        let s = &self.shared;
+        let surface = Surface::lookup(iosurface_id, width, height).map_err(failure)?;
+        let mut settings = s.lock()?.drawn();
+        settings.geometry = Default::default();
+        settings.effects = Default::default();
+        let e = s.image.active_extent();
+        let (w, h) = (width.min(e.width), height.min(e.height));
+        let origin = |center: f32, size: u32, total: u32| {
+            let c = if center.is_finite() {
+                center.clamp(0.0, 1.0)
+            } else {
+                0.5
+            };
+            ((c * total as f32 - size as f32 / 2.0).round().max(0.0) as u32).min(total - size)
+        };
+        let (x, y) = (origin(center_x, w, e.width), origin(center_y, h, e.height));
+        // Window with a margin of real neighbours, clamped to the active area.
+        let wx = x.saturating_sub(DETAIL_MARGIN);
+        let wy = y.saturating_sub(DETAIL_MARGIN);
+        let ww = (x + w + DETAIL_MARGIN).min(e.width) - wx;
+        let wh = (y + h + DETAIL_MARGIN).min(e.height) - wy;
+        let window = window_image(&s.image, wx, wy, ww, wh)?;
+        settings.locals = masks::window_locals(&settings.locals, e, (wx, wy, ww, wh));
+        let tiles = s.renderer.render_region(
+            &window,
+            &settings,
+            0,
+            PixelRect::new(x - wx, y - wy, w, h),
+        )?;
+        let (ox, oy) = (x - wx, y - wy);
+        surface
+            .with_pixels(|px, stride| {
+                for t in &tiles {
+                    let l = t.layout();
+                    let n = l.plane_len();
+                    let Ok(d) = t.samples::<u8>() else { continue };
+                    let (tx, ty) = t.coord().pixel_origin(TILE_SIZE);
+                    for row in 0..l.extent.height {
+                        let gy = ty + row;
+                        if gy < oy || gy >= oy + h {
+                            continue;
+                        }
+                        let line = &mut px[(gy - oy) as usize * stride..];
+                        for col in 0..l.extent.width {
+                            let gx = tx + col;
+                            if gx < ox || gx >= ox + w {
+                                continue;
+                            }
+                            let i = (row * l.extent.width + col) as usize;
+                            let o = 4 * (gx - ox) as usize;
+                            line[o..o + 4].copy_from_slice(&[d[i], d[n + i], d[2 * n + i], 255]);
+                        }
+                    }
+                }
+            })
+            .map_err(failure)?;
+        Ok(DetailPreview {
+            x,
+            y,
+            width: w,
+            height: h,
+        })
+    }
+
     /// Writes pending changes now and waits for the save to finish.
     pub fn flush(&self) -> Result<()> {
         {
@@ -1253,6 +1809,348 @@ impl DevelopSession {
         self.shared.close();
         result
     }
+}
+
+// ─────────────────────────── masking preview ───────────────────────────
+
+/// Settings of the stages before Detail: what the sharpening mask sees.
+fn mask_upstream(live: &DevelopSettings) -> DevelopSettings {
+    let mut base = renderable_with(live, false);
+    base.detail = Default::default();
+    base.detail.sharpening.amount = 0.0;
+    base.detail.noise_reduction.color = 0.0;
+    base.tone = Default::default();
+    base.color = Default::default();
+    base.effects = Default::default();
+    base.locals = Default::default();
+    base
+}
+
+/// Per-pixel edge strength `mean_sobel / (|Y| + .1)` of the Detail input at
+/// one level (the operator's masking statistic), so a Masking drag only
+/// re-thresholds it.
+struct MaskSource {
+    level: u8,
+    upstream: DevelopSettings,
+    width: u32,
+    height: u32,
+    edge: Vec<f32>,
+}
+
+impl MaskSource {
+    fn compute(
+        shared: &Shared,
+        level: u8,
+        upstream: &DevelopSettings,
+        cancel: &engine_api::jobs::CancellationToken,
+    ) -> engine_api::EngineResult<Self> {
+        let e = shared.image.level_extent(level);
+        let tiles = shared.renderer.render_region_as(
+            &shared.image,
+            upstream,
+            level,
+            PixelRect::full(e),
+            image_core::RenderOutput::SceneLinear,
+        )?;
+        cancel.check()?;
+        let (w, h) = (e.width as usize, e.height as usize);
+        let mut y = vec![0f32; w * h];
+        for t in &tiles {
+            let l = t.layout();
+            let n = l.plane_len();
+            let d = t.samples::<f32>()?;
+            let (ox, oy) = t.coord().pixel_origin(TILE_SIZE);
+            let (tw, th) = (l.extent.width as usize, l.extent.height as usize);
+            for row in 0..th {
+                for col in 0..tw {
+                    let i = row * tw + col;
+                    let v = 0.2627 * d[i] + 0.6780 * d[n + i] + 0.0593 * d[2 * n + i];
+                    y[(oy as usize + row) * w + ox as usize + col] = v;
+                }
+            }
+        }
+        cancel.check()?;
+        let mut edge = vec![0f32; w * h];
+        let threads = std::thread::available_parallelism()
+            .map_or(4, |n| n.get())
+            .min(8);
+        let band = h.div_ceil(threads).max(1);
+        std::thread::scope(|scope| {
+            for (b, out) in edge.chunks_mut(band * w).enumerate() {
+                let y = &y;
+                scope.spawn(move || {
+                    let at = |x: isize, r: isize| {
+                        y[r.clamp(0, h as isize - 1) as usize * w
+                            + x.clamp(0, w as isize - 1) as usize]
+                    };
+                    for (k, o) in out.iter_mut().enumerate() {
+                        let (r, x) = ((b * band + k / w) as isize, (k % w) as isize);
+                        let mut sum = 0.0;
+                        for dy in -1..=1 {
+                            for dx in -1..=1 {
+                                let (cx, cy) = (x + dx, r + dy);
+                                let gx =
+                                    at(cx + 1, cy - 1) + 2.0 * at(cx + 1, cy) + at(cx + 1, cy + 1)
+                                        - at(cx - 1, cy - 1)
+                                        - 2.0 * at(cx - 1, cy)
+                                        - at(cx - 1, cy + 1);
+                                let gy =
+                                    at(cx - 1, cy + 1) + 2.0 * at(cx, cy + 1) + at(cx + 1, cy + 1)
+                                        - at(cx - 1, cy - 1)
+                                        - 2.0 * at(cx, cy - 1)
+                                        - at(cx + 1, cy - 1);
+                                sum += gx.hypot(gy) / 8.0;
+                            }
+                        }
+                        *o = sum / 9.0 / (at(x, r).abs() + 0.1);
+                    }
+                });
+            }
+        });
+        Ok(Self {
+            level,
+            upstream: upstream.clone(),
+            width: e.width,
+            height: e.height,
+            edge,
+        })
+    }
+
+    /// The operator's gate: white where sharpening applies.
+    fn gate(edge: f32, masking: f32) -> u8 {
+        if masking <= 0.0 {
+            return 255;
+        }
+        let t = ((edge - 0.15 * masking / 100.0) / 0.05).clamp(0.0, 1.0);
+        (t * t * (3.0 - 2.0 * t) * 255.0).round() as u8
+    }
+}
+
+/// Renders the sharpening edge mask (Masking slider with ⌥) into the ring.
+struct MaskJob {
+    shared: std::sync::Weak<Shared>,
+    generation: u64,
+    level: u8,
+    upstream: DevelopSettings,
+    masking: f32,
+}
+
+impl Job for MaskJob {
+    fn label(&self) -> &str {
+        "develop masking preview"
+    }
+    fn priority(&self) -> Priority {
+        Priority::Viewport
+    }
+    fn run(self: Box<Self>, ctx: &JobContext) -> engine_api::EngineResult<()> {
+        let Some(shared) = self.shared.upgrade() else {
+            return Ok(());
+        };
+        let started = Instant::now();
+        let _serial = shared
+            .render_serial
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let current = |shared: &Shared| shared.generation.load(Ordering::SeqCst) == self.generation;
+        if !current(&shared) {
+            return Err(engine_api::EngineError::Cancelled);
+        }
+        let cached = shared
+            .mask_source
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+            .filter(|m| m.level == self.level && m.upstream == self.upstream);
+        let source = match cached {
+            Some(m) => m,
+            None => {
+                let m = Arc::new(MaskSource::compute(
+                    &shared,
+                    self.level,
+                    &self.upstream,
+                    &ctx.cancellation,
+                )?);
+                *shared.mask_source.lock().unwrap_or_else(|e| e.into_inner()) = Some(m.clone());
+                m
+            }
+        };
+        ctx.cancellation.check()?;
+        let surface = {
+            let st = shared.state.lock().unwrap_or_else(|e| e.into_inner());
+            if st.generation != self.generation {
+                return Err(engine_api::EngineError::Cancelled);
+            }
+            st.next_surface
+                .candidate(&st.surfaces.iter().map(|s| s.id()).collect::<Vec<_>>())
+                .map(|i| st.surfaces[i].clone())
+        };
+        let (w, h) = match &surface {
+            Some(s) => (source.width.min(s.width()), source.height.min(s.height())),
+            None => (source.width, source.height),
+        };
+        if let Some(surface) = &surface {
+            let masking = self.masking;
+            surface
+                .with_pixels(|px, stride| {
+                    for (r, row) in px.chunks_mut(stride).take(h as usize).enumerate() {
+                        let src = &source.edge[r * source.width as usize..][..w as usize];
+                        for (x, &e) in src.iter().enumerate() {
+                            let g = MaskSource::gate(e, masking);
+                            row[4 * x..4 * x + 4].copy_from_slice(&[g, g, g, 255]);
+                        }
+                    }
+                })
+                .map_err(engine_api::EngineError::internal)?;
+        }
+        {
+            let mut st = shared.state.lock().unwrap_or_else(|e| e.into_inner());
+            if st.generation != self.generation {
+                return Err(engine_api::EngineError::Cancelled);
+            }
+            if let Some(s) = &surface {
+                st.next_surface.published(s.id());
+            }
+        }
+        if let Some(listener) = shared.listener() {
+            listener.frame_ready(FrameInfo {
+                surface_id: surface.as_ref().map_or(0, |s| s.id()),
+                level: self.level,
+                width: w,
+                height: h,
+                first_level: self.level,
+                is_final: true,
+                render_ms: started.elapsed().as_secs_f64() * 1000.0,
+                generation: self.generation,
+                dirty_stage: Some(stage_name(StageId::Detail)),
+                display_width: source.width,
+                display_height: source.height,
+                is_overlay: true,
+            });
+        }
+        Ok(())
+    }
+}
+
+// ─────────────────────────────── history ───────────────────────────────
+
+/// Marker in [`EditMeta::rationale`] of a step-toggle entry.
+const TOGGLE_MARKER: &str = "tessera:step-toggle";
+
+fn toggle_of(e: &HistoryEntry) -> Option<(u64, bool)> {
+    let rest = e.meta.rationale.as_deref()?.strip_prefix(TOGGLE_MARKER)?;
+    let mut parts = rest.trim_start_matches(':').split(':');
+    let id = parts.next()?.parse().ok()?;
+    let enabled = match parts.next()? {
+        "on" => true,
+        "off" => false,
+        _ => return None,
+    };
+    Some((id, enabled))
+}
+
+/// Steps turned off along `lineage` (toggle entries replayed in order).
+fn disabled_steps(lineage: &[&HistoryEntry]) -> std::collections::BTreeSet<u64> {
+    let mut off = std::collections::BTreeSet::new();
+    for e in lineage {
+        if let Some((id, enabled)) = toggle_of(e) {
+            if enabled {
+                off.remove(&id);
+            } else {
+                off.insert(id);
+            }
+        }
+    }
+    off
+}
+
+/// Replays `lineage` from `base`, skipping toggle entries and `off` steps.
+fn replay_without(
+    base: &DevelopSettings,
+    lineage: &[&HistoryEntry],
+    off: &std::collections::BTreeSet<u64>,
+) -> engine_api::EngineResult<DevelopSettings> {
+    let mut value = serde_json::to_value(base)?;
+    for e in lineage {
+        if toggle_of(e).is_some() || off.contains(&e.id.0) {
+            continue;
+        }
+        for change in &e.changes {
+            apply_change(&mut value, change)?;
+        }
+    }
+    Ok(serde_json::from_value(value)?)
+}
+
+fn history_items(recipe: &Recipe) -> engine_api::EngineResult<Vec<HistoryItem>> {
+    let h = &recipe.history;
+    let lineage = h.lineage(h.head)?;
+    let off = disabled_steps(&lineage);
+    let author = |e: &HistoryEntry| match &e.meta.author {
+        Author::User => "user".to_owned(),
+        Author::Agent { name } => format!("agent:{name}"),
+        Author::Import { source } => format!("import:{source}"),
+        Author::Preset { style } => format!("preset:{style}"),
+        Author::Sync { from } => format!("sync:{from}"),
+    };
+    let group = |e: &HistoryEntry| {
+        e.meta
+            .group
+            .and_then(|g| h.groups.iter().find(|x| x.id == g))
+            .map(|g| g.name.clone())
+    };
+    let item = |e: &HistoryEntry, applied: bool| HistoryItem {
+        id: e.id.0,
+        label: e.meta.label.clone(),
+        author: author(e),
+        group: group(e),
+        timestamp_ms: e.meta.timestamp_ms,
+        applied,
+        is_head: h.head == Some(e.id),
+        enabled: !off.contains(&e.id.0),
+        toggles: toggle_of(e).map(|(id, _)| id),
+    };
+    let mut items: Vec<HistoryItem> = lineage.iter().map(|e| item(e, true)).collect();
+    // Undone steps redo would reapply, newest child first at each step.
+    let mut cursor = h.head;
+    while let Some(next) = h
+        .entries
+        .iter()
+        .rev()
+        .find(|e| e.parent == cursor)
+        .filter(|_| items.len() <= h.entries.len())
+    {
+        items.push(item(next, false));
+        cursor = Some(next.id);
+    }
+    Ok(items)
+}
+
+// ─────────────────────────── detail preview ───────────────────────────
+
+/// Margin rendered around a 1:1 detail crop so neighbourhood operators see
+/// real pixels (Detail support ≤ 9, Texture/Clarity ≤ 16).
+const DETAIL_MARGIN: u32 = 32;
+
+/// `image` restricted to a window of its active area, with its own identity
+/// so memoized output-frame tiles never alias the full image's.
+fn window_image(image: &RawImage, x: u32, y: u32, w: u32, h: u32) -> Result<RawImage> {
+    let mut m = image.metadata().clone();
+    let [left, top, _, _] = m.default_crop;
+    m.default_crop = [left + x, top + y, w, h];
+    let key = blake3::hash(
+        &[
+            &image.id().0.to_le_bytes()[..],
+            &x.to_le_bytes(),
+            &y.to_le_bytes(),
+            &w.to_le_bytes(),
+            &h.to_le_bytes(),
+        ]
+        .concat(),
+    );
+    let id = ImageId(u128::from_le_bytes(
+        key.as_bytes()[..16].try_into().expect("16 bytes"),
+    ));
+    Ok(image.with_metadata(id, Arc::new(m))?)
 }
 
 impl DevelopSession {
@@ -1365,5 +2263,174 @@ mod tests {
         assert_eq!(r.white_balance.temperature, 4200.0);
         pipeline_cpu::validate_settings(&r).unwrap();
         assert!(ignored_settings(&s).is_empty());
+    }
+
+    #[test]
+    fn renderable_passes_every_panel_and_sanitizes() {
+        use engine_api::recipe::settings::{CurvePoint, NormalizedRect, VignetteStyle};
+        let mut s = DevelopSettings::default();
+        s.tone.curves.parametric.lights = 30.0;
+        s.tone.curves.parametric.midtone_split = 60.0;
+        let knots = |v: &[(f32, f32)]| Curve(v.iter().map(|&(x, y)| CurvePoint { x, y }).collect());
+        s.tone.curves.rgb = knots(&[(0.0, 0.05), (0.5, 0.6), (1.0, 1.0)]);
+        s.tone.curves.red = knots(&[(0.0, 0.0), (1.0, 1.0)]);
+        s.tone.curves.blue = knots(&[(0.0, 0.5), (0.5, 0.2), (1.0, 1.0)]);
+        s.color.hsl.hue.orange = -20.0;
+        s.color.hsl.saturation.blue = 250.0;
+        s.color.grading.shadows.hue = 400.0;
+        s.color.grading.shadows.saturation = 30.0;
+        s.color.grading.blending = 70.0;
+        s.detail.sharpening.amount = 120.0;
+        s.detail.sharpening.radius = 9.0;
+        s.detail.noise_reduction.luminance = 35.0;
+        s.effects.vignette.amount = -40.0;
+        s.effects.vignette.style = VignetteStyle::PaintOverlay;
+        s.effects.grain.amount = 25.0;
+        s.geometry.crop.rect = NormalizedRect {
+            left: 0.1,
+            top: 0.2,
+            right: 0.8,
+            bottom: 0.9,
+        };
+        s.geometry.crop.angle = 3.5;
+        s.geometry.crop.aspect = Some([3, 2]);
+        let r = renderable(&s);
+        pipeline_cpu::validate_settings(&r).unwrap();
+        assert_eq!(r.tone.curves.parametric.lights, 30.0);
+        assert_eq!(r.tone.curves.parametric.midtone_split, 60.0);
+        assert_eq!(r.tone.curves.rgb, s.tone.curves.rgb);
+        assert_eq!(
+            r.tone.curves.red,
+            Curve::default(),
+            "identity renders as empty"
+        );
+        assert_eq!(
+            r.tone.curves.blue,
+            Curve::default(),
+            "descending knots are refused"
+        );
+        assert_eq!(r.color.hsl.hue.orange, -20.0);
+        assert_eq!(r.color.hsl.saturation.blue, 100.0);
+        assert_eq!(r.color.grading.shadows.hue, 40.0);
+        assert_eq!(r.color.grading.blending, 70.0);
+        assert_eq!(r.detail.sharpening.amount, 120.0);
+        assert_eq!(r.detail.sharpening.radius, 3.0);
+        assert_eq!(r.detail.noise_reduction.luminance, 35.0);
+        assert_eq!(r.effects.vignette, s.effects.vignette);
+        assert_eq!(r.effects.grain.amount, 25.0);
+        assert_eq!(r.geometry.crop.rect, s.geometry.crop.rect);
+        assert_eq!(r.geometry.crop.angle, 3.5);
+        assert_eq!(
+            r.geometry.crop.aspect, None,
+            "the aspect lock draws nothing"
+        );
+        // Only the refused curves, the clamped values and the lock hint differ.
+        let ignored = ignored_settings(&s);
+        assert!(
+            ignored.iter().all(|p| p.starts_with("/tone/curves/")
+                || p.contains("saturation/blue")
+                || p.contains("shadows/hue")
+                || p.contains("radius")),
+            "{ignored:?}"
+        );
+        // The crop tool renders the whole frame.
+        let whole = renderable_with(&s, false);
+        assert_eq!(whole.geometry, Default::default());
+        assert_eq!(whole.effects, r.effects);
+        // Unordered split points fall back to the defaults.
+        s.tone.curves.parametric.shadow_split = 70.0;
+        let r = renderable(&s);
+        assert_eq!(r.tone.curves.parametric.midtone_split, 50.0);
+        pipeline_cpu::validate_settings(&r).unwrap();
+        // An invalid crop is not drawn.
+        s.geometry.crop.angle = 60.0;
+        assert_eq!(renderable(&s).geometry, Default::default());
+    }
+
+    #[test]
+    fn step_toggles_replay_history_without_the_step() {
+        let mut recipe = Recipe::new(ImageId(7));
+        recipe
+            .edit(EditMeta::user("Exposure +1.00", 1), |s| {
+                s.tone.exposure = 1.0
+            })
+            .unwrap();
+        recipe
+            .edit(EditMeta::user("Contrast +20", 2), |s| {
+                s.tone.contrast = 20.0
+            })
+            .unwrap();
+        let lineage = |r: &Recipe| {
+            r.history
+                .lineage(r.history.head)
+                .unwrap()
+                .into_iter()
+                .cloned()
+                .collect::<Vec<_>>()
+        };
+        // Turn step 1 off as the session does.
+        let l = lineage(&recipe);
+        let refs: Vec<&HistoryEntry> = l.iter().collect();
+        let off: std::collections::BTreeSet<u64> = [1].into();
+        let next = replay_without(&recipe.history.base, &refs, &off).unwrap();
+        assert_eq!(next.tone.exposure, 0.0);
+        assert_eq!(next.tone.contrast, 20.0);
+        let meta = EditMeta {
+            rationale: Some(format!("{TOGGLE_MARKER}:1:off")),
+            ..EditMeta::user("Turn Off Exposure +1.00", 3)
+        };
+        recipe.edit(meta, |s| *s = next).unwrap();
+        // A later edit, then turn step 1 back on: both survive.
+        recipe
+            .edit(EditMeta::user("Shadows +10", 4), |s| s.tone.shadows = 10.0)
+            .unwrap();
+        let l = lineage(&recipe);
+        let refs: Vec<&HistoryEntry> = l.iter().collect();
+        assert_eq!(disabled_steps(&refs), [1].into());
+        let items = history_items(&recipe).unwrap();
+        assert_eq!(items.len(), 4);
+        assert!(!items[0].enabled && items[1].enabled);
+        assert_eq!(items[2].toggles, Some(1));
+        assert!(items[3].is_head && items.iter().all(|i| i.applied));
+        let on = replay_without(&recipe.history.base, &refs, &Default::default()).unwrap();
+        assert_eq!(
+            (on.tone.exposure, on.tone.contrast, on.tone.shadows),
+            (1.0, 20.0, 10.0)
+        );
+        // Undone steps are listed after the applied ones.
+        recipe.undo().unwrap();
+        let items = history_items(&recipe).unwrap();
+        assert_eq!(items.len(), 4);
+        assert!(items[2].is_head && !items[3].applied);
+        assert_eq!(items[3].label, "Shadows +10");
+    }
+
+    #[test]
+    fn drag_level_adapts_to_the_frame_budget() {
+        let mut d = DragLevel::starting_at(1);
+        d.record(40.0);
+        assert_eq!(d.offset, 2, "over budget: coarser");
+        d.record(10.0);
+        d.record(11.0);
+        assert_eq!(d.offset, 2, "within budget: stays");
+        for _ in 0..6 {
+            d.record(2.0);
+        }
+        assert!(d.offset < 2, "far under budget: finer");
+        let mut d = DragLevel::starting_at(MAX_DRAG_OFFSET);
+        d.record(100.0);
+        assert_eq!(d.offset, MAX_DRAG_OFFSET);
+    }
+
+    #[test]
+    fn masking_gate_matches_the_operator() {
+        assert_eq!(
+            MaskSource::gate(0.0, 0.0),
+            255,
+            "Masking 0 sharpens everywhere"
+        );
+        assert_eq!(MaskSource::gate(0.01, 50.0), 0, "flat areas are masked out");
+        assert_eq!(MaskSource::gate(1.0, 50.0), 255, "edges are sharpened");
+        assert!(MaskSource::gate(0.1, 50.0) > MaskSource::gate(0.08, 50.0));
     }
 }

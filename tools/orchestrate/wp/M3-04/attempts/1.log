@@ -1,0 +1,15 @@
+Implemented M3-04 within the allowed paths.
+
+Includes U²-Net subject masks, complementary backgrounds, documented sky fallback, MobileSAM click/box masks, expanded-face person masks, guided refinement, lossless mask caching, and Priority::Score precompute jobs.
+
+Verified:
+  Required release tests, clippy -D warnings, and cargo fmt --check all pass.
+  Real-model disc IoU: 1.0.
+  Sky selection, SAM prompts, edge preservation, cache behavior, and Sony ARW fixture integration pass.
+  Registry and preview regression suites pass.
+
+CoreML executes U²-Net and portions of the SAM decoder. The SAM encoder falls back to CPU. Human parts and text prompts remain phase 2. Pinned upstream ONNX exports were verified and registered; the export procedure is documented in tools/segment_export.md.
+
+No engine-api changes, committed weights, or in-repo target directory.
+
+RESULT: PASS

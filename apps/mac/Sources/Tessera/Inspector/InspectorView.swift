@@ -5,6 +5,7 @@ import SwiftUI
 /// Right inspector: SwiftUI panels. The develop sliders inside are AppKit `ValueSlider`s.
 struct InspectorView: View {
     let model: AppModel
+    private var tools: DevelopTools { .shared }
 
     var body: some View {
         ScrollView {
@@ -17,6 +18,20 @@ struct InspectorView: View {
                     PanelSection("Metadata") { MetadataPanel(model: model, library: model.collections) }
                 }
                 PanelSection("Basic") { BasicPanel(model: model) }
+                PanelSection("Masks", expanded: false) { MasksPanel(model: model, masks: .shared) }
+                    .developContext(model, tools)
+                Group {
+                    PanelSection("Tone Curve", expanded: false) { ToneCurvePanel(model: model, tools: tools) }
+                    PanelSection("HSL / Color", expanded: false) { HSLPanel(model: model, tools: tools) }
+                    PanelSection("Color Grading", expanded: false) { ColorGradingPanel(model: model, tools: tools) }
+                    PanelSection("Detail", expanded: false) { DetailPanel(model: model, tools: tools) }
+                    PanelSection("Effects", expanded: false) { EffectsPanel(model: model, tools: tools) }
+                    PanelSection("Crop & Straighten", expanded: false) { CropPanel(model: model, tools: tools) }
+                    PanelSection("Presets", expanded: false) { PresetsPanel(model: model, tools: tools) }
+                    PanelSection("Snapshots", expanded: false) { SnapshotsPanel(model: model) }
+                    PanelSection("History", expanded: false) { HistoryPanel(model: model, tools: tools) }
+                }
+                .developContext(model, tools)
             }
         }
         .scrollIndicators(.never)
@@ -27,11 +42,13 @@ struct InspectorView: View {
 struct PanelSection<Content: View>: View {
     let title: String
     @ViewBuilder var content: Content
-    @State private var expanded = true
+    /// Open/closed state persists per panel.
+    @AppStorage private var expanded: Bool
 
-    init(_ title: String, @ViewBuilder content: () -> Content) {
+    init(_ title: String, expanded: Bool = true, @ViewBuilder content: () -> Content) {
         self.title = title
         self.content = content()
+        _expanded = AppStorage(wrappedValue: expanded, "InspectorPanel." + title)
     }
 
     var body: some View {

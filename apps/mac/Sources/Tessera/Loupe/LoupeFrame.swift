@@ -17,6 +17,10 @@ struct LoupeFrame: @unchecked Sendable {
     /// Valid region, anchored top-left. Coarse progressive levels fill only part of the surface.
     let contentWidth: Int
     let contentHeight: Int
+    /// The whole picture at the surface's level (sensor orientation): the surface size, or the
+    /// cropped extent when the engine applied a crop. Drives the aspect fit.
+    let fullWidth: Int
+    let fullHeight: Int
     /// EXIF orientation applied when sampling (1 = as stored).
     let orientation: Int
     let pixelFormat: MTLPixelFormat
@@ -24,12 +28,15 @@ struct LoupeFrame: @unchecked Sendable {
     let colorSpace: CGColorSpace
 
     /// Engine frame: RGBA8 sRGB-encoded, sampled through `.rgba8Unorm_srgb` as linear sRGB.
-    init(engineSurface surface: IOSurfaceRef, contentWidth: Int, contentHeight: Int, orientation: Int) {
+    init(engineSurface surface: IOSurfaceRef, contentWidth: Int, contentHeight: Int,
+         fullWidth: Int? = nil, fullHeight: Int? = nil, orientation: Int) {
         self.surface = surface
         width = IOSurfaceGetWidth(surface)
         height = IOSurfaceGetHeight(surface)
         self.contentWidth = min(contentWidth, width)
         self.contentHeight = min(contentHeight, height)
+        self.fullWidth = max(1, min(fullWidth ?? width, width))
+        self.fullHeight = max(1, min(fullHeight ?? height, height))
         self.orientation = (1...8).contains(orientation) ? orientation : 1
         pixelFormat = .rgba8Unorm_srgb
         colorSpace = CGColorSpace(name: CGColorSpace.extendedLinearSRGB)!
@@ -41,6 +48,8 @@ struct LoupeFrame: @unchecked Sendable {
         height = IOSurfaceGetHeight(surface)
         contentWidth = width
         contentHeight = height
+        fullWidth = width
+        fullHeight = height
         orientation = 1
         pixelFormat = .rgba16Float
         self.colorSpace = colorSpace
@@ -48,7 +57,26 @@ struct LoupeFrame: @unchecked Sendable {
 
     /// Full-resolution size on screen after orientation (drives the aspect fit, so coarse
     /// levels are magnified rather than shown smaller).
-    var displaySize: (width: Int, height: Int) { orientation >= 5 ? (height, width) : (width, height) }
+    var displaySize: (width: Int, height: Int) { orientation >= 5 ? (fullHeight, fullWidth) : (fullWidth, fullHeight) }
+
+    /// Reads the display-encoded RGB of an engine frame around stored-orientation texel `(x, y)`
+    /// (3×3 mean). Nil for half-float preview frames.
+    func sampleRGB8(x: Int, y: Int) -> (r: UInt8, g: UInt8, b: UInt8)? {
+        guard pixelFormat == .rgba8Unorm_srgb, contentWidth > 0, contentHeight > 0 else { return nil }
+        IOSurfaceLock(surface, .readOnly, nil)
+        defer { IOSurfaceUnlock(surface, .readOnly, nil) }
+        let base = IOSurfaceGetBaseAddress(surface).assumingMemoryBound(to: UInt8.self)
+        let stride = IOSurfaceGetBytesPerRow(surface)
+        var sum = (0, 0, 0), n = 0
+        for dy in -1...1 {
+            for dx in -1...1 {
+                let px = min(max(x + dx, 0), contentWidth - 1), py = min(max(y + dy, 0), contentHeight - 1)
+                let p = base + py * stride + px * 4
+                sum.0 += Int(p[0]); sum.1 += Int(p[1]); sum.2 += Int(p[2]); n += 1
+            }
+        }
+        return (UInt8(sum.0 / n), UInt8(sum.1 / n), UInt8(sum.2 / n))
+    }
 
     /// Preview path: colour-convert `image` into `colorSpace` (the loupe's working space derived from
     /// the screen) as RGBA half-float in a new IOSurface. CoreGraphics performs the ICC conversion.

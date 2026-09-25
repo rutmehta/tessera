@@ -1,0 +1,12 @@
+Implemented M2-15, including the previously missing managed GPU output and resident IOSurface integration.
+
+The shared ICC registry now drives CPU output, export, GPU LUT transforms, soft proofing, and gamut warnings. GPU tests cover all five built-ins, both gamut modes, proofing, paper simulation, and zero-pixel-readback surface presentation.
+
+Verification: 190 tests passed, 0 failed, 7 existing tests ignored. The exact required test/clippy/fmt chain passed. Allowed-path audit and git diff --check passed. CARGO_TARGET_DIR remained external.
+
+engine-api is unchanged. Needed target/display identity, intent, BPC, simulation, and warning-control fields are documented in crates/pipeline-cpu/MISSING_FIELDS.md. GPU preview masks are approximate; CPU masks remain exact.
+
+Details: tools/orchestrate/wp/M2-15/RESULT.md
+Log: tools/orchestrate/wp/M2-15/verification.log
+
+RESULT: PASS

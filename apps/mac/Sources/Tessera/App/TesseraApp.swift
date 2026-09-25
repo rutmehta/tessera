@@ -17,7 +17,9 @@ struct TesseraApp: App {
         .commands {
             AppCommands(model: model)
             CommandGroup(after: .appInfo) {
-                Button("Check for Updates…") { appDelegate.updaterController.checkForUpdates(nil) }
+                Button("Check for Updates…") { appDelegate.updaterController?.checkForUpdates(nil) }
+                    .disabled(!appDelegate.updatesConfigured)
+                    .help(appDelegate.updatesConfigured ? "Check for updates" : "updates not configured for this build")
             }
         }
     }
@@ -35,14 +37,28 @@ struct TesseraApp: App {
 ///   --front           order the window front without activating (screenshots while another app is active)
 ///   --develop-selftest  once a develop session opens, drag Exposure 0 → +1.5 through the slider path
 ///                     (60 display-rate steps, then mouse-up) and print frame timings to stderr
+///   --develop-panels-selftest  open the first photo in the loupe and drag one control of each develop
+///                     panel likewise (TESSERA_SELFTEST_CROP=1|commit also opens/applies a crop)
 ///   --keys "<k> <k>…" after loading, feed these keys through the culling key map (self-test aid);
 ///                     tokens: single characters, left right up down return esc delete,
 ///                     prefixes "opt-" / "shift-" / "cmd-" (⌘ tokens go to the menu bar); "wait" idles one step
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     // Sparkle reads the feed, public key, and daily-check defaults from Info.plist.
-    let updaterController = SPUStandardUpdaterController(
-        startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
+    lazy var updatesConfigured: Bool = {
+        let info = Bundle.main.infoDictionary
+        let configured = ["SUPublicEDKey", "SUFeedURL"].allSatisfy {
+            guard let value = info?[$0] as? String else { return false }
+            return !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+        if !configured { NSLog("Sparkle updates not configured for this build") }
+        return configured
+    }()
+    lazy var updaterController: SPUStandardUpdaterController? = {
+        guard updatesConfigured else { return nil }
+        return SPUStandardUpdaterController(
+            startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
+    }()
     private var keyRouter: KeyRouter?
 
     func applicationWillFinishLaunching(_ notification: Notification) {
@@ -51,12 +67,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        _ = updaterController // Start scheduled checks only for configured builds.
         let model = AppModel.shared
         keyRouter = KeyRouter(model: model)
         keyRouter?.install()
         NSApp.activate()
 
         let args = ProcessInfo.processInfo.arguments
+        if args.contains("--develop-selftest"), args.contains("--bundle-selftest") {
+            // Packaging smoke test: exercise the real launch path without a photo fixture.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                FileHandle.standardError.write(Data("bundle-selftest: launched\n".utf8))
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { NSApp.terminate(nil) }
+        }
         func value(after flag: String) -> String? {
             guard let i = args.firstIndex(of: flag), i + 1 < args.count else { return nil }
             return args[i + 1]

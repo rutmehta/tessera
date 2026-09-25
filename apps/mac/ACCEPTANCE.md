@@ -25,7 +25,7 @@ Notes:
    export CARGO_TARGET_DIR="$HOME/.cache/tessera-target/verify"
    (cd apps/mac && ./build-ffi.sh && swift build && swift test && Support/make-app.sh release)
    ```
-   Expect: `swift test` reports `Executed 17 tests, with 0 failures` (XCTest, all suites) and the Swift Testing line
+   Expect: `swift test` reports `Executed 33 tests, with 0 failures` (XCTest, all suites) and the Swift Testing line
    `Test run with 5 tests in 2 suites passed`; the last line reads `Built …/apps/mac/build/Tessera.app`.
    Also run `cargo test -p tessera-ffi -p cull -p image-core -p library --release 2>&1 | grep "test result"`. Expect only `ok.` lines.
 2. Create scratch data (a fresh folder each run; do not reuse an old path):
@@ -159,7 +159,7 @@ is the time from the settings change to the finished level in the surface (`L2` 
     Expect within about a second: the loupe re-renders from the engine (colours change slightly from the camera
     preview); the **HISTOGRAM** panel shows red/green/blue curves with a white luminance outline; IMAGE ▸ Size reads
     `7378 × 4924` (or `4924 × 7378`); BASIC shows `Unedited`, Temperature shows the as-shot estimate in K, and
-    Texture…Saturation are dimmed (hover: `… is not in the M1 pipeline yet`); the status bar shows `render: L…, … ms`.
+    Texture…Saturation are enabled (they render since M2); the status bar shows `render: L…, … ms`.
 35. Drag the **Exposure** slider slowly to about **+1.00** (drag anywhere on its track; ⌥ drags finely). 📸 mid-drag.
     Expect: the loupe brightens continuously while the mouse moves and the histogram shifts right. While dragging, the
     readout shows level **L2 or coarser** and a time **under 16 ms**. After release it may show one refinement
@@ -250,6 +250,137 @@ active filter). The sidebar has LIBRARY (All Photos, Not in Any Album), FOLDERS,
 ## Verdict
 
 PASS when steps 1–40 and 42–51 meet their expectations (step 32's first part may be skipped only if fixtures are missing, step 31;
+
+## L. Develop panels (M2-13)
+
+The panels below BASIC (Tone Curve, HSL / Color, Color Grading, Detail, Effects, Crop & Straighten, Presets,
+Snapshots, History) start collapsed; click a header to open it (the state is remembered). They drive the same develop
+session as BASIC: drags are coalesced per display frame and each release is one undo step. Heavy panels (curves, HSL,
+grading, effects, crop) run the whole-level M2 operator chain; while dragging, the session renders at the coarsest
+level that keeps frames under 16 ms (the readout shows e.g. `render: L5, 8 ms`) and refines on release.
+
+42. Engine panel latency (no UI):
+    `cargo test -p tessera-ffi --release --test develop -- --ignored --nocapture bench_panel 2>&1 | grep -E "panels|  [a-z]"`.
+    Expect a block per backend listing tone exposure, parametric curve, point curve, hsl, grading, sharpening,
+    vignette and straighten, each with an `L<n>` and a median under 16 ms after the level adapts (the level for
+    curve/HSL/grading/effects/crop is coarser than the screen level, e.g. `L5`/`L6` for the 36 MP NEF).
+43. Relaunch on the RAW copies (`open -n apps/mac/build/Tessera.app --args --folder "$SCR/raw"`), select
+    **sony-arw.ARW** and press **Return**. Open **TONE CURVE**. 📸 Expect the parametric curve over the luminance
+    histogram, three split triangles under it and Highlights/Lights/Darks/Shadows sliders. Drag inside the curve's
+    upper-middle area upwards: the Lights region highlights, the curve bows up, the **Lights** slider follows and the
+    loupe brightens the upper mid-tones. Release: HISTORY (below) lists `Curve Lights +…`.
+44. Click **Point**, choose **R**. Click the middle of the curve to add a point, drag it up. Expect the red curve bends
+    (never below the previous point, never above the next: the editor keeps the curve monotone) and the image turns
+    redder. With the point selected press **↑** three times: it nudges up; the burst becomes one history step
+    `Point Curve (Red)` after a pause. Double-click the point: it is removed. **Curve Presets ▸ Strong Contrast** on
+    **RGB**: an S-curve and a punchier image.
+45. Open **HSL / COLOR** ▸ **Saturation**. Drag **Blue** to −100: the sky greys. Click the target button (◎) and
+    drag **up** on the cube's orange face in the loupe (cursor ↕): the Orange (and a little Red/Yellow) saturation
+    sliders rise together, and the status/History read `Orange Saturation +…`. Press **Esc** to disarm. There is no
+    B&W mix (the recipe schema has no field for it yet).
+46. Open **COLOR GRADING**. In **3-Way**, drag the Shadows wheel puck towards blue (lower left) and the Highlights
+    puck towards orange: shadows cool, highlights warm. The wheels show the engine's OkLab hues (the puck colour is
+    the colour added). Move **Balance** and **Blending**: the split moves / softens. Double-click a wheel: it resets.
+    The Shadows/Midtones/Highlights/Global tabs show one large wheel with Hue/Saturation/Luminance sliders.
+47. Open **DETAIL**. 📸 Expect a 1:1 preview of the image centre (`1:1 · x, y` label). Drag inside it to pan; click the
+    target button and click a detailed area in the loupe: the preview moves there. Raise **Amount** to 120: the
+    preview sharpens. Hold **⌥** and drag **Masking**: the loupe shows a black-and-white edge mask (white =
+    sharpened) that shrinks to the edges as Masking rises; releasing ⌥/the mouse returns to the photo.
+    **Luminance** 40 visibly smooths noise in the preview.
+48. Open **EFFECTS**. Vignette **Amount** −60: dark corners; switch **Style** to Paint Overlay and back. Grain
+    **Amount** 40: visible grain in the 1:1 preview / at 1:1.
+49. Press **R** (or **CROP & STRAIGHTEN ▸ Crop & Straighten**). 📸 Expect the whole photo with a white crop box,
+    thirds grid and handles, the outside dimmed. Choose **Aspect ▸ 3 : 2**, drag a corner inwards (the ratio holds),
+    drag inside the box to move it, drag **outside** the box to rotate: the image turns under the fixed box and the
+    box shrinks to stay inside the photo (Constrain to image), the readout shows `… × …  +2.40°`. Press **O** to cycle
+    overlays, **X** to swap to portrait. Click the level button and draw along a slanted horizon: the angle levels
+    it. Press **Return**: the loupe shows the cropped, straightened picture filling the view; History lists
+    `Crop & Straighten +…°`. **⌘Z** restores the full frame; **Esc** in the tool discards changes.
+50. **PRESETS ▸ Save Preset…**, name `Look`, leave Crop unticked, **Save**. Select the NEF, press Return and click
+    **Look** in PRESETS: the NEF takes the curve/HSL/grading/effects look but not the crop (one history step
+    `Preset: Look`). The file exists: `ls ~/Library/Application\ Support/Tessera/Presets/Look.json`.
+51. **SNAPSHOTS ▸ New Snapshot…** `Graded`, Save; the list shows `Graded`. Change anything, click `Graded`: back.
+52. **HISTORY**: newest first, the current step highlighted, `Original` at the bottom. Click an older step: the image
+    and all sliders go back to it; later steps stay listed (dimmed) until a new edit. Click the newest step again.
+    Untick the checkbox of the `Blue Saturation −100` step: the sky's colour returns and a step
+    `Turn Off Blue Saturation −100` appears (itself not toggleable); tick it again to turn it back on.
+53. Quit and relaunch; press Return on the ARW. Expect the crop, curve, HSL, grading, detail and effects restored;
+    the grid thumbnail shows the cropped edit.
+54. Optional automated pass: `apps/mac/build/Tessera.app/Contents/MacOS/Tessera --folder "$SCR/raw" --develop-panels-selftest 2>&1 | grep -m1 develop-panels-selftest`.
+    It opens the first photo in the loupe and drags one control of each panel through the slider path; expect a line
+    `develop-panels-selftest: tone curve … L… median … ms; hsl …; grading …; detail …; vignette …; grain …`.
+
+## Verdict
+
+PASS when steps 1–40 and 42–53 meet their expectations (step 32's first part may be skipped only if fixtures are missing, step 31;
 steps 33–41 need the RAW fixtures).
 Report the command outputs from steps 1–2 and 33, the 📸 screenshots, the benchmark line and any readout values. Afterwards you may delete
 `$SCR` and reset preferences with `defaults delete dev.tessera.app`.
+
+## M. Masks and local adjustments (M2-14)
+
+Masking works on RAWs in the loupe. **M** (or the **Masks** button at the loupe's top right) shows the mask toolbar
+above the photo and opens the **MASKS** panel under BASIC. Every mask edit drives the same develop session as the
+sliders: drags are coalesced per display frame and each release is one undo step. AI masks (Subject, Sky, Background,
+People, Objects) run on this Mac: the first use loads the pinned segmentation weights (U²-Net and MobileSAM, about
+220 MB) into `~/Library/Application Support/Tessera/models/cache`, downloading them when missing, so the first AI mask
+needs the network and takes a while; later ones take a few seconds. To use weights fetched ahead of time
+(`python3 tools/segment_models.py fetch --registry-cache "$SCR/segment-registry"`, see crates/ml-segment/README.md),
+launch with `open -n --env TESSERA_SEGMENT_MODELS="$SCR/segment-registry" apps/mac/build/Tessera.app --args …`.
+The Sky mask is the documented phase-one heuristic (top-connected blue sky with the subject removed): blue sky is
+selected, grey clouds only partly, and it is not a semantic sky network.
+
+55. Engine and app tests (no UI): `cargo test -p tessera-ffi --release --test masks 2>&1 | grep "test result"` and
+    `(cd apps/mac && swift test --filter MaskingTests 2>&1 | grep Executed)`. Expect `test result: ok. 3 passed; 0 failed; 1 ignored` and
+    `Executed 8 tests, with 0 failures`. (The `subject_mask_on_the_canon_fixture_with_cached_models` test only runs
+    the real models when `TESSERA_SEGMENT_MODELS` or the M3-04 cache exists; otherwise it prints `SKIP offline`.)
+56. Relaunch on the RAW copies (`open -n apps/mac/build/Tessera.app --args --folder "$SCR/raw"`), select
+    **canon-cr3.CR3** (the tomato on the wooden table) and press **Return**; wait for the develop frame. Press **M**.
+    📸 Expect the mask toolbar centred at the top of the loupe (brush, linear, radial, colour range, luminance range |
+    Subject, Sky, Background, People, Objects | eye and overlay-colour dot | Done) and the MASKS panel open with
+    `No masks.` and a **Masking** switch that is on.
+57. **Subject mask on the tomato.** Click **Subject** in the toolbar. Expect a progress bar under the toolbar
+    (`Preparing image`, `Loading segmentation models`, `Segmenting`) and a new `Mask 1` row with a subject icon and a
+    spinner; then the status bar reads `Subject mask ready`. 📸 With the overlay on (default, red at 50 %), the tomato
+    (and its stem) is tinted red and the table is not; the row's thumbnail shows a white blob on black. Drag
+    **Exposure** in the panel to +1.00: only the tomato brightens, the table stays; on release HISTORY lists
+    `Mask 1: Exposure +1.00`. Press **O**: the overlay hides (the brighter tomato stays); **⇧O** switches the overlay
+    colour to green and shows it again. Press **X**: the mask inverts (now the table brightens and is tinted), the row
+    reads `inverted`; press **X** again.
+58. **Brush + local exposure.** Click the brush tool. The HUD shows Size/Feather/Flow; move the pointer over the photo:
+    a circle (and a dashed inner feather circle) follows it; **]** grows it, **[** shrinks it (⇧ changes feather).
+    Paint a stroke across the lower table. Because the selected Mask 1 has no brush, the stroke starts a new
+    `Mask 2` (brush icon) and becomes selected; the overlay follows the stroke within a frame or two. HISTORY shows one
+    `Brush Stroke` step per stroke. Drag its **Exposure** to −1.00: only the painted band darkens. Hold **⌥** and
+    paint over half the band: the cursor shows a minus and that part is erased (step `Brush Erase`); the darkening
+    there disappears.
+59. **Gradients and ranges.** Select the **linear** tool and drag from the top edge to the middle of the photo: three
+    lines follow (full effect, midpoint, none) and a `Mask 3` appears; set **Temp** −40: the top turns blue fading out
+    towards the middle. Drag its end knob: the gradient changes and history adds one `Edit Linear Gradient` step. In
+    MASKS choose **Subtract ▸ Color Range** and click the tomato: the tomato is excluded from the gradient (component
+    list shows `Linear Gradient` then `− Color Range`). ⇧-click another red spot adds a sample
+    (`Color Range (2 samples)`).
+60. **Undo.** Press **⌘Z** repeatedly: the steps come off in reverse order (the colour-range subtraction, the
+    gradient edit, Temp, the gradient, the erase, the brush exposure, the stroke, …) and the MASKS list follows each
+    step; **⌘⇧Z** redoes them. Quit and relaunch on the same folder, open the CR3 in the loupe and press **M**: the masks,
+    their sliders and the rendered result are restored (the Subject raster is recomputed from the model cache).
+61. **Sky on the Fuji RAF.** Select **fuji-raf.RAF** (the harbour with white houses), press **Return**, **M**, then
+    click **Sky**. Expect the blue sky at the top tinted, the houses, rocks and water not (clouds partly, see above).
+    Set **Dehaze** +40 and **Exposure** −0.50: the sky deepens while the foreground is unchanged. Choose **People**
+    and drag a box around a house's front: an `Object`-style `Person` mask appears (the promptable model segments
+    the boxed thing; it is a whole-person proxy, not part parsing). Choose **Objects** and click the right house: an
+    `Object` mask selecting that house.
+62. Optional automated pass: `apps/mac/build/Tessera.app/Contents/MacOS/Tessera --folder "$SCR/raw" --masks-selftest 2>&1 | grep -m1 masks-selftest`.
+    It opens the first photo, creates a linear gradient by dragging it, drags its local Exposure, paints a brush
+    stroke and drags the stroke's Saturation, each through the per-frame path; expect a line
+    `masks-selftest: linear gradient … median … ms; local exposure …; brush …; brush saturation …; masks 2; backend …`.
+    Local adjustments render on the whole-level chain like the heavy panels: during a drag the session drops to the
+    level that keeps frames near 16 ms (e.g. `L5`) and refines on release. Engine-only numbers:
+    `cargo test -p tessera-ffi --release --test masks -- --ignored --nocapture bench_mask` prints local exposure,
+    gradient handle and brush batch medians (expect each under 16 ms at its `L<n>`).
+
+## Verdict (masks)
+
+PASS when steps 55–61 meet their expectations. Steps 57 and 61 need the segmentation weights (network on first use,
+or `TESSERA_SEGMENT_MODELS`); if neither is available, record the `Loading segmentation models` failure message shown
+on the component (it offers **Retry**) and judge the remaining steps.

@@ -1,0 +1,15 @@
+Implemented M3-07 within the allowed paths.
+
+Added library-local logistic learning with 32-dimensional PCA, persisted models, feature explanations, assisted queue ordering, explicit automated-suggestion confirmation, best-of-burst ranking, face strips, and per-person review filters. engine-api and Selection remain unchanged.
+
+Verification passed:
+  61 release tests, zero failures.
+  100/100 held-out synthetic predictions after 30 labels.
+  Clippy with -D warnings and workspace formatting.
+  Model integration tests with offline skipping prohibited.
+
+Eyes-open remains explicitly documented as a heuristic, not verified blink detection. No decisions are written before confirmation.
+
+Verification log: tools/orchestrate/wp/M3-07/verification.log
+
+RESULT: PASS

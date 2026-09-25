@@ -34,6 +34,12 @@ final class LoupeController: LibraryObserver {
             if model?.loupeInfo != info { model?.loupeInfo = info }
         }
         model.addObserver(self)
+        DevelopTools.shared.onLoupeToolChange = { [weak view] in view?.toolOverlay.toolsChanged() }
+        MaskTools.shared.onLoupeChange = { [weak view] in
+            view?.toolOverlay.toolsChanged()
+            view?.render()
+        }
+        MaskTools.shared.onOverlayFrame = { [weak view] f in view?.present(maskOverlay: f) }
     }
 
     func libraryDidReload() {

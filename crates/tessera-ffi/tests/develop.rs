@@ -455,6 +455,196 @@ fn jpeg_images_are_refused() {
     assert!(err.to_string().contains("RAW"));
 }
 
+/// The M2 panels on a session: crop changes the displayed extent (and the
+/// crop tool shows the whole frame), the masking preview is an overlay,
+/// 1:1 detail crops render into their own surface and history steps can be
+/// checked out and toggled.
+#[test]
+fn panels_crop_masking_detail_and_history() {
+    let Some(h) = harness("arw") else { return };
+    let mut open = Open::new(&h.engine, &h.image_id);
+    let (plan, _) = open.attach((800, 600), 2);
+    let first = open.next_final();
+    assert_eq!(
+        (first.display_width, first.display_height),
+        (plan.width, plan.height)
+    );
+    assert!(!first.is_overlay);
+
+    // Every panel in one patch renders without error.
+    open.session
+        .set_settings(
+            r#"{"tone":{"curves":{"parametric":{"darks":-20},"rgb":[{"x":0,"y":0},{"x":0.5,"y":0.6},{"x":1,"y":1}]}},
+                "color":{"hsl":{"saturation":{"blue":-40}},"grading":{"highlights":{"hue":50,"saturation":30}}},
+                "detail":{"noise_reduction":{"luminance":20}},
+                "effects":{"vignette":{"amount":-30},"grain":{"amount":20}}}"#
+                .into(),
+            false,
+        )
+        .unwrap();
+    let panels = open.next_final();
+    assert!(open.events.failed.lock().unwrap().is_empty());
+    assert!(open.session.commit("Panels".into()).unwrap());
+    assert!(open.session.ignored_settings().unwrap().is_empty());
+
+    // A half-size crop: the frame reports the cropped picture.
+    open.session
+        .set_settings(
+            r#"{"geometry":{"crop":{"rect":{"left":0.25,"top":0.25,"right":0.75,"bottom":0.75},"angle":2.0}}}"#
+                .into(),
+            false,
+        )
+        .unwrap();
+    let cropped = open.next_final();
+    assert_eq!(cropped.level, plan.level);
+    assert_eq!(
+        cropped.display_width,
+        (plan.width as f32 * 0.5).round() as u32
+    );
+    assert_eq!(
+        cropped.display_height,
+        (plan.height as f32 * 0.5).round() as u32
+    );
+    assert_eq!(
+        (cropped.width, cropped.height),
+        (cropped.display_width, cropped.display_height)
+    );
+    assert!(open.session.commit("Crop".into()).unwrap());
+    // The crop tool renders the whole frame; leaving it crops again.
+    open.session.set_crop_editing(true).unwrap();
+    let whole = open.next_final();
+    assert_eq!(
+        (whole.display_width, whole.display_height),
+        (plan.width, plan.height)
+    );
+    open.session.set_crop_editing(false).unwrap();
+    assert_eq!(open.next_final().display_width, cropped.display_width);
+
+    // Masking preview: a grey overlay that follows the Masking slider.
+    open.session.set_masking_preview(true).unwrap();
+    let mask = open.next_final();
+    assert!(mask.is_overlay);
+    let white = |f: &FrameInfo| {
+        let s = Surface::lookup(f.surface_id, plan.width, plan.height).unwrap();
+        s.with_pixels(|px, stride| {
+            let mut n = 0u64;
+            for y in 0..f.height as usize {
+                for x in 0..f.width as usize {
+                    let p = &px[y * stride + 4 * x..][..4];
+                    assert!(p[0] == p[1] && p[1] == p[2], "grey");
+                    n += u64::from(p[0] > 127);
+                }
+            }
+            n as f64 / f64::from(f.width * f.height)
+        })
+        .unwrap()
+    };
+    assert_eq!(white(&mask), 1.0, "Masking 0 sharpens everywhere");
+    open.session
+        .set_settings(r#"{"detail":{"sharpening":{"masking":80}}}"#.into(), true)
+        .unwrap();
+    let masked = open.next_final();
+    assert!(masked.is_overlay);
+    let w = white(&masked);
+    assert!(w > 0.0 && w < 0.9, "edges only: {w}");
+    open.session.set_masking_preview(false).unwrap();
+    assert!(!open.next_final().is_overlay);
+    assert!(open.session.commit("Masking 80".into()).unwrap());
+
+    // 1:1 detail crop into a separate surface.
+    let id = create_rgba8(160, 120);
+    let d = open
+        .session
+        .render_detail_preview(id, 160, 120, 0.5, 0.5)
+        .unwrap();
+    let info = open.session.info();
+    assert_eq!((d.width, d.height), (160, 120));
+    assert!(d.x.abs_diff(info.width / 2 - 80) <= 1 && d.y.abs_diff(info.height / 2 - 60) <= 1);
+    let lit = Surface::lookup(id, 160, 120)
+        .unwrap()
+        .with_pixels(|px, stride| (0..120).any(|y| px[y * stride..][..640].iter().any(|&v| v != 0)))
+        .unwrap();
+    assert!(lit, "detail crop written");
+    let corner = open
+        .session
+        .render_detail_preview(id, 160, 120, 1.0, 1.0)
+        .unwrap();
+    assert_eq!((corner.x + 160, corner.y + 120), (info.width, info.height));
+
+    // History list, checkout and step toggles.
+    let items = open.session.history_items().unwrap();
+    let labels: Vec<_> = items.iter().map(|i| i.label.as_str()).collect();
+    assert_eq!(labels, ["Panels", "Crop", "Masking 80"]);
+    assert!(items[2].is_head && items.iter().all(|i| i.applied && i.enabled));
+    assert!(open.session.checkout_history(Some(items[0].id)).unwrap());
+    open.next_final();
+    let items = open.session.history_items().unwrap();
+    assert!(items[0].is_head && !items[1].applied && !items[2].applied);
+    assert!(open.session.checkout_history(Some(items[2].id)).unwrap());
+    open.next_final();
+    assert!(
+        open.session
+            .set_history_step_enabled(items[1].id, false)
+            .unwrap()
+    );
+    let off = open.next_final();
+    assert_eq!(off.display_width, plan.width, "crop step turned off");
+    let items = open.session.history_items().unwrap();
+    assert_eq!(items.len(), 4);
+    assert!(!items[1].enabled && items[3].toggles == Some(items[1].id));
+    assert!(
+        open.session
+            .set_history_step_enabled(items[1].id, true)
+            .unwrap()
+    );
+    assert_eq!(open.next_final().display_width, cropped.display_width);
+    assert!(
+        open.session
+            .set_history_step_enabled(items[3].id, false)
+            .is_err()
+    );
+    assert!(open.session.checkout_history(None).unwrap());
+    let base = open.next_final();
+    assert_eq!(base.display_width, plan.width);
+    drop(panels);
+}
+
+/// A drag faster than the frames it causes still shows progress: interactive
+/// changes queue behind the in-flight frame instead of cancelling it.
+#[test]
+fn slow_interactive_frames_are_not_starved() {
+    let Some(h) = harness("arw") else { return };
+    let mut open = Open::new(&h.engine, &h.image_id);
+    open.attach((1600, 1200), 2);
+    open.next_final();
+    let start = Instant::now();
+    for i in 0..40 {
+        open.session
+            .set_settings(
+                format!(r#"{{"color":{{"hsl":{{"hue":{{"orange":{i}}}}}}}}}"#),
+                true,
+            )
+            .unwrap();
+        std::thread::sleep(Duration::from_millis(4));
+    }
+    let sent = start.elapsed();
+    let mut during = 0;
+    while let Ok(f) = open.frames.try_recv() {
+        during += 1;
+        open.last_generation = open.last_generation.max(f.generation);
+    }
+    assert!(open.session.commit("HSL".into()).unwrap());
+    let last = open.next_final();
+    let v: serde_json::Value =
+        serde_json::from_str(&open.session.get_settings_json().unwrap()).unwrap();
+    assert_eq!(v["color"]["hsl"]["hue"]["orange"], 39.0);
+    eprintln!(
+        "{during} frames during a {sent:?} burst; final L{}",
+        last.level
+    );
+    assert!(during >= 1, "frames arrive while the drag continues");
+}
+
 /// Slider latency: tone-only edits at level 2 (settings change → frame in the
 /// IOSurface), on each available backend.
 /// `cargo test -p tessera-ffi --release --test develop -- --ignored --nocapture`
@@ -479,13 +669,15 @@ fn bench_slider_latency() {
         assert_eq!(plan.level, 2);
         let cold = open.next_final();
         let mut samples = Vec::new();
+        let mut drag_level = plan.level;
         for i in 0..40 {
             let ev = -1.0 + f64::from(i) * 0.05;
             open.session
                 .set_settings(format!(r#"{{"tone":{{"exposure":{ev}}}}}"#), true)
                 .unwrap();
             let f = open.next_final();
-            assert_eq!(f.level, 2);
+            // The drag level adapts to the frame budget (L2 when frames fit).
+            drag_level = f.level;
             samples.push(f.render_ms);
         }
         let mut wb = Vec::new();
@@ -505,7 +697,7 @@ fn bench_slider_latency() {
         samples.sort_by(f64::total_cmp);
         let p = |q: f64| samples[((samples.len() - 1) as f64 * q) as usize];
         println!(
-            "{} {}×{} L2 {}×{} ({:.1} MP): open {open_ms:.0} ms, first frame {:.0} ms, white balance median {:.0} ms; tone-only median {:.1} ms, p90 {:.1} ms, max {:.1} ms",
+            "{} {}×{} L2 {}×{} ({:.1} MP): open {open_ms:.0} ms, first frame {:.0} ms, white balance median {:.0} ms; tone-only (drag at L{drag_level}) median {:.1} ms, p90 {:.1} ms, max {:.1} ms",
             info.backend,
             info.width,
             info.height,
@@ -517,6 +709,115 @@ fn bench_slider_latency() {
             p(0.5),
             p(0.9),
             p(1.0),
+        );
+        drop(open);
+    }
+}
+
+/// Develop-panel latency: interactive drags of every M2 panel control at the
+/// screen level, on each available backend (settings change → frame).
+/// `cargo test -p tessera-ffi --release --test develop -- --ignored --nocapture bench_panel`
+#[test]
+#[ignore]
+fn bench_panel_latency() {
+    let ext = std::env::var("TESSERA_BENCH_EXT").unwrap_or_else(|_| "nef".into());
+    let Some(h) = harness(&ext) else { return };
+    let backends = std::env::var("TESSERA_BENCH_BACKENDS").unwrap_or_else(|_| "cpu,gpu".into());
+    for backend in backends.split(',') {
+        // SAFETY (env): the bench is the only test in this process touching it.
+        unsafe { std::env::set_var("TESSERA_RENDER_BACKEND", backend) };
+        let engine = Engine::open(format!("{}-panel-{backend}", h.support)).unwrap();
+        engine
+            .index_folder(h.raw.parent().unwrap().to_string_lossy().into_owned())
+            .unwrap();
+        let mut open = Open::new(&engine, &h.image_id);
+        let info = open.session.info();
+        let e2 = (info.width.div_ceil(4), info.height.div_ceil(4));
+        let (plan, _) = open.attach(e2, 3);
+        open.next_final();
+        let panels: [(&str, &dyn Fn(f64) -> String); 8] = [
+            ("tone exposure", &|v| {
+                format!(r#"{{"tone":{{"exposure":{}}}}}"#, v - 0.5)
+            }),
+            ("parametric curve", &|v| {
+                format!(
+                    r#"{{"tone":{{"curves":{{"parametric":{{"lights":{}}}}}}}}}"#,
+                    v * 60.0
+                )
+            }),
+            ("point curve", &|v| {
+                format!(
+                    r#"{{"tone":{{"curves":{{"rgb":[{{"x":0,"y":0}},{{"x":0.5,"y":{}}},{{"x":1,"y":1}}]}}}}}}"#,
+                    0.5 + v * 0.2
+                )
+            }),
+            ("hsl", &|v| {
+                format!(
+                    r#"{{"color":{{"hsl":{{"hue":{{"orange":{}}}}}}}}}"#,
+                    v * 60.0
+                )
+            }),
+            ("grading", &|v| {
+                format!(
+                    r#"{{"color":{{"grading":{{"shadows":{{"hue":220,"saturation":{}}}}}}}}}"#,
+                    v * 40.0
+                )
+            }),
+            ("sharpening", &|v| {
+                format!(
+                    r#"{{"detail":{{"sharpening":{{"amount":{}}}}}}}"#,
+                    40.0 + v * 60.0
+                )
+            }),
+            ("vignette", &|v| {
+                format!(r#"{{"effects":{{"vignette":{{"amount":{}}}}}}}"#, -v * 60.0)
+            }),
+            ("straighten", &|v| {
+                format!(
+                    r#"{{"geometry":{{"crop":{{"rect":{{"left":0.1,"top":0.1,"right":0.9,"bottom":0.9}},"angle":{}}}}}}}"#,
+                    v * 5.0
+                )
+            }),
+        ];
+        let mut lines = Vec::new();
+        for (name, patch) in panels {
+            let mut samples = Vec::new();
+            let mut level = 0;
+            // From i = 1: a patch that changes nothing renders nothing.
+            for i in 1..25 {
+                open.session
+                    .set_settings(patch(f64::from(i) / 24.0), true)
+                    .unwrap();
+                let f = open.next_final();
+                level = f.level;
+                // The drag level adapts over the first frames of a session.
+                if i > 8 {
+                    samples.push(f.render_ms);
+                }
+            }
+            if open.session.commit(name.into()).unwrap() {
+                // Mouse-up refines only when the drag rendered coarser.
+                if level != plan.level {
+                    open.next_final();
+                }
+            }
+            samples.sort_by(f64::total_cmp);
+            let p = |q: f64| samples[((samples.len() - 1) as f64 * q) as usize];
+            lines.push(format!(
+                "  {name:<17} L{level}: median {:.1} ms, p90 {:.1} ms",
+                p(0.5),
+                p(0.9)
+            ));
+            open.session.reset().unwrap();
+            open.next_final();
+        }
+        println!(
+            "{} panels, screen L{} {}×{}:\n{}",
+            info.backend,
+            plan.level,
+            plan.width,
+            plan.height,
+            lines.join("\n")
         );
         drop(open);
     }

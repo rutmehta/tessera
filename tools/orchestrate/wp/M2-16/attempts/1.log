@@ -1,0 +1,15 @@
+Implemented M2-16 within the allowed paths.
+
+HDR alignment/deghosting, panorama projections with multiband blending, HDR panorama, float32 DNG roundtrip, and editable recipe/XMP output are working.
+
+Verification: 42 tests passed, Clippy -D warnings passed, and cargo fmt --check passed.
+  HDR worst relative error: 0.27%
+  Panorama overlap PSNR: 57.44 dB
+  HDR panorama overlap PSNR: 62.81 dB
+
+engine-api is unchanged. Required integration fields and limitations are documented in crates/merge/README.md. Edge filling is explicitly a placeholder; panorama output is capped at 8 Mi pixels.
+
+Logs: tools/orchestrate/wp/M2-16/{verification,metrics}.log
+No commits made. External CARGO_TARGET_DIR retained.
+
+RESULT: PASS

@@ -1,4 +1,5 @@
 //! Content-addressed JPEG preview pyramids.
+pub mod masks;
 mod raw;
 use image::{RgbImage, imageops::FilterType};
 pub use raw::PreviewSource;
@@ -285,7 +286,8 @@ mod tests {
             start.elapsed()
         );
         assert!(mean > 0.02 && stddev > 0.01);
-        if !cfg!(debug_assertions) {
+        // Timing budget is a local performance check; CI runners are far slower and shared.
+        if !cfg!(debug_assertions) && std::env::var_os("CI").is_none() {
             assert!(start.elapsed().as_secs_f64() < 3.0);
         }
         fs::remove_dir_all(p).unwrap();

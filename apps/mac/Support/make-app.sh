@@ -27,7 +27,14 @@ install_name_tool -add_rpath '@executable_path/../Frameworks' "$APP/Contents/Mac
 printf 'APPL????' > "$APP/Contents/PkgInfo"
 IDENTITY="${CODESIGN_IDENTITY:--}"
 SIGN=(--force --sign "$IDENTITY" --options runtime)
-if [[ "$IDENTITY" != - ]]; then SIGN+=(--timestamp); fi
+ENTITLEMENTS=Support/release/Tessera.entitlements
+if [[ "$IDENTITY" == - ]]; then
+  # Ad-hoc binaries have no shared Team ID. Hardened library validation would
+  # reject the separately signed Sparkle framework before main() even runs.
+  ENTITLEMENTS=Support/release/Tessera-adhoc.entitlements
+else
+  SIGN+=(--timestamp)
+fi
 FRAMEWORK="$APP/Contents/Frameworks/Sparkle.framework"
 for helper in "$FRAMEWORK/Versions/B/XPCServices/Downloader.xpc" \
               "$FRAMEWORK/Versions/B/XPCServices/Installer.xpc" \
@@ -36,6 +43,6 @@ for helper in "$FRAMEWORK/Versions/B/XPCServices/Downloader.xpc" \
   codesign "${SIGN[@]}" --preserve-metadata=entitlements "$helper"
 done
 codesign "${SIGN[@]}" "$FRAMEWORK"
-codesign "${SIGN[@]}" --entitlements Support/release/Tessera.entitlements "$APP"
+codesign "${SIGN[@]}" --entitlements "$ENTITLEMENTS" "$APP"
 codesign --verify --deep --strict "$APP"
 echo "Built $(pwd)/$APP"

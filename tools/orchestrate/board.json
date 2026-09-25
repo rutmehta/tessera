@@ -315,9 +315,9 @@
     "id": "M2-13",
     "owner": "opus",
     "title": "Develop panels UI",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
-    "notes": ""
+    "notes": "Sparkle empty-key crash -> M2-07c; heavy panels full-res 250-600ms -> M2-17"
   },
   {
     "id": "M2-06b",
@@ -347,7 +347,7 @@
     "id": "M3-04",
     "owner": "astra",
     "title": "AI segmentation masks",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
@@ -355,7 +355,7 @@
     "id": "M2-15",
     "owner": "astra",
     "title": "Soft proofing + colour management",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
@@ -371,6 +371,62 @@
     "id": "M2-16",
     "owner": "astra",
     "title": "HDR / panorama merge",
+    "status": "merged",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-07c",
+    "owner": "sol",
+    "title": "Sparkle never blocks/crashes",
+    "status": "merged",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-17",
+    "owner": "astra",
+    "title": "Operator performance at full res",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-14",
+    "owner": "opus",
+    "title": "Masking UI",
+    "status": "merged",
+    "attempts": 0,
+    "notes": "verify on screen (section M); export must install MaskHooks for AI masks; locals not on fast GPU path"
+  },
+  {
+    "id": "M3-06",
+    "owner": "astra",
+    "title": "Depth + lens blur",
+    "status": "merged",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M3-07",
+    "owner": "astra",
+    "title": "Assisted culling + face strip",
+    "status": "merged",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-13v",
+    "owner": "sol",
+    "title": "Verify library + develop panels",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-13c",
+    "owner": "sol",
+    "title": "Swift strict-concurrency CI fix",
     "status": "running",
     "attempts": 0,
     "notes": ""

@@ -1,0 +1,10 @@
+# WP M3-07 — Assisted culling: learning from decisions, per-face signals, best-of-burst
+
+Read docs/06 §3 (face strip, defect sweep, learning: assisted vs automated), docs/09 §3, crates/cull (Scorer, groups, defect_sweep), crates/ml-faces (per-face focus, eyes-open heuristic), crates/ml-quality, crates/ml-embed (image embeddings), crates/index (score/face tables).
+Implement in `crates/cull` (+ a small `crates/cull-learn` if cleaner):
+- **Feature vector per image**: quality scores (sharpness, blur, exposure/clipping, noise), face aggregates (count, min face focus, any eyes closed, largest face fraction), embedding (PCA-reduced to 32 dims fitted per library), group context (rank within burst by sharpness).
+- **Learner**: online logistic regression (or a small gradient-boosted stump ensemble, pure Rust, no new heavy deps) predicting P(keep) from the user's own decisions; persisted in the app-support dir per library; `predict(image) -> (p_keep, explanation: top contributing features)`; cold start uses hand-set priors (closed eyes → low, missed focus → low).
+- **Modes**: `assisted` (predictions shown, queue reordered: likely keepers first, likely rejects grouped at the end for bulk review) and `automated` (pre-fill decisions above/below thresholds as *suggested* state that the user confirms; never silently commits). Best-of-burst = argmax within group of a blend of p_keep and technical scores; ties by sharpness.
+- **Per-face signals for the UI**: `face_strip(image) -> Vec<FaceChip { crop rect, focus score, eyes_open, person_id? }>` and per-person filters ("frames where person X has eyes closed").
+- Tests: synthetic library where the rule is "reject if blurry" → after 30 labelled decisions the learner's accuracy on 100 held-out synthetic images > 90%; queue reordering puts predicted keeps first; automated mode never writes a Decision without confirm; face-strip on a synthetic face-like pattern returns chips; explanation lists the dominant feature.
+`cargo test -p cull -p ml-faces -p ml-quality --release`, clippy -D warnings, fmt. engine-api unchanged (Selection semantics: AI never changes Decision, docs/06 §2).

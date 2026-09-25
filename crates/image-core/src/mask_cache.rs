@@ -9,14 +9,36 @@ use engine_api::{
 use pipeline_cpu::{Image, masks::MaskOptions};
 use std::{
     collections::{BTreeMap, HashMap},
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, RwLock},
 };
+
+/// Host hooks for mask rasters: supplies components the procedural
+/// rasterizer cannot compute (AI segmentation rasters live outside the
+/// recipe) and observes every raster the renderer uses (e.g. a loupe overlay).
+pub trait MaskHooks: Send + Sync {
+    /// Changes whenever a supplied external raster changes. Part of the cache
+    /// key of every group with an AI component.
+    fn revision(&self) -> u64;
+    /// Composite alpha of `group` over `input`'s extent (one finite value in
+    /// `0..=1` per pixel), for groups with at least one AI component. The
+    /// implementation composes procedural components with
+    /// `pipeline_cpu::masks::rasterize` and applies group inversion.
+    fn rasterize(
+        &self,
+        input: &Image,
+        group: &LocalAdjustment,
+        level: u8,
+    ) -> EngineResult<Vec<f32>>;
+    /// Every raster returned by [`MaskRasterCache::rasterize`] (hit or miss).
+    fn observe(&self, _group: &LocalAdjustment, _level: u8, _width: u32, _raster: &Arc<[f32]>) {}
+}
 
 /// Cached alpha payloads stay f32; local amount/parameters never enter the key.
 /// The budget bounds cache-owned payloads (callers can retain an `Arc` after eviction).
 pub struct MaskRasterCache {
     budget: usize,
     inner: Mutex<Inner>,
+    hooks: RwLock<Option<Arc<dyn MaskHooks>>>,
 }
 #[derive(Default)]
 struct Inner {
@@ -32,7 +54,13 @@ impl MaskRasterCache {
         Self {
             budget,
             inner: Mutex::new(Inner::default()),
+            hooks: RwLock::new(None),
         }
+    }
+    /// Installs (or removes) the host hooks. Without hooks, groups with AI
+    /// components fail to rasterize as before.
+    pub fn set_hooks(&self, hooks: Option<Arc<dyn MaskHooks>>) {
+        *self.hooks.write().unwrap_or_else(|e| e.into_inner()) = hooks;
     }
     /// Retained payload bytes.
     pub fn bytes(&self) -> usize {
@@ -79,6 +107,11 @@ impl MaskRasterCache {
         } else {
             Vec::new()
         };
+        let hooks = self.hooks.read().unwrap_or_else(|e| e.into_inner()).clone();
+        let external = hooks
+            .as_ref()
+            .filter(|_| group.components.iter().any(|c| c.kind.is_ai()));
+        let revision = external.map(|h| h.revision());
         let depth = options.depth.map(hash_plane);
         let refinement = options.refinement.map(|r| (r.radius, r.epsilon.to_bits()));
         let key = ParamHash::of(
@@ -95,6 +128,7 @@ impl MaskRasterCache {
                 depth,
                 refinement,
                 options.color_smoothness.to_bits(),
+                revision,
             ),
         );
         {
@@ -106,13 +140,34 @@ impl MaskRasterCache {
                 inner.order.insert(tick, key);
                 inner.entries.insert(key, (tick, raster.clone()));
                 inner.stats.hits += 1;
+                drop(inner);
+                if let Some(h) = &hooks {
+                    h.observe(group, level, input.width(), &raster);
+                }
                 return Ok(raster);
             }
             inner.stats.misses += 1;
         }
         // Do not hold the mutex while running expensive rasterization. Duplicate
         // concurrent misses may compute twice but never double-account payloads.
-        let raster: Arc<[f32]> = pipeline_cpu::masks::rasterize(input, group, options)?.into();
+        let raster: Arc<[f32]> = match external {
+            Some(h) => {
+                let plane = h.rasterize(input, group, level)?;
+                if plane.len() != input.width() as usize * input.height() as usize
+                    || plane.iter().any(|v| !(0.0..=1.0).contains(v))
+                {
+                    return Err(engine_api::EngineError::invalid(
+                        "mask",
+                        "external raster must be a same-extent plane in 0..=1",
+                    ));
+                }
+                plane.into()
+            }
+            None => pipeline_cpu::masks::rasterize(input, group, options)?.into(),
+        };
+        if let Some(h) = &hooks {
+            h.observe(group, level, input.width(), &raster);
+        }
         let bytes = std::mem::size_of_val(raster.as_ref());
         let mut inner = self.inner.lock().unwrap();
         if let Some((_, existing)) = inner.entries.get(&key) {

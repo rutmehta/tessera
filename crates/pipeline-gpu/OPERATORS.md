@@ -1,3 +1,95 @@
+# M2-15 managed ICC output
+
+`GpuManagedOutput::new(context, settings, &mut OutputContext)` resolves the same
+profile/proof identities as the CPU output adapter. A missing/mismatched proof
+or HDR setting is an error. Intent, BPC, paper simulation and gamut threshold
+come from the explicit context, without changing engine-api.
+
+The compute kernel applies the CPU reference's luminance sigmoid, cached 33³
+ICC/proof LUT, selected clipping or constant-luminance chroma compression, and
+destination transfer encoding. Matrix/shaper display profiles are split into a
+signed linear-destination 33³ LUT and 4097-point transfer curves to avoid losing
+negative channels at the LUT nodes or interpolating across a gamma knee.
+CLUT destinations retain their complete ICC transform, with a reversible output
+shaper. Edge cells extrapolate rather than clipping working RGB before the CMM.
+The preview is an approximation, not a universal accuracy bound for arbitrary
+printer CLUTs or extreme signed scene colors; exports use the direct CPU CMM.
+
+- `apply(&Tile)` returns float encoded pixels and separate monitor/proof masks,
+  removing halos. `encode(encoder, buffer, layout)` returns RGB and two-bit mask
+  buffers without a pixel upload/readback or submission.
+- Preview warnings interpolate CMM round-trip DeltaE on an extended [-0.5,3.5]
+  working-RGB lattice and threshold afterward. Tetrahedral interpolation preserves
+  the neutral diagonal. Near a gamut boundary these are approximate; exact masks
+  remain available through the CPU CMM. Out-of-domain warning coordinates clamp.
+- `GpuManagedOutput::render_region` is the float/mask convenience path and includes
+  scene readback and per-tile transfers. It validates and consumes proof settings
+  before invoking legacy scene validation.
+- `ManagedRenderer::new(Arc<GpuManagedOutput>, RendererConfig)` owns isolated
+  output caches and wires the managed kernel into both batched and resident
+  `Op::Display`. `render_region` returns encoded U8 tiles. `render_to_surface`
+  writes directly through Metal to an IOSurface, with no pixel readback. It
+  returns false for scene operators not supported by the existing resident graph.
+  Surface output does not paint warning overlays; use the separate mask API.
+- Recreate the immutable managed renderer when target/proof/output settings change.
+  Recipe edits outside Output can reuse it. Caller-selected display ICC bytes are
+  refreshed through `Registry::display_profile(display_id)`.
+
+Real Metal gates: five built-in destinations against CPU managed output for
+highlights, negative/saturated colors, both gamut modes and proof on/off (0.025
+absolute RGB); whole Bayer frame vs CPU (0.03, including f16 scene caches and U8
+quantization); synthetic smaller-gamut printer paper simulation vs CPU; neutral
+warning regression; and exact IOSurface-vs-tile pixels with unchanged readback
+counters. These do not claim a universal latency or DeltaE bound.
+
+## Low-level raw LUT primitive
+
+`GpuOutputLut::new(context, &nodes)` uploads exactly 33³ finite `[f32; 3]`
+nodes once and compiles a reusable Metal compute pipeline. Nodes use red-fastest
+index `(blue * 33 + green) * 33 + red`. All storage and interpolation are f32;
+there is no f16 cache conversion, texture filtering approximation, Oklab
+conversion, or CPU pixel-transform fallback. Normalized RGB inputs are clamped
+to [0, 1] and trilinearly interpolated; LUT outputs are not clamped. The LUT
+must already describe the desired output transfer function.
+
+- `apply(&Tile) -> EngineResult<Tile>` accepts finite planar f32 RGB, includes
+  halos, preserves layout/coordinates, and executes upload/compute/readback.
+- `encode(&mut CommandEncoder, &Buffer) -> EngineResult<Buffer>` accepts a
+  same-device planar f32 RGB storage buffer and returns a storage/copy-source
+  buffer without submission or host pixel transfer. The caller guarantees
+  finite samples and submits its encoder. This enables GPU-only composition.
+- `from_lut(context, &transform.lut33())` accepts the typed `color_mgmt` LUT,
+  validates its 33³ dimensions and finite values, and uploads it once per output
+  transform. ICC parsing and profile ownership remain with `color_mgmt`.
+- `render_region(&renderer, &image, &settings, level, rect)` is a raw LUT helper,
+  not the complete managed output stage. Construct the transform with `LinearRec2020` as
+  source and the desired monitor/proof profile as destination. It renders the
+  scene-linear graph (including edits/geometry), bypasses legacy display, and
+  returns destination-encoded planar f32 RGB tiles. Switching LUT contexts leaves
+  scene caches reusable; no profile-dependent pixels are stored in those caches.
+  This convenience path includes scene readback plus one upload/dispatch/readback
+  per output tile; it is not fused resident/IOSurface presentation.
+
+`tests/managed_output.rs` compares real ICC-generated sRGB and Display P3 LUTs
+against `Lut3d::sample` (2e-6), and direct CMM transforms on off-grid interior
+colors (0.01 absolute bound; observed maxima 0.001902 and 0.000933). Direct CMM
+accuracy near gamut/transfer knees is not covered by that bound. Renderer tests
+exercise profile switching and verify unchanged legacy display bytes.
+
+This raw primitive is not an automatic replacement of `Op::Display`,
+the resident renderer's fused display pass, or IOSurface presentation. Use
+`GpuManagedOutput` / `ManagedRenderer` above for that integration. Raw LUT callers
+must opt in before U8 quantization, and must not apply the old sRGB OETF again
+to already encoded LUT output. HDR/extrapolation, gamut-warning overlays,
+profile discovery, and soft-proof selection are not implemented by the raw
+primitive. `GpuStageOp::stats` does not count standalone LUT calls.
+
+`tests/output_lut.rs` executes real Metal and compares to an independent CPU
+weighted-corner trilinear reference (absolute tolerance 2e-6), including axis
+order, endpoints, off-grid values, halos and out-of-domain clamping. It also
+chains two GPU transforms with no intermediate readback and rejects malformed
+LUTs and input tiles. Metal absence is a test failure, not a silent skip.
+
 # M2-08 local adjustment integration
 
 `image-core` applies Locals to the complete requested pyramid level after Color

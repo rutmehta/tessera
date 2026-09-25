@@ -11,6 +11,12 @@ import TesseraCore
 ///   Grid:  arrows move spatially (⇧ extends), ⌥ + arrows = group navigation as in the loupe
 ///   K keep the group's suggested best and reject the rest · C compare · ⌫ remove from album
 ///   Compare: ← → pick side · Return choose this · Z fit/1:1 · Esc back
+///   Masking (loupe): M on/off · O overlay (⇧ colour) · [ ] brush size (⇧ feather) · X invert · ⌫ delete
+/// A develop control that handles keys itself while focused (the curve editor's point nudge).
+@MainActor protocol DevelopKeyHandling: AnyObject {
+    func handleDevelopKey(_ event: NSEvent) -> Bool
+}
+
 @MainActor
 final class KeyRouter {
     private var monitor: Any?
@@ -38,6 +44,10 @@ final class KeyRouter {
 
     func handle(_ event: NSEvent) -> Bool {
         if shouldIgnore(event) { return false }
+        // Develop tools first: a focused curve editor takes arrows; the crop tool takes its keys.
+        if let target = event.window?.firstResponder as? DevelopKeyHandling, target.handleDevelopKey(event) { return true }
+        if MaskTools.shared.handleKey(event) { return true }
+        if DevelopTools.shared.handleKey(event) { return true }
         let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         let shift = mods.contains(.shift)
         let option = mods.contains(.option)

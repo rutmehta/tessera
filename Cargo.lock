@@ -578,6 +578,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "color-mgmt"
+version = "0.1.0"
+dependencies = [
+ "blake3",
+ "lcms2",
+ "objc2-core-foundation",
+ "objc2-core-graphics",
+ "tempfile",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "colorchoice"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1022,6 +1034,7 @@ checksum = "d817e038c30374a4bcb22f94d0a8a0e216958d4c3dcde369b1439fec4bdda6e6"
 name = "export"
 version = "0.1.0"
 dependencies = [
+ "color-mgmt",
  "engine-api",
  "image",
  "jpeg-encoder",
@@ -1828,6 +1841,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
+name = "merge"
+version = "0.1.0"
+dependencies = [
+ "engine-api",
+ "pipeline-cpu",
+ "raw-decode",
+ "rustfft",
+ "serde_json",
+]
+
+[[package]]
 name = "minimal-lexical"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1851,6 +1875,20 @@ checksum = "b63fbc4a50860e98e7b2aa7804ded1db5cbc3aff9193adaff57a6931bf7c4b4c"
 dependencies = [
  "adler2",
  "simd-adler32",
+]
+
+[[package]]
+name = "ml-depth"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "blake3",
+ "engine-api",
+ "image",
+ "ml-runtime",
+ "ml-segment",
+ "pipeline-cpu",
+ "tempfile",
 ]
 
 [[package]]
@@ -1925,6 +1963,21 @@ dependencies = [
  "tempfile",
  "toml 0.8.23",
  "ureq",
+]
+
+[[package]]
+name = "ml-segment"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "blake3",
+ "engine-api",
+ "image",
+ "ml-runtime",
+ "previews",
+ "serde",
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]
@@ -2149,7 +2202,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2a180dd8642fa45cdb7dd721cd4c11b1cadd4929ce112ebd8b9f5803cc79d536"
 dependencies = [
  "bitflags 2.13.2",
+ "block2",
  "dispatch2",
+ "libc",
  "objc2",
 ]
 
@@ -2159,6 +2214,7 @@ version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e022c9d066895efa1345f8e33e584b9f958da2fd4cd116792e15e07e4720a807"
 dependencies = [
+ "bitflags 2.13.2",
  "dispatch2",
  "objc2",
  "objc2-core-foundation",
@@ -2379,6 +2435,7 @@ checksum = "a89322df9ebe1c1578d689c92318e070967d1042b512afbe49518723f4e6d5cd"
 name = "pipeline-cpu"
 version = "0.1.0"
 dependencies = [
+ "color-mgmt",
  "engine-api",
  "image",
  "lens",
@@ -2391,10 +2448,13 @@ name = "pipeline-gpu"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
+ "color-mgmt",
  "engine-api",
  "image-core",
+ "lcms2",
  "log",
  "naga",
+ "objc2-core-foundation",
  "objc2-io-surface",
  "objc2-metal",
  "pipeline-cpu",
@@ -2551,7 +2611,17 @@ dependencies = [
  "image",
  "pipeline-cpu",
  "raw-decode",
+ "tempfile",
  "thiserror 2.0.21",
+]
+
+[[package]]
+name = "primal-check"
+version = "0.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc0d895b311e3af9902528fbb8f928688abbd95872819320517cc24ca6b2bd08"
+dependencies = [
+ "num-integer",
 ]
 
 [[package]]
@@ -2848,6 +2918,20 @@ name = "rustc-hash"
 version = "2.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6b1e7f9a428571be2dc5bc0505c13fb6bf936822b894ec87abf8a08a4e51742d"
+
+[[package]]
+name = "rustfft"
+version = "6.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "21db5f9893e91f41798c88680037dba611ca6674703c1a18601b01a72c8adb89"
+dependencies = [
+ "num-complex",
+ "num-integer",
+ "num-traits",
+ "primal-check",
+ "strength_reduce",
+ "transpose",
+]
 
 [[package]]
 name = "rustix"
@@ -3184,6 +3268,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
+name = "strength_reduce"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fe895eb47f22e2ddd4dabc02bce419d2e643c8e3b585c78158b349195bc24d82"
+
+[[package]]
 name = "strsim"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3290,6 +3380,7 @@ dependencies = [
 name = "tessera-ffi"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "blake3",
  "cull",
  "engine-api",
@@ -3299,6 +3390,8 @@ dependencies = [
  "jobs",
  "kamadak-exif",
  "library",
+ "ml-runtime",
+ "ml-segment",
  "pipeline-cpu",
  "pipeline-gpu",
  "previews",
@@ -3524,6 +3617,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "db97caf9d906fbde555dd62fa95ddba9eecfd14cb388e4f491a66d74cd5fb79a"
 dependencies = [
  "once_cell",
+]
+
+[[package]]
+name = "transpose"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1ad61aed86bc3faea4300c7aee358b4c6d0c8d6ccc36524c96e4c92ccf26e77e"
+dependencies = [
+ "num-integer",
+ "strength_reduce",
 ]
 
 [[package]]

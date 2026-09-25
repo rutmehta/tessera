@@ -45,6 +45,7 @@ pub(crate) struct Counters {
 #[derive(Clone)]
 pub struct GpuStageOp {
     context: Arc<GpuContext>,
+    pub(crate) managed_output: Option<Arc<crate::GpuManagedOutput>>,
     pub(crate) counters: Arc<Counters>,
     pub(crate) resident_cache: Arc<std::sync::Mutex<crate::resident::Cache>>,
     pub(crate) resident_pipeline: wgpu::ComputePipeline,
@@ -148,6 +149,7 @@ impl GpuStageOp {
             detail_pipelines: crate::detail::pipelines(&context).expect("valid Detail pipelines"),
             context,
             counters: Arc::default(),
+            managed_output: None,
             resident_cache: crate::resident::cache(budget),
             resident_pipeline,
             gather_pipeline,
@@ -223,6 +225,7 @@ impl GpuStageOp {
                         "display must be last (U8 output)",
                     ));
                 }
+                let input_layout = layout;
                 let (p, next_layout) =
                     parameters(op, layout, input.coord().pixel_origin(TILE_SIZE))?;
                 layout = next_layout;
@@ -240,6 +243,24 @@ impl GpuStageOp {
                     usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
                     mapped_at_creation: false,
                 });
+                if matches!(op, Op::Display { .. })
+                    && let Some(output) = &self.managed_output
+                {
+                    let flags = ctx.device.create_buffer(&wgpu::BufferDescriptor {
+                        label: Some("managed gamut mask"),
+                        size: layout.extent.area() * 4,
+                        usage: wgpu::BufferUsages::STORAGE,
+                        mapped_at_creation: false,
+                    });
+                    let group = output.bindings(&src, &dst, &flags, input_layout, true)?;
+                    let mut pass = encoder.begin_compute_pass(&Default::default());
+                    pass.set_pipeline(&output.pipeline);
+                    pass.set_bind_group(0, &group, &[]);
+                    pass.dispatch_workgroups((layout.plane_len() as u32).div_ceil(64), 1, 1);
+                    drop(pass);
+                    src = dst;
+                    continue;
+                }
                 let entries: Vec<_> = [&src, &dst, &params]
                     .iter()
                     .enumerate()

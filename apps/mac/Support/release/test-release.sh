@@ -19,6 +19,23 @@ assert p['SUFeedURL'] == 'https://github.com/rutmehta/tessera/releases/latest/do
 assert 'SUPublicEDKey' in p
 info = subprocess.check_output(['codesign', '-dv', str(app)], stderr=subprocess.STDOUT).decode()
 assert 'runtime' in info and 'Signature=adhoc' in info
+entitlements = subprocess.check_output(['codesign', '-d', '--entitlements', '-', str(app)], stderr=subprocess.DEVNULL)
+assert b'[Key] com.apple.security.cs.disable-library-validation' in entitlements
+assert b'[Bool] true' in entitlements
+for target in (app / 'Contents/Frameworks/Sparkle.framework',
+               app / 'Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices/Installer.xpc',
+               app / 'Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices/Downloader.xpc'):
+    details = subprocess.check_output(['codesign', '-dvv', str(target)], stderr=subprocess.STDOUT).decode()
+    assert 'runtime' in details and 'Signature=adhoc' in details, (target, details)
+# Execute the bundle's own binary, not the SwiftPM binary (which can find its
+# framework in .build). timeout detects a modal/hang; return code catches dyld.
+result = subprocess.run([str(app / 'Contents/MacOS/Tessera'), '--stub', '0',
+                         '--develop-selftest', '--bundle-selftest'],
+                        capture_output=True, text=True, timeout=5)
+assert result.returncode == 0, (result.returncode, result.stderr)
+assert 'bundle-selftest: launched' in result.stderr, result.stderr
+assert result.stderr.count('Sparkle updates not configured for this build') == 1, result.stderr
+assert 'Unable to Check For Updates' not in result.stderr, result.stderr
 PY
 # A unique nonexistent account isolates this test from the developer's real key.
 TEST="$(mktemp -d "$PWD/build/appcast-negative.XXXXXX")"
@@ -40,4 +57,4 @@ assert 'error: no Sparkle signing key;' in message, message
 print(message, end='')
 PY
 test ! -e "$TEST/appcast.xml"
-echo 'PASS: ad-hoc bundle, embedded Sparkle/XPCs, hardened runtime, and missing-key rejection'
+echo 'PASS: direct bundle launch, Sparkle/XPC signatures, hardened runtime, and missing-key rejection'

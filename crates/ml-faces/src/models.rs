@@ -63,6 +63,13 @@ impl FaceModels {
         })
     }
 
+    /// Detect faces and build UI metadata with the already-loaded detector.
+    /// Does not embed, assign identities, write the catalog, or fetch weights.
+    /// `eyes_open` remains a geometry heuristic, not a measured blink signal.
+    pub fn face_strip(&mut self, image: &RgbImage) -> Result<Vec<crate::FaceChip>> {
+        crate::face_strip(image, &self.detect(image)?)
+    }
+
     pub fn detect(&mut self, image: &RgbImage) -> Result<Vec<Face>> {
         self.detect_with_thresholds(image, 0.9, 0.3)
     }

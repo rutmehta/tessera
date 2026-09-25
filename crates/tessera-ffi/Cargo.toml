@@ -19,6 +19,9 @@ library = { path = "../library" }
 image-core = { path = "../image-core" }
 pipeline-cpu = { path = "../pipeline-cpu" }
 pipeline-gpu = { path = "../pipeline-gpu" }
+ml-runtime = { path = "../ml-runtime" }
+ml-segment = { path = "../ml-segment" }
+anyhow.workspace = true
 blake3.workspace = true
 uniffi = { workspace = true, features = ["cli"] }
 rusqlite.workspace = true
