@@ -462,5 +462,21 @@
     "status": "todo",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M2-18",
+    "owner": "astra",
+    "title": "Adobe PV6 compatibility renderer",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-13b",
+    "owner": "opus",
+    "title": "Lightroom import in app + fidelity",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
