@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "crates/merge",
+    "crates/color-mgmt",
     "crates/lens",
     "crates/export",
     "crates/image-core",

@@ -578,6 +578,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "color-mgmt"
+version = "0.1.0"
+dependencies = [
+ "blake3",
+ "lcms2",
+ "objc2-core-foundation",
+ "objc2-core-graphics",
+ "tempfile",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "colorchoice"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1022,6 +1034,7 @@ checksum = "d817e038c30374a4bcb22f94d0a8a0e216958d4c3dcde369b1439fec4bdda6e6"
 name = "export"
 version = "0.1.0"
 dependencies = [
+ "color-mgmt",
  "engine-api",
  "image",
  "jpeg-encoder",
@@ -2161,7 +2174,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2a180dd8642fa45cdb7dd721cd4c11b1cadd4929ce112ebd8b9f5803cc79d536"
 dependencies = [
  "bitflags 2.13.2",
+ "block2",
  "dispatch2",
+ "libc",
  "objc2",
 ]
 
@@ -2171,6 +2186,7 @@ version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e022c9d066895efa1345f8e33e584b9f958da2fd4cd116792e15e07e4720a807"
 dependencies = [
+ "bitflags 2.13.2",
  "dispatch2",
  "objc2",
  "objc2-core-foundation",
@@ -2391,6 +2407,7 @@ checksum = "a89322df9ebe1c1578d689c92318e070967d1042b512afbe49518723f4e6d5cd"
 name = "pipeline-cpu"
 version = "0.1.0"
 dependencies = [
+ "color-mgmt",
  "engine-api",
  "image",
  "lens",
@@ -2403,10 +2420,13 @@ name = "pipeline-gpu"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
+ "color-mgmt",
  "engine-api",
  "image-core",
+ "lcms2",
  "log",
  "naga",
+ "objc2-core-foundation",
  "objc2-io-surface",
  "objc2-metal",
  "pipeline-cpu",

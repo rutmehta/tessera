@@ -1,0 +1,15 @@
+   Compiling color-mgmt v0.1.0 (/Users/rutmehta/Developer/tessera/.worktrees/M2-15/crates/color-mgmt)
+error[E0599]: no method named `display_profile` found for struct `color_mgmt::Registry` in the current scope
+  --> crates/color-mgmt/tests/display.rs:6:27
+   |
+ 6 |     let result = registry.display_profile(u32::MAX).unwrap();
+   |                           ^^^^^^^^^^^^^^^
+   |
+help: there is a method `display_profiles` with a similar name, but with different arguments
+  --> crates/color-mgmt/src/display.rs:11:5
+   |
+11 |     pub fn display_profiles(&mut self) -> Result<Vec<DisplayProfile>> {
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0599`.
+error: could not compile `color-mgmt` (test "display") due to 1 previous error
