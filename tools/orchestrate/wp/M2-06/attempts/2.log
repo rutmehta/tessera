@@ -1,0 +1,14 @@
+Improved the existing resident path by fusing IOSurface writes and histogram accumulation into one dispatch per tile. Added dispatch-count, partial-tile, offset, and repeated-frame regression coverage.
+
+Verified on Apple M4 with the NEF at level 2, across three runs:
+  Tone median: 4.0–4.3 ms
+  WB median: 8 ms
+  First frame: 405–454 ms
+
+Ran the exact required test/clippy/fmt command successfully: 90 tests passed, 7 ignored. Forced-GPU develop integration and the full-NEF regression also passed. Only allowed paths changed, and CARGO_TARGET_DIR remained external.
+
+Full coverage is still incomplete: X-Trans and extended M2 controls retain hybrid CPU/GPU boundaries rather than whole-chain resident execution.
+
+Evidence: tools/orchestrate/wp/M2-06/validation.md
+
+RESULT: FAIL whole-chain GPU residency remains incomplete for X-Trans and extended M2 controls
