@@ -398,5 +398,29 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M3-06",
+    "owner": "astra",
+    "title": "Depth + lens blur",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M3-07",
+    "owner": "astra",
+    "title": "Assisted culling + face strip",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-13v",
+    "owner": "sol",
+    "title": "Verify library + develop panels",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
