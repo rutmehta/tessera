@@ -1,0 +1,14 @@
+M2-26 remains incomplete.
+
+This retry added:
+- Strict prompt-containment rejection, verified with a failing regression before the fix and six passing candidate tests afterward.
+- A cached-model Fuji house test: mask area 1.09%, within the requested range. Synthetic disc and adjacent-rectangle IoU both measured 1.0.
+
+I ran the required verification chain twice. Rust tests, clippy and fmt passed on the retry, but disk exhaustion caused FFI generation to fail with “Unknown library format.” Swift verification did not run.
+
+Remaining gaps: native multimask inference, app-level People negative prompts, grow/shrink UI and persistence, and the end-to-end Option mouse-down test. The Fuji fixture has no visible person.
+
+All changes stayed within allowed paths. Details and logs:
+ /Users/rutmehta/Developer/tessera/.worktrees/M2-26/tools/orchestrate/wp/M2-26/HANDOFF.md
+
+RESULT: FAIL acceptance gaps remain and disk exhaustion blocked full verification.

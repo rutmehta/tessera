@@ -1,0 +1,14 @@
+Implemented Option erase handling, cursor updates, mid-drag mode switching, and Swift/Rust coverage regressions. Added two-pass SAM selection, RGB guided refinement, improved body-box prompting, and a grow/shrink library helper.
+
+Verification: the full required command chain passed. Release Swift tests passed: 65 XCTest tests plus 5 Swift Testing tests. Cached-model point tests achieved IoU 1.0 for both the disc and adjacent rectangles.
+
+M2-26 is not fully complete:
+- Native multimask remains unavailable in the pinned decoder.
+- People negative prompts are not wired through the shared backend outside the allowed paths.
+- Grow/shrink has no app control.
+- Fuji RAF area-fraction integration coverage is missing.
+
+Changes are uncommitted and confined to allowed paths. Details and logs:
+ /Users/rutmehta/Developer/tessera/.worktrees/M2-26/tools/orchestrate/wp/M2-26/HANDOFF.md
+
+RESULT: FAIL incomplete multimask, People negative-prompt plumbing, grow/shrink UI, and Fuji RAF validation
