@@ -1,4 +1,6 @@
 use crate::{GpuStageOp, operator::parameters};
+#[path = "resident_band.rs"]
+mod band;
 #[path = "export_resize.rs"]
 pub(crate) mod export_resize;
 #[path = "lens.rs"]
@@ -174,12 +176,14 @@ const PARAM_ARENA: u64 = 1 << 20;
 struct Recycler {
     pool: Arc<Mutex<Pool>>,
     recycled: Arc<Mutex<Vec<wgpu::Buffer>>>,
+    /// Export transactions retain at most their scratch share.
+    cap: u64,
 }
 impl Drop for Recycler {
     fn drop(&mut self) {
         let free = std::mem::take(&mut self.pool.lock().unwrap().free);
         if !free.is_empty() {
-            crate::batch::recycle(&self.recycled, free);
+            crate::batch::recycle(&self.recycled, free, self.cap);
         }
     }
 }
@@ -197,6 +201,11 @@ impl<'a> Batch<'a> {
             _recycler: Recycler {
                 pool: pool.clone(),
                 recycled: gpu.recycled.clone(),
+                cap: if gpu.export_float {
+                    gpu.export_scratch
+                } else {
+                    u64::MAX
+                },
             },
             gpu,
             encoder: gpu
@@ -785,6 +794,202 @@ impl<'a> Batch<'a> {
         Ok(self.tile(coord, layout, dst))
     }
 }
+impl Batch<'_> {
+    /// [`ResidentBatch::run`] for a tile whose interior starts at pixel
+    /// `origin` of its frame.
+    fn run_origin(
+        &mut self,
+        op: &Op<'_>,
+        tile: &ResidentTile,
+        origin: (u32, u32),
+    ) -> EngineResult<ResidentTile> {
+        if let Op::Demosaic {
+            cfa: raw_decode::CfaLayout::XTrans(pattern),
+            ..
+        }
+        | Op::Highlights {
+            cfa: raw_decode::CfaLayout::XTrans(pattern),
+            ..
+        } = op
+        {
+            use engine_api::recipe::settings::HighlightReconstruction;
+            let (opcode, halo, channels) = match op {
+                Op::Demosaic { .. } => (4, 3, 3),
+                Op::Highlights {
+                    mode: HighlightReconstruction::Clip,
+                    ..
+                } => (5, 0, 1),
+                Op::Highlights {
+                    mode: HighlightReconstruction::ReconstructColor,
+                    ..
+                } => (6, 4, 1),
+                _ => return Err(EngineError::invalid("highlights", "unsupported mode")),
+            };
+            let l = tile.layout;
+            if l.channels != 1 || l.halo < halo {
+                return Err(EngineError::invalid(
+                    "CFA tile",
+                    format!("one plane and halo >= {halo} required"),
+                ));
+            }
+            if pattern.iter().flatten().any(|&c| c >= 3)
+                || !(0..3).all(|c| pattern.iter().flatten().any(|&v| v == c))
+            {
+                return Err(EngineError::invalid("CFA", "malformed X-Trans pattern"));
+            }
+            let (ox, oy) = origin;
+            // Integer phase avoids f32 origin precision loss. Both demosaic
+            // algorithms use the CPU reference's same X-Trans mean filter.
+            let mut p = vec![
+                opcode,
+                l.extent.width,
+                l.extent.height,
+                l.halo as u32,
+                l.stride() as u32,
+                ox % 6,
+                oy % 6,
+            ];
+            p.extend(pattern.iter().flatten().map(|&c| u32::from(c)));
+            let layout = TileLayout {
+                halo: 0,
+                channels,
+                ..l
+            };
+            let dst = self.buffer(layout.len() * 4)?;
+            let src = self.storage(tile)?.clone();
+            self.dispatch(
+                &self.gpu.resident_pipeline,
+                &src,
+                &dst,
+                bytemuck::cast_slice(&p),
+                layout.plane_len() as u32,
+            );
+            return Ok(self.tile(tile.coord, layout, dst));
+        }
+        if let Op::Detail(settings) = op {
+            let l = tile.layout;
+            let mut p = crate::detail::parameters(l, settings)?;
+            // Validated, inactive Detail is an exact copy of a halo-free tile:
+            // share the immutable buffer instead of three full-tile passes.
+            if l.halo == 0 && p[5] == 0.0 && p[6] == 0.0 && p[7] == 0.0 {
+                return Ok(tile.clone());
+            }
+            // Interior-only output: the halo-free tile without a strip pass.
+            p[20] = 1.0;
+            let params = self.host_buffer(
+                Some("resident detail"),
+                bytemuck::cast_slice(&p),
+                wgpu::BufferUsages::STORAGE,
+            );
+            let src = self.storage(tile)?.clone();
+            let layout = TileLayout { halo: 0, ..l };
+            let dst = self.buffer(layout.len() * 4)?;
+            let decomposition = self.buffer(l.plane_len() * 16)?;
+            let entries: Vec<_> = [&src, &dst, &params, &decomposition]
+                .iter()
+                .enumerate()
+                .map(|(i, b)| wgpu::BindGroupEntry {
+                    binding: i as u32,
+                    resource: b.as_entire_binding(),
+                })
+                .collect();
+            let group = self
+                .gpu
+                .context()
+                .device
+                .create_bind_group(&wgpu::BindGroupDescriptor {
+                    label: Some("resident Detail"),
+                    layout: &self.gpu.detail_pipelines[0].get_bind_group_layout(0),
+                    entries: &entries,
+                });
+            let [decompose, main] = &self.gpu.detail_pipelines[..] else {
+                return Err(EngineError::internal("Detail pipelines"));
+            };
+            let (decompose, main) = (decompose.clone(), main.clone());
+            self.record(
+                &decompose,
+                group.clone(),
+                (l.plane_len() as u32).div_ceil(64),
+            );
+            self.record(&main, group, (layout.plane_len() as u32).div_ceil(64));
+            self.pool.lock().unwrap().free.push(decomposition);
+            return Ok(self.tile(tile.coord, layout, dst));
+        }
+        if op.is_encoded_display()
+            && let Some(output) = &self.gpu.managed_output
+        {
+            let layout = TileLayout {
+                halo: 0,
+                ..tile.layout
+            };
+            let dst = self.buffer(layout.len() * 4)?;
+            let flags = self.buffer(layout.plane_len() * 4)?;
+            let src = self.storage(tile)?.clone();
+            let group = output.bindings(&src, &dst, &flags, tile.layout, !self.gpu.export_float)?;
+            self.record(
+                &output.pipeline,
+                group,
+                (layout.plane_len() as u32).div_ceil(64),
+            );
+            self.pool.lock().unwrap().free.push(flags);
+            return Ok(self.tile(tile.coord, layout, dst));
+        }
+        let (p, layout) = parameters(op, tile.layout, origin)?;
+        let dst = self.buffer(layout.len() * 4)?;
+        let src = self.storage(tile)?.clone();
+        self.dispatch(
+            &self.gpu.context().pipeline,
+            &src,
+            &dst,
+            bytemuck::cast_slice(&p),
+            layout.plane_len() as u32,
+        );
+        Ok(self.tile(tile.coord, layout, dst))
+    }
+    /// [`ResidentBatch::run_chain`] for a tile at pixel `origin`.
+    fn run_chain_origin(
+        &mut self,
+        ops: &[Op<'_>],
+        tile: &ResidentTile,
+        origin: (u32, u32),
+    ) -> EngineResult<ResidentTile> {
+        if let Some((display, scene)) = ops.split_last()
+            && display.is_encoded_display()
+            && self.gpu.managed_output.is_some()
+        {
+            let scene = self.run_chain_origin(scene, tile, origin)?;
+            return self.run_origin(display, &scene, origin);
+        }
+        if crate::fused::supports(ops) {
+            let (mut p, layout) =
+                crate::fused::parameters_at(ops, tile.layout, tile.coord.level, origin)?;
+            let map = match self.effects_map(&mut p) {
+                Some(map) => map,
+                None => self.no_map.clone(),
+            };
+            let dst = self.buffer(layout.len() * 4)?;
+            let src = self.storage(tile)?.clone();
+            self.dispatch_with(
+                &self.gpu.fused_pipeline.clone(),
+                &src,
+                &dst,
+                bytemuck::cast_slice(&p),
+                layout.plane_len() as u32,
+                Some(&map),
+            );
+            self.gpu
+                .counters
+                .fused_dispatches
+                .fetch_add(1, Ordering::Relaxed);
+            return Ok(self.tile(tile.coord, layout, dst));
+        }
+        let mut output = tile.clone();
+        for op in ops {
+            output = self.run_origin(op, &output, origin)?;
+        }
+        Ok(output)
+    }
+}
 impl ResidentBatch for Batch<'_> {
     fn checkpoint(&mut self, cancel: &CancellationToken) -> EngineResult<()> {
         cancel.check()?;
@@ -982,184 +1187,10 @@ impl ResidentBatch for Batch<'_> {
         self.local_tone_impl(settings, frame, tiles, outputs, options)
     }
     fn run(&mut self, op: &Op<'_>, tile: &ResidentTile) -> EngineResult<ResidentTile> {
-        if let Op::Demosaic {
-            cfa: raw_decode::CfaLayout::XTrans(pattern),
-            ..
-        }
-        | Op::Highlights {
-            cfa: raw_decode::CfaLayout::XTrans(pattern),
-            ..
-        } = op
-        {
-            use engine_api::recipe::settings::HighlightReconstruction;
-            let (opcode, halo, channels) = match op {
-                Op::Demosaic { .. } => (4, 3, 3),
-                Op::Highlights {
-                    mode: HighlightReconstruction::Clip,
-                    ..
-                } => (5, 0, 1),
-                Op::Highlights {
-                    mode: HighlightReconstruction::ReconstructColor,
-                    ..
-                } => (6, 4, 1),
-                _ => return Err(EngineError::invalid("highlights", "unsupported mode")),
-            };
-            let l = tile.layout;
-            if l.channels != 1 || l.halo < halo {
-                return Err(EngineError::invalid(
-                    "CFA tile",
-                    format!("one plane and halo >= {halo} required"),
-                ));
-            }
-            if pattern.iter().flatten().any(|&c| c >= 3)
-                || !(0..3).all(|c| pattern.iter().flatten().any(|&v| v == c))
-            {
-                return Err(EngineError::invalid("CFA", "malformed X-Trans pattern"));
-            }
-            let (ox, oy) = tile.coord.pixel_origin(TILE_SIZE);
-            // Integer phase avoids f32 origin precision loss. Both demosaic
-            // algorithms use the CPU reference's same X-Trans mean filter.
-            let mut p = vec![
-                opcode,
-                l.extent.width,
-                l.extent.height,
-                l.halo as u32,
-                l.stride() as u32,
-                ox % 6,
-                oy % 6,
-            ];
-            p.extend(pattern.iter().flatten().map(|&c| u32::from(c)));
-            let layout = TileLayout {
-                halo: 0,
-                channels,
-                ..l
-            };
-            let dst = self.buffer(layout.len() * 4)?;
-            let src = self.storage(tile)?.clone();
-            self.dispatch(
-                &self.gpu.resident_pipeline,
-                &src,
-                &dst,
-                bytemuck::cast_slice(&p),
-                layout.plane_len() as u32,
-            );
-            return Ok(self.tile(tile.coord, layout, dst));
-        }
-        if let Op::Detail(settings) = op {
-            let l = tile.layout;
-            let mut p = crate::detail::parameters(l, settings)?;
-            // Validated, inactive Detail is an exact copy of a halo-free tile:
-            // share the immutable buffer instead of three full-tile passes.
-            if l.halo == 0 && p[5] == 0.0 && p[6] == 0.0 && p[7] == 0.0 {
-                return Ok(tile.clone());
-            }
-            // Interior-only output: the halo-free tile without a strip pass.
-            p[20] = 1.0;
-            let params = self.host_buffer(
-                Some("resident detail"),
-                bytemuck::cast_slice(&p),
-                wgpu::BufferUsages::STORAGE,
-            );
-            let src = self.storage(tile)?.clone();
-            let layout = TileLayout { halo: 0, ..l };
-            let dst = self.buffer(layout.len() * 4)?;
-            let decomposition = self.buffer(l.plane_len() * 16)?;
-            let entries: Vec<_> = [&src, &dst, &params, &decomposition]
-                .iter()
-                .enumerate()
-                .map(|(i, b)| wgpu::BindGroupEntry {
-                    binding: i as u32,
-                    resource: b.as_entire_binding(),
-                })
-                .collect();
-            let group = self
-                .gpu
-                .context()
-                .device
-                .create_bind_group(&wgpu::BindGroupDescriptor {
-                    label: Some("resident Detail"),
-                    layout: &self.gpu.detail_pipelines[0].get_bind_group_layout(0),
-                    entries: &entries,
-                });
-            let [decompose, main] = &self.gpu.detail_pipelines[..] else {
-                return Err(EngineError::internal("Detail pipelines"));
-            };
-            let (decompose, main) = (decompose.clone(), main.clone());
-            self.record(
-                &decompose,
-                group.clone(),
-                (l.plane_len() as u32).div_ceil(64),
-            );
-            self.record(&main, group, (layout.plane_len() as u32).div_ceil(64));
-            self.pool.lock().unwrap().free.push(decomposition);
-            return Ok(self.tile(tile.coord, layout, dst));
-        }
-        if op.is_encoded_display()
-            && let Some(output) = &self.gpu.managed_output
-        {
-            let layout = TileLayout {
-                halo: 0,
-                ..tile.layout
-            };
-            let dst = self.buffer(layout.len() * 4)?;
-            let flags = self.buffer(layout.plane_len() * 4)?;
-            let src = self.storage(tile)?.clone();
-            let group = output.bindings(&src, &dst, &flags, tile.layout, !self.gpu.export_float)?;
-            self.record(
-                &output.pipeline,
-                group,
-                (layout.plane_len() as u32).div_ceil(64),
-            );
-            self.pool.lock().unwrap().free.push(flags);
-            return Ok(self.tile(tile.coord, layout, dst));
-        }
-        let (p, layout) = parameters(op, tile.layout, tile.coord.pixel_origin(TILE_SIZE))?;
-        let dst = self.buffer(layout.len() * 4)?;
-        let src = self.storage(tile)?.clone();
-        self.dispatch(
-            &self.gpu.context().pipeline,
-            &src,
-            &dst,
-            bytemuck::cast_slice(&p),
-            layout.plane_len() as u32,
-        );
-        Ok(self.tile(tile.coord, layout, dst))
+        self.run_origin(op, tile, tile.coord.pixel_origin(TILE_SIZE))
     }
     fn run_chain(&mut self, ops: &[Op<'_>], tile: &ResidentTile) -> EngineResult<ResidentTile> {
-        if let Some((display, scene)) = ops.split_last()
-            && display.is_encoded_display()
-            && self.gpu.managed_output.is_some()
-        {
-            let scene = self.run_chain(scene, tile)?;
-            return self.run(display, &scene);
-        }
-        if crate::fused::supports(ops) {
-            let (mut p, layout) = crate::fused::parameters(ops, tile.layout, tile.coord)?;
-            let map = match self.effects_map(&mut p) {
-                Some(map) => map,
-                None => self.no_map.clone(),
-            };
-            let dst = self.buffer(layout.len() * 4)?;
-            let src = self.storage(tile)?.clone();
-            self.dispatch_with(
-                &self.gpu.fused_pipeline.clone(),
-                &src,
-                &dst,
-                bytemuck::cast_slice(&p),
-                layout.plane_len() as u32,
-                Some(&map),
-            );
-            self.gpu
-                .counters
-                .fused_dispatches
-                .fetch_add(1, Ordering::Relaxed);
-            return Ok(self.tile(tile.coord, layout, dst));
-        }
-        let mut output = tile.clone();
-        for op in ops {
-            output = self.run(op, &output)?;
-        }
-        Ok(output)
+        self.run_chain_origin(ops, tile, tile.coord.pixel_origin(TILE_SIZE))
     }
     fn lateral_ca(
         &mut self,
@@ -1167,7 +1198,7 @@ impl ResidentBatch for Batch<'_> {
         frame: Extent,
         plan: &pipeline_cpu::CaPlan,
     ) -> EngineResult<ResidentTile> {
-        self.lateral_ca_impl(tile, frame, plan)
+        self.lateral_ca_impl(tile, tile.coord.pixel_origin(TILE_SIZE), frame, plan)
     }
     fn lens_gain(
         &mut self,
@@ -1175,7 +1206,7 @@ impl ResidentBatch for Batch<'_> {
         frame: Extent,
         plan: &pipeline_cpu::VignettePlan,
     ) -> EngineResult<ResidentTile> {
-        self.lens_gain_impl(tile, frame, plan)
+        self.lens_gain_impl(tile, tile.coord.pixel_origin(TILE_SIZE), frame, plan)
     }
     fn remap(
         &mut self,
@@ -1223,6 +1254,97 @@ impl ResidentBatch for Batch<'_> {
             period,
             tiles,
         )
+    }
+    fn supports_bands(&self) -> bool {
+        // Export transactions only: viewport renders keep pyramid tiles
+        // (memoization and surface presentation are tile-addressed).
+        self.gpu.export_float
+    }
+    fn upload_rows(
+        &mut self,
+        samples: &[f32],
+        width: u32,
+        rows: std::ops::Range<u32>,
+    ) -> EngineResult<ResidentTile> {
+        self.upload_rows_impl(samples, width, rows)
+    }
+    fn gather_rows(
+        &mut self,
+        frame: Extent,
+        source: &ResidentTile,
+        source_row: u32,
+        rows: std::ops::Range<u32>,
+        halo: u16,
+        period: u32,
+    ) -> EngineResult<ResidentTile> {
+        self.gather_rows_impl(frame, source, source_row, rows, halo, period)
+    }
+    fn run_at(
+        &mut self,
+        op: &Op<'_>,
+        tile: &ResidentTile,
+        origin: (u32, u32),
+    ) -> EngineResult<ResidentTile> {
+        self.run_origin(op, tile, origin)
+    }
+    fn run_chain_at(
+        &mut self,
+        ops: &[Op<'_>],
+        tile: &ResidentTile,
+        origin: (u32, u32),
+    ) -> EngineResult<ResidentTile> {
+        let mut tile = tile.clone();
+        // Point stages develop in their own pixel domain (see develop_tiles).
+        tile.coord.level = 0;
+        self.run_chain_origin(ops, &tile, origin)
+    }
+    fn lateral_ca_at(
+        &mut self,
+        tile: &ResidentTile,
+        origin: (u32, u32),
+        frame: Extent,
+        plan: &pipeline_cpu::CaPlan,
+    ) -> EngineResult<ResidentTile> {
+        self.lateral_ca_impl(tile, origin, frame, plan)
+    }
+    fn lens_gain_at(
+        &mut self,
+        tile: &ResidentTile,
+        origin: (u32, u32),
+        frame: Extent,
+        plan: &pipeline_cpu::VignettePlan,
+    ) -> EngineResult<ResidentTile> {
+        self.lens_gain_impl(tile, origin, frame, plan)
+    }
+    fn resample_rows(
+        &mut self,
+        crop: [u32; 4],
+        level: u8,
+        rows: std::ops::Range<u32>,
+        source: &ResidentTile,
+        source_row: u32,
+    ) -> EngineResult<ResidentTile> {
+        self.resample_rows_impl(crop, level, rows, source, source_row)
+    }
+    fn remap_rows(
+        &mut self,
+        frame: Extent,
+        band: &ResidentTile,
+        source: (u32, u32),
+        plan: &pipeline_cpu::MapPlan,
+        output: Extent,
+        rows: std::ops::Range<u32>,
+    ) -> EngineResult<ResidentTile> {
+        let coord = band.coord;
+        self.remap_band(frame, band, source, plan, output, rows, coord)
+    }
+    fn finish_rows(
+        self: Box<Self>,
+        band: ResidentTile,
+        dst: &mut [f32],
+        cancel: &CancellationToken,
+    ) -> EngineResult<()> {
+        self.finish_rows_impl(band, dst, cancel)
     }
     fn resample(
         &mut self,

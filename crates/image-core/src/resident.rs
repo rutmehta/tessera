@@ -183,6 +183,115 @@ pub trait ResidentBatch {
             what: "resident lens/geometry map".into(),
         })
     }
+    /// Whether this backend renders full-width row bands with one dispatch
+    /// per stage (the `*_rows` / `*_at` methods and
+    /// [`ResidentBatch::finish_rows`]). Band tiles are halo-free unless a
+    /// method says otherwise, span their frame's full width, and carry their
+    /// pixel origin explicitly: their `coord` is not a pyramid address.
+    fn supports_bands(&self) -> bool {
+        false
+    }
+    /// Uploads rows `rows` of a row-major single-plane frame `width` samples
+    /// wide (`samples` holds the whole frame) as one halo-free band.
+    fn upload_rows(
+        &mut self,
+        _samples: &[f32],
+        _width: u32,
+        _rows: std::ops::Range<u32>,
+    ) -> EngineResult<ResidentTile> {
+        Err(bands_unsupported())
+    }
+    /// Full-width interior rows `rows` of `frame`, padded by `halo`, from the
+    /// halo-free full-width band `source` whose first row is `source_row`.
+    /// Out-of-frame positions fold to the nearest in-frame sample with the
+    /// same `period` phase, exactly like [`ResidentBatch::gather`].
+    fn gather_rows(
+        &mut self,
+        _frame: Extent,
+        _source: &ResidentTile,
+        _source_row: u32,
+        _rows: std::ops::Range<u32>,
+        _halo: u16,
+        _period: u32,
+    ) -> EngineResult<ResidentTile> {
+        Err(bands_unsupported())
+    }
+    /// [`ResidentBatch::run`] on a band whose interior starts at pixel
+    /// `origin` of its frame (CFA phase, dither and effects coordinates).
+    fn run_at(
+        &mut self,
+        _op: &Op<'_>,
+        _tile: &ResidentTile,
+        _origin: (u32, u32),
+    ) -> EngineResult<ResidentTile> {
+        Err(bands_unsupported())
+    }
+    /// [`ResidentBatch::run_chain`] on a band at pixel `origin`.
+    fn run_chain_at(
+        &mut self,
+        _ops: &[Op<'_>],
+        _tile: &ResidentTile,
+        _origin: (u32, u32),
+    ) -> EngineResult<ResidentTile> {
+        Err(bands_unsupported())
+    }
+    /// [`ResidentBatch::lateral_ca`] on a band at sensor pixel `origin`.
+    fn lateral_ca_at(
+        &mut self,
+        _tile: &ResidentTile,
+        _origin: (u32, u32),
+        _frame: Extent,
+        _plan: &pipeline_cpu::CaPlan,
+    ) -> EngineResult<ResidentTile> {
+        Err(bands_unsupported())
+    }
+    /// [`ResidentBatch::lens_gain`] on a band at pixel `origin`.
+    fn lens_gain_at(
+        &mut self,
+        _tile: &ResidentTile,
+        _origin: (u32, u32),
+        _frame: Extent,
+        _plan: &pipeline_cpu::VignettePlan,
+    ) -> EngineResult<ResidentTile> {
+        Err(bands_unsupported())
+    }
+    /// Level `level` rows `rows` of the active area `crop` (full level
+    /// width), box-averaged like [`ResidentBatch::resample`] from the
+    /// full-width sensor band `source` whose first row is `source_row`.
+    fn resample_rows(
+        &mut self,
+        _crop: [u32; 4],
+        _level: u8,
+        _rows: std::ops::Range<u32>,
+        _source: &ResidentTile,
+        _source_row: u32,
+    ) -> EngineResult<ResidentTile> {
+        Err(bands_unsupported())
+    }
+    /// [`ResidentBatch::remap`] from one full-width band holding exactly the
+    /// input rows `source` (`[first, end)`) of `frame`.
+    fn remap_rows(
+        &mut self,
+        _frame: Extent,
+        _band: &ResidentTile,
+        _source: (u32, u32),
+        _plan: &pipeline_cpu::MapPlan,
+        _output: Extent,
+        _rows: std::ops::Range<u32>,
+    ) -> EngineResult<ResidentTile> {
+        Err(bands_unsupported())
+    }
+    /// One readback of a finished RGB band (after the backend's export
+    /// resize, if any) as interleaved RGB rows into `dst`, which must hold
+    /// exactly the band's `width * height * 3` samples.
+    fn finish_rows(
+        self: Box<Self>,
+        _band: ResidentTile,
+        _dst: &mut [f32],
+        _cancel: &CancellationToken,
+    ) -> EngineResult<()> {
+        Err(bands_unsupported())
+    }
     fn resample(
         &mut self,
         crop: [u32; 4],
@@ -199,4 +308,10 @@ pub trait ResidentBatch {
         surface: Option<SurfaceTarget>,
         cancel: &CancellationToken,
     ) -> EngineResult<ResidentOutput>;
+}
+
+fn bands_unsupported() -> engine_api::EngineError {
+    engine_api::EngineError::Unsupported {
+        what: "resident row bands".into(),
+    }
 }

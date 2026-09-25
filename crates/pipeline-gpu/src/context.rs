@@ -20,6 +20,10 @@ pub struct GpuContext {
         std::sync::Mutex<Option<(wgpu::ComputePipeline, wgpu::ComputePipeline)>>,
     /// Export lens kernels (lateral CA, vignetting, remap), compiled on use.
     pub(crate) lens_pipelines: std::sync::OnceLock<[wgpu::ComputePipeline; 3]>,
+    /// Export row-band gather and interleave (compiled on first use).
+    pub(crate) band_pipelines: std::sync::OnceLock<[wgpu::ComputePipeline; 2]>,
+    /// Export Lanczos-3 resize (compiled on first use).
+    pub(crate) resize_pipeline: std::sync::OnceLock<wgpu::ComputePipeline>,
     device_loss: std::sync::Arc<std::sync::Mutex<Option<String>>>,
 }
 
@@ -103,6 +107,8 @@ impl GpuContext {
             pipeline,
             local_tone_pipelines: std::sync::Mutex::new(None),
             lens_pipelines: std::sync::OnceLock::new(),
+            band_pipelines: std::sync::OnceLock::new(),
+            resize_pipeline: std::sync::OnceLock::new(),
             device_loss,
         })
     }

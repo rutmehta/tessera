@@ -19,15 +19,19 @@ pub(crate) type EffectsMap = (Vec<u32>, wgpu::Buffer);
 /// Transient GPU memory retained between resident transactions.
 const RECYCLE_BYTES: u64 = 1 << 30;
 
-/// Retains up to [`RECYCLE_BYTES`] of idle transient buffers from an ended
-/// transaction (most recently retired first).
-pub(crate) fn recycle(recycled: &std::sync::Mutex<Vec<wgpu::Buffer>>, mut free: Vec<wgpu::Buffer>) {
+/// Retains up to [`RECYCLE_BYTES`] (or `cap`, when smaller) of idle
+/// transient buffers from an ended transaction (most recently retired first).
+pub(crate) fn recycle(
+    recycled: &std::sync::Mutex<Vec<wgpu::Buffer>>,
+    mut free: Vec<wgpu::Buffer>,
+    cap: u64,
+) {
     let mut recycled = recycled.lock().unwrap();
     free.append(&mut recycled);
     let mut bytes = 0;
     free.retain(|b| {
         bytes += b.size();
-        bytes <= RECYCLE_BYTES
+        bytes <= RECYCLE_BYTES.min(cap)
     });
     *recycled = free;
 }

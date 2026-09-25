@@ -11,7 +11,29 @@ pub struct ExportResize {
     pub rows: u32,
 }
 impl ExportResize {
+    /// Exactly the source rows this band's filter reads (full width): the
+    /// row-band renderer needs no tile alignment.
+    pub fn support_rect(self) -> EngineResult<PixelRect> {
+        let (first, last) = self.support()?;
+        Ok(PixelRect::new(
+            0,
+            first,
+            self.source.width,
+            last + 1 - first,
+        ))
+    }
+    /// The source rows of [`ExportResize::support_rect`], widened to whole
+    /// pyramid tiles (the tiled renderer's granularity).
     pub fn source_rect(self) -> EngineResult<PixelRect> {
+        let (first, last) = self.support()?;
+        let first = first / TILE_SIZE * TILE_SIZE;
+        let end = (last + 1)
+            .div_ceil(TILE_SIZE)
+            .saturating_mul(TILE_SIZE)
+            .min(self.source.height);
+        Ok(PixelRect::new(0, first, self.source.width, end - first))
+    }
+    fn support(self) -> EngineResult<(u32, u32)> {
         if self.source.area() == 0
             || self.destination.area() == 0
             || self.rows == 0
@@ -31,12 +53,7 @@ impl ExportResize {
             .floor()
             .max(0.0) as u32)
             .min(self.source.height - 1);
-        let first = first / TILE_SIZE * TILE_SIZE;
-        let end = (last + 1)
-            .div_ceil(TILE_SIZE)
-            .saturating_mul(TILE_SIZE)
-            .min(self.source.height);
-        Ok(PixelRect::new(0, first, self.source.width, end - first))
+        Ok((first, last))
     }
 }
 
@@ -123,26 +140,52 @@ impl Batch<'_> {
         if covered != frame.area() {
             return Err(EngineError::invalid("resize", "incomplete source band"));
         }
-        let module = self
-            .gpu
-            .context()
-            .device
-            .create_shader_module(wgpu::ShaderModuleDescriptor {
-                label: Some("export Lanczos-3"),
-                source: wgpu::ShaderSource::Wgsl(include_str!("export_resize.wgsl").into()),
-            });
-        let pipeline =
-            self.gpu
-                .context()
-                .device
-                .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-                    label: Some("export Lanczos-3"),
-                    layout: None,
-                    module: &module,
-                    entry_point: Some("main"),
-                    compilation_options: Default::default(),
-                    cache: None,
-                });
+        let whole = self.lanczos(&src, rect, request)?;
+        let out_layout = whole.layout;
+        let mut result = Vec::new();
+        for y in 0..out_layout.extent.height.div_ceil(TILE_SIZE) {
+            for x in 0..out_layout.extent.width.div_ceil(TILE_SIZE) {
+                let origin = (x * TILE_SIZE, y * TILE_SIZE);
+                let extent = Extent::new(
+                    (out_layout.extent.width - origin.0).min(TILE_SIZE),
+                    (out_layout.extent.height - origin.1).min(TILE_SIZE),
+                );
+                result.push(self.crop(&whole, TileCoord::new(0, x, y), origin, extent)?);
+            }
+        }
+        Ok(result)
+    }
+
+    /// Separable Lanczos-3 of the planar RGB band `src` (source rows
+    /// `rect`, full source width) into the request's destination rows.
+    pub(super) fn lanczos(
+        &mut self,
+        src: &wgpu::Buffer,
+        rect: PixelRect,
+        request: ExportResize,
+    ) -> EngineResult<ResidentTile> {
+        let frame = Extent::new(rect.width, rect.height);
+        let ctx = self.gpu.context();
+        let pipeline = ctx
+            .resize_pipeline
+            .get_or_init(|| {
+                let module = ctx
+                    .device
+                    .create_shader_module(wgpu::ShaderModuleDescriptor {
+                        label: Some("export Lanczos-3"),
+                        source: wgpu::ShaderSource::Wgsl(include_str!("export_resize.wgsl").into()),
+                    });
+                ctx.device
+                    .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+                        label: Some("export Lanczos-3"),
+                        layout: None,
+                        module: &module,
+                        entry_point: Some("main"),
+                        compilation_options: Default::default(),
+                        cache: None,
+                    })
+            })
+            .clone();
         let mid = self.buffer(request.destination.width as usize * frame.height as usize * 12)?;
         let out_layout = TileLayout {
             extent: Extent::new(request.destination.width, request.rows),
@@ -160,7 +203,7 @@ impl Batch<'_> {
                     0,
                 );
                 (
-                    &src,
+                    src,
                     &mid,
                     [
                         frame.width,
@@ -231,18 +274,6 @@ impl Batch<'_> {
                 });
             self.record(&pipeline, group, (params[2] * params[3] * 3).div_ceil(64));
         }
-        let whole = self.tile(TileCoord::new(0, 0, 0), out_layout, out);
-        let mut result = Vec::new();
-        for y in 0..out_layout.extent.height.div_ceil(TILE_SIZE) {
-            for x in 0..out_layout.extent.width.div_ceil(TILE_SIZE) {
-                let origin = (x * TILE_SIZE, y * TILE_SIZE);
-                let extent = Extent::new(
-                    (out_layout.extent.width - origin.0).min(TILE_SIZE),
-                    (out_layout.extent.height - origin.1).min(TILE_SIZE),
-                );
-                result.push(self.crop(&whole, TileCoord::new(0, x, y), origin, extent)?);
-            }
-        }
-        Ok(result)
+        Ok(self.tile(TileCoord::new(0, 0, 0), out_layout, out))
     }
 }

@@ -66,6 +66,7 @@ pub fn export_batch_with_jobs(
     settings.format.validate()?;
     let mut names = HashSet::new();
     let mut max_bytes = 1;
+    let mut max_output = 0;
     for item in items {
         let name = filename(
             &settings.naming,
@@ -83,13 +84,22 @@ pub fn export_batch_with_jobs(
             pipeline_cpu::RenderSource::Cfa { metadata, .. } => (metadata.width, metadata.height),
         };
         let (ow, oh) = settings.resize.dimensions(w, h)?;
+        max_output = max_output.max(u64::from(ow) * u64::from(oh));
         let pixels = (u64::from(w) * u64::from(h))
             .max(u64::from(ow) * u64::from(oh))
             .max(u64::from(ow) * u64::from(h));
         max_bytes = max_bytes.max(pixels.saturating_mul(64));
     }
     if jobs > 1 && std::env::var("TESSERA_EXPORT_BACKEND").as_deref() != Ok("cpu") {
-        return export_pipeline(items, settings, progress, cancel);
+        // Two renders overlap one image's CPU work (sensor copy, lens
+        // analysis) with the other's GPU bands when outputs are small enough
+        // to hold three at once (two rendering, one encoding).
+        let renders = if max_output <= PIPELINE_PAIR_PIXELS {
+            2
+        } else {
+            1
+        };
+        return export_pipeline(items, settings, progress, cancel, renders);
     }
     let cores = std::thread::available_parallelism().map_or(1, usize::from);
     let workers = cores
@@ -140,37 +150,52 @@ pub fn export_batch_with_jobs(
     Ok(report)
 }
 
-/// A rendezvous channel admits one render while the caller encodes the prior
-/// frame. The zero-capacity queue cannot accumulate full-resolution outputs.
+/// Largest output (pixels) for which two renders run at once: Web and
+/// screen presets, not full-size float frames of large sensors.
+const PIPELINE_PAIR_PIXELS: u64 = 16 << 20;
+
+/// A rendezvous channel admits `renders` renders while the caller encodes the
+/// prior frame (JPEG encoding itself is stripe-parallel). The zero-capacity
+/// queue cannot accumulate full-resolution outputs.
 fn export_pipeline(
     items: &[ExportItem<'_>],
     settings: &ExportSettings,
     progress: impl Fn(Progress),
     cancel: &CancellationToken,
+    renders: usize,
 ) -> EngineResult<BatchReport> {
     let mut report = BatchReport {
         results: vec![Err(EngineError::Cancelled); items.len()],
     };
     let (tx, rx) = mpsc::sync_channel(0);
+    let next = std::sync::atomic::AtomicUsize::new(0);
     std::thread::scope(|scope| {
-        scope.spawn(move || {
-            for (index, item) in items.iter().enumerate() {
-                if cancel.is_cancelled() {
-                    break;
+        for _ in 0..renders.max(1) {
+            let (tx, next) = (tx.clone(), &next);
+            scope.spawn(move || {
+                loop {
+                    let index = next.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    let Some(item) = items.get(index) else {
+                        break;
+                    };
+                    if cancel.is_cancelled() {
+                        break;
+                    }
+                    let rendered = crate::render_one_cancellable(
+                        &item.image,
+                        item.recipe,
+                        settings,
+                        cancel,
+                        None,
+                        None,
+                    );
+                    if tx.send((index, rendered)).is_err() {
+                        break;
+                    }
                 }
-                let rendered = crate::render_one_cancellable(
-                    &item.image,
-                    item.recipe,
-                    settings,
-                    cancel,
-                    None,
-                    None,
-                );
-                if tx.send((index, rendered)).is_err() {
-                    break;
-                }
-            }
-        });
+            });
+        }
+        drop(tx);
         let mut completed = 0;
         for (index, rendered) in rx {
             let result = rendered.and_then(|r| r.finish(cancel));

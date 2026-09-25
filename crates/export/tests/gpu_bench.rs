@@ -70,7 +70,8 @@ fn fixture_export_worker() {
     let metadata = raw.metadata();
     let mut scale = 1;
     let [_, _, w, h] = metadata.default_crop;
-    if web {
+    // TESSERA_BENCH_WEB_SCALE=1: develop Web exports at full resolution.
+    if web && std::env::var("TESSERA_BENCH_WEB_SCALE").as_deref() != Ok("1") {
         while scale < 8 && w.max(h) / (scale * 2) >= 2048 {
             scale *= 2;
         }
@@ -168,7 +169,10 @@ fn hundred_web_exports() {
         decode += start.elapsed().as_secs_f64();
         let [_, _, w, h] = metadata.default_crop;
         let mut scale = 1;
-        while scale < 8 && w.max(h) / (scale * 2) >= 2048 {
+        while std::env::var("TESSERA_BENCH_WEB_SCALE").as_deref() != Ok("1")
+            && scale < 8
+            && w.max(h) / (scale * 2) >= 2048
+        {
             scale *= 2;
         }
         let names: Vec<String> = (0..20).map(|i| format!("{name}-{i}")).collect();

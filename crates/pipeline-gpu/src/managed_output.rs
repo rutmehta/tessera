@@ -436,10 +436,27 @@ impl ManagedRenderer {
     /// shares the compiled pipelines, device and output (no recompilation).
     /// Resident memo caches are fresh (export renderers do not memoize).
     pub fn export_band(&self, resize: Option<crate::ExportResize>) -> Self {
+        self.band_with(resize, Arc::default())
+    }
+
+    /// [`ManagedRenderer::export_band`] that reuses this renderer's idle
+    /// transient buffers (retained up to its scratch share): consecutive
+    /// equal-sized bands of one worker skip allocation and zero fill. A
+    /// transaction takes the whole pool, so concurrent bands never share a
+    /// buffer; each band worker should still use its own base renderer.
+    pub fn export_band_recycling(&self, resize: Option<crate::ExportResize>) -> Self {
+        self.band_with(resize, self.ops.recycled.clone())
+    }
+
+    fn band_with(
+        &self,
+        resize: Option<crate::ExportResize>,
+        recycled: Arc<std::sync::Mutex<Vec<wgpu::Buffer>>>,
+    ) -> Self {
         let mut ops = (*self.ops).clone();
         ops.export_resize = resize;
+        ops.recycled = recycled;
         ops.resident_cache = crate::resident::cache(self.renderer.config().cache_budget_bytes);
-        ops.recycled = Arc::default();
         let ops = Arc::new(ops);
         let config = self.renderer.config().clone();
         let renderer = image_core::Renderer::with_ops(
@@ -512,6 +529,33 @@ impl ManagedRenderer {
         let scene = self.output.scene_settings(settings)?;
         self.renderer
             .render_resident_lens(image, &scene, level, rect, Some(lens), cancel)
+    }
+
+    /// Export rows `rows` of the output frame (the mapped frame with a lens
+    /// map) as full-width bands, one dispatch per stage, read back as
+    /// interleaved RGB into `dst` (after this band's export resize, when
+    /// set: `rows` are then the resize request's source rows). False means
+    /// the recipe needs the tiled path ([`ManagedRenderer::render_export_lens`]).
+    #[allow(clippy::too_many_arguments)]
+    pub fn render_export_rows(
+        &self,
+        image: &image_core::RawImage,
+        settings: &DevelopSettings,
+        level: u8,
+        rows: std::ops::Range<u32>,
+        lens: Option<&pipeline_cpu::LensPlan>,
+        dst: &mut [f32],
+        cancel: &engine_api::jobs::CancellationToken,
+    ) -> EngineResult<bool> {
+        if !self.ops.export_float {
+            return Err(EngineError::invalid(
+                "renderer",
+                "float export renderer required",
+            ));
+        }
+        let scene = self.output.scene_settings(settings)?;
+        self.renderer
+            .render_export_rows(image, &scene, level, rows, lens, dst, cancel)
     }
 
     /// Uses the resident ICC Output kernel and existing IOSurface writer.
