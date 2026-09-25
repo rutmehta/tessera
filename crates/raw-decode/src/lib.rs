@@ -3,6 +3,7 @@
 use std::path::{Path, PathBuf};
 
 pub mod dng;
+pub mod linear_dng;
 
 use engine_api::{
     EngineError, EngineResult,

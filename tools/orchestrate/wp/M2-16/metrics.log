@@ -1,0 +1,26 @@
+
+running 2 tests
+.HDR alignment: [5.29756895366135, -3.7184965055088455], angle 1.695 degrees
+.
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+
+running 1 test
+HDR panorama overlap PSNR 62.81110456912856
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+
+running 4 tests
+.HDR relative error: mean 0.000338, worst 0.002704
+..registered HDR MSE 0.00000010791480681967477
+.
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+
+
+running 5 tests
+....panorama maximum sampled transform error: 0.0201 pixels
+panorama overlap PSNR: 57.441 dB
+.
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
