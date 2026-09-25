@@ -113,7 +113,14 @@ fn tone_and_display() {
         compare(StageId::Tone, Op::Tone(&s), tile(3, 2));
     }
     for gamut in [GamutMapping::Clip, GamutMapping::Perceptual] {
-        compare(StageId::Output, Op::Display { gamut }, tile(3, 2));
+        compare(
+            StageId::Output,
+            Op::Display {
+                gamut,
+                headroom: None,
+            },
+            tile(3, 2),
+        );
     }
 }
 
@@ -157,6 +164,7 @@ fn batch_chain_matches_cpu() {
             StageId::Output,
             Op::Display {
                 gamut: GamutMapping::Perceptual,
+                headroom: None,
             },
         ),
     ];

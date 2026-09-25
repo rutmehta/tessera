@@ -539,22 +539,46 @@
     "id": "M2-22",
     "owner": "opus",
     "title": "HDR/EDR presentation",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
-    "notes": ""
+    "notes": "float path 1.8ms; SDR bit-identical; not seen on an EDR display (none here)"
   },
   {
     "id": "M2-20v",
     "owner": "sol",
     "title": "Verify export + print",
-    "status": "running",
+    "status": "fail",
     "attempts": 0,
-    "notes": ""
+    "notes": "sheets open, soft proof works; verifier cannot target native controls -> add accessibility identifiers (M2-24); export sheet defaults to Custom preset"
   },
   {
     "id": "M2-21",
     "owner": "astra",
     "title": "GPU export path",
+    "status": "escalate",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-23",
+    "owner": "opus",
+    "title": "Design system + visual overhaul",
+    "status": "merged",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-24",
+    "owner": "sol",
+    "title": "Accessibility identifiers on all controls",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-21b",
+    "owner": "opus",
+    "title": "GPU export w/o starvation + GPU lens",
     "status": "running",
     "attempts": 0,
     "notes": ""

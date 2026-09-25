@@ -34,7 +34,13 @@ fn fused_tone_display_matches_separate_dispatches() {
         ..Default::default()
     };
     for gamut in [GamutMapping::Clip, GamutMapping::default()] {
-        let chain = [Op::Tone(&tone), Op::Display { gamut }];
+        let chain = [
+            Op::Tone(&tone),
+            Op::Display {
+                gamut,
+                headroom: None,
+            },
+        ];
         let mut batch = gpu.begin_resident().unwrap();
         let raw = batch.upload(&input).unwrap();
         let toned = batch.run(&chain[0], &raw).unwrap();

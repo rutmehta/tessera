@@ -11,7 +11,13 @@ final class HistogramView: NSView {
     var placeholder = "No develop session" { didSet { needsDisplay = true } }
 
     override var isFlipped: Bool { false }
-    override var intrinsicContentSize: NSSize { NSSize(width: NSView.noIntrinsicMetric, height: 86) }
+    static let height: CGFloat = 88
+    override var intrinsicContentSize: NSSize { NSSize(width: NSView.noIntrinsicMetric, height: Self.height) }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        needsDisplay = true
+    }
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -23,11 +29,11 @@ final class HistogramView: NSView {
 
     override func draw(_ dirtyRect: NSRect) {
         let r = bounds.insetBy(dx: 0.5, dy: 0.5)
-        NSColor(calibratedWhite: 0.08, alpha: 1).setFill()
-        NSBezierPath(roundedRect: r, xRadius: 3, yRadius: 3).fill()
+        Theme.Palette.plotWell.setFill()
+        NSBezierPath(roundedRect: r, xRadius: Theme.Radius.chip, yRadius: Theme.Radius.chip).fill()
         guard let h = histogram, h.luminance.count == 256 else {
-            let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 10),
-                                                        .foregroundColor: Theme.textSecondary]
+            let attrs: [NSAttributedString.Key: Any] = [.font: Theme.NSFonts.caption,
+                                                        .foregroundColor: Theme.Palette.plotText]
             let text = placeholder as NSString
             let size = text.size(withAttributes: attrs)
             text.draw(at: NSPoint(x: r.midX - size.width / 2, y: r.midY - size.height / 2), withAttributes: attrs)
@@ -36,9 +42,9 @@ final class HistogramView: NSView {
         // Square-root scale keeps shadows visible next to a tall spike; ignore the clipped end bins
         // when normalising so a blown sky does not flatten the rest.
         let channels: [([UInt32], NSColor)] = [
-            (h.red, NSColor(srgbRed: 0.95, green: 0.25, blue: 0.2, alpha: 0.55)),
-            (h.green, NSColor(srgbRed: 0.3, green: 0.85, blue: 0.3, alpha: 0.55)),
-            (h.blue, NSColor(srgbRed: 0.3, green: 0.45, blue: 1.0, alpha: 0.55)),
+            (h.red, Theme.Palette.channelRed.withAlphaComponent(0.55)),
+            (h.green, Theme.Palette.channelGreen.withAlphaComponent(0.55)),
+            (h.blue, Theme.Palette.channelBlue.withAlphaComponent(0.55)),
         ]
         let peak = ([h.red, h.green, h.blue, h.luminance].flatMap { $0[1..<255] }.max()).map { sqrt(Double($0)) } ?? 1
         let plot = r.insetBy(dx: 3, dy: 3)
@@ -60,7 +66,7 @@ final class HistogramView: NSView {
             path(bins).fill()
         }
         NSGraphicsContext.current?.compositingOperation = .sourceOver
-        NSColor(calibratedWhite: 0.9, alpha: 0.8).setStroke()
+        Theme.Palette.plotLine.withAlphaComponent(0.8).setStroke()
         let luma = path(h.luminance)
         luma.lineWidth = 1
         luma.stroke()
@@ -70,7 +76,7 @@ final class HistogramView: NSView {
             total > 0 && Double([h.red[i], h.green[i], h.blue[i]].max()!) / total > 0.005
         }
         for (i, x) in [(0, plot.minX), (255, plot.maxX - 6)] where clip(i) {
-            NSColor(calibratedWhite: 0.95, alpha: 0.9).setFill()
+            Theme.Palette.plotLine.setFill()
             NSBezierPath(rect: NSRect(x: x, y: plot.maxY - 6, width: 6, height: 6)).fill()
         }
     }

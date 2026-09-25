@@ -7,6 +7,10 @@ import QuartzCore
 ///
 /// Drag anywhere on the track (relative, not jump-to-click), ⌥ for fine control, double-click to reset.
 /// Value text is drawn by the control itself so it can update every frame without layout.
+///
+/// Anatomy (DESIGN.md §4.3): 32 pt row; label (11 pt, secondary) and value (11 pt tabular, right
+/// aligned) on the first line; a 2 pt track with the fill running from the default to the value;
+/// a 12 pt round thumb with an accent ring while dragging.
 @MainActor
 final class ValueSlider: NSControl {
     var title = "" { didSet { needsDisplay = true } }
@@ -29,7 +33,7 @@ final class ValueSlider: NSControl {
     private(set) var isDragging = false
 
     override var isEnabled: Bool {
-        didSet { alphaValue = isEnabled ? 1 : 0.4 }
+        didSet { alphaValue = isEnabled ? 1 : CGFloat(Theme.Opacity.disabled) }
     }
 
     override var doubleValue: Double {
@@ -51,46 +55,73 @@ final class ValueSlider: NSControl {
 
     required init?(coder: NSCoder) { fatalError() }
 
-    override var intrinsicContentSize: NSSize { NSSize(width: NSView.noIntrinsicMetric, height: 30) }
+    override var intrinsicContentSize: NSSize { NSSize(width: NSView.noIntrinsicMetric, height: Theme.Height.slider) }
     override var isFlipped: Bool { true }
     override var acceptsFirstResponder: Bool { false }   // culling keys stay global
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
-    private var trackRect: NSRect { NSRect(x: 0, y: bounds.height - 9, width: bounds.width, height: 3) }
+    private static let thumb = Theme.Height.thumb
+    /// Track: full width minus half a thumb each side, centred on the thumb row.
+    private var trackRect: NSRect {
+        let inset = Self.thumb / 2
+        let midY = bounds.height - Self.thumb / 2 - Theme.Space.xxs
+        return NSRect(x: inset, y: midY - 1, width: max(bounds.width - 2 * inset, 1), height: Theme.Space.xxs)
+    }
 
     private func fraction(_ v: Double) -> CGFloat { CGFloat((v - minValue) / (maxValue - minValue)) }
 
-    private static let titleAttrs: [NSAttributedString.Key: Any] = [
-        .font: NSFont.systemFont(ofSize: 11), .foregroundColor: Theme.textPrimary]
-    private static let valueAttrs: [NSAttributedString.Key: Any] = [
-        .font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular), .foregroundColor: Theme.textSecondary]
-    private static let valueAttrsActive: [NSAttributedString.Key: Any] = [
-        .font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium), .foregroundColor: Theme.textPrimary]
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        needsDisplay = true
+    }
 
     override func draw(_ dirtyRect: NSRect) {
-        (title as NSString).draw(at: NSPoint(x: 0, y: 1), withAttributes: Self.titleAttrs)
+        let changed = isDragging || value != defaultValue
+        let titleAttrs: [NSAttributedString.Key: Any] = [.font: Theme.NSFonts.caption,
+                                                         .foregroundColor: Theme.Palette.textSecondary]
+        let valueAttrs: [NSAttributedString.Key: Any] = [
+            .font: changed ? Theme.NSFonts.captionNumericMedium : Theme.NSFonts.captionNumeric,
+            .foregroundColor: changed ? Theme.Palette.textPrimary : Theme.Palette.textTertiary]
+        (title as NSString).draw(at: NSPoint(x: 0, y: 0), withAttributes: titleAttrs)
         let text = String(format: valueFormat, abs(value) < step / 2 ? 0 : value) as NSString
-        let attrs = (isDragging || value != defaultValue) ? Self.valueAttrsActive : Self.valueAttrs
-        let tw = text.size(withAttributes: attrs).width
-        text.draw(at: NSPoint(x: bounds.width - tw, y: 1), withAttributes: attrs)
+        let tw = ceil(text.size(withAttributes: valueAttrs).width)
+        text.draw(at: NSPoint(x: bounds.width - tw, y: 0), withAttributes: valueAttrs)
 
         let track = trackRect
         let x0 = track.minX + track.width * fraction(defaultValue)
         let x1 = track.minX + track.width * fraction(value)
+        let radius = track.height / 2
         if let colors = trackColors, colors.count >= 2, let gradient = NSGradient(colors: colors) {
-            gradient.draw(in: NSBezierPath(roundedRect: track.insetBy(dx: 0, dy: -0.5), xRadius: 2, yRadius: 2), angle: 0)
+            gradient.draw(in: NSBezierPath(roundedRect: track.insetBy(dx: 0, dy: -0.5), xRadius: radius + 0.5, yRadius: radius + 0.5), angle: 0)
         } else {
-            NSColor(calibratedWhite: 0.26, alpha: 1).setFill()
-            NSBezierPath(roundedRect: track, xRadius: 1.5, yRadius: 1.5).fill()
+            Theme.Palette.hairlineStrong.setFill()
+            NSBezierPath(roundedRect: track, xRadius: radius, yRadius: radius).fill()
             // Fill from the default (centre for bipolar controls) to the value.
-            NSColor(calibratedWhite: isDragging ? 0.85 : 0.62, alpha: 1).setFill()
+            (isDragging ? Theme.Palette.accent : Theme.Palette.textSecondary).setFill()
             NSRect(x: min(x0, x1), y: track.minY, width: abs(x1 - x0), height: track.height).fill()
         }
+        // Default tick for bipolar controls, so "zero" is findable.
+        if defaultValue > minValue, defaultValue < maxValue {
+            Theme.Palette.textTertiary.setFill()
+            NSRect(x: round(x0) - 0.5, y: track.minY - Theme.Space.xxs, width: 1, height: track.height + Theme.Space.xs).fill()
+        }
 
-        // Thumb: a slim vertical bar, not a knob.
-        let thumb = NSRect(x: x1 - 1.5, y: track.midY - 5, width: 3, height: 10)
-        (isDragging ? Theme.accent : NSColor(calibratedWhite: 0.9, alpha: 1)).setFill()
-        NSBezierPath(roundedRect: thumb, xRadius: 1, yRadius: 1).fill()
+        // Thumb: 12 pt disc with a hairline; accent ring while dragging.
+        let d = Self.thumb
+        let thumb = NSRect(x: x1 - d / 2, y: track.midY - d / 2, width: d, height: d)
+        NSGraphicsContext.saveGraphicsState()
+        let shadow = NSShadow()
+        shadow.shadowColor = Theme.Palette.OnImage.shadow
+        shadow.shadowBlurRadius = Theme.Space.xxs
+        shadow.shadowOffset = NSSize(width: 0, height: -0.5)
+        shadow.set()
+        Theme.Palette.thumb.setFill()
+        NSBezierPath(ovalIn: thumb.insetBy(dx: 0.5, dy: 0.5)).fill()
+        NSGraphicsContext.restoreGraphicsState()
+        let ring = NSBezierPath(ovalIn: thumb.insetBy(dx: 0.5, dy: 0.5))
+        ring.lineWidth = isDragging ? 2 : Theme.Space.hairline
+        (isDragging ? Theme.Palette.accent : Theme.Palette.hairlineStrong).setStroke()
+        ring.stroke()
     }
 
     override func mouseDown(with event: NSEvent) {
@@ -106,7 +137,7 @@ final class ValueSlider: NSControl {
         // Clicking on the track (not near the thumb) jumps there, then drags relatively.
         let p = convert(event.locationInWindow, from: nil)
         let thumbX = trackRect.minX + trackRect.width * fraction(value)
-        if p.y > bounds.height - 16, abs(p.x - thumbX) > 6 {
+        if p.y > bounds.height - Theme.Height.small, abs(p.x - thumbX) > Self.thumb / 2 {
             let v = minValue + Double((p.x - trackRect.minX) / trackRect.width) * (maxValue - minValue)
             dragStartValue = quantize(v)
             setValue(dragStartValue, final: false)

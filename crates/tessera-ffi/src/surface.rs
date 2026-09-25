@@ -1,16 +1,22 @@
 //! IOSurface pixel writer for the develop viewport (docs/11 §1.2).
 //!
 //! Swift allocates the surfaces and presents them through its `CAMetalLayer`;
-//! Rust writes through a GPU-imported texture or the CPU fallback mapping. The contract is
-//! **RGBA8, display-encoded sRGB, straight alpha = 255**, 4 bytes per element
-//! (`kCVPixelFormatType_32RGBA`, `'RGBA'`). Metal imports it as
-//! `.rgba8Unorm_srgb`, so sampling yields linear sRGB and the layer's colour
-//! space (`extendedLinearSRGB`) lets Core Animation convert to the display.
-//! RGBA8 was chosen over RGBA16F because the Output stage already produces
-//! 8-bit display values: half floats would double the bytes written per frame
-//! for no additional information. An EDR path would switch to RGBA16F with
-//! the scene-linear output, and only this module and the Swift pixel format
-//! would change.
+//! Rust writes through a GPU-imported texture or the CPU fallback mapping.
+//! Two presentation contracts, chosen by the host per ring (M2-22):
+//!
+//! - **SDR: RGBA8, display-encoded sRGB, straight alpha = 255**, 4 bytes per
+//!   element (`kCVPixelFormatType_32RGBA`, `'RGBA'`). Metal imports it as
+//!   `.rgba8Unorm_srgb`, so sampling yields linear sRGB and the layer's
+//!   colour space (`extendedLinearSRGB`) lets Core Animation convert to the
+//!   display. This is the Output stage's 8-bit rendition, byte for byte.
+//! - **EDR: RGBA16F, display-linear extended sRGB, alpha = 1.0**, 8 bytes
+//!   per element (`kCVPixelFormatType_64RGBAHalf`, `'RGhA'`). Values run
+//!   `0..=headroom`, where 1.0 is SDR white and `headroom` is the EDR
+//!   multiple the frame was tone-mapped for
+//!   ([`pipeline_cpu::display_linear`]); Metal imports it as `.rgba16Float`
+//!   for an `extendedLinearSRGB` layer with EDR enabled. Hosts allocate it
+//!   only on an EDR-capable screen with the recipe's HDR toggle on; SDR
+//!   screens keep the RGBA8 ring, so their path is unchanged.
 //!
 //! Surfaces keep the sensor orientation; the Metal presenter applies the EXIF
 //! orientation when sampling, so writes stay row-contiguous.
@@ -20,6 +26,19 @@ use std::ffi::c_void;
 
 /// `'RGBA'`.
 pub const PIXEL_FORMAT_RGBA8: u32 = u32::from_be_bytes(*b"RGBA");
+/// `'RGhA'` (`kCVPixelFormatType_64RGBAHalf`): the EDR viewport contract.
+pub const PIXEL_FORMAT_RGBA16F: u32 = u32::from_be_bytes(*b"RGhA");
+
+/// Pixel contract of a looked-up surface.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SurfaceKind {
+    /// SDR viewport: RGBA8 display-encoded sRGB.
+    Rgba8,
+    /// EDR viewport: RGBA16F display-linear extended sRGB.
+    Rgba16Float,
+    /// Mask overlay alpha plane.
+    R8,
+}
 /// `'L008'` (`kCVPixelFormatType_OneComponent8`): the mask overlay's alpha
 /// plane, one byte per pixel, imported by Metal as `.r8Unorm`.
 pub const PIXEL_FORMAT_R8: u32 = u32::from_be_bytes(*b"L008");
@@ -35,6 +54,7 @@ unsafe extern "C" {
     fn IOSurfaceGetBaseAddress(buffer: IOSurfaceRef) -> *mut c_void;
     fn IOSurfaceGetBytesPerRow(buffer: IOSurfaceRef) -> usize;
     fn IOSurfaceGetBytesPerElement(buffer: IOSurfaceRef) -> usize;
+    fn IOSurfaceGetPixelFormat(buffer: IOSurfaceRef) -> u32;
     fn IOSurfaceGetWidth(buffer: IOSurfaceRef) -> usize;
     fn IOSurfaceGetHeight(buffer: IOSurfaceRef) -> usize;
     fn IOSurfaceGetID(buffer: IOSurfaceRef) -> u32;
@@ -52,6 +72,7 @@ pub struct Surface {
     id: u32,
     width: u32,
     height: u32,
+    kind: SurfaceKind,
 }
 
 // SAFETY: IOSurfaceRef is a thread-safe CoreFoundation object; pixel access is
@@ -63,7 +84,7 @@ impl Surface {
     /// Creates an owned, temporary presentation target for backend calibration.
     #[cfg(target_os = "macos")]
     pub(crate) fn create_rgba8(width: u32, height: u32) -> Result<Self, String> {
-        allocation::create(width, height, 4, PIXEL_FORMAT_RGBA8)
+        allocation::create(width, height, 4, PIXEL_FORMAT_RGBA8, SurfaceKind::Rgba8)
     }
 
     #[cfg(not(target_os = "macos"))]
@@ -76,6 +97,21 @@ impl Surface {
     #[cfg(target_os = "macos")]
     pub fn lookup(id: u32, width: u32, height: u32) -> Result<Self, String> {
         Self::lookup_bytes(id, width, height, 4)
+    }
+
+    /// A viewport surface of either contract: RGBA8 (SDR) or `'RGhA'`
+    /// RGBA16F (EDR), told apart by pixel format and element size.
+    #[cfg(target_os = "macos")]
+    pub fn lookup_presentation(id: u32, width: u32, height: u32) -> Result<Self, String> {
+        Self::lookup_bytes(id, width, height, 4).or_else(|e| {
+            Self::lookup_bytes(id, width, height, 8)
+                .map_err(|_| format!("{e}, or RGBA16F ('RGhA', 8 bytes per element) for EDR"))
+        })
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    pub fn lookup_presentation(_id: u32, _width: u32, _height: u32) -> Result<Self, String> {
+        Err("IOSurface requires macOS".into())
     }
 
     /// [`Surface::lookup`] for a one-byte-per-pixel (R8) mask overlay surface.
@@ -103,11 +139,22 @@ impl Surface {
                 id: IOSurfaceGetID(raw),
                 width: IOSurfaceGetWidth(raw) as u32,
                 height: IOSurfaceGetHeight(raw) as u32,
+                kind: match bytes {
+                    1 => SurfaceKind::R8,
+                    8 => SurfaceKind::Rgba16Float,
+                    _ => SurfaceKind::Rgba8,
+                },
             };
-            if IOSurfaceGetBytesPerElement(raw) != bytes {
+            if IOSurfaceGetBytesPerElement(raw) != bytes
+                || (bytes == 8 && IOSurfaceGetPixelFormat(raw) != PIXEL_FORMAT_RGBA16F)
+            {
                 return Err(format!(
                     "IOSurface must have {bytes} byte(s) per element{}",
-                    if bytes == 4 { " (RGBA8)" } else { " (R8)" }
+                    match bytes {
+                        4 => " (RGBA8)",
+                        8 => " ('RGhA' RGBA16F)",
+                        _ => " (R8)",
+                    }
                 ));
             }
             if surface.width != width || surface.height != height {
@@ -134,6 +181,13 @@ impl Surface {
     pub fn height(&self) -> u32 {
         self.height
     }
+    pub fn kind(&self) -> SurfaceKind {
+        self.kind
+    }
+    /// The EDR (RGBA16F) contract.
+    pub fn is_float(&self) -> bool {
+        self.kind == SurfaceKind::Rgba16Float
+    }
 
     /// Runs `f` with the locked pixel memory and its row stride.
     #[cfg(target_os = "macos")]
@@ -158,9 +212,13 @@ impl Surface {
         Err("IOSurface requires macOS".into())
     }
 
-    /// Writes a display tile (`U8`, three planes) at its level position.
+    /// Writes a display tile at its level position: `U8` planes into an
+    /// RGBA8 surface, display-linear `F32` planes into an RGBA16F surface.
     pub fn write_tile(&self, tile: &Tile) -> Result<(), String> {
-        self.with_pixels(|pixels, stride| write_rgba8(pixels, stride, 0, self.width, tile))?
+        let float = self.is_float();
+        self.with_pixels(|pixels, stride| {
+            write_display(pixels, stride, 0, self.width, float, tile)
+        })?
     }
 }
 
@@ -172,6 +230,86 @@ impl Drop for Surface {
             CFRelease(self.raw as *const c_void)
         }
     }
+}
+
+/// Writes a display tile into rows of either contract: [`write_rgba8`] for
+/// RGBA8 surfaces, [`write_rgba16f`] for RGBA16F surfaces. A tile of the
+/// other contract's sample type is an error, never a reinterpretation.
+pub fn write_display(
+    pixels: &mut [u8],
+    stride: usize,
+    first_row: u32,
+    width: u32,
+    float: bool,
+    tile: &Tile,
+) -> Result<(), String> {
+    if float {
+        write_rgba16f(pixels, stride, first_row, width, tile)
+    } else {
+        write_rgba8(pixels, stride, first_row, width, tile)
+    }
+}
+
+/// Clips `tile` to a band of whole rows starting at surface row `first_row`
+/// of a `width`-wide surface: `(y0, y1, visible width)`, or `None`.
+fn clip(
+    tile: &Tile,
+    pixels: usize,
+    stride: usize,
+    first_row: u32,
+    width: u32,
+) -> Option<(u32, u32, usize)> {
+    let layout = tile.layout();
+    let (tw, th) = (layout.extent.width, layout.extent.height);
+    let (ox, oy) = tile.coord().pixel_origin(TILE_SIZE);
+    let band_rows = (pixels / stride.max(1)) as u32;
+    let y0 = oy.max(first_row);
+    let y1 = (oy + th).min(first_row + band_rows);
+    if ox >= width || y0 >= y1 {
+        return None;
+    }
+    Some((y0, y1, tw.min(width - ox) as usize))
+}
+
+/// Interleaves a planar display-linear `F32` RGB tile into RGBA16F rows
+/// (alpha 1.0). Values above 1.0 (EDR headroom) are stored as they are;
+/// half floats represent them up to 65504. Pure, tested without an IOSurface.
+pub fn write_rgba16f(
+    pixels: &mut [u8],
+    stride: usize,
+    first_row: u32,
+    width: u32,
+    tile: &Tile,
+) -> Result<(), String> {
+    let layout = tile.layout();
+    let data = tile
+        .samples::<f32>()
+        .map_err(|_| "EDR surfaces take display-linear F32 tiles".to_string())?;
+    if layout.channels != 3 || layout.halo != 0 {
+        return Err("display tile must have three planes and no halo".into());
+    }
+    let Some((y0, y1, w)) = clip(tile, pixels.len(), stride, first_row, width) else {
+        return Ok(());
+    };
+    let n = layout.plane_len();
+    let tw = layout.extent.width;
+    let (ox, oy) = tile.coord().pixel_origin(TILE_SIZE);
+    let (r, rest) = data.split_at(n);
+    let (g, b) = rest.split_at(n);
+    const ONE: [u8; 2] = half::f16::ONE.to_le_bytes();
+    for y in y0..y1 {
+        let src = ((y - oy) * tw) as usize;
+        let dst = (y - first_row) as usize * stride + ox as usize * 8;
+        let row = &mut pixels[dst..dst + w * 8];
+        for (x, px) in row.as_chunks_mut::<8>().0.iter_mut().enumerate() {
+            let i = src + x;
+            px[0..2].copy_from_slice(&half::f16::from_f32(r[i]).to_le_bytes());
+            px[2..4].copy_from_slice(&half::f16::from_f32(g[i]).to_le_bytes());
+            px[4..6].copy_from_slice(&half::f16::from_f32(b[i]).to_le_bytes());
+            px[6..8].copy_from_slice(&ONE);
+        }
+    }
+    Ok(())
 }
 
 /// Interleaves a planar `U8` RGB tile into RGBA8 rows. `pixels` holds whole
@@ -252,6 +390,7 @@ mod allocation {
         height: u32,
         bytes_per_element: i64,
         format: u32,
+        kind: SurfaceKind,
     ) -> Result<Surface, String> {
         if width == 0 || height == 0 {
             return Err("IOSurface dimensions must be nonzero".into());
@@ -313,6 +452,7 @@ mod allocation {
                 id: IOSurfaceGetID(surface),
                 width,
                 height,
+                kind,
             })
         }
     }
@@ -331,8 +471,30 @@ pub mod testing {
 
     /// An R8 (mask overlay) IOSurface, retained for the life of the process.
     pub fn create_r8(width: u32, height: u32) -> u32 {
-        let surface = super::allocation::create(width, height, 1, super::PIXEL_FORMAT_R8)
-            .expect("IOSurfaceCreate failed");
+        let surface = super::allocation::create(
+            width,
+            height,
+            1,
+            super::PIXEL_FORMAT_R8,
+            super::SurfaceKind::R8,
+        )
+        .expect("IOSurfaceCreate failed");
+        let id = surface.id();
+        std::mem::forget(surface);
+        id
+    }
+
+    /// An EDR (`'RGhA'` RGBA16F) viewport IOSurface, retained for the life
+    /// of the process.
+    pub fn create_rgba16f(width: u32, height: u32) -> u32 {
+        let surface = super::allocation::create(
+            width,
+            height,
+            8,
+            super::PIXEL_FORMAT_RGBA16F,
+            super::SurfaceKind::Rgba16Float,
+        )
+        .expect("IOSurfaceCreate failed");
         let id = surface.id();
         std::mem::forget(surface);
         id
@@ -383,6 +545,7 @@ mod gpu_tests {
         .unwrap();
         let op = Op::Display {
             gamut: Default::default(),
+            headroom: None,
         };
         let expected = image_core::CpuStageOp
             .run(StageId::Output, &op, tile.clone())

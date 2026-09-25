@@ -75,6 +75,7 @@ fn fused_output_levels_crop_styles_display_and_edits_match_cpu() {
                     StageId::Output,
                     Op::Display {
                         gamut: GamutMapping::default(),
+                        headroom: None,
                     },
                 ),
             ];

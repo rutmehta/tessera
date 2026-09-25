@@ -35,7 +35,7 @@ final class CompareContainerView: NSView {
     override init(frame: NSRect) {
         super.init(frame: frame)
         wantsLayer = true
-        layer?.backgroundColor = Theme.gridBackground.cgColor
+        layer?.backgroundColor = Theme.Palette.canvas.cgColor(for: self)
         panes.forEach(addSubview)
         setAccessibilityElement(true)
         setAccessibilityRole(.group)
@@ -45,6 +45,11 @@ final class CompareContainerView: NSView {
     required init?(coder: NSCoder) { fatalError() }
 
     override var isFlipped: Bool { true }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        layer?.backgroundColor = Theme.Palette.canvas.cgColor(for: self)
+    }
 
     func update(pair: ComparePair, model: AppModel) {
         for side in 0..<2 {
@@ -72,10 +77,10 @@ final class CompareContainerView: NSView {
 
     override func layout() {
         super.layout()
-        let gap: CGFloat = 6
-        let w = (bounds.width - gap * 3) / 2
+        let edge = Theme.Space.gutter, gap = Theme.Space.s
+        let w = (bounds.width - edge * 2 - gap) / 2
         for (side, pane) in panes.enumerated() {
-            pane.frame = NSRect(x: gap + CGFloat(side) * (w + gap), y: gap, width: w, height: bounds.height - gap * 2)
+            pane.frame = NSRect(x: edge + CGFloat(side) * (w + gap), y: edge, width: w, height: bounds.height - edge * 2)
         }
         applyViewport()
     }
@@ -134,13 +139,12 @@ final class ComparePaneView: NSView {
     private(set) var itemID = -1
     private var imageSize = CGSize.zero
     private var active = false
-    private static let captionHeight: CGFloat = 26
+    private static let captionHeight: CGFloat = Theme.Height.large
 
     override init(frame: NSRect) {
         super.init(frame: frame)
         wantsLayer = true
-        layer?.cornerRadius = 4
-        layer?.backgroundColor = Theme.cellBackground.cgColor
+        layer?.cornerRadius = Theme.Radius.control
         clip.masksToBounds = true
         imageLayer.contentsGravity = .resize
         imageLayer.minificationFilter = .trilinear
@@ -148,10 +152,10 @@ final class ComparePaneView: NSView {
         clip.actions = ["bounds": NSNull(), "position": NSNull()]
         clip.addSublayer(imageLayer)
         layer?.addSublayer(clip)
-        caption.font = .systemFont(ofSize: 12, weight: .medium)
-        caption.textColor = Theme.textPrimary
+        caption.font = Theme.NSFonts.labelMedium
+        caption.textColor = Theme.Palette.textPrimary
         caption.lineBreakMode = .byTruncatingMiddle
-        badge.font = .systemFont(ofSize: 10, weight: .bold)
+        badge.font = Theme.NSFonts.captionMedium
         badge.alignment = .right
         addSubview(caption)
         addSubview(badge)
@@ -169,13 +173,13 @@ final class ComparePaneView: NSView {
         caption.stringValue = "\(key)  \(item.name)"
         var parts: [String] = []
         if let b = state.badgeText { parts.append(b) }
-        if suggestedBest { parts.append("SUGGESTED") }
+        if suggestedBest { parts.append("Suggested") }
         badge.stringValue = parts.joined(separator: " · ")
-        badge.textColor = state.decision == .undecided ? Theme.keep : state.decision.color
+        badge.textColor = state.decision == .undecided ? Theme.Palette.keep : state.decision.color
         self.active = active
-        layer?.borderWidth = active ? 2 : 0
-        layer?.borderColor = Theme.accent.cgColor
-        imageLayer.opacity = state.decision == .reject ? 0.45 : 1
+        caption.textColor = active ? Theme.Palette.textPrimary : Theme.Palette.textSecondary
+        updateLayer()
+        imageLayer.opacity = state.decision == .reject ? Theme.Opacity.rejectedImage : 1
         setAccessibilityLabel("\(active ? "Active: " : "")\(item.name)\(parts.isEmpty ? "" : ", " + parts.joined(separator: ", "))")
     }
 
@@ -186,7 +190,17 @@ final class ComparePaneView: NSView {
     }
 
     private var imageArea: NSRect {
-        NSRect(x: 4, y: 4, width: bounds.width - 8, height: bounds.height - 8 - Self.captionHeight)
+        let i = Theme.Space.s - Theme.Space.xxs
+        return NSRect(x: i, y: i, width: bounds.width - 2 * i, height: bounds.height - 2 * i - Self.captionHeight)
+    }
+
+    override var wantsUpdateLayer: Bool { true }
+
+    /// Active side: a 2 px accent ring (the grid's focus language) on a neutral pane.
+    override func updateLayer() {
+        layer?.backgroundColor = Theme.Palette.groupAlt.cgColor(for: self)
+        layer?.borderWidth = active ? Theme.Space.xxs : 0
+        layer?.borderColor = Theme.Palette.accent.cgColor(for: self)
     }
 
     private var fitted: CGSize {
@@ -228,8 +242,9 @@ final class ComparePaneView: NSView {
         imageLayer.frame = CGRect(x: origin.x, y: area.height - origin.y - displayedSize.height,
                                   width: displayedSize.width, height: displayedSize.height)
         CATransaction.commit()
-        caption.frame = NSRect(x: 10, y: bounds.height - Self.captionHeight + 4, width: bounds.width * 0.6, height: 18)
-        badge.frame = NSRect(x: bounds.width * 0.6, y: bounds.height - Self.captionHeight + 5, width: bounds.width * 0.4 - 10, height: 16)
+        let lineY = bounds.height - Self.captionHeight + (Self.captionHeight - Theme.Height.chip) / 2 - Theme.Space.xxs
+        caption.frame = NSRect(x: Theme.Space.m, y: lineY, width: bounds.width * 0.6, height: Theme.Height.chip + Theme.Space.xxs)
+        badge.frame = NSRect(x: bounds.width * 0.6, y: lineY + 1, width: bounds.width * 0.4 - Theme.Space.m, height: Theme.Height.chip)
     }
 
     override func layout() {

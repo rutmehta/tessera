@@ -1,0 +1,77 @@
+{
+  "steps": [
+    {
+      "n": 1,
+      "pass": true,
+      "note": "Build completed. XCTest: 55 tests, 0 failures; Swift Testing: 5 passed; app built. Rust test results were all ok."
+    },
+    {
+      "n": 2,
+      "pass": true,
+      "note": "Fresh scratch folder created with 40 sample JPEGs and five copied RAW fixtures."
+    },
+    {
+      "n": 3,
+      "pass": true,
+      "note": "App preferences reset."
+    },
+    {
+      "n": 73,
+      "pass": true,
+      "note": "Rust test results were all ok; ExportPrintTests passed 9 tests with 0 failures."
+    },
+    {
+      "n": 74,
+      "pass": true,
+      "note": "Opened scratch raw3 folder with 3 RAW images. Screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_54b4725ed71e4162af5895ffa460994b.png"
+    },
+    {
+      "n": 75,
+      "pass": false,
+      "note": "Export sheet opened for 3 selected photos, but showed preset Custom rather than Web 2048 sRGB, and show in Finder was off. Screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_c16f49229f844a0581c0ef8b93c67489.png"
+    },
+    {
+      "n": 76,
+      "pass": false,
+      "note": "Preset and naming-field interactions not verified; computer_use could not reliably target the native sheet controls."
+    },
+    {
+      "n": 77,
+      "pass": false,
+      "note": "UI export and its progress/toast were not verified."
+    },
+    {
+      "n": 78,
+      "pass": false,
+      "note": "The UI export destination was not produced; dimensions for that requested run could not be verified."
+    },
+    {
+      "n": 79,
+      "pass": false,
+      "note": "Conflict, cancellation and skip-on-conflict flows not verified."
+    },
+    {
+      "n": 80,
+      "pass": false,
+      "note": "Soft proof and gamut-warning badges appeared, but panel controls, paper simulation and History were not fully verified. Screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_d10053e42957488893bfc757fe7b086f.png"
+    },
+    {
+      "n": 81,
+      "pass": false,
+      "note": "Three-photo print sheet and contact preview opened, but the requested two-page PDF was not saved through the UI. Screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_07361a6692e549b6bf68c37aa22974c4.png"
+    },
+    {
+      "n": 82,
+      "pass": false,
+      "note": "JPEG pages, application-managed colour and system print dialog not verified."
+    },
+    {
+      "n": 83,
+      "pass": true,
+      "note": "Self-test reported 3 exported, 0 failed, cancelled no; print self-test reported ok. Generated PDF verified as 1 page, 8.5 \u00d7 11.0 in. Scratch folder: /var/folders/_f/grgzfz9j7c1bq0m39nwqz9mm0000gn/T/tmp.IQl9VQx0Ek"
+    }
+  ],
+  "overall": false,
+  "wp": "M2-20v",
+  "status": "fail"
+}

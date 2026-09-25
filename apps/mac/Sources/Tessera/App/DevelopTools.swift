@@ -37,6 +37,8 @@ final class DevelopTools: LibraryObserver {
     private(set) var historyItems: [HistoryItem] = []
     /// Bumped when panel values change outside a slider drag.
     private(set) var revision = 0
+    /// The loupe screen's EDR presentation (HDR panel: slider range, status).
+    var edr: EDRPresentation = .sdr
 
     // MARK: Unobserved hot state
 

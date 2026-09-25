@@ -25,7 +25,10 @@ mod lens_resolve;
 mod optics;
 mod render;
 mod upright;
-pub use display::{SigmoidSettings, display, display_float, sigmoid, srgb_oetf};
+pub use display::{
+    MAX_HDR_HEADROOM, SigmoidSettings, display, display_float, display_linear, hdr_sigmoid_ln_a,
+    sanitize_headroom, sigmoid, srgb_oetf,
+};
 pub use image::Image;
 pub use lens_resolve::{CorrectionSource, LensContext, ResolvedLens, resolve_lens};
 pub use render::{

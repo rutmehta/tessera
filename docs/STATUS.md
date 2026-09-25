@@ -11,8 +11,11 @@ Auto-maintained by the coordinator. Board: `python3 tools/orchestrate/board.py l
 ## Verified on screen by GPT-6 Sol (computer use)
 M0-05 smoke (real engine), M1-09 culling (28/32, misses were verifier procedure), M1-10 develop (works; WB bug found → fixed in M2-04b).
 
+## Since the last update (all merged)
+Masks and local adjustments + masking UI (verified on screen with the real subject model), soft proofing and ICC display path, lens corrections + Upright, HDR/panorama merge, AI denoise (DRUNet) + super-resolution (Real-ESRGAN), depth + lens blur, assisted culling that learns, MCP tool server (`tessera-mcp`), library UI, Develop panels UI (tone curve, HSL, grading, detail, effects, crop, presets, history), Lightroom import flow in the app (verified on screen), Adobe PV6 compatibility renderer wired into the graph, export dialog + Print + soft proof, style-profile auto-edit (agentic phase 1), agent planner/critic loop with Anthropic/OpenAI/Ollama providers (phase 3), performance redesign (every slider < 12 ms at screen level; Texture/Clarity/Dehaze 230 ms → < 10 ms), Sparkle auto-update with CI/release workflows, app-dir isolation and `tessera index prune`.
+
 ## In progress
-M3-05 AI denoise (relaunched with placement decision), M2-17 operator performance at full resolution, M2-13v on-screen verification of library + develop panels, M2-13c Swift strict-concurrency CI fix.
+M2-21 GPU export path (export is CPU-bound: 57 s for a 36 MP raw), M2-22 HDR/EDR presentation, M2-20v on-screen verification of export/print.
 
 ## Known gaps / next
 - Adobe undocumented XMP structures (PointColors strings, brush dabs, Look tables) need **real Lightroom-exported sidecars** to finish (M2-02b).

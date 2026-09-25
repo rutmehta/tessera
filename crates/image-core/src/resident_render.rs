@@ -149,6 +149,35 @@ impl Renderer {
         surface: u32,
         cancel: &CancellationToken,
     ) -> EngineResult<Option<DisplayHistogram>> {
+        self.render_surface_as(
+            image,
+            settings,
+            level,
+            surface,
+            RenderOutput::Display,
+            cancel,
+        )
+    }
+
+    /// [`Renderer::render_surface`] with a choice of display output: an
+    /// RGBA8 surface takes [`RenderOutput::Display`], an RGBA16F (EDR)
+    /// surface takes [`RenderOutput::DisplayLinear`]. The histogram is of
+    /// display-encoded sRGB either way (EDR values clip into the top bin).
+    pub fn render_surface_as(
+        &self,
+        image: &RawImage,
+        settings: &DevelopSettings,
+        level: u8,
+        surface: u32,
+        output: RenderOutput,
+        cancel: &CancellationToken,
+    ) -> EngineResult<Option<DisplayHistogram>> {
+        if output == RenderOutput::SceneLinear {
+            return Err(engine_api::EngineError::invalid(
+                "IOSurface",
+                "display output required",
+            ));
+        }
         cancel.check()?;
         let r = self.resolve(image, settings)?;
         if level > MAX_LEVEL || !self.supports_resident(&r, Some(level)) {
@@ -161,7 +190,7 @@ impl Renderer {
         self.run_resident(
             &r,
             &coords,
-            RenderOutput::Display,
+            output,
             cancel,
             batch,
             Some(SurfaceTarget {
@@ -390,10 +419,8 @@ impl Renderer {
             Op::Color(&r.settings.color),
             Op::EffectsInCrop(&r.settings.effects, frame, &r.settings.geometry.crop),
         ]);
-        if output == RenderOutput::Display {
-            chain.push(Op::Display {
-                gamut: r.settings.output.gamut_mapping,
-            });
+        if let Some(display) = output.display_op(r.settings.output.gamut_mapping) {
+            chain.push(display);
         }
         // Previews develop in their own pixel domain (grain scale), as below.
         t.coord.level = 0;
@@ -533,10 +560,8 @@ impl Renderer {
                     &r.settings.geometry.crop,
                 ),
             ]);
-            if output == RenderOutput::Display {
-                chain.push(Op::Display {
-                    gamut: r.settings.output.gamut_mapping,
-                });
+            if let Some(display) = output.display_op(r.settings.output.gamut_mapping) {
+                chain.push(display);
             }
             // The whole-image reference develops previews in their own pixel
             // domain (including grain scale), not the sensor-resolution domain.

@@ -21,16 +21,17 @@ final class DetailPreviewView: NSView {
     override init(frame: NSRect) {
         super.init(frame: frame)
         wantsLayer = true
-        layer?.backgroundColor = NSColor(calibratedWhite: 0.08, alpha: 1).cgColor
-        layer?.cornerRadius = 4
+        layer?.backgroundColor = Theme.Palette.plotWell.cgColor
+        layer?.cornerRadius = Theme.Radius.chip
         layer?.masksToBounds = true
         imageLayer.contentsGravity = .topLeft
         imageLayer.magnificationFilter = .nearest
         layer?.addSublayer(imageLayer)
-        label.fontSize = 9
-        label.foregroundColor = NSColor(calibratedWhite: 0.85, alpha: 1).cgColor
-        label.backgroundColor = NSColor(calibratedWhite: 0.05, alpha: 0.7).cgColor
-        label.cornerRadius = 3
+        label.font = Theme.NSFonts.captionNumeric
+        label.fontSize = Theme.NSFonts.captionNumeric.pointSize
+        label.foregroundColor = Theme.Palette.OnImage.text.cgColor
+        label.backgroundColor = Theme.Palette.OnImage.scrim.cgColor
+        label.cornerRadius = Theme.Radius.chip
         label.alignmentMode = .center
         layer?.addSublayer(label)
         setAccessibilityElement(true)
@@ -39,10 +40,15 @@ final class DetailPreviewView: NSView {
     }
     required init?(coder: NSCoder) { fatalError() }
 
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        layer?.backgroundColor = Theme.Palette.plotWell.cgColor
+    }
+
     override func layout() {
         super.layout()
         imageLayer.frame = bounds
-        label.frame = CGRect(x: 4, y: 4, width: 70, height: 13)
+        label.frame = CGRect(x: Theme.Space.xs, y: Theme.Space.xs, width: 88, height: Theme.Height.chip)
         let scale = window?.backingScaleFactor ?? 2
         imageLayer.contentsScale = scale
         label.contentsScale = scale

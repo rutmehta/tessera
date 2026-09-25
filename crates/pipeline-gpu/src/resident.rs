@@ -999,7 +999,7 @@ impl ResidentBatch for Batch<'_> {
             self.pool.lock().unwrap().free.push(decomposition);
             return Ok(self.tile(tile.coord, layout, dst));
         }
-        if matches!(op, Op::Display { .. })
+        if op.is_encoded_display()
             && let Some(output) = &self.gpu.managed_output
         {
             let layout = TileLayout {
@@ -1031,7 +1031,8 @@ impl ResidentBatch for Batch<'_> {
         Ok(self.tile(tile.coord, layout, dst))
     }
     fn run_chain(&mut self, ops: &[Op<'_>], tile: &ResidentTile) -> EngineResult<ResidentTile> {
-        if let Some((display @ Op::Display { .. }, scene)) = ops.split_last()
+        if let Some((display, scene)) = ops.split_last()
+            && display.is_encoded_display()
             && self.gpu.managed_output.is_some()
         {
             let scene = self.run_chain(scene, tile)?;
@@ -1199,17 +1200,39 @@ impl ResidentBatch for Batch<'_> {
         } else {
             None
         };
+        // An EDR surface always runs the fused writer; its histogram is
+        // discarded when not requested.
+        let mut scratch_histogram = None;
         if let Some(target) = surface {
-            if !display {
-                return Err(EngineError::invalid("IOSurface", "display output required"));
+            let (texture, format) = crate::write_to_iosurface(ctx, target.id)?;
+            let float = format == crate::SurfaceFormat::Rgba16Float;
+            // RGBA8 takes the encoded SDR Output stage; RGBA16F takes the
+            // display-linear EDR transform (`Op::Display` with a headroom).
+            if float == display {
+                return Err(EngineError::invalid(
+                    "IOSurface",
+                    if float {
+                        "RGBA16F surfaces take display-linear output"
+                    } else {
+                        "RGBA8 surfaces take encoded display output"
+                    },
+                ));
             }
-            let texture = crate::write_to_iosurface(ctx, target.id)?;
+            if float && histogram_buffer.is_none() {
+                scratch_histogram = Some(self.buffer(4096)?);
+            }
+            let histogram_binding = histogram_buffer.as_ref().or(scratch_histogram.as_ref());
             let view = texture.create_view(&Default::default());
-            let pipeline = if histogram {
+            let pipeline = if float {
+                self.gpu
+                    .hdr_surface_pipeline
+                    .get_or_init(|| hdr_surface_pipeline(ctx))
+            } else if histogram {
                 &self.gpu.histogram_pipeline
             } else {
                 &self.gpu.surface_pipeline
             };
+            let fused = float || histogram;
             for tile in &tiles {
                 let (x, y) = tile.coord.pixel_origin(TILE_SIZE);
                 let e = tile.layout.extent;
@@ -1231,8 +1254,7 @@ impl ResidentBatch for Batch<'_> {
                     },
                     wgpu::BindGroupEntry {
                         binding: 1,
-                        resource: histogram_buffer
-                            .as_ref()
+                        resource: histogram_binding
                             .map_or(wgpu::BindingResource::TextureView(&view), |buffer| {
                                 buffer.as_entire_binding()
                             }),
@@ -1242,7 +1264,7 @@ impl ResidentBatch for Batch<'_> {
                         resource: p.as_entire_binding(),
                     },
                 ];
-                if histogram {
+                if fused {
                     entries.push(wgpu::BindGroupEntry {
                         binding: 3,
                         resource: wgpu::BindingResource::TextureView(&view),
@@ -1255,13 +1277,16 @@ impl ResidentBatch for Batch<'_> {
                 });
                 // The histogram kernel covers 4096 pixels per workgroup and
                 // writes the same quantized pixels to the IOSurface in that pass.
-                let pixels_per_group = if histogram { 4096 } else { 64 };
+                let pixels_per_group = if fused { 4096 } else { 64 };
                 self.record(
                     pipeline,
                     group,
                     (e.area() as u32).div_ceil(pixels_per_group),
                 );
             }
+        }
+        if let Some(scratch) = scratch_histogram {
+            self.pool.lock().unwrap().free.push(scratch);
         }
         cancel.check()?;
         self.encode_compute();
@@ -1436,6 +1461,24 @@ impl ResidentBatch for Batch<'_> {
 const EFFECTS_MAP_KEY: [usize; 17] = [
     5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 16, 19, 20, 21, 22, 23, 24,
 ];
+
+fn hdr_surface_pipeline(ctx: &crate::GpuContext) -> wgpu::ComputePipeline {
+    let module = ctx
+        .device
+        .create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("EDR surface writer"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("hdr_surface.wgsl").into()),
+        });
+    ctx.device
+        .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: Some("EDR surface writer"),
+            layout: None,
+            module: &module,
+            entry_point: Some("main"),
+            compilation_options: Default::default(),
+            cache: None,
+        })
+}
 
 /// Builds one map texel per pixel of the block's extent.
 fn effects_map_pipeline(ctx: &crate::GpuContext) -> wgpu::ComputePipeline {
@@ -1628,6 +1671,7 @@ mod tests {
             include_str!("surface.wgsl"),
             include_str!("gather.wgsl"),
             include_str!("histogram.wgsl"),
+            include_str!("hdr_surface.wgsl"),
             include_str!("zero.wgsl"),
             include_str!("presence.wgsl"),
         ] {

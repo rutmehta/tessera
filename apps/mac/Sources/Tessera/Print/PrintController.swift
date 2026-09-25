@@ -339,20 +339,11 @@ struct PrintProgressBar: View {
     let printing: PrintController
     var body: some View {
         if let p = printing.progress {
-            HStack(spacing: 10) {
-                Text("\(p.output.title) · rendering for print").font(.system(size: 11, weight: .medium))
-                ProgressView(value: Double(min(p.done, p.total)), total: Double(max(p.total, 1)))
-                    .frame(width: 180)
-                Text("\(p.done) / \(p.total)").font(.system(size: 11).monospacedDigit()).foregroundStyle(.secondary)
-                Text(p.current).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
-                Spacer()
+            ProgressStrip(title: "\(p.output.title) · rendering for print", done: Int(p.done), total: Int(p.total), current: p.current) {
                 Button("Cancel") { printing.cancel() }
-                    .controlSize(.small)
+                    .buttonStyle(.theme(.bordered, height: Theme.Height.small))
                     .accessibilityIdentifier("print-cancel")
             }
-            .padding(.horizontal, 12)
-            .frame(height: 28)
-            .background(Color(nsColor: Theme.cellBackground))
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("print-progress")
         }

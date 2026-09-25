@@ -43,6 +43,18 @@
 //! can be checked out or toggled off/on (`history_items`,
 //! `checkout_history`, `set_history_step_enabled`).
 //!
+//! # EDR presentation (M2-22)
+//!
+//! The host picks the surface contract per ring (see [`crate::surface`]):
+//! RGBA8 rings get the SDR Output stage exactly as before; RGBA16F rings get
+//! [`RenderOutput::DisplayLinear`] tone-mapped for [`presentation`]'s
+//! headroom — the recipe's `output.hdr` / `output.hdr_headroom_stops`,
+//! capped by the display headroom the host reports through
+//! [`DevelopSession::set_display_headroom`]. HDR off on a float ring renders
+//! the SDR tone curve unencoded (headroom 1). Exports, previews, the 1:1
+//! detail crop and snapshots stay SDR: only viewport jobs ever request the
+//! float output.
+//!
 //! # History and persistence
 //!
 //! `set_settings` changes only the live state. `commit` records one
@@ -72,7 +84,8 @@ use engine_api::{
     tile::{TILE_SIZE, Tile},
 };
 use image_core::{
-    PixelRect, ProgressiveRenderJob, RawImage, RenderOutput, Renderer, Viewport, render::MAX_LEVEL,
+    Headroom, PixelRect, ProgressiveRenderJob, RawImage, RenderOutput, Renderer, Viewport,
+    render::MAX_LEVEL,
 };
 pub(crate) use masks::SegmenterSlot;
 pub use masks::*;
@@ -271,6 +284,8 @@ struct State {
     interactive_pending: bool,
     /// Brush stroke in progress.
     masks: masks::MaskState,
+    /// EDR headroom of the host's display (linear multiple of SDR white).
+    display_headroom: f32,
 }
 
 /// Settings whose interactive cost differs by an order of magnitude: the
@@ -371,6 +386,43 @@ impl State {
     fn drawn(&self) -> DevelopSettings {
         renderable_with(&self.live, !self.crop_editing)
     }
+
+    /// Whether the attached ring is the EDR (RGBA16F) contract.
+    fn float_ring(&self) -> bool {
+        self.surfaces.first().is_some_and(|s| s.is_float())
+    }
+
+    /// Display output the viewport renders for the live state.
+    fn output(&self) -> RenderOutput {
+        presentation(&self.live, self.float_ring(), self.display_headroom)
+    }
+}
+
+/// Largest recipe HDR headroom, in stops (the `crs:HDRMaxValue` range).
+pub const MAX_HDR_HEADROOM_STOPS: f32 = 16.0;
+
+/// Recipe HDR headroom in stops, sanitized to `0..=16` (0 when invalid).
+pub fn hdr_headroom_stops(s: &DevelopSettings) -> f32 {
+    finite_or(s.output.hdr_headroom_stops, 0.0).clamp(0.0, MAX_HDR_HEADROOM_STOPS)
+}
+
+/// The viewport's display output. An RGBA8 ring (SDR display, or HDR off
+/// when the host keeps SDR) always gets the unchanged SDR Output stage. A
+/// float ring gets display-linear output tone-mapped for
+/// `min(2^hdr_headroom_stops, display_headroom)` when the recipe's HDR toggle
+/// is on, else for SDR white (headroom 1: the SDR tone curve, unencoded).
+/// A headroom of 0 stops is "HDR on, SDR tone-mapped".
+pub fn presentation(s: &DevelopSettings, float_ring: bool, display_headroom: f32) -> RenderOutput {
+    if !float_ring {
+        return RenderOutput::Display;
+    }
+    let display = finite_or(display_headroom, 1.0).max(1.0);
+    let headroom = if s.output.hdr {
+        hdr_headroom_stops(s).exp2().min(display)
+    } else {
+        1.0
+    };
+    RenderOutput::DisplayLinear(Headroom::new(headroom))
 }
 
 /// Advances only after presentation; cancelled work keeps its unpresented slot.
@@ -610,6 +662,10 @@ pub fn ignored_settings(s: &DevelopSettings) -> Vec<String> {
     let mut drawn = renderable(s);
     // The aspect lock is a crop-tool hint, not an undrawn setting.
     drawn.geometry.crop.aspect = s.geometry.crop.aspect;
+    // HDR is drawn by the viewport's presentation (float rings), not by the
+    // renderer's settings, which stay SDR for every rendition.
+    drawn.output.hdr = s.output.hdr;
+    drawn.output.hdr_headroom_stops = s.output.hdr_headroom_stops;
     let (Ok(a), Ok(b)) = (serde_json::to_value(s), serde_json::to_value(drawn)) else {
         return Vec::new();
     };
@@ -714,6 +770,7 @@ impl Engine {
                 interactive_in_flight: None,
                 interactive_pending: false,
                 masks: Default::default(),
+                display_headroom: 1.0,
             }),
             render_serial: Mutex::new(()),
             generation: AtomicU64::new(0),
@@ -870,8 +927,10 @@ impl Shared {
                 (l, (cols * rows) as usize)
             })
             .collect();
+        let output = st.output();
         let surface = Arc::new(Mutex::new(None));
         let sink = Arc::new(Mutex::new(LevelSink {
+            output,
             surface: surface.clone(),
             shared: Arc::downgrade(self),
             generation,
@@ -894,7 +953,7 @@ impl Shared {
                 image: self.image.clone(),
                 settings,
                 viewport,
-                output: RenderOutput::Display,
+                output,
                 priority: Priority::Viewport,
                 sink: Box::new(move |t| {
                     cpu_sink.lock().unwrap_or_else(|e| e.into_inner()).accept(t)
@@ -1063,6 +1122,8 @@ impl Shared {
 
 /// Collects one render's tiles level by level, writing them into the ring.
 struct LevelSink {
+    /// SDR encoded or EDR display-linear tiles (matches the ring).
+    output: RenderOutput,
     surface: SurfaceDestination,
     shared: std::sync::Weak<Shared>,
     generation: u64,
@@ -1191,10 +1252,13 @@ impl LevelSink {
             if done.level == self.finest_level {
                 shared.interactive_done(&mut st, self.generation);
             }
+            // Pixel consumers (previews) take SDR tiles: EDR frames are
+            // materialized again through the SDR Output stage on demand.
+            let sdr_tiles = !lazy_pixels && self.output == RenderOutput::Display;
             st.frame = Some(Arc::new(Frame {
                 level: done.level,
                 settings: self.settings.clone(),
-                tiles: if lazy_pixels { None } else { Some(done.tiles) },
+                tiles: if sdr_tiles { Some(done.tiles) } else { None },
             }));
         }
         if let Some(listener) = shared.listener() {
@@ -1230,13 +1294,15 @@ pub(crate) fn write_level(
     for t in tiles {
         rows.entry(t.coord().y).or_default().push(t);
     }
+    let float = surface.is_some_and(Surface::is_float);
     let band = |pixels: Option<(&mut [u8], usize, u32, u32)>, tiles: &[&Tile]| {
         let mut hist: Hist = [[0; 256]; 4];
         let mut error = None;
         let mut pixels = pixels;
         for t in tiles {
             if let Some((px, stride, first_row, width)) = pixels.as_mut()
-                && let Err(e) = crate::surface::write_rgba8(px, *stride, *first_row, *width, t)
+                && let Err(e) =
+                    crate::surface::write_display(px, *stride, *first_row, *width, float, t)
             {
                 error = Some(e);
             }
@@ -1291,7 +1357,51 @@ pub(crate) fn write_level(
     Ok(total)
 }
 
+/// Display-encoded sRGB bin of a display-linear value: the SDR code value
+/// `round(oetf(clamp(v, 0, 1)) · 255)`, so EDR highlights land in bin 255.
+/// Exact by bisection over the 255 bin boundaries (no per-sample `powf`).
+fn encoded_bin(v: f32) -> u8 {
+    static EDGES: OnceLock<[f32; 255]> = OnceLock::new();
+    let edges = EDGES.get_or_init(|| {
+        let code = |x: f32| (pipeline_cpu::srgb_oetf(x) * 255.0 + 0.5).floor();
+        std::array::from_fn(|k| {
+            // Smallest non-negative f32 whose code value is at least k + 1
+            // (positive f32 bit patterns are ordered like their values).
+            let target = (k + 1) as f32;
+            let (mut lo, mut hi) = (0u32, 1.0f32.to_bits());
+            while hi - lo > 1 {
+                let mid = lo + (hi - lo) / 2;
+                if code(f32::from_bits(mid)) >= target {
+                    hi = mid;
+                } else {
+                    lo = mid;
+                }
+            }
+            f32::from_bits(hi)
+        })
+    });
+    if v.is_nan() {
+        return 0;
+    }
+    edges.partition_point(|&e| e <= v) as u8
+}
+
 fn accumulate(hist: &mut Hist, tile: &Tile) {
+    if let Ok(d) = tile.samples::<f32>() {
+        let n = tile.layout().plane_len();
+        let (r, rest) = d.split_at(n);
+        let (g, b) = rest.split_at(n);
+        let [hr, hg, hb, hy] = hist;
+        for i in 0..n {
+            let (rv, gv, bv) = (encoded_bin(r[i]), encoded_bin(g[i]), encoded_bin(b[i]));
+            hr[rv as usize] += 1;
+            hg[gv as usize] += 1;
+            hb[bv as usize] += 1;
+            let yv = (54 * u32::from(rv) + 183 * u32::from(gv) + 19 * u32::from(bv)) >> 8;
+            hy[yv as usize] += 1;
+        }
+        return;
+    }
     let Ok(d) = tile.samples::<u8>() else {
         return;
     };
@@ -1346,14 +1456,22 @@ impl Job for DevelopJob {
             } else {
                 return Err(engine_api::EngineError::Cancelled);
             };
+            // A ring of the other contract was attached after submission:
+            // its attach already queued the render for that contract.
+            if destination.as_ref().is_some_and(|d| {
+                d.is_float() != matches!(self.inner.output, RenderOutput::DisplayLinear(_))
+            }) {
+                return Err(engine_api::EngineError::Cancelled);
+            }
             *self.surface.lock().unwrap_or_else(|e| e.into_inner()) = destination.clone();
             if let Some(surface) = &destination
                 && self.inner.viewport.finest_level == self.inner.viewport.coarsest_level
-                && let Some(hist) = self.inner.renderer.render_surface(
+                && let Some(hist) = self.inner.renderer.render_surface_as(
                     &self.inner.image,
                     &self.inner.settings,
                     self.inner.viewport.finest_level,
                     surface.id(),
+                    self.inner.output,
                     &ctx.cancellation,
                 )?
             {
@@ -1442,11 +1560,12 @@ impl DevelopSession {
         }
     }
 
-    /// Adds an RGBA8 IOSurface (see `surface.rs`) to the frame ring; call two
-    /// or three times with surfaces of one `plan_surface` size so the host
-    /// never samples the surface being written. A different size replaces
-    /// the ring. The first surface of a ring starts a render at the new
-    /// screen level.
+    /// Adds an RGBA8 (SDR) or `'RGhA'` RGBA16F (EDR) IOSurface (see
+    /// `surface.rs`) to the frame ring; call two or three times with
+    /// surfaces of one `plan_surface` size and one format so the host never
+    /// samples the surface being written. A different size or format
+    /// replaces the ring. The first surface of a ring starts a render at the
+    /// new screen level in the ring's contract.
     pub fn attach_surface(&self, iosurface_id: u32, width: u32, height: u32) -> Result<()> {
         let s = &self.shared;
         let level = (0..=MAX_LEVEL)
@@ -1455,13 +1574,12 @@ impl DevelopSession {
                 e.width == width && e.height == height
             })
             .ok_or_else(|| failure("surface size must come from plan_surface"))?;
-        let surface = Arc::new(Surface::lookup(iosurface_id, width, height).map_err(failure)?);
+        let surface =
+            Arc::new(Surface::lookup_presentation(iosurface_id, width, height).map_err(failure)?);
         let mut st = s.lock()?;
-        if st
-            .surfaces
-            .first()
-            .is_some_and(|f| f.width() != width || f.height() != height)
-        {
+        if st.surfaces.first().is_some_and(|f| {
+            f.width() != width || f.height() != height || f.kind() != surface.kind()
+        }) {
             st.surfaces.clear();
         }
         st.surfaces.retain(|x| x.id() != surface.id());
@@ -1478,6 +1596,29 @@ impl DevelopSession {
             s.render(&mut st, false);
         }
         Ok(())
+    }
+
+    /// Reports the EDR headroom of the display showing the viewport: the
+    /// screen's current `maximumExtendedDynamicRangeColorComponentValue`
+    /// (1.0 on SDR displays). Float rings tone-map for at most this; a
+    /// change re-renders only when it changes the frame's headroom.
+    pub fn set_display_headroom(&self, headroom: f32) -> Result<()> {
+        let mut st = self.shared.lock()?;
+        let before = st.output();
+        st.display_headroom = finite_or(headroom, 1.0).max(1.0);
+        if st.output() != before && !st.surfaces.is_empty() {
+            self.shared.render(&mut st, false);
+        }
+        Ok(())
+    }
+
+    /// Headroom (linear multiple of SDR white) the viewport renders for:
+    /// 0 for the SDR RGBA8 contract, else the float frames' peak.
+    pub fn presentation_headroom(&self) -> Result<f32> {
+        Ok(match self.shared.lock()?.output() {
+            RenderOutput::DisplayLinear(h) => h.get(),
+            _ => 0.0,
+        })
     }
 
     /// Releases every surface. Renders continue (histogram only) until a new
@@ -1525,9 +1666,11 @@ impl DevelopSession {
         }
         // Changes that draw nothing (the aspect lock, crop edits while the crop
         // tool shows the whole frame) update the live state without a render.
+        // HDR toggle/headroom draw only through a float ring's presentation.
         let unchanged = !st.masking_preview
             && st.rendered_level == Some(st.screen_level)
-            && st.rendered.as_ref() == Some(&renderable_with(&next, !st.crop_editing));
+            && st.rendered.as_ref() == Some(&renderable_with(&next, !st.crop_editing))
+            && presentation(&next, st.float_ring(), st.display_headroom) == st.output();
         st.live = next;
         if !unchanged {
             self.shared.render(&mut st, interactive);
@@ -2078,13 +2221,29 @@ impl Job for MaskJob {
         };
         if let Some(surface) = &surface {
             let masking = self.masking;
+            let float = surface.is_float();
             surface
                 .with_pixels(|px, stride| {
                     for (r, row) in px.chunks_mut(stride).take(h as usize).enumerate() {
                         let src = &source.edge[r * source.width as usize..][..w as usize];
                         for (x, &e) in src.iter().enumerate() {
                             let g = MaskSource::gate(e, masking);
-                            row[4 * x..4 * x + 4].copy_from_slice(&[g, g, g, 255]);
+                            if float {
+                                // Same grey as the RGBA8 path, as linear light.
+                                let v = f32::from(g) / 255.0;
+                                let l = if v <= 0.04045 {
+                                    v / 12.92
+                                } else {
+                                    ((v + 0.055) / 1.055).powf(2.4)
+                                };
+                                let l = half::f16::from_f32(l).to_le_bytes();
+                                let one = half::f16::ONE.to_le_bytes();
+                                row[8 * x..8 * x + 8].copy_from_slice(&[
+                                    l[0], l[1], l[0], l[1], l[0], l[1], one[0], one[1],
+                                ]);
+                            } else {
+                                row[4 * x..4 * x + 4].copy_from_slice(&[g, g, g, 255]);
+                            }
                         }
                     }
                 })
