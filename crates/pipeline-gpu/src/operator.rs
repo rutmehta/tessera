@@ -12,8 +12,8 @@ pub(crate) fn parameters(
     op: &Op<'_>,
     input: TileLayout,
     origin: (u32, u32),
-) -> EngineResult<([f32; 33], TileLayout)> {
-    let mut p = [0.0; 33];
+) -> EngineResult<(Vec<f32>, TileLayout)> {
+    let mut p = vec![0.0; 33];
     let mut out = input;
     p[1] = input.extent.width as f32;
     p[2] = input.extent.height as f32;
@@ -24,14 +24,14 @@ pub(crate) fn parameters(
     p[8] = (origin.1 % 4) as f32;
     let mut matrix = None;
     match *op {
-        Op::Detail(_)
-        | Op::ToneExtra(_)
-        | Op::Color(_)
-        | Op::Geometry(_)
-        | Op::Effects(..)
-        | Op::EffectsInCrop(..) => {
-            return Err(EngineError::invalid("GPU operator", "requires CPU fallback"));
+        Op::Detail(_) | Op::Geometry(_) | Op::Effects(..) | Op::EffectsInCrop(..) => {
+            return Err(EngineError::invalid(
+                "GPU operator",
+                "requires CPU fallback",
+            ));
         }
+        Op::ToneExtra(s) => crate::curves::parameters(s, &mut p)?,
+        Op::Color(s) => crate::color::parameters(s, &mut p)?,
         Op::Highlights { cfa, .. } | Op::Demosaic { cfa, .. } => {
             if input.channels != 1 {
                 return Err(EngineError::invalid("CFA tile", "one plane required"));
