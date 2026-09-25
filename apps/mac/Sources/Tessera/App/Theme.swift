@@ -17,6 +17,8 @@ enum Theme {
     static let reject = NSColor(srgbRed: 0.90, green: 0.30, blue: 0.27, alpha: 1)
     static let keep = NSColor(srgbRed: 0.36, green: 0.78, blue: 0.45, alpha: 1)
     static let basket = NSColor(srgbRed: 0.40, green: 0.62, blue: 0.95, alpha: 1)
+    static let toastBackground = NSColor(calibratedWhite: 0.19, alpha: 0.96)
+    static let statusText = NSColor(calibratedWhite: 0.78, alpha: 1)
 
     /// Linear-light background of the Metal loupe (≈ 0.10 sRGB grey).
     static let loupeBackgroundLinear: Float = 0.010

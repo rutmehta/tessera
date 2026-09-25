@@ -22,9 +22,21 @@ struct ContentView: View {
                     if model.viewMode == .loupe {
                         LoupeOverlay(model: model)
                     }
+                    if model.viewMode == .compare, model.compare != nil {
+                        CompareView(model: model)
+                    }
                     if model.library.items.isEmpty {
                         EmptyStateView(model: model)
                     }
+                    VStack {
+                        Spacer()
+                        if let toast = model.toast {
+                            ToastView(model: model, toast: toast)
+                                .padding(.bottom, 14)
+                                .transition(.opacity.combined(with: .move(edge: .bottom)))
+                        }
+                    }
+                    .animation(.easeOut(duration: 0.18), value: model.toast)
                 }
                 StatusBar(model: model)
                 if model.showFilmstrip {
@@ -36,6 +48,9 @@ struct ContentView: View {
             .background(Color(nsColor: Theme.gridBackground))
             .navigationTitle(model.library.items.isEmpty ? "Tessera" : model.library.title)
             .navigationSubtitle(subtitle)
+        }
+        .sheet(isPresented: $model.showDefectSweep) {
+            DefectSweepSheet(model: model)
         }
         .inspector(isPresented: $model.showInspector) {
             InspectorView(model: model)
@@ -62,8 +77,8 @@ struct ContentView: View {
                 ForEach(ViewMode.allCases) { Text($0.rawValue).tag($0) }
             }
             .pickerStyle(.segmented)
-            .frame(width: 130)
-            .help("Grid (G) / Loupe (E or Return)")
+            .frame(width: 210)
+            .help("Grid (G) / Loupe (E or Return) / Compare (C)")
         }
         ToolbarItemGroup(placement: .primaryAction) {
             Slider(value: $model.thumbnailSize, in: 110...360)
@@ -86,7 +101,8 @@ struct StatusBar: View {
         HStack(spacing: 14) {
             if let item = model.focusedItem, let p = model.focusedPosition {
                 Text("\((p + 1).formatted()) of \(model.visibleCount.formatted())")
-                Text("G\(item.groupID + 1) · \(model.indexInGroup(of: item) + 1)/\(model.groupSize(of: item))")
+                Text("G\(item.groupID + 1) · \(model.indexInGroup(of: item) + 1)/\(model.groupSize(of: item))"
+                     + (model.focusedIsBest ? " · suggested best" : ""))
                 Text(stateText).foregroundStyle(Color(nsColor: model.focusedState.decision.color))
                 if model.selectionCount > 1 { Text("\(model.selectionCount.formatted()) selected") }
             }
@@ -95,7 +111,10 @@ struct StatusBar: View {
                 Text(msg).lineLimit(1).truncationMode(.tail).foregroundStyle(.secondary)
             }
             Spacer(minLength: 8)
-            Text("Keep \(model.counts.keep.formatted())  Reject \(model.counts.reject.formatted())  Basket \(model.counts.basket.formatted())")
+            Text("Keep \(model.counts.keep.formatted())  Reject \(model.counts.reject.formatted())")
+            Text("Basket → \(model.basketTarget) \(model.counts.basket.formatted())")
+                .foregroundStyle(Color(nsColor: Theme.basket))
+                .help("B adds to this album. Change it in Cull ▸ Basket Target or the sidebar.")
             Text("Auto-advance \(model.autoAdvance ? "on" : "off")")
                 .foregroundStyle(model.autoAdvance ? .primary : .secondary)
         }
@@ -110,7 +129,8 @@ struct StatusBar: View {
         var parts = [s.decision.label]
         if s.grade > 0 { parts.append("Grade \(s.grade) (\(CullState.gradeNames[Int(s.grade)]))") }
         if s.mark > 0 { parts.append("Mark \(s.mark)") }
-        if s.inBasket { parts.append("Basket") }
+        if s.inBasket { parts.append("In \(model.basketTarget)") }
+        if model.focusedStatus.phase != .unedited { parts.append(model.focusedStatus.phase.rawValue.capitalized) }
         return parts.joined(separator: " · ")
     }
 }
@@ -127,13 +147,18 @@ struct LoupeOverlay: View {
                             Text(badge).font(.system(size: 10, weight: .bold))
                                 .foregroundStyle(Color(nsColor: model.focusedState.decision.color))
                         }
+                        if model.focusedIsBest {
+                            Text("SUGGESTED BEST · K keeps it and rejects the rest")
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundStyle(Color(nsColor: Theme.keep).opacity(0.85))
+                        }
                     }
                 }
                 Spacer()
                 Text(model.loupeInfo).font(.system(size: 10)).foregroundStyle(.secondary)
             }
             Spacer()
-            Text("← → group    ↑ ↓ frame in group    X U P decide    1 2 3 grade    Esc grid")
+            Text("← → group    ↑ ↓ frame in group    X U P decide    1 2 3 grade    K keep best    C compare    Esc grid")
                 .font(.system(size: 10)).foregroundStyle(.tertiary)
         }
         .padding(10)
@@ -159,5 +184,28 @@ struct EmptyStateView: View {
         .padding(40)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(nsColor: Theme.gridBackground))
+    }
+}
+
+struct ToastView: View {
+    let model: AppModel
+    let toast: Toast
+    var body: some View {
+        HStack(spacing: 12) {
+            Text(toast.message).font(.system(size: 12)).lineLimit(1)
+            if toast.undoable {
+                Button("Undo  ⌘Z") { model.undo() }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color(nsColor: Theme.accent))
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(RoundedRectangle(cornerRadius: 7).fill(Color(nsColor: Theme.toastBackground)))
+        .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(Color.white.opacity(0.08)))
+        .shadow(color: .black.opacity(0.35), radius: 10, y: 3)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("toast")
     }
 }

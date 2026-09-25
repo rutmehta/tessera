@@ -38,7 +38,21 @@ struct SidebarView: View {
                 }
             }
             Section("Albums") {
-                row(.basket, count: model.counts.basket, swatch: Theme.basket)
+                ForEach(model.albums) { album in
+                    let target = album.name == model.basketTarget
+                    row(.album(album.name), count: album.members.count, swatch: target ? Theme.basket : nil,
+                        detail: target ? "B" : nil)
+                        .contextMenu {
+                            Button("Set as Basket Target") { model.setBasketTarget(album.name) }
+                                .disabled(target)
+                        }
+                        .help(target ? "Basket target: B adds here. ⌫ in this album removes from the album only."
+                              : "Right-click to make this the basket target")
+                }
+                Button("New Album…") { model.promptNewBasketTarget() }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 12)).foregroundStyle(.secondary)
+                    .padding(.leading, 16)
             }
             Section("Smart Albums") {
                 row(.decision(.keep), count: model.counts.keep, swatch: Theme.keep)
@@ -54,12 +68,19 @@ struct SidebarView: View {
         .background(Color(nsColor: Theme.windowBackground))
     }
 
-    private func row(_ source: LibrarySource, count: Int?, swatch: NSColor? = nil) -> some View {
+    private func row(_ source: LibrarySource, count: Int?, swatch: NSColor? = nil, detail: String? = nil) -> some View {
         HStack(spacing: 8) {
             RoundedRectangle(cornerRadius: 2)
                 .fill(swatch.map { Color(nsColor: $0) } ?? Color.clear)
                 .frame(width: 8, height: 8)
             Text(source.title).font(.system(size: 12)).lineLimit(1)
+            if let detail {
+                Text(detail).font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .foregroundStyle(Color(nsColor: Theme.basket))
+                    .padding(.horizontal, 3)
+                    .overlay(RoundedRectangle(cornerRadius: 2).strokeBorder(Color(nsColor: Theme.basket).opacity(0.6)))
+                    .help("Basket target")
+            }
             Spacer()
             if let count {
                 Text(count.formatted()).font(.system(size: 11).monospacedDigit()).foregroundStyle(.secondary)

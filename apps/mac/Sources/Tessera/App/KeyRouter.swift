@@ -9,6 +9,8 @@ import TesseraCore
 ///   6 7 8 9 toggle mark · B basket · A auto-advance      G grid · E / Return loupe · Esc grid
 ///   Loupe: ← → previous/next group, ↑ ↓ previous/next frame within the group
 ///   Grid:  arrows move spatially (⇧ extends), ⌥ + arrows = group navigation as in the loupe
+///   K keep the group's suggested best and reject the rest · C compare · ⌫ remove from album
+///   Compare: ← → pick side · Return choose this · Z fit/1:1 · Esc back
 @MainActor
 final class KeyRouter {
     private var monitor: Any?
@@ -40,8 +42,17 @@ final class KeyRouter {
         let shift = mods.contains(.shift)
         let option = mods.contains(.option)
         let loupe = model.viewMode == .loupe
+        let comparing = model.viewMode == .compare
 
+        if comparing {
+            switch event.keyCode {
+            case 36, 76: model.chooseInCompare(); return true                        // Return: choose this
+            case 53: model.exitCompare(); return true                                // Esc
+            default: break
+            }
+        }
         switch event.keyCode {
+        case 51, 117: model.deletePressed(); return true                          // ⌫ / ⌦
         case 123: model.navigate(.left, groupwise: loupe || option, extend: shift); return true
         case 124: model.navigate(.right, groupwise: loupe || option, extend: shift); return true
         case 126: model.navigate(.up, groupwise: loupe || option, extend: shift); return true
@@ -60,6 +71,9 @@ final class KeyRouter {
         case "6", "7", "8", "9": model.perform(.mark(UInt8(ch)!))
         case "b": model.perform(.toggleBasket)
         case "a": model.autoAdvance.toggle(); model.statusMessage = "Auto-advance \(model.autoAdvance ? "on" : "off")"
+        case "k": model.keepBestRejectRest()
+        case "c": comparing ? model.exitCompare() : model.enterCompare()
+        case "z" where comparing: model.toggleCompareZoom()
         case "g": model.viewMode = .grid
         case "e": model.viewMode = .loupe
         default: return false

@@ -1,4 +1,4 @@
-# Tessera — macOS app and engine bridge (WP M1-12)
+# Tessera — macOS app and engine bridge (WP M1-12, culling UX M1-09)
 
 AppKit where performance matters, SwiftUI elsewhere (docs/11 §1.5). Folder opens now use
 `EngineLibrary` and the Rust index through UniFFI 0.32. Decisions, grades and named marks are
@@ -44,7 +44,20 @@ archive, install both Rust targets (`rustup target add aarch64-apple-darwin x86_
 and run `./build-ffi.sh --universal`. The ordinary arm64 build is the tested default.
 
 The bridge provides `Engine.open`, `indexFolder`, `listImages`, `setSelection`,
-`getRecipe`/`setRecipeJson`, `embeddedPreview`, and `setEventListener`. Calls throw on errors.
+`getRecipe`/`setRecipeJson`, `embeddedPreview`, `setScore`, `setEventListener`, and
+`openCullSession(folder:)` / `openCullSessionForQuery(query:)`. Calls throw on errors.
+
+`CullSession` (crates/tessera-ffi/src/session.rs) wraps `crates/cull` and owns a second SQLite
+connection (WAL), so the engine's catalog lock is never held across a culling pass. It exposes the
+queue (`images`, `groups` with the suggested `best`), the cursor (`current`/`setCurrent`,
+`nextGroup`/`prevGroup`/`nextInGroup`/`prevInGroup`, which stop at boundaries), decisions on the
+cursor (`decide`, `grade`, `mark`, `toggleBasket`), one-step batches (`decideImages`, `decideEach`,
+`gradeImages`, `markImages`, `setBasket`, `keepBestRejectRest`, `removeFromAlbum`), the single global
+`undo`/`redo`, `basketTarget`/`setBasketTarget`/`albums`, `derivedStatuses`, and the review-only
+`defectSweep(thresholds:)`. Every mutation returns a `CullUpdate` listing each affected image's new
+selection and basket membership plus the cursor, so the app never re-reads the whole library.
+Auto-advance is off in bridge sessions: the app advances in its display order. Only ids and small
+records cross the bridge.
 `embeddedPreview` returns `PreviewResponse(bytes: Data?, pending: Bool)`: cache hits include
 bytes immediately. RAW cache hits emit no event; cold RAW requests return pending while the engine worker runs.
 `EngineLibrary` installs one shared listener per engine. `ThumbnailLoader` subscribes before
@@ -77,6 +90,11 @@ unknown-field preservation, JPEG dimensions and callbacks. Swift's bridge test c
 five-file `../../fixtures/raw` folder under `build/`, indexes it, persists a rejection, reopens
 and checks both the decision and Rust thumbnail. It fails if fixtures are absent and never
 modifies the shared fixture originals. Fetch them with the repository fixture tooling first.
+The other bridge tests generate dHash-distinct JPEG bursts and drive `CullController` against a
+real session: group navigation and boundaries, keep-best as one undo step that persists, "choose
+this", basket targets and albums, safe album removal, seeded defect sweeps, and delete-from-disk
+(with an injected trash so the user's Trash is untouched). `crates/tessera-ffi/tests/session.rs`
+covers the same surface from Rust.
 
 ## Launch arguments
 
@@ -86,32 +104,61 @@ modifies the shared fixture originals. Fetch them with the repository fixture to
 | `--stub <n>` | Load `n` generated items (for example `20000`) instead of a folder |
 | `--stub-library` | Explicitly use the old ImageIO folder scanner and memory-only decisions |
 | `--benchmark` | Run the grid scroll benchmark 1.5 s after launch. The result appears in the status bar and on stderr |
-| `--keys "x p opt-right …"` | Self-test aid: feed keys through the culling key map after launch |
+| `--keys "x p opt-right …"` | Self-test aid: after the library loads, feed one key every 0.3 s through the culling key map; `cmd-` tokens trigger the matching menu item (e.g. `cmd-z`, `cmd-shift-d`, `cmd-delete`) |
+| `--seed-scores` | Hidden test aid: write deterministic synthetic `focus` / `closed_eyes` scores for the defect sweep (item n: focus 0.25 when n % 4 == 1, closed eyes 0.92 when n % 5 == 2) |
 | `--front` | Bring the window to the front without activating the app (for screenshots) |
 
 Without arguments the app reopens the last folder, if it still exists. If there is none, it shows an
 empty state with "Open Folder…" and "Load 20,000 Stub Items".
 
-To try the app before `fixtures/raw` has been fetched, generate sample JPEGs with EXIF capture times:
-`swift Support/make-sample-folder.swift /tmp/tessera-samples 60`.
+To try the app before `fixtures/raw` has been fetched, or to exercise group review, generate sample
+JPEGs with EXIF capture times: `swift Support/make-sample-folder.swift /tmp/tessera-samples 60`.
+Each burst is a distinct seeded scene, so near-duplicate hashing keeps bursts apart (40 images → 16
+groups, 12 with 2+ frames); grain varies so the default best-frame score differs within a burst.
+
+## Culling (docs/06 §3–4)
+
+| Key | Action |
+|---|---|
+| X · U · P | Reject · Undecided · Keep (auto-advance on) |
+| 1 · 2 · 3 | Grade (implies Keep) · 6–9 toggle a mark · B toggle the basket target album |
+| ← → / ↑ ↓ (loupe), ⌥ + arrows (grid) | Previous/next group (lands on its first frame) · previous/next frame in group |
+| K | Keep the group's suggested best, reject the rest: one undo step, a toast with Undo, then the next group |
+| C | Compare: the two selected frames, or the focused frame and its group neighbour |
+| Compare: ← → · Return · Z · Esc | Pick side · "choose this" (keep it, reject the other; the next undecided frame of the group takes the rejected side) · fit ↔ 1:1 · back |
+| ⇧⌘D | Defect sweep sheet: thresholds, reviewable list with checkboxes, "Reject N Frames" as one undo step |
+| ⌫ | In an album: remove from that album only (undoable). Elsewhere: explains, deletes nothing |
+| ⌘⌫ | Delete from Disk…: confirmed; file and sidecars go to the Trash, removed from all albums (not undoable) |
+| ⌘Z / ⇧⌘Z | The session's single global undo / redo (decisions, batches, basket and album edits) |
+
+The suggested best frame of each 2+ group carries an outlined SUGGESTED pill (a suggestion only; no
+AI signal changes a decision without a key press). The basket target is always shown in the status
+bar (`Basket → <album> n`), in the sidebar (`B` tag) and on member cells as a blue pill with the
+album's name. Cull ▸ Basket Target switches or creates it; the choice is remembered. Derived status
+(edited / exported / published, other albums) is an outlined pill bottom-right; unedited shows nothing
+on the cell and `Status: Unedited` in the inspector. Albums live in `<folder>/library.json`.
 
 ## Layout
 
 ```
 Package.swift                 targets: TesseraCore (library), Tessera (app), TesseraCoreTests
-Sources/TesseraCore/      UI-free and unit-tested; the Rust engine replaces this later
+Sources/TesseraCore/      UI-free and unit-tested
+  EngineLibrary.swift         index + CullSession open, group-by-group display order, PhotoLibrary
+  CullController.swift        the app's culling model: Rust session (folders) or CullStore (stub)
   PhotoItem.swift             item value type
-  CullState.swift             Decision / grade / mark / basket, CullStore with a global undo stack
-  Grouping.swift              stub burst grouping by capture-time gap (2 s)
-  StubLibrary.swift           folder scan (parallel header reads), synthetic N-item generator
-  ThumbnailLoader.swift       ImageIO embedded-preview loader, NSCache, cancellable requests
+  CullState.swift             Decision / grade / mark / basket; in-memory CullStore for the stub
+  Grouping.swift              capture-time grouping for the synthetic stub only
+  StubLibrary.swift           ImageIO folder scan (--stub-library), synthetic N-item generator
+  ThumbnailLoader.swift       embedded-preview loader, NSCache, cancellable requests
 Sources/Tessera/
   App/                        App entry + AppDelegate, AppModel (@Observable), KeyRouter, menus, Theme
   Grid/                       NSCollectionView grid + filmstrip, O(visible) layout, recycled cells
   Loupe/                      CAMetalLayer view (EDR, colour space from screen), renderer, IOSurface frames
+  Compare/                    2-up compare, CGImage layers with one shared zoom/pan viewport
+  Cull/                       defect sweep sheet
   Inspector/                  SwiftUI panels + ValueSlider (custom NSControl)
   Sidebar/                    SwiftUI sidebar (library, folders, albums, smart albums)
-  Shell/                      ContentView, status bar, loupe overlay, empty state
+  Shell/                      ContentView, status bar, loupe overlay, toast, empty state
 Support/                      Info.plist, make-app.sh, make-sample-folder.swift
 ```
 
@@ -146,7 +193,10 @@ Support/                      Info.plist, make-app.sh, make-sample-folder.swift
 
 ## Not in this WP
 
-Basket membership remains session-local. There is no real "best of
-group" pick, so a group jump lands on its first frame. Grouping is time-based only. Compare/survey,
-the face strip, the defect sweep and zoom/pan in the loupe are not built yet. Only Exposure has a
-visible effect. EDR headroom is shown in the loupe, but no HDR content exists yet to use it.
+The face strip, survey mode, 3–6-up compare, learning/reordering, and per-person filters are not built.
+Compare uses CGImage layers of the embedded preview, not the Metal loupe, so it has no EDR path yet.
+Scores come only from `--seed-scores` until ML producers land; with real folders the defect sweep is
+empty. Filtered views (Keeps, albums, marks) navigate groups over the visible frames in the app with the
+same semantics as the engine; the unfiltered view uses the Rust session. Only Exposure has a visible
+effect in the Basic panel, and adjustments are not persisted, so "edited" status appears only for images
+whose recipe history was written elsewhere. The 20k-item stub keeps decisions in memory.

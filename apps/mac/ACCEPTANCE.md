@@ -1,128 +1,150 @@
-# M0-04 acceptance script: macOS app shell
+# M1-09 acceptance script: culling UX on the engine
 
-For a computer-use verifier. Run every command from the **repository root**. Quote paths if
-the checkout path contains spaces or a colon. Take a screenshot at each step marked 📸.
-Pass criteria: every "Expect" holds. Record any deviation together with its screenshot.
+For a computer-use verifier. Run every command from the **repository root** in one terminal session
+(the `SCR` variable is reused). Quote paths if the checkout path contains spaces or a colon. Take a
+screenshot **of the Tessera window only** at each step marked 📸. Pass criteria: every "Expect" holds.
+Record any deviation together with its screenshot.
 
 Notes:
-- The app captures single-key culling shortcuts globally. Before pressing keys, click once on a grid
-  thumbnail so the Tessera window is the key window.
+- The app captures single-key culling shortcuts. Before pressing keys, click once on a grid thumbnail so
+  the Tessera window is the key window. ⌘ shortcuts go through the menu bar as usual.
 - "Cell N" means the N-th thumbnail in reading order (left to right, top to bottom).
-- The status bar is the thin row directly above the filmstrip. Its left side reads
-  `<pos> of <total>   G<group> · <frame>/<size>   <state>`. Its right side reads
-  `Keep k  Reject r  Basket b   Auto-advance on|off`.
+- The status bar is the thin row above the filmstrip. Left: `<pos> of <total>   G<g> · <i>/<n>[ · suggested best]   <state>`,
+  then a message. Right: `Keep k  Reject r   Basket → <album> b   Auto-advance on|off`.
+- Grid cells show: decision pill top-left (REJECT / KEEP / GOOD 2 …), an outlined green **SUGGESTED** pill on the
+  group's suggested best frame (groups of 2+ only), the mark chip top-right, the basket-target album name
+  bottom-left in blue, and derived status bottom-right (EDITED / EXPORTED / PUBLISHED, and other albums as
+  `IN <ALBUM>`). Unedited images show no status pill; the inspector's IMAGE panel shows `Status: Unedited`.
+- Everything below works on **scratch copies**. Never open `fixtures/raw` itself: the app writes sidecars
+  (`.edits/`, `.xmp`) and `library.json` next to the photos.
 
-## A. Build and launch
+## A. Build, data and launch
 
-1. Build the app bundle:
-   `cd apps/mac && Support/make-app.sh release && cd ../..`
-   Expect: the last line reads `Built …/apps/mac/build/Tessera.app`, and no line contains `error:`.
-   Also run `cd apps/mac && xcodebuild -scheme Tessera -configuration Debug -destination 'platform=macOS' -derivedDataPath "$HOME/.cache/tessera-derived-data" build | tail -1 && cd ../..`.
-   Expect: `** BUILD SUCCEEDED **`.
-2. Check the fixtures: `ls fixtures/raw | head`. Expect: RAW and/or JPEG files.
-   If the folder is missing or empty (M0-01's fetch script has not run), create stand-in JPEGs with
-   `swift apps/mac/Support/make-sample-folder.swift fixtures/raw 60`. Note in the verdict that you did this.
-3. Clear the remembered folder so the app starts empty: `defaults delete dev.tessera.app 2>/dev/null; true`.
-4. Launch it: `open apps/mac/build/Tessera.app`. 📸
-   Expect a dark window titled **Tessera** with three areas:
-   - a left sidebar with the sections Library, Folders, Albums and Smart Albums
-   - a centre area reading **"No images"**, with the buttons **Open Folder…** and **Load 20,000 Stub Items**
-   - a right inspector with the panels IMAGE, SELECTION and BASIC. BASIC holds sliders labelled
-     Temperature … Saturation, each showing a value such as `+0`.
-
-   The toolbar holds **Open Folder…**, a **Grid | Loupe** segmented control, a size slider, and the
-   **Auto-advance** and **Inspector** buttons.
-
-## B. Open the fixtures folder
-
-5. Press **⌘O**. Expect an Open panel sheet ("Choose a folder of JPEG or RAW images").
-6. In the sheet, press **⌘⇧G**, type the absolute path of `fixtures/raw` in this repository, press
-   Return, then click **Open**. 📸
+1. Build the bridge and the app:
+   ```sh
+   export CARGO_TARGET_DIR="$HOME/.cache/tessera-target/verify"
+   (cd apps/mac && ./build-ffi.sh && swift build && swift test && Support/make-app.sh release)
+   ```
+   Expect: `swift test` reports `Executed 12 tests, with 0 failures` (XCTest, all suites) and the Swift Testing line
+   `Test run with 5 tests in 2 suites passed`; the last line reads `Built …/apps/mac/build/Tessera.app`.
+   Also run `cargo test -p tessera-ffi -p cull --release 2>&1 | grep "test result"`. Expect only `ok.` lines.
+2. Create scratch data (a fresh folder each run; do not reuse an old path):
+   ```sh
+   SCR="$(mktemp -d)"
+   swift apps/mac/Support/make-sample-folder.swift "$SCR/shoot" 40
+   cp -RL fixtures/raw "$SCR/raw"
+   ```
+   Expect: `Wrote 40 JPEGs in 16 bursts to …/shoot`, and `ls "$SCR/raw"` lists 5 RAW files.
+   If `fixtures/raw` is missing, skip step 32 and note it in the verdict.
+3. Reset app preferences: `defaults delete dev.tessera.app 2>/dev/null; true`.
+4. Launch with synthetic AI scores (hidden test flag):
+   `open -n apps/mac/build/Tessera.app --args --folder "$SCR/shoot" --seed-scores` 📸
    Expect:
-   - the centre area shows a **grid of thumbnails** with file names under them and a `G<n>` group
-     label at the right of each caption
-   - the window title is `raw` and the subtitle is `<N> images`
-   - the status bar message starts `Opened raw: <N> images (<k> RAW), <g> groups`
-   - cell 1 has an **amber border**, which marks the focus
-   - the sidebar row **All Photos** shows N
-   - a horizontal **filmstrip** of the same images runs along the bottom.
+   - a grid of 40 cells with coloured block-mosaic images; the window subtitle reads `40 images`
+   - the status bar message starts `Opened shoot: 40 images (0 RAW), 16 groups (12 with 2+)` and ends with
+     `synthetic scores seeded`
+   - captions end with group labels: cells 1–2 read `G1 · 1/2`, `G1 · 2/2`; cell 3 `G2`; cell 4 `G3`;
+     cells 5–8 `G4 · 1/4` … `G4 · 4/4`
+   - cell 2 (SAMPLE_0002) shows the outlined **SUGGESTED** pill; cells 3 and 4 (single-frame groups) do not
+   - the sidebar ALBUMS section lists **Selects** with a small blue `B` tag and count 0
+   - the status bar right side reads `Keep 0  Reject 0   Basket → Selects 0   Auto-advance on`.
 
-## C. Culling keys in the grid (auto-advance is on)
+## B. Group navigation
 
-7. Click cell 1. Press **X**.
-   Expect: cell 1 shows a red **REJECT** pill at top-left and its image is dimmed. The amber focus
-   moves to cell 2. The status bar shows `Reject 1`.
-8. Press **P**. Expect: cell 2 shows a green **KEEP** pill. Focus moves to cell 3.
-9. Press **2**. Expect: cell 3 shows a green **GOOD 2** pill. Focus moves to cell 4. The status bar shows `Keep 2`.
-10. Press **6**. Expect: cell 4 shows a magenta **6** chip at top-right. Focus stays on cell 4, because
-    marks do not advance. The SELECTION panel shows `Mark: Needs Retouch`.
-11. Press **B**. 📸 Expect: cell 4 shows a blue **BASKET** pill at bottom-left. The sidebar row
-    **Basket** shows 1. The filmstrip cells show the same badges in compact form (X, K, 2, 6, B).
-12. Press **A**. Expect: the status bar shows `Auto-advance off`.
-    Press **3**. Expect: cell 4 shows **BEST 3** and focus stays on cell 4.
-    Press **A** again. Expect: `Auto-advance on`.
-13. Press **⌘Z**. Expect: the BEST 3 pill disappears from cell 4. Its 6 chip and BASKET pill remain.
-    The status bar message reads `Undo: 1 image`.
-14. Press **7**, then **7** again. Expect: the first press shows a yellow 7 chip and the second removes it (marks toggle).
+5. Click cell 1. Press **⌥→**. Expect: focus (amber border) moves to cell 3, status `G2 · 1/1`.
+   Press **⌥→** twice. Expect: cell 5, `G4 · 1/4`. Press **⌥↓**. Expect: cell 6, `G4 · 2/4`.
+   Press **⌥↓** three times. Expect: stays on cell 8 (`G4 · 4/4`) and the message reads `Last frame in group`.
+   Press **⌥↑**. Expect: cell 7.
+6. Press **⌥←**. Expect: cell 4 (`G3`), the first frame of the *previous* group. Press **⌥←** until the message
+   reads `First group`. Expect: focus on cell 1.
+7. Press **Return** (loupe). 📸 Expect: one large image, the file name top-left, the hint line at the bottom includes
+   `K keep best` and `C compare`. Press **→**: status shows `G2`. Press **←**: back to `G1 · 1/2`.
+   Press **↓**: `G1 · 2/2 · suggested best`, and the loupe overlay shows
+   `SUGGESTED BEST · K keeps it and rejects the rest`. Press **Esc** (grid).
 
-## D. Group navigation
+## C. Keep best, reject the rest (one undoable step)
 
-15. Read the group in the status bar (for example `G3 · 1/2`). Press **⌥→**.
-    Expect: focus jumps to the first frame of the next group. The status bar shows the group number
-    plus one and `· 1/<size>`. Press **⌥←** and expect focus to return to the start of the previous group.
-16. Press **Return**. 📸 Expect **Loupe** mode:
-    - the segmented control reads Loupe, and one large image fills the centre
-    - the file name is at the top-left
-    - a line at the top-right reads `<display name> · linear extended · RGBA16F · EDR headroom <x>× (max <y>×)`
-    - a key hint line is at the bottom.
-17. Press **→**. Expect: the status bar group number increases by 1 and the frame reads `1/<size>`.
-    Press **→** again until the status bar shows a group whose size is 2 or more.
-    Press **↓**. Expect: the same group, with the frame number increased by 1.
-    Press **↑**. Expect: the frame number decreases by 1.
-    Press **←**. Expect: the first frame of the previous group.
-18. Press **X** in the loupe. Expect: the overlay briefly showed REJECT, then the view advanced to the next image.
-    The status bar Reject count went up by 1.
+8. With focus in G1 (cell 1 or 2), press **K**. 📸
+   Expect: cell 2 shows KEEP + SUGGESTED, cell 1 shows REJECT and is dimmed; focus jumps to cell 3 (next group);
+   a toast at the bottom reads `Kept SAMPLE_0002.jpg, rejected 1 in G1` with an amber `Undo ⌘Z` button;
+   the status bar shows `Keep 1  Reject 1`. The toast disappears after about 5 s.
+9. Press **⌘Z**. Expect: both pills disappear from cells 1–2 in one step; message `Undo: 2 images`;
+   `Keep 0  Reject 0`; focus returns to the frame that was focused when you pressed K.
+10. Press **⇧⌘Z**. Expect: KEEP/REJECT are back (`Redo: 2 images`). Press **⌘Z** again. Expect: `Keep 0  Reject 0`.
+11. Click cell 3 (single-frame group) and press **K**. Expect: nothing changes; message
+    `Keep best needs a group of 2 or more frames`.
 
-## E. Inspector slider (AppKit NSControl) and loupe
+## D. Defect sweep (review, then apply)
 
-19. In the loupe, drag the **Exposure** slider thumb in the BASIC panel to the right. 📸
-    Expect: the value text follows the drag (for example `+1.50`) and the loupe image brightens
-    **continuously while dragging**. Double-click the slider. Expect: the value resets to `+0.00` and
-    the image returns to normal.
-20. Press **Esc**. Expect: Grid mode again, with every badge from part C still visible.
+12. Press **⇧⌘D** (or Cull ▸ Defect Sweep…). 📸 Expect a sheet titled **Defect Sweep**:
+    - three threshold rows, all checked: `Missed focus below 0.40`, `Closed eyes above 0.80`, `Blown highlights above 0.05`
+    - the counter reads `16 candidates · 16 selected`
+    - the first rows are SAMPLE_0002 `Missed focus 0.25 < 0.40`, SAMPLE_0003 `Closed eyes 0.92 > 0.80`,
+      SAMPLE_0006 `Missed focus 0.25 < 0.40`, each with a checkbox and a thumbnail
+    - no grid cell has changed yet (the sweep is review-only).
+13. Uncheck **Closed eyes**. Expect: `10 candidates`. Check it again: `16 candidates`.
+    Drag the Missed-focus slider to 0.20. Expect: the focus rows disappear (`8 candidates`, all closed eyes); drag it back to about 0.40 (`16 candidates`).
+14. Uncheck the checkbox of the first row (SAMPLE_0002). Expect: `16 candidates · 15 selected` and the default button
+    reads **Reject 15 Frames**. Click it.
+    Expect: the sheet closes, toast `Rejected 15 frames from the defect sweep`, status `Reject 15`; SAMPLE_0002 is not rejected.
+15. Press **⌘Z**. Expect: `Undo: 15 images`, `Reject 0`.
 
-## F. Sidebar filters and remembered folder
+## E. Compare (2-up, synced zoom/pan, choose this)
 
-21. Click **Rejects** in the sidebar. Expect: only the rejected images show, and the subtitle reads
-    `Rejects · <r> images`. Click **All Photos** and expect every image back.
-22. Quit with **⌘Q**. Run `open apps/mac/build/Tessera.app` again.
-    Expect: the app reopens `fixtures/raw` without prompting, because it remembers the last folder.
-    Decisions are gone, which is expected: this WP keeps them in memory only.
-    Press ⌘O. Expect: the Open panel starts next to the `fixtures/raw` folder. Cancel it.
+16. Click cell 5 (SAMPLE_0005, `G4 · 1/4`). Press **C**. 📸 Expect: the toolbar segment reads **Compare**;
+    two panes: left `← SAMPLE_0005.jpg` with an amber outline (active), right `→ SAMPLE_0006.jpg`.
+17. Scroll (or pinch) over either pane. Expect: **both** images zoom by the same amount. Drag inside a pane: both pan
+    together. Press **Z**: both return to fit. Press **Z** again: both jump to 1:1 preview pixels (at least 2×). Press **Z** once more (fit).
+18. Press **→**. Expect: the right pane becomes active (amber outline); the inspector shows SAMPLE_0006.
+    Press **Return** ("choose this"). Expect: right caption shows `KEEP`; the left pane now shows **SAMPLE_0007**
+    (the next undecided frame of the group); message `Kept SAMPLE_0006.jpg. Next challenger: SAMPLE_0007.jpg`.
+19. Press **Return** twice more. Expect: after the last press compare closes back to the grid, a toast reads
+    `Kept SAMPLE_0006.jpg, rejected SAMPLE_0008.jpg`; cells 5, 7, 8 show REJECT and cell 6 KEEP.
+20. Press **⌘Z**. Expect: only cell 8 returns to undecided (each choice is one undo step).
 
-## G. 20,000-item performance
+## F. Basket target and albums
 
-23. Choose **Debug ▸ Load 20,000 Stub Items** (⇧⌘N).
-    Expect: the grid fills with generated gradient thumbnails numbered 1, 2, 3…, All Photos shows
-    20,000, and the status bar reads `Generated 20,000 stub items in <g> groups`.
-24. Scroll the grid quickly with the trackpad, or drag the scroller from top to bottom.
-    Expect: scrolling stays smooth with no visible stalls, and thumbnails fill in within a moment of
-    stopping.
-25. Choose **Debug ▸ Run Grid Scroll Benchmark** (⇧⌘B). Do not touch the input for 10 s. 📸
-    Expect: the grid auto-scrolls for 8 s. Then the status bar message starts
-    `Scroll benchmark PASS: 20,000 items, <n> frames, <f> fps avg, p99 frame <≤17.5> ms, <≤1% of n> frames slower than 60 fps`.
-    Alternatively, run from the command line:
-    `apps/mac/build/Tessera.app/Contents/MacOS/Tessera --stub 20000 --benchmark` and read the
-    same line on stderr.
-26. Drag the grid scroller to the bottom, then click the last cell and press **X**.
-    Expect: cell `20000` shows REJECT.
+21. Click cell 1, press **B**. Expect: a blue `SELECTS` pill bottom-left of cell 1; sidebar **Selects** shows 1;
+    status `Basket → Selects 1`; inspector IMAGE `Status: Unedited · in Selects`. B does not advance focus.
+22. Choose **Cull ▸ Basket Target ▸ New Album…**, type `Portfolio`, click **Set Target**.
+    Expect: status `Basket → Portfolio 0`; cell 1's blue pill is gone and a grey outlined `IN SELECTS` pill appears
+    bottom-right; the sidebar lists **Portfolio** (with the `B` tag, count 0) and **Selects** (1).
+23. Press **B** on cell 1 and on cell 2 (click each first). Expect: blue `PORTFOLIO` pills; `Basket → Portfolio 2`.
+    Right-click **Selects** in the sidebar ▸ **Set as Basket Target**. Expect: `Basket → Selects 1`.
 
-## H. Optional: screen change (needs a second display)
+## G. Safe delete
 
-27. In the loupe, drag the window to a second display. Expect: the image redraws and the top-right
-    colour line updates to the new display's name and EDR headroom.
+24. Click **All Photos**, click cell 3, press **⌫**. Expect: nothing is removed; message
+    `Delete only removes photos from an album. To remove files use Cull ▸ Delete from Disk… (⌘⌫)`.
+25. Click **Portfolio** in the sidebar. Expect: the subtitle reads `Portfolio · 2 images`. Click the first cell and
+    press **⌫**. 📸 Expect: toast `Removed 1 from “Portfolio”. Files were not deleted.`; the album shows 1 image.
+    In the terminal, `ls "$SCR/shoot" | grep -c jpg` still prints `40`.
+26. Press **⌘Z**. Expect: the album count in the sidebar is 2 again.
+27. Click **All Photos**, click cell 40 (SAMPLE_0040), press **⌘⌫** (Cull ▸ Delete from Disk…).
+    Expect a warning sheet `Move “SAMPLE_0040.jpg” to the Trash?` explaining that files and sidecars move to the Trash and
+    that ⌘Z cannot undo it. Press **Return**. Expect: the sheet closes (Return is Cancel) and nothing changed.
+28. Press **⌘⌫** again and click **Move to Trash**. Expect: toast/message `Moved 1 photo to the Trash`; the folder
+    reopens with `39 images`; `ls "$SCR/shoot" | grep -c jpg` prints `39`.
+
+## H. Persistence and history
+
+29. Quit with **⌘Q** and relaunch without the flag: `open -n apps/mac/build/Tessera.app --args --folder "$SCR/shoot"`.
+    Expect: the decisions from steps 18–20 are still shown (cells 5 and 7 REJECT, cell 6 KEEP) and
+    `Basket → Selects 1`. Press **⌘Z**: message `Nothing to undo` (undo history belongs to one session).
+30. In the terminal: `ls "$SCR/shoot/.edits" | head -3; cat "$SCR/shoot/library.json"`.
+    Expect: per-image JSON recipes, and `library.json` with albums `Portfolio` (2 image ids) and `Selects` (1).
+
+## I. RAW fixtures copy and stub performance
+
+31. Quit. `open -n apps/mac/build/Tessera.app --args --folder "$SCR/raw"`. 📸 Expect `Opened raw: 5 images (5 RAW), 5 groups`,
+    and the IMAGE panel shows a real capture date for fuji-raf.RAF (2016), not 1970. Press **X** then **⌘Z**:
+    the REJECT pill appears and goes away again.
+32. Choose **Debug ▸ Load 20,000 Stub Items** (⇧⌘N) then **Debug ▸ Run Grid Scroll Benchmark** (⇧⌘B); do not touch input
+    for 10 s. Expect a status message starting `Scroll benchmark PASS`. Press **⌥→** and **K** on a stub group: decisions
+    and undo work on the in-memory stub too.
 
 ## Verdict
 
-PASS when steps 1–26 meet their expectations. Report the build output lines, the 📸 screenshots, and
-the benchmark line from step 25.
+PASS when steps 1–32 meet their expectations (step 32's first part may be skipped only if fixtures are missing, step 31).
+Report the command outputs from steps 1–2, the 📸 screenshots, and the benchmark line. Afterwards you may delete
+`$SCR` and reset preferences with `defaults delete dev.tessera.app`.

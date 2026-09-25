@@ -13,6 +13,7 @@ index = { path = "../index" }
 sidecar = { path = "../sidecar" }
 previews = { path = "../previews" }
 raw-decode = { path = "../raw-decode" }
+cull = { path = "../cull" }
 uniffi = { workspace = true, features = ["cli"] }
 rusqlite.workspace = true
 serde_json.workspace = true

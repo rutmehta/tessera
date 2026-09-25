@@ -1,27 +1,44 @@
+import CoreGraphics
 import Foundation
+import ImageIO
+import UniformTypeIdentifiers
 import XCTest
 import TesseraFFI
 @testable import TesseraCore
 
 final class BridgeTests: XCTestCase {
-    @MainActor func testRawFixturesPersistAcrossReopen() async throws {
-        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
-        let fixture = root.appendingPathComponent("../../fixtures/raw").standardizedFileURL
-        // Never mutate the shared fixture corpus. Real RAW bytes, independent sidecars/catalog.
+    private var root: URL {
+        URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+    }
+
+    private func scratch() throws -> URL {
+        // Never mutate the shared fixture corpus: independent copies, sidecars and catalog.
         let temp = root.appendingPathComponent("build/bridge-test-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: temp, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: temp) }
+        addTeardownBlock { try? FileManager.default.removeItem(at: temp) }
+        return temp
+    }
+
+    @MainActor func testRawFixturesPersistAcrossReopenThroughTheSession() async throws {
+        let fixture = root.appendingPathComponent("../../fixtures/raw").standardizedFileURL
+        let temp = try scratch()
         let photos = temp.appendingPathComponent("raw")
         try FileManager.default.copyItem(at: fixture, to: photos)
         let support = temp.appendingPathComponent("support")
         let library = try EngineLibrary.scan(folder: photos, appSupport: support)
         XCTAssertEqual(library.items.count, 5)
+        let cull = library.makeCullController()
+        XCTAssertTrue(cull.isEngineBacked)
         let item = try XCTUnwrap(library.items.first { $0.name == "sample.dng" })
-        try library.persist(CullState(decision: .reject), for: item)
+        try cull.apply(.reject, to: [item.id])
+        try cull.apply(.mark(6), to: [item.id])
         let reopened = try EngineLibrary.scan(folder: photos, appSupport: support)
         let found = try XCTUnwrap(reopened.items.first { $0.url == item.url })
-        XCTAssertEqual(reopened.initialState(for: found).decision, .reject)
+        let state = reopened.makeCullController()[found.id]
+        XCTAssertEqual(state.decision, .reject)
+        XCTAssertEqual(state.mark, 6)
+
+        // M1-14: a cold RAW preview completes through the worker callback.
         let loader = ThumbnailLoader()
         let ready = expectation(description: "cold RAW preview completes from worker callback")
         let request = loader.request(found, tier: .thumbnail) { image in
@@ -36,22 +53,168 @@ final class BridgeTests: XCTestCase {
         XCTAssertFalse(cached.pending)
         XCTAssertNotNil(cached.bytes)
         XCTAssertNotNil(ThumbnailLoader.render(found, tier: .thumbnail))
+    }
 
-        var cull = CullStore(count: reopened.items.count)
-        for action: CullAction in [.keep, .grade(3), .mark(6), .reject, .undecided] {
-            cull.apply(action, to: [found.id])
-            try reopened.persist(cull[found.id], for: found)
-            let next = try EngineLibrary.scan(folder: photos, appSupport: support)
-            let nextItem = try XCTUnwrap(next.items.first { $0.url == found.url })
-            XCTAssertEqual(next.initialState(for: nextItem), cull[found.id])
+    /// Three near-duplicate frames (A), one opposite frame (B) and a two-frame pair (C).
+    private func makeGroupedFolder() throws -> (folder: URL, support: URL) {
+        let temp = try scratch()
+        let folder = temp.appendingPathComponent("shoot")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try writeJPEG(folder.appendingPathComponent("a1.jpg"), pattern: .falling, noise: 0)
+        try writeJPEG(folder.appendingPathComponent("a2.jpg"), pattern: .falling, noise: 24)   // largest: best
+        try writeJPEG(folder.appendingPathComponent("a3.jpg"), pattern: .falling, noise: 6)
+        try writeJPEG(folder.appendingPathComponent("b1.jpg"), pattern: .rising, noise: 0)
+        try writeJPEG(folder.appendingPathComponent("c1.jpg"), pattern: .tent, noise: 0)
+        try writeJPEG(folder.appendingPathComponent("c2.jpg"), pattern: .tent, noise: 12)
+        return (folder, temp.appendingPathComponent("support"))
+    }
+
+    func testGroupNavigationComesFromTheSession() throws {
+        let (folder, support) = try makeGroupedFolder()
+        let library = try EngineLibrary.scan(folder: folder, appSupport: support)
+        let cull = library.makeCullController()
+        XCTAssertEqual(library.items.count, 6)
+        XCTAssertEqual(library.groups.map(\.count).sorted(), [1, 2, 3])
+        // Display order keeps every group contiguous, in the session's group order.
+        for (g, range) in library.groups.enumerated() {
+            XCTAssertTrue(range.allSatisfy { library.items[$0].groupID == g })
         }
-        for _ in 0..<2 {
-            _ = cull.undo()
-            try reopened.persist(cull[found.id], for: found)
+        let names = library.groups.map { r in Set(r.map { library.items[$0].name.prefix(1) }) }
+        XCTAssertTrue(names.allSatisfy { $0.count == 1 }, "groups are a*, b*, c*: \(names)")
+        let a = try XCTUnwrap(library.groups.firstIndex { $0.count == 3 })
+        XCTAssertEqual(library.items[cull.bestOfGroup[a]].name, "a2.jpg")
+        XCTAssertTrue(cull.isSuggestedBest(cull.bestOfGroup[a]))
+        let lone = try XCTUnwrap(library.groups.firstIndex { $0.count == 1 })
+        XCTAssertFalse(cull.isSuggestedBest(library.groups[lone].lowerBound), "no suggestion for singletons")
+
+        let first = library.groups[0].lowerBound
+        let last = library.groups[2]
+        XCTAssertNil(try cull.navigate(.previousGroup, from: first))
+        XCTAssertNil(try cull.navigate(.previousInGroup, from: first))
+        XCTAssertEqual(try cull.navigate(.nextGroup, from: first), library.groups[1].lowerBound)
+        XCTAssertEqual(try cull.navigate(.nextGroup, from: library.groups[1].lowerBound), last.lowerBound)
+        XCTAssertNil(try cull.navigate(.nextGroup, from: last.lowerBound))
+        XCTAssertEqual(try cull.navigate(.previousGroup, from: last.upperBound - 1), library.groups[1].lowerBound)
+        let aRange = library.groups[a]
+        XCTAssertEqual(try cull.navigate(.nextInGroup, from: aRange.lowerBound), aRange.lowerBound + 1)
+        XCTAssertEqual(try cull.navigate(.previousInGroup, from: aRange.lowerBound + 1), aRange.lowerBound)
+        XCTAssertNil(try cull.navigate(.nextInGroup, from: aRange.upperBound - 1))
+
+        // The in-memory stub follows the same semantics.
+        let stub = StubLibrary.synthetic(count: 40)
+        let memory = stub.makeCullController()
+        XCTAssertFalse(memory.isEngineBacked)
+        XCTAssertNil(try memory.navigate(.previousGroup, from: 0))
+        XCTAssertEqual(try memory.navigate(.nextGroup, from: 0), stub.groups[1].lowerBound)
+        XCTAssertEqual(try memory.navigate(.previousGroup, from: stub.groups[2].upperBound - 1), stub.groups[1].lowerBound)
+    }
+
+    func testKeepBestRejectRestIsOneUndoableStepThatPersists() throws {
+        let (folder, support) = try makeGroupedFolder()
+        let library = try EngineLibrary.scan(folder: folder, appSupport: support)
+        let cull = library.makeCullController()
+        let a = try XCTUnwrap(library.groups.firstIndex { $0.count == 3 })
+        XCTAssertFalse(cull.canUndo)
+        let (best, change) = try cull.keepBestRejectRest(group: a)
+        XCTAssertEqual(library.items[best].name, "a2.jpg")
+        XCTAssertEqual(Set(change.ids), Set(library.groups[a]))
+        for id in library.groups[a] {
+            XCTAssertEqual(cull[id].decision, id == best ? .keep : .reject)
         }
-        let afterUndo = try EngineLibrary.scan(folder: photos, appSupport: support)
-        let undoItem = try XCTUnwrap(afterUndo.items.first { $0.url == found.url })
-        XCTAssertEqual(afterUndo.initialState(for: undoItem), cull[found.id])
+        XCTAssertEqual(cull.counts.keep, 1)
+        XCTAssertEqual(cull.counts.reject, 2)
+        XCTAssertTrue(cull.canUndo)
+
+        let undone = try XCTUnwrap(try cull.undo())
+        XCTAssertEqual(Set(undone.ids), Set(library.groups[a]))
+        XCTAssertTrue(library.groups[a].allSatisfy { cull[$0].decision == .undecided })
+        XCTAssertFalse(cull.canUndo)
+        XCTAssertNil(try cull.undo())
+        XCTAssertNotNil(try cull.redo())
+        XCTAssertEqual(cull.counts.reject, 2)
+
+        // "Choose this" in compare: keep one, reject the other, one step.
+        let c = try XCTUnwrap(library.groups.firstIndex { $0.count == 2 })
+        let pair = Array(library.groups[c])
+        try cull.decide([(pair[1], .keep), (pair[0], .reject)])
+        XCTAssertEqual(cull[pair[1]].decision, .keep)
+        XCTAssertEqual(cull[pair[0]].decision, .reject)
+        _ = try cull.undo()
+        XCTAssertEqual(cull[pair[1]].decision, .undecided)
+        XCTAssertEqual(cull[pair[0]].decision, .undecided)
+        XCTAssertEqual(cull.counts.reject, 2, "the keep-best step is untouched")
+
+        // Decisions are in the sidecars: a fresh session sees them without history.
+        let reopened = try EngineLibrary.scan(folder: folder, appSupport: support).makeCullController()
+        XCTAssertEqual(reopened.counts.keep, 1)
+        XCTAssertEqual(reopened.counts.reject, 2)
+        XCTAssertFalse(reopened.canUndo)
+    }
+
+    func testBasketAlbumsSafeDeleteAndDefectSweep() throws {
+        let (folder, support) = try makeGroupedFolder()
+        let library = try EngineLibrary.scan(folder: folder, appSupport: support, basketTarget: "Portfolio")
+        let cull = library.makeCullController()
+        XCTAssertEqual(cull.basketTarget, "Portfolio")
+        XCTAssertEqual(cull.albums.map(\.name), ["Portfolio"], "target shown before it exists")
+        try cull.apply(.toggleBasket, to: [0, 1])
+        XCTAssertEqual(cull.counts.basket, 2)
+        XCTAssertEqual(cull.members(ofAlbum: "Portfolio"), [0, 1])
+        XCTAssertEqual(cull.statuses[0].albums, ["Portfolio"])
+        XCTAssertEqual(cull.statuses[0].phase, .unedited)
+
+        // Safe delete in an album: membership only.
+        try cull.removeFromAlbum("Portfolio", ids: [0])
+        XCTAssertFalse(cull[0].inBasket)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: library.items[0].url!.path))
+        XCTAssertEqual(cull.members(ofAlbum: "Portfolio"), [1])
+        _ = try cull.undo()
+        XCTAssertTrue(cull[0].inBasket)
+
+        try cull.setBasketTarget("Print")
+        XCTAssertEqual(cull.counts.basket, 0, "membership follows the new target")
+        try cull.apply(.toggleBasket, to: [2])
+        XCTAssertEqual(Set(cull.albums.map(\.name)), ["Portfolio", "Print"])
+        XCTAssertEqual(Set(cull.statuses[2].albums), ["Print"])
+
+        // Seeded scores: n % 4 == 1 fails focus, n % 5 == 2 has closed eyes -> items 1, 2, 5.
+        try library.seedSyntheticScores()
+        let found = try cull.defectSweep(DefectRule.defaults)
+        XCTAssertEqual(found.map(\.item), [1, 2, 5])
+        XCTAssertTrue(found[0].reasons[0].hasPrefix("Missed focus 0.25 <"))
+        XCTAssertTrue(found.allSatisfy { cull[$0.item].decision == .undecided }, "the sweep is review-only")
+        var focusOnly = DefectRule.defaults
+        focusOnly[1].enabled = false
+        XCTAssertEqual(try cull.defectSweep(focusOnly).map(\.item), [1, 5])
+        try cull.apply(.reject, to: found.map(\.item))
+        XCTAssertEqual(cull.counts.reject, 3)
+        _ = try cull.undo()
+        XCTAssertEqual(cull.counts.reject, 0)
+        XCTAssertEqual(try StubLibrary.synthetic(count: 3).makeCullController().defectSweep(DefectRule.defaults), [])
+    }
+
+    func testDeleteFromDiskTrashesFileAndLeavesTheQueue() throws {
+        let (folder, support) = try makeGroupedFolder()
+        let library = try EngineLibrary.scan(folder: folder, appSupport: support)
+        let cull = library.makeCullController()
+        let victim = try XCTUnwrap(library.items.first { $0.name == "b1.jpg" })
+        try cull.apply(.toggleBasket, to: [victim.id])
+        try cull.apply(.reject, to: [victim.id])
+        let bin = folder.deletingLastPathComponent().appendingPathComponent("trash")
+        try FileManager.default.createDirectory(at: bin, withIntermediateDirectories: true)
+        var binned: [String] = []
+        let trashed = try cull.moveToTrash([victim.id]) { url in
+            binned.append(url.lastPathComponent)
+            try FileManager.default.moveItem(at: url, to: bin.appendingPathComponent(url.lastPathComponent))
+        }
+        XCTAssertEqual(binned, ["b1.jpg", "b1.jpg.xmp", "b1.json"], "file, XMP and recipe sidecar")
+        XCTAssertEqual(trashed, [victim.url!])
+        XCTAssertFalse(FileManager.default.fileExists(atPath: victim.url!.path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: victim.url!.path + ".xmp"))
+        XCTAssertTrue(cull.members(ofAlbum: cull.basketTarget).isEmpty, "removed from albums first")
+        let reopened = try EngineLibrary.scan(folder: folder, appSupport: support)
+        XCTAssertEqual(reopened.items.count, 5)
+        XCTAssertFalse(reopened.items.contains { $0.name == "b1.jpg" })
     }
 
     func testRestoreDoesNotCreateUndoHistory() {
@@ -60,4 +223,38 @@ final class BridgeTests: XCTestCase {
         XCTAssertEqual(store.counts.reject, 1)
         XCTAssertFalse(store.canUndo)
     }
+
+    // MARK: Fixtures
+
+    private enum Pattern { case falling, rising, tent }
+
+    /// dHash-distinct luminance patterns; `noise` adds deterministic grain (larger file).
+    private func writeJPEG(_ url: URL, pattern: Pattern, noise: Int) throws {
+        let w = 240, h = 160
+        var pixels = [UInt8](repeating: 0, count: w * h * 4)
+        var seed: UInt32 = 12345
+        for y in 0..<h {
+            for x in 0..<w {
+                let base: Int = switch pattern {
+                case .falling: 230 - x * 200 / w
+                case .rising: 30 + x * 200 / w
+                case .tent: x < w / 2 ? 30 + x * 360 / w : 390 - x * 360 / w
+                }
+                seed = seed &* 1_664_525 &+ 1_013_904_223
+                let n = noise == 0 ? 0 : Int(seed >> 24) % (noise * 2 + 1) - noise
+                let v = UInt8(clamping: base + n)
+                let i = (y * w + x) * 4
+                pixels[i] = v; pixels[i + 1] = v; pixels[i + 2] = UInt8(clamping: Int(v) / 2 + y / 2); pixels[i + 3] = 255
+            }
+        }
+        let provider = try XCTUnwrap(CGDataProvider(data: Data(pixels) as CFData))
+        let image = try XCTUnwrap(CGImage(width: w, height: h, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: w * 4,
+                                          space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                          bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.noneSkipLast.rawValue),
+                                          provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent))
+        let dest = try XCTUnwrap(CGImageDestinationCreateWithURL(url as CFURL, UTType.jpeg.identifier as CFString, 1, nil))
+        CGImageDestinationAddImage(dest, image, [kCGImageDestinationLossyCompressionQuality: 0.9] as CFDictionary)
+        XCTAssertTrue(CGImageDestinationFinalize(dest))
+    }
 }
+

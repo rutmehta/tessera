@@ -85,9 +85,11 @@ impl Index {
     pub fn selection(&self, id: ImageId) -> EngineResult<Option<Selection>> {
         self.0.selection(id).map_err(Into::into)
     }
+    /// `capture_seconds` accepts ISO date-times and numeric Unix seconds (RAW
+    /// scanners store the latter; 'auto' keeps them from parsing as Julian days).
     pub fn image_info(&self, id: ImageId) -> EngineResult<ImageInfo> {
         self.0.conn.query_row(
-            "SELECT f.path,f.size,unixepoch(i.capture_time,'subsec') FROM image i JOIN file f ON f.id=i.file_id WHERE i.id=?",
+            "SELECT f.path,f.size,unixepoch(i.capture_time,'auto','subsec') FROM image i JOIN file f ON f.id=i.file_id WHERE i.id=?",
             [id.to_string()],
             |r| Ok(ImageInfo { id, path: r.get::<_, String>(0)?.into(), size: r.get::<_, i64>(1)?.max(0) as u64, capture_seconds: r.get(2)? }),
         ).optional().map_err(sql_error)?.ok_or_else(|| EngineError::not_found("image", id))
