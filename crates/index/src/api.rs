@@ -19,6 +19,24 @@ pub struct Score {
     pub model: String,
 }
 
+/// A face ordinal is local to an image, not a persistent person identity.
+#[derive(Debug, Clone, PartialEq)]
+pub struct FaceRecord {
+    pub id: u32,
+    /// Image-pixel coordinates [x, y, width, height].
+    pub bbox: [f32; 4],
+    /// Five image-pixel landmark coordinates in detector order.
+    pub landmarks5: [[f32; 2]; 5],
+    pub confidence: f32,
+    /// Optional finite 128-component SFace descriptor; not necessarily normalized.
+    pub embedding: Option<Vec<f32>>,
+    /// Normalized sharpness in [0, 1].
+    pub sharpness: f64,
+    /// Optional [0, 1] confidence/proxy, NOT a measured eyelid-closure signal.
+    /// Five-point landmarks alone cannot establish whether eyes are open.
+    pub eyes_open: Option<f64>,
+}
+
 fn sql_error(error: rusqlite::Error) -> EngineError {
     IndexError::Sql(error).into()
 }
@@ -104,6 +122,126 @@ impl Index {
         .collect::<std::result::Result<Vec<_>, _>>()
         .map_err(sql_error)
     }
+    /// Atomically replaces the detected faces for an image.
+    pub fn replace_faces(&self, id: ImageId, faces: &[FaceRecord]) -> EngineResult<()> {
+        let mut ordinals = std::collections::HashSet::new();
+        for face in faces {
+            let [x, y, w, h] = face.bbox;
+            if !ordinals.insert(face.id)
+                || !face.bbox.iter().all(|v| v.is_finite() && *v >= 0.0)
+                || w <= 0.0
+                || h <= 0.0
+                || !(x + w).is_finite()
+                || !(y + h).is_finite()
+                || !face
+                    .landmarks5
+                    .iter()
+                    .flatten()
+                    .all(|v| v.is_finite() && *v >= 0.0)
+                || !(0.0..=1.0).contains(&face.confidence)
+                || !(0.0..=1.0).contains(&face.sharpness)
+                || face.eyes_open.is_some_and(|v| !(0.0..=1.0).contains(&v))
+                || face
+                    .embedding
+                    .as_ref()
+                    .is_some_and(|v| v.len() != 128 || !v.iter().all(|v| v.is_finite()))
+            {
+                return Err(EngineError::invalid(
+                    "face",
+                    "requires unique ordinals, finite nonnegative pixel coordinates, positive extent, 128 finite embedding components, and scores/confidence in [0,1]",
+                ));
+            }
+        }
+        let tx = self.0.conn.unchecked_transaction().map_err(sql_error)?;
+        let image = id.to_string();
+        let exists: bool = tx
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM image WHERE id=?)",
+                [&image],
+                |r| r.get(0),
+            )
+            .map_err(sql_error)?;
+        if !exists {
+            return Err(EngineError::not_found("image", id));
+        }
+        tx.execute("DELETE FROM face WHERE image_id=?", [&image])
+            .map_err(sql_error)?;
+        tx.execute("DELETE FROM score WHERE image_id=? AND (signal GLOB 'face/*' OR signal IN ('face_sharpness','eyes_open'))", [&image]).map_err(sql_error)?;
+        for face in faces {
+            tx.execute(
+                "INSERT INTO face(image_id,id,bbox,landmarks5,confidence,embedding,model) VALUES(?,?,?,?,?,?,?)",
+                params![image, face.id, serde_json::to_string(&face.bbox)?,
+                    serde_json::to_string(&face.landmarks5)?, face.confidence,
+                    face.embedding.as_ref().map(serde_json::to_string).transpose()?, "yunet-sface-v1"],
+            ).map_err(sql_error)?;
+            for (signal, value) in [
+                ("sharpness", Some(face.sharpness)),
+                ("eyes_open", face.eyes_open),
+            ] {
+                if let Some(value) = value {
+                    tx.execute("INSERT INTO score(image_id,signal,value,model) VALUES(?,?,?,?) ON CONFLICT(image_id,signal) DO UPDATE SET value=excluded.value,model=excluded.model",
+                        params![image, format!("face/{}/{signal}", face.id), value, "yunet-sface-v1"]).map_err(sql_error)?;
+                }
+            }
+        }
+        for (signal, value) in [
+            (
+                "face_sharpness",
+                faces.iter().map(|f| f.sharpness).reduce(f64::min),
+            ),
+            (
+                "eyes_open",
+                faces.iter().filter_map(|f| f.eyes_open).reduce(f64::min),
+            ),
+        ] {
+            if let Some(value) = value {
+                tx.execute(
+                    "INSERT INTO score(image_id,signal,value,model) VALUES(?,?,?,?)",
+                    params![image, signal, value, "yunet-sface-v1"],
+                )
+                .map_err(sql_error)?;
+            }
+        }
+        tx.commit().map_err(sql_error)
+    }
+
+    /// Returns faces in ascending local ordinal order; absent faces yield an empty list.
+    pub fn faces(&self, id: ImageId) -> EngineResult<Vec<FaceRecord>> {
+        let mut stmt = self.0.conn.prepare(
+            "SELECT f.id,f.bbox,f.landmarks5,f.confidence,f.embedding,s.value,e.value FROM face f
+             JOIN score s ON s.image_id=f.image_id AND s.signal='face/'||f.id||'/sharpness'
+             LEFT JOIN score e ON e.image_id=f.image_id AND e.signal='face/'||f.id||'/eyes_open'
+             WHERE f.image_id=? ORDER BY f.id"
+        ).map_err(sql_error)?;
+        let rows = stmt
+            .query_map([id.to_string()], |r| {
+                Ok((
+                    r.get::<_, u32>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, String>(2)?,
+                    r.get::<_, f32>(3)?,
+                    r.get::<_, Option<String>>(4)?,
+                    r.get::<_, f64>(5)?,
+                    r.get::<_, Option<f64>>(6)?,
+                ))
+            })
+            .map_err(sql_error)?;
+        rows.map(|row| {
+            let (id, bbox, landmarks5, confidence, embedding, sharpness, eyes_open) =
+                row.map_err(sql_error)?;
+            Ok(FaceRecord {
+                id,
+                bbox: serde_json::from_str(&bbox)?,
+                landmarks5: serde_json::from_str(&landmarks5)?,
+                confidence,
+                embedding: embedding.map(|s| serde_json::from_str(&s)).transpose()?,
+                sharpness,
+                eyes_open,
+            })
+        })
+        .collect()
+    }
+
     pub fn record_export(
         &self,
         id: ImageId,

@@ -54,9 +54,14 @@ review. Missing embedded previews simply provide no duplicate signal.
 Group/member ordering follows the review queue. `next_group`, `prev_group`, and
 `next_in_group` stop at boundaries. `best_in_group` returns the suggested frame;
 `keep_best_reject_rest(group_index)` explicitly applies the decision batch.
-`set_scorer(Box<dyn Scorer>)` accepts future ML scorers. The default `LargestFile`
-uses indexed byte size, ties pick the first queue member, and non-finite scores
-are errors. Hash comparison currently uses an O(n²) in-memory pass.
+`set_scorer(Box<dyn Scorer>)` accepts explicit scorers, including `QualityScorer`
+and `FaceScorer` snapshots. Without an override, ranking reads current index
+signals: `quality * (0.5 + 0.5 * face_sharpness)` when both exist, or the available
+signal alone. Missing scores rank below scored members. Only groups with no
+signals fall back to `LargestFile` indexed byte size. Ties pick the first queue
+member, and non-finite scores are errors. The five-landmark `eyes_open` proxy is
+not a blink probability and is deliberately excluded from ranking. Hash
+comparison currently uses an O(n²) in-memory pass.
 
 ## Library, basket, and status
 

@@ -62,7 +62,7 @@ fn upgrade_v3_preserves_images_and_selection() {
     let conn = rusqlite::Connection::open(&db).unwrap();
     // Recreate the previous schema, then exercise the actual v3 -> v4 migration.
     conn.execute_batch(
-        "DROP TABLE export_log; DROP TABLE score; DELETE FROM migration WHERE version=4;",
+        "DROP TABLE face; DROP TABLE export_log; DROP TABLE score; DELETE FROM migration WHERE version>=4;",
     )
     .unwrap();
     drop(conn);

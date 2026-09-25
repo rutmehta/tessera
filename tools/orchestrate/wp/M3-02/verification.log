@@ -1,0 +1,138 @@
+Command: cargo test -p ml-faces -p ml-quality -p cull --release && cargo clippy -p ml-faces -p ml-quality --all-targets -- -D warnings && cargo fmt --check
+Exit: 0
+CARGO_TARGET_DIR=/Users/rutmehta/.cache/tessera-target/M3-02
+Existing vendor LibRaw C++ build warnings omitted below.
+
+    Finished `release` profile [optimized] target(s) in 0.10s
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/M3-02/release/deps/cull-d8ec4fdcb996d78d)
+
+running 2 tests
+test persistence::tests::duplicate_batch_destinations_fail_before_any_writes ... ok
+test persistence::tests::late_same_stem_batch_collision_preserves_every_file_and_index_row ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/defects.rs (/Users/rutmehta/.cache/tessera-target/M3-02/release/deps/defects-b91661fe0201cca4)
+
+running 1 test
+test sweep_is_review_only_and_checks_both_directions ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/failures.rs (/Users/rutmehta/.cache/tessera-target/M3-02/release/deps/failures-29b46994f0e9bfca)
+
+running 2 tests
+test malformed_xmp_is_not_overwritten_and_does_not_advance ... ok
+test failed_group_write_rolls_back_sidecars_index_and_history ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+     Running tests/grouping.rs (/Users/rutmehta/.cache/tessera-target/M3-02/release/deps/grouping-04e07c19e1f82000)
+
+running 2 tests
+test dhash_groups_jpeg_brightness_and_blur_variants_not_opposite_gradient ... ok
+test bursts_navigation_best_and_one_step_undo ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests/library.rs (/Users/rutmehta/.cache/tessera-target/M3-02/release/deps/library-66faa37d7427cd8d)
+
+running 1 test
+test status_transitions_and_basket_share_global_history ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/review_regressions.rs (/Users/rutmehta/.cache/tessera-target/M3-02/release/deps/review_regressions-01241f3715581b34)
+
+running 2 tests
+test basket_history_preserves_existing_album_and_unrelated_external_fields ... ok
+test basket_history_rejects_external_album_edits_without_writes ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/session.rs (/Users/rutmehta/.cache/tessera-target/M3-02/release/deps/session-e692d11062f52842)
+
+running 6 tests
+test filtered_individual_edit_rejects_same_stem_peer_without_mutation ... ok
+test selection_query_reconciles_sidecars_before_filtering ... ok
+test empty_invalid_and_branched_history ... ok
+test whole_folder_and_query_are_not_limited_to_index_default_page ... ok
+test decision_history_restores_both_cursor_positions ... ok
+test keyboard_pass_persists_fifty_images_and_global_undo_redo ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.32s
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/M3-02/release/deps/ml_faces-e552ce17a7d2b45d)
+
+running 1 test
+test tests::clustering_is_scale_invariant_and_keeps_distinct_people ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/geometry.rs (/Users/rutmehta/.cache/tessera-target/M3-02/release/deps/geometry-042918fc05bb0887)
+
+running 4 tests
+test nms_keeps_highest_score_and_disjoint_boxes ... ok
+test alignment_is_identity_for_canonical_landmarks_and_rejects_degenerate ... ok
+test face_sharpness_separates_blur_and_geometry_proxy_is_bounded ... ok
+test letterbox_preserves_aspect_ratio_and_bgr ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/models.rs (/Users/rutmehta/.cache/tessera-target/M3-02/release/deps/models-d949540248993f29)
+
+running 3 tests
+test generated_pattern_shapes_and_embeddings ... ok
+test raw_previews_write_scores_without_assuming_people ... ok
+test both_models_report_real_coreml_partitions ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.60s
+
+     Running tests/scorer.rs (/Users/rutmehta/.cache/tessera-target/M3-02/release/deps/scorer-0f95de08e38c33da)
+
+running 1 test
+test face_scorer_reads_minimum_face_focus_and_handles_absence ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/M3-02/release/deps/ml_quality-42b285e02a25492a)
+
+running 9 tests
+test tests::exposure_counts_each_channel_independently ... ok
+test tests::rejects_empty_previews ... ok
+test tests::exposure_is_bounded_for_tiny_and_solid_images ... ok
+test tests::anisotropy_detects_directional_structure ... ok
+test tests::laplacian_separates_sharp_from_blurred ... ok
+test tests::flat_region_noise_increases_with_amplitude ... ok
+test tests::scorer_uses_persisted_quality_not_file_size ... ok
+test tests::catalog_scores_roundtrip_and_replace ... ok
+test tests::preview_is_capped_at_1024_without_upscaling ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/culling.rs (/Users/rutmehta/.cache/tessera-target/M3-02/release/deps/culling-b8a2e2951fec7991)
+
+running 1 test
+test computed_signals_drive_default_best_and_defect_review ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+   Doc-tests cull
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests ml_faces
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests ml_quality
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.17s

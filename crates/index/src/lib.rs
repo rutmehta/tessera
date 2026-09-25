@@ -1,6 +1,6 @@
 //! SQLite photo catalog and search index.
 mod api;
-pub use api::{ImageInfo, Index, Scanner, Score};
+pub use api::{FaceRecord, ImageInfo, Index, Scanner, Score};
 use std::{path::Path, time::UNIX_EPOCH};
 
 use engine_api::{
@@ -62,11 +62,11 @@ impl Core {
             COMMIT;")?;
         let version: u32 =
             conn.query_row("SELECT max(version) FROM migration", [], |r| r.get(0))?;
-        if version > 4 {
+        if version > 5 {
             return Err(engine_api::error::EngineError::SchemaVersion {
                 document: "index".into(),
                 found: version,
-                supported: 4,
+                supported: 5,
             }
             .into());
         }
@@ -95,6 +95,9 @@ impl Core {
         }
         if version < 4 {
             conn.execute_batch(include_str!("../migrations/004_culling.sql"))?;
+        }
+        if version < 5 {
+            conn.execute_batch(include_str!("../migrations/005_faces.sql"))?;
         }
         Ok(Self { conn })
     }
@@ -731,7 +734,7 @@ mod tests {
             i.conn
                 .query_row("SELECT count(*) FROM migration", [], |r| r.get::<_, u32>(0))
                 .unwrap(),
-            4
+            5
         );
     }
     #[test]
@@ -774,7 +777,7 @@ mod tests {
             .conn
             .query_row("SELECT count(*) FROM migration", [], |r| r.get(0))
             .unwrap();
-        assert_eq!(tables, 4);
+        assert_eq!(tables, 5);
         let id = ImageId(7);
         i.conn
             .execute("INSERT INTO root(path) VALUES('root')", [])

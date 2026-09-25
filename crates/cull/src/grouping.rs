@@ -90,7 +90,7 @@ impl CullSession<'_> {
         &self.preview_errors
     }
     pub fn set_scorer(&mut self, scorer: Box<dyn Scorer>) {
-        self.scorer = scorer;
+        self.scorer = Some(scorer);
     }
     /// Connected components of burst and dHash edges. Missing times/hashes never
     /// match each other. Group and member order follow the original review queue.
@@ -184,9 +184,33 @@ impl CullSession<'_> {
             .groups
             .get(group)
             .ok_or_else(|| EngineError::invalid("group", "outside session"))?;
+        // Read current persisted signals, including scores computed after opening
+        // the session. Never compare byte counts against normalized quality.
+        let mut catalog = BTreeMap::new();
+        if self.scorer.is_none() {
+            for &id in &group.images {
+                let scores = self.index.scores(id)?;
+                let get =
+                    |signal: &str| scores.iter().find(|s| s.signal == signal).map(|s| s.value);
+                let value = match (get("quality"), get("face_sharpness")) {
+                    (Some(q), Some(f)) => Some(q * (0.5 + 0.5 * f)),
+                    (q, f) => q.or(f),
+                };
+                if let Some(value) = value {
+                    catalog.insert(id, value);
+                }
+            }
+        }
         let mut best = None;
         for id in &group.images {
-            let score = self.scorer.score(&self.index.image_info(*id)?);
+            let info = self.index.image_info(*id)?;
+            let score = if let Some(scorer) = &self.scorer {
+                scorer.score(&info)
+            } else if catalog.is_empty() {
+                LargestFile.score(&info)
+            } else {
+                catalog.get(id).copied().unwrap_or(-1.)
+            };
             if !score.is_finite() {
                 return Err(EngineError::invalid(
                     "score",
