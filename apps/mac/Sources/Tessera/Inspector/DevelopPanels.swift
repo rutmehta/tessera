@@ -412,7 +412,7 @@ struct HDRPanel: View {
         let ready = model.developStatus == .ready
         let edr = tools.edr
         let on = { _ = revision; return tools.develop?.hdrEnabled ?? false }()
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: Theme.Space.xs) {
             Toggle("HDR (extended dynamic range)", isOn: Binding(
                 get: { on },
                 set: { v in
@@ -420,13 +420,13 @@ struct HDRPanel: View {
                     tools.apply(d.hdrPatch(v), final: true, label: v ? "HDR On" : "HDR Off")
                     tools.bump()
                 }))
-                .font(.system(size: 11))
+                .font(Theme.Fonts.caption)
                 .accessibilityIdentifier("hdr-toggle")
             ControlSlider(control: HDRControls.headroom(maxStops: max(edr.maxStops, 0.1)))
-                .frame(height: 30)
+                .frame(height: Theme.Height.slider)
                 .disabled(!on || !edr.isEDRCapable)
                 .accessibilityIdentifier("hdr-headroom")
-            Text(status(edr, on: on)).font(.system(size: 10)).foregroundStyle(.secondary)
+            Text(status(edr, on: on)).font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
                 .accessibilityIdentifier("hdr-status")
         }
         .controlSize(.small)
