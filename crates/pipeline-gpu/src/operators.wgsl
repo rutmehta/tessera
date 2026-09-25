@@ -260,6 +260,134 @@ fn display(rgb: vec3<f32>, x: u32, y: u32) -> vec3<f32> {
     return result;
 }
 
+fn curve_encode(v: f32) -> f32 {
+    if v > 6.1250826e37 { return (log(v) - log(0.18)) / p[24]; }
+    return log_one_plus(v / 0.18) / p[24];
+}
+fn curve_decode(v: f32) -> f32 {
+    let e = v * p[24];
+    if e >= 80.0 { return min(exp(e + log(0.18)), 3.402823466e38); }
+    return 0.18 * exp_minus_one(e);
+}
+fn curve_value(v: f32, curve: u32) -> f32 {
+    let offset = u32(p[19u + curve]);
+    if offset == 0u || v < 0.0 { return v; }
+    let x = curve_encode(v);
+    let count = u32(p[offset]);
+    let first = offset + 1u;
+    let last = first + (count - 1u) * 3u;
+    if x >= p[last] { return curve_decode(x + p[last + 1u] - p[last]); }
+    if x <= 0.0 { return curve_decode(p[first + 1u] + x); }
+    var i = first;
+    while i + 3u < last && p[i + 3u] <= x { i += 3u; }
+    let h = p[i + 3u] - p[i];
+    let t = (x - p[i]) / h;
+    let y0 = p[i + 1u];
+    let y1 = p[i + 4u];
+    if y0 == y1 { return curve_decode(y0); }
+    let blend = t * t * (3.0 - 2.0 * t);
+    let y = y0 + (y1 - y0) * blend + t * (1.0 - t) * (1.0 - t) * (h * p[i + 2u])
+        - t * t * (1.0 - t) * (h * p[i + 5u]);
+    return curve_decode(clamp(y, y0, y1));
+}
+fn curves(input: vec3<f32>) -> vec3<f32> {
+    if p[9] == 0.0 && p[19] == 0.0 && p[20] == 0.0 && p[21] == 0.0 && p[22] == 0.0 && p[23] == 0.0 {
+        return input;
+    }
+    var rgb = input;
+    var y = 0.2627 * rgb.x + 0.678 * rgb.y + 0.0593 * rgb.z;
+    if y > 0.0 && p[9] != 0.0 {
+        var x = curve_encode(y);
+        if x >= 0.0 && x < 1.0 {
+            var region = 0u;
+            while region < 3u && p[11u + region] <= x { region += 1u; }
+            let width = p[11u + region] - p[10u + region];
+            let u = (x - p[10u + region]) / width;
+            x += 3.0 * p[15u + region] * width * u * u * (1.0 - u) * (1.0 - u);
+        }
+        rgb *= curve_decode(x) / y;
+    }
+    for (var c = 0u; c < 3u; c += 1u) { rgb[c] = curve_value(curve_value(rgb[c], 0u), c + 1u); }
+    y = 0.2627 * rgb.x + 0.678 * rgb.y + 0.0593 * rgb.z;
+    if y > 0.0 { rgb *= curve_value(y, 4u) / y; }
+    else if all(rgb == vec3<f32>(0.0)) { rgb = vec3<f32>(curve_value(0.0, 4u)); }
+    return clamp(rgb, vec3<f32>(-3.402823466e38), vec3<f32>(3.402823466e38));
+}
+
+fn unit(v: f32) -> f32 { return clamp(v, -100.0, 100.0) / 100.0; }
+fn wrap(v: f32) -> f32 { return v - floor(v / 360.0) * 360.0; }
+fn to_lab(rgb: vec3<f32>) -> vec3<f32> {
+    let lms = vec3<f32>(
+        0.6167558 * rgb.x + 0.3601984 * rgb.y + 0.0230458 * rgb.z,
+        0.265133 * rgb.x + 0.6358394 * rgb.y + 0.0990276 * rgb.z,
+        0.1001026 * rgb.x + 0.2039065 * rgb.y + 0.6959909 * rgb.z);
+    let v = sign(lms) * pow(abs(lms), vec3<f32>(1.0 / 3.0));
+    return vec3<f32>(
+        0.21045426 * v.x + 0.7936178 * v.y - 0.004072047 * v.z,
+        1.9779985 * v.x - 2.4285922 * v.y + 0.4505937 * v.z,
+        0.025904037 * v.x + 0.78277177 * v.y - 0.80867577 * v.z);
+}
+fn from_lab(lab: vec3<f32>) -> vec3<f32> {
+    let v = vec3<f32>(lab.x + 0.39633778 * lab.y + 0.21580376 * lab.z,
+        lab.x - 0.105561346 * lab.y - 0.06385417 * lab.z,
+        lab.x - 0.08948418 * lab.y - 1.2914855 * lab.z);
+    let q = v * v * v;
+    return vec3<f32>(2.1399066 * q.x - 1.2463895 * q.y + 0.1064829 * q.z,
+        -0.8847359 * q.x + 2.163231 * q.y - 0.2784951 * q.z,
+        -0.0485738 * q.x - 0.4545031 * q.y + 1.5030769 * q.z);
+}
+fn creative_color(rgb: vec3<f32>) -> vec3<f32> {
+    if p[9] == 0.0 { return rgb; }
+    let original = to_lab(rgb);
+    var l = original.x;
+    var c = length(original.yz);
+    // WGSL leaves atan2(0, 0) undefined, unlike Rust's scalar reference.
+    var h = 0.0;
+    if any(original.yz != vec2<f32>(0.0)) {
+        h = wrap(degrees(atan2(original.z, original.y)));
+    }
+    let distance = (wrap(h - 50.0 + 180.0) - 180.0) / 25.0;
+    let skin = exp(-0.5 * distance * distance);
+    let muted = 1.0 / (1.0 + c / (0.25 * max(abs(l), 0.05)));
+    c *= (1.0 + unit(p[33]) * muted * (1.0 - 0.7 * skin)) * (1.0 + unit(p[34]));
+    let centers = array<f32, 9>(25.0, 55.0, 95.0, 145.0, 195.0, 255.0, 295.0, 335.0, 385.0);
+    let wh = wrap(h - 25.0) + 25.0;
+    var weights: array<f32, 8>;
+    for (var i = 0u; i < 8u; i += 1u) {
+        if wh >= centers[i] && wh <= centers[i + 1u] {
+            let t = (wh - centers[i]) / (centers[i + 1u] - centers[i]);
+            let w = 0.5 - 0.5 * cos(3.141592653589793 * t);
+            weights[i] = 1.0 - w;
+            weights[(i + 1u) % 8u] = w;
+            break;
+        }
+    }
+    if c > 1e-6 {
+        var adjustment = vec3<f32>(0.0);
+        for (var i = 0u; i < 8u; i += 1u) {
+            adjustment += vec3<f32>(unit(p[37u+i]), unit(p[45u+i]), unit(p[53u+i])) * weights[i];
+        }
+        h += 30.0 * adjustment.x;
+        c *= 1.0 + adjustment.y;
+        l *= 1.0 + 0.5 * adjustment.z;
+    }
+    var lab = vec3<f32>(l, c * cos(radians(h)), c * sin(radians(h)));
+    let t = clamp(l + 0.25 * unit(p[35]), 0.0, 1.0);
+    let width = 0.15 + 0.5 * clamp(p[36], 0.0, 100.0) / 100.0;
+    let q = (vec3<f32>(t) - vec3<f32>(0.0, 0.5, 1.0)) / width;
+    let raw = exp(-0.5 * q * q);
+    let sum = raw.x + raw.y + raw.z;
+    let wheel_weights = vec4<f32>(raw / sum, 1.0);
+    for (var i = 0u; i < 4u; i += 1u) {
+        let angle = radians(wrap(p[61u + i * 3u]));
+        let chroma = 0.2 * clamp(p[62u+i*3u], 0.0, 100.0) / 100.0 * wheel_weights[i] * min(abs(l), 1.0);
+        lab.y += chroma * cos(angle);
+        lab.z += chroma * sin(angle);
+        lab.x += 0.25 * unit(p[63u+i*3u]) * wheel_weights[i];
+    }
+    return from_lab(lab);
+}
+
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let i = global_id.x;
@@ -285,6 +413,12 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         }
         case 4u: {
             write_rgb(i, display(read_rgb(input_index(x, y)), u32(x), u32(y)));
+        }
+        case 5u: {
+            write_rgb(i, curves(read_rgb(input_index(x, y))));
+        }
+        case 6u: {
+            write_rgb(i, creative_color(read_rgb(input_index(x, y))));
         }
         default: {}
     }

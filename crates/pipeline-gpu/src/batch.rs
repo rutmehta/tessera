@@ -27,8 +27,8 @@ struct Counters {
     submissions: AtomicU64,
 }
 
-/// Metal M1 operators. X-Trans neighbourhood operators fall back to CPU;
-/// remaining contiguous operations still run on GPU.
+/// Metal operators. X-Trans neighbourhood and unported M2 operators fall back
+/// to CPU; remaining contiguous operations still run on GPU. See OPERATORS.md.
 #[derive(Clone)]
 pub struct GpuStageOp {
     context: Arc<GpuContext>,
@@ -63,6 +63,16 @@ impl GpuStageOp {
         let mut pending = Vec::with_capacity(inputs.len());
         for input in inputs {
             cancel.check()?;
+            if chain
+                .iter()
+                .any(|(_, op)| matches!(op, Op::ToneExtra(_) | Op::Color(_)))
+                && input.samples::<f32>()?.iter().any(|v| !v.is_finite())
+            {
+                return Err(EngineError::invalid(
+                    "tone input",
+                    "finite samples required",
+                ));
+            }
             let mut src = ctx
                 .device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -169,6 +179,9 @@ fn internal(e: impl std::fmt::Display) -> EngineError {
     EngineError::internal(e.to_string())
 }
 fn cpu_fallback(op: &Op<'_>) -> bool {
+    if let Op::ToneExtra(s) = op {
+        return s.texture != 0.0 || s.clarity != 0.0 || s.dehaze != 0.0;
+    }
     matches!(
         op,
         Op::Highlights {
@@ -177,10 +190,96 @@ fn cpu_fallback(op: &Op<'_>) -> bool {
         } | Op::Demosaic {
             cfa: CfaLayout::XTrans(_),
             ..
-        }
+        } | Op::Geometry(_)
     )
 }
 impl StageOp for GpuStageOp {
+    fn run_image(
+        &self,
+        stage: StageId,
+        op: &Op<'_>,
+        input: pipeline_cpu::Image,
+        cancel: &CancellationToken,
+    ) -> EngineResult<pipeline_cpu::Image> {
+        cancel.check()?;
+        if let Op::ToneExtra(s) = op
+            && (s.texture != 0.0 || s.clarity != 0.0 || s.dehaze != 0.0)
+        {
+            let limits = self.context.device.limits();
+            let bytes = u64::from(input.width()) * u64::from(input.height()) * 16;
+            if bytes
+                > limits
+                    .max_storage_buffer_binding_size
+                    .min(limits.max_buffer_size)
+            {
+                return CpuStageOp.run_image(stage, op, input, cancel);
+            }
+            // Validate curves before any GPU work; local tone precedes curves.
+            crate::curves::parameters(s, &mut vec![0.0; 33])?;
+            let filtered = crate::tone_local::run(&self.context, &input, s)?;
+            let transfers = if s.dehaze != 0.0 { 3 } else { 1 };
+            self.counters.uploads.fetch_add(1, Ordering::Relaxed);
+            self.counters
+                .submissions
+                .fetch_add(transfers, Ordering::Relaxed);
+            self.counters
+                .readbacks
+                .fetch_add(transfers, Ordering::Relaxed);
+            cancel.check()?;
+            let curves = engine_api::recipe::settings::ToneSettings {
+                texture: 0.0,
+                clarity: 0.0,
+                dehaze: 0.0,
+                ..(*s).clone()
+            };
+            return self.run_image(stage, &Op::ToneExtra(&curves), filtered, cancel);
+        }
+        if let Op::Geometry(s) = op {
+            let limits = self.context.device.limits();
+            let bytes = u64::from(input.width())
+                * u64::from(input.height())
+                * input.planes().len() as u64
+                * 4;
+            if bytes
+                > limits
+                    .max_storage_buffer_binding_size
+                    .min(limits.max_buffer_size)
+            {
+                return CpuStageOp.run_image(stage, op, input, cancel);
+            }
+            let output = crate::geometry::run(&self.context, &input, s)?;
+            if s.crop.rect != engine_api::recipe::settings::NormalizedRect::FULL
+                || s.crop.angle != 0.0
+            {
+                self.counters.uploads.fetch_add(1, Ordering::Relaxed);
+                self.counters.submissions.fetch_add(1, Ordering::Relaxed);
+                self.counters.readbacks.fetch_add(1, Ordering::Relaxed);
+            }
+            cancel.check()?;
+            return Ok(output);
+        }
+        if cpu_fallback(op) {
+            return CpuStageOp.run_image(stage, op, input, cancel);
+        }
+        cancel.check()?;
+        let mut output = input.clone();
+        let halo = match op {
+            Op::Detail(s) => pipeline_cpu::detail_halo(s),
+            _ => 0,
+        };
+        let coords: Vec<_> = input.coords().collect();
+        for batch in coords.chunks(self.batch_size()) {
+            let tiles = batch
+                .iter()
+                .map(|&coord| input.tile(coord, halo, 1))
+                .collect::<EngineResult<Vec<_>>>()?;
+            for tile in self.run_chain_batch(&[(stage, *op)], tiles, cancel)? {
+                output.put(&tile)?;
+            }
+        }
+        cancel.check()?;
+        Ok(output)
+    }
     fn run(&self, stage: StageId, op: &Op<'_>, input: Tile) -> EngineResult<Tile> {
         self.run_chain_batch(&[(stage, *op)], vec![input], &CancellationToken::new())?
             .pop()
@@ -202,12 +301,48 @@ impl StageOp for GpuStageOp {
         // Split only at genuine CPU fallback boundaries, not between GPU stages.
         let mut start = 0;
         while start < chain.len() {
-            if cpu_fallback(&chain[start].1) {
+            if matches!(
+                chain[start].1,
+                Op::Detail(_) | Op::Effects(..) | Op::EffectsInCrop(..)
+            ) {
+                inputs = inputs
+                    .into_iter()
+                    .map(|input| {
+                        cancel.check()?;
+                        let output = match chain[start].1 {
+                            Op::Detail(s) => crate::detail::run(&self.context, &input, s)?,
+                            Op::Effects(s, extent) => crate::effects::run(
+                                &self.context,
+                                &input,
+                                s,
+                                extent,
+                                &Default::default(),
+                            )?,
+                            Op::EffectsInCrop(s, extent, crop) => {
+                                crate::effects::run(&self.context, &input, s, extent, crop)?
+                            }
+                            _ => unreachable!(),
+                        };
+                        self.counters.uploads.fetch_add(1, Ordering::Relaxed);
+                        self.counters.submissions.fetch_add(1, Ordering::Relaxed);
+                        self.counters.readbacks.fetch_add(1, Ordering::Relaxed);
+                        cancel.check()?;
+                        Ok(output)
+                    })
+                    .collect::<EngineResult<Vec<_>>>()?;
+                start += 1;
+            } else if cpu_fallback(&chain[start].1) {
                 inputs = CpuStageOp.run_chain_batch(&chain[start..start + 1], inputs, cancel)?;
                 start += 1;
             } else {
                 let end = (start..chain.len())
-                    .find(|&i| cpu_fallback(&chain[i].1))
+                    .find(|&i| {
+                        cpu_fallback(&chain[i].1)
+                            || matches!(
+                                chain[i].1,
+                                Op::Detail(_) | Op::Effects(..) | Op::EffectsInCrop(..)
+                            )
+                    })
                     .unwrap_or(chain.len());
                 let mut output = Vec::with_capacity(inputs.len());
                 for batch in inputs.chunks(self.batch_size()) {
