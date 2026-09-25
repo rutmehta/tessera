@@ -6,3 +6,8 @@ license = "MIT"
 
 [lib]
 path = "src/lib.rs"
+
+[dependencies]
+blake3 = "1"
+image = { workspace = true }
+thiserror = { workspace = true }
