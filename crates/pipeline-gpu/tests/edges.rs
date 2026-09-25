@@ -75,6 +75,7 @@ fn invalid_layout_parameters_and_chain_fail_without_submission() {
             StageId::Output,
             Op::Display {
                 gamut: GamutMapping::Clip,
+                headroom: None,
             },
         ),
         (StageId::Tone, Op::Matrix(ColorMatrix3::IDENTITY)),
@@ -138,7 +139,10 @@ fn black_clipped_and_exposure_extremes() {
                 expected.samples::<f32>().unwrap()
             );
             for gamut in [GamutMapping::Clip, GamutMapping::Perceptual] {
-                let op = Op::Display { gamut };
+                let op = Op::Display {
+                    gamut,
+                    headroom: None,
+                };
                 let a = gpu.run(StageId::Output, &op, actual.clone()).unwrap();
                 let b = CpuStageOp
                     .run(StageId::Output, &op, actual.clone())

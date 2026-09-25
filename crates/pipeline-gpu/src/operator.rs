@@ -109,7 +109,7 @@ pub(crate) fn parameters(
                 0.0
             };
         }
-        Op::Display { gamut } => {
+        Op::Display { gamut, headroom } => {
             p[0] = 4.0;
             p[9] = if gamut == GamutMapping::Clip {
                 0.0
@@ -121,7 +121,15 @@ pub(crate) fn parameters(
                 WorkingSpace::LinearRec2020
                     .conversion_to(WorkingSpace::LinearSrgb, ChromaticAdaptation::Cat16)?,
             );
-            p[32] = (0.18 * (0.18f32.powf(-1.0) - 1.0).powf(1.0 / 1.5)).ln();
+            match headroom {
+                // SDR: encoded 8-bit output, constants unchanged.
+                None => p[32] = (0.18 * (0.18f32.powf(-1.0) - 1.0).powf(1.0 / 1.5)).ln(),
+                // EDR: p[10] > 0 selects the linear branch and is its peak.
+                Some(h) => {
+                    p[10] = pipeline_cpu::sanitize_headroom(h);
+                    p[32] = pipeline_cpu::hdr_sigmoid_ln_a(h);
+                }
+            }
         }
     }
     if p[0] >= 2.0 && input.channels != 3 {

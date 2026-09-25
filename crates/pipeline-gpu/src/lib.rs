@@ -4,7 +4,7 @@
 mod batch;
 mod iosurface;
 mod resident;
-pub use iosurface::write_to_iosurface;
+pub use iosurface::{SurfaceFormat, write_to_iosurface};
 mod color;
 mod context;
 mod curves;

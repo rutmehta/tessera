@@ -78,6 +78,8 @@ pub struct GpuStageOp {
     pub(crate) fused_pipeline: wgpu::ComputePipeline,
     /// Builds cached per-pixel vignette/grain constants (compiled on use).
     pub(crate) effects_map_pipeline: Arc<std::sync::OnceLock<wgpu::ComputePipeline>>,
+    /// EDR (RGBA16F) surface writer + histogram (compiled on first use).
+    pub(crate) hdr_surface_pipeline: Arc<std::sync::OnceLock<wgpu::ComputePipeline>>,
     /// The last effects constants map: (parameter key, buffer).
     pub(crate) effects_map: Arc<std::sync::Mutex<Option<EffectsMap>>>,
     pub(crate) detail_pipelines: Vec<wgpu::ComputePipeline>,
@@ -192,6 +194,7 @@ impl GpuStageOp {
                 mapped_at_creation: false,
             }),
             effects_map_pipeline: Arc::default(),
+            hdr_surface_pipeline: Arc::default(),
             effects_map: Arc::default(),
             recycled: Arc::default(),
             dehaze_stats: Arc::default(),
@@ -227,6 +230,8 @@ impl GpuStageOp {
             "detail decompose"
         } else if self.detail_pipelines.get(1) == Some(p) {
             "detail filter"
+        } else if self.hdr_surface_pipeline.get() == Some(p) {
+            "EDR surface + histogram"
         } else if self.effects_map_pipeline.get() == Some(p) {
             "effects map"
         } else {
@@ -278,7 +283,7 @@ impl GpuStageOp {
         let ops: Vec<_> = chain.iter().map(|(_, op)| *op).collect();
         // Managed display must consume scene-linear output, never fused sRGB.
         let scene_ops =
-            if self.managed_output.is_some() && matches!(ops.last(), Some(Op::Display { .. })) {
+            if self.managed_output.is_some() && ops.last().is_some_and(Op::is_encoded_display) {
                 &ops[..ops.len() - 1]
             } else {
                 &ops[..]
@@ -319,10 +324,7 @@ impl GpuStageOp {
                 }
                 cancel.check()?;
                 if matches!(op, Op::Display { .. }) && index + 1 != chain.len() {
-                    return Err(EngineError::invalid(
-                        "GPU chain",
-                        "display must be last (U8 output)",
-                    ));
+                    return Err(EngineError::invalid("GPU chain", "display must be last"));
                 }
                 let input_layout = layout;
                 let (p, next_layout) = if fused && index == 0 {
@@ -345,7 +347,7 @@ impl GpuStageOp {
                     usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
                     mapped_at_creation: false,
                 });
-                if matches!(op, Op::Display { .. })
+                if op.is_encoded_display()
                     && let Some(output) = &self.managed_output
                 {
                     let flags = ctx.device.create_buffer(&wgpu::BufferDescriptor {
@@ -434,7 +436,7 @@ impl GpuStageOp {
             buffer.unmap();
             self.counters.readbacks.fetch_add(1, Ordering::Relaxed);
             cancel.check()?;
-            let tile = if matches!(chain.last(), Some((_, Op::Display { .. }))) {
+            let tile = if chain.last().is_some_and(|(_, op)| op.is_encoded_display()) {
                 Tile::from_samples(coord, layout, data.into_iter().map(|v| v as u8).collect())?
             } else {
                 Tile::from_samples(coord, layout, data)?

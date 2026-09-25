@@ -115,7 +115,7 @@ fn whole_level_matches_per_tile_resident_path_bitwise() {
 fn f32_or_u8(a: &[Tile], b: &[Tile], output: RenderOutput) -> f32 {
     match output {
         RenderOutput::Display => f32::from(u8_diff(a, b)),
-        RenderOutput::SceneLinear => f32_diff(a, b),
+        RenderOutput::SceneLinear | RenderOutput::DisplayLinear(_) => f32_diff(a, b),
     }
 }
 
@@ -146,7 +146,7 @@ fn whole_level_detail_and_effects_match_cpu() {
                 eprintln!("{id} L{level} {output:?}: {d:e}");
                 match output {
                     RenderOutput::Display => assert!(d <= 1.0, "L{level}: {d}"),
-                    RenderOutput::SceneLinear => assert!(d <= 2e-3, "L{level}: {d}"),
+                    _ => assert!(d <= 2e-3, "L{level}: {d}"),
                 }
             }
         }

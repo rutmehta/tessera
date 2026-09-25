@@ -575,3 +575,67 @@ on large files (the Web preset renders at half size and is faster).
 ## Verdict (export, soft proof, print)
 
 PASS when steps 73–83 meet their expectations (step 83 is optional). Record the export time of step 77.
+
+## P. HDR / EDR presentation (M2-22)
+
+On an EDR-capable screen (Liquid Retina XDR, Pro Display XDR, or an external HDR display with HDR on in System
+Settings ▸ Displays), the inspector's **HDR** panel switches the loupe to RGBA16F display-linear frames: highlights
+brighter than SDR white use the screen's EDR headroom. The **Headroom** slider runs from 0 EV (the SDR tone curve)
+to the screen's potential (`log2` of `maximumPotentialExtendedDynamicRangeColorComponentValue`, 4.0 EV on XDR
+panels); the engine tone-maps for `min(2^EV, current headroom)`, where the current headroom follows the display
+brightness. SDR screens keep the RGBA8 path byte for byte; the HDR setting is still stored in the recipe (and XMP
+`crs:HDREditMode` / `crs:HDRMaxValue`). Exports, previews, the 1:1 detail crop and prints stay SDR.
+
+**First record the screen:** save and run
+```sh
+cat > "$SCR/edr.swift" <<'SWIFT'
+import AppKit
+for s in NSScreen.screens { print(s.localizedName, "now", s.maximumExtendedDynamicRangeColorComponentValue,
+                                  "max", s.maximumPotentialExtendedDynamicRangeColorComponentValue) }
+SWIFT
+swift "$SCR/edr.swift"
+```
+and write the output into the verdict. `max 1.0` means an SDR screen: do steps 84–85 and 88–89, and step 86 only
+through the forced variant (step 87).
+
+84. **Tests.**
+    ```sh
+    cargo test -p tessera-ffi -p pipeline-gpu -p color-mgmt -p pipeline-cpu --release 2>&1 | grep "test result"
+    cargo test -p pipeline-gpu --release --test hdr_surface 2>&1 | grep "test result"
+    cargo test -p tessera-ffi --release --test hdr 2>&1 | grep "test result"
+    (cd apps/mac && swift test --filter EDRPresentationTests 2>&1 | grep Executed)
+    ```
+    Expect only `ok.` lines; `hdr_surface`: `4 passed` (includes the SDR fingerprint test: SDR output bit-identical
+    to the pre-M2-22 tree); `hdr`: `3 passed; 0 failed; 1 ignored`; `Executed 6 tests, with 0 failures`.
+85. **Float-path frame time.**
+    `cargo test -p tessera-ffi --release --test hdr -- --ignored --nocapture bench 2>&1 | grep -E "RGBA"`. Expect four
+    lines (Metal and CPU × RGBA8 SDR / RGBA16F EDR) at L2 of the NEF; the Metal `RGBA16F EDR` median and p90 stay
+    below **12 ms** and within ~1 ms of the `RGBA8 SDR` line. Record the numbers.
+86. **HDR in the loupe (EDR screen).** Open the NEF of step 74 in the loupe (click, **Return**) and wait for the
+    render. Expand **HDR** in the inspector. 📸 Expect the toggle off and the status `EDR <now>× now, <max>× max`.
+    Turn **HDR (extended dynamic range)** on. Expect the Headroom slider enabled at its maximum (e.g. `4.0 EV`), the
+    status adding `· showing <n>× (RGBA16F)`, the colour readout under the loupe ending `engine HDR <n>×`, and
+    specular highlights / bright sky visibly brighter than the white of the UI around the loupe. Drag Headroom to
+    `0.0 EV`: the picture returns to the SDR look (nothing brighter than UI white); drag back up: highlights brighten
+    smoothly while dragging. The History panel gains `HDR On` and one `HDR Headroom …` step; ⌘Z steps back.
+    Turn HDR off: the readout ends `engine SDR`.
+87. **Forced EDR on an SDR screen (optional).** Quit, then
+    ```sh
+    open -n --env TESSERA_EDR_OVERRIDE=4,16 --stderr "$SCR/hdr.log" apps/mac/build/Tessera.app \
+      --args --app-dir "$SCR/appdir-hdr" --folder "$SCR/raw3" --keys return --hdr-selftest
+    sleep 20; grep hdr-selftest "$SCR/hdr.log"
+    ```
+    Expect `hdr-selftest: EDR 4.0× now, 16.0× max; ring RGBA16F; engine headroom 4.0×; frame peak <between 1 and 4>;
+    <n> headroom frames at L<l>, render median <12 ms …`. (On an SDR panel values above 1.0 clip, so the picture
+    looks like SDR with brighter highlights clipped.) Without the variable on an SDR screen the line reads
+    `hdr-selftest: SDR display; ring RGBA8; HDR stays in the recipe (hdr=on), loupe SDR`.
+88. **SDR screen fallback.** On an SDR screen (or with the window moved to one), the HDR panel reads `SDR display`,
+    the Headroom slider is disabled, turning HDR on reads `SDR display: HDR is kept in the recipe, the loupe shows
+    SDR.` and the picture does not change.
+89. **Soft proof over EDR.** With HDR on (step 86), press **S**: the proof shows the SDR print simulation (no
+    highlights brighter than UI white); **S** again restores the EDR picture.
+
+## Verdict (HDR / EDR)
+
+PASS when steps 84–85 and 88–89 meet their expectations, and step 86 on an EDR screen (or step 87 on an SDR-only
+machine). Record the screen's headroom from the first command and the frame times of step 85.

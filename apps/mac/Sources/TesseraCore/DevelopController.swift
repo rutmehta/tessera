@@ -59,8 +59,10 @@ public struct DevelopParameter: Hashable, Sendable {
 /// - Slider values are coalesced: `set(_:_:interactive:)` records a JSON merge patch and asks the
 ///   host for a display-link tick (`onNeedsFlush`); `flushPending()` sends at most one
 ///   `set_settings` per frame. Final values (mouse-up) are sent at once and committed as one undo step.
-/// - The controller allocates the RGBA8 IOSurface ring at the size the session plans for the
-///   viewport and attaches it; the engine writes pixels, `onFrame` names the surface to present.
+/// - The controller allocates the IOSurface ring at the size the session plans for the viewport
+///   and attaches it; the engine writes pixels, `onFrame` names the surface to present. The ring is
+///   RGBA8 display-encoded sRGB, or RGBA16F display-linear (EDR) while `presentation` says so:
+///   an EDR-capable screen (`updateDisplay`) with the recipe's HDR toggle on (M2-22).
 /// - Engine callbacks arrive on worker threads and are forwarded to the main actor.
 @MainActor
 public final class DevelopController {
@@ -90,6 +92,15 @@ public final class DevelopController {
     private var pending: [String: Any] = [:]
     private var pendingInteractive = false
     private var surfaces: [UInt32: IOSurfaceRef] = [:]
+    /// The attached ring is RGBA16F (EDR).
+    public private(set) var surfacesAreFloat = false
+    /// Screen EDR capability and ring format (M2-22); SDR until `updateDisplay`.
+    public private(set) var presentation: EDRPresentation = .sdr
+    /// Called on the main actor when `presentation` changes.
+    public var onPresentationChange: ((EDRPresentation) -> Void)?
+    private var screen: EDRScreenValues?
+    private var lastView: (width: Int, height: Int)?
+    private var reportedHeadroom: Double = 1
     private let events: Events
     private(set) var closed = false
 
@@ -106,6 +117,8 @@ public final class DevelopController {
 
     /// `kCVPixelFormatType_32RGBA`: the engine's RGBA8 display-encoded sRGB contract.
     public static let surfacePixelFormat: UInt32 = 0x5247_4241
+    /// `kCVPixelFormatType_64RGBAHalf` (`'RGhA'`): the engine's RGBA16F EDR contract.
+    public static let floatSurfacePixelFormat: UInt32 = 0x5247_6841
 
     /// Opens the session off the main actor (the RAW is decoded there).
     public static func open(_ ref: EngineImageReference, itemID: Int) async throws -> DevelopController {
@@ -144,19 +157,24 @@ public final class DevelopController {
     // MARK: Surfaces
 
     /// Allocates and attaches the surface ring for a viewport of `width × height` device pixels
-    /// in display orientation. No-op when the planned size is unchanged. Returns the plan.
+    /// in display orientation, in the format `presentation` asks for. No-op when the planned
+    /// size and the format are unchanged. Returns the plan.
     @discardableResult
     public func attachSurfaces(viewWidth: Int, viewHeight: Int, count: Int = 3) throws -> SurfacePlan {
+        lastView = (viewWidth, viewHeight)
         let swap = info.orientation >= 5
         let w = UInt32(max(swap ? viewHeight : viewWidth, 1))
         let h = UInt32(max(swap ? viewWidth : viewHeight, 1))
         let next = session.planSurface(width: w, height: h)
-        if next == plan, !surfaces.isEmpty { return next }
+        let float = presentation.floatSurfaces
+        if next == plan, !surfaces.isEmpty, float == surfacesAreFloat { return next }
         var created: [UInt32: IOSurfaceRef] = [:]
         for _ in 0..<max(count, 1) {
-            guard let s = Self.makeSurface(width: Int(next.width), height: Int(next.height)) else {
-                throw DevelopError.surface
-            }
+            let s = float
+                ? Self.makeSurface(width: Int(next.width), height: Int(next.height), bytesPerElement: 8,
+                                   pixelFormat: Self.floatSurfacePixelFormat)
+                : Self.makeSurface(width: Int(next.width), height: Int(next.height))
+            guard let s else { throw DevelopError.surface }
             created[IOSurfaceGetID(s)] = s
         }
         // Keep the old ring alive until the engine has switched to the new one.
@@ -164,12 +182,56 @@ public final class DevelopController {
             try session.attachSurface(iosurfaceId: id, width: next.width, height: next.height)
         }
         surfaces = created
+        surfacesAreFloat = float
         plan = next
         if !maskOverlaySurfaces.isEmpty { try attachMaskOverlaySurfaces() }
         return next
     }
 
     public func surface(_ id: UInt32) -> IOSurfaceRef? { surfaces[id] }
+
+    // MARK: EDR presentation (M2-22)
+
+    /// Whether the recipe's HDR toggle is on (live value).
+    public var hdrEnabled: Bool { (value(at: HDRControls.enabledPath) as? NSNumber)?.boolValue ?? false }
+
+    /// The recipe's HDR headroom in stops (live value).
+    public var hdrStops: Double { number(at: HDRControls.stopsPath) ?? 0 }
+
+    /// Reports the screen showing the viewport (call on screen changes and periodically: the
+    /// current headroom follows the display brightness). Switches the ring format when the
+    /// presentation changes and tells the engine the display's current headroom.
+    public func updateDisplay(_ screen: EDRScreen?) {
+        self.screen = screen.map(EDRScreenValues.init)
+        syncPresentation()
+    }
+
+    /// The patch switching HDR on (with the display's full headroom when none is stored) or off.
+    public func hdrPatch(_ on: Bool) -> [String: Any] {
+        var output: [String: Any] = ["hdr": on]
+        if on, hdrStops <= 0, presentation.defaultStops > 0 { output["hdr_headroom_stops"] = presentation.defaultStops }
+        return ["output": output]
+    }
+
+    /// Re-resolves the presentation from the last screen and the live HDR toggle.
+    func syncPresentation() {
+        let next = EDRPresentation.resolve(screen: screen, hdrEnabled: hdrEnabled)
+        let old = presentation
+        presentation = next
+        if EDRPresentation.headroomChanged(next.displayHeadroom, reportedHeadroom)
+            || (next.displayHeadroom == 1) != (reportedHeadroom == 1) {
+            reportedHeadroom = next.displayHeadroom
+            do { try session.setDisplayHeadroom(headroom: Float(next.displayHeadroom)) } catch {
+                onFailure?(error.localizedDescription)
+            }
+        }
+        if next.floatSurfaces != surfacesAreFloat, !surfaces.isEmpty, let v = lastView {
+            do { try attachSurfaces(viewWidth: v.width, viewHeight: v.height) } catch {
+                onFailure?(error.localizedDescription)
+            }
+        }
+        if next != old { onPresentationChange?(next) }
+    }
 
     static func makeSurface(width: Int, height: Int, bytesPerElement: Int = 4,
                             pixelFormat: UInt32 = surfacePixelFormat) -> IOSurfaceRef? {
@@ -239,6 +301,7 @@ public final class DevelopController {
         settings = Self.merge(settings, patch, keepNulls: false)
         pendingInteractive = interactive
         if interactive, let onNeedsFlush { onNeedsFlush() } else { _ = flushPending() }
+        if patch["output"] != nil { syncPresentation() }
     }
 
     /// `["a","b"] + v` → `{"a":{"b":v}}`.
@@ -387,6 +450,7 @@ public final class DevelopController {
         settings = (try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any]) ?? [:]
         ignoredSettings = (try? session.ignoredSettings()) ?? []
         refreshHistory()
+        syncPresentation()
         onSettingsReloaded?()
     }
 

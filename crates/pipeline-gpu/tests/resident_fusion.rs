@@ -178,6 +178,7 @@ fn resident_point_chain_is_one_dispatch_and_matches_cpu() {
         if display {
             chain.push(Op::Display {
                 gamut: Default::default(),
+                headroom: None,
             });
         }
         let mut expected = input.clone();
