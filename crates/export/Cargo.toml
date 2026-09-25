@@ -9,9 +9,12 @@ engine-api = { path = "../engine-api" }
 pipeline-cpu = { path = "../pipeline-cpu" }
 sidecar = { path = "../sidecar" }
 image = { workspace = true }
-lcms2 = { workspace = true }
+color-mgmt = { path = "../color-mgmt" }
 png = { workspace = true }
 tempfile = { workspace = true }
 rayon = "1.11"
 tiff = "0.10"
 jpeg-encoder = "0.6"
+
+[dev-dependencies]
+lcms2 = { workspace = true }

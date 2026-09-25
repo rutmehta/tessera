@@ -10,6 +10,8 @@ pub use color_detail::{DETAIL_HALO, color, detail, detail_halo};
 pub use geometry_effects::{effects, effects_in_crop, geometry};
 pub use tone_extra::{tone_extra, tone_extra_image};
 mod display;
+mod output;
+pub use output::{ManagedOutput, OutputContext, OutputTarget, render_managed_scaled};
 mod embedded_lens;
 mod image;
 mod lens_resolve;

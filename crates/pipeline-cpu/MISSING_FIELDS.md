@@ -1,5 +1,22 @@
 # M2-04 schema gaps
 
+## M2-15 additions (engine-api remains unchanged)
+
+- OutputSettings has gamut mapping, HDR/headroom and a proof profile handle,
+  but no display/export target identity, rendering intent, black-point
+  compensation, paper/ink simulation, gamut-warning toggles or DeltaE threshold.
+  The explicit `render_managed_scaled` API accepts caller-owned `OutputContext`
+  for these controls and returns separate monitor/proof warning flags.
+- Proof handles are checked against supplied ICC bytes using
+  `IccProfileHandle::from_profile_bytes`; color-mgmt's raw profile digest is not
+  interchangeable with the engine's domain-separated handle.
+- Context identity/options are outside engine stage hashes; managed-output
+  caches must include them explicitly. Proof-copy history is caller-owned.
+- Managed proofing is now supported; legacy render entry points still reject
+  it. HDR, OS HDR surfaces and independent ink simulation remain unsupported.
+  See OUTPUT_M2.md for the supported API and precise limits.
+
+
 ## M2-09 additions (engine-api remains unchanged)
 
 - Independent manual red/green and blue/green lateral CA coefficients are absent.

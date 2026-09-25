@@ -82,13 +82,29 @@ impl Default for ExportSettings {
     }
 }
 
-/// The only renderer integration point. M1 returns display-encoded sRGB8;
-/// a future Renderer adapter can return higher precision pixels here.
-fn render_full(image: &ExportImage<'_>, recipe: &Recipe) -> EngineResult<image::Rgb32FImage> {
-    Ok(
-        image::DynamicImage::ImageRgb8(pipeline_cpu::render(&recipe.settings, &image.source)?)
-            .into_rgb32f(),
-    )
+/// Render directly to the document profile in float, without an sRGB intermediate.
+fn render_full(
+    image: &ExportImage<'_>,
+    recipe: &Recipe,
+    space: ColorSpace,
+) -> EngineResult<image::Rgb32FImage> {
+    let mut registry = color_mgmt::Registry::new();
+    let target = codec::profile(&mut registry, space)?;
+    let mut settings = recipe.settings.clone();
+    // Proofing is a display-only preview, never baked into a file export.
+    settings.output.proof_profile = None;
+    Ok(pipeline_cpu::render_managed_scaled(
+        &settings,
+        &image.source,
+        1,
+        &mut pipeline_cpu::OutputContext {
+            registry: &mut registry,
+            target: pipeline_cpu::OutputTarget::Export(&target),
+            proof: None,
+            options: color_mgmt::TransformOptions::default(),
+        },
+    )?
+    .pixels)
 }
 
 fn encode_error(e: impl std::fmt::Display) -> EngineError {
@@ -130,7 +146,7 @@ fn prepare(
     {
         return Err(EngineError::invalid("output", "destination already exists"));
     }
-    let rgb = render_full(image, recipe)?;
+    let rgb = render_full(image, recipe, settings.color_space)?;
     cancel.check()?;
     let rgb = filter::resize(rgb, settings.resize, cancel)?;
     let rgb = filter::sharpen(rgb, settings.sharpen_for, cancel)?;

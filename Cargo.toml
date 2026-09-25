@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "crates/color-mgmt",
     "crates/lens",
     "crates/export",
     "crates/image-core",

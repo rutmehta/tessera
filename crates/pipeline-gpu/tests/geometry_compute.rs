@@ -99,16 +99,29 @@ fn isolated_geometry_identity_validation_and_extremes() {
                 s.crop.angle = f32::NAN;
             }
         }
-        let cpu = CpuStageOp
-            .run_image(
-                StageId::Geometry,
-                &Op::Geometry(&s),
-                input.clone(),
-                &CancellationToken::new(),
-            )
-            .unwrap_err();
+        let cpu = CpuStageOp.run_image(
+            StageId::Geometry,
+            &Op::Geometry(&s),
+            input.clone(),
+            &CancellationToken::new(),
+        );
         let gpu = isolated_geometry::run(&ctx, &input, &s).unwrap_err();
-        assert_eq!(format!("{cpu:?}"), format!("{gpu:?}"));
+        match case {
+            // M2 CPU Upright and manual transforms now support these controls.
+            // The isolated crop-only GPU kernel must still reject them.
+            8 | 10 => {
+                assert!(cpu.is_ok(), "case {case}: {cpu:?}");
+                assert!(matches!(gpu, engine_api::EngineError::Unsupported { .. }));
+            }
+            9 => {
+                assert!(matches!(
+                    cpu,
+                    Err(engine_api::EngineError::InvalidArgument { .. })
+                ));
+                assert!(matches!(gpu, engine_api::EngineError::Unsupported { .. }));
+            }
+            _ => assert_eq!(format!("{:?}", cpu.unwrap_err()), format!("{gpu:?}")),
+        }
     }
     let input = Image::new(9, 9, vec![vec![f32::MAX; 81]]).unwrap();
     let mut s = GeometrySettings::default();
