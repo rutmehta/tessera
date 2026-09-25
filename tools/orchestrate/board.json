@@ -558,5 +558,13 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M2-23",
+    "owner": "opus",
+    "title": "Design system + visual overhaul",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
