@@ -547,9 +547,9 @@
     "id": "M2-20v",
     "owner": "sol",
     "title": "Verify export + print",
-    "status": "running",
+    "status": "fail",
     "attempts": 0,
-    "notes": ""
+    "notes": "sheets open, soft proof works; verifier cannot target native controls -> add accessibility identifiers (M2-24); export sheet defaults to Custom preset"
   },
   {
     "id": "M2-21",
