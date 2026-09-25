@@ -64,7 +64,6 @@ fn isolated_detail_matches_reference_and_preserves_halo() {
                 || y < l.halo as usize
                 || x >= l.halo as usize + l.extent.width as usize
                 || y >= l.halo as usize + l.extent.height as usize
-                || mode == 0
             {
                 assert_eq!(a.to_bits(), input.samples::<f32>().unwrap()[i].to_bits());
             }
@@ -147,7 +146,9 @@ fn isolated_neutral_signed_zero_bits_and_explicit_disable() {
     disabled.sharpening.radius = 3.0;
     disabled.noise_reduction.color = 0.0;
     disabled.noise_reduction.color_detail = 90.0;
-    for s in [&defaults, &disabled] {
+    assert!(detail::run(&ctx, &input, &defaults).is_err()); // Active defaults require a halo.
+    {
+        let s = &disabled;
         let actual = detail::run(&ctx, &input, s).unwrap();
         assert_eq!(
             actual

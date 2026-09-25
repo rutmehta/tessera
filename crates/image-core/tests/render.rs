@@ -1,4 +1,6 @@
 mod common;
+#[path = "common/preview.rs"]
+mod preview;
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, mpsc};
@@ -48,7 +50,11 @@ fn reference_u8(image: &RawImage, s: &DevelopSettings, level: u8) -> Vec<u8> {
         image: image.cfa(),
         metadata: image.metadata(),
     };
-    render_scaled(s, &source, 1 << level).unwrap().into_raw()
+    if level == 0 {
+        render_scaled(s, &source, 1).unwrap().into_raw()
+    } else {
+        preview::display(&preview::linear(&source, s, 1 << level), s)
+    }
 }
 
 fn reference_linear(image: &RawImage, s: &DevelopSettings, level: u8) -> Vec<Vec<f32>> {
@@ -56,10 +62,14 @@ fn reference_linear(image: &RawImage, s: &DevelopSettings, level: u8) -> Vec<Vec
         image: image.cfa(),
         metadata: image.metadata(),
     };
-    render_linear_scaled(s, &source, 1 << level)
-        .unwrap()
-        .planes()
-        .to_vec()
+    if level == 0 {
+        render_linear_scaled(s, &source, 1)
+            .unwrap()
+            .planes()
+            .to_vec()
+    } else {
+        preview::linear(&source, s, 1 << level).planes().to_vec()
+    }
 }
 
 fn bayer_image() -> RawImage {
@@ -175,7 +185,7 @@ fn sub_region_equals_the_same_tiles_of_a_full_render() {
 }
 
 #[test]
-fn tone_change_reruns_no_stage_before_tone() {
+fn tone_change_reuses_white_balance_and_reruns_uncached_detail() {
     let image = bayer_image();
     let (r, ops) = counting(4, 256 << 20);
     let mut s = DevelopSettings::default();
@@ -196,7 +206,7 @@ fn tone_change_reruns_no_stage_before_tone() {
     // Each sensor tile is linearized and demosaiced exactly once per request.
     assert_eq!(cold[StageId::Linearize.index()], 3 * 3);
     assert_eq!(cold[StageId::Demosaic.index()], 3 * 3);
-    assert_eq!(cold[StageId::Tone.index()], n);
+    assert_eq!(cold[StageId::Tone.index()], 2 * n + 1);
     assert_eq!(cold[StageId::Output.index()], n);
 
     let before = s.clone();
@@ -212,10 +222,11 @@ fn tone_change_reruns_no_stage_before_tone() {
         .unwrap();
     let counts = ops.counts();
     for stage in StageId::ALL {
-        let expected = if matches!(stage, StageId::Tone | StageId::Output) {
-            n
-        } else {
-            0
+        let expected = match stage {
+            StageId::Tone => 2 * n + 1, // Base pass, basic tone and whole-image ToneExtra.
+            StageId::Detail | StageId::Color | StageId::Effects | StageId::Output => n,
+            StageId::Geometry => 1,
+            _ => 0,
         };
         assert_eq!(counts[stage.index()], expected, "{stage}");
     }
@@ -240,7 +251,7 @@ fn tone_change_reruns_no_stage_before_tone() {
     ops.reset();
     r.render_region(&image, &s, 2, full(&image, 2)).unwrap();
     assert_eq!(ops.count(StageId::Demosaic), 0);
-    assert_eq!(ops.count(StageId::Tone), 1);
+    assert_eq!(ops.count(StageId::Tone), 3); // Base tone, basic tone, ToneExtra.
 }
 
 #[test]

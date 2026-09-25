@@ -224,7 +224,10 @@ fn m2_matches_whole_image_reference_across_seams_and_crop() {
         image: raw.cfa(),
         metadata: raw.metadata(),
     };
-    let base = pipeline_cpu::render_linear_scaled(&DevelopSettings::default(), &source, 1).unwrap();
+    let mut base_settings = DevelopSettings::default();
+    base_settings.detail.sharpening.amount = 0.0;
+    base_settings.detail.noise_reduction.color = 0.0;
+    let base = pipeline_cpu::render_linear_scaled(&base_settings, &source, 1).unwrap();
     let mut expected = base.clone();
     for c in base.coords() {
         let mut t = base

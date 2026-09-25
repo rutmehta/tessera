@@ -17,18 +17,14 @@ Saturation −100 removes chroma, but is not a B&W treatment/mix implementation.
 ## Compatibility and validation
 
 - Default Color settings bypass all arithmetic and mutation.
-- **Unchanged Sharpening `(amount=40, radius=1, detail=25, masking=0)` bypasses
-  sharpening**, even when NR is changed. A changed sharpening tuple with
-  positive amount uses its absolute amount (not `amount−40`). Amount zero is off.
-- **Unchanged chroma-NR tuple `(color=25, color_detail=50,
-  color_smoothness=50)` bypasses chroma NR**, independently of luminance NR or
-  sharpening. A changed tuple with positive color amount enables it using the
-  absolute amount. Color zero is off.
+- Native revision 2 applies sharpening `(amount=40, radius=1, detail=25, masking=0)`
+  and chroma NR `(color=25, color_detail=50, color_smoothness=50)` by default.
+  Each positive amount enables its operator independently and uses its absolute
+  value. Amount zero is off. No tuple-equality bypass remains on CPU or GPU.
 - Luminance NR is off at amount zero; its Detail/Contrast alone cannot enable it.
-- Consequently fully default detail is bit-neutral, including signed zeros and
-  halo samples. This deliberately preserves M1 goldens. It introduces a
-  compatibility discontinuity at the exact default tuples; a future process
-  version can remove this rule without silently changing existing recipes.
+- Explicitly zero sharpening/luminance-NR/chroma-NR amounts are bit-neutral,
+  including signed zeros and halos. Default detail has support 3 pixels and is
+  not neutral. Output halos remain unmodified for every setting.
 - Nonfinite controls/samples and wrong channel/sample formats fail before any
   mutation, even on bypass paths. Detail parameters outside their declared
   ranges fail before mutation. Color slider values are clamped to their

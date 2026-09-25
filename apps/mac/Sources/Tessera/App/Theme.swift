@@ -101,7 +101,7 @@ enum BasicKey: String, CaseIterable, Identifiable {
         }
     }
 
-    /// Engine setting behind the slider; nil where the M1 pipeline has no operator yet.
+    /// Engine setting behind the slider.
     var parameter: DevelopParameter? {
         switch self {
         case .temperature: .temperature
@@ -112,7 +112,11 @@ enum BasicKey: String, CaseIterable, Identifiable {
         case .shadows: .shadows
         case .whites: .whites
         case .blacks: .blacks
-        case .texture, .clarity, .dehaze, .vibrance, .saturation: nil
+        case .texture: DevelopParameter("tone", "texture")
+        case .clarity: DevelopParameter("tone", "clarity")
+        case .dehaze: DevelopParameter("tone", "dehaze")
+        case .vibrance: DevelopParameter("color", "vibrance")
+        case .saturation: DevelopParameter("color", "saturation")
         }
     }
 
