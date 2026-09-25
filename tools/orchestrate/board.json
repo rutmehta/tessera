@@ -315,9 +315,9 @@
     "id": "M2-13",
     "owner": "opus",
     "title": "Develop panels UI",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
-    "notes": ""
+    "notes": "Sparkle empty-key crash -> M2-07c; heavy panels full-res 250-600ms -> M2-17"
   },
   {
     "id": "M2-06b",

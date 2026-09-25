@@ -1,0 +1,14 @@
+Implemented a verified subset of M3-05:
+
+- Real Real-ESRGAN x2/x4 inference through ml-runtime, pinned URLs and SHA-256s, conservative halo tiling, and CoreML partition reports.
+- Export-time SR through export_one_upscaled, verified by decoding a doubled-size PNG.
+- Denoise amount/mask blending with bit-exact zero bypass and a CfaDenoise trait.
+
+The exact requested test/clippy/fmt command passed: 152 tests passed, 3 ignored. Both SR models were exercised using actual downloaded weights. CoreML runs subgraphs with CPU fallbacks.
+
+Still incomplete: validated NAFNet inference, denoise pipeline/cache integration, PSNR and production-model seam acceptance, fp16 validation, and CLI --upscale wiring. Stock NAFNet’s global pooling needs a different tiling contract. The CLI parser is outside the allowed paths.
+
+Changes are uncommitted and confined to allowed paths. Details and evidence:
+tools/orchestrate/wp/M3-05/HANDOFF.md
+
+RESULT: FAIL M3-05 is partially implemented; denoise integration and required acceptance checks remain incomplete.

@@ -1,0 +1,13 @@
+M3-05 remains incomplete, but this retry improved and verified the SR path:
+
+- Removed the dithered 8-bit intermediate before SR inference. Enhanced exports now feed undithered f32 RGB to the model.
+- Added real-weight x2/x4 full-versus-tiled tests using partial-halo patches. Both measured zero maximum error on CPU fp32.
+- Preserved the original enhance-off display implementation unchanged.
+
+Ran the exact requested validation chain successfully: 156 passed, 0 failed, 3 ignored. Clippy and fmt passed. CARGO_TARGET_DIR remained external, and all changed paths are allowed.
+
+Still missing: validated denoise inference and PSNR evidence, pipeline/cache integration, fp16 validation, and the CLI flag. The CLI parser is outside the allowed paths; existing denoise settings explicitly describe CFA input rather than phase-1 RGB.
+
+Handoff: /Users/rutmehta/Developer/tessera/.worktrees/M3-05/tools/orchestrate/wp/M3-05/HANDOFF.md
+
+RESULT: FAIL denoise implementation, pipeline/cache integration, fp16 validation, and --upscale CLI wiring remain incomplete.

@@ -1,0 +1,10 @@
+Fixed the stale geometry assertions, removed export’s sRGB8 intermediate, and added macOS display-ID lookup with verified sRGB fallback using objc2 CoreGraphics types.
+
+Ran the exact required release tests, clippy -D warnings, and fmt check. All passed with CARGO_TARGET_DIR preserved. Engine-api is unchanged; edits stayed within allowed paths.
+
+M2-15 remains incomplete: GPU managed rendering lacks CPU-equivalent tone/gamut handling, proof-recipe support, warning masks, and resident presentation integration.
+
+Details: tools/orchestrate/wp/M2-15/RESULT.md
+Test output: tools/orchestrate/wp/M2-15/verification.log
+
+RESULT: FAIL GPU managed proof/output and resident interactive integration remain incomplete; required verification chain passes.

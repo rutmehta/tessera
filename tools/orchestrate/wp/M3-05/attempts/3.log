@@ -1,0 +1,7 @@
+Reran the exact required test, clippy, and formatting command with CARGO_TARGET_DIR preserved. Exit 0: 156 tests passed, 3 ignored. The LibRaw warnings are not the failure.
+
+M3-05 is still incomplete: denoise inference, ≥3 dB PSNR validation, pipeline/cache integration, and fp16 validation are missing. The requested --upscale CLI wiring also requires apps/tessera-cli/src/export.rs, outside your allowed paths.
+
+No source changes made this retry. Verification details: /Users/rutmehta/Developer/tessera/.worktrees/M3-05/tools/orchestrate/wp/M3-05/RETRY.md
+
+RESULT: FAIL Missing denoise implementation and integration; CLI wiring blocked by allowed-path scope.
