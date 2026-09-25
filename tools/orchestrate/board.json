@@ -227,9 +227,9 @@
     "id": "M1-10",
     "owner": "opus",
     "title": "Develop UI on the engine",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
-    "notes": ""
+    "notes": "slider latency 6-12 ms; WB temp/tint off-locus bug -> M2-04b; GPU slower than CPU (per-tile upload) -> M2-06"
   },
   {
     "id": "M2-04",
@@ -243,6 +243,14 @@
     "id": "M3-03",
     "owner": "astra",
     "title": "Embeddings, duplicates, NL search",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-05",
+    "owner": "astra",
+    "title": "GPU ports of M2 operators (fix build)",
     "status": "running",
     "attempts": 0,
     "notes": ""
