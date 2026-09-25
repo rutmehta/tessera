@@ -73,6 +73,28 @@ pub(crate) fn parameters(l: TileLayout, settings: &DetailSettings) -> EngineResu
         cr as f32,
     ];
     p.extend(controls);
+    // p[20]: interior-only output (resident); p[21..24]: offsets of the
+    // spatial weight tables, evaluated here exactly as the CPU `kernel()`.
+    p.extend([0.0; 4]);
+    let table = |p: &mut Vec<f32>, slot: usize, radius: u16, sigma: f32| {
+        p[slot] = p.len() as f32;
+        let r = i32::from(radius);
+        for y in -r..=r {
+            for x in -r..=r {
+                p.push((-0.5 * (x * x + y * y) as f32 / (sigma * sigma)).exp());
+            }
+        }
+    };
+    if sharp {
+        table(&mut p, 21, sr, sh.radius.clamp(0.5, 3.0));
+    }
+    if lum {
+        table(&mut p, 22, 2, 1.2);
+    }
+    if chroma {
+        let sigma = 0.7 + 2.0 * (nr.color_smoothness.clamp(-100.0, 100.0) / 100.0);
+        table(&mut p, 23, cr, sigma);
+    }
     Ok(p)
 }
 

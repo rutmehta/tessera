@@ -33,6 +33,18 @@ pub struct SurfaceTarget {
     pub histogram: bool,
 }
 
+/// Options for [`ResidentBatch::local_tone`].
+#[derive(Debug, Clone, Copy)]
+pub struct LocalToneOptions {
+    /// Preview levels (above zero) may use the backend's documented,
+    /// error-bounded downsampled-guidance approximation. Level 0 never does.
+    pub preview: bool,
+    /// Identity of the Dehaze input (image, upstream chain, basic tone,
+    /// Texture/Clarity, level extent). Dehaze-only edits reuse exact global
+    /// airlight/confidence statistics stored under this key.
+    pub statistics_key: MemoKey,
+}
+
 /// A render transaction. Dropping it before `finish` must discard pending work
 /// and must not publish uninitialized cache entries. Cache hits may outlive LRU eviction.
 pub trait ResidentBatch {
@@ -60,6 +72,56 @@ pub trait ResidentBatch {
             output = self.run(op, &output)?;
         }
         Ok(output)
+    }
+    /// Whether a whole level of `frame`, padded by `halo`, can be processed
+    /// as one tile ([`ResidentBatch::gather_level`], [`ResidentBatch::crop`]).
+    fn supports_level(&self, _frame: Extent, _halo: u16) -> bool {
+        false
+    }
+    /// Assembles all of `frame` (the level of `coord`) padded by `halo` from
+    /// halo-free pyramid tiles into one tile at `coord`; edges replicate.
+    fn gather_level(
+        &mut self,
+        _frame: Extent,
+        _coord: TileCoord,
+        _halo: u16,
+        _tiles: &HashMap<TileCoord, ResidentTile>,
+    ) -> EngineResult<ResidentTile> {
+        Err(engine_api::EngineError::Unsupported {
+            what: "resident whole-level tiles".into(),
+        })
+    }
+    /// Copies `extent` at `origin` of a halo-free tile into a new halo-free
+    /// tile addressed `coord` (splits a level tile into pyramid tiles).
+    fn crop(
+        &mut self,
+        _tile: &ResidentTile,
+        _coord: TileCoord,
+        _origin: (u32, u32),
+        _extent: Extent,
+    ) -> EngineResult<ResidentTile> {
+        Err(engine_api::EngineError::Unsupported {
+            what: "resident whole-level tiles".into(),
+        })
+    }
+    /// Whether [`ResidentBatch::local_tone`] can process a level of `frame`.
+    fn supports_local_tone(&self, _frame: Extent) -> bool {
+        false
+    }
+    /// Whole-level Texture/Clarity/Dehaze barrier on halo-free post-Tone tiles
+    /// covering `frame`; returns halo-free tiles for `outputs`. Curves are not
+    /// applied (they remain in the fused point chain).
+    fn local_tone(
+        &mut self,
+        _settings: &engine_api::recipe::settings::ToneSettings,
+        _frame: Extent,
+        _tiles: &HashMap<TileCoord, ResidentTile>,
+        _outputs: &[TileCoord],
+        _options: &LocalToneOptions,
+    ) -> EngineResult<HashMap<TileCoord, ResidentTile>> {
+        Err(engine_api::EngineError::Unsupported {
+            what: "resident local tone".into(),
+        })
     }
     /// Gather within `frame` at `coord.level`; RGB uses period 1, sensor CFA
     /// uses its phase period at level 0. Source tiles must be halo-free.

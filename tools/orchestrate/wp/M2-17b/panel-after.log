@@ -1,0 +1,75 @@
+Metal (Apple M4) panels, screen L2 1845×1231:
+  tone exposure     L2: median 1.5 ms, p90 1.8 ms
+  parametric curve  L2: median 1.8 ms, p90 1.9 ms
+  point curve       L2: median 2.1 ms, p90 2.2 ms
+  hsl               L2: median 2.4 ms, p90 2.5 ms
+  grading           L2: median 2.4 ms, p90 2.5 ms
+  texture           L2: median 7.0 ms, p90 7.3 ms
+  clarity           L2: median 10.5 ms, p90 10.8 ms
+  dehaze            L2: median 9.1 ms, p90 9.3 ms
+  sharpening        L2: median 8.4 ms, p90 9.0 ms
+  luminance nr      L2: median 11.6 ms, p90 12.4 ms
+  color nr          L3: median 11.1 ms, p90 43.0 ms
+  grain             L2: median 2.2 ms, p90 2.5 ms
+  vignette          L2: median 2.5 ms, p90 2.9 ms
+  straighten        L5: median 11.4 ms, p90 13.4 ms
+Metal (Apple M4) panels, screen L2 1000×1000:
+  tone exposure     L2: median 1.3 ms, p90 1.4 ms
+  parametric curve  L2: median 1.3 ms, p90 1.4 ms
+  point curve       L2: median 1.5 ms, p90 1.7 ms
+  hsl               L2: median 1.7 ms, p90 1.8 ms
+  grading           L2: median 1.8 ms, p90 1.9 ms
+  texture           L2: median 4.3 ms, p90 4.6 ms
+  clarity           L2: median 6.4 ms, p90 6.8 ms
+  dehaze            L2: median 5.8 ms, p90 6.0 ms
+  sharpening        L2: median 5.6 ms, p90 6.4 ms
+  luminance nr      L2: median 6.9 ms, p90 7.4 ms
+  color nr          L2: median 6.7 ms, p90 7.1 ms
+  grain             L2: median 1.4 ms, p90 2.5 ms
+  vignette          L2: median 1.3 ms, p90 1.4 ms
+  straighten        L4: median 6.7 ms, p90 6.8 ms
+Metal (Apple M4) panels, screen L2 1224×816:
+  tone exposure     L2: median 0.9 ms, p90 1.0 ms
+  parametric curve  L2: median 1.0 ms, p90 1.0 ms
+  point curve       L2: median 1.2 ms, p90 1.2 ms
+  hsl               L2: median 1.3 ms, p90 1.3 ms
+  grading           L2: median 1.3 ms, p90 1.4 ms
+  texture           L2: median 3.2 ms, p90 3.3 ms
+  clarity           L2: median 4.6 ms, p90 5.0 ms
+  dehaze            L2: median 4.2 ms, p90 4.3 ms
+  sharpening        L2: median 3.8 ms, p90 3.9 ms
+  luminance nr      L2: median 4.1 ms, p90 4.4 ms
+  color nr          L2: median 3.5 ms, p90 3.6 ms
+  grain             L2: median 1.0 ms, p90 1.1 ms
+  vignette          L2: median 1.1 ms, p90 1.1 ms
+  straighten        L4: median 8.1 ms, p90 8.3 ms
+Metal (Apple M4) panels, screen L2 1230×819:
+  tone exposure     L2: median 1.0 ms, p90 1.5 ms
+  parametric curve  L2: median 1.1 ms, p90 1.2 ms
+  point curve       L2: median 1.3 ms, p90 1.3 ms
+  hsl               L2: median 1.3 ms, p90 1.4 ms
+  grading           L2: median 1.3 ms, p90 1.4 ms
+  texture           L2: median 3.3 ms, p90 3.3 ms
+  clarity           L2: median 4.5 ms, p90 4.7 ms
+  dehaze            L2: median 4.2 ms, p90 4.3 ms
+  sharpening        L2: median 3.5 ms, p90 3.6 ms
+  luminance nr      L2: median 4.1 ms, p90 4.2 ms
+  color nr          L2: median 3.5 ms, p90 3.7 ms
+  grain             L2: median 1.1 ms, p90 1.1 ms
+  vignette          L2: median 1.0 ms, p90 1.1 ms
+  straighten        L4: median 8.7 ms, p90 9.1 ms
+Metal (Apple M4) panels, screen L2 1303×867:
+  tone exposure     L2: median 1.0 ms, p90 1.2 ms
+  parametric curve  L2: median 1.1 ms, p90 1.2 ms
+  point curve       L2: median 1.3 ms, p90 1.4 ms
+  hsl               L2: median 1.4 ms, p90 1.5 ms
+  grading           L2: median 1.4 ms, p90 1.5 ms
+  texture           L2: median 5.1 ms, p90 17.9 ms
+  clarity           L2: median 7.2 ms, p90 8.5 ms
+  dehaze            L2: median 7.1 ms, p90 7.2 ms
+  sharpening        L2: median 7.1 ms, p90 7.5 ms
+  luminance nr      L2: median 8.0 ms, p90 8.4 ms
+  color nr          L2: median 7.0 ms, p90 7.2 ms
+  grain             L2: median 1.3 ms, p90 1.8 ms
+  vignette          L2: median 1.5 ms, p90 1.7 ms
+  straighten        L6: median 8.4 ms, p90 18.3 ms

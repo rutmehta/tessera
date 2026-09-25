@@ -57,7 +57,9 @@ fn in_gamut(rgb: vec3<f32>) -> bool {
     return all(rgb >= vec3(0.0)) && all(rgb <= vec3(1.0));
 }
 @compute @workgroup_size(64)
-fn main(@builtin(global_invocation_id) id: vec3<u32>) {
+fn main(@builtin(global_invocation_id) id_grid: vec3<u32>, @builtin(num_workgroups) id_groups: vec3<u32>) {
+    // Rows of at most 65535 workgroups (see Batch::record).
+    let id = vec3<u32>(id_grid.x + id_grid.y * id_groups.x * 64u, 0u, 0u);
     let w = params[0]; let h = params[1]; let halo = params[2];
     let n = w * h; let i = id.x;
     if i >= n { return; }

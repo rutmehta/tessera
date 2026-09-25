@@ -388,7 +388,9 @@ fn creative_color(rgb: vec3<f32>) -> vec3<f32> {
 }
 
 @compute @workgroup_size(64)
-fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
+fn main(@builtin(global_invocation_id) global_id_grid: vec3<u32>, @builtin(num_workgroups) global_id_groups: vec3<u32>) {
+    // Rows of at most 65535 workgroups (see Batch::record).
+    let global_id = vec3<u32>(global_id_grid.x + global_id_grid.y * global_id_groups.x * 64u, 0u, 0u);
     let i = global_id.x;
     if i >= u32(p[6]) {
         return;

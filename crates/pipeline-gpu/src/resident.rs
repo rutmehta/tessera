@@ -125,8 +125,12 @@ impl Drop for PendingUploads {
 struct Dispatch {
     pipeline: wgpu::ComputePipeline,
     group: wgpu::BindGroup,
-    workgroups: u32,
+    workgroups: [u32; 2],
 }
+
+#[path = "resident_tone.rs"]
+mod tone;
+pub(crate) use tone::{Pipelines as LocalTonePipelines, Statistics as DehazeStatistics};
 
 pub(crate) struct Batch<'a> {
     gpu: &'a GpuStageOp,
@@ -137,10 +141,46 @@ pub(crate) struct Batch<'a> {
     dispatches: u64,
     commands: Vec<Dispatch>,
     uploads: PendingUploads,
+    /// Returns idle buffers to the backend when the transaction ends.
+    _recycler: Recycler,
+    /// Diagnostic timestamp readbacks (see `profile_dispatches`).
+    profile: Vec<(wgpu::Buffer, Vec<String>)>,
+    /// Placeholder for the fused kernel's effects-map binding.
+    no_map: wgpu::Buffer,
+    /// A constants map built by this transaction, published on completion.
+    pending_map: Option<crate::batch::EffectsMap>,
 }
+// Every submitted command of a transaction has completed (finish/read_now
+// wait) or was never submitted, so its free buffers are idle when the
+// transaction ends: keep them for later transactions, including after
+// capability probes and cancellation.
+struct Recycler {
+    pool: Arc<Mutex<Pool>>,
+    recycled: Arc<Mutex<Vec<wgpu::Buffer>>>,
+}
+impl Drop for Recycler {
+    fn drop(&mut self) {
+        let free = std::mem::take(&mut self.pool.lock().unwrap().free);
+        if !free.is_empty() {
+            crate::batch::recycle(&self.recycled, free);
+        }
+    }
+}
+
 impl<'a> Batch<'a> {
     pub fn new(gpu: &'a GpuStageOp) -> Self {
+        // Buffers retired by completed transactions: no submitted work uses
+        // them any more, and reuse skips allocation and wgpu's zero fill.
+        let free = std::mem::take(&mut *gpu.recycled.lock().unwrap());
+        let pool = Arc::new(Mutex::new(Pool {
+            free,
+            ..Default::default()
+        }));
         Self {
+            _recycler: Recycler {
+                pool: pool.clone(),
+                recycled: gpu.recycled.clone(),
+            },
             gpu,
             encoder: gpu
                 .context()
@@ -148,13 +188,16 @@ impl<'a> Batch<'a> {
                 .create_command_encoder(&Default::default()),
             pending: HashMap::new(),
             access_tick: 0,
-            pool: Arc::default(),
+            pool,
             dispatches: 0,
             commands: Vec::new(),
             uploads: PendingUploads {
                 queue: gpu.context().queue.clone(),
                 dirty: std::cell::Cell::new(false),
             },
+            no_map: gpu.no_map.clone(),
+            pending_map: None,
+            profile: Vec::new(),
         }
     }
     // Queue writes share wgpu's pending transfer encoder, avoiding a separate
@@ -231,6 +274,18 @@ impl<'a> Batch<'a> {
         params: &[u8],
         count: u32,
     ) {
+        self.dispatch_with(pipeline, src, dst, params, count, None);
+    }
+    /// [`Batch::dispatch`] with an optional fourth read-only binding.
+    fn dispatch_with(
+        &mut self,
+        pipeline: &wgpu::ComputePipeline,
+        src: &wgpu::Buffer,
+        dst: &wgpu::Buffer,
+        params: &[u8],
+        count: u32,
+        extra: Option<&wgpu::Buffer>,
+    ) {
         let ctx = self.gpu.context();
         let p = self.host_buffer(
             Some("resident parameters"),
@@ -238,6 +293,9 @@ impl<'a> Batch<'a> {
             wgpu::BufferUsages::STORAGE,
         );
         let entries: Vec<_> = [src, dst, &p]
+            .into_iter()
+            .chain(extra)
+            .collect::<Vec<_>>()
             .iter()
             .enumerate()
             .map(|(i, b)| wgpu::BindGroupEntry {
@@ -258,12 +316,171 @@ impl<'a> Batch<'a> {
         group: wgpu::BindGroup,
         workgroups: u32,
     ) {
+        // Linear kernels fold rows of at most 65535 workgroups back into one
+        // index (x + y * rows * 64), so whole levels exceed the 1D limit.
+        const ROW: u32 = 65535;
+        let grid = if workgroups > ROW {
+            [ROW, workgroups.div_ceil(ROW)]
+        } else {
+            [workgroups, 1]
+        };
+        self.record_2d(pipeline, group, grid);
+    }
+    fn record_2d(
+        &mut self,
+        pipeline: &wgpu::ComputePipeline,
+        group: wgpu::BindGroup,
+        workgroups: [u32; 2],
+    ) {
         self.dispatches += 1;
         self.commands.push(Dispatch {
             pipeline: pipeline.clone(),
             group,
             workgroups,
         });
+    }
+    /// The per-image effects constants map for the fused block in `p`
+    /// (vignette mask, grain value per pixel), built once per parameter key
+    /// and kept GPU-resident; sets the block's map flag when bound. Values
+    /// are produced by the same WGSL functions as the inline path.
+    fn effects_map(&mut self, p: &mut [f32]) -> Option<wgpu::Buffer> {
+        let base = p[36] as usize;
+        if base == 0 || p[base + 26] != 0.0 {
+            return None;
+        }
+        let key: Vec<u32> = EFFECTS_MAP_KEY
+            .iter()
+            .map(|&k| p[base + k].to_bits())
+            .collect();
+        let cached = self
+            .pending_map
+            .as_ref()
+            .filter(|(k, _)| *k == key)
+            .map(|(_, b)| b.clone())
+            .or_else(|| {
+                self.gpu
+                    .effects_map
+                    .lock()
+                    .unwrap()
+                    .as_ref()
+                    .filter(|(k, _)| *k == key)
+                    .map(|(_, b)| b.clone())
+            });
+        let map = match cached {
+            Some(map) => map,
+            None => {
+                let (w, h) = (p[base + 5].to_bits(), p[base + 6].to_bits());
+                let bytes = u64::from(w) * u64::from(h) * 8;
+                let limits = self.gpu.context().device.limits();
+                if bytes == 0
+                    || bytes
+                        > limits
+                            .max_storage_buffer_binding_size
+                            .min(limits.max_buffer_size)
+                    || w.div_ceil(16) > limits.max_compute_workgroups_per_dimension
+                    || h.div_ceil(16) > limits.max_compute_workgroups_per_dimension
+                {
+                    return None;
+                }
+                let ctx = self.gpu.context();
+                let pipeline = self
+                    .gpu
+                    .effects_map_pipeline
+                    .get_or_init(|| effects_map_pipeline(ctx))
+                    .clone();
+                let map = ctx.device.create_buffer(&wgpu::BufferDescriptor {
+                    label: Some("effects constants map"),
+                    size: bytes,
+                    usage: wgpu::BufferUsages::STORAGE,
+                    mapped_at_creation: false,
+                });
+                let params = self.host_buffer(
+                    Some("effects map parameters"),
+                    bytemuck::cast_slice(&p[base..base + 28]),
+                    wgpu::BufferUsages::STORAGE,
+                );
+                let group = ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
+                    label: Some("effects constants map"),
+                    layout: &pipeline.get_bind_group_layout(0),
+                    entries: &[
+                        wgpu::BindGroupEntry {
+                            binding: 0,
+                            resource: params.as_entire_binding(),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 1,
+                            resource: map.as_entire_binding(),
+                        },
+                    ],
+                });
+                self.record_2d(&pipeline, group, [w.div_ceil(16), h.div_ceil(16)]);
+                self.pending_map = Some((key, map.clone()));
+                map
+            }
+        };
+        p[base + 27] = 1.0;
+        Some(map)
+    }
+    /// Submits everything encoded so far and reads `buffers` back. Only global
+    /// reductions use this (exact Dehaze statistics on a cache miss). The GPU
+    /// is idle afterwards, so pooled buffers may be recycled across it.
+    fn read_now(&mut self, buffers: &[&wgpu::Buffer]) -> EngineResult<Vec<Vec<u8>>> {
+        self.encode_compute();
+        let ctx = self.gpu.context();
+        let staging: Vec<_> = buffers
+            .iter()
+            .map(|b| {
+                let s = ctx.device.create_buffer(&wgpu::BufferDescriptor {
+                    label: Some("resident statistics readback"),
+                    size: b.size(),
+                    usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
+                    mapped_at_creation: false,
+                });
+                self.encoder.copy_buffer_to_buffer(b, 0, &s, 0, b.size());
+                s
+            })
+            .collect();
+        let encoder = std::mem::replace(
+            &mut self.encoder,
+            ctx.device.create_command_encoder(&Default::default()),
+        );
+        if let Some(lost) = ctx.device_failure() {
+            return Err(EngineError::internal(lost));
+        }
+        ctx.queue.submit([encoder.finish()]);
+        self.uploads.dirty.set(false);
+        self.gpu
+            .counters
+            .submissions
+            .fetch_add(1, Ordering::Relaxed);
+        let receivers: Vec<_> = staging
+            .iter()
+            .map(|b| {
+                let (tx, rx) = std::sync::mpsc::channel();
+                b.slice(..).map_async(wgpu::MapMode::Read, move |r| {
+                    let _ = tx.send(r);
+                });
+                rx
+            })
+            .collect();
+        ctx.device
+            .poll(wgpu::PollType::wait_indefinitely())
+            .map_err(|e| EngineError::internal(e.to_string()))?;
+        let mut out = Vec::with_capacity(staging.len());
+        for (b, rx) in staging.iter().zip(receivers) {
+            rx.recv()
+                .map_err(|e| EngineError::internal(e.to_string()))?
+                .map_err(|e| EngineError::internal(e.to_string()))?;
+            out.push(
+                b.slice(..)
+                    .get_mapped_range()
+                    .map_err(|e| EngineError::internal(e.to_string()))?
+                    .to_vec(),
+            );
+            b.unmap();
+        }
+        self.gpu.counters.readbacks.fetch_add(1, Ordering::Relaxed);
+        Ok(out)
     }
     fn clear(&mut self, buffer: &wgpu::Buffer) {
         let pipeline = &self.gpu.zero_pipeline;
@@ -289,14 +506,104 @@ impl<'a> Batch<'a> {
         // CommandEncoder. One pass avoids exhausting Metal's 4096-buffer cap.
         // wgpu tracks storage hazards between dispatches, including pooled
         // buffers reused for a different role later in this ordered stream.
+        if self.profile_dispatches() {
+            return;
+        }
         let mut pass = self.encoder.begin_compute_pass(&Default::default());
         for command in &self.commands {
             pass.set_pipeline(&command.pipeline);
             pass.set_bind_group(0, &command.group, &[]);
-            pass.dispatch_workgroups(command.workgroups, 1, 1);
+            pass.dispatch_workgroups(command.workgroups[0], command.workgroups[1], 1);
         }
         drop(pass);
         self.commands.clear();
+    }
+    /// Diagnostic (`TESSERA_GPU_PROFILE=1`, timestamp-capable adapters): one
+    /// timestamped pass per dispatch, printed after completion. Not for
+    /// production frames: separate passes change scheduling.
+    fn profile_dispatches(&mut self) -> bool {
+        let ctx = self.gpu.context();
+        let n = self.commands.len() as u32;
+        if std::env::var_os("TESSERA_GPU_PROFILE").is_none()
+            || !ctx.capabilities.timestamp_query
+            || n > 2048
+        {
+            return false;
+        }
+        let set = ctx.device.create_query_set(&wgpu::QuerySetDescriptor {
+            label: Some("dispatch profile"),
+            ty: wgpu::QueryType::Timestamp,
+            count: 2 * n,
+        });
+        for (i, command) in self.commands.iter().enumerate() {
+            let mut pass = self
+                .encoder
+                .begin_compute_pass(&wgpu::ComputePassDescriptor {
+                    label: None,
+                    timestamp_writes: Some(wgpu::ComputePassTimestampWrites {
+                        query_set: &set,
+                        beginning_of_pass_write_index: Some(2 * i as u32),
+                        end_of_pass_write_index: Some(2 * i as u32 + 1),
+                    }),
+                });
+            pass.set_pipeline(&command.pipeline);
+            pass.set_bind_group(0, &command.group, &[]);
+            pass.dispatch_workgroups(command.workgroups[0], command.workgroups[1], 1);
+        }
+        let bytes = u64::from(2 * n) * 8;
+        let resolved = ctx.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("dispatch profile resolve"),
+            size: bytes,
+            usage: wgpu::BufferUsages::QUERY_RESOLVE | wgpu::BufferUsages::COPY_SRC,
+            mapped_at_creation: false,
+        });
+        let staging = ctx.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("dispatch profile readback"),
+            size: bytes,
+            usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        self.encoder.resolve_query_set(&set, 0..2 * n, &resolved, 0);
+        self.encoder
+            .copy_buffer_to_buffer(&resolved, 0, &staging, 0, bytes);
+        let labels = self
+            .commands
+            .drain(..)
+            .map(|c| self.gpu.pipeline_name(&c.pipeline, c.workgroups))
+            .collect();
+        self.profile.push((staging, labels));
+        true
+    }
+    fn print_profile(gpu: &GpuStageOp, profile: Vec<(wgpu::Buffer, Vec<String>)>) {
+        let ctx = gpu.context();
+        let period = f64::from(ctx.queue.get_timestamp_period());
+        for (staging, labels) in profile {
+            let (tx, rx) = std::sync::mpsc::channel();
+            staging.slice(..).map_async(wgpu::MapMode::Read, move |r| {
+                let _ = tx.send(r);
+            });
+            let _ = ctx.device.poll(wgpu::PollType::wait_indefinitely());
+            if !matches!(rx.recv(), Ok(Ok(()))) {
+                continue;
+            }
+            let data = staging.slice(..).get_mapped_range().unwrap();
+            let ticks: &[u64] = bytemuck::cast_slice(&data);
+            let mut totals: BTreeMap<String, (u32, f64)> = BTreeMap::new();
+            for (i, label) in labels.iter().enumerate() {
+                let ms = (ticks[2 * i + 1].saturating_sub(ticks[2 * i])) as f64 * period / 1e6;
+                let e = totals.entry(label.clone()).or_default();
+                e.0 += 1;
+                e.1 += ms;
+            }
+            let sum: f64 = totals.values().map(|v| v.1).sum();
+            eprintln!(
+                "GPU_PROFILE total {sum:.3} ms over {} dispatches",
+                labels.len()
+            );
+            for (label, (count, ms)) in totals {
+                eprintln!("GPU_PROFILE {label:<40} x{count:<4} {ms:.3} ms");
+            }
+        }
     }
     fn convert(&mut self, t: &ResidentTile, pack: bool) -> EngineResult<ResidentTile> {
         let n = t.layout.len();
@@ -455,6 +762,94 @@ impl ResidentBatch for Batch<'_> {
         let uploaded = self.upload(tile)?;
         self.cache(key, &uploaded)
     }
+    fn supports_level(&self, frame: Extent, halo: u16) -> bool {
+        let limits = self.gpu.context().device.limits();
+        let padded = u64::from(frame.width + 2 * u32::from(halo))
+            * u64::from(frame.height + 2 * u32::from(halo));
+        // Operator parameters carry plane lengths as f32 (exact below 2^24).
+        padded < 1 << 24
+            && padded * 16
+                <= limits
+                    .max_storage_buffer_binding_size
+                    .min(limits.max_buffer_size)
+    }
+    fn gather_level(
+        &mut self,
+        frame: Extent,
+        coord: TileCoord,
+        halo: u16,
+        tiles: &HashMap<TileCoord, ResidentTile>,
+    ) -> EngineResult<ResidentTile> {
+        let channels = tiles
+            .values()
+            .next()
+            .ok_or_else(|| EngineError::internal("empty resident level"))?
+            .layout
+            .channels;
+        let layout = TileLayout {
+            extent: frame,
+            halo,
+            channels,
+        };
+        let h = i64::from(halo);
+        self.assemble(frame, coord, layout, (-h, -h), 1, tiles)
+    }
+    fn crop(
+        &mut self,
+        tile: &ResidentTile,
+        coord: TileCoord,
+        origin: (u32, u32),
+        extent: Extent,
+    ) -> EngineResult<ResidentTile> {
+        let l = tile.layout;
+        if l.halo != 0
+            || origin.0 + extent.width > l.extent.width
+            || origin.1 + extent.height > l.extent.height
+        {
+            return Err(EngineError::invalid(
+                "resident crop",
+                "outside halo-free tile",
+            ));
+        }
+        let layout = TileLayout {
+            extent,
+            halo: 0,
+            channels: l.channels,
+        };
+        let dst = self.buffer(layout.len() * 4)?;
+        let src = self.storage(tile)?.clone();
+        self.dispatch(
+            &self.gpu.resident_pipeline,
+            &src,
+            &dst,
+            bytemuck::cast_slice(&[
+                7u32,
+                layout.len() as u32,
+                extent.width,
+                extent.height,
+                0,
+                l.extent.width,
+                l.plane_len() as u32,
+                origin.0,
+                origin.1,
+            ]),
+            layout.len() as u32,
+        );
+        Ok(self.tile(coord, layout, dst))
+    }
+    fn supports_local_tone(&self, frame: Extent) -> bool {
+        tone::supported(self.gpu.context(), frame)
+    }
+    fn local_tone(
+        &mut self,
+        settings: &engine_api::recipe::settings::ToneSettings,
+        frame: Extent,
+        tiles: &HashMap<TileCoord, ResidentTile>,
+        outputs: &[TileCoord],
+        options: &image_core::resident::LocalToneOptions,
+    ) -> EngineResult<HashMap<TileCoord, ResidentTile>> {
+        self.local_tone_impl(settings, frame, tiles, outputs, options)
+    }
     fn run(&mut self, op: &Op<'_>, tile: &ResidentTile) -> EngineResult<ResidentTile> {
         if let Op::Demosaic {
             cfa: raw_decode::CfaLayout::XTrans(pattern),
@@ -521,14 +916,22 @@ impl ResidentBatch for Batch<'_> {
         }
         if let Op::Detail(settings) = op {
             let l = tile.layout;
-            let p = crate::detail::parameters(l, settings)?;
+            let mut p = crate::detail::parameters(l, settings)?;
+            // Validated, inactive Detail is an exact copy of a halo-free tile:
+            // share the immutable buffer instead of three full-tile passes.
+            if l.halo == 0 && p[5] == 0.0 && p[6] == 0.0 && p[7] == 0.0 {
+                return Ok(tile.clone());
+            }
+            // Interior-only output: the halo-free tile without a strip pass.
+            p[20] = 1.0;
             let params = self.host_buffer(
                 Some("resident detail"),
                 bytemuck::cast_slice(&p),
                 wgpu::BufferUsages::STORAGE,
             );
             let src = self.storage(tile)?.clone();
-            let dst = self.buffer(l.len() * 4)?;
+            let layout = TileLayout { halo: 0, ..l };
+            let dst = self.buffer(layout.len() * 4)?;
             let decomposition = self.buffer(l.plane_len() * 16)?;
             let entries: Vec<_> = [&src, &dst, &params, &decomposition]
                 .iter()
@@ -547,28 +950,18 @@ impl ResidentBatch for Batch<'_> {
                     layout: &self.gpu.detail_pipelines[0].get_bind_group_layout(0),
                     entries: &entries,
                 });
-            for pipeline in &self.gpu.detail_pipelines {
-                self.record(pipeline, group.clone(), (l.plane_len() as u32).div_ceil(64));
-            }
-            let layout = TileLayout { halo: 0, ..l };
-            let interior = self.buffer(layout.len() * 4)?;
-            self.dispatch(
-                &self.gpu.resident_pipeline,
-                &dst,
-                &interior,
-                bytemuck::cast_slice(&[
-                    3u32,
-                    layout.len() as u32,
-                    l.extent.width,
-                    l.extent.height,
-                    l.halo as u32,
-                    l.stride() as u32,
-                    l.plane_len() as u32,
-                ]),
-                layout.len() as u32,
+            let [decompose, main] = &self.gpu.detail_pipelines[..] else {
+                return Err(EngineError::internal("Detail pipelines"));
+            };
+            let (decompose, main) = (decompose.clone(), main.clone());
+            self.record(
+                &decompose,
+                group.clone(),
+                (l.plane_len() as u32).div_ceil(64),
             );
-            self.pool.lock().unwrap().free.extend([dst, decomposition]);
-            return Ok(self.tile(tile.coord, layout, interior));
+            self.record(&main, group, (layout.plane_len() as u32).div_ceil(64));
+            self.pool.lock().unwrap().free.push(decomposition);
+            return Ok(self.tile(tile.coord, layout, dst));
         }
         if matches!(op, Op::Display { .. })
             && let Some(output) = &self.gpu.managed_output
@@ -609,15 +1002,20 @@ impl ResidentBatch for Batch<'_> {
             return self.run(display, &scene);
         }
         if crate::fused::supports(ops) {
-            let (p, layout) = crate::fused::parameters(ops, tile.layout, tile.coord)?;
+            let (mut p, layout) = crate::fused::parameters(ops, tile.layout, tile.coord)?;
+            let map = match self.effects_map(&mut p) {
+                Some(map) => map,
+                None => self.no_map.clone(),
+            };
             let dst = self.buffer(layout.len() * 4)?;
             let src = self.storage(tile)?.clone();
-            self.dispatch(
-                &self.gpu.fused_pipeline,
+            self.dispatch_with(
+                &self.gpu.fused_pipeline.clone(),
                 &src,
                 &dst,
                 bytemuck::cast_slice(&p),
                 layout.plane_len() as u32,
+                Some(&map),
             );
             self.gpu
                 .counters
@@ -920,6 +1318,10 @@ impl ResidentBatch for Batch<'_> {
         }
         cancel.check()?;
         // A failed command buffer must never publish corrupt cache entries.
+        Self::print_profile(self.gpu, std::mem::take(&mut self.profile));
+        if let Some(map) = self.pending_map.take() {
+            *self.gpu.effects_map.lock().unwrap() = Some(map);
+        }
         {
             let mut cache = self.gpu.resident_cache.lock().unwrap();
             let mut pending: Vec<_> = self.pending.into_iter().collect();
@@ -946,7 +1348,7 @@ impl ResidentBatch for Batch<'_> {
             } else {
                 let data: &[f32] = bytemuck::cast_slice(&mapped);
                 let mut offset = 0;
-                for tile in tiles {
+                for tile in &tiles {
                     let samples = &data[offset..offset + tile.layout.len()];
                     offset += samples.len();
                     output.tiles.push(if display {
@@ -968,8 +1370,55 @@ impl ResidentBatch for Batch<'_> {
             drop(mapped);
             buffer.unmap();
         }
+        // Completed: Drop recycles this transaction's idle buffers.
+        drop(tiles);
         Ok(output)
     }
+}
+
+/// Parameter entries that determine the amount-independent per-pixel
+/// constants (vignette mask, grain value): extent, crop frame, vignette
+/// shape and grain size/roughness. Amounts, style and highlights excluded.
+const EFFECTS_MAP_KEY: [usize; 17] = [
+    5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 16, 19, 20, 21, 22, 23, 24,
+];
+
+/// Builds one map texel per pixel of the block's extent.
+fn effects_map_pipeline(ctx: &crate::GpuContext) -> wgpu::ComputePipeline {
+    let functions = include_str!("effects.wgsl")
+        .split("const MAX")
+        .nth(1)
+        .unwrap()
+        .split("@compute")
+        .next()
+        .unwrap();
+    let source = format!(
+        "@group(0) @binding(0) var<storage, read> p: array<f32>;\n\
+         @group(0) @binding(1) var<storage, read_write> out_map: array<vec2<f32>>;\n\
+         const MAX{functions}\n\
+         @compute @workgroup_size(16, 16)\n\
+         fn main(@builtin(global_invocation_id) id: vec3<u32>) {{\n\
+         let w = bitcast<u32>(p[5]); let h = bitcast<u32>(p[6]);\n\
+         if id.x >= w || id.y >= h {{ return; }}\n\
+         let uv = effects_uv(f32(id.x), f32(id.y));\n\
+         out_map[id.y * w + id.x] = vec2<f32>(vignette_mask(uv), grain_value(uv));\n\
+         }}\n"
+    );
+    let module = ctx
+        .device
+        .create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("effects constants map"),
+            source: wgpu::ShaderSource::Wgsl(source.into()),
+        });
+    ctx.device
+        .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: Some("effects constants map"),
+            layout: None,
+            module: &module,
+            entry_point: Some("main"),
+            compilation_options: Default::default(),
+            cache: None,
+        })
 }
 
 // Only dispatch output samples whose averaging blocks intersect this source.
@@ -1126,6 +1575,7 @@ mod tests {
             include_str!("gather.wgsl"),
             include_str!("histogram.wgsl"),
             include_str!("zero.wgsl"),
+            include_str!("presence.wgsl"),
         ] {
             let module = naga::front::wgsl::parse_str(source).unwrap();
             naga::valid::Validator::new(

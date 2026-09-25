@@ -176,6 +176,11 @@ pub struct RendererConfig {
     pub process_version: ProcessVersion,
     /// Stage graph and memoization flags.
     pub graph: PipelineGraph,
+    /// Allow backends' documented preview-level approximations (levels above
+    /// zero only; see pipeline-gpu OPERATORS.md for the measured bounds).
+    /// Off by default: the downsampled Clarity guidance exceeds the 4/255
+    /// preview bound on the Nikon fixture. Level zero is always exact.
+    pub preview_approximations: bool,
 }
 
 impl Default for RendererConfig {
@@ -185,6 +190,7 @@ impl Default for RendererConfig {
             threads: std::thread::available_parallelism().map_or(1, |n| n.get()),
             process_version: ProcessVersion::NATIVE_CURRENT,
             graph: PipelineGraph::m2(),
+            preview_approximations: false,
         }
     }
 }
@@ -344,7 +350,8 @@ impl Renderer {
     ) -> EngineResult<()> {
         cancel.check()?;
         let r = self.resolve(image, settings)?;
-        if has_m2_settings(settings) && !self.supports_resident(&r) {
+        let level = coords.first().map(|c| c.level);
+        if has_m2_settings(settings) && !self.supports_resident(&r, level) {
             self.run_m2(image, settings, coords, output, cancel, sink)
         } else {
             self.run(&r, coords, output, cancel, sink)
@@ -373,7 +380,7 @@ impl Renderer {
         for level in (viewport.finest_level..=viewport.coarsest_level).rev() {
             let extent = Self::output_extent(image, settings, level)?;
             let coords = Self::tiles_in_extent(extent, level, viewport.rect.at_level(level));
-            if has_m2_settings(settings) && !self.supports_resident(&r) {
+            if has_m2_settings(settings) && !self.supports_resident(&r, Some(level)) {
                 self.run_m2(image, settings, &coords, output, cancel, sink)?;
             } else {
                 self.run(&r, &coords, output, cancel, sink)?;
@@ -625,7 +632,7 @@ impl Renderer {
         }
 
         if r.allow_resident
-            && self.supports_resident(r)
+            && self.supports_resident(r, Some(level))
             && let Some(batch) = self.ops.begin_resident()
         {
             for tile in self

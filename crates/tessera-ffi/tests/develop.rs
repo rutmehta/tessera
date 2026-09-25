@@ -735,7 +735,8 @@ fn bench_panel_latency() {
         let e2 = (info.width.div_ceil(4), info.height.div_ceil(4));
         let (plan, _) = open.attach(e2, 3);
         open.next_final();
-        let panels: [(&str, &dyn Fn(f64) -> String); 8] = [
+        let only = std::env::var("TESSERA_BENCH_PANELS").ok();
+        let panels: Vec<(&str, &dyn Fn(f64) -> String)> = vec![
             ("tone exposure", &|v| {
                 format!(r#"{{"tone":{{"exposure":{}}}}}"#, v - 0.5)
             }),
@@ -763,10 +764,37 @@ fn bench_panel_latency() {
                     v * 40.0
                 )
             }),
+            ("texture", &|v| {
+                format!(r#"{{"tone":{{"texture":{}}}}}"#, v * 80.0 - 20.0)
+            }),
+            ("clarity", &|v| {
+                format!(r#"{{"tone":{{"clarity":{}}}}}"#, v * 80.0 - 20.0)
+            }),
+            ("dehaze", &|v| {
+                format!(r#"{{"tone":{{"dehaze":{}}}}}"#, v * 60.0)
+            }),
             ("sharpening", &|v| {
                 format!(
                     r#"{{"detail":{{"sharpening":{{"amount":{}}}}}}}"#,
                     40.0 + v * 60.0
+                )
+            }),
+            ("luminance nr", &|v| {
+                format!(
+                    r#"{{"detail":{{"noise_reduction":{{"luminance":{}}}}}}}"#,
+                    10.0 + v * 60.0
+                )
+            }),
+            ("color nr", &|v| {
+                format!(
+                    r#"{{"detail":{{"noise_reduction":{{"color":{}}}}}}}"#,
+                    10.0 + v * 60.0
+                )
+            }),
+            ("grain", &|v| {
+                format!(
+                    r#"{{"effects":{{"grain":{{"amount":{}}}}}}}"#,
+                    10.0 + v * 60.0
                 )
             }),
             ("vignette", &|v| {
@@ -781,6 +809,12 @@ fn bench_panel_latency() {
         ];
         let mut lines = Vec::new();
         for (name, patch) in panels {
+            if only
+                .as_ref()
+                .is_some_and(|o| !o.split(',').any(|n| n.trim() == name))
+            {
+                continue;
+            }
             let mut samples = Vec::new();
             let mut level = 0;
             // From i = 1: a patch that changes nothing renders nothing.
@@ -820,5 +854,91 @@ fn bench_panel_latency() {
             lines.join("\n")
         );
         drop(open);
+    }
+}
+
+/// A settings patch for slider value `v`.
+type Patch = fn(i32) -> String;
+
+/// 1:1 region refinement: `render_detail_preview` of a 1024² window (the
+/// loupe) after each heavy edit, on each available backend.
+/// `cargo test -p tessera-ffi --release --test develop -- --ignored --nocapture bench_detail_preview`
+#[test]
+#[ignore]
+fn bench_detail_preview() {
+    let ext = std::env::var("TESSERA_BENCH_EXT").unwrap_or_else(|_| "nef".into());
+    let Some(h) = harness(&ext) else { return };
+    let backends = std::env::var("TESSERA_BENCH_BACKENDS").unwrap_or_else(|_| "cpu,gpu".into());
+    for backend in backends.split(',') {
+        // SAFETY (env): the bench is the only test in this process touching it.
+        unsafe { std::env::set_var("TESSERA_RENDER_BACKEND", backend) };
+        let engine = Engine::open(format!("{}-loupe-{backend}", h.support)).unwrap();
+        engine
+            .index_folder(h.raw.parent().unwrap().to_string_lossy().into_owned())
+            .unwrap();
+        let open = Open::new(&engine, &h.image_id);
+        let info = open.session.info();
+        let id = create_rgba8(1024, 1024);
+        let mut lines = Vec::new();
+        let ops: [(&str, Patch); 5] = [
+            ("tone exposure", |v| {
+                format!(r#"{{"tone":{{"exposure":{}}}}}"#, f64::from(v) / 100.0)
+            }),
+            ("texture", |v| {
+                format!(r#"{{"tone":{{"exposure":0.0,"texture":{v}}}}}"#)
+            }),
+            ("clarity", |v| {
+                format!(r#"{{"tone":{{"texture":0,"clarity":{v}}}}}"#)
+            }),
+            ("dehaze", |v| {
+                format!(r#"{{"tone":{{"clarity":0,"dehaze":{v}}}}}"#)
+            }),
+            ("luminance nr", |v| {
+                format!(
+                    r#"{{"tone":{{"dehaze":0}},"detail":{{"noise_reduction":{{"luminance":{v}}}}}}}"#
+                )
+            }),
+        ];
+        for (op, (name, patch)) in ops.into_iter().enumerate() {
+            open.session.set_settings(patch(30), false).unwrap();
+            // Cold: every refinement pans to a window not rendered before
+            // (decode through Develop for the window, then the edit).
+            let mut cold = Vec::new();
+            for i in 0..6 {
+                let t = Instant::now();
+                open.session
+                    .render_detail_preview(
+                        id,
+                        1024,
+                        1024,
+                        0.2 + 0.1 * i as f32,
+                        0.15 + 0.14 * op as f32,
+                    )
+                    .unwrap();
+                cold.push(t.elapsed().as_secs_f64() * 1e3);
+            }
+            // Warm: the same window again after an edit (the loupe while
+            // dragging a slider).
+            let mut samples = Vec::new();
+            for i in 0..6 {
+                open.session.set_settings(patch(31 + i), false).unwrap();
+                let t = Instant::now();
+                open.session
+                    .render_detail_preview(id, 1024, 1024, 0.7, 0.15 + 0.14 * op as f32)
+                    .unwrap();
+                samples.push(t.elapsed().as_secs_f64() * 1e3);
+            }
+            cold.sort_by(f64::total_cmp);
+            samples.sort_by(f64::total_cmp);
+            let p = |q: f64| samples[((samples.len() - 1) as f64 * q) as usize];
+            lines.push(format!(
+                "  {name:<14} 1:1 1024²: cold pan median {:.1} ms, p90 {:.1} ms; edit median {:.1} ms, p90 {:.1} ms",
+                cold[cold.len() / 2],
+                cold[(cold.len() - 1) * 9 / 10],
+                p(0.5),
+                p(0.9)
+            ));
+        }
+        println!("{} loupe refinement:\n{}", info.backend, lines.join("\n"));
     }
 }
