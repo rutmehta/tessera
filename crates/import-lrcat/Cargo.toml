@@ -6,3 +6,11 @@ license = "MIT"
 
 [lib]
 path = "src/lib.rs"
+
+[dependencies]
+engine-api = { path = "../engine-api" }
+rusqlite.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tempfile.workspace = true
+roxmltree = "0.20"
