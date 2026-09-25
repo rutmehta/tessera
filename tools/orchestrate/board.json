@@ -518,5 +518,13 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M3-10",
+    "owner": "astra",
+    "title": "Agent planner + critic loop",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
