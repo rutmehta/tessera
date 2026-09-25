@@ -1,0 +1,14 @@
+Implemented M1-12 in the specified worktree.
+
+Added the UniFFI engine API, generated Swift bindings, arm64 static-library build script, and SwiftPM linking. The app now uses Rust indexing and embedded previews, persists culling decisions through sidecars, and retains the explicit --stub-library fallback.
+
+Verified:
+  Rust debug and release tests
+  Clippy with warnings denied
+  Workspace formatting
+  Swift build and tests, including all five RAW fixtures, decision persistence, undo, and callbacks
+  Only allowed paths changed; no repository target directory or commits
+
+The full requested verification command passed. Optional Intel/universal builds were not exercised.
+
+RESULT: PASS
