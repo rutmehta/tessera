@@ -44,7 +44,8 @@ half = "2"
 zune-jpeg = "0.5"
 image = { version = "0.25", default-features = false, features = ["jpeg"] }
 jxl-oxide = "0.12"
-lcms2 = "6"
+# Bundle LittleCMS into the Rust static archive consumed by the Swift app/tests.
+lcms2 = { version = "6", features = ["static"] }
 ort = "=2.0.0-rc.13"
 uniffi = "0.32"
 walkdir = "2"

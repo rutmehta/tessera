@@ -286,8 +286,16 @@ final class DevelopPanelsSessionTests: XCTestCase {
         // 1:1 detail preview.
         let surface = try XCTUnwrap(DevelopController.makeDetailSurface(width: 96, height: 64))
         let session = c.session
-        nonisolated(unsafe) let target = surface
-        let d = try await Task.detached { try DevelopController.renderDetail(session: session, into: target, centerX: 0.5, centerY: 0.5) }.value
+        // IOSurfaceRef is not Sendable. Pass only its scalar properties to the worker,
+        // and keep the surface alive until the render completes.
+        let surfaceID = IOSurfaceGetID(surface)
+        let width = UInt32(IOSurfaceGetWidth(surface))
+        let height = UInt32(IOSurfaceGetHeight(surface))
+        defer { withExtendedLifetime(surface) {} }
+        let d = try await Task.detached { [session, surfaceID, width, height] in
+            try session.renderDetailPreview(iosurfaceId: surfaceID, width: width, height: height,
+                                            centerX: 0.5, centerY: 0.5)
+        }.value
         XCTAssertEqual(d.width, 96)
         await c.close()
     }
