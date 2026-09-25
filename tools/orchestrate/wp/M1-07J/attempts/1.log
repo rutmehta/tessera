@@ -1,0 +1,11 @@
+Implemented M1-07J with priority/FIFO scheduling, physical-core defaults, job/group cancellation, reprioritization, progress/status tracking, JobGroup, and blocking_run. Documented cooperative cancellation and non-preemption.
+
+Verification passed:
+  15 tests, plus 20 repeated suite runs
+  Clippy with -D warnings
+  Workspace cargo fmt --check
+  Ignored benchmark run: 100k no-op jobs in 242 ms, about 413k jobs/sec
+
+Only allowed paths changed. engine-api untouched. CARGO_TARGET_DIR preserved. No commits made.
+
+RESULT: PASS

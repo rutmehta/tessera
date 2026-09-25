@@ -155,7 +155,7 @@
     "id": "M1-07J",
     "owner": "astra",
     "title": "Job scheduler",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
