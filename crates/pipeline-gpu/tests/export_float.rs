@@ -34,24 +34,29 @@ fn export_retires_uploads_without_intermediate_readback() {
             ..Default::default()
         },
     );
-    let image = common::synthetic(272, 4096, 1024, common::RGGB, [0, 0, 4096, 1024]);
+    // Large enough that tracked scratch crosses the 128 MiB retirement
+    // threshold even though sensor uploads are reused within the transaction.
+    let image = common::synthetic(272, 8192, 1536, common::RGGB, [0, 0, 8192, 1536]);
     let tiles = renderer
         .render_export(
             &image,
             &settings,
             0,
-            image_core::PixelRect::new(0, 256, 4096, 512),
+            image_core::PixelRect::new(0, 256, 8192, 1024),
             &CancellationToken::new(),
         )
         .unwrap()
         .unwrap();
     let stats = renderer.stats();
-    assert!(stats.submissions > 1, "must exercise scratch retirement");
+    assert!(
+        stats.submissions > 1,
+        "must exercise scratch retirement: {stats:?}"
+    );
     assert_eq!(stats.readbacks, 1);
     assert!(stats.last_resident_allocated_bytes < 512 << 20);
     assert_eq!(
         tiles.iter().map(|t| t.layout().extent.area()).sum::<u64>(),
-        4096 * 512
+        8192 * 1024
     );
     assert!(
         tiles

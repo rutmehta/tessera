@@ -37,6 +37,22 @@ fn dehaze_statistics_key(r: &Resolved<'_>, level: u8) -> engine_api::stage::Memo
     key
 }
 
+/// Gather halo for lateral CA: the largest displacement plus bilinear support.
+fn ca_halo(plan: &pipeline_cpu::CaPlan, sensor: Extent) -> EngineResult<u16> {
+    let max = plan
+        .max_displacement(sensor.width, sensor.height)
+        .ok_or_else(|| {
+            engine_api::EngineError::invalid("lateral CA", "noninvertible channel map")
+        })?;
+    let halo = max.ceil() + 2.;
+    if halo.is_nan() || halo > f64::from(engine_api::tile::MAX_HALO) {
+        return Err(engine_api::EngineError::Unsupported {
+            what: "lateral CA displacement exceeds the resident halo".into(),
+        });
+    }
+    Ok(halo as u16)
+}
+
 impl Renderer {
     /// Resident-only output, with explicit capability failure and cancellation.
     /// Export backends can retain float Output samples instead of display U8.
@@ -48,24 +64,114 @@ impl Renderer {
         rect: PixelRect,
         cancel: &CancellationToken,
     ) -> EngineResult<Option<Vec<Tile>>> {
-        cancel.check()?;
-        self.validate_settings(settings)?;
-        let r = self.resolve(image, settings)?;
-        if level > MAX_LEVEL
-            || !self.supports_resident(&r, Some(level))
-            || self.is_adobe()
-            || !crate::resident_export_lens_supported(&settings.lens)
+        if !crate::resident_export_lens_supported(&settings.lens)
+            || settings.geometry != Default::default()
         {
             return Ok(None);
         }
-        let Some(batch) = self.ops.begin_resident() else {
+        self.render_resident_lens(image, settings, level, rect, None, cancel)
+    }
+
+    /// [`Renderer::render_resident_region`] with resolved lens corrections
+    /// (and crop/straighten/Transform), in the reference's order: lateral CA
+    /// on sensor-frame camera RGB, vignetting after white balance, and the
+    /// composed geometry map after Effects, before Output. With a map, `rect`
+    /// addresses the mapped output frame ([`Renderer::lens_output_extent`]);
+    /// its rows are rendered from the input rows the map reads. Lens-plan
+    /// stages are never memoized. The plan must match `settings`.
+    pub fn render_resident_lens(
+        &self,
+        image: &RawImage,
+        settings: &DevelopSettings,
+        level: u8,
+        rect: PixelRect,
+        lens: Option<&pipeline_cpu::LensPlan>,
+        cancel: &CancellationToken,
+    ) -> EngineResult<Option<Vec<Tile>>> {
+        cancel.check()?;
+        self.validate_settings(settings)?;
+        let mut r = self.resolve(image, settings)?;
+        r.lens = lens.filter(|l| !l.is_identity());
+        if level > MAX_LEVEL || !self.supports_resident(&r, Some(level)) || self.is_adobe() {
+            return Ok(None);
+        }
+        let Some(mut batch) = self.ops.begin_resident() else {
             return Ok(None);
         };
-        let coords = Self::tiles_for(image, level, rect);
-        Ok(Some(
-            self.run_resident(&r, &coords, RenderOutput::Display, cancel, batch, None)?
-                .tiles,
-        ))
+        let Some(map) = r.lens.and_then(|l| l.map.as_ref()) else {
+            let coords = Self::tiles_for(image, level, rect);
+            return Ok(Some(
+                self.run_resident(&r, &coords, RenderOutput::Display, cancel, batch, None)?
+                    .tiles,
+            ));
+        };
+        let frame = image.level_extent(level);
+        let (w, h) = map.output_extent(frame.width, frame.height);
+        let out = Extent::new(w, h);
+        let rows = rect.y..(u64::from(rect.y) + u64::from(rect.height)).min(u64::from(h)) as u32;
+        if rows.is_empty() || !rect.y.is_multiple_of(TILE_SIZE) {
+            return Err(engine_api::EngineError::invalid(
+                "lens region",
+                "tile-aligned rows inside the mapped frame required",
+            ));
+        }
+        let (first, end) = map.source_rows(rows.clone(), frame.width, frame.height);
+        let coords = Self::tiles_for(
+            image,
+            level,
+            PixelRect::new(0, first, frame.width, end - first),
+        );
+        let developed =
+            self.develop_tiles(&r, &coords, RenderOutput::SceneLinear, cancel, &mut *batch)?;
+        cancel.check()?;
+        let developed: HashMap<_, _> = developed.into_iter().map(|t| (t.coord, t)).collect();
+        let band_coord = TileCoord::new(level, 0, rows.start / TILE_SIZE);
+        let mapped = batch.remap(
+            frame,
+            &developed,
+            (first, end),
+            map,
+            out,
+            rows.clone(),
+            band_coord,
+        )?;
+        drop(developed);
+        let mapped = match RenderOutput::Display.display_op(settings.output.gamut_mapping) {
+            Some(display) => batch.run(&display, &mapped)?,
+            None => mapped,
+        };
+        let mut tiles = Vec::new();
+        for y in rows.start / TILE_SIZE..rows.end.div_ceil(TILE_SIZE) {
+            for x in 0..w.div_ceil(TILE_SIZE) {
+                let (ox, oy) = (x * TILE_SIZE, y * TILE_SIZE);
+                let extent = Extent::new((w - ox).min(TILE_SIZE), (rows.end - oy).min(TILE_SIZE));
+                tiles.push(batch.crop(
+                    &mapped,
+                    TileCoord::new(level, x, y),
+                    (ox, oy - rows.start),
+                    extent,
+                )?);
+            }
+        }
+        drop(mapped);
+        Ok(Some(batch.finish(tiles, true, None, cancel)?.tiles))
+    }
+
+    /// Output extent at `level` of a lens plan's composed map (the active
+    /// area when the plan has no map).
+    pub fn lens_output_extent(
+        image: &RawImage,
+        level: u8,
+        lens: Option<&pipeline_cpu::LensPlan>,
+    ) -> Extent {
+        let frame = image.level_extent(level);
+        match lens.and_then(|l| l.map.as_ref()) {
+            Some(map) => {
+                let (w, h) = map.output_extent(frame.width, frame.height);
+                Extent::new(w, h)
+            }
+            None => frame,
+        }
     }
 
     /// Whether this backend can develop this image/recipe without host pixel
@@ -88,7 +194,9 @@ impl Renderer {
             // Local adjustment operators/rasterization use the whole-image
             // nonresident path until all local kernels are resident-capable.
             || !s.locals.adjustments.is_empty()
-            || s.geometry != Default::default()
+            // Geometry is resident only through an export lens plan's map.
+            || (s.geometry != Default::default()
+                && r.lens.and_then(|l| l.map.as_ref()).is_none())
         {
             return false;
         }
@@ -218,8 +326,14 @@ impl Renderer {
         let cache = |batch: &mut dyn ResidentBatch, key, tile: &crate::resident::ResidentTile| {
             batch.cache_exact(key, tile)
         };
-        let cache_dem = self.config.graph.node(StageId::Demosaic).cacheable;
-        let cache_wb = self.config.graph.node(StageId::WhiteBalance).cacheable;
+        // Lens stages are not part of the memo chain: never cache around them.
+        let cache_dem = self.config.graph.node(StageId::Demosaic).cacheable && r.lens.is_none();
+        let cache_wb = self.config.graph.node(StageId::WhiteBalance).cacheable && r.lens.is_none();
+        let ca = r.lens.and_then(|l| l.ca.as_ref());
+        let ca_halo = match ca {
+            Some(plan) => ca_halo(plan, r.sensor)?,
+            None => 0,
+        };
         let mut balanced = HashMap::new();
         for c in needed {
             cancel.check()?;
@@ -243,7 +357,16 @@ impl Renderer {
                         cancel.check()?;
                         let mut dem = HashMap::new();
                         let mut missing = Vec::new();
-                        for &d in sources {
+                        // Lateral CA reads demosaiced neighbours of each source.
+                        let wanted: BTreeSet<TileCoord> = if ca.is_some() {
+                            sources
+                                .iter()
+                                .flat_map(|&d| gather_sources(r.sensor, d, ca_halo, 1))
+                                .collect()
+                        } else {
+                            sources.iter().copied().collect()
+                        };
+                        for &d in &wanted {
                             if cache_dem
                                 && let Some(t) = batch.cached(&key(StageId::Demosaic, d))?
                             {
@@ -305,6 +428,15 @@ impl Renderer {
                             dem.insert(d, t);
                         }
                         drop(linear);
+                        if let Some(plan) = ca {
+                            let mut corrected = HashMap::with_capacity(sources.len());
+                            for &d in sources {
+                                cancel.check()?;
+                                let t = batch.gather(r.sensor, d, ca_halo, 1, &dem)?;
+                                corrected.insert(d, batch.lateral_ca(&t, r.sensor, plan)?);
+                            }
+                            dem = corrected;
+                        }
                         sampled = Some(batch.resample(r.crop, c, &dem, sampled)?);
                         drop(dem);
                         batch.checkpoint(cancel)?;
@@ -325,6 +457,10 @@ impl Renderer {
                 // Both matrices are linear: transform only the requested level.
                 let t = batch.run(&Op::Matrix(r.profile), &t)?;
                 let t = batch.run(&Op::Matrix(r.wb), &t)?;
+                let t = match r.lens.and_then(|l| l.vignette.as_ref()) {
+                    Some(plan) => batch.lens_gain(&t, r.image.level_extent(c.level), plan)?,
+                    None => t,
+                };
                 if cache_wb {
                     cache(batch, key(StageId::WhiteBalance, c), &t)?
                 } else {
@@ -365,8 +501,8 @@ impl Renderer {
             );
             k
         };
-        let cache_wb = self.config.graph.node(StageId::WhiteBalance).cacheable;
-        let cache_detail = self.config.graph.node(StageId::Detail).cacheable;
+        let cache_wb = self.config.graph.node(StageId::WhiteBalance).cacheable && r.lens.is_none();
+        let cache_detail = self.config.graph.node(StageId::Detail).cacheable && r.lens.is_none();
         let detail_key = level_key(StageId::Detail, 0);
         let developed = if cache_detail && let Some(t) = batch.cached(&detail_key)? {
             t
@@ -455,14 +591,6 @@ impl Renderer {
         mut batch: Box<dyn ResidentBatch + '_>,
         surface: Option<SurfaceTarget>,
     ) -> EngineResult<ResidentOutput> {
-        let key = |stage, c| PipelineGraph::memo_key(r.image.id(), &r.chain, stage, c);
-        // Creative curves/color can amplify f16 checkpoint error beyond the
-        // full-chain tolerance. Retain f32 checkpoints for every recipe so a
-        // later creative edit cannot reuse lower-precision neutral entries.
-        // Their full payload still counts against the configured cache budget.
-        let cache = |batch: &mut dyn ResidentBatch, key, tile: &crate::resident::ResidentTile| {
-            batch.cache_exact(key, tile)
-        };
         if let Some(first) = coords.first() {
             let frame = r.image.level_extent(first.level);
             let all = Self::tiles_for(r.image, first.level, PixelRect::full(frame));
@@ -472,7 +600,29 @@ impl Renderer {
                 return self.run_resident_level(r, &all, coords, output, cancel, batch, surface);
             }
         }
-        let cache_detail = self.config.graph.node(StageId::Detail).cacheable;
+        let finished = self.develop_tiles(r, coords, output, cancel, &mut *batch)?;
+        batch.finish(finished, output == RenderOutput::Display, surface, cancel)
+    }
+
+    /// The resident tile path up to (and including) `output`'s display op:
+    /// halo-free developed tiles for `coords`, still on the backend.
+    fn develop_tiles(
+        &self,
+        r: &Resolved<'_>,
+        coords: &[TileCoord],
+        output: RenderOutput,
+        cancel: &CancellationToken,
+        batch: &mut dyn ResidentBatch,
+    ) -> EngineResult<Vec<crate::resident::ResidentTile>> {
+        let key = |stage, c| PipelineGraph::memo_key(r.image.id(), &r.chain, stage, c);
+        // Creative curves/color can amplify f16 checkpoint error beyond the
+        // full-chain tolerance. Retain f32 checkpoints for every recipe so a
+        // later creative edit cannot reuse lower-precision neutral entries.
+        // Their full payload still counts against the configured cache budget.
+        let cache = |batch: &mut dyn ResidentBatch, key, tile: &crate::resident::ResidentTile| {
+            batch.cache_exact(key, tile)
+        };
+        let cache_detail = self.config.graph.node(StageId::Detail).cacheable && r.lens.is_none();
         let halo = pipeline_cpu::detail_halo(&r.settings.detail);
         let presence = has_presence(&r.settings.tone);
         // Texture/Clarity/Dehaze read neighbourhoods and global statistics of
@@ -571,6 +721,6 @@ impl Renderer {
             t.coord = c;
             finished.push(t);
         }
-        batch.finish(finished, output == RenderOutput::Display, surface, cancel)
+        Ok(finished)
     }
 }

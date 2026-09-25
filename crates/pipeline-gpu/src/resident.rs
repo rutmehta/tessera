@@ -1,6 +1,9 @@
 use crate::{GpuStageOp, operator::parameters};
 #[path = "export_resize.rs"]
 pub(crate) mod export_resize;
+#[path = "lens.rs"]
+mod lens;
+
 use engine_api::{
     EngineError, EngineResult,
     jobs::CancellationToken,
@@ -15,6 +18,12 @@ use std::{
     collections::{BTreeMap, HashMap},
     sync::{Arc, Mutex, atomic::Ordering},
 };
+
+/// Export waits this long after the last interactive job before resuming
+/// (a drag's next event follows within a display frame or two).
+pub const EXPORT_QUIET: std::time::Duration = std::time::Duration::from_millis(50);
+/// Longest single yield: export still advances under a never-idle viewport.
+pub const EXPORT_MAX_YIELD: std::time::Duration = std::time::Duration::from_millis(1000);
 
 struct Storage {
     buffer: wgpu::Buffer,
@@ -151,7 +160,13 @@ pub(crate) struct Batch<'a> {
     no_map: wgpu::Buffer,
     /// A constants map built by this transaction, published on completion.
     pending_map: Option<crate::batch::EffectsMap>,
+    /// Mapped-at-creation parameter arena for [`Batch::dispatch_with`]: one
+    /// allocation per thousands of dispatches instead of a buffer (and a
+    /// staging copy) per dispatch. Unmapped before every submission.
+    params: Option<(wgpu::Buffer, u64)>,
 }
+/// Parameter arena size; blocks are offset-aligned.
+const PARAM_ARENA: u64 = 1 << 20;
 // Every submitted command of a transaction has completed (finish/read_now
 // wait) or was never submitted, so its free buffers are idle when the
 // transaction ends: keep them for later transactions, including after
@@ -199,6 +214,7 @@ impl<'a> Batch<'a> {
             },
             no_map: gpu.no_map.clone(),
             pending_map: None,
+            params: None,
             profile: Vec::new(),
         }
     }
@@ -235,9 +251,11 @@ impl<'a> Batch<'a> {
         if let Some(i) = pool.free.iter().position(|b| b.size() == bytes as u64) {
             return Ok(pool.free.swap_remove(i));
         }
-        if self.gpu.export_float && pool.allocated_bytes.saturating_add(bytes as u64) > 512 << 20 {
+        if self.gpu.export_float
+            && pool.allocated_bytes.saturating_add(bytes as u64) > self.gpu.export_scratch
+        {
             return Err(EngineError::Unsupported {
-                what: "export GPU scratch exceeds 512 MiB".into(),
+                what: "export GPU scratch exceeds its budget".into(),
             });
         }
         pool.allocated_bytes += bytes as u64;
@@ -294,20 +312,23 @@ impl<'a> Batch<'a> {
         extra: Option<&wgpu::Buffer>,
     ) {
         let ctx = self.gpu.context();
-        let p = self.host_buffer(
-            Some("resident parameters"),
-            params,
-            wgpu::BufferUsages::STORAGE,
-        );
-        let entries: Vec<_> = [src, dst, &p]
+        let (p, offset, size) = self.param_block(params);
+        let mut entries: Vec<_> = [src, dst]
             .into_iter()
-            .chain(extra)
-            .collect::<Vec<_>>()
-            .iter()
+            .map(|b| b.as_entire_binding())
+            .collect();
+        entries.push(wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+            buffer: &p,
+            offset,
+            size: std::num::NonZeroU64::new(size),
+        }));
+        entries.extend(extra.map(|b| b.as_entire_binding()));
+        let entries: Vec<_> = entries
+            .into_iter()
             .enumerate()
-            .map(|(i, b)| wgpu::BindGroupEntry {
+            .map(|(i, resource)| wgpu::BindGroupEntry {
                 binding: i as u32,
-                resource: b.as_entire_binding(),
+                resource,
             })
             .collect();
         let group = ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -505,7 +526,65 @@ impl<'a> Batch<'a> {
             });
         self.record(pipeline, group, (buffer.size() / 4).div_ceil(64) as u32);
     }
+    /// A parameter block in the current arena: (buffer, offset, size).
+    fn param_block(&mut self, bytes: &[u8]) -> (wgpu::Buffer, u64, u64) {
+        let device = &self.gpu.context().device;
+        let size = (bytes.len() as u64).max(4).next_multiple_of(4);
+        if size > PARAM_ARENA / 16 {
+            let buffer = self.host_buffer(
+                Some("resident parameters"),
+                bytes,
+                wgpu::BufferUsages::STORAGE,
+            );
+            return (buffer, 0, size);
+        }
+        let align = u64::from(device.limits().min_storage_buffer_offset_alignment).max(4);
+        if self
+            .params
+            .as_ref()
+            .is_none_or(|(_, used)| used + size > PARAM_ARENA)
+        {
+            self.seal_params();
+            let buffer = device.create_buffer(&wgpu::BufferDescriptor {
+                label: Some("resident parameter arena"),
+                size: PARAM_ARENA,
+                usage: wgpu::BufferUsages::STORAGE,
+                mapped_at_creation: true,
+            });
+            self.params = Some((buffer, 0));
+        }
+        let (buffer, used) = self.params.as_mut().expect("parameter arena");
+        let offset = *used;
+        match buffer.slice(offset..offset + size).get_mapped_range_mut() {
+            Ok(mut view) => {
+                if bytes.len() as u64 == size {
+                    view.copy_from_slice(bytes);
+                } else {
+                    let mut padded = bytes.to_vec();
+                    padded.resize(size as usize, 0);
+                    view.copy_from_slice(&padded);
+                }
+            }
+            Err(_) => {
+                let buffer = self.host_buffer(
+                    Some("resident parameters"),
+                    bytes,
+                    wgpu::BufferUsages::STORAGE,
+                );
+                return (buffer, 0, size);
+            }
+        }
+        *used = (offset + size).next_multiple_of(align);
+        (buffer.clone(), offset, size)
+    }
+    /// Unmaps the parameter arena: required before any submission using it.
+    fn seal_params(&mut self) {
+        if let Some((buffer, _)) = self.params.take() {
+            buffer.unmap();
+        }
+    }
     fn encode_compute(&mut self) {
+        self.seal_params();
         if self.commands.is_empty() {
             return;
         }
@@ -709,7 +788,13 @@ impl<'a> Batch<'a> {
 impl ResidentBatch for Batch<'_> {
     fn checkpoint(&mut self, cancel: &CancellationToken) -> EngineResult<()> {
         cancel.check()?;
-        if !self.gpu.export_float || self.pool.lock().unwrap().allocated_bytes < 128 << 20 {
+        // Export yields the device to interactive renders at dependency
+        // boundaries: drain its own submitted work, then wait for the
+        // viewport (spec 08 §2). Nothing is read back or published.
+        let yielding = self.gpu.export_float && jobs::interactive_pending() > 0;
+        if !yielding
+            && (!self.gpu.export_float || self.pool.lock().unwrap().allocated_bytes < 128 << 20)
+        {
             return Ok(());
         }
         // Queue uploads cannot reuse buffers inside an unsubmitted encoder:
@@ -734,6 +819,10 @@ impl ResidentBatch for Batch<'_> {
         let mut pool = self.pool.lock().unwrap();
         let retired: u64 = pool.free.drain(..).map(|buffer| buffer.size()).sum();
         pool.allocated_bytes = pool.allocated_bytes.saturating_sub(retired);
+        drop(pool);
+        if yielding {
+            jobs::yield_to_interactive(cancel, EXPORT_QUIET, EXPORT_MAX_YIELD)?;
+        }
         cancel.check()
     }
     fn cached(&mut self, key: &MemoKey) -> EngineResult<Option<ResidentTile>> {
@@ -772,7 +861,13 @@ impl ResidentBatch for Batch<'_> {
         Ok(rounded)
     }
     fn cache_exact(&mut self, key: MemoKey, tile: &ResidentTile) -> EngineResult<ResidentTile> {
-        if self.storage(tile)?.size() as usize <= self.gpu.resident_cache.lock().unwrap().budget {
+        // Export transactions (no memo budget) still reuse each uploaded
+        // sensor tile across the demosaic halos of its neighbours instead of
+        // uploading it once per dependent chunk. Publication at finish keeps
+        // applying the cache budget.
+        if (self.gpu.export_float && key.stage == StageId::Decode)
+            || self.storage(tile)?.size() as usize <= self.gpu.resident_cache.lock().unwrap().budget
+        {
             self.access_tick += 1;
             self.pending.insert(key, (self.access_tick, tile.clone()));
         }
@@ -1066,6 +1161,34 @@ impl ResidentBatch for Batch<'_> {
         }
         Ok(output)
     }
+    fn lateral_ca(
+        &mut self,
+        tile: &ResidentTile,
+        frame: Extent,
+        plan: &pipeline_cpu::CaPlan,
+    ) -> EngineResult<ResidentTile> {
+        self.lateral_ca_impl(tile, frame, plan)
+    }
+    fn lens_gain(
+        &mut self,
+        tile: &ResidentTile,
+        frame: Extent,
+        plan: &pipeline_cpu::VignettePlan,
+    ) -> EngineResult<ResidentTile> {
+        self.lens_gain_impl(tile, frame, plan)
+    }
+    fn remap(
+        &mut self,
+        frame: Extent,
+        tiles: &HashMap<TileCoord, ResidentTile>,
+        source: (u32, u32),
+        plan: &pipeline_cpu::MapPlan,
+        output: Extent,
+        rows: std::ops::Range<u32>,
+        coord: TileCoord,
+    ) -> EngineResult<ResidentTile> {
+        self.remap_impl(frame, tiles, source, plan, output, rows, coord)
+    }
     fn gather(
         &mut self,
         frame: Extent,
@@ -1304,10 +1427,10 @@ impl ResidentBatch for Batch<'_> {
                 .unwrap()
                 .allocated_bytes
                 .saturating_add(bytes as u64)
-                > 512 << 20
+                > self.gpu.export_scratch
         {
             return Err(EngineError::Unsupported {
-                what: "export GPU scratch plus readback exceeds 512 MiB".into(),
+                what: "export GPU scratch plus readback exceeds its budget".into(),
             });
         }
         let staging = if bytes > 0 {
@@ -1674,6 +1797,7 @@ mod tests {
             include_str!("hdr_surface.wgsl"),
             include_str!("zero.wgsl"),
             include_str!("presence.wgsl"),
+            include_str!("lens.wgsl"),
         ] {
             let module = naga::front::wgsl::parse_str(source).unwrap();
             naga::valid::Validator::new(

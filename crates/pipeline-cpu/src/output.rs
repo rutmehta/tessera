@@ -92,6 +92,21 @@ fn render_with_transform(
     output_with_transform(settings, pixels, transform)
 }
 
+/// [`render_managed_scaled`] with an already-resolved lens correction.
+pub fn render_managed_scaled_resolved(
+    settings: &DevelopSettings,
+    source: &RenderSource<'_>,
+    scale: u32,
+    context: &mut OutputContext<'_>,
+    resolved: &crate::ResolvedLens,
+) -> EngineResult<ManagedOutput> {
+    let transform = context.resolve(settings)?;
+    let mut linear_settings = settings.clone();
+    linear_settings.output.proof_profile = None;
+    let rgb = crate::render_linear_scaled_resolved(&linear_settings, source, scale, resolved)?;
+    output_with_transform(settings, tone_map(rgb), &transform)
+}
+
 /// Tone-mapped linear Rec.2020 floats, before output gamut mapping or encoding.
 /// Allows enhancement in linear light before the final managed output stage.
 pub fn render_output_linear_scaled(
@@ -104,6 +119,10 @@ pub fn render_output_linear_scaled(
     let mut linear_settings = settings.clone();
     linear_settings.output.proof_profile = None;
     let rgb = crate::render_linear_scaled(&linear_settings, source, scale)?;
+    Ok(tone_map(rgb))
+}
+
+fn tone_map(rgb: crate::Image) -> image::Rgb32FImage {
     let mut pixels = image::Rgb32FImage::new(rgb.width(), rgb.height());
     for (i, pixel) in pixels.pixels_mut().enumerate() {
         let v = std::array::from_fn(|c| rgb.planes()[c][i]);
@@ -115,7 +134,7 @@ pub fn render_output_linear_scaled(
         };
         *pixel = image::Rgb(toned);
     }
-    Ok(pixels)
+    pixels
 }
 
 /// Convert tone-mapped linear Rec.2020 to the selected output profile once.

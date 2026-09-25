@@ -175,18 +175,24 @@ impl Open {
 
     /// The final frame of the next render after the last one observed.
     fn next_final(&mut self) -> FrameInfo {
-        let deadline = Instant::now() + Duration::from_secs(120);
-        loop {
-            let left = deadline.saturating_duration_since(Instant::now());
-            let frame = self.frames.recv_timeout(left).unwrap_or_else(|_| {
+        self.next_final_within(Duration::from_secs(120))
+            .unwrap_or_else(|| {
                 panic!(
                     "no frame; failures: {:?}",
                     self.events.failed.lock().unwrap()
                 )
-            });
+            })
+    }
+
+    /// Like [`Open::next_final`], but None when no newer render finishes.
+    fn next_final_within(&mut self, timeout: Duration) -> Option<FrameInfo> {
+        let deadline = Instant::now() + timeout;
+        loop {
+            let left = deadline.saturating_duration_since(Instant::now());
+            let frame = self.frames.recv_timeout(left).ok()?;
             if frame.generation > self.last_generation && frame.is_final {
                 self.last_generation = frame.generation;
-                return frame;
+                return Some(frame);
             }
         }
     }
@@ -670,12 +676,26 @@ fn slow_interactive_frames_are_not_starved() {
     }
     let sent = start.elapsed();
     let mut during = 0;
+    let mut drained = None;
     while let Ok(f) = open.frames.try_recv() {
         during += 1;
         open.last_generation = open.last_generation.max(f.generation);
+        if f.is_final
+            && drained
+                .as_ref()
+                .is_none_or(|d: &FrameInfo| f.generation >= d.generation)
+        {
+            drained = Some(f);
+        }
     }
     assert!(open.session.commit("HSL".into()).unwrap());
-    let last = open.next_final();
+    // Commit re-renders only when the drag has not already drawn the final
+    // settings at the screen level. With fast frames every edit is rendered
+    // at the screen level during the burst (the latest one was drained).
+    let last = open
+        .next_final_within(Duration::from_secs(5))
+        .or(drained)
+        .expect("the final settings are rendered");
     let v: serde_json::Value =
         serde_json::from_str(&open.session.get_settings_json().unwrap()).unwrap();
     assert_eq!(v["color"]["hsl"]["hue"]["orange"], 39.0);
@@ -982,4 +1002,176 @@ fn bench_detail_preview() {
         }
         println!("{} loupe refinement:\n{}", info.backend, lines.join("\n"));
     }
+}
+
+struct ExportProgressLog(Mutex<Vec<(Instant, u32)>>);
+impl ExportProgressListener for ExportProgressLog {
+    fn on_progress(&self, progress: ExportProgress) {
+        self.0.lock().unwrap().push((Instant::now(), progress.done));
+    }
+}
+
+/// A full-size export batch of the five RAW fixtures runs while a develop
+/// session drags a slider at L2. Export bands are Export-priority work that
+/// yields to interactive renders: slider frames keep p90 < 16 ms at L2, and
+/// the export still completes (neither side starves).
+#[test]
+fn export_batch_does_not_starve_slider_drag() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/raw");
+    let names = [
+        "canon-cr3.CR3",
+        "sony-arw.ARW",
+        "nikon-nef.NEF",
+        "fuji-raf.RAF",
+        "sample.dng",
+    ];
+    if names.iter().any(|n| !root.join(n).is_file()) {
+        eprintln!("skipping: five RAW fixtures required in {}", root.display());
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let photos = dir.path().join("photos");
+    std::fs::create_dir(&photos).unwrap();
+    for n in names {
+        std::fs::copy(root.join(n), photos.join(n)).unwrap();
+    }
+    let engine = Engine::open(dir.path().join("support").to_string_lossy().into_owned()).unwrap();
+    engine
+        .index_folder(photos.to_string_lossy().into_owned())
+        .unwrap();
+    let images = engine.list_images(ImageQuery::default()).unwrap();
+    assert_eq!(images.len(), 5);
+    let nef = images
+        .iter()
+        .find(|i| i.path.ends_with(".NEF"))
+        .unwrap()
+        .id
+        .clone();
+    let mut open = Open::new(&engine, &nef);
+    let info = open.session.info();
+    let (plan, _) = open.attach((info.width.div_ceil(4), info.height.div_ceil(4)), 3);
+    assert_eq!(plan.level, 2);
+    open.next_final();
+    // Warm the drag path (level adaptation, pipelines) before the export.
+    for i in 0..8 {
+        open.session
+            .set_settings(
+                format!(
+                    r#"{{"tone":{{"exposure":{}}}}}"#,
+                    0.05 + f64::from(i) * 0.01
+                ),
+                true,
+            )
+            .unwrap();
+        open.next_final();
+    }
+
+    // The same drag with no export running: the reference latency.
+    let mut idle = Vec::new();
+    for i in 0..120 {
+        let sent = Instant::now();
+        open.session
+            .set_settings(
+                format!(
+                    r#"{{"tone":{{"exposure":{}}}}}"#,
+                    1.0 - f64::from(i) * 0.015
+                ),
+                true,
+            )
+            .unwrap();
+        idle.push(open.next_final().render_ms);
+        std::thread::sleep(Duration::from_millis(16).saturating_sub(sent.elapsed()));
+    }
+    idle.sort_by(f64::total_cmp);
+
+    let out = dir.path().join("out");
+    let progress = Arc::new(ExportProgressLog(Mutex::new(Vec::new())));
+    let export = {
+        let engine = engine.clone();
+        let ids = images.iter().map(|i| i.id.clone()).collect();
+        let settings = serde_json::json!({
+            "destination": out.to_string_lossy(),
+            "quality": 90,
+            "metadata": "none",
+        })
+        .to_string();
+        let progress = progress.clone();
+        std::thread::spawn(move || {
+            let started = Instant::now();
+            let report = engine
+                .export_batch(
+                    ExportTarget::Images { image_ids: ids },
+                    settings,
+                    Some(progress),
+                    None,
+                )
+                .unwrap();
+            (report, started.elapsed())
+        })
+    };
+    // Let the export get past its first decode into GPU rendering.
+    std::thread::sleep(Duration::from_millis(1500));
+    let mut samples = Vec::new();
+    let mut levels = Vec::new();
+    let drag = Instant::now();
+    for i in 0..120 {
+        let sent = Instant::now();
+        open.session
+            .set_settings(
+                format!(
+                    r#"{{"tone":{{"exposure":{}}}}}"#,
+                    -1.0 + f64::from(i) * 0.015
+                ),
+                true,
+            )
+            .unwrap();
+        let f = open.next_final();
+        samples.push((f.render_ms, sent.elapsed().as_secs_f64() * 1e3));
+        levels.push(f.level);
+        // A 60 Hz pointer: the next event arrives one display frame later.
+        std::thread::sleep(Duration::from_millis(16).saturating_sub(sent.elapsed()));
+    }
+    let dragged = drag.elapsed();
+    assert!(open.session.commit("Exposure".into()).unwrap());
+    let (report, seconds) = export.join().unwrap();
+    let mut render: Vec<f64> = samples.iter().map(|s| s.0).collect();
+    let mut latency: Vec<f64> = samples.iter().map(|s| s.1).collect();
+    render.sort_by(f64::total_cmp);
+    latency.sort_by(f64::total_cmp);
+    let p = |v: &[f64], q: f64| v[((v.len() - 1) as f64 * q) as usize];
+    let during = progress
+        .0
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|(t, _)| *t >= drag && *t <= drag + dragged)
+        .count();
+    let at_l2 = levels.iter().filter(|&&l| l == 2).count();
+    eprintln!(
+        "slider without export: render p50 {:.1} ms p90 {:.1} ms max {:.1} ms",
+        p(&idle, 0.5),
+        p(&idle, 0.9),
+        p(&idle, 1.0),
+    );
+    eprintln!(
+        "slider during export: {} frames in {dragged:?} ({at_l2} at L2): render p50 {:.1} ms p90 {:.1} ms max {:.1} ms; set→frame p50 {:.1} ms p90 {:.1} ms max {:.1} ms; export {} images in {seconds:?}, {during} completed during the drag",
+        samples.len(),
+        p(&render, 0.5),
+        p(&render, 0.9),
+        p(&render, 1.0),
+        p(&latency, 0.5),
+        p(&latency, 0.9),
+        p(&latency, 1.0),
+        report.exported,
+    );
+    assert_eq!((report.exported, report.failed), (5, 0), "{report:?}");
+    assert!(
+        at_l2 * 10 >= levels.len() * 9,
+        "drag stays at L2: {levels:?}"
+    );
+    assert!(
+        p(&render, 0.9) < 16.0,
+        "slider p90 {:.1} ms",
+        p(&render, 0.9)
+    );
 }

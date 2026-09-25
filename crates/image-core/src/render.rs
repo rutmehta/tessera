@@ -262,6 +262,8 @@ struct Resolved<'a> {
     algorithm: DemosaicAlgorithm,
     profile: ColorMatrix3,
     wb: ColorMatrix3,
+    /// Resident export lens stages (never set for viewport renders).
+    lens: Option<&'a pipeline_cpu::LensPlan>,
 }
 
 impl Renderer {
@@ -755,6 +757,7 @@ impl Renderer {
             algorithm,
             profile,
             wb,
+            lens: None,
         })
     }
 

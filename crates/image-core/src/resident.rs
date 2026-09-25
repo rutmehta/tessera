@@ -138,6 +138,51 @@ pub trait ResidentBatch {
         period: u32,
         tiles: &HashMap<TileCoord, ResidentTile>,
     ) -> EngineResult<ResidentTile>;
+    /// Lateral CA on halo-padded demosaiced camera RGB in the sensor frame
+    /// (`frame`): channels 0 and 2 are resampled bilinearly at the plan's
+    /// radial scale; returns the halo-free interior. The halo must cover the
+    /// plan's largest displacement plus the bilinear support.
+    fn lateral_ca(
+        &mut self,
+        _tile: &ResidentTile,
+        _frame: Extent,
+        _plan: &pipeline_cpu::CaPlan,
+    ) -> EngineResult<ResidentTile> {
+        Err(engine_api::EngineError::Unsupported {
+            what: "resident lateral CA".into(),
+        })
+    }
+    /// Vignetting gains on a halo-free scene tile of an active-area level of
+    /// size `frame` (normalized coordinates span that frame).
+    fn lens_gain(
+        &mut self,
+        _tile: &ResidentTile,
+        _frame: Extent,
+        _plan: &pipeline_cpu::VignettePlan,
+    ) -> EngineResult<ResidentTile> {
+        Err(engine_api::EngineError::Unsupported {
+            what: "resident vignetting".into(),
+        })
+    }
+    /// Composed inverse map with normalized Lanczos-3: output rows
+    /// `rows` (of `output`) from the halo-free tiles of `frame` that cover
+    /// input rows `source` (`[first, end)`). Returns one halo-free tile of
+    /// `output.width` × `rows.len()` addressed `coord`.
+    #[allow(clippy::too_many_arguments)]
+    fn remap(
+        &mut self,
+        _frame: Extent,
+        _tiles: &HashMap<TileCoord, ResidentTile>,
+        _source: (u32, u32),
+        _plan: &pipeline_cpu::MapPlan,
+        _output: Extent,
+        _rows: std::ops::Range<u32>,
+        _coord: TileCoord,
+    ) -> EngineResult<ResidentTile> {
+        Err(engine_api::EngineError::Unsupported {
+            what: "resident lens/geometry map".into(),
+        })
+    }
     fn resample(
         &mut self,
         crop: [u32; 4],

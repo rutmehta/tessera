@@ -18,6 +18,9 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread::{self, JoinHandle};
 
+mod pressure;
+pub use pressure::{interactive_pending, yield_to_interactive};
+
 /// Runs inline for tests/CLI without creating a worker pool. The context has
 /// reserved id zero, a fresh token and no progress sink. Returns the job's error
 /// unchanged; unlike the pool, panics propagate to the caller.
@@ -27,6 +30,8 @@ pub fn blocking_run(job: Box<dyn Job>) -> EngineResult<()> {
 
 struct Record {
     priority: Priority,
+    /// Counted in the process-wide interactive pressure until it completes.
+    interactive: bool,
     group: Option<JobGroupId>,
     token: CancellationToken,
     status: JobStatus,
@@ -98,10 +103,15 @@ impl Scheduler for ThreadPoolScheduler {
         state.next = state.next.checked_add(1).expect("job id space exhausted");
         let id = JobId(state.next);
         state.ready.insert((priority, id));
+        let interactive = priority.is_interactive();
+        if interactive {
+            pressure::begin();
+        }
         state.records.insert(
             id,
             Record {
                 priority,
+                interactive,
                 group,
                 token: token.clone(),
                 status: JobStatus::Queued,
@@ -124,6 +134,14 @@ impl Scheduler for ThreadPoolScheduler {
                 ready.remove(&(record.priority, id));
                 record.priority = priority;
                 ready.insert((priority, id));
+                if record.interactive != priority.is_interactive() {
+                    record.interactive = priority.is_interactive();
+                    if record.interactive {
+                        pressure::begin();
+                    } else {
+                        pressure::end();
+                    }
+                }
             }
         }
     }
@@ -282,18 +300,16 @@ fn worker(shared: Arc<Shared>) {
             job.run(&ctx)
         }))
         .unwrap_or_else(|_| Err(EngineError::internal("job panicked")));
-        shared
-            .state
-            .lock()
-            .unwrap()
-            .records
-            .get_mut(&id)
-            .unwrap()
-            .status = match result {
+        let mut state = shared.state.lock().unwrap();
+        let record = state.records.get_mut(&id).unwrap();
+        record.status = match result {
             Ok(()) => JobStatus::Succeeded,
             Err(EngineError::Cancelled) => JobStatus::Cancelled,
             Err(error) => JobStatus::Failed { error },
         };
+        if std::mem::take(&mut record.interactive) {
+            pressure::end();
+        }
     }
 }
 
@@ -309,6 +325,9 @@ impl Drop for ThreadPoolScheduler {
                 if let Some(job) = record.job.take() {
                     record.status = JobStatus::Cancelled;
                     pending.push(job);
+                    if std::mem::take(&mut record.interactive) {
+                        pressure::end();
+                    }
                 }
             }
             pending

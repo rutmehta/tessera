@@ -91,6 +91,16 @@ impl Embedded {
     pub fn present(&self) -> bool {
         !self.warps.is_empty() || !self.gains.is_empty()
     }
+    /// Pixel-space centre and radius of a normalized opcode centre, and the
+    /// active-area crop the public [-1, 1] coordinates refer to.
+    pub(crate) fn frame(&self, center: [f64; 2]) -> ([f64; 2], f64, [f64; 4]) {
+        let c = [center[0] * self.size[0], center[1] * self.size[1]];
+        let radius = c[0]
+            .max(self.size[0] - c[0])
+            .hypot(c[1].max(self.size[1] - c[1]))
+            .max(1e-12);
+        (c, radius, self.crop)
+    }
     fn metric(&self, p: [f64; 2], center: [f64; 2]) -> ([f64; 2], f64, [f64; 2]) {
         let c = [center[0] * self.size[0], center[1] * self.size[1]];
         let radius = c[0]

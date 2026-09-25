@@ -385,17 +385,40 @@ impl ManagedRenderer {
         Self::build_resized(output, config, export, None)
     }
 
+    /// An export renderer whose resident transactions allocate at most
+    /// `scratch` bytes (its share of the device budget); larger requests fail
+    /// as unsupported so the caller can fall back or use smaller bands.
+    pub fn new_export_budgeted(
+        output: Arc<GpuManagedOutput>,
+        config: image_core::RendererConfig,
+        resize: Option<crate::ExportResize>,
+        scratch: u64,
+    ) -> Self {
+        Self::build_with(output, config, true, resize, scratch)
+    }
+
     fn build_resized(
         output: Arc<GpuManagedOutput>,
         config: image_core::RendererConfig,
         export: bool,
         resize: Option<crate::ExportResize>,
     ) -> Self {
+        Self::build_with(output, config, export, resize, 512 << 20)
+    }
+
+    fn build_with(
+        output: Arc<GpuManagedOutput>,
+        config: image_core::RendererConfig,
+        export: bool,
+        resize: Option<crate::ExportResize>,
+        scratch: u64,
+    ) -> Self {
         let mut ops =
             crate::GpuStageOp::with_cache_budget(output.context.clone(), config.cache_budget_bytes);
         ops.managed_output = Some(output.clone());
         ops.export_float = export;
         ops.export_resize = resize;
+        ops.export_scratch = scratch;
         let ops = Arc::new(ops);
         let renderer = image_core::Renderer::with_ops(
             ops.clone(),
@@ -404,6 +427,28 @@ impl ManagedRenderer {
         );
         Self {
             output,
+            renderer,
+            ops,
+        }
+    }
+
+    /// The renderer for another export band with its own resize request:
+    /// shares the compiled pipelines, device and output (no recompilation).
+    /// Resident memo caches are fresh (export renderers do not memoize).
+    pub fn export_band(&self, resize: Option<crate::ExportResize>) -> Self {
+        let mut ops = (*self.ops).clone();
+        ops.export_resize = resize;
+        ops.resident_cache = crate::resident::cache(self.renderer.config().cache_budget_bytes);
+        ops.recycled = Arc::default();
+        let ops = Arc::new(ops);
+        let config = self.renderer.config().clone();
+        let renderer = image_core::Renderer::with_ops(
+            ops.clone(),
+            Arc::new(image_core::TileCache::new(config.cache_budget_bytes)),
+            config,
+        );
+        Self {
+            output: self.output.clone(),
             renderer,
             ops,
         }
@@ -445,6 +490,28 @@ impl ManagedRenderer {
         let scene = self.output.scene_settings(settings)?;
         self.renderer
             .render_resident_region(image, &scene, level, rect, cancel)
+    }
+
+    /// [`ManagedRenderer::render_export`] with resolved lens corrections and
+    /// geometry. With a map, `rect` addresses the mapped output frame.
+    pub fn render_export_lens(
+        &self,
+        image: &image_core::RawImage,
+        settings: &DevelopSettings,
+        level: u8,
+        rect: image_core::PixelRect,
+        lens: &pipeline_cpu::LensPlan,
+        cancel: &engine_api::jobs::CancellationToken,
+    ) -> EngineResult<Option<Vec<Tile>>> {
+        if !self.ops.export_float {
+            return Err(EngineError::invalid(
+                "renderer",
+                "float export renderer required",
+            ));
+        }
+        let scene = self.output.scene_settings(settings)?;
+        self.renderer
+            .render_resident_lens(image, &scene, level, rect, Some(lens), cancel)
     }
 
     /// Uses the resident ICC Output kernel and existing IOSurface writer.

@@ -394,7 +394,10 @@ impl RenderedExport {
     /// Encode and atomically publish. On cancellation temporary files are
     /// dropped; existing destinations are never overwritten.
     pub fn finish(self, cancel: &CancellationToken) -> EngineResult<PathBuf> {
-        encode_rendered(self, cancel)?.commit(cancel)
+        let started = std::time::Instant::now();
+        let path = encode_rendered(self, cancel)?.commit(cancel);
+        gpu::trace("encode + commit", started);
+        path
     }
 }
 
@@ -453,6 +456,7 @@ pub fn render_one_cancellable(
         None
     };
     let already_resized = gpu_pixels.is_some();
+    let started = std::time::Instant::now();
     let rgb = if let Some(rgb) = gpu_pixels {
         rgb
     } else if ai_masks::active(&recipe.settings) {
@@ -486,6 +490,7 @@ pub fn render_one_cancellable(
     };
     let rgb = filter::sharpen(rgb, settings.sharpen_for, cancel)?;
     let packet = metadata_packet(image, recipe, settings.metadata)?;
+    gpu::trace("CPU render/orient/resize/sharpen", started);
     Ok(RenderedExport {
         used_gpu: already_resized,
         rgb,

@@ -8,6 +8,7 @@ license = "Apache-2.0"
 mask-ai = { path = "../mask-ai" }
 image-core = { path = "../image-core" }
 pipeline-gpu = { path = "../pipeline-gpu" }
+jobs = { path = "../jobs" }
 raw-decode = { path = "../raw-decode" }
 anyhow = { workspace = true }
 engine-api = { path = "../engine-api" }
@@ -25,3 +26,4 @@ jpeg-encoder = "0.6"
 
 [dev-dependencies]
 lcms2 = { workspace = true }
+lens = { path = "../lens" }
