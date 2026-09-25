@@ -8,6 +8,7 @@ pub use batch::{
     BatchReport, ExportItem, Progress, export_batch, export_batch_upscaled, export_batch_with_jobs,
 };
 mod filter;
+mod gpu;
 use engine_api::{EngineError, EngineResult};
 use engine_api::{jobs::CancellationToken, recipe::Recipe};
 pub use filter::{Resize, SharpenFor};
@@ -112,7 +113,32 @@ fn render_full(
     render_scaled(image, recipe, space, 1)
 }
 
+#[cfg(test)]
 fn render_scaled(
+    image: &ExportImage<'_>,
+    recipe: &Recipe,
+    space: ColorSpace,
+    scale: u32,
+) -> EngineResult<image::Rgb32FImage> {
+    render_scaled_cancellable(image, recipe, space, scale, &CancellationToken::new())
+}
+
+fn render_scaled_cancellable(
+    image: &ExportImage<'_>,
+    recipe: &Recipe,
+    space: ColorSpace,
+    scale: u32,
+    cancel: &CancellationToken,
+) -> EngineResult<image::Rgb32FImage> {
+    if std::env::var("TESSERA_EXPORT_BACKEND").as_deref() != Ok("cpu")
+        && let Some(rgb) = gpu::render(image, recipe, space, scale, cancel, gpu::BUDGET)?
+    {
+        return Ok(rgb);
+    }
+    render_scaled_cpu(image, recipe, space, scale)
+}
+
+fn render_scaled_cpu(
     image: &ExportImage<'_>,
     recipe: &Recipe,
     space: ColorSpace,
@@ -226,7 +252,7 @@ pub fn render_pixels(
         let rgb = ai_masks::render(&image.source, &recipe.settings, segmenter)?;
         encode_output_profile(rgb, recipe, render.color_space)?
     } else {
-        render_scaled(image, recipe, render.color_space, render.scale)?
+        render_scaled_cancellable(image, recipe, render.color_space, render.scale, cancel)?
     };
     cancel.check()?;
     let rgb = orient(rgb, source_orientation(&image.source));
@@ -343,6 +369,45 @@ fn prepare_with_segmenter(
     upscale: Option<&mut ml_enhance::SuperResolution>,
     segmenter: Option<&mut dyn mask_ai::MaskSegmenter>,
 ) -> EngineResult<PreparedExport> {
+    encode_rendered(
+        render_one_cancellable(image, recipe, settings, cancel, upscale, segmenter)?,
+        cancel,
+    )
+}
+
+/// An owned output frame. Send it to an encoder thread while rendering the
+/// next image. No source pixels, model sessions, or GPU allocations are held.
+pub struct RenderedExport {
+    used_gpu: bool,
+    rgb: image::Rgb32FImage,
+    packet: Option<XmpPacket>,
+    settings: ExportSettings,
+    path: PathBuf,
+    side_path: PathBuf,
+}
+
+impl RenderedExport {
+    /// True only when this frame actually completed resident GPU rendering.
+    pub fn used_gpu(&self) -> bool {
+        self.used_gpu
+    }
+    /// Encode and atomically publish. On cancellation temporary files are
+    /// dropped; existing destinations are never overwritten.
+    pub fn finish(self, cancel: &CancellationToken) -> EngineResult<PathBuf> {
+        encode_rendered(self, cancel)?.commit(cancel)
+    }
+}
+
+/// The render half of [`export_one_cancellable`], with no filesystem writes.
+/// Callers must bound admission (one encoder plus one renderer is sufficient).
+pub fn render_one_cancellable(
+    image: &ExportImage<'_>,
+    recipe: &Recipe,
+    settings: &ExportSettings,
+    cancel: &CancellationToken,
+    upscale: Option<&mut ml_enhance::SuperResolution>,
+    segmenter: Option<&mut dyn mask_ai::MaskSegmenter>,
+) -> EngineResult<RenderedExport> {
     cancel.check()?;
     recipe.validate()?;
     settings.format.validate()?;
@@ -363,7 +428,34 @@ fn prepare_with_segmenter(
     {
         return Err(EngineError::invalid("output", "destination already exists"));
     }
-    let rgb = if ai_masks::active(&recipe.settings) {
+    let gpu_pixels = if upscale.is_none()
+        && !ai_masks::active(&recipe.settings)
+        && std::env::var("TESSERA_EXPORT_BACKEND").as_deref() != Ok("cpu")
+    {
+        let resize = match settings.resize {
+            Resize::Fit(w, h)
+                if settings.apply_orientation && source_orientation(&image.source) >= 5 =>
+            {
+                Resize::Fit(h, w)
+            }
+            other => other,
+        };
+        gpu::render_resized(
+            image,
+            recipe,
+            settings.color_space,
+            settings.render_scale,
+            cancel,
+            gpu::BUDGET,
+            resize,
+        )?
+    } else {
+        None
+    };
+    let already_resized = gpu_pixels.is_some();
+    let rgb = if let Some(rgb) = gpu_pixels {
+        rgb
+    } else if ai_masks::active(&recipe.settings) {
         let rgb = ai_masks::render(&image.source, &recipe.settings, segmenter)?;
         cancel.check()?;
         let rgb = match upscale {
@@ -379,7 +471,7 @@ fn prepare_with_segmenter(
         if !matches!(settings.render_scale, 1 | 2 | 4 | 8) {
             return Err(EngineError::invalid("render_scale", "must be 1, 2, 4 or 8"));
         }
-        render_scaled(image, recipe, settings.color_space, settings.render_scale)?
+        render_scaled_cpu(image, recipe, settings.color_space, settings.render_scale)?
     };
     cancel.check()?;
     let rgb = if settings.apply_orientation {
@@ -387,9 +479,36 @@ fn prepare_with_segmenter(
     } else {
         rgb
     };
-    let rgb = filter::resize(rgb, settings.resize, cancel)?;
+    let rgb = if already_resized {
+        rgb
+    } else {
+        filter::resize(rgb, settings.resize, cancel)?
+    };
     let rgb = filter::sharpen(rgb, settings.sharpen_for, cancel)?;
     let packet = metadata_packet(image, recipe, settings.metadata)?;
+    Ok(RenderedExport {
+        used_gpu: already_resized,
+        rgb,
+        packet,
+        settings: settings.clone(),
+        path,
+        side_path,
+    })
+}
+
+fn encode_rendered(
+    rendered: RenderedExport,
+    cancel: &CancellationToken,
+) -> EngineResult<PreparedExport> {
+    cancel.check()?;
+    let RenderedExport {
+        rgb,
+        packet,
+        settings,
+        path,
+        side_path,
+        ..
+    } = rendered;
     fs::create_dir_all(&settings.output_dir)
         .map_err(|e| EngineError::io_at(&settings.output_dir, &e))?;
     let mut temp = new_output_temp(&settings.output_dir)?;

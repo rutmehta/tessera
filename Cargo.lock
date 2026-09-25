@@ -1109,6 +1109,7 @@ dependencies = [
  "ml-enhance",
  "ml-runtime",
  "pipeline-cpu",
+ "pipeline-gpu",
  "png 0.17.16",
  "raw-decode",
  "rayon",

@@ -48,6 +48,11 @@ pub struct LocalToneOptions {
 /// A render transaction. Dropping it before `finish` must discard pending work
 /// and must not publish uninitialized cache entries. Cache hits may outlive LRU eviction.
 pub trait ResidentBatch {
+    /// A sensor dependency chunk has retired. Export backends may submit
+    /// pending work and release scratch without materializing any pixels.
+    fn checkpoint(&mut self, cancel: &CancellationToken) -> EngineResult<()> {
+        cancel.check()
+    }
     fn cached(&mut self, key: &MemoKey) -> EngineResult<Option<ResidentTile>>;
     fn cache(&mut self, key: MemoKey, tile: &ResidentTile) -> EngineResult<ResidentTile>;
     /// Retain an extra scheduling checkpoint without another precision loss.

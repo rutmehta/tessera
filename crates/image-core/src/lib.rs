@@ -43,6 +43,18 @@ pub use render::{
 };
 pub use source::RawImage;
 
+/// The resident graph does not implement lens correction/auto-calibration.
+/// Auto is not inert even when RAW metadata has no embedded lens opcodes.
+pub fn resident_export_lens_supported(lens: &engine_api::recipe::settings::LensSettings) -> bool {
+    lens.profile == engine_api::recipe::settings::LensProfileSource::None
+        && !lens.remove_chromatic_aberration
+        && lens.manual_distortion == 0.
+        && lens.manual_vignetting == 0.
+        && lens.defringe_purple.amount == 0.
+        && lens.defringe_green.amount == 0.
+        && lens.softness_correction == 0.
+}
+
 #[cfg(test)]
 extern crate self as image_core;
 #[cfg(test)]

@@ -1,4 +1,6 @@
 use crate::{GpuStageOp, operator::parameters};
+#[path = "export_resize.rs"]
+pub(crate) mod export_resize;
 use engine_api::{
     EngineError, EngineResult,
     jobs::CancellationToken,
@@ -232,6 +234,11 @@ impl<'a> Batch<'a> {
         let mut pool = self.pool.lock().unwrap();
         if let Some(i) = pool.free.iter().position(|b| b.size() == bytes as u64) {
             return Ok(pool.free.swap_remove(i));
+        }
+        if self.gpu.export_float && pool.allocated_bytes.saturating_add(bytes as u64) > 512 << 20 {
+            return Err(EngineError::Unsupported {
+                what: "export GPU scratch exceeds 512 MiB".into(),
+            });
         }
         pool.allocated_bytes += bytes as u64;
         pool.allocations += 1;
@@ -700,6 +707,35 @@ impl<'a> Batch<'a> {
     }
 }
 impl ResidentBatch for Batch<'_> {
+    fn checkpoint(&mut self, cancel: &CancellationToken) -> EngineResult<()> {
+        cancel.check()?;
+        if !self.gpu.export_float || self.pool.lock().unwrap().allocated_bytes < 128 << 20 {
+            return Ok(());
+        }
+        // Queue uploads cannot reuse buffers inside an unsubmitted encoder:
+        // all queue writes precede its compute commands. Retire those uploads
+        // at a dependency boundary, retaining live resident outputs on device.
+        // This is a submission, not a readback.
+        self.encode_compute();
+        let ctx = self.gpu.context();
+        let encoder = std::mem::replace(
+            &mut self.encoder,
+            ctx.device.create_command_encoder(&Default::default()),
+        );
+        ctx.queue.submit([encoder.finish()]);
+        self.uploads.dirty.set(false);
+        self.gpu
+            .counters
+            .submissions
+            .fetch_add(1, Ordering::Relaxed);
+        ctx.device
+            .poll(wgpu::PollType::wait_indefinitely())
+            .map_err(|e| EngineError::internal(e.to_string()))?;
+        let mut pool = self.pool.lock().unwrap();
+        let retired: u64 = pool.free.drain(..).map(|buffer| buffer.size()).sum();
+        pool.allocated_bytes = pool.allocated_bytes.saturating_sub(retired);
+        cancel.check()
+    }
     fn cached(&mut self, key: &MemoKey) -> EngineResult<Option<ResidentTile>> {
         self.access_tick += 1;
         let packed = if let Some((tick, tile)) = self.pending.get_mut(key) {
@@ -973,7 +1009,7 @@ impl ResidentBatch for Batch<'_> {
             let dst = self.buffer(layout.len() * 4)?;
             let flags = self.buffer(layout.plane_len() * 4)?;
             let src = self.storage(tile)?.clone();
-            let group = output.bindings(&src, &dst, &flags, tile.layout, true)?;
+            let group = output.bindings(&src, &dst, &flags, tile.layout, !self.gpu.export_float)?;
             self.record(
                 &output.pipeline,
                 group,
@@ -1149,6 +1185,11 @@ impl ResidentBatch for Batch<'_> {
         cancel: &CancellationToken,
     ) -> EngineResult<ResidentOutput> {
         cancel.check()?;
+        let tiles = if let Some(resize) = self.gpu.export_resize {
+            self.resize_export(tiles, resize)?
+        } else {
+            tiles
+        };
         let ctx = self.gpu.context();
         let histogram = surface.is_some_and(|s| s.histogram);
         let histogram_buffer = if histogram {
@@ -1231,6 +1272,19 @@ impl ResidentBatch for Batch<'_> {
             0
         };
         let bytes = if histogram { 4096 } else { pixel_bytes };
+        if self.gpu.export_float
+            && self
+                .pool
+                .lock()
+                .unwrap()
+                .allocated_bytes
+                .saturating_add(bytes as u64)
+                > 512 << 20
+        {
+            return Err(EngineError::Unsupported {
+                what: "export GPU scratch plus readback exceeds 512 MiB".into(),
+            });
+        }
         let staging = if bytes > 0 {
             let buffer = ctx.device.create_buffer(&wgpu::BufferDescriptor {
                 label: Some(if histogram {
@@ -1351,7 +1405,7 @@ impl ResidentBatch for Batch<'_> {
                 for tile in &tiles {
                     let samples = &data[offset..offset + tile.layout.len()];
                     offset += samples.len();
-                    output.tiles.push(if display {
+                    output.tiles.push(if display && !self.gpu.export_float {
                         Tile::from_samples(
                             tile.coord,
                             tile.layout,

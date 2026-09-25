@@ -359,9 +359,43 @@ pub struct ManagedRenderer {
 }
 impl ManagedRenderer {
     pub fn new(output: Arc<GpuManagedOutput>, config: image_core::RendererConfig) -> Self {
+        Self::build(output, config, false)
+    }
+
+    /// Managed, unquantized resident output for CPU encoders. No display cache
+    /// or surface presentation may be used through this instance.
+    pub fn new_export(output: Arc<GpuManagedOutput>, config: image_core::RendererConfig) -> Self {
+        Self::build(output, config, true)
+    }
+
+    /// Lanczos-3 filtering stays resident, including its horizontal halo.
+    pub fn new_export_resized(
+        output: Arc<GpuManagedOutput>,
+        config: image_core::RendererConfig,
+        resize: crate::ExportResize,
+    ) -> Self {
+        Self::build_resized(output, config, true, Some(resize))
+    }
+
+    fn build(
+        output: Arc<GpuManagedOutput>,
+        config: image_core::RendererConfig,
+        export: bool,
+    ) -> Self {
+        Self::build_resized(output, config, export, None)
+    }
+
+    fn build_resized(
+        output: Arc<GpuManagedOutput>,
+        config: image_core::RendererConfig,
+        export: bool,
+        resize: Option<crate::ExportResize>,
+    ) -> Self {
         let mut ops =
             crate::GpuStageOp::with_cache_budget(output.context.clone(), config.cache_budget_bytes);
         ops.managed_output = Some(output.clone());
+        ops.export_float = export;
+        ops.export_resize = resize;
         let ops = Arc::new(ops);
         let renderer = image_core::Renderer::with_ops(
             ops.clone(),
@@ -382,8 +416,35 @@ impl ManagedRenderer {
         level: u8,
         rect: image_core::PixelRect,
     ) -> EngineResult<Vec<Tile>> {
+        if self.ops.export_float {
+            return Err(EngineError::invalid(
+                "renderer",
+                "use render_export for float output",
+            ));
+        }
         let scene = self.output.scene_settings(settings)?;
         self.renderer.render_region(image, &scene, level, rect)
+    }
+
+    /// One resident submission/readback. None means the caller must use its
+    /// reference path; unsupported operators never silently lose precision.
+    pub fn render_export(
+        &self,
+        image: &image_core::RawImage,
+        settings: &DevelopSettings,
+        level: u8,
+        rect: image_core::PixelRect,
+        cancel: &engine_api::jobs::CancellationToken,
+    ) -> EngineResult<Option<Vec<Tile>>> {
+        if !self.ops.export_float {
+            return Err(EngineError::invalid(
+                "renderer",
+                "float export renderer required",
+            ));
+        }
+        let scene = self.output.scene_settings(settings)?;
+        self.renderer
+            .render_resident_region(image, &scene, level, rect, cancel)
     }
 
     /// Uses the resident ICC Output kernel and existing IOSurface writer.
@@ -396,6 +457,12 @@ impl ManagedRenderer {
         surface: u32,
         cancel: &engine_api::jobs::CancellationToken,
     ) -> EngineResult<bool> {
+        if self.ops.export_float {
+            return Err(EngineError::invalid(
+                "renderer",
+                "export renderer cannot present",
+            ));
+        }
         let scene = self.output.scene_settings(settings)?;
         self.renderer
             .render_to_surface(image, &scene, level, surface, cancel)

@@ -38,6 +38,36 @@ fn dehaze_statistics_key(r: &Resolved<'_>, level: u8) -> engine_api::stage::Memo
 }
 
 impl Renderer {
+    /// Resident-only output, with explicit capability failure and cancellation.
+    /// Export backends can retain float Output samples instead of display U8.
+    pub fn render_resident_region(
+        &self,
+        image: &RawImage,
+        settings: &DevelopSettings,
+        level: u8,
+        rect: PixelRect,
+        cancel: &CancellationToken,
+    ) -> EngineResult<Option<Vec<Tile>>> {
+        cancel.check()?;
+        self.validate_settings(settings)?;
+        let r = self.resolve(image, settings)?;
+        if level > MAX_LEVEL
+            || !self.supports_resident(&r, Some(level))
+            || self.is_adobe()
+            || !crate::resident_export_lens_supported(&settings.lens)
+        {
+            return Ok(None);
+        }
+        let Some(batch) = self.ops.begin_resident() else {
+            return Ok(None);
+        };
+        let coords = Self::tiles_for(image, level, rect);
+        Ok(Some(
+            self.run_resident(&r, &coords, RenderOutput::Display, cancel, batch, None)?
+                .tiles,
+        ))
+    }
+
     /// Whether this backend can develop this image/recipe without host pixel
     /// barriers. This is a capability query, not a frame-time guarantee.
     pub fn can_render_resident(
@@ -247,6 +277,8 @@ impl Renderer {
                         }
                         drop(linear);
                         sampled = Some(batch.resample(r.crop, c, &dem, sampled)?);
+                        drop(dem);
+                        batch.checkpoint(cancel)?;
                     }
                     let t = sampled
                         .ok_or_else(|| engine_api::EngineError::internal("no resample sources"))?;
