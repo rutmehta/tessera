@@ -1,0 +1,5 @@
+Implemented `tessera export` for an image, a directory, or a catalog query. It uses the export crate for rendering and publication, supports the requested options, reports progress on stderr, and returns a JSON summary with `--json`. Ctrl-C uses the crate’s cancellation token; in-progress temporary files are cleaned up, while already completed exports remain.
+
+The CLI tests verify two 800-pixel-long-edge JPEGs with no XMP under `--metadata none`, plus query-based export. The export crate’s cancellation test also passes. I ran the requested release tests, clippy with warnings denied, and `cargo fmt --check`; all passed.
+
+RESULT: PASS
