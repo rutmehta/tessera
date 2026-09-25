@@ -6,7 +6,7 @@
 //! degrees, geometry in normalised image coordinates (`0..=1`, origin top-left).
 //! Every struct is `#[serde(default)]`: a missing field means "neutral".
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
 use super::mask::{LocalAdjustment, RetouchOperation};
 use crate::color::{IccProfileHandle, WorkingSpace};
@@ -234,13 +234,106 @@ pub enum LensProfileSource {
     Auto,
     /// Manufacturer opcodes embedded in the raw.
     Embedded,
-    /// A lens database profile.
+    /// A named lens profile (lens database, or an Adobe LCP named by an
+    /// imported recipe).
     Database {
-        /// Profile id.
-        profile: LensProfileId,
+        /// Profile identity; round-trips the four `crs:LensProfile*` fields.
+        profile: LensProfileRef,
     },
     /// Estimated from image content.
     AutoCalibrated,
+}
+
+/// How a named lens profile was chosen (`crs:LensProfileSetup`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LensProfileSetup {
+    /// Picked explicitly (`"Custom"`).
+    #[default]
+    Custom,
+    /// Resolved automatically from lens metadata (`"Auto"`).
+    Auto,
+    /// Taken from the user's per-lens defaults (`"LensDefaults"`).
+    LensDefaults,
+}
+
+impl LensProfileSetup {
+    /// Adobe XMP spelling.
+    pub const fn crs_value(self) -> &'static str {
+        match self {
+            Self::Custom => "Custom",
+            Self::Auto => "Auto",
+            Self::LensDefaults => "LensDefaults",
+        }
+    }
+
+    /// Parses the Adobe XMP spelling.
+    pub fn from_crs(value: &str) -> Option<Self> {
+        match value.trim() {
+            "Custom" => Some(Self::Custom),
+            "Auto" => Some(Self::Auto),
+            "LensDefaults" => Some(Self::LensDefaults),
+            _ => None,
+        }
+    }
+}
+
+/// Identity of a named lens profile. Carries every field Adobe records so a
+/// profile named in XMP round-trips losslessly; fields the source did not
+/// provide stay empty.
+///
+/// Deserializes from a bare string too (schema 1 stored only the id), which
+/// becomes `name`.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize)]
+#[serde(default)]
+pub struct LensProfileRef {
+    /// Profile id / display name (`crs:LensProfileName`).
+    pub name: LensProfileId,
+    /// Profile file name, e.g. an Adobe `.lcp` (`crs:LensProfileFilename`).
+    pub filename: String,
+    /// Adobe's profile digest, verbatim (`crs:LensProfileDigest`). Not a
+    /// [`crate::id::Digest`]: Adobe digests are 128-bit hex of unspecified origin.
+    pub digest: String,
+    /// How the profile was chosen (`crs:LensProfileSetup`).
+    pub setup: LensProfileSetup,
+}
+
+impl LensProfileRef {
+    /// A profile chosen by name.
+    pub fn named(name: impl Into<String>) -> Self {
+        Self {
+            name: LensProfileId::new(name),
+            ..Self::default()
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for LensProfileRef {
+    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize, Default)]
+        #[serde(default)]
+        struct Full {
+            name: LensProfileId,
+            filename: String,
+            digest: String,
+            setup: LensProfileSetup,
+        }
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum Repr {
+            Legacy(String),
+            Full(Full),
+        }
+        Ok(match Repr::deserialize(d)? {
+            Repr::Legacy(name) => Self::named(name),
+            Repr::Full(f) => Self {
+                name: f.name,
+                filename: f.filename,
+                digest: f.digest,
+                setup: f.setup,
+            },
+        })
+    }
 }
 
 /// Defringe (axial CA) controls for one hue band.
@@ -346,12 +439,61 @@ pub struct LookSettings {
     pub amount: f32,
 }
 
+/// Identity of a camera profile. `name` empty means the engine default for
+/// the camera. Round-trips `crs:CameraProfile` / `crs:CameraProfileDigest`.
+///
+/// Deserializes from a bare string too (schema 1 stored only the id), which
+/// becomes `name`.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize)]
+#[serde(default)]
+pub struct CameraProfileRef {
+    /// Profile id / name, e.g. `"Adobe Standard"` (`crs:CameraProfile`).
+    pub name: ProfileId,
+    /// Adobe's profile digest, verbatim (`crs:CameraProfileDigest`); empty if
+    /// unknown. Not a [`crate::id::Digest`].
+    pub digest: String,
+}
+
+impl CameraProfileRef {
+    /// A profile chosen by name.
+    pub fn named(name: impl Into<String>) -> Self {
+        Self {
+            name: ProfileId::new(name),
+            digest: String::new(),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for CameraProfileRef {
+    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize, Default)]
+        #[serde(default)]
+        struct Full {
+            name: ProfileId,
+            digest: String,
+        }
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum Repr {
+            Legacy(String),
+            Full(Full),
+        }
+        Ok(match Repr::deserialize(d)? {
+            Repr::Legacy(name) => Self::named(name),
+            Repr::Full(f) => Self {
+                name: f.name,
+                digest: f.digest,
+            },
+        })
+    }
+}
+
 /// Camera profile into the working space.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct CameraProfileSettings {
-    /// Profile id; empty means the engine default for the camera.
-    pub profile: ProfileId,
+    /// Profile identity; an empty name means the engine default for the camera.
+    pub profile: CameraProfileRef,
     /// Profile amount for creative profiles, `0..=200` (%).
     pub amount: f32,
     /// Working space the profile targets.
@@ -365,7 +507,7 @@ pub struct CameraProfileSettings {
 impl Default for CameraProfileSettings {
     fn default() -> Self {
         Self {
-            profile: ProfileId::default(),
+            profile: CameraProfileRef::default(),
             amount: 100.0,
             working_space: WorkingSpace::LinearRec2020,
             look: None,
@@ -1062,5 +1204,43 @@ mod tests {
             serde_json::from_str(r#"{"tone":{"exposure":1.25}}"#).unwrap();
         assert_eq!(partial.tone.exposure, 1.25);
         assert_eq!(partial.lens, LensSettings::default());
+    }
+
+    #[test]
+    fn schema_1_profile_ids_migrate() {
+        let s: DevelopSettings = serde_json::from_str(
+            r#"{"camera_profile":{"profile":"Adobe Standard"},
+                "lens":{"profile":{"kind":"database","profile":"canon/ef24-70"}}}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            s.camera_profile.profile,
+            CameraProfileRef::named("Adobe Standard")
+        );
+        assert_eq!(
+            s.lens.profile,
+            LensProfileSource::Database {
+                profile: LensProfileRef::named("canon/ef24-70")
+            }
+        );
+        let full = LensProfileRef {
+            name: LensProfileId::new("Adobe (Canon EF 24-70mm f/2.8L USM)"),
+            filename: "Canon (EF 24-70).lcp".into(),
+            digest: "0123456789ABCDEF0123456789ABCDEF".into(),
+            setup: LensProfileSetup::Auto,
+        };
+        let json = serde_json::to_string(&full).unwrap();
+        assert_eq!(serde_json::from_str::<LensProfileRef>(&json).unwrap(), full);
+        assert_eq!(
+            serde_json::from_str::<LensProfileRef>(r#"{"name":"x"}"#).unwrap(),
+            LensProfileRef::named("x")
+        );
+        for setup in [
+            LensProfileSetup::Custom,
+            LensProfileSetup::Auto,
+            LensProfileSetup::LensDefaults,
+        ] {
+            assert_eq!(LensProfileSetup::from_crs(setup.crs_value()), Some(setup));
+        }
     }
 }

@@ -23,18 +23,23 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-pub use crs::{CrsKey, CrsValueType};
+pub use crs::{CrsKey, CrsTarget, CrsValueType, XmpNamespace};
 pub use history::{Author, EditMeta, History, HistoryEntry, ParamChange, Snapshot};
 pub use mask::{LocalAdjustment, LocalParams, MaskComponent, MaskKind, RetouchOperation};
 pub use selection::{Decision, Grade, Mark, Selection};
-pub use settings::DevelopSettings;
+pub use settings::{CameraProfileRef, DevelopSettings, LensProfileRef, LensProfileSetup};
 
 use crate::error::{EngineError, EngineResult};
 use crate::id::{Digest, HistoryEntryId, ImageId, MaskId, RetouchId};
 use crate::stage::{canonical_json, ParamHash, StageId};
 
 /// Schema version this build reads and writes.
-pub const RECIPE_SCHEMA_VERSION: u32 = 1;
+///
+/// - 1: contracts 1.0.
+/// - 2: contracts 1.1. Camera and lens profile ids became structs
+///   ([`CameraProfileRef`], [`LensProfileRef`]; schema-1 strings still load),
+///   and [`Recipe::provenance`] was added.
+pub const RECIPE_SCHEMA_VERSION: u32 = 2;
 
 /// Which pipeline math a recipe is rendered with.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -96,12 +101,25 @@ impl ProcessVersion {
         Ok(Self::adobe(pv))
     }
 
-    /// `crs:ProcessVersion` value for Adobe processes.
-    pub fn crs_value(self) -> Option<&'static str> {
-        if self.family != ProcessFamily::Adobe {
-            return None;
-        }
-        Some(match self.revision {
+    /// Adobe PV a native recipe is exported as.
+    pub const NATIVE_EXPORT_ADOBE_PV: u32 = 6;
+
+    /// What to write for `crs:ProcessVersion`, or `None` for an Adobe
+    /// revision outside PV1–6.
+    ///
+    /// Native recipes export as **best-effort PV6**: the Adobe PV6 string plus
+    /// a `ts:NativeRevision` companion ([`crs::NATIVE_REVISION_PROPERTY`] in
+    /// [`crs::TS_NAMESPACE`]) carrying the native revision. Adobe software
+    /// renders the settings with its own PV6 math, so the look is close but
+    /// not identical; the engine reads the pair back as the native process
+    /// (see [`Self::from_xmp`]). Exporters must write the companion whenever
+    /// it is `Some` and remove a stale one when it is `None`.
+    pub fn crs_value(self) -> Option<CrsProcessVersion> {
+        let (pv, native_revision) = match self.family {
+            ProcessFamily::Adobe => (self.revision, None),
+            ProcessFamily::Native => (Self::NATIVE_EXPORT_ADOBE_PV, Some(self.revision)),
+        };
+        let process_version = match pv {
             1 => "5.0",
             2 => "5.7",
             3 => "6.7",
@@ -109,6 +127,28 @@ impl ProcessVersion {
             5 => "11.0",
             6 => "15.4",
             _ => return None,
+        };
+        Some(CrsProcessVersion {
+            process_version,
+            native_revision,
+        })
+    }
+
+    /// Reads `crs:ProcessVersion` plus the optional `ts:NativeRevision`
+    /// companion. The companion is honoured only next to the PV6 string it
+    /// is exported with and only if it is a positive integer; otherwise the
+    /// document is taken as the Adobe process its `crs:` value names.
+    pub fn from_xmp(crs: &str, native_revision: Option<&str>) -> EngineResult<Self> {
+        let adobe = Self::from_crs(crs)?;
+        let native = native_revision
+            .and_then(|r| r.trim().parse::<u32>().ok())
+            .filter(|&r| r > 0 && adobe == Self::adobe(Self::NATIVE_EXPORT_ADOBE_PV));
+        Ok(match native {
+            Some(revision) => Self {
+                family: ProcessFamily::Native,
+                revision,
+            },
+            None => adobe,
         })
     }
 
@@ -119,6 +159,27 @@ impl ProcessVersion {
             &canonical_json(&self),
         ))
     }
+}
+
+/// The XMP encoding of a [`ProcessVersion`] (see [`ProcessVersion::crs_value`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct CrsProcessVersion {
+    /// Value of `crs:ProcessVersion`, e.g. `"15.4"`.
+    pub process_version: &'static str,
+    /// Value of the `ts:NativeRevision` companion; `Some` only for native recipes.
+    pub native_revision: Option<u32>,
+}
+
+/// Where a recipe's state came from. Never render-affecting: it does not feed
+/// [`Recipe::recipe_hash`] or the stage chain.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Provenance {
+    /// Informational source properties recorded verbatim by importers, keyed
+    /// by qualified XMP name (e.g. `"aux:EnhanceDenoiseAlreadyApplied"` →
+    /// `"True"`; see [`CrsKey::qualified_name`]). String keys so values from
+    /// newer tables survive older builds.
+    pub properties: BTreeMap<String, String>,
 }
 
 /// Digest of a recipe's render-affecting state.
@@ -160,6 +221,8 @@ pub struct Recipe {
     pub history: History,
     /// Id allocation.
     pub ids: IdCounters,
+    /// Import provenance (not render-affecting).
+    pub provenance: Provenance,
     /// Unknown top-level members from newer writers, preserved on round trip.
     #[serde(flatten)]
     pub unknown: BTreeMap<String, Value>,
@@ -175,6 +238,7 @@ impl Default for Recipe {
             selection: Selection::default(),
             history: History::default(),
             ids: IdCounters::default(),
+            provenance: Provenance::default(),
             unknown: BTreeMap::new(),
         }
     }
@@ -317,7 +381,9 @@ impl Recipe {
         Ok(())
     }
 
-    /// Parses a recipe document (any schema version; newer ones load best-effort).
+    /// Parses a recipe document (any schema version; newer ones load
+    /// best-effort). Older documents are migrated on load (schema 1 profile
+    /// id strings become profile structs) and marked as the current schema.
     pub fn from_json(bytes: &[u8]) -> EngineResult<Self> {
         let mut recipe: Recipe =
             serde_json::from_slice(bytes).map_err(|e| EngineError::Decode {
@@ -325,6 +391,7 @@ impl Recipe {
                 message: e.to_string(),
             })?;
         recipe.selection = recipe.selection.normalized();
+        recipe.schema_version = recipe.schema_version.max(RECIPE_SCHEMA_VERSION);
         Ok(recipe)
     }
 
@@ -408,6 +475,10 @@ mod tests {
         other.selection.set_decision(Decision::Reject);
         other.history.snapshots.clear();
         other.unknown.insert("x".into(), Value::Bool(true));
+        other
+            .provenance
+            .properties
+            .insert("aux:EnhanceDenoiseAlreadyApplied".into(), "True".into());
         assert_eq!(other.recipe_hash(), h);
         other.settings.tone.exposure = 0.51;
         assert_ne!(other.recipe_hash(), h);
@@ -423,11 +494,12 @@ mod tests {
     fn hash_is_stable_across_releases() {
         // Golden value: if this changes, every render cache is invalidated.
         // Update deliberately, together with a note in CONTRACTS.md.
+        // 1.1.0: camera_profile.profile became `{name, digest}`.
         let h = Recipe::default().recipe_hash().to_string();
         assert_eq!(h.len(), 64);
         assert_eq!(
             h,
-            "f0c302becbf2879b9c41f1bef7efd94eb4a45e925c37cd4989bee4da8d370fcd"
+            "4f21c6917ae187e27c3bc8f6a12ef1dd7c0ba60252d4665f7e07f6f0c0c1c8fa"
         );
     }
 
@@ -481,7 +553,50 @@ mod tests {
             ProcessVersion::from_crs("15.4").unwrap(),
             ProcessVersion::adobe(6)
         );
-        assert_eq!(ProcessVersion::adobe(3).crs_value(), Some("6.7"));
+        assert_eq!(
+            ProcessVersion::adobe(3).crs_value(),
+            Some(CrsProcessVersion {
+                process_version: "6.7",
+                native_revision: None
+            })
+        );
         assert!(ProcessVersion::from_crs("99").is_err());
+        assert_eq!(ProcessVersion::adobe(7).crs_value(), None);
+    }
+
+    #[test]
+    fn native_exports_as_best_effort_pv6_with_companion() {
+        let native = ProcessVersion::NATIVE_CURRENT;
+        let v = native.crs_value().unwrap();
+        assert_eq!(v.process_version, "15.4");
+        assert_eq!(v.native_revision, Some(native.revision));
+        let rev = v.native_revision.unwrap().to_string();
+        assert_eq!(
+            ProcessVersion::from_xmp(v.process_version, Some(&rev)).unwrap(),
+            native
+        );
+        // Companion ignored when absent, malformed, zero or next to another PV.
+        let pv6 = ProcessVersion::adobe(6);
+        assert_eq!(ProcessVersion::from_xmp("15.4", None).unwrap(), pv6);
+        assert_eq!(ProcessVersion::from_xmp("15.4", Some("x")).unwrap(), pv6);
+        assert_eq!(ProcessVersion::from_xmp("15.4", Some("0")).unwrap(), pv6);
+        assert_eq!(
+            ProcessVersion::from_xmp("11.0", Some("1")).unwrap(),
+            ProcessVersion::adobe(5)
+        );
+    }
+
+    #[test]
+    fn schema_1_documents_migrate_on_load() {
+        let r = Recipe::from_json(
+            br#"{"schema_version":1,"settings":{"camera_profile":{"profile":"Adobe Standard"}}}"#,
+        )
+        .unwrap();
+        assert_eq!(r.schema_version, RECIPE_SCHEMA_VERSION);
+        assert_eq!(
+            r.settings.camera_profile.profile.name.as_str(),
+            "Adobe Standard"
+        );
+        assert_eq!(r.provenance, Provenance::default());
     }
 }

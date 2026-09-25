@@ -1,12 +1,16 @@
-//! The Adobe Camera Raw `crs:` XMP namespace as a compatibility table
-//! (spec 05 §3.2).
+//! The Adobe Camera Raw `crs:` XMP namespace (plus the few `aux:` develop
+//! properties) as a compatibility table (spec 05 §3.2).
 //!
-//! Every key the spec names has a [`CrsKey`] variant carrying its XMP local
-//! name, value type/range as Adobe writes it, and the JSON pointer of the
-//! recipe field it maps to (relative to the serialized [`super::Recipe`]).
-//! The translation math (PV curves, unit conversions, mask structures) lives
-//! in the `recipe`/`sidecar` crates; this table is the single list they, the
-//! importer and the exporter agree on.
+//! Every key the spec names has a [`CrsKey`] variant carrying its XMP
+//! namespace and local name, value type/range as Adobe writes it, and its
+//! [`CrsTarget`]: the JSON pointer of the recipe field it maps to (relative to
+//! the serialized [`super::Recipe`]), or why it has none. The translation math
+//! (PV curves, unit conversions, mask structures) lives in the
+//! `recipe`/`sidecar` crates; this table is the single list they, the importer
+//! and the exporter agree on.
+//!
+//! Names and types were checked against ExifTool's `XMP.pm` `crs`/`aux`
+//! tables (contracts 1.1); see `CONTRACTS.md` for what remains unverified.
 
 use std::fmt;
 use std::str::FromStr;
@@ -18,6 +22,72 @@ use crate::stage::StageId;
 
 /// XMP namespace URI of `crs:`.
 pub const CRS_NAMESPACE: &str = "http://ns.adobe.com/camera-raw-settings/1.0/";
+
+/// XMP namespace URI of `aux:` (Adobe auxiliary EXIF; hosts the `Enhance*`
+/// already-applied properties).
+pub const AUX_NAMESPACE: &str = "http://ns.adobe.com/exif/1.0/aux/";
+
+/// XMP namespace URI of `xmp:` (XMP basic).
+pub const XMP_NAMESPACE: &str = "http://ns.adobe.com/xap/1.0/";
+
+/// XMP namespace URI of `xmpDM:` (Dynamic Media; hosts `pick` and `good`).
+pub const XMP_DM_NAMESPACE: &str = "http://ns.adobe.com/xmp/1.0/DynamicMedia/";
+
+/// XMP namespace URI of the engine's private `ts:` properties
+/// (`ts:NativeRevision`, `ts:Mark`, `ts:MarkLabel`).
+pub const TS_NAMESPACE: &str = "https://tessera.photo/ns/sidecar/1.0/";
+
+/// `ts:` local name of the native-revision companion written next to
+/// `crs:ProcessVersion` when a native recipe is exported (see
+/// [`super::ProcessVersion::crs_value`]).
+pub const NATIVE_REVISION_PROPERTY: &str = "NativeRevision";
+
+/// The XMP namespace a table key lives in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum XmpNamespace {
+    /// Camera Raw settings, `crs:`.
+    Crs,
+    /// Adobe auxiliary EXIF, `aux:`.
+    Aux,
+    /// XMP basic, `xmp:`. No develop key lives here today; reserved so the
+    /// table can name one without another contract change.
+    Xmp,
+}
+
+impl XmpNamespace {
+    /// Conventional prefix (`"crs"`, `"aux"`, `"xmp"`).
+    pub const fn prefix(self) -> &'static str {
+        match self {
+            Self::Crs => "crs",
+            Self::Aux => "aux",
+            Self::Xmp => "xmp",
+        }
+    }
+
+    /// Namespace URI; matching must use this, never the prefix.
+    pub const fn uri(self) -> &'static str {
+        match self {
+            Self::Crs => CRS_NAMESPACE,
+            Self::Aux => AUX_NAMESPACE,
+            Self::Xmp => XMP_NAMESPACE,
+        }
+    }
+}
+
+/// What a table key maps to in the recipe.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CrsTarget {
+    /// JSON pointer into the serialized `Recipe`. Several keys may share a
+    /// pointer when they jointly encode one value (e.g. the lens profile).
+    Field(&'static str),
+    /// Legacy (PV1/2 manual CA): no native field; the importer flags the key
+    /// and converts it best-effort.
+    Legacy,
+    /// Describes the file rather than instructing the renderer (Enhance
+    /// already-applied metadata). Never exported from a recipe; the importer
+    /// records the raw value in [`super::Provenance`].
+    Informational,
+}
 
 /// Type and range of a `crs:` value as Adobe serializes it.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -78,15 +148,20 @@ const BOOL: CrsValueType = CrsValueType::Boolean;
 const CURVE: CrsValueType = CrsValueType::PointList;
 const STRUCT: CrsValueType = CrsValueType::Structure;
 
+use CrsTarget::{Field, Informational, Legacy};
+use XmpNamespace::{Aux, Crs};
+
 macro_rules! crs_keys {
-    ($($name:ident : $ty:expr => $path:literal),* $(,)?) => {
-        /// A key of the Adobe `crs:` namespace that the recipe maps.
+    ($($name:ident : $ns:ident, $ty:expr => $target:expr),* $(,)?) => {
+        /// A develop key of the Adobe XMP schema that the recipe maps (mostly
+        /// `crs:`; see [`CrsKey::namespace`]).
         ///
-        /// Serialized as its XMP local name (e.g. `"Exposure2012"`).
+        /// Serialized as its XMP local name (e.g. `"Exposure2012"`); local
+        /// names are unique across namespaces.
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
         pub enum CrsKey {
             $(
-                #[doc = concat!("`crs:", stringify!($name), "`")]
+                #[doc = concat!("`", stringify!($name), "` (namespace: ", stringify!($ns), ")")]
                 $name,
             )*
         }
@@ -100,17 +175,19 @@ macro_rules! crs_keys {
                 match self { $(CrsKey::$name => stringify!($name)),* }
             }
 
+            /// XMP namespace the property lives in.
+            pub const fn namespace(self) -> XmpNamespace {
+                match self { $(CrsKey::$name => $ns),* }
+            }
+
             /// Value type and range.
             pub const fn value_type(self) -> CrsValueType {
                 match self { $(CrsKey::$name => $ty),* }
             }
 
-            /// JSON pointer (into the serialized `Recipe`) of the field this
-            /// key maps to, or `None` for legacy keys only converted
-            /// best-effort on import.
-            pub const fn recipe_path(self) -> Option<&'static str> {
-                let p = match self { $(CrsKey::$name => $path),* };
-                if p.is_empty() { None } else { Some(p) }
+            /// What the key maps to.
+            pub const fn target(self) -> CrsTarget {
+                match self { $(CrsKey::$name => $target),* }
             }
         }
     };
@@ -118,177 +195,213 @@ macro_rules! crs_keys {
 
 crs_keys! {
     // Process / basic
-    ProcessVersion: TEXT => "/process_version",
-    WhiteBalance: CrsValueType::Choice(&["As Shot", "Auto", "Daylight", "Cloudy", "Shade", "Tungsten", "Fluorescent", "Flash", "Custom"]) => "/settings/white_balance/mode",
-    Temperature: int(2000, 50000) => "/settings/white_balance/temperature",
-    Tint: int(-150, 150) => "/settings/white_balance/tint",
-    Exposure2012: real(-5.0, 5.0) => "/settings/tone/exposure",
-    Contrast2012: SLIDER => "/settings/tone/contrast",
-    Highlights2012: SLIDER => "/settings/tone/highlights",
-    Shadows2012: SLIDER => "/settings/tone/shadows",
-    Whites2012: SLIDER => "/settings/tone/whites",
-    Blacks2012: SLIDER => "/settings/tone/blacks",
-    Texture: SLIDER => "/settings/tone/texture",
-    Clarity2012: SLIDER => "/settings/tone/clarity",
-    Dehaze: SLIDER => "/settings/tone/dehaze",
-    Vibrance: SLIDER => "/settings/color/vibrance",
-    Saturation: SLIDER => "/settings/color/saturation",
+    ProcessVersion: Crs, TEXT => Field("/process_version"),
+    WhiteBalance: Crs, CrsValueType::Choice(&["As Shot", "Auto", "Daylight", "Cloudy", "Shade", "Tungsten", "Fluorescent", "Flash", "Custom"]) => Field("/settings/white_balance/mode"),
+    Temperature: Crs, int(2000, 50000) => Field("/settings/white_balance/temperature"),
+    Tint: Crs, int(-150, 150) => Field("/settings/white_balance/tint"),
+    Exposure2012: Crs, real(-5.0, 5.0) => Field("/settings/tone/exposure"),
+    Contrast2012: Crs, SLIDER => Field("/settings/tone/contrast"),
+    Highlights2012: Crs, SLIDER => Field("/settings/tone/highlights"),
+    Shadows2012: Crs, SLIDER => Field("/settings/tone/shadows"),
+    Whites2012: Crs, SLIDER => Field("/settings/tone/whites"),
+    Blacks2012: Crs, SLIDER => Field("/settings/tone/blacks"),
+    Texture: Crs, SLIDER => Field("/settings/tone/texture"),
+    Clarity2012: Crs, SLIDER => Field("/settings/tone/clarity"),
+    // ExifTool types Dehaze as real (1.1); integer values remain valid.
+    Dehaze: Crs, real(-100.0, 100.0) => Field("/settings/tone/dehaze"),
+    Vibrance: Crs, SLIDER => Field("/settings/color/vibrance"),
+    Saturation: Crs, SLIDER => Field("/settings/color/saturation"),
 
     // Tone curve
-    ToneCurvePV2012: CURVE => "/settings/tone/curves/rgb",
-    ToneCurvePV2012Red: CURVE => "/settings/tone/curves/red",
-    ToneCurvePV2012Green: CURVE => "/settings/tone/curves/green",
-    ToneCurvePV2012Blue: CURVE => "/settings/tone/curves/blue",
-    ParametricShadows: SLIDER => "/settings/tone/curves/parametric/shadows",
-    ParametricDarks: SLIDER => "/settings/tone/curves/parametric/darks",
-    ParametricLights: SLIDER => "/settings/tone/curves/parametric/lights",
-    ParametricHighlights: SLIDER => "/settings/tone/curves/parametric/highlights",
-    ParametricShadowSplit: AMOUNT => "/settings/tone/curves/parametric/shadow_split",
-    ParametricMidtoneSplit: AMOUNT => "/settings/tone/curves/parametric/midtone_split",
-    ParametricHighlightSplit: AMOUNT => "/settings/tone/curves/parametric/highlight_split",
+    ToneCurvePV2012: Crs, CURVE => Field("/settings/tone/curves/rgb"),
+    ToneCurvePV2012Red: Crs, CURVE => Field("/settings/tone/curves/red"),
+    ToneCurvePV2012Green: Crs, CURVE => Field("/settings/tone/curves/green"),
+    ToneCurvePV2012Blue: Crs, CURVE => Field("/settings/tone/curves/blue"),
+    ParametricShadows: Crs, SLIDER => Field("/settings/tone/curves/parametric/shadows"),
+    ParametricDarks: Crs, SLIDER => Field("/settings/tone/curves/parametric/darks"),
+    ParametricLights: Crs, SLIDER => Field("/settings/tone/curves/parametric/lights"),
+    ParametricHighlights: Crs, SLIDER => Field("/settings/tone/curves/parametric/highlights"),
+    ParametricShadowSplit: Crs, AMOUNT => Field("/settings/tone/curves/parametric/shadow_split"),
+    ParametricMidtoneSplit: Crs, AMOUNT => Field("/settings/tone/curves/parametric/midtone_split"),
+    ParametricHighlightSplit: Crs, AMOUNT => Field("/settings/tone/curves/parametric/highlight_split"),
 
     // HSL
-    HueAdjustmentRed: SLIDER => "/settings/color/hsl/hue/red",
-    HueAdjustmentOrange: SLIDER => "/settings/color/hsl/hue/orange",
-    HueAdjustmentYellow: SLIDER => "/settings/color/hsl/hue/yellow",
-    HueAdjustmentGreen: SLIDER => "/settings/color/hsl/hue/green",
-    HueAdjustmentAqua: SLIDER => "/settings/color/hsl/hue/aqua",
-    HueAdjustmentBlue: SLIDER => "/settings/color/hsl/hue/blue",
-    HueAdjustmentPurple: SLIDER => "/settings/color/hsl/hue/purple",
-    HueAdjustmentMagenta: SLIDER => "/settings/color/hsl/hue/magenta",
-    SaturationAdjustmentRed: SLIDER => "/settings/color/hsl/saturation/red",
-    SaturationAdjustmentOrange: SLIDER => "/settings/color/hsl/saturation/orange",
-    SaturationAdjustmentYellow: SLIDER => "/settings/color/hsl/saturation/yellow",
-    SaturationAdjustmentGreen: SLIDER => "/settings/color/hsl/saturation/green",
-    SaturationAdjustmentAqua: SLIDER => "/settings/color/hsl/saturation/aqua",
-    SaturationAdjustmentBlue: SLIDER => "/settings/color/hsl/saturation/blue",
-    SaturationAdjustmentPurple: SLIDER => "/settings/color/hsl/saturation/purple",
-    SaturationAdjustmentMagenta: SLIDER => "/settings/color/hsl/saturation/magenta",
-    LuminanceAdjustmentRed: SLIDER => "/settings/color/hsl/luminance/red",
-    LuminanceAdjustmentOrange: SLIDER => "/settings/color/hsl/luminance/orange",
-    LuminanceAdjustmentYellow: SLIDER => "/settings/color/hsl/luminance/yellow",
-    LuminanceAdjustmentGreen: SLIDER => "/settings/color/hsl/luminance/green",
-    LuminanceAdjustmentAqua: SLIDER => "/settings/color/hsl/luminance/aqua",
-    LuminanceAdjustmentBlue: SLIDER => "/settings/color/hsl/luminance/blue",
-    LuminanceAdjustmentPurple: SLIDER => "/settings/color/hsl/luminance/purple",
-    LuminanceAdjustmentMagenta: SLIDER => "/settings/color/hsl/luminance/magenta",
+    HueAdjustmentRed: Crs, SLIDER => Field("/settings/color/hsl/hue/red"),
+    HueAdjustmentOrange: Crs, SLIDER => Field("/settings/color/hsl/hue/orange"),
+    HueAdjustmentYellow: Crs, SLIDER => Field("/settings/color/hsl/hue/yellow"),
+    HueAdjustmentGreen: Crs, SLIDER => Field("/settings/color/hsl/hue/green"),
+    HueAdjustmentAqua: Crs, SLIDER => Field("/settings/color/hsl/hue/aqua"),
+    HueAdjustmentBlue: Crs, SLIDER => Field("/settings/color/hsl/hue/blue"),
+    HueAdjustmentPurple: Crs, SLIDER => Field("/settings/color/hsl/hue/purple"),
+    HueAdjustmentMagenta: Crs, SLIDER => Field("/settings/color/hsl/hue/magenta"),
+    SaturationAdjustmentRed: Crs, SLIDER => Field("/settings/color/hsl/saturation/red"),
+    SaturationAdjustmentOrange: Crs, SLIDER => Field("/settings/color/hsl/saturation/orange"),
+    SaturationAdjustmentYellow: Crs, SLIDER => Field("/settings/color/hsl/saturation/yellow"),
+    SaturationAdjustmentGreen: Crs, SLIDER => Field("/settings/color/hsl/saturation/green"),
+    SaturationAdjustmentAqua: Crs, SLIDER => Field("/settings/color/hsl/saturation/aqua"),
+    SaturationAdjustmentBlue: Crs, SLIDER => Field("/settings/color/hsl/saturation/blue"),
+    SaturationAdjustmentPurple: Crs, SLIDER => Field("/settings/color/hsl/saturation/purple"),
+    SaturationAdjustmentMagenta: Crs, SLIDER => Field("/settings/color/hsl/saturation/magenta"),
+    LuminanceAdjustmentRed: Crs, SLIDER => Field("/settings/color/hsl/luminance/red"),
+    LuminanceAdjustmentOrange: Crs, SLIDER => Field("/settings/color/hsl/luminance/orange"),
+    LuminanceAdjustmentYellow: Crs, SLIDER => Field("/settings/color/hsl/luminance/yellow"),
+    LuminanceAdjustmentGreen: Crs, SLIDER => Field("/settings/color/hsl/luminance/green"),
+    LuminanceAdjustmentAqua: Crs, SLIDER => Field("/settings/color/hsl/luminance/aqua"),
+    LuminanceAdjustmentBlue: Crs, SLIDER => Field("/settings/color/hsl/luminance/blue"),
+    LuminanceAdjustmentPurple: Crs, SLIDER => Field("/settings/color/hsl/luminance/purple"),
+    LuminanceAdjustmentMagenta: Crs, SLIDER => Field("/settings/color/hsl/luminance/magenta"),
 
     // Split toning / colour grading (grading reuses the split-toning keys for
     // shadow/highlight hue and saturation)
-    SplitToningShadowHue: HUE => "/settings/color/grading/shadows/hue",
-    SplitToningShadowSaturation: AMOUNT => "/settings/color/grading/shadows/saturation",
-    SplitToningHighlightHue: HUE => "/settings/color/grading/highlights/hue",
-    SplitToningHighlightSaturation: AMOUNT => "/settings/color/grading/highlights/saturation",
-    SplitToningBalance: SLIDER => "/settings/color/grading/balance",
-    ColorGradeShadowLum: SLIDER => "/settings/color/grading/shadows/luminance",
-    ColorGradeMidtoneHue: HUE => "/settings/color/grading/midtones/hue",
-    ColorGradeMidtoneSat: AMOUNT => "/settings/color/grading/midtones/saturation",
-    ColorGradeMidtoneLum: SLIDER => "/settings/color/grading/midtones/luminance",
-    ColorGradeHighlightLum: SLIDER => "/settings/color/grading/highlights/luminance",
-    ColorGradeGlobalHue: HUE => "/settings/color/grading/global/hue",
-    ColorGradeGlobalSat: AMOUNT => "/settings/color/grading/global/saturation",
-    ColorGradeGlobalLum: SLIDER => "/settings/color/grading/global/luminance",
-    ColorGradeBlending: AMOUNT => "/settings/color/grading/blending",
-    PointColors: STRUCT => "/settings/color/point_colors",
+    SplitToningShadowHue: Crs, HUE => Field("/settings/color/grading/shadows/hue"),
+    SplitToningShadowSaturation: Crs, AMOUNT => Field("/settings/color/grading/shadows/saturation"),
+    SplitToningHighlightHue: Crs, HUE => Field("/settings/color/grading/highlights/hue"),
+    SplitToningHighlightSaturation: Crs, AMOUNT => Field("/settings/color/grading/highlights/saturation"),
+    SplitToningBalance: Crs, SLIDER => Field("/settings/color/grading/balance"),
+    ColorGradeShadowLum: Crs, SLIDER => Field("/settings/color/grading/shadows/luminance"),
+    ColorGradeMidtoneHue: Crs, HUE => Field("/settings/color/grading/midtones/hue"),
+    ColorGradeMidtoneSat: Crs, AMOUNT => Field("/settings/color/grading/midtones/saturation"),
+    ColorGradeMidtoneLum: Crs, SLIDER => Field("/settings/color/grading/midtones/luminance"),
+    ColorGradeHighlightLum: Crs, SLIDER => Field("/settings/color/grading/highlights/luminance"),
+    ColorGradeGlobalHue: Crs, HUE => Field("/settings/color/grading/global/hue"),
+    ColorGradeGlobalSat: Crs, AMOUNT => Field("/settings/color/grading/global/saturation"),
+    ColorGradeGlobalLum: Crs, SLIDER => Field("/settings/color/grading/global/luminance"),
+    ColorGradeBlending: Crs, AMOUNT => Field("/settings/color/grading/blending"),
+    PointColors: Crs, STRUCT => Field("/settings/color/point_colors"),
 
     // Detail
-    Sharpness: int(0, 150) => "/settings/detail/sharpening/amount",
-    SharpenRadius: real(0.5, 3.0) => "/settings/detail/sharpening/radius",
-    SharpenDetail: AMOUNT => "/settings/detail/sharpening/detail",
-    SharpenEdgeMasking: AMOUNT => "/settings/detail/sharpening/masking",
-    LuminanceSmoothing: AMOUNT => "/settings/detail/noise_reduction/luminance",
-    LuminanceNoiseReductionDetail: AMOUNT => "/settings/detail/noise_reduction/luminance_detail",
-    LuminanceNoiseReductionContrast: AMOUNT => "/settings/detail/noise_reduction/luminance_contrast",
-    ColorNoiseReduction: AMOUNT => "/settings/detail/noise_reduction/color",
-    ColorNoiseReductionDetail: AMOUNT => "/settings/detail/noise_reduction/color_detail",
-    ColorNoiseReductionSmoothness: AMOUNT => "/settings/detail/noise_reduction/color_smoothness",
+    Sharpness: Crs, int(0, 150) => Field("/settings/detail/sharpening/amount"),
+    SharpenRadius: Crs, real(0.5, 3.0) => Field("/settings/detail/sharpening/radius"),
+    SharpenDetail: Crs, AMOUNT => Field("/settings/detail/sharpening/detail"),
+    SharpenEdgeMasking: Crs, AMOUNT => Field("/settings/detail/sharpening/masking"),
+    LuminanceSmoothing: Crs, AMOUNT => Field("/settings/detail/noise_reduction/luminance"),
+    LuminanceNoiseReductionDetail: Crs, AMOUNT => Field("/settings/detail/noise_reduction/luminance_detail"),
+    LuminanceNoiseReductionContrast: Crs, AMOUNT => Field("/settings/detail/noise_reduction/luminance_contrast"),
+    ColorNoiseReduction: Crs, AMOUNT => Field("/settings/detail/noise_reduction/color"),
+    ColorNoiseReductionDetail: Crs, AMOUNT => Field("/settings/detail/noise_reduction/color_detail"),
+    ColorNoiseReductionSmoothness: Crs, AMOUNT => Field("/settings/detail/noise_reduction/color_smoothness"),
 
-    // AI enhance
-    EnhanceDenoiseAlreadyApplied: BOOL => "/settings/denoise/method",
-    EnhanceDenoiseVersion: TEXT => "/settings/denoise/method",
-    EnhanceDenoiseLumAmount: AMOUNT => "/settings/denoise/amount",
-    EnhanceDetailsAlreadyApplied: BOOL => "/settings/demosaic/method",
-    EnhanceSuperResolutionAlreadyApplied: BOOL => "",
+    // AI enhance (1.1: `aux:`, not `crs:`). These describe pixels an Adobe
+    // Enhance pass already baked into the file (an enhanced DNG); they are not
+    // instructions to run anything, so they only go to `/provenance`.
+    EnhanceDenoiseAlreadyApplied: Aux, BOOL => Informational,
+    EnhanceDenoiseVersion: Aux, TEXT => Informational,
+    EnhanceDenoiseLumaAmount: Aux, AMOUNT => Informational,
+    EnhanceDetailsAlreadyApplied: Aux, BOOL => Informational,
+    EnhanceDetailsVersion: Aux, TEXT => Informational,
+    EnhanceSuperResolutionAlreadyApplied: Aux, BOOL => Informational,
+    EnhanceSuperResolutionVersion: Aux, TEXT => Informational,
+    EnhanceSuperResolutionScale: Aux, TEXT => Informational,
 
     // Lens corrections
-    LensProfileEnable: FLAG => "/settings/lens/profile",
-    LensProfileSetup: CrsValueType::Choice(&["LensDefaults", "Auto", "Custom"]) => "/settings/lens/profile",
-    LensProfileName: TEXT => "/settings/lens/profile",
-    LensProfileFilename: TEXT => "/settings/lens/profile",
-    LensProfileDigest: TEXT => "/settings/lens/profile",
-    LensProfileDistortionScale: int(0, 200) => "/settings/lens/distortion_scale",
-    LensProfileChromaticAberrationScale: int(0, 200) => "/settings/lens/chromatic_aberration_scale",
-    LensProfileVignettingScale: int(0, 200) => "/settings/lens/vignetting_scale",
-    LensManualDistortionAmount: SLIDER => "/settings/lens/manual_distortion",
-    VignetteAmount: SLIDER => "/settings/lens/manual_vignetting",
-    VignetteMidpoint: AMOUNT => "/settings/lens/manual_vignetting_midpoint",
-    AutoLateralCA: FLAG => "/settings/lens/remove_chromatic_aberration",
-    ChromaticAberrationR: SLIDER => "",
-    ChromaticAberrationB: SLIDER => "",
-    DefringePurpleAmount: int(0, 20) => "/settings/lens/defringe_purple/amount",
-    DefringePurpleHueLo: AMOUNT => "/settings/lens/defringe_purple/hue_range",
-    DefringePurpleHueHi: AMOUNT => "/settings/lens/defringe_purple/hue_range",
-    DefringeGreenAmount: int(0, 20) => "/settings/lens/defringe_green/amount",
-    DefringeGreenHueLo: AMOUNT => "/settings/lens/defringe_green/hue_range",
-    DefringeGreenHueHi: AMOUNT => "/settings/lens/defringe_green/hue_range",
+    // The five profile keys together encode one `LensProfileSource`; a named
+    // profile round-trips through `LensProfileRef { name, filename, digest, setup }`.
+    LensProfileEnable: Crs, FLAG => Field("/settings/lens/profile"),
+    LensProfileSetup: Crs, CrsValueType::Choice(&["LensDefaults", "Auto", "Custom"]) => Field("/settings/lens/profile"),
+    LensProfileName: Crs, TEXT => Field("/settings/lens/profile"),
+    LensProfileFilename: Crs, TEXT => Field("/settings/lens/profile"),
+    LensProfileDigest: Crs, TEXT => Field("/settings/lens/profile"),
+    LensProfileDistortionScale: Crs, int(0, 200) => Field("/settings/lens/distortion_scale"),
+    LensProfileChromaticAberrationScale: Crs, int(0, 200) => Field("/settings/lens/chromatic_aberration_scale"),
+    LensProfileVignettingScale: Crs, int(0, 200) => Field("/settings/lens/vignetting_scale"),
+    LensManualDistortionAmount: Crs, SLIDER => Field("/settings/lens/manual_distortion"),
+    VignetteAmount: Crs, SLIDER => Field("/settings/lens/manual_vignetting"),
+    VignetteMidpoint: Crs, AMOUNT => Field("/settings/lens/manual_vignetting_midpoint"),
+    AutoLateralCA: Crs, FLAG => Field("/settings/lens/remove_chromatic_aberration"),
+    ChromaticAberrationR: Crs, SLIDER => Legacy,
+    ChromaticAberrationB: Crs, SLIDER => Legacy,
+    DefringePurpleAmount: Crs, int(0, 20) => Field("/settings/lens/defringe_purple/amount"),
+    DefringePurpleHueLo: Crs, AMOUNT => Field("/settings/lens/defringe_purple/hue_range"),
+    DefringePurpleHueHi: Crs, AMOUNT => Field("/settings/lens/defringe_purple/hue_range"),
+    DefringeGreenAmount: Crs, int(0, 20) => Field("/settings/lens/defringe_green/amount"),
+    DefringeGreenHueLo: Crs, AMOUNT => Field("/settings/lens/defringe_green/hue_range"),
+    DefringeGreenHueHi: Crs, AMOUNT => Field("/settings/lens/defringe_green/hue_range"),
 
     // Transform / Upright
-    PerspectiveUpright: int(0, 5) => "/settings/geometry/upright/mode",
-    PerspectiveVertical: SLIDER => "/settings/geometry/transform/vertical",
-    PerspectiveHorizontal: SLIDER => "/settings/geometry/transform/horizontal",
-    PerspectiveRotate: real(-10.0, 10.0) => "/settings/geometry/transform/rotate",
-    PerspectiveAspect: SLIDER => "/settings/geometry/transform/aspect",
-    PerspectiveScale: int(50, 150) => "/settings/geometry/transform/scale",
-    PerspectiveX: real(-100.0, 100.0) => "/settings/geometry/transform/offset_x",
-    PerspectiveY: real(-100.0, 100.0) => "/settings/geometry/transform/offset_y",
+    PerspectiveUpright: Crs, int(0, 5) => Field("/settings/geometry/upright/mode"),
+    PerspectiveVertical: Crs, SLIDER => Field("/settings/geometry/transform/vertical"),
+    PerspectiveHorizontal: Crs, SLIDER => Field("/settings/geometry/transform/horizontal"),
+    PerspectiveRotate: Crs, real(-10.0, 10.0) => Field("/settings/geometry/transform/rotate"),
+    PerspectiveAspect: Crs, SLIDER => Field("/settings/geometry/transform/aspect"),
+    PerspectiveScale: Crs, int(50, 150) => Field("/settings/geometry/transform/scale"),
+    PerspectiveX: Crs, real(-100.0, 100.0) => Field("/settings/geometry/transform/offset_x"),
+    PerspectiveY: Crs, real(-100.0, 100.0) => Field("/settings/geometry/transform/offset_y"),
 
     // Crop
-    HasCrop: BOOL => "/settings/geometry/crop/rect",
-    CropTop: real(0.0, 1.0) => "/settings/geometry/crop/rect/top",
-    CropLeft: real(0.0, 1.0) => "/settings/geometry/crop/rect/left",
-    CropBottom: real(0.0, 1.0) => "/settings/geometry/crop/rect/bottom",
-    CropRight: real(0.0, 1.0) => "/settings/geometry/crop/rect/right",
-    CropAngle: real(-45.0, 45.0) => "/settings/geometry/crop/angle",
-    CropConstrainToWarp: FLAG => "/settings/geometry/constrain_crop",
+    HasCrop: Crs, BOOL => Field("/settings/geometry/crop/rect"),
+    CropTop: Crs, real(0.0, 1.0) => Field("/settings/geometry/crop/rect/top"),
+    CropLeft: Crs, real(0.0, 1.0) => Field("/settings/geometry/crop/rect/left"),
+    CropBottom: Crs, real(0.0, 1.0) => Field("/settings/geometry/crop/rect/bottom"),
+    CropRight: Crs, real(0.0, 1.0) => Field("/settings/geometry/crop/rect/right"),
+    CropAngle: Crs, real(-45.0, 45.0) => Field("/settings/geometry/crop/angle"),
+    CropConstrainToWarp: Crs, FLAG => Field("/settings/geometry/constrain_crop"),
 
     // Effects
-    PostCropVignetteAmount: SLIDER => "/settings/effects/vignette/amount",
-    PostCropVignetteMidpoint: AMOUNT => "/settings/effects/vignette/midpoint",
-    PostCropVignetteFeather: AMOUNT => "/settings/effects/vignette/feather",
-    PostCropVignetteRoundness: SLIDER => "/settings/effects/vignette/roundness",
-    PostCropVignetteStyle: int(1, 3) => "/settings/effects/vignette/style",
-    PostCropVignetteHighlightContrast: AMOUNT => "/settings/effects/vignette/highlights",
-    GrainAmount: AMOUNT => "/settings/effects/grain/amount",
-    GrainSize: AMOUNT => "/settings/effects/grain/size",
-    GrainFrequency: AMOUNT => "/settings/effects/grain/roughness",
-    LensBlur: STRUCT => "/settings/effects/lens_blur",
+    PostCropVignetteAmount: Crs, SLIDER => Field("/settings/effects/vignette/amount"),
+    PostCropVignetteMidpoint: Crs, AMOUNT => Field("/settings/effects/vignette/midpoint"),
+    PostCropVignetteFeather: Crs, AMOUNT => Field("/settings/effects/vignette/feather"),
+    PostCropVignetteRoundness: Crs, SLIDER => Field("/settings/effects/vignette/roundness"),
+    // 1 Highlight Priority, 2 Color Priority, 3 Paint Overlay (ExifTool).
+    PostCropVignetteStyle: Crs, int(1, 3) => Field("/settings/effects/vignette/style"),
+    PostCropVignetteHighlightContrast: Crs, AMOUNT => Field("/settings/effects/vignette/highlights"),
+    GrainAmount: Crs, AMOUNT => Field("/settings/effects/grain/amount"),
+    GrainSize: Crs, AMOUNT => Field("/settings/effects/grain/size"),
+    GrainFrequency: Crs, AMOUNT => Field("/settings/effects/grain/roughness"),
+    LensBlur: Crs, STRUCT => Field("/settings/effects/lens_blur"),
 
     // Profile / calibration
-    CameraProfile: TEXT => "/settings/camera_profile/profile",
-    CameraProfileDigest: TEXT => "/settings/camera_profile/profile",
-    Look: STRUCT => "/settings/camera_profile/look",
-    ShadowTint: SLIDER => "/settings/camera_profile/calibration/shadow_tint",
-    RedHue: SLIDER => "/settings/camera_profile/calibration/red_hue",
-    RedSaturation: SLIDER => "/settings/camera_profile/calibration/red_saturation",
-    GreenHue: SLIDER => "/settings/camera_profile/calibration/green_hue",
-    GreenSaturation: SLIDER => "/settings/camera_profile/calibration/green_saturation",
-    BlueHue: SLIDER => "/settings/camera_profile/calibration/blue_hue",
-    BlueSaturation: SLIDER => "/settings/camera_profile/calibration/blue_saturation",
+    CameraProfile: Crs, TEXT => Field("/settings/camera_profile/profile/name"),
+    CameraProfileDigest: Crs, TEXT => Field("/settings/camera_profile/profile/digest"),
+    Look: Crs, STRUCT => Field("/settings/camera_profile/look"),
+    ShadowTint: Crs, SLIDER => Field("/settings/camera_profile/calibration/shadow_tint"),
+    RedHue: Crs, SLIDER => Field("/settings/camera_profile/calibration/red_hue"),
+    RedSaturation: Crs, SLIDER => Field("/settings/camera_profile/calibration/red_saturation"),
+    GreenHue: Crs, SLIDER => Field("/settings/camera_profile/calibration/green_hue"),
+    GreenSaturation: Crs, SLIDER => Field("/settings/camera_profile/calibration/green_saturation"),
+    BlueHue: Crs, SLIDER => Field("/settings/camera_profile/calibration/blue_hue"),
+    BlueSaturation: Crs, SLIDER => Field("/settings/camera_profile/calibration/blue_saturation"),
 
     // Locals / retouch
-    MaskGroupBasedCorrections: STRUCT => "/settings/locals/adjustments",
-    RetouchAreas: STRUCT => "/settings/locals/retouch",
-    RetouchInfo: STRUCT => "/settings/locals/retouch",
+    MaskGroupBasedCorrections: Crs, STRUCT => Field("/settings/locals/adjustments"),
+    RetouchAreas: Crs, STRUCT => Field("/settings/locals/retouch"),
+    RetouchInfo: Crs, STRUCT => Field("/settings/locals/retouch"),
 
-    // HDR
-    HDREditMode: FLAG => "/settings/output/hdr",
-    HDRMaxValue: real(0.0, 16.0) => "/settings/output/hdr_headroom_stops",
+    // HDR. ExifTool: HDREditMode integer (only 0 observed; 1 = HDR on is
+    // assumed), HDRMaxValue real (unit and range not established by Adobe).
+    HDREditMode: Crs, FLAG => Field("/settings/output/hdr"),
+    HDRMaxValue: Crs, real(0.0, 16.0) => Field("/settings/output/hdr_headroom_stops"),
 }
 
 impl CrsKey {
-    /// Looks up a key by XMP local name (without the `crs:` prefix).
+    /// JSON pointer (into the serialized `Recipe`) of the field this key maps
+    /// to, or `None` for legacy and informational keys.
+    pub const fn recipe_path(self) -> Option<&'static str> {
+        match self.target() {
+            CrsTarget::Field(p) => Some(p),
+            CrsTarget::Legacy | CrsTarget::Informational => None,
+        }
+    }
+
+    /// True for keys that describe the file and only feed provenance.
+    pub const fn is_informational(self) -> bool {
+        matches!(self.target(), CrsTarget::Informational)
+    }
+
+    /// Qualified name with the conventional prefix, e.g. `"aux:EnhanceDenoiseVersion"`.
+    /// This is also the key under which importers record informational
+    /// values in [`super::Provenance::properties`].
+    pub fn qualified_name(self) -> String {
+        format!("{}:{}", self.namespace().prefix(), self.xmp_name())
+    }
+
+    /// Looks up a key by XMP local name (without a prefix).
     pub fn from_xmp_name(name: &str) -> Option<Self> {
         Self::ALL.iter().copied().find(|k| k.xmp_name() == name)
+    }
+
+    /// Looks up a key by namespace URI and local name.
+    pub fn from_xmp(namespace_uri: &str, name: &str) -> Option<Self> {
+        Self::from_xmp_name(name).filter(|k| k.namespace().uri() == namespace_uri)
     }
 
     /// Pipeline stage the target field belongs to, derived from the path.
@@ -304,15 +417,21 @@ impl CrsKey {
 
 impl fmt::Display for CrsKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "crs:{}", self.xmp_name())
+        write!(f, "{}:{}", self.namespace().prefix(), self.xmp_name())
     }
 }
 
 impl FromStr for CrsKey {
     type Err = EngineError;
+    /// Accepts a bare local name or `prefix:Name` with the key's own prefix.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let local = s.strip_prefix("crs:").unwrap_or(s);
-        Self::from_xmp_name(local).ok_or_else(|| EngineError::not_found("crs key", s))
+        let key = match s.split_once(':') {
+            Some((prefix, local)) => {
+                Self::from_xmp_name(local).filter(|k| k.namespace().prefix() == prefix)
+            }
+            None => Self::from_xmp_name(s),
+        };
+        key.ok_or_else(|| EngineError::not_found("crs key", s))
     }
 }
 
@@ -341,14 +460,40 @@ mod tests {
         for &k in CrsKey::ALL {
             assert!(seen.insert(k.xmp_name()), "duplicate {k}");
             assert_eq!(CrsKey::from_xmp_name(k.xmp_name()), Some(k));
-            assert_eq!(
-                format!("crs:{}", k.xmp_name()).parse::<CrsKey>().unwrap(),
-                k
-            );
+            assert_eq!(k.qualified_name().parse::<CrsKey>().unwrap(), k);
+            assert_eq!(k.to_string(), k.qualified_name());
+            assert_eq!(CrsKey::from_xmp(k.namespace().uri(), k.xmp_name()), Some(k));
             let json = serde_json::to_string(&k).unwrap();
             assert_eq!(serde_json::from_str::<CrsKey>(&json).unwrap(), k);
         }
         assert!(CrsKey::ALL.len() > 120);
+        assert!("crs:EnhanceDenoiseVersion".parse::<CrsKey>().is_err());
+        assert!(CrsKey::from_xmp(CRS_NAMESPACE, "EnhanceDenoiseVersion").is_none());
+        assert_eq!(
+            "aux:EnhanceDenoiseLumaAmount".parse::<CrsKey>().unwrap(),
+            CrsKey::EnhanceDenoiseLumaAmount
+        );
+    }
+
+    #[test]
+    fn enhance_keys_are_informational_aux() {
+        for &k in CrsKey::ALL {
+            let enhance = k.xmp_name().starts_with("Enhance");
+            assert_eq!(enhance, k.namespace() == XmpNamespace::Aux, "{k}");
+            assert_eq!(enhance, k.is_informational(), "{k}");
+            if k.is_informational() {
+                assert_eq!(k.recipe_path(), None);
+            }
+        }
+        assert_eq!(CrsKey::ChromaticAberrationR.target(), CrsTarget::Legacy);
+        assert_eq!(
+            CrsKey::PostCropVignetteStyle.value_type(),
+            CrsValueType::Integer { min: 1, max: 3 }
+        );
+        assert!(matches!(
+            CrsKey::HDRMaxValue.value_type(),
+            CrsValueType::Real { .. }
+        ));
     }
 
     #[test]

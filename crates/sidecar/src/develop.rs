@@ -2,7 +2,10 @@
 use crate::{MarkPreset, Metadata, XmpPacket, xml::*, xmp::metadata_body};
 use engine_api::{
     error::{EngineError, EngineResult},
-    recipe::{Author, CrsKey, CrsValueType, DevelopSettings, EditMeta, Recipe},
+    recipe::{
+        Author, CrsKey, CrsValueType, DevelopSettings, EditMeta, LensProfileSetup, Recipe,
+        crs::NATIVE_REVISION_PROPERTY,
+    },
 };
 use serde_json::{Value, json};
 
@@ -36,19 +39,26 @@ impl XmpPacket {
             let Some(path) = key.recipe_path() else {
                 continue;
             };
+            let ns = key.namespace().uri();
             // Unchanged targets retain source spelling, ancillary data and opaque structures.
-            if tree.property(CRS, key.xmp_name()).is_some()
+            if tree.property(ns, key.xmp_name()).is_some()
                 && value.pointer(path) == original.pointer(path)
             {
                 continue;
             }
             body += &encode(key, &value)?;
-            owned.push((CRS, key.xmp_name()));
+            owned.push((ns, key.xmp_name()));
+            if key == CrsKey::ProcessVersion {
+                // The companion is rewritten (or dropped) with the process version.
+                owned.push((PRIVATE, NATIVE_REVISION_PROPERTY));
+            }
         }
         Self::parse(tree.replace(&self.xml, &owned, &body)?)
     }
-    /// Import all table keys, recording a single valid history edit. Original XMP is retained
-    /// in `Recipe::unknown["sidecar_xmp"]` for lossless later export via `from_imported_recipe`.
+    /// Import all table keys, recording a single valid history edit. Informational keys
+    /// (Enhance already-applied metadata) go to `Recipe::provenance` verbatim. Original XMP is
+    /// retained in `Recipe::unknown["sidecar_xmp"]` for lossless later export via
+    /// `from_imported_recipe`.
     pub fn to_recipe(&self) -> EngineResult<ImportedRecipe> {
         let tree = Tree::parse(&self.xml)?;
         let mut recipe = Recipe {
@@ -58,7 +68,16 @@ impl XmpPacket {
         let mut value = serde_json::to_value(&recipe)?;
         let mut warnings = Vec::new();
         for &key in CrsKey::ALL {
-            if tree.property(CRS, key.xmp_name()).is_none() {
+            let ns = key.namespace().uri();
+            if tree.property(ns, key.xmp_name()).is_none() {
+                continue;
+            }
+            if key.is_informational() {
+                let raw = tree.value(ns, key.xmp_name()).unwrap_or_default();
+                recipe
+                    .provenance
+                    .properties
+                    .insert(key.qualified_name(), raw);
                 continue;
             }
             if let Err(e) = decode(key, &tree, &mut value) {
@@ -133,10 +152,15 @@ fn enum_value(s: &str, choices: &[&str]) -> EngineResult<Value> {
 fn decode(key: CrsKey, tree: &Tree, doc: &mut Value) -> EngineResult<()> {
     use CrsKey::*;
     let path = key.recipe_path().ok_or_else(|| unsupported(key))?;
-    let s = tree.value(CRS, key.xmp_name()).unwrap_or_default();
+    let s = tree
+        .value(key.namespace().uri(), key.xmp_name())
+        .unwrap_or_default();
     let target = doc.pointer_mut(path).ok_or_else(|| error(path))?;
     let next = match key {
-        ProcessVersion => serde_json::to_value(engine_api::recipe::ProcessVersion::from_crs(&s)?)?,
+        ProcessVersion => serde_json::to_value(engine_api::recipe::ProcessVersion::from_xmp(
+            &s,
+            tree.value(PRIVATE, NATIVE_REVISION_PROPERTY).as_deref(),
+        )?)?,
         WhiteBalance => json!(if s == "As Shot" {
             "as_shot".into()
         } else {
@@ -158,36 +182,12 @@ fn decode(key: CrsKey, tree: &Tree, doc: &mut Value) -> EngineResult<()> {
             bool_value(&s)?;
             return Ok(());
         }
-        LensProfileEnable => {
-            if !bool_value(&s)? {
-                json!({"kind":"none"})
-            } else if target["kind"] == "none" {
-                json!({"kind":"auto"})
-            } else {
-                return Ok(());
-            }
-        }
-        LensProfileSetup => {
-            if s == "Auto" && target["kind"] != "none" {
-                json!({"kind":"auto"})
-            } else {
-                return Ok(());
-            }
-        }
-        LensProfileName => {
-            if s.is_empty() {
-                return Ok(());
-            }
-            json!({"kind":"database", "profile": s})
-        }
-        LensProfileFilename | LensProfileDigest | CameraProfileDigest => return Ok(()),
-        EnhanceDenoiseAlreadyApplied | EnhanceDetailsAlreadyApplied => {
-            if bool_value(&s)? {
-                return Err(unsupported(key));
-            }
-            return Ok(());
-        }
-        EnhanceDenoiseVersion => return Ok(()),
+        // The five profile keys jointly decode to one value; each computes the same result.
+        LensProfileEnable | LensProfileSetup | LensProfileName | LensProfileFilename
+        | LensProfileDigest => match lens_profile(tree)? {
+            Some(v) => v,
+            None => return Ok(()),
+        },
         MaskGroupBasedCorrections => import_masks(tree)?,
         Look => {
             let Some(Property::Node(n)) = tree.property(CRS, key.xmp_name()) else {
@@ -253,8 +253,16 @@ fn encode(key: CrsKey, doc: &Value) -> EngineResult<String> {
     let scalar = match key {
         ProcessVersion => {
             let pv: engine_api::recipe::ProcessVersion = serde_json::from_value(v.clone())?;
-            // Native math is not Adobe math; no invented Adobe version string.
-            pv.crs_value().ok_or_else(|| unsupported(key))?.into()
+            // Native recipes export as best-effort PV6 plus the ts:NativeRevision companion.
+            let crs = pv.crs_value().ok_or_else(|| unsupported(key))?;
+            let mut out = text("crs:ProcessVersion", crs.process_version);
+            if let Some(revision) = crs.native_revision {
+                out += &text(
+                    &format!("ts:{NATIVE_REVISION_PROPERTY}"),
+                    &revision.to_string(),
+                );
+            }
+            return Ok(out);
         }
         WhiteBalance => {
             if v == "as_shot" {
@@ -286,16 +294,22 @@ fn encode(key: CrsKey, doc: &Value) -> EngineResult<String> {
         .into(),
         LensProfileEnable => if v["kind"] == "none" { "0" } else { "1" }.into(),
         LensProfileSetup => if v["kind"] == "database" {
-            "Custom"
+            serde_json::from_value::<engine_api::recipe::LensProfileSetup>(
+                v["profile"]["setup"].clone(),
+            )?
+            .crs_value()
         } else {
             "Auto"
         }
         .into(),
-        LensProfileName => v["profile"].as_str().unwrap_or("").into(),
-        LensProfileFilename | LensProfileDigest | CameraProfileDigest | EnhanceDenoiseVersion => {
-            String::new()
+        LensProfileName | LensProfileFilename | LensProfileDigest => {
+            let field = match key {
+                LensProfileName => "name",
+                LensProfileFilename => "filename",
+                _ => "digest",
+            };
+            v["profile"][field].as_str().unwrap_or("").into()
         }
-        EnhanceDenoiseAlreadyApplied | EnhanceDetailsAlreadyApplied => "False".into(),
         MaskGroupBasedCorrections => return export_masks(v),
         Look => {
             let name = format!("crs:{key}").replace("crs:crs:", "crs:");
@@ -355,6 +369,34 @@ fn encode(key: CrsKey, doc: &Value) -> EngineResult<String> {
         },
     };
     Ok(text(&format!("crs:{}", key.xmp_name()), &scalar))
+}
+/// `LensProfileSource` from all five `crs:LensProfile*` properties, or `None` to keep the
+/// current value. A disabled profile wins; any identifying field yields a named profile.
+fn lens_profile(tree: &Tree) -> EngineResult<Option<Value>> {
+    let get = |name: &str| tree.value(CRS, name).unwrap_or_default();
+    let enable = get("LensProfileEnable");
+    if !enable.is_empty() && !bool_value(&enable)? {
+        return Ok(Some(json!({"kind":"none"})));
+    }
+    let setup_text = get("LensProfileSetup");
+    let setup = if setup_text.is_empty() {
+        LensProfileSetup::default()
+    } else {
+        LensProfileSetup::from_crs(&setup_text)
+            .ok_or_else(|| error(format!("invalid LensProfileSetup {setup_text}")))?
+    };
+    let (name, filename, digest) = (
+        get("LensProfileName"),
+        get("LensProfileFilename"),
+        get("LensProfileDigest"),
+    );
+    if !(name.is_empty() && filename.is_empty() && digest.is_empty()) {
+        return Ok(Some(json!({
+            "kind": "database",
+            "profile": {"name": name, "filename": filename, "digest": digest, "setup": setup},
+        })));
+    }
+    Ok((!enable.is_empty() || !setup_text.is_empty()).then(|| json!({"kind":"auto"})))
 }
 fn enum_number(v: &Value, values: &[&str]) -> EngineResult<String> {
     values

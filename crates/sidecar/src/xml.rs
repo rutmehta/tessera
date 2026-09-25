@@ -4,12 +4,12 @@ use quick_xml::{Reader, events::Event};
 use std::{collections::BTreeMap, ops::Range};
 
 pub(crate) const RDF: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
-pub(crate) const XMP: &str = "http://ns.adobe.com/xap/1.0/";
-pub(crate) const DM: &str = "http://ns.adobe.com/xmp/1.0/DynamicMedia/";
+pub(crate) const XMP: &str = engine_api::recipe::crs::XMP_NAMESPACE;
+pub(crate) const DM: &str = engine_api::recipe::crs::XMP_DM_NAMESPACE;
 pub(crate) const DC: &str = "http://purl.org/dc/elements/1.1/";
 pub(crate) const LR: &str = "http://ns.adobe.com/lightroom/1.0/";
 pub(crate) const CRS: &str = engine_api::recipe::crs::CRS_NAMESPACE;
-pub(crate) const PRIVATE: &str = "https://tessera.photo/ns/sidecar/1.0/";
+pub(crate) const PRIVATE: &str = engine_api::recipe::crs::TS_NAMESPACE;
 
 pub(crate) fn error(e: impl std::fmt::Display) -> EngineError {
     EngineError::Decode {
