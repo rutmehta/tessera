@@ -72,7 +72,7 @@ impl ProcessVersion {
     /// Current native process.
     pub const NATIVE_CURRENT: Self = Self {
         family: ProcessFamily::Native,
-        revision: 1,
+        revision: 2,
     };
 
     /// Adobe process version `pv` (1–6).
@@ -494,12 +494,12 @@ mod tests {
     fn hash_is_stable_across_releases() {
         // Golden value: if this changes, every render cache is invalidated.
         // Update deliberately, together with a note in CONTRACTS.md.
-        // 1.1.0: camera_profile.profile became `{name, digest}`.
+        // M2-04b: native process revision 2 (schema remains unchanged).
         let h = Recipe::default().recipe_hash().to_string();
         assert_eq!(h.len(), 64);
         assert_eq!(
             h,
-            "4f21c6917ae187e27c3bc8f6a12ef1dd7c0ba60252d4665f7e07f6f0c0c1c8fa"
+            "b053649aeb073ef9c9f3bd92d653c9cec26c5a2b5b9037e3399988355209fd9e"
         );
     }
 

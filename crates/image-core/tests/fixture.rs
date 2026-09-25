@@ -1,6 +1,8 @@
 //! Real RAW fixtures (skipped when fixtures/raw is absent).
 
 mod common;
+#[path = "common/preview.rs"]
+mod preview;
 
 use std::path::{Path, PathBuf};
 use std::time::Instant;
@@ -11,7 +13,7 @@ use engine_api::recipe::DevelopSettings;
 use engine_api::stage::StageId;
 use image_core::{CountingStageOp, CpuStageOp, PixelRect, RawImage, RenderOutput, Renderer};
 use image_core::{RendererConfig, TileCache};
-use pipeline_cpu::{RenderSource, render_linear_scaled, render_scaled};
+use pipeline_cpu::RenderSource;
 use std::sync::Arc;
 
 fn fixtures() -> Option<Vec<PathBuf>> {
@@ -79,7 +81,7 @@ fn fixture_level3_matches_pipeline_cpu() {
             .unwrap();
         let tiled_ms = t.elapsed().as_secs_f64() * 1e3;
         let t = Instant::now();
-        let reference = render_linear_scaled(&s, &source, 8).unwrap();
+        let reference = preview::linear(&source, &s, 8);
         let reference_ms = t.elapsed().as_secs_f64() * 1e3;
         assert_eq!((reference.width(), reference.height()), (e.width, e.height));
         let diff = max_f32_diff(&assemble_f32(e, &linear), reference.planes());
@@ -93,7 +95,7 @@ fn fixture_level3_matches_pipeline_cpu() {
         let display = Renderer::new(RendererConfig::default())
             .render_region(&image, &s, 3, rect)
             .unwrap();
-        let expected = render_scaled(&s, &source, 8).unwrap().into_raw();
+        let expected = preview::display(&reference, &s);
         let d = max_u8_diff(&assemble_u8(e, &display), &expected);
         assert_eq!(d, 0, "{}: display max diff {d}", path.display());
         eprintln!(

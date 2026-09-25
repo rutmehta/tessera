@@ -786,16 +786,9 @@ impl Renderer {
     }
 }
 
-// Kept private so integration does not depend on the reference renderer helper.
+// Share default-detail activation with the scalar reference.
 fn has_m2_settings(s: &DevelopSettings) -> bool {
-    s.detail != Default::default()
-        || s.color != Default::default()
-        || s.effects != Default::default()
-        || s.geometry != Default::default()
-        || s.tone.texture != 0.
-        || s.tone.clarity != 0.
-        || s.tone.dehaze != 0.
-        || s.tone.curves != Default::default()
+    pipeline_cpu::has_m2_settings(s)
 }
 
 fn release(uses: &mut HashMap<TileCoord, usize>, c: TileCoord) {

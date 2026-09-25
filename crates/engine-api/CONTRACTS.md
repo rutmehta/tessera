@@ -118,6 +118,14 @@
 
 ## Change log
 
+- M2-04b: native process revision 2. Custom white balance uses perpendicular
+  CIE 1960 Duv; camera calibration retains the XYZ-to-camera inverse without
+  independent XYZ row scaling. Default sharpening 40/1/25/0 and colour NR
+  25/50/50 now render.
+  No type or recipe schema changes. The default recipe hash is now
+  `b053649aeb073ef9c9f3bd92d653c9cec26c5a2b5b9037e3399988355209fd9e`.
+  Process-version-seeded stage and preview keys separate revision 1 from 2.
+
 - 1.0.0 (M0-03): initial contracts.
 - 1.1.0 (M2-03), recipe schema 2, golden recipe hash changed (`camera_profile.profile` default now serializes as `{"name":"","digest":""}`), all render caches invalidated:
   - `CrsKey` table: added `namespace()` (`XmpNamespace::{Crs, Aux, Xmp}`) and `target()` (`CrsTarget::{Field, Legacy, Informational}`). `recipe_path()` is now derived from `target()`. Added `is_informational()`, `qualified_name()` and `from_xmp(uri, name)`. `Display` and `FromStr` now use the key's own prefix.

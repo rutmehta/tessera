@@ -170,16 +170,8 @@ fn from_lab(lab: [f32; 3]) -> [f32; 3] {
 pub const DETAIL_HALO: u16 = 9;
 
 fn active_detail(s: &DetailSettings) -> (bool, bool, bool) {
-    let d = DetailSettings::default();
     let n = &s.noise_reduction;
-    (
-        s.sharpening != d.sharpening && s.sharpening.amount > 0.0,
-        n.luminance > 0.0,
-        n.color > 0.0
-            && (n.color != d.noise_reduction.color
-                || n.color_detail != d.noise_reduction.color_detail
-                || n.color_smoothness != d.noise_reduction.color_smoothness),
-    )
+    (s.sharpening.amount > 0.0, n.luminance > 0.0, n.color > 0.0)
 }
 
 /// Required input halo; output interior is valid, output halo is unchanged.
@@ -500,12 +492,15 @@ mod tests {
     }
 
     #[test]
-    fn defaults_are_bit_neutral_including_halos() {
+    fn defaults_apply_sharpening_and_keep_halos() {
         let mut t = noisy_tile(9);
         let before = t.samples::<f32>().unwrap().to_vec();
         color(&mut t, &ColorSettings::default()).unwrap();
-        detail(&mut t, &DetailSettings::default()).unwrap();
         assert_eq!(before, t.samples::<f32>().unwrap());
+        detail(&mut t, &DetailSettings::default()).unwrap();
+        let i = t.layout().index(0, 4, 4).unwrap();
+        assert!(t.samples::<f32>().unwrap()[i] > before[i]);
+        assert_eq!(before[0], t.samples::<f32>().unwrap()[0]);
     }
 
     #[test]
@@ -537,11 +532,12 @@ mod tests {
     }
 
     #[test]
-    fn luminance_nr_reduces_noise_without_activating_default_sharpening() {
+    fn luminance_nr_reduces_noise_with_sharpening_disabled() {
         let mut t = noisy_tile(9);
         let i = t.layout().index(0, 4, 4).unwrap();
         let mut s = DetailSettings::default();
         s.noise_reduction.luminance = 100.0;
+        s.sharpening.amount = 0.0;
         detail(&mut t, &s).unwrap();
         assert!((t.samples::<f32>().unwrap()[i] - 0.3).abs() < 0.015);
     }
@@ -561,6 +557,7 @@ mod tests {
         let l = t.layout();
         let mut s = DetailSettings::default();
         s.noise_reduction.color = 100.0;
+        s.sharpening.amount = 0.0;
         detail(&mut t, &s).unwrap();
         let p =
             std::array::from_fn(|c| t.samples::<f32>().unwrap()[l.index(c as u8, 4, 4).unwrap()]);
@@ -632,7 +629,10 @@ mod tests {
             .map(|v| v.to_bits())
             .collect::<Vec<_>>();
         color(&mut t, &ColorSettings::default()).unwrap();
-        detail(&mut t, &DetailSettings::default()).unwrap();
+        let mut disabled = DetailSettings::default();
+        disabled.sharpening.amount = 0.0;
+        disabled.noise_reduction.color = 0.0;
+        detail(&mut t, &disabled).unwrap();
         assert_eq!(
             bits,
             t.samples::<f32>()
@@ -667,11 +667,13 @@ mod tests {
     #[test]
     fn detail_subsettings_are_independent_and_halo_is_bounded() {
         let mut s = DetailSettings::default();
-        assert_eq!(detail_halo(&s), 0);
+        assert_eq!(detail_halo(&s), 3);
         s.sharpening.radius = 3.0;
         assert_eq!(detail_halo(&s), DETAIL_HALO);
         s = DetailSettings::default();
         s.noise_reduction.luminance = 100.0;
+        s.sharpening.amount = 0.0;
+        s.noise_reduction.color = 0.0;
         assert_eq!(detail_halo(&s), 2);
         let run = |s: &DetailSettings| {
             let mut t = noisy_tile(DETAIL_HALO);
@@ -684,7 +686,7 @@ mod tests {
         s.noise_reduction.luminance_detail = 50.0;
         s.noise_reduction.luminance_contrast = 100.0;
         assert!(run(&s) > base + 0.001);
-        // Explicitly disable other suboperators: identical to default bypass.
+        // Other suboperators remain explicitly disabled.
         s.noise_reduction.luminance_contrast = 0.0;
         s.sharpening.amount = 0.0;
         s.noise_reduction.color = 0.0;

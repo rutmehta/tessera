@@ -203,7 +203,6 @@ struct BasicPanel: View {
                 ForEach(section.1) { key in
                     AdjustmentSlider(model: model, key: key, itemID: ready ? id : nil, revision: revision)
                         .frame(height: 30)
-                        .help(key.parameter == nil ? "\(key.title) is not in the M1 pipeline yet" : "")
                 }
             }
         }

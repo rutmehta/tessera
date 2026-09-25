@@ -5,20 +5,11 @@ use engine_api::{
     tile::Tile,
 };
 
-/// Invert raw XYZ->camera, then normalize inverse rows to D65 row sums.
-/// This fixes the arbitrary scale of each XYZ row, not the as-shot illuminant.
+/// Invert the calibrated XYZ->camera transform without changing chromaticity.
+/// Independently normalizing XYZ rows would distort the calibration: equal
+/// unbalanced camera channels are not a D65 neutral.
 pub fn camera_to_xyz(cam_xyz: ColorMatrix3) -> EngineResult<ColorMatrix3> {
-    let mut inverse = cam_xyz.inverse()?;
-    for (row, white) in inverse.0.iter_mut().zip(WhitePoint::D65.to_xyz()) {
-        let sum: f64 = row.iter().sum();
-        if !sum.is_finite() || sum <= 1e-12 {
-            return Err(EngineError::invalid("cam_xyz", "invalid inverse row sum"));
-        }
-        for v in row {
-            *v *= white / sum;
-        }
-    }
-    Ok(inverse)
+    cam_xyz.inverse()
 }
 
 /// Bake matrix coefficients once to f32; pixel arithmetic stays scalar f32.
@@ -30,7 +21,7 @@ pub fn apply_matrix(tile: &mut Tile, matrix: ColorMatrix3) -> EngineResult<()> {
     crate::map_rgb(tile, |v| m.map(|r| r[0] * v[0] + r[1] * v[1] + r[2] * v[2]))
 }
 
-/// CAT16 conjugated into linear Rec.2020. Matrix input is the same normalized
+/// CAT16 conjugated into linear Rec.2020. Matrix input is the same calibrated
 /// camera->XYZ transform used by CameraProfile, before any white balance.
 pub fn white_balance_matrix(
     settings: &WhiteBalanceSettings,
@@ -38,20 +29,7 @@ pub fn white_balance_matrix(
     multipliers: [f32; 4],
 ) -> EngineResult<ColorMatrix3> {
     let white = match settings.mode {
-        WhiteBalanceMode::AsShot => {
-            if multipliers[..3].iter().any(|v| !v.is_finite() || *v <= 0.0) {
-                return Err(EngineError::invalid(
-                    "as_shot_wb",
-                    "positive finite multipliers required",
-                ));
-            }
-            let xyz = camera_xyz.apply(std::array::from_fn(|c| 1.0 / f64::from(multipliers[c])));
-            let sum: f64 = xyz.iter().sum();
-            if xyz.iter().any(|v| !v.is_finite() || *v <= 0.0) {
-                return Err(EngineError::invalid("scene white", "invalid XYZ white"));
-            }
-            WhitePoint::new(xyz[0] / sum, xyz[1] / sum)
-        }
+        WhiteBalanceMode::AsShot => as_shot_white(camera_xyz, multipliers)?,
         WhiteBalanceMode::Custom => temperature_white(settings.temperature, settings.tint)?,
         WhiteBalanceMode::Daylight | WhiteBalanceMode::Flash => WhitePoint::D55,
         WhiteBalanceMode::Cloudy => WhitePoint::D65,
@@ -69,8 +47,8 @@ pub fn white_balance_matrix(
     Ok(work.inverse()? * ChromaticAdaptation::Cat16.matrix(white, WhitePoint::D65)? * work)
 }
 
-/// Planckian-locus polynomial approximation, 1667..25000 K. Positive tint
-/// raises source v in CIE 1960 uv (green source -> magenta correction).
+/// CCT and perpendicular CIE 1960 Duv. Tint = 3000 * Duv, so positive tint
+/// selects a greener source white and produces a magenta correction.
 pub fn temperature_white(kelvin: f32, tint: f32) -> EngineResult<WhitePoint> {
     if !kelvin.is_finite()
         || !tint.is_finite()
@@ -83,21 +61,89 @@ pub fn temperature_white(kelvin: f32, tint: f32) -> EngineResult<WhitePoint> {
         ));
     }
     let t = f64::from(kelvin);
-    let x = if t <= 4000.0 {
-        -0.2661239e9 / t.powi(3) - 0.2343580e6 / t.powi(2) + 0.8776956e3 / t + 0.179910
-    } else {
-        -3.0258469e9 / t.powi(3) + 2.1070379e6 / t.powi(2) + 0.2226347e3 / t + 0.240390
-    };
-    let y = if t <= 2222.0 {
-        -1.1063814 * x.powi(3) - 1.34811020 * x * x + 2.18555832 * x - 0.20219683
-    } else if t <= 4000.0 {
-        -0.9549476 * x.powi(3) - 1.37418593 * x * x + 2.09137015 * x - 0.16748867
-    } else {
-        3.0817580 * x.powi(3) - 5.87338670 * x * x + 3.75112997 * x - 0.37001483
-    };
-    let d = -2.0 * x + 12.0 * y + 3.0;
-    let u = 4.0 * x / d;
-    let v = 6.0 * y / d + f64::from(tint) * 0.00005;
+    let [u, v] = locus_uv(t);
+    let [nu, nv] = locus_normal(t);
+    let u = u + nu * f64::from(tint) / 3000.0;
+    let v = v + nv * f64::from(tint) / 3000.0;
     let d = 2.0 * u - 8.0 * v + 4.0;
     Ok(WhitePoint::new(3.0 * u / d, 2.0 * v / d))
+}
+
+fn as_shot_white(camera_xyz: ColorMatrix3, multipliers: [f32; 4]) -> EngineResult<WhitePoint> {
+    if multipliers[..3].iter().any(|v| !v.is_finite() || *v <= 0.0) {
+        return Err(EngineError::invalid(
+            "as_shot_wb",
+            "positive finite multipliers required",
+        ));
+    }
+    let xyz = camera_xyz.apply(std::array::from_fn(|c| 1.0 / f64::from(multipliers[c])));
+    let sum: f64 = xyz.iter().sum();
+    if !sum.is_finite() || xyz.iter().any(|v| !v.is_finite() || *v <= 0.0) {
+        return Err(EngineError::invalid("scene white", "invalid XYZ white"));
+    }
+    Ok(WhitePoint::new(xyz[0] / sum, xyz[1] / sum))
+}
+
+/// Unrounded as-shot slider coordinates. Robertson-style isotherm search:
+/// bisect reciprocal temperature until the white lies on the locus normal.
+/// Uses the same locus and signed normal as `temperature_white`, not McCamy.
+/// Whites outside the representable slider domain are errors, never clamped.
+pub fn as_shot_temperature_tint(
+    camera_xyz: ColorMatrix3,
+    multipliers: [f32; 4],
+) -> EngineResult<(f32, f32)> {
+    let w = as_shot_white(camera_xyz, multipliers)?;
+    let d = -2.0 * w.x + 12.0 * w.y + 3.0;
+    let uv = [4.0 * w.x / d, 6.0 * w.y / d];
+    let distance = |t| {
+        let p = locus_uv(t);
+        let n = locus_normal(t);
+        (uv[0] - p[0]) * -n[1] + (uv[1] - p[1]) * n[0]
+    };
+    if distance(1667.0) < -1e-12 || distance(25000.0) > 1e-12 {
+        return Err(EngineError::invalid(
+            "as_shot_wb",
+            "CCT outside 1667..25000 K",
+        ));
+    }
+    let (mut lo, mut hi) = (1.0 / 25000.0, 1.0 / 1667.0);
+    for _ in 0..60 {
+        let mid = (lo + hi) * 0.5;
+        if distance(1.0 / mid) > 0.0 {
+            hi = mid;
+        } else {
+            lo = mid;
+        }
+    }
+    let t = 2.0 / (lo + hi);
+    let p = locus_uv(t);
+    let n = locus_normal(t);
+    let tint = 3000.0 * ((uv[0] - p[0]) * n[0] + (uv[1] - p[1]) * n[1]);
+    if tint.abs() > 150.0 + 1e-6 {
+        return Err(EngineError::invalid(
+            "as_shot_wb",
+            format!("Duv outside -0.05..0.05: T={t}, tint={tint}"),
+        ));
+    }
+    Ok((t as f32, tint.clamp(-150.0, 150.0) as f32))
+}
+
+// Krystek (1985) rational approximation of the Planckian locus in CIE 1960
+// UCS. Unlike the piecewise xy fit, this has no seams at 2222/4000 K.
+fn locus_uv(t: f64) -> [f64; 2] {
+    [
+        (0.860117757 + 1.54118254e-4 * t + 1.28641212e-7 * t * t)
+            / (1.0 + 8.42420235e-4 * t + 7.08145163e-7 * t * t),
+        (0.317398726 + 4.22806245e-5 * t + 4.20481691e-8 * t * t)
+            / (1.0 - 2.89741816e-5 * t + 1.61456053e-7 * t * t),
+    ]
+}
+
+fn locus_normal(t: f64) -> [f64; 2] {
+    let a = locus_uv(t - 0.01);
+    let b = locus_uv(t + 0.01);
+    let du = b[0] - a[0];
+    let dv = b[1] - a[1];
+    let length = du.hypot(dv);
+    [dv / length, -du / length]
 }

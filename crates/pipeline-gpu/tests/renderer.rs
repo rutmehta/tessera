@@ -6,7 +6,7 @@ use pipeline_gpu::{GpuContext, GpuStageOp};
 use std::sync::Arc;
 
 #[test]
-fn synthetic_renderer_and_tone_chain_transfers() {
+fn synthetic_renderer_with_default_detail_and_transfer_accounting() {
     let gpu = Arc::new(GpuStageOp::new(Arc::new(GpuContext::new().unwrap())));
     for (cfa, cache_dem) in [
         (common::RGGB, true),
@@ -62,18 +62,18 @@ fn synthetic_renderer_and_tone_chain_transfers() {
         let after = gpu.stats();
         assert_eq!(
             after.uploads - before.uploads,
-            tiles.len() as u64,
-            "tone+display must upload once"
+            7 * tiles.len() as u64,
+            "base tone plus detail/tone/curves/color/effects/output uploads"
         );
         assert_eq!(
             after.readbacks - before.readbacks,
-            tiles.len() as u64,
-            "tone+display must read back once"
+            7 * tiles.len() as u64,
+            "each default M2 tile pass has one readback"
         );
         assert_eq!(
             after.submissions - before.submissions,
-            1,
-            "tiles must share a submission"
+            4 + 3 * tiles.len() as u64,
+            "four point-op batches plus per-tile detail/effects/output submissions"
         );
     }
 }

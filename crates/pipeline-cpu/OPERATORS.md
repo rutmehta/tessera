@@ -47,11 +47,16 @@ LUT, lens blur, calibration/DCP/looks, HDR/proofing and Auto WB. Native and Sigm
 use the same existing output transform. B&W mix and configurable grain seed are
 absent from the schema: see [MISSING_FIELDS.md](MISSING_FIELDS.md).
 
-Recipes without M2 controls retain the original M1 execution path byte-for-byte.
-Default sharpening (40/1/25/0) and default chroma NR (25/50/50) independently bypass
-to preserve existing goldens, despite their nonzero schema amounts. Changed tuples
-use absolute amounts. This compatibility discontinuity is explicit, not a claim
-that amount 40 means zero in Lightroom. See MISSING_FIELDS.md.
+Native revision 2 applies default sharpening (40/1/25/0) and chroma NR (25/50/50).
+Only zero amounts disable these operators; unchanged tuples have no special
+bypass. CPU reference, image-core and GPU use the same activation rules.
+The synchronous reference renderer distributes independent Detail tiles over
+at most eight scoped workers (bounded by available parallelism). Every tile
+reads the same immutable full-resolution source with real-neighbour halos;
+only copying finished interiors is serialized. Pixel arithmetic, operation
+order and downsampling are unchanged. A multi-tile/edge regression checks
+bit-exact output against one worker, and the existing preview latency test
+continues to enforce its three-second release limit without bypassing detail.
 
 `image-core::StageOp` dispatches Detail, Tone, Color, Effects, Geometry and Output.
 Its additive `run_image` method supplies whole-image ToneExtra/Geometry CPU
@@ -122,10 +127,10 @@ Detailed constants, validation, halo support, matrices and test contracts:
   once with separable normalized `sinc(x)*sinc(x/3)`, support 3. Outside-source
   centres are black; boundary taps clamp. No Upright/lens warp is implied.
 
-No engine-api schema, stage order, or process revision has been changed. This is
-the initial M1 reference, replacing a placeholder, not a revision of a shipped
-renderer. Future changes to its rendering semantics require the contract's normal
-process-version review.
+M2-04b bumps the native process revision to 2 without changing schema or stage
+order. Old serialized process versions remain intact and do not alias new cache
+keys. The operator entry points take settings, not a revision: they are not an
+implementation of a historical revision-1 renderer.
 
 ## Linearize / highlight handling
 
@@ -191,10 +196,11 @@ libraw-ffi and raw-decode expose `cam_xyz: [[f32;3];4]` and
 No matrix is reverse-engineered from the other. The legacy `camera_to_xyz` field
 remains available for existing clients; this pipeline does not use it.
 
-Take the first three rows of the XYZ-to-camera `cam_xyz` matrix, invert it to N,
-and normalize each inverse row: `M[i,j] = N[i,j] * D65_XYZ[i] / sum_j(N[i,j])`.
-Thus camera `[1,1,1]` maps to D65 with Y=1. Singular matrices and nonpositive row
-sums are errors. CameraProfile applies `inverse(Rec2020_to_XYZ) * M` to the
+Take the first three rows of the calibrated XYZ-to-camera `cam_xyz` matrix and
+invert it to M. Do not independently normalize XYZ rows: unbalanced camera
+`[1,1,1]` is not a D65 neutral. That old normalization distorted chromaticities
+and pushed fixture whites outside the tint domain. Singular/nonfinite matrices
+are errors. CameraProfile applies `inverse(Rec2020_to_XYZ) * M` to the
 unbalanced camera RGB. A single calibration matrix is used; dual-illuminant
 selection can later consult WhiteBalanceSettings without reordering stages.
 
@@ -205,12 +211,27 @@ Rec2020_to_XYZ. WhiteBalance applies `inverse(W) * A * W`, preserving the source
 white's Y while neutralizing its chromaticity. This is not a second diagonal WB
 in camera space. A synthetic grey patch verifies CameraProfile then WhiteBalance.
 
-Custom white uses the standard piecewise Planckian-locus xy polynomial over
-1667–25000 K, converted to CIE 1960 uv, with source `v += tint*0.00005` for tint
-in -150..150. Positive tint corrects toward magenta. This is a Duv-like axis,
-not a calibrated perpendicular distance to the locus. Presets: Daylight/Flash
-D55, Cloudy D65, Shade D75, Tungsten A, Fluorescent F2. Preset temperature/tint
-fields are informational per the contract; Custom makes them authoritative.
+Custom white uses the smooth Krystek (1985) rational Planckian-locus approximation
+in CIE 1960 uv over 1667–25000 K. Tint is `3000 * Duv`: ±150 corresponds to
+±0.05 perpendicular distance, not a vertical v offset. The signed unit normal
+is `(dv/dT, -du/dT) / hypot(du/dT,dv/dT)` (green-positive). Positive tint therefore
+corrects toward magenta. This chosen Lightroom-like scale is not Adobe parity.
+`as_shot_temperature_tint` derives xy from the same matrix/multiplier white as
+AsShot, then uses a Robertson-style isotherm search with 60 reciprocal-temperature
+bisections. It returns unrounded f32 coordinates, rejecting out-of-domain whites
+instead of clamping them and falsely promising identity. The locus approximation
+is shared in both directions. Reference coefficients:
+https://colour.readthedocs.io/en/master/_modules/colour/temperature/krystek1985.html
+
+All five fixture whites fit the domain with the calibrated inverse; fixture
+tests cover as-shot identity within 1e-4, first-touch continuity, monotonic
++500 K warming, and +50 tint toward magenta from each as-shot coordinate.
+The FFI uses this same unrounded inverse for slider initialization. A first
+single-slider edit from AsShot seeds the other coordinate from that inverse,
+not the recipe's informational default. Its Basic adapter passes through
+Texture, Clarity, Dehaze, Vibrance and Saturation.
+Presets remain Daylight/Flash D55, Cloudy D65, Shade D75, Tungsten A, Fluorescent F2.
+Preset temperature/tint fields are informational; Custom makes them authoritative.
 
 ## Scene tone formulas
 
@@ -275,7 +296,7 @@ Every CR3, ARW, NEF, RAF and DNG in fixtures/raw is decoded and rendered with
 DevelopSettings::default at scale 8. The suite requires each of the five formats
 when the directory exists. If the directory is absent, it prints a skip notice.
 `PIPELINE_RAW_FIXTURES` can point at another fixture directory for testing this.
-A missing fixtures/golden/<stem>.png is created once, with an sRGB tag and notice.
-Existing files are never overwritten: dimensions/format must match and maximum
-absolute channel error must be <=2/255. Commit newly reviewed goldens; do not
-regenerate existing ones merely to make a failing regression pass.
+Regression tests never write goldens: dimensions/format and encoded bytes must
+match exactly. The explicit revision-2 update command is
+`cargo run -p pipeline-cpu --release --example regenerate_goldens`. It writes all
+five scale-8 PNGs with sRGB tags. Do not regenerate for unrelated regressions.

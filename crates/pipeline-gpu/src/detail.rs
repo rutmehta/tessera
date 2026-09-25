@@ -46,13 +46,9 @@ pub(crate) fn run(
             "controls outside documented settings ranges",
         ));
     }
-    let defaults = DetailSettings::default();
-    let sharp = sh != &defaults.sharpening && sh.amount > 0.0;
+    let sharp = sh.amount > 0.0;
     let lum = nr.luminance > 0.0;
-    let chroma = nr.color > 0.0
-        && (nr.color != defaults.noise_reduction.color
-            || nr.color_detail != defaults.noise_reduction.color_detail
-            || nr.color_smoothness != defaults.noise_reduction.color_smoothness);
+    let chroma = nr.color > 0.0;
     let sr = (3.0 * sh.radius).ceil() as u16;
     let cr = (1.0 + 4.0 * nr.color_smoothness / 100.0).ceil() as u16;
     let mut halo = if sharp { sr.max(2) } else { 0 };

@@ -59,7 +59,7 @@ pub fn render_scaled(
 }
 
 /// Scene-linear Rec.2020 through Geometry, then linear-light box downsampling.
-/// Output (display) is not applied. Default recipes preserve the M1 path.
+/// Output (display) is not applied. Default detail is active in native revision 2.
 pub fn render_linear_scaled(
     settings: &DevelopSettings,
     source: &RenderSource<'_>,
@@ -154,13 +154,9 @@ pub fn render_linear_scaled(
         rgb = rgb.downsample_crop(crop, 1)?;
         crop = [0, 0, rgb.width(), rgb.height()];
     }
-    if settings.detail != Default::default() {
-        let input = rgb.clone();
-        for coord in input.coords() {
-            let mut tile = input.tile(coord, crate::detail_halo(&settings.detail), 1)?;
-            crate::detail(&mut tile, &settings.detail)?;
-            rgb.put(&tile)?;
-        }
+    if crate::detail_halo(&settings.detail) > 0 || settings.detail != Default::default() {
+        let workers = std::thread::available_parallelism().map_or(1, usize::from);
+        rgb = detail_image(&rgb, &settings.detail, workers)?;
     }
     for coord in rgb.coords() {
         let mut tile = rgb.tile(coord, 0, 1)?;
@@ -194,9 +190,45 @@ pub fn render_linear_scaled(
     }
 }
 
+// Independent scalar tiles retain their arithmetic and immutable real-neighbour
+// halos. Bound scratch storage to eight workers rather than retaining all tiles.
+fn detail_image(
+    input: &Image,
+    settings: &engine_api::recipe::settings::DetailSettings,
+    workers: usize,
+) -> EngineResult<Image> {
+    let coords: Vec<_> = input.coords().collect();
+    let workers = workers.clamp(1, 8).min(coords.len());
+    let output = std::sync::Mutex::new(Image::blank(input.width(), input.height(), 3));
+    std::thread::scope(|scope| -> EngineResult<()> {
+        let mut handles = Vec::new();
+        for worker in 0..workers {
+            let coords = &coords;
+            let output = &output;
+            handles.push(scope.spawn(move || -> EngineResult<()> {
+                for &coord in coords.iter().skip(worker).step_by(workers) {
+                    let mut tile = input.tile(coord, crate::detail_halo(settings), 1)?;
+                    crate::detail(&mut tile, settings)?;
+                    output
+                        .lock()
+                        .expect("detail output lock poisoned")
+                        .put(&tile)?;
+                }
+                Ok(())
+            }));
+        }
+        for handle in handles {
+            handle.join().expect("detail worker panicked")?;
+        }
+        Ok(())
+    })?;
+    Ok(output.into_inner().expect("detail output lock poisoned"))
+}
+
 /// Whether a recipe needs M2 neighbourhood, colour, effect or geometry passes.
 pub fn has_m2_settings(s: &DevelopSettings) -> bool {
-    s.detail != Default::default()
+    crate::detail_halo(&s.detail) > 0
+        || s.detail != Default::default()
         || s.color != Default::default()
         || s.effects != Default::default()
         || s.geometry != Default::default()
@@ -249,4 +281,29 @@ pub fn validate_settings(s: &DevelopSettings) -> EngineResult<()> {
         ));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parallel_detail_is_bit_exact_across_tiles_and_edges() {
+        let input = Image::new(
+            519,
+            263,
+            (0..3)
+                .map(|c| {
+                    (0..519 * 263)
+                        .map(|i| ((i * 17 + c * 13) % 257) as f32 / 256.0)
+                        .collect()
+                })
+                .collect(),
+        )
+        .unwrap();
+        let settings = Default::default();
+        let serial = detail_image(&input, &settings, 1).unwrap();
+        let parallel = detail_image(&input, &settings, 4).unwrap();
+        assert_eq!(serial.planes(), parallel.planes());
+    }
 }

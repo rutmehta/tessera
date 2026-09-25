@@ -190,8 +190,8 @@ pub struct DevelopSession {
 
 // ─────────────────────────── settings helpers ───────────────────────────
 
-/// The part of `s` the M1 pipeline renders; every other field is neutral.
-/// Unsupported settings (e.g. imported Texture) stay in the recipe and XMP
+/// The supported Basic controls; every other field keeps its native defaults.
+/// Unsupported settings stay in the recipe and XMP
 /// but are not drawn; see [`ignored_settings`].
 pub fn renderable(s: &DevelopSettings) -> DevelopSettings {
     let mut r = DevelopSettings::default();
@@ -218,6 +218,11 @@ pub fn renderable(s: &DevelopSettings) -> DevelopSettings {
         (&mut r.tone.shadows, t.shadows),
         (&mut r.tone.whites, t.whites),
         (&mut r.tone.blacks, t.blacks),
+        (&mut r.tone.texture, t.texture),
+        (&mut r.tone.clarity, t.clarity),
+        (&mut r.tone.dehaze, t.dehaze),
+        (&mut r.color.vibrance, s.color.vibrance),
+        (&mut r.color.saturation, s.color.saturation),
     ] {
         *dst = finite_or(src, 0.0).clamp(-100.0, 100.0);
     }
@@ -265,7 +270,7 @@ fn merge_patch(target: &mut Value, patch: &Value) {
 }
 
 /// Correlated colour temperature and tint of the as-shot white, on the same
-/// scale as `pipeline_cpu::temperature_white` (McCamy CCT, CIE 1960 v offset).
+/// unrounded CCT/perpendicular-Duv scale as `pipeline_cpu::temperature_white`.
 fn as_shot_white(image: &RawImage) -> (f32, f32) {
     let m = image.metadata();
     let Ok(camera_xyz) = pipeline_cpu::camera_to_xyz(ColorMatrix3(std::array::from_fn(|r| {
@@ -273,26 +278,7 @@ fn as_shot_white(image: &RawImage) -> (f32, f32) {
     }))) else {
         return (5500.0, 0.0);
     };
-    if m.as_shot_wb[..3]
-        .iter()
-        .any(|v| !v.is_finite() || *v <= 0.0)
-    {
-        return (5500.0, 0.0);
-    }
-    let xyz = camera_xyz.apply(std::array::from_fn(|c| 1.0 / f64::from(m.as_shot_wb[c])));
-    let sum: f64 = xyz.iter().sum();
-    if !sum.is_finite() || sum <= 0.0 {
-        return (5500.0, 0.0);
-    }
-    let (x, y) = (xyz[0] / sum, xyz[1] / sum);
-    let n = (x - 0.3320) / (0.1858 - y);
-    let cct = (449.0 * n.powi(3) + 3525.0 * n * n + 6823.3 * n + 5520.33).clamp(2000.0, 25000.0);
-    let v = |x: f64, y: f64| 6.0 * y / (-2.0 * x + 12.0 * y + 3.0);
-    let tint = pipeline_cpu::temperature_white(cct as f32, 0.0)
-        .map(|w| (v(x, y) - v(w.x, w.y)) / 0.00005)
-        .unwrap_or(0.0)
-        .clamp(-150.0, 150.0);
-    ((cct / 50.0).round() as f32 * 50.0, tint.round() as f32)
+    pipeline_cpu::as_shot_temperature_tint(camera_xyz, m.as_shot_wb).unwrap_or((5500.0, 0.0))
 }
 
 fn stage_name(stage: StageId) -> String {
@@ -991,6 +977,15 @@ impl DevelopSession {
             && (wb.contains_key("temperature") || wb.contains_key("tint"))
             && !wb.contains_key("mode")
         {
+            if st.live.white_balance.mode == WhiteBalanceMode::AsShot {
+                let (temperature, tint) = as_shot_white(&self.shared.image);
+                if !wb.contains_key("temperature") {
+                    value["white_balance"]["temperature"] = serde_json::json!(temperature);
+                }
+                if !wb.contains_key("tint") {
+                    value["white_balance"]["tint"] = serde_json::json!(tint);
+                }
+            }
             value["white_balance"]["mode"] = Value::String("custom".into());
         }
         let next: DevelopSettings = serde_json::from_value(value).map_err(failure)?;
@@ -1192,13 +1187,23 @@ mod tests {
         let mut s = DevelopSettings::default();
         s.tone.exposure = 1.5;
         s.tone.texture = 20.0;
+        s.tone.clarity = -30.0;
+        s.tone.dehaze = 40.0;
+        s.color.vibrance = 50.0;
+        s.color.saturation = -60.0;
+        s.white_balance.mode = WhiteBalanceMode::Auto;
+        assert_eq!(ignored_settings(&s).len(), 1);
         s.white_balance.mode = WhiteBalanceMode::Custom;
         s.white_balance.temperature = 4200.0;
         let r = renderable(&s);
         assert_eq!(r.tone.exposure, 1.5);
-        assert_eq!(r.tone.texture, 0.0);
+        assert_eq!(r.tone.texture, 20.0);
+        assert_eq!(r.tone.clarity, -30.0);
+        assert_eq!(r.tone.dehaze, 40.0);
+        assert_eq!(r.color.vibrance, 50.0);
+        assert_eq!(r.color.saturation, -60.0);
         assert_eq!(r.white_balance.temperature, 4200.0);
         pipeline_cpu::validate_settings(&r).unwrap();
-        assert_eq!(ignored_settings(&s), vec!["/tone/texture".to_owned()]);
+        assert!(ignored_settings(&s).is_empty());
     }
 }
