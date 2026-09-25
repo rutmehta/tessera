@@ -1,0 +1,13 @@
+Implemented the GPU export infrastructure, managed float output, banded rendering, GPU Lanczos-3 resizing, bounded render/encode overlap, and CPU fallback. Changes are uncommitted and confined to allowed paths; engine-api is unchanged.
+
+Verification:
+- Required release tests, clippy with -D warnings, and fmt check passed.
+- GPU readback/resize, synthetic CPU parity, band equivalence, cancellation, and ICC/XMP tests passed.
+- Five-fixture GPU acceptance failed: the scratch-memory guard forces fallback on large renders. Default lens correction also requires CPU fallback.
+
+The benchmark completed with actual backend reporting. Default full-size Nikon took 49.602 s through fallback, so the performance objective is not met.
+
+Details: tools/orchestrate/wp/M2-21/RESULTS.md
+Measurements: tools/orchestrate/wp/M2-21/benchmark-results.json
+
+RESULT: FAIL real-fixture GPU coverage and performance targets remain unmet
