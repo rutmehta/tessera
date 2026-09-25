@@ -1,0 +1,35 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/image-core",
+    "crates/raw-decode",
+    "crates/pipeline-cpu",
+    "crates/pipeline-gpu",
+    "crates/recipe",
+    "crates/sidecar",
+    "crates/index",
+    "crates/previews",
+    "crates/import-lrcat",
+    "crates/cull",
+    "crates/ml-runtime",
+    "crates/jobs",
+    "crates/engine-api",
+    "crates/compositor",
+    "apps/pe-cli",
+]
+
+[workspace.dependencies]
+wgpu = "30"
+rusqlite = { version = "0.40", features = ["bundled", "fts5", "modern_sqlite"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+anyhow = "1"
+tracing = "0.1"
+bytemuck = { version = "1", features = ["derive"] }
+half = "2"
+zune-jpeg = "0.5"
+jxl-oxide = "0.12"
+lcms2 = "6"
+ort = "=2.0.0-rc.13"
+uniffi = "0.32"

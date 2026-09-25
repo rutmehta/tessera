@@ -1,1 +1,6 @@
 .DS_Store
+
+target/
+.worktrees/
+fixtures/raw/
+*.xcuserstate
