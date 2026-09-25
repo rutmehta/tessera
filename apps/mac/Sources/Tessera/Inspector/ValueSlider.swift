@@ -17,11 +17,16 @@ final class ValueSlider: NSControl {
     var step: Double = 1
     /// Called for every value change, with `isFinal` true on mouse-up (commit / history point).
     var onChange: ((Double, Bool) -> Void)?
+    /// Track painted as a gradient (HSL hue/saturation/luminance sliders) instead of grey.
+    var trackColors: [NSColor]? { didSet { needsDisplay = true } }
+    /// Drag lifecycle with the modifiers at mouse-down (⌥ previews on the Masking slider).
+    var onDragBegan: ((NSEvent.ModifierFlags) -> Void)?
+    var onDragEnded: (() -> Void)?
 
     private var value: Double = 0
     private var dragStartValue: Double = 0
     private var dragStartX: CGFloat = 0
-    private var isDragging = false
+    private(set) var isDragging = false
 
     override var isEnabled: Bool {
         didSet { alphaValue = isEnabled ? 1 : 0.4 }
@@ -70,14 +75,17 @@ final class ValueSlider: NSControl {
         text.draw(at: NSPoint(x: bounds.width - tw, y: 1), withAttributes: attrs)
 
         let track = trackRect
-        NSColor(calibratedWhite: 0.26, alpha: 1).setFill()
-        NSBezierPath(roundedRect: track, xRadius: 1.5, yRadius: 1.5).fill()
-
-        // Fill from the default (centre for bipolar controls) to the value.
         let x0 = track.minX + track.width * fraction(defaultValue)
         let x1 = track.minX + track.width * fraction(value)
-        NSColor(calibratedWhite: isDragging ? 0.85 : 0.62, alpha: 1).setFill()
-        NSRect(x: min(x0, x1), y: track.minY, width: abs(x1 - x0), height: track.height).fill()
+        if let colors = trackColors, colors.count >= 2, let gradient = NSGradient(colors: colors) {
+            gradient.draw(in: NSBezierPath(roundedRect: track.insetBy(dx: 0, dy: -0.5), xRadius: 2, yRadius: 2), angle: 0)
+        } else {
+            NSColor(calibratedWhite: 0.26, alpha: 1).setFill()
+            NSBezierPath(roundedRect: track, xRadius: 1.5, yRadius: 1.5).fill()
+            // Fill from the default (centre for bipolar controls) to the value.
+            NSColor(calibratedWhite: isDragging ? 0.85 : 0.62, alpha: 1).setFill()
+            NSRect(x: min(x0, x1), y: track.minY, width: abs(x1 - x0), height: track.height).fill()
+        }
 
         // Thumb: a slim vertical bar, not a knob.
         let thumb = NSRect(x: x1 - 1.5, y: track.midY - 5, width: 3, height: 10)
@@ -92,6 +100,7 @@ final class ValueSlider: NSControl {
             return
         }
         isDragging = true
+        onDragBegan?(event.modifierFlags)
         dragStartValue = value
         dragStartX = convert(event.locationInWindow, from: nil).x
         // Clicking on the track (not near the thumb) jumps there, then drags relatively.
@@ -116,6 +125,7 @@ final class ValueSlider: NSControl {
     override func mouseUp(with event: NSEvent) {
         guard isDragging else { return }
         isDragging = false
+        onDragEnded?()
         setValue(value, final: true)
         needsDisplay = true
     }

@@ -15,11 +15,17 @@ public struct DevelopFrame: Sendable, Equatable {
     public let renderMs: Double
     public let generation: UInt64
     public let dirtyStage: String?
+    /// The whole picture at the screen level (cropped extent): what the loupe aspect-fits.
+    public let displayWidth: Int
+    public let displayHeight: Int
+    /// A diagnostic overlay (the sharpening mask), not the developed image.
+    public let isOverlay: Bool
 
     init(_ f: FrameInfo) {
         surfaceID = f.surfaceId; level = Int(f.level); width = Int(f.width); height = Int(f.height)
         firstLevel = Int(f.firstLevel); isFinal = f.isFinal; renderMs = f.renderMs
         generation = f.generation; dirtyStage = f.dirtyStage
+        displayWidth = Int(f.displayWidth); displayHeight = Int(f.displayHeight); isOverlay = f.isOverlay
     }
 
     /// "L3 → L2, 7.8 ms" (the status bar's debug readout).
@@ -45,6 +51,7 @@ public struct DevelopParameter: Hashable, Sendable {
     public static let blacks = DevelopParameter("tone", "blacks")
 
     public var isWhiteBalance: Bool { section == "white_balance" }
+    public var path: [String] { [section, field] }
 }
 
 /// Drives one Rust `DevelopSession` for the image on screen (docs/11 §1.2).
@@ -74,9 +81,13 @@ public final class DevelopController {
     /// Called when a coalesced change is waiting; the host calls `flushPending()` on its next
     /// display-link tick. Without a handler changes are sent immediately.
     public var onNeedsFlush: (() -> Void)?
+    /// Every JSON merge patch sent to the engine (tests, diagnostics).
+    public var onPatchSent: ((String) -> Void)?
+    /// Settings changed outside a local slider drag (undo, preset, snapshot, history).
+    public var onSettingsReloaded: (() -> Void)?
 
     private var settings: [String: Any] = [:]
-    private var pending: [String: [String: Any]] = [:]
+    private var pending: [String: Any] = [:]
     private var pendingInteractive = false
     private var surfaces: [UInt32: IOSurfaceRef] = [:]
     private let events: Events
@@ -175,20 +186,84 @@ public final class DevelopController {
     /// Records a slider value. Interactive values are coalesced to one engine call per display
     /// frame; a final value is sent at once (call `commit` to make it an undo step).
     public func set(_ p: DevelopParameter, _ value: Double, interactive: Bool) {
-        var patch = pending[p.section] ?? [:]
-        patch[p.field] = value
+        var patch: [String: Any] = [p.field: value]
         if p.isWhiteBalance {
             // Moving either slider leaves As Shot: pin the other to its displayed value.
             let other: DevelopParameter = p == .temperature ? .tint : .temperature
-            if isAsShotWhiteBalance, patch[other.field] == nil { patch[other.field] = self.value(other) }
+            let pendingWB = pending[p.section] as? [String: Any]
+            if isAsShotWhiteBalance, pendingWB?[other.field] == nil { patch[other.field] = self.value(other) }
             patch["mode"] = "custom"
         }
-        pending[p.section] = patch
-        var section = settings[p.section] as? [String: Any] ?? [:]
-        for (k, v) in patch { section[k] = v }
-        settings[p.section] = section
+        apply(patch: [p.section: patch], interactive: interactive)
+    }
+
+    // MARK: Settings by JSON path (the develop panels)
+
+    /// The live settings document (engine `DevelopSettings` JSON), including unsent changes.
+    public var settingsObject: [String: Any] { settings }
+
+    /// Value at a member path, e.g. `["color", "hsl", "hue", "red"]`.
+    public func value(at path: [String]) -> Any? {
+        var node: Any? = settings
+        for key in path { node = (node as? [String: Any])?[key] }
+        return node
+    }
+
+    /// Numeric value at a member path, or nil when absent.
+    public func number(at path: [String]) -> Double? { (value(at: path) as? NSNumber)?.doubleValue }
+
+    /// Sets one member. Interactive values are coalesced like `set(_:_:interactive:)`.
+    public func set(path: [String], _ value: Any, interactive: Bool) {
+        apply(patch: Self.patch(path, value), interactive: interactive)
+    }
+
+    /// Merges an RFC 7386 patch (nested objects merge, arrays and scalars replace, `NSNull`
+    /// removes) into the live settings and queues it for the engine.
+    public func apply(patch: [String: Any], interactive: Bool) {
+        pending = Self.merge(pending, patch, keepNulls: true)
+        settings = Self.merge(settings, patch, keepNulls: false)
         pendingInteractive = interactive
         if interactive, let onNeedsFlush { onNeedsFlush() } else { _ = flushPending() }
+    }
+
+    /// `["a","b"] + v` → `{"a":{"b":v}}`.
+    nonisolated public static func patch(_ path: [String], _ value: Any) -> [String: Any] {
+        guard let first = path.first else { return [:] }
+        return [first: path.count == 1 ? value : patch(Array(path.dropFirst()), value)]
+    }
+
+    /// Compact JSON with sorted keys and shortest round-trip decimals (`0.6`, not
+    /// `0.59999999999999998`), as sent to the engine and stored in presets.
+    nonisolated public static func encode(_ obj: [String: Any], pretty: Bool = false) -> String? {
+        let options: JSONSerialization.WritingOptions = pretty ? [.sortedKeys, .prettyPrinted] : [.sortedKeys]
+        guard let data = try? JSONSerialization.data(withJSONObject: decimalized(obj), options: options) else { return nil }
+        return String(decoding: data, as: UTF8.self)
+    }
+
+    nonisolated static func decimalized(_ v: Any) -> Any {
+        switch v {
+        case let d as [String: Any]: return d.mapValues(decimalized)
+        case let a as [Any]: return a.map(decimalized)
+        case let n as NSNumber where CFGetTypeID(n) != CFBooleanGetTypeID() && CFNumberIsFloatType(n):
+            let x = n.doubleValue
+            return x.isFinite ? NSDecimalNumber(string: "\(x)") : n
+        default: return v
+        }
+    }
+
+    /// RFC 7386 merge. With `keepNulls` (accumulating a patch) removals stay as `NSNull`.
+    nonisolated public static func merge(_ target: [String: Any], _ patch: [String: Any], keepNulls: Bool) -> [String: Any] {
+        var out = target
+        for (k, v) in patch {
+            if v is NSNull {
+                if keepNulls { out[k] = v } else { out.removeValue(forKey: k) }
+            } else if let obj = v as? [String: Any] {
+                out[k] = merge(out[k] as? [String: Any] ?? [:], obj, keepNulls: keepNulls)
+            } else {
+                out[k] = v
+            }
+        }
+        return out
     }
 
     /// White balance back to the camera's as-shot values.
@@ -202,10 +277,9 @@ public final class DevelopController {
     /// Sends the coalesced patch, if any. Returns whether something was sent.
     @discardableResult
     public func flushPending() -> Bool {
-        guard !pending.isEmpty, !closed,
-              let data = try? JSONSerialization.data(withJSONObject: pending),
-              let json = String(data: data, encoding: .utf8) else { return false }
+        guard !pending.isEmpty, !closed, let json = Self.encode(pending) else { return false }
         pending.removeAll()
+        onPatchSent?(json)
         do {
             try session.setSettings(jsonPatch: json, interactive: pendingInteractive)
         } catch {
@@ -237,6 +311,54 @@ public final class DevelopController {
         _ = try historyMove { try session.restoreSnapshot(name: name); return true }
     }
 
+    /// Applied steps oldest first, then the undone steps redo would reapply.
+    public func historyItems() -> [HistoryItem] { (try? session.historyItems()) ?? [] }
+
+    /// Moves to the state after history step `id` (nil: the original state).
+    public func checkoutHistory(_ id: UInt64?) throws -> Bool {
+        try historyMove { try session.checkoutHistory(id: id) }
+    }
+
+    /// Turns a step's changes off or back on (recorded as a new step).
+    public func setHistoryStep(_ id: UInt64, enabled: Bool) throws -> Bool {
+        try historyMove { try session.setHistoryStepEnabled(id: id, enabled: enabled) }
+    }
+
+    /// Applies a partial recipe (preset) as one undo step labelled `label`.
+    @discardableResult
+    public func applyPreset(_ patch: [String: Any], label: String) -> Bool {
+        apply(patch: patch, interactive: false)
+        let recorded = commit(label: label)
+        onSettingsReloaded?()
+        return recorded
+    }
+
+    // MARK: Tools
+
+    /// Crop tool: the engine renders the whole frame while on.
+    public func setCropEditing(_ on: Bool) {
+        flushPending()
+        do { try session.setCropEditing(editing: on) } catch { onFailure?(error.localizedDescription) }
+    }
+
+    /// ⌥ on the Masking slider: frames show the sharpening mask while on.
+    public func setMaskingPreview(_ on: Bool) {
+        do { try session.setMaskingPreview(enabled: on) } catch { onFailure?(error.localizedDescription) }
+    }
+
+    /// 1:1 crop into `surface` (blocking; call off the main actor through `DetailPreviewRenderer`).
+    nonisolated public static func renderDetail(session: DevelopSession, into surface: IOSurfaceRef,
+                                                centerX: Double, centerY: Double) throws -> DetailPreview {
+        try session.renderDetailPreview(iosurfaceId: IOSurfaceGetID(surface),
+                                        width: UInt32(IOSurfaceGetWidth(surface)),
+                                        height: UInt32(IOSurfaceGetHeight(surface)),
+                                        centerX: Float(centerX), centerY: Float(centerY))
+    }
+
+    public static func makeDetailSurface(width: Int, height: Int) -> IOSurfaceRef? {
+        makeSurface(width: width, height: height)
+    }
+
     private func historyMove(_ body: () throws -> Bool) throws -> Bool {
         flushPending()
         let moved = try body()
@@ -249,6 +371,7 @@ public final class DevelopController {
         settings = (try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any]) ?? [:]
         ignoredSettings = (try? session.ignoredSettings()) ?? []
         refreshHistory()
+        onSettingsReloaded?()
     }
 
     private func refreshHistory() {

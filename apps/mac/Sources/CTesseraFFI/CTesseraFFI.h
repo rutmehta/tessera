@@ -556,6 +556,11 @@ void uniffi_tessera_ffi_fn_free_developsession(uint64_t handle, RustCallStatus *
 void uniffi_tessera_ffi_fn_method_developsession_attach_surface(uint64_t ptr, uint32_t iosurface_id, uint32_t width, uint32_t height, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_CHECKOUT_HISTORY
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_CHECKOUT_HISTORY
+int8_t uniffi_tessera_ffi_fn_method_developsession_checkout_history(uint64_t ptr, RustBuffer id, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_CLOSE
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_CLOSE
 void uniffi_tessera_ffi_fn_method_developsession_close(uint64_t ptr, RustCallStatus *_Nonnull out_status
@@ -584,6 +589,11 @@ RustBuffer uniffi_tessera_ffi_fn_method_developsession_get_histogram(uint64_t pt
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_GET_SETTINGS_JSON
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_GET_SETTINGS_JSON
 RustBuffer uniffi_tessera_ffi_fn_method_developsession_get_settings_json(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_HISTORY_ITEMS
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_HISTORY_ITEMS
+RustBuffer uniffi_tessera_ffi_fn_method_developsession_history_items(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_HISTORY_STATE
@@ -616,6 +626,11 @@ int8_t uniffi_tessera_ffi_fn_method_developsession_redo(uint64_t ptr, RustCallSt
 void uniffi_tessera_ffi_fn_method_developsession_refresh(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_RENDER_DETAIL_PREVIEW
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_RENDER_DETAIL_PREVIEW
+RustBuffer uniffi_tessera_ffi_fn_method_developsession_render_detail_preview(uint64_t ptr, uint32_t iosurface_id, uint32_t width, uint32_t height, float center_x, float center_y, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_RESET
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_RESET
 int8_t uniffi_tessera_ffi_fn_method_developsession_reset(uint64_t ptr, RustCallStatus *_Nonnull out_status
@@ -626,9 +641,24 @@ int8_t uniffi_tessera_ffi_fn_method_developsession_reset(uint64_t ptr, RustCallS
 void uniffi_tessera_ffi_fn_method_developsession_restore_snapshot(uint64_t ptr, RustBuffer name, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_SET_CROP_EDITING
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_SET_CROP_EDITING
+void uniffi_tessera_ffi_fn_method_developsession_set_crop_editing(uint64_t ptr, int8_t editing, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_SET_HISTORY_STEP_ENABLED
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_SET_HISTORY_STEP_ENABLED
+int8_t uniffi_tessera_ffi_fn_method_developsession_set_history_step_enabled(uint64_t ptr, uint64_t id, int8_t enabled, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_SET_LISTENER
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_SET_LISTENER
 void uniffi_tessera_ffi_fn_method_developsession_set_listener(uint64_t ptr, RustBuffer listener, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_SET_MASKING_PREVIEW
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_SET_MASKING_PREVIEW
+void uniffi_tessera_ffi_fn_method_developsession_set_masking_preview(uint64_t ptr, int8_t enabled, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_SET_SETTINGS
@@ -1351,6 +1381,12 @@ uint16_t uniffi_tessera_ffi_checksum_method_developsession_attach_surface(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_CHECKOUT_HISTORY
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_CHECKOUT_HISTORY
+uint16_t uniffi_tessera_ffi_checksum_method_developsession_checkout_history(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_CLOSE
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_CLOSE
 uint16_t uniffi_tessera_ffi_checksum_method_developsession_close(void
@@ -1384,6 +1420,12 @@ uint16_t uniffi_tessera_ffi_checksum_method_developsession_get_histogram(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_GET_SETTINGS_JSON
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_GET_SETTINGS_JSON
 uint16_t uniffi_tessera_ffi_checksum_method_developsession_get_settings_json(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_HISTORY_ITEMS
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_HISTORY_ITEMS
+uint16_t uniffi_tessera_ffi_checksum_method_developsession_history_items(void
     
 );
 #endif
@@ -1423,6 +1465,12 @@ uint16_t uniffi_tessera_ffi_checksum_method_developsession_refresh(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_RENDER_DETAIL_PREVIEW
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_RENDER_DETAIL_PREVIEW
+uint16_t uniffi_tessera_ffi_checksum_method_developsession_render_detail_preview(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_RESET
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_RESET
 uint16_t uniffi_tessera_ffi_checksum_method_developsession_reset(void
@@ -1435,9 +1483,27 @@ uint16_t uniffi_tessera_ffi_checksum_method_developsession_restore_snapshot(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_SET_CROP_EDITING
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_SET_CROP_EDITING
+uint16_t uniffi_tessera_ffi_checksum_method_developsession_set_crop_editing(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_SET_HISTORY_STEP_ENABLED
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_SET_HISTORY_STEP_ENABLED
+uint16_t uniffi_tessera_ffi_checksum_method_developsession_set_history_step_enabled(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_SET_LISTENER
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_SET_LISTENER
 uint16_t uniffi_tessera_ffi_checksum_method_developsession_set_listener(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_SET_MASKING_PREVIEW
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_SET_MASKING_PREVIEW
+uint16_t uniffi_tessera_ffi_checksum_method_developsession_set_masking_preview(void
     
 );
 #endif
