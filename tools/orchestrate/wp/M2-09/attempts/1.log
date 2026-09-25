@@ -1,0 +1,16 @@
+Implemented the lens crate and CPU wiring, but M2-09 is not fully complete.
+
+Delivered profile loaders, image calibration, DNG opcode parsing, manual corrections, Upright, composed Lanczos-3 geometry, and stage-correct Bayer CFA CA with camera-RGB fallback. engine-api remains unchanged; needed fields are documented.
+
+Verification I ran:
+- Required test/clippy/fmt chain passed: 119 tests passed.
+- Separately ran the ignored five-RAW acceptance test: all five rendered finite with auto corrections.
+- Off-path goldens passed.
+- All remaining changes are within allowed paths. No commits.
+
+Remaining gaps include DNG OpcodeList1/2 execution, complete profile coordinate normalization/camera matching, and a shipped downloadable data pack.
+
+Handoff: tools/orchestrate/wp/M2-09/HANDOFF.md
+Test log: tools/orchestrate/wp/M2-09/verification.log
+
+RESULT: FAIL full M2-09 coverage remains incomplete despite passing tests.

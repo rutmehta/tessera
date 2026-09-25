@@ -1,0 +1,11 @@
+Fixed Lensfun loading that discarded measured distortion and CA focal lengths when vignette samples used a different grid. Added a regression, observed it fail, and verified the fix.
+
+Verification:
+  Required release tests: 120 passed, 0 failed, 1 ignored.
+  Separately ran the ignored five-RAW fixture test: passed.
+  Clippy -D warnings and cargo fmt --check: passed.
+  Only allowed paths changed. engine-api unchanged. No commits.
+
+M2-09 remains incomplete: DNG List1/2 execution, complete profile coordinate/camera matching, a downloadable data-pack artifact, and independent manual CA controls remain outstanding. Details are in tools/orchestrate/wp/M2-09/HANDOFF.md.
+
+RESULT: FAIL incomplete acceptance coverage despite passing verification

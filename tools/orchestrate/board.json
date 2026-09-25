@@ -307,7 +307,7 @@
     "id": "M2-12",
     "owner": "opus",
     "title": "Library UI: albums, smart albums, filter bar",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
@@ -324,6 +324,14 @@
     "owner": "astra",
     "title": "Reconcile resident model with rev 2 defaults (fix main)",
     "status": "merged",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-07b",
+    "owner": "sol",
+    "title": "Make GitHub CI pass",
+    "status": "running",
     "attempts": 0,
     "notes": ""
   }

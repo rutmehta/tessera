@@ -1,0 +1,5 @@
+Updated `ci.sh` to run workspace tests in release, added the CI timeout and Cargo.lock-keyed cache, and made the Swift step explicitly use release configuration. The fallback test still enforces its latency limits in release; debug builds retain the correctness checks with a longer callback wait. Other timing uses I found were liveness deadlines or benchmark measurements, not latency assertions.
+
+`bash ci.sh && actionlint .github/workflows/ci.yml .github/workflows/release.yml` passed locally. The fallback test passed, and `actionlint .github/workflows/*.yml` passed separately. This verifies the local checks, not a new GitHub Actions run.
+
+RESULT: PASS
