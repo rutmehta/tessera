@@ -1,0 +1,5 @@
+# M2-02c findings
+
+Lightroom's 0–5 stars cannot be represented exactly by Tessera's 0–3 grades: 3★ and 4★ both become grade 2. Thus `rating = 3` and `rating = 4` (and boundaries splitting them, such as `rating > 3`) cannot retain distinct memberships after import. The translation uses the union of mapped selection buckets represented by each matching star value; both queries include grade 2. `rating = 0` is deliberately treated as `decision:undecided` per the work package, although a picked, unrated image also has zero Lightroom stars. A picked, unrated image and a one-star image both map to Keep with no grade, so they too cannot be separated by native search. Rejected images normalize to Reject without grade; explicit reject-flag rules translate to `decision:reject`.
+
+The importer preserves unsupported rating/flag rule shapes as the original AST, which fails at compilation rather than silently selecting a wrong set. The raw source rating/pick columns remain on ImportedImage for a future lossless search backend.

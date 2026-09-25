@@ -4,6 +4,7 @@
 pub mod fixture;
 pub mod lua;
 pub mod previews;
+mod search_map;
 pub mod xmp;
 pub use lua::SavedSearch;
 
@@ -397,7 +398,7 @@ pub fn import(path: impl AsRef<Path>) -> EngineResult<ImportPlan> {
                 id,
                 name,
                 parent,
-                search: lua::parse(&raw)?,
+                search: search_map::translate(lua::parse(&raw)?),
                 // Keeps the M2-11 behaviour: a smart album inside a group is scoped.
                 scoped: true,
             });

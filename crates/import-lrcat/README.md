@@ -42,6 +42,21 @@ so the host can preview the Lightroom → Tessera selection mapping (docs/06
 §2.1) and let the user rename or drop colour labels. Both are `serde(default)`,
 so older serialized plans still load.
 
+Imported smart-collection rating comparisons (`>=`, `>`, `=`, `<=`, `<`, `!=`)
+and inclusive string ranges (`2..4`, with `=` or `between`) are translated to
+unions of native decision/grade buckets rather than treating Lightroom stars
+as Tessera grades. Zero stars / `unrated` maps to `decision:undecided`; one star
+to Keep with no grade, two to grade 1, three/four to grade 2, five to grade 3.
+Positive pick and reject flag rules become decision terms. Unsupported shapes
+stay in the original AST and fail explicitly on compilation.
+
+This mapping is lossy: three and four stars share grade 2, so a boundary
+between them cannot match Lightroom exactly. A picked unrated image and a
+one-star image both become Keep without grade, while a rejected image loses
+its original grade. Native searches use the union of mapped buckets touched
+by a rule; consult `ImportedImage.rating`/`pick` when exact source membership
+is needed. See `tools/orchestrate/wp/M2-02c/FINDINGS.md`.
+
 ## Previews.lrdata (`previews`)
 
 Lightroom's standard previews are read only for the fidelity comparison.
@@ -94,6 +109,8 @@ selections, virtual copies, hierarchy/synonyms, smart rules, curves/masks, GPS,
 faces, stacks, history/snapshots, JSON round trips, additional columns, missing
 core tables, and committed WAL reads with byte-for-byte source preservation.
 Parser tests cover malformed/unsupported data and non-executable Lua parsing.
+The rating-rule table test exercises every star threshold and comparison,
+ranges, flags, and compilation against mapped synthetic-catalog selections.
 
 Real Lightroom schema variants and render equivalence remain unverified.
 Resource-backed edits (DCP profiles, arbitrary retouch/Look/LensBlur payloads,
