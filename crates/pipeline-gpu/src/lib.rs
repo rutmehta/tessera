@@ -1,7 +1,10 @@
 //! Metal compute implementation of M1 and selected M2 operators. See OPERATORS.md.
-#![forbid(unsafe_code)]
+#![deny(unsafe_code)]
 
 mod batch;
+mod iosurface;
+mod resident;
+pub use iosurface::write_to_iosurface;
 mod color;
 mod context;
 mod curves;

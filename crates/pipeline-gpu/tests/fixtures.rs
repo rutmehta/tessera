@@ -271,10 +271,21 @@ fn bench_full_level2_tone_only_gpu_vs_cpu() {
                     let after = gpu.stats();
                     assert_eq!(
                         after.uploads - before.uploads,
-                        tiles.len() as u64,
+                        if matches!(image.metadata().cfa_layout, raw_decode::CfaLayout::Bayer(_)) {
+                            0
+                        } else {
+                            tiles.len() as u64
+                        },
                         "must hit upstream cache"
                     );
-                    assert_eq!(after.readbacks - before.readbacks, tiles.len() as u64);
+                    assert_eq!(
+                        after.readbacks - before.readbacks,
+                        if matches!(image.metadata().cfa_layout, raw_decode::CfaLayout::Bayer(_)) {
+                            1
+                        } else {
+                            tiles.len() as u64
+                        }
+                    );
                 }
             }
         }
@@ -302,7 +313,7 @@ fn bench_full_level2_m2_chain_gpu_vs_cpu() {
         let config = RendererConfig::default();
         let gpu = Arc::new(GpuStageOp::new(context.clone()));
         let r = Renderer::with_ops(
-            gpu,
+            gpu.clone(),
             Arc::new(TileCache::new(config.cache_budget_bytes)),
             config.clone(),
         );
@@ -325,6 +336,9 @@ fn bench_full_level2_m2_chain_gpu_vs_cpu() {
         for _ in 0..3 {
             for (j, renderer) in [&r, &cpu].into_iter().enumerate() {
                 renderer.cache().clear();
+                if j == 0 {
+                    gpu.clear_cache();
+                }
                 let t = Instant::now();
                 let tiles = renderer.render_region(&image, &s, 2, rect).unwrap();
                 assert!(!tiles.is_empty());

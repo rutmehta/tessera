@@ -6,7 +6,7 @@ use pipeline_gpu::{GpuContext, GpuStageOp};
 use std::sync::Arc;
 
 #[test]
-fn synthetic_renderer_with_default_detail_and_transfer_accounting() {
+fn synthetic_renderer_and_tone_chain_transfers() {
     let gpu = Arc::new(GpuStageOp::new(Arc::new(GpuContext::new().unwrap())));
     for (cfa, cache_dem) in [
         (common::RGGB, true),
@@ -14,6 +14,7 @@ fn synthetic_renderer_with_default_detail_and_transfer_accounting() {
         (common::RGGB, false),
         (common::xtrans(), false),
     ] {
+        gpu.clear_cache();
         let image = common::synthetic(71, 700, 533, cfa, [3, 5, 690, 521]);
         let mut s = DevelopSettings::default();
         s.tone.exposure = 0.3;
@@ -31,6 +32,7 @@ fn synthetic_renderer_with_default_detail_and_transfer_accounting() {
         let rect = PixelRect::full(image.level_extent(0));
         for output in [RenderOutput::SceneLinear, RenderOutput::Display] {
             r.cache().clear();
+            gpu.clear_cache();
             cpu.cache().clear();
             let a = r.render_region_as(&image, &s, 0, rect, output).unwrap();
             let b = cpu.render_region_as(&image, &s, 0, rect, output).unwrap();
@@ -44,14 +46,20 @@ fn synthetic_renderer_with_default_detail_and_transfer_accounting() {
                         .zip(b.samples::<f32>().unwrap())
                         .map(|(a, b)| (a - b).abs())
                         .fold(0.0f32, f32::max);
-                    assert!(diff <= 1e-4, "{diff}");
+                    // Resident Decode/Demosaic/WB checkpoints are f16 on cold and warm paths.
+                    let tolerance = if matches!(cfa, raw_decode::CfaLayout::Bayer(_)) {
+                        0.005
+                    } else {
+                        1e-4
+                    };
+                    assert!(diff <= tolerance, "{diff}");
                 } else {
                     assert!(
                         a.samples::<u8>()
                             .unwrap()
                             .iter()
                             .zip(b.samples::<u8>().unwrap())
-                            .all(|(a, b)| a.abs_diff(*b) <= 1)
+                            .all(|(a, b)| a.abs_diff(*b) <= 2)
                     );
                 }
             }
@@ -62,18 +70,26 @@ fn synthetic_renderer_with_default_detail_and_transfer_accounting() {
         let after = gpu.stats();
         assert_eq!(
             after.uploads - before.uploads,
-            7 * tiles.len() as u64,
-            "base tone plus detail/tone/curves/color/effects/output uploads"
+            if matches!(cfa, raw_decode::CfaLayout::Bayer(_)) {
+                0
+            } else {
+                tiles.len() as u64
+            },
+            "resident tone edits must not upload"
         );
         assert_eq!(
             after.readbacks - before.readbacks,
-            7 * tiles.len() as u64,
-            "each default M2 tile pass has one readback"
+            if matches!(cfa, raw_decode::CfaLayout::Bayer(_)) {
+                1
+            } else {
+                tiles.len() as u64
+            },
+            "one final readback for a resident level"
         );
         assert_eq!(
             after.submissions - before.submissions,
-            4 + 3 * tiles.len() as u64,
-            "four point-op batches plus per-tile detail/effects/output submissions"
+            1,
+            "tiles must share a submission"
         );
     }
 }

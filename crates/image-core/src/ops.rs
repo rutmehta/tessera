@@ -66,6 +66,11 @@ pub enum Op<'a> {
 /// [`CpuStageOp`] is the reference implementation; a GPU implementation must
 /// match it within the contract's regression tolerance.
 pub trait StageOp: Send + Sync {
+    /// Optional resident graph execution; CPU implementations need no changes.
+    fn begin_resident(&self) -> Option<Box<dyn crate::resident::ResidentBatch + '_>> {
+        None
+    }
+
     /// Runs `op`, which belongs to `stage`, on `input`.
     fn run(&self, stage: StageId, op: &Op<'_>, input: Tile) -> EngineResult<Tile>;
 
