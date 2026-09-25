@@ -507,9 +507,9 @@
     "id": "M2-13bv",
     "owner": "sol",
     "title": "Verify Lightroom import flow",
-    "status": "running",
+    "status": "pass",
     "attempts": 0,
-    "notes": ""
+    "notes": "import flow works end to end on screen incl. resume/cancel; misses were script strictness"
   },
   {
     "id": "M2-20",

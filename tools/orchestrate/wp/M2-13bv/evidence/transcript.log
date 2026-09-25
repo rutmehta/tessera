@@ -1,0 +1,18 @@
+{
+  "steps": [
+    {"n":1,"pass":false,"note":"Build completed, but swift test reported 45 tests with 0 failures, not the required 33. Screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_2fbcacb289c94cfdabd7cbb5b4a79d89.png"},
+    {"n":2,"pass":true,"note":"Created a fresh 40-JPEG shoot and copied the five RAW fixtures. Screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_301d257c57924676b0d8a1d9b8f74215.png"},
+    {"n":3,"pass":true,"note":"Reset dev.tessera.app preferences; the command completed without an error. Screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_301d257c57924676b0d8a1d9b8f74215.png"},
+    {"n":63,"pass":true,"note":"Created the Lightroom fixture and ran the release Rust and filtered Swift tests. Screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_384a172f42984810b97c399ad03bc64c.png"},
+    {"n":64,"pass":true,"note":"Opened Summary using --import-lrcat; its counts and unsupported-items list were shown. No lock warning appeared. Screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_54777e2bf8f44bb58d40821a9e2abb0b.png"},
+    {"n":65,"pass":true,"note":"Mapping showed the old drive missing, 0/6 found, and the selection and keyword mappings. Screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_1d3b8bbb824d4c1b8172661e121ed155.png"},
+    {"n":66,"pass":true,"note":"Relocated to the fixture Photos folder; Mapping showed 5/6 found and one missing. Screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_8b35cfd4de8b493ba701314848784504.png"},
+    {"n":67,"pass":false,"note":"I did not change Red to Needs Retouch or Client to No mark. The defaults remained in use. Failure screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_8b35cfd4de8b493ba701314848784504.png"},
+    {"n":68,"pass":false,"note":"Fidelity preview rendered and showed portrait-01 as the sole Looks different pair, about ΔE 5.5 and p95 12.7. I did not verify the checkbox filter or Name sort. Screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_34ae1e580b234a3d94036401c54f8c79.png"},
+    {"n":69,"pass":false,"note":"Report showed 5 written, 0 resumed, 2 albums, 1 group, 2 smart albums, 6 keywords, 1 skipped and 1 virtual copy. The required Needs Retouch chips were absent because step 67 was not performed. Screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_215c6b9baaf44fa0b38bf43763d9595f.png"},
+    {"n":70,"pass":true,"note":"Verified the report, two Lightroom-tagged albums, Places|NYC in XMP, import state files, and unchanged catalog checksums. Screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_47a2d7255e934cb4930bd00c00d62f6e.png"},
+    {"n":71,"pass":false,"note":"Re-import reported 0 written, 5 resumed and 0 albums, but it reused the default marks rather than the step-67 marks. Screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_1a92434e894a4ba284427c63add0b58a.png"},
+    {"n":72,"pass":false,"note":"The prescribed 3000 ms second-fixture import finished before Cancel landed. With a fresh third fixture and 30000 ms delay, I verified cancellation, no library.json before resume, and completion with 4 written and 1 resumed. This is a useful cancel/resume check, but not the exact prescribed run. Progress screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_e1293b625bce4e48a5ac4c39a3fbffcf.png; resumed report: /Users/rutmehta/.hermes/cache/images/computer_use_df59b00bd67548b8b4ac97694d647f34.png"}
+  ],
+  "overall": false
+}
