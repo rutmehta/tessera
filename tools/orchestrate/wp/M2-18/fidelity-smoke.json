@@ -1,0 +1,47 @@
+{
+  "fidelity": {
+    "compared": 1,
+    "failed": 0,
+    "images": [
+      {
+        "catalog_id": 30,
+        "mean": 0.651849137857759,
+        "p95": 1.6071887528938857,
+        "path": "/Users/rutmehta/Developer/tessera/.worktrees/M2-18/fixtures/raw/sample.dng",
+        "process_version": {
+          "family": "adobe",
+          "revision": 6
+        },
+        "reference": "/Users/rutmehta/Developer/tessera/.worktrees/M2-18/tools/orchestrate/wp/M2-18/synthetic-references/30.jpg",
+        "samples": 1129701,
+        "status": "compared"
+      },
+      {
+        "catalog_id": 31,
+        "path": "/Users/rutmehta/Developer/tessera/.worktrees/M2-18/fixtures/raw/b/two.DNG",
+        "process_version": {
+          "family": "native",
+          "revision": 2
+        },
+        "reason": "missing reference export",
+        "reference": "/Users/rutmehta/Developer/tessera/.worktrees/M2-18/tools/orchestrate/wp/M2-18/synthetic-references/31.jpg",
+        "status": "skipped"
+      },
+      {
+        "catalog_id": 32,
+        "path": "/Users/rutmehta/Developer/tessera/.worktrees/M2-18/fixtures/raw/sample.dng",
+        "process_version": {
+          "family": "native",
+          "revision": 2
+        },
+        "reason": "missing reference export",
+        "reference": "/Users/rutmehta/Developer/tessera/.worktrees/M2-18/tools/orchestrate/wp/M2-18/synthetic-references/32.jpg",
+        "status": "skipped"
+      }
+    ],
+    "scale": "1/4",
+    "skipped": 2,
+    "total": 3
+  },
+  "reference_provenance": "synthetic: compatibility render encoded to JPEG, NOT Lightroom"
+}

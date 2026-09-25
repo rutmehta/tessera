@@ -21,6 +21,7 @@ ml-runtime = { path = "../../crates/ml-runtime" }
 ml-enhance = { path = "../../crates/ml-enhance" }
 export = { path = "../../crates/export" }
 pipeline-cpu = { path = "../../crates/pipeline-cpu" }
+pipeline-adobe = { path = "../../crates/pipeline-adobe" }
 clap = { version = "4", features = ["derive"] }
 chrono = { version = "0.4", default-features = false, features = ["std"] }
 anyhow.workspace = true
