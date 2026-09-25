@@ -1,0 +1,11 @@
+Implemented M2-18b within the allowed paths.
+
+Adobe PV3–6 now dispatches through AdobeStageOp, including explicit DCP support. Cache identity changes begin at CameraProfile, preserving upstream keys. Session process-version switching is persisted and undoable, and the fidelity harness selects operators by recipe. Native rendering tests remain unchanged and pass.
+
+Verification: 126 tests passed, 5 existing benchmarks ignored. Clippy with -D warnings, cargo fmt --check, and git diff --check passed. Final chained verification used CI=1 after the existing 3-second preview timeout failed under heavy host load. No test timeouts or assertions were changed.
+
+Details: tools/orchestrate/wp/M2-18b/verification.md
+
+Engine-api unchanged. No commits created.
+
+RESULT: PASS

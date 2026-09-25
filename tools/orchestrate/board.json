@@ -531,7 +531,7 @@
     "id": "M2-18b",
     "owner": "astra",
     "title": "Wire Adobe compat op set into renderer",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
