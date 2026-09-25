@@ -94,3 +94,13 @@ fn edge_tiles_are_single_plane_zero_halo_level_zero() {
         assert!(p.tile(c).is_err());
     }
 }
+
+#[test]
+fn from_linear_validates_and_wraps_samples() {
+    let image = CfaImage::from_linear(3, 2, vec![0.0, 0.5, 1.2, 4.0, -0.1, 1.0]).unwrap();
+    assert_eq!(image.pyramid().extent(), Extent::new(3, 2));
+    assert_eq!(image.pyramid.pixels[3], 4.0);
+    assert!(CfaImage::from_linear(3, 2, vec![0.0; 5]).is_err());
+    assert!(CfaImage::from_linear(0, 2, vec![]).is_err());
+    assert!(CfaImage::from_linear(1, 1, vec![f32::NAN]).is_err());
+}
