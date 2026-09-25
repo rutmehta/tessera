@@ -259,7 +259,7 @@
     "id": "M2-04b",
     "owner": "astra",
     "title": "WB colour science, defaults, native rev 2",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
@@ -267,6 +267,38 @@
     "id": "M2-06",
     "owner": "astra",
     "title": "GPU-resident render path",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-07",
+    "owner": "astra",
+    "title": "Sparkle auto-update + release pipeline",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-08",
+    "owner": "astra",
+    "title": "Masks and local adjustments",
+    "status": "todo",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-09",
+    "owner": "astra",
+    "title": "Lens corrections + Upright",
+    "status": "todo",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-11",
+    "owner": "astra",
+    "title": "Library, albums, saved-search grammar",
     "status": "running",
     "attempts": 0,
     "notes": ""

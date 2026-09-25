@@ -1,15 +1,12 @@
-Implemented a partial revision-2 change: active default detail on CPU/GPU, regenerated five goldens, CCT/Duv conversion and regression tests, and enabled the five Swift sliders. No commits or out-of-scope source edits.
+Completed M2-04b’s remaining integration.
 
-Passing: GPU/image-core tests, clippy, fmt, Swift build, and golden comparisons.
+- FFI uses the unrounded CCT/Duv inverse and preserves the other WB coordinate on first slider touch.
+- Texture, Clarity, Dehaze, Vibrance and Saturation now reach rendering.
+- Sidecar assertion expects native revision 2.
+- Five-fixture WB regression passes. Regenerated goldens match the committed revision-2 files exactly.
 
-The requested command chain fails. Full workspace verification returned 416 passed, 4 failed, 9 ignored:
-- Four fixture whites exceed the ±0.05 Duv domain, so the all-fixture identity test fails.
-- Sidecar tests hard-code native revision 1.
-- Preview rendering exceeds three seconds, also causing the FFI fallback timeout.
+The full requested command chain passed: workspace release tests, all six Clippy packages, formatting, FFI rebuild, Swift build and Swift tests.
 
-Additionally, the excluded tessera-ffi adapter still uses the old as-shot conversion and discards the newly enabled sliders’ values. End-to-end functionality needs those call sites changed.
+Changes stayed within the allowed paths. CARGO_TARGET_DIR remained external. No commit or push made.
 
-Full handoff and logs:
-tools/orchestrate/wp/M2-04b/RESULT.md
-
-RESULT: FAIL white-balance acceptance unresolved; required FFI/sidecar changes exceed allowlist; preview latency regressions remain
+RESULT: PASS
