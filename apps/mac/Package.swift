@@ -31,7 +31,7 @@ let package = Package(
         // AppKit + SwiftUI shell.
         .executableTarget(
             name: "Tessera",
-            dependencies: ["TesseraCore"],
+            dependencies: ["TesseraCore", "TesseraFFI"],
             path: "Sources/Tessera"
         ),
         .testTarget(

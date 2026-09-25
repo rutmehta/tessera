@@ -535,6 +535,22 @@ fileprivate struct FfiConverterUInt64: FfiConverterPrimitive {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterFloat: FfiConverterPrimitive {
+    typealias FfiType = Float
+    typealias SwiftType = Float
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Float {
+        return try lift(readFloat(&buf))
+    }
+
+    public static func write(_ value: Float, into buf: inout [UInt8]) {
+        writeFloat(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterDouble: FfiConverterPrimitive {
     typealias FfiType = Double
     typealias SwiftType = Double
@@ -1252,6 +1268,720 @@ public func FfiConverterTypeCullSession_lower(_ value: CullSession) -> UInt64 {
 
 
 
+/**
+ * Callbacks run on engine worker threads, never while a session lock is held.
+ */
+public protocol DevelopListener: AnyObject, Sendable {
+    
+    func frameReady(frame: FrameInfo) 
+    
+    func renderFailed(message: String) 
+    
+    /**
+     * Recipe + XMP written; `recipe_hash` keys the refreshed previews.
+     */
+    func saved(recipeHash: String) 
+    
+}
+/**
+ * Callbacks run on engine worker threads, never while a session lock is held.
+ */
+open class DevelopListenerImpl: DevelopListener, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_tessera_ffi_fn_clone_developlistener(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_tessera_ffi_fn_free_developlistener(handle, $0) }
+    }
+
+    
+
+    
+open func frameReady(frame: FrameInfo)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developlistener_frame_ready(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeFrameInfo_lower(frame),uniffiCallStatus
+    )
+}
+}
+    
+open func renderFailed(message: String)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developlistener_render_failed(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(message),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Recipe + XMP written; `recipe_hash` keys the refreshed previews.
+     */
+open func saved(recipeHash: String)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developlistener_saved(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(recipeHash),uniffiCallStatus
+    )
+}
+}
+    
+
+    
+}
+
+
+
+// Put the implementation in a struct so we don't pollute the top-level namespace
+fileprivate struct UniffiCallbackInterfaceDevelopListener {
+
+    // Create the VTable using a series of closures.
+    // Swift automatically converts these into C callback functions.
+    //
+    // Store the vtable directly.
+    static let vtable: UniffiVTableCallbackInterfaceDevelopListener = UniffiVTableCallbackInterfaceDevelopListener(
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            do {
+                try FfiConverterTypeDevelopListener.handleMap.remove(handle: uniffiHandle)
+            } catch {
+                print("Uniffi callback interface DevelopListener: handle missing in uniffiFree")
+            }
+        },
+        uniffiClone: { (uniffiHandle: UInt64) -> UInt64 in
+            do {
+                return try FfiConverterTypeDevelopListener.handleMap.clone(handle: uniffiHandle)
+            } catch {
+                fatalError("Uniffi callback interface DevelopListener: handle missing in uniffiClone")
+            }
+        },
+        frameReady: { (
+            uniffiHandle: UInt64,
+            frame: RustBuffer,
+            uniffiOutReturn: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> () in
+                guard let uniffiObj = try? FfiConverterTypeDevelopListener.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.frameReady(
+                     frame: try FfiConverterTypeFrameInfo_lift(frame)
+                )
+            }
+
+            
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        renderFailed: { (
+            uniffiHandle: UInt64,
+            message: RustBuffer,
+            uniffiOutReturn: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> () in
+                guard let uniffiObj = try? FfiConverterTypeDevelopListener.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.renderFailed(
+                     message: try FfiConverterString.lift(message)
+                )
+            }
+
+            
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        saved: { (
+            uniffiHandle: UInt64,
+            recipeHash: RustBuffer,
+            uniffiOutReturn: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> () in
+                guard let uniffiObj = try? FfiConverterTypeDevelopListener.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.saved(
+                     recipeHash: try FfiConverterString.lift(recipeHash)
+                )
+            }
+
+            
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        }
+    )
+
+    // Rust stores this pointer for future callback invocations, so it must live
+    // for the process lifetime (not just for the init function call).
+    //
+    // `nonisolated(unsafe)` is needed under Swift 6 strict concurrency.
+    // This is safe because the pointee is initialized once during static init
+    // and never mutated by either side of the FFI.  Its fields are C function pointers.
+    nonisolated(unsafe) static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceDevelopListener> = {
+        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceDevelopListener>.allocate(capacity: 1)
+        ptr.initialize(to: vtable)
+        return UnsafePointer(ptr)
+    }()
+}
+
+private func uniffiCallbackInitDevelopListener() {
+    uniffi_tessera_ffi_fn_init_callback_vtable_developlistener(UniffiCallbackInterfaceDevelopListener.vtablePtr)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDevelopListener: FfiConverter {
+    fileprivate static let handleMap = UniffiHandleMap<DevelopListener>()
+
+    typealias FfiType = UInt64
+    typealias SwiftType = DevelopListener
+
+    public static func lift(_ handle: UInt64) throws -> DevelopListener {
+        if ((handle & 1) == 0) {
+            // Rust-generated handle, construct a new class that uses the handle to implement the
+            // interface
+            return DevelopListenerImpl(unsafeFromHandle: handle)
+        } else {
+            // Swift-generated handle, get the object from the handle map
+            return try handleMap.remove(handle: handle)
+        }
+    }
+
+    public static func lower(_ value: DevelopListener) -> UInt64 {
+         if let rustImpl = value as? DevelopListenerImpl {
+             // Rust-implemented object.  Clone the handle and return it
+            return rustImpl.uniffiCloneHandle()
+         } else {
+            // Swift object, generate a new vtable handle and return that.
+            return handleMap.insert(obj: value)
+         }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DevelopListener {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: DevelopListener, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDevelopListener_lift(_ handle: UInt64) throws -> DevelopListener {
+    return try FfiConverterTypeDevelopListener.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDevelopListener_lower(_ value: DevelopListener) -> UInt64 {
+    return FfiConverterTypeDevelopListener.lower(value)
+}
+
+
+
+
+
+
+public protocol DevelopSessionProtocol: AnyObject, Sendable {
+    
+    /**
+     * Adds an RGBA8 IOSurface (see `surface.rs`) to the frame ring; call two
+     * or three times with surfaces of one `plan_surface` size so the host
+     * never samples the surface being written. A different size replaces
+     * the ring. The first surface of a ring starts a render at the new
+     * screen level.
+     */
+    func attachSurface(iosurfaceId: UInt32, width: UInt32, height: UInt32) throws 
+    
+    /**
+     * Stops rendering and writes pending changes. The session is unusable
+     * for rendering afterwards.
+     */
+    func close() throws 
+    
+    /**
+     * Records the live changes since the last commit as one undo step
+     * labelled `label`, refines the viewport and schedules a save.
+     */
+    func commit(label: String) throws  -> Bool
+    
+    /**
+     * Releases every surface. Renders continue (histogram only) until a new
+     * surface is attached.
+     */
+    func detachSurfaces() 
+    
+    /**
+     * Writes pending changes now and waits for the save to finish.
+     */
+    func flush() throws 
+    
+    /**
+     * Histogram of the last completed frame (empty before the first one).
+     */
+    func getHistogram() throws  -> Histogram
+    
+    func getSettingsJson() throws  -> String
+    
+    func historyState() throws  -> HistoryState
+    
+    /**
+     * Settings kept in the recipe but not rendered by this pipeline version.
+     */
+    func ignoredSettings() throws  -> [String]
+    
+    func info()  -> DevelopInfo
+    
+    /**
+     * Surface size for a viewport of `width × height` device pixels, both in
+     * sensor orientation (swap them for orientations 5–8): the coarsest
+     * level covering the viewport, or level 0 when the image is smaller.
+     */
+    func planSurface(width: UInt32, height: UInt32)  -> SurfacePlan
+    
+    func redo() throws  -> Bool
+    
+    /**
+     * Re-renders the live settings at the screen level (first paint).
+     */
+    func refresh() throws 
+    
+    /**
+     * Resets every setting to its default as one undo step.
+     */
+    func reset() throws  -> Bool
+    
+    /**
+     * Moves to a snapshot's state; later edits branch from it.
+     */
+    func restoreSnapshot(name: String) throws 
+    
+    func setListener(listener: DevelopListener?) 
+    
+    /**
+     * Merges an RFC 7386 JSON patch into the live settings and renders.
+     * Setting `white_balance.temperature`/`tint` without a mode switches to
+     * `custom`. Not recorded in history until `commit`.
+     */
+    func setSettings(jsonPatch: String, interactive: Bool) throws 
+    
+    /**
+     * Names the current state (after committing pending changes).
+     */
+    func snapshot(name: String) throws 
+    
+    func snapshots() throws  -> [String]
+    
+    /**
+     * Steps back one history entry (committing pending live changes first).
+     */
+    func undo() throws  -> Bool
+    
+}
+open class DevelopSession: DevelopSessionProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_tessera_ffi_fn_clone_developsession(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_tessera_ffi_fn_free_developsession(handle, $0) }
+    }
+
+    
+
+    
+    /**
+     * Adds an RGBA8 IOSurface (see `surface.rs`) to the frame ring; call two
+     * or three times with surfaces of one `plan_surface` size so the host
+     * never samples the surface being written. A different size replaces
+     * the ring. The first surface of a ring starts a render at the new
+     * screen level.
+     */
+open func attachSurface(iosurfaceId: UInt32, width: UInt32, height: UInt32)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_attach_surface(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(iosurfaceId),
+        FfiConverterUInt32.lower(width),
+        FfiConverterUInt32.lower(height),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Stops rendering and writes pending changes. The session is unusable
+     * for rendering afterwards.
+     */
+open func close()throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_close(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Records the live changes since the last commit as one undo step
+     * labelled `label`, refines the viewport and schedules a save.
+     */
+open func commit(label: String)throws  -> Bool  {
+    return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_commit(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(label),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Releases every surface. Renders continue (histogram only) until a new
+     * surface is attached.
+     */
+open func detachSurfaces()  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_detach_surfaces(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Writes pending changes now and waits for the save to finish.
+     */
+open func flush()throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_flush(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Histogram of the last completed frame (empty before the first one).
+     */
+open func getHistogram()throws  -> Histogram  {
+    return try  FfiConverterTypeHistogram_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_get_histogram(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+open func getSettingsJson()throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_get_settings_json(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+open func historyState()throws  -> HistoryState  {
+    return try  FfiConverterTypeHistoryState_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_history_state(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Settings kept in the recipe but not rendered by this pipeline version.
+     */
+open func ignoredSettings()throws  -> [String]  {
+    return try  FfiConverterSequenceString.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_ignored_settings(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+open func info() -> DevelopInfo  {
+    return try!  FfiConverterTypeDevelopInfo_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_info(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Surface size for a viewport of `width × height` device pixels, both in
+     * sensor orientation (swap them for orientations 5–8): the coarsest
+     * level covering the viewport, or level 0 when the image is smaller.
+     */
+open func planSurface(width: UInt32, height: UInt32) -> SurfacePlan  {
+    return try!  FfiConverterTypeSurfacePlan_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_plan_surface(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(width),
+        FfiConverterUInt32.lower(height),uniffiCallStatus
+    )
+})
+}
+    
+open func redo()throws  -> Bool  {
+    return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_redo(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Re-renders the live settings at the screen level (first paint).
+     */
+open func refresh()throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_refresh(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Resets every setting to its default as one undo step.
+     */
+open func reset()throws  -> Bool  {
+    return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_reset(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Moves to a snapshot's state; later edits branch from it.
+     */
+open func restoreSnapshot(name: String)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_restore_snapshot(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(name),uniffiCallStatus
+    )
+}
+}
+    
+open func setListener(listener: DevelopListener?)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_set_listener(
+            self.uniffiCloneHandle(),
+        FfiConverterOptionTypeDevelopListener.lower(listener),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Merges an RFC 7386 JSON patch into the live settings and renders.
+     * Setting `white_balance.temperature`/`tint` without a mode switches to
+     * `custom`. Not recorded in history until `commit`.
+     */
+open func setSettings(jsonPatch: String, interactive: Bool)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_set_settings(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(jsonPatch),
+        FfiConverterBool.lower(interactive),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Names the current state (after committing pending changes).
+     */
+open func snapshot(name: String)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_snapshot(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(name),uniffiCallStatus
+    )
+}
+}
+    
+open func snapshots()throws  -> [String]  {
+    return try  FfiConverterSequenceString.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_snapshots(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Steps back one history entry (committing pending live changes first).
+     */
+open func undo()throws  -> Bool  {
+    return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_undo(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDevelopSession: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = DevelopSession
+
+    public static func lift(_ handle: UInt64) throws -> DevelopSession {
+        return DevelopSession(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: DevelopSession) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DevelopSession {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: DevelopSession, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDevelopSession_lift(_ handle: UInt64) throws -> DevelopSession {
+    return try FfiConverterTypeDevelopSession.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDevelopSession_lower(_ value: DevelopSession) -> UInt64 {
+    return FfiConverterTypeDevelopSession.lower(value)
+}
+
+
+
+
+
+
 public protocol EngineProtocol: AnyObject, Sendable {
     
     /**
@@ -1270,6 +2000,12 @@ public protocol EngineProtocol: AnyObject, Sendable {
     func setRecipeJson(imageId: String, json: String) throws 
     
     func setSelection(imageId: String, selection: Selection) throws 
+    
+    /**
+     * Opens a develop session on an indexed RAW image. Blocking (decodes the
+     * raw): call off the main thread. One session per visible image.
+     */
+    func openDevelopSession(imageId: String) throws  -> DevelopSession
     
     /**
      * Recursive folder queue over already-indexed images (call `index_folder`
@@ -1424,6 +2160,20 @@ open func setSelection(imageId: String, selection: Selection)throws   {try rustC
         FfiConverterTypeSelection_lower(selection),uniffiCallStatus
     )
 }
+}
+    
+    /**
+     * Opens a develop session on an indexed RAW image. Blocking (decodes the
+     * raw): call off the main thread. One session per visible image.
+     */
+open func openDevelopSession(imageId: String)throws  -> DevelopSession  {
+    return try  FfiConverterTypeDevelopSession_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_open_develop_session(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(imageId),uniffiCallStatus
+    )
+})
 }
     
     /**
@@ -2086,6 +2836,104 @@ public func FfiConverterTypeDefectThreshold_lower(_ value: DefectThreshold) -> R
 }
 
 
+public struct DevelopInfo: Equatable, Hashable {
+    public var imageId: String
+    /**
+     * Active area (level 0), sensor orientation.
+     */
+    public var width: UInt32
+    public var height: UInt32
+    /**
+     * EXIF orientation 1–8; surfaces stay in sensor orientation.
+     */
+    public var orientation: UInt16
+    /**
+     * As-shot white balance expressed on the Temperature/Tint sliders.
+     */
+    public var asShotTemperature: Float
+    public var asShotTint: Float
+    /**
+     * "CPU ×<threads>" or "Metal (<adapter>)".
+     */
+    public var backend: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(imageId: String, 
+        /**
+         * Active area (level 0), sensor orientation.
+         */width: UInt32, height: UInt32, 
+        /**
+         * EXIF orientation 1–8; surfaces stay in sensor orientation.
+         */orientation: UInt16, 
+        /**
+         * As-shot white balance expressed on the Temperature/Tint sliders.
+         */asShotTemperature: Float, asShotTint: Float, 
+        /**
+         * "CPU ×<threads>" or "Metal (<adapter>)".
+         */backend: String) {
+        self.imageId = imageId
+        self.width = width
+        self.height = height
+        self.orientation = orientation
+        self.asShotTemperature = asShotTemperature
+        self.asShotTint = asShotTint
+        self.backend = backend
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension DevelopInfo: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDevelopInfo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DevelopInfo {
+        return
+            try DevelopInfo(
+                imageId: FfiConverterString.read(from: &buf), 
+                width: FfiConverterUInt32.read(from: &buf), 
+                height: FfiConverterUInt32.read(from: &buf), 
+                orientation: FfiConverterUInt16.read(from: &buf), 
+                asShotTemperature: FfiConverterFloat.read(from: &buf), 
+                asShotTint: FfiConverterFloat.read(from: &buf), 
+                backend: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: DevelopInfo, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.imageId, into: &buf)
+        FfiConverterUInt32.write(value.width, into: &buf)
+        FfiConverterUInt32.write(value.height, into: &buf)
+        FfiConverterUInt16.write(value.orientation, into: &buf)
+        FfiConverterFloat.write(value.asShotTemperature, into: &buf)
+        FfiConverterFloat.write(value.asShotTint, into: &buf)
+        FfiConverterString.write(value.backend, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDevelopInfo_lift(_ buf: RustBuffer) throws -> DevelopInfo {
+    return try FfiConverterTypeDevelopInfo.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDevelopInfo_lower(_ value: DevelopInfo) -> RustBuffer {
+    return FfiConverterTypeDevelopInfo.lower(value)
+}
+
+
 public struct FolderHandle: Equatable, Hashable {
     public var path: String
     public var updated: UInt64
@@ -2137,6 +2985,124 @@ public func FfiConverterTypeFolderHandle_lift(_ buf: RustBuffer) throws -> Folde
 #endif
 public func FfiConverterTypeFolderHandle_lower(_ value: FolderHandle) -> RustBuffer {
     return FfiConverterTypeFolderHandle.lower(value)
+}
+
+
+public struct FrameInfo: Equatable, Hashable {
+    /**
+     * Surface written, or 0 when no surface is attached.
+     */
+    public var surfaceId: UInt32
+    public var level: UInt8
+    /**
+     * Valid region, anchored top-left in the surface.
+     */
+    public var width: UInt32
+    public var height: UInt32
+    /**
+     * Coarsest level of this render (the readout's "L3 → L2").
+     */
+    public var firstLevel: UInt8
+    /**
+     * Last level this render will deliver.
+     */
+    public var isFinal: Bool
+    /**
+     * From the settings change to this level being complete.
+     */
+    public var renderMs: Double
+    public var generation: UInt64
+    /**
+     * Earliest pipeline stage the change invalidated, if any.
+     */
+    public var dirtyStage: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Surface written, or 0 when no surface is attached.
+         */surfaceId: UInt32, level: UInt8, 
+        /**
+         * Valid region, anchored top-left in the surface.
+         */width: UInt32, height: UInt32, 
+        /**
+         * Coarsest level of this render (the readout's "L3 → L2").
+         */firstLevel: UInt8, 
+        /**
+         * Last level this render will deliver.
+         */isFinal: Bool, 
+        /**
+         * From the settings change to this level being complete.
+         */renderMs: Double, generation: UInt64, 
+        /**
+         * Earliest pipeline stage the change invalidated, if any.
+         */dirtyStage: String?) {
+        self.surfaceId = surfaceId
+        self.level = level
+        self.width = width
+        self.height = height
+        self.firstLevel = firstLevel
+        self.isFinal = isFinal
+        self.renderMs = renderMs
+        self.generation = generation
+        self.dirtyStage = dirtyStage
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension FrameInfo: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFrameInfo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FrameInfo {
+        return
+            try FrameInfo(
+                surfaceId: FfiConverterUInt32.read(from: &buf), 
+                level: FfiConverterUInt8.read(from: &buf), 
+                width: FfiConverterUInt32.read(from: &buf), 
+                height: FfiConverterUInt32.read(from: &buf), 
+                firstLevel: FfiConverterUInt8.read(from: &buf), 
+                isFinal: FfiConverterBool.read(from: &buf), 
+                renderMs: FfiConverterDouble.read(from: &buf), 
+                generation: FfiConverterUInt64.read(from: &buf), 
+                dirtyStage: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: FrameInfo, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.surfaceId, into: &buf)
+        FfiConverterUInt8.write(value.level, into: &buf)
+        FfiConverterUInt32.write(value.width, into: &buf)
+        FfiConverterUInt32.write(value.height, into: &buf)
+        FfiConverterUInt8.write(value.firstLevel, into: &buf)
+        FfiConverterBool.write(value.isFinal, into: &buf)
+        FfiConverterDouble.write(value.renderMs, into: &buf)
+        FfiConverterUInt64.write(value.generation, into: &buf)
+        FfiConverterOptionString.write(value.dirtyStage, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFrameInfo_lift(_ buf: RustBuffer) throws -> FrameInfo {
+    return try FfiConverterTypeFrameInfo.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFrameInfo_lower(_ value: FrameInfo) -> RustBuffer {
+    return FfiConverterTypeFrameInfo.lower(value)
 }
 
 
@@ -2195,6 +3161,173 @@ public func FfiConverterTypeGroupDecision_lift(_ buf: RustBuffer) throws -> Grou
 #endif
 public func FfiConverterTypeGroupDecision_lower(_ value: GroupDecision) -> RustBuffer {
     return FfiConverterTypeGroupDecision.lower(value)
+}
+
+
+/**
+ * 256-bin histograms of the displayed (sRGB-encoded) frame.
+ */
+public struct Histogram: Equatable, Hashable {
+    public var red: [UInt32]
+    public var green: [UInt32]
+    public var blue: [UInt32]
+    /**
+     * Rec. 709 weights on the encoded values.
+     */
+    public var luminance: [UInt32]
+    public var level: UInt8
+    public var generation: UInt64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(red: [UInt32], green: [UInt32], blue: [UInt32], 
+        /**
+         * Rec. 709 weights on the encoded values.
+         */luminance: [UInt32], level: UInt8, generation: UInt64) {
+        self.red = red
+        self.green = green
+        self.blue = blue
+        self.luminance = luminance
+        self.level = level
+        self.generation = generation
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension Histogram: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHistogram: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Histogram {
+        return
+            try Histogram(
+                red: FfiConverterSequenceUInt32.read(from: &buf), 
+                green: FfiConverterSequenceUInt32.read(from: &buf), 
+                blue: FfiConverterSequenceUInt32.read(from: &buf), 
+                luminance: FfiConverterSequenceUInt32.read(from: &buf), 
+                level: FfiConverterUInt8.read(from: &buf), 
+                generation: FfiConverterUInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: Histogram, into buf: inout [UInt8]) {
+        FfiConverterSequenceUInt32.write(value.red, into: &buf)
+        FfiConverterSequenceUInt32.write(value.green, into: &buf)
+        FfiConverterSequenceUInt32.write(value.blue, into: &buf)
+        FfiConverterSequenceUInt32.write(value.luminance, into: &buf)
+        FfiConverterUInt8.write(value.level, into: &buf)
+        FfiConverterUInt64.write(value.generation, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHistogram_lift(_ buf: RustBuffer) throws -> Histogram {
+    return try FfiConverterTypeHistogram.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHistogram_lower(_ value: Histogram) -> RustBuffer {
+    return FfiConverterTypeHistogram.lower(value)
+}
+
+
+public struct HistoryState: Equatable, Hashable {
+    public var canUndo: Bool
+    public var canRedo: Bool
+    /**
+     * Entries ever recorded (the history is append-only).
+     */
+    public var entries: UInt32
+    /**
+     * Label of the entry at the head, if any.
+     */
+    public var headLabel: String?
+    public var snapshots: [String]
+    /**
+     * Live settings differ from the last commit.
+     */
+    public var uncommitted: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(canUndo: Bool, canRedo: Bool, 
+        /**
+         * Entries ever recorded (the history is append-only).
+         */entries: UInt32, 
+        /**
+         * Label of the entry at the head, if any.
+         */headLabel: String?, snapshots: [String], 
+        /**
+         * Live settings differ from the last commit.
+         */uncommitted: Bool) {
+        self.canUndo = canUndo
+        self.canRedo = canRedo
+        self.entries = entries
+        self.headLabel = headLabel
+        self.snapshots = snapshots
+        self.uncommitted = uncommitted
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension HistoryState: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHistoryState: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HistoryState {
+        return
+            try HistoryState(
+                canUndo: FfiConverterBool.read(from: &buf), 
+                canRedo: FfiConverterBool.read(from: &buf), 
+                entries: FfiConverterUInt32.read(from: &buf), 
+                headLabel: FfiConverterOptionString.read(from: &buf), 
+                snapshots: FfiConverterSequenceString.read(from: &buf), 
+                uncommitted: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HistoryState, into buf: inout [UInt8]) {
+        FfiConverterBool.write(value.canUndo, into: &buf)
+        FfiConverterBool.write(value.canRedo, into: &buf)
+        FfiConverterUInt32.write(value.entries, into: &buf)
+        FfiConverterOptionString.write(value.headLabel, into: &buf)
+        FfiConverterSequenceString.write(value.snapshots, into: &buf)
+        FfiConverterBool.write(value.uncommitted, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHistoryState_lift(_ buf: RustBuffer) throws -> HistoryState {
+    return try FfiConverterTypeHistoryState.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHistoryState_lower(_ value: HistoryState) -> RustBuffer {
+    return FfiConverterTypeHistoryState.lower(value)
 }
 
 
@@ -2723,6 +3856,67 @@ public func FfiConverterTypeSessionImage_lower(_ value: SessionImage) -> RustBuf
 }
 
 
+/**
+ * Surface size to allocate for a viewport: exactly the extent of `level`.
+ */
+public struct SurfacePlan: Equatable, Hashable {
+    public var level: UInt8
+    public var width: UInt32
+    public var height: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(level: UInt8, width: UInt32, height: UInt32) {
+        self.level = level
+        self.width = width
+        self.height = height
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SurfacePlan: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSurfacePlan: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SurfacePlan {
+        return
+            try SurfacePlan(
+                level: FfiConverterUInt8.read(from: &buf), 
+                width: FfiConverterUInt32.read(from: &buf), 
+                height: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SurfacePlan, into buf: inout [UInt8]) {
+        FfiConverterUInt8.write(value.level, into: &buf)
+        FfiConverterUInt32.write(value.width, into: &buf)
+        FfiConverterUInt32.write(value.height, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSurfacePlan_lift(_ buf: RustBuffer) throws -> SurfacePlan {
+    return try FfiConverterTypeSurfacePlan.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSurfacePlan_lower(_ value: SurfacePlan) -> RustBuffer {
+    return FfiConverterTypeSurfacePlan.lower(value)
+}
+
+
 public 
 enum BridgeError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
@@ -3196,6 +4390,30 @@ fileprivate struct FfiConverterOptionData: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeDevelopListener: FfiConverterRustBuffer {
+    typealias SwiftType = DevelopListener?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeDevelopListener.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeDevelopListener.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeEngineEventListener: FfiConverterRustBuffer {
     typealias SwiftType = EngineEventListener?
 
@@ -3262,6 +4480,31 @@ fileprivate struct FfiConverterOptionTypeDecision: FfiConverterRustBuffer {
         case 1: return try FfiConverterTypeDecision.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceUInt32: FfiConverterRustBuffer {
+    typealias SwiftType = [UInt32]
+
+    public static func write(_ value: [UInt32], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterUInt32.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [UInt32] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [UInt32]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterUInt32.read(from: &buf))
+        }
+        return seq
     }
 }
 
@@ -3576,6 +4819,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_engine_set_selection() != 50395) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tessera_ffi_checksum_method_engine_open_develop_session() != 22073) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_tessera_ffi_checksum_method_engine_open_cull_session() != 42664) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -3586,6 +4832,75 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_engineeventlistener_on_event() != 36402) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developlistener_frame_ready() != 10022) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developlistener_render_failed() != 32874) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developlistener_saved() != 29010) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_attach_surface() != 12651) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_close() != 7846) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_commit() != 58908) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_detach_surfaces() != 32727) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_flush() != 25039) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_get_histogram() != 57752) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_get_settings_json() != 54509) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_history_state() != 47908) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_ignored_settings() != 40960) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_info() != 22937) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_plan_surface() != 56602) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_redo() != 20702) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_refresh() != 50490) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_reset() != 11852) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_restore_snapshot() != 23225) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_set_listener() != 51631) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_set_settings() != 54630) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_snapshot() != 45257) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_snapshots() != 20948) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_undo() != 15217) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_cullsession_albums() != 24789) {
@@ -3706,6 +5021,7 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
 
+    uniffiCallbackInitDevelopListener()
     uniffiCallbackInitEngineEventListener()
     return InitializationResult.ok
 }()

@@ -184,7 +184,11 @@ pub fn to_f32(tile: &Tile) -> EngineResult<Tile> {
     match tile.format() {
         TileFormat::F32Planar => Ok(tile.clone()),
         TileFormat::F16Planar => {
-            let data = tile.samples::<f16>()?.iter().map(|v| v.to_f32()).collect();
+            use half::slice::HalfFloatSliceExt;
+            let src = tile.samples::<f16>()?;
+            let mut data = vec![0f32; src.len()];
+            // Hardware-converted where available; exact either way.
+            src.convert_to_f32_slice(&mut data);
             Tile::from_samples(tile.coord(), tile.layout(), data)
         }
         other => Err(EngineError::invalid(

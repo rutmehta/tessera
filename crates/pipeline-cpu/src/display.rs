@@ -24,13 +24,33 @@ impl Default for SigmoidSettings {
 /// Generalized log-logistic sigmoid, anchored at black and 18% grey.
 /// Positive contrast is clamped to 0.25..4 and skew to -1..1.
 pub fn sigmoid(value: f32, settings: SigmoidSettings) -> f32 {
-    if value <= 0.0 {
-        return 0.0;
+    Sigmoid::new(settings).eval(value)
+}
+
+/// [`sigmoid`] with its per-settings constants evaluated once. Bit-identical
+/// to calling [`sigmoid`] per value (same f32 operations in the same order).
+#[derive(Debug, Clone, Copy)]
+struct Sigmoid {
+    p: f32,
+    q: f32,
+    ln_a: f32,
+}
+impl Sigmoid {
+    fn new(settings: SigmoidSettings) -> Self {
+        let p = settings.contrast.clamp(0.25, 4.0);
+        let q = settings.skew.clamp(-1.0, 1.0).exp2();
+        let a = 0.18 * (0.18f32.powf(-1.0 / q) - 1.0).powf(1.0 / p);
+        Self { p, q, ln_a: a.ln() }
     }
-    let p = settings.contrast.clamp(0.25, 4.0);
-    let q = settings.skew.clamp(-1.0, 1.0).exp2();
-    let a = 0.18 * (0.18f32.powf(-1.0 / q) - 1.0).powf(1.0 / p);
-    (1.0 / (1.0 + (p * (a.ln() - value.ln())).exp())).powf(q)
+    #[inline]
+    fn eval(self, value: f32) -> f32 {
+        if value <= 0.0 {
+            return 0.0;
+        }
+        let s = 1.0 / (1.0 + (self.p * (self.ln_a - value.ln())).exp());
+        // powf(x, 1) == x exactly; skip the call for the default skew.
+        if self.q == 1.0 { s } else { s.powf(self.q) }
+    }
 }
 pub fn srgb_oetf(v: f32) -> f32 {
     if v <= 0.0031308 {
@@ -44,12 +64,14 @@ pub fn srgb_oetf(v: f32) -> f32 {
 /// gamut compression -> sRGB OETF -> deterministic ordered 8-bit dither.
 pub fn display(tile: &Tile, settings: SigmoidSettings, gamut: GamutMapping) -> EngineResult<Tile> {
     let mut rgb = tile.clone();
+    let curve = Sigmoid::new(settings);
     crate::map_rgb(&mut rgb, |v| {
         let y = crate::luminance(v);
         if y <= 0.0 {
             [0.0; 3]
         } else {
-            v.map(|c| c * sigmoid(y, settings) / y)
+            let s = curve.eval(y);
+            v.map(|c| c * s / y)
         }
     })?;
     crate::apply_matrix(
@@ -63,11 +85,13 @@ pub fn display(tile: &Tile, settings: SigmoidSettings, gamut: GamutMapping) -> E
     let samples = rgb.samples::<f32>()?;
     let (ox, oy) = tile.coord().pixel_origin(TILE_SIZE);
     const BAYER: [[u8; 4]; 4] = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]];
+    let plane = l.plane_len();
+    let row = l.extent.width + 2 * u32::from(l.halo);
     for y in 0..l.extent.height {
         for x in 0..l.extent.width {
-            let v = std::array::from_fn::<_, 3, _>(|c| {
-                samples[l.index(c as u8, x as i32, y as i32).unwrap()]
-            });
+            // Interior sample (x, y) of each plane, skipping the halo.
+            let i = ((y + u32::from(l.halo)) * row + x + u32::from(l.halo)) as usize;
+            let v = [samples[i], samples[plane + i], samples[2 * plane + i]];
             let grey = (0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]).clamp(0.0, 1.0);
             let mut chroma = 1.0f32;
             if gamut == GamutMapping::Perceptual {

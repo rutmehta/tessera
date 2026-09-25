@@ -599,16 +599,20 @@ impl Renderer {
             }
             let chunk = &coords[start..end];
 
-            // A. Resampled WhiteBalance buffers from the memo cache.
-            let mut pre_tone: Vec<Option<Tile>> = chunk
+            // A. Resampled WhiteBalance buffers from the memo cache (the
+            // f16 → f32 widening is the bulk of a tone-only edit's input cost,
+            // so it runs across the worker threads).
+            let hits: Vec<Option<Tile>> = chunk
                 .iter()
                 .map(|&c| {
-                    let hit = cache_wb
+                    cache_wb
                         .then(|| self.cache.get(&key(StageId::WhiteBalance, c)))
-                        .flatten();
-                    hit.map(|t| to_f32(&t)).transpose()
+                        .flatten()
                 })
-                .collect::<EngineResult<_>>()?;
+                .collect();
+            let mut pre_tone: Vec<Option<Tile>> = par_map(threads, cancel, &hits, |hit| {
+                hit.as_ref().map(to_f32).transpose()
+            })?;
             let missing: Vec<usize> = (0..chunk.len())
                 .filter(|&i| pre_tone[i].is_none())
                 .collect();

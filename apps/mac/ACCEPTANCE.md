@@ -1,4 +1,4 @@
-# M1-09 acceptance script: culling UX on the engine
+# M1-09 / M1-10 acceptance script: culling and developing on the engine
 
 For a computer-use verifier. Run every command from the **repository root** in one terminal session
 (the `SCR` variable is reused). Quote paths if the checkout path contains spaces or a colon. Take a
@@ -25,9 +25,9 @@ Notes:
    export CARGO_TARGET_DIR="$HOME/.cache/tessera-target/verify"
    (cd apps/mac && ./build-ffi.sh && swift build && swift test && Support/make-app.sh release)
    ```
-   Expect: `swift test` reports `Executed 12 tests, with 0 failures` (XCTest, all suites) and the Swift Testing line
+   Expect: `swift test` reports `Executed 14 tests, with 0 failures` (XCTest, all suites) and the Swift Testing line
    `Test run with 5 tests in 2 suites passed`; the last line reads `Built …/apps/mac/build/Tessera.app`.
-   Also run `cargo test -p tessera-ffi -p cull --release 2>&1 | grep "test result"`. Expect only `ok.` lines.
+   Also run `cargo test -p tessera-ffi -p cull -p image-core --release 2>&1 | grep "test result"`. Expect only `ok.` lines.
 2. Create scratch data (a fresh folder each run; do not reuse an old path):
    ```sh
    SCR="$(mktemp -d)"
@@ -143,8 +143,49 @@ Notes:
     for 10 s. Expect a status message starting `Scroll benchmark PASS`. Press **⌥→** and **K** on a stub group: decisions
     and undo work on the in-memory stub too.
 
+## J. Develop (Basic panel on the engine)
+
+The loupe renders RAWs with the engine: the develop session writes into IOSurfaces that the Metal loupe presents.
+Slider drags are coalesced to one engine call per display frame; the status bar readout `render: L<a> → L<b>, <t> ms`
+is the time from the settings change to the finished level in the surface (`L2` = quarter resolution).
+
+33. Engine latency first (no UI):
+    `cargo test -p tessera-ffi --release --test develop -- --ignored --nocapture 2>&1 | grep "MP)"`.
+    Expect two lines (CPU, then Metal) for the 36 MP NEF at `L2 1845×1231`; the **CPU** line's tone-only `median` and
+    `p90` are below 16 ms (reference M4: median 11.7 ms, p90 12.3 ms). Metal is reported for comparison only.
+34. Quit Tessera. Turn the readout on and open the RAW copies:
+    `defaults write dev.tessera.app ShowRenderReadout -bool true` (in the app: **Debug ▸ Show Render Timing**, ⌥⌘T), then
+    `open -n apps/mac/build/Tessera.app --args --folder "$SCR/raw"`. Click the **nikon-nef.NEF** cell and press **Return**. 📸
+    Expect within about a second: the loupe re-renders from the engine (colours change slightly from the camera
+    preview); the **HISTOGRAM** panel shows red/green/blue curves with a white luminance outline; IMAGE ▸ Size reads
+    `7378 × 4924` (or `4924 × 7378`); BASIC shows `Unedited`, Temperature shows the as-shot estimate in K, and
+    Texture…Saturation are dimmed (hover: `… is not in the M1 pipeline yet`); the status bar shows `render: L…, … ms`.
+35. Drag the **Exposure** slider slowly to about **+1.00** (drag anywhere on its track; ⌥ drags finely). 📸 mid-drag.
+    Expect: the loupe brightens continuously while the mouse moves and the histogram shifts right. While dragging, the
+    readout shows level **L2 or coarser** and a time **under 16 ms**. After release it may show one refinement
+    (for example `render: L1, …`) and BASIC reads `History: Exposure +1.00`.
+36. Press **⌘Z**. Expect: Exposure `+0.00`, the image darkens, message `Undo: Exposure +1.00`. Press **⇧⌘Z**: +1.00 again.
+37. Drag **Temperature** a little. Expect: the white balance changes (whole image warmer or cooler); the readout time is
+    larger than for Exposure (white balance reruns the colour matrices), still well under a second.
+    Choose **Develop ▸ New Snapshot…** (⇧⌘S), name it `Warm`, **Save**. Click **Reset** (BASIC header). Expect all sliders
+    at +0 / as-shot and the original look. Choose **Snapshots ▸ Warm**. Expect the warm, bright version back.
+38. Press **Esc** (grid). Expect within about a second: the NEF cell shows the edited (bright, warm) thumbnail and an
+    `EDITED` pill; IMAGE ▸ Status reads `Edited`.
+39. In the terminal:
+    `grep -o '"exposure":[^,}]*' "$SCR/raw/.edits/nikon-nef.json" | head -1; grep -c "Exposure2012" "$SCR/raw/nikon-nef.NEF.xmp"`.
+    Expect `"exposure":1.0` (the value you set) and `1`.
+40. Quit with **⌘Q** and relaunch: `open -n apps/mac/build/Tessera.app --args --folder "$SCR/raw"`. Click the NEF and press
+    **Return**. 📸 Expect: the edit is shown (bright, warm), Exposure reads +1.00, and **⌘Z** steps back through the saved
+    history (message `Undo: …`).
+41. Optional automated drag: quit, then run
+    `apps/mac/build/Tessera.app/Contents/MacOS/Tessera --folder "$SCR/raw" --keys "return" --develop-selftest 2>&1 | grep -m1 develop-selftest`
+    and quit the app once the line appears. It drags Exposure 0 → +1.5 on the first cell through the slider path. Expect
+    `develop-selftest: <n> tone frames at L2, render median <m> ms, p90 <p> ms` with p90 below 16 ms (reference: median
+    6.2 ms, p90 7.9 ms for the 16 MP RAF). This leaves an `Exposure +1.50` edit on that image.
+
 ## Verdict
 
-PASS when steps 1–32 meet their expectations (step 32's first part may be skipped only if fixtures are missing, step 31).
-Report the command outputs from steps 1–2, the 📸 screenshots, and the benchmark line. Afterwards you may delete
+PASS when steps 1–40 meet their expectations (step 32's first part may be skipped only if fixtures are missing, step 31;
+steps 33–41 need the RAW fixtures).
+Report the command outputs from steps 1–2 and 33, the 📸 screenshots, the benchmark line and any readout values. Afterwards you may delete
 `$SCR` and reset preferences with `defaults delete dev.tessera.app`.

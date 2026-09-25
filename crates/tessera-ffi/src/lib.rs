@@ -1,7 +1,11 @@
 //! Narrow, synchronous commands. Swift dispatches blocking work off its main actor.
 mod catalog;
+mod develop;
 mod preview;
 mod session;
+#[doc(hidden)]
+pub mod surface;
+pub use develop::*;
 use engine_api::{id::ImageId, recipe as core};
 pub use preview::PreviewResponse;
 use rusqlite::{Connection, OpenFlags};
@@ -144,7 +148,13 @@ pub struct Engine {
     db: std::path::PathBuf,
     catalog: Mutex<Catalog>,
     previews: previews::PreviewStore,
-    preview_jobs: jobs::ThreadPoolScheduler,
+    /// Shared scheduler: RAW previews (`Priority::Preview`) and develop
+    /// viewports (`Priority::Viewport`). Jobs are not pre-empted, so it keeps
+    /// a worker free for the viewport while previews run.
+    jobs: jobs::ThreadPoolScheduler,
+    /// Develop renderer and memo cache shared by every session (lazy: the
+    /// Metal context is created on the first develop session).
+    renderer: std::sync::OnceLock<(Arc<image_core::Renderer>, String)>,
     preview_states: Mutex<std::collections::HashMap<preview::RequestKey, preview::State>>,
     listener: Mutex<Option<Arc<dyn EngineEventListener>>>,
 }
@@ -158,6 +168,37 @@ impl Engine {
         if let Some(listener) = listener {
             listener.on_event(event);
         }
+    }
+    /// The develop renderer. `TESSERA_RENDER_BACKEND=gpu` selects the Metal
+    /// operators (`pipeline-gpu`), falling back to CPU without Metal. The
+    /// default is CPU: on the M4 the CPU operators are faster on every develop
+    /// path (tone-only at level 2: 11.7 vs 17.5 ms; white balance 88 vs
+    /// 301 ms; first frame 249 vs 620 ms on a 36 MP NEF, `bench_slider_latency`)
+    /// because `GpuStageOp` uploads and reads back every f32 tile around the
+    /// host-side memo cache.
+    fn develop_renderer(&self) -> (Arc<image_core::Renderer>, String) {
+        self.renderer
+            .get_or_init(|| {
+                use image_core::{Renderer, RendererConfig, TileCache};
+                let config = RendererConfig::default();
+                let cache = Arc::new(TileCache::new(config.cache_budget_bytes));
+                let gpu = std::env::var("TESSERA_RENDER_BACKEND")
+                    .is_ok_and(|v| v.eq_ignore_ascii_case("gpu"));
+                if gpu {
+                    match pipeline_gpu::GpuContext::new() {
+                        Ok(context) => {
+                            let name = format!("Metal ({})", context.adapter_info.name);
+                            let ops = Arc::new(pipeline_gpu::GpuStageOp::new(Arc::new(context)));
+                            return (Arc::new(Renderer::with_ops(ops, cache, config)), name);
+                        }
+                        Err(e) => eprintln!("develop: Metal unavailable, using CPU: {e}"),
+                    }
+                }
+                let ops = Arc::new(image_core::CpuStageOp);
+                let name = format!("CPU ×{}", config.threads);
+                (Arc::new(Renderer::with_ops(ops, cache, config)), name)
+            })
+            .clone()
     }
     fn lock(&self) -> Result<MutexGuard<'_, Catalog>> {
         self.catalog.lock().map_err(failure)
@@ -215,7 +256,8 @@ impl Engine {
                 512 << 20,
             )
             .map_err(failure)?,
-            preview_jobs: jobs::ThreadPoolScheduler::new(1),
+            jobs: jobs::ThreadPoolScheduler::new(3),
+            renderer: std::sync::OnceLock::new(),
             preview_states: Mutex::new(std::collections::HashMap::new()),
             listener: Mutex::new(None),
         }))
@@ -336,11 +378,16 @@ impl Engine {
         if max_px == 0 || max_px > 8192 {
             return Err(failure("max_px must be 1...8192"));
         }
-        let (path, orientation) = {
+        let (path, orientation, recipe_hash) = {
             let c = self.lock()?;
             let path = Self::path(&c, &image_id)?;
             let orientation: String = c.reader.query_row("SELECT COALESCE((SELECT value FROM metadata WHERE image_id=? AND key='orientation'),'1')", [&image_id], |r| r.get(0))?;
-            (path, orientation.parse::<u8>().unwrap_or(1))
+            let recipe_hash: String = c.reader.query_row(
+                "SELECT COALESCE((SELECT hash FROM recipe_hash WHERE image_id=?),'')",
+                [&image_id],
+                |r| r.get(0),
+            )?;
+            (path, orientation.parse::<u8>().unwrap_or(1), recipe_hash)
         };
         let ext = Path::new(&path)
             .extension()
@@ -348,7 +395,7 @@ impl Engine {
             .to_string_lossy()
             .to_lowercase();
         if !matches!(ext.as_str(), "jpg" | "jpeg") {
-            return self.request_raw(image_id, path, max_px);
+            return self.request_raw(image_id, path, max_px, recipe_hash);
         }
         let jpeg = std::fs::read(&path)?;
         // Bound the pyramid work to the requested tier, not the full camera JPEG.

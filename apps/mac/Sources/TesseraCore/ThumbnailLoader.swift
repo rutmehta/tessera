@@ -75,6 +75,14 @@ public final class ThumbnailLoader: @unchecked Sendable {
 
     deinit { removeAll() }
 
+    /// Drops both tiers of `item` (its recipe changed); the next request asks the engine again.
+    public func invalidate(_ item: PhotoItem) {
+        lock.withLock {
+            thumbCache.removeObject(forKey: Key(item))
+            previewCache.removeObject(forKey: Key(item))
+        }
+    }
+
     public func cached(_ item: PhotoItem, tier: PreviewTier) -> CGImage? {
         cache(tier).object(forKey: Key(item))?.image
     }

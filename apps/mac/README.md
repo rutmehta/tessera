@@ -1,10 +1,11 @@
-# Tessera — macOS app and engine bridge (WP M1-12, culling UX M1-09)
+# Tessera — macOS app and engine bridge (WP M1-12, culling UX M1-09, develop UI M1-10)
 
 AppKit where performance matters, SwiftUI elsewhere (docs/11 §1.5). Folder opens now use
 `EngineLibrary` and the Rust index through UniFFI 0.32. Decisions, grades and named marks are
 written through `sidecar` to `.edits/<stem>.json` and XMP, then refreshed in the SQLite index.
-Thumbnails and camera previews come from the Rust embedded-JPEG fast path. The developed
-viewport still uses the IOSurface/Metal presentation path; no float pixel buffers cross UniFFI.
+Thumbnails and camera previews come from the Rust embedded-JPEG fast path. RAWs in the loupe are
+developed by the engine (`DevelopSession`), which writes into IOSurfaces the Metal loupe presents;
+no pixel buffers cross UniFFI.
 
 Requirements: macOS 15+, Xcode 26 / Swift 6.3. `xcodegen` is not installed on this machine, so the
 project is a Swift package (Xcode opens `Package.swift` directly; there is no checked-in `.xcodeproj`).
@@ -67,6 +68,20 @@ runs on MainActor; reuse, cancellation, and library resets suppress stale delive
 cache writes. Subscriptions are removed on completion/cancellation. A failed background job also
 signals completion via `PreviewReady`; the retry surfaces its error and ends the wait.
 No full-RAW fallback is performed in Swift.
+`openDevelopSession(imageId:)` (RAW only; decodes, so call it off-main) returns a `DevelopSession`
+(crates/tessera-ffi/src/develop.rs): `planSurface`/`attachSurface` (an RGBA8 IOSurface ring at the
+planned level's size), `setSettings(jsonPatch:interactive:)` (RFC 7386 merge patch of the engine's
+`DevelopSettings`), `commit(label:)` (one history entry), `getSettingsJson`, `getHistogram`
+(RGB + luminance, 256 bins, of the last frame), `undo`/`redo`/`reset`, `snapshot`/`restoreSnapshot`,
+`historyState`, `ignoredSettings`, `flush` and `close`, and a `DevelopListener` with `frameReady`
+(surface id, level, valid size, render time), `renderFailed` and `saved(recipeHash)`. Each change
+cancels the previous job and submits a `ProgressiveRenderJob` at `Priority::Viewport` on the engine's
+shared scheduler; tone-only changes rerun only Tone and Output on memoized WhiteBalance tiles.
+Commits are saved on a 400 ms debounce through `sidecar` (recipe JSON + XMP with `crs:` values), the
+index is refreshed, and the edited preview is stored under the new recipe hash, so
+`embeddedPreview` serves edited thumbnails (edited RAWs without a stored preview are rendered from
+the recipe on the preview worker). The CPU operators are the default renderer; set
+`TESSERA_RENDER_BACKEND=gpu` for the Metal operators (slower on the M4, see `Engine::develop_renderer`).
 `ImageQuery` accepts folder, FTS text, decision, limit (0 = all), and offset. Folder paths are
 canonical paths returned by `indexFolder`; filtering includes descendants. RAW capture times
 are Unix seconds as strings; JPEG EXIF capture times are local ISO date-times. Recipe JSON is
@@ -107,6 +122,9 @@ covers the same surface from Rust.
 | `--keys "x p opt-right …"` | Self-test aid: after the library loads, feed one key every 0.3 s through the culling key map; `cmd-` tokens trigger the matching menu item (e.g. `cmd-z`, `cmd-shift-d`, `cmd-delete`) |
 | `--seed-scores` | Hidden test aid: write deterministic synthetic `focus` / `closed_eyes` scores for the defect sweep (item n: focus 0.25 when n % 4 == 1, closed eyes 0.92 when n % 5 == 2) |
 | `--front` | Bring the window to the front without activating the app (for screenshots) |
+| `--develop-selftest` | Self-test aid: once a develop session opens, drag Exposure 0 → +1.5 through the slider path (61 steps at display rate, then mouse-up) and print `develop-selftest: … render median … p90 …` to stderr |
+
+`--keys` also accepts `wait` (one idle 0.3 s step), e.g. `--keys "return wait wait cmd-z"`.
 
 Without arguments the app reopens the last folder, if it still exists. If there is none, it shows an
 empty state with "Open Folder…" and "Load 20,000 Stub Items".
@@ -145,6 +163,7 @@ Package.swift                 targets: TesseraCore (library), Tessera (app), Tes
 Sources/TesseraCore/      UI-free and unit-tested
   EngineLibrary.swift         index + CullSession open, group-by-group display order, PhotoLibrary
   CullController.swift        the app's culling model: Rust session (folders) or CullStore (stub)
+  DevelopController.swift     one DevelopSession: IOSurface ring, per-frame patch coalescing, history
   PhotoItem.swift             item value type
   CullState.swift             Decision / grade / mark / basket; in-memory CullStore for the stub
   Grouping.swift              capture-time grouping for the synthetic stub only
@@ -153,10 +172,10 @@ Sources/TesseraCore/      UI-free and unit-tested
 Sources/Tessera/
   App/                        App entry + AppDelegate, AppModel (@Observable), KeyRouter, menus, Theme
   Grid/                       NSCollectionView grid + filmstrip, O(visible) layout, recycled cells
-  Loupe/                      CAMetalLayer view (EDR, colour space from screen), renderer, IOSurface frames
+  Loupe/                      CAMetalLayer view (EDR, colour space per frame), renderer, IOSurface frames
   Compare/                    2-up compare, CGImage layers with one shared zoom/pan viewport
   Cull/                       defect sweep sheet
-  Inspector/                  SwiftUI panels + ValueSlider (custom NSControl)
+  Inspector/                  SwiftUI panels, HistogramView (AppKit) + ValueSlider (custom NSControl)
   Sidebar/                    SwiftUI sidebar (library, folders, albums, smart albums)
   Shell/                      ContentView, status bar, loupe overlay, toast, empty state
 Support/                      Info.plist, make-app.sh, make-sample-folder.swift
@@ -174,16 +193,30 @@ Support/                      Info.plist, make-app.sh, make-sample-folder.swift
   observes only summary properties (counts, the focused item). A key press on a 20k-item library
   therefore never re-evaluates SwiftUI bodies per item.
 - **Loupe.** `MetalLoupeView` is layer-backed by a `CAMetalLayer` using `RGBA16Float` and
-  `wantsExtendedDynamicRangeContent`. Its `colorspace` is the extended, linearised version of the
-  window screen's colour space. It is updated and redrawn on screen, profile, backing and
-  screen-parameter changes. A CGImage is colour-converted by CoreGraphics into a half-float
-  **IOSurface** (`LoupeFrame.rasterize`) and imported with `makeTexture(descriptor:iosurface:plane:)`.
-  The engine will use the same entry point, `present(frame:)`, with its own IOSurface, so no pixels
-  cross UniFFI. The loupe paints the cached grid thumbnail first, then the embedded preview (2560 px),
-  and prefetches the neighbouring images.
-- **Sliders.** `ValueSlider` is an `NSControl`. Every drag step calls the model and the loupe
-  synchronously, and SwiftUI state is not touched. Exposure is applied as a linear gain in the loupe
-  shader, which shows the path end to end.
+  `wantsExtendedDynamicRangeContent`. The layer's colour space follows the frame on screen. The camera
+  preview (first paint) is colour-converted by CoreGraphics into a half-float **IOSurface** in the
+  extended, linearised screen space (`LoupeFrame.rasterize`). Engine frames are RGBA8 display-encoded
+  sRGB surfaces, imported with `makeTexture(descriptor:iosurface:plane:)` as `.rgba8Unorm_srgb`, so
+  the shader samples linear sRGB and the layer (`extendedLinearSRGB`) lets Core Animation convert to
+  the display. Surfaces stay in sensor orientation; the shader applies the EXIF orientation and the
+  frame's valid top-left region (coarse progressive levels fill part of the surface) and takes four
+  bilinear taps when minifying. The surface size comes from `planSurface`: the coarsest pyramid level
+  that covers the drawn image in device pixels. A ring of three surfaces means the engine never
+  writes the surface being sampled. The loupe paints the cached grid thumbnail, then the embedded
+  preview (2560 px), then engine frames, and prefetches the neighbouring images.
+- **Sliders.** `ValueSlider` is an `NSControl`; drags touch no SwiftUI state. Each value goes to
+  `DevelopController.set`, which records a JSON merge patch and unpauses the loupe's `CADisplayLink`;
+  the next tick sends one `setSettings` per display frame. Mouse-up sends the final value and commits
+  it as one undo step (`Exposure +0.50`). During a drag on a screen level above 4.2 MP the engine
+  renders one level coarser and refines on mouse-up. Temperature/Tint switch white balance to
+  Custom; double-clicking them returns to As Shot. Texture, Clarity, Dehaze, Vibrance and Saturation
+  stay disabled: `pipeline-cpu` has no operators for them yet.
+- **Histogram and readout.** `HistogramView` draws the session's histogram of each frame straight
+  from the render callback. The status-bar readout (`render: L3 → L2, 7.8 ms`, Debug ▸ Show Render
+  Timing, preference `ShowRenderReadout`) is updated at most ten times a second.
+- **Undo.** ⌘Z/⇧⌘Z go to the history of the last kind of change: develop edits use the develop
+  session (persisted in the recipe, so it survives relaunch), culling uses the cull session. When the
+  cull session has nothing to undo, ⌘Z falls through to the develop history.
 - **Keys** (docs/06 §2–3). A local event monitor handles them, so they work whichever pane has focus.
   They pass through while text is being edited, while a panel or sheet is open, and when ⌘ or ⌃ is
   held. In the loupe, ←/→ move between groups and ↑/↓ move within a group. In the grid, the arrow keys
@@ -197,6 +230,13 @@ The face strip, survey mode, 3–6-up compare, learning/reordering, and per-pers
 Compare uses CGImage layers of the embedded preview, not the Metal loupe, so it has no EDR path yet.
 Scores come only from `--seed-scores` until ML producers land; with real folders the defect sweep is
 empty. Filtered views (Keeps, albums, marks) navigate groups over the visible frames in the app with the
-same semantics as the engine; the unfiltered view uses the Rust session. Only Exposure has a visible
-effect in the Basic panel, and adjustments are not persisted, so "edited" status appears only for images
-whose recipe history was written elsewhere. The 20k-item stub keeps decisions in memory.
+same semantics as the engine; the unfiltered view uses the Rust session. The 20k-item stub keeps
+decisions in memory.
+
+Develop: the loupe is fit-to-window only (no 1:1 zoom yet), so progressive refinement stops at the
+screen level rather than level 0. JPEGs are not developable. Engine frames are 8-bit display sRGB, so
+the loupe shows no EDR headroom for RAWs yet (an RGBA16F scene-linear surface is the planned path).
+Temperature/Tint show an estimate of the as-shot white. `pipeline_cpu::camera_to_xyz` normalises the
+camera matrix in raw units, which puts every fixture's as-shot white about Duv 0.03 off the Planckian
+locus (renders are self-consistent, but no Custom temperature/tint within ±150 reproduces As Shot), so
+moving Temperature away from As Shot shifts colour more than expected until the colour science is fixed.
