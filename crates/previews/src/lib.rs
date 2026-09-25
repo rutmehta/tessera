@@ -1,4 +1,5 @@
 //! Content-addressed JPEG preview pyramids.
+pub mod masks;
 mod raw;
 use image::{RgbImage, imageops::FilterType};
 pub use raw::PreviewSource;
