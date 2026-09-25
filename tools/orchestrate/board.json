@@ -387,7 +387,7 @@
     "id": "M2-17",
     "owner": "astra",
     "title": "Operator performance at full res",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
@@ -459,7 +459,7 @@
     "id": "M2-17b",
     "owner": "opus",
     "title": "Interactive performance redesign",
-    "status": "todo",
+    "status": "running",
     "attempts": 0,
     "notes": ""
   },

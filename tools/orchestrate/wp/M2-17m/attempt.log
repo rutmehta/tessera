@@ -1,0 +1,8 @@
+Committed merge as 54e4bc5 on wp/M2-17, preserving both sides’ behavior.
+
+Release tests: 733 passed, zero failed. Clippy and fmt passed. All 45 benchmark measurements are recorded in tools/orchestrate/wp/M2-17/validation.md.
+
+Merged main at 5adacea. Another process advanced main during validation; I did not modify it. Original M2-17 performance gaps remain documented.
+
+RESULT: PASS
+EXIT 0
