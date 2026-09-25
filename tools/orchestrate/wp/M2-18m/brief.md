@@ -1,0 +1,3 @@
+# WP M2-18m — Merge main into wp/M2-18 and reconcile the CLI
+
+In this worktree (branch wp/M2-18), `git merge main` and resolve `apps/tessera-cli/src/main.rs` keeping BOTH: main's `import lrcat --make-fixture <dir>` (file optional when making a fixture) and this branch's `--fidelity --reference-dir` plus `render --process auto|native|adobe --dcp`. The Import command must still be handled before the index is opened where the branch moved it. Then `cargo test -p pipeline-adobe -p tessera-cli -p import-lrcat --release`, clippy -D warnings on tessera-cli/pipeline-adobe, fmt, and a smoke: `tessera import lrcat --make-fixture <tmp>` followed by `tessera import lrcat <tmp>/catalog.lrcat --inspect --json` and `--fidelity`. Commit the merge on wp/M2-18. Do not touch main.
