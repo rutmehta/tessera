@@ -1,0 +1,9 @@
+# WP M2-06 — GPU-resident render path
+
+Measured in M1-10: on the develop path Metal is slower than CPU (tone-only 17.5 ms vs 11.7 ms on a 36 MP NEF at level 2; WB change 301 vs 88 ms) because `GpuStageOp` uploads and reads back every tile around image-core's CPU-side memo cache. Read crates/image-core (graph, cache, render, ops), crates/pipeline-gpu (context, ops), crates/tessera-ffi/src/develop.rs and surface.rs, docs/08 §2 ("GPU-resident pipeline: raw tiles uploaded once… zero-copy texture sharing with the UI").
+Implement:
+1. A GPU tile cache in pipeline-gpu (`wgpu::Texture`/buffers keyed by the same `MemoKey`, f16 storage, byte budget, LRU) so cached stage outputs stay on the GPU; image-core's `StageOp` gains an associated "resident handle" type or a `TileRef` enum {Cpu(Tile), Gpu(handle)} so the graph can pass GPU-resident inputs between GPU ops without readback (design it cleanly; additive change to image-core, no engine-api change).
+2. Whole-chain submission: for a render at level L, one command buffer runs all dirty stages for all tiles; readback happens once for the final output, or not at all when the target is an IOSurface: add `write_to_iosurface` in pipeline-gpu using Metal's `MTLDevice.newTexture(descriptor:iosurface:plane:)` via wgpu-hal's Metal texture import (`texture_from_raw`), so the develop session can render directly into the app's surface.
+3. Develop session uses the GPU path by default when it is faster; keep `TESSERA_RENDER_BACKEND` override. Bench (ignored, prints): tone-only, WB change, first frame; targets: tone-only ≤ 5 ms and WB change ≤ 40 ms on the NEF at level 2 on the M4.
+Tests: GPU-resident chain output equals the CPU chain within tolerance; cache budget respected; IOSurface write round trip; determinism.
+`cargo test -p pipeline-gpu -p image-core -p tessera-ffi --release`, clippy -D warnings, fmt.
