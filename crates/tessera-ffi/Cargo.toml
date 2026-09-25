@@ -14,6 +14,10 @@ sidecar = { path = "../sidecar" }
 previews = { path = "../previews" }
 raw-decode = { path = "../raw-decode" }
 cull = { path = "../cull" }
+image-core = { path = "../image-core" }
+pipeline-cpu = { path = "../pipeline-cpu" }
+pipeline-gpu = { path = "../pipeline-gpu" }
+blake3.workspace = true
 uniffi = { workspace = true, features = ["cli"] }
 rusqlite.workspace = true
 serde_json.workspace = true

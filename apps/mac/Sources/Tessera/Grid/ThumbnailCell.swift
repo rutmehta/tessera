@@ -63,6 +63,17 @@ final class ThumbnailCell: NSCollectionViewItem {
         }
     }
 
+    /// The item's preview changed (a saved develop edit): fetch it again, keeping the old image
+    /// on screen until the new one arrives.
+    func refreshThumbnail(loader: ThumbnailLoader) {
+        guard let item = representedItem else { return }
+        request?.cancel()
+        request = loader.request(item, tier: .thumbnail, priority: .high) { [weak self] image in
+            guard let self, self.representedItem == item else { return }
+            self.cellView.setImage(image)
+        }
+    }
+
     func update(state: CullState, status: ItemStatus, basketTarget: String) {
         cellView.imageLayer.opacity = state.decision == .reject ? 0.32 : 1
         cellView.overlay.set(state: state, status: status, basketTarget: basketTarget)

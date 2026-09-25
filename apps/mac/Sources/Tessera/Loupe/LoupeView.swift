@@ -11,12 +11,15 @@ struct LoupeView: NSViewRepresentable {
 }
 
 /// Feeds the loupe: instant first paint from the cached grid thumbnail, then the embedded preview,
-/// and prefetches the neighbours (docs/08 §2 "prefetch next/previous").
+/// then the engine's develop frames once the session for a RAW is open; prefetches the neighbours
+/// (docs/08 §2 "prefetch next/previous").
 @MainActor
 final class LoupeController: LibraryObserver {
     let model: AppModel
     let view = MetalLoupeView(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
     private var shownID: Int?
+    /// The engine has presented a frame for `shownID`; late previews must not replace it.
+    private var engineShown = false
     private var request: PreviewRequest?
     private var prefetch: [PreviewRequest] = []
 
@@ -35,6 +38,8 @@ final class LoupeController: LibraryObserver {
 
     func libraryDidReload() {
         shownID = nil
+        engineShown = false
+        view.attach(develop: nil)
         view.present(image: nil, isFinal: true)
         selectionDidChange(scrollToFocus: false)
     }
@@ -44,9 +49,13 @@ final class LoupeController: LibraryObserver {
     func selectionDidChange(scrollToFocus: Bool) {
         guard model.viewMode == .loupe, let f = model.focus, f < model.visibleCount else { return }
         let item = model.item(at: f)
-        guard item.id != shownID else { return }
+        guard item.id != shownID else {
+            developDidChange()
+            return
+        }
         shownID = item.id
-        view.exposure = Float(model.adjustment(.exposure, for: item.id))
+        engineShown = false
+        view.attach(develop: nil)
         request?.cancel()
         prefetch.forEach { $0.cancel() }
         prefetch.removeAll()
@@ -57,7 +66,7 @@ final class LoupeController: LibraryObserver {
             view.present(image: model.loader.cached(item, tier: .thumbnail), isFinal: false)
             let id = item.id
             request = model.loader.request(item, tier: .preview, priority: .veryHigh) { [weak self] image in
-                guard let self, self.shownID == id else { return }
+                guard let self, self.shownID == id, !self.engineShown else { return }
                 self.view.present(image: image, isFinal: true)
             }
         }
@@ -66,10 +75,19 @@ final class LoupeController: LibraryObserver {
                 prefetch.append(r)
             }
         }
+        model.openDevelop(for: item)
     }
 
-    func adjustmentsDidChange(itemID: Int) {
-        guard itemID == shownID else { return }
-        view.exposure = Float(model.adjustment(.exposure, for: itemID))
+    /// The model's develop session changed (opened, closed): attach it if it is ours.
+    func developDidChange() {
+        guard model.viewMode == .loupe, let develop = model.develop, develop.itemID == shownID else { return }
+        view.attach(develop: develop)
+    }
+
+    func developDidRender(_ frame: DevelopFrame, controller: DevelopController) {
+        guard controller.itemID == shownID else { return }
+        if view.develop !== controller { view.attach(develop: controller) }
+        engineShown = true
+        view.present(developFrame: frame, from: controller)
     }
 }

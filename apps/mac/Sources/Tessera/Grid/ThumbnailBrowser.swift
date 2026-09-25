@@ -144,6 +144,12 @@ final class BrowserController: NSObject, NSCollectionViewDataSource, NSCollectio
         }
     }
 
+    func thumbnailsDidChange(_ positions: IndexSet) {
+        for p in positions {
+            (collectionView.item(at: IndexPath(item: p, section: 0)) as? ThumbnailCell)?.refreshThumbnail(loader: model.loader)
+        }
+    }
+
     func selectionDidChange(scrollToFocus: Bool) {
         let target = Set(model.selection.map { IndexPath(item: $0, section: 0) })
         if collectionView.selectionIndexPaths != target {

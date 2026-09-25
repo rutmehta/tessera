@@ -1,10 +1,12 @@
 import AppKit
 import Metal
 import QuartzCore
+import TesseraCore
 
 /// Loupe viewport: an NSView backed by a CAMetalLayer configured for EDR (RGBA16F,
 /// `wantsExtendedDynamicRangeContent`) whose colour space follows the window's screen.
-/// Swift owns presentation; the engine will only supply IOSurfaces (see `LoupeFrame`).
+/// Swift owns presentation; the engine only supplies IOSurfaces (see `LoupeFrame`). While a
+/// develop session is attached, a display link sends coalesced slider changes once per frame.
 @MainActor
 final class MetalLoupeView: NSView {
     private let renderer = LoupeRenderer()
@@ -20,10 +22,9 @@ final class MetalLoupeView: NSView {
     private var observedWindow: NSWindow?
     private var notificationTokens: [NSObjectProtocol] = []
 
-    /// Linear exposure gain in stops, applied in the shader (stub for the Basic panel).
-    var exposure: Float = 0 {
-        didSet { if exposure != oldValue { render() } }
-    }
+    /// The engine session for the image on screen; its frames replace the preview.
+    private(set) weak var develop: DevelopController?
+    private var flushLink: CADisplayLink?
 
     /// Called with a human-readable description of the colour setup whenever the screen changes.
     var onColorInfoChange: ((String) -> Void)?
@@ -63,6 +64,7 @@ final class MetalLoupeView: NSView {
     override func setFrameSize(_ newSize: NSSize) {
         super.setFrameSize(newSize)
         updateDrawableSize()
+        planSurfaces()
         render()
     }
 
@@ -95,6 +97,7 @@ final class MetalLoupeView: NSView {
     private func screenDidChange() {
         updateDrawableSize()
         updateColorSpace()
+        planSurfaces()
         render()
     }
 
@@ -108,14 +111,13 @@ final class MetalLoupeView: NSView {
 
     /// Working space = the screen's colour space, linearised and extended (values > 1 are EDR).
     private func updateColorSpace() {
-        guard let metalLayer else { return }
+        guard metalLayer != nil else { return }
         let screen = window?.screen ?? NSScreen.main
         let screenSpace = screen?.colorSpace?.cgColorSpace ?? CGColorSpace(name: CGColorSpace.displayP3)!
         let working = CGColorSpaceCreateExtendedLinearized(screenSpace)
             ?? CGColorSpace(name: CGColorSpace.extendedLinearDisplayP3)!
         let changed = working != workingColorSpace
         workingColorSpace = working
-        metalLayer.colorspace = working
 
         let name = screen?.colorSpace?.localizedName ?? (screenSpace.name as String? ?? "Unknown")
         let potential = screen?.maximumPotentialExtendedDynamicRangeColorComponentValue ?? 1
@@ -141,13 +143,61 @@ final class MetalLoupeView: NSView {
         rasterize(image, isFinal: isFinal)
     }
 
-    /// Engine path: present a surface rendered elsewhere, already in `workingColorSpace`.
+    /// Engine path: present a surface rendered elsewhere, in the frame's colour space.
     func present(frame: LoupeFrame) {
         rasterGeneration += 1
         sourceImage = nil
         currentFrame = frame
         texture = renderer.flatMap { frame.makeTexture(device: $0.device) }
         render()
+    }
+
+    // MARK: Develop session
+
+    /// Attaches (or detaches, with nil) the session for the image on screen. Its frames are
+    /// presented as they arrive; the preview stays up until the first one.
+    func attach(develop controller: DevelopController?) {
+        guard controller !== develop else { return }
+        develop?.onNeedsFlush = nil
+        develop = controller
+        guard let controller else {
+            flushLink?.isPaused = true
+            return
+        }
+        if flushLink == nil {
+            let link = displayLink(target: self, selector: #selector(flushTick(_:)))
+            link.add(to: .main, forMode: .common)
+            flushLink = link
+        }
+        flushLink?.isPaused = true
+        controller.onNeedsFlush = { [weak self] in self?.flushLink?.isPaused = false }
+        planSurfaces()
+    }
+
+    /// Shows an engine frame if it belongs to the attached session.
+    func present(developFrame f: DevelopFrame, from controller: DevelopController) {
+        guard controller === develop, let surface = controller.surface(f.surfaceID) else { return }
+        present(frame: LoupeFrame(engineSurface: surface, contentWidth: f.width, contentHeight: f.height,
+                                  orientation: Int(controller.info.orientation)))
+    }
+
+    @objc private func flushTick(_ link: CADisplayLink) {
+        if develop?.flushPending() != true { link.isPaused = true }
+    }
+
+    /// Surface size follows the drawn image size in device pixels (the session picks the level).
+    private func planSurfaces() {
+        guard let develop, let metalLayer, window != nil else { return }
+        let size = metalLayer.drawableSize
+        let info = develop.info
+        let swap = info.orientation >= 5
+        let (iw, ih) = (Double(swap ? info.height : info.width), Double(swap ? info.width : info.height))
+        let fit = min(size.width * 0.96 / iw, size.height * 0.96 / ih, 1.0)
+        do {
+            try develop.attachSurfaces(viewWidth: Int((iw * fit).rounded(.up)), viewHeight: Int((ih * fit).rounded(.up)))
+        } catch {
+            develop.onFailure?(error.localizedDescription)
+        }
     }
 
     private func rasterize(_ image: CGImage, isFinal: Bool) {
@@ -173,7 +223,9 @@ final class MetalLoupeView: NSView {
 
     func render() {
         guard let renderer, let metalLayer, window != nil else { return }
-        lastEncodeTime = renderer.draw(in: metalLayer, texture: texture, exposure: exposure,
+        let space = currentFrame?.colorSpace ?? workingColorSpace
+        if metalLayer.colorspace != space { metalLayer.colorspace = space }
+        lastEncodeTime = renderer.draw(in: metalLayer, texture: texture, frame: currentFrame,
                                        background: Theme.loupeBackgroundLinear)
     }
 }

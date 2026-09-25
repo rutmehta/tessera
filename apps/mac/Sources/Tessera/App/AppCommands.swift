@@ -19,10 +19,12 @@ struct AppCommands: Commands {
         }
         // Always enabled: SwiftUI can leave a stale disabled state on menu items, which would
         // swallow ⌘Z. The engine's session is the source of truth and reports "Nothing to undo".
+        // ⌘Z follows the last kind of change: develop edits go to the develop session's history,
+        // culling to the cull session's.
         CommandGroup(replacing: .undoRedo) {
-            Button("Undo Cull Change") { model.undo() }
+            Button("Undo") { model.undo() }
                 .keyboardShortcut("z", modifiers: .command)
-            Button("Redo Cull Change") { model.redo() }
+            Button("Redo") { model.redo() }
                 .keyboardShortcut("z", modifiers: [.command, .shift])
         }
         CommandGroup(after: .pasteboard) {
@@ -77,7 +79,23 @@ struct AppCommands: Commands {
             Button("Delete from Disk…") { model.confirmDeleteFromDisk() }
                 .keyboardShortcut(.delete, modifiers: .command)
         }
+        CommandMenu("Develop") {
+            Button("Reset All Settings") { model.resetDevelop() }
+                .keyboardShortcut("r", modifiers: [.command, .shift])
+            Button("New Snapshot…") { model.promptSnapshot() }
+                .keyboardShortcut("s", modifiers: [.command, .shift])
+            Menu("Restore Snapshot") {
+                ForEach(model.developHistory?.snapshots ?? [], id: \.self) { name in
+                    Button(name) { model.restoreSnapshot(name) }
+                }
+            }
+            .disabled((model.developHistory?.snapshots ?? []).isEmpty)
+        }
         CommandMenu("Debug") {
+            Toggle("Show Render Timing", isOn: Binding(get: { model.showRenderReadout },
+                                                       set: { model.showRenderReadout = $0 }))
+                .keyboardShortcut("t", modifiers: [.command, .option])
+            Divider()
             Button("Load 20,000 Stub Items") { model.loadStubItems(count: 20_000) }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
             Button("Run Grid Scroll Benchmark") { model.requestScrollBenchmark() }

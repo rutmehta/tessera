@@ -250,6 +250,27 @@ typedef void (*UniffiCallbackInterfaceEngineEventListenerMethod0)(uint64_t, Rust
     );
 
 #endif
+#ifndef UNIFFI_FFIDEF_CALLBACK_INTERFACE_DEVELOP_LISTENER_METHOD0
+#define UNIFFI_FFIDEF_CALLBACK_INTERFACE_DEVELOP_LISTENER_METHOD0
+typedef void (*UniffiCallbackInterfaceDevelopListenerMethod0)(uint64_t, RustBuffer, void* _Nonnull, 
+        RustCallStatus *_Nonnull uniffiCallStatus
+    );
+
+#endif
+#ifndef UNIFFI_FFIDEF_CALLBACK_INTERFACE_DEVELOP_LISTENER_METHOD1
+#define UNIFFI_FFIDEF_CALLBACK_INTERFACE_DEVELOP_LISTENER_METHOD1
+typedef void (*UniffiCallbackInterfaceDevelopListenerMethod1)(uint64_t, RustBuffer, void* _Nonnull, 
+        RustCallStatus *_Nonnull uniffiCallStatus
+    );
+
+#endif
+#ifndef UNIFFI_FFIDEF_CALLBACK_INTERFACE_DEVELOP_LISTENER_METHOD2
+#define UNIFFI_FFIDEF_CALLBACK_INTERFACE_DEVELOP_LISTENER_METHOD2
+typedef void (*UniffiCallbackInterfaceDevelopListenerMethod2)(uint64_t, RustBuffer, void* _Nonnull, 
+        RustCallStatus *_Nonnull uniffiCallStatus
+    );
+
+#endif
 #ifndef UNIFFI_FFIDEF_V_TABLE_CALLBACK_INTERFACE_ENGINE_EVENT_LISTENER
 #define UNIFFI_FFIDEF_V_TABLE_CALLBACK_INTERFACE_ENGINE_EVENT_LISTENER
 typedef struct UniffiVTableCallbackInterfaceEngineEventListener {
@@ -257,6 +278,17 @@ typedef struct UniffiVTableCallbackInterfaceEngineEventListener {
     UniffiCallbackInterfaceClone _Nonnull uniffiClone;
     UniffiCallbackInterfaceEngineEventListenerMethod0 _Nonnull onEvent;
 } UniffiVTableCallbackInterfaceEngineEventListener;
+
+#endif
+#ifndef UNIFFI_FFIDEF_V_TABLE_CALLBACK_INTERFACE_DEVELOP_LISTENER
+#define UNIFFI_FFIDEF_V_TABLE_CALLBACK_INTERFACE_DEVELOP_LISTENER
+typedef struct UniffiVTableCallbackInterfaceDevelopListener {
+    UniffiCallbackInterfaceFree _Nonnull uniffiFree;
+    UniffiCallbackInterfaceClone _Nonnull uniffiClone;
+    UniffiCallbackInterfaceDevelopListenerMethod0 _Nonnull frameReady;
+    UniffiCallbackInterfaceDevelopListenerMethod1 _Nonnull renderFailed;
+    UniffiCallbackInterfaceDevelopListenerMethod2 _Nonnull saved;
+} UniffiVTableCallbackInterfaceDevelopListener;
 
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_CLONE_ENGINE
@@ -309,6 +341,11 @@ void uniffi_tessera_ffi_fn_method_engine_set_recipe_json(uint64_t ptr, RustBuffe
 void uniffi_tessera_ffi_fn_method_engine_set_selection(uint64_t ptr, RustBuffer image_id, RustBuffer selection, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_OPEN_DEVELOP_SESSION
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_OPEN_DEVELOP_SESSION
+uint64_t uniffi_tessera_ffi_fn_method_engine_open_develop_session(uint64_t ptr, RustBuffer image_id, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_OPEN_CULL_SESSION
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_OPEN_CULL_SESSION
 uint64_t uniffi_tessera_ffi_fn_method_engine_open_cull_session(uint64_t ptr, RustBuffer folder, RustCallStatus *_Nonnull out_status
@@ -342,6 +379,146 @@ void uniffi_tessera_ffi_fn_init_callback_vtable_engineeventlistener(const Uniffi
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINEEVENTLISTENER_ON_EVENT
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINEEVENTLISTENER_ON_EVENT
 void uniffi_tessera_ffi_fn_method_engineeventlistener_on_event(uint64_t ptr, RustBuffer event, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_CLONE_DEVELOPLISTENER
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_CLONE_DEVELOPLISTENER
+uint64_t uniffi_tessera_ffi_fn_clone_developlistener(uint64_t handle, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_FREE_DEVELOPLISTENER
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_FREE_DEVELOPLISTENER
+void uniffi_tessera_ffi_fn_free_developlistener(uint64_t handle, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_INIT_CALLBACK_VTABLE_DEVELOPLISTENER
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_INIT_CALLBACK_VTABLE_DEVELOPLISTENER
+void uniffi_tessera_ffi_fn_init_callback_vtable_developlistener(const UniffiVTableCallbackInterfaceDevelopListener* _Nonnull vtable
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPLISTENER_FRAME_READY
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPLISTENER_FRAME_READY
+void uniffi_tessera_ffi_fn_method_developlistener_frame_ready(uint64_t ptr, RustBuffer frame, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPLISTENER_RENDER_FAILED
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPLISTENER_RENDER_FAILED
+void uniffi_tessera_ffi_fn_method_developlistener_render_failed(uint64_t ptr, RustBuffer message, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPLISTENER_SAVED
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPLISTENER_SAVED
+void uniffi_tessera_ffi_fn_method_developlistener_saved(uint64_t ptr, RustBuffer recipe_hash, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_CLONE_DEVELOPSESSION
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_CLONE_DEVELOPSESSION
+uint64_t uniffi_tessera_ffi_fn_clone_developsession(uint64_t handle, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_FREE_DEVELOPSESSION
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_FREE_DEVELOPSESSION
+void uniffi_tessera_ffi_fn_free_developsession(uint64_t handle, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_ATTACH_SURFACE
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_ATTACH_SURFACE
+void uniffi_tessera_ffi_fn_method_developsession_attach_surface(uint64_t ptr, uint32_t iosurface_id, uint32_t width, uint32_t height, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_CLOSE
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_CLOSE
+void uniffi_tessera_ffi_fn_method_developsession_close(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_COMMIT
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_COMMIT
+int8_t uniffi_tessera_ffi_fn_method_developsession_commit(uint64_t ptr, RustBuffer label, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_DETACH_SURFACES
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_DETACH_SURFACES
+void uniffi_tessera_ffi_fn_method_developsession_detach_surfaces(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_FLUSH
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_FLUSH
+void uniffi_tessera_ffi_fn_method_developsession_flush(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_GET_HISTOGRAM
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_GET_HISTOGRAM
+RustBuffer uniffi_tessera_ffi_fn_method_developsession_get_histogram(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_GET_SETTINGS_JSON
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_GET_SETTINGS_JSON
+RustBuffer uniffi_tessera_ffi_fn_method_developsession_get_settings_json(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_HISTORY_STATE
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_HISTORY_STATE
+RustBuffer uniffi_tessera_ffi_fn_method_developsession_history_state(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_IGNORED_SETTINGS
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_IGNORED_SETTINGS
+RustBuffer uniffi_tessera_ffi_fn_method_developsession_ignored_settings(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_INFO
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_INFO
+RustBuffer uniffi_tessera_ffi_fn_method_developsession_info(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_PLAN_SURFACE
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_PLAN_SURFACE
+RustBuffer uniffi_tessera_ffi_fn_method_developsession_plan_surface(uint64_t ptr, uint32_t width, uint32_t height, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_REDO
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_REDO
+int8_t uniffi_tessera_ffi_fn_method_developsession_redo(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_REFRESH
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_REFRESH
+void uniffi_tessera_ffi_fn_method_developsession_refresh(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_RESET
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_RESET
+int8_t uniffi_tessera_ffi_fn_method_developsession_reset(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_RESTORE_SNAPSHOT
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_RESTORE_SNAPSHOT
+void uniffi_tessera_ffi_fn_method_developsession_restore_snapshot(uint64_t ptr, RustBuffer name, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_SET_LISTENER
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_SET_LISTENER
+void uniffi_tessera_ffi_fn_method_developsession_set_listener(uint64_t ptr, RustBuffer listener, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_SET_SETTINGS
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_SET_SETTINGS
+void uniffi_tessera_ffi_fn_method_developsession_set_settings(uint64_t ptr, RustBuffer json_patch, int8_t interactive, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_SNAPSHOT
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_SNAPSHOT
+void uniffi_tessera_ffi_fn_method_developsession_snapshot(uint64_t ptr, RustBuffer name, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_SNAPSHOTS
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_SNAPSHOTS
+RustBuffer uniffi_tessera_ffi_fn_method_developsession_snapshots(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_UNDO
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_UNDO
+int8_t uniffi_tessera_ffi_fn_method_developsession_undo(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_CLONE_CULLSESSION
@@ -846,6 +1023,12 @@ uint16_t uniffi_tessera_ffi_checksum_method_engine_set_selection(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_OPEN_DEVELOP_SESSION
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_OPEN_DEVELOP_SESSION
+uint16_t uniffi_tessera_ffi_checksum_method_engine_open_develop_session(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_OPEN_CULL_SESSION
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_OPEN_CULL_SESSION
 uint16_t uniffi_tessera_ffi_checksum_method_engine_open_cull_session(void
@@ -867,6 +1050,144 @@ uint16_t uniffi_tessera_ffi_checksum_method_engine_set_score(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINEEVENTLISTENER_ON_EVENT
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINEEVENTLISTENER_ON_EVENT
 uint16_t uniffi_tessera_ffi_checksum_method_engineeventlistener_on_event(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPLISTENER_FRAME_READY
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPLISTENER_FRAME_READY
+uint16_t uniffi_tessera_ffi_checksum_method_developlistener_frame_ready(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPLISTENER_RENDER_FAILED
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPLISTENER_RENDER_FAILED
+uint16_t uniffi_tessera_ffi_checksum_method_developlistener_render_failed(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPLISTENER_SAVED
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPLISTENER_SAVED
+uint16_t uniffi_tessera_ffi_checksum_method_developlistener_saved(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_ATTACH_SURFACE
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_ATTACH_SURFACE
+uint16_t uniffi_tessera_ffi_checksum_method_developsession_attach_surface(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_CLOSE
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_CLOSE
+uint16_t uniffi_tessera_ffi_checksum_method_developsession_close(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_COMMIT
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_COMMIT
+uint16_t uniffi_tessera_ffi_checksum_method_developsession_commit(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_DETACH_SURFACES
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_DETACH_SURFACES
+uint16_t uniffi_tessera_ffi_checksum_method_developsession_detach_surfaces(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_FLUSH
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_FLUSH
+uint16_t uniffi_tessera_ffi_checksum_method_developsession_flush(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_GET_HISTOGRAM
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_GET_HISTOGRAM
+uint16_t uniffi_tessera_ffi_checksum_method_developsession_get_histogram(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_GET_SETTINGS_JSON
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_GET_SETTINGS_JSON
+uint16_t uniffi_tessera_ffi_checksum_method_developsession_get_settings_json(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_HISTORY_STATE
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_HISTORY_STATE
+uint16_t uniffi_tessera_ffi_checksum_method_developsession_history_state(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_IGNORED_SETTINGS
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_IGNORED_SETTINGS
+uint16_t uniffi_tessera_ffi_checksum_method_developsession_ignored_settings(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_INFO
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_INFO
+uint16_t uniffi_tessera_ffi_checksum_method_developsession_info(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_PLAN_SURFACE
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_PLAN_SURFACE
+uint16_t uniffi_tessera_ffi_checksum_method_developsession_plan_surface(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_REDO
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_REDO
+uint16_t uniffi_tessera_ffi_checksum_method_developsession_redo(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_REFRESH
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_REFRESH
+uint16_t uniffi_tessera_ffi_checksum_method_developsession_refresh(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_RESET
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_RESET
+uint16_t uniffi_tessera_ffi_checksum_method_developsession_reset(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_RESTORE_SNAPSHOT
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_RESTORE_SNAPSHOT
+uint16_t uniffi_tessera_ffi_checksum_method_developsession_restore_snapshot(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_SET_LISTENER
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_SET_LISTENER
+uint16_t uniffi_tessera_ffi_checksum_method_developsession_set_listener(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_SET_SETTINGS
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_SET_SETTINGS
+uint16_t uniffi_tessera_ffi_checksum_method_developsession_set_settings(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_SNAPSHOT
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_SNAPSHOT
+uint16_t uniffi_tessera_ffi_checksum_method_developsession_snapshot(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_SNAPSHOTS
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_SNAPSHOTS
+uint16_t uniffi_tessera_ffi_checksum_method_developsession_snapshots(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_UNDO
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_UNDO
+uint16_t uniffi_tessera_ffi_checksum_method_developsession_undo(void
     
 );
 #endif

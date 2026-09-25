@@ -1,6 +1,7 @@
 import AppKit
 import Observation
 import TesseraCore
+import struct TesseraFFI.HistoryState
 
 enum ViewMode: String, CaseIterable, Identifiable {
     case grid = "Grid"
@@ -52,14 +53,32 @@ struct Toast: Identifiable, Equatable {
     /// `positions` index into `AppModel.visible`.
     func itemsDidChange(_ positions: IndexSet)
     func selectionDidChange(scrollToFocus: Bool)
-    func adjustmentsDidChange(itemID: Int)
     func thumbnailSizeDidChange()
+    /// The items' previews changed (a saved edit); cells should request them again.
+    func thumbnailsDidChange(_ positions: IndexSet)
+    /// `AppModel.develop` was opened, replaced or closed.
+    func developDidChange()
+    /// The engine finished a level into one of the session's surfaces (hot path, main actor).
+    func developDidRender(_ frame: DevelopFrame, controller: DevelopController)
 }
 
 extension LibraryObserver {
-    func adjustmentsDidChange(itemID: Int) {}
     func thumbnailSizeDidChange() {}
+    func thumbnailsDidChange(_ positions: IndexSet) {}
+    func developDidChange() {}
+    func developDidRender(_ frame: DevelopFrame, controller: DevelopController) {}
 }
+
+/// State of the develop session for the focused image, for the inspector.
+enum DevelopStatus: Equatable {
+    case none
+    case loading
+    case ready
+    case unavailable(String)
+}
+
+/// Which history ⌘Z addresses: the last kind of change the user made.
+private enum UndoDomain { case cull, develop }
 
 @MainActor @Observable
 final class AppModel {
@@ -115,6 +134,15 @@ final class AppModel {
     var statusMessage: String?
     /// Set by the loupe view: colour space and EDR headroom of the current screen.
     var loupeInfo = ""
+    private(set) var developStatus: DevelopStatus = .none
+    /// Bumped when develop values change outside a slider drag (open, undo, reset, snapshot).
+    private(set) var developRevision = 0
+    private(set) var developHistory: HistoryState?
+    /// "render: L3 → L2, 7.8 ms", throttled to 10 Hz; shown when `showRenderReadout`.
+    private(set) var renderReadout: String?
+    var showRenderReadout = UserDefaults.standard.bool(forKey: AppModel.renderReadoutKey) {
+        didSet { UserDefaults.standard.set(showRenderReadout, forKey: Self.renderReadoutKey) }
+    }
 
     // MARK: Unobserved hot state (AppKit)
 
@@ -130,7 +158,14 @@ final class AppModel {
     /// Reported by the grid layout for ↑/↓ spatial navigation.
     @ObservationIgnored var gridColumns = 1
     @ObservationIgnored private var observers: [WeakObserver] = []
-    @ObservationIgnored private var adjustments: [Int: [BasicKey: Double]] = [:]
+    /// Develop session for the focused RAW while the loupe shows it (docs/11 §1.2).
+    @ObservationIgnored private(set) var develop: DevelopController?
+    @ObservationIgnored private var developTask: Task<Void, Never>?
+    @ObservationIgnored private var undoDomain = UndoDomain.cull
+    @ObservationIgnored private var pendingReadout: String?
+    @ObservationIgnored private var developSelfTestRan = false
+    @ObservationIgnored private var selfTestFrames: [DevelopFrame]?
+    @ObservationIgnored private var readoutTask: Task<Void, Never>?
     @ObservationIgnored private var loadGeneration = 0
     @ObservationIgnored private var modeBeforeCompare: ViewMode = .grid
 
@@ -139,6 +174,7 @@ final class AppModel {
     private static let lastFolderKey = "LastFolderPath"
     private static let recentFoldersKey = "RecentFolderPaths"
     private static let basketTargetKey = "BasketTarget"
+    static let renderReadoutKey = "ShowRenderReadout"
 
     init() {
         recentFolders = (UserDefaults.standard.stringArray(forKey: Self.recentFoldersKey) ?? [])
@@ -241,7 +277,7 @@ final class AppModel {
         library = lib
         cull = lib.makeCullController()
         isEngineBacked = cull.isEngineBacked
-        adjustments = [:]
+        closeDevelop()
         source = .all
         compare = nil
         if viewMode == .compare { viewMode = modeBeforeCompare }
@@ -336,6 +372,7 @@ final class AppModel {
     }
 
     private func notifySelection(scroll: Bool) {
+        if let d = develop, d.itemID != focusedItem?.id { closeDevelop() }
         for o in liveObservers { o.selectionDidChange(scrollToFocus: scroll) }
     }
 
@@ -462,6 +499,10 @@ final class AppModel {
     }
 
     func undo() {
+        if let d = develop, d.history.canUndo, undoDomain == .develop || !cull.canUndo {
+            developHistoryMove("Undo", label: d.history.headLabel) { try d.undo() }
+            return
+        }
         do {
             guard let change = try cull.undo() else { statusMessage = "Nothing to undo"; return }
             didChange(change)
@@ -476,6 +517,10 @@ final class AppModel {
     }
 
     func redo() {
+        if let d = develop, d.history.canRedo, undoDomain == .develop || !cull.canRedo {
+            developHistoryMove("Redo", label: nil) { try d.redo() }
+            return
+        }
         do {
             guard let change = try cull.redo() else { statusMessage = "Nothing to redo"; return }
             didChange(change)
@@ -487,6 +532,7 @@ final class AppModel {
     }
 
     private func didChange(_ change: CullChange) {
+        undoDomain = .cull
         var positions = IndexSet()
         for id in change.ids where positionOfID[id] >= 0 { positions.insert(positionOfID[id]) }
         refreshSummary()
@@ -698,16 +744,211 @@ final class AppModel {
         showToast("Rejected \(ids.count) frame\(ids.count == 1 ? "" : "s") from the defect sweep", undoable: true)
     }
 
-    // MARK: Adjustments (stub Basic panel)
+    // MARK: Develop (Basic panel on the engine)
 
-    func adjustment(_ key: BasicKey, for itemID: Int) -> Double {
-        adjustments[itemID]?[key] ?? key.defaultValue
+    /// Opens the session for `item` (RAW only). Called by the loupe when it shows an image.
+    func openDevelop(for item: PhotoItem) {
+        if develop?.itemID == item.id {
+            liveObservers.forEach { $0.developDidChange() }
+            return
+        }
+        closeDevelop()
+        guard item.kind == .raw, let ref = item.engineImage else {
+            developStatus = .unavailable(item.kind == .synthetic
+                ? "Stub items have no pixels to develop" : "Develop needs a RAW file (\(item.kind.rawValue))")
+            return
+        }
+        developStatus = .loading
+        let generation = loadGeneration
+        developTask = Task { [weak self] in
+            do {
+                let controller = try await DevelopController.open(ref, itemID: item.id)
+                guard let self, !Task.isCancelled, generation == self.loadGeneration,
+                      self.focusedItem?.id == item.id else {
+                    await controller.close()
+                    return
+                }
+                self.install(develop: controller)
+            } catch {
+                guard let self, !Task.isCancelled, self.focusedItem?.id == item.id else { return }
+                self.developStatus = .unavailable(error.localizedDescription)
+            }
+        }
     }
 
-    /// Hot path from the NSControl slider: no SwiftUI state is touched; observers (the loupe) redraw directly.
-    func setAdjustment(_ key: BasicKey, _ value: Double, for itemID: Int) {
-        adjustments[itemID, default: [:]][key] = value
-        for o in liveObservers { o.adjustmentsDidChange(itemID: itemID) }
+    private func install(develop controller: DevelopController) {
+        developTask = nil
+        develop = controller
+        developStatus = .ready
+        developHistory = controller.history
+        developRevision += 1
+        controller.onFrame = { [weak self, weak controller] frame in
+            guard let self, let controller else { return }
+            self.developDidRender(frame, controller)
+        }
+        let itemID = controller.itemID
+        controller.onSaved = { [weak self] _ in self?.developDidSave(itemID: itemID) }
+        controller.onFailure = { [weak self] message in self?.statusMessage = "Develop: \(message)" }
+        if ProcessInfo.processInfo.arguments.contains("--develop-selftest"), !developSelfTestRan {
+            developSelfTestRan = true
+            runDevelopSelfTest(controller)
+        }
+        if !controller.ignoredSettings.isEmpty {
+            statusMessage = "Develop: \(controller.ignoredSettings.count) imported setting(s) are kept but not rendered yet"
+        }
+        liveObservers.forEach { $0.developDidChange() }
+    }
+
+    /// Stops rendering and writes pending edits of the current session (in the background).
+    func closeDevelop() {
+        developTask?.cancel()
+        developTask = nil
+        if developStatus != .none { developStatus = .none }
+        guard let controller = develop else { return }
+        develop = nil
+        controller.onFrame = nil
+        controller.onFailure = nil
+        developHistory = nil
+        renderReadout = nil
+        liveObservers.forEach { $0.developDidChange() }
+        Task { await controller.close() }
+    }
+
+    private func developDidRender(_ frame: DevelopFrame, _ controller: DevelopController) {
+        for o in liveObservers { o.developDidRender(frame, controller: controller) }
+        selfTestFrames?.append(frame)
+        guard showRenderReadout, frame.isFinal else { return }
+        pendingReadout = frame.readout
+        if readoutTask == nil {
+            readoutTask = Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .milliseconds(100))
+                guard let self else { return }
+                self.renderReadout = self.pendingReadout
+                self.readoutTask = nil
+            }
+        }
+    }
+
+    /// Recipe + XMP were written: refresh the grid thumbnail (recipe-hash keyed) and the status.
+    private func developDidSave(itemID: Int) {
+        if let d = develop, d.itemID == itemID { developHistory = d.history }
+        guard library.items.indices.contains(itemID) else { return }
+        loader.invalidate(library.items[itemID])
+        cull.refreshStatuses([itemID])
+        var positions = IndexSet()
+        if positionOfID.indices.contains(itemID), positionOfID[itemID] >= 0 { positions.insert(positionOfID[itemID]) }
+        refreshFocusSummary()
+        liveObservers.forEach { $0.thumbnailsDidChange(positions); $0.itemsDidChange(positions) }
+    }
+
+    /// `--develop-selftest`: the Exposure slider's own path (coalesced per display frame, then a
+    /// final mouse-up commit), timed by the engine's `render_ms` per frame.
+    private func runDevelopSelfTest(_ controller: DevelopController) {
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(1.5))   // first paint settles
+            guard let self, self.develop === controller else { return }
+            self.selfTestFrames = []
+            let id = controller.itemID
+            for i in 0...60 {
+                self.setAdjustment(.exposure, 1.5 * Double(i) / 60, final: i == 60, for: id)
+                try? await Task.sleep(for: .milliseconds(16))
+            }
+            try? await Task.sleep(for: .seconds(1))
+            self.developRevision += 1   // the sliders were bypassed: show the new values
+            let frames = self.selfTestFrames ?? []
+            self.selfTestFrames = nil
+            let drag = frames.filter { $0.dirtyStage == "Tone" }.map(\.renderMs).sorted()
+            guard !drag.isEmpty else { FileHandle.standardError.write(Data("develop-selftest: no frames\n".utf8)); return }
+            let q = { (p: Double) in drag[Int(Double(drag.count - 1) * p)] }
+            let level = frames.last.map { "L\($0.level)" } ?? "?"
+            let line = String(format: "develop-selftest: %d tone frames at %@, render median %.1f ms, p90 %.1f ms, max %.1f ms; backend %@; history: %@",
+                              drag.count, level, q(0.5), q(0.9), q(1), controller.info.backend,
+                              controller.history.headLabel ?? "-")
+            FileHandle.standardError.write(Data((line + "\n").utf8))
+            self.statusMessage = line
+        }
+    }
+
+    func adjustment(_ key: BasicKey, for itemID: Int) -> Double {
+        guard let d = develop, d.itemID == itemID, let p = key.parameter else { return defaultValue(key) }
+        return d.value(p)
+    }
+
+    /// Double-click target: as-shot white balance, zero otherwise.
+    func defaultValue(_ key: BasicKey) -> Double {
+        guard let d = develop else { return key.defaultValue }
+        switch key {
+        case .temperature: return Double(d.info.asShotTemperature)
+        case .tint: return Double(d.info.asShotTint)
+        default: return key.defaultValue
+        }
+    }
+
+    /// Hot path from the NSControl slider: no SwiftUI state is touched while dragging. Values are
+    /// coalesced per display frame; the final value (mouse-up) becomes one undo step.
+    func setAdjustment(_ key: BasicKey, _ value: Double, final: Bool, for itemID: Int) {
+        guard let d = develop, d.itemID == itemID, let p = key.parameter else { return }
+        if final, p.isWhiteBalance, value == defaultValue(key) {
+            d.setAsShotWhiteBalance()
+        } else {
+            d.set(p, value, interactive: !final)
+        }
+        guard final else { return }
+        d.commit(label: key.historyLabel(value))
+        undoDomain = .develop
+        developHistory = d.history
+    }
+
+    func resetDevelop() {
+        guard let d = develop else { return }
+        developHistoryMove("Reset", label: nil) { try d.reset() }
+    }
+
+    func restoreSnapshot(_ name: String) {
+        guard let d = develop else { return }
+        developHistoryMove("Snapshot “\(name)”", label: nil) { try d.restoreSnapshot(named: name); return true }
+    }
+
+    func promptSnapshot() {
+        guard let d = develop, let window = mainWindow else {
+            statusMessage = "Snapshots need a RAW open in the loupe"
+            return
+        }
+        let alert = NSAlert()
+        alert.messageText = "New Snapshot"
+        alert.informativeText = "Names the current develop state so you can return to it."
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
+        field.stringValue = "Snapshot \(d.history.snapshots.count + 1)"
+        alert.accessoryView = field
+        alert.addButton(withTitle: "Save")
+        alert.addButton(withTitle: "Cancel")
+        alert.window.initialFirstResponder = field
+        alert.beginSheetModal(for: window) { [weak self] response in
+            let name = field.stringValue.trimmingCharacters(in: .whitespaces)
+            MainActor.assumeIsolated {
+                guard response == .alertFirstButtonReturn, let self, let d = self.develop else { return }
+                do {
+                    try d.snapshot(named: name)
+                    self.developHistory = d.history
+                    self.statusMessage = "Snapshot “\(name)” saved"
+                } catch {
+                    self.statusMessage = "Snapshot failed: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+
+    private func developHistoryMove(_ verb: String, label: String?, _ body: () throws -> Bool) {
+        guard let d = develop else { return }
+        do {
+            let moved = try body()
+            undoDomain = .develop
+            developHistory = d.history
+            developRevision += 1
+            statusMessage = moved ? [verb, label].compactMap { $0 }.joined(separator: ": ") : "Nothing to \(verb.lowercased())"
+        } catch {
+            statusMessage = "\(verb) failed: \(error.localizedDescription)"
+        }
     }
 
     // MARK: Misc

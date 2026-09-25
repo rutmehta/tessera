@@ -23,6 +23,10 @@ final class ValueSlider: NSControl {
     private var dragStartX: CGFloat = 0
     private var isDragging = false
 
+    override var isEnabled: Bool {
+        didSet { alphaValue = isEnabled ? 1 : 0.4 }
+    }
+
     override var doubleValue: Double {
         get { value }
         set {

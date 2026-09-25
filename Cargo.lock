@@ -2743,12 +2743,16 @@ dependencies = [
 name = "tessera-ffi"
 version = "0.1.0"
 dependencies = [
+ "blake3",
  "cull",
  "engine-api",
  "image",
+ "image-core",
  "index",
  "jobs",
  "kamadak-exif",
+ "pipeline-cpu",
+ "pipeline-gpu",
  "previews",
  "raw-decode",
  "rusqlite",

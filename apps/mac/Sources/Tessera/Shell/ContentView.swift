@@ -111,6 +111,12 @@ struct StatusBar: View {
                 Text(msg).lineLimit(1).truncationMode(.tail).foregroundStyle(.secondary)
             }
             Spacer(minLength: 8)
+            if model.showRenderReadout, let readout = model.renderReadout {
+                Text(readout)
+                    .foregroundStyle(.secondary)
+                    .help("Settings change → frame in the loupe surface (Debug ▸ Show Render Timing)")
+                    .accessibilityIdentifier("renderReadout")
+            }
             Text("Keep \(model.counts.keep.formatted())  Reject \(model.counts.reject.formatted())")
             Text("Basket → \(model.basketTarget) \(model.counts.basket.formatted())")
                 .foregroundStyle(Color(nsColor: Theme.basket))
@@ -158,7 +164,7 @@ struct LoupeOverlay: View {
                 Text(model.loupeInfo).font(.system(size: 10)).foregroundStyle(.secondary)
             }
             Spacer()
-            Text("← → group    ↑ ↓ frame in group    X U P decide    1 2 3 grade    K keep best    C compare    Esc grid")
+            Text("← → group    ↑ ↓ frame in group    X U P decide    1 2 3 grade    K keep best    C compare    ⌘Z undo    Esc grid")
                 .font(.system(size: 10)).foregroundStyle(.tertiary)
         }
         .padding(10)

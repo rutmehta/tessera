@@ -26,12 +26,20 @@ impl Engine {
         image_id: String,
         path: String,
         max_px: u32,
+        recipe_hash: String,
     ) -> Result<PreviewResponse> {
         let metadata = std::fs::metadata(&path)?;
+        let default_hash = core::Recipe::default().recipe_hash().to_string();
         let request = RequestKey {
             image_id,
             max_px,
-            recipe_hash: core::Recipe::default().recipe_hash().to_string(),
+            // Edited recipes key their own previews (written by the develop
+            // session or rendered here); unedited images share the default.
+            recipe_hash: if recipe_hash.is_empty() {
+                default_hash
+            } else {
+                recipe_hash
+            },
             length: metadata.len(),
             modified: metadata.modified().ok(),
         };
@@ -55,7 +63,8 @@ impl Engine {
             None => {}
         }
         states.insert(request.clone(), State::Pending);
-        self.preview_jobs.submit(
+        drop(states);
+        self.jobs.submit(
             Box::new(PreviewJob {
                 engine: Arc::downgrade(self),
                 request,
@@ -74,6 +83,50 @@ struct PreviewJob {
     request: RequestKey,
     path: String,
 }
+impl PreviewJob {
+    /// Default recipes use the embedded-JPEG fast path. Edited recipes use the
+    /// preview the develop session stored under the recipe hash, or render
+    /// the renderable subset of the settings (bilinear demosaic, as for the
+    /// default RAW fallback).
+    fn render(&self, engine: &Engine) -> std::result::Result<previews::PreviewKey, String> {
+        let path = Path::new(&self.path);
+        let id = parse_id(&self.request.image_id).map_err(|e| e.to_string())?;
+        let recipe = catalog::document(path, id)
+            .map(|d| d.recipe)
+            .unwrap_or_default();
+        let hash = recipe.recipe_hash();
+        if hash == core::Recipe::default().recipe_hash() {
+            return engine
+                .previews
+                .from_raw(path, self.request.max_px)
+                .map(|(key, _)| key)
+                .map_err(|e| e.to_string());
+        }
+        let mut settings = crate::develop::renderable(&recipe.settings);
+        settings.demosaic.method = core::settings::DemosaicMethod::Bilinear;
+        engine
+            .previews
+            .from_raw_settings(path, self.request.max_px, &settings, hash.0.0)
+            .map_err(|e| e.to_string())
+    }
+}
+impl Engine {
+    /// Preview sizes requested so far for an image (the app's tiers).
+    pub(super) fn requested_preview_sizes(&self, image_id: &str) -> Vec<u32> {
+        let states = self
+            .preview_states
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let mut sizes: Vec<u32> = states
+            .keys()
+            .filter(|k| k.image_id == image_id)
+            .map(|k| k.max_px)
+            .collect();
+        sizes.sort_unstable();
+        sizes.dedup();
+        sizes
+    }
+}
 impl Job for PreviewJob {
     fn label(&self) -> &str {
         "RAW preview"
@@ -86,12 +139,9 @@ impl Job for PreviewJob {
         let Some(engine) = self.engine.upgrade() else {
             return Ok(());
         };
-        let result = engine
-            .previews
-            .from_raw(Path::new(&self.path), self.request.max_px);
-        let state = match result {
-            Ok((key, _)) => State::Ready(key),
-            Err(error) => State::Failed(error.to_string()),
+        let state = match self.render(&engine) {
+            Ok(key) => State::Ready(key),
+            Err(error) => State::Failed(error),
         };
         engine
             .preview_states

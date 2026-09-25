@@ -76,10 +76,50 @@ enum BasicKey: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
     var title: String { rawValue.prefix(1).uppercased() + rawValue.dropFirst() }
-    var range: ClosedRange<Double> { self == .exposure ? -5...5 : -100...100 }
-    var defaultValue: Double { 0 }
-    var step: Double { self == .exposure ? 0.01 : 1 }
-    var format: String { self == .exposure ? "%+.2f" : "%+.0f" }
+    var range: ClosedRange<Double> {
+        switch self {
+        case .temperature: 2000...25000
+        case .tint: -150...150
+        case .exposure: -5...5
+        default: -100...100
+        }
+    }
+    /// Without a session (Temperature shows a neutral daylight value, not the slider minimum).
+    var defaultValue: Double { self == .temperature ? 5500 : 0 }
+    var step: Double {
+        switch self {
+        case .temperature: 50
+        case .exposure: 0.01
+        default: 1
+        }
+    }
+    var format: String {
+        switch self {
+        case .temperature: "%.0f K"
+        case .exposure: "%+.2f"
+        default: "%+.0f"
+        }
+    }
+
+    /// Engine setting behind the slider; nil where the M1 pipeline has no operator yet.
+    var parameter: DevelopParameter? {
+        switch self {
+        case .temperature: .temperature
+        case .tint: .tint
+        case .exposure: .exposure
+        case .contrast: .contrast
+        case .highlights: .highlights
+        case .shadows: .shadows
+        case .whites: .whites
+        case .blacks: .blacks
+        case .texture, .clarity, .dehaze, .vibrance, .saturation: nil
+        }
+    }
+
+    /// History entry label, e.g. "Exposure +0.50".
+    func historyLabel(_ value: Double) -> String {
+        "\(title) " + String(format: format, value)
+    }
 
     static let sections: [(String, [BasicKey])] = [
         ("White Balance", [.temperature, .tint]),

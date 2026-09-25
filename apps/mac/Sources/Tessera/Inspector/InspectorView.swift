@@ -9,6 +9,7 @@ struct InspectorView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
+                PanelSection("Histogram") { HistogramPanel(model: model).frame(height: 86) }
                 PanelSection("Image") { ImageInfoPanel(model: model) }
                 PanelSection("Selection") { SelectionPanel(model: model) }
                 PanelSection("Basic") { BasicPanel(model: model) }
@@ -79,7 +80,7 @@ struct ImageInfoPanel: View {
             if let item = model.focusedItem {
                 InfoRow(label: "File", value: item.name)
                 InfoRow(label: "Type", value: item.kind.rawValue)
-                InfoRow(label: "Size", value: item.pixelWidth > 0 ? "\(item.pixelWidth) × \(item.pixelHeight)" : "—")
+                InfoRow(label: "Size", value: sizeText(item))
                 InfoRow(label: "Captured", value: item.captureDate == .distantPast ? "—"
                     : item.captureDate.formatted(.dateTime.year().month().day().hour().minute().second()))
                 InfoRow(label: "Group", value: "G\(item.groupID + 1) · frame \(model.indexInGroup(of: item) + 1) of \(model.groupSize(of: item))"
@@ -93,6 +94,15 @@ struct ImageInfoPanel: View {
 }
 
 extension ImageInfoPanel {
+    /// Known from the file, or from the develop session (active area, display orientation).
+    private func sizeText(_ item: PhotoItem) -> String {
+        if item.pixelWidth > 0 { return "\(item.pixelWidth) × \(item.pixelHeight)" }
+        _ = model.developStatus
+        guard let d = model.develop, d.itemID == item.id else { return "—" }
+        let (w, h) = d.info.orientation >= 5 ? (d.info.height, d.info.width) : (d.info.width, d.info.height)
+        return "\(w) × \(h)"
+    }
+
     private var statusText: String {
         let st = model.focusedStatus
         let phase = st.phase.rawValue.capitalized
@@ -168,26 +178,56 @@ struct BasicPanel: View {
     let model: AppModel
     var body: some View {
         let id = model.focusedItem?.id
+        let ready = model.developStatus == .ready
+        let revision = model.developRevision
         VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Button("Reset") { model.resetDevelop() }
+                    .help("Reset all develop settings (one undo step)")
+                Menu("Snapshots") {
+                    Button("New Snapshot…") { model.promptSnapshot() }
+                    let names = model.developHistory?.snapshots ?? []
+                    if !names.isEmpty { Divider() }
+                    ForEach(names, id: \.self) { name in
+                        Button(name) { model.restoreSnapshot(name) }
+                    }
+                }
+                .fixedSize()
+                Spacer()
+                Text(statusText).font(.system(size: 10)).foregroundStyle(.tertiary).lineLimit(1)
+            }
+            .controlSize(.small)
+            .disabled(!ready)
             ForEach(BasicKey.sections, id: \.0) { section in
                 Text(section.0).font(.system(size: 10, weight: .medium)).foregroundStyle(.tertiary).padding(.top, 4)
                 ForEach(section.1) { key in
-                    AdjustmentSlider(model: model, key: key, itemID: id).frame(height: 30)
+                    AdjustmentSlider(model: model, key: key, itemID: ready ? id : nil, revision: revision)
+                        .frame(height: 30)
+                        .help(key.parameter == nil ? "\(key.title) is not in the M1 pipeline yet" : "")
                 }
             }
-            Text("Stub: only Exposure is applied (in the loupe shader).")
-                .font(.system(size: 10)).foregroundStyle(.tertiary).padding(.top, 4)
         }
-        .disabled(id == nil)
+    }
+
+    private var statusText: String {
+        switch model.developStatus {
+        case .none: "Open a RAW in the loupe (E)"
+        case .loading: "Opening…"
+        case .ready: model.developHistory.map { h in
+            h.headLabel.map { "History: \($0)" } ?? "Unedited"
+        } ?? ""
+        case .unavailable(let why): why
+        }
     }
 }
 
 /// Bridges one `ValueSlider` into SwiftUI. SwiftUI only re-runs `updateNSView` when the focused
-/// image changes; drag updates bypass SwiftUI entirely.
+/// image or the develop revision (open, undo, reset) changes; drag updates bypass SwiftUI entirely.
 struct AdjustmentSlider: NSViewRepresentable {
     let model: AppModel
     let key: BasicKey
     let itemID: Int?
+    let revision: Int
 
     final class Coordinator {
         var itemID: Int?
@@ -204,16 +244,19 @@ struct AdjustmentSlider: NSViewRepresentable {
         s.valueFormat = key.format
         s.step = key.step
         let coordinator = context.coordinator
-        s.onChange = { [weak model] value, _ in
+        s.onChange = { [weak model] value, isFinal in
             guard let model, let id = coordinator.itemID else { return }
-            model.setAdjustment(key, value, for: id)
+            model.setAdjustment(key, value, final: isFinal, for: id)
         }
         return s
     }
 
     func updateNSView(_ s: ValueSlider, context: Context) {
-        context.coordinator.itemID = itemID
-        s.isEnabled = itemID != nil
-        s.doubleValue = itemID.map { model.adjustment(key, for: $0) } ?? key.defaultValue
+        let enabled = itemID != nil && key.parameter != nil
+        context.coordinator.itemID = enabled ? itemID : nil
+        s.isEnabled = enabled
+        s.defaultValue = model.defaultValue(key)
+        s.doubleValue = itemID.map { model.adjustment(key, for: $0) } ?? model.defaultValue(key)
+        s.needsDisplay = true
     }
 }

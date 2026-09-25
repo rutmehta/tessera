@@ -27,9 +27,11 @@ struct TesseraApp: App {
 ///   --seed-scores     (hidden test aid) write deterministic synthetic focus / closed-eyes scores
 ///                     into the index after opening a folder, for the defect sweep
 ///   --front           order the window front without activating (screenshots while another app is active)
+///   --develop-selftest  once a develop session opens, drag Exposure 0 → +1.5 through the slider path
+///                     (60 display-rate steps, then mouse-up) and print frame timings to stderr
 ///   --keys "<k> <k>…" after loading, feed these keys through the culling key map (self-test aid);
 ///                     tokens: single characters, left right up down return esc delete,
-///                     prefixes "opt-" / "shift-" / "cmd-" (⌘ tokens go to the menu bar)
+///                     prefixes "opt-" / "shift-" / "cmd-" (⌘ tokens go to the menu bar); "wait" idles one step
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var keyRouter: KeyRouter?
@@ -100,7 +102,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             "left": (123, "\u{F702}"), "right": (124, "\u{F703}"), "down": (125, "\u{F701}"), "up": (126, "\u{F700}"),
             "return": (36, "\r"), "esc": (53, "\u{1B}"), "delete": (51, "\u{7F}"),
         ]
-        for token in keys.split(separator: " ") {
+        for token in keys.split(separator: " ") where token != "wait" {   // "wait": one idle 0.3 s step
             var t = String(token)
             var flags: NSEvent.ModifierFlags = []
             while let dash = t.firstIndex(of: "-"), t.count > 1, dash != t.startIndex {
