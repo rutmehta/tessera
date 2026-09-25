@@ -611,8 +611,8 @@
     "id": "M2-21c",
     "owner": "opus",
     "title": "Export throughput targets",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
-    "notes": ""
+    "notes": "NEF full 1.2s; 100 Web 26s render+encode; app exports render at scale 1 for exactness"
   }
 ]
