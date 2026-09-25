@@ -28,7 +28,7 @@ pub(crate) fn run(
         || s.constrain_crop
     {
         return Err(EngineError::Unsupported {
-            what: "M2 geometry supports crop and straighten only".into(),
+            what: "EXIF orientation and constrain-crop are not implemented".into(),
         });
     }
     if r == NormalizedRect::FULL && s.crop.angle == 0. {
