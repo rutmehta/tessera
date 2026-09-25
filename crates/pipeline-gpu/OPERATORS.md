@@ -99,6 +99,32 @@ active presence controls (the renderer uses the GPU whole-image route); whole
 images exceeding the GPU storage-buffer limit for local tone or geometry.
 Tile-level Geometry remains an error, matching the CPU API.
 
+### Geometry capability boundary (M2-09c)
+
+`GpuStageOp::run_image` uses WGSL only for crop/straighten with orientation 1,
+Upright Off with no guides, default manual transform and constrain-crop disabled.
+Every other geometry configuration delegates to `CpuStageOp`, including invalid
+extended controls, so validation order and errors remain the CPU's responsibility.
+In this checkout CPU supports manual transforms and Upright, but still rejects
+nonidentity EXIF orientation and constrain-crop. Fallback does not add support
+that the CPU does not have.
+
+The image-level API accepts host `Image` storage, not a resident GPU handle.
+`Renderer::supports_resident` excludes nondefault geometry; its M2 image barrier
+collects upstream tiles into a host image (reading back any resident results).
+CPU geometry therefore costs that synchronization/readback plus CPU resampling;
+subsequent GPU operations upload the host result again. The fallback itself
+submits no GPU work and adds no transfers to `GpuStats`. It is not zero-copy or
+whole-chain GPU-resident. Crop/straighten compute retains one upload, submission
+and readback when active.
+
+`Op::Geometry` carries only `GeometrySettings`, with no lens calibration or
+metadata. Lens distortion is composed separately in `pipeline-cpu::render` via
+`geometry_mapped`; no lens map is accepted or silently ignored by this kernel.
+The composed lens/Upright WGSL port is deferred, not claimed by this change.
+Tests compare public geometry results/errors to CPU, enforce the per-operator
+1e-4 linear tolerance, and check fallback transfer counts and cancellation.
+
 **Acceptance blocker:** all five fixtures pass each same-input operator's linear
 1e-4 gate and the final DeltaE2000 <=0.5 gate. The Nikon full-chain scene-linear
 comparison fails at 8.587241e-4. Texture's luminance gain amplifies small upstream
