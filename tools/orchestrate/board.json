@@ -534,5 +534,21 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M2-22",
+    "owner": "opus",
+    "title": "HDR/EDR presentation",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-20v",
+    "owner": "sol",
+    "title": "Verify export + print",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
