@@ -1,0 +1,9 @@
+# WP M1-13 — Culling core (`cull` crate)
+
+Read docs/06 (all), crates/engine-api/CONTRACTS.md (selection), crates/index (query API, selection table), crates/sidecar (selection write), crates/previews (embedded preview decode). Implement `crates/cull`:
+- `CullSession::open(index, folder_or_query)`: ordered list of images, current position, `decide(Decision)`, `grade(1|2|3)`, `mark(name)`, `toggle_basket`, `undo/redo` (single global stack over selection changes), auto-advance flag; every change writes through `sidecar` (atomic) and updates the index selection table.
+- Grouping (no ML yet): bursts by capture-time gap (configurable, default 2 s) and near-duplicates by perceptual hash (implement dHash 9×8 on the embedded preview; Hamming distance ≤ 6 joins a group); `next_group/prev_group/next_in_group`; `keep_best_reject_rest(group)` where "best" is a pluggable `Scorer` trait (default: largest file size placeholder; ML scorers later).
+- Derived status per docs/06 §2 (`unedited | edited | exported | published | in_album`) computed from recipe history length, an export log table (add to index if absent, via a small migration), and album membership from `library.json` (define reader here if not present).
+- `defect_sweep(thresholds) -> Vec<(ImageId, reasons)>` returning a reviewable list (no decisions applied) using whatever signals exist in the index `score` table (will be empty until ML lands; test with synthetic scores).
+- Tests: keyboard-sequence simulation over a synthetic index of 50 images (decisions persist and reload from sidecars), undo/redo, burst grouping by time, dHash grouping on generated near-identical images (blur/brightness variants) vs distinct images, keep-best-reject-rest, derived status transitions.
+`cargo test -p cull --release`, clippy -D warnings, fmt. Do not modify engine-api; if the index needs a table, add a migration in `crates/index` (allowed).
