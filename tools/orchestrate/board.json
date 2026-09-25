@@ -35,7 +35,7 @@
     "id": "M0-05",
     "owner": "sol",
     "title": "computer-use smoke",
-    "status": "todo",
+    "status": "running",
     "attempts": 0,
     "notes": ""
   },
@@ -51,7 +51,15 @@
     "id": "M0-07",
     "owner": "opus",
     "title": "GPU spike wgpu vs MSL",
-    "status": "escalate",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M0-08",
+    "owner": "luna",
+    "title": "Rename to Tessera",
+    "status": "running",
     "attempts": 0,
     "notes": ""
   }
