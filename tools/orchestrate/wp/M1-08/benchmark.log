@@ -1,0 +1,11 @@
+
+running 1 test
+image 0 completed at 1980.1 ms
+image 1 completed at 3125.7 ms
+image 2 completed at 4898.9 ms
+image 3 completed at 5991.0 ms
+image 4 completed at 8124.0 ms
+five 3000x2000 RGB fixtures, full-size JPEG q90: 1624.8 ms/image (batch wall time / 5)
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 8.19s
+

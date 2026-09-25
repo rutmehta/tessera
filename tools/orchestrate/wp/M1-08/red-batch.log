@@ -1,0 +1,51 @@
+error[E0425]: cannot find type `ExportItem` in this scope
+ --> crates/export/tests/batch.rs:9:62
+  |
+9 | fn items<'a>(images: &'a [Image], recipe: &'a Recipe) -> Vec<ExportItem<'a>> {
+  |                                                              ^^^^^^^^^^ not found in this scope
+
+error[E0422]: cannot find struct, variant or union type `ExportItem` in this scope
+  --> crates/export/tests/batch.rs:10:47
+   |
+10 |     images.iter().enumerate().map(|(i,image)| ExportItem { image: ExportImage { source: RenderSource::Rgb(image), name: "fixture", s...
+   |                                               ^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `export_batch` in this scope
+  --> crates/export/tests/batch.rs:20:18
+   |
+20 |     let report = export_batch(&items, &settings, |p| events.borrow_mut().push(p), &CancellationToken::new()).unwrap();
+   |                  ^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `export_batch` in this scope
+  --> crates/export/tests/batch.rs:30:18
+   |
+30 |     let report = export_batch(&items, &settings, |_| cancel.cancel(), &cancel).unwrap();
+   |                  ^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `export_batch` in this scope
+  --> crates/export/tests/batch.rs:40:19
+   |
+40 |     let resumed = export_batch(&retry, &settings, |_| {}, &CancellationToken::new()).unwrap();
+   |                   ^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `export_batch` in this scope
+  --> crates/export/tests/batch.rs:53:18
+   |
+53 |     let report = export_batch(&items,&settings, |_| panic!("cancelled progress"),&cancel).unwrap();
+   |                  ^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `export_batch` in this scope
+  --> crates/export/tests/batch.rs:59:13
+   |
+59 |     assert!(export_batch(&items,&settings, |_| {}, &CancellationToken::new()).is_err());
+   |             ^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `export_batch` in this scope
+  --> crates/export/tests/batch.rs:71:18
+   |
+71 |     let report = export_batch(&items,&settings, |p| println!("image {} completed at {:.1} ms",p.index,start.elapsed().as_secs_f64()*...
+   |                  ^^^^^^^^^^^^ not found in this scope
+
+Some errors have detailed explanations: E0422, E0425.
+For more information about an error, try `rustc --explain E0422`.
+error: could not compile `export` (test "batch") due to 8 previous errors
