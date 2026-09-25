@@ -1,3 +1,78 @@
+# M2-17b interactive performance redesign
+
+This section supersedes the M2-17 notes below where they conflict.
+
+- **Whole-level resident rendering.** When a request covers a whole level
+  (every Develop surface frame, full-level `render_region`) and the padded
+  level has fewer than 2^24 pixels (operator parameters carry plane lengths as
+  f32), the renderer runs each stage once on a level-sized tile instead of
+  once per 256² tile: memoized WB level padded by the largest Detail halo (9,
+  edges replicated exactly like `gather`), memoized developed (post-Detail)
+  level, one fused point-chain dispatch, one surface + histogram dispatch.
+  CPU readback crops the level into pyramid tiles on the GPU. Tests:
+  `tests/level_mode.rs` (bit-identical to the per-tile resident path; CPU
+  parity; one fused dispatch for warm point edits). Linear kernels accept rows
+  of 65535 workgroups (`Batch::record`), so levels above 4.19 MP dispatch.
+- **Texture/Clarity/Dehaze are resident** (`resident_tone.rs`,
+  `presence.wgsl`) at every level whose packed level fits 1 GiB. Texture and
+  Clarity run as two fused 16x16 workgroup-tile kernels (z → self-guided
+  coefficients for every active scale; coefficient means → guided outputs →
+  no-new-extrema presence written to the output). Dehaze runs separable
+  min filters and box means (cached global reads). Box sums keep the scalar
+  reference's order and clipped normalisation (no prefix sums). Exact
+  airlight/confidence are order statistics on the host, computed once and
+  cached (8 entries) under a key covering image, upstream chain, basic tone,
+  Texture/Clarity and level extent — Dehaze-only drags never read back.
+  Per-operator gate: `tests/local_tone_resident.rs`, max 4.9e-6 vs
+  `tone_extra_image` (tolerance 1e-4); full-chain L0 renderer ≤ 2e-3 linear /
+  1 display code. Dehaze's global statistics are ill-conditioned: a 4e-6
+  upstream difference moved the X-Trans fixture's output by 2.9e-4.
+- **Downsampled guidance (opt-in, off by default).**
+  `RendererConfig::preview_approximations` computes the wide (r = 8) Clarity
+  guided filter on a 1/2-resolution grid of block moments and upsamples its
+  coefficients bilinearly (levels above 0 only). Measured max display error vs
+  exact at L2: ≤ 2/255 on synthetic scenes and the CR3/RAF/ARW/DNG fixtures,
+  but 5/255 (+100) and 8/255 (−100) on the Nikon NEF (14/255 with 1/4
+  resolution), over the 4/255 target; a 1/4-grid Dehaze transmission measured
+  8/255 on synthetic haze and was removed. The exact wide scale costs one
+  extra slot in the fused kernels (~1–2 ms at L2), so exact is the default.
+- **Effects constants map.** Vignette mask and grain value are amount-
+  independent per-pixel functions of extent, crop frame, vignette shape and
+  grain size/roughness. The resident fused kernel binds a GPU-resident f32
+  (mask, value) map built by the same WGSL functions once per parameter key
+  (one map retained, published only after successful completion), so
+  vignette/grain drags skip the double-single `pow` and 64-bit hash work.
+  Exactness: map vs CPU ≤ 1.2e-6 (`level_mode.rs`).
+- **Detail** writes the halo-free interior directly (no strip pass), reads a
+  planar Y + Oklab decomposition, and uses host-evaluated spatial weight
+  tables computed exactly like the CPU `kernel()`. Inactive Detail on a
+  halo-free tile shares the input buffer. (Workgroup-memory tiles for this
+  kernel and 32x32 presence blocks measured slower on M4 than cached global
+  reads / 16x16 blocks.)
+- **Transient buffers** retired by a transaction (including capability probes
+  and cancelled transactions) are recycled across transactions (≤ 1 GiB),
+  avoiding per-frame allocation and wgpu zero-fill of level buffers.
+- **Level-0 cache policy.** The output-demosaic checkpoint is not retained at
+  level 0 (it is a crop of the memoized sensor demosaic); duplicating it
+  evicted WB/Detail tiles so every Detail edit on an 18 MP frame re-decoded
+  (`level_mode.rs::level_zero_detail_edits_do_not_redecode`).
+- **Device limits** request up to the adapter's 16 storage bindings, 32 KiB
+  workgroup memory and 1 GiB buffers. The legacy nonresident `tone_local`
+  path keeps its 128 MiB ceiling.
+- **Not done / rejected.** Per-pixel 1D curve (4096) and 3D grading/HSL (33³)
+  LUTs were not adopted: exact evaluation costs ≈0.3 ms (curves) and ≈0.8 ms
+  (HSL/vibrance/grading) per L2 NEF frame, and LUT interpolation would break
+  level-0 exactness; their constants stay host-prepared per parameter set.
+  f16 intermediates were not adopted (M2-17 measured 3.2e-3 linear on f16
+  checkpoints, over 2e-3). Preview-level downsampled NR was not added: exact
+  resident NR measures ~8–9 ms per L2 NEF frame, inside the 12 ms target.
+- **Diagnostics.** `TESSERA_GPU_PROFILE=1` prints per-dispatch GPU time
+  (timestamped pass per dispatch) for resident transactions.
+
+Benchmarks: `tests/interactive_performance.rs` (per-operator resident frame
+p50/p90 at L2 and L0 on every fixture) and the tessera-ffi Develop session
+benches; results in `tools/orchestrate/wp/M2-17b/`.
+
 # M2-17 current status (partial, performance targets not established)
 
 This section supersedes historical residency/cache descriptions below.

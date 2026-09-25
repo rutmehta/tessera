@@ -21,6 +21,22 @@ pub struct GpuContext {
     device_loss: std::sync::Arc<std::sync::Mutex<Option<String>>>,
 }
 
+/// Defaults plus what whole-level resident filters need: nine storage
+/// bindings, 32 KiB workgroup tiles and single buffers up to 1 GiB (a 61 MP
+/// level as packed f32 RGBA), each capped by the adapter.
+fn limits(adapter: &wgpu::Limits) -> wgpu::Limits {
+    let base = wgpu::Limits::default();
+    wgpu::Limits {
+        max_storage_buffers_per_shader_stage: adapter.max_storage_buffers_per_shader_stage.min(16),
+        max_compute_workgroup_storage_size: adapter
+            .max_compute_workgroup_storage_size
+            .min(32 << 10),
+        max_storage_buffer_binding_size: adapter.max_storage_buffer_binding_size.min(1 << 30),
+        max_buffer_size: adapter.max_buffer_size.min(1 << 30),
+        ..base
+    }
+}
+
 impl GpuContext {
     pub(crate) fn device_failure(&self) -> Option<String> {
         self.device_loss
@@ -50,7 +66,7 @@ impl GpuContext {
             label: Some("tessera M1"),
             required_features: features
                 & (wgpu::Features::TIMESTAMP_QUERY | wgpu::Features::SHADER_F16),
-            required_limits: wgpu::Limits::default(),
+            required_limits: limits(&adapter.limits()),
             ..Default::default()
         }))
         .map_err(|e| EngineError::internal(format!("Metal device: {e}")))?;

@@ -16,9 +16,11 @@
 //! The *screen level* is the coarsest output-pyramid level that still covers
 //! the viewport in device pixels ([`DevelopSession::plan_surface`]); surfaces
 //! are exactly that level's extent. Tone-only changes rerun only Tone and
-//! Output on the memoized WhiteBalance tiles of that level. During an
-//! interactive drag on a screen level above [`DRAG_BUDGET_PX`] the session
-//! renders one level coarser; `commit` (mouse-up) refines to the screen level.
+//! Output on the memoized WhiteBalance tiles of that level. Resident-capable
+//! recipes (every panel except crop/straighten and local adjustments on the
+//! Metal backend, including Texture/Clarity/Dehaze) drag at the screen level;
+//! non-resident recipes on a screen level above [`DRAG_BUDGET_PX`] drag one
+//! level coarser. `commit` (mouse-up) refines to the screen level.
 //!
 //! # Develop panels (M2-13)
 //!
@@ -26,9 +28,14 @@
 //! effects and crop/straighten, sanitized so a recipe can never fail a render.
 //! A crop changes the output extent: frames report the cropped picture as
 //! `display_width × display_height` (top-left in the uncropped-size surface).
-//! Interactive renders adapt their level per [`RenderClass`] to keep frames
-//! within [`INTERACTIVE_BUDGET_MS`] (heavy M2 operators run on the whole-level
-//! chain, so they drag at a proxy level), and a drag queues behind its
+//! Interactive renders adapt their level per [`RenderClass`]: they prefer the
+//! screen level with a [`PREFERRED_BUDGET_MS`] target, drop one level only
+//! when measured frames exceed [`INTERACTIVE_BUDGET_MS`] (two in a row; the
+//! first frame at a level, which refills its caches, is not counted), and
+//! return finer once the next finer
+//! level is predicted to fit the preferred budget. Each frame's level and
+//! `render_ms` are reported in [`FrameInfo`] (the render readout). Non-resident
+//! heavy M2 operators start at a proxy level. A drag queues behind its
 //! in-flight frame instead of cancelling it, so slow frames still show
 //! progress. The crop tool renders the whole frame (`set_crop_editing`); the
 //! masking preview draws the sharpening gate (`set_masking_preview`); a 1:1
@@ -83,8 +90,15 @@ use std::{
 /// Interactive drags on screen levels larger than this render one level
 /// coarser until the drag is committed.
 pub const DRAG_BUDGET_PX: u64 = 4_200_000;
-/// Interactive frames should land within one display refresh.
+/// Interactive frames should land within one display refresh: a measured
+/// frame over this drops the drag one level coarser.
 pub const INTERACTIVE_BUDGET_MS: f64 = 16.0;
+/// Target frame time at the preferred (screen) level, leaving headroom for
+/// presentation within one refresh. Finer levels are chosen only when their
+/// predicted frame time fits this budget.
+pub const PREFERRED_BUDGET_MS: f64 = 12.0;
+/// Pixel ratio between adjacent pyramid levels (frame-time prediction).
+const LEVEL_COST_RATIO: f64 = 4.0;
 /// At most this many levels coarser than the screen level while dragging.
 const MAX_DRAG_OFFSET: u8 = 4;
 /// Quiet period after the last history change before sidecars are written.
@@ -299,21 +313,42 @@ impl RenderClass {
 struct DragLevel {
     offset: u8,
     ms: Option<f64>,
+    /// Consecutive frames over [`INTERACTIVE_BUDGET_MS`].
+    misses: u8,
+    /// The first frame at a level refills that level's caches (WB, Detail,
+    /// Dehaze statistics); it is not evidence of the level's frame time.
+    warm: bool,
 }
 
 impl DragLevel {
     const fn starting_at(offset: u8) -> Self {
-        Self { offset, ms: None }
+        Self {
+            offset,
+            ms: None,
+            misses: 0,
+            warm: false,
+        }
     }
 
-    /// Records an interactive frame: coarser when the smoothed time is over
-    /// the budget, finer only when the next finer level (several times the
-    /// pixels, plus fixed costs) is expected to fit.
+    /// Records an interactive frame. The first frame at a level is ignored
+    /// (cache refill). Coarser only after two consecutive frames miss the
+    /// refresh ([`INTERACTIVE_BUDGET_MS`]): an isolated spike never drops the
+    /// level. Finer only when the next finer level (four times the pixels) is
+    /// predicted from the smoothed frame time to fit [`PREFERRED_BUDGET_MS`].
     fn record(&mut self, ms: f64) {
+        if !self.warm {
+            self.warm = true;
+            return;
+        }
         let smoothed = self.ms.map_or(ms, |m| 0.6 * m + 0.4 * ms);
-        let next = if smoothed > INTERACTIVE_BUDGET_MS {
+        let misses = if ms > INTERACTIVE_BUDGET_MS {
+            self.misses.saturating_add(1)
+        } else {
+            0
+        };
+        let next = if misses >= 2 {
             (self.offset + 1).min(MAX_DRAG_OFFSET)
-        } else if smoothed * 2.5 < INTERACTIVE_BUDGET_MS {
+        } else if smoothed * LEVEL_COST_RATIO <= PREFERRED_BUDGET_MS {
             self.offset.saturating_sub(1)
         } else {
             self.offset
@@ -322,6 +357,8 @@ impl DragLevel {
             Self {
                 offset: next,
                 ms: Some(smoothed),
+                misses,
+                warm: true,
             }
         } else {
             Self::starting_at(next)
@@ -808,7 +845,13 @@ impl Shared {
             .unwrap_or(false);
         let class = RenderClass::of(&settings, resident);
         let first = if interactive {
-            let budget = if area > DRAG_BUDGET_PX { 1 } else { 0 };
+            // Measured adaptation governs resident renders; the static pixel
+            // budget remains a prior only for non-resident heavy recipes.
+            let budget = if !resident && area > DRAG_BUDGET_PX {
+                1
+            } else {
+                0
+            };
             (target + st.drag[class as usize].offset.max(budget)).min(MAX_LEVEL)
         } else {
             target
@@ -2426,10 +2469,44 @@ mod tests {
     }
 
     #[test]
+    fn drag_level_prefers_screen_level_within_the_refresh() {
+        let mut d = DragLevel::starting_at(0);
+        // The first frame at a level refills caches: never evidence.
+        d.record(200.0);
+        assert_eq!(d.offset, 0, "cold first frame ignored");
+        // Over the preferred 12 ms but within one refresh: stay.
+        for ms in [13.0, 15.0, 14.5, 15.9] {
+            d.record(ms);
+            assert_eq!(d.offset, 0, "{ms} ms keeps the screen level");
+        }
+        // One missed refresh (e.g. exact Dehaze statistics) is a spike.
+        d.record(45.0);
+        d.record(9.0);
+        assert_eq!(d.offset, 0, "single spike");
+        // Two consecutive misses drop one level.
+        d.record(20.0);
+        d.record(20.0);
+        assert_eq!(d.offset, 1, "sustained misses drop one level");
+        // At the coarser level: the cold frame is ignored, and the level
+        // returns only when the finer level is predicted to fit 12 ms.
+        d.record(120.0);
+        assert_eq!(d.offset, 1);
+        d.record(5.0);
+        assert_eq!(d.offset, 1, "5 ms x4 = 20 ms predicted: stay coarser");
+        for _ in 0..4 {
+            d.record(2.5);
+        }
+        assert_eq!(d.offset, 0, "finer level predicted within 12 ms");
+    }
+
+    #[test]
     fn drag_level_adapts_to_the_frame_budget() {
         let mut d = DragLevel::starting_at(1);
-        d.record(40.0);
+        for ms in [40.0, 40.0, 40.0] {
+            d.record(ms);
+        }
         assert_eq!(d.offset, 2, "over budget: coarser");
+        d.record(10.0);
         d.record(10.0);
         d.record(11.0);
         assert_eq!(d.offset, 2, "within budget: stays");
@@ -2438,7 +2515,9 @@ mod tests {
         }
         assert!(d.offset < 2, "far under budget: finer");
         let mut d = DragLevel::starting_at(MAX_DRAG_OFFSET);
-        d.record(100.0);
+        for _ in 0..4 {
+            d.record(100.0);
+        }
         assert_eq!(d.offset, MAX_DRAG_OFFSET);
     }
 

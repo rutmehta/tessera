@@ -64,7 +64,9 @@ fn xtrans_highlight(x: i32, y: i32) -> f32 {
     return 1.0;
 }
 @compute @workgroup_size(64)
-fn main(@builtin(global_invocation_id) id: vec3<u32>) {
+fn main(@builtin(global_invocation_id) id_grid: vec3<u32>, @builtin(num_workgroups) id_groups: vec3<u32>) {
+    // Rows of at most 65535 workgroups (see Batch::record).
+    let id = vec3<u32>(id_grid.x + id_grid.y * id_groups.x * 64u, 0u, 0u);
     let i = id.x;
     if p[0] == 0u {
         if i >= (p[1]+1u)/2u { return; }
@@ -94,6 +96,11 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
             }
             dst[c * area + i] = bitcast<u32>(value);
         }
+    } else if p[0] == 7u {
+        // Sub-rectangle of a halo-free planar tile (whole-level split).
+        if i >= p[1] { return; }
+        let area = p[2]*p[3]; let c = i/area; let xy = i%area;
+        dst[i] = src[c*p[6] + (xy/p[2]+p[8])*p[5] + xy%p[2]+p[7]];
     } else if p[0] == 3u {
         // Strip the immutable neighbour halo after Detail, before memoization.
         if i >= p[1] { return; }

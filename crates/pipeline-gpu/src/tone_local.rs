@@ -9,6 +9,8 @@ use wgpu::util::DeviceExt;
 #[path = "tone_local_tests.rs"]
 mod tests;
 
+const LEGACY_LIMIT: u64 = 128 << 20;
+
 pub(crate) fn run(ctx: &crate::GpuContext, input: &Image, s: &ToneSettings) -> EngineResult<Image> {
     if input.planes().len() != 3
         || [s.texture, s.clarity, s.dehaze]
@@ -26,7 +28,9 @@ pub(crate) fn run(ctx: &crate::GpuContext, input: &Image, s: &ToneSettings) -> E
     let n = input.width() as usize * input.height() as usize;
     let bytes = n as u64 * 16;
     let limits = ctx.device.limits();
-    if bytes > limits.max_storage_buffer_binding_size
+    // This nonresident path allocates a fresh buffer per pass. Keep its
+    // original 128 MiB ceiling; larger levels use the resident path or CPU.
+    if bytes > limits.max_storage_buffer_binding_size.min(LEGACY_LIMIT)
         || bytes > limits.max_buffer_size
         || input.width().div_ceil(8) > limits.max_compute_workgroups_per_dimension
         || input.height().div_ceil(8) > limits.max_compute_workgroups_per_dimension
@@ -318,7 +322,7 @@ fn percentile_in_place(values: &mut [f32], q: f32) -> f32 {
     *values.select_nth_unstable_by(rank, f32::total_cmp).1
 }
 // Exact reference quantiles. This is global reduction, not CPU image filtering.
-fn airlight(stats: &[[f32; 4]], rgb: &[[f32; 4]]) -> Option<([f32; 3], f32)> {
+pub(crate) fn airlight(stats: &[[f32; 4]], rgb: &[[f32; 4]]) -> Option<([f32; 3], f32)> {
     let mut ys: Vec<_> = stats.iter().map(|v| v[0]).collect();
     let threshold = percentile(stats.iter().map(|v| v[1]).collect(), 0.90);
     let ceiling = percentile_in_place(&mut ys, 0.99);

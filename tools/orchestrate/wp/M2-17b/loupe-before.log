@@ -1,0 +1,30 @@
+Metal (Apple M4) loupe refinement:
+  tone exposure  1:1 1024²: cold pan median 69.5 ms, p90 70.5 ms; edit median 5.6 ms, p90 5.7 ms
+  texture        1:1 1024²: cold pan median 160.6 ms, p90 220.5 ms; edit median 183.2 ms, p90 197.4 ms
+  clarity        1:1 1024²: cold pan median 176.0 ms, p90 177.5 ms; edit median 176.8 ms, p90 180.1 ms
+  dehaze         1:1 1024²: cold pan median 188.6 ms, p90 195.7 ms; edit median 178.5 ms, p90 183.1 ms
+  luminance nr   1:1 1024²: cold pan median 56.1 ms, p90 57.9 ms; edit median 14.3 ms, p90 14.4 ms
+Metal (Apple M4) loupe refinement:
+  tone exposure  1:1 1024²: cold pan median 61.8 ms, p90 67.1 ms; edit median 5.6 ms, p90 6.1 ms
+  texture        1:1 1024²: cold pan median 184.4 ms, p90 239.0 ms; edit median 143.5 ms, p90 147.9 ms
+  clarity        1:1 1024²: cold pan median 179.6 ms, p90 192.7 ms; edit median 149.7 ms, p90 152.3 ms
+  dehaze         1:1 1024²: cold pan median 210.0 ms, p90 215.6 ms; edit median 154.8 ms, p90 155.7 ms
+  luminance nr   1:1 1024²: cold pan median 48.0 ms, p90 56.6 ms; edit median 16.6 ms, p90 17.9 ms
+Metal (Apple M4) loupe refinement:
+  tone exposure  1:1 1024²: cold pan median 56.5 ms, p90 67.1 ms; edit median 5.0 ms, p90 5.2 ms
+  texture        1:1 1024²: cold pan median 164.1 ms, p90 167.4 ms; edit median 154.7 ms, p90 157.0 ms
+  clarity        1:1 1024²: cold pan median 171.9 ms, p90 172.2 ms; edit median 156.6 ms, p90 158.4 ms
+  dehaze         1:1 1024²: cold pan median 176.4 ms, p90 178.1 ms; edit median 163.5 ms, p90 165.0 ms
+  luminance nr   1:1 1024²: cold pan median 57.2 ms, p90 58.5 ms; edit median 14.5 ms, p90 14.8 ms
+Metal (Apple M4) loupe refinement:
+  tone exposure  1:1 1024²: cold pan median 47.0 ms, p90 61.1 ms; edit median 5.0 ms, p90 5.2 ms
+  texture        1:1 1024²: cold pan median 159.6 ms, p90 193.7 ms; edit median 157.0 ms, p90 158.1 ms
+  clarity        1:1 1024²: cold pan median 176.3 ms, p90 177.5 ms; edit median 159.6 ms, p90 169.5 ms
+  dehaze         1:1 1024²: cold pan median 186.2 ms, p90 189.2 ms; edit median 164.6 ms, p90 166.7 ms
+  luminance nr   1:1 1024²: cold pan median 61.1 ms, p90 62.8 ms; edit median 17.9 ms, p90 26.8 ms
+Metal (Apple M4) loupe refinement:
+  tone exposure  1:1 1024²: cold pan median 84.5 ms, p90 107.7 ms; edit median 5.7 ms, p90 5.7 ms
+  texture        1:1 1024²: cold pan median 347.0 ms, p90 418.7 ms; edit median 157.0 ms, p90 162.3 ms
+  clarity        1:1 1024²: cold pan median 163.2 ms, p90 172.7 ms; edit median 154.1 ms, p90 164.0 ms
+  dehaze         1:1 1024²: cold pan median 174.6 ms, p90 175.0 ms; edit median 164.4 ms, p90 166.3 ms
+  luminance nr   1:1 1024²: cold pan median 49.2 ms, p90 53.6 ms; edit median 18.7 ms, p90 19.1 ms

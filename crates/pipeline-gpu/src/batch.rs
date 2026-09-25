@@ -13,6 +13,25 @@ use std::sync::{
 };
 use wgpu::util::DeviceExt;
 
+/// A GPU-resident per-pixel (vignette mask, grain value) map and its key.
+pub(crate) type EffectsMap = (Vec<u32>, wgpu::Buffer);
+
+/// Transient GPU memory retained between resident transactions.
+const RECYCLE_BYTES: u64 = 1 << 30;
+
+/// Retains up to [`RECYCLE_BYTES`] of idle transient buffers from an ended
+/// transaction (most recently retired first).
+pub(crate) fn recycle(recycled: &std::sync::Mutex<Vec<wgpu::Buffer>>, mut free: Vec<wgpu::Buffer>) {
+    let mut recycled = recycled.lock().unwrap();
+    free.append(&mut recycled);
+    let mut bytes = 0;
+    free.retain(|b| {
+        bytes += b.size();
+        bytes <= RECYCLE_BYTES
+    });
+    *recycled = free;
+}
+
 /// Transfer diagnostics, shared by clones of a backend (not by all contexts).
 #[derive(Debug, Default, Clone, Copy)]
 pub struct GpuStats {
@@ -57,7 +76,20 @@ pub struct GpuStageOp {
     pub(crate) zero_pipeline: wgpu::ComputePipeline,
     pub(crate) histogram_pipeline: wgpu::ComputePipeline,
     pub(crate) fused_pipeline: wgpu::ComputePipeline,
+    /// Builds cached per-pixel vignette/grain constants (compiled on use).
+    pub(crate) effects_map_pipeline: Arc<std::sync::OnceLock<wgpu::ComputePipeline>>,
+    /// The last effects constants map: (parameter key, buffer).
+    pub(crate) effects_map: Arc<std::sync::Mutex<Option<EffectsMap>>>,
     pub(crate) detail_pipelines: Vec<wgpu::ComputePipeline>,
+    /// Resident Texture/Clarity/Dehaze kernels, compiled on first use.
+    pub(crate) local_tone:
+        Arc<std::sync::OnceLock<Result<Arc<crate::resident::LocalTonePipelines>, String>>>,
+    /// Placeholder binding for fused dispatches without an effects map.
+    pub(crate) no_map: wgpu::Buffer,
+    /// Transient buffers retired by completed resident transactions.
+    pub(crate) recycled: Arc<std::sync::Mutex<Vec<wgpu::Buffer>>>,
+    /// Exact Dehaze (airlight, confidence) keyed by the renderer's input identity.
+    pub(crate) dehaze_stats: Arc<std::sync::Mutex<crate::resident::DehazeStatistics>>,
 }
 impl GpuStageOp {
     pub fn new(context: Arc<GpuContext>) -> Self {
@@ -152,6 +184,17 @@ impl GpuStageOp {
         Self {
             fused_pipeline: crate::fused::pipeline(&context),
             detail_pipelines: crate::detail::pipelines(&context).expect("valid Detail pipelines"),
+            local_tone: Arc::default(),
+            no_map: context.device.create_buffer(&wgpu::BufferDescriptor {
+                label: Some("no effects map"),
+                size: 8,
+                usage: wgpu::BufferUsages::STORAGE,
+                mapped_at_creation: false,
+            }),
+            effects_map_pipeline: Arc::default(),
+            effects_map: Arc::default(),
+            recycled: Arc::default(),
+            dehaze_stats: Arc::default(),
             context,
             counters: Arc::default(),
             managed_output: None,
@@ -163,13 +206,44 @@ impl GpuStageOp {
             zero_pipeline,
         }
     }
+    /// Diagnostic name of a resident pipeline (GPU profiling output).
+    pub(crate) fn pipeline_name(&self, p: &wgpu::ComputePipeline, groups: [u32; 2]) -> String {
+        let local = self.local_tone.get().and_then(|r| r.as_ref().ok());
+        let name = if p == &self.fused_pipeline {
+            "fused point chain"
+        } else if p == &self.context.pipeline {
+            "operator"
+        } else if p == &self.resident_pipeline {
+            "resident transfer"
+        } else if p == &self.gather_pipeline {
+            "gather"
+        } else if p == &self.histogram_pipeline {
+            "surface + histogram"
+        } else if p == &self.surface_pipeline {
+            "surface"
+        } else if p == &self.zero_pipeline {
+            "zero"
+        } else if self.detail_pipelines.first() == Some(p) {
+            "detail decompose"
+        } else if self.detail_pipelines.get(1) == Some(p) {
+            "detail filter"
+        } else if self.effects_map_pipeline.get() == Some(p) {
+            "effects map"
+        } else {
+            local.and_then(|l| l.name(p)).unwrap_or("other")
+        };
+        format!("{name} {}x{}", groups[0], groups[1])
+    }
     pub fn cache_bytes(&self) -> usize {
         self.resident_cache.lock().unwrap().bytes()
     }
     pub fn clear_cache(&self) {
+        self.recycled.lock().unwrap().clear();
         let mut cache = self.resident_cache.lock().unwrap();
         let budget = cache.budget();
         *cache = crate::resident::Cache::new(budget);
+        self.dehaze_stats.lock().unwrap().clear();
+        *self.effects_map.lock().unwrap() = None;
     }
     pub fn context(&self) -> &Arc<GpuContext> {
         &self.context
@@ -289,7 +363,7 @@ impl GpuStageOp {
                     src = dst;
                     continue;
                 }
-                let entries: Vec<_> = [&src, &dst, &params]
+                let mut entries: Vec<_> = [&src, &dst, &params]
                     .iter()
                     .enumerate()
                     .map(|(i, b)| wgpu::BindGroupEntry {
@@ -297,6 +371,13 @@ impl GpuStageOp {
                         resource: b.as_entire_binding(),
                     })
                     .collect();
+                // Unused effects-map slot: tile batches evaluate constants inline.
+                if fused {
+                    entries.push(wgpu::BindGroupEntry {
+                        binding: 3,
+                        resource: self.no_map.as_entire_binding(),
+                    });
+                }
                 let group = ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
                     label: None,
                     layout: &pipeline.get_bind_group_layout(0),
@@ -412,6 +493,7 @@ impl StageOp for GpuStageOp {
                 > limits
                     .max_storage_buffer_binding_size
                     .min(limits.max_buffer_size)
+                    .min(128 << 20)
             {
                 return CpuStageOp.run_image(stage, op, input, cancel);
             }

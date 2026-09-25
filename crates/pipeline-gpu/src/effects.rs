@@ -126,6 +126,8 @@ pub(crate) fn parameters(
             } else {
                 0.
             },
+            // Set by the resident renderer when a cached constants map is bound.
+            0.,
         ];
         *cache = Some((key, p.to_vec()));
         p.to_vec()

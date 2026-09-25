@@ -105,17 +105,26 @@ fn coordinate(origin:u32,local:u32,halo:u32,extent:u32)->f32 {
  let d=local-halo;
  return f32(origin+min(d,extent-1u-origin));
 }
-fn effects_pixel(input:vec3<f32>,i:u32)->vec3<f32>{
- if p[26]!=0. {return input;}
- let stride=bitcast<u32>(p[1]);let halo=bitcast<u32>(p[2]);
- let gx=coordinate(bitcast<u32>(p[3]),i%stride,halo,bitcast<u32>(p[5]));
- let gy=coordinate(bitcast<u32>(p[4]),i/stride,halo,bitcast<u32>(p[6]));
+// Crop-frame coordinates (u, v) of global pixel (gx, gy).
+fn effects_uv(gx:f32,gy:f32)->vec2<f32>{
  let dx=gx+0.5-p[9];let dy=gy+0.5-p[10];
  let u=divide(fma(p[12],dx,0.)-fma(p[11],dy,0.),p[7])+0.5;
  let v=divide(fma(p[11],dx,0.)+fma(p[12],dy,0.),p[8])+0.5;
- let radius=accurate_pow(accurate_pow(abs(2.*u-1.),p[14])+accurate_pow(abs(2.*v-1.),p[14]),divide(1.,p[14]));
+ return vec2(u,v);
+}
+// Amount-independent per-pixel constants: the vignette mask and the grain
+// value. The resident renderer caches these as a per-image map.
+fn vignette_mask(uv:vec2<f32>)->f32{
+ let radius=accurate_pow(accurate_pow(abs(2.*uv.x-1.),p[14])+accurate_pow(abs(2.*uv.y-1.),p[14]),divide(1.,p[14]));
  var mask=select(0.,1.,radius>=p[15]);
  if p[16]!=0. {mask=smooth_value(divide(radius-p[15],p[16]*(1.5-p[15])));}
+ return mask;
+}
+fn grain_value(uv:vec2<f32>)->f32{
+ let px=uv.x*p[21]*p[23]/p[19];let py=uv.y*p[22]*p[24]/p[19];
+ return (noise(px,py)+p[20]*0.5*noise(2.*px+19.,2.*py+7.))/(1.+p[20]*0.5);
+}
+fn effects_apply(input:vec3<f32>,mask:f32,value:f32)->vec3<f32>{
  var rgb=input;
  let y=fma(0.2627,rgb.x,0.)+fma(0.6780,rgb.y,0.)+fma(0.0593,rgb.z,0.);
  var protect=1.;if p[13]<0. {protect=1.-p[17]*smooth_value(y);}
@@ -124,13 +133,25 @@ fn effects_pixel(input:vec3<f32>,i:u32)->vec3<f32>{
   if p[25]==0. {rgb=rgb*pow(2.,2.*a);} else if p[25]==1. {rgb=perceptual(rgb,a);} else {rgb=rgb*(1.-abs(a))+vec3(select(0.,1.,a>0.)*abs(a));}
  }
  if p[18]>0. {
-  let px=u*p[21]*p[23]/p[19];let py=v*p[22]*p[24]/p[19];
-  let value=(noise(px,py)+p[20]*0.5*noise(2.*px+19.,2.*py+7.))/(1.+p[20]*0.5);
   // Match CPU operation order: multiply by amount before division by 100.
   let delta=value*(0.025+0.075*p[20])*p[18];
   rgb=rgb+vec3(delta);
  }
  return vec3(finite(rgb.x),finite(rgb.y),finite(rgb.z));
+}
+fn effects_xy(i:u32)->vec2<f32>{
+ let stride=bitcast<u32>(p[1]);let halo=bitcast<u32>(p[2]);
+ let gx=coordinate(bitcast<u32>(p[3]),i%stride,halo,bitcast<u32>(p[5]));
+ let gy=coordinate(bitcast<u32>(p[4]),i/stride,halo,bitcast<u32>(p[6]));
+ return vec2(gx,gy);
+}
+fn effects_pixel(input:vec3<f32>,i:u32)->vec3<f32>{
+ if p[26]!=0. {return input;}
+ let xy=effects_xy(i);
+ let uv=effects_uv(xy.x,xy.y);
+ var value=0.;
+ if p[18]>0. {value=grain_value(uv);}
+ return effects_apply(input,vignette_mask(uv),value);
 }
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) id:vec3<u32>){

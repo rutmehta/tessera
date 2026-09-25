@@ -1,0 +1,2179 @@
+   Compiling pipeline-gpu v0.1.0 (/Users/rutmehta/Developer/tessera/.worktrees/M2-17b/crates/pipeline-gpu)
+   Compiling tessera-ffi v0.1.0 (/Users/rutmehta/Developer/tessera/.worktrees/M2-17b/crates/tessera-ffi)
+    Finished `release` profile [optimized] target(s) in 29.85s
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/color_mgmt-8acecb40e86d277f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/cache.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/cache-82da6398227eee5e)
+
+running 3 tests
+test concurrent_transform_creation_shares_one_lut ... ok
+test registry_reuses_lut_across_transform_lifetimes_and_profile_handles ... ok
+test cache_separates_every_profile_and_option ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.55s
+
+     Running tests/color.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/color-a8f18f5636e514f6)
+
+running 2 tests
+test srgb_registry_deduplicates_bytes_and_files ... ok
+test builtin_profiles_have_expected_primaries_and_curves ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/display.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/display-e4d6efbca70df185)
+
+running 2 tests
+test display_discovery_returns_valid_deduplicated_profiles ... ok
+test unavailable_display_falls_back_to_srgb ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/gamut.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/gamut-587ea618d35baf49)
+
+running 1 test
+test saturated_prophoto_red_warns_but_neutral_does_not ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/linear_display.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/linear_display-eebeb89a479ed86c)
+
+running 1 test
+test linearized_matrix_profile_preserves_signed_values_and_reuses_registry ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/lut.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/lut-0093f13e56ee69a2)
+
+running 2 tests
+test lut_is_cached_red_fastest_and_interpolates_identity ... ok
+test lut_matches_direct_at_grid_points_for_non_identity ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/proof.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/proof-78e73afcbde1c96a)
+
+running 2 tests
+test small_gamut_proof_warns_separately_and_simulates_paper ... ok
+test proof_preserves_ink_black_with_source_bpc_enabled ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/transform.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/transform-99d75b84787c64e4)
+
+running 1 test
+test srgb_identity_across_cube_and_intents ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/compositor-be815433a9a52d33)
+
+running 1 test
+test tests::crate_is_available ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/cull-41fad18ecc76caf1)
+
+running 2 tests
+test persistence::tests::duplicate_batch_destinations_fail_before_any_writes ... ok
+test persistence::tests::late_same_stem_batch_collision_preserves_every_file_and_index_row ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/assistance.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/assistance-14f21b2d546f941f)
+
+running 6 tests
+test catalog_features_cover_quality_faces_embedding_and_burst_rank ... ok
+test best_of_burst_blends_taste_with_technical_and_ties_by_sharpness ... ok
+test invalid_and_stale_confirmation_is_all_or_nothing ... ok
+test manual_decisions_train_only_after_successful_write ... ok
+test queue_reordering_preserves_undo_redo_cursor_images ... ok
+test predictions_reorder_and_suggestions_only_commit_on_confirmation ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+
+     Running tests/defects.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/defects-6eb9574983f186a2)
+
+running 1 test
+test sweep_is_review_only_and_checks_both_directions ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/failures.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/failures-1c8a4f99bec71bab)
+
+running 2 tests
+test malformed_xmp_is_not_overwritten_and_does_not_advance ... ok
+test failed_group_write_rolls_back_sidecars_index_and_history ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+     Running tests/grouping.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/grouping-56784796f937aef7)
+
+running 2 tests
+test dhash_groups_jpeg_brightness_and_blur_variants_not_opposite_gradient ... ok
+test bursts_navigation_best_and_one_step_undo ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+     Running tests/grouping_strategy.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/grouping_strategy-49ff050150a34825)
+
+running 5 tests
+test embedding_combination_policy_contract ... ok
+test strategy_replaces_time_only_edges_instead_of_augmenting_them ... ok
+test strategy_components_and_members_follow_queue_order_transitively ... ok
+test strategy_retains_preview_errors_and_option_validation ... ok
+test embedding_strategy_gates_real_jpeg_edges_and_falls_back_conservatively ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/host_surface.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/host_surface-d3529fe12b79f7b6)
+
+running 3 tests
+test unix_second_capture_times_form_bursts_and_prev_in_group_stops_at_start ... ok
+test batch_basket_and_album_removal_are_undoable_and_never_touch_files ... ok
+test owned_session_batches_are_single_undo_steps_and_report_touched_images ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+
+     Running tests/learning.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/learning-f7d34ca6f47a1692)
+
+running 5 tests
+test pca_recovers_largest_variance_not_largest_sample ... ok
+test closed_eyes_and_missed_face_focus_dominate_cold_start ... ok
+test thirty_decisions_learn_blur_and_explain_it ... ok
+test pca_and_learning_roundtrip_are_library_local ... ok
+test full_rank_pca_is_finite_and_corrupt_models_fail_closed ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/library.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/library-2f2f07de0c2b7461)
+
+running 1 test
+test status_transitions_and_basket_share_global_history ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests/review_regressions.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/review_regressions-69c63646c005bb74)
+
+running 2 tests
+test basket_history_preserves_existing_album_and_unrelated_external_fields ... ok
+test basket_history_rejects_external_album_edits_without_writes ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests/saved_search.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/saved_search-ea909cc2a7dc5fe7)
+
+running 1 test
+test saved_search_reconciles_sidecars_before_boolean_filters ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/session.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/session-3fedd3f361b48fdc)
+
+running 6 tests
+test filtered_individual_edit_rejects_same_stem_peer_without_mutation ... ok
+test selection_query_reconciles_sidecars_before_filtering ... ok
+test empty_invalid_and_branched_history ... ok
+test whole_folder_and_query_are_not_limited_to_index_default_page ... ok
+test decision_history_restores_both_cursor_positions ... ok
+test keyboard_pass_persists_fifty_images_and_global_undo_redo ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.38s
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/engine_api-dc993312ee41f93e)
+
+running 48 tests
+test color::tests::illuminant_exif_codes ... ok
+test color::tests::working_space_conversion_preserves_white ... ok
+test color::tests::inverse_round_trips ... ok
+test color::tests::rec2020_to_xyz_matches_reference ... ok
+test color::tests::adaptation_maps_white_to_white ... ok
+test id::tests::numeric_ids_are_transparent ... ok
+test jobs::tests::priority_order ... ok
+test error::tests::display_is_human_readable ... ok
+test jobs::tests::cancellation_propagates_down_not_up ... ok
+test recipe::crs::tests::enhance_keys_are_informational_aux ... ok
+test jobs::tests::scheduler_runs_and_honours_cancellation ... ok
+test recipe::crs::tests::ranges ... ok
+test recipe::history::tests::diff_apply_round_trip ... ok
+test color::tests::icc_handle_is_content_addressed ... ok
+test id::tests::digest_hex_round_trip ... ok
+test id::tests::image_id_round_trip ... ok
+test recipe::selection::tests::invariant_is_kept ... ok
+test recipe::selection::tests::grade_serializes_as_number ... ok
+test recipe::crs::tests::names_unique_and_round_trip ... ok
+test recipe::settings::tests::empty_object_is_default ... ok
+test recipe::tests::hash_is_stable_across_releases ... ok
+test error::tests::serializes_with_code_tag ... ok
+test recipe::crs::tests::every_target_path_exists_in_the_recipe_schema ... ok
+test recipe::tests::native_exports_as_best_effort_pv6_with_companion ... ok
+test recipe::tests::newer_schema_is_read_only ... ok
+test recipe::settings::tests::schema_1_profile_ids_migrate ... ok
+test recipe::tests::ids_are_never_reused ... ok
+test recipe::tests::schema_1_documents_migrate_on_load ... ok
+test recipe::tests::empty_and_partial_documents_load ... ok
+test recipe::tests::stage_chain_seeded_by_process ... ok
+test stage::tests::canonical_json_is_order_independent ... ok
+test recipe::settings::tests::chain_changes_downstream_only ... ok
+test stage::tests::memo_key_digest_distinguishes_fields ... ok
+test recipe::history::tests::replay_matches_recorded_states ... ok
+test stage::tests::param_hash_is_stage_scoped_and_chained ... ok
+test stage::tests::stage_order_is_fixed ... ok
+test tile::tests::coord_parent_children ... ok
+test tile::tests::copy_on_write ... ok
+test recipe::tests::undo_redo_branch_and_snapshots ... ok
+test tile::tests::format_checks ... ok
+test tile::tests::extent_levels ... ok
+test tile::tests::halo_indexing ... ok
+test tile::tests::pyramid_defaults ... ok
+test recipe::tests::json_round_trip ... ok
+test tools::tests::minimal_json_uses_defaults ... ok
+test tools::tests::request_and_response_envelopes ... ok
+test tools::tests::every_call_round_trips_and_is_tagged_by_name ... ok
+test recipe::tests::hash_covers_render_state_only ... ok
+
+test result: ok. 48 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/export-b190e0efb6cadc44)
+
+running 9 tests
+test tests::naming_tokens_and_path_safety ... ok
+test tests::enhancement_render_does_not_quantize_model_input ... ok
+test filter::tests::lanczos_matches_independent_reference ... ok
+test filter::tests::lanczos_preserves_constants_and_suppresses_aliasing ... ok
+test codec::tests::cancel_during_encoding_stops_writes ... ok
+test codec::tests::shared_profiles_are_reused_and_tiff_quantizes_target_encoded_pixels ... ok
+test tests::enhancement_output_matches_managed_render_for_every_profile ... ok
+test batch::tests::serial_cancellation_before_commit_discards_prepared_files ... ok
+test tests::ai_subject_export_changes_pixels ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/ai_masks.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/ai_masks-b8c58cbd0d0d0d6d)
+
+running 6 tests
+test ai_lens_warp_fails_explicitly_instead_of_exporting_misaligned_masks ... ok
+test empty_object_prompt_is_rejected_instead_of_guessing_a_mask ... ok
+test invalid_or_failed_segmentation_never_publishes_image_or_sidecar ... ok
+test disabled_ai_never_calls_backend_and_matches_default_export ... ok
+test mixed_ai_composition_runs_before_geometry_and_matches_procedural_reference ... ok
+test raw_subject_export_maps_display_mask_back_to_active_sensor_area ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/batch.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/batch-2c560ae47cf28fc5)
+
+running 3 tests
+test bench_five_full_size_jpegs ... ignored, full-size five-image JPEG q90 benchmark
+test precancel_and_duplicate_names_publish_nothing ... ok
+test five_images_progress_cancel_and_resume ... ok
+
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 5.63s
+
+     Running tests/errors.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/errors-4751a220ad11da59)
+
+running 1 test
+test invalid_formats_existing_files_and_encoder_errors_are_atomic ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/export.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/export-ee2a5b119e4173eb)
+
+running 2 tests
+test jpeg_roundtrip_icc_and_selection_sidecar ... ok
+test formats_profiles_and_privacy ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.65s
+
+     Running tests/managed.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/managed-3448f2cff634330f)
+
+running 1 test
+test tiff_preserves_wide_gamut_float_render_until_final_quantization ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/resize.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/resize-2371124aa8d2e67c)
+
+running 1 test
+test resize_modes_and_sharpening ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.64s
+
+     Running tests/upscale.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/upscale-f1f7c54c35f39a70)
+
+running 2 tests
+test cached_model_exports_doubled_png ... ok
+test cached_models_batch_cancellation_resume_and_duplicate_preflight ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/image_core-a016a274c56689a6)
+
+running 9 tests
+test resample::tests::phase_clamp_matches_reference ... ok
+test cache::tests::f16_round_trip ... ok
+test graph::tests::order_and_flags ... ok
+test resample::tests::sources_cover_halo_and_edges ... ok
+test cache::tests::lru_eviction_respects_budget_and_recency ... ok
+test resident_model::disabled_detail_still_validates_controls ... ok
+test graph::tests::dirty_stage_and_rerun_set ... ok
+test resident_model::preview_matrices_run_only_at_output_resolution ... ok
+test resident_model::resident_graph_preserves_crop_phase_parity_and_edit_invalidation ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.08s
+
+     Running tests/batch.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/batch-7490b63b4b70cb05)
+
+running 1 test
+test cpu_batch_hook_preserves_in_place_ownership ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/denoise.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/denoise-b7dc939485c287c4)
+
+running 2 tests
+test denoise_dirties_demosaic_not_reserved_raw_stage ... ok
+test full_image_inference_cached_at_demosaic ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/fixture.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/fixture-44034cb9fe964180)
+
+running 3 tests
+test bench_tone_only_change_at_level_2 ... ignored
+test fixture_level3_matches_pipeline_cpu ... ok
+test fixture_level3_m2_extremes_are_finite ... ok
+
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 7.35s
+
+     Running tests/locals.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/locals-fa2c748825f18733)
+
+running 2 tests
+test locals_stage_applies_masked_exposure_after_color ... ok
+test graph_reuses_raster_for_sliders_but_not_upstream_or_mask_edits ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/locals_order.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/locals_order-4e814e881d27dbb2)
+
+running 1 test
+test empty_masks_are_identity_and_groups_add_deltas_from_prelocal_color ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/m2.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/m2-965c545f44bb82f0)
+
+running 4 tests
+test m2_cropped_regions_levels_and_cancellation ... ok
+test image_stage_fallbacks_match_reference_and_count_global_barriers ... ok
+test m2_cache_reuses_wb_but_dispatches_changed_controls ... ok
+test m2_matches_whole_image_reference_across_seams_and_crop ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.40s
+
+     Running tests/mask_cache.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/mask_cache-c5b7a215a759b7ac)
+
+running 3 tests
+test warm_geometric_cache_does_not_bypass_rgb_validation ... ok
+test raster_cache_is_byte_bounded_and_rejects_oversized_entries ... ok
+test raster_cache_reuses_sliders_and_invalidates_every_raster_input ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/ml_denoise.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/ml_denoise-e0a9926324a8ee97)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/render.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/render-bc0bf997e3bf3da1)
+
+running 10 tests
+test rejects_unsupported_settings_and_bad_requests ... ok
+test progressive_render_is_cancellable_between_tiles ... ok
+test progressive_job_runs_on_the_scheduler ... ok
+test progressive_render_delivers_coarse_first ... ok
+test tone_change_reuses_white_balance_and_reruns_uncached_detail ... ok
+test sub_region_equals_the_same_tiles_of_a_full_render ... ok
+test cache_budget_is_respected_and_does_not_change_cold_output ... ok
+test xtrans_matches_reference ... ok
+test level_zero_matches_reference_for_non_default_settings ... ok
+test cold_render_matches_reference_at_every_level ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.34s
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/import_lrcat-5ca32633e719fc58)
+
+running 17 tests
+test lua::tests::parses_rule ... ok
+test lua::tests::rejects_malformed_or_executable_input ... ok
+test lua::tests::scalar_forms_preserve_types ... ok
+test lua::tests::rejects_excessive_nesting_and_truncation_without_panicking ... ok
+test lua::tests::parses_nested_lightroom_data ... ok
+test xmp::tests::scalar_attributes_use_mappings_and_history ... ok
+test xmp::tests::foreign_namespace_and_opaque_structures_are_retained_not_applied ... ok
+test xmp::tests::duplicate_properties_preserve_the_superseded_value ... ok
+test xmp::tests::mask_groups_translate_supported_geometry_and_retain_source ... ok
+test xmp::tests::curves_and_unsupported_payloads_are_not_dropped ... ok
+test xmp::tests::unsupported_mask_prevents_partial_group_application ... ok
+test xmp::tests::malformed_duplicate_does_not_erase_previous_valid_choice ... ok
+test xmp::tests::process_versions_and_legacy_warning ... ok
+test xmp::tests::invalid_scalars_and_curves_are_preserved_without_poisoning_settings ... ok
+test xmp::tests::shared_codec_imports_namespaced_profiles_aux_and_lens_blur ... ok
+test xmp::tests::catalog_version_fallback_disagreement_and_native_hash ... ok
+test xmp::tests::native_structures_and_renamed_namespaces_use_shared_codec ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/import.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/import-3e519c80554703c3)
+
+running 5 tests
+test missing_table_is_a_named_engine_error ... ok
+test committed_wal_and_lock_are_copied_without_touching_source ... ok
+test extra_columns_and_empty_folders_are_supported ... ok
+test synthetic_catalog_plan ... ok
+test all_selection_mappings_and_reject_precedence ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/make_fixture.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/make_fixture-62281d5b9e6d4bf0)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/index-7984835228576354)
+
+running 8 tests
+test tests::benchmark_search_and_facets_at_100k_images ... ignored, 100k-row performance benchmark; run with cargo test -p index -- --ignored
+test tests::migrations_create_fts_and_selection_round_trip ... ok
+test tests::empty_facets_are_valid ... ok
+test tests::keyword_closure_includes_descendants ... ok
+test tests::embedded_tiff_camera_is_searchable_without_quotes ... ok
+test tests::incremental_scan_skips_unchanged_files ... ok
+test tests::sidecar_changes_refresh_keywords_and_selection ... ok
+test tests::persistent_migrations_pragmas_and_rtree ... ok
+
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/catalog.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/catalog-ded8f3d31948a7df)
+
+running 5 tests
+test missing_root_is_an_error ... ok
+test selection_and_all_filters ... ok
+test dotted_filename_recipe_changes_invalidate_scan ... ok
+test folder_boundaries_keyword_text_and_paging ... ok
+test raw_fixtures_scan_incrementally_when_available ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/culling.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/culling-ef18680749d782f6)
+
+running 2 tests
+test culling_records_scores_and_exports_survive_reopen ... ok
+test upgrade_v3_preserves_images_and_selection ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/faces.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/faces-2f0d6a1a90e8670c)
+
+running 7 tests
+test replacing_faces_requires_an_existing_image_even_for_empty_input ... ok
+test replacing_faces_rebuilds_only_face_scores_and_minima ... ok
+test face_records_roundtrip_after_reopen ... ok
+test database_write_failure_rolls_back_faces_and_scores ... ok
+test invalid_face_replacement_preserves_previous_records_and_scores ... ok
+test face_ordinals_are_image_local ... ok
+test upgrade_v4_preserves_scores_and_face_rows_cascade_on_image_delete ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/predicates.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/predicates-93fa38acdf7df64c)
+
+running 8 tests
+test typed_predicates_round_trip_and_legacy_queries_default_to_none ... ok
+test not_matches_missing_selection_and_nullable_fields ... ok
+test nested_boolean_filters_use_the_same_set_for_facets ... ok
+test numeric_comparisons_and_missing_scores_are_two_valued ... ok
+test person_focus_and_metadata_leaves_intersect ... ok
+test ids_scope_intersects_legacy_filters_before_paging_and_facets ... ok
+test user_strings_remain_values_and_dates_are_half_open ... ok
+test semantic_candidates_are_filtered_by_predicate_without_api_changes ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/semantic.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/semantic-949a60fbc089fea4)
+
+running 5 tests
+test semantic_ranking_filters_before_pagination ... ok
+test vector_hits_are_sorted_deduplicated_and_catalog_scoped ... ok
+test hybrid_rrf_rewards_overlap_and_keeps_single_source_hits ... ok
+test legacy_queries_do_not_call_provider_and_old_json_deserializes ... ok
+test hybrid_uses_bm25_not_capture_order_and_filters_lexical_hits ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/jobs-edddb92277899fa2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/scheduler.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/scheduler-fe1784e0ebe71b22)
+
+running 16 tests
+test blocking_run_returns_result_on_calling_thread ... ok
+test last_pool_owner_can_be_dropped_inside_job ... ok
+test dropping_pool_cancels_running_and_queued_work ... ok
+test default_uses_physical_cores ... ok
+test priority_then_fifo ... ok
+test reprioritize_job_and_group_preserves_original_fifo ... ok
+test throughput_100k_noop_jobs ... ignored, manual throughput benchmark: 100k no-op jobs
+test zero_workers_rejected - should panic ... ok
+test errors_and_panics_do_not_kill_worker ... ok
+test cancelled_queued_jobs_never_start ... ok
+test running_cancel_reports_progress_and_reaches_descendants ... ok
+test scheduler_group_cancel_is_isolated ... ok
+test four_workers_pick_ready_ui_before_export ... ok
+test group_cancel_reaches_running_queued_and_future_jobs ... ok
+test ten_thousand_tiny_jobs_complete ... ok
+test random_submit_cancel_from_four_threads ... ok
+
+test result: ok. 15 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/lens-e7bda32e2d0520b3)
+
+running 3 tests
+test opcodes::tests::rectilinear_preserves_planes_and_center ... ok
+test opcodes::tests::vignette_and_malformed ... ok
+test opcodes::tests::warp_three_planes_and_invalid_values ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/ca.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/ca-79da4a32cdecb1c4)
+
+running 1 test
+test estimate_channel_radial_alignment ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/calibration.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/calibration-97c24d20f8b9be06)
+
+running 1 test
+test recover_radial_straightness ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/camera_matching.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/camera_matching-84c7db836ec8c99e)
+
+running 4 tests
+test lens_only_lookup_does_not_choose_a_camera_specific_profile ... ok
+test ambiguous_lens_makers_require_explicit_selection ... ok
+test old_user_profile_without_camera_still_loads ... ok
+test lcp_retains_camera_identity_separately_from_lens_maker ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/core.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/core-d5925c68d267bf61)
+
+running 1 test
+test brown_round_trip ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/degenerate.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/degenerate-f15db71393bad2b4)
+
+running 2 tests
+test full_requires_two_valid_vanishing_families ... ok
+test malformed_and_nonfinite_are_rejected ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/end_to_end.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/end_to_end-c7193a19c5bfdc65)
+
+running 1 test
+test image_edges_recover_barrel_distortion ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/image_lines.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/image_lines-4693e734dfbb8dcd)
+
+running 1 test
+test detect_edges_not_flat_field ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/lcp.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/lcp-a1ad627909440774)
+
+running 1 test
+test lcp_nested_samples_and_ca ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/lcp_li.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/lcp_li-36a229bd2c46ad2f)
+
+running 1 test
+test lcp_rdf_li_property_elements ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/lensfun_models.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/lensfun_models-1c25b67f3102c643)
+
+running 2 tests
+test lensfun_ptlens_ca_vignette_samples ... ok
+test independent_calibration_grids_preserve_measured_focal_lengths ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/normalization.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/normalization-707b35bd8565e734)
+
+running 1 test
+test lcp_focal_coordinate_units ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/profiles.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/profiles-30d7233b3db63ddd)
+
+running 1 test
+test lensfun_load_sample_match_save ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/sampling.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/sampling-3660730d417e1bd7)
+
+running 1 test
+test sample_clamps_outside_domain_and_rejects_bad_data ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/upright.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/upright-717e54cd52f493b8)
+
+running 1 test
+test robust_full_upright_and_guides ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/vignette.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/vignette-cc4b60872a1ef596)
+
+running 1 test
+test fit_smooth_radial_illumination ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/library-f832594a5e3e2fff)
+
+running 12 tests
+test search::tests::every_numeric_comparison_is_compiled ... ok
+test search::tests::parses_and_compiles_native_rating ... ok
+test search::tests::precedence_and_adjacency ... ok
+test search::tests::semantic_is_only_a_single_positive_conjunct ... ok
+test search::tests::typed_predicates_and_literal_fts ... ok
+test search::tests::malformed_input_has_byte_positions ... ok
+test search::tests::dates_are_validated_and_use_exclusive_boundaries ... ok
+test search::tests::arbitrary_imported_ast_and_empty_groups_roundtrip ... ok
+test search::tests::boundary_sized_searches_display_roundtrip ... ok
+test search::tests::user_expression_roundtrip ... ok
+test search::tests::bounded_parsing_and_compilation ... ok
+test search::tests::encoded_ast_validation_and_original_shape ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/document.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/document-25f4ab7caf8e38aa)
+
+running 1 test
+test document_roundtrip_and_safe_delete ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/scope.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/scope-fc6856b9f5c238f5)
+
+running 2 tests
+test ordered_album_operations_keep_identity ... ok
+test compiled_filters_and_nested_project_scope_use_real_sql ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/sidebar.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/sidebar-3ea03199fe1185a7)
+
+running 5 tests
+test keyword_tree_is_unique_and_safely_editable ... ok
+test older_documents_default_to_scoped_smart_albums ... ok
+test diagnostics_locate_the_offending_rule ... ok
+test sidebar_order_nesting_and_safe_group_delete ... ok
+test album_rules_and_scope_toggle_resolve_against_the_library ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/libraw_ffi-871b82cbb5d794d0)
+
+running 10 tests
+test sensor_tests::orientation_converts_all_libraw_flags ... ok
+test sensor_tests::gain_map_parser_respects_lengths_and_big_endian ... ok
+test sensor_tests::metadata_uses_lens_black_wb_matrix_and_absolute_xtrans ... ok
+test sensor_tests::original_matrices_are_independent_and_lossless ... ok
+test sensor_tests::dng_crop_is_relative_to_active_origin ... ok
+test tests::metadata_owns_opcode_bytes_in_stage_order ... ok
+test tests::missing_file_is_error ... ok
+test sensor_tests::lens_falls_back_to_makernotes ... ok
+test sensor_tests::fixture_previews_select_largest_jpeg_not_bitmap ... ok
+test tests::fixture_decode ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.55s
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/mask_ai-696c6bc9d809c40c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/merge-4402d2b130b71107)
+
+running 11 tests
+test dng::tests::rejects_invalid_images_before_writing ... ok
+test tests::checked_image_and_bilinear_sample ... ok
+test dng::tests::linear_float_roundtrip ... ok
+test dng::tests::empty_xmp_is_omitted ... ok
+test dng::tests::reads_big_endian_float_dng ... ok
+test dng::tests::rejects_unsupported_predictor_and_subifds ... ok
+test pano::tests::largest_covered_rectangle_matches_brute_force ... ok
+test dng::tests::rejects_malformed_files ... ok
+test blend::tests::multiband_preserves_constants_and_softens_a_seam ... ok
+test pano::tests::output_dimension_limit_is_checked_before_blend_allocation ... ok
+test features::tests::ransac_rejects_sixty_percent_outliers_and_collinear_points ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/alignment.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/alignment-08de523b867bb225)
+
+running 2 tests
+test tile_refinement_tracks_local_residual_without_moving_flat_tiles ... ok
+test phase_alignment_recovers_translation_and_small_rotation ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+     Running tests/clipped_motion.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/clipped_motion-ca3c0be8945b12d1)
+
+running 1 test
+test clipping_is_an_interval_not_an_excuse_to_ignore_motion ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/combined.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/combined-31234d75defde103)
+
+running 1 test
+test hdr_panorama_normalizes_bracket_reference_exposures_and_writes_dng ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests/hdr.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/hdr-376cd6da892eb352)
+
+running 4 tests
+test noisy_two_ev_bracket_recovers_linear_scene ... ok
+test moving_object_is_masked_and_reference_is_preserved ... ok
+test histogram_refines_bad_exif_and_strength_is_monotone ... ok
+test hdr_uses_registration_and_skips_missing_border_samples ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+     Running tests/panorama.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/panorama-ffcaae19710b4ece)
+
+running 5 tests
+test projections_and_crop_are_real ... ok
+test fill_preserves_measured_coverage_and_metadata ... ok
+test rejects_bad_inputs ... ok
+test malformed_and_disconnected_images_are_rejected ... ok
+test three_projective_views_recover_scene ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/raw_input.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/raw_input-b62cc30e5518d045)
+
+running 1 test
+test demosaic_preserves_camera_space_and_crops_active_area ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/recipe.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/recipe-90a29f1de39d3c2b)
+
+running 1 test
+test recipe_is_editable_and_embedded_in_float_dng ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/validation.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/validation-9b5c74a2236be755)
+
+running 2 tests
+test extremely_thin_alignment_is_rejected_without_fft_panic ... ok
+test invalid_hdr_inputs_return_errors ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/ml_depth-0334dfb2f04e3f94)
+
+running 1 test
+test tests::normalization_and_direction ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/depth.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/depth-8a81fc57e88b22f9)
+
+running 1 test
+test refinement_cache_and_far_plane ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/model.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/model-0349999124c23afa)
+
+running 1 test
+test cached_model_fixture_and_partition ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/ml_embed-362b0a93da20e7af)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/grouping.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/grouping-ead3c8f4fadfe731)
+
+running 5 tests
+test snapshot_rejects_corrupt_or_inconsistent_vectors ... ok
+test policy_matrix_normalizes_vectors_and_requires_supporting_evidence ... ok
+test disabling_near_duplicates_uses_only_capture_proximity ... ok
+test missing_vectors_use_real_jpeg_hashes_conservatively ... ok
+test real_cull_session_uses_snapshot_to_gate_jpeg_near_duplicates ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/job.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/job-60b706c656e8f2da)
+
+running 14 tests
+test cancellation_before_run_does_no_io ... ok
+test empty_folder_does_not_infer ... ok
+test jpeg_exif_orientation_is_applied_before_inference ... ok
+test folder_alias_is_resolved_before_catalog_matching ... ok
+test folder_components_include_descendants_not_prefix_siblings ... ok
+test cancellation_between_writes_preserves_only_written_rows ... ok
+test mismatched_inference_batch_is_an_error_not_silent_partial_success ... ok
+test corrupt_preview_returns_error_preserving_completed_batches ... ok
+test cancellation_after_inference_discards_batch_preserves_prior_batches ... ok
+test scheduler_executes_job_and_reports_success ... ok
+test job_batches_eight_and_persists_vectors ... ok
+test persisted_current_version_skips_missing_previews_but_new_version_reembeds ... ok
+test raw_preview_is_loaded_through_preview_store ... ok
+test folder_job_is_not_truncated_at_catalog_default_page_size ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+     Running tests/preprocess.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/preprocess-7d1b43e1de7a94e6)
+
+running 1 test
+test siglip_rgb_nchw_normalization_and_batch ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/siglip.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/siglip-047efe81af536c5c)
+
+running 1 test
+test cached_siglip_synthetic_similarity_and_cube_retrieval ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/vector.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/vector-f9fe34f2516ed95c)
+
+running 5 tests
+test sqlite_rejects_invalid_shapes_and_partitions_model_dimensions ... ok
+test sqlite_persists_normalized_vectors_and_ranks_cosine ... ok
+test hnsw_rebuilds_replacements_and_clamps_unbounded_search ... ok
+test hnsw_top_five_matches_exact_for_seeded_thousand_vectors ... ok
+test auto_selects_and_promotes_only_above_fifty_thousand ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.70s
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/ml_enhance-1c7ebffd8604b164)
+
+running 1 test
+test tests::zero_amount_is_bit_exact_and_does_not_run_model ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/blend.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/blend-f91652b4828ca264)
+
+running 2 tests
+test mask_amount_blend_and_zero_mask_bypass ... ok
+test rejects_invalid_inputs_before_inference_and_invalid_results ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/denoiser.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/denoiser-0bd548fdd2ddc25d)
+
+running 5 tests
+test cached_drunet_full_vs_distinct_tiles ... ok
+test cached_drunet_improves_noisy_gradient_by_three_db ... ok
+test cached_drunet_reports_executed_coreml_partitions ... ok
+test cached_denoiser_zero_and_mask_bypass_are_bit_exact ... ok
+test cached_drunet_mask_blends_in_linear_light_and_hint_is_advisory ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/model_seams.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/model_seams-c0996911bb55dd04)
+
+running 2 tests
+test cached_x2_full_vs_tiled_with_partial_halo_patches ... ok
+test cached_x4_full_vs_tiled_with_partial_halo_patches ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/models.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/models-fca5ea3ea1b1abdb)
+
+running 2 tests
+test cached_realesrgan_doubles_dimensions_preserves_edge_and_reports_coreml ... ok
+test cached_realesrgan_x4_scales_and_reports_coreml ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/tiling.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/tiling-bafc88e5ede948ac)
+
+running 3 tests
+test refuses_insufficient_halo_and_bad_alignment ... ok
+test scaling_crop_preserves_edge_and_odd_dimensions ... ok
+test local_runtime_model_has_no_tiling_seams ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/ml_faces-4603cc6649ac83e4)
+
+running 1 test
+test tests::clustering_is_scale_invariant_and_keeps_distinct_people ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/geometry.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/geometry-7b765fb5a6bb1f7f)
+
+running 4 tests
+test nms_keeps_highest_score_and_disjoint_boxes ... ok
+test alignment_is_identity_for_canonical_landmarks_and_rejects_degenerate ... ok
+test face_sharpness_separates_blur_and_geometry_proxy_is_bounded ... ok
+test letterbox_preserves_aspect_ratio_and_bgr ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/models.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/models-91917794b499a91a)
+
+running 3 tests
+test generated_pattern_shapes_and_embeddings ... ok
+test raw_previews_write_scores_without_assuming_people ... ok
+test both_models_report_real_coreml_partitions ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.07s
+
+     Running tests/scorer.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/scorer-c0eb899febf26f61)
+
+running 1 test
+test face_scorer_reads_minimum_face_focus_and_handles_absence ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/strip.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/strip-5285b2700d8d1e51)
+
+running 6 tests
+test degenerate_landmarks_preserve_unknown_eyes_and_tiny_crops_are_safe ... ok
+test empty_detections_are_valid_but_empty_images_are_not ... ok
+test crops_are_clipped_and_rounded_outward_in_input_order ... ok
+test supplied_detection_produces_ui_chip_without_models ... ok
+test invalid_detections_fail_the_whole_strip ... ok
+test catalog_strips_and_person_filters_use_identity_not_detection_ordinals ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/ml_quality-984618d7123fa6d1)
+
+running 9 tests
+test tests::exposure_counts_each_channel_independently ... ok
+test tests::rejects_empty_previews ... ok
+test tests::exposure_is_bounded_for_tiny_and_solid_images ... ok
+test tests::laplacian_separates_sharp_from_blurred ... ok
+test tests::flat_region_noise_increases_with_amplitude ... ok
+test tests::anisotropy_detects_directional_structure ... ok
+test tests::catalog_scores_roundtrip_and_replace ... ok
+test tests::scorer_uses_persisted_quality_not_file_size ... ok
+test tests::preview_is_capped_at_1024_without_upscaling ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/culling.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/culling-3060fffa1abcdadd)
+
+running 1 test
+test computed_signals_drive_default_best_and_defect_review ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/ml_runtime-7f83aeb1b24a4898)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/guard.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/guard-2aa83b952442ae01)
+
+running 3 tests
+test bench_twenty_runs_coreml_vs_cpu ... ignored, manual timing benchmark
+test registered_models_coreml_guard ... ok
+test cpu_and_empty_reports_fail_coreml_policy ... ok
+
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/named_tensors.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/named_tensors-400de1f497af8bd5)
+
+running 6 tests
+test invalid_inputs_return_errors_without_panicking ... ok
+test int64_manifest_specs_support_partition_probes ... ok
+test named_i64_tokens_return_multiple_float_outputs ... ok
+test dimension_overrides_pin_symbolic_batch_without_changing_default_load ... ok
+test fp32_outputs_preserve_arbitrary_rank_and_batches ... ok
+test fp16_inputs_and_outputs_preserve_arbitrary_rank_and_batches ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/registry.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/registry-0267b67267848105)
+
+running 1 test
+test registry_resolves_version_and_rejects_corruption ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/registry_validation.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/registry_validation-d4ae1dea7e4fe24f)
+
+running 3 tests
+test bad_download_never_enters_cache ... ok
+test malformed_and_duplicate_manifests_are_rejected ... ok
+test multiple_versions_require_explicit_reference ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/runtime.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/runtime-13917b8cdbfeaa7d)
+
+running 4 tests
+test cpu_conv_matches_reference ... ok
+test tiled_matches_whole_image ... ok
+test coreml_runs_and_reports_real_nodes ... ok
+test fp16_matches_reference ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests/tensor.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/tensor-68e9e4b1b03f9d62)
+
+running 2 tests
+test invalid_tensor_shapes_are_errors ... ok
+test planar_tiles_roundtrip_with_halo_and_half_precision ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/ml_segment-0b942642f28d0cd9)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/cache.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/cache-0657d08343fd7c0e)
+
+running 4 tests
+test validates_prompts_and_face_boxes ... ok
+test sky_prior_is_top_connected_and_excludes_subject ... ok
+test lossless_cache_survives_reopen_and_corruption_is_miss ... ok
+test cache_budget_and_identity ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/job.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/job-b44376d2b98e0ca2)
+
+running 1 test
+test score_job_precomputes_both_and_checks_cancellation ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/models.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/models-8ec2b220b772a53a)
+
+running 1 test
+test cached_models_segment_synthetic_and_fixture ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/refine.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/refine-c09732c094e4fd6d)
+
+running 1 test
+test guided_refinement_preserves_edge ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/pipeline_cpu-68dd31b7bbcf168a)
+
+running 41 tests
+test color_detail::tests::active_detail_requires_real_halo_without_partial_write ... ok
+test color_detail::tests::hsl_windows_partition_and_wrap_and_lightness_is_independent ... ok
+test color_detail::tests::eight_hsl_bands_change_their_centers_smoothly ... ok
+test color_detail::tests::chroma_nr_smooths_opponents_preserving_linear_luminance ... ok
+test color_detail::tests::defaults_apply_sharpening_and_keep_halos ... ok
+test color_detail::tests::luminance_nr_reduces_noise_with_sharpening_disabled ... ok
+test color_detail::tests::grading_wheels_balance_and_blending_are_effective ... ok
+test color_detail::tests::invalid_inputs_and_unsupported_controls_are_rejected_atomically ... ok
+test color_detail::tests::saturation_minus_100_removes_chroma ... ok
+test color_detail::tests::detail_subsettings_are_independent_and_halo_is_bounded ... ok
+test color_detail::tests::detail_is_partition_invariant_and_keeps_input_halo ... ok
+test color_detail::tests::signed_hdr_roundtrip_and_neutral_bit_patterns ... ok
+test color_detail::tests::vibrance_boosts_muted_colors_and_protects_skin ... ok
+test geometry_effects::tests::effects_default_is_exact_and_shares_storage ... ok
+test geometry_effects::tests::effects_errors_are_atomic_and_extremes_finite ... ok
+test color_detail::tests::sharpening_controls_boost_and_mask_texture ... ok
+test geometry_effects::tests::geometry_and_lab_extreme_samples_stay_finite ... ok
+test geometry_effects::tests::lanczos_uses_scalar_f32_rounding ... ok
+test geometry_effects::tests::geometry_identity_and_integer_crop ... ok
+test geometry_effects::tests::rotation_constant_center_and_black_corners ... ok
+test tone_extra::tests::airlight_rejects_isolated_hdr_outlier ... ok
+test tone_extra::tests::channel_and_luminance_curves_have_distinct_semantics ... ok
+test tone_extra::tests::clarity_changes_midscale_but_preserves_constant_rgb ... ok
+test geometry_effects::tests::straighten_fractional_crop_and_validation ... ok
+test geometry_effects::tests::effects_global_coordinates_match_halos_and_levels ... ok
+test tone_extra::tests::finite_extremes_and_subnormal_knots_stay_bounded ... ok
+test tone_extra::tests::invalid_parameters_reject_before_mutation ... ok
+test tone_extra::tests::dehaze_removes_or_adds_haze_and_protects_white_scene ... ok
+test tone_extra::tests::log_axis_is_scalar_single_precision ... ok
+test tone_extra::tests::luminance_curve_can_lift_absolute_black ... ok
+test tone_extra::tests::master_curve_lifts_and_preserves_hdr ... ok
+test tone_extra::tests::neutral_is_bit_exact_and_keeps_shared_storage ... ok
+test tone_extra::tests::negative_presence_reduces_contrast_and_extremes_remain_finite ... ok
+test tone_extra::tests::parametric_regions_lift_on_log_axis_and_are_monotone ... ok
+test tone_extra::tests::texture_changes_fine_contrast_without_step_ringing ... ok
+test tone_extra::tests::spline_is_monotone_including_flat_and_steep_segments ... ok
+test tone_extra::tests::whole_image_uses_global_statistics_beyond_tile_extent ... ok
+test geometry_effects::composed_map_tests::one_lookup_per_channel_combines_crop_transform_and_lens ... ok
+test geometry_effects::tests::vignette_styles_controls_and_grain_are_active ... ok
+test tone_extra::tests::presence_halo_matches_overlapping_reference ... ok
+test render::tests::parallel_detail_is_bit_exact_across_tiles_and_edges ... ok
+
+test result: ok. 41 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/denoise.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/denoise-e02dff83ba3f8d7c)
+
+running 4 tests
+test colour_residual_preserves_hdr_and_out_of_gamut ... ok
+test neural_zero_is_supported_without_a_runtime ... ok
+test unsupported_settings_fail_even_at_zero ... ok
+test off_and_zero_skip_colour_transform_and_runtime_exactly ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/depth_render.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/depth_render-5193979b973b4383)
+
+running 1 test
+test supplied_depth_reaches_local_depth_masks ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/detail_defaults.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/detail_defaults-d3ba1cc583d880f3)
+
+running 1 test
+test default_detail_is_active_continuous_and_applied_once ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/display_float.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/display_float-71607fb56024b4e9)
+
+running 1 test
+test float_display_preserves_sub_byte_detail_and_matches_legacy_quantization ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/golden.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/golden-1cbfc6ea66d76a53)
+
+running 1 test
+test raw_fixture_goldens ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.36s
+
+     Running tests/invariants.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/invariants-2c9e88688d6c15a0)
+
+running 6 tests
+test neutral_tone_is_bit_exact_and_copy_on_write ... ok
+test positive_tint_moves_output_toward_magenta ... ok
+test bayer_mhc_all_kernel_taps_match_paper ... ok
+test xtrans_mean_uses_global_phase_across_tile_boundaries ... ok
+test unsupported_algorithms_are_not_silently_accepted ... ok
+test tone_extremes_remain_finite_and_monotone ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/lens_blur.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/lens_blur-4461eda9ac634fb7)
+
+running 9 tests
+test boost_increases_only_out_of_focus_highlights_and_cat_eye_is_explicitly_reserved ... ok
+test disabled_blur_preserves_signed_zero_and_hdr_bits ... ok
+test invalid_inputs_are_rejected_even_when_off ... ok
+test nearer_layers_composite_over_farther_layers ... ok
+test inclusive_focus_boundaries_tiny_images_and_cross_tile_support ... ok
+test two_planes_keep_focus_exact_and_reduce_background_contrast ... ok
+test aperture_shapes_have_distinct_normalized_impulse_footprints ... ok
+test normalized_layers_do_not_darken_edges_or_bleed_sharp_foreground_into_background ... ok
+test depth_render_runs_blur_before_effects_geometry_and_downsample ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/lens_embedded.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/lens_embedded-79279642bd227ab2)
+
+running 7 tests
+test auto_database_matching_and_manual_fallback ... ok
+test database_resolves_third_party_lens_for_the_actual_camera ... ok
+test unknown_required_opcode_is_not_silently_ignored ... ok
+test wrong_stage_and_malformed_embedded_are_errors ... ok
+test embedded_has_priority_and_applies_gain ... ok
+test required_bad_pixel_operations_are_deliberately_ignored ... ok
+test three_plane_embedded_warp_does_not_average_ca ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/lens_fixtures.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/lens_fixtures-4025b7b6d1bc44fd)
+
+running 1 test
+test five_actual_raws_auto_lens_and_upright_are_finite ... ignored, full-resolution five-camera acceptance: cargo test --release -p pipeline-cpu --test lens_fixtures -- --ignored --nocapture
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/lens_m2.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/lens_m2-b2fa909c365d26fc)
+
+running 4 tests
+test defringe_hue_band_changes_edge_but_not_flat_colour ... ok
+test geometry_combines_manual_lens_and_transform ... ok
+test guided_upright_and_manual_transform_compose ... ok
+test manual_vignette_runs_before_tone_and_off_is_exact ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/lens_profiles.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/lens_profiles-73a7242ce7299232)
+
+running 5 tests
+test supplied_profile_beats_image_and_none_bypasses_it ... ok
+test profile_render_applies_vignette_and_channel_maps ... ok
+test zero_profile_strengths_are_bit_exact_to_off ... ok
+test auto_calibration_recovers_synthetic_radial_falloff ... ok
+test postdemosaic_auto_ca_reduces_channel_edge_error ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/lens_stages.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/lens_stages-597949ff03257118)
+
+running 2 tests
+test embedded_fallback_aligns_camera_planes_before_matrix_and_nonlinear_tone ... ok
+test exact_profile_ca_precedes_bayer_demosaic_and_channel_mixing ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/locals.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/locals-86134c9e1fd6cfd3)
+
+running 2 tests
+test local_exposure_only_doubles_selected_linear_pixels ... ok
+test every_local_slider_changes_a_textured_colour_image ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/locals_invariants.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/locals_invariants-0ca01f4b0c9d6841)
+
+running 4 tests
+test invalid_controls_and_blend_layouts_reject ... ok
+test moire_is_a_documented_neutral_placeholder ... ok
+test amount_scales_ev_not_alpha_and_disabled_groups_are_identity ... ok
+test signed_hue_is_scaled_before_wrapping ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/m2.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/m2-118a4a5f33295920)
+
+running 1 test
+test m2_render_controls_and_crop_are_wired ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/masks.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/masks-2940f3c1a34c52a5)
+
+running 17 tests
+test composition_and_inversion ... ok
+test brush_stamps_accumulate_pressure_and_erase ... ok
+test depth_feather_and_hdr_luminance_are_not_clipped ... ok
+test color_range_oklab_distance_and_smoothness ... ok
+test diagonal_gradient_clamps_and_is_level_relative ... ok
+test empty_group_never_selects_even_if_inverted ... ok
+test brush_interpolates_path_in_pixel_metric ... ok
+test guided_two_dimensional_flat_reference_and_large_radius ... ok
+test brush_zero_pressure_flow_and_erase_paths ... ok
+test guided_refinement_smooths_flat_guide_but_preserves_edges ... ok
+test linear_centres_and_empty ... ok
+test luminance_and_depth_ranges ... ok
+test radial_feather_and_rotation ... ok
+test rejects_invalid_options_and_geometry ... ok
+test rejects_nonfinite_rgb_inserted_by_tile ... ok
+test rejects_unsafe_brush_and_all_unsupported_ai ... ok
+test stamp_budget_is_checked_before_rasterising ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/mosaic.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/mosaic-9a44555ccead880b)
+
+running 3 tests
+test clipping_and_channel_propagation_are_distinct ... ok
+test mhc_impulse_has_paper_gradient_coefficients ... ok
+test both_algorithms_preserve_flat_colours_all_bayer_phases ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/operators.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/operators-787be96bf1ef3f80)
+
+running 2 tests
+test exposure_doubles_linear_before_display ... ok
+test profile_then_cat16_neutralises_grey ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/output.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/output-9d9a7fe9e002d80d)
+
+running 3 tests
+test output_gamut_mapping_bounds_saturated_pixels_and_keeps_warnings ... ok
+test managed_render_uses_selected_target_without_srgb_intermediate ... ok
+test proof_handle_is_checked_and_shared_proof_transform_is_used ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/render.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/render-3ec36e6cd6b91615)
+
+running 2 tests
+test rgb_render_handles_edge_tiles_and_is_deterministic ... ok
+test sigmoid_is_black_anchored_monotone_and_pivoted ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/white_balance_v2.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/white_balance_v2-decb6197ddae466a)
+
+running 3 tests
+test tint_is_perpendicular_duv_with_full_slider_range ... ok
+test camera_calibration_preserves_known_illuminant_chromaticity ... ok
+test fixture_as_shot_roundtrip_and_slider_directions ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.71s
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/pipeline_gpu-0d1078c9e90adc19)
+
+running 15 tests
+test resident::tests::single_pass_preserves_dispatch_and_clear_order ... ignored, requires Metal; checks >4096 dispatches and ordered clear in one pass
+test tone_local::tests::shared_means_benchmark ... ignored, manual wall-clock benchmark; includes allocation, upload and readback
+test fused::tests::constants_cache_reuses_equal_keys_and_invalidates_edits ... ok
+test fused::tests::grading_directions_are_prepared_once_per_parameter_set ... ok
+test resident::tests::lru_packed_alignment_replacement_and_oversize ... ok
+test resident::tests::resample_dispatch_covers_only_intersecting_blocks ... ok
+test tone_local::tests::in_place_percentiles_match_sort_for_repeated_selections ... ok
+test tone_local_compute_tests::local_means_use_cooperative_workgroup_storage ... ok
+test resident::tests::resident_shaders_validate_without_a_device ... ok
+test tone_local::tests::dependent_dispatches_wait_for_one_readback_pass ... ok
+test tone_local_compute_tests::local_pipelines_are_reused_and_device_scoped ... ok
+test tone_local_compute_tests::isolated_local_tone_preserves_contracts ... ok
+test tone_local::tests::presence_reuses_moments_and_skips_inactive_scale ... ok
+test tone_local::tests::shared_means_match_ordered_global_reference ... ok
+test tone_local_compute_tests::isolated_local_tone_matches_cpu ... ok
+
+test result: ok. 13 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.19s
+
+     Running tests/detail_compute.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/detail_compute-98337a718203a35e)
+
+running 6 tests
+test isolated_validation_matches_cpu_before_any_write ... ok
+test isolated_neutral_signed_zero_bits_and_explicit_disable ... ok
+test detail_public_route_submits_compute ... ok
+test isolated_partition_invariance_with_real_neighbors ... ok
+test isolated_signed_hdr_smooth_noise_and_control_endpoints ... ok
+test isolated_detail_matches_reference_and_preserves_halo ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/edges.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/edges-8e23a68df5cff93e)
+
+running 3 tests
+test empty_and_cancelled_batches_do_not_submit ... ok
+test invalid_layout_parameters_and_chain_fail_without_submission ... ok
+test black_clipped_and_exposure_extremes ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests/effects_compute.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/effects_compute-5b76a0f34ce15cf8)
+
+running 6 tests
+test isolated_validation_matches_cpu ... ok
+test isolated_hash_exact_u64_pairs ... ok
+test public_effects_executes_compute ... ok
+test isolated_seams_are_bit_exact ... ok
+test isolated_extremes_finite_and_clamped_controls ... ok
+test isolated_styles_signed_hdr_crop_halos_levels_and_neutral ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s
+
+     Running tests/fixtures.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/fixtures-32a902ce54e03df1)
+
+running 6 tests
+test bench_full_level2_m2_chain_gpu_vs_cpu ... ignored
+test bench_full_level2_tone_only_gpu_vs_cpu ... ignored
+test color_difference::tests::sharma_reference_vectors_in_both_directions ... ok
+test color_difference::tests::negatives_are_clamped_in_xyz_not_rgb ... ok
+test color_difference::tests::raw_linear_neutrals_and_identity ... ok
+test fixture_level3_tolerance_per_operator_and_output ... ok
+
+test result: ok. 4 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 2.52s
+
+     Running tests/fusion_compute.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/fusion_compute-db3025173742f50a)
+
+running 3 tests
+test fusion_validation_and_cancellation_do_not_submit ... ok
+test tone_curves_color_effects_share_one_transfer ... ok
+test fused_output_levels_crop_styles_display_and_edits_match_cpu ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/geometry_compute.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/geometry_compute-c209bc0f28487e9c)
+
+running 4 tests
+test isolated_geometry_identity_validation_and_extremes ... ok
+test active_geometry_submits_once_and_matches_reference ... ok
+test extended_geometry_falls_back_without_gpu_transfers ... ok
+test isolated_geometry_matches_cpu ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/interactive_performance.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/interactive_performance-1100197bea5a90df)
+
+running 1 test
+test bench_interactive_per_operator ... ignored, requires real RAW fixtures and Metal; prints interactive frame times
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/level_mode.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/level_mode-bb45864fd2e19a43)
+
+running 4 tests
+test warm_point_edits_are_one_fused_level_pass ... ok
+test level_zero_detail_edits_do_not_redecode ... ok
+test whole_level_matches_per_tile_resident_path_bitwise ... ok
+test whole_level_detail_and_effects_match_cpu ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.98s
+
+     Running tests/local_tone_resident.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/local_tone_resident-a61f7fa37d56797f)
+
+running 7 tests
+test bench_level_barrier ... ignored
+test default_previews_are_exact ... ok
+test dehaze_statistics_are_reused_only_for_the_same_input ... ok
+test preview_approximation_is_bounded_on_synthetic_scenes ... ok
+test exact_resident_local_tone_matches_cpu_per_operator ... ok
+test preview_approximation_is_bounded_on_real_fixtures ... ok
+test level_zero_resident_presence_matches_cpu_renderer ... ok
+
+test result: ok. 6 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 2.63s
+
+     Running tests/locals_compute.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/locals_compute-46edecf5469bd249)
+
+running 3 tests
+test local_blend_computes_on_gpu_with_linear_tolerance ... ok
+test local_recipe_falls_back_from_resident_surface_and_matches_cpu ... ok
+test oversized_local_blend_uses_cpu_instead_of_invalid_dispatch ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/m2.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/m2-89fabcbc69b2efdf)
+
+running 3 tests
+test curves_execute_on_gpu_for_tiles_and_images ... ok
+test color_black_and_signed_neutrals_stay_finite ... ok
+test color_controls_use_compute_and_match_reference ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/m2_fallback.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/m2_fallback-78a9a2091034d4b9)
+
+running 2 tests
+test curve_color_validation_and_neutral_bits ... ok
+test m2_tiles_and_image_barriers_match_cpu ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/managed_output.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/managed_output-60344081655639e4)
+
+running 3 tests
+test typed_lut_rejects_inconsistent_dimensions ... ok
+test icc_lut_matches_cpu_sampling_and_direct_transform ... ok
+test renderer_managed_output_bypasses_legacy_display_and_reuses_scene_cache ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+     Running tests/managed_policy.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/managed_policy-7c57cb1f6080913d)
+
+running 2 tests
+test managed_output_rejects_oversized_layout_without_panicking ... ok
+test managed_gpu_matches_cpu_tone_gamut_and_proof_policy ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s
+
+     Running tests/managed_printer.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/managed_printer-416e45450358b815)
+
+running 1 test
+test synthetic_printer_gpu_warns_and_simulates_paper_against_cpu ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+     Running tests/managed_resident.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/managed_resident-f6d525f8b5616809)
+
+running 1 test
+test resident_managed_display_matches_cpu_across_proof_and_gamut_modes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+     Running tests/managed_surface.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/managed_surface-aea744fad62a3526)
+
+running 1 test
+test proof_surface_matches_tile_output_without_pixel_readback ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/operator_performance.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/operator_performance-cdec58890e056f92)
+
+running 1 test
+test bench_nef_per_operator_l2_l0 ... ignored, requires a real NEF, Metal, and potentially several minutes at full L0
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/operators.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/operators-6273716722bb6ad3)
+
+running 5 tests
+test matrix_matches_cpu_and_is_deterministic ... ok
+test batch_chain_matches_cpu ... ok
+test cat16_white_balance ... ok
+test tone_and_display ... ok
+test bayer_operators_all_phases ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+     Running tests/output_lut.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/output_lut-715188ef11f41e24)
+
+running 4 tests
+test rejects_wrong_size_or_nonfinite_lut_nodes ... ok
+test rejects_non_rgb_and_nonfinite_input ... ok
+test resident_buffers_chain_without_host_pixel_roundtrip ... ok
+test gpu_output_lut_matches_cpu_trilinear_with_halos_and_clamping ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/renderer.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/renderer-cc6abbf03d7d7f98)
+
+running 1 test
+test synthetic_renderer_and_tone_chain_transfers ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.37s
+
+     Running tests/resident.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/resident-7003d64efdaa809c)
+
+running 7 tests
+test bench_nef_level2_resident ... ignored, requires Metal and the Nikon NEF fixture; prints measurements, not a target guarantee
+test cancelled_batch_publishes_nothing_and_does_not_submit_compute ... ok
+test resident_cache_budget_is_bounded ... ok
+test fused_tone_display_matches_separate_dispatches ... ok
+test raw_source_cache_preserves_sensor_precision_and_accounts_f32_bytes ... ok
+test partial_preview_gathers_unrequested_detail_neighbours_without_cache ... ok
+test resident_graph_one_submission_and_warm_edits_without_uploads ... ok
+
+test result: ok. 6 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.42s
+
+     Running tests/resident_fusion.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/resident_fusion-38d82778e7d35398)
+
+running 5 tests
+test resident_capability_matches_extended_settings_and_backend ... ok
+test geometry_and_locals_keep_surface_fallback ... ok
+test resident_point_chain_is_one_dispatch_and_matches_cpu ... ok
+test xtrans_renderer_fuses_edits_and_reuses_resident_cache ... ok
+test bayer_renderer_fuses_edits_and_reuses_resident_cache ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+     Running tests/resident_large.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/resident_large-ba69d700fbb51b94)
+
+running 1 test
+test full_nef_transaction_keeps_device_alive ... ignored, requires the full Nikon NEF fixture and Metal
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/resident_xtrans.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/resident_xtrans-5f905128317e45a0)
+
+running 4 tests
+test resident_xtrans_rejects_invalid_cfa_and_layout_before_dispatch ... ok
+test resident_xtrans_highlights_match_cpu_without_intermediate_readback ... ok
+test resident_xtrans_gather_matches_cpu_at_frame_edges_and_tile_seams ... ok
+test resident_xtrans_matches_cpu_at_all_tile_phases_and_preserves_known_samples ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+     Running tests/tone_local_compute.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/tone_local_compute-20dd1c17ea728110)
+
+running 1 test
+test local_tone_uses_compute_and_matches_cpu ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/previews-7439ec3fe02abdf9)
+
+running 9 tests
+test tests::synthetic_45mp_under_400ms ... ignored, release performance check
+test raw::tests::embedded_threshold_includes_exact_eighth ... ok
+test tests::orientation_six_rotates ... ok
+test tests::all_exif_orientations ... ok
+test raw::tests::recipe_edits_change_cache_identity ... ok
+test tests::eviction_respects_cap ... ok
+test tests::pyramid_dimensions ... ok
+test tests::embedded_raw_does_not_render ... ok
+test tests::raw_without_jpeg_is_rendered ... FAILED
+
+failures:
+
+---- tests::raw_without_jpeg_is_rendered stdout ----
+preview 4.440594667s: mean=0.2884667189542532, stddev=0.2552569601127745
+
+thread 'tests::raw_without_jpeg_is_rendered' (73034778) panicked at crates/previews/src/lib.rs:291:13:
+assertion failed: start.elapsed().as_secs_f64() < 3.0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tests::raw_without_jpeg_is_rendered
+
+test result: FAILED. 7 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 4.44s
+
+error: test failed, to rerun pass `-p previews --lib`
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/raw_decode-cdea53602b36336c)
+
+running 14 tests
+test correction_opcode_tests::tests::rectilinear_preserves_planes_and_center ... ok
+test correction_opcode_tests::tests::warp_three_planes_and_invalid_values ... ok
+test fixture_tests::metadata_preserves_opcode_payloads ... ok
+test correction_opcode_tests::tests::vignette_and_malformed ... ok
+test dng::tests::extracts_three_lists_in_both_endian_tiffs ... ok
+test dng::tests::traverses_subifds_without_merging_image_lists ... ok
+test tests::from_linear_validates_and_wraps_samples ... ok
+test tests::malformed_planes_and_unsupported_layouts_are_errors ... ok
+test tests::normalization_preserves_headroom_and_channel_black ... ok
+test dng::tests::rejects_malformed_tiff_without_partial_results ... ok
+test fixture_tests::missing_source_returns_engine_error ... ok
+test tests::xtrans_uses_full_six_by_six_pattern ... ok
+test tests::edge_tiles_are_single_plane_zero_halo_level_zero ... ok
+test fixture_tests::fixtures_decode ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.21s
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/recipe-759cfc06fc8f4984)
+
+running 1 test
+test tests::crate_is_available ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/sidecar-38cda884c3990fed)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/develop.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/develop-4fefd21c18267354)
+
+running 5 tests
+test aux_enhance_properties_become_provenance_not_edits ... ok
+test lens_and_camera_profile_identity_round_trips ... ok
+test writes_every_mapped_key_and_reads_every_table_key ... ok
+test adobe_pv6_fixture_maps_to_valid_recipe ... ok
+test native_recipe_exports_best_effort_pv6_with_companion ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/export_hash.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/export_hash-a6b8ba176730e9e7)
+
+running 4 tests
+test unsigned_companion_is_not_trusted ... ok
+test external_crs_edit_invalidates_native_revision ... ok
+test stale_revision_cannot_be_reactivated_by_reexport ... ok
+test reexport_refreshes_hash_and_prefix_changes_do_not_invalidate_it ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/mapped_properties.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/mapped_properties-016c1fec22e1c21b)
+
+running 1 test
+test all_mapped_fields_round_trip ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.69s
+
+     Running tests/masks_complete.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/masks_complete-fc29838e9a88d977)
+
+running 12 tests
+test direct_foreign_opaque_and_invalid_fail_atomically ... ok
+test direct_foreign_radial_rdf_description_attributes ... ok
+test direct_luminance_range ... ok
+test direct_oklab_color_range ... ok
+test direct_brush_multiple_strokes_pressure_erase ... ok
+test direct_linear_all_combines_and_local_params ... ok
+test direct_radial_geometry_exact ... ok
+test direct_radial_foreign_edit_does_not_use_stale_geometry ... ok
+test direct_ai_all_kinds_models_and_prompts ... ok
+test foreign_unsupported_source_retained_on_export ... ok
+test linear_identity_combine_overlay_exact ... ok
+test pipeline_all_mask_kinds ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/regressions.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/regressions-d81f583e103aee7d)
+
+running 2 tests
+test exhaustive_normalized_selections_and_custom_presets ... ok
+test opaque_and_untranslatable_values_are_not_overwritten_by_noop_export ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/roundtrip.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/roundtrip-44a7524910e771a8)
+
+running 1 test
+test recipe_atomic_roundtrip_and_schema_guard ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/schema_upgrade.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/schema_upgrade-81c2760508749900)
+
+running 1 test
+test legacy_envelope_upgrades_recipe_without_changing_sync_metadata ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/selection.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/selection-c25e324564521458)
+
+running 1 test
+test selection_uses_dynamic_media_flags_not_keywords ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/storage.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/storage-288fc2248842413f)
+
+running 2 tests
+test lww_uses_write_time_not_vector_sum_and_converges ... ok
+test xmp_disk_write_is_atomic_and_readable ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/structures_complete.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/structures_complete-aa8e1fe19fa46fdc)
+
+running 5 tests
+test codec_foreign_structures_are_not_misrepresented ... ok
+test codec_empty_and_legacy_lens_blur_are_disabled ... ok
+test codec_empty_legacy_alias_does_not_clear_retouch ... ok
+test codec_round_trips_every_structure_independently ... ok
+test nonempty_structures_round_trip_without_source_packet ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/xmp.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/xmp-16e3b96cdfe6d38c)
+
+running 1 test
+test metadata_edit_preserves_raw_foreign_xml_and_resolves_namespaces ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/tessera-885738838ad3eeaf)
+
+running 13 tests
+test media::tests::rejects_invalid_options_before_opening_source ... ok
+test media::tests::rejects_non_rgb_tiles ... ok
+test media::tests::all_exif_orientations_place_pixels_correctly ... ok
+test media::tests::stitches_planar_edge_tiles_and_ignores_halo ... ok
+test models::tests::missing_manifest_lists_no_models_without_creating_files ... ok
+test models::tests::malformed_registry_is_an_error ... ok
+test models::tests::listing_reads_registry_without_resolving_model_files ... ok
+test export::tests::upscale_parser_accepts_only_two_or_four ... ok
+test media::tests::preview_bounds_preserve_aspect_without_upscaling ... ok
+test models::tests::check_rejects_missing_and_empty_registries ... ok
+test media::tests::embedded_jpeg_decodes_and_corruption_requests_fallback ... ok
+test models::tests::check_resolves_registered_files_instead_of_claiming_success ... ok
+test models::tests::real_fixture_produces_assignments_or_explicit_coreml_policy_failure ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests/cli.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/cli-ab8c549c076dac81)
+
+running 3 tests
+test develop_round_trip_preserves_other_settings ... ok
+test cull_round_trip_and_reindex_sidecars ... ok
+test index_is_incremental_and_lists_every_image ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.92s
+
+     Running tests/export.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/export-4354dd684fd092d8)
+
+running 5 tests
+test cached_models_cli_upscale_smoke ... ok
+test upscale_preflights_duplicate_names_across_serial_waves ... ok
+test exports_index_query ... ok
+test upscale_requires_app_local_registry_but_plain_export_does_not ... ok
+test exports_two_images_with_long_edge_and_json_progress ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.00s
+
+     Running tests/import_models.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/import_models-1a6a82edd7b20456)
+
+running 2 tests
+test model_commands_and_export_usage ... ok
+test inspect_and_apply_preserve_source_and_virtual_copies ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+     Running tests/mcp.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/mcp-1faded678731f0d2)
+
+running 2 tests
+test mcp_subcommand_is_advertised ... ok
+test mcp_exec_forwards_app_directory_and_exit_status_without_stdout_wrapper ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+
+     Running tests/raw_workflow.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/raw_workflow-aee5f3b4bdb6de6e)
+
+running 1 test
+test raw_workflow ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.27s
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/tessera_ffi-cd10a76cc78b7565)
+
+running 24 tests
+test develop::masks::tests::orientation_maps_round_trip ... ok
+test backend::tests::selection_requires_measured_gpu_advantage ... ok
+test develop::tests::cancelled_frames_do_not_advance_the_surface_ring ... ok
+test develop::masks::tests::oklab_matches_the_colour_range_operator ... ok
+test develop::masks::tests::resampling_is_centre_aligned ... ok
+test develop::tests::drag_level_adapts_to_the_frame_budget ... ok
+test develop::masks::tests::sanitizing_drops_what_cannot_render_and_clamps_the_rest ... ok
+test develop::tests::drag_level_prefers_screen_level_within_the_refresh ... ok
+test develop::tests::masking_gate_matches_the_operator ... ok
+test collections::tests::rendered_items_round_trip_through_the_parser ... ok
+test develop::tests::merge_patch_follows_rfc7386 ... ok
+test develop::masks::tests::overlay_crop_follows_the_geometry_operator ... ok
+test develop::tests::resident_extended_controls_do_not_start_at_heavy_proxy_level ... ok
+test develop::tests::surface_frame_materializes_the_captured_recipe_only_on_demand ... ok
+test develop::tests::renderable_passes_every_panel_and_sanitizes ... ok
+test develop::masks::tests::hooks_compose_ai_rasters_like_the_operator ... ok
+test develop::tests::renderable_keeps_basic_and_drops_unsupported ... ok
+test develop::tests::step_toggles_replay_history_without_the_step ... ok
+test surface::gpu_tests::calibration_surface_is_owned_and_released ... ok
+test tests::selection_survives_reopen_and_incremental_scan ... ok
+test surface::histogram_tests::surface_histogram_matches_pixels_without_pixel_readback ... ok
+test surface::gpu_tests::resident_iosurface_roundtrip ... ok
+test surface::histogram_tests::fused_surface_preserves_offsets_and_resets_histogram_between_frames ... ok
+test backend::tests::calibration_measures_surface_presentation_without_pixel_readback ... ok
+
+test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running unittests src/bin/uniffi-bindgen.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/uniffi_bindgen-d3f237b53cc52196)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/api.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/api-ab0a3980975ca6cf)
+
+running 3 tests
+test recipe_preview_and_callback_round_trip ... ok
+test folder_filter_precedes_pagination_and_handles_glob_characters ... ok
+test recipe_updates_preserve_unknown_fields_and_history ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/develop.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/develop-380e3824b3591456)
+
+running 10 tests
+test bench_detail_preview ... ignored
+test bench_panel_latency ... ignored
+test bench_slider_latency ... ignored
+test jpeg_images_are_refused ... ok
+test iosurface_writer_round_trips_a_known_pattern ... ok
+test slow_interactive_frames_are_not_starved ... ok
+test edited_previews_follow_the_recipe_hash ... ok
+test panels_crop_masking_detail_and_history ... ok
+test session_renders_into_surfaces_and_persists_undoable_edits ... ok
+test as_shot_sliders_round_trip_on_every_fixture_and_single_slider_touch ... ok
+
+test result: ok. 7 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 13.53s
+
+     Running tests/errors.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/errors-8177a6a0592ca0e4)
+
+running 1 test
+test invalid_inputs_do_not_mutate_sidecars ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/fallback.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/fallback-acb21557082dd556)
+
+running 1 test
+test missing_jpeg_returns_pending_then_callback_and_cached_bytes ... FAILED
+
+failures:
+
+---- missing_jpeg_returns_pending_then_callback_and_cached_bytes stdout ----
+
+thread 'missing_jpeg_returns_pending_then_callback_and_cached_bytes' (73043884) panicked at crates/tessera-ffi/tests/fallback.rs:56:64:
+called `Result::unwrap()` on an `Err` value: Timeout
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    missing_jpeg_returns_pending_then_callback_and_cached_bytes
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.02s
+
+error: test failed, to rerun pass `-p tessera-ffi --test fallback`
+     Running tests/library.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/library-0f8be63d844bf88a)
+
+running 4 tests
+test rule_checks_report_positions_and_items_round_trip ... ok
+test faceted_search_counts_other_filters_and_locates_text_errors ... ok
+test albums_groups_and_smart_albums_are_ordered_nested_and_safely_deleted ... ok
+test keywords_and_iptc_persist_to_xmp_and_search ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+
+     Running tests/masks.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/masks-961afce1874e550e)
+
+running 4 tests
+test bench_mask_latency ... ignored
+test subject_mask_on_the_canon_fixture_with_cached_models ... ok
+test ai_masks_segment_in_a_job_and_render_through_the_mask_cache ... ok
+test gradient_brush_range_overlay_undo_and_persistence ... ok
+
+test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 6.74s
+
+     Running tests/session.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/session-83b3654202d48228)
+
+running 3 tests
+test query_sessions_need_an_explicit_library ... ok
+test groups_navigation_and_keep_best_are_one_undo_step ... ok
+test decisions_basket_status_sweep_and_safe_album_delete ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/tessera_mcp-e2ba868f32348571)
+
+running 1 test
+test schema::tests::derived_flattened_wire_type_accepts_envelope_and_rejects_unknown_fields ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/tessera_mcp-2c2328cd64b1549d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/console.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/console-7305f06bbcfec2c0)
+
+running 5 tests
+test rejected_mutations_preserve_history_and_pixels ... ok
+test scene_linear_histogram_and_noop_history_are_explicit ... ok
+test compare_catalog_scores_and_export_use_engine_pixels ... ok
+test masks_crop_style_and_selection_record_one_entry_each ... ok
+test tone_is_one_persistent_agent_entry_and_histogram_tracks_render ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+     Running tests/protocol.rs (/Users/rutmehta/.cache/tessera-target/M2-17b/release/deps/protocol-300d105c163fe11e)
+
+running 2 tests
+test memory_initialize_list_call_bad_schema_compare_and_resources ... ok
+test spawned_stdio_lists_tools_without_stdout_noise ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.11s
+
+   Doc-tests color_mgmt
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests compositor
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests cull
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests engine_api
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests export
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests image_core
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests import_lrcat
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests index
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jobs
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests lens
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests library
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests libraw_ffi
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests mask_ai
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests merge
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests ml_depth
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests ml_embed
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests ml_enhance
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests ml_faces
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests ml_quality
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests ml_runtime
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests ml_segment
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests pipeline_cpu
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests pipeline_gpu
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests previews
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests raw_decode
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests recipe
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests sidecar
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests tessera_ffi
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests tessera_mcp
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: 2 targets failed:
+    `-p previews --lib`
+    `-p tessera-ffi --test fallback`
+exit 101

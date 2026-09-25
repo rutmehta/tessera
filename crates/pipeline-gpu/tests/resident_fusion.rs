@@ -24,7 +24,11 @@ fn resident_capability_matches_extended_settings_and_backend() {
     s.effects.vignette.amount = -20.;
     assert!(renderer.can_render_resident(&image, &s).unwrap());
     assert!(!cpu.can_render_resident(&image, &s).unwrap());
+    // M2-17b: Texture/Clarity/Dehaze run as a resident whole-level barrier.
     s.tone.clarity = 5.;
+    assert!(renderer.can_render_resident(&image, &s).unwrap());
+    assert!(!cpu.can_render_resident(&image, &s).unwrap());
+    s.geometry.crop.angle = 2.;
     assert!(!renderer.can_render_resident(&image, &s).unwrap());
 }
 
@@ -71,10 +75,8 @@ fn renderer_parity(cfa: raw_decode::CfaLayout) {
                 1,
                 "resident transaction required"
             );
-            assert_eq!(
-                cold.fused_dispatches - before.fused_dispatches,
-                actual.len() as u64
-            );
+            // Whole-level requests run as one level-sized tile: one fused pass.
+            assert_eq!(cold.fused_dispatches - before.fused_dispatches, 1);
             let again = renderer
                 .render_region_as(&image, &settings, level, rect, output)
                 .unwrap();
@@ -109,7 +111,7 @@ fn renderer_parity(cfa: raw_decode::CfaLayout) {
 }
 
 #[test]
-fn geometry_locals_and_presence_keep_surface_fallback() {
+fn geometry_and_locals_keep_surface_fallback() {
     use engine_api::recipe::{DevelopSettings, LocalAdjustment};
     use image_core::{Renderer, RendererConfig, TileCache};
     let gpu = Arc::new(GpuStageOp::new(Arc::new(GpuContext::new().unwrap())));
@@ -120,14 +122,11 @@ fn geometry_locals_and_presence_keep_surface_fallback() {
     );
     for cfa in [common::RGGB, common::xtrans()] {
         let image = common::synthetic(1718, 19, 17, cfa, [0, 0, 19, 17]);
-        for mode in 0..5 {
+        for mode in 0..2 {
             let mut s = DevelopSettings::default();
             match mode {
                 0 => s.geometry.crop.angle = 5.,
-                1 => s.locals.adjustments.push(LocalAdjustment::default()),
-                2 => s.tone.texture = 10.,
-                3 => s.tone.clarity = 10.,
-                _ => s.tone.dehaze = 10.,
+                _ => s.locals.adjustments.push(LocalAdjustment::default()),
             }
             assert!(
                 !renderer
@@ -191,7 +190,12 @@ fn resident_point_chain_is_one_dispatch_and_matches_cpu() {
         let result = batch
             .finish(vec![output], display, None, &CancellationToken::new())
             .unwrap();
-        assert_eq!(gpu.stats().last_resident_dispatches, 1);
+        // The first chain also builds the GPU-resident vignette/grain map;
+        // the second reuses it (same effects geometry, different Display).
+        assert_eq!(
+            gpu.stats().last_resident_dispatches,
+            if display { 1 } else { 2 }
+        );
         let actual = &result.tiles[0];
         assert_eq!(actual.layout(), expected.layout());
         if display {
