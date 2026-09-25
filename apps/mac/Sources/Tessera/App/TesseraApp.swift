@@ -34,6 +34,7 @@ struct TesseraApp: App {
 ///   --benchmark       run the grid scroll benchmark after loading
 ///   --seed-scores     (hidden test aid) write deterministic synthetic focus / closed-eyes scores
 ///                     into the index after opening a folder, for the defect sweep
+///   --import-lrcat <catalog.lrcat>  open File ▸ Import Lightroom Catalog… with this catalog chosen
 ///   --front           order the window front without activating (screenshots while another app is active)
 ///   --develop-selftest  once a develop session opens, drag Exposure 0 → +1.5 through the slider path
 ///                     (60 display-rate steps, then mouse-up) and print frame timings to stderr
@@ -91,6 +92,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             model.openFolder(URL(fileURLWithPath: (path as NSString).expandingTildeInPath, isDirectory: true))
         } else if let last = model.lastFolder, FileManager.default.fileExists(atPath: last.path) {
             model.openFolder(last)
+        }
+        if let catalog = value(after: "--import-lrcat") {
+            // Test aid: open File ▸ Import Lightroom Catalog… with this catalog already chosen.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                MainActor.assumeIsolated {
+                    model.presentLightroomImport(catalog: URL(fileURLWithPath: (catalog as NSString).expandingTildeInPath))
+                }
+            }
         }
         if args.contains("--front") {   // test aid: show the window without activating the app
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {

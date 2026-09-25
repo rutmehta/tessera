@@ -379,10 +379,9 @@ fn creative_color(rgb: vec3<f32>) -> vec3<f32> {
     let sum = raw.x + raw.y + raw.z;
     let wheel_weights = vec4<f32>(raw / sum, 1.0);
     for (var i = 0u; i < 4u; i += 1u) {
-        let angle = radians(wrap(p[61u + i * 3u]));
         let chroma = 0.2 * clamp(p[62u+i*3u], 0.0, 100.0) / 100.0 * wheel_weights[i] * min(abs(l), 1.0);
-        lab.y += chroma * cos(angle);
-        lab.z += chroma * sin(angle);
+        lab.y += chroma * p[73u + i * 2u];
+        lab.z += chroma * p[74u + i * 2u];
         lab.x += 0.25 * unit(p[63u+i*3u]) * wheel_weights[i];
     }
     return from_lab(lab);

@@ -16,6 +16,8 @@ pub struct GpuContext {
     pub adapter_info: wgpu::AdapterInfo,
     pub capabilities: GpuCapabilities,
     pub(crate) pipeline: wgpu::ComputePipeline,
+    pub(crate) local_tone_pipelines:
+        std::sync::Mutex<Option<(wgpu::ComputePipeline, wgpu::ComputePipeline)>>,
     device_loss: std::sync::Arc<std::sync::Mutex<Option<String>>>,
 }
 
@@ -81,6 +83,7 @@ impl GpuContext {
             adapter_info: adapter.get_info(),
             capabilities,
             pipeline,
+            local_tone_pipelines: std::sync::Mutex::new(None),
             device_loss,
         })
     }

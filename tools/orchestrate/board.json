@@ -387,7 +387,7 @@
     "id": "M2-17",
     "owner": "astra",
     "title": "Operator performance at full res",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
@@ -459,7 +459,7 @@
     "id": "M2-17b",
     "owner": "opus",
     "title": "Interactive performance redesign",
-    "status": "todo",
+    "status": "running",
     "attempts": 0,
     "notes": ""
   },
@@ -475,6 +475,22 @@
     "id": "M2-13b",
     "owner": "opus",
     "title": "Lightroom import in app + fidelity",
+    "status": "merged",
+    "attempts": 0,
+    "notes": "follow-up M2-02c: smart-collection rating>=N must map stars->grade (2\u2605\u21921,3-4\u2605\u21922,5\u2605\u21923); virtual copies bundled not separate"
+  },
+  {
+    "id": "M2-02c",
+    "owner": "sol",
+    "title": "Importer smart-collection rating mapping",
+    "status": "merged",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-19",
+    "owner": "sol",
+    "title": "App-dir override + index prune",
     "status": "running",
     "attempts": 0,
     "notes": ""

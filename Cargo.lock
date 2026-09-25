@@ -1562,6 +1562,8 @@ name = "import-lrcat"
 version = "0.1.0"
 dependencies = [
  "engine-api",
+ "image",
+ "import-lrcat",
  "library",
  "roxmltree",
  "rusqlite",
@@ -3605,10 +3607,12 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "blake3",
+ "color-mgmt",
  "cull",
  "engine-api",
  "image",
  "image-core",
+ "import-lrcat",
  "index",
  "jobs",
  "kamadak-exif",
@@ -3620,6 +3624,7 @@ dependencies = [
  "previews",
  "raw-decode",
  "rusqlite",
+ "serde",
  "serde_json",
  "sidecar",
  "tempfile",

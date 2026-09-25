@@ -384,3 +384,99 @@ selected, grey clouds only partly, and it is not a semantic sky network.
 PASS when steps 55–61 meet their expectations. Steps 57 and 61 need the segmentation weights (network on first use,
 or `TESSERA_SEGMENT_MODELS`); if neither is available, record the `Loading segmentation models` failure message shown
 on the component (it offers **Retry**) and judge the remaining steps.
+
+## N. Lightroom Classic import (M2-13b)
+
+File ▸ Import Lightroom Catalog… walks a `.lrcat` through summary → mapping → fidelity preview → import → report
+(docs/05 §3, docs/06 §2.1). This section uses the synthetic catalog from `crates/import-lrcat` (real Lightroom
+catalogs are not in the repository). It records its photo root as `/Volumes/Old Drive/Photos/`, a drive that is
+not mounted, so the photos must be **relocated**; it has 6 photos (one of them, `lost-01.jpg`, missing on disk),
+1 virtual copy, stars/flags/colour labels, a keyword tree, collections, a smart collection Tessera cannot run,
+and a `Previews.lrdata` cache. Its "Lightroom previews" are approximations written by the fixture, not Adobe
+renders, so the ΔE values below only show that the comparison works.
+
+63. **Fixture and tests.**
+    ```sh
+    cargo run --release -p tessera-cli --bin tessera -- --app-dir "$SCR/lr-cli" import lrcat --make-fixture "$SCR/lr"
+    (cd "$SCR/lr/Catalog" && find . -type f | sort | xargs shasum) > "$SCR/lr-catalog.sha"
+    cargo test -p tessera-ffi -p import-lrcat --release 2>&1 | grep "test result"
+    (cd apps/mac && swift test --filter LightroomImportTests 2>&1 | grep Executed)
+    ```
+    Expect: JSON with `catalog` (`…/lr/Catalog/Fixture.lrcat`), `photos`, `previews` and
+    `"moved_root": "/Volumes/Old Drive/Photos/"`; only `ok.` lines (the `lrcat` suite: `5 passed`); `Executed 8 tests,
+    with 0 failures`.
+64. **Summary.** `open -n apps/mac/build/Tessera.app --args --folder "$SCR/shoot"`. Choose **File ▸ Import Lightroom
+    Catalog…** (⇧⌘I), click **Choose Catalog…**, press ⇧⌘G, paste the `catalog` path, **Return**, **Choose**. 📸
+    Expect the sheet **Import Lightroom Catalog** with the step line `Catalog › Summary › Mapping › Fidelity › Report`
+    (Summary bold) and: Photos 6, Virtual copies 1, Folders 3, With develop edits 4, Keywords 7, Collections 2,
+    Collection sets 1, Smart collections 2, Stacks 1, Faces 1, Lightroom previews 6, Disk space needed ≈ 140 KB.
+    **Not fully supported (8)** lists, each with a reason: Catalog (optional tables not in this catalog, 2),
+    Develop settings (`crs:FutureKnob: unsupported property; source preserved`, ceremony-01.jpg), Virtual copies
+    (`ceremony-01.jpg (Black & White)`), Stacks, Faces (portrait-01.jpg), History (3), Smart collections (`Blue label`:
+    `unsupported field "labelColor"`), Keywords (`“Paris” appears 2 times…`). No lock warning is shown.
+    (Optional: close the sheet, `touch "$SCR/lr/Catalog/Fixture.lrcat.lock"`, reopen the catalog: an amber lock line
+    appears; `rm` the file afterwards.)
+65. **Mapping before relocation.** Click **Continue**. 📸 Expect: Library folder `/Volumes/Old Drive/Photos`; the root
+    row `/Volumes/Old Drive/Photos/` with an amber folder icon, `0/6 found` and **Locate…**; the folder table has three
+    rows marked `not found`; the footer reads `0 photos will be imported · 6 missing · 0 skipped · 1 virtual copy kept in
+    the bundle`. **Selection mapping** reads, top to bottom: `Rejected → Reject 1`, `Picked, 5 stars → Keep · Grade 3
+    (Best) 1`, `Unflagged, 4 stars → Keep · Grade 2 (Good) 1`, `Unflagged, 3 stars → Keep · Grade 2 (Good) 1`,
+    `Unflagged, 2 stars → Keep · Grade 1 (Keep) 1`, `Unflagged, no stars → Undecided 1`, then
+    `4 Keep · 1 Reject · 1 Undecided · 3 marked`. **Colour labels → marks** lists `Client 1 photo` and `Red 2 photos`, both
+    `Keep “…”`. **Keyword hierarchy** shows Places ▸ NYC (New York) 2, Paris 0; People ▸ Alice 1; Trips ▸ Paris 1 with an
+    amber `merged` tag.
+66. **Relocate the moved drive.** Click **Locate…**, press ⇧⌘G, paste `$SCR/lr/Photos` (expanded), **Return**, **Locate**.
+    📸 Expect: a green check, `→ …/lr/Photos`, `5/6 found`, **Change…** and **Reset**; the library folder follows to
+    `…/lr/Photos`; the folder table shows `Photos/2026` (0), `Photos/2026/portraits` (3 photos, Missing 1 in red) and
+    `Photos/2026/wedding` (3 photos, Copies 1); the footer reads `5 photos will be imported · 1 missing · 0 skipped · 1
+    virtual copy kept in the bundle`. Nothing has been written yet: `ls -a "$SCR/lr/Photos/2026/wedding"` lists only the
+    three `.jpg` files.
+67. **Mark names.** Set **Red** to **Needs Retouch** and **Client** to **No mark**. Expect the selection summary to read
+    `4 Keep · 1 Reject · 1 Undecided · 2 marked`.
+68. **Fidelity preview.** Click **Preview Fidelity**. 📸 Expect (after a moment) the caption `Rendered with Tessera's
+    native pipeline (the Adobe-compatible renderer is not available yet)…`, 6 pairs labelled `Lightroom` | `Tessera`,
+    sorted **Largest difference** first: `portrait-01.jpg` with a red badge ≈ `ΔE 5.5 · p95 12.7`, the others amber or
+    green (mean ΔE ≈ 1.7–2.7), including `ceremony-01.jpg (Black & White)` rendered in greyscale. The checkbox reads
+    `Looks different (1)`; tick it: only portrait-01.jpg remains. Choose sort **Name**: pairs are alphabetical.
+    (Exact values depend on the native pipeline; the order and the single "looks different" pair are the check.)
+69. **Import (non-modal) and report.** Click **Import 5 Photos**. The sheet closes; the import finishes within a second and
+    the sheet returns on **Report**. 📸 Expect `Imported 5 photos into Photos.`; Photos written 5, Resumed 0, Albums 2,
+    Album groups 1, Smart albums 2, Keywords 6, Skipped 1, Virtual copies (bundle) 1; Skipped lists `lost-01.jpg` —
+    `original not found (relocate its folder if the drive moved)`; `Full report: …/lr/Photos/import-report.md`. Behind the
+    sheet the window has opened **Photos** (`5 images`), the status message reads `Imported 5 photos from Fixture.lrcat`
+    and the status bar `Keep 3  Reject 1`. Click **Done**. Expect ALBUMS: **Wedding** ▸ **Selects** 2, **Four stars and up**
+    (smart), **Client review** 2, **Blue label** (smart); ceremony-01 and portrait-01 carry mark 6 (Needs Retouch) chips;
+    ceremony-02 is REJECT.
+70. **What was written, and what was not.**
+    ```sh
+    grep -E "^## |Photos with edits|Relocated folders|lost-01|looks different" "$SCR/lr/Photos/import-report.md"
+    grep -c '"lightroom"' "$SCR/lr/Photos/library.json"
+    grep -o "Places|NYC" "$SCR/lr/Photos/2026/wedding/ceremony-01.jpg.xmp"
+    ls "$SCR/lr/Photos/.tessera-import"/*/
+    (cd "$SCR/lr/Catalog" && find . -type f | sort | xargs shasum) | diff - "$SCR/lr-catalog.sha" && echo catalog unchanged
+    ```
+    Expect: the report headings `## Imported`, `## Skipped (2)`, `## Not fully supported (8)`, `## Fidelity preview (native
+    renderer)`, the lines for 5 written photos, the relocation `/Volumes/Old Drive/Photos/` → `…/lr/Photos`, lost-01 and
+    `portrait-01.jpg … looks different`; `2` (the two imported albums are tagged with their catalog); `Places|NYC`;
+    `import-plan.json  state.json`; `catalog unchanged` (the catalog and `Previews.lrdata` were only read).
+71. **Re-import resumes, nothing is duplicated.** ⇧⌘I, choose the same catalog, Continue, Locate the same folder, set the
+    same marks as in step 67, Preview Fidelity, **Import 5 Photos**. Expect the report `Photos written 0`, `Resumed 5`,
+    `Albums 0` and ALBUMS unchanged (one Selects, one Client review). (With different settings the importer rewrites its
+    own sidecars instead, `Photos written 5`; albums are still not duplicated.)
+72. **Cancel and resume, while the window stays usable.** Create a second fixture and slow the import down (test aid):
+    ```sh
+    cargo run --release -p tessera-cli --bin tessera -- --app-dir "$SCR/lr-cli" import lrcat --make-fixture "$SCR/lr2"
+    open -n --env TESSERA_LRCAT_IMPORT_DELAY_MS=3000 apps/mac/build/Tessera.app --args --folder "$SCR/shoot" \
+      --import-lrcat "$SCR/lr2/Catalog/Fixture.lrcat"
+    ```
+    The sheet opens on Summary. Continue, Locate `$SCR/lr2/Photos`, Preview Fidelity, **Import 5 Photos**. 📸 Expect a strip
+    above the status bar: `Lightroom import · Writing edits`, a progress bar, `1 / 5`, a file name and **Cancel Import**;
+    the grid behind it still scrolls and accepts clicks. Click **Cancel Import**. Expect the sheet to return with
+    `Import cancelled. Resume to continue where it stopped; finished photos are skipped.`, Albums 0, and **Resume Import**;
+    `grep Status "$SCR/lr2/Photos/import-report.md"` shows `cancelled` and `ls "$SCR/lr2/Photos"` has no `library.json`.
+    Click **Resume Import**: the strip returns; when it finishes the report reads `Imported 5 photos…` with Resumed equal
+    to the number written before the cancel, and `$SCR/lr2/Photos/library.json` exists.
+
+## Verdict (Lightroom import)
+
+PASS when steps 63–72 meet their expectations. Record the fidelity values seen in step 68 (they are informational).

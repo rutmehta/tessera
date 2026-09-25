@@ -105,10 +105,8 @@ fn coordinate(origin:u32,local:u32,halo:u32,extent:u32)->f32 {
  let d=local-halo;
  return f32(origin+min(d,extent-1u-origin));
 }
-@compute @workgroup_size(64)
-fn main(@builtin(global_invocation_id) id:vec3<u32>){
- let i=id.x;let n=bitcast<u32>(p[0]);if i>=n{return;}
- if p[26]!=0. {for(var c=0u;c<3u;c++){dst[c*n+i]=src[c*n+i];}return;}
+fn effects_pixel(input:vec3<f32>,i:u32)->vec3<f32>{
+ if p[26]!=0. {return input;}
  let stride=bitcast<u32>(p[1]);let halo=bitcast<u32>(p[2]);
  let gx=coordinate(bitcast<u32>(p[3]),i%stride,halo,bitcast<u32>(p[5]));
  let gy=coordinate(bitcast<u32>(p[4]),i/stride,halo,bitcast<u32>(p[6]));
@@ -118,7 +116,7 @@ fn main(@builtin(global_invocation_id) id:vec3<u32>){
  let radius=accurate_pow(accurate_pow(abs(2.*u-1.),p[14])+accurate_pow(abs(2.*v-1.),p[14]),divide(1.,p[14]));
  var mask=select(0.,1.,radius>=p[15]);
  if p[16]!=0. {mask=smooth_value(divide(radius-p[15],p[16]*(1.5-p[15])));}
- var rgb=vec3(bitcast<f32>(src[i]),bitcast<f32>(src[n+i]),bitcast<f32>(src[2u*n+i]));
+ var rgb=input;
  let y=fma(0.2627,rgb.x,0.)+fma(0.6780,rgb.y,0.)+fma(0.0593,rgb.z,0.);
  var protect=1.;if p[13]<0. {protect=1.-p[17]*smooth_value(y);}
  let a=fma(p[13],mask,0.)*protect;
@@ -132,5 +130,11 @@ fn main(@builtin(global_invocation_id) id:vec3<u32>){
   let delta=value*(0.025+0.075*p[20])*p[18];
   rgb=rgb+vec3(delta);
  }
- for(var c=0u;c<3u;c++){dst[c*n+i]=bitcast<u32>(finite(rgb[c]));}
+ return vec3(finite(rgb.x),finite(rgb.y),finite(rgb.z));
+}
+@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) id:vec3<u32>){
+ let i=id.x;let n=bitcast<u32>(p[0]);if i>=n{return;}
+ let rgb=effects_pixel(vec3(bitcast<f32>(src[i]),bitcast<f32>(src[n+i]),bitcast<f32>(src[2u*n+i])),i);
+ for(var c=0u;c<3u;c++){dst[c*n+i]=bitcast<u32>(rgb[c]);}
 }

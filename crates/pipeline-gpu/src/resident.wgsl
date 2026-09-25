@@ -2,6 +2,67 @@
 @group(0) @binding(0) var<storage, read> src: array<u32>;
 @group(0) @binding(1) var<storage, read_write> dst: array<u32>;
 @group(0) @binding(2) var<storage, read> p: array<u32>;
+// X-Trans parameters: opcode, width, height, halo, stride, origin phase x/y,
+// followed by the row-major 6x6 CFA. Coordinates here are interior-relative.
+fn xtrans_channel(x: i32, y: i32) -> u32 {
+    let px = u32((x + i32(p[5]) + 6) % 6);
+    let py = u32((y + i32(p[6]) + 6) % 6);
+    return p[7u + py * 6u + px];
+}
+fn xtrans_sample(x: i32, y: i32) -> f32 {
+    return bitcast<f32>(src[u32(y + i32(p[3])) * p[4] + u32(x + i32(p[3]))]);
+}
+fn xtrans_mean(x: i32, y: i32, channel: u32, radius: i32) -> vec2<f32> {
+    var sum = 0.0;
+    var count = 0.0;
+    // Preserve the reference's row-major accumulation order.
+    for (var dy = -radius; dy <= radius; dy++) {
+        for (var dx = -radius; dx <= radius; dx++) {
+            if xtrans_channel(x + dx, y + dy) == channel {
+                sum += xtrans_sample(x + dx, y + dy);
+                count += 1.0;
+            }
+        }
+    }
+    return vec2<f32>(sum, count);
+}
+fn xtrans_proxy(x: i32, y: i32, channel: u32) -> f32 {
+    var sum = 0.0;
+    var count = 0.0;
+    for (var dy = -1; dy <= 1; dy++) {
+        for (var dx = -1; dx <= 1; dx++) {
+            let v = xtrans_sample(x + dx, y + dy);
+            if xtrans_channel(x + dx, y + dy) != channel && v > 0.0 && v < 1.0 {
+                sum += v;
+                count += 1.0;
+            }
+        }
+    }
+    if count > 0.0 { return sum / count; }
+    return 0.0;
+}
+fn xtrans_highlight(x: i32, y: i32) -> f32 {
+    let v = xtrans_sample(x, y);
+    if p[0] == 5u || v < 1.0 { return min(v, 1.0); }
+    let channel = xtrans_channel(x, y);
+    let target_proxy = xtrans_proxy(x, y, channel);
+    var ratios = 0.0;
+    var count = 0.0;
+    for (var dy = -3; dy <= 3; dy++) {
+        for (var dx = -3; dx <= 3; dx++) {
+            let donor = xtrans_sample(x + dx, y + dy);
+            if xtrans_channel(x + dx, y + dy) == channel && donor > 0.0 && donor < 1.0 {
+                let proxy = xtrans_proxy(x + dx, y + dy, channel);
+                if proxy > 1e-6 {
+                    ratios += donor / proxy;
+                    count += 1.0;
+                }
+            }
+        }
+    }
+    if count > 0.0 && target_proxy > 0.0 { return clamp(target_proxy * ratios / count, 1.0, 4.0); }
+    return 1.0;
+}
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     let i = id.x;
@@ -14,6 +75,25 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     } else if p[0] == 1u {
         if i >= p[1] { return; }
         dst[i] = bitcast<u32>(unpack2x16float(src[i/2u])[i%2u]);
+    } else if p[0] == 5u || p[0] == 6u {
+        if i >= p[1] * p[2] { return; }
+        dst[i] = bitcast<u32>(xtrans_highlight(i32(i % p[1]), i32(i / p[1])));
+    } else if p[0] == 4u {
+        let area = p[1] * p[2];
+        if i >= area { return; }
+        let x = i32(i % p[1]);
+        let y = i32(i / p[1]);
+        let known = xtrans_channel(x, y);
+        let sample = xtrans_sample(x, y);
+        for (var c = 0u; c < 3u; c++) {
+            var value = sample;
+            if c != known {
+                var mean = xtrans_mean(x, y, c, 1);
+                if mean.y == 0.0 { mean = xtrans_mean(x, y, c, 3); }
+                if mean.y > 0.0 { value = mean.x / mean.y; }
+            }
+            dst[c * area + i] = bitcast<u32>(value);
+        }
     } else if p[0] == 3u {
         // Strip the immutable neighbour halo after Detail, before memoization.
         if i >= p[1] { return; }

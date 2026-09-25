@@ -36,7 +36,7 @@ final class KeyRouter {
 
     private func shouldIgnore(_ event: NSEvent) -> Bool {
         guard let window = event.window else { return true }
-        if window is NSPanel || window.attachedSheet != nil || NSApp.modalWindow != nil { return true }
+        if window is NSPanel || window.attachedSheet != nil || window.sheetParent != nil || NSApp.modalWindow != nil { return true }
         if window.firstResponder is NSText { return true }   // field editor / text view is editing
         let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         return mods.contains(.command) || mods.contains(.control)

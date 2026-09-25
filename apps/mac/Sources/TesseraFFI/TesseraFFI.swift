@@ -2585,6 +2585,11 @@ public protocol EngineProtocol: AnyObject, Sendable {
     func openDevelopSession(imageId: String) throws  -> DevelopSession
     
     /**
+     * Reads (a temporary copy of) the catalog. Blocking: call off the main thread.
+     */
+    func openLrcat(path: String) throws  -> LrcatImport
+    
+    /**
      * Recursive folder queue over already-indexed images (call `index_folder`
      * first). The library defaults to `<folder>/library.json`. Auto-advance is
      * off; hosts move the cursor with `set_current`/navigation.
@@ -2763,6 +2768,19 @@ open func openDevelopSession(imageId: String)throws  -> DevelopSession  {
     uniffi_tessera_ffi_fn_method_engine_open_develop_session(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(imageId),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Reads (a temporary copy of) the catalog. Blocking: call off the main thread.
+     */
+open func openLrcat(path: String)throws  -> LrcatImport  {
+    return try  FfiConverterTypeLrcatImport_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_open_lrcat(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(path),uniffiCallStatus
     )
 })
 }
@@ -3551,6 +3569,433 @@ public func FfiConverterTypeLibraryStore_lift(_ handle: UInt64) throws -> Librar
 #endif
 public func FfiConverterTypeLibraryStore_lower(_ value: LibraryStore) -> UInt64 {
     return FfiConverterTypeLibraryStore.lower(value)
+}
+
+
+
+
+
+
+/**
+ * A parsed catalog. Create with `Engine::open_lrcat`.
+ */
+public protocol LrcatImportProtocol: AnyObject, Sendable {
+    
+    /**
+     * Writes sidecars, merges library.json and re-indexes. Re-running after a
+     * cancel or crash resumes: photos recorded as done with the same options
+     * are skipped, and the library is merged once.
+     */
+    func apply(options: LrcatOptions, listener: LrcatProgressListener?) throws  -> LrcatReport
+    
+    /**
+     * Stops a running `apply` or `fidelity_sample` at the next photo.
+     */
+    func cancel() 
+    
+    /**
+     * Identity relocations, identity mark names (every label in the catalog)
+     * and the photos' common folder as the library folder.
+     */
+    func defaultOptions()  -> LrcatOptions
+    
+    /**
+     * What `apply` would do with these options. Reads the disk; writes nothing.
+     */
+    func plan(options: LrcatOptions) throws  -> LrcatPlanPreview
+    
+    func summary()  -> LrcatSummary
+    
+    /**
+     * Renders up to `n` imported images (edited ones first, spread across the
+     * catalog) and compares them with Lightroom's previews. Writes nothing.
+     * Cancellable with `cancel()` between images.
+     */
+    func fidelitySample(options: LrcatOptions, n: UInt32, thumbPx: UInt32) throws  -> LrcatFidelity
+    
+}
+/**
+ * A parsed catalog. Create with `Engine::open_lrcat`.
+ */
+open class LrcatImport: LrcatImportProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_tessera_ffi_fn_clone_lrcatimport(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_tessera_ffi_fn_free_lrcatimport(handle, $0) }
+    }
+
+    
+
+    
+    /**
+     * Writes sidecars, merges library.json and re-indexes. Re-running after a
+     * cancel or crash resumes: photos recorded as done with the same options
+     * are skipped, and the library is merged once.
+     */
+open func apply(options: LrcatOptions, listener: LrcatProgressListener?)throws  -> LrcatReport  {
+    return try  FfiConverterTypeLrcatReport_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_lrcatimport_apply(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeLrcatOptions_lower(options),
+        FfiConverterOptionTypeLrcatProgressListener.lower(listener),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Stops a running `apply` or `fidelity_sample` at the next photo.
+     */
+open func cancel()  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_lrcatimport_cancel(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Identity relocations, identity mark names (every label in the catalog)
+     * and the photos' common folder as the library folder.
+     */
+open func defaultOptions() -> LrcatOptions  {
+    return try!  FfiConverterTypeLrcatOptions_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_lrcatimport_default_options(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * What `apply` would do with these options. Reads the disk; writes nothing.
+     */
+open func plan(options: LrcatOptions)throws  -> LrcatPlanPreview  {
+    return try  FfiConverterTypeLrcatPlanPreview_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_lrcatimport_plan(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeLrcatOptions_lower(options),uniffiCallStatus
+    )
+})
+}
+    
+open func summary() -> LrcatSummary  {
+    return try!  FfiConverterTypeLrcatSummary_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_lrcatimport_summary(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Renders up to `n` imported images (edited ones first, spread across the
+     * catalog) and compares them with Lightroom's previews. Writes nothing.
+     * Cancellable with `cancel()` between images.
+     */
+open func fidelitySample(options: LrcatOptions, n: UInt32, thumbPx: UInt32)throws  -> LrcatFidelity  {
+    return try  FfiConverterTypeLrcatFidelity_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_lrcatimport_fidelity_sample(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeLrcatOptions_lower(options),
+        FfiConverterUInt32.lower(n),
+        FfiConverterUInt32.lower(thumbPx),uniffiCallStatus
+    )
+})
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLrcatImport: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = LrcatImport
+
+    public static func lift(_ handle: UInt64) throws -> LrcatImport {
+        return LrcatImport(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: LrcatImport) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LrcatImport {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: LrcatImport, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatImport_lift(_ handle: UInt64) throws -> LrcatImport {
+    return try FfiConverterTypeLrcatImport.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatImport_lower(_ value: LrcatImport) -> UInt64 {
+    return FfiConverterTypeLrcatImport.lower(value)
+}
+
+
+
+
+
+
+/**
+ * Called on the importing thread (throttled to ~20 Hz, plus phase changes).
+ */
+public protocol LrcatProgressListener: AnyObject, Sendable {
+    
+    func onProgress(progress: LrcatProgress) 
+    
+}
+/**
+ * Called on the importing thread (throttled to ~20 Hz, plus phase changes).
+ */
+open class LrcatProgressListenerImpl: LrcatProgressListener, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_tessera_ffi_fn_clone_lrcatprogresslistener(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_tessera_ffi_fn_free_lrcatprogresslistener(handle, $0) }
+    }
+
+    
+
+    
+open func onProgress(progress: LrcatProgress)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_lrcatprogresslistener_on_progress(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeLrcatProgress_lower(progress),uniffiCallStatus
+    )
+}
+}
+    
+
+    
+}
+
+
+
+// Put the implementation in a struct so we don't pollute the top-level namespace
+fileprivate struct UniffiCallbackInterfaceLrcatProgressListener {
+
+    // Create the VTable using a series of closures.
+    // Swift automatically converts these into C callback functions.
+    //
+    // Store the vtable directly.
+    static let vtable: UniffiVTableCallbackInterfaceLrcatProgressListener = UniffiVTableCallbackInterfaceLrcatProgressListener(
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            do {
+                try FfiConverterTypeLrcatProgressListener.handleMap.remove(handle: uniffiHandle)
+            } catch {
+                print("Uniffi callback interface LrcatProgressListener: handle missing in uniffiFree")
+            }
+        },
+        uniffiClone: { (uniffiHandle: UInt64) -> UInt64 in
+            do {
+                return try FfiConverterTypeLrcatProgressListener.handleMap.clone(handle: uniffiHandle)
+            } catch {
+                fatalError("Uniffi callback interface LrcatProgressListener: handle missing in uniffiClone")
+            }
+        },
+        onProgress: { (
+            uniffiHandle: UInt64,
+            progress: RustBuffer,
+            uniffiOutReturn: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> () in
+                guard let uniffiObj = try? FfiConverterTypeLrcatProgressListener.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.onProgress(
+                     progress: try FfiConverterTypeLrcatProgress_lift(progress)
+                )
+            }
+
+            
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        }
+    )
+
+    // Rust stores this pointer for future callback invocations, so it must live
+    // for the process lifetime (not just for the init function call).
+    //
+    // `nonisolated(unsafe)` is needed under Swift 6 strict concurrency.
+    // This is safe because the pointee is initialized once during static init
+    // and never mutated by either side of the FFI.  Its fields are C function pointers.
+    nonisolated(unsafe) static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceLrcatProgressListener> = {
+        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceLrcatProgressListener>.allocate(capacity: 1)
+        ptr.initialize(to: vtable)
+        return UnsafePointer(ptr)
+    }()
+}
+
+private func uniffiCallbackInitLrcatProgressListener() {
+    uniffi_tessera_ffi_fn_init_callback_vtable_lrcatprogresslistener(UniffiCallbackInterfaceLrcatProgressListener.vtablePtr)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLrcatProgressListener: FfiConverter {
+    fileprivate static let handleMap = UniffiHandleMap<LrcatProgressListener>()
+
+    typealias FfiType = UInt64
+    typealias SwiftType = LrcatProgressListener
+
+    public static func lift(_ handle: UInt64) throws -> LrcatProgressListener {
+        if ((handle & 1) == 0) {
+            // Rust-generated handle, construct a new class that uses the handle to implement the
+            // interface
+            return LrcatProgressListenerImpl(unsafeFromHandle: handle)
+        } else {
+            // Swift-generated handle, get the object from the handle map
+            return try handleMap.remove(handle: handle)
+        }
+    }
+
+    public static func lower(_ value: LrcatProgressListener) -> UInt64 {
+         if let rustImpl = value as? LrcatProgressListenerImpl {
+             // Rust-implemented object.  Clone the handle and return it
+            return rustImpl.uniffiCloneHandle()
+         } else {
+            // Swift object, generate a new vtable handle and return that.
+            return handleMap.insert(obj: value)
+         }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LrcatProgressListener {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: LrcatProgressListener, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatProgressListener_lift(_ handle: UInt64) throws -> LrcatProgressListener {
+    return try FfiConverterTypeLrcatProgressListener.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatProgressListener_lower(_ value: LrcatProgressListener) -> UInt64 {
+    return FfiConverterTypeLrcatProgressListener.lower(value)
 }
 
 
@@ -5878,6 +6323,1419 @@ public func FfiConverterTypeLocalParamValue_lower(_ value: LocalParamValue) -> R
 }
 
 
+public struct LrcatFidelity: Equatable, Hashable {
+    /**
+     * "native" until the Adobe-compatible renderer exists.
+     */
+    public var renderer: String
+    public var previewsAvailable: Bool
+    public var samples: [LrcatFidelitySample]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * "native" until the Adobe-compatible renderer exists.
+         */renderer: String, previewsAvailable: Bool, samples: [LrcatFidelitySample]) {
+        self.renderer = renderer
+        self.previewsAvailable = previewsAvailable
+        self.samples = samples
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LrcatFidelity: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLrcatFidelity: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LrcatFidelity {
+        return
+            try LrcatFidelity(
+                renderer: FfiConverterString.read(from: &buf), 
+                previewsAvailable: FfiConverterBool.read(from: &buf), 
+                samples: FfiConverterSequenceTypeLrcatFidelitySample.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LrcatFidelity, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.renderer, into: &buf)
+        FfiConverterBool.write(value.previewsAvailable, into: &buf)
+        FfiConverterSequenceTypeLrcatFidelitySample.write(value.samples, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatFidelity_lift(_ buf: RustBuffer) throws -> LrcatFidelity {
+    return try FfiConverterTypeLrcatFidelity.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatFidelity_lower(_ value: LrcatFidelity) -> RustBuffer {
+    return FfiConverterTypeLrcatFidelity.lower(value)
+}
+
+
+public struct LrcatFidelitySample: Equatable, Hashable {
+    public var catalogId: Int64
+    public var name: String
+    public var path: String
+    public var status: LrcatFidelityStatus
+    /**
+     * Why a sample was not compared, or a caveat (e.g. aspect mismatch).
+     */
+    public var message: String
+    public var deltaEMean: Float
+    public var deltaEP95: Float
+    /**
+     * JPEG thumbnails (empty when unavailable).
+     */
+    public var lightroomJpeg: Data
+    public var tesseraJpeg: Data
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(catalogId: Int64, name: String, path: String, status: LrcatFidelityStatus, 
+        /**
+         * Why a sample was not compared, or a caveat (e.g. aspect mismatch).
+         */message: String, deltaEMean: Float, deltaEP95: Float, 
+        /**
+         * JPEG thumbnails (empty when unavailable).
+         */lightroomJpeg: Data, tesseraJpeg: Data) {
+        self.catalogId = catalogId
+        self.name = name
+        self.path = path
+        self.status = status
+        self.message = message
+        self.deltaEMean = deltaEMean
+        self.deltaEP95 = deltaEP95
+        self.lightroomJpeg = lightroomJpeg
+        self.tesseraJpeg = tesseraJpeg
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LrcatFidelitySample: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLrcatFidelitySample: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LrcatFidelitySample {
+        return
+            try LrcatFidelitySample(
+                catalogId: FfiConverterInt64.read(from: &buf), 
+                name: FfiConverterString.read(from: &buf), 
+                path: FfiConverterString.read(from: &buf), 
+                status: FfiConverterTypeLrcatFidelityStatus.read(from: &buf), 
+                message: FfiConverterString.read(from: &buf), 
+                deltaEMean: FfiConverterFloat.read(from: &buf), 
+                deltaEP95: FfiConverterFloat.read(from: &buf), 
+                lightroomJpeg: FfiConverterData.read(from: &buf), 
+                tesseraJpeg: FfiConverterData.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LrcatFidelitySample, into buf: inout [UInt8]) {
+        FfiConverterInt64.write(value.catalogId, into: &buf)
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterString.write(value.path, into: &buf)
+        FfiConverterTypeLrcatFidelityStatus.write(value.status, into: &buf)
+        FfiConverterString.write(value.message, into: &buf)
+        FfiConverterFloat.write(value.deltaEMean, into: &buf)
+        FfiConverterFloat.write(value.deltaEP95, into: &buf)
+        FfiConverterData.write(value.lightroomJpeg, into: &buf)
+        FfiConverterData.write(value.tesseraJpeg, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatFidelitySample_lift(_ buf: RustBuffer) throws -> LrcatFidelitySample {
+    return try FfiConverterTypeLrcatFidelitySample.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatFidelitySample_lower(_ value: LrcatFidelitySample) -> RustBuffer {
+    return FfiConverterTypeLrcatFidelitySample.lower(value)
+}
+
+
+public struct LrcatFolderRow: Equatable, Hashable {
+    public var catalogPath: String
+    /**
+     * After relocation.
+     */
+    public var path: String
+    public var exists: Bool
+    /**
+     * Photos (masters) in this folder.
+     */
+    public var images: UInt32
+    public var virtualCopies: UInt32
+    /**
+     * Photos whose original is not on disk.
+     */
+    public var missing: UInt32
+    /**
+     * Under the library folder (so opening it shows these photos).
+     */
+    public var insideLibrary: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(catalogPath: String, 
+        /**
+         * After relocation.
+         */path: String, exists: Bool, 
+        /**
+         * Photos (masters) in this folder.
+         */images: UInt32, virtualCopies: UInt32, 
+        /**
+         * Photos whose original is not on disk.
+         */missing: UInt32, 
+        /**
+         * Under the library folder (so opening it shows these photos).
+         */insideLibrary: Bool) {
+        self.catalogPath = catalogPath
+        self.path = path
+        self.exists = exists
+        self.images = images
+        self.virtualCopies = virtualCopies
+        self.missing = missing
+        self.insideLibrary = insideLibrary
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LrcatFolderRow: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLrcatFolderRow: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LrcatFolderRow {
+        return
+            try LrcatFolderRow(
+                catalogPath: FfiConverterString.read(from: &buf), 
+                path: FfiConverterString.read(from: &buf), 
+                exists: FfiConverterBool.read(from: &buf), 
+                images: FfiConverterUInt32.read(from: &buf), 
+                virtualCopies: FfiConverterUInt32.read(from: &buf), 
+                missing: FfiConverterUInt32.read(from: &buf), 
+                insideLibrary: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LrcatFolderRow, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.catalogPath, into: &buf)
+        FfiConverterString.write(value.path, into: &buf)
+        FfiConverterBool.write(value.exists, into: &buf)
+        FfiConverterUInt32.write(value.images, into: &buf)
+        FfiConverterUInt32.write(value.virtualCopies, into: &buf)
+        FfiConverterUInt32.write(value.missing, into: &buf)
+        FfiConverterBool.write(value.insideLibrary, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatFolderRow_lift(_ buf: RustBuffer) throws -> LrcatFolderRow {
+    return try FfiConverterTypeLrcatFolderRow.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatFolderRow_lower(_ value: LrcatFolderRow) -> RustBuffer {
+    return FfiConverterTypeLrcatFolderRow.lower(value)
+}
+
+
+public struct LrcatIssue: Equatable, Hashable {
+    public var category: String
+    public var reason: String
+    public var count: UInt32
+    /**
+     * Up to three affected names.
+     */
+    public var examples: [String]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(category: String, reason: String, count: UInt32, 
+        /**
+         * Up to three affected names.
+         */examples: [String]) {
+        self.category = category
+        self.reason = reason
+        self.count = count
+        self.examples = examples
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LrcatIssue: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLrcatIssue: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LrcatIssue {
+        return
+            try LrcatIssue(
+                category: FfiConverterString.read(from: &buf), 
+                reason: FfiConverterString.read(from: &buf), 
+                count: FfiConverterUInt32.read(from: &buf), 
+                examples: FfiConverterSequenceString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LrcatIssue, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.category, into: &buf)
+        FfiConverterString.write(value.reason, into: &buf)
+        FfiConverterUInt32.write(value.count, into: &buf)
+        FfiConverterSequenceString.write(value.examples, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatIssue_lift(_ buf: RustBuffer) throws -> LrcatIssue {
+    return try FfiConverterTypeLrcatIssue.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatIssue_lower(_ value: LrcatIssue) -> RustBuffer {
+    return FfiConverterTypeLrcatIssue.lower(value)
+}
+
+
+/**
+ * Keyword hierarchy in preorder.
+ */
+public struct LrcatKeywordRow: Equatable, Hashable {
+    public var name: String
+    public var depth: UInt32
+    public var synonyms: [String]
+    public var images: UInt32
+    /**
+     * Same name as an earlier keyword (Tessera names are unique): merged into it.
+     */
+    public var merged: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(name: String, depth: UInt32, synonyms: [String], images: UInt32, 
+        /**
+         * Same name as an earlier keyword (Tessera names are unique): merged into it.
+         */merged: Bool) {
+        self.name = name
+        self.depth = depth
+        self.synonyms = synonyms
+        self.images = images
+        self.merged = merged
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LrcatKeywordRow: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLrcatKeywordRow: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LrcatKeywordRow {
+        return
+            try LrcatKeywordRow(
+                name: FfiConverterString.read(from: &buf), 
+                depth: FfiConverterUInt32.read(from: &buf), 
+                synonyms: FfiConverterSequenceString.read(from: &buf), 
+                images: FfiConverterUInt32.read(from: &buf), 
+                merged: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LrcatKeywordRow, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterUInt32.write(value.depth, into: &buf)
+        FfiConverterSequenceString.write(value.synonyms, into: &buf)
+        FfiConverterUInt32.write(value.images, into: &buf)
+        FfiConverterBool.write(value.merged, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatKeywordRow_lift(_ buf: RustBuffer) throws -> LrcatKeywordRow {
+    return try FfiConverterTypeLrcatKeywordRow.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatKeywordRow_lower(_ value: LrcatKeywordRow) -> RustBuffer {
+    return FfiConverterTypeLrcatKeywordRow.lower(value)
+}
+
+
+public struct LrcatMarkMapping: Equatable, Hashable {
+    /**
+     * Lightroom colour-label text (e.g. "Red", or a custom label).
+     */
+    public var label: String
+    /**
+     * Tessera mark name; empty drops the label. Unmapped labels keep their text.
+     */
+    public var mark: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Lightroom colour-label text (e.g. "Red", or a custom label).
+         */label: String, 
+        /**
+         * Tessera mark name; empty drops the label. Unmapped labels keep their text.
+         */mark: String) {
+        self.label = label
+        self.mark = mark
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LrcatMarkMapping: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLrcatMarkMapping: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LrcatMarkMapping {
+        return
+            try LrcatMarkMapping(
+                label: FfiConverterString.read(from: &buf), 
+                mark: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LrcatMarkMapping, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.label, into: &buf)
+        FfiConverterString.write(value.mark, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatMarkMapping_lift(_ buf: RustBuffer) throws -> LrcatMarkMapping {
+    return try FfiConverterTypeLrcatMarkMapping.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatMarkMapping_lower(_ value: LrcatMarkMapping) -> RustBuffer {
+    return FfiConverterTypeLrcatMarkMapping.lower(value)
+}
+
+
+public struct LrcatMarkRow: Equatable, Hashable {
+    public var label: String
+    /**
+     * Mark it becomes (empty: dropped).
+     */
+    public var mark: String
+    public var count: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(label: String, 
+        /**
+         * Mark it becomes (empty: dropped).
+         */mark: String, count: UInt32) {
+        self.label = label
+        self.mark = mark
+        self.count = count
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LrcatMarkRow: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLrcatMarkRow: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LrcatMarkRow {
+        return
+            try LrcatMarkRow(
+                label: FfiConverterString.read(from: &buf), 
+                mark: FfiConverterString.read(from: &buf), 
+                count: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LrcatMarkRow, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.label, into: &buf)
+        FfiConverterString.write(value.mark, into: &buf)
+        FfiConverterUInt32.write(value.count, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatMarkRow_lift(_ buf: RustBuffer) throws -> LrcatMarkRow {
+    return try FfiConverterTypeLrcatMarkRow.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatMarkRow_lower(_ value: LrcatMarkRow) -> RustBuffer {
+    return FfiConverterTypeLrcatMarkRow.lower(value)
+}
+
+
+public struct LrcatOptions: Equatable, Hashable {
+    /**
+     * Folder that receives library.json (and the `.tessera-import` bundle).
+     */
+    public var libraryFolder: String
+    public var relocations: [LrcatRelocation]
+    public var marks: [LrcatMarkMapping]
+    /**
+     * Replace edits made in Tessera since (or before) the import.
+     */
+    public var overwriteExistingEdits: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Folder that receives library.json (and the `.tessera-import` bundle).
+         */libraryFolder: String, relocations: [LrcatRelocation], marks: [LrcatMarkMapping], 
+        /**
+         * Replace edits made in Tessera since (or before) the import.
+         */overwriteExistingEdits: Bool) {
+        self.libraryFolder = libraryFolder
+        self.relocations = relocations
+        self.marks = marks
+        self.overwriteExistingEdits = overwriteExistingEdits
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LrcatOptions: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLrcatOptions: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LrcatOptions {
+        return
+            try LrcatOptions(
+                libraryFolder: FfiConverterString.read(from: &buf), 
+                relocations: FfiConverterSequenceTypeLrcatRelocation.read(from: &buf), 
+                marks: FfiConverterSequenceTypeLrcatMarkMapping.read(from: &buf), 
+                overwriteExistingEdits: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LrcatOptions, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.libraryFolder, into: &buf)
+        FfiConverterSequenceTypeLrcatRelocation.write(value.relocations, into: &buf)
+        FfiConverterSequenceTypeLrcatMarkMapping.write(value.marks, into: &buf)
+        FfiConverterBool.write(value.overwriteExistingEdits, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatOptions_lift(_ buf: RustBuffer) throws -> LrcatOptions {
+    return try FfiConverterTypeLrcatOptions.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatOptions_lower(_ value: LrcatOptions) -> RustBuffer {
+    return FfiConverterTypeLrcatOptions.lower(value)
+}
+
+
+public struct LrcatPlanPreview: Equatable, Hashable {
+    public var roots: [LrcatRootRow]
+    public var folders: [LrcatFolderRow]
+    public var selectionRows: [LrcatSelectionRow]
+    public var selection: LrcatSelectionCounts
+    public var marks: [LrcatMarkRow]
+    public var keywords: [LrcatKeywordRow]
+    /**
+     * Photos that will get sidecars.
+     */
+    public var toImport: UInt32
+    public var missing: UInt32
+    public var virtualCopies: UInt32
+    /**
+     * Photos skipped for another reason (see `skipped`).
+     */
+    public var conflicts: UInt32
+    public var skipped: [LrcatSkip]
+    /**
+     * Photos outside the library folder.
+     */
+    public var outsideLibrary: UInt32
+    public var libraryPath: String
+    public var libraryExists: Bool
+    public var unsupported: [LrcatIssue]
+    public var estimatedBytes: UInt64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(roots: [LrcatRootRow], folders: [LrcatFolderRow], selectionRows: [LrcatSelectionRow], selection: LrcatSelectionCounts, marks: [LrcatMarkRow], keywords: [LrcatKeywordRow], 
+        /**
+         * Photos that will get sidecars.
+         */toImport: UInt32, missing: UInt32, virtualCopies: UInt32, 
+        /**
+         * Photos skipped for another reason (see `skipped`).
+         */conflicts: UInt32, skipped: [LrcatSkip], 
+        /**
+         * Photos outside the library folder.
+         */outsideLibrary: UInt32, libraryPath: String, libraryExists: Bool, unsupported: [LrcatIssue], estimatedBytes: UInt64) {
+        self.roots = roots
+        self.folders = folders
+        self.selectionRows = selectionRows
+        self.selection = selection
+        self.marks = marks
+        self.keywords = keywords
+        self.toImport = toImport
+        self.missing = missing
+        self.virtualCopies = virtualCopies
+        self.conflicts = conflicts
+        self.skipped = skipped
+        self.outsideLibrary = outsideLibrary
+        self.libraryPath = libraryPath
+        self.libraryExists = libraryExists
+        self.unsupported = unsupported
+        self.estimatedBytes = estimatedBytes
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LrcatPlanPreview: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLrcatPlanPreview: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LrcatPlanPreview {
+        return
+            try LrcatPlanPreview(
+                roots: FfiConverterSequenceTypeLrcatRootRow.read(from: &buf), 
+                folders: FfiConverterSequenceTypeLrcatFolderRow.read(from: &buf), 
+                selectionRows: FfiConverterSequenceTypeLrcatSelectionRow.read(from: &buf), 
+                selection: FfiConverterTypeLrcatSelectionCounts.read(from: &buf), 
+                marks: FfiConverterSequenceTypeLrcatMarkRow.read(from: &buf), 
+                keywords: FfiConverterSequenceTypeLrcatKeywordRow.read(from: &buf), 
+                toImport: FfiConverterUInt32.read(from: &buf), 
+                missing: FfiConverterUInt32.read(from: &buf), 
+                virtualCopies: FfiConverterUInt32.read(from: &buf), 
+                conflicts: FfiConverterUInt32.read(from: &buf), 
+                skipped: FfiConverterSequenceTypeLrcatSkip.read(from: &buf), 
+                outsideLibrary: FfiConverterUInt32.read(from: &buf), 
+                libraryPath: FfiConverterString.read(from: &buf), 
+                libraryExists: FfiConverterBool.read(from: &buf), 
+                unsupported: FfiConverterSequenceTypeLrcatIssue.read(from: &buf), 
+                estimatedBytes: FfiConverterUInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LrcatPlanPreview, into buf: inout [UInt8]) {
+        FfiConverterSequenceTypeLrcatRootRow.write(value.roots, into: &buf)
+        FfiConverterSequenceTypeLrcatFolderRow.write(value.folders, into: &buf)
+        FfiConverterSequenceTypeLrcatSelectionRow.write(value.selectionRows, into: &buf)
+        FfiConverterTypeLrcatSelectionCounts.write(value.selection, into: &buf)
+        FfiConverterSequenceTypeLrcatMarkRow.write(value.marks, into: &buf)
+        FfiConverterSequenceTypeLrcatKeywordRow.write(value.keywords, into: &buf)
+        FfiConverterUInt32.write(value.toImport, into: &buf)
+        FfiConverterUInt32.write(value.missing, into: &buf)
+        FfiConverterUInt32.write(value.virtualCopies, into: &buf)
+        FfiConverterUInt32.write(value.conflicts, into: &buf)
+        FfiConverterSequenceTypeLrcatSkip.write(value.skipped, into: &buf)
+        FfiConverterUInt32.write(value.outsideLibrary, into: &buf)
+        FfiConverterString.write(value.libraryPath, into: &buf)
+        FfiConverterBool.write(value.libraryExists, into: &buf)
+        FfiConverterSequenceTypeLrcatIssue.write(value.unsupported, into: &buf)
+        FfiConverterUInt64.write(value.estimatedBytes, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatPlanPreview_lift(_ buf: RustBuffer) throws -> LrcatPlanPreview {
+    return try FfiConverterTypeLrcatPlanPreview.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatPlanPreview_lower(_ value: LrcatPlanPreview) -> RustBuffer {
+    return FfiConverterTypeLrcatPlanPreview.lower(value)
+}
+
+
+public struct LrcatProgress: Equatable, Hashable {
+    public var phase: LrcatPhase
+    public var done: UInt32
+    public var total: UInt32
+    public var current: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(phase: LrcatPhase, done: UInt32, total: UInt32, current: String) {
+        self.phase = phase
+        self.done = done
+        self.total = total
+        self.current = current
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LrcatProgress: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLrcatProgress: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LrcatProgress {
+        return
+            try LrcatProgress(
+                phase: FfiConverterTypeLrcatPhase.read(from: &buf), 
+                done: FfiConverterUInt32.read(from: &buf), 
+                total: FfiConverterUInt32.read(from: &buf), 
+                current: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LrcatProgress, into buf: inout [UInt8]) {
+        FfiConverterTypeLrcatPhase.write(value.phase, into: &buf)
+        FfiConverterUInt32.write(value.done, into: &buf)
+        FfiConverterUInt32.write(value.total, into: &buf)
+        FfiConverterString.write(value.current, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatProgress_lift(_ buf: RustBuffer) throws -> LrcatProgress {
+    return try FfiConverterTypeLrcatProgress.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatProgress_lower(_ value: LrcatProgress) -> RustBuffer {
+    return FfiConverterTypeLrcatProgress.lower(value)
+}
+
+
+public struct LrcatRelocation: Equatable, Hashable {
+    /**
+     * A catalog root folder path, as recorded in the catalog.
+     */
+    public var from: String
+    /**
+     * Where that folder is now.
+     */
+    public var to: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * A catalog root folder path, as recorded in the catalog.
+         */from: String, 
+        /**
+         * Where that folder is now.
+         */to: String) {
+        self.from = from
+        self.to = to
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LrcatRelocation: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLrcatRelocation: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LrcatRelocation {
+        return
+            try LrcatRelocation(
+                from: FfiConverterString.read(from: &buf), 
+                to: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LrcatRelocation, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.from, into: &buf)
+        FfiConverterString.write(value.to, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatRelocation_lift(_ buf: RustBuffer) throws -> LrcatRelocation {
+    return try FfiConverterTypeLrcatRelocation.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatRelocation_lower(_ value: LrcatRelocation) -> RustBuffer {
+    return FfiConverterTypeLrcatRelocation.lower(value)
+}
+
+
+public struct LrcatReport: Equatable, Hashable {
+    public var catalogPath: String
+    public var cancelled: Bool
+    /**
+     * Photos whose sidecars were written in this run.
+     */
+    public var imported: UInt32
+    /**
+     * Photos already imported by an earlier, interrupted run.
+     */
+    public var resumed: UInt32
+    /**
+     * Virtual copies preserved in the import bundle only.
+     */
+    public var virtualCopies: UInt32
+    public var skipped: [LrcatSkip]
+    public var unsupported: [LrcatIssue]
+    public var albums: UInt32
+    public var albumGroups: UInt32
+    public var smartAlbums: UInt32
+    public var keywords: UInt32
+    /**
+     * Selection of the imported photos.
+     */
+    public var selection: LrcatSelectionCounts
+    public var libraryPath: String
+    public var bundlePath: String
+    public var indexed: UInt32
+    public var seconds: Double
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(catalogPath: String, cancelled: Bool, 
+        /**
+         * Photos whose sidecars were written in this run.
+         */imported: UInt32, 
+        /**
+         * Photos already imported by an earlier, interrupted run.
+         */resumed: UInt32, 
+        /**
+         * Virtual copies preserved in the import bundle only.
+         */virtualCopies: UInt32, skipped: [LrcatSkip], unsupported: [LrcatIssue], albums: UInt32, albumGroups: UInt32, smartAlbums: UInt32, keywords: UInt32, 
+        /**
+         * Selection of the imported photos.
+         */selection: LrcatSelectionCounts, libraryPath: String, bundlePath: String, indexed: UInt32, seconds: Double) {
+        self.catalogPath = catalogPath
+        self.cancelled = cancelled
+        self.imported = imported
+        self.resumed = resumed
+        self.virtualCopies = virtualCopies
+        self.skipped = skipped
+        self.unsupported = unsupported
+        self.albums = albums
+        self.albumGroups = albumGroups
+        self.smartAlbums = smartAlbums
+        self.keywords = keywords
+        self.selection = selection
+        self.libraryPath = libraryPath
+        self.bundlePath = bundlePath
+        self.indexed = indexed
+        self.seconds = seconds
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LrcatReport: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLrcatReport: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LrcatReport {
+        return
+            try LrcatReport(
+                catalogPath: FfiConverterString.read(from: &buf), 
+                cancelled: FfiConverterBool.read(from: &buf), 
+                imported: FfiConverterUInt32.read(from: &buf), 
+                resumed: FfiConverterUInt32.read(from: &buf), 
+                virtualCopies: FfiConverterUInt32.read(from: &buf), 
+                skipped: FfiConverterSequenceTypeLrcatSkip.read(from: &buf), 
+                unsupported: FfiConverterSequenceTypeLrcatIssue.read(from: &buf), 
+                albums: FfiConverterUInt32.read(from: &buf), 
+                albumGroups: FfiConverterUInt32.read(from: &buf), 
+                smartAlbums: FfiConverterUInt32.read(from: &buf), 
+                keywords: FfiConverterUInt32.read(from: &buf), 
+                selection: FfiConverterTypeLrcatSelectionCounts.read(from: &buf), 
+                libraryPath: FfiConverterString.read(from: &buf), 
+                bundlePath: FfiConverterString.read(from: &buf), 
+                indexed: FfiConverterUInt32.read(from: &buf), 
+                seconds: FfiConverterDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LrcatReport, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.catalogPath, into: &buf)
+        FfiConverterBool.write(value.cancelled, into: &buf)
+        FfiConverterUInt32.write(value.imported, into: &buf)
+        FfiConverterUInt32.write(value.resumed, into: &buf)
+        FfiConverterUInt32.write(value.virtualCopies, into: &buf)
+        FfiConverterSequenceTypeLrcatSkip.write(value.skipped, into: &buf)
+        FfiConverterSequenceTypeLrcatIssue.write(value.unsupported, into: &buf)
+        FfiConverterUInt32.write(value.albums, into: &buf)
+        FfiConverterUInt32.write(value.albumGroups, into: &buf)
+        FfiConverterUInt32.write(value.smartAlbums, into: &buf)
+        FfiConverterUInt32.write(value.keywords, into: &buf)
+        FfiConverterTypeLrcatSelectionCounts.write(value.selection, into: &buf)
+        FfiConverterString.write(value.libraryPath, into: &buf)
+        FfiConverterString.write(value.bundlePath, into: &buf)
+        FfiConverterUInt32.write(value.indexed, into: &buf)
+        FfiConverterDouble.write(value.seconds, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatReport_lift(_ buf: RustBuffer) throws -> LrcatReport {
+    return try FfiConverterTypeLrcatReport.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatReport_lower(_ value: LrcatReport) -> RustBuffer {
+    return FfiConverterTypeLrcatReport.lower(value)
+}
+
+
+public struct LrcatRootRow: Equatable, Hashable {
+    public var catalogPath: String
+    public var path: String
+    public var exists: Bool
+    public var images: UInt32
+    public var missing: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(catalogPath: String, path: String, exists: Bool, images: UInt32, missing: UInt32) {
+        self.catalogPath = catalogPath
+        self.path = path
+        self.exists = exists
+        self.images = images
+        self.missing = missing
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LrcatRootRow: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLrcatRootRow: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LrcatRootRow {
+        return
+            try LrcatRootRow(
+                catalogPath: FfiConverterString.read(from: &buf), 
+                path: FfiConverterString.read(from: &buf), 
+                exists: FfiConverterBool.read(from: &buf), 
+                images: FfiConverterUInt32.read(from: &buf), 
+                missing: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LrcatRootRow, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.catalogPath, into: &buf)
+        FfiConverterString.write(value.path, into: &buf)
+        FfiConverterBool.write(value.exists, into: &buf)
+        FfiConverterUInt32.write(value.images, into: &buf)
+        FfiConverterUInt32.write(value.missing, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatRootRow_lift(_ buf: RustBuffer) throws -> LrcatRootRow {
+    return try FfiConverterTypeLrcatRootRow.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatRootRow_lower(_ value: LrcatRootRow) -> RustBuffer {
+    return FfiConverterTypeLrcatRootRow.lower(value)
+}
+
+
+public struct LrcatSelectionCounts: Equatable, Hashable {
+    public var rejects: UInt32
+    public var keeps: UInt32
+    public var undecided: UInt32
+    public var grade1: UInt32
+    public var grade2: UInt32
+    public var grade3: UInt32
+    public var marked: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(rejects: UInt32, keeps: UInt32, undecided: UInt32, grade1: UInt32, grade2: UInt32, grade3: UInt32, marked: UInt32) {
+        self.rejects = rejects
+        self.keeps = keeps
+        self.undecided = undecided
+        self.grade1 = grade1
+        self.grade2 = grade2
+        self.grade3 = grade3
+        self.marked = marked
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LrcatSelectionCounts: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLrcatSelectionCounts: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LrcatSelectionCounts {
+        return
+            try LrcatSelectionCounts(
+                rejects: FfiConverterUInt32.read(from: &buf), 
+                keeps: FfiConverterUInt32.read(from: &buf), 
+                undecided: FfiConverterUInt32.read(from: &buf), 
+                grade1: FfiConverterUInt32.read(from: &buf), 
+                grade2: FfiConverterUInt32.read(from: &buf), 
+                grade3: FfiConverterUInt32.read(from: &buf), 
+                marked: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LrcatSelectionCounts, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.rejects, into: &buf)
+        FfiConverterUInt32.write(value.keeps, into: &buf)
+        FfiConverterUInt32.write(value.undecided, into: &buf)
+        FfiConverterUInt32.write(value.grade1, into: &buf)
+        FfiConverterUInt32.write(value.grade2, into: &buf)
+        FfiConverterUInt32.write(value.grade3, into: &buf)
+        FfiConverterUInt32.write(value.marked, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatSelectionCounts_lift(_ buf: RustBuffer) throws -> LrcatSelectionCounts {
+    return try FfiConverterTypeLrcatSelectionCounts.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatSelectionCounts_lower(_ value: LrcatSelectionCounts) -> RustBuffer {
+    return FfiConverterTypeLrcatSelectionCounts.lower(value)
+}
+
+
+/**
+ * One line of the selection mapping: a Lightroom flag/star combination and
+ * the Tessera decision and grade it becomes.
+ */
+public struct LrcatSelectionRow: Equatable, Hashable {
+    public var lightroom: String
+    public var pick: Int64
+    public var stars: Int64
+    public var decision: Decision
+    public var grade: UInt8?
+    public var count: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(lightroom: String, pick: Int64, stars: Int64, decision: Decision, grade: UInt8?, count: UInt32) {
+        self.lightroom = lightroom
+        self.pick = pick
+        self.stars = stars
+        self.decision = decision
+        self.grade = grade
+        self.count = count
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LrcatSelectionRow: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLrcatSelectionRow: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LrcatSelectionRow {
+        return
+            try LrcatSelectionRow(
+                lightroom: FfiConverterString.read(from: &buf), 
+                pick: FfiConverterInt64.read(from: &buf), 
+                stars: FfiConverterInt64.read(from: &buf), 
+                decision: FfiConverterTypeDecision.read(from: &buf), 
+                grade: FfiConverterOptionUInt8.read(from: &buf), 
+                count: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LrcatSelectionRow, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.lightroom, into: &buf)
+        FfiConverterInt64.write(value.pick, into: &buf)
+        FfiConverterInt64.write(value.stars, into: &buf)
+        FfiConverterTypeDecision.write(value.decision, into: &buf)
+        FfiConverterOptionUInt8.write(value.grade, into: &buf)
+        FfiConverterUInt32.write(value.count, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatSelectionRow_lift(_ buf: RustBuffer) throws -> LrcatSelectionRow {
+    return try FfiConverterTypeLrcatSelectionRow.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatSelectionRow_lower(_ value: LrcatSelectionRow) -> RustBuffer {
+    return FfiConverterTypeLrcatSelectionRow.lower(value)
+}
+
+
+public struct LrcatSkip: Equatable, Hashable {
+    public var name: String
+    public var path: String
+    public var reason: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(name: String, path: String, reason: String) {
+        self.name = name
+        self.path = path
+        self.reason = reason
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LrcatSkip: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLrcatSkip: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LrcatSkip {
+        return
+            try LrcatSkip(
+                name: FfiConverterString.read(from: &buf), 
+                path: FfiConverterString.read(from: &buf), 
+                reason: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LrcatSkip, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterString.write(value.path, into: &buf)
+        FfiConverterString.write(value.reason, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatSkip_lift(_ buf: RustBuffer) throws -> LrcatSkip {
+    return try FfiConverterTypeLrcatSkip.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatSkip_lower(_ value: LrcatSkip) -> RustBuffer {
+    return FfiConverterTypeLrcatSkip.lower(value)
+}
+
+
+public struct LrcatSummary: Equatable, Hashable {
+    public var catalogPath: String
+    public var schemaVersion: String
+    public var roots: [String]
+    public var folders: UInt32
+    /**
+     * Including virtual copies.
+     */
+    public var images: UInt32
+    public var virtualCopies: UInt32
+    /**
+     * Images with develop settings.
+     */
+    public var edited: UInt32
+    public var keywords: UInt32
+    public var collections: UInt32
+    public var collectionSets: UInt32
+    public var smartCollections: UInt32
+    public var stacks: UInt32
+    public var faces: UInt32
+    /**
+     * Images with a cached Lightroom preview (`Previews.lrdata`).
+     */
+    public var previews: UInt32
+    public var unsupported: [LrcatIssue]
+    /**
+     * Bytes the import will write (sidecars, library.json, import bundle).
+     */
+    public var estimatedBytes: UInt64
+    /**
+     * A Lightroom lock file sits beside the catalog.
+     */
+    public var catalogLocked: Bool
+    public var lightroomRunning: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(catalogPath: String, schemaVersion: String, roots: [String], folders: UInt32, 
+        /**
+         * Including virtual copies.
+         */images: UInt32, virtualCopies: UInt32, 
+        /**
+         * Images with develop settings.
+         */edited: UInt32, keywords: UInt32, collections: UInt32, collectionSets: UInt32, smartCollections: UInt32, stacks: UInt32, faces: UInt32, 
+        /**
+         * Images with a cached Lightroom preview (`Previews.lrdata`).
+         */previews: UInt32, unsupported: [LrcatIssue], 
+        /**
+         * Bytes the import will write (sidecars, library.json, import bundle).
+         */estimatedBytes: UInt64, 
+        /**
+         * A Lightroom lock file sits beside the catalog.
+         */catalogLocked: Bool, lightroomRunning: Bool) {
+        self.catalogPath = catalogPath
+        self.schemaVersion = schemaVersion
+        self.roots = roots
+        self.folders = folders
+        self.images = images
+        self.virtualCopies = virtualCopies
+        self.edited = edited
+        self.keywords = keywords
+        self.collections = collections
+        self.collectionSets = collectionSets
+        self.smartCollections = smartCollections
+        self.stacks = stacks
+        self.faces = faces
+        self.previews = previews
+        self.unsupported = unsupported
+        self.estimatedBytes = estimatedBytes
+        self.catalogLocked = catalogLocked
+        self.lightroomRunning = lightroomRunning
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LrcatSummary: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLrcatSummary: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LrcatSummary {
+        return
+            try LrcatSummary(
+                catalogPath: FfiConverterString.read(from: &buf), 
+                schemaVersion: FfiConverterString.read(from: &buf), 
+                roots: FfiConverterSequenceString.read(from: &buf), 
+                folders: FfiConverterUInt32.read(from: &buf), 
+                images: FfiConverterUInt32.read(from: &buf), 
+                virtualCopies: FfiConverterUInt32.read(from: &buf), 
+                edited: FfiConverterUInt32.read(from: &buf), 
+                keywords: FfiConverterUInt32.read(from: &buf), 
+                collections: FfiConverterUInt32.read(from: &buf), 
+                collectionSets: FfiConverterUInt32.read(from: &buf), 
+                smartCollections: FfiConverterUInt32.read(from: &buf), 
+                stacks: FfiConverterUInt32.read(from: &buf), 
+                faces: FfiConverterUInt32.read(from: &buf), 
+                previews: FfiConverterUInt32.read(from: &buf), 
+                unsupported: FfiConverterSequenceTypeLrcatIssue.read(from: &buf), 
+                estimatedBytes: FfiConverterUInt64.read(from: &buf), 
+                catalogLocked: FfiConverterBool.read(from: &buf), 
+                lightroomRunning: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LrcatSummary, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.catalogPath, into: &buf)
+        FfiConverterString.write(value.schemaVersion, into: &buf)
+        FfiConverterSequenceString.write(value.roots, into: &buf)
+        FfiConverterUInt32.write(value.folders, into: &buf)
+        FfiConverterUInt32.write(value.images, into: &buf)
+        FfiConverterUInt32.write(value.virtualCopies, into: &buf)
+        FfiConverterUInt32.write(value.edited, into: &buf)
+        FfiConverterUInt32.write(value.keywords, into: &buf)
+        FfiConverterUInt32.write(value.collections, into: &buf)
+        FfiConverterUInt32.write(value.collectionSets, into: &buf)
+        FfiConverterUInt32.write(value.smartCollections, into: &buf)
+        FfiConverterUInt32.write(value.stacks, into: &buf)
+        FfiConverterUInt32.write(value.faces, into: &buf)
+        FfiConverterUInt32.write(value.previews, into: &buf)
+        FfiConverterSequenceTypeLrcatIssue.write(value.unsupported, into: &buf)
+        FfiConverterUInt64.write(value.estimatedBytes, into: &buf)
+        FfiConverterBool.write(value.catalogLocked, into: &buf)
+        FfiConverterBool.write(value.lightroomRunning, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatSummary_lift(_ buf: RustBuffer) throws -> LrcatSummary {
+    return try FfiConverterTypeLrcatSummary.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatSummary_lower(_ value: LrcatSummary) -> RustBuffer {
+    return FfiConverterTypeLrcatSummary.lower(value)
+}
+
+
 public struct MaskComponentInfo: Equatable, Hashable {
     public var kind: MaskComponentType
     public var combine: MaskCombineMode
@@ -7860,6 +9718,179 @@ public func FfiConverterTypeLibraryNodeKind_lower(_ value: LibraryNodeKind) -> R
 
 
 
+public enum LrcatFidelityStatus: Equatable, Hashable {
+    
+    case compared
+    /**
+     * Lightroom never cached a preview for this image.
+     */
+    case noPreview
+    case missingOriginal
+    /**
+     * The original or the preview could not be decoded / rendered.
+     */
+    case failed
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension LrcatFidelityStatus: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLrcatFidelityStatus: FfiConverterRustBuffer {
+    typealias SwiftType = LrcatFidelityStatus
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LrcatFidelityStatus {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .compared
+        
+        case 2: return .noPreview
+        
+        case 3: return .missingOriginal
+        
+        case 4: return .failed
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: LrcatFidelityStatus, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .compared:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .noPreview:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .missingOriginal:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .failed:
+            writeInt(&buf, Int32(4))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatFidelityStatus_lift(_ buf: RustBuffer) throws -> LrcatFidelityStatus {
+    return try FfiConverterTypeLrcatFidelityStatus.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatFidelityStatus_lower(_ value: LrcatFidelityStatus) -> RustBuffer {
+    return FfiConverterTypeLrcatFidelityStatus.lower(value)
+}
+
+
+
+
+public enum LrcatPhase: Equatable, Hashable {
+    
+    case preparing
+    case writingEdits
+    case library
+    case indexing
+    case finished
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension LrcatPhase: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLrcatPhase: FfiConverterRustBuffer {
+    typealias SwiftType = LrcatPhase
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LrcatPhase {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .preparing
+        
+        case 2: return .writingEdits
+        
+        case 3: return .library
+        
+        case 4: return .indexing
+        
+        case 5: return .finished
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: LrcatPhase, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .preparing:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .writingEdits:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .library:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .indexing:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .finished:
+            writeInt(&buf, Int32(5))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatPhase_lift(_ buf: RustBuffer) throws -> LrcatPhase {
+    return try FfiConverterTypeLrcatPhase.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLrcatPhase_lower(_ value: LrcatPhase) -> RustBuffer {
+    return FfiConverterTypeLrcatPhase.lower(value)
+}
+
+
+
+
 public enum MaskCombineMode: Equatable, Hashable {
     
     case add
@@ -8706,6 +10737,30 @@ fileprivate struct FfiConverterOptionTypeEngineEventListener: FfiConverterRustBu
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeLrcatProgressListener: FfiConverterRustBuffer {
+    typealias SwiftType = LrcatProgressListener?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeLrcatProgressListener.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeLrcatProgressListener.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeMaskListener: FfiConverterRustBuffer {
     typealias SwiftType = MaskListener?
 
@@ -9324,6 +11379,256 @@ fileprivate struct FfiConverterSequenceTypeLocalParamValue: FfiConverterRustBuff
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeLrcatFidelitySample: FfiConverterRustBuffer {
+    typealias SwiftType = [LrcatFidelitySample]
+
+    public static func write(_ value: [LrcatFidelitySample], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeLrcatFidelitySample.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [LrcatFidelitySample] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [LrcatFidelitySample]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeLrcatFidelitySample.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeLrcatFolderRow: FfiConverterRustBuffer {
+    typealias SwiftType = [LrcatFolderRow]
+
+    public static func write(_ value: [LrcatFolderRow], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeLrcatFolderRow.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [LrcatFolderRow] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [LrcatFolderRow]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeLrcatFolderRow.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeLrcatIssue: FfiConverterRustBuffer {
+    typealias SwiftType = [LrcatIssue]
+
+    public static func write(_ value: [LrcatIssue], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeLrcatIssue.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [LrcatIssue] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [LrcatIssue]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeLrcatIssue.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeLrcatKeywordRow: FfiConverterRustBuffer {
+    typealias SwiftType = [LrcatKeywordRow]
+
+    public static func write(_ value: [LrcatKeywordRow], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeLrcatKeywordRow.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [LrcatKeywordRow] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [LrcatKeywordRow]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeLrcatKeywordRow.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeLrcatMarkMapping: FfiConverterRustBuffer {
+    typealias SwiftType = [LrcatMarkMapping]
+
+    public static func write(_ value: [LrcatMarkMapping], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeLrcatMarkMapping.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [LrcatMarkMapping] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [LrcatMarkMapping]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeLrcatMarkMapping.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeLrcatMarkRow: FfiConverterRustBuffer {
+    typealias SwiftType = [LrcatMarkRow]
+
+    public static func write(_ value: [LrcatMarkRow], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeLrcatMarkRow.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [LrcatMarkRow] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [LrcatMarkRow]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeLrcatMarkRow.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeLrcatRelocation: FfiConverterRustBuffer {
+    typealias SwiftType = [LrcatRelocation]
+
+    public static func write(_ value: [LrcatRelocation], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeLrcatRelocation.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [LrcatRelocation] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [LrcatRelocation]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeLrcatRelocation.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeLrcatRootRow: FfiConverterRustBuffer {
+    typealias SwiftType = [LrcatRootRow]
+
+    public static func write(_ value: [LrcatRootRow], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeLrcatRootRow.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [LrcatRootRow] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [LrcatRootRow]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeLrcatRootRow.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeLrcatSelectionRow: FfiConverterRustBuffer {
+    typealias SwiftType = [LrcatSelectionRow]
+
+    public static func write(_ value: [LrcatSelectionRow], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeLrcatSelectionRow.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [LrcatSelectionRow] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [LrcatSelectionRow]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeLrcatSelectionRow.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeLrcatSkip: FfiConverterRustBuffer {
+    typealias SwiftType = [LrcatSkip]
+
+    public static func write(_ value: [LrcatSkip], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeLrcatSkip.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [LrcatSkip] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [LrcatSkip]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeLrcatSkip.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeMaskComponentInfo: FfiConverterRustBuffer {
     typealias SwiftType = [MaskComponentInfo]
 
@@ -9470,6 +11775,17 @@ fileprivate struct FfiConverterSequenceTypeSessionImage: FfiConverterRustBuffer 
         return seq
     }
 }
+/**
+ * Counts and diagnostics without an engine (for a quick look at a catalog).
+ */
+public func inspectLrcat(path: String)throws  -> LrcatSummary  {
+    return try  FfiConverterTypeLrcatSummary_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_func_inspect_lrcat(
+        FfiConverterString.lower(path),uniffiCallStatus
+    )
+})
+}
 
 private enum InitializationResult {
     case ok
@@ -9485,6 +11801,9 @@ private let initializationResult: InitializationResult = {
     let scaffolding_contract_version = ffi_tessera_ffi_uniffi_contract_version()
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_func_inspect_lrcat() != 44625) {
+        return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_engine_embedded_preview() != 35338) {
         return InitializationResult.apiChecksumMismatch
@@ -9511,6 +11830,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_engine_open_develop_session() != 22073) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_open_lrcat() != 51145) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_engine_open_cull_session() != 42664) {
@@ -9756,6 +12078,27 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_masklistener_ai_progress() != 54199) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tessera_ffi_checksum_method_lrcatimport_apply() != 64251) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_lrcatimport_cancel() != 11947) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_lrcatimport_default_options() != 57273) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_lrcatimport_plan() != 57079) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_lrcatimport_summary() != 19729) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_lrcatimport_fidelity_sample() != 29247) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_lrcatprogresslistener_on_progress() != 48396) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_tessera_ffi_checksum_method_cullsession_albums() != 24789) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -9876,6 +12219,7 @@ private let initializationResult: InitializationResult = {
 
     uniffiCallbackInitDevelopListener()
     uniffiCallbackInitEngineEventListener()
+    uniffiCallbackInitLrcatProgressListener()
     uniffiCallbackInitMaskListener()
     return InitializationResult.ok
 }()

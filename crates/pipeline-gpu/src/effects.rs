@@ -2,7 +2,7 @@
 use engine_api::{
     EngineError, EngineResult,
     recipe::settings::{Crop, EffectsSettings, VignetteStyle},
-    tile::{Extent, TILE_SIZE, Tile},
+    tile::{Extent, TILE_SIZE, Tile, TileCoord, TileLayout},
 };
 use wgpu::util::DeviceExt;
 
@@ -13,6 +13,26 @@ pub(crate) fn run(
     extent: Extent,
     crop: &Crop,
 ) -> EngineResult<Tile> {
+    let p = parameters(input.layout(), input.coord(), s, extent, crop)?;
+    let l = input.layout();
+    let coord = input.coord();
+    let samples = input.samples::<f32>()?;
+    if samples.iter().any(|x| !x.is_finite()) {
+        return Err(EngineError::invalid(
+            "effects tile",
+            "finite samples required",
+        ));
+    }
+    run_prepared(ctx, l, coord, samples, p)
+}
+
+pub(crate) fn parameters(
+    l: TileLayout,
+    coord: TileCoord,
+    s: &EffectsSettings,
+    extent: Extent,
+    crop: &Crop,
+) -> EngineResult<Vec<f32>> {
     if !crop.rect.is_valid() || !crop.angle.is_finite() {
         return Err(EngineError::invalid(
             "crop",
@@ -41,8 +61,6 @@ pub(crate) fn run(
             what: "M2 lens blur requires depth inference".into(),
         });
     }
-    let l = input.layout();
-    let coord = input.coord();
     let e = extent.at_level(coord.level);
     let ox = u64::from(coord.x) * u64::from(TILE_SIZE);
     let oy = u64::from(coord.y) * u64::from(TILE_SIZE);
@@ -57,17 +75,63 @@ pub(crate) fn run(
             "RGB tile must fit nonempty full image extent at its level",
         ));
     }
-    let samples = input.samples::<f32>()?;
-    if samples.iter().any(|x| !x.is_finite()) {
-        return Err(EngineError::invalid(
-            "effects tile",
-            "finite samples required",
-        ));
+    type Key = (EffectsSettings, Extent, Crop, u8);
+    thread_local! {
+        static CONSTANTS: std::cell::RefCell<Option<(Key, Vec<f32>)>> = const { std::cell::RefCell::new(None) };
     }
-    let r = crop.rect;
-    let (sin, cos) = crop.angle.to_radians().sin_cos();
-    // Integer parameters are bit-packed, preserving large domain coordinates.
-    let p = [
+    let key = (s.clone(), extent, crop.clone(), coord.level);
+    let mut prepared = CONSTANTS.with(|cache| {
+        let mut cache = cache.borrow_mut();
+        if let Some((old, p)) = &*cache
+            && old == &key
+        {
+            return p.clone();
+        }
+        let r = crop.rect;
+        let (sin, cos) = crop.angle.to_radians().sin_cos();
+        // Integer parameters are bit-packed, preserving large domain coordinates.
+        let p = [
+            f32::from_bits(l.plane_len() as u32),
+            f32::from_bits(l.stride() as u32),
+            f32::from_bits(l.halo as u32),
+            f32::from_bits(ox as u32),
+            f32::from_bits(oy as u32),
+            f32::from_bits(e.width),
+            f32::from_bits(e.height),
+            (r.right - r.left) * e.width as f32,
+            (r.bottom - r.top) * e.height as f32,
+            (r.left + r.right) * e.width as f32 / 2.,
+            (r.top + r.bottom) * e.height as f32 / 2.,
+            sin,
+            cos,
+            v.amount.clamp(-100., 100.) / 100.,
+            2. + 3. * (1. - v.roundness.clamp(-100., 100.) / 100.),
+            0.05 + 0.9 * v.midpoint.clamp(0., 100.) / 100.,
+            v.feather.clamp(0., 100.) / 100.,
+            v.highlights.clamp(0., 100.) / 100.,
+            g.amount.clamp(0., 100.) / 100.,
+            0.5 + 7.5 * g.size.clamp(0., 100.) / 100.,
+            g.roughness.clamp(0., 100.) / 100.,
+            r.right - r.left,
+            r.bottom - r.top,
+            extent.width as f32,
+            extent.height as f32,
+            match v.style {
+                VignetteStyle::HighlightPriority => 0.,
+                VignetteStyle::ColorPriority => 1.,
+                VignetteStyle::PaintOverlay => 2.,
+            },
+            if v.amount == 0. && g.amount == 0. {
+                1.
+            } else {
+                0.
+            },
+        ];
+        *cache = Some((key, p.to_vec()));
+        p.to_vec()
+    });
+    // Tile geometry is intentionally not part of the image-constant key.
+    prepared[..7].copy_from_slice(&[
         f32::from_bits(l.plane_len() as u32),
         f32::from_bits(l.stride() as u32),
         f32::from_bits(l.halo as u32),
@@ -75,35 +139,16 @@ pub(crate) fn run(
         f32::from_bits(oy as u32),
         f32::from_bits(e.width),
         f32::from_bits(e.height),
-        (r.right - r.left) * e.width as f32,
-        (r.bottom - r.top) * e.height as f32,
-        (r.left + r.right) * e.width as f32 / 2.,
-        (r.top + r.bottom) * e.height as f32 / 2.,
-        sin,
-        cos,
-        v.amount.clamp(-100., 100.) / 100.,
-        2. + 3. * (1. - v.roundness.clamp(-100., 100.) / 100.),
-        0.05 + 0.9 * v.midpoint.clamp(0., 100.) / 100.,
-        v.feather.clamp(0., 100.) / 100.,
-        v.highlights.clamp(0., 100.) / 100.,
-        g.amount.clamp(0., 100.) / 100.,
-        0.5 + 7.5 * g.size.clamp(0., 100.) / 100.,
-        g.roughness.clamp(0., 100.) / 100.,
-        r.right - r.left,
-        r.bottom - r.top,
-        extent.width as f32,
-        extent.height as f32,
-        match v.style {
-            VignetteStyle::HighlightPriority => 0.,
-            VignetteStyle::ColorPriority => 1.,
-            VignetteStyle::PaintOverlay => 2.,
-        },
-        if v.amount == 0. && g.amount == 0. {
-            1.
-        } else {
-            0.
-        },
-    ];
+    ]);
+    Ok(prepared)
+}
+fn run_prepared(
+    ctx: &crate::GpuContext,
+    l: TileLayout,
+    coord: TileCoord,
+    samples: &[f32],
+    p: Vec<f32>,
+) -> EngineResult<Tile> {
     let scope = ctx.device.push_error_scope(wgpu::ErrorFilter::Validation);
     let shader = ctx
         .device

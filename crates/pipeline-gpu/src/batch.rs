@@ -16,6 +16,8 @@ use wgpu::util::DeviceExt;
 /// Transfer diagnostics, shared by clones of a backend (not by all contexts).
 #[derive(Debug, Default, Clone, Copy)]
 pub struct GpuStats {
+    /// Point-stage dispatches (one per tile regardless of fused stage count).
+    pub fused_dispatches: u64,
     pub uploads: u64,
     pub readbacks: u64,
     pub submissions: u64,
@@ -30,6 +32,7 @@ pub struct GpuStats {
 }
 #[derive(Default)]
 pub(crate) struct Counters {
+    pub(crate) fused_dispatches: AtomicU64,
     pub(crate) uploads: AtomicU64,
     pub(crate) readbacks: AtomicU64,
     pub(crate) submissions: AtomicU64,
@@ -53,6 +56,7 @@ pub struct GpuStageOp {
     pub(crate) surface_pipeline: wgpu::ComputePipeline,
     pub(crate) zero_pipeline: wgpu::ComputePipeline,
     pub(crate) histogram_pipeline: wgpu::ComputePipeline,
+    pub(crate) fused_pipeline: wgpu::ComputePipeline,
     pub(crate) detail_pipelines: Vec<wgpu::ComputePipeline>,
 }
 impl GpuStageOp {
@@ -146,6 +150,7 @@ impl GpuStageOp {
                     cache: None,
                 });
         Self {
+            fused_pipeline: crate::fused::pipeline(&context),
             detail_pipelines: crate::detail::pipelines(&context).expect("valid Detail pipelines"),
             context,
             counters: Arc::default(),
@@ -171,6 +176,7 @@ impl GpuStageOp {
     }
     pub fn stats(&self) -> GpuStats {
         GpuStats {
+            fused_dispatches: self.counters.fused_dispatches.load(Ordering::Relaxed),
             uploads: self.counters.uploads.load(Ordering::Relaxed),
             readbacks: self.counters.readbacks.load(Ordering::Relaxed),
             submissions: self.counters.submissions.load(Ordering::Relaxed),
@@ -195,14 +201,30 @@ impl GpuStageOp {
         cancel: &CancellationToken,
     ) -> EngineResult<Vec<Tile>> {
         let ctx = &self.context;
+        let ops: Vec<_> = chain.iter().map(|(_, op)| *op).collect();
+        // Managed display must consume scene-linear output, never fused sRGB.
+        let scene_ops =
+            if self.managed_output.is_some() && matches!(ops.last(), Some(Op::Display { .. })) {
+                &ops[..ops.len() - 1]
+            } else {
+                &ops[..]
+            };
+        let fused = crate::fused::supports(scene_ops);
+        let pipeline = if fused {
+            &self.fused_pipeline
+        } else {
+            &ctx.pipeline
+        };
         let mut encoder = ctx.device.create_command_encoder(&Default::default());
         let mut pending = Vec::with_capacity(inputs.len());
         for input in inputs {
             cancel.check()?;
-            if chain
-                .iter()
-                .any(|(_, op)| matches!(op, Op::ToneExtra(_) | Op::Color(_)))
-                && input.samples::<f32>()?.iter().any(|v| !v.is_finite())
+            if chain.iter().any(|(_, op)| {
+                matches!(
+                    op,
+                    Op::ToneExtra(_) | Op::Color(_) | Op::Effects(..) | Op::EffectsInCrop(..)
+                )
+            }) && input.samples::<f32>()?.iter().any(|v| !v.is_finite())
             {
                 return Err(EngineError::invalid(
                     "tone input",
@@ -218,6 +240,9 @@ impl GpuStageOp {
                 });
             let mut layout = input.layout();
             for (index, (_, op)) in chain.iter().enumerate() {
+                if fused && index > 0 && index < scene_ops.len() {
+                    continue;
+                }
                 cancel.check()?;
                 if matches!(op, Op::Display { .. }) && index + 1 != chain.len() {
                     return Err(EngineError::invalid(
@@ -226,8 +251,11 @@ impl GpuStageOp {
                     ));
                 }
                 let input_layout = layout;
-                let (p, next_layout) =
-                    parameters(op, layout, input.coord().pixel_origin(TILE_SIZE))?;
+                let (p, next_layout) = if fused && index == 0 {
+                    crate::fused::parameters(scene_ops, layout, input.coord())?
+                } else {
+                    parameters(op, layout, input.coord().pixel_origin(TILE_SIZE))?
+                };
                 layout = next_layout;
                 let params = ctx
                     .device
@@ -271,12 +299,12 @@ impl GpuStageOp {
                     .collect();
                 let group = ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
                     label: None,
-                    layout: &ctx.pipeline.get_bind_group_layout(0),
+                    layout: &pipeline.get_bind_group_layout(0),
                     entries: &entries,
                 });
                 {
                     let mut pass = encoder.begin_compute_pass(&Default::default());
-                    pass.set_pipeline(&ctx.pipeline);
+                    pass.set_pipeline(pipeline);
                     pass.set_bind_group(0, &group, &[]);
                     pass.dispatch_workgroups((layout.plane_len() as u32).div_ceil(64), 1, 1);
                 }
@@ -295,6 +323,11 @@ impl GpuStageOp {
         }
         cancel.check()?;
         ctx.queue.submit([encoder.finish()]);
+        if fused {
+            self.counters
+                .fused_dispatches
+                .fetch_add(inputs.len() as u64, Ordering::Relaxed);
+        }
         self.counters.submissions.fetch_add(1, Ordering::Relaxed);
         self.counters
             .uploads
@@ -394,6 +427,12 @@ impl StageOp for GpuStageOp {
                 .readbacks
                 .fetch_add(transfers, Ordering::Relaxed);
             cancel.check()?;
+            // Presence-only edits do not need a second upload/dispatch/map of
+            // every pixel merely to evaluate the default identity curves.
+            // Curve validation above is intentionally not bypassed.
+            if s.curves == Default::default() {
+                return Ok(filtered);
+            }
             let curves = engine_api::recipe::settings::ToneSettings {
                 texture: 0.0,
                 clarity: 0.0,
@@ -470,6 +509,14 @@ impl StageOp for GpuStageOp {
         cancel.check()?;
         if chain.is_empty() || inputs.is_empty() {
             return Ok(inputs);
+        }
+        let ops: Vec<_> = chain.iter().map(|(_, op)| *op).collect();
+        if crate::fused::supports(&ops) {
+            let mut output = Vec::with_capacity(inputs.len());
+            for batch in inputs.chunks(self.batch_size()) {
+                output.extend(self.execute(chain, batch, cancel)?);
+            }
+            return Ok(output);
         }
         // Split only at genuine CPU fallback boundaries, not between GPU stages.
         let mut start = 0;

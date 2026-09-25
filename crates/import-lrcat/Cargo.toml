@@ -16,3 +16,11 @@ serde.workspace = true
 serde_json.workspace = true
 tempfile.workspace = true
 roxmltree = "0.20"
+image = { workspace = true, optional = true }
+
+[features]
+# Synthetic catalog + JPEG originals + Previews.lrdata (tests, CLI --make-fixture).
+fixture = ["dep:image"]
+
+[dev-dependencies]
+import-lrcat = { path = ".", features = ["fixture"] }

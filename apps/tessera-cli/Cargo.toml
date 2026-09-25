@@ -16,7 +16,7 @@ cull = { path = "../../crates/cull" }
 sidecar = { path = "../../crates/sidecar" }
 raw-decode = { path = "../../crates/raw-decode" }
 previews = { path = "../../crates/previews" }
-import-lrcat = { path = "../../crates/import-lrcat" }
+import-lrcat = { path = "../../crates/import-lrcat", features = ["fixture"] }
 ml-runtime = { path = "../../crates/ml-runtime" }
 ml-enhance = { path = "../../crates/ml-enhance" }
 export = { path = "../../crates/export" }
