@@ -782,6 +782,13 @@ dependencies = [
 [[package]]
 name = "image-core"
 version = "0.1.0"
+dependencies = [
+ "engine-api",
+ "half",
+ "jobs",
+ "pipeline-cpu",
+ "raw-decode",
+]
 
 [[package]]
 name = "import-lrcat"

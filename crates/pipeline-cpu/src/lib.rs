@@ -5,7 +5,9 @@ mod image;
 mod render;
 pub use display::{SigmoidSettings, display, sigmoid, srgb_oetf};
 pub use image::Image;
-pub use render::{RenderSource, Rgb8Image, render, render_scaled};
+pub use render::{
+    RenderSource, Rgb8Image, render, render_linear_scaled, render_scaled, validate_settings,
+};
 mod mosaic;
 pub use color::{apply_matrix, camera_to_xyz, temperature_white, white_balance_matrix};
 use engine_api::{EngineError, EngineResult, recipe::settings::ToneSettings, tile::Tile};

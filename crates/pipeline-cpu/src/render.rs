@@ -32,6 +32,40 @@ pub fn render_scaled(
     source: &RenderSource<'_>,
     scale: u32,
 ) -> EngineResult<Rgb8Image> {
+    let rgb = render_linear_scaled(settings, source, scale)?;
+    let mut out = Rgb8Image::new(rgb.width(), rgb.height());
+    for coord in rgb.coords() {
+        let tile = crate::display(
+            &rgb.tile(coord, 0, 1)?,
+            SigmoidSettings::default(),
+            settings.output.gamut_mapping,
+        )?;
+        let l = tile.layout();
+        let n = l.plane_len();
+        let data = tile.samples::<u8>()?;
+        let (ox, oy) = coord.pixel_origin(TILE_SIZE);
+        for y in 0..l.extent.height {
+            for x in 0..l.extent.width {
+                let i = (y * l.extent.width + x) as usize;
+                out.put_pixel(
+                    ox + x,
+                    oy + y,
+                    image::Rgb([data[i], data[n + i], data[2 * n + i]]),
+                );
+            }
+        }
+    }
+    Ok(out)
+}
+
+/// The scene-linear Rec.2020 image that [`render_scaled`] hands to the
+/// display transform: every operator through Tone, then the active-area crop
+/// and linear-light box downsample. Output (display) is not applied.
+pub fn render_linear_scaled(
+    settings: &DevelopSettings,
+    source: &RenderSource<'_>,
+    scale: u32,
+) -> EngineResult<Image> {
     validate_settings(settings)?;
     if scale == 0 {
         return Err(EngineError::invalid("scale", "must be positive"));
@@ -122,35 +156,13 @@ pub fn render_scaled(
         crate::tone(&mut tile, &settings.tone)?;
         rgb.put(&tile)?;
     }
-    let rgb = rgb.downsample_crop(crop, scale)?;
-    let mut out = Rgb8Image::new(rgb.width(), rgb.height());
-    for coord in rgb.coords() {
-        let tile = crate::display(
-            &rgb.tile(coord, 0, 1)?,
-            SigmoidSettings::default(),
-            settings.output.gamut_mapping,
-        )?;
-        let l = tile.layout();
-        let n = l.plane_len();
-        let data = tile.samples::<u8>()?;
-        let (ox, oy) = coord.pixel_origin(TILE_SIZE);
-        for y in 0..l.extent.height {
-            for x in 0..l.extent.width {
-                let i = (y * l.extent.width + x) as usize;
-                out.put_pixel(
-                    ox + x,
-                    oy + y,
-                    image::Rgb([data[i], data[n + i], data[2 * n + i]]),
-                );
-            }
-        }
-    }
-    Ok(out)
+    rgb.downsample_crop(crop, scale)
 }
 
 /// M1 has explicit no-op stages at their default values. Reject changed
 /// out-of-scope controls instead of producing a deceptively successful render.
-fn validate_settings(s: &DevelopSettings) -> EngineResult<()> {
+/// Public so tiled renderers built on these operators apply the same scope.
+pub fn validate_settings(s: &DevelopSettings) -> EngineResult<()> {
     use engine_api::recipe::settings::HighlightReconstruction;
     if !matches!(
         s.demosaic.method,

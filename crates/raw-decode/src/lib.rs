@@ -94,6 +94,28 @@ impl CfaImage {
     pub fn pyramid(&self) -> &CfaPyramid {
         &self.pyramid
     }
+
+    /// Wraps already-linearized, row-major sensor samples (synthetic sources,
+    /// tests, and callers that normalized samples themselves). Samples must be
+    /// finite; no clamping or black/white normalization is applied.
+    pub fn from_linear(width: u32, height: u32, pixels: Vec<f32>) -> EngineResult<Self> {
+        if width == 0
+            || height == 0
+            || pixels.len() as u64 != u64::from(width) * u64::from(height)
+            || pixels.iter().any(|v| !v.is_finite())
+        {
+            return Err(EngineError::invalid(
+                "CFA samples",
+                "nonempty finite width*height plane required",
+            ));
+        }
+        Ok(Self {
+            pyramid: CfaPyramid {
+                extent: Extent::new(width, height),
+                pixels,
+            },
+        })
+    }
 }
 
 /// Single-plane, linearized CFA pyramid. Higher levels are intentionally absent.
