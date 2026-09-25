@@ -45,7 +45,7 @@ impl Renderer {
         image: &RawImage,
         settings: &DevelopSettings,
     ) -> EngineResult<bool> {
-        pipeline_cpu::validate_settings(settings)?;
+        self.validate_settings(settings)?;
         Ok(self.supports_resident(&self.resolve(image, settings)?, None))
     }
 

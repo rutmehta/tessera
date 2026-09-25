@@ -831,6 +831,7 @@ impl Shared {
             return;
         }
         let settings = st.drawn();
+        let renderer = Arc::new(self.renderer.for_recipe(&st.recipe));
         masks::ensure_ai_jobs(self, &settings);
         let dirty = match &st.rendered {
             Some(prev) => prev.first_dirty_stage(&settings),
@@ -839,8 +840,7 @@ impl Shared {
         st.rendered = Some(settings.clone());
         let target = st.screen_level;
         let area = self.image.level_extent(target).area();
-        let resident = self
-            .renderer
+        let resident = renderer
             .can_render_resident(&self.image, &settings)
             .unwrap_or(false);
         let class = RenderClass::of(&settings, resident);
@@ -890,7 +890,7 @@ impl Shared {
             sink,
             surface,
             inner: ProgressiveRenderJob {
-                renderer: self.renderer.clone(),
+                renderer,
                 image: self.image.clone(),
                 settings,
                 viewport,
@@ -1016,6 +1016,7 @@ impl Shared {
         // Pixel consumers render the immutable recipe, never a mutable surface ring.
         let tiles = frame.pixels(|settings, level| {
             self.renderer
+                .for_process_version(recipe.process_version)
                 .render_region(&self.image, settings, level, PixelRect::full(e))
         })?;
         for t in tiles.iter() {
@@ -1557,6 +1558,35 @@ impl DevelopSession {
         serde_json::to_string(&self.shared.lock()?.live).map_err(failure)
     }
 
+    /// JSON ProcessVersion (`family`, `revision`) for this session's recipe.
+    pub fn get_process_version(&self) -> Result<String> {
+        serde_json::to_string(&self.shared.lock()?.recipe.process_version).map_err(failure)
+    }
+
+    /// Switch operator sets as a persisted undo step. Pending sliders commit first.
+    pub fn set_process_version(&self, json: String) -> Result<bool> {
+        use engine_api::recipe::{ProcessFamily, ProcessVersion};
+        let version: ProcessVersion = serde_json::from_str(&json).map_err(failure)?;
+        if (version.family == ProcessFamily::Adobe && !(3..=6).contains(&version.revision))
+            || (version.family == ProcessFamily::Native
+                && version != ProcessVersion::NATIVE_CURRENT)
+        {
+            return Err(failure("unsupported process version"));
+        }
+        let mut st = self.shared.lock()?;
+        if st.recipe.process_version == version {
+            return Ok(false);
+        }
+        self.shared.commit_pending(&mut st, "Edit")?;
+        crate::backend::record_process(&mut st.recipe, version, now_ms())?;
+        st.rendered = None;
+        st.frame = None;
+        self.shared.render(&mut st, false);
+        drop(st);
+        self.shared.schedule_save();
+        Ok(true)
+    }
+
     /// Settings kept in the recipe but not rendered by this pipeline version.
     pub fn ignored_settings(&self) -> Result<Vec<String>> {
         Ok(ignored_settings(&self.shared.lock()?.live))
@@ -1644,6 +1674,8 @@ impl DevelopSession {
             let mut st = self.shared.lock()?;
             self.shared.commit_pending(&mut st, "Edit")?;
             st.recipe.restore_snapshot(&name)?;
+            crate::backend::sync_process(&mut st.recipe)?;
+            st.frame = None;
             st.live = st.recipe.settings.clone();
             self.shared.render(&mut st, false);
         }
@@ -1770,7 +1802,10 @@ impl DevelopSession {
     ) -> Result<DetailPreview> {
         let s = &self.shared;
         let surface = Surface::lookup(iosurface_id, width, height).map_err(failure)?;
-        let mut settings = s.lock()?.drawn();
+        let (mut settings, version) = {
+            let st = s.lock()?;
+            (st.drawn(), st.recipe.process_version)
+        };
         settings.geometry = Default::default();
         settings.effects = Default::default();
         let e = s.image.active_extent();
@@ -1791,7 +1826,7 @@ impl DevelopSession {
         let wh = (y + h + DETAIL_MARGIN).min(e.height) - wy;
         let window = window_image(&s.image, wx, wy, ww, wh)?;
         settings.locals = masks::window_locals(&settings.locals, e, (wx, wy, ww, wh));
-        let tiles = s.renderer.render_region(
+        let tiles = s.renderer.for_process_version(version).render_region(
             &window,
             &settings,
             0,
@@ -2216,6 +2251,8 @@ impl DevelopSession {
             self.shared.commit_pending(&mut st, "Edit")?;
             let moved = f(&mut st.recipe)?;
             if moved {
+                crate::backend::sync_process(&mut st.recipe)?;
+                st.frame = None;
                 st.live = st.recipe.settings.clone();
                 self.shared.render(&mut st, false);
             }

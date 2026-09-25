@@ -16,7 +16,7 @@
 //! # Memoization
 //!
 //! Keys are [`engine_api::stage::MemoKey`]s with the chained parameter hash
-//! of the stage (seeded by the process version), so a change invalidates
+//! of the stage (operator-set identity enters at CameraProfile), so a change invalidates
 //! exactly the stages at and after the earliest dirty stage. Two outputs are
 //! stored, as `F16Planar`, in the shared byte-budgeted LRU
 //! [`TileCache`]: Demosaic (sensor frame, level 0) and the resampled
@@ -172,7 +172,7 @@ pub struct RendererConfig {
     pub cache_budget_bytes: usize,
     /// Worker threads per request (1 renders on the calling thread).
     pub threads: usize,
-    /// Seeds every memo key; recipes of another process never share tiles.
+    /// Selects operators and keys from CameraProfile on; raw stages are shared.
     pub process_version: ProcessVersion,
     /// Stage graph and memoization flags.
     pub graph: PipelineGraph,
@@ -197,11 +197,15 @@ impl Default for RendererConfig {
 
 /// Pulls output tiles through the stage graph with memoized upstream tiles.
 /// `Send + Sync`: share one renderer (and its cache) between jobs.
+#[derive(Clone)]
 pub struct Renderer {
     ops: Arc<dyn StageOp>,
+    native_ops: Arc<dyn StageOp>,
+    dcp: Option<(Arc<pipeline_adobe::dcp::DcpProfile>, ParamHash)>,
+    dcp_resolved: bool,
     denoiser: Option<Arc<dyn pipeline_cpu::PostDemosaicDenoise>>,
     cache: Arc<TileCache>,
-    mask_cache: crate::MaskRasterCache,
+    mask_cache: Arc<crate::MaskRasterCache>,
     config: RendererConfig,
 }
 
@@ -233,13 +237,97 @@ impl Renderer {
     /// A renderer on any backend and (possibly shared) cache. The cache's own
     /// budget applies; `config.cache_budget_bytes` is ignored.
     pub fn with_ops(ops: Arc<dyn StageOp>, cache: Arc<TileCache>, config: RendererConfig) -> Self {
-        let mask_cache = crate::MaskRasterCache::new(cache.budget());
+        let mask_cache = Arc::new(crate::MaskRasterCache::new(cache.budget()));
+        let native_ops = ops.clone();
+        let ops = if config.process_version.family == engine_api::recipe::ProcessFamily::Adobe {
+            Arc::new(crate::AdobeStageOp::new(ops)) as Arc<dyn StageOp>
+        } else {
+            ops
+        };
         Self {
             ops,
+            native_ops,
+            dcp: None,
+            dcp_resolved: false,
             denoiser: None,
             cache,
             mask_cache,
             config,
+        }
+    }
+
+    /// Immutable request snapshot: shares caches, never changes in-flight jobs.
+    pub fn for_recipe(&self, recipe: &engine_api::recipe::Recipe) -> Self {
+        self.for_process_version(recipe.process_version)
+    }
+
+    /// Select an operator set while retaining the shared native backend/cache.
+    pub fn for_process_version(&self, process_version: ProcessVersion) -> Self {
+        let mut next = self.clone();
+        next.config.process_version = process_version;
+        next.dcp_resolved = false;
+        next.ops = if process_version.family == engine_api::recipe::ProcessFamily::Adobe {
+            Arc::new(crate::AdobeStageOp::new(self.native_ops.clone()))
+        } else {
+            self.native_ops.clone()
+        };
+        next
+    }
+
+    /// Supply explicit DCP bytes. The content digest participates in profile keys.
+    /// Profile names in recipes are never interpreted as filesystem paths.
+    pub fn with_dcp_profile(mut self, bytes: &[u8]) -> EngineResult<Self> {
+        let profile = pipeline_adobe::dcp::DcpProfile::parse(bytes)
+            .map_err(|e| EngineError::invalid("DCP profile", e))?;
+        self.dcp = Some((
+            Arc::new(profile),
+            ParamHash(engine_api::id::Digest::derive("tessera DCP v1", bytes)),
+        ));
+        self.dcp_resolved = false;
+        Ok(self)
+    }
+
+    fn prepare_dcp(
+        &self,
+        image: &RawImage,
+        settings: &DevelopSettings,
+    ) -> EngineResult<Option<Self>> {
+        if !self.is_adobe() || self.dcp_resolved {
+            return Ok(None);
+        }
+        let Some((profile, _)) = &self.dcp else {
+            return Ok(None);
+        };
+        let mut next = self.clone();
+        next.ops = Arc::new(crate::AdobeStageOp::with_profile(
+            self.native_ops.clone(),
+            profile.clone(),
+            image,
+            settings,
+        )?);
+        next.dcp_resolved = true;
+        Ok(Some(next))
+    }
+
+    fn is_adobe(&self) -> bool {
+        self.config.process_version.family == engine_api::recipe::ProcessFamily::Adobe
+    }
+
+    fn validate_settings(&self, settings: &DevelopSettings) -> EngineResult<()> {
+        if self.is_adobe() {
+            if !(3..=6).contains(&self.config.process_version.revision) {
+                return Err(EngineError::invalid(
+                    "process_version",
+                    "Adobe PV3–6 required",
+                ));
+            }
+            let mut checked = settings.clone();
+            checked.camera_profile.profile = Default::default();
+            checked.tone.display_transform = Default::default();
+            pipeline_cpu::validate_settings(&checked)?;
+            pipeline_adobe::curves::validate(&settings.tone.curves)
+        } else {
+            pipeline_cpu::validate_settings(settings)
         }
     }
 
@@ -260,7 +348,29 @@ impl Renderer {
         } else {
             pipeline_cpu::POST_DENOISE_ADAPTER
         };
-        PipelineGraph::stage_chain(settings, self.config.process_version.chain_seed(), revision)
+        // Native process revisions already identify the native operator set.
+        let seed = self.config.process_version.chain_seed();
+        let seed = if self.is_adobe() {
+            ParamHash::chain(
+                seed,
+                ParamHash::of(StageId::CameraProfile, &"adobe-compat-v1"),
+            )
+        } else {
+            seed
+        };
+        let seed = if self.is_adobe() {
+            self.dcp
+                .as_ref()
+                .map_or(seed, |(_, digest)| ParamHash::chain(seed, *digest))
+        } else {
+            seed
+        };
+        PipelineGraph::stage_chain(settings, seed, revision)
+    }
+
+    /// Compatibility stage invocation count (zero for a native renderer).
+    pub fn adobe_invocations(&self, stage: StageId) -> u64 {
+        self.ops.adobe_invocations(stage)
     }
 
     /// The memo cache.
@@ -322,7 +432,7 @@ impl Renderer {
         rect: PixelRect,
         output: RenderOutput,
     ) -> EngineResult<Vec<Tile>> {
-        pipeline_cpu::validate_settings(settings)?;
+        self.validate_settings(settings)?;
         let extent = Self::output_extent(image, settings, level)?;
         let coords = Self::tiles_in_extent(extent, level, rect);
         let mut out = Vec::with_capacity(coords.len());
@@ -351,7 +461,10 @@ impl Renderer {
         cancel.check()?;
         let r = self.resolve(image, settings)?;
         let level = coords.first().map(|c| c.level);
-        if has_m2_settings(settings) && !self.supports_resident(&r, level) {
+        if let Some(prepared) = self.prepare_dcp(image, settings)? {
+            return prepared.render_tiles(image, settings, coords, output, cancel, sink);
+        }
+        if (self.is_adobe() || has_m2_settings(settings)) && !self.supports_resident(&r, level) {
             self.run_m2(image, settings, coords, output, cancel, sink)
         } else {
             self.run(&r, coords, output, cancel, sink)
@@ -377,10 +490,15 @@ impl Renderer {
             ));
         }
         let r = self.resolve(image, settings)?;
+        if let Some(prepared) = self.prepare_dcp(image, settings)? {
+            return prepared.render_progressive(image, settings, viewport, output, cancel, sink);
+        }
         for level in (viewport.finest_level..=viewport.coarsest_level).rev() {
             let extent = Self::output_extent(image, settings, level)?;
             let coords = Self::tiles_in_extent(extent, level, viewport.rect.at_level(level));
-            if has_m2_settings(settings) && !self.supports_resident(&r, Some(level)) {
+            if (self.is_adobe() || has_m2_settings(settings))
+                && !self.supports_resident(&r, Some(level))
+            {
                 self.run_m2(image, settings, &coords, output, cancel, sink)?;
             } else {
                 self.run(&r, &coords, output, cancel, sink)?;
@@ -545,7 +663,7 @@ impl Renderer {
         image: &'a RawImage,
         settings: &'a DevelopSettings,
     ) -> EngineResult<Resolved<'a>> {
-        pipeline_cpu::validate_settings(settings)?;
+        self.validate_settings(settings)?;
         if pipeline_cpu::denoise_active(&settings.denoise) && self.denoiser.is_none() {
             return Err(EngineError::invalid(
                 "denoise",

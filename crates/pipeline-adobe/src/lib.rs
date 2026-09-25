@@ -1,5 +1,5 @@
 //! Independent, approximate Adobe PV3–PV6 rendering. See ADOBE_COMPAT.md.
-mod curves;
+pub mod curves;
 pub mod dcp;
 pub mod fidelity;
 mod render;

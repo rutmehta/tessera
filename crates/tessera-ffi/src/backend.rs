@@ -7,6 +7,70 @@ use engine_api::{
 use image_core::{CpuStageOp, PixelRect, RawImage, Renderer, RendererConfig, StageOp, TileCache};
 use std::{sync::Arc, time::Instant};
 
+// Settings-only engine history cannot carry a recipe field directly. Typed
+// transition metadata on real history entries preserves the existing schema.
+const PROCESS_MARKER: &str = "tessera:process-version:v1:";
+
+pub(crate) fn record_process(
+    recipe: &mut engine_api::recipe::Recipe,
+    version: engine_api::recipe::ProcessVersion,
+    timestamp: i64,
+) -> EngineResult<bool> {
+    use engine_api::{
+        id::HistoryEntryId,
+        recipe::{EditMeta, history::HistoryEntry},
+    };
+    if recipe.process_version == version {
+        return Ok(false);
+    }
+    let id = HistoryEntryId(recipe.history.entries.len() as u64 + 1);
+    let rationale = format!(
+        "{PROCESS_MARKER}{}",
+        serde_json::to_string(&(recipe.process_version, version))?
+    );
+    recipe.history.entries.push(HistoryEntry {
+        id,
+        parent: recipe.history.head,
+        meta: EditMeta {
+            rationale: Some(rationale),
+            ..EditMeta::user("Process Version", timestamp)
+        },
+        changes: Vec::new(),
+    });
+    recipe.history.head = Some(id);
+    recipe.process_version = version;
+    Ok(true)
+}
+
+pub(crate) fn sync_process(recipe: &mut engine_api::recipe::Recipe) -> EngineResult<()> {
+    use engine_api::recipe::{ProcessVersion, history::HistoryEntry};
+    fn transition(entry: &HistoryEntry) -> EngineResult<Option<(ProcessVersion, ProcessVersion)>> {
+        entry
+            .meta
+            .rationale
+            .as_deref()
+            .and_then(|v| v.strip_prefix(PROCESS_MARKER))
+            .map(|v| serde_json::from_str(v).map_err(Into::into))
+            .transpose()
+    }
+    let mut version = None;
+    for entry in &recipe.history.entries {
+        if let Some((before, _)) = transition(entry)? {
+            version = Some(before);
+            break;
+        }
+    }
+    for entry in recipe.history.lineage(recipe.history.head)? {
+        if let Some((_, after)) = transition(entry)? {
+            version = Some(after);
+        }
+    }
+    if let Some(version) = version {
+        recipe.process_version = version;
+    }
+    Ok(())
+}
+
 fn gpu_is_faster(cpu: [f64; 3], gpu: [f64; 3]) -> bool {
     cpu.iter().chain(&gpu).all(|v| v.is_finite() && *v > 0.) && gpu[1] < cpu[1] && gpu[2] < cpu[2]
 }
@@ -118,6 +182,49 @@ mod common;
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    #[cfg(target_os = "macos")]
+    fn adobe_gpu_backend_uses_host_barriers_at_preview_level() {
+        use super::*;
+        use engine_api::{
+            recipe::{ProcessVersion, Recipe},
+            stage::StageId,
+        };
+        let image = common::synthetic(418, 48, 40, common::RGGB, [0, 0, 48, 40]);
+        let ops = Arc::new(pipeline_gpu::GpuStageOp::new(Arc::new(
+            pipeline_gpu::GpuContext::new().unwrap(),
+        )));
+        let base = Renderer::with_ops(
+            ops.clone(),
+            Arc::new(TileCache::new(16 << 20)),
+            RendererConfig::default(),
+        );
+        let mut recipe = Recipe::new(image.id());
+        recipe.process_version = ProcessVersion::adobe(6);
+        let compat = base.for_recipe(&recipe);
+        assert!(
+            !compat
+                .can_render_resident(&image, &recipe.settings)
+                .unwrap()
+        );
+        let rect = PixelRect::full(image.level_extent(2));
+        let got = compat
+            .render_region(&image, &recipe.settings, 2, rect)
+            .unwrap();
+        assert!(got.iter().all(|t| t.coord().level == 2));
+        assert!(compat.adobe_invocations(StageId::Tone) > 0);
+        // Conventional tile batches count readbacks; byte counters belong to
+        // the resident surface path, which is deliberately not selected here.
+        assert!(ops.stats().readbacks > 0);
+        let cpu = Renderer::new(RendererConfig::default()).for_recipe(&recipe);
+        let expected = cpu
+            .render_region(&image, &recipe.settings, 2, rect)
+            .unwrap();
+        let a = common::assemble_u8(image.level_extent(2), &got);
+        let b = common::assemble_u8(image.level_extent(2), &expected);
+        assert!(common::max_u8_diff(&a, &b) <= 2);
+    }
+
     #[test]
     #[cfg(target_os = "macos")]
     fn calibration_measures_surface_presentation_without_pixel_readback() {

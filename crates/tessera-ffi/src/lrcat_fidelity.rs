@@ -6,10 +6,8 @@
 //! CIELAB (D65), reported as the mean and the 95th percentile per image, plus a
 //! JPEG thumbnail of each side.
 //!
-//! Renderer selection: the Adobe-compatible renderer (`crates/pipeline-adobe`)
-//! is not in this workspace yet, so every sample uses the native pipeline and
-//! `LrcatFidelity::renderer` says so. When that crate lands, `render` is the
-//! single switch point (feature-detect it there and report "adobe-compat").
+//! Renderer selection follows each recipe's process version. Adobe PV3–6
+//! use the CPU compatibility operators; native recipes retain native math.
 use crate::{Result, failure, lrcat::LrcatImport, lrcat::LrcatOptions};
 use engine_api::{
     id::ImageId,
@@ -20,7 +18,7 @@ use image::{RgbImage, imageops};
 use previews::Codec;
 use std::{path::Path, sync::atomic::Ordering};
 
-pub const RENDERER: &str = "native";
+pub const RENDERER: &str = "recipe-selected (native/adobe-compat)";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, uniffi::Enum)]
 pub enum LrcatFidelityStatus {
@@ -49,7 +47,7 @@ pub struct LrcatFidelitySample {
 
 #[derive(Clone, Debug, PartialEq, uniffi::Record)]
 pub struct LrcatFidelity {
-    /// "native" until the Adobe-compatible renderer exists.
+    /// Operator-set selection policy (per-recipe native/Adobe compatibility).
     pub renderer: String,
     pub previews_available: bool,
     pub samples: Vec<LrcatFidelitySample>,
@@ -214,8 +212,12 @@ fn decode_preview(bytes: &[u8]) -> Result<RgbImage> {
     Ok(img)
 }
 
-/// Native render of `path` with `recipe`, about `edge` px on the long side, sRGB.
+/// Recipe-selected render, about `edge` px on the long side, sRGB.
 fn render(path: &Path, recipe: &Recipe, edge: u32) -> Result<RgbImage> {
+    let adobe = recipe.process_version.family == engine_api::recipe::ProcessFamily::Adobe;
+    if adobe && !(3..=6).contains(&recipe.process_version.revision) {
+        return Err(failure("Adobe fidelity requires PV3–6"));
+    }
     let ext = path
         .extension()
         .map(|e| e.to_string_lossy().to_lowercase())
@@ -230,6 +232,13 @@ fn render(path: &Path, recipe: &Recipe, edge: u32) -> Result<RgbImage> {
             ((h as f32 * s).round() as u32).max(1),
         );
         let source = linear_rec2020(&small)?;
+        if adobe {
+            return Ok(image_core::pipeline_adobe::render_scaled(
+                &recipe.settings,
+                &pipeline_cpu::RenderSource::Rgb(&source),
+                1,
+            )?);
+        }
         return Ok(pipeline_cpu::render(
             &recipe.settings,
             &pipeline_cpu::RenderSource::Rgb(&source),
@@ -250,7 +259,10 @@ fn render(path: &Path, recipe: &Recipe, edge: u32) -> Result<RgbImage> {
         level += 1;
     }
     let extent = raw.level_extent(level);
-    let renderer = image_core::Renderer::new(image_core::RendererConfig::default());
+    let renderer = image_core::Renderer::new(image_core::RendererConfig {
+        process_version: recipe.process_version,
+        ..Default::default()
+    });
     let tiles = renderer.render_region(
         &raw,
         &recipe.settings,
@@ -423,6 +435,28 @@ pub(crate) fn delta_e_stats(a: &RgbImage, b: &RgbImage) -> (f32, f32) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn jpeg_fidelity_selects_recipe_process_version() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("source.jpg");
+        let rgb = RgbImage::from_pixel(32, 24, image::Rgb([120, 80, 50]));
+        rgb.save(&path).unwrap();
+        let mut recipe = Recipe::new(ImageId::default());
+        let native = render(&path, &recipe, 64).unwrap();
+        recipe.process_version = engine_api::recipe::ProcessVersion::adobe(6);
+        let compat = render(&path, &recipe, 64).unwrap();
+        assert_ne!(native, compat);
+        let decoded = image::open(path).unwrap().into_rgb8();
+        let linear = linear_rec2020(&decoded).unwrap();
+        let expected = image_core::pipeline_adobe::render_scaled(
+            &recipe.settings,
+            &pipeline_cpu::RenderSource::Rgb(&linear),
+            1,
+        )
+        .unwrap();
+        assert_eq!(compat, expected);
+    }
 
     #[test]
     fn ciede2000_matches_sharma_reference_pairs() {
