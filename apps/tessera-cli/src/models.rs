@@ -157,10 +157,15 @@ outputs = [{ name = "output", shape = [1], dtype = "fp32" }]
     #[test]
     fn real_fixture_produces_assignments_or_explicit_coreml_policy_failure() {
         let dir = AppDir::new();
+        // This test audits the bundled fixture, not production models that need
+        // network downloads. Keep the fixture's real hash and tensor contract.
+        let fixture = include_str!("../../../crates/ml-runtime/models.toml")
+            .split("[[models]]")
+            .find(|section| section.trim_start().starts_with("id = \"test/conv\"\n"))
+            .expect("local convolution fixture");
         fs::write(
             dir.0.join("models.toml"),
-            include_str!("../../../crates/ml-runtime/models.toml")
-                .replace("file:tests/data/conv.onnx", "file:conv.onnx"),
+            format!("[[models]]{fixture}").replace("file:tests/data/conv.onnx", "file:conv.onnx"),
         )
         .unwrap();
         fs::write(

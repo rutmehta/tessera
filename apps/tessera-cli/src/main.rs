@@ -22,6 +22,8 @@ struct Cli {
 }
 #[derive(Subcommand)]
 enum Command {
+    /// Serve engine tools through the tessera-mcp stdio executable.
+    Mcp,
     #[command(subcommand)]
     Import(Import),
     #[command(subcommand)]
@@ -122,9 +124,35 @@ fn run(cli: &Cli) -> Result<Value> {
         None => PathBuf::from(std::env::var_os("HOME").context("HOME is not set; use --app-dir")?)
             .join("Library/Application Support/Tessera"),
     };
+    if matches!(cli.command, Command::Mcp) {
+        let executable = std::env::var_os("TESSERA_MCP_BIN")
+            .map(PathBuf::from)
+            .or_else(|| {
+                std::env::current_exe()
+                    .ok()
+                    .map(|p| p.with_file_name("tessera-mcp"))
+                    .filter(|p| p.is_file())
+            })
+            .unwrap_or_else(|| PathBuf::from("tessera-mcp"));
+        let mut command = std::process::Command::new(executable);
+        command.arg("--app-dir").arg(&app);
+        #[cfg(unix)]
+        {
+            use std::os::unix::process::CommandExt;
+            return Err(command.exec()).context(
+                "exec tessera-mcp; install the tessera-mcp binary beside tessera or on PATH",
+            );
+        }
+        #[cfg(not(unix))]
+        {
+            let status = command.status().context("start tessera-mcp")?;
+            std::process::exit(status.code().unwrap_or(1));
+        }
+    }
     std::fs::create_dir_all(&app)?;
     let mut index = Index::open(app.join("index.sqlite"))?;
     match &cli.command {
+        Command::Mcp => unreachable!("MCP replaces this process before opening the catalog"),
         Command::Export(options) => export::run(&index, &app, options),
         Command::Ml(command) => models::run(&app, matches!(command, Ml::Check)),
         Command::Import(Import::Lrcat {

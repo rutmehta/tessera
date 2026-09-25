@@ -1,0 +1,31 @@
+[package]
+name = "tessera-mcp"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+
+[dependencies]
+engine-api = { path = "../engine-api" }
+index = { path = "../index" }
+library = { path = "../library" }
+sidecar = { path = "../sidecar" }
+pipeline-cpu = { path = "../pipeline-cpu" }
+raw-decode = { path = "../raw-decode" }
+previews = { path = "../previews" }
+ml-quality = { path = "../ml-quality" }
+export = { path = "../export" }
+serde.workspace = true
+serde_json.workspace = true
+image = { workspace = true, features = ["png"] }
+base64 = "0.23"
+# Official SDK, Apache-2.0 (inherits rust-sdk workspace license).
+rmcp = { version = "=3.4.1", default-features = false, features = ["server", "transport-io"] }
+schemars = { version = "1", features = ["derive"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "io-util", "io-std", "process", "time"] }
+
+[build-dependencies]
+syn = { version = "2", features = ["full"] }
+quote = "1"
+
+[dev-dependencies]
+tempfile.workspace = true
