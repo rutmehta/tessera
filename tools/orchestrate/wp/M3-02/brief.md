@@ -1,0 +1,11 @@
+# WP M3-02 — Faces and technical quality signals (`ml-faces`, `ml-quality`)
+
+Read docs/09 §1, docs/06 §2 (AI signals), crates/ml-runtime (registry, session, tensor, partition report), crates/index (score table from migration 004), crates/cull (Scorer trait, defect_sweep), crates/previews.
+Licensing rule (docs/13): model weights must be Apache-2.0/MIT/BSD. Do NOT use InsightFace SCRFD/ArcFace/RetinaFace weights (non-commercial licence). Use from the OpenCV Zoo (Apache-2.0): **YuNet** face detection (`face_detection_yunet_2023mar.onnx`, ~230 KB) and **SFace** face recognition (`face_recognition_sface_2021dec.onnx`, ~37 MB). Record each file's URL, size and sha256 in `models.toml`; the fetch happens through the registry into the cache dir; tests skip if offline.
+Implement:
+- `crates/ml-faces`: `detect(image) -> Vec<Face { bbox, landmarks5, score }>` (YuNet, letterboxed input, NMS), `embed(image, face) -> [f32;128]` (SFace, aligned crop via the 5 landmarks), `cluster(embeddings) -> clusters` (simple agglomerative with cosine threshold; HDBSCAN later), per-face **eyes-open** heuristic from landmark geometry + a Laplacian sharpness score inside each face box.
+- `crates/ml-quality` (classical, no model): global sharpness (variance of Laplacian on a 1024-px preview), motion-blur estimate (directional gradient anisotropy), exposure/clipping fractions per channel, noise estimate (MAD of high-pass in flat regions), all normalised to 0–1 with documented formulas.
+- Writers: both crates write into the index `score` table (image-level and per-face rows; add a `face` table migration if missing) and implement `cull::Scorer` so `keep_best_reject_rest` and `defect_sweep` use real signals.
+- A `tessera` CLI subcommand is NOT in scope; expose library functions only.
+- Tests: synthetic images (drawn shapes; a generated blurred vs sharp pair; clipped vs normal) for ml-quality; for ml-faces use a test image you create with a rendered face-like pattern only for shape checks, plus an integration test over `fixtures/raw` embedded previews that runs without asserting face counts (the fixtures have no people) but asserts no crash and that scores are written; a CoreML partition test through ml-runtime for both models.
+`cargo test -p ml-faces -p ml-quality --release`, clippy -D warnings, fmt. Do not modify engine-api.
