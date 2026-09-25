@@ -3,6 +3,7 @@ set -euo pipefail
 # This repository path contains a colon; clear the inherited DYLD override so
 # rustc can form its macOS library search path correctly.
 unset DYLD_FALLBACK_LIBRARY_PATH
+export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$HOME/.cache/tessera-target/ci}"
 cargo fmt --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace

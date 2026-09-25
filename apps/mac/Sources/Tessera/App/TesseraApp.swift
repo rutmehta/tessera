@@ -1,6 +1,7 @@
 import AppKit
 import TesseraCore
 import SwiftUI
+import Sparkle
 
 @main
 struct TesseraApp: App {
@@ -13,7 +14,12 @@ struct TesseraApp: App {
                 .frame(minWidth: 960, minHeight: 600)
         }
         .defaultSize(width: 1440, height: 900)
-        .commands { AppCommands(model: model) }
+        .commands {
+            AppCommands(model: model)
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…") { appDelegate.updaterController.checkForUpdates(nil) }
+            }
+        }
     }
 }
 
@@ -34,6 +40,9 @@ struct TesseraApp: App {
 ///                     prefixes "opt-" / "shift-" / "cmd-" (⌘ tokens go to the menu bar); "wait" idles one step
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    // Sparkle reads the feed, public key, and daily-check defaults from Info.plist.
+    let updaterController = SPUStandardUpdaterController(
+        startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
     private var keyRouter: KeyRouter?
 
     func applicationWillFinishLaunching(_ notification: Notification) {

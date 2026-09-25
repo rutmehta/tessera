@@ -16,6 +16,9 @@ let package = Package(
     products: [
         .executable(name: "Tessera", targets: ["Tessera"]),
     ],
+    dependencies: [
+        .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.10.0"),
+    ],
     targets: [
         .systemLibrary(name: "CTesseraFFI", path: "Sources/CTesseraFFI"),
         .target(name: "TesseraFFI", dependencies: ["CTesseraFFI"],
@@ -31,7 +34,7 @@ let package = Package(
         // AppKit + SwiftUI shell.
         .executableTarget(
             name: "Tessera",
-            dependencies: ["TesseraCore", "TesseraFFI"],
+            dependencies: ["TesseraCore", "TesseraFFI", .product(name: "Sparkle", package: "Sparkle")],
             path: "Sources/Tessera"
         ),
         .testTarget(
