@@ -9,7 +9,7 @@ Written 2026-09-25. Covers how docs 01–10 get built, by which model, in what o
 | Hardware | Apple M4, 24 GB, macOS 26.6.2, Xcode 26.6 |
 | Toolchains | Rust 1.87 / cargo, Swift 6.3, Node 26, Python 3.13 |
 | Claude Code | 2.1.282 — Fable 5.1 (this session), Opus 5.5 via the Agent tool |
-| Codex CLI | 0.154.0, ChatGPT-account auth. **Refuses `gpt-6-luna` and `gpt-6-sol`** ("not supported when using Codex with a ChatGPT account"); only `gpt-6-astra` runs. Not used. |
+| Codex CLI | 0.154.0 refused `gpt-6-luna`/`gpt-6-sol` on the ChatGPT account; **updating to 0.157.0 fixed it** (both answer). Kept as a fallback runner; Hermes remains the primary because its computer-use path is verified. |
 | Hermes | 0.21.1 with an `openai-codex` OAuth credential that **does** reach `gpt-6-luna` and `gpt-6-sol` (smoke-tested 2026-09-25: Luna built and tested a cargo crate in 30 s; Sol took a screenshot via the `computer_use` toolset, cua-driver 0.25 with Accessibility + Screen Recording granted). **Decision: run Luna and Sol through Hermes.** |
 
 ## 1. Technical decisions (revised after the 2026-09-25 stack review)
