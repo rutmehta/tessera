@@ -6,7 +6,7 @@ license = "CDDL-1.0"
 build = "build.rs"
 
 [dependencies]
-thiserror = "2"
+thiserror.workspace = true
 
 [build-dependencies]
 cc = "1"
