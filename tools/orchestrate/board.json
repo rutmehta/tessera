@@ -430,5 +430,29 @@
     "status": "merged",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M2-14b",
+    "owner": "astra",
+    "title": "Flaky Swift tests + AI masks in export",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M3-08",
+    "owner": "astra",
+    "title": "MCP tool server + console",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-14v",
+    "owner": "sol",
+    "title": "Verify masking UI",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
