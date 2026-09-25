@@ -14,6 +14,7 @@ members = [
     "crates/ml-runtime",
     "crates/jobs",
     "crates/engine-api",
+    "crates/tessera-ffi",
     "crates/libraw-ffi",
     "crates/compositor",
     "apps/tessera-cli",

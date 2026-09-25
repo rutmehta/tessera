@@ -1,0 +1,27 @@
+[package]
+name = "tessera-ffi"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["lib", "staticlib", "cdylib"]
+
+[dependencies]
+engine-api = { path = "../engine-api" }
+index = { path = "../index" }
+sidecar = { path = "../sidecar" }
+previews = { path = "../previews" }
+raw-decode = { path = "../raw-decode" }
+uniffi = { workspace = true, features = ["cli"] }
+rusqlite.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+image.workspace = true
+kamadak-exif.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "src/bin/uniffi-bindgen.rs"

@@ -87,6 +87,11 @@ public final class ThumbnailLoader: @unchecked Sendable {
     // MARK: Rendering
 
     public static func render(_ item: PhotoItem, tier: PreviewTier) -> CGImage? {
+        if let ref = item.engineImage {
+            guard let bytes = try? ref.engine.embeddedPreview(imageId: ref.imageID, maxPx: UInt32(tier.maxPixelSize)),
+                  let src = CGImageSourceCreateWithData(Data(bytes) as CFData, nil) else { return nil }
+            return CGImageSourceCreateImageAtIndex(src, 0, [kCGImageSourceShouldCacheImmediately: true] as CFDictionary)
+        }
         if item.kind == .synthetic {
             return SyntheticThumbnail.make(for: item, maxPixel: tier == .thumbnail ? 256 : 1600)
         }

@@ -81,6 +81,11 @@ public struct CullStore: Sendable {
         counts.undecided = count
     }
 
+    public init(states: [CullState]) {
+        self.states = states
+        for state in states { adjust(state, by: 1) }
+    }
+
     public subscript(id: Int) -> CullState { states[id] }
 
     public var canUndo: Bool { !undoStack.isEmpty }

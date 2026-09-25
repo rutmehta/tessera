@@ -58,7 +58,7 @@ final class AppModel {
 
     // MARK: Observed summary state (SwiftUI)
 
-    private(set) var library: StubLibrary = .empty
+    private(set) var library: any PhotoLibrary = StubLibrary.empty
     private(set) var isLoading = false
     private(set) var counts = CullStore.Counts()
     private(set) var focusedItem: PhotoItem?
@@ -98,6 +98,7 @@ final class AppModel {
     @ObservationIgnored var gridColumns = 1
     @ObservationIgnored private var observers: [WeakObserver] = []
     @ObservationIgnored private var adjustments: [Int: [BasicKey: Double]] = [:]
+    @ObservationIgnored private var loadGeneration = 0
 
     private struct WeakObserver { weak var value: (any LibraryObserver)? }
 
@@ -145,12 +146,19 @@ final class AppModel {
     }
 
     func openFolder(_ url: URL) {
+        loadGeneration += 1
+        let generation = loadGeneration
+        let useStub = ProcessInfo.processInfo.arguments.contains("--stub-library")
         isLoading = true
         statusMessage = "Reading \(url.lastPathComponent)…"
         rememberFolder(url)
         Task.detached(priority: .userInitiated) {
-            let result = Result { try StubLibrary.scan(folder: url) }
+            let result = Result<any PhotoLibrary, Error> {
+                if useStub { return try StubLibrary.scan(folder: url) }
+                return try EngineLibrary.scan(folder: url)
+            }
             await MainActor.run {
+                guard generation == self.loadGeneration else { return }
                 self.isLoading = false
                 switch result {
                 case .success(let lib):
@@ -166,6 +174,8 @@ final class AppModel {
     }
 
     func loadStubItems(count: Int) {
+        loadGeneration += 1
+        isLoading = false
         let lib = StubLibrary.synthetic(count: count)
         install(lib)
         statusMessage = "Generated \(count.formatted()) stub items in \(lib.groups.count.formatted()) groups, \(Self.ms(lib.scanDuration))"
@@ -179,10 +189,10 @@ final class AppModel {
         UserDefaults.standard.set(recentFolders.map(\.path), forKey: Self.recentFoldersKey)
     }
 
-    private func install(_ lib: StubLibrary) {
+    private func install(_ lib: any PhotoLibrary) {
         loader.removeAll()
         library = lib
-        cull = CullStore(count: lib.items.count)
+        cull = CullStore(states: lib.items.map { lib.initialState(for: $0) })
         adjustments = [:]
         source = .all
         rebuildVisible()
@@ -348,6 +358,11 @@ final class AppModel {
     }
 
     private func didChange(ids: [Int]) {
+        do {
+            for id in ids { try library.persist(cull[id], for: library.items[id]) }
+        } catch {
+            statusMessage = "Could not save decision: \(error.localizedDescription)"
+        }
         var positions = IndexSet()
         for id in ids where positionOfID[id] >= 0 { positions.insert(positionOfID[id]) }
         refreshSummary()

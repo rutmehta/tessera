@@ -1,0 +1,5 @@
+[bindings.swift]
+module_name = "TesseraFFI"
+ffi_module_name = "CTesseraFFI"
+ffi_module_filename = "CTesseraFFI"
+generate_module_map = true
