@@ -24,9 +24,11 @@ public struct PhotoItem: Sendable, Hashable, Identifiable {
     public internal(set) var groupID: Int
     /// Seed for generated thumbnails of synthetic items.
     public let seed: UInt64
+    public let engineImage: EngineImageReference?
 
     public init(id: Int, url: URL?, name: String, kind: PhotoKind, captureDate: Date,
-                pixelWidth: Int, pixelHeight: Int, groupID: Int = 0, seed: UInt64 = 0) {
+                pixelWidth: Int, pixelHeight: Int, groupID: Int = 0, seed: UInt64 = 0,
+                engineImage: EngineImageReference? = nil) {
         self.id = id
         self.url = url
         self.name = name
@@ -36,6 +38,7 @@ public struct PhotoItem: Sendable, Hashable, Identifiable {
         self.pixelHeight = pixelHeight
         self.groupID = groupID
         self.seed = seed
+        self.engineImage = engineImage
     }
 
     public var aspectRatio: Double {
@@ -45,6 +48,6 @@ public struct PhotoItem: Sendable, Hashable, Identifiable {
 
     func with(id: Int, groupID: Int) -> PhotoItem {
         PhotoItem(id: id, url: url, name: name, kind: kind, captureDate: captureDate,
-                  pixelWidth: pixelWidth, pixelHeight: pixelHeight, groupID: groupID, seed: seed)
+                  pixelWidth: pixelWidth, pixelHeight: pixelHeight, groupID: groupID, seed: seed, engineImage: engineImage)
     }
 }

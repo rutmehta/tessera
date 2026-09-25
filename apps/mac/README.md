@@ -1,8 +1,10 @@
-# Tessera — macOS app shell (WP M0-04)
+# Tessera — macOS app and engine bridge (WP M1-12)
 
-AppKit where performance matters, SwiftUI elsewhere (docs/11 §1.5). Wired to stub data: `StubLibrary`
-lists the JPEG / RAW files of a folder and shows their embedded previews via ImageIO, so the UI is
-real before the Rust engine exists.
+AppKit where performance matters, SwiftUI elsewhere (docs/11 §1.5). Folder opens now use
+`EngineLibrary` and the Rust index through UniFFI 0.32. Decisions, grades and named marks are
+written through `sidecar` to `.edits/<stem>.json` and XMP, then refreshed in the SQLite index.
+Thumbnails and camera previews come from the Rust embedded-JPEG fast path. The developed
+viewport still uses the IOSurface/Metal presentation path; no float pixel buffers cross UniFFI.
 
 Requirements: macOS 15+, Xcode 26 / Swift 6.3. `xcodegen` is not installed on this machine, so the
 project is a Swift package (Xcode opens `Package.swift` directly; there is no checked-in `.xcodeproj`).
@@ -12,6 +14,10 @@ project is a Swift package (Xcode opens `Package.swift` directly; there is no ch
 Run from `apps/mac/`:
 
 ```sh
+# Required once on a clean checkout and after Rust API/implementation changes.
+# Preserves an existing CARGO_TARGET_DIR; otherwise uses ~/.cache/tessera-target/mac-ffi.
+./build-ffi.sh
+
 # Primary (CI) build: the brief's command, plus a macOS destination
 xcodebuild -scheme Tessera -configuration Debug -destination 'platform=macOS' -derivedDataPath "$HOME/.cache/tessera-derived-data" build
 
@@ -29,12 +35,44 @@ Keep `-derivedDataPath` outside the repository. Xcode's dependency (`.d`) files 
 the checkout path contains a colon. The default DerivedData location
 (`~/Library/Developer/Xcode/DerivedData`) and SwiftPM's `.build/` both work.
 
+`build-ffi.sh` builds `libtessera_ffi.a`, generates Swift into `Sources/TesseraFFI/` and a C
+header/module map into `Sources/CTesseraFFI/`. SwiftPM's system-library target imports the
+header; the Swift target links the exact archive at `build/ffi/libtessera_ffi.a` with libc++
+and zlib. Generated bindings are checked in; the archive and build products are not.
+The script targets macOS 15 and produces arm64 on Apple Silicon. For an actual universal
+archive, install both Rust targets (`rustup target add aarch64-apple-darwin x86_64-apple-darwin`)
+and run `./build-ffi.sh --universal`. The ordinary arm64 build is the tested default.
+
+The bridge provides `Engine.open`, `indexFolder`, `listImages`, `setSelection`,
+`getRecipe`/`setRecipeJson`, `embeddedPreview`, and `setEventListener`. Calls throw on errors.
+`ImageQuery` accepts folder, FTS text, decision, limit (0 = all), and offset. Folder paths are
+canonical paths returned by `indexFolder`; filtering includes descendants. RAW capture times
+are Unix seconds as strings; JPEG EXIF capture times are local ISO date-times. Recipe JSON is
+the engine-api Recipe, not the sidecar synchronization envelope. History must remain append-only,
+ids cannot go backwards, unknown fields survive writes, and newer schemas are not writable.
+
+Events report scan start/completion (the current index has no per-file progress hook) and
+preview readiness. Callbacks run on the invoking worker thread, outside all engine locks, so
+clients must dispatch UI changes to MainActor. Folder scans and preview requests already run
+off-main in the app. Selection writes are synchronous before auto-advance, including undo/redo;
+failures are shown in the status bar. The SQLite cache lives at
+`~/Library/Application Support/Tessera/index.sqlite`, with a bounded JPEG preview cache beside it.
+Embedded previews are camera-rendered, not developed previews, and do not fall back to a full RAW
+decode when a camera JPEG is missing. They are limited to the requested maximum dimension.
+
+Rust tests exercise persistence, incremental scanning, filtering/pagination, recipe validation,
+unknown-field preservation, JPEG dimensions and callbacks. Swift's bridge test copies the real
+five-file `../../fixtures/raw` folder under `build/`, indexes it, persists a rejection, reopens
+and checks both the decision and Rust thumbnail. It fails if fixtures are absent and never
+modifies the shared fixture originals. Fetch them with the repository fixture tooling first.
+
 ## Launch arguments
 
 | Argument | Effect |
 |---|---|
 | `--folder <path>` | Open this folder, overriding the remembered last folder |
 | `--stub <n>` | Load `n` generated items (for example `20000`) instead of a folder |
+| `--stub-library` | Explicitly use the old ImageIO folder scanner and memory-only decisions |
 | `--benchmark` | Run the grid scroll benchmark 1.5 s after launch. The result appears in the status bar and on stderr |
 | `--keys "x p opt-right …"` | Self-test aid: feed keys through the culling key map after launch |
 | `--front` | Bring the window to the front without activating the app (for screenshots) |
@@ -96,7 +134,7 @@ Support/                      Info.plist, make-app.sh, make-sample-folder.swift
 
 ## Not in this WP
 
-Decisions persist only in memory; sidecars come with `crates/sidecar`. There is no real "best of
+Basket membership remains session-local. There is no real "best of
 group" pick, so a group jump lands on its first frame. Grouping is time-based only. Compare/survey,
 the face strip, the defect sweep and zoom/pan in the loupe are not built yet. Only Exposure has a
 visible effect. EDR headroom is shown in the loupe, but no HDR content exists yet to use it.
