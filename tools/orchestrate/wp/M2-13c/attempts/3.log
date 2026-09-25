@@ -1,0 +1,5 @@
+The strict-concurrency fix is in apps/mac/Tests/TesseraCoreTests/DevelopPanelsTests.swift: the detached closure captures only Sendable values, while the IOSurface stays alive until rendering finishes. The local toolchain is Apple Swift 6.3.3.
+
+I ran the requested command. FFI generation and the release build passed, but the unmodified release test command stopped at linking because libtessera_ffi.a references LittleCMS symbols that the Swift test target does not link. The unmodified debug test command fails the same way. With explicit LittleCMS linker flags, both configurations passed all 25 XCTest and 5 Swift Testing tests. I did not change the out-of-scope build configuration, and I cannot verify the older CI toolchain locally.
+
+RESULT: FAIL requested test command cannot link LittleCMS (_cms* symbols)

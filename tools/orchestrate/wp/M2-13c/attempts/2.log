@@ -1,0 +1,5 @@
+The test now passes only Sendable values into the detached render task and keeps the IOSurface alive until rendering finishes. I recorded the verification in `tools/orchestrate/wp/M2-13c/brief.md`. Local toolchain: Apple Swift 6.3.3.
+
+`./build-ffi.sh` and `swift build -c release` passed. The required sequence stopped at `swift test -c release`: the tests compiled, but linking failed on missing LittleCMS `_cms*` symbols. A separate unmodified debug test run failed the same way. With explicit local `lcms2` linker flags, release and debug each passed 25 XCTest tests and 5 Swift Testing tests. I couldn’t verify against the CI toolchain locally.
+
+RESULT: FAIL required unmodified test sequence cannot link LittleCMS within the allowed file scope.

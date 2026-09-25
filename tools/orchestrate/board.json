@@ -419,15 +419,15 @@
     "id": "M2-13v",
     "owner": "sol",
     "title": "Verify library + develop panels",
-    "status": "running",
+    "status": "fail",
     "attempts": 0,
-    "notes": ""
+    "notes": "verifier could not drive panels by mouse; 2 Swift tests flaky (BridgeTests:50 thumbnail cache, PreviewEventsTests alias) -> M2-14b; p90 17-20ms -> M2-17"
   },
   {
     "id": "M2-13c",
     "owner": "sol",
     "title": "Swift strict-concurrency CI fix",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   }
