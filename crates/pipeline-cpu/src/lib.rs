@@ -7,13 +7,18 @@ pub use color_detail::{DETAIL_HALO, color, detail, detail_halo};
 pub use geometry_effects::{effects, effects_in_crop, geometry};
 pub use tone_extra::{tone_extra, tone_extra_image};
 mod display;
+mod embedded_lens;
 mod image;
+mod lens_resolve;
+mod optics;
 mod render;
+mod upright;
 pub use display::{SigmoidSettings, display, sigmoid, srgb_oetf};
 pub use image::Image;
+pub use lens_resolve::{CorrectionSource, LensContext, ResolvedLens, resolve_lens};
 pub use render::{
-    RenderSource, Rgb8Image, has_m2_settings, render, render_linear_scaled, render_scaled,
-    validate_settings,
+    RenderSource, Rgb8Image, has_m2_settings, render, render_linear_scaled,
+    render_linear_scaled_with_lens, render_scaled, validate_settings,
 };
 mod mosaic;
 pub use color::{

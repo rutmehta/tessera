@@ -8,7 +8,15 @@ use engine_api::{
 /// Crop and straighten in one inverse map, using normalized Lanczos3.
 /// Positive angles rotate the displayed image clockwise. See GEOMETRY_EFFECTS_M2.md.
 pub fn geometry(image: &crate::Image, s: &GeometrySettings) -> EngineResult<crate::Image> {
-    use engine_api::recipe::settings::{Transform, UprightMode};
+    geometry_mapped(image, s, false, |p, _| Some(p))
+}
+
+pub(crate) fn geometry_mapped(
+    image: &crate::Image,
+    s: &GeometrySettings,
+    lens_active: bool,
+    lookup: impl Fn([f64; 2], usize) -> Option<[f64; 2]>,
+) -> EngineResult<crate::Image> {
     let r = s.crop.rect;
     if !r.is_valid()
         || !s.crop.angle.is_finite()
@@ -20,17 +28,39 @@ pub fn geometry(image: &crate::Image, s: &GeometrySettings) -> EngineResult<crat
             "valid rectangle, nonzero aspect and angle in -45..=45 required",
         ));
     }
-    if s.orientation != 1
-        || s.upright.mode != UprightMode::Off
-        || !s.upright.guides.is_empty()
-        || s.transform != Transform::default()
-        || s.constrain_crop
-    {
+    if s.orientation != 1 || s.constrain_crop {
         return Err(EngineError::Unsupported {
-            what: "M2 geometry supports crop and straighten only".into(),
+            what: "EXIF orientation and constrain-crop are not implemented".into(),
         });
     }
-    if r == engine_api::recipe::settings::NormalizedRect::FULL && s.crop.angle == 0. {
+    let upright = crate::upright::inverse(image, s, &lookup)?;
+    let upright_active = upright != lens::Homography::IDENTITY;
+    let lens_active = lens_active || upright_active;
+    let t = &s.transform;
+    if [
+        t.vertical,
+        t.horizontal,
+        t.rotate,
+        t.aspect,
+        t.scale,
+        t.offset_x,
+        t.offset_y,
+    ]
+    .iter()
+    .any(|v| !v.is_finite())
+        || !(50.0..=150.0).contains(&t.scale)
+    {
+        return Err(EngineError::invalid(
+            "transform",
+            "finite controls and scale 50..150 required",
+        ));
+    }
+    let transform_active = *t != Default::default();
+    if r == engine_api::recipe::settings::NormalizedRect::FULL
+        && s.crop.angle == 0.
+        && !lens_active
+        && !transform_active
+    {
         return Ok(image.clone());
     }
     let (iw, ih) = (image.width() as f32, image.height() as f32);
@@ -45,11 +75,48 @@ pub fn geometry(image: &crate::Image, s: &GeometrySettings) -> EngineResult<crat
             let dy = (y as f32 + 0.5) * ch / h as f32 - ch / 2.;
             let sx = cx + cos * dx + sin * dy - 0.5;
             let sy = cy - sin * dx + cos * dy - 0.5;
-            // No canvas expansion or automatic zoom: outside-source centers are black.
-            if sx < -0.5 || sy < -0.5 || sx >= iw - 0.5 || sy >= ih - 0.5 {
-                continue;
-            }
-            for (src, dst) in image.planes().iter().zip(&mut planes) {
+            for (channel, (src, dst)) in image.planes().iter().zip(&mut planes).enumerate() {
+                let (mut sx, mut sy) = (sx, sy);
+                if transform_active || lens_active {
+                    let mut p = [
+                        2. * (sx as f64 + 0.5) / iw as f64 - 1.,
+                        2. * (sy as f64 + 0.5) / ih as f64 - 1.,
+                    ];
+                    if transform_active {
+                        p[0] -= t.offset_x.clamp(-100., 100.) as f64 / 50.;
+                        p[1] -= t.offset_y.clamp(-100., 100.) as f64 / 50.;
+                        let (sin, cos) = (t.rotate.clamp(-10., 10.) as f64).to_radians().sin_cos();
+                        // Rotate in pixel metric, not stretched normalized coordinates.
+                        p = [
+                            cos * p[0] + sin * p[1] * ih as f64 / iw as f64,
+                            -sin * p[0] * iw as f64 / ih as f64 + cos * p[1],
+                        ];
+                        p[0] /= t.scale as f64 / 100.
+                            * (t.aspect.clamp(-100., 100.) as f64 / 100.).exp2();
+                        p[1] /= t.scale as f64 / 100.;
+                        let d = 1.
+                            - t.horizontal.clamp(-100., 100.) as f64 / 200. * p[0]
+                            - t.vertical.clamp(-100., 100.) as f64 / 200. * p[1];
+                        if d.abs() < 1e-8 {
+                            continue;
+                        }
+                        p = [p[0] / d, p[1] / d];
+                    }
+                    let Some(p) = upright.map(p).and_then(|p| lookup(p, channel)) else {
+                        continue;
+                    };
+                    sx = ((p[0] + 1.) * iw as f64 / 2. - 0.5) as f32;
+                    sy = ((p[1] + 1.) * ih as f64 / 2. - 0.5) as f32;
+                }
+                if !sx.is_finite()
+                    || !sy.is_finite()
+                    || sx < -0.5
+                    || sy < -0.5
+                    || sx >= iw - 0.5
+                    || sy >= ih - 0.5
+                {
+                    continue;
+                }
                 let mut sum = 0.;
                 let mut weights = 0.;
                 for ky in sy.floor() as i64 - 2..=sy.floor() as i64 + 3 {
@@ -365,6 +432,8 @@ mod tests {
         assert!(geometry(&image, &s).is_err());
         s = GeometrySettings::default();
         s.transform.vertical = 10.;
+        assert!(geometry(&image, &s).is_ok());
+        s.transform.scale = 0.;
         assert!(geometry(&image, &s).is_err());
     }
     #[test]
@@ -525,5 +594,56 @@ mod tests {
         let original = tile.clone();
         effects(&mut tile, &EffectsSettings::default(), Extent::new(2, 1)).unwrap();
         assert!(tile.shares_buffer_with(&original));
+    }
+}
+
+#[cfg(test)]
+mod composed_map_tests {
+    use super::*;
+    #[test]
+    fn one_lookup_per_channel_combines_crop_transform_and_lens() {
+        let image = crate::Image::new(
+            64,
+            48,
+            vec![(0..64 * 48).map(|i| (i % 64) as f32 / 64.).collect(); 3],
+        )
+        .unwrap();
+        let mut s = GeometrySettings::default();
+        s.crop.rect.left = 0.25;
+        s.crop.rect.right = 0.75;
+        s.crop.angle = 2.;
+        s.transform.rotate = 3.;
+        s.transform.scale = 120.;
+        let calls = std::cell::Cell::new(0usize);
+        let out = geometry_mapped(&image, &s, true, |p, _| {
+            calls.set(calls.get() + 1);
+            Some(
+                lens::BrownConrady {
+                    k1: 0.1,
+                    ..Default::default()
+                }
+                .distort(p),
+            )
+        })
+        .unwrap();
+        assert_eq!(
+            calls.get(),
+            out.width() as usize * out.height() as usize * 3
+        );
+        // Independent source location for a point well away from the support boundary.
+        let x = 20.;
+        let y = 20.;
+        let (sn, cs) = 2_f64.to_radians().sin_cos();
+        let dx = x + 0.5 - 16.;
+        let dy = y + 0.5 - 24.;
+        let px = 2. * (32. + cs * dx + sn * dy) / 64. - 1.;
+        let py = 2. * (24. - sn * dx + cs * dy) / 48. - 1.;
+        let (sn, cs) = 3_f64.to_radians().sin_cos();
+        let q = [
+            (cs * px + sn * py * 48. / 64.) / 1.2,
+            (-sn * px * 64. / 48. + cs * py) / 1.2,
+        ];
+        let source_x = (q[0] * (1. + 0.1 * (q[0] * q[0] + q[1] * q[1])) + 1.) * 32. - 0.5;
+        assert!((out.planes()[0][20 * 32 + 20] as f64 - source_x / 64.).abs() < 0.001);
     }
 }

@@ -2,6 +2,8 @@
 
 use std::path::{Path, PathBuf};
 
+pub mod dng;
+
 use engine_api::{
     EngineError, EngineResult,
     color::ColorMatrix3,
@@ -42,6 +44,9 @@ pub struct RawMetadata {
     /// DNG GainMap opcode presence. No gain map is applied during decode.
     pub has_gain_map: bool,
     pub has_opcode_list: bool,
+    /// Owned raw OpcodeList1/2/3 bytes for the LibRaw-selected image IFD.
+    /// Absence is not an identity calibration; proprietary maker-note corrections are not exposed.
+    pub opcode_lists: [Option<Vec<u8>>; 3],
 }
 
 impl From<FfiMetadata> for RawMetadata {
@@ -72,6 +77,7 @@ impl From<FfiMetadata> for RawMetadata {
             default_crop: [0; 4],
             has_gain_map: m.has_gain_map,
             has_opcode_list: m.has_opcode_list,
+            opcode_lists: m.opcode_lists,
         }
     }
 }
@@ -275,9 +281,34 @@ fn decode_error(message: impl Into<String>) -> EngineError {
 #[cfg(test)]
 mod tests;
 
+// Exercise the dependency-free parser even before the lens crate is integrated.
+#[cfg(test)]
+#[path = "../../lens/src/opcodes.rs"]
+mod correction_opcode_tests;
+
 #[cfg(test)]
 mod fixture_tests {
     use super::*;
+
+    #[test]
+    fn metadata_preserves_opcode_payloads() {
+        let m = FfiMetadata {
+            make: String::new(),
+            model: String::new(),
+            lens: None,
+            iso: 0.,
+            shutter: 0.,
+            aperture: 0.,
+            focal: 0.,
+            timestamp: 0,
+            orientation: 1,
+            has_opcode_list: true,
+            has_gain_map: false,
+            opcode_lists: [Some(vec![0; 4]), None, Some(vec![1, 2])],
+        };
+        let expected = m.opcode_lists.clone();
+        assert_eq!(RawMetadata::from(m).opcode_lists, expected);
+    }
 
     #[test]
     fn missing_source_returns_engine_error() {
