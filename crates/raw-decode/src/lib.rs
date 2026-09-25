@@ -4,8 +4,10 @@ use std::path::{Path, PathBuf};
 
 use engine_api::{
     EngineError, EngineResult,
+    color::ColorMatrix3,
     tile::{Extent, Pyramid, TILE_SIZE, Tile, TileCoord, TileFormat, TileLayout},
 };
+pub use libraw_ffi::CfaLayout;
 use libraw_ffi::{Metadata as FfiMetadata, RawFile};
 
 /// Camera and sensor information exposed by LibRaw.
@@ -19,15 +21,21 @@ pub struct RawMetadata {
     pub aperture: f32,
     pub focal_mm: f32,
     pub capture_time: i64,
+    /// EXIF orientation 1–8. The raw plane itself is never rotated.
     pub orientation: u16,
+    /// Full sensor dimensions, including masked margins.
     pub width: u32,
     pub height: u32,
-    pub cfa_pattern: [u8; 4],
+    pub cfa_layout: CfaLayout,
     pub black_levels: [f32; 4],
     pub white_level: u32,
     pub as_shot_wb: [f32; 4],
-    pub camera_to_xyz: [[f32; 3]; 3],
+    /// LibRaw camera-to-linear-sRGB composed with sRGB-to-XYZ (D65).
+    /// Apply to white-balanced camera RGB, not unbalanced mosaic samples.
+    pub camera_to_xyz: ColorMatrix3,
+    /// [left, top, width, height] in full sensor coordinates.
     pub default_crop: [u32; 4],
+    /// DNG GainMap opcode presence. No gain map is applied during decode.
     pub has_gain_map: bool,
     pub has_opcode_list: bool,
 }
@@ -37,7 +45,7 @@ impl From<FfiMetadata> for RawMetadata {
         Self {
             make: m.make,
             model: m.model,
-            lens: None,
+            lens: m.lens,
             iso: m.iso,
             shutter_s: m.shutter,
             aperture: m.aperture,
@@ -50,14 +58,14 @@ impl From<FfiMetadata> for RawMetadata {
             },
             width: 0,
             height: 0,
-            cfa_pattern: [0; 4],
+            cfa_layout: CfaLayout::Unsupported,
             black_levels: [0.; 4],
             white_level: 0,
             as_shot_wb: [0.; 4],
-            camera_to_xyz: [[0.; 3]; 3],
+            camera_to_xyz: ColorMatrix3([[0.; 3]; 3]),
             default_crop: [0; 4],
-            has_gain_map: false,
-            has_opcode_list: false,
+            has_gain_map: m.has_gain_map,
+            has_opcode_list: m.has_opcode_list,
         }
     }
 }
@@ -68,7 +76,7 @@ pub struct CfaU16 {
     pub width: u32,
     pub height: u32,
     pub data: Vec<u16>,
-    pub cfa_pattern: [u8; 4],
+    pub cfa_layout: CfaLayout,
 }
 
 /// Level-zero tiled CFA image.
@@ -140,17 +148,15 @@ impl RawSource {
     }
 
     pub fn metadata(&self) -> RawMetadata {
-        let mut raw = self.raw.cfa_data();
-        let _ = &mut raw;
         let mut metadata = RawMetadata::from(self.raw.metadata());
-        let image = self.raw.cfa_data();
+        let image = self.raw.sensor_info();
         metadata.width = image.width;
         metadata.height = image.height;
-        metadata.cfa_pattern = image.cfa_pattern;
+        metadata.cfa_layout = image.cfa_layout;
         metadata.black_levels = image.black;
         metadata.white_level = image.white;
         metadata.as_shot_wb = image.wb_coeffs;
-        metadata.camera_to_xyz = image.color_matrix;
+        metadata.camera_to_xyz = ColorMatrix3(image.color_matrix.map(|row| row.map(f64::from)));
         metadata.default_crop = image.crop;
         metadata
     }
@@ -162,46 +168,71 @@ impl RawSource {
     pub fn decode_cfa_u16(&mut self) -> EngineResult<CfaU16> {
         self.raw.unpack().map_err(|e| decode_error(e.to_string()))?;
         let image = self.raw.cfa_data();
-        if image.data.len() != image.width as usize * image.height as usize {
-            return Err(decode_error("LibRaw did not return a packed CFA plane"));
-        }
+        validate_plane(&image)?;
         Ok(CfaU16 {
             width: image.width,
             height: image.height,
             data: image.data,
-            cfa_pattern: image.cfa_pattern,
+            cfa_layout: image.cfa_layout,
         })
     }
 
     pub fn decode_cfa(&mut self) -> EngineResult<CfaImage> {
         self.raw.unpack().map_err(|e| decode_error(e.to_string()))?;
         let image = self.raw.cfa_data();
-        if image.data.len() != image.width as usize * image.height as usize {
-            return Err(decode_error("LibRaw did not return a packed CFA plane"));
-        }
-        let pixels = image
-            .data
-            .iter()
-            .enumerate()
-            .map(|(i, &v)| {
-                let channel = image.cfa_pattern[((i as u32 % image.width) & 1) as usize
-                    + (((i as u32 / image.width) & 1) as usize) * 2]
-                    as usize;
-                let black = image.black[channel.min(3)];
-                ((v as f32 - black) / (image.white as f32 - black).max(1.0)).clamp(0.0, 1.2)
-            })
-            .collect();
-        Ok(CfaImage {
-            pyramid: CfaPyramid {
-                extent: Extent::new(image.width, image.height),
-                pixels,
-            },
-        })
+        linearize(image)
     }
 
     pub fn path(&self) -> &Path {
         &self.path
     }
+}
+
+fn linearize(image: libraw_ffi::CfaImage) -> EngineResult<CfaImage> {
+    validate_plane(&image)?;
+    if image
+        .black
+        .iter()
+        .any(|&b| !b.is_finite() || b >= image.white as f32)
+    {
+        return Err(decode_error("invalid sensor black/white levels"));
+    }
+    let pixels = image
+        .data
+        .iter()
+        .enumerate()
+        .map(|(i, &v)| {
+            let channel = image
+                .cfa_layout
+                .channel_at(i as u32 % image.width, i as u32 / image.width);
+            let black = image.black[channel];
+            ((v as f32 - black) / (image.white as f32 - black)).clamp(0.0, 1.2)
+        })
+        .collect();
+    Ok(CfaImage {
+        pyramid: CfaPyramid {
+            extent: Extent::new(image.width, image.height),
+            pixels,
+        },
+    })
+}
+
+fn validate_plane(image: &libraw_ffi::CfaImage) -> EngineResult<()> {
+    if image.width == 0
+        || image.height == 0
+        || image.data.len() != image.width as usize * image.height as usize
+    {
+        return Err(decode_error("LibRaw did not return a packed CFA plane"));
+    }
+    let valid = match image.cfa_layout {
+        CfaLayout::Bayer(p) => p.iter().flatten().all(|&c| c < 4),
+        CfaLayout::XTrans(p) => p.iter().flatten().all(|&c| c < 3),
+        CfaLayout::Unsupported => false,
+    };
+    if !valid {
+        return Err(decode_error("unsupported CFA layout"));
+    }
+    Ok(())
 }
 
 fn decode_error(message: impl Into<String>) -> EngineError {
@@ -212,7 +243,10 @@ fn decode_error(message: impl Into<String>) -> EngineError {
 }
 
 #[cfg(test)]
-mod tests {
+mod tests;
+
+#[cfg(test)]
+mod fixture_tests {
     use super::*;
 
     #[test]
@@ -222,21 +256,54 @@ mod tests {
 
     #[test]
     fn fixtures_decode() {
-        let root = Path::new("../../fixtures/raw");
+        let root = std::env::var_os("RAW_DECODE_FIXTURES")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/raw"));
         if !root.exists() {
             eprintln!("skipping RAW fixture tests: fixtures/raw is absent");
             return;
         }
-        let entries: Vec<_> = std::fs::read_dir(root)
+        let mut entries: Vec<_> = std::fs::read_dir(root)
             .unwrap()
-            .flatten()
-            .map(|e| e.path())
-            .filter(|p| p.is_file())
+            .map(|e| e.unwrap().path())
+            .filter(|p| {
+                p.is_file()
+                    && p.extension().is_some_and(|e| {
+                        matches!(
+                            e.to_string_lossy().to_ascii_lowercase().as_str(),
+                            "cr3" | "arw" | "nef" | "raf" | "dng"
+                        )
+                    })
+            })
             .collect();
+        entries.sort();
+        assert!(
+            !entries.is_empty(),
+            "fixture directory exists but contains no RAW files"
+        );
+        for extension in ["cr3", "arw", "nef", "raf", "dng"] {
+            assert!(
+                entries
+                    .iter()
+                    .any(|p| p.extension().unwrap().eq_ignore_ascii_case(extension)),
+                "missing {extension} fixture"
+            );
+        }
         for path in entries {
             let mut source =
                 RawSource::open(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
             let metadata = source.metadata();
+            assert!(
+                metadata.camera_to_xyz.0.iter().flatten().any(|v| *v != 0.0),
+                "missing matrix: {}",
+                path.display()
+            );
+            assert_ne!(
+                metadata.cfa_layout,
+                CfaLayout::Unsupported,
+                "missing CFA: {}",
+                path.display()
+            );
             assert!(
                 (1..=8).contains(&metadata.orientation),
                 "{}",
@@ -247,6 +314,29 @@ mod tests {
                 .unwrap_or_else(|e| panic!("{}: {e}", path.display()));
             assert_eq!(decoded.pyramid.extent.width, metadata.width);
             assert_eq!(decoded.pyramid.extent.height, metadata.height);
+            let packed = source.decode_cfa_u16().expect("repeat decode as u16");
+            assert_eq!(packed.width, metadata.width);
+            assert_eq!(packed.height, metadata.height);
+            assert_eq!(packed.cfa_layout, metadata.cfa_layout);
+            assert_eq!(packed.data.len(), decoded.pyramid.pixels.len());
+            assert_eq!(source.metadata().width, metadata.width);
+            assert!(
+                decoded
+                    .pyramid
+                    .pixels
+                    .iter()
+                    .all(|&v| v.is_finite() && (0.0..=1.2).contains(&v))
+            );
+            let after = source.metadata();
+            for (i, &v) in packed.data.iter().enumerate().step_by(997) {
+                let c = after
+                    .cfa_layout
+                    .channel_at(i as u32 % packed.width, i as u32 / packed.width);
+                let b = after.black_levels[c];
+                let expected =
+                    ((f32::from(v) - b) / (after.white_level as f32 - b)).clamp(0.0, 1.2);
+                assert_eq!(decoded.pyramid.pixels[i], expected);
+            }
             let n = decoded.pyramid.pixels.len() as f64;
             let mean = decoded
                 .pyramid
@@ -260,10 +350,27 @@ mod tests {
                 "{} mean={mean}",
                 path.display()
             );
-            if let Some(jpeg) = source.embedded_preview() {
+            let preview = source.embedded_preview();
+            eprintln!(
+                "{}: {}x{}, mean={mean:.6}, JPEG={}, layout={:?}",
+                path.display(),
+                metadata.width,
+                metadata.height,
+                preview.as_ref().map_or(0, Vec::len),
+                metadata.cfa_layout
+            );
+            if let Some(jpeg) = preview {
                 assert!(
                     jpeg.starts_with(&[0xff, 0xd8]) && jpeg.ends_with(&[0xff, 0xd9]),
                     "{}",
+                    path.display()
+                );
+                assert_eq!(source.embedded_preview().as_ref(), Some(&jpeg));
+            } else {
+                // Some DNGs contain only a bitmap thumbnail, not an embedded JPEG.
+                assert!(
+                    path.extension().unwrap().eq_ignore_ascii_case("dng"),
+                    "missing JPEG: {}",
                     path.display()
                 );
             }
