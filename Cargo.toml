@@ -34,3 +34,11 @@ jxl-oxide = "0.12"
 lcms2 = "6"
 ort = "=2.0.0-rc.13"
 uniffi = "0.32"
+walkdir = "2"
+kamadak-exif = "0.6"
+blake3 = "1"
+tempfile = "3"
+
+# Exercise bundled SQLite at production speed in debug benchmark tests.
+[profile.dev.package.libsqlite3-sys]
+opt-level = 2
