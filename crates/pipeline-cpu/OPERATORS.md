@@ -1,4 +1,4 @@
-# Milestone 1 scalar reference
+# Milestone 1 and 2 scalar reference
 
 All pixel arithmetic is scalar `f32`, with no explicit SIMD or fused multiply-add.
 Colour matrices are composed/inverted with engine-api's `f64` algebra, then baked
@@ -34,16 +34,93 @@ The contract order is unchanged:
 3. Demosaic to camera RGB.
 4. CameraProfile to XYZ, then linear Rec.2020.
 5. WhiteBalance as a working-space CAT16 transform.
-6. Tone adjustments, still scene-linear.
-7. Active-area crop / linear-light downsampling.
-8. Output sigmoid, Rec.2020 to sRGB, gamut mapping, OETF and dither.
+6. Active-area extraction for M2, then Detail sharpening/manual NR.
+7. Tone (basic controls, Texture/Clarity, Dehaze, parametric and point curves).
+8. Color (OkLCh vibrance/saturation, HSL and grading).
+9. Effects in final crop-relative coordinates, pulled back through straighten.
+10. Geometry: single crop/straighten inverse map with Lanczos-3.
+11. Linear-light box downsampling; Output sigmoid, sRGB gamut mapping/OETF/dither.
 
-Other stages are explicitly not implemented in M1. Their default settings are
-no-ops, including the contract's default lens corrections and detail sharpening.
-Changing out-of-scope settings returns an error rather than silently pretending
-they were applied. Embedded orientation is not applied here; geometry is a later
-work package. HDR, soft proofing, DCP profiles/looks, curves and Auto WB are not
-implemented. Native and Sigmoid select this same M1 display transform.
+Unimplemented stages remain no-ops only at their defaults. Non-default unsupported
+controls return errors: lens/Upright/orientation, AI denoise, locals, Point Color,
+LUT, lens blur, calibration/DCP/looks, HDR/proofing and Auto WB. Native and Sigmoid
+use the same existing output transform. B&W mix and configurable grain seed are
+absent from the schema: see [MISSING_FIELDS.md](MISSING_FIELDS.md).
+
+Recipes without M2 controls retain the original M1 execution path byte-for-byte.
+Default sharpening (40/1/25/0) and default chroma NR (25/50/50) independently bypass
+to preserve existing goldens, despite their nonzero schema amounts. Changed tuples
+use absolute amounts. This compatibility discontinuity is explicit, not a claim
+that amount 40 means zero in Lightroom. See MISSING_FIELDS.md.
+
+`image-core::StageOp` dispatches Detail, Tone, Color, Effects, Geometry and Output.
+Its additive `run_image` method supplies whole-image ToneExtra/Geometry CPU
+fallbacks because Tile interiors cannot exceed 256 pixels. Detail gathers real
+halos from immutable source images; dehaze estimates airlight once per whole
+image, never independently per tile. `PipelineGraph::m2()` marks the added stages
+implemented; only upstream Demosaic/WB outputs are memoized. Effects uses crop
+parameters but is not cached under an Effects-only hash. No later M2 output is
+cached, so crop/rotation edits cannot reuse stale crop-relative effects.
+
+The reference evaluates M2 at full resolution before box downsampling. Interactive
+image-core evaluates expensive M2 passes on the complete requested-level WB buffer
+(like its existing nonneutral preview Tone path), then emits requested tiles.
+This is a scalar correctness reference, not a memory-bounded streaming solution.
+Preview neighbourhood radii are level pixels; preview grain is not an exact
+area-filtered full-resolution rendition. At level 0 the two CPU paths agree.
+
+## M2 formulas
+
+Detailed constants, validation, halo support, matrices and test contracts:
+[Tone](TONE_M2.md), [Color/Detail](COLOR_DETAIL_M2.md),
+[Geometry/Effects](GEOMETRY_EFFECTS_M2.md). Summary below is normative for ordering.
+
+- Log tone axis: `E(Y)=ln(1+max(Y,0)/.18)/ln(1+1/.18)`, inverse
+  `D(z)=.18*expm1(z*ln(1+1/.18))`; positive HDR is not clipped to white.
+- Guided filter: `a=cov(I,p)/(var(I)+.001)`, `b=mean(p)-a*mean(I)`,
+  `G=mean(a)*I+mean(b)`. With `F=G1(z,z), M=G3(z,z), B=G8(z,z)`,
+  Texture/Clarity use `delta=(texture/100)*(F-M) + (clarity/100)*4u(1-u)*(M-B)`.
+  Constrain `z+delta` to source 3x3 extrema to avoid new halo extrema, then scale
+  RGB by `D(z')/Y`. Texture excludes the finest noise band. Maximum local support
+  is 16 pixels; the complete Tone path uses whole-image storage.
+- Dehaze: radius-3 RGB dark channel; airlight is channel medians from top-dark-channel
+  candidates excluding top-1% luminance outliers. Clamp its chromaticity near neutral.
+  Low percentile contrast suppresses ambiguous white/snow scenes. Transmission
+  `t=guided(clamp(1-.85*abs(dehaze)/100*confidence*dark(I/A),.15,1))`, clamped again.
+  Positive amount gives `A+(I-A)/t`, negative gives `t*I+(1-t)*A`.
+- Parametric: in each log-axis split interval `[a,b]`, `u=(z-a)/(b-a)` and
+  `z'=z+3*s*(b-a)*u²*(1-u)²`. Four normalized region sliders are `s`; this has
+  positive derivative even at extremes and joins with continuous first derivative.
+  Point curves use Fritsch–Carlson monotone cubic Hermite interpolation directly,
+  master RGB then channel RGB then luminance, all on the same log axis. Reject
+  unordered/descending knots. Identity curves bypass; HDR tails continue linearly.
+- Color: signed Rec.2020→OkLab matrix/cube-root conversion, `C=hypot(a,b)`,
+  `h=atan2(b,a)`. Saturation scales C by `1+s`; Vibrance scales it by
+  `1+v/(1+C/(.25*max(abs(L),.05)))*(1-.7*skinWeight(h))`.
+- HSL: centres `[25,55,95,145,195,255,295,335]` degrees. Raised-cosine weights
+  on adjacent bands partition unity and wrap smoothly. Weighted normalized sliders
+  rotate hue by up to 30 degrees, scale C by `1+sat`, L by `1+.5*lum`.
+- Grading: normalized Gaussian weights around `[0,.5,1]` in balanced L;
+  width `.15+.5*blending/100`, balance offset `.25*balance/100`. Wheels add
+  `.2*sat/100*weight*min(abs(L),1)*(cos(h),sin(h))` to a/b and
+  `.25*lum/100*weight` to L. Global weight is one.
+- Sharpening: Gaussian radius/sigma, `r=Y-G(Y)`, Detail blends a bounded residual
+  and `1.5*r`; Amount scales the result. A smoothed Sobel magnitude gates Masking.
+- Luminance NR: bilateral radius 2, Gaussian spatial sigma 1.2, range width set by
+  Luminance Detail; Contrast suppresses smoothing in high-variance regions.
+  Chroma NR smooths a/b in OkLab using chroma and L range weights, radius 1–5
+  from Smoothness. Amount blends residuals. Linear Y is restored on recombination.
+- Vignette: superellipse exponent `p=2+3*(1-roundness/100)` in crop coordinates,
+  midpoint `.05+.9*midpoint/100`, smoothstep feather. Highlight Priority multiplies
+  linear RGB by `2^(2*a)` with highlight protection; Color Priority changes CIE Lab
+  L retaining a/b; Paint Overlay blends toward black/white.
+- Grain: fixed-seed smooth lattice noise, two octaves weighted by Roughness;
+  Size maps to `.5+7.5*size/100` pixels, amplitude is
+  `(0.025+.075*roughness/100)*amount/100`. Equal increments in RGB are achromatic.
+- Geometry: output dimensions `max(1,round(crop_fraction*source_dimension))`.
+  Inverse rotation around the crop centre plus crop translation/scaling is sampled
+  once with separable normalized `sinc(x)*sinc(x/3)`, support 3. Outside-source
+  centres are black; boundary taps clamp. No Upright/lens warp is implied.
 
 No engine-api schema, stage order, or process revision has been changed. This is
 the initial M1 reference, replacing a placeholder, not a revision of a shipped

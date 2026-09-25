@@ -4,7 +4,10 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use engine_api::EngineResult;
 use engine_api::color::ColorMatrix3;
-use engine_api::recipe::settings::{GamutMapping, HighlightReconstruction, ToneSettings};
+use engine_api::recipe::settings::{
+    ColorSettings, DetailSettings, EffectsSettings, GamutMapping, GeometrySettings,
+    HighlightReconstruction, ToneSettings,
+};
 use engine_api::stage::StageId;
 use engine_api::tile::Tile;
 use pipeline_cpu::{DemosaicAlgorithm, SigmoidSettings};
@@ -32,6 +35,22 @@ pub enum Op<'a> {
     Matrix(ColorMatrix3),
     /// Scene-linear exposure and tone controls.
     Tone(&'a ToneSettings),
+    /// Neighbourhood detail controls; input includes the resolved halo.
+    Detail(&'a DetailSettings),
+    /// Global tone statistics and curves.
+    ToneExtra(&'a ToneSettings),
+    /// Creative colour controls.
+    Color(&'a ColorSettings),
+    /// Crop and straighten (image-level only).
+    Geometry(&'a GeometrySettings),
+    /// Post-crop effects in the supplied image coordinate domain.
+    Effects(&'a EffectsSettings, engine_api::tile::Extent),
+    /// Effects pulled back through the final crop/rotation coordinate map.
+    EffectsInCrop(
+        &'a EffectsSettings,
+        engine_api::tile::Extent,
+        &'a engine_api::recipe::settings::Crop,
+    ),
     /// Display transform to 8-bit sRGB (`U8` output tile).
     Display {
         /// Gamut mapping mode.
@@ -49,6 +68,38 @@ pub enum Op<'a> {
 pub trait StageOp: Send + Sync {
     /// Runs `op`, which belongs to `stage`, on `input`.
     fn run(&self, stage: StageId, op: &Op<'_>, input: Tile) -> EngineResult<Tile>;
+
+    /// Whole-image barrier for global statistics and geometry. Backends may
+    /// override this; the default CPU fallback avoids 256-pixel Tile limits.
+    /// Other operators still dispatch through `run`, gathering from an immutable
+    /// source so neighbourhood filters never read already-processed neighbours.
+    fn run_image(
+        &self,
+        stage: StageId,
+        op: &Op<'_>,
+        input: pipeline_cpu::Image,
+        cancel: &engine_api::jobs::CancellationToken,
+    ) -> EngineResult<pipeline_cpu::Image> {
+        cancel.check()?;
+        let output = match *op {
+            Op::ToneExtra(s) => pipeline_cpu::tone_extra_image(&input, s)?,
+            Op::Geometry(s) => pipeline_cpu::geometry(&input, s)?,
+            _ => {
+                let halo = match *op {
+                    Op::Detail(s) => pipeline_cpu::detail_halo(s),
+                    _ => 0,
+                };
+                let mut output = input.clone();
+                for coord in input.coords() {
+                    cancel.check()?;
+                    output.put(&self.run(stage, op, input.tile(coord, halo, 1)?)?)?;
+                }
+                output
+            }
+        };
+        cancel.check()?;
+        Ok(output)
+    }
 
     /// Preferred submission size. One retains the renderer's CPU parallelism.
     fn batch_size(&self) -> usize {
@@ -96,6 +147,30 @@ impl StageOp for CpuStageOp {
                 pipeline_cpu::tone(&mut input, settings)?;
                 Ok(input)
             }
+            Op::Detail(s) => {
+                pipeline_cpu::detail(&mut input, s)?;
+                Ok(input)
+            }
+            Op::ToneExtra(s) => {
+                pipeline_cpu::tone_extra(&mut input, s)?;
+                Ok(input)
+            }
+            Op::Color(s) => {
+                pipeline_cpu::color(&mut input, s)?;
+                Ok(input)
+            }
+            Op::Effects(s, extent) => {
+                pipeline_cpu::effects(&mut input, s, extent)?;
+                Ok(input)
+            }
+            Op::EffectsInCrop(s, extent, crop) => {
+                pipeline_cpu::effects_in_crop(&mut input, s, extent, crop)?;
+                Ok(input)
+            }
+            Op::Geometry(_) => Err(engine_api::EngineError::invalid(
+                "geometry",
+                "requires run_image",
+            )),
             Op::Display { gamut } => {
                 pipeline_cpu::display(&input, SigmoidSettings::default(), gamut)
             }
@@ -138,6 +213,23 @@ impl<O> CountingStageOp<O> {
 }
 
 impl<O: StageOp> StageOp for CountingStageOp<O> {
+    fn run_image(
+        &self,
+        stage: StageId,
+        op: &Op<'_>,
+        input: pipeline_cpu::Image,
+        cancel: &engine_api::jobs::CancellationToken,
+    ) -> EngineResult<pipeline_cpu::Image> {
+        cancel.check()?;
+        let count = if matches!(op, Op::ToneExtra(_) | Op::Geometry(_)) {
+            1
+        } else {
+            input.coords().count() as u64
+        };
+        self.counts[stage.index()].fetch_add(count, Ordering::Relaxed);
+        self.inner.run_image(stage, op, input, cancel)
+    }
+
     fn run(&self, stage: StageId, op: &Op<'_>, input: Tile) -> EngineResult<Tile> {
         self.counts[stage.index()].fetch_add(1, Ordering::Relaxed);
         self.inner.run(stage, op, input)

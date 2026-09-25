@@ -105,6 +105,73 @@ fn fixture_level3_matches_pipeline_cpu() {
     }
 }
 
+#[test]
+fn fixture_level3_m2_extremes_are_finite() {
+    for path in fixtures().unwrap_or_default() {
+        let image = RawImage::open(ImageId(43), &path).unwrap();
+        let r = Renderer::new(RendererConfig::default());
+        for sign in [-1., 1.] {
+            let mut s = DevelopSettings::default();
+            s.tone.texture = sign * 100.;
+            s.tone.clarity = sign * 100.;
+            s.tone.dehaze = sign * 100.;
+            s.color.vibrance = sign * 100.;
+            s.color.saturation = sign * 100.;
+            s.tone.exposure = sign * 10.;
+            s.tone.contrast = sign * 100.;
+            s.tone.curves.parametric.shadows = sign * 100.;
+            s.tone.curves.parametric.darks = -sign * 100.;
+            s.tone.curves.parametric.lights = sign * 100.;
+            s.tone.curves.parametric.highlights = -sign * 100.;
+            s.color.hsl.hue.red = sign * 100.;
+            s.color.hsl.saturation.blue = sign * 100.;
+            s.color.hsl.luminance.green = sign * 100.;
+            s.color.grading.shadows.saturation = 100.;
+            s.color.grading.highlights.saturation = 100.;
+            s.color.grading.highlights.hue = 270.;
+            s.color.grading.balance = sign * 100.;
+            s.color.grading.blending = if sign > 0. { 100. } else { 0. };
+            s.detail.sharpening.amount = 150.;
+            s.detail.sharpening.radius = 3.;
+            s.detail.sharpening.detail = 100.;
+            s.detail.noise_reduction.color = 100.;
+            s.detail.noise_reduction.color_smoothness = 100.;
+            s.detail.noise_reduction.luminance = 100.;
+            s.effects.grain.amount = 100.;
+            s.effects.vignette.amount = sign * 100.;
+            s.geometry.crop.angle = sign * 45.;
+            s.geometry.crop.rect.right = 0.9;
+            let e = Renderer::output_extent(&image, &s, 3).unwrap();
+            let tiles = r
+                .render_region_as(
+                    &image,
+                    &s,
+                    3,
+                    PixelRect::full(image.level_extent(3)),
+                    RenderOutput::SceneLinear,
+                )
+                .unwrap();
+            assert_eq!(
+                tiles.iter().map(|t| t.layout().extent.area()).sum::<u64>(),
+                e.area()
+            );
+            assert!(
+                tiles
+                    .iter()
+                    .all(|t| t.samples::<f32>().unwrap().iter().all(|v| v.is_finite())),
+                "{}",
+                path.display()
+            );
+            eprintln!(
+                "M2 finite: {} L3 {}x{} sign={sign}",
+                path.display(),
+                e.width,
+                e.height
+            );
+        }
+    }
+}
+
 /// `cargo test -p image-core --release -- --ignored --nocapture bench`
 #[test]
 #[ignore]

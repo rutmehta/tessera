@@ -58,9 +58,8 @@ pub fn render_scaled(
     Ok(out)
 }
 
-/// The scene-linear Rec.2020 image that [`render_scaled`] hands to the
-/// display transform: every operator through Tone, then the active-area crop
-/// and linear-light box downsample. Output (display) is not applied.
+/// Scene-linear Rec.2020 through Geometry, then linear-light box downsampling.
+/// Output (display) is not applied. Default recipes preserve the M1 path.
 pub fn render_linear_scaled(
     settings: &DevelopSettings,
     source: &RenderSource<'_>,
@@ -70,7 +69,7 @@ pub fn render_linear_scaled(
     if scale == 0 {
         return Err(EngineError::invalid("scale", "must be positive"));
     }
-    let (mut rgb, crop) = match source {
+    let (mut rgb, mut crop) = match source {
         RenderSource::Rgb(image) => {
             if image.planes().len() != 3 {
                 return Err(EngineError::invalid("RGB", "three planes required"));
@@ -151,16 +150,63 @@ pub fn render_linear_scaled(
             (out, metadata.default_crop)
         }
     };
+    if has_m2_settings(settings) {
+        rgb = rgb.downsample_crop(crop, 1)?;
+        crop = [0, 0, rgb.width(), rgb.height()];
+    }
+    if settings.detail != Default::default() {
+        let input = rgb.clone();
+        for coord in input.coords() {
+            let mut tile = input.tile(coord, crate::detail_halo(&settings.detail), 1)?;
+            crate::detail(&mut tile, &settings.detail)?;
+            rgb.put(&tile)?;
+        }
+    }
     for coord in rgb.coords() {
         let mut tile = rgb.tile(coord, 0, 1)?;
         crate::tone(&mut tile, &settings.tone)?;
         rgb.put(&tile)?;
     }
-    rgb.downsample_crop(crop, scale)
+    if has_m2_settings(settings) {
+        // Remove masked sensor margins before estimating global airlight.
+        rgb = rgb.downsample_crop(crop, 1)?;
+        rgb = crate::tone_extra_image(&rgb, &settings.tone)?;
+        for coord in rgb.coords() {
+            let mut tile = rgb.tile(coord, 0, 1)?;
+            crate::color(&mut tile, &settings.color)?;
+            rgb.put(&tile)?;
+        }
+        let extent = engine_api::tile::Extent::new(rgb.width(), rgb.height());
+        for coord in rgb.coords() {
+            let mut tile = rgb.tile(coord, 0, 1)?;
+            crate::effects_in_crop(
+                &mut tile,
+                &settings.effects,
+                extent,
+                &settings.geometry.crop,
+            )?;
+            rgb.put(&tile)?;
+        }
+        rgb = crate::geometry(&rgb, &settings.geometry)?;
+        rgb.downsample_crop([0, 0, rgb.width(), rgb.height()], scale)
+    } else {
+        rgb.downsample_crop(crop, scale)
+    }
 }
 
-/// M1 has explicit no-op stages at their default values. Reject changed
-/// out-of-scope controls instead of producing a deceptively successful render.
+/// Whether a recipe needs M2 neighbourhood, colour, effect or geometry passes.
+pub fn has_m2_settings(s: &DevelopSettings) -> bool {
+    s.detail != Default::default()
+        || s.color != Default::default()
+        || s.effects != Default::default()
+        || s.geometry != Default::default()
+        || s.tone.texture != 0.0
+        || s.tone.clarity != 0.0
+        || s.tone.dehaze != 0.0
+        || s.tone.curves != Default::default()
+}
+
+/// Reject changed out-of-scope controls instead of silently ignoring them.
 /// Public so tiled renderers built on these operators apply the same scope.
 pub fn validate_settings(s: &DevelopSettings) -> EngineResult<()> {
     use engine_api::recipe::settings::HighlightReconstruction;
@@ -181,13 +227,15 @@ pub fn validate_settings(s: &DevelopSettings) -> EngineResult<()> {
     supported.linearize = s.linearize.clone();
     supported.demosaic.method = s.demosaic.method;
     supported.white_balance = s.white_balance.clone();
-    supported.tone.exposure = s.tone.exposure;
-    supported.tone.contrast = s.tone.contrast;
-    supported.tone.highlights = s.tone.highlights;
-    supported.tone.shadows = s.tone.shadows;
-    supported.tone.whites = s.tone.whites;
-    supported.tone.blacks = s.tone.blacks;
-    supported.tone.display_transform = s.tone.display_transform;
+    supported.tone = s.tone.clone();
+    supported.detail = s.detail.clone();
+    supported.color.vibrance = s.color.vibrance;
+    supported.color.saturation = s.color.saturation;
+    supported.color.hsl = s.color.hsl.clone();
+    supported.color.grading = s.color.grading.clone();
+    supported.effects.vignette = s.effects.vignette.clone();
+    supported.effects.grain = s.effects.grain.clone();
+    supported.geometry.crop = s.geometry.crop.clone();
     supported.output.gamut_mapping = s.output.gamut_mapping;
     if s != &supported
         || !matches!(
@@ -197,7 +245,7 @@ pub fn validate_settings(s: &DevelopSettings) -> EngineResult<()> {
     {
         return Err(EngineError::invalid(
             "settings",
-            "non-default operator not implemented by M1 reference renderer",
+            "non-default operator not implemented by CPU reference renderer",
         ));
     }
     Ok(())
