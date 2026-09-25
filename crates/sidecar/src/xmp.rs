@@ -77,16 +77,17 @@ impl XmpPacket {
         Ok(CrsKey::ALL
             .iter()
             .filter_map(|&key| {
-                tree.property(CRS, key.xmp_name()).map(|p| {
-                    (
-                        key,
-                        match p {
-                            Property::Scalar(s) => s.into(),
-                            Property::Node(n) if n.children.is_empty() => n.text.clone(),
-                            Property::Node(n) => self.xml[n.span.clone()].to_owned(),
-                        },
-                    )
-                })
+                tree.property(key.namespace().uri(), key.xmp_name())
+                    .map(|p| {
+                        (
+                            key,
+                            match p {
+                                Property::Scalar(s) => s.into(),
+                                Property::Node(n) if n.children.is_empty() => n.text.clone(),
+                                Property::Node(n) => self.xml[n.span.clone()].to_owned(),
+                            },
+                        )
+                    })
             })
             .collect())
     }

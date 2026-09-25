@@ -1,4 +1,4 @@
-# engine-api contracts (v1.0.0)
+# engine-api contracts (v1.1.0)
 
 `engine-api` is the one crate every other engine crate links against. It holds types, traits and the small amount of logic that makes them trustworthy (canonical hashing, history replay, colour-matrix algebra), and depends on nothing in the workspace. Any change to a public type or a serialized form bumps `CONTRACT_VERSION` in `src/lib.rs`, gets an Opus review, and is noted at the bottom of this file.
 
@@ -13,14 +13,15 @@
 **`recipe`**: This is the per-image edit document, stored as `.edits/<image>.json`. `Recipe` contains:
 - `schema_version`
 - `image_id`
-- `process_version`: Native revision N, or Adobe PV1–6 (converts to and from `crs:ProcessVersion`)
+- `process_version`: Native revision N, or Adobe PV1–6 (converts to and from `crs:ProcessVersion`; see "Process version export policy" below)
 - `settings: DevelopSettings`: one field per stage, in pipeline order
 - `selection`
 - `history`
 - `ids`: monotonic mask and retouch counters
+- `provenance`: informational source properties recorded by importers (not render-affecting)
 - `unknown`: top-level members from newer writers, preserved on round trip
 
-`recipe_hash()` covers `process_version` and `settings` only. It is the render and preview cache key. `stage_chain()` gives the per-stage memo hashes, seeded by the process version. `History` is append-only. Each entry stores JSON-pointer patches against the parent state, plus `parent`, author, label, timestamp, group and rationale. Undo and redo move `head`, and an edit made after an undo starts a new branch. Snapshots are named pointers to entries. `Selection { decision, grade, mark }` follows spec 06 §2: a grade is only valid on a Keep, and a mark is stored by name. `crs::CrsKey` lists every `crs:` key named in spec 05 §3.2, each with its XMP name, Adobe type and range, and the JSON pointer of the recipe field it maps to.
+`recipe_hash()` covers `process_version` and `settings` only. It is the render and preview cache key. `stage_chain()` gives the per-stage memo hashes, seeded by the process version. `History` is append-only. Each entry stores JSON-pointer patches against the parent state, plus `parent`, author, label, timestamp, group and rationale. Undo and redo move `head`, and an edit made after an undo starts a new branch. Snapshots are named pointers to entries. `Selection { decision, grade, mark }` follows spec 06 §2: a grade is only valid on a Keep, and a mark is stored by name. `crs::CrsKey` lists every develop key named in spec 05 §3.2, each with its XMP namespace (`XmpNamespace::{Crs, Aux, Xmp}`), local name, Adobe type and range, and a `CrsTarget`: `Field(pointer)` for the recipe field it maps to, `Legacy`, or `Informational`. Camera and lens profiles are identified by `CameraProfileRef { name, digest }` and `LensProfileSource::Database { profile: LensProfileRef { name, filename, digest, setup } }`, so every Adobe identity field round-trips.
 
 **`jobs`**: `Priority` has the classes `Ui < Viewport < Prefetch < Preview < Score < Export`. The derived `Ord` sorts the most urgent first. `CancellationToken` is a tree of flags: cancelling a token cancels its descendants but not its ancestors, and `check()?` returns `EngineError::Cancelled`. A `Job` is object-safe (`run(self: Box<Self>, &JobContext)`) and delivers its results through side effects it owns. `Scheduler` has `submit`, `reprioritize`, `cancel` and `status`, where the last three take a `JobTarget` (one job or a group).
 
@@ -39,7 +40,7 @@
 
 1. **Stage order is fixed.** Never reorder `StageId` or insert a stage in the middle without bumping the native process revision. Memo keys and history paths depend on the order.
 2. **Hash inputs are deterministic.** Anything that implements `StageParams` or is reachable from `DevelopSettings` must serialize deterministically. That rules out `HashMap`, timestamps, caches and interior mutability. Use `Vec` or `BTreeMap`. The canonical form sorts object keys and folds `-0.0` to `0`, so the declaration order of fields does not matter.
-3. **The recipe hash covers exactly the render state.** Selection, history, snapshots, id counters and `unknown` never feed `recipe_hash()` or `stage_chain()`. Anything that changes pixels must live in `settings` or `process_version`.
+3. **The recipe hash covers exactly the render state.** Selection, history, snapshots, id counters, `provenance` and `unknown` never feed `recipe_hash()` or `stage_chain()`. Anything that changes pixels must live in `settings` or `process_version`.
 4. **A change in rendering requires a new process revision.** If an operator renders the same parameters differently, bump `ProcessVersion::NATIVE_CURRENT.revision`. Existing recipes then keep their old revision, and caches cannot mix the two.
 5. **`settings == history.state_at(history.head)`.** Mutate settings only through `Recipe::edit`, `checkout`, `undo`, `redo` or `restore_snapshot`. Never write `recipe.settings` directly outside a migration. `Recipe::validate()` checks this invariant.
 6. **History is append-only.** Entries are never edited or removed. `HistoryEntry.id` equals its 1-based position, and a parent always precedes its child. Mask and retouch ids are allocated with `allocate_*_id` and are never reused, even after undo.
@@ -65,7 +66,32 @@
     - Tool names are the snake_case variant names and are stable once shipped.
     - No tool produces generative pixels.
 12. **Errors:** Convert crate-private errors into `EngineError` at the boundary. `Internal` is reserved for invariant violations, meaning bugs.
-13. **`crs:` table:** Each `recipe_path` must resolve in a default serialized `Recipe`. A test enforces this. Keys whose `recipe_path` is `None` are legacy (PV1/2 manual CA, Super Resolution): the importer flags them and converts them best-effort.
+13. **`crs:` table:**
+    - Each `CrsTarget::Field` pointer must resolve in a default serialized `Recipe`. A test enforces this.
+    - Match properties by `key.namespace().uri()`, never by prefix. Local names are unique across namespaces, and `CrsKey` serializes as the bare local name; `Display` and `qualified_name()` give `prefix:Name`.
+    - `Legacy` keys (PV1/2 manual CA `ChromaticAberrationR/B`): the importer flags them and converts them best-effort.
+    - `Informational` keys (all `aux:Enhance*`) describe pixels Adobe already baked into the file. The importer records their raw values in `Recipe::provenance.properties` under `qualified_name()` and never turns them into an edit (for example, it must not enable neural denoise). Exporters never write them from a recipe but must preserve them in a source packet.
+    - The lens-profile keys `LensProfileEnable/Setup/Name/Filename/Digest` jointly encode one `LensProfileSource`: `Enable = 0` gives `None`; any non-empty name, filename or digest gives `Database` with all four identity fields; otherwise `Auto`.
+14. **Process version export policy:**
+    - `ProcessVersion::crs_value()` returns a `CrsProcessVersion { process_version, native_revision }`.
+    - Adobe PV1–6 export as their own string with no companion. Any other Adobe revision returns `None`, and the exporter must refuse.
+    - Native recipes export as **best-effort PV6**: `crs:ProcessVersion = "15.4"` plus `ts:NativeRevision = <revision>` (`crs::TS_NAMESPACE`, `crs::NATIVE_REVISION_PROPERTY`). Adobe software renders those settings with its own PV6 math, so the result is close but not pixel-identical. Say so wherever the user exports for Lightroom.
+    - Import uses `ProcessVersion::from_xmp(crs, companion)`. The companion is honoured only next to `"15.4"` and only as a positive integer; otherwise the document is the Adobe process its `crs:` value names.
+    - Exporters write or remove the companion together with `crs:ProcessVersion`, so it never goes stale.
+    - Known limitation: if Adobe software edits a best-effort-PV6 file and keeps our foreign `ts:` property, we still read it back as native.
+15. **Selection XMP mapping** (established by the sidecar crate, M1-03):
+
+    | Selection | `xmp:Rating` | `xmpDM:pick` | `xmpDM:good` |
+    | --- | --- | --- | --- |
+    | Undecided | absent | absent | absent |
+    | Reject | `-1` | `-1` | `False` |
+    | Keep | `1` | `1` | `True` |
+    | Keep, grade 1 / 2 / 3 | `2` / `3` / `5` | `1` | `True` |
+
+    - `xmpDM:` is `http://ns.adobe.com/xmp/1.0/DynamicMedia/`. `pick` is an integer (1 picked, 0 unflagged, −1 rejected) and `good` is a Boolean, as ExifTool's XMP2.pl `xmpDM` table defines them. Lightroom Classic writes flags to XMP from 13.2.
+    - On read, `rating < 0` or `pick = -1` means Reject. Otherwise `pick = 1` or a rating of 1–5 means Keep, with ratings 2 / 3–4 / 5 giving grades 1 / 2 / 3.
+    - A mark is written as `xmp:Label` text through a `MarkPreset` (Lightroom colour names by default). `ts:Mark` and `ts:MarkLabel` keep the exact mark name. The name is honoured only while `ts:MarkLabel` still equals the visible `xmp:Label`.
+    - No `lr:` reject flag exists. Never write flag literals into `lr:hierarchicalSubject`.
 
 ## Spec ambiguities resolved here
 
@@ -73,10 +99,34 @@
 - **`MemoKey` has no separate `level` field.** Spec 04 lists `(imageId, stageId, hash, tileCoord, level)`, but `TileCoord` already carries `level`. A separate field could disagree with it, so it is exposed as `MemoKey::level()` instead.
 - **History stores patches, not full states.** Entries hold JSON-pointer patches against the parent state instead of full copies, which keeps them small and makes per-step toggles possible later (spec 10). `History.base` is stored explicitly so that replay does not depend on today's defaults.
 - **Marks are stored by name, not by index into the library's mark set.** A sidecar copied to another library then keeps its meaning, and the name matches the XMP `Label` text.
-- **Adobe PV strings are assumed.** The Adobe process-version strings are taken as PV1 = 5.0, PV2 = 5.7, PV3 = 6.7, PV4 = 10.0, PV5 = 11.0, PV6 = 15.4. Some `crs:` names from the "…" families are my best reading of Adobe's schema: `Enhance*`, `HDREditMode`, `HDRMaxValue`, `LensProfileSetup` and `PostCropVignetteStyle`. M1-03 must verify all of these against real XMP fixtures.
+- **Adobe PV strings are assumed.** The Adobe process-version strings are taken as PV1 = 5.0, PV2 = 5.7, PV3 = 6.7, PV4 = 10.0, PV5 = 11.0, PV6 = 15.4.
+- **Key names were verified against ExifTool (1.1).** In 1.1, every table name was checked against the `crs` and `aux` tables in ExifTool's `lib/Image/ExifTool/XMP.pm`. The `crs` table is in `XMP.pm`, not `XMP2.pl`, which holds `xmpDM`. The M1-03 findings were also used. What that settled:
+  - `Enhance*` properties are `aux:` (`http://ns.adobe.com/exif/1.0/aux/`).
+  - The luma amount is spelled `EnhanceDenoiseLumaAmount`.
+  - `HDREditMode` is an integer and `HDRMaxValue` is a real.
+  - `LensProfileSetup` is a string.
+  - `PostCropVignetteStyle` is an integer where 1 = Highlight Priority, 2 = Color Priority and 3 = Paint Overlay.
+  - `Dehaze` is a real.
+  - All other names match ExifTool.
+- **Still unverified (no Adobe schema, no local Lightroom run):**
+  - `HDREditMode`: only value 0 has been observed. 1 = HDR on is assumed.
+  - `HDRMaxValue`: its unit is assumed to be stops of headroom, and the 0–16 range is ours.
+  - `LensProfileSetup`: the closed set `LensDefaults | Auto | Custom`. Auto and Custom have been observed.
+  - The types of `EnhanceDenoiseVersion`, `EnhanceDenoiseLumaAmount` and `EnhanceSuperResolutionScale`, which ExifTool itself marks as uncertain. They only feed provenance, as raw text.
 - **Lens distortion runs in `Geometry`.** Its parameters live in `LensSettings`, but spec 07 §3 has distortion applied in the composed geometry map. Only CA, vignetting and softness run in `Lens`.
 - **Units follow the user-facing controls.** Exposure is in EV, sliders run −100..100, geometry is normalised 0..1, and hues are in degrees. The one exception is the Adobe defringe hue range, which uses 0–100 units in XMP and is converted by the importer.
 
 ## Change log
 
 - 1.0.0 (M0-03): initial contracts.
+- 1.1.0 (M2-03), recipe schema 2, golden recipe hash changed (`camera_profile.profile` default now serializes as `{"name":"","digest":""}`), all render caches invalidated:
+  - `CrsKey` table: added `namespace()` (`XmpNamespace::{Crs, Aux, Xmp}`) and `target()` (`CrsTarget::{Field, Legacy, Informational}`). `recipe_path()` is now derived from `target()`. Added `is_informational()`, `qualified_name()` and `from_xmp(uri, name)`. `Display` and `FromStr` now use the key's own prefix.
+  - `Enhance*` keys moved to `aux:` and made `Informational`, with no recipe path. `EnhanceDenoiseLumAmount` was renamed to `EnhanceDenoiseLumaAmount`. Added the `aux:` keys `EnhanceDetailsVersion`, `EnhanceSuperResolutionVersion` and `EnhanceSuperResolutionScale`. `EnhanceSuperResolutionAlreadyApplied` changed from legacy to informational.
+  - `Dehaze` is now `Real(-100, 100)`, per ExifTool. `HDREditMode`, `HDRMaxValue`, `LensProfileSetup` and `PostCropVignetteStyle` were re-verified and left unchanged.
+  - `CameraProfile` now maps to `/settings/camera_profile/profile/name` and `CameraProfileDigest` to `.../profile/digest`.
+  - New namespace constants: `AUX_NAMESPACE`, `XMP_NAMESPACE`, `XMP_DM_NAMESPACE`, `TS_NAMESPACE` and `NATIVE_REVISION_PROPERTY`.
+  - `CameraProfileSettings.profile` changed from `ProfileId` to `CameraProfileRef { name, digest }`. `LensProfileSource::Database.profile` changed from `LensProfileId` to `LensProfileRef { name, filename, digest, setup: LensProfileSetup }`. Both still deserialize from schema-1 strings, which become `name`, so old documents and history patches replay.
+  - `ProcessVersion::crs_value()` now returns `Option<CrsProcessVersion>`, and native recipes export as best-effort PV6 plus `ts:NativeRevision`. Added `ProcessVersion::from_xmp` and `NATIVE_EXPORT_ADOBE_PV`.
+  - Added `Recipe::provenance: Provenance { properties }`, an additive field that does not feed the recipe hash.
+  - `Recipe::from_json` now upgrades older `schema_version`s to the current one after migration.
+  - `CONTRACTS.md` now records the selection XMP mapping (invariant 15) and the process export policy (invariant 14).
