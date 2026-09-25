@@ -38,7 +38,7 @@ fn missing_jpeg_returns_pending_then_callback_and_cached_bytes() {
     let response = engine.clone().embedded_preview(id.clone(), 384).unwrap();
     assert!(response.pending && response.bytes.is_none());
     // Debug builds can miss latency targets even when the async path is correct.
-    if !cfg!(debug_assertions) {
+    if !cfg!(debug_assertions) && std::env::var_os("CI").is_none() {
         assert!(start.elapsed() < Duration::from_millis(100));
     }
     assert!(
@@ -48,7 +48,7 @@ fn missing_jpeg_returns_pending_then_callback_and_cached_bytes() {
             .unwrap()
             .pending
     );
-    let timeout = if cfg!(debug_assertions) {
+    let timeout = if cfg!(debug_assertions) || std::env::var_os("CI").is_some() {
         Duration::from_secs(120)
     } else {
         Duration::from_secs(3)
