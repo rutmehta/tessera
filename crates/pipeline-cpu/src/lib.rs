@@ -1,12 +1,19 @@
 //! Scalar f32 reference operators. See OPERATORS.md for formulas and scope.
 mod color;
+mod color_detail;
+mod geometry_effects;
+mod tone_extra;
+pub use color_detail::{DETAIL_HALO, color, detail, detail_halo};
+pub use geometry_effects::{effects, effects_in_crop, geometry};
+pub use tone_extra::{tone_extra, tone_extra_image};
 mod display;
 mod image;
 mod render;
 pub use display::{SigmoidSettings, display, sigmoid, srgb_oetf};
 pub use image::Image;
 pub use render::{
-    RenderSource, Rgb8Image, render, render_linear_scaled, render_scaled, validate_settings,
+    RenderSource, Rgb8Image, has_m2_settings, render, render_linear_scaled, render_scaled,
+    validate_settings,
 };
 mod mosaic;
 pub use color::{apply_matrix, camera_to_xyz, temperature_white, white_balance_matrix};

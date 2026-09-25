@@ -104,6 +104,8 @@ fn unsupported_algorithms_are_not_silently_accepted() {
     assert!(render(&s, &src).is_err());
     s = DevelopSettings::default();
     s.tone.clarity = 1.0;
+    assert!(render(&s, &src).is_ok());
+    s.output.hdr = true;
     assert!(render(&s, &src).is_err());
 }
 #[test]

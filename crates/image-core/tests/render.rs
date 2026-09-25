@@ -408,7 +408,7 @@ fn rejects_unsupported_settings_and_bad_requests() {
     let image = bayer_image();
     let r = renderer(1);
     let mut s = DevelopSettings::default();
-    s.tone.clarity = 10.0;
+    s.output.hdr = true;
     assert!(r.render_region(&image, &s, 0, full(&image, 0)).is_err());
     let s = DevelopSettings::default();
     let bad = [TileCoord::new(0, 0, 0), TileCoord::new(1, 0, 0)];

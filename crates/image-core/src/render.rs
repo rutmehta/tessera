@@ -36,6 +36,22 @@
 //! reference does. Renders served from the f16 cache differ from a cold
 //! render by f16 rounding (relative 2^-11 in scene-linear values).
 //!
+//! # M2 controls
+//!
+//! Changed detail, extended tone, colour, geometry or effects settings use a
+//! whole active-area WB image assembled through the same memoized M1 path.
+//! Detail gathers its halo from the immutable preceding image; extended tone
+//! uses an image-level barrier for global dehaze statistics. Geometry follows
+//! colour, and effects use post-crop coordinates. All operators dispatch through
+//! `StageOp`, including the overridable image-level barriers.
+//!
+//! At levels above zero, M2 operates on requested-level WB, not full-resolution
+//! RGB. Like preview tone, this is intentionally an interactive approximation:
+//! neighbourhood radii/grain are preview pixels and crop dimensions are rounded
+//! from the preview extent. Level zero is the full-resolution reference path.
+//! M2 intermediates are request-local, never inserted into the upstream cache;
+//! changing any M2 control therefore reuses WB without stale developed pixels.
+//!
 //! # Parallelism and cancellation
 //!
 //! Output tiles are processed in chunks bounded by the number of new sensor
@@ -163,7 +179,7 @@ impl Default for RendererConfig {
             cache_budget_bytes: 512 << 20,
             threads: std::thread::available_parallelism().map_or(1, |n| n.get()),
             process_version: ProcessVersion::NATIVE_CURRENT,
-            graph: PipelineGraph::m1(),
+            graph: PipelineGraph::m2(),
         }
     }
 }
@@ -219,7 +235,13 @@ impl Renderer {
     /// Output tiles at `level` intersecting `rect` (pixels of that level),
     /// in raster order.
     pub fn tiles_for(image: &RawImage, level: u8, rect: PixelRect) -> Vec<TileCoord> {
-        let e = image.level_extent(level);
+        if level > MAX_LEVEL {
+            return Vec::new();
+        }
+        Self::tiles_in_extent(image.level_extent(level), level, rect)
+    }
+
+    fn tiles_in_extent(e: Extent, level: u8, rect: PixelRect) -> Vec<TileCoord> {
         let x1 = (u64::from(rect.x) + u64::from(rect.width)).min(u64::from(e.width)) as u32;
         let y1 = (u64::from(rect.y) + u64::from(rect.height)).min(u64::from(e.height)) as u32;
         if rect.x >= x1 || rect.y >= y1 {
@@ -253,7 +275,9 @@ impl Renderer {
         rect: PixelRect,
         output: RenderOutput,
     ) -> EngineResult<Vec<Tile>> {
-        let coords = Self::tiles_for(image, level, rect);
+        pipeline_cpu::validate_settings(settings)?;
+        let extent = Self::output_extent(image, settings, level)?;
+        let coords = Self::tiles_in_extent(extent, level, rect);
         let mut out = Vec::with_capacity(coords.len());
         self.render_tiles(
             image,
@@ -277,8 +301,13 @@ impl Renderer {
         cancel: &CancellationToken,
         sink: &mut dyn FnMut(Tile),
     ) -> EngineResult<()> {
+        cancel.check()?;
         let r = self.resolve(image, settings)?;
-        self.run(&r, coords, output, cancel, sink)
+        if has_m2_settings(settings) {
+            self.run_m2(image, settings, coords, output, cancel, sink)
+        } else {
+            self.run(&r, coords, output, cancel, sink)
+        }
     }
 
     /// Renders the viewport coarse to fine (by default level 3, 2, 1, 0),
@@ -301,10 +330,129 @@ impl Renderer {
         }
         let r = self.resolve(image, settings)?;
         for level in (viewport.finest_level..=viewport.coarsest_level).rev() {
-            let coords = Self::tiles_for(image, level, viewport.rect.at_level(level));
-            self.run(&r, &coords, output, cancel, sink)?;
+            let extent = Self::output_extent(image, settings, level)?;
+            let coords = Self::tiles_in_extent(extent, level, viewport.rect.at_level(level));
+            if has_m2_settings(settings) {
+                self.run_m2(image, settings, &coords, output, cancel, sink)?;
+            } else {
+                self.run(&r, &coords, output, cancel, sink)?;
+            }
         }
         Ok(())
+    }
+
+    /// Cropped output extent at a preview level. M2 previews apply geometry
+    /// to the requested-level WB buffer, just as preview tone runs after resize.
+    pub fn output_extent(
+        image: &RawImage,
+        settings: &DevelopSettings,
+        level: u8,
+    ) -> EngineResult<Extent> {
+        if level > MAX_LEVEL {
+            return Err(EngineError::invalid("level", "level exceeds MAX_LEVEL"));
+        }
+        let e = image.level_extent(level);
+        let r = settings.geometry.crop.rect;
+        if !r.is_valid() {
+            return Err(EngineError::invalid("crop", "invalid rectangle"));
+        }
+        Ok(Extent::new(
+            ((r.right - r.left) * e.width as f32).round().max(1.) as u32,
+            ((r.bottom - r.top) * e.height as f32).round().max(1.) as u32,
+        ))
+    }
+
+    fn run_m2(
+        &self,
+        image: &RawImage,
+        settings: &DevelopSettings,
+        coords: &[TileCoord],
+        output: RenderOutput,
+        cancel: &CancellationToken,
+        sink: &mut dyn FnMut(Tile),
+    ) -> EngineResult<()> {
+        cancel.check()?;
+        let Some(first) = coords.first() else {
+            return Ok(());
+        };
+        let level = first.level;
+        let extent = Self::output_extent(image, settings, level)?;
+        let grid = extent.tile_grid(TILE_SIZE);
+        if coords
+            .iter()
+            .any(|c| c.level != level || c.x >= grid.0 || c.y >= grid.1)
+        {
+            return Err(EngineError::invalid(
+                "tiles",
+                "coordinates must share one level and lie inside cropped output",
+            ));
+        }
+        // Reuse the existing memoized sensor/WB path. At L0 this is the full
+        // active area; previews do expensive M2 work only at preview resolution.
+        let mut base = settings.clone();
+        base.detail = Default::default();
+        base.tone = Default::default();
+        base.color = Default::default();
+        base.effects = Default::default();
+        base.geometry = Default::default();
+        let r = self.resolve(image, &base)?;
+        let e = image.level_extent(level);
+        let all = Self::tiles_for(image, level, PixelRect::full(e));
+        let mut wb =
+            pipeline_cpu::Image::new(e.width, e.height, vec![vec![0.; e.area() as usize]; 3])?;
+        let mut error = None;
+        self.run(&r, &all, RenderOutput::SceneLinear, cancel, &mut |t| {
+            let result = Tile::from_samples(
+                TileCoord::new(0, t.coord().x, t.coord().y),
+                t.layout(),
+                t.samples::<f32>().expect("scene-linear tile").to_vec(),
+            )
+            .and_then(|t| wb.put(&t));
+            if let Err(e) = result {
+                error = Some(e);
+            }
+        })?;
+        if let Some(e) = error {
+            return Err(e);
+        }
+        let mut developed = wb;
+        for (stage, op) in [
+            (StageId::Detail, Op::Detail(&settings.detail)),
+            (StageId::Tone, Op::Tone(&settings.tone)),
+            (StageId::Tone, Op::ToneExtra(&settings.tone)),
+            (StageId::Color, Op::Color(&settings.color)),
+            (
+                StageId::Effects,
+                Op::EffectsInCrop(&settings.effects, e, &settings.geometry.crop),
+            ),
+            (StageId::Geometry, Op::Geometry(&settings.geometry)),
+        ] {
+            developed = self.ops.run_image(stage, &op, developed, cancel)?;
+        }
+        let mut seen = HashSet::new();
+        for &coord in coords {
+            cancel.check()?;
+            if !seen.insert(coord) {
+                continue;
+            }
+            let mut t = developed.tile(TileCoord::new(0, coord.x, coord.y), 0, 1)?;
+            cancel.check()?;
+            if output == RenderOutput::Display {
+                t = self.ops.run(
+                    StageId::Output,
+                    &Op::Display {
+                        gamut: settings.output.gamut_mapping,
+                    },
+                    t,
+                )?;
+                t = Tile::from_samples(coord, t.layout(), t.samples::<u8>()?.to_vec())?;
+            } else {
+                t = Tile::from_samples(coord, t.layout(), t.samples::<f32>()?.to_vec())?;
+            }
+            cancel.check()?;
+            sink(t);
+        }
+        cancel.check()
     }
 
     fn resolve<'a>(
@@ -632,6 +780,18 @@ impl Renderer {
             Ok(groups.into_iter().flatten().collect())
         }
     }
+}
+
+// Kept private so integration does not depend on the reference renderer helper.
+fn has_m2_settings(s: &DevelopSettings) -> bool {
+    s.detail != Default::default()
+        || s.color != Default::default()
+        || s.effects != Default::default()
+        || s.geometry != Default::default()
+        || s.tone.texture != 0.
+        || s.tone.clarity != 0.
+        || s.tone.dehaze != 0.
+        || s.tone.curves != Default::default()
 }
 
 fn release(uses: &mut HashMap<TileCoord, usize>, c: TileCoord) {

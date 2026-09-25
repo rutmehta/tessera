@@ -3,7 +3,7 @@ use pipeline_cpu::{RenderSource, render_scaled};
 use raw_decode::RawSource;
 use std::{
     fs::{self, File},
-    io::{BufReader, BufWriter},
+    io::BufReader,
     path::{Path, PathBuf},
 };
 
@@ -39,7 +39,7 @@ fn raw_fixture_goldens() {
             "missing {ext} fixture"
         );
     }
-    fs::create_dir_all(root.join("golden")).unwrap();
+
     for path in files {
         let mut source = RawSource::open(&path).unwrap();
         let cfa = source.decode_cfa().unwrap();
@@ -64,25 +64,11 @@ fn raw_fixture_goldens() {
             "{}.png",
             path.file_stem().unwrap().to_string_lossy()
         ));
-        if !golden.exists() {
-            let file = File::options()
-                .write(true)
-                .create_new(true)
-                .open(&golden)
-                .unwrap();
-            let mut encoder =
-                png::Encoder::new(BufWriter::new(file), rendered.width(), rendered.height());
-            encoder.set_color(png::ColorType::Rgb);
-            encoder.set_depth(png::BitDepth::Eight);
-            encoder.set_source_srgb(png::SrgbRenderingIntent::Perceptual);
-            let mut writer = encoder.write_header().unwrap();
-            writer.write_image_data(rendered.as_raw()).unwrap();
-            writer.finish().unwrap();
-            eprintln!(
-                "created missing golden {} (review and commit)",
-                golden.display()
-            );
-        }
+        assert!(
+            golden.exists(),
+            "missing immutable golden {}",
+            golden.display()
+        );
         let mut reader = png::Decoder::new(BufReader::new(File::open(&golden).unwrap()))
             .read_info()
             .unwrap();
@@ -100,8 +86,8 @@ fn raw_fixture_goldens() {
             .max()
             .unwrap();
         assert!(
-            max <= 2,
-            "{}: max absolute error {max}/255 exceeds 2/255",
+            max == 0,
+            "{}: default render is not bit-identical (max error {max}/255)",
             golden.display()
         );
         eprintln!(

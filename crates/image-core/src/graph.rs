@@ -49,11 +49,27 @@ pub struct PipelineGraph {
 
 impl Default for PipelineGraph {
     fn default() -> Self {
-        Self::m1()
+        Self::m2()
     }
 }
 
 impl PipelineGraph {
+    /// M2 adds whole-level neighbourhood and geometry barriers. Only the
+    /// upstream demosaic/WB buffers are memoized: crop-relative Effects depends
+    /// on Geometry settings and must not use an Effects-only chain cache key.
+    pub fn m2() -> Self {
+        let mut graph = Self::m1();
+        for stage in [
+            StageId::Detail,
+            StageId::Color,
+            StageId::Effects,
+            StageId::Geometry,
+        ] {
+            graph.nodes[stage.index()].implemented = true;
+        }
+        graph
+    }
+
     /// The M1 graph: pipeline-cpu operators for Linearize, Demosaic,
     /// CameraProfile, WhiteBalance, Tone and Output.
     pub fn m1() -> Self {
