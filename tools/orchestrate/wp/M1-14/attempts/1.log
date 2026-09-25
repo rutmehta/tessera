@@ -1,0 +1,11 @@
+Implemented M1-14 in the worktree.
+
+Missing or undersized embedded JPEGs now use a bilinear CPU-rendered preview through jobs at Priority::Preview. FFI returns pending immediately, then fires PreviewReady. Added recipe-hashed caching, all eight EXIF orientations, and callback-driven Swift refresh with cancellation handling.
+
+sample.dng rendered in 869 ms: mean luminance 0.263, standard deviation 0.243. The embedded-JPEG test confirmed zero pipeline renders.
+
+The exact required test/clippy/fmt/Swift build command passed. Swift tests also passed, including the sample.dng callback path. Only allowed paths changed. No commit made.
+
+Non-fatal native build warnings remain, including a macOS deployment-target warning documented in tools/orchestrate/wp/M1-14/RESULT.md.
+
+RESULT: PASS
