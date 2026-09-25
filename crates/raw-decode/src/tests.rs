@@ -10,6 +10,8 @@ fn raw(layout: CfaLayout) -> libraw_ffi::CfaImage {
         white: 1000,
         wb_coeffs: [1.0; 4],
         color_matrix: [[0.0; 3]; 3],
+        cam_xyz: [[0.0; 3]; 4],
+        rgb_cam: [[0.0; 4]; 3],
         crop: [0, 0, 4, 2],
     }
 }

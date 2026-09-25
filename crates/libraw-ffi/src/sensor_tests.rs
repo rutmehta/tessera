@@ -1,5 +1,23 @@
 use super::*;
 
+#[test]
+fn original_matrices_are_independent_and_lossless() {
+    let raw = handle();
+    let cam_xyz = [[0.3, 0.2, 0.1], [0.1, 0.7, 0.2], [0.2, 0.1, 0.8], [0.9; 3]];
+    let rgb_cam = [
+        [1.1, 0.2, 0.3, 0.4],
+        [0.5, 1.2, 0.6, 0.7],
+        [0.8, 0.9, 1.3, 1.4],
+    ];
+    unsafe {
+        (*raw.raw).color.cam_xyz = cam_xyz;
+        (*raw.raw).color.rgb_cam = rgb_cam;
+    }
+    let m = raw.sensor_info();
+    assert_eq!(m.cam_xyz, cam_xyz);
+    assert_eq!(m.rgb_cam, rgb_cam);
+}
+
 fn handle() -> RawFile {
     let raw = unsafe { bindings::libraw_init(0) };
     assert!(!raw.is_null());

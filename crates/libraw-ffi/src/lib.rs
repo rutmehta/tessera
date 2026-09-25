@@ -36,6 +36,10 @@ pub struct CfaImage {
     pub white: u32,
     pub wb_coeffs: [f32; 4],
     pub color_matrix: [[f32; 3]; 3],
+    /// Original LibRaw color.cam_xyz: XYZ -> camera, D65; fourth sensor row retained.
+    pub cam_xyz: [[f32; 3]; 4],
+    /// Original LibRaw color.rgb_cam: white-balanced camera -> linear sRGB.
+    pub rgb_cam: [[f32; 4]; 3],
     pub crop: [u32; 4],
 }
 #[derive(Debug, Clone)]

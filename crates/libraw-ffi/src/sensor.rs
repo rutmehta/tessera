@@ -125,6 +125,8 @@ impl RawFile {
                 white: data.color.maximum,
                 wb_coeffs: data.color.cam_mul,
                 color_matrix: matrix,
+                cam_xyz: data.color.cam_xyz,
+                rgb_cam: data.color.rgb_cam,
                 crop,
             }
         }

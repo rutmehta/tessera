@@ -33,6 +33,10 @@ pub struct RawMetadata {
     /// LibRaw camera-to-linear-sRGB composed with sRGB-to-XYZ (D65).
     /// Apply to white-balanced camera RGB, not unbalanced mosaic samples.
     pub camera_to_xyz: ColorMatrix3,
+    /// Original LibRaw XYZ -> camera matrix (D65), not derived from rgb_cam.
+    pub cam_xyz: [[f32; 3]; 4],
+    /// Original LibRaw white-balanced camera -> linear sRGB matrix.
+    pub rgb_cam: [[f32; 4]; 3],
     /// [left, top, width, height] in full sensor coordinates.
     pub default_crop: [u32; 4],
     /// DNG GainMap opcode presence. No gain map is applied during decode.
@@ -63,6 +67,8 @@ impl From<FfiMetadata> for RawMetadata {
             white_level: 0,
             as_shot_wb: [0.; 4],
             camera_to_xyz: ColorMatrix3([[0.; 3]; 3]),
+            cam_xyz: [[0.; 3]; 4],
+            rgb_cam: [[0.; 4]; 3],
             default_crop: [0; 4],
             has_gain_map: m.has_gain_map,
             has_opcode_list: m.has_opcode_list,
@@ -157,6 +163,8 @@ impl RawSource {
         metadata.white_level = image.white;
         metadata.as_shot_wb = image.wb_coeffs;
         metadata.camera_to_xyz = ColorMatrix3(image.color_matrix.map(|row| row.map(f64::from)));
+        metadata.cam_xyz = image.cam_xyz;
+        metadata.rgb_cam = image.rgb_cam;
         metadata.default_crop = image.crop;
         metadata
     }
@@ -293,6 +301,10 @@ mod fixture_tests {
             let mut source =
                 RawSource::open(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
             let metadata = source.metadata();
+            let original = RawFile::open(&path).unwrap().sensor_info();
+            assert_eq!(metadata.cam_xyz, original.cam_xyz);
+            assert_eq!(metadata.rgb_cam, original.rgb_cam);
+            assert!(metadata.cam_xyz.iter().flatten().any(|&v| v != 0.0));
             assert!(
                 metadata.camera_to_xyz.0.iter().flatten().any(|v| *v != 0.0),
                 "missing matrix: {}",
