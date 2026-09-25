@@ -6,3 +6,17 @@ license = "MIT"
 
 [lib]
 path = "src/lib.rs"
+
+[dependencies]
+engine-api = { path = "../engine-api" }
+index = { path = "../index" }
+sidecar = { path = "../sidecar" }
+previews = { path = "../previews" }
+raw-decode = { path = "../raw-decode" }
+image = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tempfile = { workspace = true }
+
+[dev-dependencies]
+rusqlite = { workspace = true }

@@ -1,6 +1,6 @@
 //! SQLite photo catalog and search index.
 mod api;
-pub use api::{Index, Scanner};
+pub use api::{ImageInfo, Index, Scanner, Score};
 use std::{path::Path, time::UNIX_EPOCH};
 
 use engine_api::{
@@ -62,11 +62,11 @@ impl Core {
             COMMIT;")?;
         let version: u32 =
             conn.query_row("SELECT max(version) FROM migration", [], |r| r.get(0))?;
-        if version > 3 {
+        if version > 4 {
             return Err(engine_api::error::EngineError::SchemaVersion {
                 document: "index".into(),
                 found: version,
-                supported: 3,
+                supported: 4,
             }
             .into());
         }
@@ -92,6 +92,9 @@ impl Core {
                 INSERT INTO fts(rowid,image_id,filename,keywords,caption,camera,lens)
                 SELECT i.rowid,i.id,f.name,(SELECT group_concat(k.name,' ') FROM keyword k JOIN image_keyword ik ON k.id=ik.keyword_id WHERE ik.image_id=i.id),i.caption,i.camera,i.lens FROM image i JOIN file f ON f.id=i.file_id;
                 INSERT INTO migration(version) VALUES(3); COMMIT;")?;
+        }
+        if version < 4 {
+            conn.execute_batch(include_str!("../migrations/004_culling.sql"))?;
         }
         Ok(Self { conn })
     }
@@ -728,7 +731,7 @@ mod tests {
             i.conn
                 .query_row("SELECT count(*) FROM migration", [], |r| r.get::<_, u32>(0))
                 .unwrap(),
-            3
+            4
         );
     }
     #[test]
@@ -771,7 +774,7 @@ mod tests {
             .conn
             .query_row("SELECT count(*) FROM migration", [], |r| r.get(0))
             .unwrap();
-        assert_eq!(tables, 3);
+        assert_eq!(tables, 4);
         let id = ImageId(7);
         i.conn
             .execute("INSERT INTO root(path) VALUES('root')", [])
