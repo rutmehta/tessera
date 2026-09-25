@@ -1,0 +1,13 @@
+Implemented M2-01 within the allowed paths. Added read-only catalog import, ImportPlan, CRS translation, smart-search AST, library.json writer, inspect counts, and synthetic fixtures.
+
+Verified:
+  cargo test -p import-lrcat --release: 12 unit and 5 integration tests passed
+  cargo clippy -p import-lrcat --all-targets -- -D warnings: passed
+  cargo fmt --check: passed
+  git diff --check: passed
+
+CARGO_TARGET_DIR remained set as requested. No engine-api changes or commits.
+
+Limitations documented in crates/import-lrcat/README.md: real catalogs remain unverified, history/snapshots are preserved as source records, and unsupported edits are retained with warnings.
+
+RESULT: PASS

@@ -1,0 +1,11 @@
+You are implementing work package M1-07J. Work only inside the worktree at /Users/rutmehta/Developer/tessera/.worktrees/M1-07J. Only touch allowed paths matching: Cargo.lock,Cargo.toml,crates/jobs/**,tools/orchestrate/wp/M1-07J/**. IMPORTANT: the repo path contains a colon, which breaks cargo on macOS unless CARGO_TARGET_DIR points outside the repo. It is already exported in your environment as /Users/rutmehta/.cache/tessera-target/M1-07J; keep it set for every cargo command (never build into ./target, never commit target/). Run this test command yourself before finishing: cargo test -p jobs --release && cargo clippy -p jobs --all-targets -- -D warnings && cargo fmt --check. Finish by printing a line RESULT: PASS or RESULT: FAIL <reason>.
+
+# WP M1-07J — Job scheduler (`jobs` crate)
+
+Read docs/08 §2 and crates/engine-api/CONTRACTS.md (jobs module, invariants 10.x). Implement `crates/jobs` (workspace member stub):
+- `ThreadPoolScheduler` implementing `engine_api::jobs::Scheduler`: N worker threads (default = physical cores), a priority queue keyed by `Priority` then FIFO, `submit` returning a `JobId`, `reprioritize`, `cancel` (by job or group, propagating through `CancellationToken`), `status`; a job that observes cancellation returns `EngineError::Cancelled` and its status becomes Cancelled.
+- Priority inversion guard: a worker never picks a lower-priority job while a higher-priority job is ready; running jobs are not pre-empted, so document that long jobs must poll cancellation and yield per tile.
+- `JobGroup` helper for "prefetch neighbours" style batches that can be cancelled as one.
+- A `blocking_run(job)` for tests/CLI.
+- Tests: ordering (Export never before ready Ui), group cancel, cancelled queued job never starts, reprioritize moves a queued job ahead, 10k tiny jobs complete without deadlock, a stress test with random submit/cancel from 4 threads. Bench (ignored): throughput of 100k no-op jobs.
+`cargo test -p jobs --release`, clippy -D warnings, fmt. Do not modify engine-api.
