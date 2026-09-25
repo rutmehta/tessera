@@ -1,0 +1,11 @@
+Swift run 1: exit 0
+Swift run 2: exit 0
+Swift run 3: exit 0
+Swift run 4: exit 0
+Swift run 5: exit 0
+Swift run 6: exit 0
+Swift run 7: exit 0
+Swift run 8: exit 0
+Swift run 9: exit 0
+Swift run 10: exit 0
+{"swift": [{"run": 1, "code": 0, "start": 1790357312.629622, "end": 1790357324.421262}, {"run": 2, "code": 0, "start": 1790357324.4215539, "end": 1790357334.247523}, {"run": 3, "code": 0, "start": 1790357334.24786, "end": 1790357343.800473}, {"run": 4, "code": 0, "start": 1790357343.800837, "end": 1790357354.912697}, {"run": 5, "code": 0, "start": 1790357354.913187, "end": 1790357365.6193159}, {"run": 6, "code": 0, "start": 1790357365.619692, "end": 1790357375.41149}, {"run": 7, "code": 0, "start": 1790357375.411762, "end": 1790357384.724271}, {"run": 8, "code": 0, "start": 1790357384.724521, "end": 1790357394.438358}, {"run": 9, "code": 0, "start": 1790357394.4386802, "end": 1790357404.228192}, {"run": 10, "code": 0, "start": 1790357404.228535, "end": 1790357415.331327}], "rust": [{"run": 1, "code": 0, "start": 1790357312.627712, "end": 1790357420.683176}]}

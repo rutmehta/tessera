@@ -23,6 +23,7 @@ members = [
     "crates/ml-faces",
     "crates/ml-quality",
     "crates/ml-segment",
+    "crates/mask-ai",
     "crates/ml-depth",
     "crates/jobs",
     "crates/engine-api",

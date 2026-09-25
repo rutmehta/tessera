@@ -26,47 +26,98 @@ public final class PreviewRequest: @unchecked Sendable {
     fileprivate init() {}
     fileprivate func attach(_ task: Task<Void, Never>) {
         lock.withLock {
-            if cancelled { task.cancel() } else { self.task = task }
+            self.task = task
+            if cancelled { task.cancel() }
         }
     }
     public func cancel() {
-        lock.withLock { cancelled = true; task?.cancel(); task = nil }
+        lock.withLock { cancelled = true; task?.cancel() }
     }
     public var isCancelled: Bool { lock.withLock { cancelled } }
+
+    /// A drain barrier for cancellation tests; cancellation alone does not finish queued work.
+    func waitForCompletion() async {
+        let task = lock.withLock { self.task }
+        await task?.value
+    }
 }
 
 /// Memory-bounded cache + bounded-concurrency decode queue.
 public final class ThumbnailLoader: @unchecked Sendable {
-    private final class Box { let image: CGImage; init(_ i: CGImage) { image = i } }
-    private final class Key: NSObject {
-        let item: PhotoItem
-        init(_ item: PhotoItem) { self.item = item }
-        override var hash: Int { item.hashValue }
-        override func isEqual(_ object: Any?) -> Bool { (object as? Key)?.item == item }
+    /// Explicit cost-bounded LRU, protected by the loader lock. NSCache can evict
+    /// a just-inserted image under pressure before its ready callback is delivered.
+    /// Keep the newest image even when it alone exceeds the budget.
+    private final class Cache {
+        struct Entry {
+            let image: CGImage
+            let cost: Int
+            var access: UInt64
+        }
+        var totalCostLimit = 0
+        private var entries: [PhotoItem: Entry] = [:]
+        private var cost = 0
+        private var clock: UInt64 = 0
+
+        func image(for item: PhotoItem) -> CGImage? {
+            guard var entry = entries[item] else { return nil }
+            clock &+= 1
+            entry.access = clock
+            entries[item] = entry
+            return entry.image
+        }
+
+        func insert(_ image: CGImage, for item: PhotoItem) {
+            remove(item)
+            clock &+= 1
+            let bytes = image.bytesPerRow * image.height
+            entries[item] = Entry(image: image, cost: bytes, access: clock)
+            cost += bytes
+            while cost > totalCostLimit && entries.count > 1 {
+                guard let oldest = entries.min(by: { $0.value.access < $1.value.access })?.key else { break }
+                remove(oldest)
+            }
+        }
+
+        func remove(_ item: PhotoItem) {
+            if let entry = entries.removeValue(forKey: item) { cost -= entry.cost }
+        }
+
+        func removeAllObjects() {
+            entries.removeAll()
+            cost = 0
+        }
     }
 
-    private let thumbCache = NSCache<Key, Box>()
-    private let previewCache = NSCache<Key, Box>()
+    private let thumbCache = Cache()
+    private let previewCache = Cache()
     private let queue: OperationQueue
     private let lock = NSLock()
-    private var active: [UUID: PreviewRequest] = [:]
+    private struct ActiveRequest {
+        let item: PhotoItem
+        let request: PreviewRequest
+    }
+    private var active: [UUID: ActiveRequest] = [:]
 
-    public init() {
-        thumbCache.totalCostLimit = 512 << 20   // bytes
-        previewCache.totalCostLimit = 768 << 20
+    public convenience init() {
+        self.init(thumbnailCostLimit: 512 << 20, previewCostLimit: 768 << 20)
+    }
+
+    init(thumbnailCostLimit: Int, previewCostLimit: Int) {
+        thumbCache.totalCostLimit = thumbnailCostLimit
+        previewCache.totalCostLimit = previewCostLimit
         queue = OperationQueue()
         queue.name = "thumbnails"
         queue.qualityOfService = .userInitiated
         queue.maxConcurrentOperationCount = max(2, ProcessInfo.processInfo.activeProcessorCount - 1)
     }
 
-    private func cache(_ tier: PreviewTier) -> NSCache<Key, Box> {
+    private func cache(_ tier: PreviewTier) -> Cache {
         tier == .thumbnail ? thumbCache : previewCache
     }
 
     public func removeAll() {
         lock.withLock {
-            for request in active.values { request.cancel() }
+            for entry in active.values { entry.request.cancel() }
             active.removeAll()
             thumbCache.removeAllObjects()
             previewCache.removeAllObjects()
@@ -78,13 +129,17 @@ public final class ThumbnailLoader: @unchecked Sendable {
     /// Drops both tiers of `item` (its recipe changed); the next request asks the engine again.
     public func invalidate(_ item: PhotoItem) {
         lock.withLock {
-            thumbCache.removeObject(forKey: Key(item))
-            previewCache.removeObject(forKey: Key(item))
+            // An old decode may already have finished and be awaiting main-actor delivery.
+            // Cancel both tiers before clearing them, using full item identity, not dense ids.
+            let ids = active.filter { $0.value.item == item }.map(\.key)
+            for id in ids { active.removeValue(forKey: id)?.request.cancel() }
+            thumbCache.remove(item)
+            previewCache.remove(item)
         }
     }
 
     public func cached(_ item: PhotoItem, tier: PreviewTier) -> CGImage? {
-        cache(tier).object(forKey: Key(item))?.image
+        lock.withLock { cache(tier).image(for: item) }
     }
 
     /// Loads asynchronously; `completion` runs on the main thread (not called if cancelled).
@@ -96,7 +151,7 @@ public final class ThumbnailLoader: @unchecked Sendable {
         }
         let id = UUID()
         let request = PreviewRequest()
-        lock.withLock { active[id] = request }
+        lock.withLock { active[id] = ActiveRequest(item: item, request: request) }
         let queue = queue
         let task = Task.detached { [weak self] in
             defer { self?.finished(id) }
@@ -111,9 +166,10 @@ public final class ThumbnailLoader: @unchecked Sendable {
                 let result = await Self.renderQueued(item, tier: tier, priority: priority, queue: queue, request: request)
                 guard !Task.isCancelled, !request.isCancelled else { return }
                 if let image = result.image {
-                    self?.store(image, item: item, tier: tier, id: id, request: request)
-                    await MainActor.run {
-                        guard !request.isCancelled else { return }
+                    await MainActor.run { [weak self] in
+                        // Publish on the delivery actor, not before the actor hop: other
+                        // completed decodes must not evict this entry while delivery waits.
+                        guard self?.store(image, item: item, tier: tier, id: id, request: request) == true else { return }
                         completion(image)
                     }
                     return
@@ -127,10 +183,11 @@ public final class ThumbnailLoader: @unchecked Sendable {
 
     private func finished(_ id: UUID) { _ = lock.withLock { active.removeValue(forKey: id) } }
 
-    private func store(_ image: CGImage, item: PhotoItem, tier: PreviewTier, id: UUID, request: PreviewRequest) {
+    private func store(_ image: CGImage, item: PhotoItem, tier: PreviewTier, id: UUID, request: PreviewRequest) -> Bool {
         lock.withLock {
-            guard active[id] != nil, !request.isCancelled else { return }
-            cache(tier).setObject(Box(image), forKey: Key(item), cost: image.bytesPerRow * image.height)
+            guard active[id] != nil, !request.isCancelled else { return false }
+            cache(tier).insert(image, for: item)
+            return true
         }
     }
 

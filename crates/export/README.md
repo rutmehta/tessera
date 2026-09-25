@@ -16,6 +16,34 @@ Processing order: float render including shared `color_mgmt::Transform` (relativ
 
 The TIFF16 integration regression checks exact equality to the managed float render followed by final quantization, including a saturated wide-gamut sample and distinguishable sub-8-bit differences. ExportSettings still has no custom ICC/intent fields and does not claim printer/CMYK or HDR export. Shared transforms are built per render; cross-export registry/transform caching is not implemented.
 
+## AI local masks
+
+Active Subject, Sky, Background and Object (box/click) components are segmented
+before export, on display-oriented as-shot sRGB, then mapped back to active-area
+sensor coordinates. The full-resolution local adjustment runs in scene-linear
+Rec.2020 before creative effects, crop/straighten, output tone mapping, enhancement
+and final ICC conversion. Each export installs private `MaskRasterCache` hooks;
+no process-global hook or test backend is installed. `mask-ai` contains the same
+ml-segment adapter, loader, orientation mapping, bilinear resampling and mixed
+procedural/AI compositor used by FFI. FFI includes this source directly to keep
+its existing manifest dependency surface unchanged.
+
+Ordinary and enhanced exports load the pinned segmentation models lazily only
+for enabled, nonzero AI groups. `TESSERA_APP_SUPPORT` overrides the default
+`~/Library/Application Support/Tessera` support directory;
+`TESSERA_SEGMENT_MODELS` overrides the model cache, as in FFI. Missing models may
+be downloaded by ml-runtime. For explicit lifetime/cache control or tests use
+`export_one_with_segmenter` / `export_one_upscaled_with_segmenter`. Failed,
+malformed or unsupported masks are errors, never empty-mask fallbacks, and no
+image or sidecar is published on failure. Disabled AI groups do not load models.
+
+**Current limitation:** the public CPU reference API has no mask callback before
+its private lens warp. AI exports therefore explicitly reject manual lens
+distortion, resolved profile calibration and embedded lens corrections rather
+than export misaligned masks. Non-AI exports retain the original renderer and
+its lens support. Removing this limitation requires a hook-aware pipeline-cpu
+render entry point (outside the M2-14b allowed file scope).
+
 ## Metadata and publication
 
 All preserves the supplied XMP packet (including foreign properties) and replaces selection metadata using `sidecar`'s standard rating/flag/Lightroom-label mapping. CopyrightOnly rebuilds a clean packet containing only copyright, not ratings, marks, GPS or other foreign properties. None writes neither embedded XMP nor an XMP sidecar. Privacy policy applies equally to the exported image and its sidecar. This API consumes XMP, not opaque EXIF/IPTC blobs.
