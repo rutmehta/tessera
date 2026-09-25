@@ -9,6 +9,8 @@ name = "tessera"
 path = "src/main.rs"
 
 [dependencies]
+agent = { path = "../../crates/agent" }
+style-profile = { path = "../../crates/style-profile" }
 image-core = { path = "../../crates/image-core" }
 engine-api = { path = "../../crates/engine-api" }
 index = { path = "../../crates/index" }
