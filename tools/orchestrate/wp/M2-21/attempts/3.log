@@ -1,0 +1,7 @@
+M2-21 remains incomplete. This attempt verified the inherited implementation and updated tools/orchestrate/wp/M2-21/RESULTS.md; no source code was changed.
+
+The required command failed in tessera-ffi’s slow_interactive_frames_are_not_starved test at crates/tessera-ffi/tests/develop.rs:182. It also failed in isolation after 121 seconds with “no frame; failures: []”. Export and image-core tests passed. Separately run clippy, fmt, and git diff --check passed.
+
+Default lens settings still trigger CPU fallback, and the performance targets remain unmet. CARGO_TARGET_DIR stayed outside the repo. Nothing was committed.
+
+RESULT: FAIL FFI preview test timeout; default-recipe GPU execution and performance acceptance remain incomplete.

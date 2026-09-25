@@ -1,0 +1,5 @@
+Implemented M2-24 in the specified worktree. Sheet, toolbar, inspector, mask, and library controls now have namespaced accessibility identifiers; icon-only controls have labels, and custom sliders and selection controls expose values and adjustable actions. I added a source-level regression test and an Identifiers appendix to ACCEPTANCE.md.
+
+The requested FFI build, Swift build, and release test command passed: 64 XCTest tests and 5 Swift Testing tests, including Theme lint. Generated FFI changes were removed from the diff. This was not a live VoiceOver/computer-use verification pass.
+
+RESULT: PASS

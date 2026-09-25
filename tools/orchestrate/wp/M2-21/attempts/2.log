@@ -1,0 +1,10 @@
+Fixed the GPU scratch-retention failure. All five RAW fixtures now pass GPU/CPU full-chain tolerance with unsupported lens stages explicitly disabled. The added regression test confirms multiple GPU submissions still produce just one pixel readback.
+
+The exact required test, clippy, and fmt command passed. Changes remain uncommitted and confined to allowed paths.
+
+Performance acceptance is not complete. Default recipes still use CPU fallback for lens processing. With lens disabled, full-size Nikon improved from 50.095 s CPU to 8.286 s GPU, still above the target. The 100-image target is unverified.
+
+Results: tools/orchestrate/wp/M2-21/RESULTS.md
+Measurements: tools/orchestrate/wp/M2-21/benchmark-results.json
+
+RESULT: FAIL default-recipe GPU execution and performance targets remain unmet.
