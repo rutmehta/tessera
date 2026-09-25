@@ -127,6 +127,215 @@ pub fn resolve_lens(
     metadata: Option<&RawMetadata>,
     context: &LensContext<'_>,
 ) -> EngineResult<ResolvedLens> {
+    if image.planes().len() != 3 {
+        return Err(EngineError::invalid("lens", "RGB analysis required"));
+    }
+    resolve_with(
+        (image.width(), image.height()),
+        || analysis_images(image),
+        s,
+        metadata,
+        context,
+    )
+}
+
+/// [`resolve_lens`] for a RAW sensor plane, without a full-frame demosaic.
+///
+/// The reference analyses the demosaiced camera-RGB active area, but only at
+/// the nearest-sample grid of [`analysis_images`] (at most 256 samples on the
+/// long edge). Each sample is developed here from a small CFA patch through
+/// the same highlight reconstruction and demosaic operators. Patches start at
+/// multiples of the CFA period and either reach the real sensor edge or keep
+/// a 7-pixel margin (4 highlight + 3 demosaic halo), so every sample is
+/// bit-identical to the whole-frame reference. `plane` is the level-0 sensor
+/// plane (`metadata.width` × `metadata.height`).
+pub fn resolve_lens_sensor(
+    plane: &[f32],
+    metadata: &RawMetadata,
+    settings: &engine_api::recipe::DevelopSettings,
+    context: &LensContext<'_>,
+) -> EngineResult<ResolvedLens> {
+    let [_, _, cw, ch] = metadata.default_crop;
+    // Only calibrating/CA-estimating settings develop the analysis samples.
+    resolve_with(
+        (cw, ch),
+        || sensor_analysis(plane, metadata, settings),
+        &settings.lens,
+        Some(metadata),
+        context,
+    )
+}
+
+/// One developed camera-RGB sample at sensor (x, y), from a small CFA patch.
+///
+/// Demosaic reads ±3 rows/columns of highlight-reconstructed samples, which
+/// read ±4 raw samples. Out-of-frame reads fold to the nearest same-phase
+/// sample, up to `period - 1` inside the edge. The patch therefore covers
+/// every sample transitively read, starts at a multiple of the CFA period
+/// (same phase indexing) and ends either inside the frame or at its real
+/// edge (same folding), so the result is bit-identical to the whole frame.
+fn sensor_sample(
+    plane: &[f32],
+    metadata: &RawMetadata,
+    (period, algorithm, mode): (
+        u32,
+        crate::DemosaicAlgorithm,
+        engine_api::recipe::settings::HighlightReconstruction,
+    ),
+    x: u32,
+    y: u32,
+) -> EngineResult<[f32; 3]> {
+    let (w, h) = (metadata.width, metadata.height);
+    let span = |v: u32, n: u32| {
+        let (v, n, p) = (i64::from(v), i64::from(n), i64::from(period));
+        // Demosaic reads, after folding at the frame edges.
+        let (mut first, mut last) = ((v - 3).max(0), (v + 3).min(n - 1));
+        if v + 3 >= n {
+            first = first.min(n - p);
+        }
+        if v - 3 < 0 {
+            last = last.max(p - 1);
+        }
+        let lo = (first - 4).max(0) / p * p;
+        let hi = (last + 5).min(n).max((lo + p).min(n));
+        (lo as u32, hi as u32)
+    };
+    let (x0, x1) = span(x, w);
+    let (y0, y1) = span(y, h);
+    let (pw, ph) = (x1 - x0, y1 - y0);
+    let mut patch = Vec::with_capacity(pw as usize * ph as usize);
+    for row in y0..y1 {
+        let from = row as usize * w as usize;
+        patch.extend_from_slice(&plane[from + x0 as usize..from + x1 as usize]);
+    }
+    let cfa = metadata.cfa_layout;
+    let coord = engine_api::tile::TileCoord::new(0, 0, 0);
+    let raw = Image::new(pw, ph, vec![patch])?;
+    let mut recovered = Image::blank(pw, ph, 1);
+    recovered.put(&crate::reconstruct_highlights(
+        &raw.tile(coord, 4, period)?,
+        cfa,
+        mode,
+    )?)?;
+    let rgb = crate::demosaic(&recovered.tile(coord, 3, period)?, cfa, algorithm)?;
+    let data = rgb.samples::<f32>()?;
+    let n = rgb.layout().plane_len();
+    let i = ((y - y0) * pw + (x - x0)) as usize;
+    Ok([data[i], data[n + i], data[2 * n + i]])
+}
+
+/// One analysis sample: active-area position and developed camera RGB.
+type Developed = ((u32, u32), [f32; 3]);
+
+/// [`analysis_images`] of the demosaiced active area, from sparse patches.
+fn sensor_analysis(
+    plane: &[f32],
+    metadata: &RawMetadata,
+    settings: &engine_api::recipe::DevelopSettings,
+) -> EngineResult<(lens::GrayImage, lens::RgbImage)> {
+    use engine_api::recipe::settings::DemosaicMethod;
+    let (w, h) = (metadata.width, metadata.height);
+    let [left, top, cw, ch] = metadata.default_crop;
+    if plane.len() != w as usize * h as usize
+        || cw == 0
+        || ch == 0
+        || u64::from(left) + u64::from(cw) > u64::from(w)
+        || u64::from(top) + u64::from(ch) > u64::from(h)
+    {
+        return Err(EngineError::invalid(
+            "lens",
+            "sensor plane or active area mismatch",
+        ));
+    }
+    let cfa = metadata.cfa_layout;
+    crate::mosaic::validate_cfa(cfa)?;
+    let period = if matches!(cfa, raw_decode::CfaLayout::XTrans(_)) {
+        6
+    } else {
+        2
+    };
+    if w < period || h < period {
+        return Err(EngineError::invalid(
+            "CFA",
+            "image must contain a complete CFA period",
+        ));
+    }
+    let algorithm = match settings.demosaic.method {
+        DemosaicMethod::Auto => crate::DemosaicAlgorithm::MalvarHeCutler,
+        DemosaicMethod::Bilinear => crate::DemosaicAlgorithm::Bilinear,
+        _ => {
+            return Err(EngineError::invalid(
+                "demosaic",
+                "only Auto (MHC) and Bilinear implemented",
+            ));
+        }
+    };
+    let ops = (
+        period,
+        algorithm,
+        settings.linearize.highlight_reconstruction,
+    );
+    let develop = |x: u32, y: u32| sensor_sample(plane, metadata, ops, x, y);
+    let (points, aw, _) = analysis_grid(cw, ch);
+    // Parallel over sample rows; each sample is independent and deterministic.
+    let workers = std::thread::available_parallelism()
+        .map_or(1, usize::from)
+        .clamp(1, 8);
+    let rows: Vec<u32> = points
+        .iter()
+        .map(|p| p.1)
+        .collect::<std::collections::BTreeSet<_>>()
+        .into_iter()
+        .collect();
+    let cols: Vec<u32> = points[..aw].iter().map(|p| p.0).collect();
+    let mut developed: std::collections::HashMap<(u32, u32), [f32; 3]> =
+        std::collections::HashMap::with_capacity(points.len());
+    std::thread::scope(|scope| -> EngineResult<()> {
+        let handles: Vec<_> = (0..workers)
+            .map(|worker| {
+                let (rows, cols, develop) = (&rows, &cols, &develop);
+                scope.spawn(move || -> EngineResult<Vec<Developed>> {
+                    let mut out = Vec::new();
+                    for &y in rows.iter().skip(worker).step_by(workers) {
+                        for &x in cols {
+                            out.push(((x, y), develop(left + x, top + y)?));
+                        }
+                    }
+                    Ok(out)
+                })
+            })
+            .collect();
+        for handle in handles {
+            developed.extend(handle.join().expect("lens analysis worker panicked")?);
+        }
+        Ok(())
+    })?;
+    analysis_from((cw, ch), &|x, y| developed[&(x, y)])
+}
+
+/// The nearest-sample analysis grid of an active area: points (row-major),
+/// grid width and height. Endpoint-aligned like lens's [-1,1] pixel centres.
+fn analysis_grid(width: u32, height: u32) -> (Vec<(u32, u32)>, usize, usize) {
+    let scale = width.max(height).div_ceil(256);
+    let w = width.div_ceil(scale).max(3) as usize;
+    let h = height.div_ceil(scale).max(3) as usize;
+    let points = (0..w * h)
+        .map(|i| {
+            let x = (i % w) * (width as usize - 1) / (w - 1);
+            let y = (i / w) * (height as usize - 1) / (h - 1);
+            (x as u32, y as u32)
+        })
+        .collect();
+    (points, w, h)
+}
+
+fn resolve_with(
+    (width, height): (u32, u32),
+    analysis: impl FnOnce() -> EngineResult<(lens::GrayImage, lens::RgbImage)>,
+    s: &LensSettings,
+    metadata: Option<&RawMetadata>,
+    context: &LensContext<'_>,
+) -> EngineResult<ResolvedLens> {
     crate::optics::validate(s)?;
     let mut out = ResolvedLens {
         source: CorrectionSource::Manual,
@@ -216,8 +425,8 @@ pub fn resolve_lens(
             LensProfileSource::Auto | LensProfileSource::AutoCalibrated
         );
     let ca_only = out.sample.is_none() && s.remove_chromatic_aberration;
-    if (calibrate || ca_only) && image.width() >= 8 && image.height() >= 8 {
-        let (gray, rgb) = analysis_images(image)?;
+    if (calibrate || ca_only) && width >= 8 && height >= 8 {
+        let (gray, rgb) = analysis()?;
         let mut sample = CalibrationSample::default();
         let mut found = false;
         if calibrate {
@@ -261,16 +470,20 @@ pub(crate) fn analysis_images(image: &Image) -> EngineResult<(lens::GrayImage, l
     if image.planes().len() != 3 {
         return Err(EngineError::invalid("lens", "RGB analysis required"));
     }
+    analysis_from((image.width(), image.height()), &|x, y| {
+        std::array::from_fn(|c| image.planes()[c][(y * image.width() + x) as usize])
+    })
+}
+
+fn analysis_from(
+    (width, height): (u32, u32),
+    pixel: &dyn Fn(u32, u32) -> [f32; 3],
+) -> EngineResult<(lens::GrayImage, lens::RgbImage)> {
     // Endpoint-aligned nearest samples match lens's [-1,1] pixel-center convention.
-    let scale = image.width().max(image.height()).div_ceil(256);
-    let w = image.width().div_ceil(scale).max(3) as usize;
-    let h = image.height().div_ceil(scale).max(3) as usize;
-    let pixels: Vec<[f64; 3]> = (0..w * h)
-        .map(|i| {
-            let x = (i % w) * (image.width() as usize - 1) / (w - 1);
-            let y = (i / w) * (image.height() as usize - 1) / (h - 1);
-            std::array::from_fn(|c| image.planes()[c][y * image.width() as usize + x] as f64)
-        })
+    let (points, w, h) = analysis_grid(width, height);
+    let pixels: Vec<[f64; 3]> = points
+        .iter()
+        .map(|&(x, y)| pixel(x, y).map(f64::from))
         .collect();
     let gray = pixels
         .iter()
@@ -281,4 +494,108 @@ pub(crate) fn analysis_images(image: &Image) -> EngineResult<(lens::GrayImage, l
         lens::GrayImage::new(w, h, gray).map_err(error)?,
         lens::RgbImage::new(w, h, pixels).map_err(error)?,
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use engine_api::recipe::DevelopSettings;
+    use raw_decode::CfaLayout;
+
+    fn metadata(cfa: CfaLayout, width: u32, height: u32, crop: [u32; 4]) -> RawMetadata {
+        RawMetadata {
+            make: "test".into(),
+            model: "test".into(),
+            lens: None,
+            iso: 100.,
+            shutter_s: 0.01,
+            aperture: 4.,
+            focal_mm: 50.,
+            capture_time: 0,
+            orientation: 1,
+            width,
+            height,
+            cfa_layout: cfa,
+            black_levels: [0.; 4],
+            white_level: 65535,
+            as_shot_wb: [1.; 4],
+            camera_to_xyz: engine_api::color::ColorMatrix3::IDENTITY,
+            cam_xyz: [[1., 0., 0.], [0., 1., 0.], [0., 0., 1.], [0., 0., 0.]],
+            rgb_cam: [[1., 0., 0., 0.], [0., 1., 0., 0.], [0., 0., 1., 0.]],
+            default_crop: crop,
+            has_gain_map: false,
+            has_opcode_list: false,
+            opcode_lists: [None, None, None],
+        }
+    }
+
+    /// The sparse sensor analysis is bit-identical to the whole-frame one,
+    /// including clipped highlights, sensor edges and both CFA families.
+    #[test]
+    fn sparse_sensor_analysis_matches_whole_frame() {
+        let xtrans = CfaLayout::XTrans([
+            [1, 2, 1, 1, 0, 1],
+            [0, 1, 0, 2, 1, 2],
+            [1, 2, 1, 1, 0, 1],
+            [1, 0, 1, 1, 2, 1],
+            [2, 1, 2, 0, 1, 0],
+            [1, 0, 1, 1, 2, 1],
+        ]);
+        for (cfa, period) in [(CfaLayout::Bayer([[0, 1], [3, 2]]), 2), (xtrans, 6)] {
+            for (w, h, crop) in [(611, 397, [5, 3, 600, 390]), (300, 520, [0, 0, 300, 520])] {
+                let m = metadata(cfa, w, h, crop);
+                let plane: Vec<f32> = (0..w * h)
+                    .map(|i| {
+                        let (x, y) = (i % w, i / w);
+                        // Edges, gradients and clipped (>= 1) highlights.
+                        let v = 0.05 + ((x * 7 + y * 13) % 97) as f32 / 90.;
+                        if (x / 40 + y / 30) % 5 == 0 {
+                            v * 1.6
+                        } else {
+                            v
+                        }
+                    })
+                    .collect();
+                for method in [
+                    engine_api::recipe::settings::HighlightReconstruction::Clip,
+                    engine_api::recipe::settings::HighlightReconstruction::ReconstructColor,
+                ] {
+                    let mut settings = DevelopSettings::default();
+                    settings.linearize.highlight_reconstruction = method;
+                    let raw = Image::new(w, h, vec![plane.clone()]).unwrap();
+                    let mut rec = Image::blank(w, h, 1);
+                    for c in raw.coords() {
+                        rec.put(
+                            &crate::reconstruct_highlights(
+                                &raw.tile(c, 4, period).unwrap(),
+                                cfa,
+                                method,
+                            )
+                            .unwrap(),
+                        )
+                        .unwrap();
+                    }
+                    let mut rgb = Image::blank(w, h, 3);
+                    for c in rec.coords() {
+                        rgb.put(
+                            &crate::demosaic(
+                                &rec.tile(c, 3, period).unwrap(),
+                                cfa,
+                                crate::DemosaicAlgorithm::MalvarHeCutler,
+                            )
+                            .unwrap(),
+                        )
+                        .unwrap();
+                    }
+                    let whole = analysis_images(&rgb.downsample_crop(crop, 1).unwrap()).unwrap();
+                    let sparse = sensor_analysis(&plane, &m, &settings).unwrap();
+                    assert_eq!(
+                        format!("{sparse:?}"),
+                        format!("{whole:?}"),
+                        "{cfa:?} {w}x{h} {method:?}"
+                    );
+                }
+            }
+        }
+    }
 }

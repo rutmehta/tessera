@@ -18,6 +18,8 @@ pub struct GpuContext {
     pub(crate) pipeline: wgpu::ComputePipeline,
     pub(crate) local_tone_pipelines:
         std::sync::Mutex<Option<(wgpu::ComputePipeline, wgpu::ComputePipeline)>>,
+    /// Export lens kernels (lateral CA, vignetting, remap), compiled on use.
+    pub(crate) lens_pipelines: std::sync::OnceLock<[wgpu::ComputePipeline; 3]>,
     device_loss: std::sync::Arc<std::sync::Mutex<Option<String>>>,
 }
 
@@ -100,6 +102,7 @@ impl GpuContext {
             capabilities,
             pipeline,
             local_tone_pipelines: std::sync::Mutex::new(None),
+            lens_pipelines: std::sync::OnceLock::new(),
             device_loss,
         })
     }

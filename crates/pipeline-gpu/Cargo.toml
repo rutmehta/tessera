@@ -8,6 +8,7 @@ license = "Apache-2.0"
 path = "src/lib.rs"
 
 [dependencies]
+jobs = { path = "../jobs" }
 wgpu.workspace = true
 bytemuck.workspace = true
 pollster = "0.4"

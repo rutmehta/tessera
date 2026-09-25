@@ -5,6 +5,8 @@ mod batch;
 mod iosurface;
 mod resident;
 pub use iosurface::{SurfaceFormat, write_to_iosurface};
+pub use resident::export_resize::ExportResize;
+pub use resident::{EXPORT_MAX_YIELD, EXPORT_QUIET};
 mod color;
 mod context;
 mod curves;

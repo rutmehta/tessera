@@ -92,6 +92,7 @@ pub fn render_linear_scaled_with_depth(
         context,
         Some((depth, options)),
         None,
+        None,
     )
 }
 
@@ -102,7 +103,27 @@ pub fn render_linear_scaled_with_lens(
     scale: u32,
     context: &crate::LensContext<'_>,
 ) -> EngineResult<Image> {
-    render_linear_impl(settings, source, scale, context, None, None)
+    render_linear_impl(settings, source, scale, context, None, None, None)
+}
+
+/// The reference render with an already-resolved lens correction (for
+/// example from [`crate::resolve_lens_sensor`]) instead of re-analysing the
+/// demosaiced frame. Used to gate resident backends on forced calibrations.
+pub fn render_linear_scaled_resolved(
+    settings: &DevelopSettings,
+    source: &RenderSource<'_>,
+    scale: u32,
+    resolved: &crate::ResolvedLens,
+) -> EngineResult<Image> {
+    render_linear_impl(
+        settings,
+        source,
+        scale,
+        &crate::LensContext::default(),
+        None,
+        None,
+        Some(resolved),
+    )
 }
 
 /// Full reference renderer with caller-owned post-demosaic inference.
@@ -113,7 +134,7 @@ pub fn render_linear_scaled_with_denoise(
     context: &crate::LensContext<'_>,
     denoiser: Option<&dyn crate::PostDemosaicDenoise>,
 ) -> EngineResult<Image> {
-    render_linear_impl(settings, source, scale, context, None, denoiser)
+    render_linear_impl(settings, source, scale, context, None, denoiser, None)
 }
 
 fn render_linear_impl(
@@ -123,6 +144,7 @@ fn render_linear_impl(
     context: &crate::LensContext<'_>,
     depth: Option<(&[f32], crate::LensBlurOptions)>,
     denoiser: Option<&dyn crate::PostDemosaicDenoise>,
+    resolved: Option<&crate::ResolvedLens>,
 ) -> EngineResult<Image> {
     if depth.is_some() {
         let mut without_blur = settings.clone();
@@ -146,7 +168,10 @@ fn render_linear_impl(
                 ));
             }
             let crop = [0, 0, image.width(), image.height()];
-            let correction = crate::resolve_lens(image, &settings.lens, None, context)?;
+            let correction = match resolved {
+                Some(r) => r.clone(),
+                None => crate::resolve_lens(image, &settings.lens, None, context)?,
+            };
             let mut out =
                 crate::optics::lateral_ca(image, None, crop, &settings.lens, &correction)?;
             let matrix = crate::white_balance_matrix(
@@ -226,10 +251,13 @@ fn render_linear_impl(
             };
             // Resolve/estimate in original camera RGB, never mixed working primaries.
             let mut out = demosaic_image(&recovered)?;
-            let analysis = out.downsample_crop(metadata.default_crop, 1)?;
-            let correction =
-                crate::resolve_lens(&analysis, &settings.lens, Some(metadata), context)?;
-            drop(analysis);
+            let correction = match resolved {
+                Some(r) => r.clone(),
+                None => {
+                    let analysis = out.downsample_crop(metadata.default_crop, 1)?;
+                    crate::resolve_lens(&analysis, &settings.lens, Some(metadata), context)?
+                }
+            };
             if correction.ca_active(&settings.lens) {
                 if correction.source() == crate::CorrectionSource::Database
                     && matches!(cfa, CfaLayout::Bayer(_))

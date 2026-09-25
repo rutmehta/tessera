@@ -887,6 +887,34 @@ impl Engine {
         };
         let mut segmenter: Option<Box<dyn export::mask_ai::MaskSegmenter>> = None;
         let mut upscaler: Option<ml_enhance::SuperResolution> = None;
+        // At most one owned output is encoding while the next source renders.
+        // No queue of decoded RAWs, GPU transactions, or output frames grows
+        // with the batch length. Always join before returning, including cancel.
+        type Encoding = (
+            usize,
+            std::thread::JoinHandle<engine_api::EngineResult<PathBuf>>,
+        );
+        let mut encoding: Option<Encoding> = None;
+        let complete =
+            |report: &mut ExportReport, index: usize, result: Result<PathBuf>| match result {
+                Ok(path) => {
+                    report.exported += 1;
+                    report.items[index].output_path = Some(path.to_string_lossy().into_owned());
+                    if let Ok(c) = self.lock()
+                        && let Ok(id) = parse_id(&pending[index].id)
+                    {
+                        let _ = c.index.record_export(id, &path.to_string_lossy(), false);
+                    }
+                }
+                Err(_) if cancel.is_cancelled() => report.cancelled = true,
+                Err(e) => {
+                    report.failed += 1;
+                    report.items[index].error = Some(e.to_string());
+                }
+            };
+        let join = |handle: std::thread::JoinHandle<engine_api::EngineResult<PathBuf>>| -> Result<PathBuf> {
+            handle.join().map_err(|_| failure("export encoder panicked"))?.map_err(Into::into)
+        };
         for (i, (item, (name, plan))) in pending.iter().zip(plans).enumerate() {
             if cancel.is_cancelled() {
                 report.cancelled = true;
@@ -926,7 +954,7 @@ impl Engine {
                     },
                     ..settings.clone()
                 };
-                let path = export::export_one_cancellable(
+                let rendered = export::render_one_cancellable(
                     &image,
                     &recipe,
                     &settings,
@@ -937,18 +965,15 @@ impl Engine {
                         None => None,
                     },
                 )?;
-                // Derived status "Exported"; a logging failure never fails the export.
-                if let Ok(c) = self.lock() {
-                    let _ =
-                        c.index
-                            .record_export(parse_id(&item.id)?, &path.to_string_lossy(), false);
-                }
-                Ok(path)
+                Ok(rendered)
             });
+            if let Some((index, handle)) = encoding.take() {
+                complete(&mut report, index, join(handle));
+            }
             match result {
-                Ok(path) => {
-                    report.exported += 1;
-                    report.items[i].output_path = Some(path.to_string_lossy().into_owned());
+                Ok(rendered) => {
+                    let token = cancel.clone();
+                    encoding = Some((i, std::thread::spawn(move || rendered.finish(&token))));
                 }
                 Err(_) if cancel.is_cancelled() => {
                     report.cancelled = true;
@@ -959,6 +984,9 @@ impl Engine {
                     report.items[i].error = Some(e.to_string());
                 }
             }
+        }
+        if let Some((index, handle)) = encoding.take() {
+            complete(&mut report, index, join(handle));
         }
         report.seconds = started.elapsed().as_secs_f64();
         notify(&report, String::new());

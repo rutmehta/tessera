@@ -88,6 +88,9 @@ pub fn export_batch_with_jobs(
             .max(u64::from(ow) * u64::from(h));
         max_bytes = max_bytes.max(pixels.saturating_mul(64));
     }
+    if jobs > 1 && std::env::var("TESSERA_EXPORT_BACKEND").as_deref() != Ok("cpu") {
+        return export_pipeline(items, settings, progress, cancel);
+    }
     let cores = std::thread::available_parallelism().map_or(1, usize::from);
     let workers = cores
         .min(jobs)
@@ -120,6 +123,57 @@ pub fn export_batch_with_jobs(
         let mut completed = 0;
         for (index, prepared) in rx {
             let result = prepared.and_then(|p| p.commit(cancel));
+            if result.is_ok() {
+                completed += 1;
+            }
+            report.results[index] = result.clone();
+            if !matches!(result, Err(EngineError::Cancelled)) {
+                progress(Progress {
+                    index,
+                    completed,
+                    total: items.len(),
+                    result,
+                });
+            }
+        }
+    });
+    Ok(report)
+}
+
+/// A rendezvous channel admits one render while the caller encodes the prior
+/// frame. The zero-capacity queue cannot accumulate full-resolution outputs.
+fn export_pipeline(
+    items: &[ExportItem<'_>],
+    settings: &ExportSettings,
+    progress: impl Fn(Progress),
+    cancel: &CancellationToken,
+) -> EngineResult<BatchReport> {
+    let mut report = BatchReport {
+        results: vec![Err(EngineError::Cancelled); items.len()],
+    };
+    let (tx, rx) = mpsc::sync_channel(0);
+    std::thread::scope(|scope| {
+        scope.spawn(move || {
+            for (index, item) in items.iter().enumerate() {
+                if cancel.is_cancelled() {
+                    break;
+                }
+                let rendered = crate::render_one_cancellable(
+                    &item.image,
+                    item.recipe,
+                    settings,
+                    cancel,
+                    None,
+                    None,
+                );
+                if tx.send((index, rendered)).is_err() {
+                    break;
+                }
+            }
+        });
+        let mut completed = 0;
+        for (index, rendered) in rx {
+            let result = rendered.and_then(|r| r.finish(cancel));
             if result.is_ok() {
                 completed += 1;
             }

@@ -68,6 +68,11 @@ pub(crate) struct Counters {
 pub struct GpuStageOp {
     context: Arc<GpuContext>,
     pub(crate) managed_output: Option<Arc<crate::GpuManagedOutput>>,
+    /// Export keeps managed samples in float through the single readback.
+    pub(crate) export_float: bool,
+    pub(crate) export_resize: Option<crate::ExportResize>,
+    /// Export transactions' scratch cap (their share of the device budget).
+    pub(crate) export_scratch: u64,
     pub(crate) counters: Arc<Counters>,
     pub(crate) resident_cache: Arc<std::sync::Mutex<crate::resident::Cache>>,
     pub(crate) resident_pipeline: wgpu::ComputePipeline,
@@ -201,6 +206,9 @@ impl GpuStageOp {
             context,
             counters: Arc::default(),
             managed_output: None,
+            export_float: false,
+            export_resize: None,
+            export_scratch: 512 << 20,
             resident_cache: crate::resident::cache(budget),
             resident_pipeline,
             gather_pipeline,
