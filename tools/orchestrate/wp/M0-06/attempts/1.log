@@ -1,0 +1,3 @@
+RESULT: FAIL: the required test command did not pass. Rust compilation reached linking, but the vendored build is missing C++ implementations needed by LibRaw’s C API, producing unresolved symbols for `LibRaw::unpack`, `LibRaw::open_file`, and the constructor. Clippy therefore did not run.
+
+The crate and LibRaw 0.22.2 source are in the worktree, but this implementation is incomplete and needs the source compilation/link setup fixed before it’s ready.

@@ -1,0 +1,3 @@
+Implemented the M0-01 scaffold and fixes. `bash ci.sh` passes with `CARGO_TARGET_DIR` outside the repo. The five raw sample URLs returned HTTP 200, and all downloaded files exceed 5 MB. I also removed the unsupported rusqlite `fts5` feature after checking rusqlite 0.40’s feature list.
+
+RESULT: PASS

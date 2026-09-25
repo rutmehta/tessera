@@ -1,0 +1,10 @@
+# WP M1-01 — raw-decode crate
+
+Read crates/engine-api/CONTRACTS.md first and use its types; do not modify engine-api (if a contract change is unavoidable, stop and print RESULT: FAIL with the reason so it can be reviewed). The workspace root Cargo.toml lists this crate already; add dependencies via [workspace.dependencies] where the version is pinned there. Everything must pass `cargo test -p <crate>` and `cargo clippy -p <crate> --all-targets -- -D warnings` and `cargo fmt --check`. Fixtures: `fixtures/raw/` has one CR3, ARW, NEF, RAF, DNG each (run `bash fixtures/fetch.sh` if missing). Tests that need fixtures must skip with a message when the directory is absent.
+
+Implement `crates/raw-decode` on top of `crates/libraw-ffi` (already in the workspace; extend libraw-ffi's safe wrapper if an accessor is missing, that is allowed):
+- `RawSource::open(path) -> Result<RawSource, EngineError>`; `.metadata() -> RawMetadata` (make, model, lens if present, iso, shutter_s, aperture, focal_mm, capture_time (chrono or i64 unix), orientation as EXIF 1–8, width/height, cfa layout: Bayer 2×2 pattern or XTrans 6×6, black levels per channel, white level, as-shot WB multipliers, camera→XYZ matrix from LibRaw, default crop rect, embedded gain-map/opcode presence flags).
+- `.embedded_preview() -> Option<Vec<u8>>` (largest embedded JPEG).
+- `.decode_cfa() -> Result<CfaImage>` producing an `engine_api::tile::Pyramid` implementation `CfaPyramid` at level 0 only, `F32Planar` single plane, values linearised: (raw - black[channel]) / (white - black[channel]) clamped to [0, 1.2] (leave headroom above 1 for highlight reconstruction), tiles of TILE_SIZE with zero halo.
+- Also `decode_cfa_u16()` returning the packed u16 plane + layout, for the future ML denoise path.
+- Tests over every fixture: decode succeeds, dimensions match metadata, mean value in (0.005, 0.9), embedded preview is valid JPEG (check SOI/EOI bytes), orientation ∈ 1..=8. A criterion benchmark (dev-dependency) of decode time per fixture, printed, not asserted.

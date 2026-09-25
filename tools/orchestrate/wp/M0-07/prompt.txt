@@ -1,0 +1,14 @@
+You are implementing work package M0-07. Work only inside the worktree at /Users/rutmehta/Developer/lightroom:photoshop /.worktrees/M0-07. Only touch allowed paths matching: spikes/**,tools/orchestrate/wp/M0-07/**. IMPORTANT: the repo path contains a colon, which breaks cargo on macOS unless CARGO_TARGET_DIR points outside the repo. It is already exported in your environment as /Users/rutmehta/.cache/photo-engine-target/M0-07; keep it set for every cargo command (never build into ./target, never commit target/). Run this test command yourself before finishing: cd spikes/gpu-bench && cargo build --release && cargo run --release && test -s REPORT.md. Finish by printing a line RESULT: PASS or RESULT: FAIL <reason>.
+
+# WP M0-07 — GPU spike: wgpu 30 vs native Metal for tile kernels
+
+Standalone crate at `spikes/gpu-bench/` (own Cargo.toml, do not touch the root). Goal: a go/no-go measurement for using wgpu compute for the image pipeline on this Apple M4.
+Implement three kernels on a 4096×4096 f32 image (RGBA for 2 and 3, single-channel CFA u16→f32 for 1), each in (a) WGSL via wgpu 30 compute and (b) MSL via `objc2-metal` (or via wgpu-hal Metal passthrough if you can get it working; document):
+1. Bilinear Bayer demosaic (CFA → RGB).
+2. Guided filter (radius 8, box sums via two separable passes, epsilon 1e-3), self-guided.
+3. 3D LUT apply (33³ LUT, trilinear) with an Oklab conversion before and after.
+Measure GPU time per kernel with timestamp queries (wgpu `TIMESTAMP_QUERY` and Metal counters / command buffer GPUStartTime–GPUEndTime), median of 20 runs after warmup. Also compute max abs error and mean abs error between (a), (b) and a scalar CPU reference in f32.
+Also: attempt to configure a wgpu surface with `TextureFormat::Rgba16Float` and the `ExtendedSrgbLinear` (or `ExtendedDisplayP3`) colour space via a headless-created window (winit is fine) and report whether it succeeds and what `display_hdr_info` reports.
+Output: `spikes/gpu-bench/REPORT.md` with a table (kernel × backend × ms, errors), the HDR-surface result, and a one-paragraph recommendation. `cargo run --release` must produce that report. Keep dependencies minimal; pin versions.
+
+Test command: `cd spikes/gpu-bench && cargo build --release && cargo run --release && test -s REPORT.md`.

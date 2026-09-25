@@ -1,0 +1,3 @@
+Implemented M0-01 and verified `bash ci.sh` passes with `CARGO_TARGET_DIR` outside the worktree. `fixtures/fetch.sh` downloaded the five requested raw formats; each is larger than 5 MB. The installed stable Rust is 1.98.1, so no toolchain update was needed.
+
+RESULT: PASS

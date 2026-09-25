@@ -1,0 +1,3 @@
+The required test command passed with `CARGO_TARGET_DIR` set outside the worktree, and `REPORT.md` was produced. But the work package is not complete: the current spike only runs simplified WGSL proxies. It does not implement native Metal kernels, timestamp-query timings, CPU-reference error measurements, or the HDR-surface test.
+
+RESULT: FAIL required benchmark and HDR measurements are not implemented

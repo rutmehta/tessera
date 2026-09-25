@@ -1,0 +1,3 @@
+The required test command passed, and `REPORT.md` was generated on the Apple M4/Metal adapter. But the spike does not implement the requested native-MSL comparison, timestamp-query timings, scalar-reference error measurements, full kernel semantics, or HDR-surface test; the report explicitly records those gaps. I can’t call the work package complete.
+
+RESULT: FAIL — required benchmark and HDR evidence are not implemented.

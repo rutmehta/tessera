@@ -1,0 +1,3 @@
+Fixed the original missing LibRaw sources issue by pointing the build at the vendored 0.22.2 tree and recursively compiling its source files. `cargo test` now passes (2 tests), but the requested command does not pass fully: `cargo clippy -- -D warnings` fails because that broad source-file inclusion creates duplicate LibRaw symbols. I found the upstream `Makefile.am` source list, which should replace recursive discovery; I did not finish that correction.
+
+RESULT: FAIL cargo clippy fails due to duplicate LibRaw symbols.
