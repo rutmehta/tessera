@@ -1874,6 +1874,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "ml-depth"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "blake3",
+ "engine-api",
+ "image",
+ "ml-runtime",
+ "ml-segment",
+ "pipeline-cpu",
+ "tempfile",
+]
+
+[[package]]
 name = "ml-embed"
 version = "0.1.0"
 dependencies = [

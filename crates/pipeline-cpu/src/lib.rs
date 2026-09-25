@@ -14,6 +14,8 @@ mod output;
 pub use output::{ManagedOutput, OutputContext, OutputTarget, render_managed_scaled};
 mod embedded_lens;
 mod image;
+mod lens_blur;
+pub use lens_blur::{LensBlurOptions, lens_blur};
 mod lens_resolve;
 mod optics;
 mod render;
@@ -23,7 +25,8 @@ pub use image::Image;
 pub use lens_resolve::{CorrectionSource, LensContext, ResolvedLens, resolve_lens};
 pub use render::{
     RenderSource, Rgb8Image, has_m2_settings, render, render_linear_scaled,
-    render_linear_scaled_with_lens, render_scaled, validate_settings,
+    render_linear_scaled_with_depth, render_linear_scaled_with_lens, render_scaled,
+    validate_settings,
 };
 mod mosaic;
 pub use color::{
