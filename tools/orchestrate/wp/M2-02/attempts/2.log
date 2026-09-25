@@ -1,0 +1,7 @@
+The required test, clippy, and fmt command passed with exit status 0. CARGO_TARGET_DIR stayed set to the external cache.
+
+M2-02 is still incomplete: native round trips use private extensions for several structured properties, not complete Adobe-compatible payloads. PointColors, LensBlur, retouch, brush/range masks, and Look tables retain documented gaps. LookSettings has only style and amount, so table authoring needs an approved model or resource contract.
+
+Updated tools/orchestrate/wp/M2-02/FINDINGS.md with this verification and blocker. No engine-api changes, commits, or pushes.
+
+RESULT: FAIL Adobe structured export remains incomplete; Look table authoring requires a model or resource contract.

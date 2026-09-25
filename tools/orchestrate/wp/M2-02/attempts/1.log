@@ -1,0 +1,15 @@
+Implemented and verified a partial M2-02:
+
+- Shared sidecar/import-lrcat translation.
+- Recipe::from_json schema upgrades.
+- ExportHash-gated NativeRevision, including stale-companion regression coverage.
+- Native structured round trips and proptest assertions for every mapped contract pointer.
+- UNMAPPED.md documenting unsupported fields and interoperability limits.
+
+The exact required release-test, clippy, and fmt command passed. Changes are confined to allowed paths. Engine-api is unchanged; no commits made.
+
+Remaining gaps: several structured values use Tessera RDF extensions rather than Adobe-compatible payloads. Adobe PointColors, brush/range data, retouch, LensBlur focus/bokeh, and authored Look tables are not fully translated.
+
+Handoff: tools/orchestrate/wp/M2-02/FINDINGS.md
+
+RESULT: FAIL Adobe structured export/import completeness remains unresolved despite passing verification.
