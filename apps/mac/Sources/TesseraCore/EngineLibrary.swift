@@ -22,7 +22,10 @@ extension StubLibrary: PhotoLibrary {
 public final class EngineImageReference: Sendable, Hashable {
     public let engine: Engine
     public let imageID: String
-    init(engine: Engine, imageID: String) { self.engine = engine; self.imageID = imageID }
+    let previewEvents: PreviewEvents
+    init(engine: Engine, imageID: String, previewEvents: PreviewEvents) {
+        self.engine = engine; self.imageID = imageID; self.previewEvents = previewEvents
+    }
     public static func == (lhs: EngineImageReference, rhs: EngineImageReference) -> Bool { lhs === rhs }
     public func hash(into hasher: inout Hasher) { hasher.combine(ObjectIdentifier(self)) }
 }
@@ -46,6 +49,8 @@ public final class EngineLibrary: PhotoLibrary {
         let support = appSupport ?? fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Tessera", isDirectory: true)
         let engine = try Engine.open(appSupportDir: support.path)
+        let previewEvents = PreviewEvents()
+        engine.setEventListener(listener: previewEvents)
         let handle = try engine.indexFolder(path: folder.path)
         let rows = try engine.listImages(query: ImageQuery(folder: handle.path, text: nil, decision: nil, limit: 0, offset: 0))
         let formatter = DateFormatter()
@@ -59,7 +64,7 @@ public final class EngineLibrary: PhotoLibrary {
             return PhotoItem(id: index, url: url, name: url.lastPathComponent,
                              kind: StubLibrary.kind(forExtension: url.pathExtension) ?? .raw,
                              captureDate: date, pixelWidth: 0, pixelHeight: 0,
-                             engineImage: EngineImageReference(engine: engine, imageID: row.id))
+                             engineImage: EngineImageReference(engine: engine, imageID: row.id, previewEvents: previewEvents))
         }
         let subfolders = try fm.contentsOfDirectory(at: folder, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles])
             .filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }

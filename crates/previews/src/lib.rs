@@ -1,5 +1,7 @@
 //! Content-addressed JPEG preview pyramids.
+mod raw;
 use image::{RgbImage, imageops::FilterType};
+pub use raw::PreviewSource;
 use std::{
     collections::HashMap,
     fs,
@@ -54,6 +56,8 @@ fn hex(bytes: &[u8]) -> String {
 
 #[derive(Debug, thiserror::Error)]
 pub enum PreviewError {
+    #[error("preview render error: {0}")]
+    Render(#[from] engine_api::EngineError),
     #[error("image codec error: {0}")]
     Codec(#[from] image::ImageError),
     #[error("preview cache I/O error: {0}")]
@@ -80,6 +84,8 @@ impl Codec for Jpeg {
 }
 
 pub struct PreviewStore {
+    io: Mutex<()>,
+    renders: std::sync::atomic::AtomicU64,
     root: PathBuf,
     cap: u64,
     access: Mutex<HashMap<PathBuf, u64>>,
@@ -89,6 +95,8 @@ impl PreviewStore {
         fs::create_dir_all(root.as_ref())?;
         Ok(Self {
             root: root.as_ref().to_owned(),
+            io: Mutex::new(()),
+            renders: std::sync::atomic::AtomicU64::new(0),
             cap: cap_bytes,
             access: Mutex::new(HashMap::new()),
         })
@@ -99,12 +107,14 @@ impl PreviewStore {
             .join(format!("{}.jpg", level.divisor()))
     }
     pub fn get(&self, key: &PreviewKey, level: Level) -> Option<Bytes> {
+        let _io = self.io.lock().ok()?;
         let p = self.path(key, level);
         let bytes = fs::read(&p).ok()?;
         self.access.lock().ok()?.insert(p, tick());
         Some(bytes)
     }
     pub fn put(&self, key: &PreviewKey, level: Level, bytes: &[u8]) -> Result<()> {
+        let _io = self.io.lock().unwrap_or_else(|e| e.into_inner());
         let p = self.path(key, level);
         fs::create_dir_all(p.parent().unwrap())?;
         fs::write(&p, bytes)?;
@@ -210,9 +220,9 @@ fn orient(img: RgbImage, orientation: u8) -> RgbImage {
         2 => image::imageops::flip_horizontal(&img),
         3 => image::imageops::rotate180(&img),
         4 => image::imageops::flip_vertical(&img),
-        5 => image::imageops::rotate90(&image::imageops::flip_horizontal(&img)),
+        5 => image::imageops::rotate270(&image::imageops::flip_horizontal(&img)),
         6 => image::imageops::rotate90(&img),
-        7 => image::imageops::rotate270(&image::imageops::flip_horizontal(&img)),
+        7 => image::imageops::rotate90(&image::imageops::flip_horizontal(&img)),
         8 => image::imageops::rotate270(&img),
         _ => img,
     }
@@ -221,6 +231,65 @@ fn orient(img: RgbImage, orientation: u8) -> RgbImage {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn all_exif_orientations() {
+        let im = RgbImage::from_fn(2, 3, |x, y| image::Rgb([(y * 2 + x + 1) as u8; 3]));
+        for (orientation, expected) in [
+            (1, vec![1, 2, 3, 4, 5, 6]),
+            (2, vec![2, 1, 4, 3, 6, 5]),
+            (3, vec![6, 5, 4, 3, 2, 1]),
+            (4, vec![5, 6, 3, 4, 1, 2]),
+            (5, vec![1, 3, 5, 2, 4, 6]),
+            (6, vec![5, 3, 1, 6, 4, 2]),
+            (7, vec![6, 4, 2, 5, 3, 1]),
+            (8, vec![2, 4, 6, 1, 3, 5]),
+        ] {
+            let out = orient(im.clone(), orientation);
+            assert_eq!(
+                out.pixels().map(|p| p[0]).collect::<Vec<_>>(),
+                expected,
+                "orientation {orientation}"
+            );
+        }
+    }
+
+    #[test]
+    fn embedded_raw_does_not_render() {
+        let (p, s) = store(u64::MAX);
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/raw/sony-arw.ARW");
+        let (key, source) = s.from_raw(&path, 384).unwrap();
+        assert_eq!(source, PreviewSource::Embedded);
+        assert_eq!(s.render_count(), 0);
+        assert!(s.get(&key, Level::Full).is_some());
+        fs::remove_dir_all(p).unwrap();
+    }
+    #[test]
+    fn raw_without_jpeg_is_rendered() {
+        let (p, s) = store(u64::MAX);
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/raw/sample.dng");
+        let start = std::time::Instant::now();
+        let (key, source) = s.from_raw(&path, 384).unwrap();
+        assert_eq!(source, PreviewSource::Rendered);
+        let im = Jpeg.decode(&s.get(&key, Level::Full).unwrap()).unwrap();
+        let ys: Vec<f64> = im
+            .pixels()
+            .map(|p| {
+                (0.2126 * f64::from(p[0]) + 0.7152 * f64::from(p[1]) + 0.0722 * f64::from(p[2]))
+                    / 255.0
+            })
+            .collect();
+        let mean = ys.iter().sum::<f64>() / ys.len() as f64;
+        let stddev = (ys.iter().map(|y| (y - mean).powi(2)).sum::<f64>() / ys.len() as f64).sqrt();
+        println!(
+            "preview {:?}: mean={mean}, stddev={stddev}",
+            start.elapsed()
+        );
+        assert!(mean > 0.02 && stddev > 0.01);
+        if !cfg!(debug_assertions) {
+            assert!(start.elapsed().as_secs_f64() < 3.0);
+        }
+        fs::remove_dir_all(p).unwrap();
+    }
     fn store(cap: u64) -> (PathBuf, PreviewStore) {
         let p = std::env::temp_dir().join(format!("previews-{}", tick()));
         let s = PreviewStore::new(&p, cap).unwrap();
