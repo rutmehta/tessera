@@ -18,6 +18,41 @@ fn decode(v:f32)->f32 {
     if x>=80.0 { return finite(exp(x+log(0.18))); }
     return 0.18*(exp(x)-1.0);
 }
+// Maximum radius is eight. Each 16x16 output tile cooperatively loads a
+// 32x16 or 16x32 strip (512 vec4s / 8 KiB). Smaller radii use a subset.
+// Never prefix/subtract sums: retain CPU order.
+var<workgroup> strip: array<vec4<f32>,512>;
+@compute @workgroup_size(16,16)
+fn mean(@builtin(global_invocation_id) id:vec3<u32>,
+        @builtin(local_invocation_index) lane:u32,
+        @builtin(workgroup_id) group:vec3<u32>) {
+    let w=u32(p[0]); let h=u32(p[1]); let r=u32(p[3]);
+    let horizontal=u32(p[2])==2u;
+    // Fixed power-of-two pitches avoid integer division by a runtime radius.
+    let sw=select(16u,32u,horizontal);
+    let origin=vec2<i32>(group.xy*16u)-select(vec2<i32>(0,i32(r)),vec2<i32>(i32(r),0),horizontal);
+    for(var k=lane;k<512u;k+=256u) {
+        let local=select(vec2<u32>(k%16u,k/16u),vec2<u32>(k%32u,k/32u),horizontal);
+        let xy=origin+vec2<i32>(local);
+        var value=vec4<f32>(0.0);
+        if xy.x>=0 && xy.y>=0 && xy.x<i32(w) && xy.y<i32(h) {
+            value=a[u32(xy.y)*w+u32(xy.x)];
+        }
+        strip[k]=value;
+    }
+    // Partial edge workgroups must participate before returning.
+    workgroupBarrier();
+    if id.x>=w || id.y>=h { return; }
+    let pos=select(i32(id.y),i32(id.x),horizontal);
+    let len=select(i32(h),i32(w),horizontal);
+    let lo=max(0,pos-i32(r)); let hi=min(len,pos+i32(r)+1);
+    var sum=vec4<f32>(0.0);
+    for(var k=lo;k<hi;k++) {
+        let xy=select(vec2<i32>(i32(id.x),k),vec2<i32>(k,i32(id.y)),horizontal)-origin;
+        sum+=strip[u32(xy.y)*sw+u32(xy.x)];
+    }
+    out[id.y*w+id.x]=sum/f32(hi-lo);
+}
 @compute @workgroup_size(8,8)
 fn main(@builtin(global_invocation_id) id:vec3<u32>) {
     let w=u32(p[0]); let h=u32(p[1]);

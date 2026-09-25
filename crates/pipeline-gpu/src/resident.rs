@@ -456,6 +456,69 @@ impl ResidentBatch for Batch<'_> {
         self.cache(key, &uploaded)
     }
     fn run(&mut self, op: &Op<'_>, tile: &ResidentTile) -> EngineResult<ResidentTile> {
+        if let Op::Demosaic {
+            cfa: raw_decode::CfaLayout::XTrans(pattern),
+            ..
+        }
+        | Op::Highlights {
+            cfa: raw_decode::CfaLayout::XTrans(pattern),
+            ..
+        } = op
+        {
+            use engine_api::recipe::settings::HighlightReconstruction;
+            let (opcode, halo, channels) = match op {
+                Op::Demosaic { .. } => (4, 3, 3),
+                Op::Highlights {
+                    mode: HighlightReconstruction::Clip,
+                    ..
+                } => (5, 0, 1),
+                Op::Highlights {
+                    mode: HighlightReconstruction::ReconstructColor,
+                    ..
+                } => (6, 4, 1),
+                _ => return Err(EngineError::invalid("highlights", "unsupported mode")),
+            };
+            let l = tile.layout;
+            if l.channels != 1 || l.halo < halo {
+                return Err(EngineError::invalid(
+                    "CFA tile",
+                    format!("one plane and halo >= {halo} required"),
+                ));
+            }
+            if pattern.iter().flatten().any(|&c| c >= 3)
+                || !(0..3).all(|c| pattern.iter().flatten().any(|&v| v == c))
+            {
+                return Err(EngineError::invalid("CFA", "malformed X-Trans pattern"));
+            }
+            let (ox, oy) = tile.coord.pixel_origin(TILE_SIZE);
+            // Integer phase avoids f32 origin precision loss. Both demosaic
+            // algorithms use the CPU reference's same X-Trans mean filter.
+            let mut p = vec![
+                opcode,
+                l.extent.width,
+                l.extent.height,
+                l.halo as u32,
+                l.stride() as u32,
+                ox % 6,
+                oy % 6,
+            ];
+            p.extend(pattern.iter().flatten().map(|&c| u32::from(c)));
+            let layout = TileLayout {
+                halo: 0,
+                channels,
+                ..l
+            };
+            let dst = self.buffer(layout.len() * 4)?;
+            let src = self.storage(tile)?.clone();
+            self.dispatch(
+                &self.gpu.resident_pipeline,
+                &src,
+                &dst,
+                bytemuck::cast_slice(&p),
+                layout.plane_len() as u32,
+            );
+            return Ok(self.tile(tile.coord, layout, dst));
+        }
         if let Op::Detail(settings) = op {
             let l = tile.layout;
             let p = crate::detail::parameters(l, settings)?;
@@ -520,21 +583,21 @@ impl ResidentBatch for Batch<'_> {
         Ok(self.tile(tile.coord, layout, dst))
     }
     fn run_chain(&mut self, ops: &[Op<'_>], tile: &ResidentTile) -> EngineResult<ResidentTile> {
-        if let [Op::Tone(_), Op::Display { .. }] = ops {
-            let origin = tile.coord.pixel_origin(TILE_SIZE);
-            let (tone, _) = parameters(&ops[0], tile.layout, origin)?;
-            let (mut p, layout) = parameters(&ops[1], tile.layout, origin)?;
-            p[0] = 7.0;
-            p[25..32].copy_from_slice(&tone[25..32]);
+        if crate::fused::supports(ops) {
+            let (p, layout) = crate::fused::parameters(ops, tile.layout, tile.coord)?;
             let dst = self.buffer(layout.len() * 4)?;
             let src = self.storage(tile)?.clone();
             self.dispatch(
-                &self.gpu.context().pipeline,
+                &self.gpu.fused_pipeline,
                 &src,
                 &dst,
                 bytemuck::cast_slice(&p),
                 layout.plane_len() as u32,
             );
+            self.gpu
+                .counters
+                .fused_dispatches
+                .fetch_add(1, Ordering::Relaxed);
             return Ok(self.tile(tile.coord, layout, dst));
         }
         let mut output = tile.clone();

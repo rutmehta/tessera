@@ -10,9 +10,12 @@ mod context;
 mod curves;
 mod detail;
 mod effects;
+mod fused;
 mod geometry;
 mod locals;
 mod operator;
 mod tone_local;
+#[cfg(test)]
+mod tone_local_compute_tests;
 pub use batch::{GpuStageOp, GpuStats};
 pub use context::{GpuCapabilities, GpuContext};

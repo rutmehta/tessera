@@ -2,20 +2,28 @@ use super::*;
 use crate::resident::{DisplayHistogram, ResidentBatch, ResidentOutput, SurfaceTarget};
 
 impl Renderer {
+    /// Whether this backend can develop this image/recipe without host pixel
+    /// barriers. This is a capability query, not a frame-time guarantee.
+    pub fn can_render_resident(
+        &self,
+        image: &RawImage,
+        settings: &DevelopSettings,
+    ) -> EngineResult<bool> {
+        pipeline_cpu::validate_settings(settings)?;
+        Ok(self.supports_resident(&self.resolve(image, settings)?))
+    }
+
     pub(super) fn supports_resident(&self, r: &Resolved<'_>) -> bool {
         let s = r.settings;
-        matches!(r.cfa, CfaLayout::Bayer(_))
+        matches!(r.cfa, CfaLayout::Bayer(_) | CfaLayout::XTrans(_))
             && self.ops.begin_resident().is_some()
-            && s.color == Default::default()
             // Local adjustment operators/rasterization use the whole-image
             // nonresident path until all local kernels are resident-capable.
             && s.locals.adjustments.is_empty()
-            && s.effects == Default::default()
             && s.geometry == Default::default()
             && s.tone.texture == 0.0
             && s.tone.clarity == 0.0
             && s.tone.dehaze == 0.0
-            && s.tone.curves == Default::default()
     }
     /// Direct display render to an RGBA8 IOSurface. Returns false if the
     /// backend/settings require the conventional CPU tile delivery path.
@@ -97,6 +105,13 @@ impl Renderer {
         surface: Option<SurfaceTarget>,
     ) -> EngineResult<ResidentOutput> {
         let key = |stage, c| PipelineGraph::memo_key(r.image.id(), &r.chain, stage, c);
+        // Creative curves/color can amplify f16 checkpoint error beyond the
+        // full-chain tolerance. Retain f32 checkpoints for every recipe so a
+        // later creative edit cannot reuse lower-precision neutral entries.
+        // Their full payload still counts against the configured cache budget.
+        let cache = |batch: &mut dyn ResidentBatch, key, tile: &crate::resident::ResidentTile| {
+            batch.cache_exact(key, tile)
+        };
         let cache_dem = self.config.graph.node(StageId::Demosaic).cacheable;
         let cache_wb = self.config.graph.node(StageId::WhiteBalance).cacheable;
         let cache_detail = self.config.graph.node(StageId::Detail).cacheable;
@@ -194,7 +209,7 @@ impl Renderer {
                                 &t,
                             )?;
                             let t = if cache_dem {
-                                batch.cache(key(StageId::Demosaic, d), &t)?
+                                cache(&mut *batch, key(StageId::Demosaic, d), &t)?
                             } else {
                                 t
                             };
@@ -217,7 +232,7 @@ impl Renderer {
                 let t = batch.run(&Op::Matrix(r.profile), &t)?;
                 let t = batch.run(&Op::Matrix(r.wb), &t)?;
                 if cache_wb {
-                    batch.cache(key(StageId::WhiteBalance, c), &t)?
+                    cache(&mut *batch, key(StageId::WhiteBalance, c), &t)?
                 } else {
                     t
                 }
@@ -232,7 +247,7 @@ impl Renderer {
                 let t = batch.gather(r.image.level_extent(c.level), c, halo, 1, &balanced)?;
                 let t = batch.run(&Op::Detail(&r.settings.detail), &t)?;
                 if cache_detail {
-                    batch.cache(key(StageId::Detail, c), &t)?
+                    cache(&mut *batch, key(StageId::Detail, c), &t)?
                 } else {
                     t
                 }
@@ -241,19 +256,27 @@ impl Renderer {
                 // scalar reference does (zero halo is not a validation bypass).
                 batch.run(&Op::Detail(&r.settings.detail), &balanced[&c])?
             };
-            let t = if output == RenderOutput::Display {
-                batch.run_chain(
-                    &[
-                        Op::Tone(&r.settings.tone),
-                        Op::Display {
-                            gamut: r.settings.output.gamut_mapping,
-                        },
-                    ],
-                    &t,
-                )?
-            } else {
-                batch.run(&Op::Tone(&r.settings.tone), &t)?
-            };
+            let mut chain = vec![
+                Op::Tone(&r.settings.tone),
+                Op::ToneExtra(&r.settings.tone),
+                Op::Color(&r.settings.color),
+                Op::EffectsInCrop(
+                    &r.settings.effects,
+                    r.image.level_extent(c.level),
+                    &r.settings.geometry.crop,
+                ),
+            ];
+            if output == RenderOutput::Display {
+                chain.push(Op::Display {
+                    gamut: r.settings.output.gamut_mapping,
+                });
+            }
+            // The whole-image reference develops previews in their own pixel
+            // domain (including grain scale), not the sensor-resolution domain.
+            let mut t = t;
+            t.coord.level = 0;
+            let mut t = batch.run_chain(&chain, &t)?;
+            t.coord = c;
             finished.push(t);
         }
         batch.finish(finished, output == RenderOutput::Display, surface, cancel)

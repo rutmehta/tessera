@@ -262,7 +262,13 @@ enum RenderClass {
 }
 
 impl RenderClass {
-    fn of(s: &DevelopSettings) -> Self {
+    fn of(s: &DevelopSettings, resident: bool) -> Self {
+        // Residency is backend/image-specific. Do not penalize fused curves,
+        // grading or effects with the old heavy-path starting proxy. Measured
+        // frame times still adapt the level if this device misses its budget.
+        if resident {
+            return Self::Light;
+        }
         let t = &s.tone;
         if s.color == Default::default()
             && s.effects == Default::default()
@@ -778,7 +784,11 @@ impl Shared {
         st.rendered = Some(settings.clone());
         let target = st.screen_level;
         let area = self.image.level_extent(target).area();
-        let class = RenderClass::of(&settings);
+        let resident = self
+            .renderer
+            .can_render_resident(&self.image, &settings)
+            .unwrap_or(false);
+        let class = RenderClass::of(&settings, resident);
         let first = if interactive {
             let budget = if area > DRAG_BUDGET_PX { 1 } else { 0 };
             (target + st.drag[class as usize].offset.max(budget)).min(MAX_LEVEL)
@@ -2382,6 +2392,16 @@ mod tests {
         assert_eq!(items.len(), 4);
         assert!(items[2].is_head && !items[3].applied);
         assert_eq!(items[3].label, "Shadows +10");
+    }
+
+    #[test]
+    fn resident_extended_controls_do_not_start_at_heavy_proxy_level() {
+        let mut s = DevelopSettings::default();
+        s.color.vibrance = 20.;
+        s.effects.vignette.amount = -20.;
+        s.tone.curves.parametric.darks = 10.;
+        assert_eq!(RenderClass::of(&s, true), RenderClass::Light);
+        assert_eq!(RenderClass::of(&s, false), RenderClass::Heavy);
     }
 
     #[test]

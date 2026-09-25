@@ -597,7 +597,7 @@ impl Renderer {
         }
 
         if r.allow_resident
-            && matches!(r.cfa, CfaLayout::Bayer(_))
+            && self.supports_resident(r)
             && let Some(batch) = self.ops.begin_resident()
         {
             for tile in self
