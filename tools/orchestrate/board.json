@@ -131,7 +131,7 @@
     "id": "M1-06",
     "owner": "opus",
     "title": "Pipeline graph + scheduler",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
@@ -171,6 +171,22 @@
     "id": "M1-14",
     "owner": "astra",
     "title": "Rendered preview fallback (no embedded JPEG)",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M1-09",
+    "owner": "opus",
+    "title": "Culling UX on real engine",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M1-11",
+    "owner": "astra",
+    "title": "tessera CLI",
     "status": "running",
     "attempts": 0,
     "notes": ""
