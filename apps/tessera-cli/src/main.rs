@@ -5,6 +5,7 @@ use serde_json::{Value, json};
 use std::{path::PathBuf, process::ExitCode, time::Instant};
 mod catalog;
 mod develop;
+mod export;
 mod import;
 mod media;
 mod models;
@@ -25,8 +26,7 @@ enum Command {
     Import(Import),
     #[command(subcommand)]
     Ml(Ml),
-    /// Export support is not available in this milestone.
-    Export {},
+    Export(export::Options),
     Render {
         image: PathBuf,
         #[arg(long)]
@@ -125,7 +125,7 @@ fn run(cli: &Cli) -> Result<Value> {
     std::fs::create_dir_all(&app)?;
     let mut index = Index::open(app.join("index.sqlite"))?;
     match &cli.command {
-        Command::Export {} => anyhow::bail!("export is not available yet"),
+        Command::Export(options) => export::run(&index, options),
         Command::Ml(command) => models::run(&app, matches!(command, Ml::Check)),
         Command::Import(Import::Lrcat {
             file,

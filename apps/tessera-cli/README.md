@@ -7,7 +7,7 @@ Global `--app-dir PATH` and `--json` work before or after subcommands. The defau
 app directory is `$HOME/Library/Application Support/Tessera`; its rebuildable
 catalog is `index.sqlite`. JSON goes to stdout, diagnostics to stderr. Without
 `--json`, results are pretty-printed JSON. Exit status: 0 success, 1 operational
-failure / unavailable feature / failed CoreML audit, 2 clap usage error.
+failure / failed CoreML audit, 2 clap usage error.
 
 Commands:
 
@@ -48,8 +48,17 @@ Commands:
   manifest-shaped probes, and report executed node/provider partitions. Requires
   exclusively CoreML execution. CPU fallback and missing registrations fail rather
   than claim success. Zero-input probes do not cover every data-dependent branch.
-- `export`: explicit unavailable stub because `crates/export` was absent on main
-  at the start of this work package.
+- `export IMAGE|DIR|--query TEXT --out DIR --format jpeg|png|tiff [--quality 90]
+  [--long-edge N|--fit WxH] [--color-space srgb|p3|rec2020|prophoto]
+  [--sharpen screen|matte|glossy] [--metadata all|copyright|none]
+  [--name '{name}-{seq}'] [--jobs N]`: export source JPEG/PNG/TIFF or RAWs with
+  sidecar develop settings. Directory inputs select immediate image children;
+  queries use the existing catalog's FTS index. Sequence follows sorted source
+  paths; `{date}` uses RAW capture time when present. Progress is on stderr;
+  `--json` returns a summary with output paths on stdout. Cancellation stops
+  pending images and removes in-progress temporary files; already committed
+  images remain. Outputs are never overwritten. `--jobs` bounds concurrent
+  rendering/encoding; decoded inputs are admitted in bounded waves.
 
 Tests use generated JPEGs and synthetic catalogs. The end-to-end RAW workflow
 copies all five `fixtures/raw` files into a temporary directory so no fixture

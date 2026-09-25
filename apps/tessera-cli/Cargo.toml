@@ -18,12 +18,15 @@ raw-decode = { path = "../../crates/raw-decode" }
 previews = { path = "../../crates/previews" }
 import-lrcat = { path = "../../crates/import-lrcat" }
 ml-runtime = { path = "../../crates/ml-runtime" }
+export = { path = "../../crates/export" }
+pipeline-cpu = { path = "../../crates/pipeline-cpu" }
 clap = { version = "4", features = ["derive"] }
 chrono = { version = "0.4", default-features = false, features = ["std"] }
 anyhow.workspace = true
 serde_json.workspace = true
 image = { workspace = true, features = ["png"] }
 tempfile.workspace = true
+ctrlc = "3"
 
 [dev-dependencies]
 assert_cmd = "2"

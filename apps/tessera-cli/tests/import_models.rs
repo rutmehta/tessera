@@ -45,7 +45,7 @@ fn inspect_and_apply_preserve_source_and_virtual_copies() {
     run(&["--apply"]).assert().code(2);
 }
 #[test]
-fn model_commands_and_export_have_honest_status() {
+fn model_commands_and_export_usage() {
     let temp = tempfile::tempdir().unwrap();
     let run = |args: &[&str]| {
         let mut cmd = Command::new(assert_cmd::cargo::cargo_bin!("tessera"));
@@ -63,11 +63,12 @@ fn model_commands_and_export_have_honest_status() {
         serde_json::json!([])
     );
     run(&["ml", "check", "--json"]).assert().code(1);
-    let output = run(&["export"])
+    let output = run(&["export", "--help"])
         .assert()
-        .code(1)
+        .success()
         .get_output()
-        .stderr
+        .stdout
         .clone();
-    assert!(String::from_utf8_lossy(&output).contains("not available yet"));
+    assert!(String::from_utf8_lossy(&output).contains("--long-edge"));
+    run(&["export"]).assert().code(2);
 }
