@@ -10,3 +10,21 @@ path = "src/main.rs"
 
 [dependencies]
 image-core = { path = "../../crates/image-core" }
+engine-api = { path = "../../crates/engine-api" }
+index = { path = "../../crates/index" }
+cull = { path = "../../crates/cull" }
+sidecar = { path = "../../crates/sidecar" }
+raw-decode = { path = "../../crates/raw-decode" }
+previews = { path = "../../crates/previews" }
+import-lrcat = { path = "../../crates/import-lrcat" }
+ml-runtime = { path = "../../crates/ml-runtime" }
+clap = { version = "4", features = ["derive"] }
+chrono = { version = "0.4", default-features = false, features = ["std"] }
+anyhow.workspace = true
+serde_json.workspace = true
+image = { workspace = true, features = ["png"] }
+tempfile.workspace = true
+
+[dev-dependencies]
+assert_cmd = "2"
+rusqlite.workspace = true
