@@ -99,7 +99,7 @@
     "id": "M1-05",
     "owner": "astra",
     "title": "pipeline-cpu reference",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": "blocked on M1-01 real decoder"
   },
@@ -131,7 +131,7 @@
     "id": "M1-06",
     "owner": "opus",
     "title": "Pipeline graph + scheduler",
-    "status": "todo",
+    "status": "running",
     "attempts": 0,
     "notes": ""
   },
@@ -139,7 +139,7 @@
     "id": "M1-08",
     "owner": "astra",
     "title": "Export crate",
-    "status": "todo",
+    "status": "running",
     "attempts": 0,
     "notes": ""
   },

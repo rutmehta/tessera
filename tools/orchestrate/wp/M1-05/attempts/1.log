@@ -1,0 +1,15 @@
+Implemented M1-05: tiled scalar operators, independent MHC demosaicing, CAT16 white balance, tone/display transforms, and separate original LibRaw cam_xyz/rgb_cam fields.
+
+Verification passed:
+- Exact requested release-test, clippy, and fmt command: exit 0, 29 tests passed.
+- All five RAW goldens rerendered with max error 0/255.
+- Missing-fixture skip verified.
+- Independent review found no blocking issues.
+- engine-api unchanged; only allowed paths touched.
+
+Goldens committed as 00d4a4a. Implementation changes remain uncommitted.
+
+Formulas and limitations: crates/pipeline-cpu/OPERATORS.md
+Verification report: tools/orchestrate/wp/M1-05/VERIFICATION.md
+
+RESULT: PASS
