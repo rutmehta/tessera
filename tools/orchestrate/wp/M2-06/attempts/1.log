@@ -1,0 +1,17 @@
+Implemented the GPU-resident Bayer develop path:
+- Byte-budgeted GPU LRU with f16 stage outputs.
+- One compute pass/submission per level, GPU gathering/resampling, fused tone/display.
+- Direct IOSurface writes with only a 4 KiB histogram readback.
+- Measured backend selection, preserving TESSERA_RENDER_BACKEND.
+
+I ran the exact required test/clippy/fmt command successfully: 89 tests passed, 0 failed, 7 ignored. Additional full-NEF, >4096-dispatch, and forced-GPU develop tests passed. Changes stay within allowed paths. No commits.
+
+Acceptance gaps remain: final M4 NEF benchmarks measured tone edits at 6.6–10.0 ms, above the 5 ms target. WB edits met the target at 14–17 ms. X-Trans and extended M2 controls retain the existing hybrid path.
+
+Evidence and details:
+/Users/rutmehta/Developer/tessera/.worktrees/M2-06/tools/orchestrate/wp/M2-06/validation.md
+
+RESULT: FAIL tone-only latency target unmet; universal GPU residency remains incomplete.
+
+⚠️ File-mutation verifier: 1 file(s) were NOT modified this turn despite any wording above that may suggest otherwise. Run `git status` or `read_file` to confirm.
+  • `crates/pipeline-gpu/src/resident.rs` — [patch] Patch validation failed (no files were modified): • `/Users/rutmehta/Developer/tessera/.worktrees/M2-06/crates/pipeline-gpu/src/resident.rs`: hunk 1 (no hint) not found — Could not …

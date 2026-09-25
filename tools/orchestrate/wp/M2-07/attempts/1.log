@@ -1,0 +1,11 @@
+Implemented M2-07 within the allowed paths: Sparkle 2.10.0, update menu/daily checks, embedded framework and XPCs, signing/notarization scripts, DMG/appcast tooling, CI/release workflows, and key-setup documentation.
+
+Verified:
+- Exact required command passed: FFI build, Swift build/tests, release packaging, strict deep signature verification.
+- Packaging and missing-key regression tests passed.
+- DMG created and its mounted app signature verified.
+- Both workflows passed actionlint.
+
+No private key generated. Developer ID notarization and signed update delivery remain untested pending credentials. Broader Rust CI also exposed existing license failures and timed out during the full-suite retry; details are in tools/orchestrate/wp/M2-07/implementation-evidence.md.
+
+RESULT: PASS

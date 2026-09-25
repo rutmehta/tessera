@@ -275,7 +275,7 @@
     "id": "M2-07",
     "owner": "astra",
     "title": "Sparkle auto-update + release pipeline",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
@@ -291,7 +291,7 @@
     "id": "M2-09",
     "owner": "astra",
     "title": "Lens corrections + Upright",
-    "status": "todo",
+    "status": "running",
     "attempts": 0,
     "notes": ""
   },
