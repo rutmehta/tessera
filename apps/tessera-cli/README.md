@@ -51,7 +51,7 @@ Commands:
 - `export IMAGE|DIR|--query TEXT --out DIR --format jpeg|png|tiff [--quality 90]
   [--long-edge N|--fit WxH] [--color-space srgb|p3|rec2020|prophoto]
   [--sharpen screen|matte|glossy] [--metadata all|copyright|none]
-  [--name '{name}-{seq}'] [--jobs N]`: export source JPEG/PNG/TIFF or RAWs with
+  [--name '{name}-{seq}'] [--jobs N] [--upscale 2|4]`: export source JPEG/PNG/TIFF or RAWs with
   sidecar develop settings. Directory inputs select immediate image children;
   queries use the existing catalog's FTS index. Sequence follows sorted source
   paths; `{date}` uses RAW capture time when present. Progress is on stderr;
@@ -59,6 +59,14 @@ Commands:
   pending images and removes in-progress temporary files; already committed
   images remain. Outputs are never overwritten. `--jobs` bounds concurrent
   rendering/encoding; decoded inputs are admitted in bounded waves.
+  `--upscale` explicitly loads the pinned Real-ESRGAN registration from
+  `APP_DIR/models.toml`, resolving weights into `APP_DIR/models/` (may download).
+  It runs before resize/output sharpening, shares one CPU model session across
+  the batch, and admits one decoded image at a time regardless of `--jobs`.
+  CPU execution avoids CoreML dynamic-shape diagnostics corrupting JSON stdout.
+  Duplicate output names are checked across the entire SR selection before any
+  publication. Cancellation waits for an in-flight inference to return, then
+  discards its unpublished output. Without `--upscale`, no SR registry is opened.
 
 Tests use generated JPEGs and synthetic catalogs. The end-to-end RAW workflow
 copies all five `fixtures/raw` files into a temporary directory so no fixture

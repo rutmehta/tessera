@@ -1,9 +1,10 @@
-# ml-enhance (M3-05 partial implementation)
+# ml-enhance (M3-05 phase-1 RGB enhancement)
 
-M3-05 is NOT complete. This crate implements real Real-ESRGAN x2/x4 inference,
-a finite-support tiling executor, denoise blending, and the `CfaDenoise` extension
-point. It does not yet provide a validated NAFNet denoiser or wire denoise into
-the pipeline graph. Passing infrastructure tests is not denoise quality evidence.
+This crate implements real Real-ESRGAN x2/x4 and DRUNet RGB inference,
+a finite-support tiling executor, linear-light denoise blending, and the
+`CfaDenoise` extension point, post-demosaic integration and export CLI wiring.
+See [DRUNet API, validation and limits](DRUNET.md) for the new denoiser.
+
 
 ## Super-resolution
 
@@ -19,10 +20,11 @@ publication and metadata policy. Standard export and batch export are unchanged.
 This adapter now uses an undithered f32 display transform before inference.
 Ordinary exports retain their existing renderer for byte-identical output.
 
-The application's `--upscale 2|4` parser remains unwired: its implementation is
-in `apps/tessera-cli/src/export.rs`, outside M3-05's permitted edit paths. The
-new function takes a caller-owned session to avoid network access or hidden
-model selection during ordinary exports. Batch upscale is not implemented.
+The application supports `--upscale 2|4` using app-local `models.toml` and
+`models/`. `export_batch_upscaled` shares one session, processes serially,
+preflights duplicate names and checks cancellation before atomic publication.
+The CLI uses CPU inference because native CoreML diagnostics contaminate its
+JSON stdout. Library callers can use CoreML and inspect partition reports.
 
 ### Selection and provenance
 
@@ -68,11 +70,11 @@ The generic `run_tiled` API accepts a caller-proven finite `SpatialContract`.
 It rejects insufficient halos and phase-inconsistent tiling. It is NOT valid
 for global attention/pooling architectures.
 
-## Denoise status and why NAFNet is not registered yet
+## Denoise selection
 
-Preferred candidate: NAFNet SIDD (MIT), not Restormer, for its simpler restoration
-architecture and clearly published permissive license. This is a candidate,
-not a delivered production model.
+Selected MIT DRUNet instead of the initially considered NAFNet SIDD. DRUNet has
+finite spatial support and an available pinned ONNX export. Full provenance,
+derived halo, color adapter, measured PSNR and limitations are in DRUNET.md.
 
 - https://github.com/megvii-research/NAFNet/blob/main/LICENSE
 - https://github.com/megvii-research/NAFNet/blob/main/docs/SIDD.md
@@ -87,25 +89,43 @@ The SIDD checkpoint is trained/evaluated in sRGB, not arbitrary unbounded camera
 linear RGB. Simply running stock weights over independent linear-RGB patches
 would not establish the requested PSNR/seam guarantees.
 
-Remaining model work: reproduce a licensed SIDD ONNX export, pin its actual bytes,
-choose and version the color adapter and TLC contract, validate >=3 dB PSNR on
-the synthetic gradient and full-vs-tiled <=1e-4, then validate fp16. No fake hash,
-identity denoiser, smoothing substitute, or fixture-based PSNR claim is provided.
+The implemented alternative uses a 192-pixel halo, stride-8 alignment and
+fixed display-domain sigma 25/255. Sensor read/shot hints remain advisory.
 
 `denoise_with` currently provides amount (0..100) and M2-08-style raster mask
 blending in linear light, validates shape/finiteness/ranges, and bypasses the
 inference callback for amount zero or an all-zero mask. Zero-alpha pixels retain
 their bits, including signed zero. `NoiseModelHint` is advisory read/shot variance,
-not falsely advertised as conditioning an unconditioned SIDD network.
+not falsely advertised as calibrated sensor conditioning.
 `CfaDenoise` explicitly reserves future joint raw inference, which needs training.
 
-## Engine-api integration gaps (engine-api unchanged)
+## Pipeline integration (engine-api unchanged)
 
-Existing `DenoiseMethod::Neural` stores a ModelRef and `joint_demosaic`, but its
-contract says CFA and StageId::Denoise precedes Demosaic. Phase-1 RGB denoise needs
-an explicit domain/placement contract (for example, a distinct post-demosaic
-neural method), with preprocessing/model revision in cache keys. Do not silently
-reinterpret existing joint-CFA recipes as post-demosaic sRGB inference.
+Per the coordinator decision, only the pinned DRUNet ModelRef with
+`joint_demosaic=false` is accepted as phase-1 RGB denoise. The raw StageId::Denoise
+is reserved. The RGB result is the Demosaic tail, cached under the chained
+demosaic/denoise settings plus adapter revision. Tone and WB edits reuse it.
+Unknown versions, true joint CFA and chroma-only settings fail explicitly.
+
+Pipeline-cpu exposes `PostDemosaicDenoise` and
+`render_linear_scaled_with_denoise`, with no ML dependency. Enable image-core's
+`ml-denoise` feature, construct `MlPostDemosaicDenoise` with a caller-owned
+registry/options, and inject it with `Renderer::with_post_demosaic_denoise`.
+The session loads lazily on nonzero inference; off/zero never resolve weights.
+There is no global registry or hidden model selection.
+
+Camera RGB is converted through camera XYZ to bounded linear sRGB. The
+out-of-range residual is preserved and added back before the inverse matrix.
+Inference requires a whole-sensor host barrier (including viewport requests);
+the model itself tiles. Active denoise avoids the GPU resident shortcut. Partial
+demosaic-cache residency recomputes the full image. Existing f16 memo storage
+can move cold/warm displayed values by one byte. Large-raw memory/performance
+and fp16 model accuracy are not qualified.
+
+`MlPostDemosaicDenoise::with_mask(width, height, samples)` accepts M2-08 raster
+samples in full level-0 sensor coordinates. Samples/extent are included in the
+adapter cache revision. An all-zero raster bypasses model loading. Rasterize
+against the complete sensor frame, not a cropped preview.
 
 DenoiseSettings lacks a denoise-local mask reference. It needs a persistent mask
 or mask-stack reference and the mask raster revision/frame in the denoise cache
@@ -113,17 +133,21 @@ key. A noise-hint/calibration revision should also be pinned when conditioning
 is eventually supported. Export tool settings need optional upscale factor and
 model reference. Chroma-only is already present but is not implemented here.
 
-Pipeline-cpu and image-core denoise execution/caching are still unchanged and
-unsupported neural settings continue to fail explicitly. Existing off-render
-regressions are run, but that is not evidence of an integrated denoiser.
+True CFA joint inference and learned Raw Details need separate trained models;
+capture-sharpening deconvolution is not supplied by these restoration weights.
 
 ## Tests
 
 Run the work-package gate from the workspace with CARGO_TARGET_DIR outside it:
 
-    cargo test -p ml-enhance -p pipeline-cpu -p image-core -p export --release
-    cargo clippy -p ml-enhance -p pipeline-cpu -p image-core -p export --all-targets -- -D warnings
+    cargo test -p ml-enhance -p pipeline-cpu -p image-core -p export -p tessera-cli --release
+    cargo clippy -p ml-enhance -p pipeline-cpu -p image-core -p export -p tessera-cli --all-targets -- -D warnings
     cargo fmt --check
+
+Also exercise the optional runtime adapter:
+
+    cargo test -p image-core --features ml-denoise --release
+    cargo clippy -p image-core --features ml-denoise --all-targets -- -D warnings
 
 Real model tests look in TESSERA_ENHANCE_MODEL_CACHE or
 `tools/orchestrate/wp/M3-05/.cache`, for SHA-addressed `.onnx` files. They skip

@@ -75,6 +75,17 @@ pub fn render_linear_scaled_with_lens(
     scale: u32,
     context: &crate::LensContext<'_>,
 ) -> EngineResult<Image> {
+    render_linear_scaled_with_denoise(settings, source, scale, context, None)
+}
+
+/// Full reference renderer with caller-owned post-demosaic inference.
+pub fn render_linear_scaled_with_denoise(
+    settings: &DevelopSettings,
+    source: &RenderSource<'_>,
+    scale: u32,
+    context: &crate::LensContext<'_>,
+    denoiser: Option<&dyn crate::PostDemosaicDenoise>,
+) -> EngineResult<Image> {
     validate_settings(settings)?;
     if scale == 0 {
         return Err(EngineError::invalid("scale", "must be positive"));
@@ -83,6 +94,12 @@ pub fn render_linear_scaled_with_lens(
         RenderSource::Rgb(image) => {
             if image.planes().len() != 3 {
                 return Err(EngineError::invalid("RGB", "three planes required"));
+            }
+            if crate::denoise_active(&settings.denoise) {
+                return Err(EngineError::invalid(
+                    "denoise",
+                    "post-demosaic denoise requires a CFA source",
+                ));
             }
             let crop = [0, 0, image.width(), image.height()];
             let correction = crate::resolve_lens(image, &settings.lens, None, context)?;
@@ -191,6 +208,7 @@ pub fn render_linear_scaled_with_lens(
                     )?;
                 }
             }
+            out = crate::post_demosaic_denoise(out, camera_xyz, &settings.denoise, denoiser)?;
             for coord in out.coords() {
                 let mut t = out.tile(coord, 0, 1)?;
                 // Contract ordering is CameraProfile THEN WhiteBalance.
@@ -327,6 +345,8 @@ pub fn validate_settings(s: &DevelopSettings) -> EngineResult<()> {
     }
     let default = DevelopSettings::default();
     let mut supported = default.clone();
+    crate::validate_denoise(&s.denoise)?;
+    supported.denoise = s.denoise.clone();
     supported.linearize = s.linearize.clone();
     supported.demosaic.method = s.demosaic.method;
     supported.white_balance = s.white_balance.clone();

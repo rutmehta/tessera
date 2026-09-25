@@ -7,7 +7,12 @@ license = "Apache-2.0"
 [lib]
 path = "src/lib.rs"
 
+[features]
+ml-denoise = ["dep:ml-enhance", "dep:ml-runtime"]
+
 [dependencies]
+ml-enhance = { path = "../ml-enhance", optional = true }
+ml-runtime = { path = "../ml-runtime", optional = true }
 engine-api = { path = "../engine-api" }
 pipeline-cpu = { path = "../pipeline-cpu" }
 raw-decode = { path = "../raw-decode" }

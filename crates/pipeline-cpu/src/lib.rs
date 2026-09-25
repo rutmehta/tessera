@@ -1,5 +1,7 @@
 //! Scalar f32 reference operators. See OPERATORS.md for formulas and scope.
 mod color;
+mod denoise;
+pub use denoise::*;
 mod locals;
 pub mod masks;
 pub use locals::{adjust_local, blend_local, locals_image};
@@ -21,7 +23,8 @@ pub use image::Image;
 pub use lens_resolve::{CorrectionSource, LensContext, ResolvedLens, resolve_lens};
 pub use render::{
     RenderSource, Rgb8Image, has_m2_settings, render, render_linear_scaled,
-    render_linear_scaled_with_lens, render_scaled, validate_settings,
+    render_linear_scaled_with_denoise, render_linear_scaled_with_lens, render_scaled,
+    validate_settings,
 };
 mod mosaic;
 pub use color::{

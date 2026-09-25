@@ -1,4 +1,9 @@
 //! On-device image enhancement.
+mod denoise;
+pub use denoise::{
+    DENOISE_ADAPTER_VERSION, DENOISE_MODEL_ID, DENOISE_SHA256, DENOISE_SIGMA, DENOISE_VERSION,
+    Denoiser,
+};
 mod sr;
 mod tiling;
 pub use sr::{SR_VERSION, SR_X2_SHA256, SR_X4_SHA256, SuperResolution};
@@ -8,7 +13,8 @@ use anyhow::{Result, ensure};
 use ml_runtime::Tensor;
 
 /// Advisory sensor variance: variance(signal) = read + shot * signal.
-/// Unconditioned SIDD networks do not consume this hint.
+/// DRUNet adapter v1 validates but does not consume this hint; no calibrated
+/// sensor-to-display sigma mapping is available.
 #[derive(Clone, Copy, Debug)]
 pub struct NoiseModelHint {
     pub read: [f32; 3],

@@ -1437,6 +1437,8 @@ dependencies = [
  "engine-api",
  "half",
  "jobs",
+ "ml-enhance",
+ "ml-runtime",
  "pipeline-cpu",
  "raw-decode",
 ]
@@ -3273,6 +3275,7 @@ dependencies = [
  "image-core",
  "import-lrcat",
  "index",
+ "ml-enhance",
  "ml-runtime",
  "pipeline-cpu",
  "previews",

@@ -1,0 +1,16 @@
+   Compiling ml-enhance v0.1.0 (/Users/rutmehta/Developer/tessera/.worktrees/M3-05/crates/ml-enhance)
+    Finished `release` profile [optimized] target(s) in 5.76s
+     Running tests/denoiser.rs (/Users/rutmehta/.cache/tessera-target/M3-05/release/deps/denoiser-fc2e37ad2b8ebe92)
+
+running 1 test
+Error: DRUNet inference not implemented
+test cached_drunet_improves_noisy_gradient_by_three_db ... FAILED
+
+failures:
+
+failures:
+    cached_drunet_improves_noisy_gradient_by_three_db
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1 filtered out; finished in 1.14s
+
+error: test failed, to rerun pass `-p ml-enhance --test denoiser`
