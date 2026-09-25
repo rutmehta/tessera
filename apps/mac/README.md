@@ -1,4 +1,4 @@
-# PhotoEditor — macOS app shell (WP M0-04)
+# Tessera — macOS app shell (WP M0-04)
 
 AppKit where performance matters, SwiftUI elsewhere (docs/11 §1.5). Wired to stub data: `StubLibrary`
 lists the JPEG / RAW files of a folder and shows their embedded previews via ImageIO, so the UI is
@@ -13,22 +13,21 @@ Run from `apps/mac/`:
 
 ```sh
 # Primary (CI) build: the brief's command, plus a macOS destination
-xcodebuild -scheme PhotoEditor -configuration Debug -destination 'platform=macOS' build
+xcodebuild -scheme Tessera -configuration Debug -destination 'platform=macOS' -derivedDataPath "$HOME/.cache/tessera-derived-data" build
 
 # Equivalent SwiftPM build and unit tests
 swift build
 swift test
 
-# Runnable app bundle: build/PhotoEditor.app (bundle id dev.local.photoeditor)
+# Runnable app bundle: build/Tessera.app (bundle id dev.tessera.app)
 Support/make-app.sh            # debug
 Support/make-app.sh release    # use this for performance checks
-open build/PhotoEditor.app
+open build/Tessera.app
 ```
 
-Do not pass `-derivedDataPath` pointing inside this repository. The repository path contains a colon
-(`lightroom:photoshop`), and Xcode's dependency (`.d`) files cannot represent that, so the build fails.
-The default DerivedData location (`~/Library/Developer/Xcode/DerivedData`) and SwiftPM's `.build/`
-both work.
+Keep `-derivedDataPath` outside the repository. Xcode's dependency (`.d`) files can fail when
+the checkout path contains a colon. The default DerivedData location
+(`~/Library/Developer/Xcode/DerivedData`) and SwiftPM's `.build/` both work.
 
 ## Launch arguments
 
@@ -44,19 +43,19 @@ Without arguments the app reopens the last folder, if it still exists. If there 
 empty state with "Open Folder…" and "Load 20,000 Stub Items".
 
 To try the app before `fixtures/raw` has been fetched, generate sample JPEGs with EXIF capture times:
-`swift Support/make-sample-folder.swift /tmp/pe-samples 60`.
+`swift Support/make-sample-folder.swift /tmp/tessera-samples 60`.
 
 ## Layout
 
 ```
-Package.swift                 targets: PhotoEditorCore (library), PhotoEditor (app), PhotoEditorCoreTests
-Sources/PhotoEditorCore/      UI-free and unit-tested; the Rust engine replaces this later
+Package.swift                 targets: TesseraCore (library), Tessera (app), TesseraCoreTests
+Sources/TesseraCore/      UI-free and unit-tested; the Rust engine replaces this later
   PhotoItem.swift             item value type
   CullState.swift             Decision / grade / mark / basket, CullStore with a global undo stack
   Grouping.swift              stub burst grouping by capture-time gap (2 s)
   StubLibrary.swift           folder scan (parallel header reads), synthetic N-item generator
   ThumbnailLoader.swift       ImageIO embedded-preview loader, NSCache, cancellable requests
-Sources/PhotoEditor/
+Sources/Tessera/
   App/                        App entry + AppDelegate, AppModel (@Observable), KeyRouter, menus, Theme
   Grid/                       NSCollectionView grid + filmstrip, O(visible) layout, recycled cells
   Loupe/                      CAMetalLayer view (EDR, colour space from screen), renderer, IOSurface frames

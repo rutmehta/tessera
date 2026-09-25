@@ -1,12 +1,12 @@
 # M0-04 acceptance script: macOS app shell
 
-For a computer-use verifier. Run every command from the **repository root**. The path contains a colon
-and a space, so always quote it. Take a screenshot at each step marked 📸.
+For a computer-use verifier. Run every command from the **repository root**. Quote paths if
+the checkout path contains spaces or a colon. Take a screenshot at each step marked 📸.
 Pass criteria: every "Expect" holds. Record any deviation together with its screenshot.
 
 Notes:
 - The app captures single-key culling shortcuts globally. Before pressing keys, click once on a grid
-  thumbnail so the PhotoEditor window is the key window.
+  thumbnail so the Tessera window is the key window.
 - "Cell N" means the N-th thumbnail in reading order (left to right, top to bottom).
 - The status bar is the thin row directly above the filmstrip. Its left side reads
   `<pos> of <total>   G<group> · <frame>/<size>   <state>`. Its right side reads
@@ -16,15 +16,15 @@ Notes:
 
 1. Build the app bundle:
    `cd apps/mac && Support/make-app.sh release && cd ../..`
-   Expect: the last line reads `Built …/apps/mac/build/PhotoEditor.app`, and no line contains `error:`.
-   Also run `cd apps/mac && xcodebuild -scheme PhotoEditor -configuration Debug -destination 'platform=macOS' build | tail -1 && cd ../..`.
+   Expect: the last line reads `Built …/apps/mac/build/Tessera.app`, and no line contains `error:`.
+   Also run `cd apps/mac && xcodebuild -scheme Tessera -configuration Debug -destination 'platform=macOS' -derivedDataPath "$HOME/.cache/tessera-derived-data" build | tail -1 && cd ../..`.
    Expect: `** BUILD SUCCEEDED **`.
 2. Check the fixtures: `ls fixtures/raw | head`. Expect: RAW and/or JPEG files.
    If the folder is missing or empty (M0-01's fetch script has not run), create stand-in JPEGs with
    `swift apps/mac/Support/make-sample-folder.swift fixtures/raw 60`. Note in the verdict that you did this.
-3. Clear the remembered folder so the app starts empty: `defaults delete dev.local.photoeditor 2>/dev/null; true`.
-4. Launch it: `open apps/mac/build/PhotoEditor.app`. 📸
-   Expect a dark window titled **PhotoEditor** with three areas:
+3. Clear the remembered folder so the app starts empty: `defaults delete dev.tessera.app 2>/dev/null; true`.
+4. Launch it: `open apps/mac/build/Tessera.app`. 📸
+   Expect a dark window titled **Tessera** with three areas:
    - a left sidebar with the sections Library, Folders, Albums and Smart Albums
    - a centre area reading **"No images"**, with the buttons **Open Folder…** and **Load 20,000 Stub Items**
    - a right inspector with the panels IMAGE, SELECTION and BASIC. BASIC holds sliders labelled
@@ -95,7 +95,7 @@ Notes:
 
 21. Click **Rejects** in the sidebar. Expect: only the rejected images show, and the subtitle reads
     `Rejects · <r> images`. Click **All Photos** and expect every image back.
-22. Quit with **⌘Q**. Run `open apps/mac/build/PhotoEditor.app` again.
+22. Quit with **⌘Q**. Run `open apps/mac/build/Tessera.app` again.
     Expect: the app reopens `fixtures/raw` without prompting, because it remembers the last folder.
     Decisions are gone, which is expected: this WP keeps them in memory only.
     Press ⌘O. Expect: the Open panel starts next to the `fixtures/raw` folder. Cancel it.
@@ -112,7 +112,7 @@ Notes:
     Expect: the grid auto-scrolls for 8 s. Then the status bar message starts
     `Scroll benchmark PASS: 20,000 items, <n> frames, <f> fps avg, p99 frame <≤17.5> ms, <≤1% of n> frames slower than 60 fps`.
     Alternatively, run from the command line:
-    `apps/mac/build/PhotoEditor.app/Contents/MacOS/PhotoEditor --stub 20000 --benchmark` and read the
+    `apps/mac/build/Tessera.app/Contents/MacOS/Tessera --stub 20000 --benchmark` and read the
     same line on stderr.
 26. Drag the grid scroller to the bottom, then click the last cell and press **X**.
     Expect: cell `20000` shows REJECT.

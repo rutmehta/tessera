@@ -11,7 +11,7 @@ Two kinds of processor can do this:
 - **CPU**: the general-purpose brain. An M4 has about 10 cores. Each is very smart but there are few of them.
 - **GPU**: the graphics chip. Thousands of small, dumb cores that all do the same instruction on different data at once. Exactly what "the same formula on 45 million pixels" wants. Every serious photo editor pushes the pixel maths to the GPU and keeps the CPU for file handling, databases, and UI.
 
-So the engine is two halves: **CPU code** (reading files, the catalog, the app) and **GPU kernels** (tiny programs that run per pixel). Everything below is about choosing tools for those two halves.
+So the engine is two halves: **CPU code** (reading files, the catalog, Tessera's UI) and **GPU kernels** (tiny programs that run per pixel). Everything below is about choosing tools for those two halves.
 
 ## 2. The language for the CPU half: Rust
 
@@ -39,7 +39,7 @@ So the engine is two halves: **CPU code** (reading files, the catalog, the app) 
 
 **The 24 GB memory issue.** A 45-megapixel image held as four 32-bit floating-point numbers per pixel is about 720 MB. The spec wants to cache the expensive intermediate stages so that moving a colour slider doesn't redo the demosaic. Cache a few of those per image, plus the neighbours pre-loaded for fast browsing, and 24 GB is gone. The fix: do the maths in 32-bit precision but store cached results in 16-bit half-floats, which halves memory with no visible loss.
 
-## 4. The app: Swift, AppKit and SwiftUI
+## 4. Tessera: Swift, AppKit and SwiftUI
 
 **Swift** is Apple's language for apps. **AppKit** is the older, mature Mac UI framework. **SwiftUI** is the newer, more pleasant one. SwiftUI is great for panels, settings, and inspectors, but its grid view rebuilds items rather than recycling them, which stutters with tens of thousands of thumbnails. AppKit's `NSCollectionView` recycles, which is why the grid uses it. Same for the image view, which needs an Apple Metal layer for HDR, and the sliders, which need to feel instant. Pixelmator Pro, a well-regarded Mac editor, uses exactly this mix.
 

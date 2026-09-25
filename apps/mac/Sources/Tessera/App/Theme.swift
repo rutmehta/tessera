@@ -1,6 +1,6 @@
 import AppKit
 import SwiftUI
-import PhotoEditorCore
+import TesseraCore
 
 /// Restrained, dark-first palette (Capture One / Pixelmator Pro direction): neutral greys,
 /// one accent, semantic colours only for decisions and marks.

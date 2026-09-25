@@ -1,0 +1,5 @@
+The Tessera rename is in place. Rust CI, Swift build and tests (5 tests), the Xcode Tessera scheme, and the Tessera.app bundle check all passed. A name search scoped to M0-08 found no leftovers; `tools/orchestrate/run-luna.sh` has the requested cache-path change but remains uncommitted.
+
+I ran the exact requested command. It exited 1 because its final `grep ..` searches sibling worktrees, where the old names still appear. Those worktrees are outside M0-08 and the allowed paths.
+
+RESULT: FAIL exact grep scans sibling worktrees outside M0-08

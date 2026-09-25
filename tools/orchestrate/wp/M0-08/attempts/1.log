@@ -1,0 +1,5 @@
+Tessera rename is in the M0-08 worktree. The workspace CLI is `tessera`, the macOS app and bundle are `Tessera` (`dev.tessera.app`), and the READMEs, docs, and orchestration cache path are updated.
+
+The worktree-scoped CI/Swift/leftover check passed. The Tessera Xcode scheme built, and `make-app.sh` produced `build/Tessera.app`. The separately required command using `grep ..` failed because `..` scans sibling worktrees that still contain the old names; I did not change those out-of-scope worktrees.
+
+RESULT: FAIL required parent-directory grep matches old names in sibling worktrees

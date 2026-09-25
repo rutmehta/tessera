@@ -1,5 +1,5 @@
 import AppKit
-import PhotoEditorCore
+import TesseraCore
 
 enum CellStyle {
     case grid, filmstrip

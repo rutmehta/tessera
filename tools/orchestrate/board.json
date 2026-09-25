@@ -35,9 +35,9 @@
     "id": "M0-05",
     "owner": "sol",
     "title": "computer-use smoke",
-    "status": "running",
+    "status": "fail",
     "attempts": 0,
-    "notes": ""
+    "notes": "harness OK; app showed no images under Sol, not reproducible manually; rerun after rename"
   },
   {
     "id": "M0-06",
@@ -49,7 +49,7 @@
   },
   {
     "id": "M0-07",
-    "owner": "opus",
+    "owner": "astra",
     "title": "GPU spike wgpu vs MSL",
     "status": "running",
     "attempts": 0,
@@ -59,13 +59,13 @@
     "id": "M0-08",
     "owner": "luna",
     "title": "Rename to Tessera",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
   {
     "id": "M1-01",
-    "owner": "luna",
+    "owner": "astra",
     "title": "raw-decode crate",
     "status": "running",
     "attempts": 0,
@@ -73,7 +73,7 @@
   },
   {
     "id": "M1-02",
-    "owner": "luna",
+    "owner": "astra",
     "title": "index crate",
     "status": "running",
     "attempts": 0,
@@ -81,7 +81,7 @@
   },
   {
     "id": "M1-03",
-    "owner": "luna",
+    "owner": "astra",
     "title": "sidecar crate",
     "status": "running",
     "attempts": 0,
@@ -97,10 +97,10 @@
   },
   {
     "id": "M1-05",
-    "owner": "luna",
+    "owner": "astra",
     "title": "pipeline-cpu reference",
-    "status": "running",
+    "status": "todo",
     "attempts": 0,
-    "notes": ""
+    "notes": "blocked on M1-01 real decoder"
   }
 ]

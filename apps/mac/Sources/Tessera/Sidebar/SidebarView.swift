@@ -1,4 +1,4 @@
-import PhotoEditorCore
+import TesseraCore
 import SwiftUI
 
 /// Left sidebar: library sources, folders, albums. Plain text rows with counts; no icon column.

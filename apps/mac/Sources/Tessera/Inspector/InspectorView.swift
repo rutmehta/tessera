@@ -1,5 +1,5 @@
 import AppKit
-import PhotoEditorCore
+import TesseraCore
 import SwiftUI
 
 /// Right inspector: SwiftUI panels. The develop sliders inside are AppKit `ValueSlider`s.

@@ -16,7 +16,7 @@ members = [
     "crates/engine-api",
     "crates/libraw-ffi",
     "crates/compositor",
-    "apps/pe-cli",
+    "apps/tessera-cli",
 ]
 
 [workspace.dependencies]

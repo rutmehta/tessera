@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import PhotoEditorCore
+@testable import TesseraCore
 
 @Suite struct GroupingTests {
     @Test func splitsOnGaps() {
