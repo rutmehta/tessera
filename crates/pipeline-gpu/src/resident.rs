@@ -16,6 +16,7 @@ use std::{
 
 struct Storage {
     buffer: wgpu::Buffer,
+    packed: bool,
     device: wgpu::Device,
     pool: std::sync::Weak<Mutex<Pool>>,
 }
@@ -42,8 +43,9 @@ struct Entry {
 }
 /// Budget counts GPU payloads owned by this cache, excluding in-flight
 /// command resources and handles retained by render transactions. Computed
-/// stage outputs are packed f16. Decode sources retain f32 sensor precision:
-/// rounding CFA samples before reconstruction can change highlight decisions.
+/// stage outputs are packed f16. Decode sources and the extra output-demosaic
+/// checkpoint retain f32 precision: rounding CFA samples changes highlight
+/// decisions, and rounding the extra checkpoint compounds error before WB.
 pub(crate) struct Cache {
     budget: usize,
     bytes: usize,
@@ -205,6 +207,7 @@ impl<'a> Batch<'a> {
             layout,
             storage: Arc::new(Storage {
                 buffer,
+                packed: false,
                 device: self.gpu.context().device.clone(),
                 pool: Arc::downgrade(&self.pool),
             }),
@@ -306,7 +309,13 @@ impl<'a> Batch<'a> {
             bytemuck::cast_slice(&[u32::from(!pack), n as u32]),
             if pack { n.div_ceil(2) as u32 } else { n as u32 },
         );
-        Ok(self.tile(t.coord, t.layout, dst))
+        let mut output = self.tile(t.coord, t.layout, dst);
+        Arc::get_mut(&mut output.storage)
+            .unwrap()
+            .downcast_mut::<Storage>()
+            .unwrap()
+            .packed = pack;
+        Ok(output)
     }
     // Copy contiguous spans from halo-free source tiles, preserving CFA phase
     // at frame boundaries. No samples are read or interpolated on the host.
@@ -355,7 +364,7 @@ impl<'a> Batch<'a> {
             for &(x, end) in &runs {
                 let sx = xs[x];
                 let source = tiles
-                    .get(&TileCoord::new(0, sx / TILE_SIZE, sy / TILE_SIZE))
+                    .get(&TileCoord::new(coord.level, sx / TILE_SIZE, sy / TILE_SIZE))
                     .ok_or_else(|| EngineError::internal("resident gather source missing"))?;
                 for c in 0..layout.channels as usize {
                     let from = c * source.layout.plane_len()
@@ -394,21 +403,20 @@ impl ResidentBatch for Batch<'_> {
         };
         packed
             .map(|t| {
-                if key.stage == StageId::Decode {
-                    Ok(t)
-                } else {
+                if t.storage
+                    .downcast_ref::<Storage>()
+                    .is_some_and(|s| s.packed)
+                {
                     self.convert(&t, false)
+                } else {
+                    Ok(t)
                 }
             })
             .transpose()
     }
     fn cache(&mut self, key: MemoKey, tile: &ResidentTile) -> EngineResult<ResidentTile> {
         if key.stage == StageId::Decode {
-            if cache_payload_bytes(&key, tile) <= self.gpu.resident_cache.lock().unwrap().budget {
-                self.access_tick += 1;
-                self.pending.insert(key, (self.access_tick, tile.clone()));
-            }
-            return Ok(tile.clone());
+            return self.cache_exact(key, tile);
         }
         let packed = self.convert(tile, true)?;
         // Use the same f16-rounded samples on cold, warm and budget-rejected
@@ -419,6 +427,13 @@ impl ResidentBatch for Batch<'_> {
             self.pending.insert(key, (self.access_tick, packed));
         }
         Ok(rounded)
+    }
+    fn cache_exact(&mut self, key: MemoKey, tile: &ResidentTile) -> EngineResult<ResidentTile> {
+        if self.storage(tile)?.size() as usize <= self.gpu.resident_cache.lock().unwrap().budget {
+            self.access_tick += 1;
+            self.pending.insert(key, (self.access_tick, tile.clone()));
+        }
+        Ok(tile.clone())
     }
     fn upload(&mut self, tile: &Tile) -> EngineResult<ResidentTile> {
         let buffer = self.host_buffer(
@@ -441,6 +456,57 @@ impl ResidentBatch for Batch<'_> {
         self.cache(key, &uploaded)
     }
     fn run(&mut self, op: &Op<'_>, tile: &ResidentTile) -> EngineResult<ResidentTile> {
+        if let Op::Detail(settings) = op {
+            let l = tile.layout;
+            let p = crate::detail::parameters(l, settings)?;
+            let params = self.host_buffer(
+                Some("resident detail"),
+                bytemuck::cast_slice(&p),
+                wgpu::BufferUsages::STORAGE,
+            );
+            let src = self.storage(tile)?.clone();
+            let dst = self.buffer(l.len() * 4)?;
+            let decomposition = self.buffer(l.plane_len() * 16)?;
+            let entries: Vec<_> = [&src, &dst, &params, &decomposition]
+                .iter()
+                .enumerate()
+                .map(|(i, b)| wgpu::BindGroupEntry {
+                    binding: i as u32,
+                    resource: b.as_entire_binding(),
+                })
+                .collect();
+            let group = self
+                .gpu
+                .context()
+                .device
+                .create_bind_group(&wgpu::BindGroupDescriptor {
+                    label: Some("resident Detail"),
+                    layout: &self.gpu.detail_pipelines[0].get_bind_group_layout(0),
+                    entries: &entries,
+                });
+            for pipeline in &self.gpu.detail_pipelines {
+                self.record(pipeline, group.clone(), (l.plane_len() as u32).div_ceil(64));
+            }
+            let layout = TileLayout { halo: 0, ..l };
+            let interior = self.buffer(layout.len() * 4)?;
+            self.dispatch(
+                &self.gpu.resident_pipeline,
+                &dst,
+                &interior,
+                bytemuck::cast_slice(&[
+                    3u32,
+                    layout.len() as u32,
+                    l.extent.width,
+                    l.extent.height,
+                    l.halo as u32,
+                    l.stride() as u32,
+                    l.plane_len() as u32,
+                ]),
+                layout.len() as u32,
+            );
+            self.pool.lock().unwrap().free.extend([dst, decomposition]);
+            return Ok(self.tile(tile.coord, layout, interior));
+        }
         let (p, layout) = parameters(op, tile.layout, tile.coord.pixel_origin(TILE_SIZE))?;
         let dst = self.buffer(layout.len() * 4)?;
         let src = self.storage(tile)?.clone();
@@ -849,6 +915,9 @@ fn contribution_region(
 }
 
 fn cache_payload_bytes(key: &MemoKey, tile: &ResidentTile) -> usize {
+    if let Some(storage) = tile.storage.downcast_ref::<Storage>() {
+        return storage.buffer.size() as usize;
+    }
     if key.stage == StageId::Decode {
         tile.layout.len() * 4
     } else {

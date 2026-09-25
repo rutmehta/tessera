@@ -38,6 +38,11 @@ pub struct SurfaceTarget {
 pub trait ResidentBatch {
     fn cached(&mut self, key: &MemoKey) -> EngineResult<Option<ResidentTile>>;
     fn cache(&mut self, key: MemoKey, tile: &ResidentTile) -> EngineResult<ResidentTile>;
+    /// Retain an extra scheduling checkpoint without another precision loss.
+    /// Backends without exact memo storage may leave this checkpoint uncached.
+    fn cache_exact(&mut self, _key: MemoKey, tile: &ResidentTile) -> EngineResult<ResidentTile> {
+        Ok(tile.clone())
+    }
     fn upload(&mut self, tile: &Tile) -> EngineResult<ResidentTile>;
     /// Uploads and retains a source in the backend cache. Backends may preserve
     /// Decode samples at full precision while storing computed outputs as f16.
@@ -45,6 +50,8 @@ pub trait ResidentBatch {
         let tile = self.upload(tile)?;
         self.cache(key, &tile)
     }
+    /// Detail consumes real RGB neighbours and returns a halo-free interior.
+    /// Other operators retain their usual StageOp layout contract.
     fn run(&mut self, op: &Op<'_>, tile: &ResidentTile) -> EngineResult<ResidentTile>;
     /// Adjacent point operators may be fused without a materialized intermediate.
     fn run_chain(&mut self, ops: &[Op<'_>], tile: &ResidentTile) -> EngineResult<ResidentTile> {
@@ -54,6 +61,8 @@ pub trait ResidentBatch {
         }
         Ok(output)
     }
+    /// Gather within `frame` at `coord.level`; RGB uses period 1, sensor CFA
+    /// uses its phase period at level 0. Source tiles must be halo-free.
     fn gather(
         &mut self,
         frame: Extent,

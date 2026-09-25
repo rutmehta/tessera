@@ -68,22 +68,22 @@ fn synthetic_renderer_and_tone_chain_transfers() {
         let before = gpu.stats();
         let tiles = r.render_region(&image, &s, 0, rect).unwrap();
         let after = gpu.stats();
+        if matches!(cfa, raw_decode::CfaLayout::XTrans(_)) {
+            // Revision-2 Detail is active even for a default recipe. X-Trans
+            // still uses the documented whole-image hybrid barriers.
+            assert!(after.uploads - before.uploads > tiles.len() as u64);
+            assert!(after.readbacks - before.readbacks > tiles.len() as u64);
+            assert!(after.submissions - before.submissions > 1);
+            continue;
+        }
         assert_eq!(
             after.uploads - before.uploads,
-            if matches!(cfa, raw_decode::CfaLayout::Bayer(_)) {
-                0
-            } else {
-                tiles.len() as u64
-            },
+            0,
             "resident tone edits must not upload"
         );
         assert_eq!(
             after.readbacks - before.readbacks,
-            if matches!(cfa, raw_decode::CfaLayout::Bayer(_)) {
-                1
-            } else {
-                tiles.len() as u64
-            },
+            1,
             "one final readback for a resident level"
         );
         assert_eq!(

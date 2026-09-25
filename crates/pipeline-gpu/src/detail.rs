@@ -1,18 +1,17 @@
 //! Isolated Detail compute path. One upload/submission/readback, including bypass.
 //! Only validation and settings packing happen on the host; pixels stay on GPU.
-use engine_api::{EngineError, EngineResult, recipe::settings::DetailSettings, tile::Tile};
+use engine_api::{
+    EngineError, EngineResult,
+    recipe::settings::DetailSettings,
+    tile::{Tile, TileLayout},
+};
 use wgpu::util::DeviceExt;
 
-pub(crate) fn run(
-    ctx: &crate::GpuContext,
-    input: &Tile,
-    settings: &DetailSettings,
-) -> EngineResult<Tile> {
-    let l = input.layout();
+pub(crate) fn parameters(l: TileLayout, settings: &DetailSettings) -> EngineResult<Vec<f32>> {
     if l.channels != 3 {
         return Err(EngineError::invalid("tile", "expected three RGB planes"));
     }
-    let samples = input.samples::<f32>()?;
+
     let sh = &settings.sharpening;
     let nr = &settings.noise_reduction;
     let controls = [
@@ -27,11 +26,7 @@ pub(crate) fn run(
         nr.color_detail,
         nr.color_smoothness,
     ];
-    if samples
-        .iter()
-        .chain(controls.iter())
-        .any(|v| !v.is_finite())
-    {
+    if controls.iter().any(|v| !v.is_finite()) {
         return Err(EngineError::invalid(
             "color/detail",
             "finite values required",
@@ -78,7 +73,10 @@ pub(crate) fn run(
         cr as f32,
     ];
     p.extend(controls);
-    let size = std::mem::size_of_val(samples) as u64;
+    Ok(p)
+}
+
+pub(crate) fn pipelines(ctx: &crate::GpuContext) -> EngineResult<Vec<wgpu::ComputePipeline>> {
     let scope = ctx.device.push_error_scope(wgpu::ErrorFilter::Validation);
     let shader = ctx
         .device
@@ -130,6 +128,26 @@ pub(crate) fn run(
     if let Some(e) = pollster::block_on(scope.pop()) {
         return Err(internal(e));
     }
+    Ok(pipelines)
+}
+
+pub(crate) fn run(
+    ctx: &crate::GpuContext,
+    input: &Tile,
+    settings: &DetailSettings,
+) -> EngineResult<Tile> {
+    let l = input.layout();
+    let samples = input.samples::<f32>()?;
+    if samples.iter().any(|v| !v.is_finite()) {
+        return Err(EngineError::invalid(
+            "color/detail",
+            "finite values required",
+        ));
+    }
+    let p = parameters(l, settings)?;
+    let pipelines = pipelines(ctx)?;
+    let bgl = pipelines[0].get_bind_group_layout(0);
+    let size = std::mem::size_of_val(samples) as u64;
     let src = ctx
         .device
         .create_buffer_init(&wgpu::util::BufferInitDescriptor {

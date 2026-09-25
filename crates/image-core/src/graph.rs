@@ -55,7 +55,9 @@ impl Default for PipelineGraph {
 
 impl PipelineGraph {
     /// M2 adds whole-level neighbourhood and geometry barriers. Only the
-    /// upstream demosaic/WB buffers are memoized: crop-relative Effects depends
+    /// upstream demosaic/WB buffers and resident output-level Detail are memoized:
+    /// tone edits reuse Detail, while WB/detail edits invalidate its chain key.
+    /// Crop-relative Effects depends
     /// on Geometry settings and must not use an Effects-only chain cache key.
     pub fn m2() -> Self {
         let mut graph = Self::m1();
@@ -67,6 +69,7 @@ impl PipelineGraph {
         ] {
             graph.nodes[stage.index()].implemented = true;
         }
+        graph.nodes[StageId::Detail.index()].cacheable = true;
         graph
     }
 
