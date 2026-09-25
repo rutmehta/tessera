@@ -102,5 +102,45 @@
     "status": "todo",
     "attempts": 0,
     "notes": "blocked on M1-01 real decoder"
+  },
+  {
+    "id": "M2-01",
+    "owner": "astra",
+    "title": "Lightroom catalog importer",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M3-01",
+    "owner": "astra",
+    "title": "ML runtime scaffold",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M1-12",
+    "owner": "astra",
+    "title": "UniFFI bridge + app wiring",
+    "status": "todo",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M1-06",
+    "owner": "opus",
+    "title": "Pipeline graph + scheduler",
+    "status": "todo",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M1-08",
+    "owner": "astra",
+    "title": "Export crate",
+    "status": "todo",
+    "attempts": 0,
+    "notes": ""
   }
 ]
