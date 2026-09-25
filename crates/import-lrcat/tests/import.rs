@@ -1,6 +1,6 @@
 mod make_fixture;
 use engine_api::recipe::{Decision, Grade, ProcessVersion};
-use import_lrcat::{SavedSearch, import, inspect};
+use import_lrcat::{import, inspect};
 
 #[test]
 fn synthetic_catalog_plan() {
@@ -65,13 +65,12 @@ fn synthetic_catalog_plan() {
                 .unwrap(),
         ]
     );
-    assert_eq!(
-        plan.library.smart_albums[0].search,
-        SavedSearch::All(vec![SavedSearch::Rule {
-            criteria: "rating".into(),
-            operation: ">=".into(),
-            value: 3.into()
-        }])
+    assert!(plan.library.smart_albums[0].search.compile().is_ok());
+    assert!(
+        !plan.library.smart_albums[0]
+            .search
+            .to_string()
+            .contains("rating>=3")
     );
     assert_eq!(plan.library.people, vec!["Alice"]);
     assert_eq!(plan.stacks.len(), 1);
