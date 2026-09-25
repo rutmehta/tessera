@@ -1,9 +1,10 @@
-use crate::{Change, CullSession, Decision, ImageId, persistence};
+use crate::{CullSession, Decision, ImageId};
 use engine_api::{EngineError, EngineResult};
 use image::{RgbImage, imageops::FilterType};
-use index::ImageInfo;
+use index::{ImageInfo, Index};
 use previews::{Codec, Jpeg};
 use std::collections::BTreeMap;
+use std::ops::Deref;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Group {
@@ -81,7 +82,7 @@ fn join(parents: &mut [usize], a: usize, b: usize) {
     let b = root(parents, b);
     parents[a.max(b)] = a.min(b);
 }
-impl CullSession<'_> {
+impl<I: Deref<Target = Index>> CullSession<I> {
     pub fn groups(&self) -> &[Group] {
         &self.groups
     }
@@ -179,6 +180,20 @@ impl CullSession<'_> {
             }
         }
     }
+    pub fn prev_in_group(&mut self) {
+        if let Some(n) = self.current_group() {
+            let ids = &self.groups[n].images;
+            if let Some(pos) = ids.iter().position(|id| Some(*id) == self.current())
+                && let Some(id) = pos.checked_sub(1).map(|p| ids[p])
+            {
+                self.move_to(id);
+            }
+        }
+    }
+    /// Group containing `id`, if it is in the review queue.
+    pub fn group_of(&self, id: ImageId) -> Option<usize> {
+        self.groups.iter().position(|g| g.images.contains(&id))
+    }
     pub fn best_in_group(&self, group: usize) -> EngineResult<ImageId> {
         let group = self
             .groups
@@ -202,22 +217,19 @@ impl CullSession<'_> {
     }
     pub fn keep_best_reject_rest(&mut self, group: usize) -> EngineResult<ImageId> {
         let best = self.best_in_group(group)?;
-        let mut changes = Vec::new();
-        for id in &self.groups[group].images {
-            let before = persistence::load(self.index, *id)?.recipe.selection;
-            let mut after = before.clone();
-            after.set_decision(if *id == best {
-                Decision::Keep
-            } else {
-                Decision::Reject
-            });
-            changes.push(Change {
-                id: *id,
-                before,
-                after,
-            });
-        }
-        self.apply(changes)?;
+        let decisions: Vec<_> = self.groups[group]
+            .images
+            .iter()
+            .map(|id| {
+                let decision = if *id == best {
+                    Decision::Keep
+                } else {
+                    Decision::Reject
+                };
+                (*id, decision)
+            })
+            .collect();
+        self.decide_each(&decisions)?;
         Ok(best)
     }
 }

@@ -17,13 +17,13 @@ struct AppCommands: Commands {
             }
             .disabled(model.recentFolders.isEmpty)
         }
+        // Always enabled: SwiftUI can leave a stale disabled state on menu items, which would
+        // swallow ⌘Z. The engine's session is the source of truth and reports "Nothing to undo".
         CommandGroup(replacing: .undoRedo) {
             Button("Undo Cull Change") { model.undo() }
                 .keyboardShortcut("z", modifiers: .command)
-                .disabled(!model.canUndo)
             Button("Redo Cull Change") { model.redo() }
                 .keyboardShortcut("z", modifiers: [.command, .shift])
-                .disabled(!model.canRedo)
         }
         CommandGroup(after: .pasteboard) {
             Button("Select All Images") { model.selectAll() }
@@ -32,6 +32,7 @@ struct AppCommands: Commands {
         CommandGroup(before: .sidebar) {
             Button("Grid    (G)") { model.viewMode = .grid }
             Button("Loupe    (E / Return)") { model.viewMode = .loupe }
+            Button("Compare    (C)") { model.enterCompare() }
             Divider()
             Button(model.showInspector ? "Hide Inspector" : "Show Inspector") { model.showInspector.toggle() }
                 .keyboardShortcut("i", modifiers: [.command, .option])
@@ -51,7 +52,19 @@ struct AppCommands: Commands {
             ForEach([UInt8(6), 7, 8, 9], id: \.self) { m in
                 Button("Mark \(m): \(MarkStyle.name(m))    (\(m))") { model.perform(.mark(m)) }
             }
-            Button("Add to / Remove from Basket    (B)") { model.perform(.toggleBasket) }
+            Button("Add to / Remove from \(model.basketTarget)    (B)") { model.perform(.toggleBasket) }
+            Menu("Basket Target: \(model.basketTarget)") {
+                ForEach(model.albums) { album in
+                    Toggle(album.name, isOn: Binding(get: { album.name == model.basketTarget },
+                                                     set: { if $0 { model.setBasketTarget(album.name) } }))
+                }
+                Divider()
+                Button("New Album…") { model.promptNewBasketTarget() }
+            }
+            Divider()
+            Button("Keep Best, Reject Rest of Group    (K)") { model.keepBestRejectRest() }
+            Button("Defect Sweep…") { model.showDefectSweep = true }
+                .keyboardShortcut("d", modifiers: [.command, .shift])
             Divider()
             Button("Next Group    (→ in loupe, ⌥→ in grid)") { model.navigate(.right, groupwise: true, extend: false) }
             Button("Previous Group    (← in loupe, ⌥← in grid)") { model.navigate(.left, groupwise: true, extend: false) }
@@ -59,6 +72,10 @@ struct AppCommands: Commands {
             Button("Previous Frame in Group    (↑ in loupe, ⌥↑ in grid)") { model.navigate(.up, groupwise: true, extend: false) }
             Divider()
             Toggle("Auto-Advance    (A)", isOn: Binding(get: { model.autoAdvance }, set: { model.autoAdvance = $0 }))
+            Divider()
+            Button("Remove from Album    (⌫ in an album)") { model.deletePressed() }
+            Button("Delete from Disk…") { model.confirmDeleteFromDisk() }
+                .keyboardShortcut(.delete, modifiers: .command)
         }
         CommandMenu("Debug") {
             Button("Load 20,000 Stub Items") { model.loadStubItems(count: 20_000) }

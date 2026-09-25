@@ -53,8 +53,8 @@ public enum CullAction: Sendable, Equatable {
     }
 }
 
-/// Dense in-memory store of cull state with a single global undo stack.
-/// Persistence to sidecars arrives with the `cull` / `sidecar` crates; this WP keeps state in memory.
+/// Dense in-memory store of cull state with a single global undo stack. Used only for the
+/// synthetic stub library (performance testing); folders use the Rust `CullSession`.
 public struct CullStore: Sendable {
     public private(set) var states: [CullState]
     public private(set) var counts = Counts()
@@ -130,6 +130,19 @@ public struct CullStore: Sendable {
         if undoStack.count > 10_000 { undoStack.removeFirst(undoStack.count - 10_000) }
         redoStack.removeAll()
         return changed
+    }
+
+    /// Sets a possibly different state per id as one undo step. Returns the ids that changed.
+    @discardableResult
+    public mutating func apply(states updates: [(Int, CullState)]) -> [Int] {
+        let changed = updates.filter { states[$0.0] != $0.1 }
+        guard !changed.isEmpty else { return [] }
+        let ids = changed.map(\.0)
+        let before = ids.map { states[$0] }
+        write(ids: ids, states: changed.map(\.1))
+        undoStack.append(Change(ids: ids, before: before, after: changed.map(\.1)))
+        redoStack.removeAll()
+        return ids
     }
 
     /// Returns the ids restored, or nil when there is nothing to undo.

@@ -1,21 +1,23 @@
 import Foundation
 import TesseraFFI
 
-/// Both real and explicit fallback libraries share the existing keyboard/navigation model.
+/// What the shell needs from a loaded library. Culling state and history live in the
+/// `CullController` the library makes, not in the library itself.
 public protocol PhotoLibrary: Sendable {
     var title: String { get }
     var folder: URL? { get }
+    /// Display order: groups are contiguous, members in review-queue order.
     var items: [PhotoItem] { get }
     var groups: [Range<Int>] { get }
     var subfolders: [URL] { get }
     var scanDuration: TimeInterval { get }
-    func initialState(for item: PhotoItem) -> CullState
-    func persist(_ state: CullState, for item: PhotoItem) throws
+    /// Engine-backed libraries persist through a Rust `CullSession`; the synthetic stub
+    /// library keeps decisions in memory.
+    func makeCullController() -> CullController
 }
 
 extension StubLibrary: PhotoLibrary {
-    public func initialState(for item: PhotoItem) -> CullState { CullState() }
-    public func persist(_ state: CullState, for item: PhotoItem) throws {}
+    public func makeCullController() -> CullController { CullController(memory: self) }
 }
 
 /// Retained by immutable items, so in-flight thumbnails cannot switch to a newly opened catalog.
@@ -27,62 +29,122 @@ public final class EngineImageReference: Sendable, Hashable {
     public func hash(into hasher: inout Hasher) { hasher.combine(ObjectIdentifier(self)) }
 }
 
+/// A folder opened through the Rust index and a `CullSession`. Groups (bursts and
+/// near-duplicates), the suggested best frame, decisions, the basket and undo history all
+/// come from `crates/cull`; this type only arranges them in display order.
 public final class EngineLibrary: PhotoLibrary {
-    private let backing: StubLibrary
-    private let selections: [String: TesseraFFI.Selection]
-    public var title: String { backing.title }
-    public var folder: URL? { backing.folder }
-    public var items: [PhotoItem] { backing.items }
-    public var groups: [Range<Int>] { backing.groups }
-    public var subfolders: [URL] { backing.subfolders }
-    public var scanDuration: TimeInterval { backing.scanDuration }
-    private init(backing: StubLibrary, selections: [String: TesseraFFI.Selection]) {
-        self.backing = backing; self.selections = selections
+    public let title: String
+    public let folder: URL?
+    public let items: [PhotoItem]
+    public let groups: [Range<Int>]
+    public let subfolders: [URL]
+    public let scanDuration: TimeInterval
+    public let engine: Engine
+    public let session: CullSession
+    /// Engine image id per item id.
+    public let imageIDs: [String]
+    let itemOfImage: [String: Int]
+    let initialStates: [CullState]
+    let initialStatuses: [ItemStatus]
+    /// Suggested best item id per group.
+    let bestOfGroup: [Int]
+    /// Images whose embedded preview could not be hashed (still reviewable).
+    public let previewErrors: [String]
+
+    public static let defaultBasketTarget = "Selects"
+
+    private init(title: String, folder: URL, items: [PhotoItem], groups: [Range<Int>], subfolders: [URL],
+                 scanDuration: TimeInterval, engine: Engine, session: CullSession, imageIDs: [String],
+                 states: [CullState], statuses: [ItemStatus], best: [Int], previewErrors: [String]) {
+        self.title = title; self.folder = folder; self.items = items; self.groups = groups
+        self.subfolders = subfolders; self.scanDuration = scanDuration; self.engine = engine
+        self.session = session; self.imageIDs = imageIDs
+        itemOfImage = Dictionary(uniqueKeysWithValues: imageIDs.enumerated().map { ($1, $0) })
+        initialStates = states; initialStatuses = statuses; bestOfGroup = best
+        self.previewErrors = previewErrors
     }
 
-    public static func scan(folder: URL, appSupport: URL? = nil) throws -> EngineLibrary {
+    /// Indexes `folder`, opens a review session and orders items group by group.
+    /// Blocking (index scan, sidecar reconciliation, preview hashing): call off the main actor.
+    public static func scan(folder: URL, appSupport: URL? = nil,
+                            basketTarget: String = defaultBasketTarget) throws -> EngineLibrary {
         let start = Date()
         let fm = FileManager.default
         let support = appSupport ?? fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Tessera", isDirectory: true)
         let engine = try Engine.open(appSupportDir: support.path)
         let handle = try engine.indexFolder(path: folder.path)
-        let rows = try engine.listImages(query: ImageQuery(folder: handle.path, text: nil, decision: nil, limit: 0, offset: 0))
+        let session = try engine.openCullSession(folder: handle.path)
+        try session.setBasketTarget(name: basketTarget)
+        let rows = try session.images()
+        let rustGroups = try session.groups()
+        let rowOfImage = Dictionary(uniqueKeysWithValues: rows.enumerated().map { ($1.id, $0) })
+
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
-        let items = rows.enumerated().map { index, row in
-            let url = URL(fileURLWithPath: row.path)
-            let date = row.captureTime.flatMap { value in
-                Double(value).map { Date(timeIntervalSince1970: $0) } ?? formatter.date(from: value)
-            } ?? Date(timeIntervalSince1970: 0)
-            return PhotoItem(id: index, url: url, name: url.lastPathComponent,
-                             kind: StubLibrary.kind(forExtension: url.pathExtension) ?? .raw,
-                             captureDate: date, pixelWidth: 0, pixelHeight: 0,
-                             engineImage: EngineImageReference(engine: engine, imageID: row.id))
+        var items: [PhotoItem] = []
+        var ids: [String] = []
+        var states: [CullState] = []
+        var ranges: [Range<Int>] = []
+        var best: [Int] = []
+        items.reserveCapacity(rows.count)
+        for (g, group) in rustGroups.enumerated() {
+            let start = items.count
+            for imageID in group.images {
+                guard let r = rowOfImage[imageID] else { continue }
+                let row = rows[r]
+                let url = URL(fileURLWithPath: row.path)
+                let date = row.captureTime.flatMap { value in
+                    Double(value).map { Date(timeIntervalSince1970: $0) }
+                        ?? formatter.date(from: String(value.prefix(19)))
+                } ?? Date(timeIntervalSince1970: 0)
+                if imageID == group.best { best.append(items.count) }
+                items.append(PhotoItem(id: items.count, url: url, name: url.lastPathComponent,
+                                       kind: StubLibrary.kind(forExtension: url.pathExtension) ?? .raw,
+                                       captureDate: date, pixelWidth: 0, pixelHeight: 0, groupID: g,
+                                       engineImage: EngineImageReference(engine: engine, imageID: row.id)))
+                ids.append(row.id)
+                states.append(CullController.state(from: row.selection, inBasket: row.inBasket))
+            }
+            if best.count == g { best.append(start) }
+            ranges.append(start..<items.count)
         }
-        let subfolders = try fm.contentsOfDirectory(at: folder, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles])
-            .filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }
+        let statuses = try session.derivedStatuses(imageIds: ids).map(ItemStatus.init)
+        // List the canonical folder: contentsOfDirectory refuses a symlink to a directory.
+        let canonical = URL(fileURLWithPath: handle.path, isDirectory: true)
+        let subfolders = try fm.contentsOfDirectory(at: canonical, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles])
+            .filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true && $0.lastPathComponent != ".edits" }
             .sorted { $0.path < $1.path }
-        let backing = StubLibrary(title: folder.lastPathComponent, folder: folder, items: items,
-                                  subfolders: subfolders, scanDuration: Date().timeIntervalSince(start))
-        return EngineLibrary(backing: backing, selections: Dictionary(uniqueKeysWithValues: rows.map { ($0.id, $0.selection) }))
+        return EngineLibrary(title: folder.lastPathComponent, folder: folder, items: items, groups: ranges,
+                             subfolders: subfolders, scanDuration: Date().timeIntervalSince(start),
+                             engine: engine, session: session, imageIDs: ids, states: states,
+                             statuses: statuses, best: best, previewErrors: try session.previewErrors())
     }
 
-    public func initialState(for item: PhotoItem) -> CullState {
-        guard let ref = item.engineImage, let state = selections[ref.imageID] else { return CullState() }
-        let decision: Decision = switch state.decision { case .keep: .keep; case .reject: .reject; case .undecided: .undecided }
-        return CullState(decision: decision, grade: state.grade ?? 0, mark: Self.marks.first(where: { $0.value == state.mark })?.key ?? 0)
-    }
+    public func makeCullController() -> CullController { CullController(engine: self) }
 
-    // Keep names stable, rather than persisting UI key numbers as mark identifiers.
-    private static let marks: [UInt8: String] = [6: "Needs Retouch", 7: "Client Favourite", 8: "Print", 9: "Review"]
-    public func persist(_ state: CullState, for item: PhotoItem) throws {
-        guard let ref = item.engineImage else { return }
-        let decision: TesseraFFI.Decision = switch state.decision { case .keep: .keep; case .reject: .reject; case .undecided: .undecided }
-        // Preserve an imported custom mark until the user explicitly chooses a mark key.
-        let mark = Self.marks[state.mark] ?? (state.mark == 0 && initialState(for: item).mark == 0 ? selections[ref.imageID]?.mark : nil)
-        try ref.engine.setSelection(imageId: ref.imageID, selection: TesseraFFI.Selection(
-            decision: decision, grade: state.grade == 0 ? nil : state.grade, mark: mark))
+    /// Test aid behind the hidden `--seed-scores` flag: deterministic synthetic AI signals so the
+    /// defect sweep has something to find before ML producers exist. Item n (display order) gets
+    /// focus 0.25 when n % 4 == 1 (else 0.85) and closed_eyes 0.92 when n % 5 == 2 (else 0.05).
+    public func seedSyntheticScores() throws {
+        for (n, imageID) in imageIDs.enumerated() {
+            try engine.setScore(imageId: imageID, signal: DefectRule.focus.signal,
+                                value: n % 4 == 1 ? 0.25 : 0.85, model: "seed-scores/1")
+            try engine.setScore(imageId: imageID, signal: DefectRule.closedEyes.signal,
+                                value: n % 5 == 2 ? 0.92 : 0.05, model: "seed-scores/1")
+        }
+    }
+}
+
+extension ItemStatus {
+    init(_ status: ImageStatus) {
+        let phase: DerivedPhase = switch status.phase {
+        case .unedited: .unedited
+        case .edited: .edited
+        case .exported: .exported
+        case .published: .published
+        }
+        self.init(phase: phase, albums: status.inAlbum)
     }
 }

@@ -1,5 +1,9 @@
-// Writes N small JPEGs with EXIF capture times shot in bursts, for trying the shell when
-// fixtures/raw has not been fetched yet (the grouping stub needs realistic capture times).
+// Writes N small JPEGs with EXIF capture times shot in bursts, for trying the app when
+// fixtures/raw has not been fetched yet, and for exercising group review.
+//
+// Each burst is its own "scene" (a seeded block mosaic, so near-duplicate hashing keeps bursts
+// apart); frames in a burst differ only by a small shift, brightness and grain. Grain varies,
+// so file sizes (the default best-frame score) differ within a burst. Deterministic.
 //
 //   swift Support/make-sample-folder.swift <output-folder> [count=60]
 import AppKit
@@ -12,26 +16,65 @@ let out = URL(fileURLWithPath: args[1], isDirectory: true)
 let count = args.count > 2 ? Int(args[2]) ?? 60 : 60
 try FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
 
+struct Rng {
+    var state: UInt64
+    mutating func next() -> UInt64 {
+        state &+= 0x9E37_79B9_7F4A_7C15
+        var z = state
+        z = (z ^ (z >> 30)) &* 0xBF58_476D_1CE4_E5B9
+        z = (z ^ (z >> 27)) &* 0x94D0_49BB_1331_11EB
+        return z ^ (z >> 31)
+    }
+    mutating func unit() -> Double { Double(next() % 10_000) / 10_000 }
+}
+
 let fmt = DateFormatter()
+fmt.locale = Locale(identifier: "en_US_POSIX")
 fmt.dateFormat = "yyyy:MM:dd HH:mm:ss"
 var t = Date(timeIntervalSince1970: 1_750_000_000)
 var burst = 0
 var group = 0
-var rng = SystemRandomNumberGenerator()
+var frame = 0
+var rng = Rng(state: 0x5A11_7E5)
+let w = 1200, h = 800, cols = 6, rows = 4
+var blocks: [Double] = []
+var hue: CGFloat = 0
 for i in 0..<count {
-    if burst == 0 { burst = Int.random(in: 1...6, using: &rng); t += Double.random(in: 5...90, using: &rng); group += 1 }
-    else { t += Double.random(in: 0.3...1.2, using: &rng) }
+    if burst == 0 {
+        burst = 1 + Int(rng.next() % 5)
+        t += 20 + Double(rng.next() % 70)
+        group += 1
+        frame = 0
+        blocks = (0..<(cols * rows)).map { _ in 0.15 + 0.75 * rng.unit() }
+        hue = CGFloat(rng.unit())
+    } else {
+        t += 1   // one second apart: EXIF has whole seconds, the burst gap is 2 s
+    }
     burst -= 1
-    let w = 1800, h = 1200
+    frame += 1
     let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: 0,
                         space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)!
-    let hue = CGFloat((group * 53) % 360) / 360
-    let c1 = NSColor(hue: hue, saturation: 0.5, brightness: 0.8, alpha: 1).cgColor
-    let c2 = NSColor(hue: hue, saturation: 0.7, brightness: 0.25, alpha: 1).cgColor
-    let g = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB)!, colors: [c1, c2] as CFArray, locations: [0, 1])!
-    ctx.drawLinearGradient(g, start: CGPoint(x: 0, y: h), end: CGPoint(x: CGFloat(i % 7) * 200, y: 0), options: [])
-    ctx.setFillColor(NSColor.white.withAlphaComponent(0.8).cgColor)
-    ctx.fillEllipse(in: CGRect(x: 300 + (i % 5) * 180, y: 600, width: 260, height: 260))
+    let shift = CGFloat(frame) * 6
+    let gain = 0.94 + 0.04 * CGFloat(frame % 3)
+    let bw = CGFloat(w) / CGFloat(cols), bh = CGFloat(h) / CGFloat(rows)
+    for r in 0..<rows {
+        for c in 0..<cols {
+            let v = CGFloat(blocks[r * cols + c]) * gain
+            ctx.setFillColor(NSColor(hue: hue, saturation: 0.45, brightness: v, alpha: 1).cgColor)
+            ctx.fill(CGRect(x: CGFloat(c) * bw + shift, y: CGFloat(r) * bh, width: bw + 1, height: bh + 1))
+        }
+    }
+    ctx.setFillColor(NSColor.white.withAlphaComponent(0.85).cgColor)
+    ctx.fillEllipse(in: CGRect(x: 420 + shift * 3, y: 380, width: 160, height: 160))
+    // Grain: more on some frames, so the "largest file" best-frame score differs.
+    let grain = Int(rng.next() % 4)
+    if grain > 0 {
+        for _ in 0..<(grain * 9000) {
+            let x = CGFloat(rng.next() % UInt64(w)), y = CGFloat(rng.next() % UInt64(h))
+            ctx.setFillColor(CGColor(gray: CGFloat(rng.unit()), alpha: 0.35))
+            ctx.fill(CGRect(x: x, y: y, width: 2, height: 2))
+        }
+    }
     let img = ctx.makeImage()!
     let url = out.appendingPathComponent(String(format: "SAMPLE_%04d.jpg", i + 1))
     let dest = CGImageDestinationCreateWithURL(url as CFURL, UTType.jpeg.identifier as CFString, 1, nil)!

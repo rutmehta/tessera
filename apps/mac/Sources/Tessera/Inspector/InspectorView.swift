@@ -82,11 +82,21 @@ struct ImageInfoPanel: View {
                 InfoRow(label: "Size", value: item.pixelWidth > 0 ? "\(item.pixelWidth) × \(item.pixelHeight)" : "—")
                 InfoRow(label: "Captured", value: item.captureDate == .distantPast ? "—"
                     : item.captureDate.formatted(.dateTime.year().month().day().hour().minute().second()))
-                InfoRow(label: "Group", value: "G\(item.groupID + 1) · frame \(model.indexInGroup(of: item) + 1) of \(model.groupSize(of: item))")
+                InfoRow(label: "Group", value: "G\(item.groupID + 1) · frame \(model.indexInGroup(of: item) + 1) of \(model.groupSize(of: item))"
+                        + (model.focusedIsBest ? " · suggested best" : ""))
+                InfoRow(label: "Status", value: statusText)
             } else {
                 Text("No image selected").font(.system(size: 11)).foregroundStyle(.secondary)
             }
         }
+    }
+}
+
+extension ImageInfoPanel {
+    private var statusText: String {
+        let st = model.focusedStatus
+        let phase = st.phase.rawValue.capitalized
+        return st.albums.isEmpty ? phase : phase + " · in " + st.albums.joined(separator: ", ")
     }
 }
 
@@ -114,7 +124,8 @@ struct SelectionPanel: View {
                     }
                     .help(MarkStyle.name(UInt8(m)))
                 }
-                DecisionChip(title: "Basket", key: "B", on: s.inBasket, color: Theme.basket) { model.perform(.toggleBasket) }
+                DecisionChip(title: model.basketTarget, key: "B", on: s.inBasket, color: Theme.basket) { model.perform(.toggleBasket) }
+                    .help("Add to / remove from the basket target album")
             }
             if s.mark != 0 {
                 Text("Mark: \(MarkStyle.name(s.mark))").font(.system(size: 11)).foregroundStyle(.secondary)

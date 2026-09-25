@@ -24,9 +24,12 @@ struct TesseraApp: App {
 ///   --folder <path>   open this folder instead of the remembered one
 ///   --stub <count>    load <count> synthetic items (e.g. 20000)
 ///   --benchmark       run the grid scroll benchmark after loading
+///   --seed-scores     (hidden test aid) write deterministic synthetic focus / closed-eyes scores
+///                     into the index after opening a folder, for the defect sweep
 ///   --front           order the window front without activating (screenshots while another app is active)
 ///   --keys "<k> <k>…" after loading, feed these keys through the culling key map (self-test aid);
-///                     tokens: single characters, left right up down return esc, prefix "opt-" / "shift-"
+///                     tokens: single characters, left right up down return esc delete,
+///                     prefixes "opt-" / "shift-" / "cmd-" (⌘ tokens go to the menu bar)
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var keyRouter: KeyRouter?
@@ -60,9 +63,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         if let keys = value(after: "--keys") {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                MainActor.assumeIsolated { self.simulate(keys: keys) }
-            }
+            // After the library has loaded; one token every 0.3 s so menus and views update.
+            waitForLibrary(then: keys.split(separator: " ").map(String.init))
         }
         if args.contains("--benchmark") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
@@ -71,11 +73,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    private func waitForLibrary(then tokens: [String], polls: Int = 0) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + (polls == 0 ? 1.0 : 0.25)) {
+            MainActor.assumeIsolated {
+                let model = AppModel.shared
+                if (model.isLoading || model.library.items.isEmpty) && polls < 60 {
+                    self.waitForLibrary(then: tokens, polls: polls + 1)
+                } else {
+                    self.simulate(tokens: tokens[...])
+                }
+            }
+        }
+    }
+
+    private func simulate(tokens: ArraySlice<String>) {
+        guard let token = tokens.first else { return }
+        simulate(keys: token)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            MainActor.assumeIsolated { self.simulate(tokens: tokens.dropFirst()) }
+        }
+    }
+
     private func simulate(keys: String) {
         guard let window = NSApp.windows.first(where: { $0.isVisible && !($0 is NSPanel) }) else { return }
         let named: [String: (UInt16, String)] = [
             "left": (123, "\u{F702}"), "right": (124, "\u{F703}"), "down": (125, "\u{F701}"), "up": (126, "\u{F700}"),
-            "return": (36, "\r"), "esc": (53, "\u{1B}"),
+            "return": (36, "\r"), "esc": (53, "\u{1B}"), "delete": (51, "\u{7F}"),
         ]
         for token in keys.split(separator: " ") {
             var t = String(token)
@@ -84,17 +107,47 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 switch t[..<dash] {
                 case "opt": flags.insert(.option)
                 case "shift": flags.insert(.shift)
+                case "cmd": flags.insert(.command)
                 default: break
                 }
                 t = String(t[t.index(after: dash)...])
             }
-            let (code, chars) = named[t] ?? (0, t)
+            var (code, chars) = named[t] ?? (0, t)
+            if flags.contains(.shift), flags.contains(.command) { chars = chars.uppercased() }
             if let e = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: flags, timestamp: 0,
                                         windowNumber: window.windowNumber, context: nil, characters: chars,
                                         charactersIgnoringModifiers: chars, isARepeat: false, keyCode: code) {
-                _ = keyRouter?.handle(e)
+                // ⌘ shortcuts belong to the menu bar. An inactive app ignores synthetic key
+                // equivalents, so trigger the matching menu item directly.
+                if flags.contains(.command) {
+                    if !performMenuItem(key: t.lowercased(), flags: flags) { NSLog("--keys: no menu item for %@", token as NSString) }
+                } else { _ = keyRouter?.handle(e) }
             }
         }
+    }
+
+    private func performMenuItem(key: String, flags: NSEvent.ModifierFlags, in menu: NSMenu? = NSApp.mainMenu) -> Bool {
+        guard let menu else { return false }
+        menu.update()
+        let wanted = flags.intersection([.command, .shift, .option, .control])
+        let named: [String: String] = ["delete": "\u{8}"]
+        for (i, item) in menu.items.enumerated() {
+            if let sub = item.submenu, performMenuItem(key: key, flags: flags, in: sub) { return true }
+            var mask = item.keyEquivalentModifierMask.intersection([.command, .shift, .option, .control])
+            let equivalent = item.keyEquivalent
+            if equivalent != equivalent.lowercased() { mask.insert(.shift) }
+            let target = named[key] ?? key
+            guard !equivalent.isEmpty, equivalent.lowercased() == target || (key == "delete" && equivalent == "\u{7F}"),
+                  mask == wanted else { continue }
+            // SwiftUI may not refresh enabled state while the app is inactive; the model guards
+            // every command itself, so trigger the item regardless.
+            let enabled = item.isEnabled
+            item.isEnabled = true
+            menu.performActionForItem(at: i)
+            item.isEnabled = enabled
+            return true
+        }
+        return false
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }

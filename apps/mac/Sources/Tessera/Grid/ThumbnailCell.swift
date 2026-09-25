@@ -34,18 +34,19 @@ final class ThumbnailCell: NSCollectionViewItem {
         cellView.setImage(nil)
     }
 
-    func configure(item: PhotoItem, state: CullState, groupIndex: Int, groupSize: Int,
+    func configure(item: PhotoItem, state: CullState, status: ItemStatus, basketTarget: String,
+                   suggestedBest: Bool, groupIndex: Int, groupSize: Int,
                    focused: Bool, style: CellStyle, loader: ThumbnailLoader) {
         let v = cellView
         v.style = style
         v.isFocusedCell = focused
         v.altGroup = item.groupID % 2 == 1
-        v.overlay.set(item: item, state: state, groupIndex: groupIndex, groupSize: groupSize, style: style)
+        v.overlay.set(item: item, state: state, status: status, basketTarget: basketTarget,
+                      suggestedBest: suggestedBest, groupIndex: groupIndex, groupSize: groupSize, style: style)
         v.imageLayer.opacity = state.decision == .reject ? 0.32 : 1
-        v.setAccessibilityLabel("\(item.name), \(state.decision.label)"
-            + (state.grade > 0 ? ", grade \(state.grade)" : "")
-            + (state.mark > 0 ? ", mark \(state.mark)" : "")
-            + (state.inBasket ? ", in basket" : ""))
+        name = item.name
+        self.suggestedBest = suggestedBest
+        updateAccessibility(state: state, status: status, basketTarget: basketTarget)
 
         guard item.id != itemID else { return }
         itemID = item.id
@@ -58,9 +59,22 @@ final class ThumbnailCell: NSCollectionViewItem {
         }
     }
 
-    func update(state: CullState) {
+    func update(state: CullState, status: ItemStatus, basketTarget: String) {
         cellView.imageLayer.opacity = state.decision == .reject ? 0.32 : 1
-        cellView.overlay.set(state: state)
+        cellView.overlay.set(state: state, status: status, basketTarget: basketTarget)
+        updateAccessibility(state: state, status: status, basketTarget: basketTarget)
+    }
+
+    private var name = ""
+    private var suggestedBest = false
+
+    private func updateAccessibility(state: CullState, status: ItemStatus, basketTarget: String) {
+        cellView.setAccessibilityLabel("\(name), \(state.decision.label)"
+            + (state.grade > 0 ? ", grade \(state.grade)" : "")
+            + (state.mark > 0 ? ", mark \(state.mark)" : "")
+            + (suggestedBest ? ", suggested best" : "")
+            + ", \(status.phase.rawValue)"
+            + (status.albums.isEmpty ? "" : ", in " + status.albums.joined(separator: ", ")))
     }
 
     func setFocused(_ f: Bool) { cellView.isFocusedCell = f }
@@ -128,6 +142,9 @@ final class BadgeOverlayView: NSView {
     private var name = ""
     private var groupText = ""
     private var state = CullState()
+    private var status = ItemStatus()
+    private var basketTarget = ""
+    private var suggestedBest = false
     private var style: CellStyle = .grid
     var imageRect: NSRect = .zero { didSet { if imageRect != oldValue { needsDisplay = true } } }
 
@@ -142,19 +159,37 @@ final class BadgeOverlayView: NSView {
     override var isFlipped: Bool { true }
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
 
-    func set(item: PhotoItem, state: CullState, groupIndex: Int, groupSize: Int, style: CellStyle) {
+    func set(item: PhotoItem, state: CullState, status: ItemStatus, basketTarget: String,
+             suggestedBest: Bool, groupIndex: Int, groupSize: Int, style: CellStyle) {
         let g = "G\(item.groupID + 1)" + (groupSize > 1 ? " · \(groupIndex + 1)/\(groupSize)" : "")
-        if name != item.name || groupText != g || self.state != state || self.style != style {
+        if name != item.name || groupText != g || self.style != style || self.suggestedBest != suggestedBest {
             name = item.name
             groupText = g
-            self.state = state
             self.style = style
+            self.suggestedBest = suggestedBest
+            needsDisplay = true
+        }
+        set(state: state, status: status, basketTarget: basketTarget)
+    }
+
+    func set(state: CullState, status: ItemStatus, basketTarget: String) {
+        if self.state != state || self.status != status || self.basketTarget != basketTarget {
+            self.state = state
+            self.status = status
+            self.basketTarget = basketTarget
             needsDisplay = true
         }
     }
 
-    func set(state: CullState) {
-        if self.state != state { self.state = state; needsDisplay = true }
+    /// Bottom-right status text: derived phase (unedited is implicit) and albums other than the
+    /// basket target, whose membership already shows as the blue pill.
+    private var statusText: String? {
+        var parts: [String] = []
+        if status.phase != .unedited { parts.append(status.phase.rawValue.uppercased()) }
+        let others = status.albums.filter { $0 != basketTarget }
+        if others.count == 1 { parts.append("IN " + others[0].uppercased()) }
+        else if others.count > 1 { parts.append("IN \(others.count) ALBUMS") }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
     private static let pillFont = NSFont.systemFont(ofSize: 9.5, weight: .bold)
@@ -168,10 +203,15 @@ final class BadgeOverlayView: NSView {
         let pad: CGFloat = small ? 3 : 5
         let r = imageRect
 
-        // Decision / grade (top-left)
+        // Decision / grade (top-left), then the group's suggested best as an outlined pill.
+        var x = r.minX + pad
         if let text = state.badgeText {
             let tw = small && state.decision == .keep ? (state.grade > 0 ? "\(state.grade)" : "K") : (small ? "X" : text)
-            drawPill(tw, color: state.decision.color, font: font, at: NSPoint(x: r.minX + pad, y: r.minY + pad), textColor: .black)
+            drawPill(tw, color: state.decision.color, font: font, at: NSPoint(x: x, y: r.minY + pad), textColor: .black)
+            x += pillSize(tw, font: font).width + 4
+        }
+        if suggestedBest, !small {
+            drawOutlinedPill("SUGGESTED", color: Theme.keep, font: font, at: NSPoint(x: x, y: r.minY + pad))
         }
         // Mark (top-right): coloured chip with the key number
         if state.mark != 0 {
@@ -180,11 +220,17 @@ final class BadgeOverlayView: NSView {
             drawPill(s, color: MarkStyle.color(state.mark), font: font,
                      at: NSPoint(x: r.maxX - pad - size.width, y: r.minY + pad), textColor: .black)
         }
-        // Basket (bottom-left)
+        // Basket target membership (bottom-left): the album's name, as "in album X".
         if state.inBasket {
-            let s = small ? "B" : "BASKET"
+            let s = small ? "B" : basketTarget.uppercased()
             let size = pillSize(s, font: font)
             drawPill(s, color: Theme.basket, font: font, at: NSPoint(x: r.minX + pad, y: r.maxY - pad - size.height), textColor: .black)
+        }
+        // Derived status (bottom-right)
+        if !small, let s = statusText {
+            let size = pillSize(s, font: font)
+            drawOutlinedPill(s, color: Theme.statusText, font: font,
+                             at: NSPoint(x: r.maxX - pad - size.width, y: r.maxY - pad - size.height))
         }
         // Caption
         if style == .grid {
@@ -202,6 +248,20 @@ final class BadgeOverlayView: NSView {
     private func pillSize(_ text: String, font: NSFont) -> NSSize {
         let s = (text as NSString).size(withAttributes: [.font: font])
         return NSSize(width: ceil(s.width) + (style == .filmstrip ? 6 : 10), height: ceil(s.height) + 2)
+    }
+
+    private func drawOutlinedPill(_ text: String, color: NSColor, font: NSFont, at origin: NSPoint) {
+        let size = pillSize(text, font: font)
+        let rect = NSRect(origin: origin, size: size)
+        NSColor(calibratedWhite: 0, alpha: 0.55).setFill()
+        let path = NSBezierPath(roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), xRadius: 3, yRadius: 3)
+        path.fill()
+        color.setStroke()
+        path.lineWidth = 1
+        path.stroke()
+        let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color]
+        let ts = (text as NSString).size(withAttributes: attrs)
+        (text as NSString).draw(at: NSPoint(x: rect.midX - ts.width / 2, y: rect.midY - ts.height / 2), withAttributes: attrs)
     }
 
     private func drawPill(_ text: String, color: NSColor, font: NSFont, at origin: NSPoint, textColor: NSColor) {

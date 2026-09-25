@@ -1,7 +1,9 @@
 //! Narrow, synchronous commands. Swift dispatches blocking work off its main actor.
 mod catalog;
+mod session;
 use engine_api::{id::ImageId, recipe as core};
 use rusqlite::{Connection, OpenFlags};
+pub use session::*;
 use sidecar::Sidecar;
 use std::{
     path::Path,
@@ -137,6 +139,7 @@ pub trait EngineEventListener: Send + Sync {
 }
 #[derive(uniffi::Object)]
 pub struct Engine {
+    db: std::path::PathBuf,
     catalog: Mutex<Catalog>,
     previews: Mutex<previews::PreviewStore>,
     listener: Mutex<Option<Arc<dyn EngineEventListener>>>,
@@ -199,8 +202,9 @@ impl Engine {
         std::fs::create_dir_all(&app_support_dir)?;
         let db = Path::new(&app_support_dir).join("index.sqlite");
         let index = index::Index::open(&db)?;
-        let reader = Connection::open_with_flags(db, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+        let reader = Connection::open_with_flags(&db, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
         Ok(Arc::new(Self {
+            db,
             catalog: Mutex::new(Catalog { index, reader }),
             previews: Mutex::new(
                 previews::PreviewStore::new(

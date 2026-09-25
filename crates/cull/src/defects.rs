@@ -1,5 +1,7 @@
 use crate::{CullSession, ImageId};
 use engine_api::{EngineError, EngineResult};
+use index::Index;
+use std::ops::Deref;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Direction {
@@ -38,7 +40,7 @@ pub struct DefectReason {
     pub direction: Direction,
     pub model: String,
 }
-impl CullSession<'_> {
+impl<I: Deref<Target = Index>> CullSession<I> {
     /// Read-only review list. Never applies decisions or adds undo entries.
     pub fn defect_sweep(
         &self,

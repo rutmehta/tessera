@@ -1788,6 +1788,7 @@ dependencies = [
 name = "tessera-ffi"
 version = "0.1.0"
 dependencies = [
+ "cull",
  "engine-api",
  "image",
  "index",

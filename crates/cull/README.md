@@ -36,12 +36,25 @@ colliding destinations before writing, including collisions outside the current
 query, rather than corrupting either image's recipe. Recipe naming is not changed
 here because it is shared with sidecar and index scanning.
 
+## Host surface (used by the UniFFI bridge)
+
+`CullSession<I>` holds its index as `I`: `CullSession::open(&index, ..)` borrows, and
+`OwnedCullSession::open_owned(Index::open(db)?, ..)` owns a second connection (WAL) so a host can keep
+the session across calls and threads (`OwnedCullSession: Send`). Files missing on disk when the queue
+opens (deleted or moved since indexing) are excluded. `set_current(id)`, `selection(id)`,
+`can_undo`/`can_redo` and `undo_images`/`redo_images` (what the next step would touch) support hosts
+that mirror state. Batches never move the cursor and are one undo step each: `decide_images`,
+`grade_images`, `mark_images`, `decide_each` (a decision per image, e.g. "choose this" in compare;
+`keep_best_reject_rest` uses it), `set_basket(ids, add)` and `remove_from_album(album, ids)` (safe
+delete: membership only). `derived_statuses(ids)` reads library.json once; `library()` returns it.
+
 ## Groups and best-frame selection
 
 Opening computes groups. `regroup(GroupingOptions)` changes the default inclusive
 2-second burst gap or disables near-duplicate grouping. Missing/invalid capture
 times never form burst edges. Capture times are converted by SQLite's date/time
-parser, including fractional seconds and timezone offsets.
+parser, including fractional seconds and timezone offsets, and numeric Unix seconds (RAW scanners
+store those; the index reads them with SQLite's `'auto'` modifier).
 
 JPEG originals are decoded with `previews::Jpeg`; RAWs use
 `raw_decode::RawSource::embedded_preview`, never full sensor decoding. `dhash`
@@ -51,8 +64,8 @@ components of burst and duplicate edges, so transitive membership is intentional
 Unreadable previews are exposed by `preview_errors` and do not block manual
 review. Missing embedded previews simply provide no duplicate signal.
 
-Group/member ordering follows the review queue. `next_group`, `prev_group`, and
-`next_in_group` stop at boundaries. `best_in_group` returns the suggested frame;
+Group/member ordering follows the review queue. `next_group`, `prev_group`,
+`next_in_group` and `prev_in_group` stop at boundaries; `group_of(id)` finds an image's group. `best_in_group` returns the suggested frame;
 `keep_best_reject_rest(group_index)` explicitly applies the decision batch.
 `set_scorer(Box<dyn Scorer>)` accepts future ML scorers. The default `LargestFile`
 uses indexed byte size, ties pick the first queue member, and non-finite scores
