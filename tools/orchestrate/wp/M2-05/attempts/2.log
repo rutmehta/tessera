@@ -1,0 +1,13 @@
+Implemented compute paths for all requested M2 operator families, retained documented CPU fallbacks, and updated OPERATORS.md with fresh per-fixture benchmarks. Step 1 is committed as 67a87cc; Step 2 remains uncommitted.
+
+The exact required command passed:
+cargo test --workspace --release && cargo clippy -p pipeline-gpu -p image-core --all-targets -- -D warnings && cargo fmt --check
+
+The expanded five-fixture gate still fails Nikon’s full-chain linear comparison: 8.587241e-4 versus the 1e-4 limit. Individual operator comparisons and all five ΔE2000 comparisons pass. Investigation traced the failure to Texture amplifying rounding differences near cancelling luminance. A robust stabilization needs a matching CPU-reference change outside the allowed paths. I preserved the regression and did not weaken its tolerance.
+
+All changes stayed within allowed paths, with CARGO_TARGET_DIR preserved.
+
+Handoff and evidence:
+/Users/rutmehta/Developer/tessera/.worktrees/M2-05/tools/orchestrate/wp/M2-05/HANDOFF.md
+
+RESULT: FAIL Nikon full-chain linear tolerance exceeded; shared CPU/GPU presence stabilization requires an out-of-scope CPU-reference change.

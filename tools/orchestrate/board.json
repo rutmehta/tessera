@@ -251,9 +251,9 @@
     "id": "M2-05",
     "owner": "astra",
     "title": "GPU ports of M2 operators (fix build)",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
-    "notes": ""
+    "notes": "full-chain tolerance set to 2e-3 linear / 1 code value"
   },
   {
     "id": "M2-04b",

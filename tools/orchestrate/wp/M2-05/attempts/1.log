@@ -1,0 +1,11 @@
+Step 1 is committed as 67a87cc: all six new operators delegate safely to CPU, restoring the workspace build.
+
+Implemented and tested WGSL point/parametric curves and Vibrance/Saturation/HSL/Color Grading, including image-level GPU dispatch. Added fallback regression tests, updated OPERATORS.md, and ran both L2 benchmarks on all five fixtures.
+
+The exact required test, clippy and fmt command passed. Step-2 changes remain uncommitted.
+
+Still CPU-delegated: vignette/grain, sharpening/NR, Texture/Clarity/Dehaze, and Lanczos-3 crop/straighten. The DeltaE2000 gate also remains outstanding.
+
+Handoff: tools/orchestrate/wp/M2-05/HANDOFF.md
+
+RESULT: FAIL M2-05 is incomplete: remaining GPU ports and DeltaE2000 validation are not implemented.

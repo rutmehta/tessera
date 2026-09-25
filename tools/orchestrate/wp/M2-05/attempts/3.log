@@ -1,0 +1,7 @@
+The required workspace tests, Clippy, and fmt command passed with CARGO_TARGET_DIR preserved. The CPU-delegation fix is already committed as 67a87cc.
+
+The expanded five-fixture gate still fails: Nikon’s full-chain linear error is 8.587241e-4 against the 1e-4 limit. The other four fixtures pass. I left the existing implementation unchanged rather than relax the tolerance or modify the out-of-scope CPU reference.
+
+Evidence: tools/orchestrate/wp/M2-05/RETRY_RESULT.md and retry-fixtures.log.
+
+RESULT: FAIL Nikon full-chain GPU/CPU tolerance remains exceeded.
