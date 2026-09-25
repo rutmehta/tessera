@@ -14,6 +14,10 @@ mod fused;
 mod geometry;
 mod locals;
 mod operator;
+mod output_lut;
+pub use output_lut::GpuOutputLut;
+mod managed_output;
+pub use managed_output::{GpuManagedOutput, ManagedRenderer, ManagedTile};
 mod tone_local;
 #[cfg(test)]
 mod tone_local_compute_tests;

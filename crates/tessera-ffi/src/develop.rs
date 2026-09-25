@@ -46,6 +46,9 @@
 //! previews keyed by the new recipe hash.
 
 use crate::{Engine, Result, catalog, failure, now_ms, parse_id, surface::Surface};
+
+#[path = "masks.rs"]
+mod masks;
 use engine_api::{
     color::ColorMatrix3,
     id::{HistoryEntryId, ImageId},
@@ -64,6 +67,8 @@ use engine_api::{
 use image_core::{
     PixelRect, ProgressiveRenderJob, RawImage, RenderOutput, Renderer, Viewport, render::MAX_LEVEL,
 };
+pub(crate) use masks::SegmenterSlot;
+pub use masks::*;
 use serde_json::Value;
 use std::{
     path::{Path, PathBuf},
@@ -250,6 +255,8 @@ struct State {
     /// when it completes instead of cancelling it (no starvation when a
     /// frame takes longer than the host's change cadence).
     interactive_pending: bool,
+    /// Brush stroke in progress.
+    masks: masks::MaskState,
 }
 
 /// Settings whose interactive cost differs by an order of magnitude: the
@@ -277,6 +284,7 @@ impl RenderClass {
             && t.clarity == 0.0
             && t.dehaze == 0.0
             && t.curves == Default::default()
+            && s.locals.adjustments.is_empty()
         {
             Self::Light
         } else {
@@ -377,6 +385,8 @@ pub(crate) struct Shared {
     /// Scene-linear luminance feeding Detail at one level, for the masking
     /// preview (recomputed only when upstream settings or the level change).
     mask_source: Mutex<Option<Arc<MaskSource>>>,
+    /// Local-adjustment masks: AI rasters, overlay, observed rasters.
+    masks: Arc<masks::MaskShared>,
 }
 
 #[derive(uniffi::Object)]
@@ -507,6 +517,7 @@ pub fn renderable_with(s: &DevelopSettings, geometry: bool) -> DevelopSettings {
     }
 
     r.output.gamut_mapping = s.output.gamut_mapping;
+    r.locals = masks::renderable_locals(&s.locals);
     r
 }
 
@@ -634,6 +645,10 @@ impl Engine {
         let recipe = catalog::document(&path, id)?.recipe;
         let image = RawImage::open(id, &path)?;
         let (renderer, backend) = self.develop_renderer(&image);
+        let masks = masks::MaskShared::new(&image);
+        renderer
+            .mask_cache()
+            .set_hooks(Some(Arc::new(masks::Hooks(masks.clone()))));
         let screen_level = default_level(&image);
         let shared = Arc::new(Shared {
             engine: Arc::downgrade(&self),
@@ -661,6 +676,7 @@ impl Engine {
                 drag: [DragLevel::starting_at(0), DragLevel::starting_at(2)],
                 interactive_in_flight: None,
                 interactive_pending: false,
+                masks: Default::default(),
             }),
             render_serial: Mutex::new(()),
             generation: AtomicU64::new(0),
@@ -669,6 +685,7 @@ impl Engine {
             save_cv: Condvar::new(),
             file_hash: OnceLock::new(),
             mask_source: Mutex::new(None),
+            masks,
         });
         let writer = {
             let shared = shared.clone();
@@ -777,6 +794,7 @@ impl Shared {
             return;
         }
         let settings = st.drawn();
+        masks::ensure_ai_jobs(self, &settings);
         let dirty = match &st.rendered {
             Some(prev) => prev.first_dirty_stage(&settings),
             None => Some(StageId::Decode),
@@ -1151,6 +1169,7 @@ impl LevelSink {
                 is_overlay: false,
             });
         }
+        masks::publish_overlay(shared, &self.settings, done.level, self.generation);
     }
 }
 
@@ -1728,6 +1747,7 @@ impl DevelopSession {
         let ww = (x + w + DETAIL_MARGIN).min(e.width) - wx;
         let wh = (y + h + DETAIL_MARGIN).min(e.height) - wy;
         let window = window_image(&s.image, wx, wy, ww, wh)?;
+        settings.locals = masks::window_locals(&settings.locals, e, (wx, wy, ww, wh));
         let tiles = s.renderer.render_region(
             &window,
             &settings,
@@ -1812,6 +1832,7 @@ fn mask_upstream(live: &DevelopSettings) -> DevelopSettings {
     base.tone = Default::default();
     base.color = Default::default();
     base.effects = Default::default();
+    base.locals = Default::default();
     base
 }
 

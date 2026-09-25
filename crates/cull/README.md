@@ -128,6 +128,79 @@ Equality is not a defect, missing signals are ignored, and no decision or undo
 entry is generated. `Index::set_score` stores the latest finite value and model
 version for each image/signal. Without ML-produced scores the result is empty.
 
+## Assisted learning (M3-07)
+
+`cull::learning` is a pure-Rust logistic learner with no additional dependencies.
+The feature layout is 11 technical/context values plus 32 library-local PCA
+components: sharpness, motion blur, mean RGB exposure, mean shadow/highlight
+clipping, noise, face count (saturated at ten), minimum face focus, any low
+eyes-open proxy, largest face/image area fraction, and burst sharpness percentile.
+Continuous sharpness/blur/exposure/focus/rank values are centered on .5;
+missing measurements contribute zero, not a synthetic defect. Unknown eyes do
+not count as closed. Face-box area requires the analyzed preview's dimensions,
+not the original RAW dimensions. Tied sharpness values share a midrank.
+
+Host integration:
+
+1. Load `Learner::open(app_support_root, stable_library_id)`. A missing model
+   starts from technical priors. Corrupt, incompatible or wrong-library models
+   return errors. Use one writer per library.
+2. For a new library with embeddings, construct
+   `Learner::with_embeddings(model_version, &library_vectors)` first. Supply
+   vectors obtained from ml-embed's `VectorIndex::get` or concrete index `rows`
+   methods. This avoids a cull → ml-embed → cull dependency cycle. PCA uses
+   L2-normalized, centered inputs and covariance-free power iteration, up to
+   32 orthogonal components, with zero padding for deficient rank. Projected
+   values are clamped to [-1,1]. Fit off the UI thread on this library or a
+   representative library sample. The basis stays frozen alongside weights;
+   changing the embedding model or refitting requires a fresh learner.
+3. Populate `ReviewContext` with embedding model/version, available per-image
+   vectors, and face-coordinate dimensions. Quality and face measurements are
+   read from the catalog. Without embeddings, technical-only learning works.
+4. `session.review(&learner, &context, ReviewMode::Assisted)` returns an
+   immutable `ReviewPlan`. Entries expose `p_keep`, the five largest nonzero
+   signed feature contributions to log-odds, and technical quality. Call
+   `reorder_review(&plan)` to apply navigation order while preserving cursor
+   identity and undo/redo cursor identities. Likely keepers come first;
+   undecided images below .5 are contiguous at the end and available through
+   `plan.likely_rejects()` for bulk review.
+5. `ReviewMode::Automated { reject_below: 0.2, keep_above: 0.8 }` supplies
+   separate `SuggestedDecision` values only for currently undecided frames.
+   Equality at a threshold does not suggest. Review, reordering, and best-frame
+   queries write neither Selection nor sidecars. Only an explicit user action
+   calls `confirm_suggestions(&plan, &accepted_ids, &mut learner)`. It preflights
+   the entire batch, refuses stale selections, changed PCA bases, duplicate or
+   absent IDs, missing originals and unsuggested frames, then writes through
+   the existing one-step undoable batch path. Learning happens after success.
+6. For manual decisions, `decide_with_learning(decision, &mut learner, &context)`
+   adds a single label after a successful changed decision. No-ops and Undecided
+   do not train. Low-level `observe(&features, Decision)` supports host replay of
+   confirmed labels. Do not feed suggestions back as labels. Undo changes
+   Selection, not historical training events; corrections add new labels. Hosts
+   needing exact removal of training history can rebuild from final selections.
+7. Explicitly `learner.save(app_support_root, stable_library_id)` after learning
+   or before closing. It atomically replaces a versioned JSON file under
+   `cull-learning/<hex-library-id>.json`, including the PCA basis. Surface save
+   errors and retry; model saving is intentionally separate from authoritative
+   photo decisions and cannot roll them back. Stable IDs are 1–100 UTF-8 bytes.
+
+`plan.best_in_group(&session.groups()[group_index])` suggests the argmax of
+`.7 * p_keep + .3 * technical_quality`, breaking ties by sharpness, then supplied
+group order. The technical term uses stored quality and face-focus modulation,
+or a formula from available quality components. It never uses file byte size.
+This is an opt-in learned alternative to the existing technical-only
+`CullSession::best_in_group`/`Scorer` path, which remains unchanged.
+
+Cold-start priors penalize missed focus and low eyes-open proxies. The existing
+five-landmark eyes proxy is **not a blink detector**: these are review suggestions,
+not verified defect labels. No AI path silently changes a Decision. Per-face
+chips and identity-resolved review filters are provided by `ml-faces`.
+
+Tests cover 30 explicit labels learning a synthetic blur boundary (100/100
+held-out classifications, versus 85/100 cold start), dominant blur explanation,
+PCA diagonal/variance recovery and full rank, model isolation/corruption,
+catalog features, queue reordering, safe confirmation, and sharpness tie breaks.
+
 ## Verification
 
 Run with a target directory outside the repository:

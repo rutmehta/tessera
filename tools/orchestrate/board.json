@@ -355,7 +355,7 @@
     "id": "M2-15",
     "owner": "astra",
     "title": "Soft proofing + colour management",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
@@ -363,7 +363,7 @@
     "id": "M3-05",
     "owner": "astra",
     "title": "AI denoise + super-resolution",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
@@ -371,7 +371,7 @@
     "id": "M2-16",
     "owner": "astra",
     "title": "HDR / panorama merge",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
@@ -379,7 +379,7 @@
     "id": "M2-07c",
     "owner": "sol",
     "title": "Sparkle never blocks/crashes",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
@@ -395,8 +395,64 @@
     "id": "M2-14",
     "owner": "opus",
     "title": "Masking UI",
+    "status": "merged",
+    "attempts": 0,
+    "notes": "verify on screen (section M); export must install MaskHooks for AI masks; locals not on fast GPU path"
+  },
+  {
+    "id": "M3-06",
+    "owner": "astra",
+    "title": "Depth + lens blur",
+    "status": "merged",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M3-07",
+    "owner": "astra",
+    "title": "Assisted culling + face strip",
+    "status": "merged",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-13v",
+    "owner": "sol",
+    "title": "Verify library + develop panels",
+    "status": "fail",
+    "attempts": 0,
+    "notes": "verifier could not drive panels by mouse; 2 Swift tests flaky (BridgeTests:50 thumbnail cache, PreviewEventsTests alias) -> M2-14b; p90 17-20ms -> M2-17"
+  },
+  {
+    "id": "M2-13c",
+    "owner": "sol",
+    "title": "Swift strict-concurrency CI fix",
+    "status": "merged",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-14b",
+    "owner": "astra",
+    "title": "Flaky Swift tests + AI masks in export",
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M3-08",
+    "owner": "astra",
+    "title": "MCP tool server + console",
+    "status": "merged",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-14v",
+    "owner": "sol",
+    "title": "Verify masking UI",
+    "status": "pass",
+    "attempts": 0,
+    "notes": "masks work on screen incl. real U2Net subject; sky mask bleeds into rooftops (refinement); selftest expects 2 masks, got 5"
   }
 ]

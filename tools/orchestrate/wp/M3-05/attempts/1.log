@@ -1,14 +1,14 @@
-Implemented a verified subset of M3-05:
+Implemented phase-1 M3-05: pinned MIT DRUNet denoise, post-demosaic hook and model-keyed caching, sensor-frame masks, and Real-ESRGAN export with --upscale 2|4. engine-api unchanged.
 
-- Real Real-ESRGAN x2/x4 inference through ml-runtime, pinned URLs and SHA-256s, conservative halo tiling, and CoreML partition reports.
-- Export-time SR through export_one_upscaled, verified by decoding a doubled-size PNG.
-- Denoise amount/mask blending with bit-exact zero bypass and a CfaDenoise trait.
+Verification:
+  Required release tests, Clippy and formatting passed: 193 passed, 3 ignored.
+  Optional image-core ML adapter tests and Clippy passed.
+  Real denoise PSNR improved 17.95 dB. CoreML execution verified.
 
-The exact requested test/clippy/fmt command passed: 152 tests passed, 3 ignored. Both SR models were exercised using actual downloaded weights. CoreML runs subgraphs with CPU fallbacks.
+Limits: fp16 accuracy remains unqualified. CLI SR uses CPU to keep CoreML diagnostics out of JSON stdout. True joint CFA/learned Raw Details remain deferred.
 
-Still incomplete: validated NAFNet inference, denoise pipeline/cache integration, PSNR and production-model seam acceptance, fp16 validation, and CLI --upscale wiring. Stock NAFNet’s global pooling needs a different tiling contract. The CLI parser is outside the allowed paths.
+No commits. All changes stayed within allowed paths.
 
-Changes are uncommitted and confined to allowed paths. Details and evidence:
-tools/orchestrate/wp/M3-05/HANDOFF.md
+Handoff: /Users/rutmehta/Developer/tessera/.worktrees/M3-05/tools/orchestrate/wp/M3-05/FINAL_HANDOFF.md
 
-RESULT: FAIL M3-05 is partially implemented; denoise integration and required acceptance checks remain incomplete.
+RESULT: PASS

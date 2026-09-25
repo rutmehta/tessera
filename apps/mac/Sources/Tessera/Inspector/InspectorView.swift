@@ -18,6 +18,8 @@ struct InspectorView: View {
                     PanelSection("Metadata") { MetadataPanel(model: model, library: model.collections) }
                 }
                 PanelSection("Basic") { BasicPanel(model: model) }
+                PanelSection("Masks", expanded: false) { MasksPanel(model: model, masks: .shared) }
+                    .developContext(model, tools)
                 Group {
                     PanelSection("Tone Curve", expanded: false) { ToneCurvePanel(model: model, tools: tools) }
                     PanelSection("HSL / Color", expanded: false) { HSLPanel(model: model, tools: tools) }

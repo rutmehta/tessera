@@ -20,6 +20,9 @@ use std::ffi::c_void;
 
 /// `'RGBA'`.
 pub const PIXEL_FORMAT_RGBA8: u32 = u32::from_be_bytes(*b"RGBA");
+/// `'L008'` (`kCVPixelFormatType_OneComponent8`): the mask overlay's alpha
+/// plane, one byte per pixel, imported by Metal as `.r8Unorm`.
+pub const PIXEL_FORMAT_R8: u32 = u32::from_be_bytes(*b"L008");
 
 type IOSurfaceRef = *mut c_void;
 
@@ -60,7 +63,7 @@ impl Surface {
     /// Creates an owned, temporary presentation target for backend calibration.
     #[cfg(target_os = "macos")]
     pub(crate) fn create_rgba8(width: u32, height: u32) -> Result<Self, String> {
-        allocation::create_rgba8(width, height)
+        allocation::create(width, height, 4, PIXEL_FORMAT_RGBA8)
     }
 
     #[cfg(not(target_os = "macos"))]
@@ -72,6 +75,22 @@ impl Surface {
     /// checks it matches the RGBA8 contract and the expected size.
     #[cfg(target_os = "macos")]
     pub fn lookup(id: u32, width: u32, height: u32) -> Result<Self, String> {
+        Self::lookup_bytes(id, width, height, 4)
+    }
+
+    /// [`Surface::lookup`] for a one-byte-per-pixel (R8) mask overlay surface.
+    #[cfg(target_os = "macos")]
+    pub fn lookup_r8(id: u32, width: u32, height: u32) -> Result<Self, String> {
+        Self::lookup_bytes(id, width, height, 1)
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    pub fn lookup_r8(_id: u32, _width: u32, _height: u32) -> Result<Self, String> {
+        Err("IOSurface requires macOS".into())
+    }
+
+    #[cfg(target_os = "macos")]
+    fn lookup_bytes(id: u32, width: u32, height: u32, bytes: usize) -> Result<Self, String> {
         // SAFETY: plain CF calls; a null return is handled, the reference is
         // released in Drop.
         unsafe {
@@ -85,8 +104,11 @@ impl Surface {
                 width: IOSurfaceGetWidth(raw) as u32,
                 height: IOSurfaceGetHeight(raw) as u32,
             };
-            if IOSurfaceGetBytesPerElement(raw) != 4 {
-                return Err("IOSurface must have 4 bytes per element (RGBA8)".into());
+            if IOSurfaceGetBytesPerElement(raw) != bytes {
+                return Err(format!(
+                    "IOSurface must have {bytes} byte(s) per element{}",
+                    if bytes == 4 { " (RGBA8)" } else { " (R8)" }
+                ));
             }
             if surface.width != width || surface.height != height {
                 return Err(format!(
@@ -225,7 +247,12 @@ mod allocation {
         fn IOSurfaceCreate(properties: CFTypeRef) -> IOSurfaceRef;
     }
 
-    pub(super) fn create_rgba8(width: u32, height: u32) -> Result<Surface, String> {
+    pub(super) fn create(
+        width: u32,
+        height: u32,
+        bytes_per_element: i64,
+        format: u32,
+    ) -> Result<Surface, String> {
         if width == 0 || height == 0 {
             return Err("IOSurface dimensions must be nonzero".into());
         }
@@ -235,8 +262,8 @@ mod allocation {
             let values: [i64; 4] = [
                 i64::from(width),
                 i64::from(height),
-                4,
-                i64::from(PIXEL_FORMAT_RGBA8),
+                bytes_per_element,
+                i64::from(format),
             ];
             let numbers: Vec<CFTypeRef> = values
                 .iter()
@@ -297,6 +324,15 @@ pub mod testing {
     /// Intentionally retains the surface for the life of the test process.
     pub fn create_rgba8(width: u32, height: u32) -> u32 {
         let surface = super::Surface::create_rgba8(width, height).expect("IOSurfaceCreate failed");
+        let id = surface.id();
+        std::mem::forget(surface);
+        id
+    }
+
+    /// An R8 (mask overlay) IOSurface, retained for the life of the process.
+    pub fn create_r8(width: u32, height: u32) -> u32 {
+        let surface = super::allocation::create(width, height, 1, super::PIXEL_FORMAT_R8)
+            .expect("IOSurfaceCreate failed");
         let id = surface.id();
         std::mem::forget(surface);
         id

@@ -15,7 +15,8 @@ impl Renderer {
 
     pub(super) fn supports_resident(&self, r: &Resolved<'_>) -> bool {
         let s = r.settings;
-        matches!(r.cfa, CfaLayout::Bayer(_) | CfaLayout::XTrans(_))
+        !pipeline_cpu::denoise_active(&s.denoise)
+            && matches!(r.cfa, CfaLayout::Bayer(_) | CfaLayout::XTrans(_))
             && self.ops.begin_resident().is_some()
             // Local adjustment operators/rasterization use the whole-image
             // nonresident path until all local kernels are resident-capable.

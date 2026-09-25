@@ -1,0 +1,12 @@
+[package]
+name = "merge"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+
+[dependencies]
+engine-api = { path = "../engine-api" }
+raw-decode = { path = "../raw-decode" }
+pipeline-cpu = { path = "../pipeline-cpu" }
+serde_json.workspace = true
+rustfft = "6.4"

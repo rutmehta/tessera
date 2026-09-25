@@ -91,7 +91,18 @@ public final class DevelopController {
     private var pendingInteractive = false
     private var surfaces: [UInt32: IOSurfaceRef] = [:]
     private let events: Events
-    private var closed = false
+    private(set) var closed = false
+
+    // Masking (see DevelopController+Masks.swift): changes coalesced like the sliders.
+    var pendingMaskParams: [MaskParamKey: Float] = [:]
+    var pendingMaskGroup: [UInt32: (patch: MaskGroupPatch, interactive: Bool)] = [:]
+    var pendingComponent: (group: UInt32, index: UInt32, json: String)?
+    var pendingStroke: StrokeCoalescer?
+    var maskOverlaySurfaces: [UInt32: IOSurfaceRef] = [:]
+    /// Overlay frames (the selected mask as an R8 alpha plane), on the main actor.
+    public var onMaskOverlay: ((MaskOverlayFrame) -> Void)?
+    /// AI mask progress, on the main actor.
+    public var onMaskJob: ((MaskJobUpdate) -> Void)?
 
     /// `kCVPixelFormatType_32RGBA`: the engine's RGBA8 display-encoded sRGB contract.
     public static let surfacePixelFormat: UInt32 = 0x5247_4241
@@ -113,6 +124,7 @@ public final class DevelopController {
         events = Events()
         events.owner = self
         session.setListener(listener: events)
+        session.setMaskListener(listener: events)
         try reloadSettings()
     }
 
@@ -122,6 +134,7 @@ public final class DevelopController {
         closed = true
         _ = flushPending()
         session.setListener(listener: nil)
+        session.setMaskListener(listener: nil)
         let session = session
         await Task.detached(priority: .utility) {
             try? session.close()
@@ -152,18 +165,20 @@ public final class DevelopController {
         }
         surfaces = created
         plan = next
+        if !maskOverlaySurfaces.isEmpty { try attachMaskOverlaySurfaces() }
         return next
     }
 
     public func surface(_ id: UInt32) -> IOSurfaceRef? { surfaces[id] }
 
-    static func makeSurface(width: Int, height: Int) -> IOSurfaceRef? {
+    static func makeSurface(width: Int, height: Int, bytesPerElement: Int = 4,
+                            pixelFormat: UInt32 = surfacePixelFormat) -> IOSurfaceRef? {
         let props: [CFString: Any] = [
             kIOSurfaceWidth: width,
             kIOSurfaceHeight: height,
-            kIOSurfaceBytesPerElement: 4,
-            kIOSurfaceBytesPerRow: IOSurfaceAlignProperty(kIOSurfaceBytesPerRow, width * 4),
-            kIOSurfacePixelFormat: surfacePixelFormat,
+            kIOSurfaceBytesPerElement: bytesPerElement,
+            kIOSurfaceBytesPerRow: IOSurfaceAlignProperty(kIOSurfaceBytesPerRow, width * bytesPerElement),
+            kIOSurfacePixelFormat: pixelFormat,
         ]
         return IOSurfaceCreate(props as CFDictionary)
     }
@@ -277,7 +292,8 @@ public final class DevelopController {
     /// Sends the coalesced patch, if any. Returns whether something was sent.
     @discardableResult
     public func flushPending() -> Bool {
-        guard !pending.isEmpty, !closed, let json = Self.encode(pending) else { return false }
+        let masks = flushMaskPending()
+        guard !pending.isEmpty, !closed, let json = Self.encode(pending) else { return masks }
         pending.removeAll()
         onPatchSent?(json)
         do {
@@ -396,7 +412,7 @@ public final class DevelopController {
     fileprivate func didFail(_ message: String) { onFailure?(message) }
 
     /// Forwards engine worker-thread callbacks to the main actor. Holds its owner weakly.
-    private final class Events: DevelopListener, @unchecked Sendable {
+    private final class Events: DevelopListener, MaskListener, @unchecked Sendable {
         @MainActor weak var owner: DevelopController?
         func frameReady(frame: FrameInfo) {
             DispatchQueue.main.async { MainActor.assumeIsolated { self.owner?.didRender(frame) } }
@@ -406,6 +422,22 @@ public final class DevelopController {
         }
         func saved(recipeHash: String) {
             DispatchQueue.main.async { MainActor.assumeIsolated { self.owner?.didSave(recipeHash) } }
+        }
+        func overlayReady(frame: MaskOverlayFrame) {
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated {
+                    guard let o = self.owner, !o.closed else { return }
+                    o.onMaskOverlay?(frame)
+                }
+            }
+        }
+        func aiProgress(update: MaskJobUpdate) {
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated {
+                    guard let o = self.owner, !o.closed else { return }
+                    o.onMaskJob?(update)
+                }
+            }
         }
     }
 }

@@ -1,0 +1,17 @@
+[package]
+name = "ml-depth"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+
+[dependencies]
+anyhow = { workspace = true }
+image = { workspace = true }
+blake3 = { workspace = true }
+ml-runtime = { path = "../ml-runtime" }
+ml-segment = { path = "../ml-segment" }
+engine-api = { path = "../engine-api" }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+pipeline-cpu = { path = "../pipeline-cpu" }

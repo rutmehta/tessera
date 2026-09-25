@@ -1,0 +1,67 @@
+   Compiling ml-enhance v0.1.0 (/Users/rutmehta/Developer/tessera/.worktrees/M3-05/crates/ml-enhance)
+    Finished `release` profile [optimized] target(s) in 2.18s
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/M3-05/release/deps/ml_enhance-5d9f9edf4845b59f)
+
+running 1 test
+test tests::zero_amount_is_bit_exact_and_does_not_run_model ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/blend.rs (/Users/rutmehta/.cache/tessera-target/M3-05/release/deps/blend-e6dd6d2237bbf353)
+
+running 2 tests
+test mask_amount_blend_and_zero_mask_bypass ... ok
+test rejects_invalid_inputs_before_inference_and_invalid_results ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/denoiser.rs (/Users/rutmehta/.cache/tessera-target/M3-05/release/deps/denoiser-fc2e37ad2b8ebe92)
+
+running 5 tests
+test cached_denoiser_zero_and_mask_bypass_are_bit_exact ... ok
+test cached_drunet_full_vs_distinct_tiles ... DRUNet 640x16 full/tiled: model=0e0 linear adapter=0e0, patch shapes={[1, 3, 16, 320], [1, 3, 16, 448], [1, 3, 16, 512]}
+DRUNet 16x640 full/tiled: model=0e0 linear adapter=0e0, patch shapes={[1, 3, 320, 16], [1, 3, 448, 16], [1, 3, 512, 16]}
+ok
+test cached_drunet_improves_noisy_gradient_by_three_db ... DRUNet linear-light PSNR: before=20.376933 after=38.324625 gain=17.947691 dB
+ok
+test cached_drunet_mask_blends_in_linear_light_and_hint_is_advisory ... ok
+test cached_drunet_reports_executed_coreml_partitions ... DRUNet partition report: PartitionReport { nodes: [NodeAssignment { node: "CoreMLExecutionProvider_14995865896102138049_CoreML_14995865896102138049_0_0", provider: "CoreMLExecutionProvider" }] }
+ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.91s
+
+E5RT encountered an STL exception. msg = Failed to PropagateInputTensorShapes: std::invalid_argument during type inference for ios18.conv: output size is too small..     Running tests/model_seams.rs (/Users/rutmehta/.cache/tessera-target/M3-05/release/deps/model_seams-f5ef701cda80db67)
+
+running 2 tests
+test cached_x2_full_vs_tiled_with_partial_halo_patches ... Real-ESRGAN x2 full vs tiled max error: 0
+ok
+test cached_x4_full_vs_tiled_with_partial_halo_patches ... Real-ESRGAN x4 full vs tiled max error: 0
+ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.09s
+
+     Running tests/models.rs (/Users/rutmehta/.cache/tessera-target/M3-05/release/deps/models-f8c503842958a554)
+
+running 2 tests
+test cached_realesrgan_doubles_dimensions_preserves_edge_and_reports_coreml ... Real-ESRGAN x2 partition: PartitionReport { nodes: [NodeAssignment { node: "/Reshape", provider: "CPUExecutionProvider" }, NodeAssignment { node: "/Reshape_1", provider: "CPUExecutionProvider" }, NodeAssignment { node: "/Reshape_2", provider: "CPUExecutionProvider" }, NodeAssignment { node: "/Resize", provider: "CPUExecutionProvider" }, NodeAssignment { node: "/Resize_1", provider: "CPUExecutionProvider" }, NodeAssignment { node: "/Squeeze", provider: "CPUExecutionProvider" }, NodeAssignment { node: "/Transpose", provider: "CPUExecutionProvider" }, NodeAssignment { node: "/Unsqueeze", provider: "CPUExecutionProvider" }, NodeAssignment { node: "CoreMLExecutionProvider_15846606369282467389_CoreML_15846606369282467389_0_0", provider: "CoreMLExecutionProvider" }, NodeAssignment { node: "CoreMLExecutionProvider_15846606369282467389_CoreML_15846606369282467389_1_1", provider: "CoreMLExecutionProvider" }, NodeAssignment { node: "CoreMLExecutionProvider_15846606369282467389_CoreML_15846606369282467389_2_2", provider: "CoreMLExecutionProvider" }] }
+ok
+test cached_realesrgan_x4_scales_and_reports_coreml ... Real-ESRGAN x4 partition: PartitionReport { nodes: [NodeAssignment { node: "/Resize", provider: "CPUExecutionProvider" }, NodeAssignment { node: "/Resize_1", provider: "CPUExecutionProvider" }, NodeAssignment { node: "CoreMLExecutionProvider_13504372300938684743_CoreML_13504372300938684743_0_0", provider: "CoreMLExecutionProvider" }, NodeAssignment { node: "CoreMLExecutionProvider_13504372300938684743_CoreML_13504372300938684743_1_1", provider: "CoreMLExecutionProvider" }, NodeAssignment { node: "CoreMLExecutionProvider_13504372300938684743_CoreML_13504372300938684743_2_2", provider: "CoreMLExecutionProvider" }] }
+ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.08s
+
+E5RT encountered an STL exception. msg = Input: _Squeeze_output_0 has unbounded dimension which is not supported. Please consult MIL Framework or milPython on adding a bound for this dimension..E5RT encountered an STL exception. msg = Input: _Resize_output_0 has unbounded dimension which is not supported. Please consult MIL Framework or milPython on adding a bound for this dimension..E5RT encountered an STL exception. msg = Input: _Resize_1_output_0 has unbounded dimension which is not supported. Please consult MIL Framework or milPython on adding a bound for this dimension..E5RT encountered an STL exception. msg = Input: input has unbounded dimension which is not supported. Please consult MIL Framework or milPython on adding a bound for this dimension..E5RT encountered an STL exception. msg = Input: _Resize_output_0 has unbounded dimension which is not supported. Please consult MIL Framework or milPython on adding a bound for this dimension..E5RT encountered an STL exception. msg = Input: _Resize_1_output_0 has unbounded dimension which is not supported. Please consult MIL Framework or milPython on adding a bound for this dimension..     Running tests/tiling.rs (/Users/rutmehta/.cache/tessera-target/M3-05/release/deps/tiling-d0272cf54c2282bb)
+
+running 3 tests
+test local_runtime_model_has_no_tiling_seams ... ok
+test refuses_insufficient_halo_and_bad_alignment ... ok
+test scaling_crop_preserves_edge_and_odd_dimensions ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+   Doc-tests ml_enhance
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

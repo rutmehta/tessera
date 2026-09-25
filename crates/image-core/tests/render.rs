@@ -274,7 +274,11 @@ fn cache_budget_is_respected_and_does_not_change_cold_output() {
     // Memoized outputs are stored as F16Planar under the chained memo key.
     let big = renderer(1);
     big.render_region(&image, &s, 3, full(&image, 3)).unwrap();
-    let chain = s.stage_chain(ProcessVersion::NATIVE_CURRENT.chain_seed());
+    let chain = PipelineGraph::stage_chain(
+        &s,
+        ProcessVersion::NATIVE_CURRENT.chain_seed(),
+        pipeline_cpu::POST_DENOISE_ADAPTER,
+    );
     for (stage, coord) in [
         (StageId::Demosaic, TileCoord::new(0, 1, 1)),
         (StageId::WhiteBalance, TileCoord::new(3, 0, 0)),

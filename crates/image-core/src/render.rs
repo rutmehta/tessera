@@ -61,6 +61,8 @@
 //! Halo gathering, memo storage and resampling end a chain. The cancellation token is
 //! polled before every tile of every step, and before each delivered tile.
 
+#[path = "denoise_render.rs"]
+mod denoise_render;
 #[path = "resident_render.rs"]
 mod resident_render;
 
@@ -191,6 +193,7 @@ impl Default for RendererConfig {
 /// `Send + Sync`: share one renderer (and its cache) between jobs.
 pub struct Renderer {
     ops: Arc<dyn StageOp>,
+    denoiser: Option<Arc<dyn pipeline_cpu::PostDemosaicDenoise>>,
     cache: Arc<TileCache>,
     mask_cache: crate::MaskRasterCache,
     config: RendererConfig,
@@ -227,10 +230,31 @@ impl Renderer {
         let mask_cache = crate::MaskRasterCache::new(cache.budget());
         Self {
             ops,
+            denoiser: None,
             cache,
             mask_cache,
             config,
         }
+    }
+
+    /// Inject caller-owned inference. Construction never resolves/downloads models.
+    pub fn with_post_demosaic_denoise(
+        mut self,
+        denoiser: Arc<dyn pipeline_cpu::PostDemosaicDenoise>,
+    ) -> Self {
+        self.denoiser = Some(denoiser);
+        self
+    }
+
+    fn stage_chain(&self, settings: &DevelopSettings) -> [(StageId, ParamHash); StageId::COUNT] {
+        let revision = if pipeline_cpu::denoise_active(&settings.denoise) {
+            self.denoiser
+                .as_ref()
+                .map_or(pipeline_cpu::POST_DENOISE_ADAPTER, |d| d.adapter_revision())
+        } else {
+            pipeline_cpu::POST_DENOISE_ADAPTER
+        };
+        PipelineGraph::stage_chain(settings, self.config.process_version.chain_seed(), revision)
     }
 
     /// The memo cache.
@@ -452,9 +476,7 @@ impl Renderer {
         ] {
             developed = self.ops.run_image(stage, &op, developed, cancel)?;
             if stage == StageId::Color && !settings.locals.adjustments.is_empty() {
-                let upstream = settings.stage_chain(self.config.process_version.chain_seed())
-                    [StageId::Color.index()]
-                .1;
+                let upstream = self.stage_chain(settings)[StageId::Color.index()].1;
                 let base = developed;
                 let mut planes = base.planes().to_vec();
                 for group in &settings.locals.adjustments {
@@ -517,6 +539,12 @@ impl Renderer {
         settings: &'a DevelopSettings,
     ) -> EngineResult<Resolved<'a>> {
         pipeline_cpu::validate_settings(settings)?;
+        if pipeline_cpu::denoise_active(&settings.denoise) && self.denoiser.is_none() {
+            return Err(EngineError::invalid(
+                "denoise",
+                "no post-demosaic denoiser injected",
+            ));
+        }
         let m = image.metadata();
         let (period, dem_halo) = match m.cfa_layout {
             CfaLayout::Bayer(_) => (2, 2),
@@ -549,10 +577,10 @@ impl Renderer {
         };
         let highlights = settings.linearize.highlight_reconstruction;
         Ok(Resolved {
-            allow_resident: true,
+            allow_resident: !pipeline_cpu::denoise_active(&settings.denoise),
             image,
             settings,
-            chain: settings.stage_chain(self.config.process_version.chain_seed()),
+            chain: self.stage_chain(settings),
             sensor: image.sensor_extent(),
             crop: m.default_crop,
             cfa: m.cfa_layout,
@@ -627,6 +655,15 @@ impl Renderer {
             .iter()
             .map(|&c| !(cache_wb && self.cache.contains(&key(StageId::WhiteBalance, c))))
             .collect();
+        // Model halo is 192, larger than Tile's permitted halo. A complete
+        // sensor-image barrier is required even for a small viewport request.
+        let full_demosaic = if pipeline_cpu::denoise_active(&r.settings.denoise)
+            && planned_miss.iter().any(|v| *v)
+        {
+            Some(self.denoised_demosaic(r, cancel)?)
+        } else {
+            None
+        };
         let mut wb_uses: HashMap<TileCoord, usize> = HashMap::new();
         for (s, _) in sources.iter().zip(&planned_miss).filter(|(_, m)| **m) {
             for t in s {
@@ -699,6 +736,9 @@ impl Renderer {
             let dem_cached: Vec<Mutex<Option<Tile>>> = need_s
                 .iter()
                 .map(|&s| {
+                    if let Some(full) = &full_demosaic {
+                        return full.tile(s, 0, 1).map(|t| Mutex::new(Some(t)));
+                    }
                     let hit = cache_dem
                         .then(|| self.cache.get(&key(StageId::Demosaic, s)))
                         .flatten();
@@ -758,7 +798,7 @@ impl Renderer {
                 (StageId::CameraProfile, Op::Matrix(r.profile)),
                 (StageId::WhiteBalance, Op::Matrix(r.wb)),
             ];
-            let balanced = if cache_dem {
+            let balanced = if cache_dem || full_demosaic.is_some() {
                 // A host memoization boundary ends the first GPU chain.
                 let dem = self.run_ops(&[(StageId::Demosaic, dem_op)], dem_inputs, cancel)?;
                 let mut fresh: HashMap<_, _> = to_dem.iter().copied().zip(dem).collect();

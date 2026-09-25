@@ -1,0 +1,12 @@
+   Compiling ml-enhance v0.1.0 (/Users/rutmehta/Developer/tessera/.worktrees/M3-05/crates/ml-enhance)
+    Finished `release` profile [optimized] target(s) in 1.10s
+     Running tests/model_seams.rs (/Users/rutmehta/.cache/tessera-target/M3-05/release/deps/model_seams-f5ef701cda80db67)
+
+running 2 tests
+Real-ESRGAN x2 full vs tiled max error: 0
+test cached_x2_full_vs_tiled_with_partial_halo_patches ... ok
+Real-ESRGAN x4 full vs tiled max error: 0
+test cached_x4_full_vs_tiled_with_partial_halo_patches ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.89s
+

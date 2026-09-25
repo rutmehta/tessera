@@ -1,0 +1,9 @@
+Enabled vendored static LittleCMS in Cargo.toml. Retained the existing Sendable-only closure capture fix. No extra CI installs or Swift linker flags needed.
+
+Ran the full required command with the external CARGO_TARGET_DIR. Final run passed release and debug: each completed 25 XCTest tests and 5 Swift Testing tests.
+
+The first run hit an intermittent thumbnail-cache assertion in BridgeTests.swift:50; the complete rerun passed without further changes. Local toolchain: Apple Swift 6.3.3. Remote CI was not run.
+
+Evidence: /Users/rutmehta/Developer/tessera/.worktrees/M2-13c/tools/orchestrate/wp/M2-13c/result.md
+
+RESULT: PASS

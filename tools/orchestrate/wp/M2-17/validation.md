@@ -1,5 +1,57 @@
 # M2-17 validation
 
+## M2-17m merge reconciliation: RESULT: PASS
+
+Merged main at 5adacead1614734e554910dd3e17d510243d6a4b into wp/M2-17.
+Both sides' behavior is retained: denoise excludes residency, Bayer/X-Trans
+and creative fusion remain supported, and managed ICC Display consumes the
+fused scene-linear prefix rather than legacy sRGB output. Conflict decisions
+are in ../M2-17m/resolution.md.
+
+Executed with CARGO_TARGET_DIR=/Users/rutmehta/.cache/tessera-target/M2-17:
+
+- cargo test --workspace --release: 733 passed, 0 failed, 17 ignored.
+  First attempt passed, without RUST_TEST_THREADS=1.
+- cargo clippy -p image-core -p pipeline-gpu -p pipeline-cpu -p tessera-ffi --all-targets -- -D warnings: passed.
+- cargo fmt --check: passed.
+- Real NEF operator_performance benchmark: passed, 45 unique operator/scope
+  rows, three timed samples after one warmup, 493.86 seconds. Source hashes
+  unchanged during measurement. Maximum absolute error: 6.22272491e-5.
+
+Evidence: ../M2-17m/workspace-test.log, ../M2-17m/clippy.log, ../M2-17m/fmt.log,
+benchmark-merge-main-complete.log and benchmark-merge-main-complete.json.
+The earlier benchmark-merge-main.log was interrupted by the foreground tool
+timeout and is excluded. Full CPU timings, individual samples, submission
+counts and errors are in the completed log.
+
+GPU-backend wall-time medians in milliseconds, including transfers/completion:
+
+| Operator | L2 full | L0 region 1024 | L0 full |
+|---|---:|---:|---:|
+| basic_tone | 22.545 | 8.481 | 344.872 |
+| curves | 25.859 | 9.135 | 355.482 |
+| texture | 49.527 | 21.549 | 3477.454 |
+| clarity | 51.114 | 21.803 | 8458.834 |
+| dehaze | 60.646 | 26.665 | 14296.147 |
+| sharpening | 58.396 | 23.925 | 874.541 |
+| luminance_nr | 56.587 | 22.920 | 849.871 |
+| chroma_nr | 58.998 | 24.106 | 881.483 |
+| vibrance | 23.875 | 9.480 | 369.781 |
+| hsl | 23.362 | 9.556 | 368.884 |
+| color_grading | 23.364 | 9.427 | 367.984 |
+| vignette | 26.657 | 12.027 | 529.633 |
+| grain | 27.328 | 14.702 | 480.800 |
+| crop_straighten | 26.897 | 13.365 | 17629.706 |
+| local_blend_only | 5.710 | 9.652 | 93.362 |
+
+Full-L0 texture, clarity, dehaze, geometry and local blend, plus L2 local blend,
+reported zero GPU submissions and remain CPU fallbacks. These are not resident
+slider or halo-aware regional-refinement measurements. Concurrent machine
+activity prevents controlled speedup claims. This PASS covers M2-17m's merge
+gate only; the original M2-17 performance gaps below remain unresolved.
+
+## Historical M2-17 implementation status
+
 RESULT: FAIL — partial implementation; required performance/coverage targets remain unmet.
 
 ## Latest retry: share presence moments and omit inactive fine scale

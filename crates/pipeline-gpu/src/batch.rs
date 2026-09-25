@@ -48,6 +48,7 @@ pub(crate) struct Counters {
 #[derive(Clone)]
 pub struct GpuStageOp {
     context: Arc<GpuContext>,
+    pub(crate) managed_output: Option<Arc<crate::GpuManagedOutput>>,
     pub(crate) counters: Arc<Counters>,
     pub(crate) resident_cache: Arc<std::sync::Mutex<crate::resident::Cache>>,
     pub(crate) resident_pipeline: wgpu::ComputePipeline,
@@ -153,6 +154,7 @@ impl GpuStageOp {
             detail_pipelines: crate::detail::pipelines(&context).expect("valid Detail pipelines"),
             context,
             counters: Arc::default(),
+            managed_output: None,
             resident_cache: crate::resident::cache(budget),
             resident_pipeline,
             gather_pipeline,
@@ -200,7 +202,14 @@ impl GpuStageOp {
     ) -> EngineResult<Vec<Tile>> {
         let ctx = &self.context;
         let ops: Vec<_> = chain.iter().map(|(_, op)| *op).collect();
-        let fused = crate::fused::supports(&ops);
+        // Managed display must consume scene-linear output, never fused sRGB.
+        let scene_ops =
+            if self.managed_output.is_some() && matches!(ops.last(), Some(Op::Display { .. })) {
+                &ops[..ops.len() - 1]
+            } else {
+                &ops[..]
+            };
+        let fused = crate::fused::supports(scene_ops);
         let pipeline = if fused {
             &self.fused_pipeline
         } else {
@@ -231,8 +240,8 @@ impl GpuStageOp {
                 });
             let mut layout = input.layout();
             for (index, (_, op)) in chain.iter().enumerate() {
-                if fused && index > 0 {
-                    break;
+                if fused && index > 0 && index < scene_ops.len() {
+                    continue;
                 }
                 cancel.check()?;
                 if matches!(op, Op::Display { .. }) && index + 1 != chain.len() {
@@ -241,8 +250,9 @@ impl GpuStageOp {
                         "display must be last (U8 output)",
                     ));
                 }
-                let (p, next_layout) = if fused {
-                    crate::fused::parameters(&ops, layout, input.coord())?
+                let input_layout = layout;
+                let (p, next_layout) = if fused && index == 0 {
+                    crate::fused::parameters(scene_ops, layout, input.coord())?
                 } else {
                     parameters(op, layout, input.coord().pixel_origin(TILE_SIZE))?
                 };
@@ -261,6 +271,24 @@ impl GpuStageOp {
                     usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
                     mapped_at_creation: false,
                 });
+                if matches!(op, Op::Display { .. })
+                    && let Some(output) = &self.managed_output
+                {
+                    let flags = ctx.device.create_buffer(&wgpu::BufferDescriptor {
+                        label: Some("managed gamut mask"),
+                        size: layout.extent.area() * 4,
+                        usage: wgpu::BufferUsages::STORAGE,
+                        mapped_at_creation: false,
+                    });
+                    let group = output.bindings(&src, &dst, &flags, input_layout, true)?;
+                    let mut pass = encoder.begin_compute_pass(&Default::default());
+                    pass.set_pipeline(&output.pipeline);
+                    pass.set_bind_group(0, &group, &[]);
+                    pass.dispatch_workgroups((layout.plane_len() as u32).div_ceil(64), 1, 1);
+                    drop(pass);
+                    src = dst;
+                    continue;
+                }
                 let entries: Vec<_> = [&src, &dst, &params]
                     .iter()
                     .enumerate()

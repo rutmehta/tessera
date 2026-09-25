@@ -136,3 +136,116 @@ pub fn export_batch_with_jobs(
     });
     Ok(report)
 }
+
+/// Serial SR batch sharing one loaded session. Cancellation is checked before
+/// each image and before publication; an in-flight model invocation may finish.
+/// Results/progress have the same semantics as `export_batch`.
+pub fn export_batch_upscaled(
+    items: &[ExportItem<'_>],
+    settings: &ExportSettings,
+    progress: impl Fn(Progress),
+    cancel: &CancellationToken,
+    upscale: &mut ml_enhance::SuperResolution,
+) -> EngineResult<BatchReport> {
+    export_serial(items, settings, progress, cancel, |item| {
+        crate::prepare_enhanced(&item.image, item.recipe, settings, cancel, Some(upscale))
+    })
+}
+
+fn export_serial(
+    items: &[ExportItem<'_>],
+    settings: &ExportSettings,
+    progress: impl Fn(Progress),
+    cancel: &CancellationToken,
+    mut prepare_item: impl FnMut(&ExportItem<'_>) -> EngineResult<crate::PreparedExport>,
+) -> EngineResult<BatchReport> {
+    let mut report = BatchReport {
+        results: vec![Err(EngineError::Cancelled); items.len()],
+    };
+    if items.is_empty() || cancel.is_cancelled() {
+        return Ok(report);
+    }
+    settings.format.validate()?;
+    let mut names = HashSet::new();
+    for item in items {
+        let name = filename(
+            &settings.naming,
+            item.image.name,
+            item.image.sequence,
+            item.image.date,
+            settings.format.extension(),
+        )?;
+        if !names.insert(name.to_lowercase()) {
+            return Err(EngineError::invalid("naming", "duplicate output names"));
+        }
+    }
+    let mut completed = 0;
+    for (index, item) in items.iter().enumerate() {
+        if cancel.is_cancelled() {
+            break;
+        }
+        let result = prepare_item(item).and_then(|prepared| prepared.commit(cancel));
+        if result.is_ok() {
+            completed += 1;
+        }
+        report.results[index] = result.clone();
+        if !matches!(result, Err(EngineError::Cancelled)) {
+            progress(Progress {
+                index,
+                completed,
+                total: items.len(),
+                result,
+            });
+        }
+    }
+    Ok(report)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn serial_cancellation_before_commit_discards_prepared_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let settings = ExportSettings {
+            output_dir: dir.path().into(),
+            ..Default::default()
+        };
+        let pixels = pipeline_cpu::Image::new(8, 6, vec![vec![0.18; 48]; 3]).unwrap();
+        let recipe = Recipe::default();
+        let items: Vec<_> = (1..=2)
+            .map(|sequence| ExportItem {
+                image: ExportImage {
+                    source: pipeline_cpu::RenderSource::Rgb(&pixels),
+                    name: "photo",
+                    sequence,
+                    date: "",
+                    metadata: None,
+                },
+                recipe: &recipe,
+            })
+            .collect();
+        let cancel = CancellationToken::new();
+        let report = export_serial(
+            &items,
+            &settings,
+            |_| panic!("no publication"),
+            &cancel,
+            |item| {
+                let prepared = prepare(&item.image, item.recipe, &settings, &cancel)?;
+                cancel.cancel();
+                Ok(prepared)
+            },
+        )
+        .unwrap();
+        assert_eq!(report.remaining(), vec![0, 1]);
+        assert!(
+            report
+                .results
+                .iter()
+                .all(|r| matches!(r, Err(EngineError::Cancelled)))
+        );
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 0);
+    }
+}

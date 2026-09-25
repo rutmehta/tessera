@@ -1,0 +1,10 @@
+
+running 5 tests
+..DRUNet linear-light PSNR: before=20.376933 after=38.324625 gain=17.947691 dB
+.DRUNet 640x16 full/tiled: model=0e0 linear adapter=0e0, patch shapes={[1, 3, 16, 320], [1, 3, 16, 448], [1, 3, 16, 512]}
+DRUNet partition report: PartitionReport { nodes: [NodeAssignment { node: "CoreMLExecutionProvider_14995865896102138049_CoreML_14995865896102138049_0_0", provider: "CoreMLExecutionProvider" }] }
+.DRUNet 16x640 full/tiled: model=0e0 linear adapter=0e0, patch shapes={[1, 3, 320, 16], [1, 3, 448, 16], [1, 3, 512, 16]}
+.
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.88s
+
+E5RT encountered an STL exception. msg = Failed to PropagateInputTensorShapes: std::invalid_argument during type inference for ios18.conv: output size is too small..

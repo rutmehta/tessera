@@ -68,6 +68,33 @@ pub fn render_linear_scaled(
     render_linear_scaled_with_lens(settings, source, scale, &crate::LensContext::default())
 }
 
+/// Render with an explicit near-to-far depth plane and caller-owned lens context.
+///
+/// Depth must contain one finite 0..=1 sample per full-resolution active-area
+/// pixel: RGB input dimensions, or RAW metadata.default_crop dimensions. It is
+/// aligned before recipe Geometry (crop/rotation/lens warp), never to the output
+/// preview. Blur runs after Locals, before vignette/grain, Geometry and downsample.
+/// The depth plane is validated even when lens blur is absent; options are used
+/// only when `effects.lens_blur` is present. Depth also feeds local depth masks.
+/// No model inference or recipe-schema changes are performed here.
+pub fn render_linear_scaled_with_depth(
+    settings: &DevelopSettings,
+    source: &RenderSource<'_>,
+    scale: u32,
+    context: &crate::LensContext<'_>,
+    depth: &[f32],
+    options: crate::LensBlurOptions,
+) -> EngineResult<Image> {
+    render_linear_impl(
+        settings,
+        source,
+        scale,
+        context,
+        Some((depth, options)),
+        None,
+    )
+}
+
 /// Render with caller-owned database or user profile, without changing recipe schema.
 pub fn render_linear_scaled_with_lens(
     settings: &DevelopSettings,
@@ -75,7 +102,35 @@ pub fn render_linear_scaled_with_lens(
     scale: u32,
     context: &crate::LensContext<'_>,
 ) -> EngineResult<Image> {
-    validate_settings(settings)?;
+    render_linear_impl(settings, source, scale, context, None, None)
+}
+
+/// Full reference renderer with caller-owned post-demosaic inference.
+pub fn render_linear_scaled_with_denoise(
+    settings: &DevelopSettings,
+    source: &RenderSource<'_>,
+    scale: u32,
+    context: &crate::LensContext<'_>,
+    denoiser: Option<&dyn crate::PostDemosaicDenoise>,
+) -> EngineResult<Image> {
+    render_linear_impl(settings, source, scale, context, None, denoiser)
+}
+
+fn render_linear_impl(
+    settings: &DevelopSettings,
+    source: &RenderSource<'_>,
+    scale: u32,
+    context: &crate::LensContext<'_>,
+    depth: Option<(&[f32], crate::LensBlurOptions)>,
+    denoiser: Option<&dyn crate::PostDemosaicDenoise>,
+) -> EngineResult<Image> {
+    if depth.is_some() {
+        let mut without_blur = settings.clone();
+        without_blur.effects.lens_blur = None;
+        validate_settings(&without_blur)?;
+    } else {
+        validate_settings(settings)?;
+    }
     if scale == 0 {
         return Err(EngineError::invalid("scale", "must be positive"));
     }
@@ -83,6 +138,12 @@ pub fn render_linear_scaled_with_lens(
         RenderSource::Rgb(image) => {
             if image.planes().len() != 3 {
                 return Err(EngineError::invalid("RGB", "three planes required"));
+            }
+            if crate::denoise_active(&settings.denoise) {
+                return Err(EngineError::invalid(
+                    "denoise",
+                    "post-demosaic denoise requires a CFA source",
+                ));
             }
             let crop = [0, 0, image.width(), image.height()];
             let correction = crate::resolve_lens(image, &settings.lens, None, context)?;
@@ -191,6 +252,7 @@ pub fn render_linear_scaled_with_lens(
                     )?;
                 }
             }
+            out = crate::post_demosaic_denoise(out, camera_xyz, &settings.denoise, denoiser)?;
             for coord in out.coords() {
                 let mut t = out.tile(coord, 0, 1)?;
                 // Contract ordering is CameraProfile THEN WhiteBalance.
@@ -203,6 +265,17 @@ pub fn render_linear_scaled_with_lens(
     };
     // All channel alignment is complete before matrices/detail/tone.
     let analysis = rgb.downsample_crop(crop, 1)?;
+    if let Some((plane, _)) = depth
+        && (plane.len() != analysis.width() as usize * analysis.height() as usize
+            || plane
+                .iter()
+                .any(|d| !d.is_finite() || !(0. ..=1.).contains(d)))
+    {
+        return Err(EngineError::invalid(
+            "depth",
+            "finite near-to-far active-area plane required",
+        ));
+    }
     let needs_m2 = has_m2_settings(settings)
         || correction.sample().is_some()
         || correction.source() == crate::CorrectionSource::Embedded;
@@ -230,16 +303,25 @@ pub fn render_linear_scaled_with_lens(
             crate::color(&mut tile, &settings.color)?;
             rgb.put(&tile)?;
         }
-        rgb = crate::locals_image(&rgb, &settings.locals.adjustments, Default::default())?;
+        rgb = crate::locals_image(
+            &rgb,
+            &settings.locals.adjustments,
+            crate::masks::MaskOptions {
+                depth: depth.map(|(plane, _)| plane),
+                ..Default::default()
+            },
+        )?;
+        if let Some(blur) = &settings.effects.lens_blur {
+            let (plane, options) =
+                depth.ok_or_else(|| EngineError::invalid("depth", "lens blur requires depth"))?;
+            rgb = crate::lens_blur(&rgb, plane, blur, options)?;
+        }
+        let mut point_effects = settings.effects.clone();
+        point_effects.lens_blur = None;
         let extent = engine_api::tile::Extent::new(rgb.width(), rgb.height());
         for coord in rgb.coords() {
             let mut tile = rgb.tile(coord, 0, 1)?;
-            crate::effects_in_crop(
-                &mut tile,
-                &settings.effects,
-                extent,
-                &settings.geometry.crop,
-            )?;
+            crate::effects_in_crop(&mut tile, &point_effects, extent, &settings.geometry.crop)?;
             rgb.put(&tile)?;
         }
         let mut common = settings.lens.clone();
@@ -327,6 +409,8 @@ pub fn validate_settings(s: &DevelopSettings) -> EngineResult<()> {
     }
     let default = DevelopSettings::default();
     let mut supported = default.clone();
+    crate::validate_denoise(&s.denoise)?;
+    supported.denoise = s.denoise.clone();
     supported.linearize = s.linearize.clone();
     supported.demosaic.method = s.demosaic.method;
     supported.white_balance = s.white_balance.clone();

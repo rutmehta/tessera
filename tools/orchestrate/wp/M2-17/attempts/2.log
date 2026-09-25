@@ -1,0 +1,14 @@
+M2-17 remains incomplete. This retry added queued local-tone compute passes, exact linear-time percentile selection, and removal of the redundant identity-curve GPU roundtrip.
+
+Ran the exact required test/clippy/fmt command. It passed on retry: 593 tests passed, 16 ignored. The first run failed an existing preview timing assertion; no tests or tolerances were weakened.
+
+Fresh NEF L2 measurements: Texture 65.362 ms, Clarity 112.511 ms, Dehaze 66.171 ms. These still exceed 16 ms. Downsampled guidance, the requested hashed LUT/map caches, and remaining CPU-delegated paths are unfinished.
+
+Evidence:
+  tools/orchestrate/wp/M2-17/validation.md
+  tools/orchestrate/wp/M2-17/retry-benchmark-results.md
+  tools/orchestrate/wp/M2-17/retry-required-gate-2.log
+
+All changes stayed within allowed paths. External CARGO_TARGET_DIR preserved. No commits.
+
+RESULT: FAIL performance targets and required operator/cache coverage remain unmet.

@@ -13,6 +13,7 @@ bytemuck.workspace = true
 pollster = "0.4"
 engine-api = { path = "../engine-api" }
 image-core = { path = "../image-core" }
+color-mgmt = { path = "../color-mgmt" }
 pipeline-cpu = { path = "../pipeline-cpu" }
 raw-decode = { path = "../raw-decode" }
 
@@ -22,4 +23,8 @@ objc2-io-surface = "0.3.2"
 
 [dev-dependencies]
 log = "0.4"
+lcms2.workspace = true
 naga = { version = "30", features = ["wgsl-in"] }
+
+[target.'cfg(target_os = "macos")'.dev-dependencies]
+objc2-core-foundation = "0.3.2"

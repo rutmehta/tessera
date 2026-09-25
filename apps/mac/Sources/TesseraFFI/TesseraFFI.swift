@@ -1702,6 +1702,118 @@ public protocol DevelopSessionProtocol: AnyObject, Sendable {
      */
     func undo() throws  -> Bool
     
+    /**
+     * Adds an AI component (to `group_id`, or as a new group) and queues its
+     * segmentation; progress arrives through `MaskListener::ai_progress` and
+     * the viewport re-renders when the raster is ready. Returns the group id.
+     */
+    func addAiMask(groupId: UInt32?, request: AiMaskRequest, combine: MaskCombineMode) throws  -> UInt32
+    
+    /**
+     * Appends samples to the stroke in progress and renders interactively.
+     */
+    func addBrushPoints(points: [BrushPoint]) throws 
+    
+    /**
+     * Adds another sampled colour to a colour range component. Blocking.
+     */
+    func addColorRangeSample(groupId: UInt32, index: UInt32, x: Float, y: Float) throws 
+    
+    /**
+     * Adds a group with one component (`MaskKind` JSON, e.g.
+     * `{"kind":"linear","start":[0.5,0],"end":[0.5,0.6]}`); returns its id.
+     */
+    func addMask(definitionJson: String, interactive: Bool) throws  -> UInt32
+    
+    /**
+     * Adds a component to a group; returns its index.
+     */
+    func addMaskComponent(groupId: UInt32, definitionJson: String, combine: MaskCombineMode, interactive: Bool) throws  -> UInt32
+    
+    /**
+     * Samples the pre-local image around (`x`, `y`) (mask space) and adds a
+     * colour or luminance range there: to `group_id` combined with
+     * `combine`, or as a new group. Returns the group id. Blocking.
+     */
+    func addRangeMask(groupId: UInt32?, kind: RangeKind, x: Float, y: Float, combine: MaskCombineMode) throws  -> UInt32
+    
+    /**
+     * Adds an R8 (one byte per pixel, `'L008'`) surface of the current
+     * `plan_surface` size to the overlay ring (two surfaces). A different
+     * size replaces the ring.
+     */
+    func attachMaskOverlaySurface(iosurfaceId: UInt32, width: UInt32, height: UInt32) throws 
+    
+    /**
+     * Starts a brush stroke in `group_id` (a new group when `None`): paint
+     * strokes and erase strokes share the group's brush component. Returns
+     * the group id. Follow with `add_brush_points` (one call per display
+     * frame) and `end_brush_stroke`, then `commit`.
+     */
+    func beginBrushStroke(groupId: UInt32?, brush: BrushSettings) throws  -> UInt32
+    
+    func deleteMask(groupId: UInt32) throws 
+    
+    func detachMaskOverlaySurfaces() 
+    
+    /**
+     * Copies a group (components and sliders) under a new id; returns it.
+     */
+    func duplicateMask(groupId: UInt32) throws  -> UInt32
+    
+    /**
+     * Ends the stroke: refines the viewport (commit makes it an undo step).
+     */
+    func endBrushStroke() throws 
+    
+    /**
+     * The live mask groups, in render order.
+     */
+    func maskGroups() throws  -> [MaskGroupInfo]
+    
+    /**
+     * The group's mask as last rendered, fitted into `max_px` (display
+     * orientation, uncropped); `None` before it has been rendered.
+     */
+    func maskThumbnail(groupId: UInt32, maxPx: UInt32) throws  -> MaskThumbnail?
+    
+    /**
+     * Removes a component; removing the last one deletes the group.
+     */
+    func removeMaskComponent(groupId: UInt32, index: UInt32) throws 
+    
+    /**
+     * Every local slider of a group back to neutral.
+     */
+    func resetMaskParams(groupId: UInt32) throws 
+    
+    /**
+     * Re-runs segmentation for a failed (or stale) AI component.
+     */
+    func retryAiMask(key: String) throws 
+    
+    /**
+     * Replaces a component's definition (gradient handle drags, range tuning).
+     */
+    func setMaskComponent(groupId: UInt32, index: UInt32, definitionJson: String, interactive: Bool) throws 
+    
+    func setMaskComponentMode(groupId: UInt32, index: UInt32, combine: MaskCombineMode, invert: Bool) throws 
+    
+    func setMaskListener(listener: MaskListener?) 
+    
+    /**
+     * Shows `group_id`'s mask in the overlay surfaces after every frame
+     * (`None`: off). Writes the current frame's overlay at once.
+     */
+    func setMaskOverlay(groupId: UInt32?) throws 
+    
+    /**
+     * Sets one local slider ([`LOCAL_PARAMS`] name) of a group.
+     */
+    func setMaskParam(groupId: UInt32, name: String, value: Float, interactive: Bool) throws 
+    
+    func updateMaskGroup(groupId: UInt32, patch: MaskGroupPatch, interactive: Bool) throws 
+    
 }
 open class DevelopSession: DevelopSessionProtocol, @unchecked Sendable {
     fileprivate let handle: UInt64
@@ -2082,6 +2194,313 @@ open func undo()throws  -> Bool  {
             self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
+}
+    
+    /**
+     * Adds an AI component (to `group_id`, or as a new group) and queues its
+     * segmentation; progress arrives through `MaskListener::ai_progress` and
+     * the viewport re-renders when the raster is ready. Returns the group id.
+     */
+open func addAiMask(groupId: UInt32?, request: AiMaskRequest, combine: MaskCombineMode)throws  -> UInt32  {
+    return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_add_ai_mask(
+            self.uniffiCloneHandle(),
+        FfiConverterOptionUInt32.lower(groupId),
+        FfiConverterTypeAiMaskRequest_lower(request),
+        FfiConverterTypeMaskCombineMode_lower(combine),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Appends samples to the stroke in progress and renders interactively.
+     */
+open func addBrushPoints(points: [BrushPoint])throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_add_brush_points(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceTypeBrushPoint.lower(points),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Adds another sampled colour to a colour range component. Blocking.
+     */
+open func addColorRangeSample(groupId: UInt32, index: UInt32, x: Float, y: Float)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_add_color_range_sample(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(groupId),
+        FfiConverterUInt32.lower(index),
+        FfiConverterFloat.lower(x),
+        FfiConverterFloat.lower(y),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Adds a group with one component (`MaskKind` JSON, e.g.
+     * `{"kind":"linear","start":[0.5,0],"end":[0.5,0.6]}`); returns its id.
+     */
+open func addMask(definitionJson: String, interactive: Bool)throws  -> UInt32  {
+    return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_add_mask(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(definitionJson),
+        FfiConverterBool.lower(interactive),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Adds a component to a group; returns its index.
+     */
+open func addMaskComponent(groupId: UInt32, definitionJson: String, combine: MaskCombineMode, interactive: Bool)throws  -> UInt32  {
+    return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_add_mask_component(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(groupId),
+        FfiConverterString.lower(definitionJson),
+        FfiConverterTypeMaskCombineMode_lower(combine),
+        FfiConverterBool.lower(interactive),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Samples the pre-local image around (`x`, `y`) (mask space) and adds a
+     * colour or luminance range there: to `group_id` combined with
+     * `combine`, or as a new group. Returns the group id. Blocking.
+     */
+open func addRangeMask(groupId: UInt32?, kind: RangeKind, x: Float, y: Float, combine: MaskCombineMode)throws  -> UInt32  {
+    return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_add_range_mask(
+            self.uniffiCloneHandle(),
+        FfiConverterOptionUInt32.lower(groupId),
+        FfiConverterTypeRangeKind_lower(kind),
+        FfiConverterFloat.lower(x),
+        FfiConverterFloat.lower(y),
+        FfiConverterTypeMaskCombineMode_lower(combine),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Adds an R8 (one byte per pixel, `'L008'`) surface of the current
+     * `plan_surface` size to the overlay ring (two surfaces). A different
+     * size replaces the ring.
+     */
+open func attachMaskOverlaySurface(iosurfaceId: UInt32, width: UInt32, height: UInt32)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_attach_mask_overlay_surface(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(iosurfaceId),
+        FfiConverterUInt32.lower(width),
+        FfiConverterUInt32.lower(height),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Starts a brush stroke in `group_id` (a new group when `None`): paint
+     * strokes and erase strokes share the group's brush component. Returns
+     * the group id. Follow with `add_brush_points` (one call per display
+     * frame) and `end_brush_stroke`, then `commit`.
+     */
+open func beginBrushStroke(groupId: UInt32?, brush: BrushSettings)throws  -> UInt32  {
+    return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_begin_brush_stroke(
+            self.uniffiCloneHandle(),
+        FfiConverterOptionUInt32.lower(groupId),
+        FfiConverterTypeBrushSettings_lower(brush),uniffiCallStatus
+    )
+})
+}
+    
+open func deleteMask(groupId: UInt32)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_delete_mask(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(groupId),uniffiCallStatus
+    )
+}
+}
+    
+open func detachMaskOverlaySurfaces()  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_detach_mask_overlay_surfaces(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Copies a group (components and sliders) under a new id; returns it.
+     */
+open func duplicateMask(groupId: UInt32)throws  -> UInt32  {
+    return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_duplicate_mask(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(groupId),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Ends the stroke: refines the viewport (commit makes it an undo step).
+     */
+open func endBrushStroke()throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_end_brush_stroke(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * The live mask groups, in render order.
+     */
+open func maskGroups()throws  -> [MaskGroupInfo]  {
+    return try  FfiConverterSequenceTypeMaskGroupInfo.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_mask_groups(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * The group's mask as last rendered, fitted into `max_px` (display
+     * orientation, uncropped); `None` before it has been rendered.
+     */
+open func maskThumbnail(groupId: UInt32, maxPx: UInt32)throws  -> MaskThumbnail?  {
+    return try  FfiConverterOptionTypeMaskThumbnail.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_mask_thumbnail(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(groupId),
+        FfiConverterUInt32.lower(maxPx),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Removes a component; removing the last one deletes the group.
+     */
+open func removeMaskComponent(groupId: UInt32, index: UInt32)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_remove_mask_component(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(groupId),
+        FfiConverterUInt32.lower(index),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Every local slider of a group back to neutral.
+     */
+open func resetMaskParams(groupId: UInt32)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_reset_mask_params(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(groupId),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Re-runs segmentation for a failed (or stale) AI component.
+     */
+open func retryAiMask(key: String)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_retry_ai_mask(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(key),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Replaces a component's definition (gradient handle drags, range tuning).
+     */
+open func setMaskComponent(groupId: UInt32, index: UInt32, definitionJson: String, interactive: Bool)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_set_mask_component(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(groupId),
+        FfiConverterUInt32.lower(index),
+        FfiConverterString.lower(definitionJson),
+        FfiConverterBool.lower(interactive),uniffiCallStatus
+    )
+}
+}
+    
+open func setMaskComponentMode(groupId: UInt32, index: UInt32, combine: MaskCombineMode, invert: Bool)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_set_mask_component_mode(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(groupId),
+        FfiConverterUInt32.lower(index),
+        FfiConverterTypeMaskCombineMode_lower(combine),
+        FfiConverterBool.lower(invert),uniffiCallStatus
+    )
+}
+}
+    
+open func setMaskListener(listener: MaskListener?)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_set_mask_listener(
+            self.uniffiCloneHandle(),
+        FfiConverterOptionTypeMaskListener.lower(listener),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Shows `group_id`'s mask in the overlay surfaces after every frame
+     * (`None`: off). Writes the current frame's overlay at once.
+     */
+open func setMaskOverlay(groupId: UInt32?)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_set_mask_overlay(
+            self.uniffiCloneHandle(),
+        FfiConverterOptionUInt32.lower(groupId),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Sets one local slider ([`LOCAL_PARAMS`] name) of a group.
+     */
+open func setMaskParam(groupId: UInt32, name: String, value: Float, interactive: Bool)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_set_mask_param(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(groupId),
+        FfiConverterString.lower(name),
+        FfiConverterFloat.lower(value),
+        FfiConverterBool.lower(interactive),uniffiCallStatus
+    )
+}
+}
+    
+open func updateMaskGroup(groupId: UInt32, patch: MaskGroupPatch, interactive: Bool)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_update_mask_group(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(groupId),
+        FfiConverterTypeMaskGroupPatch_lower(patch),
+        FfiConverterBool.lower(interactive),uniffiCallStatus
+    )
+}
 }
     
 
@@ -3137,6 +3556,245 @@ public func FfiConverterTypeLibraryStore_lower(_ value: LibraryStore) -> UInt64 
 
 
 
+
+
+/**
+ * Mask callbacks, on engine worker threads.
+ */
+public protocol MaskListener: AnyObject, Sendable {
+    
+    func overlayReady(frame: MaskOverlayFrame) 
+    
+    func aiProgress(update: MaskJobUpdate) 
+    
+}
+/**
+ * Mask callbacks, on engine worker threads.
+ */
+open class MaskListenerImpl: MaskListener, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_tessera_ffi_fn_clone_masklistener(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_tessera_ffi_fn_free_masklistener(handle, $0) }
+    }
+
+    
+
+    
+open func overlayReady(frame: MaskOverlayFrame)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_masklistener_overlay_ready(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeMaskOverlayFrame_lower(frame),uniffiCallStatus
+    )
+}
+}
+    
+open func aiProgress(update: MaskJobUpdate)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_masklistener_ai_progress(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeMaskJobUpdate_lower(update),uniffiCallStatus
+    )
+}
+}
+    
+
+    
+}
+
+
+
+// Put the implementation in a struct so we don't pollute the top-level namespace
+fileprivate struct UniffiCallbackInterfaceMaskListener {
+
+    // Create the VTable using a series of closures.
+    // Swift automatically converts these into C callback functions.
+    //
+    // Store the vtable directly.
+    static let vtable: UniffiVTableCallbackInterfaceMaskListener = UniffiVTableCallbackInterfaceMaskListener(
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            do {
+                try FfiConverterTypeMaskListener.handleMap.remove(handle: uniffiHandle)
+            } catch {
+                print("Uniffi callback interface MaskListener: handle missing in uniffiFree")
+            }
+        },
+        uniffiClone: { (uniffiHandle: UInt64) -> UInt64 in
+            do {
+                return try FfiConverterTypeMaskListener.handleMap.clone(handle: uniffiHandle)
+            } catch {
+                fatalError("Uniffi callback interface MaskListener: handle missing in uniffiClone")
+            }
+        },
+        overlayReady: { (
+            uniffiHandle: UInt64,
+            frame: RustBuffer,
+            uniffiOutReturn: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> () in
+                guard let uniffiObj = try? FfiConverterTypeMaskListener.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.overlayReady(
+                     frame: try FfiConverterTypeMaskOverlayFrame_lift(frame)
+                )
+            }
+
+            
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        aiProgress: { (
+            uniffiHandle: UInt64,
+            update: RustBuffer,
+            uniffiOutReturn: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> () in
+                guard let uniffiObj = try? FfiConverterTypeMaskListener.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.aiProgress(
+                     update: try FfiConverterTypeMaskJobUpdate_lift(update)
+                )
+            }
+
+            
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        }
+    )
+
+    // Rust stores this pointer for future callback invocations, so it must live
+    // for the process lifetime (not just for the init function call).
+    //
+    // `nonisolated(unsafe)` is needed under Swift 6 strict concurrency.
+    // This is safe because the pointee is initialized once during static init
+    // and never mutated by either side of the FFI.  Its fields are C function pointers.
+    nonisolated(unsafe) static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceMaskListener> = {
+        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceMaskListener>.allocate(capacity: 1)
+        ptr.initialize(to: vtable)
+        return UnsafePointer(ptr)
+    }()
+}
+
+private func uniffiCallbackInitMaskListener() {
+    uniffi_tessera_ffi_fn_init_callback_vtable_masklistener(UniffiCallbackInterfaceMaskListener.vtablePtr)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMaskListener: FfiConverter {
+    fileprivate static let handleMap = UniffiHandleMap<MaskListener>()
+
+    typealias FfiType = UInt64
+    typealias SwiftType = MaskListener
+
+    public static func lift(_ handle: UInt64) throws -> MaskListener {
+        if ((handle & 1) == 0) {
+            // Rust-generated handle, construct a new class that uses the handle to implement the
+            // interface
+            return MaskListenerImpl(unsafeFromHandle: handle)
+        } else {
+            // Swift-generated handle, get the object from the handle map
+            return try handleMap.remove(handle: handle)
+        }
+    }
+
+    public static func lower(_ value: MaskListener) -> UInt64 {
+         if let rustImpl = value as? MaskListenerImpl {
+             // Rust-implemented object.  Clone the handle and return it
+            return rustImpl.uniffiCloneHandle()
+         } else {
+            // Swift object, generate a new vtable handle and return that.
+            return handleMap.insert(obj: value)
+         }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MaskListener {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: MaskListener, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMaskListener_lift(_ handle: UInt64) throws -> MaskListener {
+    return try FfiConverterTypeMaskListener.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMaskListener_lower(_ value: MaskListener) -> UInt64 {
+    return FfiConverterTypeMaskListener.lower(value)
+}
+
+
+
+
 public struct AlbumInfo: Equatable, Hashable {
     public var name: String
     public var images: [String]
@@ -3188,6 +3846,147 @@ public func FfiConverterTypeAlbumInfo_lift(_ buf: RustBuffer) throws -> AlbumInf
 #endif
 public func FfiConverterTypeAlbumInfo_lower(_ value: AlbumInfo) -> RustBuffer {
     return FfiConverterTypeAlbumInfo.lower(value)
+}
+
+
+/**
+ * A brush sample in mask space (sensor-oriented, normalized), pressure 0..=1.
+ */
+public struct BrushPoint: Equatable, Hashable {
+    public var x: Float
+    public var y: Float
+    public var pressure: Float
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(x: Float, y: Float, pressure: Float) {
+        self.x = x
+        self.y = y
+        self.pressure = pressure
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension BrushPoint: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBrushPoint: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BrushPoint {
+        return
+            try BrushPoint(
+                x: FfiConverterFloat.read(from: &buf), 
+                y: FfiConverterFloat.read(from: &buf), 
+                pressure: FfiConverterFloat.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: BrushPoint, into buf: inout [UInt8]) {
+        FfiConverterFloat.write(value.x, into: &buf)
+        FfiConverterFloat.write(value.y, into: &buf)
+        FfiConverterFloat.write(value.pressure, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBrushPoint_lift(_ buf: RustBuffer) throws -> BrushPoint {
+    return try FfiConverterTypeBrushPoint.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBrushPoint_lower(_ value: BrushPoint) -> RustBuffer {
+    return FfiConverterTypeBrushPoint.lower(value)
+}
+
+
+public struct BrushSettings: Equatable, Hashable {
+    /**
+     * Radius normalized to the image width (sensor orientation).
+     */
+    public var radius: Float
+    /**
+     * 0..=100.
+     */
+    public var feather: Float
+    /**
+     * 0..=100.
+     */
+    public var flow: Float
+    public var erase: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Radius normalized to the image width (sensor orientation).
+         */radius: Float, 
+        /**
+         * 0..=100.
+         */feather: Float, 
+        /**
+         * 0..=100.
+         */flow: Float, erase: Bool) {
+        self.radius = radius
+        self.feather = feather
+        self.flow = flow
+        self.erase = erase
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension BrushSettings: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBrushSettings: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BrushSettings {
+        return
+            try BrushSettings(
+                radius: FfiConverterFloat.read(from: &buf), 
+                feather: FfiConverterFloat.read(from: &buf), 
+                flow: FfiConverterFloat.read(from: &buf), 
+                erase: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: BrushSettings, into buf: inout [UInt8]) {
+        FfiConverterFloat.write(value.radius, into: &buf)
+        FfiConverterFloat.write(value.feather, into: &buf)
+        FfiConverterFloat.write(value.flow, into: &buf)
+        FfiConverterBool.write(value.erase, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBrushSettings_lift(_ buf: RustBuffer) throws -> BrushSettings {
+    return try FfiConverterTypeBrushSettings.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBrushSettings_lower(_ value: BrushSettings) -> RustBuffer {
+    return FfiConverterTypeBrushSettings.lower(value)
 }
 
 
@@ -5025,6 +5824,658 @@ public func FfiConverterTypeLibraryNode_lower(_ value: LibraryNode) -> RustBuffe
 }
 
 
+public struct LocalParamValue: Equatable, Hashable {
+    public var name: String
+    public var value: Float
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(name: String, value: Float) {
+        self.name = name
+        self.value = value
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LocalParamValue: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLocalParamValue: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LocalParamValue {
+        return
+            try LocalParamValue(
+                name: FfiConverterString.read(from: &buf), 
+                value: FfiConverterFloat.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LocalParamValue, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterFloat.write(value.value, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLocalParamValue_lift(_ buf: RustBuffer) throws -> LocalParamValue {
+    return try FfiConverterTypeLocalParamValue.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLocalParamValue_lower(_ value: LocalParamValue) -> RustBuffer {
+    return FfiConverterTypeLocalParamValue.lower(value)
+}
+
+
+public struct MaskComponentInfo: Equatable, Hashable {
+    public var kind: MaskComponentType
+    public var combine: MaskCombineMode
+    public var invert: Bool
+    /**
+     * "Subject", "Brush (3 strokes)", "Linear Gradient", …
+     */
+    public var title: String
+    /**
+     * The component's `MaskKind` as recipe JSON (geometry for the loupe handles).
+     */
+    public var definitionJson: String
+    public var ai: AiMaskState
+    /**
+     * Identity of the AI raster (matches `MaskJobUpdate::key`), if AI.
+     */
+    public var aiKey: String?
+    /**
+     * False when this pipeline version keeps but does not draw the component.
+     */
+    public var rendered: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(kind: MaskComponentType, combine: MaskCombineMode, invert: Bool, 
+        /**
+         * "Subject", "Brush (3 strokes)", "Linear Gradient", …
+         */title: String, 
+        /**
+         * The component's `MaskKind` as recipe JSON (geometry for the loupe handles).
+         */definitionJson: String, ai: AiMaskState, 
+        /**
+         * Identity of the AI raster (matches `MaskJobUpdate::key`), if AI.
+         */aiKey: String?, 
+        /**
+         * False when this pipeline version keeps but does not draw the component.
+         */rendered: Bool) {
+        self.kind = kind
+        self.combine = combine
+        self.invert = invert
+        self.title = title
+        self.definitionJson = definitionJson
+        self.ai = ai
+        self.aiKey = aiKey
+        self.rendered = rendered
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension MaskComponentInfo: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMaskComponentInfo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MaskComponentInfo {
+        return
+            try MaskComponentInfo(
+                kind: FfiConverterTypeMaskComponentType.read(from: &buf), 
+                combine: FfiConverterTypeMaskCombineMode.read(from: &buf), 
+                invert: FfiConverterBool.read(from: &buf), 
+                title: FfiConverterString.read(from: &buf), 
+                definitionJson: FfiConverterString.read(from: &buf), 
+                ai: FfiConverterTypeAiMaskState.read(from: &buf), 
+                aiKey: FfiConverterOptionString.read(from: &buf), 
+                rendered: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: MaskComponentInfo, into buf: inout [UInt8]) {
+        FfiConverterTypeMaskComponentType.write(value.kind, into: &buf)
+        FfiConverterTypeMaskCombineMode.write(value.combine, into: &buf)
+        FfiConverterBool.write(value.invert, into: &buf)
+        FfiConverterString.write(value.title, into: &buf)
+        FfiConverterString.write(value.definitionJson, into: &buf)
+        FfiConverterTypeAiMaskState.write(value.ai, into: &buf)
+        FfiConverterOptionString.write(value.aiKey, into: &buf)
+        FfiConverterBool.write(value.rendered, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMaskComponentInfo_lift(_ buf: RustBuffer) throws -> MaskComponentInfo {
+    return try FfiConverterTypeMaskComponentInfo.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMaskComponentInfo_lower(_ value: MaskComponentInfo) -> RustBuffer {
+    return FfiConverterTypeMaskComponentInfo.lower(value)
+}
+
+
+public struct MaskGroupInfo: Equatable, Hashable {
+    public var id: UInt32
+    public var name: String
+    public var enabled: Bool
+    /**
+     * Scales every local slider, `0..=200` %.
+     */
+    public var amount: Float
+    public var invert: Bool
+    public var components: [MaskComponentInfo]
+    /**
+     * The editable local sliders ([`LOCAL_PARAMS`] order).
+     */
+    public var params: [LocalParamValue]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: UInt32, name: String, enabled: Bool, 
+        /**
+         * Scales every local slider, `0..=200` %.
+         */amount: Float, invert: Bool, components: [MaskComponentInfo], 
+        /**
+         * The editable local sliders ([`LOCAL_PARAMS`] order).
+         */params: [LocalParamValue]) {
+        self.id = id
+        self.name = name
+        self.enabled = enabled
+        self.amount = amount
+        self.invert = invert
+        self.components = components
+        self.params = params
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension MaskGroupInfo: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMaskGroupInfo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MaskGroupInfo {
+        return
+            try MaskGroupInfo(
+                id: FfiConverterUInt32.read(from: &buf), 
+                name: FfiConverterString.read(from: &buf), 
+                enabled: FfiConverterBool.read(from: &buf), 
+                amount: FfiConverterFloat.read(from: &buf), 
+                invert: FfiConverterBool.read(from: &buf), 
+                components: FfiConverterSequenceTypeMaskComponentInfo.read(from: &buf), 
+                params: FfiConverterSequenceTypeLocalParamValue.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: MaskGroupInfo, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.id, into: &buf)
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterBool.write(value.enabled, into: &buf)
+        FfiConverterFloat.write(value.amount, into: &buf)
+        FfiConverterBool.write(value.invert, into: &buf)
+        FfiConverterSequenceTypeMaskComponentInfo.write(value.components, into: &buf)
+        FfiConverterSequenceTypeLocalParamValue.write(value.params, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMaskGroupInfo_lift(_ buf: RustBuffer) throws -> MaskGroupInfo {
+    return try FfiConverterTypeMaskGroupInfo.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMaskGroupInfo_lower(_ value: MaskGroupInfo) -> RustBuffer {
+    return FfiConverterTypeMaskGroupInfo.lower(value)
+}
+
+
+/**
+ * Group fields to change; `None` leaves a field as it is.
+ */
+public struct MaskGroupPatch: Equatable, Hashable {
+    public var name: String?
+    public var enabled: Bool?
+    public var amount: Float?
+    public var invert: Bool?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(name: String?, enabled: Bool?, amount: Float?, invert: Bool?) {
+        self.name = name
+        self.enabled = enabled
+        self.amount = amount
+        self.invert = invert
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension MaskGroupPatch: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMaskGroupPatch: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MaskGroupPatch {
+        return
+            try MaskGroupPatch(
+                name: FfiConverterOptionString.read(from: &buf), 
+                enabled: FfiConverterOptionBool.read(from: &buf), 
+                amount: FfiConverterOptionFloat.read(from: &buf), 
+                invert: FfiConverterOptionBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: MaskGroupPatch, into buf: inout [UInt8]) {
+        FfiConverterOptionString.write(value.name, into: &buf)
+        FfiConverterOptionBool.write(value.enabled, into: &buf)
+        FfiConverterOptionFloat.write(value.amount, into: &buf)
+        FfiConverterOptionBool.write(value.invert, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMaskGroupPatch_lift(_ buf: RustBuffer) throws -> MaskGroupPatch {
+    return try FfiConverterTypeMaskGroupPatch.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMaskGroupPatch_lower(_ value: MaskGroupPatch) -> RustBuffer {
+    return FfiConverterTypeMaskGroupPatch.lower(value)
+}
+
+
+/**
+ * Progress of an AI mask computation.
+ */
+public struct MaskJobUpdate: Equatable, Hashable {
+    public var key: String
+    public var title: String
+    public var fraction: Float
+    public var message: String
+    public var done: Bool
+    public var error: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(key: String, title: String, fraction: Float, message: String, done: Bool, error: String?) {
+        self.key = key
+        self.title = title
+        self.fraction = fraction
+        self.message = message
+        self.done = done
+        self.error = error
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension MaskJobUpdate: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMaskJobUpdate: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MaskJobUpdate {
+        return
+            try MaskJobUpdate(
+                key: FfiConverterString.read(from: &buf), 
+                title: FfiConverterString.read(from: &buf), 
+                fraction: FfiConverterFloat.read(from: &buf), 
+                message: FfiConverterString.read(from: &buf), 
+                done: FfiConverterBool.read(from: &buf), 
+                error: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: MaskJobUpdate, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.key, into: &buf)
+        FfiConverterString.write(value.title, into: &buf)
+        FfiConverterFloat.write(value.fraction, into: &buf)
+        FfiConverterString.write(value.message, into: &buf)
+        FfiConverterBool.write(value.done, into: &buf)
+        FfiConverterOptionString.write(value.error, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMaskJobUpdate_lift(_ buf: RustBuffer) throws -> MaskJobUpdate {
+    return try FfiConverterTypeMaskJobUpdate.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMaskJobUpdate_lower(_ value: MaskJobUpdate) -> RustBuffer {
+    return FfiConverterTypeMaskJobUpdate.lower(value)
+}
+
+
+/**
+ * An overlay plane written into a host R8 surface for the frame at `level`.
+ */
+public struct MaskOverlayFrame: Equatable, Hashable {
+    public var surfaceId: UInt32
+    public var groupId: UInt32
+    public var level: UInt8
+    /**
+     * Valid region, anchored top-left (the frame's cropped extent).
+     */
+    public var width: UInt32
+    public var height: UInt32
+    /**
+     * Generation of the frame it belongs to.
+     */
+    public var generation: UInt64
+    /**
+     * Mean alpha, 0..=1 (diagnostics, tests).
+     */
+    public var coverage: Float
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(surfaceId: UInt32, groupId: UInt32, level: UInt8, 
+        /**
+         * Valid region, anchored top-left (the frame's cropped extent).
+         */width: UInt32, height: UInt32, 
+        /**
+         * Generation of the frame it belongs to.
+         */generation: UInt64, 
+        /**
+         * Mean alpha, 0..=1 (diagnostics, tests).
+         */coverage: Float) {
+        self.surfaceId = surfaceId
+        self.groupId = groupId
+        self.level = level
+        self.width = width
+        self.height = height
+        self.generation = generation
+        self.coverage = coverage
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension MaskOverlayFrame: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMaskOverlayFrame: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MaskOverlayFrame {
+        return
+            try MaskOverlayFrame(
+                surfaceId: FfiConverterUInt32.read(from: &buf), 
+                groupId: FfiConverterUInt32.read(from: &buf), 
+                level: FfiConverterUInt8.read(from: &buf), 
+                width: FfiConverterUInt32.read(from: &buf), 
+                height: FfiConverterUInt32.read(from: &buf), 
+                generation: FfiConverterUInt64.read(from: &buf), 
+                coverage: FfiConverterFloat.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: MaskOverlayFrame, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.surfaceId, into: &buf)
+        FfiConverterUInt32.write(value.groupId, into: &buf)
+        FfiConverterUInt8.write(value.level, into: &buf)
+        FfiConverterUInt32.write(value.width, into: &buf)
+        FfiConverterUInt32.write(value.height, into: &buf)
+        FfiConverterUInt64.write(value.generation, into: &buf)
+        FfiConverterFloat.write(value.coverage, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMaskOverlayFrame_lift(_ buf: RustBuffer) throws -> MaskOverlayFrame {
+    return try FfiConverterTypeMaskOverlayFrame.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMaskOverlayFrame_lower(_ value: MaskOverlayFrame) -> RustBuffer {
+    return FfiConverterTypeMaskOverlayFrame.lower(value)
+}
+
+
+public struct MaskPoint: Equatable, Hashable {
+    public var x: Float
+    public var y: Float
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(x: Float, y: Float) {
+        self.x = x
+        self.y = y
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension MaskPoint: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMaskPoint: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MaskPoint {
+        return
+            try MaskPoint(
+                x: FfiConverterFloat.read(from: &buf), 
+                y: FfiConverterFloat.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: MaskPoint, into buf: inout [UInt8]) {
+        FfiConverterFloat.write(value.x, into: &buf)
+        FfiConverterFloat.write(value.y, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMaskPoint_lift(_ buf: RustBuffer) throws -> MaskPoint {
+    return try FfiConverterTypeMaskPoint.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMaskPoint_lower(_ value: MaskPoint) -> RustBuffer {
+    return FfiConverterTypeMaskPoint.lower(value)
+}
+
+
+public struct MaskRect: Equatable, Hashable {
+    public var left: Float
+    public var top: Float
+    public var right: Float
+    public var bottom: Float
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(left: Float, top: Float, right: Float, bottom: Float) {
+        self.left = left
+        self.top = top
+        self.right = right
+        self.bottom = bottom
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension MaskRect: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMaskRect: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MaskRect {
+        return
+            try MaskRect(
+                left: FfiConverterFloat.read(from: &buf), 
+                top: FfiConverterFloat.read(from: &buf), 
+                right: FfiConverterFloat.read(from: &buf), 
+                bottom: FfiConverterFloat.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: MaskRect, into buf: inout [UInt8]) {
+        FfiConverterFloat.write(value.left, into: &buf)
+        FfiConverterFloat.write(value.top, into: &buf)
+        FfiConverterFloat.write(value.right, into: &buf)
+        FfiConverterFloat.write(value.bottom, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMaskRect_lift(_ buf: RustBuffer) throws -> MaskRect {
+    return try FfiConverterTypeMaskRect.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMaskRect_lower(_ value: MaskRect) -> RustBuffer {
+    return FfiConverterTypeMaskRect.lower(value)
+}
+
+
+/**
+ * A group's mask for the panel: 8-bit alpha, display orientation, uncropped.
+ */
+public struct MaskThumbnail: Equatable, Hashable {
+    public var width: UInt32
+    public var height: UInt32
+    public var alpha: Data
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(width: UInt32, height: UInt32, alpha: Data) {
+        self.width = width
+        self.height = height
+        self.alpha = alpha
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension MaskThumbnail: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMaskThumbnail: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MaskThumbnail {
+        return
+            try MaskThumbnail(
+                width: FfiConverterUInt32.read(from: &buf), 
+                height: FfiConverterUInt32.read(from: &buf), 
+                alpha: FfiConverterData.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: MaskThumbnail, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.width, into: &buf)
+        FfiConverterUInt32.write(value.height, into: &buf)
+        FfiConverterData.write(value.alpha, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMaskThumbnail_lift(_ buf: RustBuffer) throws -> MaskThumbnail {
+    return try FfiConverterTypeMaskThumbnail.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMaskThumbnail_lower(_ value: MaskThumbnail) -> RustBuffer {
+    return FfiConverterTypeMaskThumbnail.lower(value)
+}
+
+
 public struct MetadataField: Equatable, Hashable {
     public var group: String
     public var name: String
@@ -5795,6 +7246,206 @@ public func FfiConverterTypeSurfacePlan_lower(_ value: SurfacePlan) -> RustBuffe
 }
 
 
+/**
+ * What an AI mask selects. Boxes and points are in mask space.
+ */
+
+public enum AiMaskRequest: Equatable, Hashable {
+    
+    case subject
+    case sky
+    case background
+    /**
+     * A person from a face box: expanded to a whole-person box and segmented
+     * with the promptable model (not part parsing or identity).
+     */
+    case person(face: MaskRect
+    )
+    /**
+     * An object from positive clicks and/or a box (promptable segmentation).
+     */
+    case object(points: [MaskPoint], region: MaskRect?
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension AiMaskRequest: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAiMaskRequest: FfiConverterRustBuffer {
+    typealias SwiftType = AiMaskRequest
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AiMaskRequest {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .subject
+        
+        case 2: return .sky
+        
+        case 3: return .background
+        
+        case 4: return .person(face: try FfiConverterTypeMaskRect.read(from: &buf)
+        )
+        
+        case 5: return .object(points: try FfiConverterSequenceTypeMaskPoint.read(from: &buf), region: try FfiConverterOptionTypeMaskRect.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: AiMaskRequest, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .subject:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .sky:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .background:
+            writeInt(&buf, Int32(3))
+        
+        
+        case let .person(face):
+            writeInt(&buf, Int32(4))
+            FfiConverterTypeMaskRect.write(face, into: &buf)
+            
+        
+        case let .object(points,region):
+            writeInt(&buf, Int32(5))
+            FfiConverterSequenceTypeMaskPoint.write(points, into: &buf)
+            FfiConverterOptionTypeMaskRect.write(region, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAiMaskRequest_lift(_ buf: RustBuffer) throws -> AiMaskRequest {
+    return try FfiConverterTypeAiMaskRequest.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAiMaskRequest_lower(_ value: AiMaskRequest) -> RustBuffer {
+    return FfiConverterTypeAiMaskRequest.lower(value)
+}
+
+
+
+/**
+ * State of an AI component's raster in this session.
+ */
+
+public enum AiMaskState: Equatable, Hashable {
+    
+    /**
+     * Procedural component.
+     */
+    case notAi
+    /**
+     * Queued or computing.
+     */
+    case pending(fraction: Float, message: String
+    )
+    case ready
+    case failed(message: String
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension AiMaskState: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAiMaskState: FfiConverterRustBuffer {
+    typealias SwiftType = AiMaskState
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AiMaskState {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .notAi
+        
+        case 2: return .pending(fraction: try FfiConverterFloat.read(from: &buf), message: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 3: return .ready
+        
+        case 4: return .failed(message: try FfiConverterString.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: AiMaskState, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .notAi:
+            writeInt(&buf, Int32(1))
+        
+        
+        case let .pending(fraction,message):
+            writeInt(&buf, Int32(2))
+            FfiConverterFloat.write(fraction, into: &buf)
+            FfiConverterString.write(message, into: &buf)
+            
+        
+        case .ready:
+            writeInt(&buf, Int32(3))
+        
+        
+        case let .failed(message):
+            writeInt(&buf, Int32(4))
+            FfiConverterString.write(message, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAiMaskState_lift(_ buf: RustBuffer) throws -> AiMaskState {
+    return try FfiConverterTypeAiMaskState.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAiMaskState_lower(_ value: AiMaskState) -> RustBuffer {
+    return FfiConverterTypeAiMaskState.lower(value)
+}
+
+
+
 public 
 enum BridgeError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
@@ -6204,6 +7855,281 @@ public func FfiConverterTypeLibraryNodeKind_lift(_ buf: RustBuffer) throws -> Li
 #endif
 public func FfiConverterTypeLibraryNodeKind_lower(_ value: LibraryNodeKind) -> RustBuffer {
     return FfiConverterTypeLibraryNodeKind.lower(value)
+}
+
+
+
+
+public enum MaskCombineMode: Equatable, Hashable {
+    
+    case add
+    case subtract
+    case intersect
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension MaskCombineMode: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMaskCombineMode: FfiConverterRustBuffer {
+    typealias SwiftType = MaskCombineMode
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MaskCombineMode {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .add
+        
+        case 2: return .subtract
+        
+        case 3: return .intersect
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: MaskCombineMode, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .add:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .subtract:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .intersect:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMaskCombineMode_lift(_ buf: RustBuffer) throws -> MaskCombineMode {
+    return try FfiConverterTypeMaskCombineMode.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMaskCombineMode_lower(_ value: MaskCombineMode) -> RustBuffer {
+    return FfiConverterTypeMaskCombineMode.lower(value)
+}
+
+
+
+
+public enum MaskComponentType: Equatable, Hashable {
+    
+    case subject
+    case sky
+    case background
+    case person
+    case object
+    case landscape
+    case depth
+    case linear
+    case radial
+    case brush
+    case luminanceRange
+    case colorRange
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension MaskComponentType: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMaskComponentType: FfiConverterRustBuffer {
+    typealias SwiftType = MaskComponentType
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MaskComponentType {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .subject
+        
+        case 2: return .sky
+        
+        case 3: return .background
+        
+        case 4: return .person
+        
+        case 5: return .object
+        
+        case 6: return .landscape
+        
+        case 7: return .depth
+        
+        case 8: return .linear
+        
+        case 9: return .radial
+        
+        case 10: return .brush
+        
+        case 11: return .luminanceRange
+        
+        case 12: return .colorRange
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: MaskComponentType, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .subject:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .sky:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .background:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .person:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .object:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .landscape:
+            writeInt(&buf, Int32(6))
+        
+        
+        case .depth:
+            writeInt(&buf, Int32(7))
+        
+        
+        case .linear:
+            writeInt(&buf, Int32(8))
+        
+        
+        case .radial:
+            writeInt(&buf, Int32(9))
+        
+        
+        case .brush:
+            writeInt(&buf, Int32(10))
+        
+        
+        case .luminanceRange:
+            writeInt(&buf, Int32(11))
+        
+        
+        case .colorRange:
+            writeInt(&buf, Int32(12))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMaskComponentType_lift(_ buf: RustBuffer) throws -> MaskComponentType {
+    return try FfiConverterTypeMaskComponentType.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMaskComponentType_lower(_ value: MaskComponentType) -> RustBuffer {
+    return FfiConverterTypeMaskComponentType.lower(value)
+}
+
+
+
+
+public enum RangeKind: Equatable, Hashable {
+    
+    case color
+    case luminance
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension RangeKind: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRangeKind: FfiConverterRustBuffer {
+    typealias SwiftType = RangeKind
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RangeKind {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .color
+        
+        case 2: return .luminance
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: RangeKind, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .color:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .luminance:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRangeKind_lift(_ buf: RustBuffer) throws -> RangeKind {
+    return try FfiConverterTypeRangeKind.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRangeKind_lower(_ value: RangeKind) -> RustBuffer {
+    return FfiConverterTypeRangeKind.lower(value)
 }
 
 
@@ -6636,6 +8562,30 @@ fileprivate struct FfiConverterOptionInt64: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionFloat: FfiConverterRustBuffer {
+    typealias SwiftType = Float?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterFloat.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterFloat.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionBool: FfiConverterRustBuffer {
     typealias SwiftType = Bool?
 
@@ -6756,6 +8706,30 @@ fileprivate struct FfiConverterOptionTypeEngineEventListener: FfiConverterRustBu
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeMaskListener: FfiConverterRustBuffer {
+    typealias SwiftType = MaskListener?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeMaskListener.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeMaskListener.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeCullUpdate: FfiConverterRustBuffer {
     typealias SwiftType = CullUpdate?
 
@@ -6772,6 +8746,54 @@ fileprivate struct FfiConverterOptionTypeCullUpdate: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeCullUpdate.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeMaskRect: FfiConverterRustBuffer {
+    typealias SwiftType = MaskRect?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeMaskRect.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeMaskRect.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeMaskThumbnail: FfiConverterRustBuffer {
+    typealias SwiftType = MaskThumbnail?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeMaskThumbnail.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeMaskThumbnail.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -6919,6 +8941,31 @@ fileprivate struct FfiConverterSequenceTypeAlbumInfo: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeAlbumInfo.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeBrushPoint: FfiConverterRustBuffer {
+    typealias SwiftType = [BrushPoint]
+
+    public static func write(_ value: [BrushPoint], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeBrushPoint.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [BrushPoint] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [BrushPoint]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeBrushPoint.read(from: &buf))
         }
         return seq
     }
@@ -7252,6 +9299,106 @@ fileprivate struct FfiConverterSequenceTypeLibraryNode: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeLocalParamValue: FfiConverterRustBuffer {
+    typealias SwiftType = [LocalParamValue]
+
+    public static func write(_ value: [LocalParamValue], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeLocalParamValue.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [LocalParamValue] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [LocalParamValue]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeLocalParamValue.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeMaskComponentInfo: FfiConverterRustBuffer {
+    typealias SwiftType = [MaskComponentInfo]
+
+    public static func write(_ value: [MaskComponentInfo], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeMaskComponentInfo.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [MaskComponentInfo] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [MaskComponentInfo]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeMaskComponentInfo.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeMaskGroupInfo: FfiConverterRustBuffer {
+    typealias SwiftType = [MaskGroupInfo]
+
+    public static func write(_ value: [MaskGroupInfo], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeMaskGroupInfo.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [MaskGroupInfo] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [MaskGroupInfo]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeMaskGroupInfo.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeMaskPoint: FfiConverterRustBuffer {
+    typealias SwiftType = [MaskPoint]
+
+    public static func write(_ value: [MaskPoint], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeMaskPoint.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [MaskPoint] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [MaskPoint]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeMaskPoint.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeMetadataField: FfiConverterRustBuffer {
     typealias SwiftType = [MetadataField]
 
@@ -7534,6 +9681,81 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_developsession_undo() != 15217) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tessera_ffi_checksum_method_developsession_add_ai_mask() != 28540) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_add_brush_points() != 8320) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_add_color_range_sample() != 33260) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_add_mask() != 1005) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_add_mask_component() != 36705) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_add_range_mask() != 8022) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_attach_mask_overlay_surface() != 3766) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_begin_brush_stroke() != 34157) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_delete_mask() != 17927) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_detach_mask_overlay_surfaces() != 39660) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_duplicate_mask() != 8288) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_end_brush_stroke() != 52322) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_mask_groups() != 13907) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_mask_thumbnail() != 3) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_remove_mask_component() != 42285) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_reset_mask_params() != 52944) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_retry_ai_mask() != 3991) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_set_mask_component() != 27226) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_set_mask_component_mode() != 33645) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_set_mask_listener() != 34481) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_set_mask_overlay() != 53542) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_set_mask_param() != 32856) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_update_mask_group() != 1513) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_masklistener_overlay_ready() != 57155) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_masklistener_ai_progress() != 54199) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_tessera_ffi_checksum_method_cullsession_albums() != 24789) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -7654,6 +9876,7 @@ private let initializationResult: InitializationResult = {
 
     uniffiCallbackInitDevelopListener()
     uniffiCallbackInitEngineEventListener()
+    uniffiCallbackInitMaskListener()
     return InitializationResult.ok
 }()
 

@@ -1,4 +1,30 @@
+# DRUNet color: MIT export and upstream cszn/KAIR MIT weights.
+# https://huggingface.co/synthscript/drunet-color-onnx
+# https://github.com/cszn/KAIR/blob/master/LICENSE
+# Actual downloaded bytes hashed locally; dynamic H/W must be divisible by 8.
+[[models]]
+id = "enhance/drunet-color"
+version = "a2b9fccfa27b197f44a3876c567f5e48970c44a7"
+task = "rgb-denoise"
+dtype = "fp32"
+sha256 = "2ae3ab5eb15daac2ee79be984d584b908ce7f0f60b27be87d005f728c2aa0087"
+download_url = "https://huggingface.co/synthscript/drunet-color-onnx/resolve/a2b9fccfa27b197f44a3876c567f5e48970c44a7/drunet_color.onnx"
+inputs = [{ name = "input", shape = [1, 4, 32, 32], dtype = "fp32" }]
+outputs = [{ name = "output", shape = [1, 3, 32, 32], dtype = "fp32" }]
+
 # Segmentation artifacts: independently downloaded and SHA-256 checked.
+[[models]]
+id = "depth/anything-v2-small"
+version = "4472b7362082ad9968fee890ca0f1e5aca36b93d"
+task = "relative-inverse-depth"
+dtype = "fp32"
+# Apache-2.0 SMALL only; opset 14; 99060839 bytes. See tools/orchestrate/wp/M3-06/DEPTH.md.
+sha256 = "afb6a5c28f3b6bf1618c6e43f02073ef9dfdc70e937502d51603e57b0a1df10c"
+download_url = "https://huggingface.co/onnx-community/depth-anything-v2-small/resolve/4472b7362082ad9968fee890ca0f1e5aca36b93d/onnx/model.onnx"
+# Dynamic H/W multiples of 14; representative square shape below.
+inputs = [{ name = "pixel_values", shape = [1, 3, 518, 518], dtype = "fp32" }]
+outputs = [{ name = "predicted_depth", shape = [1, 518, 518], dtype = "fp32" }]
+
 # License/provenance/preprocessing: crates/ml-segment/README.md.
 [[models]]
 id = "segment/u2net"
@@ -55,6 +81,30 @@ outputs = [
 ]
 
 # Tiny deterministic fixture. Production entries use https:// URLs.
+# Enhancement model selection/provenance: crates/ml-enhance/README.md.
+# Real-ESRGAN weights and these ONNX exports: BSD-3-Clause.
+# https://github.com/xinntao/Real-ESRGAN/blob/master/LICENSE
+# Shapes below are concrete probes; the exports accept dynamic spatial axes.
+[[models]]
+id = "enhance/realesrgan-x2"
+version = "09f741bac80a246b407da3ee902bf5f3291b602f"
+task = "super-resolution"
+dtype = "fp32"
+sha256 = "7115ba92e8a1bfa63d68558ef006ef3d91273a068d321b1439f8bb1c9179002c"
+download_url = "https://huggingface.co/SceneWorks/real-esrgan-onnx/resolve/09f741bac80a246b407da3ee902bf5f3291b602f/real_esrgan_x2.onnx"
+inputs = [{ name = "input", shape = [1, 3, 32, 32], dtype = "fp32" }]
+outputs = [{ name = "output", shape = [1, 3, 64, 64], dtype = "fp32" }]
+
+[[models]]
+id = "enhance/realesrgan-x4"
+version = "09f741bac80a246b407da3ee902bf5f3291b602f"
+task = "super-resolution"
+dtype = "fp32"
+sha256 = "5c586662929cbc686c1a5c38d9c060dbdb4ea5863a1f7672b8c0761e6b89c033"
+download_url = "https://huggingface.co/SceneWorks/real-esrgan-onnx/resolve/09f741bac80a246b407da3ee902bf5f3291b602f/real_esrgan_x4.onnx"
+inputs = [{ name = "input", shape = [1, 3, 32, 32], dtype = "fp32" }]
+outputs = [{ name = "output", shape = [1, 3, 128, 128], dtype = "fp32" }]
+
 [[models]]
 id = "test/conv"
 version = "1"

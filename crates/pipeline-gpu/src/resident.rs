@@ -570,6 +570,25 @@ impl ResidentBatch for Batch<'_> {
             self.pool.lock().unwrap().free.extend([dst, decomposition]);
             return Ok(self.tile(tile.coord, layout, interior));
         }
+        if matches!(op, Op::Display { .. })
+            && let Some(output) = &self.gpu.managed_output
+        {
+            let layout = TileLayout {
+                halo: 0,
+                ..tile.layout
+            };
+            let dst = self.buffer(layout.len() * 4)?;
+            let flags = self.buffer(layout.plane_len() * 4)?;
+            let src = self.storage(tile)?.clone();
+            let group = output.bindings(&src, &dst, &flags, tile.layout, true)?;
+            self.record(
+                &output.pipeline,
+                group,
+                (layout.plane_len() as u32).div_ceil(64),
+            );
+            self.pool.lock().unwrap().free.push(flags);
+            return Ok(self.tile(tile.coord, layout, dst));
+        }
         let (p, layout) = parameters(op, tile.layout, tile.coord.pixel_origin(TILE_SIZE))?;
         let dst = self.buffer(layout.len() * 4)?;
         let src = self.storage(tile)?.clone();
@@ -583,6 +602,12 @@ impl ResidentBatch for Batch<'_> {
         Ok(self.tile(tile.coord, layout, dst))
     }
     fn run_chain(&mut self, ops: &[Op<'_>], tile: &ResidentTile) -> EngineResult<ResidentTile> {
+        if let Some((display @ Op::Display { .. }, scene)) = ops.split_last()
+            && self.gpu.managed_output.is_some()
+        {
+            let scene = self.run_chain(scene, tile)?;
+            return self.run(display, &scene);
+        }
         if crate::fused::supports(ops) {
             let (p, layout) = crate::fused::parameters(ops, tile.layout, tile.coord)?;
             let dst = self.buffer(layout.len() * 4)?;

@@ -49,8 +49,11 @@ bash Support/release/make-appcast.sh
 versioned symlinks), adds the executable's Frameworks rpath, signs Downloader.xpc,
 Installer.xpc, Autoupdate, Updater.app, the framework, then Tessera.app. It retains
 Sparkle helper entitlements. Both ad-hoc and Developer ID app signing use hardened
-runtime and `Tessera.entitlements` (an empty dictionary, no app sandbox or weakened
-library validation). Signing failures are fatal. Developer ID uses timestamps.
+runtime. Developer ID uses `Tessera.entitlements` (no weakened library validation)
+and timestamps. Ad-hoc uses `Tessera-adhoc.entitlements` to disable library
+validation: independently ad-hoc-signed framework and app binaries have different
+effective Team IDs, so the hardened app otherwise aborts in dyld before launch.
+This exception is for local ad-hoc builds only. Signing failures are fatal.
 
 `notarize.sh [artifact]` defaults to `build/Tessera.app`, archives an app for
 `xcrun notarytool submit --wait`, then staples and validates the original app.
@@ -75,9 +78,12 @@ Set `SPARKLE_DOWNLOAD_URL_PREFIX` for a fixed tag's download directory. The defa
 is the latest-release asset directory. Never change the prefix without uploading
 all referenced archives there.
 
-The installed app reads the feed and public key from Info.plist, checks daily by
-default, and exposes Tessera > Check for Updates… . Automatic checks do not imply
-automatic installation. Sparkle respects users' saved check preferences.
+The installed app reads the feed and public key from Info.plist. Only builds with
+both non-empty `SUFeedURL` and `SUPublicEDKey` start Sparkle (daily checks by
+default). Otherwise Check for Updates… is disabled with the tooltip "updates not
+configured for this build" and a one-time log; no updater dialog opens at launch.
+Automatic checks do not imply automatic installation. Sparkle respects users'
+saved check preferences.
 
 ## GitHub Actions
 
@@ -115,7 +121,12 @@ bash Support/release/test-release.sh
 ```
 
 The script rebuilds ad-hoc, verifies the signature, framework symlinks, Installer
-and Downloader XPCs, runtime flag and feed configuration. It creates an unsigned
+and Downloader XPCs with `codesign -dvv`, runtime flag and feed configuration. It
+directly executes `build/Tessera.app/Contents/MacOS/Tessera --stub 0
+--develop-selftest --bundle-selftest` (the extra flag emits a launch marker and
+quits) and requires a zero exit and `bundle-selftest: launched` within five seconds.
+This catches missing rpaths and library-validation failures that static signature
+checks miss. It creates an unsigned
 dummy ZIP in a temporary `build/` dist folder and invokes the real appcast wrapper
 with an intentionally nonexistent Keychain account and no environment key. It
 must exit nonzero with:

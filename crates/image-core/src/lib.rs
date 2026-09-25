@@ -21,12 +21,16 @@ pub mod cache;
 pub mod graph;
 pub mod mask_cache;
 pub use mask_cache::MaskRasterCache;
+#[cfg(feature = "ml-denoise")]
+mod ml_denoise;
 pub mod ops;
 pub mod render;
 mod resample;
 /// Opaque backend handles and whole-render transactions.
 pub mod resident;
 mod source;
+#[cfg(feature = "ml-denoise")]
+pub use ml_denoise::MlPostDemosaicDenoise;
 
 pub use cache::{CacheStats, TileCache};
 pub use graph::{PipelineGraph, StageNode};

@@ -1,5 +1,7 @@
 //! Scalar f32 reference operators. See OPERATORS.md for formulas and scope.
 mod color;
+mod denoise;
+pub use denoise::*;
 mod locals;
 pub mod masks;
 pub use locals::{adjust_local, blend_local, locals_image};
@@ -10,17 +12,25 @@ pub use color_detail::{DETAIL_HALO, color, detail, detail_halo};
 pub use geometry_effects::{effects, effects_in_crop, geometry};
 pub use tone_extra::{tone_extra, tone_extra_image};
 mod display;
+mod output;
+pub use output::{
+    ManagedOutput, OutputContext, OutputTarget, output_managed_linear, render_managed_scaled,
+    render_output_linear_scaled,
+};
 mod embedded_lens;
 mod image;
+mod lens_blur;
+pub use lens_blur::{LensBlurOptions, lens_blur};
 mod lens_resolve;
 mod optics;
 mod render;
 mod upright;
-pub use display::{SigmoidSettings, display, sigmoid, srgb_oetf};
+pub use display::{SigmoidSettings, display, display_float, sigmoid, srgb_oetf};
 pub use image::Image;
 pub use lens_resolve::{CorrectionSource, LensContext, ResolvedLens, resolve_lens};
 pub use render::{
     RenderSource, Rgb8Image, has_m2_settings, render, render_linear_scaled,
+    render_linear_scaled_with_denoise, render_linear_scaled_with_depth,
     render_linear_scaled_with_lens, render_scaled, validate_settings,
 };
 mod mosaic;

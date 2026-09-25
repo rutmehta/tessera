@@ -166,15 +166,20 @@ pub struct FaceSignals {
     /// None means degenerate geometry. Never use as an automatic blink label.
     pub eyes_open: Option<f64>,
 }
-pub fn face_signals(image: &RgbImage, face: &Face) -> Result<FaceSignals> {
+pub(crate) fn crop_rect((width, height): (u32, u32), face: &Face) -> Result<[u32; 4]> {
     validate(face)?;
     let [x, y, w, h] = face.bbox;
     let x0 = x.floor().max(0.) as u32;
     let y0 = y.floor().max(0.) as u32;
-    let x1 = (x + w).ceil().clamp(0., image.width() as f32) as u32;
-    let y1 = (y + h).ceil().clamp(0., image.height() as f32) as u32;
+    let x1 = (x + w).ceil().clamp(0., width as f32) as u32;
+    let y1 = (y + h).ceil().clamp(0., height as f32) as u32;
     ensure!(x1 > x0 && y1 > y0, "face outside image");
-    let crop = imageops::crop_imm(image, x0, y0, x1 - x0, y1 - y0).to_image();
+    Ok([x0, y0, x1 - x0, y1 - y0])
+}
+
+pub fn face_signals(image: &RgbImage, face: &Face) -> Result<FaceSignals> {
+    let [x, y, w, h] = crop_rect(image.dimensions(), face)?;
+    let crop = imageops::crop_imm(image, x, y, w, h).to_image();
     let sharpness = ml_quality::analyze(&crop)?.sharpness;
     let [right, left, nose, mouth_right, mouth_left] = face.landmarks5.map(|p| p.map(f64::from));
     let eye_distance = (left[0] - right[0]).hypot(left[1] - right[1]);
