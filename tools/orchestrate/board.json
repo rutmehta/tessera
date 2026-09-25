@@ -302,5 +302,21 @@
     "status": "merged",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M2-12",
+    "owner": "opus",
+    "title": "Library UI: albums, smart albums, filter bar",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-13",
+    "owner": "opus",
+    "title": "Develop panels UI",
+    "status": "todo",
+    "attempts": 0,
+    "notes": ""
   }
 ]
