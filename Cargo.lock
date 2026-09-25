@@ -364,6 +364,18 @@ dependencies = [
 [[package]]
 name = "cull"
 version = "0.1.0"
+dependencies = [
+ "engine-api",
+ "image",
+ "index",
+ "previews",
+ "raw-decode",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sidecar",
+ "tempfile",
+]
 
 [[package]]
 name = "der"
