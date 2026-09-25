@@ -550,5 +550,13 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M2-21",
+    "owner": "astra",
+    "title": "GPU export path",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
