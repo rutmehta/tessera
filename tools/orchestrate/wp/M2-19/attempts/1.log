@@ -1,0 +1,7 @@
+Implemented M2-19 in the worktree. The mac app and CLI now resolve `--app-dir` before `TESSERA_APP_DIR`, including the app’s preset store. Swift tests use isolated support directories, the bundle smoke test uses a temporary directory, and every acceptance launch uses `$SCR/appdir`.
+
+Added and documented `tessera index prune [--dry-run]`, with tests for dry-run, removal, and app-directory precedence. I did not run prune against the real index.
+
+The requested Cargo tests, clippy, fmt check, FFI build, Swift build, and Swift tests passed. The bundle smoke test passed too. Only allowed paths were changed.
+
+RESULT: PASS
