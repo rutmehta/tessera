@@ -395,9 +395,9 @@
     "id": "M2-14",
     "owner": "opus",
     "title": "Masking UI",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
-    "notes": ""
+    "notes": "verify on screen (section M); export must install MaskHooks for AI masks; locals not on fast GPU path"
   },
   {
     "id": "M3-06",

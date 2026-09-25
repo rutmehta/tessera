@@ -1,0 +1,5 @@
+Updated `DevelopPanelsTests.swift` so the detached render captures only the Sendable session and scalar surface properties, while keeping the IOSurface alive until rendering finishes. Recorded the local toolchain as Apple Swift 6.3.3.
+
+The requested command was run. FFI build and release build passed, but release tests failed at linking because the Swift test target does not link LittleCMS. With a command-line LittleCMS linker override, release and debug suites each passed 30 tests. `git diff --check` passed; no files outside the allowed paths were changed. I could not verify the fix on CI’s Swift toolchain.
+
+RESULT: FAIL requested unmodified test command cannot link LittleCMS on this machine
