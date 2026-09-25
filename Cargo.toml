@@ -18,6 +18,7 @@ members = [
     "crates/previews",
     "crates/import-lrcat",
     "crates/cull",
+    "crates/style-profile",
     "crates/ml-runtime",
     "crates/ml-embed",
     "crates/ml-enhance",
