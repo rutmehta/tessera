@@ -1,0 +1,15 @@
+Implemented M3-03 within the allowed paths.
+
+Added SigLIP image/text embeddings, versioned SQLite vectors with HNSW above 50k images, embedding-aware cull grouping, semantic search with facets/RRF, and cancellable EmbedFolderJob. Extended ml-runtime for i64 tokens and arbitrary-rank batched outputs.
+
+Verification:
+  Required command passed: 94 tests passed, 2 existing benchmarks ignored.
+  Clippy with warnings denied and cargo fmt --check passed.
+  Real cached-model test ranked sony-arw first for “a cube.”
+  Both towers executed CoreML nodes, with unsupported operations on CPU.
+
+HNSW rebuilds from persisted SQLite on opening. Faceted searches use exact scanning for complete results. These limitations and setup instructions are documented in crates/ml-embed/README.md.
+
+No engine-api changes, commits, or weights added to version control. External CARGO_TARGET_DIR preserved.
+
+RESULT: PASS

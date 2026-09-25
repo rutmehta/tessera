@@ -243,7 +243,7 @@
     "id": "M3-03",
     "owner": "astra",
     "title": "Embeddings, duplicates, NL search",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
@@ -252,6 +252,22 @@
     "owner": "astra",
     "title": "GPU ports of M2 operators (fix build)",
     "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-04b",
+    "owner": "astra",
+    "title": "WB colour science, defaults, native rev 2",
+    "status": "todo",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-06",
+    "owner": "astra",
+    "title": "GPU-resident render path",
+    "status": "todo",
     "attempts": 0,
     "notes": ""
   }
