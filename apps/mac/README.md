@@ -111,6 +111,15 @@ this", basket targets and albums, safe album removal, seeded defect sweeps, and 
 (with an injected trash so the user's Trash is untouched). `crates/tessera-ffi/tests/session.rs`
 covers the same surface from Rust.
 
+## Release packaging and updates
+
+`bash Support/make-app.sh release` embeds Sparkle 2 and signs the app (ad-hoc by
+default, or with `CODESIGN_IDENTITY`). Run `bash Support/release/make-dmg.sh` for a
+versioned DMG, and `bash Support/release/test-release.sh` for packaging regression
+tests. See [release operations](Support/release/README.md) for key provisioning,
+notarization, appcasts, delta updates, and GitHub Actions. An empty `SUPublicEDKey`
+produces a build warning and must be configured before publishing updates.
+
 ## Launch arguments
 
 | Argument | Effect |

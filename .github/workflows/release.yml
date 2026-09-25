@@ -1,0 +1,76 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+concurrency:
+  group: tessera-release
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Keep Cargo artifacts outside the checkout
+        run: printf 'CARGO_TARGET_DIR=%s/tessera-target\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+      - name: Validate release tag
+        shell: bash
+        run: |
+          [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Expected vMAJOR.MINOR.PATCH'; exit 1; }
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Import optional Developer ID certificate and notary profile
+        env:
+          APPLE_CERT_P12: ${{ secrets.APPLE_CERT_P12 }}
+          APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+          NOTARY_APPLE_ID: ${{ secrets.NOTARY_APPLE_ID }}
+          NOTARY_PASSWORD: ${{ secrets.NOTARY_PASSWORD }}
+          NOTARY_TEAM_ID: ${{ secrets.NOTARY_TEAM_ID }}
+        run: bash apps/mac/Support/release/ci-signing.sh
+      - run: ./build-ffi.sh && bash Support/make-app.sh release
+        working-directory: apps/mac
+      - name: Notarize app and package
+        working-directory: apps/mac
+        run: |
+          bash Support/release/notarize.sh
+          bash Support/release/make-dmg.sh
+          for dmg in dist/*.dmg; do bash Support/release/notarize.sh "$dmg"; done
+      - name: Download previous release archives for deltas
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          previous="$(gh api "repos/$GITHUB_REPOSITORY/releases" --jq '[.[] | select(.draft == false and .prerelease == false)][0].tag_name // empty')"
+          if [[ -n "$previous" && "$previous" != "$GITHUB_REF_NAME" ]]; then
+            gh release download "$previous" --pattern '*.dmg' --dir apps/mac/dist --skip-existing
+          fi
+      - name: Sign appcast (Sparkle key required even for ad-hoc builds)
+        working-directory: apps/mac
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+          SPARKLE_DOWNLOAD_URL_PREFIX: https://github.com/rutmehta/tessera/releases/download/${{ github.ref_name }}/
+        run: |
+          test -n "$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' build/Tessera.app/Contents/Info.plist)" || { echo 'Set SUPublicEDKey before publishing updates'; exit 1; }
+          bash Support/release/make-appcast.sh
+      - uses: softprops/action-gh-release@v2
+        with:
+          # Deltas are optional (first release, or no worthwhile size reduction).
+          # Required DMG/appcast existence is checked by the scripts above.
+          fail_on_unmatched_files: false
+          files: |
+            apps/mac/dist/*.dmg
+            apps/mac/dist/appcast.xml
+            apps/mac/dist/*.delta
+      - name: Delete temporary signing keychain
+        if: always()
+        run: |
+          if [[ -f "$RUNNER_TEMP/tessera-release.keychain-db" ]]; then
+            security delete-keychain "$RUNNER_TEMP/tessera-release.keychain-db"
+          fi
+          rm -f "$RUNNER_TEMP/tessera-certificate.p12"
