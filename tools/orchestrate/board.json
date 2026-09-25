@@ -195,7 +195,7 @@
     "id": "M1-07",
     "owner": "astra",
     "title": "GPU operator ports",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
@@ -211,6 +211,14 @@
     "id": "M3-02",
     "owner": "astra",
     "title": "Faces + quality signals",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M1-11b",
+    "owner": "sol",
+    "title": "tessera export subcommand",
     "status": "running",
     "attempts": 0,
     "notes": ""

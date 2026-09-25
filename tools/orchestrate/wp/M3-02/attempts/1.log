@@ -1,0 +1,12 @@
+Implemented M3-02 within the allowed paths.
+
+Added YuNet detection, aligned SFace embeddings, cosine clustering, classical quality measurements, face persistence, and culling scorer integration. Model URLs, sizes, hashes, and licenses are recorded. No engine-api changes or commits.
+
+Verification: all 35 tests in the requested command passed, along with strict Clippy and workspace formatting. Additional index and ml-runtime tests passed. Real inference processed four RAW embedded previews.
+
+Caveats: the five-landmark eyes-open heuristic is explicitly a weak geometry proxy, not blink detection. YuNet ran fully on CoreML; SFace used mixed CoreML/CPU execution.
+
+Handoff: tools/orchestrate/wp/M3-02/result.md
+Test evidence: tools/orchestrate/wp/M3-02/verification.log
+
+RESULT: PASS

@@ -1,0 +1,11 @@
+Implemented M1-07: Metal/wgpu 30 context, all M1 GPU operators, X-Trans CPU fallback, and renderer-integrated batching with one upload/readback per tile chain.
+
+Verification passed:
+  Required release tests, clippy -D warnings, and cargo fmt --check.
+  All five fixtures at level 3: worst linear error 2.861023e-6; display error at most 1 code value.
+  Determinism, transfer counts, cancellation, invalid inputs, and CPU ownership regression tests.
+  Ignored full level-2 benchmark executed for every fixture.
+
+Implementation details and benchmark results are in crates/pipeline-gpu/OPERATORS.md. Only allowed paths changed. CARGO_TARGET_DIR remains external. No commits made.
+
+RESULT: PASS
