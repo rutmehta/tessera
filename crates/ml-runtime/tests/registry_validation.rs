@@ -5,7 +5,7 @@ fn source_manifest() -> String {
     // whose revision strings are independent of the fixture's version counter.
     let fixture = include_str!("../models.toml")
         .split("[[models]]")
-        .nth(1)
+        .find(|section| section.trim_start().starts_with("id = \"test/conv\"\n"))
         .expect("local convolution fixture");
     format!("[[models]]{fixture}").replace(
         "file:tests/data/conv.onnx",

@@ -1914,6 +1914,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "ml-segment"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "blake3",
+ "engine-api",
+ "image",
+ "ml-runtime",
+ "previews",
+ "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "mmap-rs"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2537,6 +2552,7 @@ dependencies = [
  "image",
  "pipeline-cpu",
  "raw-decode",
+ "tempfile",
  "thiserror 2.0.21",
 ]
 

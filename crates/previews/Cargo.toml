@@ -14,3 +14,4 @@ pipeline-cpu = { path = "../pipeline-cpu" }
 blake3 = "1"
 image = { workspace = true }
 thiserror = { workspace = true }
+tempfile = { workspace = true }
