@@ -1,0 +1,7 @@
+Sparkle now starts only when both the public key and feed URL are configured. Otherwise Check for Updates… is disabled with the requested tooltip, and launch logs once without opening an updater dialog.
+
+The ad-hoc bundle now uses a local-only library-validation entitlement so it can load the separately signed Sparkle framework. The release test checks the framework and XPC signatures, then directly launches the built app and requires a clean self-test exit within five seconds.
+
+I ran the full requested build and test chain successfully, including 25 Swift tests and the release smoke test. `codesign --verify --deep --strict` and `git diff --check` also passed.
+
+RESULT: PASS
