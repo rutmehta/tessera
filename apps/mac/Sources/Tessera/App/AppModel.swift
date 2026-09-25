@@ -899,6 +899,14 @@ final class AppModel {
         developHistory = d.history
     }
 
+    /// Records the live develop changes as one undo step (the develop panels and tools).
+    func commitDevelop(label: String) {
+        guard let d = develop else { return }
+        d.commit(label: label)
+        undoDomain = .develop
+        developHistory = d.history
+    }
+
     func resetDevelop() {
         guard let d = develop else { return }
         developHistoryMove("Reset", label: nil) { try d.reset() }
@@ -938,7 +946,7 @@ final class AppModel {
         }
     }
 
-    private func developHistoryMove(_ verb: String, label: String?, _ body: () throws -> Bool) {
+    func developHistoryMove(_ verb: String, label: String?, _ body: () throws -> Bool) {
         guard let d = develop else { return }
         do {
             let moved = try body()

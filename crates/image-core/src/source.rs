@@ -50,6 +50,13 @@ impl RawImage {
         Self::new(id, Arc::new(cfa), Arc::new(metadata))
     }
 
+    /// The same shared samples under another identity and metadata (for
+    /// example a smaller `default_crop` window). Validated like [`Self::new`];
+    /// the id must differ from the original's so memo keys never alias.
+    pub fn with_metadata(&self, id: ImageId, metadata: Arc<RawMetadata>) -> EngineResult<Self> {
+        Self::new(id, self.cfa.clone(), metadata)
+    }
+
     /// Image identity used in memo keys.
     pub fn id(&self) -> ImageId {
         self.id

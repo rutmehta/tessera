@@ -535,6 +535,22 @@ fileprivate struct FfiConverterUInt64: FfiConverterPrimitive {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterInt64: FfiConverterPrimitive {
+    typealias FfiType = Int64
+    typealias SwiftType = Int64
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Int64 {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: Int64, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterFloat: FfiConverterPrimitive {
     typealias FfiType = Float
     typealias SwiftType = Float
@@ -1560,6 +1576,13 @@ public protocol DevelopSessionProtocol: AnyObject, Sendable {
     func attachSurface(iosurfaceId: UInt32, width: UInt32, height: UInt32) throws 
     
     /**
+     * Moves to the state after history step `id` (`None`: the base state),
+     * committing pending changes first. Later steps stay listed until a
+     * new edit branches from there.
+     */
+    func checkoutHistory(id: UInt64?) throws  -> Bool
+    
+    /**
      * Stops rendering and writes pending changes. The session is unusable
      * for rendering afterwards.
      */
@@ -1589,6 +1612,12 @@ public protocol DevelopSessionProtocol: AnyObject, Sendable {
     
     func getSettingsJson() throws  -> String
     
+    /**
+     * The history as a list: the applied steps from the oldest, then the
+     * undone steps redo would reapply.
+     */
+    func historyItems() throws  -> [HistoryItem]
+    
     func historyState() throws  -> HistoryState
     
     /**
@@ -1613,6 +1642,16 @@ public protocol DevelopSessionProtocol: AnyObject, Sendable {
     func refresh() throws 
     
     /**
+     * Renders a 1:1 (level 0) crop of the live settings centred on
+     * (`center_x`, `center_y`), normalized active-area coordinates in sensor
+     * orientation, into an RGBA8 IOSurface of `width × height`. Blocking:
+     * call off the main thread. Crop and post-crop effects are not applied
+     * (the crop shows sensor pixels); global dehaze statistics come from the
+     * window.
+     */
+    func renderDetailPreview(iosurfaceId: UInt32, width: UInt32, height: UInt32, centerX: Float, centerY: Float) throws  -> DetailPreview
+    
+    /**
      * Resets every setting to its default as one undo step.
      */
     func reset() throws  -> Bool
@@ -1622,7 +1661,27 @@ public protocol DevelopSessionProtocol: AnyObject, Sendable {
      */
     func restoreSnapshot(name: String) throws 
     
+    /**
+     * Crop tool on/off. While on, the viewport renders the whole unrotated
+     * frame (geometry is kept in the settings) so the host can draw and
+     * edit the crop over it; off renders the cropped result again.
+     */
+    func setCropEditing(editing: Bool) throws 
+    
+    /**
+     * Turns an applied step's changes off (or back on) as a new undoable
+     * step: the state is the history replayed without the disabled steps.
+     */
+    func setHistoryStepEnabled(id: UInt64, enabled: Bool) throws  -> Bool
+    
     func setListener(listener: DevelopListener?) 
+    
+    /**
+     * Shows the sharpening Masking gate (white = sharpened) instead of the
+     * image while on; frames report `is_overlay`. Settings changes keep
+     * updating the overlay.
+     */
+    func setMaskingPreview(enabled: Bool) throws 
     
     /**
      * Merges an RFC 7386 JSON patch into the live settings and renders.
@@ -1716,6 +1775,21 @@ open func attachSurface(iosurfaceId: UInt32, width: UInt32, height: UInt32)throw
 }
     
     /**
+     * Moves to the state after history step `id` (`None`: the base state),
+     * committing pending changes first. Later steps stay listed until a
+     * new edit branches from there.
+     */
+open func checkoutHistory(id: UInt64?)throws  -> Bool  {
+    return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_checkout_history(
+            self.uniffiCloneHandle(),
+        FfiConverterOptionUInt64.lower(id),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * Stops rendering and writes pending changes. The session is unusable
      * for rendering afterwards.
      */
@@ -1780,6 +1854,19 @@ open func getSettingsJson()throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
         uniffiCallStatus in
     uniffi_tessera_ffi_fn_method_developsession_get_settings_json(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * The history as a list: the applied steps from the oldest, then the
+     * undone steps redo would reapply.
+     */
+open func historyItems()throws  -> [HistoryItem]  {
+    return try  FfiConverterSequenceTypeHistoryItem.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_history_items(
             self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
@@ -1852,6 +1939,28 @@ open func refresh()throws   {try rustCallWithError(FfiConverterTypeBridgeError_l
 }
     
     /**
+     * Renders a 1:1 (level 0) crop of the live settings centred on
+     * (`center_x`, `center_y`), normalized active-area coordinates in sensor
+     * orientation, into an RGBA8 IOSurface of `width × height`. Blocking:
+     * call off the main thread. Crop and post-crop effects are not applied
+     * (the crop shows sensor pixels); global dehaze statistics come from the
+     * window.
+     */
+open func renderDetailPreview(iosurfaceId: UInt32, width: UInt32, height: UInt32, centerX: Float, centerY: Float)throws  -> DetailPreview  {
+    return try  FfiConverterTypeDetailPreview_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_render_detail_preview(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(iosurfaceId),
+        FfiConverterUInt32.lower(width),
+        FfiConverterUInt32.lower(height),
+        FfiConverterFloat.lower(centerX),
+        FfiConverterFloat.lower(centerY),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * Resets every setting to its default as one undo step.
      */
 open func reset()throws  -> Bool  {
@@ -1875,11 +1984,54 @@ open func restoreSnapshot(name: String)throws   {try rustCallWithError(FfiConver
 }
 }
     
+    /**
+     * Crop tool on/off. While on, the viewport renders the whole unrotated
+     * frame (geometry is kept in the settings) so the host can draw and
+     * edit the crop over it; off renders the cropped result again.
+     */
+open func setCropEditing(editing: Bool)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_set_crop_editing(
+            self.uniffiCloneHandle(),
+        FfiConverterBool.lower(editing),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Turns an applied step's changes off (or back on) as a new undoable
+     * step: the state is the history replayed without the disabled steps.
+     */
+open func setHistoryStepEnabled(id: UInt64, enabled: Bool)throws  -> Bool  {
+    return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_set_history_step_enabled(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),
+        FfiConverterBool.lower(enabled),uniffiCallStatus
+    )
+})
+}
+    
 open func setListener(listener: DevelopListener?)  {try! rustCall() {
         uniffiCallStatus in
     uniffi_tessera_ffi_fn_method_developsession_set_listener(
             self.uniffiCloneHandle(),
         FfiConverterOptionTypeDevelopListener.lower(listener),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Shows the sharpening Masking gate (white = sharpened) instead of the
+     * image while on; frames report `is_overlay`. Settings changes keep
+     * updating the overlay.
+     */
+open func setMaskingPreview(enabled: Bool)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_set_masking_preview(
+            self.uniffiCloneHandle(),
+        FfiConverterBool.lower(enabled),uniffiCallStatus
     )
 }
 }
@@ -2836,6 +2988,83 @@ public func FfiConverterTypeDefectThreshold_lower(_ value: DefectThreshold) -> R
 }
 
 
+/**
+ * A rendered 1:1 detail crop.
+ */
+public struct DetailPreview: Equatable, Hashable {
+    /**
+     * Top-left of the crop in level-0 active-area pixels (sensor orientation).
+     */
+    public var x: UInt32
+    public var y: UInt32
+    /**
+     * Pixels written, anchored top-left in the surface.
+     */
+    public var width: UInt32
+    public var height: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Top-left of the crop in level-0 active-area pixels (sensor orientation).
+         */x: UInt32, y: UInt32, 
+        /**
+         * Pixels written, anchored top-left in the surface.
+         */width: UInt32, height: UInt32) {
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension DetailPreview: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDetailPreview: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DetailPreview {
+        return
+            try DetailPreview(
+                x: FfiConverterUInt32.read(from: &buf), 
+                y: FfiConverterUInt32.read(from: &buf), 
+                width: FfiConverterUInt32.read(from: &buf), 
+                height: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: DetailPreview, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.x, into: &buf)
+        FfiConverterUInt32.write(value.y, into: &buf)
+        FfiConverterUInt32.write(value.width, into: &buf)
+        FfiConverterUInt32.write(value.height, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDetailPreview_lift(_ buf: RustBuffer) throws -> DetailPreview {
+    return try FfiConverterTypeDetailPreview.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDetailPreview_lower(_ value: DetailPreview) -> RustBuffer {
+    return FfiConverterTypeDetailPreview.lower(value)
+}
+
+
 public struct DevelopInfo: Equatable, Hashable {
     public var imageId: String
     /**
@@ -3016,6 +3245,18 @@ public struct FrameInfo: Equatable, Hashable {
      * Earliest pipeline stage the change invalidated, if any.
      */
     public var dirtyStage: String?
+    /**
+     * Size of the whole picture at the render's finest level: the cropped
+     * output extent (the level extent when uncropped or in the crop tool).
+     * Hosts aspect-fit this, not the surface, so crops display correctly.
+     */
+    public var displayWidth: UInt32
+    public var displayHeight: UInt32
+    /**
+     * The frame shows a diagnostic overlay (e.g. the sharpening mask), not
+     * the developed image; it has no histogram of its own.
+     */
+    public var isOverlay: Bool
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -3037,7 +3278,16 @@ public struct FrameInfo: Equatable, Hashable {
          */renderMs: Double, generation: UInt64, 
         /**
          * Earliest pipeline stage the change invalidated, if any.
-         */dirtyStage: String?) {
+         */dirtyStage: String?, 
+        /**
+         * Size of the whole picture at the render's finest level: the cropped
+         * output extent (the level extent when uncropped or in the crop tool).
+         * Hosts aspect-fit this, not the surface, so crops display correctly.
+         */displayWidth: UInt32, displayHeight: UInt32, 
+        /**
+         * The frame shows a diagnostic overlay (e.g. the sharpening mask), not
+         * the developed image; it has no histogram of its own.
+         */isOverlay: Bool) {
         self.surfaceId = surfaceId
         self.level = level
         self.width = width
@@ -3047,6 +3297,9 @@ public struct FrameInfo: Equatable, Hashable {
         self.renderMs = renderMs
         self.generation = generation
         self.dirtyStage = dirtyStage
+        self.displayWidth = displayWidth
+        self.displayHeight = displayHeight
+        self.isOverlay = isOverlay
     }
 
     
@@ -3073,7 +3326,10 @@ public struct FfiConverterTypeFrameInfo: FfiConverterRustBuffer {
                 isFinal: FfiConverterBool.read(from: &buf), 
                 renderMs: FfiConverterDouble.read(from: &buf), 
                 generation: FfiConverterUInt64.read(from: &buf), 
-                dirtyStage: FfiConverterOptionString.read(from: &buf)
+                dirtyStage: FfiConverterOptionString.read(from: &buf), 
+                displayWidth: FfiConverterUInt32.read(from: &buf), 
+                displayHeight: FfiConverterUInt32.read(from: &buf), 
+                isOverlay: FfiConverterBool.read(from: &buf)
         )
     }
 
@@ -3087,6 +3343,9 @@ public struct FfiConverterTypeFrameInfo: FfiConverterRustBuffer {
         FfiConverterDouble.write(value.renderMs, into: &buf)
         FfiConverterUInt64.write(value.generation, into: &buf)
         FfiConverterOptionString.write(value.dirtyStage, into: &buf)
+        FfiConverterUInt32.write(value.displayWidth, into: &buf)
+        FfiConverterUInt32.write(value.displayHeight, into: &buf)
+        FfiConverterBool.write(value.isOverlay, into: &buf)
     }
 }
 
@@ -3240,6 +3499,123 @@ public func FfiConverterTypeHistogram_lift(_ buf: RustBuffer) throws -> Histogra
 #endif
 public func FfiConverterTypeHistogram_lower(_ value: Histogram) -> RustBuffer {
     return FfiConverterTypeHistogram.lower(value)
+}
+
+
+/**
+ * One step of the develop history, as shown in the History panel.
+ */
+public struct HistoryItem: Equatable, Hashable {
+    public var id: UInt64
+    public var label: String
+    /**
+     * "user", "agent:<name>", "import:<source>", "preset:<style>" or "sync:<image>".
+     */
+    public var author: String
+    /**
+     * Named group (e.g. one agent run), if any.
+     */
+    public var group: String?
+    public var timestampMs: Int64
+    /**
+     * On the path from the base to the current state (false: undone steps
+     * that redo would reapply).
+     */
+    public var applied: Bool
+    public var isHead: Bool
+    /**
+     * False when the step has been turned off with a step toggle.
+     */
+    public var enabled: Bool
+    /**
+     * The step is itself a toggle of another step (shown as such, not toggleable).
+     */
+    public var toggles: UInt64?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: UInt64, label: String, 
+        /**
+         * "user", "agent:<name>", "import:<source>", "preset:<style>" or "sync:<image>".
+         */author: String, 
+        /**
+         * Named group (e.g. one agent run), if any.
+         */group: String?, timestampMs: Int64, 
+        /**
+         * On the path from the base to the current state (false: undone steps
+         * that redo would reapply).
+         */applied: Bool, isHead: Bool, 
+        /**
+         * False when the step has been turned off with a step toggle.
+         */enabled: Bool, 
+        /**
+         * The step is itself a toggle of another step (shown as such, not toggleable).
+         */toggles: UInt64?) {
+        self.id = id
+        self.label = label
+        self.author = author
+        self.group = group
+        self.timestampMs = timestampMs
+        self.applied = applied
+        self.isHead = isHead
+        self.enabled = enabled
+        self.toggles = toggles
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension HistoryItem: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHistoryItem: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HistoryItem {
+        return
+            try HistoryItem(
+                id: FfiConverterUInt64.read(from: &buf), 
+                label: FfiConverterString.read(from: &buf), 
+                author: FfiConverterString.read(from: &buf), 
+                group: FfiConverterOptionString.read(from: &buf), 
+                timestampMs: FfiConverterInt64.read(from: &buf), 
+                applied: FfiConverterBool.read(from: &buf), 
+                isHead: FfiConverterBool.read(from: &buf), 
+                enabled: FfiConverterBool.read(from: &buf), 
+                toggles: FfiConverterOptionUInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HistoryItem, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.id, into: &buf)
+        FfiConverterString.write(value.label, into: &buf)
+        FfiConverterString.write(value.author, into: &buf)
+        FfiConverterOptionString.write(value.group, into: &buf)
+        FfiConverterInt64.write(value.timestampMs, into: &buf)
+        FfiConverterBool.write(value.applied, into: &buf)
+        FfiConverterBool.write(value.isHead, into: &buf)
+        FfiConverterBool.write(value.enabled, into: &buf)
+        FfiConverterOptionUInt64.write(value.toggles, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHistoryItem_lift(_ buf: RustBuffer) throws -> HistoryItem {
+    return try FfiConverterTypeHistoryItem.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHistoryItem_lower(_ value: HistoryItem) -> RustBuffer {
+    return FfiConverterTypeHistoryItem.lower(value)
 }
 
 
@@ -4342,6 +4718,30 @@ fileprivate struct FfiConverterOptionUInt32: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionUInt64: FfiConverterRustBuffer {
+    typealias SwiftType = UInt64?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterUInt64.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterUInt64.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionString: FfiConverterRustBuffer {
     typealias SwiftType = String?
 
@@ -4661,6 +5061,31 @@ fileprivate struct FfiConverterSequenceTypeDefectThreshold: FfiConverterRustBuff
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeHistoryItem: FfiConverterRustBuffer {
+    typealias SwiftType = [HistoryItem]
+
+    public static func write(_ value: [HistoryItem], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeHistoryItem.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [HistoryItem] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [HistoryItem]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeHistoryItem.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeImageDecision: FfiConverterRustBuffer {
     typealias SwiftType = [ImageDecision]
 
@@ -4846,6 +5271,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_developsession_attach_surface() != 12651) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tessera_ffi_checksum_method_developsession_checkout_history() != 2274) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_tessera_ffi_checksum_method_developsession_close() != 7846) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -4862,6 +5290,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_developsession_get_settings_json() != 54509) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_history_items() != 35926) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_developsession_history_state() != 47908) {
@@ -4882,13 +5313,25 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_developsession_refresh() != 50490) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tessera_ffi_checksum_method_developsession_render_detail_preview() != 52080) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_tessera_ffi_checksum_method_developsession_reset() != 11852) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_developsession_restore_snapshot() != 23225) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tessera_ffi_checksum_method_developsession_set_crop_editing() != 11720) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_set_history_step_enabled() != 35701) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_tessera_ffi_checksum_method_developsession_set_listener() != 51631) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_set_masking_preview() != 13746) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_developsession_set_settings() != 54630) {

@@ -35,6 +35,8 @@ struct TesseraApp: App {
 ///   --front           order the window front without activating (screenshots while another app is active)
 ///   --develop-selftest  once a develop session opens, drag Exposure 0 → +1.5 through the slider path
 ///                     (60 display-rate steps, then mouse-up) and print frame timings to stderr
+///   --develop-panels-selftest  open the first photo in the loupe and drag one control of each develop
+///                     panel likewise (TESSERA_SELFTEST_CROP=1|commit also opens/applies a crop)
 ///   --keys "<k> <k>…" after loading, feed these keys through the culling key map (self-test aid);
 ///                     tokens: single characters, left right up down return esc delete,
 ///                     prefixes "opt-" / "shift-" / "cmd-" (⌘ tokens go to the menu bar); "wait" idles one step
