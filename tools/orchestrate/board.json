@@ -598,5 +598,21 @@
     "status": "merged",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M3-11",
+    "owner": "opus",
+    "title": "Assisted culling + agent review UI",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-21c",
+    "owner": "opus",
+    "title": "Export throughput targets",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
