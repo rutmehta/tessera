@@ -1,0 +1,11 @@
+Implemented M3-09 in crates/style-profile, with PCA-64 features, ridge regression across 51 sliders, questionnaire priors, reference edits, library collection, versioned persistence, feedback, and Score-priority batch jobs.
+
+Batch edits preserve non-base settings, enforce burst/person consistency, record Author::Agent history with rationales, and produce a low-confidence-first review queue.
+
+Verification: all 19 tests passed. The 40-example synthetic library achieved worst held-out error of 0.2475% of slider range across 50 images. Required release tests, clippy -D warnings, cargo fmt --check, and git diff --check passed.
+
+engine-api is unchanged. Group amount semantics use a versioned recipe extension. Missing typed group fields and host cache-invalidation requirements are documented in crates/style-profile/README.md.
+
+Only allowed paths changed. CARGO_TARGET_DIR remained external. No commits made.
+
+RESULT: PASS
