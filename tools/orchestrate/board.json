@@ -358,5 +358,21 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M3-05",
+    "owner": "astra",
+    "title": "AI denoise + super-resolution",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-16",
+    "owner": "astra",
+    "title": "HDR / panorama merge",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
