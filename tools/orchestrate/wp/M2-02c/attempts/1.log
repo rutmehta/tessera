@@ -1,0 +1,7 @@
+Implemented M2-02c in the specified worktree. Imported smart-collection rating rules now translate Lightroom stars into Tessera decision and grade rules, with table-driven tests covering every star threshold, comparison operator, ranges, and pick/reject flags. I updated the README and FINDINGS.
+
+The mapping cannot be exact at every boundary: 3★ and 4★ both become grade 2, so a rule that separates them cannot retain Lightroom’s original membership. The importer uses the union of the mapped buckets and documents that limitation.
+
+The requested release tests, clippy with warnings denied, and format check all passed. No commit was made.
+
+RESULT: PASS
