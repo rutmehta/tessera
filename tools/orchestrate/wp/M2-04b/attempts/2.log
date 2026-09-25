@@ -1,0 +1,13 @@
+Fixed the WB calibration error: independent XYZ row normalization distorted the as-shot illuminant. All five fixtures now pass identity within 1e-4, first-touch continuity, monotonic warming, and +50 magenta tint tests without widening the tint range.
+
+Revision 2, active default detail, regenerated goldens, and enabled Basic sliders are in place. CPU/GPU/image-core/engine-api tests, clippy, fmt, and Swift build pass.
+
+Full workspace acceptance remains blocked:
+- FFI still uses the old WB inverse and strips the five enabled controls. Its source is outside the allowlist.
+- Sidecar test hard-codes revision 1, also outside scope.
+- Preview fallback tests exceed their 3-second deadlines.
+- The exact required command additionally hit an intermittent ml-embed test failure.
+
+No out-of-scope files changed. Full report: tools/orchestrate/wp/M2-04b/RESULT.md.
+
+RESULT: FAIL workspace tests fail and end-to-end FFI fixes require expanding the allowlist.
