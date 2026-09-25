@@ -555,7 +555,7 @@
     "id": "M2-21",
     "owner": "astra",
     "title": "GPU export path",
-    "status": "running",
+    "status": "escalate",
     "attempts": 0,
     "notes": ""
   },
@@ -571,6 +571,14 @@
     "id": "M2-24",
     "owner": "sol",
     "title": "Accessibility identifiers on all controls",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-21b",
+    "owner": "opus",
+    "title": "GPU export w/o starvation + GPU lens",
     "status": "running",
     "attempts": 0,
     "notes": ""
