@@ -127,6 +127,7 @@ fn settings(options: &Options) -> Result<ExportSettings> {
         },
         naming: options.name.clone(),
         output_dir: options.out.clone(),
+        ..ExportSettings::default()
     })
 }
 
