@@ -35,7 +35,19 @@ fn resident(tile: Tile) -> ResidentTile {
     }
 }
 fn cpu(tile: &ResidentTile) -> Tile {
-    tile.storage.downcast_ref::<Tile>().unwrap().clone()
+    let stored = tile.storage.downcast_ref::<Tile>().unwrap();
+    if stored.coord() == tile.coord {
+        stored.clone()
+    } else if let Ok(samples) = stored.samples::<f32>() {
+        Tile::from_samples(tile.coord, tile.layout, samples.to_vec()).unwrap()
+    } else {
+        Tile::from_samples(
+            tile.coord,
+            tile.layout,
+            stored.samples::<u8>().unwrap().to_vec(),
+        )
+        .unwrap()
+    }
 }
 impl StageOp for Model {
     fn run(&self, _stage: StageId, _op: &Op<'_>, _input: Tile) -> EngineResult<Tile> {
@@ -176,7 +188,7 @@ fn resident_graph_preserves_crop_phase_parity_and_edit_invalidation() {
     let image = common::synthetic(1008, 517, 269, common::RGGB, [3, 5, 511, 261]);
     for level in [0, 2, 5, 12] {
         let mut settings = DevelopSettings::default();
-        for change in 0..6 {
+        for change in 0..9 {
             if change == 1 {
                 settings.tone.exposure = 0.3;
             }
@@ -193,6 +205,16 @@ fn resident_graph_preserves_crop_phase_parity_and_edit_invalidation() {
             if change == 5 {
                 settings.detail.sharpening.amount = 0.0;
                 settings.detail.noise_reduction.color = 0.0;
+            }
+            if change == 6 {
+                settings.tone.curves.parametric.lights = 25.0;
+            }
+            if change == 7 {
+                settings.color.vibrance = 30.0;
+            }
+            if change == 8 {
+                settings.effects.vignette.amount = -30.0;
+                settings.effects.grain.amount = 20.0;
             }
             let rect = PixelRect::full(image.level_extent(level));
             let a = r.render_region(&image, &settings, level, rect).unwrap();

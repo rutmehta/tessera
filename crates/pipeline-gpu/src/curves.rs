@@ -1,7 +1,24 @@
 //! Host-side curve coefficients. Pixels are evaluated by the compute shader.
 use engine_api::{EngineError, EngineResult, recipe::settings::ToneSettings};
 
+thread_local! {
+    static CONSTANTS: std::cell::RefCell<crate::fused::ConstantsCache<ToneSettings>> = std::cell::RefCell::new(Default::default());
+}
+
 pub(crate) fn parameters(s: &ToneSettings, p: &mut Vec<f32>) -> EngineResult<()> {
+    let prepared = CONSTANTS.with(|cache| {
+        cache.borrow_mut().get_or_try_insert(s, || {
+            let mut prepared = vec![0.; 33];
+            build_parameters(s, &mut prepared)?;
+            Ok(prepared)
+        })
+    })?;
+    p[0] = prepared[0];
+    p.truncate(9);
+    p.extend_from_slice(&prepared[9..]);
+    Ok(())
+}
+fn build_parameters(s: &ToneSettings, p: &mut Vec<f32>) -> EngineResult<()> {
     let param = &s.curves.parametric;
     let amounts = [param.shadows, param.darks, param.lights, param.highlights];
     let splits = [

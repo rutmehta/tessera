@@ -1,3 +1,46 @@
+# M2-17 current status (partial, performance targets not established)
+
+This section supersedes historical residency/cache descriptions below.
+
+- Bayer and X-Trans Highlights/Demosaic now have a resident GPU path. X-Trans
+  uses the existing CPU mean-filter oracle, not a new reconstruction algorithm.
+  Tile-level nonresident X-Trans entry points still retain their CPU fallback.
+- The renderer fuses Tone, curves, Color, Effects and optional Display in one
+  WGSL dispatch per output tile. Detail precedes that pass at the render level.
+  Point-chain batching also uses fusion. Geometry, locals and active presence
+  settings retain the existing whole-image barriers.
+- Curve coefficients, grading wheel directions and effects/crop constants use
+  bounded last-parameter-set caches. These are exact-parameter equality caches,
+  not per-image hashed LUTs or cached vignette pixel maps.
+- Resident graph checkpoints now retain f32: the new creative-chain regression
+  exceeded the documented 2e-3 linear tolerance with f16 checkpoints. Full f32
+  bytes count against the unchanged cache budget. Tests enforce <=2e-3 linear
+  and <=1 display code for the new fused renderer fixtures, with <=1e-4 for
+  isolated X-Trans operators. This increases cache payload per retained tile.
+- Local-tone separable means cooperatively load halos into workgroup memory.
+  Accumulation order, clipped-edge normalization and CPU semantics are unchanged.
+  Pipelines are cached lazily on GpuContext, with no global device cache or
+  unsafe device identity lookup. Shared-memory loading alone did not demonstrate
+  an end-to-end speedup. Downsampled guidance is not implemented.
+- Local-tone dispatches now share one ordered compute pass between readbacks.
+  Presence scales share radius-independent moments, and Clarity-only edits omit
+  the unused fine-scale filter. Exact GPU-graph comparison and dispatch-count
+  tests guard this reduction; current measurements are in
+  `tools/orchestrate/wp/M2-17/presence-benchmark-results.md`.
+  Host airlight uses exact order-statistic selection rather than full sorting,
+  and default identity curves no longer introduce another pixel roundtrip after
+  presence. Latest incremental NEF results are in `retry-benchmark-results.md`
+  under the work-package directory; L2 presence still exceeds 16 ms.
+- Develop's adaptive classification queries actual renderer residency, so
+  newly fused curves/color/effects do not automatically start at the old heavy
+  proxy level. Frame-time adaptation remains enabled on both backends.
+
+The NEF benchmark reports 15 independent operators at L2, full L0 and a 1024²
+L0 crop, before/after, including host transfers. It is not a resident slider
+benchmark. Full L0 presence/geometry can still exceed GPU storage-buffer limits
+and delegate to CPU. No <16ms screen or <100ms regional guarantee is claimed.
+See `tools/orchestrate/wp/M2-17/validation.md` and `benchmark-results.md`.
+
 # M2-15 managed ICC output
 
 `GpuManagedOutput::new(context, settings, &mut OutputContext)` resolves the same
