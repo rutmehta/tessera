@@ -614,5 +614,13 @@
     "status": "merged",
     "attempts": 0,
     "notes": "NEF full 1.2s; 100 Web 26s render+encode; app exports render at scale 1 for exactness"
+  },
+  {
+    "id": "M2-09b",
+    "owner": "astra",
+    "title": "Lens data pack, DNG opcodes, manual CA",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
