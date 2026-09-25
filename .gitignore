@@ -3,4 +3,8 @@
 target/
 .worktrees/
 fixtures/raw/
+/fixtures/*
+!/fixtures/fetch.sh
+!/fixtures/golden/
 *.xcuserstate
+.DS_Store
