@@ -1,0 +1,16 @@
+Implemented M2-18 within the allowed paths.
+
+Added standalone pipeline-adobe rendering, dual-illuminant DCP parsing/application, compatibility tone and point curves, documented native approximations, and the ΔE2000 harness. CLI supports render --process auto|native|adobe, optional --dcp, and import lrcat --fidelity --reference-dir.
+
+Verification:
+  64 tests passed.
+  Required release tests, clippy -D warnings, and cargo fmt --check all passed.
+  Real RAW smoke render produced a valid 1303×867 image.
+  Allowed-path check passed. engine-api and image-core remain unchanged.
+
+Assumptions, sources, and needed schema fields are documented in crates/pipeline-adobe/ADOBE_COMPAT.md. Lightroom visual parity remains unmeasured; synthetic fidelity results are explicitly labeled, not presented as Lightroom evidence.
+
+Verification log: tools/orchestrate/wp/M2-18/verification.log
+No commits made.
+
+RESULT: PASS

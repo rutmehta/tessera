@@ -1,0 +1,6 @@
+Committed merge 9318e1d on wp/M2-18. Preserved fixture generation, fidelity/reference flags, and render process/DCP options. Import remains handled before opening the index.
+
+Release tests, Clippy with -D warnings, formatting, and smoke checks passed. Working tree is clean. Main is unchanged.
+
+RESULT: PASS
+EXIT 0

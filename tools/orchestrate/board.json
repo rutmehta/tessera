@@ -467,9 +467,9 @@
     "id": "M2-18",
     "owner": "astra",
     "title": "Adobe PV6 compatibility renderer",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
-    "notes": ""
+    "notes": "standalone; wire op-set switch into image-core after M2-17b; needs real Lightroom samples"
   },
   {
     "id": "M2-13b",
