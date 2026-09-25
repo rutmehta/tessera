@@ -1,0 +1,67 @@
+{
+  "steps": [
+    {
+      "n": 1,
+      "pass": true,
+      "note": "Build completed at apps/mac/build/Tessera.app. XCTest: 14 tests, 0 failures; Swift Testing: 5 tests in 2 suites passed. Cargo test output contained only ok. results (exit 0). Screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_9b48e4f8a9374f3d99d8c7a17a385ce9.png"
+    },
+    {
+      "n": 2,
+      "pass": true,
+      "note": "Fresh scratch folder: /var/folders/_f/grgzfz9j7c1bq0m39nwqz9mm0000gn/T/tmp.PGDZGPgt8J. Generator reported 40 JPEGs in 16 bursts; JPEG count verified as 40. RAW copy lists 5 files. Screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_88e924dfa9c3497cb14cc06b43be06f2.png"
+    },
+    {
+      "n": 3,
+      "pass": true,
+      "note": "Ran defaults delete dev.tessera.app. Screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_b361710f84244d11a608b8f2ce41d1fc.png"
+    },
+    {
+      "n": 33,
+      "pass": true,
+      "note": "36 MP NEF at L2 1845\u00d71231: CPU tone-only median 10.2 ms, p90 10.6 ms; Metal median 17.3 ms, p90 18.5 ms. Screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_0db00c99986d409aa52ee1be3a3e9662.png"
+    },
+    {
+      "n": 34,
+      "pass": true,
+      "note": "NEF opened in loupe with engine render readout, RGB/luminance histogram, 7378 \u00d7 4924 size, as-shot temperature, and dimmed unimplemented controls. Tessera-window screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_0d45c553a9f048afa983ec3f6a1c22c6.png"
+    },
+    {
+      "n": 35,
+      "pass": false,
+      "note": "Exposure drag brightened the image, but landed at +0.95 rather than +1.00. The capture was immediately after the drag, not mid-drag, so the under-16-ms mid-drag criterion was not verified. Screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_e0f27a0901e7464f86bc38fca99fdf0e.png"
+    },
+    {
+      "n": 36,
+      "pass": false,
+      "note": "Undo returned exposure to +0.00 and redo restored the edit, but the recorded edit was +0.95, not the specified +1.00. Screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_8d5ad4b022424dd59f5a18b990e97bc3.png"
+    },
+    {
+      "n": 37,
+      "pass": false,
+      "note": "Temperature changed, and the Warm snapshot could be saved, reset, and restored. The restored image looked cyan rather than warm; the adjustment also showed Tint +150. Screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_ec177de97cab4e53b6e83d5f0212c99c.png"
+    },
+    {
+      "n": 38,
+      "pass": true,
+      "note": "Returning to grid showed an EDITED pill on the NEF and Edited status. Screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_ba57a51db42e4e429ff0d3c792d9d004.png"
+    },
+    {
+      "n": 39,
+      "pass": false,
+      "note": "Recipe grep returned \"exposure\":0.95 rather than 1.0. XMP grep returned 1 for Exposure2012. Failure screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_48d63835d7514bf89e007df82b6361c5.png"
+    },
+    {
+      "n": 40,
+      "pass": false,
+      "note": "Relaunch preserved the edit and \u2318Z stepped through saved history, but Exposure displayed +0.95 rather than +1.00. Tessera-window screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_549657f0cec9453987fbd82e99ad21ec.png"
+    },
+    {
+      "n": 41,
+      "pass": false,
+      "note": "Optional self-test was launched, but no develop-selftest benchmark line appeared in the terminal before the app was quit. Screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_12a76df991f740c895696e39479ec754.png"
+    }
+  ],
+  "overall": false,
+  "wp": "M1-10",
+  "status": "fail"
+}

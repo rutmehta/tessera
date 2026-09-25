@@ -229,7 +229,7 @@
     "title": "Develop UI on the engine",
     "status": "merged",
     "attempts": 0,
-    "notes": "slider latency 6-12 ms; WB temp/tint off-locus bug -> M2-04b; GPU slower than CPU (per-tile upload) -> M2-06"
+    "notes": "Sol: develop works end to end; drag precision (+0.95) not a bug; warm snapshot cyan = WB bug in M2-04b"
   },
   {
     "id": "M2-04",
@@ -259,7 +259,7 @@
     "id": "M2-04b",
     "owner": "astra",
     "title": "WB colour science, defaults, native rev 2",
-    "status": "todo",
+    "status": "running",
     "attempts": 0,
     "notes": ""
   },
@@ -267,7 +267,7 @@
     "id": "M2-06",
     "owner": "astra",
     "title": "GPU-resident render path",
-    "status": "todo",
+    "status": "running",
     "attempts": 0,
     "notes": ""
   }
