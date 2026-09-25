@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="$(git rev-parse --show-toplevel)"; [[ $# -ge 1 ]] || { echo 'Usage: verify-sol.sh <wp-id> [--model gpt-6-sol]' >&2; exit 2; }
+WP=$1; shift; MODEL=gpt-6-sol; [[ $# -eq 0 ]] || { [[ $1 == --model && $# == 2 ]] || exit 2; MODEL=$2; }
+BASE="$ROOT/tools/orchestrate/wp/$WP"; WT="$ROOT/.worktrees/$WP"; ACC="$BASE/acceptance.md"; [[ -f $ACC ]] || { echo "Missing $ACC" >&2; exit 2; }
+mkdir -p "$BASE/evidence"; PROMPT=$(python3 - "$ACC" "$BASE/evidence" <<'PY'
+import pathlib,sys
+print('Use the computer_use tools to perform each numbered step in the acceptance criteria. After each step run the shell command screencapture -x '+sys.argv[2]+'/step-<n>.png to save evidence; the computer_use screenshot tool cannot write files. Never edit source files. End with a JSON block {"steps":[{"n":1,"pass":true,"note":"..."}], "overall": true}.\n\n'+pathlib.Path(sys.argv[1]).read_text())
+PY
+)
+hermes -z "$PROMPT" --provider openai-codex -m "$MODEL" --yolo --ignore-user-config -t computer_use --in "$WT" >"$BASE/evidence/transcript.log" 2>&1
+python3 - "$BASE/evidence/transcript.log" "$BASE/verdict.json" "$WP" <<'PY'
+import sys,json,pathlib,re
+text=pathlib.Path(sys.argv[1]).read_text(); matches=re.findall(r'\{\s*"steps"\s*:.*?\}',text,re.S)
+if not matches: raise SystemExit('No trailing verdict JSON found')
+data=json.loads(matches[-1]); data.update(wp=sys.argv[3],status='pass' if data.get('overall') else 'fail')
+pathlib.Path(sys.argv[2]).write_text(json.dumps(data,indent=2)+'\n')
+PY
