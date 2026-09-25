@@ -1,8 +1,9 @@
 //! On-device machine-learning model runtime.
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn crate_is_available() {
-        assert_eq!(std::any::type_name::<()>(), "()");
-    }
-}
+mod registry;
+pub use registry::{Dtype, ModelHandle, ModelRegistry, ModelSpec, TensorSpec};
+mod session;
+mod tensor;
+pub use session::{
+    ComputeUnits, ModelFormat, NodeAssignment, PartitionReport, Session, SessionOptions,
+};
+pub use tensor::Tensor;

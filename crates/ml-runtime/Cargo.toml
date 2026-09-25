@@ -6,3 +6,15 @@ license = "MIT"
 
 [lib]
 path = "src/lib.rs"
+
+[dependencies]
+engine-api = { path = "../engine-api" }
+ort = { workspace = true, features = ["coreml", "half"] }
+half.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+tempfile.workspace = true
+sha2 = "0.10"
+toml = "0.8"
+ureq = "3"
