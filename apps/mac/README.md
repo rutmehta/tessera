@@ -131,6 +131,7 @@ produces a build warning and must be configured before publishing updates.
 | `--keys "x p opt-right …"` | Self-test aid: after the library loads, feed one key every 0.3 s through the culling key map; `cmd-` tokens trigger the matching menu item (e.g. `cmd-z`, `cmd-shift-d`, `cmd-delete`) |
 | `--seed-scores` | Hidden test aid: write deterministic synthetic `focus` / `closed_eyes` scores for the defect sweep (item n: focus 0.25 when n % 4 == 1, closed eyes 0.92 when n % 5 == 2) |
 | `--front` | Bring the window to the front without activating the app (for screenshots) |
+| `--import-lrcat <catalog>` | Open File ▸ Import Lightroom Catalog… with this `.lrcat` already chosen (acceptance aid) |
 | `--develop-selftest` | Self-test aid: once a develop session opens, drag Exposure 0 → +1.5 through the slider path (61 steps at display rate, then mouse-up) and print `develop-selftest: … render median … p90 …` to stderr |
 
 `--keys` also accepts `wait` (one idle 0.3 s step), e.g. `--keys "return wait wait cmd-z"`.
@@ -165,12 +166,38 @@ album's name. Cull ▸ Basket Target switches or creates it; the choice is remem
 (edited / exported / published, other albums) is an outlined pill bottom-right; unedited shows nothing
 on the cell and `Status: Unedited` in the inspector. Albums live in `<folder>/library.json`.
 
+## Lightroom Classic import (docs/05 §3, WP M2-13b)
+
+File ▸ Import Lightroom Catalog… (⇧⌘I) opens a sheet: choose a `.lrcat` → summary (counts, what is not
+fully supported and why, disk space, Lightroom running / catalog locked) → mapping (library folder,
+root folders with **Locate…** for moved drives, the Lightroom → Tessera selection table, colour label →
+mark names, keyword hierarchy, "replace edits already made in Tessera") → fidelity preview (Lightroom
+preview vs Tessera render with ΔE2000 badges, sortable, "looks different" filter) → **Import**. The
+sheet closes while the import runs; a progress strip above the status bar shows the phase and has
+**Cancel Import**. When it finishes the sheet returns with the report, `import-report.md` is written
+next to `library.json`, and the library folder opens.
+
+The bridge is `Engine.openLrcat(path:)` → `LrcatImport` (`summary`, `defaultOptions`, `plan(options:)`,
+`fidelitySample(options:n:thumbPx:)`, `apply(options:listener:)`, `cancel`), plus `inspectLrcat(path:)`
+(crates/tessera-ffi/src/lrcat.rs, lrcat_fidelity.rs). Safety: the catalog, its lock/WAL and
+`Previews.lrdata` are read from temporary copies; Lightroom's own `<name>.xmp` files are never modified
+(Tessera writes `<name>.<ext>.xmp`, seeded from Lightroom's); existing Tessera edits are kept unless the
+user opts in. Each photo gets `.edits/<stem>.json` (translated recipe, selection) and XMP (selection,
+keywords with hierarchy). Albums, groups, smart albums, keywords and people are merged into
+`library.json` (ids offset, clashing album names get "(Lightroom)"), photos are indexed. Virtual
+copies, stacks, faces, history and snapshots stay in `<library>/.tessera-import/<catalog>-<hash>/
+import-plan.json`; `state.json` there makes a cancelled or interrupted import resumable. Photos that
+share an edit-sidecar stem (RAW+JPEG pairs) are skipped and reported, as the sidecar format keys edits
+by stem. The fidelity preview uses the native pipeline until `crates/pipeline-adobe` exists.
+`TESSERA_LRCAT_IMPORT_DELAY_MS` (test aid) slows the per-photo loop so Cancel can be exercised.
+
 ## Layout
 
 ```
 Package.swift                 targets: TesseraCore (library), Tessera (app), TesseraCoreTests
 Sources/TesseraCore/      UI-free and unit-tested
   EngineLibrary.swift         index + CullSession open, group-by-group display order, PhotoLibrary
+  LightroomImport.swift       import mapping tables, fidelity grid model, import-report.md renderer
   CullController.swift        the app's culling model: Rust session (folders) or CullStore (stub)
   DevelopController.swift     one DevelopSession: IOSurface ring, per-frame patch coalescing, history
   PhotoItem.swift             item value type
@@ -184,6 +211,7 @@ Sources/Tessera/
   Loupe/                      CAMetalLayer view (EDR, colour space per frame), renderer, IOSurface frames
   Compare/                    2-up compare, CGImage layers with one shared zoom/pan viewport
   Cull/                       defect sweep sheet
+  Import/                     Lightroom import sheet, controller, non-modal progress strip
   Inspector/                  SwiftUI panels, HistogramView (AppKit) + ValueSlider (custom NSControl)
   Sidebar/                    SwiftUI sidebar (library, folders, albums, smart albums)
   Shell/                      ContentView, status bar, loupe overlay, toast, empty state

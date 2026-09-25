@@ -16,6 +16,10 @@ struct AppCommands: Commands {
                 }
             }
             .disabled(model.recentFolders.isEmpty)
+            Divider()
+            Button("Import Lightroom Catalog…") { model.presentLightroomImport() }
+                .keyboardShortcut("i", modifiers: [.command, .shift])
+                .disabled(model.lightroomImport.isRunning)
         }
         // Always enabled: SwiftUI can leave a stale disabled state on menu items, which would
         // swallow ⌘Z. The engine's session is the source of truth and reports "Nothing to undo".

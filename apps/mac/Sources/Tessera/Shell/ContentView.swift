@@ -43,6 +43,7 @@ struct ContentView: View {
                     }
                     .animation(.easeOut(duration: 0.18), value: model.toast)
                 }
+                LightroomImportProgressBar(importer: model.lightroomImport)
                 StatusBar(model: model)
                 if model.showFilmstrip {
                     Divider()
@@ -56,6 +57,9 @@ struct ContentView: View {
         }
         .sheet(isPresented: $model.showDefectSweep) {
             DefectSweepSheet(model: model)
+        }
+        .sheet(isPresented: $model.showLightroomImport) {
+            LightroomImportSheet(importer: model.lightroomImport)
         }
         .sheet(isPresented: Binding(get: { model.collections.editor != nil },
                                     set: { if !$0 { model.collections.editor = nil } })) {

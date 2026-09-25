@@ -72,3 +72,42 @@ fn model_commands_and_export_usage() {
     assert!(String::from_utf8_lossy(&output).contains("--long-edge"));
     run(&["export"]).assert().code(2);
 }
+#[test]
+fn make_fixture_writes_an_inspectable_catalog() {
+    let temp = tempfile::tempdir().unwrap();
+    let run = |args: &[&str]| {
+        let mut cmd = Command::new(assert_cmd::cargo::cargo_bin!("tessera"));
+        cmd.arg("--app-dir")
+            .arg(temp.path().join("app"))
+            .args(["import", "lrcat"])
+            .args(args)
+            .arg("--json");
+        cmd
+    };
+    let dir = temp.path().join("lr");
+    let out = run(&["--make-fixture", dir.to_str().unwrap()])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let paths: Value = serde_json::from_slice(&out).unwrap();
+    let catalog = paths["catalog"].as_str().unwrap();
+    assert!(dir.join("Photos/2026/wedding/ceremony-01.jpg").is_file());
+    assert!(
+        dir.join("Catalog/Fixture Previews.lrdata/previews.db")
+            .is_file()
+    );
+    let out = run(&[catalog, "--inspect"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let summary: Value = serde_json::from_slice(&out).unwrap();
+    assert_eq!(summary["images"], 7);
+    assert_eq!(summary["virtual_copies"], 1);
+    run(&[catalog, "--make-fixture", dir.to_str().unwrap()])
+        .assert()
+        .code(2);
+}

@@ -116,6 +116,9 @@ final class AppModel {
     }
     var toast: Toast?
     var showDefectSweep = false
+    /// File ▸ Import Lightroom Catalog… (sheet; the import itself runs non-modally).
+    let lightroomImport = LightroomImportController()
+    var showLightroomImport = false
     /// Albums, groups, smart albums, the filter bar, keywords and metadata (library.json).
     let collections = LibraryModel()
     var viewMode: ViewMode = .grid {
@@ -190,6 +193,19 @@ final class AppModel {
             .map { URL(fileURLWithPath: $0) }
         basketTarget = UserDefaults.standard.string(forKey: Self.basketTargetKey) ?? EngineLibrary.defaultBasketTarget
         collections.app = self
+        lightroomImport.presentSheet = { [weak self] in
+            // Re-assert the binding on the next turn so a dismissal still in flight cannot swallow it.
+            self?.showLightroomImport = false
+            DispatchQueue.main.async { self?.showLightroomImport = true }
+        }
+        lightroomImport.openLibrary = { [weak self] folder, message in self?.openFolder(folder, message: message) }
+    }
+
+    /// Opens the import sheet (a finished report stays until Done; a running import has no sheet).
+    func presentLightroomImport(catalog: URL? = nil) {
+        guard !lightroomImport.isRunning else { return }
+        if let catalog { lightroomImport.open(catalog) }
+        showLightroomImport = true
     }
 
     // MARK: Observers
