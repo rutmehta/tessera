@@ -203,9 +203,9 @@
     "id": "M2-02",
     "owner": "astra",
     "title": "Sidecar develop export completeness",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
-    "notes": ""
+    "notes": "native round trip complete; Adobe PointColors/dabs/Look tables need real Lightroom XMP samples (M2-02b)"
   },
   {
     "id": "M3-02",

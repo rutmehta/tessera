@@ -1,0 +1,7 @@
+Ran the exact required test, clippy, and fmt chain with CARGO_TARGET_DIR preserved. All passed, exit 0.
+
+M2-02 remains incomplete: native round trips rely on private extensions for some Adobe structures. PointColors, retouch payloads, brush/range masks, and LensBlur still have translation gaps. Look table authoring requires a model extension or resource-resolution contract: LookSettings currently contains only style and amount.
+
+No implementation changes made this run. Updated tools/orchestrate/wp/M2-02/FINDINGS.md with verification and blockers. Engine-api untouched.
+
+RESULT: FAIL Adobe structured export remains incomplete; Look tables require a model or resource contract.
