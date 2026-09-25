@@ -66,6 +66,11 @@ pub enum Op<'a> {
 /// [`CpuStageOp`] is the reference implementation; a GPU implementation must
 /// match it within the contract's regression tolerance.
 pub trait StageOp: Send + Sync {
+    /// Compatibility operator invocations (zero for native backends).
+    fn adobe_invocations(&self, _stage: StageId) -> u64 {
+        0
+    }
+
     /// Linear-light alpha blend at the whole-image Locals barrier. Adjustment
     /// operators and mask rasterization use CPU reference code; GPU backends
     /// can override this pointwise operation without changing mask caching.
@@ -150,6 +155,22 @@ pub trait StageOp: Send + Sync {
 /// Scalar reference operators from `pipeline-cpu`.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct CpuStageOp;
+
+impl CpuStageOp {
+    /// Native matrix/OETF output without the native creative sigmoid.
+    pub fn display_linear(mut input: Tile) -> EngineResult<Tile> {
+        use engine_api::color::WorkingSpace;
+        let matrix =
+            WorkingSpace::LinearSrgb.to_xyz().inverse()? * WorkingSpace::LinearRec2020.to_xyz();
+        pipeline_cpu::apply_matrix(&mut input, matrix)?;
+        let samples = input
+            .samples::<f32>()?
+            .iter()
+            .map(|v| (pipeline_cpu::srgb_oetf(*v).clamp(0., 1.) * 255.).round() as u8)
+            .collect();
+        Tile::from_samples(input.coord(), input.layout(), samples)
+    }
+}
 
 impl StageOp for CpuStageOp {
     fn run(&self, _stage: StageId, op: &Op<'_>, mut input: Tile) -> EngineResult<Tile> {

@@ -170,6 +170,8 @@ impl PipelineGraph {
 
     /// Renderer-local contract: raw Denoise remains reserved. RGB settings and
     /// colour/model adapter revision belong to the Demosaic tail and successors.
+    /// `seed` identifies the process/operator set and enters at CameraProfile,
+    /// allowing native/Adobe requests to share all preceding raw-stage keys.
     pub fn stage_chain(
         settings: &DevelopSettings,
         seed: ParamHash,
@@ -182,8 +184,11 @@ impl PipelineGraph {
             hashes[StageId::Demosaic.index()].1,
             ParamHash::of(StageId::Demosaic, &(&settings.denoise, adapter_revision)),
         );
-        let mut acc = seed;
+        let mut acc = ParamHash::default();
         hashes.map(|(stage, hash)| {
+            if stage == StageId::CameraProfile {
+                acc = ParamHash::chain(acc, seed);
+            }
             acc = ParamHash::chain(acc, hash);
             (stage, acc)
         })

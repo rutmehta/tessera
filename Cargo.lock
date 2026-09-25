@@ -1553,6 +1553,7 @@ dependencies = [
  "jobs",
  "ml-enhance",
  "ml-runtime",
+ "pipeline-adobe",
  "pipeline-cpu",
  "raw-decode",
 ]

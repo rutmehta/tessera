@@ -17,7 +17,10 @@
 
 #![forbid(unsafe_code)]
 
+mod adobe;
 pub mod cache;
+pub use adobe::AdobeStageOp;
+pub use pipeline_adobe;
 pub mod graph;
 pub mod mask_cache;
 pub use mask_cache::MaskRasterCache;

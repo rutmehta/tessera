@@ -8,7 +8,7 @@ Lightroom parity. No Lightroom reference exports were available. The tests prove
 numerical behaviour and harness correctness, not perceptual matching to Adobe.
 PV3–PV6 currently share these approximations; their proprietary version-specific
 reconstruction differences are not simulated. Native edits continue to use the
-native renderer. Neither engine-api nor image-core is changed.
+native renderer. Engine-api is unchanged; image-core dispatch is described below.
 
 `render_scaled(&DevelopSettings, &RenderSource, scale)` returns
 `EngineResult<Rgb8Image>` (display sRGB). `render_linear_scaled` has the same
@@ -25,6 +25,47 @@ Standalone `_with_profile` variants add `Option<&DcpProfile>` as a fourth argume
 They require CFA data when a DCP is supplied. `render --process adobe --dcp file.dcp`
 resolves an explicit user-supplied profile. No imported profile name is treated
 as a filesystem path, and no licensed Adobe profile is bundled or extracted.
+
+## Image-core integration (M2-18b)
+
+`RendererConfig.process_version` and `Renderer::for_recipe` select the operators.
+Native keeps its existing CPU/GPU backend. Adobe PV3–6 wraps it in
+`image_core::AdobeStageOp`; unsupported Adobe revisions fail explicitly.
+`for_process_version` creates an immutable renderer snapshot sharing caches and
+mask hooks, so a session switch never mutates an in-flight job's operator set.
+
+CameraProfile, WhiteBalance, Tone, Color, Detail and Effects run on CPU. The
+non-Adobe stages retain the selected native backend. Display uses the native
+CPU matrix/OETF primitive without the native creative sigmoid (compatibility
+curves have already applied the rendering intent). An explicit
+`Renderer::with_dcp_profile(bytes)` parses a DCP and hashes the supplied bytes.
+Camera RGB passes directly through DCP matrices/tables; WB applies only the
+documented tint residual, and the DCP tone curve runs once after basic tone.
+Without supplied bytes, named profiles use the documented matrix/default-curve
+approximation, never filesystem lookup.
+
+Process/operator-set identity and DCP content enter cache chains at CameraProfile.
+Decode through Demosaic keys remain shared. Switching back can reuse prior
+process-specific WB entries. GPU-private resident caches and host tile caches
+remain separate: a first compat request may need to materialize demosaic on
+the host even when a native resident request previously rendered the image.
+
+AdobeStageOp deliberately advertises no resident transaction. Native GPU tile
+operations read their results back before CPU compatibility work. Native
+geometry/local blending still delegate through the chosen backend. Compatibility
+detail, tone, colour and effects run at the requested adaptive preview level,
+not on full-resolution RGB followed by downsampling; level zero is the reference
+path. The session's existing measured drag-level controller and nonresident
+pixel-budget prior apply. This avoids full-resolution creative passes during
+drags but is not a guarantee that cold RAW decoding fits a frame budget.
+
+Develop exposes JSON `get_process_version()` / `set_process_version(json)` with
+`{"family":"adobe","revision":6}` or native revision 2. Switching commits pending
+slider edits first and records a separate Process Version step. As engine-api
+history currently versions settings only, transitions use namespaced, typed JSON
+in entry rationale metadata. Session undo/redo/checkout/snapshot restore replay
+those transitions; ordinary settings and engine-api schemas remain unchanged.
+The fidelity harness chooses operators per recipe for both RAW and JPEG input.
 
 ## Public sources and what they establish
 
@@ -198,8 +239,8 @@ There is no real Lightroom fidelity score or asserted threshold in this package.
 - Separate base-profile tone selection, renderer revision within Adobe family,
   and a fidelity provenance record identifying reference colour space/export size.
 - B&W band mixer and grain seed if complete Lightroom round-trip coverage is needed.
-- image-core process-version dispatch and profile context belong to the later
-  package. This crate/CLI makes no changes to its concurrently edited graph.
+- A shared engine-api recipe-field history contract could replace the session's
+  namespaced process-transition metadata in a later schema revision.
 
 ## Verification
 

@@ -222,6 +222,47 @@ fn mean(h: &[u32]) -> f64 {
 // ─────────────────────────────── session tests ───────────────────────────────
 
 #[test]
+fn process_version_is_undoable_and_persisted() {
+    let Some(h) = harness("nef") else {
+        return;
+    };
+    let session = h
+        .engine
+        .clone()
+        .open_develop_session(h.image_id.clone())
+        .unwrap();
+    let native = session.get_process_version().unwrap();
+    let adobe = r#"{"family":"adobe","revision":6}"#.to_string();
+    let n = session.history_state().unwrap().entries;
+    assert!(session.set_process_version(adobe.clone()).unwrap());
+    assert_eq!(session.history_state().unwrap().entries, n + 1);
+    assert!(!session.set_process_version(adobe).unwrap());
+    assert!(session.undo().unwrap());
+    assert_eq!(session.get_process_version().unwrap(), native);
+    assert!(session.redo().unwrap());
+    let v: serde_json::Value =
+        serde_json::from_str(&session.get_process_version().unwrap()).unwrap();
+    assert_eq!(v["family"], "adobe");
+    assert!(
+        session
+            .set_process_version(r#"{"family":"adobe","revision":2}"#.into())
+            .is_err()
+    );
+    session.close().unwrap();
+    let reopened = h
+        .engine
+        .clone()
+        .open_develop_session(h.image_id.clone())
+        .unwrap();
+    let v: serde_json::Value =
+        serde_json::from_str(&reopened.get_process_version().unwrap()).unwrap();
+    assert_eq!(v["family"], "adobe");
+    assert!(reopened.undo().unwrap());
+    assert_eq!(reopened.get_process_version().unwrap(), native);
+    reopened.close().unwrap();
+}
+
+#[test]
 fn as_shot_sliders_round_trip_on_every_fixture_and_single_slider_touch() {
     use engine_api::recipe::settings::WhiteBalanceMode;
     use engine_api::{color::ColorMatrix3, recipe::DevelopSettings};

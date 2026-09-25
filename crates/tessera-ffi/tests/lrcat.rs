@@ -280,7 +280,7 @@ fn plan_relocates_maps_selection_and_marks_without_writing() {
 fn fidelity_sample_compares_with_lightroom_previews() {
     let s = setup();
     let fidelity = s.import.fidelity_sample(relocated(&s), 3, 128).unwrap();
-    assert_eq!(fidelity.renderer, "native");
+    assert_eq!(fidelity.renderer, "recipe-selected (native/adobe-compat)");
     assert!(fidelity.previews_available);
     assert_eq!(fidelity.samples.len(), 3);
     for sample in &fidelity.samples {
