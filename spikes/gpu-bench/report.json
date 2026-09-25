@@ -1,0 +1,111 @@
+{
+  "kernels": [
+    {
+      "name": "demosaic_bilinear_rggb",
+      "backend": "wgpu",
+      "gpu_ms": 4.520728999999999,
+      "wall_ms": 18.458208,
+      "max_abs_err": 1.1920928955078125e-7,
+      "mean_abs_err": 5.451155749014447e-9,
+      "gpu_ms_min": 4.042292,
+      "gpu_ms_max": 5.134666
+    },
+    {
+      "name": "demosaic_bilinear_rggb",
+      "backend": "metal",
+      "gpu_ms": 3.890312509611249,
+      "wall_ms": 10.969562,
+      "max_abs_err": 1.1920928955078125e-7,
+      "mean_abs_err": 5.451155749014447e-9,
+      "gpu_ms_min": 3.7378747947514057,
+      "gpu_ms_max": 4.587791860103607
+    },
+    {
+      "name": "guided_filter_r8",
+      "backend": "wgpu",
+      "gpu_ms": 48.531104,
+      "wall_ms": 63.6737705,
+      "max_abs_err": 5.960464477539062e-7,
+      "mean_abs_err": 2.5480311083292406e-8,
+      "gpu_ms_min": 46.844207999999995,
+      "gpu_ms_max": 50.032458
+    },
+    {
+      "name": "guided_filter_r8",
+      "backend": "metal",
+      "gpu_ms": 48.815354239195585,
+      "wall_ms": 56.1946665,
+      "max_abs_err": 5.960464477539062e-7,
+      "mean_abs_err": 2.5480311083292406e-8,
+      "gpu_ms_min": 47.97708336263895,
+      "gpu_ms_max": 49.424666445702314
+    },
+    {
+      "name": "lut3d_oklab_33",
+      "backend": "wgpu",
+      "gpu_ms": 5.966604,
+      "wall_ms": 19.0566035,
+      "max_abs_err": 4.470348358154297e-6,
+      "mean_abs_err": 2.5021684352575754e-7,
+      "gpu_ms_min": 3.0807499999999997,
+      "gpu_ms_max": 6.600333
+    },
+    {
+      "name": "lut3d_oklab_33",
+      "backend": "metal",
+      "gpu_ms": 5.8816042728722095,
+      "wall_ms": 13.081792,
+      "max_abs_err": 4.649162292480469e-6,
+      "mean_abs_err": 2.536255079029651e-7,
+      "gpu_ms_min": 5.705750081688166,
+      "gpu_ms_max": 6.166791543364525
+    }
+  ],
+  "wgpu_unchecked": [
+    {
+      "name": "demosaic_bilinear_rggb",
+      "backend": "wgpu-unchecked",
+      "gpu_ms": 4.592833499999999,
+      "wall_ms": 18.635937,
+      "max_abs_err": 1.1920928955078125e-7,
+      "mean_abs_err": 5.451155749014447e-9,
+      "gpu_ms_min": 1.128291,
+      "gpu_ms_max": 5.0511669999999995
+    },
+    {
+      "name": "guided_filter_r8",
+      "backend": "wgpu-unchecked",
+      "gpu_ms": 48.655854,
+      "wall_ms": 65.83964599999999,
+      "max_abs_err": 5.960464477539062e-7,
+      "mean_abs_err": 2.5480311083292406e-8,
+      "gpu_ms_min": 2.007917,
+      "gpu_ms_max": 50.974833
+    },
+    {
+      "name": "lut3d_oklab_33",
+      "backend": "wgpu-unchecked",
+      "gpu_ms": 5.856291499999999,
+      "wall_ms": 19.410542,
+      "max_abs_err": 4.470348358154297e-6,
+      "mean_abs_err": 2.5021684352575754e-7,
+      "gpu_ms_min": 5.0424169999999995,
+      "gpu_ms_max": 6.160540999999999
+    }
+  ],
+  "hdr": {
+    "extended_srgb_linear": true,
+    "extended_display_p3": false,
+    "notes": "Surface::get_capabilities: Rgba16Float in `formats` (Auto-usable) = true; format_capabilities color_spaces for Rgba16Float = SurfaceColorSpaces(SRGB | EXTENDED_SRGB_LINEAR | DISPLAY_P3 | BT2100_PQ | BT2100_HLG | EXTENDED_SRGB | EXTENDED_DISPLAY_P3)\nSurface::display_hdr_info -> DisplayHdrInfo { headroom: Some(DisplayHeadroom { current: Some(1.0), potential: Some(1.0), reference: None }), coarse: Some(DisplayCoarseRange { high_dynamic_range: Some(false), gamut: None }), luminance: None, chromaticity: None, bits_per_color: None }; tone_map_headroom() = Some(1.0)\nconfigure(Rgba16Float, ExtendedSrgbLinear): advertised=true, OK ; acquire: Occluded\nwindow: hidden, 64x64 physical px\n--hdr-p3: native probe failed (signal: 10 (SIGBUS)). Captured display query:\nSurface::get_capabilities: Rgba16Float in `formats` (Auto-usable) = true; format_capabilities color_spaces for Rgba16Float = SurfaceColorSpaces(SRGB | EXTENDED_SRGB_LINEAR | DISPLAY_P3 | BT2100_PQ | BT2100_HLG | EXTENDED_SRGB | EXTENDED_DISPLAY_P3)\nSurface::display_hdr_info -> DisplayHdrInfo { headroom: Some(DisplayHeadroom { current: Some(1.0), potential: Some(1.0), reference: None }), coarse: Some(DisplayCoarseRange { high_dynamic_range: Some(false), gamut: None }), luminance: None, chromaticity: None, bits_per_color: None }; tone_map_headroom() = Some(1.0)\n\n"
+  },
+  "recommendation": "go",
+  "rationale": "All three kernels are within 1.5x of native MSL GPU time with max abs error <= 1e-4 against the f32 CPU reference. demosaic_bilinear_rggb: wgpu/metal GPU time 1.16x (unchecked 1.18x), wgpu max err 1.19e-7, metal max err 1.19e-7. guided_filter_r8: wgpu/metal GPU time 0.99x (unchecked 1.00x), wgpu max err 5.96e-7, metal max err 5.96e-7. lut3d_oklab_33: wgpu/metal GPU time 1.01x (unchecked 1.00x), wgpu max err 4.47e-6, metal max err 4.65e-6. HDR: Rgba16Float + ExtendedSrgbLinear configure succeeded, + ExtendedDisplayP3 configure failed.",
+  "environment": {
+    "image": "4096x4096 RGBA f32 (demosaic input u16 RGGB)",
+    "runs": 20,
+    "warmup": 3,
+    "wgpu_adapter": "Apple M4 (Metal, IntegratedGpu)",
+    "metal_device": "Apple M4",
+    "cpu_reference_s": 0.701762666
+  }
+}
