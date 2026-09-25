@@ -1,0 +1,11 @@
+Implemented M2-11 within the allowed paths.
+
+Added the shared library model, atomic persistence, ordered album operations, nested group scoping, SavedSearch parser/compiler, parameterized index predicates, and cull membership integration. Importer albums now reference recipe ImageIds.
+
+Verification: 96 tests passed, 1 existing benchmark ignored. The required release tests, clippy with -D warnings, and workspace fmt check all passed. engine-api was untouched. No commits made.
+
+Limitations documented in crates/library/README.md: person filters currently use named keywords, rating uses native 0–3 grades, and semantic terms require a single positive conjunct.
+
+Evidence: tools/orchestrate/wp/M2-11/RESULT.md
+
+RESULT: PASS
