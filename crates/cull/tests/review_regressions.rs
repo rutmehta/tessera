@@ -24,16 +24,14 @@ fn basket_history_preserves_existing_album_and_unrelated_external_fields() {
     session.set_basket_target("Target").unwrap();
     session.toggle_basket().unwrap();
     let mut library = Library::read(&path).unwrap();
-    library
-        .unknown
-        .insert("roots".into(), serde_json::json!(["external"]));
+    library.roots = vec![std::path::PathBuf::from("external")];
     library.albums.insert("Other".into(), Album::default());
     library.write(&path).unwrap();
     session.undo().unwrap();
     let library = Library::read(&path).unwrap();
     assert!(library.albums["Target"].images.is_empty());
     assert_eq!(library.albums["Target"].unknown["description"], "original");
-    assert_eq!(library.unknown["roots"], serde_json::json!(["external"]));
+    assert_eq!(library.roots, vec![std::path::PathBuf::from("external")]);
     assert!(library.albums.contains_key("Other"));
     session.redo().unwrap();
     let library = Library::read(&path).unwrap();

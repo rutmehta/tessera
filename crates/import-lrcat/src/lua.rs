@@ -2,25 +2,9 @@
 use std::collections::BTreeMap;
 
 use engine_api::error::{EngineError, EngineResult};
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-/// A saved search, preserving its nested boolean structure.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum SavedSearch {
-    /// One Lightroom criterion, with its original operation and scalar value.
-    Rule {
-        criteria: String,
-        operation: String,
-        value: Value,
-    },
-    /// All children must match.
-    All(Vec<SavedSearch>),
-    /// At least one child must match.
-    Any(Vec<SavedSearch>),
-    /// No child may match.
-    None(Vec<SavedSearch>),
-}
+pub use library::SavedSearch;
 
 /// Parse a table or `s = { ... }`, with an optional final semicolon.
 ///
