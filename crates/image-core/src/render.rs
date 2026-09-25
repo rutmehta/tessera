@@ -40,7 +40,9 @@
 //!
 //! Output tiles are processed in chunks bounded by the number of new sensor
 //! tiles they need; each step inside a chunk runs across
-//! [`RendererConfig::threads`] scoped threads. The cancellation token is
+//! [`RendererConfig::threads`] scoped threads on CPU. Backends advertising
+//! batching receive contiguous operator chains and own their submission size.
+//! Halo gathering, memo storage and resampling end a chain. The cancellation token is
 //! polled before every tile of every step, and before each delivered tile.
 
 use std::collections::{BTreeSet, HashMap, HashSet};
@@ -514,10 +516,10 @@ impl Renderer {
                     cfa: r.cfa,
                     mode: r.highlights,
                 };
-                let lin = par_map(threads, cancel, &need_l, |&l| {
-                    let input = gather(r.sensor, l, r.lin_halo, r.period, &decoded)?;
-                    self.ops.run(StageId::Linearize, &op, input)
+                let inputs = par_map(threads, cancel, &need_l, |&l| {
+                    gather(r.sensor, l, r.lin_halo, r.period, &decoded)
                 })?;
+                let lin = self.run_ops(&[(StageId::Linearize, op)], inputs, cancel)?;
                 lin_scratch.extend(need_l.iter().copied().zip(lin));
             }
 
@@ -526,25 +528,40 @@ impl Renderer {
                 cfa: r.cfa,
                 algorithm: r.algorithm,
             };
-            let indices: Vec<usize> = (0..need_s.len()).collect();
-            let balanced = par_map(threads, cancel, &indices, |&j| {
-                let s = need_s[j];
-                let rgb = match dem_cached[j].lock().unwrap().take() {
-                    Some(t) => t,
-                    None => {
-                        let input = gather(r.sensor, s, r.dem_halo, r.period, &lin_scratch)?;
-                        let t = self.ops.run(StageId::Demosaic, &dem_op, input)?;
-                        if cache_dem {
-                            self.cache.insert(key(StageId::Demosaic, s), to_f16(&t)?);
-                        }
-                        t
-                    }
-                };
-                let rgb = self
-                    .ops
-                    .run(StageId::CameraProfile, &Op::Matrix(r.profile), rgb)?;
-                self.ops.run(StageId::WhiteBalance, &Op::Matrix(r.wb), rgb)
+            let dem_inputs = par_map(threads, cancel, &to_dem, |&s| {
+                gather(r.sensor, s, r.dem_halo, r.period, &lin_scratch)
             })?;
+            let matrices = [
+                (StageId::CameraProfile, Op::Matrix(r.profile)),
+                (StageId::WhiteBalance, Op::Matrix(r.wb)),
+            ];
+            let balanced = if cache_dem {
+                // A host memoization boundary ends the first GPU chain.
+                let dem = self.run_ops(&[(StageId::Demosaic, dem_op)], dem_inputs, cancel)?;
+                let mut fresh: HashMap<_, _> = to_dem.iter().copied().zip(dem).collect();
+                for (&s, t) in &fresh {
+                    self.cache.insert(key(StageId::Demosaic, s), to_f16(t)?);
+                }
+                let rgb = need_s
+                    .iter()
+                    .enumerate()
+                    .map(|(j, s)| {
+                        dem_cached[j]
+                            .lock()
+                            .unwrap()
+                            .take()
+                            .unwrap_or_else(|| fresh.remove(s).expect("demosaic resolved"))
+                    })
+                    .collect();
+                self.run_ops(&matrices, rgb, cancel)?
+            } else {
+                // Without a memo boundary all three passes stay resident.
+                self.run_ops(
+                    &[(StageId::Demosaic, dem_op), matrices[0], matrices[1]],
+                    dem_inputs,
+                    cancel,
+                )?
+            };
             wb_scratch.extend(need_s.iter().copied().zip(balanced));
             for d in &to_dem {
                 if planned_dem.remove(d) {
@@ -576,19 +593,19 @@ impl Renderer {
             wb_scratch.retain(|c, _| wb_uses.contains_key(c));
 
             // F. Tone → Output.
-            let pre_tone: Vec<Mutex<Option<Tile>>> = pre_tone.into_iter().map(Mutex::new).collect();
             let tone = Op::Tone(&r.settings.tone);
             let display = Op::Display {
                 gamut: r.settings.output.gamut_mapping,
             };
-            let finished = par_map(threads, cancel, &pre_tone, |t| {
-                let t = t.lock().unwrap().take().expect("every chunk tile resolved");
-                let t = self.ops.run(StageId::Tone, &tone, t)?;
-                match output {
-                    RenderOutput::Display => self.ops.run(StageId::Output, &display, t),
-                    RenderOutput::SceneLinear => Ok(t),
-                }
-            })?;
+            let mut chain = vec![(StageId::Tone, tone)];
+            if output == RenderOutput::Display {
+                chain.push((StageId::Output, display));
+            }
+            let inputs = pre_tone
+                .into_iter()
+                .map(|t| t.expect("every chunk tile resolved"))
+                .collect();
+            let finished = self.run_ops(&chain, inputs, cancel)?;
             for t in finished {
                 cancel.check()?;
                 sink(t);
@@ -596,6 +613,24 @@ impl Renderer {
             start = end;
         }
         Ok(())
+    }
+
+    fn run_ops(
+        &self,
+        chain: &[(StageId, Op<'_>)],
+        inputs: Vec<Tile>,
+        cancel: &CancellationToken,
+    ) -> EngineResult<Vec<Tile>> {
+        if self.ops.batch_size() > 1 {
+            self.ops.run_chain_batch(chain, inputs, cancel)
+        } else {
+            let inputs: Vec<_> = inputs.into_iter().map(|t| Mutex::new(Some(t))).collect();
+            let groups = par_map(self.config.threads, cancel, &inputs, |t| {
+                let t = t.lock().unwrap().take().expect("tile processed once");
+                self.ops.run_chain_batch(chain, vec![t], cancel)
+            })?;
+            Ok(groups.into_iter().flatten().collect())
+        }
     }
 }
 

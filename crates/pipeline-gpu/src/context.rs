@@ -1,0 +1,72 @@
+use engine_api::{EngineError, EngineResult};
+
+/// Optional adapter capabilities. In-flight samples always remain f32.
+#[derive(Debug, Clone, Copy)]
+pub struct GpuCapabilities {
+    pub timestamp_query: bool,
+    /// WGSL f16, including storage-buffer elements.
+    pub shader_f16: bool,
+    pub rgba16float_storage: bool,
+}
+
+/// Shared Metal device and queue. Initialization fails explicitly without Metal.
+pub struct GpuContext {
+    pub device: wgpu::Device,
+    pub queue: wgpu::Queue,
+    pub adapter_info: wgpu::AdapterInfo,
+    pub capabilities: GpuCapabilities,
+    pub(crate) pipeline: wgpu::ComputePipeline,
+}
+
+impl GpuContext {
+    pub fn new() -> EngineResult<Self> {
+        let mut desc = wgpu::InstanceDescriptor::new_without_display_handle();
+        desc.backends = wgpu::Backends::METAL;
+        let instance = wgpu::Instance::new(desc);
+        let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
+            power_preference: wgpu::PowerPreference::HighPerformance,
+            ..Default::default()
+        }))
+        .map_err(|e| EngineError::internal(format!("Metal adapter: {e}")))?;
+        let features = adapter.features();
+        let capabilities = GpuCapabilities {
+            timestamp_query: features.contains(wgpu::Features::TIMESTAMP_QUERY),
+            shader_f16: features.contains(wgpu::Features::SHADER_F16),
+            rgba16float_storage: adapter
+                .get_texture_format_features(wgpu::TextureFormat::Rgba16Float)
+                .allowed_usages
+                .contains(wgpu::TextureUsages::STORAGE_BINDING),
+        };
+        let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
+            label: Some("tessera M1"),
+            required_features: features
+                & (wgpu::Features::TIMESTAMP_QUERY | wgpu::Features::SHADER_F16),
+            required_limits: wgpu::Limits::default(),
+            ..Default::default()
+        }))
+        .map_err(|e| EngineError::internal(format!("Metal device: {e}")))?;
+        let scope = device.push_error_scope(wgpu::ErrorFilter::Validation);
+        let module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("M1 operators"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("operators.wgsl").into()),
+        });
+        let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: Some("M1 operators"),
+            layout: None,
+            module: &module,
+            entry_point: Some("main"),
+            compilation_options: Default::default(),
+            cache: None,
+        });
+        if let Some(e) = pollster::block_on(scope.pop()) {
+            return Err(EngineError::internal(format!("M1 shader: {e}")));
+        }
+        Ok(Self {
+            device,
+            queue,
+            adapter_info: adapter.get_info(),
+            capabilities,
+            pipeline,
+        })
+    }
+}

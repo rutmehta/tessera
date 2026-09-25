@@ -6,7 +6,8 @@
 //! - [`cache`]: an LRU, byte-budgeted tile cache keyed by
 //!   [`engine_api::stage::MemoKey`]. Cached stage outputs are `F16Planar`.
 //! - [`ops`]: the [`ops::StageOp`] backend trait. [`ops::CpuStageOp`] calls
-//!   the `pipeline-cpu` reference operators; a GPU backend slots in later.
+//!   the `pipeline-cpu` reference operators; `pipeline-gpu` provides the Metal
+//!   implementation with resident operator chains and batched submissions.
 //! - [`render`]: [`render::Renderer`], which pulls output tiles through the
 //!   graph, reusing memoized upstream tiles, and renders progressively.
 //!
