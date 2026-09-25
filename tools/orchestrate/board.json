@@ -555,7 +555,7 @@
     "id": "M2-21",
     "owner": "astra",
     "title": "GPU export path",
-    "status": "escalate",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
@@ -579,9 +579,9 @@
     "id": "M2-21b",
     "owner": "opus",
     "title": "GPU export w/o starvation + GPU lens",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
-    "notes": ""
+    "notes": "NEF full export 51s->4.3s; no viewport starvation; docs/08 targets (1.5s/45MP, 100 in 40s) still open -> M2-21c"
   },
   {
     "id": "M2-25v",
