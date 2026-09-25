@@ -4,4 +4,5 @@ mod operations;
 mod search;
 pub use document::{Album, AlbumGroup, Keyword, Library, SmartAlbum};
 pub use index::SemanticSearch;
-pub use search::SavedSearch;
+pub use operations::{NodeKind, SidebarNode};
+pub use search::{Diagnostic, SavedSearch};

@@ -535,6 +535,22 @@ fileprivate struct FfiConverterUInt64: FfiConverterPrimitive {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterInt64: FfiConverterPrimitive {
+    typealias FfiType = Int64
+    typealias SwiftType = Int64
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Int64 {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: Int64, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterFloat: FfiConverterPrimitive {
     typealias FfiType = Float
     typealias SwiftType = Float
@@ -2002,6 +2018,12 @@ public protocol EngineProtocol: AnyObject, Sendable {
     func setSelection(imageId: String, selection: Selection) throws 
     
     /**
+     * Opens (without creating) the library document at `path`, conventionally
+     * `<folder>/library.json`, and aligns the catalog's keyword hierarchy.
+     */
+    func openLibrary(path: String) throws  -> LibraryStore
+    
+    /**
      * Opens a develop session on an indexed RAW image. Blocking (decodes the
      * raw): call off the main thread. One session per visible image.
      */
@@ -2160,6 +2182,20 @@ open func setSelection(imageId: String, selection: Selection)throws   {try rustC
         FfiConverterTypeSelection_lower(selection),uniffiCallStatus
     )
 }
+}
+    
+    /**
+     * Opens (without creating) the library document at `path`, conventionally
+     * `<folder>/library.json`, and aligns the catalog's keyword hierarchy.
+     */
+open func openLibrary(path: String)throws  -> LibraryStore  {
+    return try  FfiConverterTypeLibraryStore_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_open_library(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(path),uniffiCallStatus
+    )
+})
 }
     
     /**
@@ -2468,6 +2504,498 @@ public func FfiConverterTypeEngineEventListener_lift(_ handle: UInt64) throws ->
 #endif
 public func FfiConverterTypeEngineEventListener_lower(_ value: EngineEventListener) -> UInt64 {
     return FfiConverterTypeEngineEventListener.lower(value)
+}
+
+
+
+
+
+
+/**
+ * library.json plus the engine's catalog. Create with `Engine::open_library`.
+ */
+public protocol LibraryStoreProtocol: AnyObject, Sendable {
+    
+    /**
+     * Appends in order, skipping members.
+     */
+    func addToAlbum(id: Int64, imageIds: [String]) throws 
+    
+    /**
+     * Members in manual album order.
+     */
+    func albumImages(id: Int64) throws  -> [String]
+    
+    /**
+     * Parses and compiles a rule against this library (album names must exist).
+     */
+    func checkRule(text: String) throws  -> RuleCheck
+    
+    func createAlbum(name: String, parent: Int64?) throws  -> Int64
+    
+    func createGroup(name: String, parent: Int64?) throws  -> Int64
+    
+    /**
+     * Fails (with the diagnostic message) when the rule does not parse or
+     * does not compile against this library.
+     */
+    func createSmartAlbum(name: String, rule: String, parent: Int64?, scoped: Bool) throws  -> Int64
+    
+    /**
+     * Safe delete: an album loses only its membership list; a group's
+     * contents move up one level; a smart album is only a rule.
+     */
+    func deleteNode(id: Int64) throws 
+    
+    /**
+     * Renders editor items to text, then checks it; diagnostics refer to `text`.
+     */
+    func formatRule(items: [RuleItem]) throws  -> RuleCheck
+    
+    /**
+     * Reorder and nest: the entry becomes child `index` of `parent` (a group).
+     */
+    func moveNode(id: Int64, parent: Int64?, index: UInt32) throws 
+    
+    /**
+     * Sidebar entries depth-first, in sidebar order.
+     */
+    func nodes() throws  -> [LibraryNode]
+    
+    func path()  -> String
+    
+    /**
+     * Membership only; files and sidecars are untouched.
+     */
+    func removeFromAlbum(id: Int64, imageIds: [String]) throws 
+    
+    func rename(id: Int64, name: String) throws 
+    
+    /**
+     * `image_ids` must be a permutation of the members.
+     */
+    func reorderAlbum(id: Int64, imageIds: [String]) throws 
+    
+    func search(request: SearchRequest) throws  -> SearchResult
+    
+    func updateSmartAlbum(id: Int64, rule: String?, scoped: Bool?) throws 
+    
+    func addKeyword(name: String, parent: String?) throws 
+    
+    /**
+     * Adds or removes keywords on every image (bulk apply). Unknown keywords
+     * join the tree at the root. Writes dc:subject (flat) and
+     * lr:hierarchicalSubject (path) to each XMP sidecar.
+     */
+    func applyKeywords(imageIds: [String], names: [String], add: Bool) throws 
+    
+    /**
+     * Safe delete: removes the keyword from the list only; photos keep the tag.
+     */
+    func deleteKeyword(name: String) throws 
+    
+    /**
+     * Keyword tree with per-keyword counts under `folder` (None: whole catalog).
+     */
+    func keywords(folder: String?) throws  -> [KeywordInfo]
+    
+    func metadata(imageId: String) throws  -> ImageMetadata
+    
+    /**
+     * Moves a keyword (and its children) under `parent`, or to the root.
+     * Existing `lr:hierarchicalSubject` paths in sidecars are not rewritten.
+     */
+    func moveKeyword(name: String, parent: String?) throws 
+    
+    /**
+     * Writes the given IPTC fields to every image's XMP sidecar.
+     */
+    func setIptc(imageIds: [String], edit: IptcEdit) throws 
+    
+}
+/**
+ * library.json plus the engine's catalog. Create with `Engine::open_library`.
+ */
+open class LibraryStore: LibraryStoreProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_tessera_ffi_fn_clone_librarystore(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_tessera_ffi_fn_free_librarystore(handle, $0) }
+    }
+
+    
+
+    
+    /**
+     * Appends in order, skipping members.
+     */
+open func addToAlbum(id: Int64, imageIds: [String])throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_librarystore_add_to_album(
+            self.uniffiCloneHandle(),
+        FfiConverterInt64.lower(id),
+        FfiConverterSequenceString.lower(imageIds),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Members in manual album order.
+     */
+open func albumImages(id: Int64)throws  -> [String]  {
+    return try  FfiConverterSequenceString.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_librarystore_album_images(
+            self.uniffiCloneHandle(),
+        FfiConverterInt64.lower(id),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Parses and compiles a rule against this library (album names must exist).
+     */
+open func checkRule(text: String)throws  -> RuleCheck  {
+    return try  FfiConverterTypeRuleCheck_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_librarystore_check_rule(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(text),uniffiCallStatus
+    )
+})
+}
+    
+open func createAlbum(name: String, parent: Int64?)throws  -> Int64  {
+    return try  FfiConverterInt64.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_librarystore_create_album(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(name),
+        FfiConverterOptionInt64.lower(parent),uniffiCallStatus
+    )
+})
+}
+    
+open func createGroup(name: String, parent: Int64?)throws  -> Int64  {
+    return try  FfiConverterInt64.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_librarystore_create_group(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(name),
+        FfiConverterOptionInt64.lower(parent),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Fails (with the diagnostic message) when the rule does not parse or
+     * does not compile against this library.
+     */
+open func createSmartAlbum(name: String, rule: String, parent: Int64?, scoped: Bool)throws  -> Int64  {
+    return try  FfiConverterInt64.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_librarystore_create_smart_album(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(name),
+        FfiConverterString.lower(rule),
+        FfiConverterOptionInt64.lower(parent),
+        FfiConverterBool.lower(scoped),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Safe delete: an album loses only its membership list; a group's
+     * contents move up one level; a smart album is only a rule.
+     */
+open func deleteNode(id: Int64)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_librarystore_delete_node(
+            self.uniffiCloneHandle(),
+        FfiConverterInt64.lower(id),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Renders editor items to text, then checks it; diagnostics refer to `text`.
+     */
+open func formatRule(items: [RuleItem])throws  -> RuleCheck  {
+    return try  FfiConverterTypeRuleCheck_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_librarystore_format_rule(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceTypeRuleItem.lower(items),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Reorder and nest: the entry becomes child `index` of `parent` (a group).
+     */
+open func moveNode(id: Int64, parent: Int64?, index: UInt32)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_librarystore_move_node(
+            self.uniffiCloneHandle(),
+        FfiConverterInt64.lower(id),
+        FfiConverterOptionInt64.lower(parent),
+        FfiConverterUInt32.lower(index),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Sidebar entries depth-first, in sidebar order.
+     */
+open func nodes()throws  -> [LibraryNode]  {
+    return try  FfiConverterSequenceTypeLibraryNode.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_librarystore_nodes(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+open func path() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_librarystore_path(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Membership only; files and sidecars are untouched.
+     */
+open func removeFromAlbum(id: Int64, imageIds: [String])throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_librarystore_remove_from_album(
+            self.uniffiCloneHandle(),
+        FfiConverterInt64.lower(id),
+        FfiConverterSequenceString.lower(imageIds),uniffiCallStatus
+    )
+}
+}
+    
+open func rename(id: Int64, name: String)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_librarystore_rename(
+            self.uniffiCloneHandle(),
+        FfiConverterInt64.lower(id),
+        FfiConverterString.lower(name),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * `image_ids` must be a permutation of the members.
+     */
+open func reorderAlbum(id: Int64, imageIds: [String])throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_librarystore_reorder_album(
+            self.uniffiCloneHandle(),
+        FfiConverterInt64.lower(id),
+        FfiConverterSequenceString.lower(imageIds),uniffiCallStatus
+    )
+}
+}
+    
+open func search(request: SearchRequest)throws  -> SearchResult  {
+    return try  FfiConverterTypeSearchResult_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_librarystore_search(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeSearchRequest_lower(request),uniffiCallStatus
+    )
+})
+}
+    
+open func updateSmartAlbum(id: Int64, rule: String?, scoped: Bool?)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_librarystore_update_smart_album(
+            self.uniffiCloneHandle(),
+        FfiConverterInt64.lower(id),
+        FfiConverterOptionString.lower(rule),
+        FfiConverterOptionBool.lower(scoped),uniffiCallStatus
+    )
+}
+}
+    
+open func addKeyword(name: String, parent: String?)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_librarystore_add_keyword(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(name),
+        FfiConverterOptionString.lower(parent),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Adds or removes keywords on every image (bulk apply). Unknown keywords
+     * join the tree at the root. Writes dc:subject (flat) and
+     * lr:hierarchicalSubject (path) to each XMP sidecar.
+     */
+open func applyKeywords(imageIds: [String], names: [String], add: Bool)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_librarystore_apply_keywords(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceString.lower(imageIds),
+        FfiConverterSequenceString.lower(names),
+        FfiConverterBool.lower(add),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Safe delete: removes the keyword from the list only; photos keep the tag.
+     */
+open func deleteKeyword(name: String)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_librarystore_delete_keyword(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(name),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Keyword tree with per-keyword counts under `folder` (None: whole catalog).
+     */
+open func keywords(folder: String?)throws  -> [KeywordInfo]  {
+    return try  FfiConverterSequenceTypeKeywordInfo.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_librarystore_keywords(
+            self.uniffiCloneHandle(),
+        FfiConverterOptionString.lower(folder),uniffiCallStatus
+    )
+})
+}
+    
+open func metadata(imageId: String)throws  -> ImageMetadata  {
+    return try  FfiConverterTypeImageMetadata_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_librarystore_metadata(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(imageId),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Moves a keyword (and its children) under `parent`, or to the root.
+     * Existing `lr:hierarchicalSubject` paths in sidecars are not rewritten.
+     */
+open func moveKeyword(name: String, parent: String?)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_librarystore_move_keyword(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(name),
+        FfiConverterOptionString.lower(parent),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Writes the given IPTC fields to every image's XMP sidecar.
+     */
+open func setIptc(imageIds: [String], edit: IptcEdit)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_librarystore_set_iptc(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceString.lower(imageIds),
+        FfiConverterTypeIptcEdit_lower(edit),uniffiCallStatus
+    )
+}
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLibraryStore: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = LibraryStore
+
+    public static func lift(_ handle: UInt64) throws -> LibraryStore {
+        return LibraryStore(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: LibraryStore) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LibraryStore {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: LibraryStore, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLibraryStore_lift(_ handle: UInt64) throws -> LibraryStore {
+    return try FfiConverterTypeLibraryStore.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLibraryStore_lower(_ value: LibraryStore) -> UInt64 {
+    return FfiConverterTypeLibraryStore.lower(value)
 }
 
 
@@ -2934,6 +3462,117 @@ public func FfiConverterTypeDevelopInfo_lower(_ value: DevelopInfo) -> RustBuffe
 }
 
 
+public struct FacetCount: Equatable, Hashable {
+    public var value: String
+    public var count: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(value: String, count: UInt32) {
+        self.value = value
+        self.count = count
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension FacetCount: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFacetCount: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FacetCount {
+        return
+            try FacetCount(
+                value: FfiConverterString.read(from: &buf), 
+                count: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: FacetCount, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.value, into: &buf)
+        FfiConverterUInt32.write(value.count, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFacetCount_lift(_ buf: RustBuffer) throws -> FacetCount {
+    return try FfiConverterTypeFacetCount.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFacetCount_lower(_ value: FacetCount) -> RustBuffer {
+    return FfiConverterTypeFacetCount.lower(value)
+}
+
+
+/**
+ * Values of one field are ORed; fields are ANDed with each other and the text.
+ */
+public struct FacetFilter: Equatable, Hashable {
+    public var field: FacetField
+    public var values: [String]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(field: FacetField, values: [String]) {
+        self.field = field
+        self.values = values
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension FacetFilter: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFacetFilter: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FacetFilter {
+        return
+            try FacetFilter(
+                field: FfiConverterTypeFacetField.read(from: &buf), 
+                values: FfiConverterSequenceString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: FacetFilter, into buf: inout [UInt8]) {
+        FfiConverterTypeFacetField.write(value.field, into: &buf)
+        FfiConverterSequenceString.write(value.values, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFacetFilter_lift(_ buf: RustBuffer) throws -> FacetFilter {
+    return try FfiConverterTypeFacetFilter.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFacetFilter_lower(_ value: FacetFilter) -> RustBuffer {
+    return FfiConverterTypeFacetFilter.lower(value)
+}
+
+
 public struct FolderHandle: Equatable, Hashable {
     public var path: String
     public var updated: UInt64
@@ -3385,6 +4024,111 @@ public func FfiConverterTypeImageDecision_lower(_ value: ImageDecision) -> RustB
 }
 
 
+/**
+ * IPTC core as stored in XMP (Dublin Core): x-default language alternatives.
+ */
+public struct ImageMetadata: Equatable, Hashable {
+    public var imageId: String
+    public var title: String
+    public var caption: String
+    public var copyright: String
+    /**
+     * dc:creator entries joined with "; ".
+     */
+    public var creator: String
+    /**
+     * Flat keywords (dc:subject).
+     */
+    public var keywords: [String]
+    /**
+     * lr:hierarchicalSubject paths ("Places|France|Paris").
+     */
+    public var hierarchicalKeywords: [String]
+    /**
+     * Read-only facts: file, camera and EXIF, in display order.
+     */
+    public var fields: [MetadataField]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(imageId: String, title: String, caption: String, copyright: String, 
+        /**
+         * dc:creator entries joined with "; ".
+         */creator: String, 
+        /**
+         * Flat keywords (dc:subject).
+         */keywords: [String], 
+        /**
+         * lr:hierarchicalSubject paths ("Places|France|Paris").
+         */hierarchicalKeywords: [String], 
+        /**
+         * Read-only facts: file, camera and EXIF, in display order.
+         */fields: [MetadataField]) {
+        self.imageId = imageId
+        self.title = title
+        self.caption = caption
+        self.copyright = copyright
+        self.creator = creator
+        self.keywords = keywords
+        self.hierarchicalKeywords = hierarchicalKeywords
+        self.fields = fields
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ImageMetadata: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeImageMetadata: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ImageMetadata {
+        return
+            try ImageMetadata(
+                imageId: FfiConverterString.read(from: &buf), 
+                title: FfiConverterString.read(from: &buf), 
+                caption: FfiConverterString.read(from: &buf), 
+                copyright: FfiConverterString.read(from: &buf), 
+                creator: FfiConverterString.read(from: &buf), 
+                keywords: FfiConverterSequenceString.read(from: &buf), 
+                hierarchicalKeywords: FfiConverterSequenceString.read(from: &buf), 
+                fields: FfiConverterSequenceTypeMetadataField.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ImageMetadata, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.imageId, into: &buf)
+        FfiConverterString.write(value.title, into: &buf)
+        FfiConverterString.write(value.caption, into: &buf)
+        FfiConverterString.write(value.copyright, into: &buf)
+        FfiConverterString.write(value.creator, into: &buf)
+        FfiConverterSequenceString.write(value.keywords, into: &buf)
+        FfiConverterSequenceString.write(value.hierarchicalKeywords, into: &buf)
+        FfiConverterSequenceTypeMetadataField.write(value.fields, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeImageMetadata_lift(_ buf: RustBuffer) throws -> ImageMetadata {
+    return try FfiConverterTypeImageMetadata.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeImageMetadata_lower(_ value: ImageMetadata) -> RustBuffer {
+    return FfiConverterTypeImageMetadata.lower(value)
+}
+
+
 public struct ImageQuery: Equatable, Hashable {
     public var folder: String?
     public var text: String?
@@ -3655,6 +4399,330 @@ public func FfiConverterTypeImageSummary_lower(_ value: ImageSummary) -> RustBuf
 }
 
 
+/**
+ * None leaves a field unchanged (mixed values in a multi-selection).
+ */
+public struct IptcEdit: Equatable, Hashable {
+    public var title: String?
+    public var caption: String?
+    public var copyright: String?
+    /**
+     * Creators separated by ';'.
+     */
+    public var creator: String?
+    /**
+     * Replaces the keyword list (hierarchy paths come from the library tree).
+     */
+    public var keywords: [String]?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(title: String?, caption: String?, copyright: String?, 
+        /**
+         * Creators separated by ';'.
+         */creator: String?, 
+        /**
+         * Replaces the keyword list (hierarchy paths come from the library tree).
+         */keywords: [String]?) {
+        self.title = title
+        self.caption = caption
+        self.copyright = copyright
+        self.creator = creator
+        self.keywords = keywords
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension IptcEdit: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeIptcEdit: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> IptcEdit {
+        return
+            try IptcEdit(
+                title: FfiConverterOptionString.read(from: &buf), 
+                caption: FfiConverterOptionString.read(from: &buf), 
+                copyright: FfiConverterOptionString.read(from: &buf), 
+                creator: FfiConverterOptionString.read(from: &buf), 
+                keywords: FfiConverterOptionSequenceString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: IptcEdit, into buf: inout [UInt8]) {
+        FfiConverterOptionString.write(value.title, into: &buf)
+        FfiConverterOptionString.write(value.caption, into: &buf)
+        FfiConverterOptionString.write(value.copyright, into: &buf)
+        FfiConverterOptionString.write(value.creator, into: &buf)
+        FfiConverterOptionSequenceString.write(value.keywords, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIptcEdit_lift(_ buf: RustBuffer) throws -> IptcEdit {
+    return try FfiConverterTypeIptcEdit.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIptcEdit_lower(_ value: IptcEdit) -> RustBuffer {
+    return FfiConverterTypeIptcEdit.lower(value)
+}
+
+
+/**
+ * One keyword row, in tree preorder. Keywords found only in sidecars (not in
+ * the library's tree) follow as roots with `in_tree == false`.
+ */
+public struct KeywordInfo: Equatable, Hashable {
+    public var name: String
+    public var parent: String?
+    public var depth: UInt32
+    /**
+     * Images in the requested folder tagged with exactly this keyword.
+     */
+    public var count: UInt32
+    public var inTree: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(name: String, parent: String?, depth: UInt32, 
+        /**
+         * Images in the requested folder tagged with exactly this keyword.
+         */count: UInt32, inTree: Bool) {
+        self.name = name
+        self.parent = parent
+        self.depth = depth
+        self.count = count
+        self.inTree = inTree
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension KeywordInfo: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeKeywordInfo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> KeywordInfo {
+        return
+            try KeywordInfo(
+                name: FfiConverterString.read(from: &buf), 
+                parent: FfiConverterOptionString.read(from: &buf), 
+                depth: FfiConverterUInt32.read(from: &buf), 
+                count: FfiConverterUInt32.read(from: &buf), 
+                inTree: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: KeywordInfo, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterOptionString.write(value.parent, into: &buf)
+        FfiConverterUInt32.write(value.depth, into: &buf)
+        FfiConverterUInt32.write(value.count, into: &buf)
+        FfiConverterBool.write(value.inTree, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeKeywordInfo_lift(_ buf: RustBuffer) throws -> KeywordInfo {
+    return try FfiConverterTypeKeywordInfo.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeKeywordInfo_lower(_ value: KeywordInfo) -> RustBuffer {
+    return FfiConverterTypeKeywordInfo.lower(value)
+}
+
+
+/**
+ * One sidebar entry, listed depth-first in sidebar order.
+ */
+public struct LibraryNode: Equatable, Hashable {
+    public var id: Int64
+    public var kind: LibraryNodeKind
+    public var name: String
+    public var parent: Int64?
+    public var depth: UInt32
+    /**
+     * Album map key (the basket handle); None for groups and smart albums.
+     */
+    public var handle: String?
+    /**
+     * Manual album members; zero otherwise.
+     */
+    public var imageCount: UInt32
+    /**
+     * Smart album rule in the text grammar.
+     */
+    public var rule: String?
+    /**
+     * Smart album inside a group searches only that group's albums.
+     */
+    public var scoped: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: Int64, kind: LibraryNodeKind, name: String, parent: Int64?, depth: UInt32, 
+        /**
+         * Album map key (the basket handle); None for groups and smart albums.
+         */handle: String?, 
+        /**
+         * Manual album members; zero otherwise.
+         */imageCount: UInt32, 
+        /**
+         * Smart album rule in the text grammar.
+         */rule: String?, 
+        /**
+         * Smart album inside a group searches only that group's albums.
+         */scoped: Bool) {
+        self.id = id
+        self.kind = kind
+        self.name = name
+        self.parent = parent
+        self.depth = depth
+        self.handle = handle
+        self.imageCount = imageCount
+        self.rule = rule
+        self.scoped = scoped
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LibraryNode: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLibraryNode: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LibraryNode {
+        return
+            try LibraryNode(
+                id: FfiConverterInt64.read(from: &buf), 
+                kind: FfiConverterTypeLibraryNodeKind.read(from: &buf), 
+                name: FfiConverterString.read(from: &buf), 
+                parent: FfiConverterOptionInt64.read(from: &buf), 
+                depth: FfiConverterUInt32.read(from: &buf), 
+                handle: FfiConverterOptionString.read(from: &buf), 
+                imageCount: FfiConverterUInt32.read(from: &buf), 
+                rule: FfiConverterOptionString.read(from: &buf), 
+                scoped: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LibraryNode, into buf: inout [UInt8]) {
+        FfiConverterInt64.write(value.id, into: &buf)
+        FfiConverterTypeLibraryNodeKind.write(value.kind, into: &buf)
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterOptionInt64.write(value.parent, into: &buf)
+        FfiConverterUInt32.write(value.depth, into: &buf)
+        FfiConverterOptionString.write(value.handle, into: &buf)
+        FfiConverterUInt32.write(value.imageCount, into: &buf)
+        FfiConverterOptionString.write(value.rule, into: &buf)
+        FfiConverterBool.write(value.scoped, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLibraryNode_lift(_ buf: RustBuffer) throws -> LibraryNode {
+    return try FfiConverterTypeLibraryNode.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLibraryNode_lower(_ value: LibraryNode) -> RustBuffer {
+    return FfiConverterTypeLibraryNode.lower(value)
+}
+
+
+public struct MetadataField: Equatable, Hashable {
+    public var group: String
+    public var name: String
+    public var value: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(group: String, name: String, value: String) {
+        self.group = group
+        self.name = name
+        self.value = value
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension MetadataField: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMetadataField: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MetadataField {
+        return
+            try MetadataField(
+                group: FfiConverterString.read(from: &buf), 
+                name: FfiConverterString.read(from: &buf), 
+                value: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: MetadataField, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.group, into: &buf)
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterString.write(value.value, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMetadataField_lift(_ buf: RustBuffer) throws -> MetadataField {
+    return try FfiConverterTypeMetadataField.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMetadataField_lower(_ value: MetadataField) -> RustBuffer {
+    return FfiConverterTypeMetadataField.lower(value)
+}
+
+
 public struct PreviewResponse: Equatable, Hashable {
     public var bytes: Data?
     public var pending: Bool
@@ -3706,6 +4774,456 @@ public func FfiConverterTypePreviewResponse_lift(_ buf: RustBuffer) throws -> Pr
 #endif
 public func FfiConverterTypePreviewResponse_lower(_ value: PreviewResponse) -> RustBuffer {
     return FfiConverterTypePreviewResponse.lower(value)
+}
+
+
+public struct RuleCheck: Equatable, Hashable {
+    /**
+     * Text for the rule: normalized when it came from items, else the input.
+     */
+    public var text: String
+    public var diagnostic: RuleDiagnostic?
+    /**
+     * Parsed tree (empty when the text does not parse or is empty).
+     */
+    public var items: [RuleItem]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Text for the rule: normalized when it came from items, else the input.
+         */text: String, diagnostic: RuleDiagnostic?, 
+        /**
+         * Parsed tree (empty when the text does not parse or is empty).
+         */items: [RuleItem]) {
+        self.text = text
+        self.diagnostic = diagnostic
+        self.items = items
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension RuleCheck: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRuleCheck: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RuleCheck {
+        return
+            try RuleCheck(
+                text: FfiConverterString.read(from: &buf), 
+                diagnostic: FfiConverterOptionTypeRuleDiagnostic.read(from: &buf), 
+                items: FfiConverterSequenceTypeRuleItem.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: RuleCheck, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.text, into: &buf)
+        FfiConverterOptionTypeRuleDiagnostic.write(value.diagnostic, into: &buf)
+        FfiConverterSequenceTypeRuleItem.write(value.items, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRuleCheck_lift(_ buf: RustBuffer) throws -> RuleCheck {
+    return try FfiConverterTypeRuleCheck.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRuleCheck_lower(_ value: RuleCheck) -> RustBuffer {
+    return FfiConverterTypeRuleCheck.lower(value)
+}
+
+
+/**
+ * UTF-8 byte range into the checked text. `start == end` marks a position
+ * (for example "expected expression" at the end of the input).
+ */
+public struct RuleDiagnostic: Equatable, Hashable {
+    public var start: UInt32
+    public var end: UInt32
+    public var message: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(start: UInt32, end: UInt32, message: String) {
+        self.start = start
+        self.end = end
+        self.message = message
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension RuleDiagnostic: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRuleDiagnostic: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RuleDiagnostic {
+        return
+            try RuleDiagnostic(
+                start: FfiConverterUInt32.read(from: &buf), 
+                end: FfiConverterUInt32.read(from: &buf), 
+                message: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: RuleDiagnostic, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.start, into: &buf)
+        FfiConverterUInt32.write(value.end, into: &buf)
+        FfiConverterString.write(value.message, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRuleDiagnostic_lift(_ buf: RustBuffer) throws -> RuleDiagnostic {
+    return try FfiConverterTypeRuleDiagnostic.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRuleDiagnostic_lower(_ value: RuleDiagnostic) -> RustBuffer {
+    return FfiConverterTypeRuleDiagnostic.lower(value)
+}
+
+
+/**
+ * A saved-search AST in preorder. Groups carry their child count; rules
+ * carry field, operator and value (numbers as their decimal text).
+ */
+public struct RuleItem: Equatable, Hashable {
+    public var kind: RuleItemKind
+    public var children: UInt32
+    public var field: String
+    public var op: String
+    public var value: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(kind: RuleItemKind, children: UInt32, field: String, op: String, value: String) {
+        self.kind = kind
+        self.children = children
+        self.field = field
+        self.op = op
+        self.value = value
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension RuleItem: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRuleItem: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RuleItem {
+        return
+            try RuleItem(
+                kind: FfiConverterTypeRuleItemKind.read(from: &buf), 
+                children: FfiConverterUInt32.read(from: &buf), 
+                field: FfiConverterString.read(from: &buf), 
+                op: FfiConverterString.read(from: &buf), 
+                value: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: RuleItem, into buf: inout [UInt8]) {
+        FfiConverterTypeRuleItemKind.write(value.kind, into: &buf)
+        FfiConverterUInt32.write(value.children, into: &buf)
+        FfiConverterString.write(value.field, into: &buf)
+        FfiConverterString.write(value.op, into: &buf)
+        FfiConverterString.write(value.value, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRuleItem_lift(_ buf: RustBuffer) throws -> RuleItem {
+    return try FfiConverterTypeRuleItem.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRuleItem_lower(_ value: RuleItem) -> RustBuffer {
+    return FfiConverterTypeRuleItem.lower(value)
+}
+
+
+/**
+ * Each facet counts over the result of every *other* active filter, so the
+ * alternatives within a facet stay visible (and their counts stay live).
+ */
+public struct SearchFacets: Equatable, Hashable {
+    public var decisions: [FacetCount]
+    public var grades: [FacetCount]
+    public var marks: [FacetCount]
+    public var cameras: [FacetCount]
+    public var lenses: [FacetCount]
+    public var keywords: [FacetCount]
+    public var inAnyAlbum: UInt32
+    public var inNoAlbum: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(decisions: [FacetCount], grades: [FacetCount], marks: [FacetCount], cameras: [FacetCount], lenses: [FacetCount], keywords: [FacetCount], inAnyAlbum: UInt32, inNoAlbum: UInt32) {
+        self.decisions = decisions
+        self.grades = grades
+        self.marks = marks
+        self.cameras = cameras
+        self.lenses = lenses
+        self.keywords = keywords
+        self.inAnyAlbum = inAnyAlbum
+        self.inNoAlbum = inNoAlbum
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SearchFacets: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSearchFacets: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SearchFacets {
+        return
+            try SearchFacets(
+                decisions: FfiConverterSequenceTypeFacetCount.read(from: &buf), 
+                grades: FfiConverterSequenceTypeFacetCount.read(from: &buf), 
+                marks: FfiConverterSequenceTypeFacetCount.read(from: &buf), 
+                cameras: FfiConverterSequenceTypeFacetCount.read(from: &buf), 
+                lenses: FfiConverterSequenceTypeFacetCount.read(from: &buf), 
+                keywords: FfiConverterSequenceTypeFacetCount.read(from: &buf), 
+                inAnyAlbum: FfiConverterUInt32.read(from: &buf), 
+                inNoAlbum: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SearchFacets, into buf: inout [UInt8]) {
+        FfiConverterSequenceTypeFacetCount.write(value.decisions, into: &buf)
+        FfiConverterSequenceTypeFacetCount.write(value.grades, into: &buf)
+        FfiConverterSequenceTypeFacetCount.write(value.marks, into: &buf)
+        FfiConverterSequenceTypeFacetCount.write(value.cameras, into: &buf)
+        FfiConverterSequenceTypeFacetCount.write(value.lenses, into: &buf)
+        FfiConverterSequenceTypeFacetCount.write(value.keywords, into: &buf)
+        FfiConverterUInt32.write(value.inAnyAlbum, into: &buf)
+        FfiConverterUInt32.write(value.inNoAlbum, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchFacets_lift(_ buf: RustBuffer) throws -> SearchFacets {
+    return try FfiConverterTypeSearchFacets.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchFacets_lower(_ value: SearchFacets) -> RustBuffer {
+    return FfiConverterTypeSearchFacets.lower(value)
+}
+
+
+public struct SearchRequest: Equatable, Hashable {
+    /**
+     * Free text in the saved-search grammar (may be empty).
+     */
+    public var text: String
+    public var filters: [FacetFilter]
+    public var scope: SearchScope
+    /**
+     * Limit to images under this folder (recursive); None for the whole catalog.
+     */
+    public var folder: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Free text in the saved-search grammar (may be empty).
+         */text: String, filters: [FacetFilter], scope: SearchScope, 
+        /**
+         * Limit to images under this folder (recursive); None for the whole catalog.
+         */folder: String?) {
+        self.text = text
+        self.filters = filters
+        self.scope = scope
+        self.folder = folder
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SearchRequest: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSearchRequest: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SearchRequest {
+        return
+            try SearchRequest(
+                text: FfiConverterString.read(from: &buf), 
+                filters: FfiConverterSequenceTypeFacetFilter.read(from: &buf), 
+                scope: FfiConverterTypeSearchScope.read(from: &buf), 
+                folder: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SearchRequest, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.text, into: &buf)
+        FfiConverterSequenceTypeFacetFilter.write(value.filters, into: &buf)
+        FfiConverterTypeSearchScope.write(value.scope, into: &buf)
+        FfiConverterOptionString.write(value.folder, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchRequest_lift(_ buf: RustBuffer) throws -> SearchRequest {
+    return try FfiConverterTypeSearchRequest.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchRequest_lower(_ value: SearchRequest) -> RustBuffer {
+    return FfiConverterTypeSearchRequest.lower(value)
+}
+
+
+public struct SearchResult: Equatable, Hashable {
+    /**
+     * Matching images: album order for an album scope, else capture time.
+     */
+    public var imageIds: [String]
+    public var facets: SearchFacets
+    /**
+     * Problem with `text`; the rest of the request still applied.
+     */
+    public var diagnostic: RuleDiagnostic?
+    /**
+     * Grammar text equivalent to text + filters + album/smart-album scope,
+     * for "Save as Smart Album". Empty when nothing narrows the search.
+     */
+    public var rule: String
+    /**
+     * Group to place (and scope) a saved smart album in.
+     */
+    public var group: Int64?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Matching images: album order for an album scope, else capture time.
+         */imageIds: [String], facets: SearchFacets, 
+        /**
+         * Problem with `text`; the rest of the request still applied.
+         */diagnostic: RuleDiagnostic?, 
+        /**
+         * Grammar text equivalent to text + filters + album/smart-album scope,
+         * for "Save as Smart Album". Empty when nothing narrows the search.
+         */rule: String, 
+        /**
+         * Group to place (and scope) a saved smart album in.
+         */group: Int64?) {
+        self.imageIds = imageIds
+        self.facets = facets
+        self.diagnostic = diagnostic
+        self.rule = rule
+        self.group = group
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SearchResult: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSearchResult: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SearchResult {
+        return
+            try SearchResult(
+                imageIds: FfiConverterSequenceString.read(from: &buf), 
+                facets: FfiConverterTypeSearchFacets.read(from: &buf), 
+                diagnostic: FfiConverterOptionTypeRuleDiagnostic.read(from: &buf), 
+                rule: FfiConverterString.read(from: &buf), 
+                group: FfiConverterOptionInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SearchResult, into buf: inout [UInt8]) {
+        FfiConverterSequenceString.write(value.imageIds, into: &buf)
+        FfiConverterTypeSearchFacets.write(value.facets, into: &buf)
+        FfiConverterOptionTypeRuleDiagnostic.write(value.diagnostic, into: &buf)
+        FfiConverterString.write(value.rule, into: &buf)
+        FfiConverterOptionInt64.write(value.group, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchResult_lift(_ buf: RustBuffer) throws -> SearchResult {
+    return try FfiConverterTypeSearchResult.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchResult_lower(_ value: SearchResult) -> RustBuffer {
+    return FfiConverterTypeSearchResult.lower(value)
 }
 
 
@@ -4141,6 +5659,374 @@ public func FfiConverterTypeEngineEvent_lower(_ value: EngineEvent) -> RustBuffe
 
 
 
+public enum FacetField: Equatable, Hashable {
+    
+    case decision
+    /**
+     * Keep grade "1".."3".
+     */
+    case grade
+    case mark
+    case camera
+    case lens
+    case keyword
+    /**
+     * "none" (in no album), "any", or an album handle.
+     */
+    case album
+    /**
+     * `YYYY[-MM[-DD]]` or an inclusive range `from..to`.
+     */
+    case date
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension FacetField: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFacetField: FfiConverterRustBuffer {
+    typealias SwiftType = FacetField
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FacetField {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .decision
+        
+        case 2: return .grade
+        
+        case 3: return .mark
+        
+        case 4: return .camera
+        
+        case 5: return .lens
+        
+        case 6: return .keyword
+        
+        case 7: return .album
+        
+        case 8: return .date
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: FacetField, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .decision:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .grade:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .mark:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .camera:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .lens:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .keyword:
+            writeInt(&buf, Int32(6))
+        
+        
+        case .album:
+            writeInt(&buf, Int32(7))
+        
+        
+        case .date:
+            writeInt(&buf, Int32(8))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFacetField_lift(_ buf: RustBuffer) throws -> FacetField {
+    return try FfiConverterTypeFacetField.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFacetField_lower(_ value: FacetField) -> RustBuffer {
+    return FfiConverterTypeFacetField.lower(value)
+}
+
+
+
+
+public enum LibraryNodeKind: Equatable, Hashable {
+    
+    case group
+    case album
+    case smartAlbum
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension LibraryNodeKind: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLibraryNodeKind: FfiConverterRustBuffer {
+    typealias SwiftType = LibraryNodeKind
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LibraryNodeKind {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .group
+        
+        case 2: return .album
+        
+        case 3: return .smartAlbum
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: LibraryNodeKind, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .group:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .album:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .smartAlbum:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLibraryNodeKind_lift(_ buf: RustBuffer) throws -> LibraryNodeKind {
+    return try FfiConverterTypeLibraryNodeKind.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLibraryNodeKind_lower(_ value: LibraryNodeKind) -> RustBuffer {
+    return FfiConverterTypeLibraryNodeKind.lower(value)
+}
+
+
+
+
+public enum RuleItemKind: Equatable, Hashable {
+    
+    /**
+     * AND group
+     */
+    case all
+    /**
+     * OR group
+     */
+    case any
+    /**
+     * NOT (none of the children)
+     */
+    case not
+    case rule
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension RuleItemKind: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRuleItemKind: FfiConverterRustBuffer {
+    typealias SwiftType = RuleItemKind
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RuleItemKind {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .all
+        
+        case 2: return .any
+        
+        case 3: return .not
+        
+        case 4: return .rule
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: RuleItemKind, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .all:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .any:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .not:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .rule:
+            writeInt(&buf, Int32(4))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRuleItemKind_lift(_ buf: RustBuffer) throws -> RuleItemKind {
+    return try FfiConverterTypeRuleItemKind.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRuleItemKind_lower(_ value: RuleItemKind) -> RustBuffer {
+    return FfiConverterTypeRuleItemKind.lower(value)
+}
+
+
+
+
+public enum SearchScope: Equatable, Hashable {
+    
+    case all
+    case album(id: Int64
+    )
+    case smartAlbum(id: Int64
+    )
+    case group(id: Int64
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension SearchScope: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSearchScope: FfiConverterRustBuffer {
+    typealias SwiftType = SearchScope
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SearchScope {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .all
+        
+        case 2: return .album(id: try FfiConverterInt64.read(from: &buf)
+        )
+        
+        case 3: return .smartAlbum(id: try FfiConverterInt64.read(from: &buf)
+        )
+        
+        case 4: return .group(id: try FfiConverterInt64.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: SearchScope, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .all:
+            writeInt(&buf, Int32(1))
+        
+        
+        case let .album(id):
+            writeInt(&buf, Int32(2))
+            FfiConverterInt64.write(id, into: &buf)
+            
+        
+        case let .smartAlbum(id):
+            writeInt(&buf, Int32(3))
+            FfiConverterInt64.write(id, into: &buf)
+            
+        
+        case let .group(id):
+            writeInt(&buf, Int32(4))
+            FfiConverterInt64.write(id, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchScope_lift(_ buf: RustBuffer) throws -> SearchScope {
+    return try FfiConverterTypeSearchScope.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchScope_lower(_ value: SearchScope) -> RustBuffer {
+    return FfiConverterTypeSearchScope.lower(value)
+}
+
+
+
+
 public enum StatusPhase: Equatable, Hashable {
     
     case unedited
@@ -4342,6 +6228,54 @@ fileprivate struct FfiConverterOptionUInt32: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionInt64: FfiConverterRustBuffer {
+    typealias SwiftType = Int64?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterInt64.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterInt64.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionBool: FfiConverterRustBuffer {
+    typealias SwiftType = Bool?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterBool.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterBool.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionString: FfiConverterRustBuffer {
     typealias SwiftType = String?
 
@@ -4462,6 +6396,30 @@ fileprivate struct FfiConverterOptionTypeCullUpdate: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeRuleDiagnostic: FfiConverterRustBuffer {
+    typealias SwiftType = RuleDiagnostic?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeRuleDiagnostic.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeRuleDiagnostic.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeDecision: FfiConverterRustBuffer {
     typealias SwiftType = Decision?
 
@@ -4478,6 +6436,30 @@ fileprivate struct FfiConverterOptionTypeDecision: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeDecision.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionSequenceString: FfiConverterRustBuffer {
+    typealias SwiftType = [String]?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterSequenceString.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterSequenceString.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -4661,6 +6643,56 @@ fileprivate struct FfiConverterSequenceTypeDefectThreshold: FfiConverterRustBuff
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeFacetCount: FfiConverterRustBuffer {
+    typealias SwiftType = [FacetCount]
+
+    public static func write(_ value: [FacetCount], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeFacetCount.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [FacetCount] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [FacetCount]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeFacetCount.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeFacetFilter: FfiConverterRustBuffer {
+    typealias SwiftType = [FacetFilter]
+
+    public static func write(_ value: [FacetFilter], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeFacetFilter.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [FacetFilter] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [FacetFilter]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeFacetFilter.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeImageDecision: FfiConverterRustBuffer {
     typealias SwiftType = [ImageDecision]
 
@@ -4761,6 +6793,106 @@ fileprivate struct FfiConverterSequenceTypeImageSummary: FfiConverterRustBuffer 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeKeywordInfo: FfiConverterRustBuffer {
+    typealias SwiftType = [KeywordInfo]
+
+    public static func write(_ value: [KeywordInfo], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeKeywordInfo.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [KeywordInfo] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [KeywordInfo]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeKeywordInfo.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeLibraryNode: FfiConverterRustBuffer {
+    typealias SwiftType = [LibraryNode]
+
+    public static func write(_ value: [LibraryNode], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeLibraryNode.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [LibraryNode] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [LibraryNode]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeLibraryNode.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeMetadataField: FfiConverterRustBuffer {
+    typealias SwiftType = [MetadataField]
+
+    public static func write(_ value: [MetadataField], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeMetadataField.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [MetadataField] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [MetadataField]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeMetadataField.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeRuleItem: FfiConverterRustBuffer {
+    typealias SwiftType = [RuleItem]
+
+    public static func write(_ value: [RuleItem], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeRuleItem.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [RuleItem] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [RuleItem]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeRuleItem.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeSessionImage: FfiConverterRustBuffer {
     typealias SwiftType = [SessionImage]
 
@@ -4819,6 +6951,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_engine_set_selection() != 50395) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tessera_ffi_checksum_method_engine_open_library() != 50227) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_tessera_ffi_checksum_method_engine_open_develop_session() != 22073) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -4832,6 +6967,75 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_engineeventlistener_on_event() != 36402) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_librarystore_add_to_album() != 27382) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_librarystore_album_images() != 51864) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_librarystore_check_rule() != 25806) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_librarystore_create_album() != 50694) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_librarystore_create_group() != 32002) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_librarystore_create_smart_album() != 46998) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_librarystore_delete_node() != 57194) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_librarystore_format_rule() != 337) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_librarystore_move_node() != 36485) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_librarystore_nodes() != 64880) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_librarystore_path() != 2131) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_librarystore_remove_from_album() != 52304) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_librarystore_rename() != 36466) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_librarystore_reorder_album() != 38380) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_librarystore_search() != 36190) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_librarystore_update_smart_album() != 54725) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_librarystore_add_keyword() != 35323) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_librarystore_apply_keywords() != 24227) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_librarystore_delete_keyword() != 41811) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_librarystore_keywords() != 58407) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_librarystore_metadata() != 33862) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_librarystore_move_keyword() != 11080) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_librarystore_set_iptc() != 15555) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_developlistener_frame_ready() != 10022) {

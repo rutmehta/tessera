@@ -32,6 +32,37 @@ only manual memberships in that group and all nested groups. Empty groups match
 nothing. Cycles, duplicate group IDs and missing group ancestors are errors,
 never a reason to fall back to an unscoped search. No parent means global scope.
 
+## Sidebar, groups and keywords (M2-12)
+
+IDs are unique across albums, groups and smart albums. `sidebar()` lists them
+depth-first in sidebar order: `sidebar_order` ranks siblings; unlisted entries
+follow (groups, albums, smart albums, then by name). Entries with a missing or
+cyclic parent are listed at the root rather than hidden. `move_node(id,
+parent, index)` reparents and reorders (albums and smart albums are not
+containers; a group cannot enter its own subtree). `rename_node` keeps album
+names unique because they are basket handles.
+
+`delete_node` is safe: an album loses only its membership list, a group's
+contents move up one level into its place, a smart album is only a rule.
+
+`SmartAlbum::scoped` separates location from scope: a smart album inside a
+group searches only that group's manual albums when `scoped` (the default for
+older documents, preserving M2-11 semantics); otherwise the group is only its
+sidebar location. `create_smart_album`/`update_smart_album` refuse rules that
+do not compile against the library.
+
+The keyword tree (`keywords`) has unique names (sidecars store names). Add,
+move (not into a descendant) and delete (children move up; photos keep their
+tags) operate on the tree only. `keyword_pairs()` feeds
+`index::Index::sync_keyword_tree`, which rebuilds the catalog closure so a
+search for a parent keyword finds its descendants.
+
+`album:` rules resolve against the document through `compile_search`:
+`album:none` (in no album, the derived status), `album:any`, or an album
+handle / name (unknown names are errors). `compile()` alone rejects them.
+`SavedSearch::parse_diagnostic` returns a `Diagnostic` with a UTF-8 byte span
+covering the offending rule (empty at the end of input) and a clean message.
+
 ## Saved-search text
 
 Parse with `text.parse::<SavedSearch>()`, display with `to_string()`, compile with

@@ -11,6 +11,10 @@ struct ContentView: View {
                 .navigationSplitViewColumnWidth(min: 180, ideal: 210, max: 300)
         } detail: {
             VStack(spacing: 0) {
+                if model.isEngineBacked {
+                    FilterBar(library: model.collections, model: model)
+                    Divider()
+                }
                 ZStack {
                     // Both stay alive so grid scroll position and loupe texture survive mode switches.
                     ThumbnailBrowser(model: model, style: .grid)
@@ -51,6 +55,10 @@ struct ContentView: View {
         }
         .sheet(isPresented: $model.showDefectSweep) {
             DefectSweepSheet(model: model)
+        }
+        .sheet(isPresented: Binding(get: { model.collections.editor != nil },
+                                    set: { if !$0 { model.collections.editor = nil } })) {
+            SmartAlbumSheet(library: model.collections)
         }
         .inspector(isPresented: $model.showInspector) {
             InspectorView(model: model)

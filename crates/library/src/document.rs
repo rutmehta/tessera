@@ -21,6 +21,9 @@ pub struct Library {
     pub keywords: Vec<Keyword>,
     pub marks_preset: BTreeMap<String, String>,
     pub publish_state: BTreeMap<String, serde_json::Value>,
+    /// Sidebar order of album, group and smart-album IDs among their siblings.
+    /// IDs missing here sort after listed ones, by name.
+    pub sidebar_order: Vec<i64>,
     #[serde(flatten)]
     pub unknown: BTreeMap<String, serde_json::Value>,
 }
@@ -36,6 +39,7 @@ impl Default for Library {
             keywords: vec![],
             marks_preset: BTreeMap::new(),
             publish_state: BTreeMap::new(),
+            sidebar_order: vec![],
             unknown: BTreeMap::new(),
         }
     }
@@ -60,9 +64,16 @@ pub struct AlbumGroup {
 pub struct SmartAlbum {
     pub id: i64,
     pub name: String,
-    /// When set, only manual albums in this group and its descendants are searched.
+    /// Containing group (sidebar location).
     pub parent: Option<i64>,
     pub search: SavedSearch,
+    /// With a parent: search only manual albums in that group and its
+    /// descendants. Absent in older documents, where a parent always scoped.
+    #[serde(default = "scoped_default")]
+    pub scoped: bool,
+}
+fn scoped_default() -> bool {
+    true
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Keyword {

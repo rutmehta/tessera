@@ -79,6 +79,19 @@ struct AppCommands: Commands {
             Button("Delete from Disk…") { model.confirmDeleteFromDisk() }
                 .keyboardShortcut(.delete, modifiers: .command)
         }
+        CommandMenu("Library") {
+            Button("New Album…") { model.collections.newAlbum() }
+                .keyboardShortcut("n", modifiers: [.command, .option])
+            Button("New Album Group…") { model.collections.newGroup() }
+            Button("New Smart Album…") { model.collections.newSmartAlbum() }
+                .keyboardShortcut("n", modifiers: [.command, .option, .shift])
+            Divider()
+            Button("Save Filter as Smart Album…") { model.collections.saveFilterAsSmartAlbum() }
+            Button("Clear Filter") { model.collections.clearFilter() }
+                .keyboardShortcut("l", modifiers: [.command, .option])
+            Divider()
+            Button("Show Photos Not in Any Album") { model.setSource(.notInAlbum) }
+        }
         CommandMenu("Develop") {
             Button("Reset All Settings") { model.resetDevelop() }
                 .keyboardShortcut("r", modifiers: [.command, .shift])

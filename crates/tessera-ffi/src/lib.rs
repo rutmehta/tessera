@@ -1,12 +1,16 @@
 //! Narrow, synchronous commands. Swift dispatches blocking work off its main actor.
 mod catalog;
+mod collections;
 mod develop;
+mod metadata;
 mod preview;
 mod session;
 #[doc(hidden)]
 pub mod surface;
+pub use collections::*;
 pub use develop::*;
 use engine_api::{id::ImageId, recipe as core};
+pub use metadata::*;
 pub use preview::PreviewResponse;
 use rusqlite::{Connection, OpenFlags};
 pub use session::*;

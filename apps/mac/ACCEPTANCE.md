@@ -25,9 +25,9 @@ Notes:
    export CARGO_TARGET_DIR="$HOME/.cache/tessera-target/verify"
    (cd apps/mac && ./build-ffi.sh && swift build && swift test && Support/make-app.sh release)
    ```
-   Expect: `swift test` reports `Executed 14 tests, with 0 failures` (XCTest, all suites) and the Swift Testing line
+   Expect: `swift test` reports `Executed 17 tests, with 0 failures` (XCTest, all suites) and the Swift Testing line
    `Test run with 5 tests in 2 suites passed`; the last line reads `Built …/apps/mac/build/Tessera.app`.
-   Also run `cargo test -p tessera-ffi -p cull -p image-core --release 2>&1 | grep "test result"`. Expect only `ok.` lines.
+   Also run `cargo test -p tessera-ffi -p cull -p image-core -p library --release 2>&1 | grep "test result"`. Expect only `ok.` lines.
 2. Create scratch data (a fresh folder each run; do not reuse an old path):
    ```sh
    SCR="$(mktemp -d)"
@@ -183,9 +183,73 @@ is the time from the settings change to the finished level in the surface (`L2` 
     `develop-selftest: <n> tone frames at L2, render median <m> ms, p90 <p> ms` with p90 below 16 ms (reference: median
     6.2 ms, p90 7.9 ms for the 16 MP RAF). This leaves an `Exposure +1.50` edit on that image.
 
+## K. Library: albums, groups, smart albums, filter bar, keywords, metadata
+
+Albums, album groups and smart albums live in `<folder>/library.json`; keywords and IPTC fields are written to each
+photo's XMP sidecar. Nothing in this section deletes or moves a photo. Use a **fresh** sample folder (it has two
+simulated cameras, `Sim A` on 30 frames and `Sim B` on 10):
+
+```sh
+swift apps/mac/Support/make-sample-folder.swift "$SCR/lib" 40
+open -n apps/mac/build/Tessera.app --args --folder "$SCR/lib"
+```
+
+The filter bar is the two rows above the grid: a search field (the saved-search grammar, e.g. `beach rating>=2 NOT
+decision:reject`) with the match count, **Clear** and **Save as Smart Album…**, then the facet menus **Decision · Grade ·
+Mark · Camera · Lens · Keyword · Date · Album**. Each menu lists its values with live counts (counted over every *other*
+active filter). The sidebar has LIBRARY (All Photos, Not in Any Album), FOLDERS, ALBUMS (with a `+` menu) and CULLING.
+
+42. **Create an album.** Choose **Library ▸ New Album…** (⌥⌘N), type `Portfolio`, press **Return**. 📸
+    Expect: ALBUMS lists **Portfolio** with count 0 and it is selected; the subtitle reads `Portfolio · 0 images`; the status
+    message reads `Created album “Portfolio”`. `grep -c '"Portfolio"' "$SCR/lib/library.json"` prints at least `1`.
+43. **Add via the basket.** Right-click **Portfolio** ▸ **Set as Basket Target**. Expect: the blue `B` tag moves to Portfolio and
+    the status bar reads `Basket → Portfolio 0`. Click **All Photos**, click cell 1, press **B**, click cell 2, press **B**.
+    Expect: `Basket → Portfolio 2`, Portfolio shows 2, **Not in Any Album** shows 38.
+44. **Group and nest by drag.** Click the ALBUMS `+` ▸ **New Album Group…**, type `Wedding`, **Return**. Drag **Portfolio** onto
+    **Wedding**. 📸 Expect: Portfolio is indented under Wedding (with a disclosure triangle on Wedding); in
+    `library.json` the Portfolio album has `"parent"` set to Wedding's `id`. Dropping *between* rows reorders instead of
+    nesting (the order is stored in `sidebar_order`); a group cannot be dropped into itself.
+45. **Filter bar with live diagnostics.** Click the search field and type `NOT decision:reject wat:x`. 📸
+    Expect: `wat:x` is tinted red with a dotted underline and the message `Unsupported field "wat"` appears next to the field;
+    **Save as Smart Album…** is disabled; the grid still shows 40 photos. Delete ` wat:x`. Expect: the highlight disappears and
+    the count reads `40 matches`. Open **Camera ▾**. Expect: `Sim A 30` and `Sim B 10`. Choose **Sim B**. Expect: `10 matches`, the
+    menu title reads `Camera · Sim B`, and **Camera ▾** still lists `Sim A 30` (a facet ignores its own filter).
+    Open **Album ▾**. Expect: `Not in any album 10` and `In an album 0` (cells 1–2 are Sim A frames). Close the menu.
+46. **Smart album from the filter.** Click **Save as Smart Album…**. 📸 Expect a sheet **New Smart Album**: the conditions show
+    `Match all (AND)` containing a nested, red-railed `Group: none (NOT)` with `Decision is reject`, then `Camera is Sim B`;
+    the rule text reads `NOT decision:reject AND camera:"Sim B"`; the footer reads `10 photos in this folder match`.
+    Click at the end of the rule text and type ` OR rating>=5`. Expect: the conditions switch to a `Match any (OR)` root with
+    the AND and NOT groups nested inside it (while the text is still valid), then `rating>=5` is highlighted red with
+    `Rating must be an integer in 0..=3` below, and **Create** is disabled. Delete the 13 typed characters; the tree returns
+    to the original shape. Name it `Sim B`, click **Create**. Expect: **Sim B** appears in ALBUMS with a hollow square,
+    selected, subtitle `Sim B · 10 images`; the filter bar is cleared.
+47. **Scoped smart album in a group.** Right-click **Wedding** ▸ **New Smart Album Inside…**. Expect: Location `Wedding` and
+    **Only search albums in this group** checked. Replace the rule text with `decision:undecided`. Expect
+    `2 photos in this folder match`. Name it `Wedding picks`, **Create**. Expect: it appears under Wedding with a `⌂` mark
+    and shows exactly cells 1–2 (Portfolio's photos). Right-click it ▸ **Search Only This Group** (unchecks). Expect: it
+    now shows 40 photos; toggle it back to 2.
+48. **Keywords, bulk apply.** Click **All Photos**, click cell 1, ⇧-click cell 3. In the inspector's KEYWORDS panel click
+    `Add keywords…`, type `beach, sunset`, press **Return**. 📸 Expect: chips `beach ×` and `sunset ×`; the keyword list shows
+    `✓ beach 3` and `✓ sunset 3`; status `Added 2 keywords to 3 photos`. In the terminal
+    `grep -c "beach" "$SCR/lib/SAMPLE_0003.jpg.xmp"` prints at least `1`. Click **New…** in the keyword list, type `Places`,
+    **Return**; right-click **beach** ▸ **Move Into** ▸ **Places**. Expect: beach is indented under Places. Type
+    `keyword:Places` in the search field. Expect `3 matches` (a parent matches its children). Clear the filter (**Clear**).
+49. **IPTC edit persists to XMP.** Click cell 1 only. In METADATA type Title `Harbour at dawn` and press **Return**, Caption
+    `fishing boats` **Return**, Copyright `© 2026 Test` **Return**. Expect status `Saved metadata to 1 XMP sidecar`.
+    `grep -o "Harbour at dawn" "$SCR/lib/SAMPLE_0001.jpg.xmp"` prints the title. Type `boats` in the search field. Expect
+    `1 match`. Quit (⌘Q), relaunch with the same command, click cell 1. Expect: Title, Caption, Copyright and the keywords
+    are shown again; decisions and albums are unchanged.
+50. **Safe delete everywhere.** Click **Sim B**, click a cell, press **⌫**. Expect: nothing is removed and the message reads
+    `Sim B is a saved search: change its rule to change what it shows. Nothing was removed.` Right-click **Wedding** ▸
+    **Delete Group…**. Expect an alert saying its items move up one level and no photos or files are deleted; **Return**
+    cancels. Repeat and click **Delete**. Expect: Portfolio and Wedding picks are now top-level, Portfolio still has 2 photos,
+    and `ls "$SCR/lib" | grep -c "jpg$"` prints `40`. Right-click **Places** in the keyword list ▸ **Delete from Keyword List**.
+    Expect: `beach` moves to the top level and the photos keep it (`grep -c beach "$SCR/lib/SAMPLE_0001.jpg.xmp"` ≥ 1).
+51. **Derived status.** Click **Not in Any Album**. Expect `Not in Any Album · 38 images`, and cells 1–2 are not shown.
+
 ## Verdict
 
-PASS when steps 1–40 meet their expectations (step 32's first part may be skipped only if fixtures are missing, step 31;
+PASS when steps 1–40 and 42–51 meet their expectations (step 32's first part may be skipped only if fixtures are missing, step 31;
 steps 33–41 need the RAW fixtures).
 Report the command outputs from steps 1–2 and 33, the 📸 screenshots, the benchmark line and any readout values. Afterwards you may delete
 `$SCR` and reset preferences with `defaults delete dev.tessera.app`.

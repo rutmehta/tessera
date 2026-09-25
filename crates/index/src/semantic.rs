@@ -65,6 +65,13 @@ impl Index {
             keywords: counts(
                 "SELECT k.name,count(*) FROM keyword k JOIN image_keyword ik ON ik.keyword_id=k.id WHERE ik.image_id IN (SELECT value FROM json_each(?)) GROUP BY k.name",
             )?,
+            grades: counts(
+                "SELECT CAST(grade AS TEXT),count(*) FROM selection WHERE grade IS NOT NULL AND image_id IN (SELECT value FROM json_each(?)) GROUP BY grade",
+            )?,
+            marks: counts(
+                "SELECT mark,count(*) FROM selection WHERE mark IS NOT NULL AND mark!='' AND image_id IN (SELECT value FROM json_each(?)) GROUP BY mark",
+            )?,
+            total: ids.len() as u64,
         })
     }
 

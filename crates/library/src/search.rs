@@ -135,15 +135,28 @@ fn invalid(message: impl Into<String>) -> EngineError {
 impl SavedSearch {
     /// Compile without executing the search. Unsupported imported rules fail
     /// explicitly. A semantic term must be a single positive conjunct.
+    ///
+    /// `album:` rules need the library document; compile those with
+    /// `Library::compile_search` (this method rejects them explicitly).
     pub fn compile(&self) -> EngineResult<Query> {
+        self.compile_with(Albums::Unresolved)
+    }
+
+    pub(crate) fn compile_with(&self, albums: Albums<'_>) -> EngineResult<Query> {
         self.bounds()?;
         let mut semantic = None;
-        let predicate = self.predicate(true, &mut semantic)?;
+        let predicate = self.predicate(true, &mut semantic, albums)?;
         Ok(Query {
             predicate: Some(predicate),
             semantic,
             ..Query::default()
         })
+    }
+
+    /// Parses like `FromStr`, but reports a UTF-8 byte span and a message
+    /// suitable for highlighting the offending part of the input.
+    pub fn parse_diagnostic(text: &str) -> Result<Self, Diagnostic> {
+        text.parse().map_err(|e| Diagnostic::locate(text, &e))
     }
 
     fn bounds(&self) -> EngineResult<()> {
@@ -180,21 +193,26 @@ impl SavedSearch {
         Ok(())
     }
 
-    fn predicate(&self, positive: bool, semantic: &mut Option<String>) -> EngineResult<Predicate> {
+    fn predicate(
+        &self,
+        positive: bool,
+        semantic: &mut Option<String>,
+        albums: Albums<'_>,
+    ) -> EngineResult<Predicate> {
         match self {
             Self::All(v) => Ok(Predicate::All(
                 v.iter()
-                    .map(|n| n.predicate(positive, semantic))
+                    .map(|n| n.predicate(positive, semantic, albums))
                     .collect::<EngineResult<_>>()?,
             )),
             Self::Any(v) => Ok(Predicate::Any(
                 v.iter()
-                    .map(|n| n.predicate(false, semantic))
+                    .map(|n| n.predicate(false, semantic, albums))
                     .collect::<EngineResult<_>>()?,
             )),
             Self::None(v) => Ok(Predicate::Not(Box::new(Predicate::Any(
                 v.iter()
-                    .map(|n| n.predicate(false, semantic))
+                    .map(|n| n.predicate(false, semantic, albums))
                     .collect::<EngineResult<_>>()?,
             )))),
             Self::Rule {
@@ -215,7 +233,7 @@ impl SavedSearch {
                     *semantic = Some(text.into());
                     return Ok(Predicate::All(vec![]));
                 }
-                rule_predicate(criteria, operation, value)
+                rule_predicate(criteria, operation, value, albums)
             }
         }
     }
@@ -238,7 +256,41 @@ fn comparison(op: &str) -> EngineResult<Comparison> {
         _ => Err(invalid(format!("unsupported comparison {op:?}"))),
     }
 }
-fn rule_predicate(field: &str, op: &str, value: &Value) -> EngineResult<Predicate> {
+/// How `album:` rules resolve: parse-time validation only, rejected (no
+/// library available), or against a library document.
+#[derive(Clone, Copy)]
+pub(crate) enum Albums<'a> {
+    Validate,
+    Unresolved,
+    Library(&'a crate::Library),
+}
+
+fn rule_predicate(
+    field: &str,
+    op: &str,
+    value: &Value,
+    albums: Albums<'_>,
+) -> EngineResult<Predicate> {
+    if field == "album" {
+        if !matches!(op, ":" | "=" | "==" | "!=") {
+            return Err(invalid(format!("unsupported operation {op:?} for album")));
+        }
+        let name = string_value(value)?;
+        let p = match albums {
+            Albums::Validate => Predicate::Ids(vec![]),
+            Albums::Unresolved => {
+                return Err(invalid(
+                    "album rules need the library document (Library::compile_search)",
+                ));
+            }
+            Albums::Library(library) => library.album_predicate(name)?,
+        };
+        return Ok(if op == "!=" {
+            Predicate::Not(Box::new(p))
+        } else {
+            p
+        });
+    }
     if matches!(field, "rating" | "grade" | "focus") {
         let cmp = comparison(op)?;
         let n = value
@@ -542,7 +594,7 @@ impl Parser {
             value,
         };
         // Validate leaves now so field/operator/value errors retain their source position.
-        node.predicate(true, &mut None)
+        node.predicate(true, &mut None, Albums::Validate)
             .map_err(|e| error(t.pos, e))?;
         Ok(node)
     }
@@ -612,6 +664,110 @@ impl fmt::Display for SavedSearch {
             serde_json::to_string(&json).map_err(|_| fmt::Error)?
         )
     }
+}
+
+/// A parse or compile problem located in the source text. `start..end` is a
+/// UTF-8 byte range (empty at the end of input for "expected ..." errors).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Diagnostic {
+    pub start: usize,
+    pub end: usize,
+    pub message: String,
+}
+
+impl Diagnostic {
+    /// Whole-input diagnostic for errors without a position (compilation).
+    pub fn whole(text: &str, error: &EngineError) -> Self {
+        Self {
+            start: 0,
+            end: text.len(),
+            message: clean_message(&error.to_string()),
+        }
+    }
+
+    pub(crate) fn locate(text: &str, error: &EngineError) -> Self {
+        let full = error.to_string();
+        let Some((message, pos)) = full
+            .rsplit_once(" at byte ")
+            .and_then(|(m, p)| Some((m, p.trim().parse::<usize>().ok()?)))
+        else {
+            return Self::whole(text, error);
+        };
+        let start = pos.min(text.len());
+        let start = (0..=start)
+            .rev()
+            .find(|&i| text.is_char_boundary(i))
+            .unwrap_or(0);
+        Self {
+            start,
+            end: rule_end(text, start),
+            message: clean_message(message),
+        }
+    }
+}
+
+impl fmt::Display for Diagnostic {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} (bytes {}..{})", self.message, self.start, self.end)
+    }
+}
+
+/// Strip error-type prefixes and the (nested) byte suffixes for display.
+fn clean_message(message: &str) -> String {
+    let mut m = message.trim();
+    for prefix in [
+        "decode error (saved-search): ",
+        "invalid argument `saved search`: ",
+    ] {
+        while let Some(rest) = m.strip_prefix(prefix) {
+            m = rest;
+        }
+    }
+    let mut m = m.to_owned();
+    while let Some((head, tail)) = m.rsplit_once(" at byte ") {
+        if tail.trim().parse::<usize>().is_ok() {
+            m = head.to_owned();
+        } else {
+            break;
+        }
+    }
+    let mut chars = m.chars();
+    match chars.next() {
+        Some(c) => c.to_uppercase().chain(chars).collect(),
+        None => "Invalid search".into(),
+    }
+}
+
+/// End of the rule or token starting at `start`: up to whitespace or a
+/// parenthesis, skipping over quoted strings (JSON escapes).
+fn rule_end(text: &str, start: usize) -> usize {
+    let bytes = text.as_bytes();
+    if start >= bytes.len() {
+        return bytes.len();
+    }
+    if matches!(bytes[start], b'(' | b')') {
+        return start + 1;
+    }
+    let mut i = start;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'"' => {
+                i += 1;
+                while i < bytes.len() && bytes[i] != b'"' {
+                    i += if bytes[i] == b'\\' { 2 } else { 1 };
+                }
+                i = (i + 1).min(bytes.len());
+            }
+            b'(' | b')' => break,
+            b if b.is_ascii_whitespace() => break,
+            _ => i += 1,
+        }
+    }
+    // Multi-byte whitespace (e.g. U+2003) is not ASCII; keep char boundaries.
+    while i > start && !text.is_char_boundary(i) {
+        i -= 1;
+    }
+    i.max(start + text[start..].chars().next().map_or(0, char::len_utf8))
 }
 
 #[cfg(test)]

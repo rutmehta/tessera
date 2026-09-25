@@ -384,6 +384,8 @@ pub fn import(path: impl AsRef<Path>) -> EngineResult<ImportPlan> {
                 name,
                 parent,
                 search: lua::parse(&raw)?,
+                // Keeps the M2-11 behaviour: a smart album inside a group is scoped.
+                scoped: true,
             });
         } else if kind.contains("set") {
             library.album_groups.push(AlbumGroup { id, name, parent });

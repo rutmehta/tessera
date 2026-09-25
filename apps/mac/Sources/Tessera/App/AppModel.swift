@@ -16,11 +16,18 @@ enum LibrarySource: Hashable {
     case album(String)
     case decision(Decision)
     case mark(UInt8)
+    /// Derived status: in no album of library.json.
+    case notInAlbum
+    case smartAlbum(id: Int64, name: String)
+    /// Every photo in the group's albums (and nested groups).
+    case group(id: Int64, name: String)
 
     var title: String {
         switch self {
         case .all: "All Photos"
         case .album(let name): name
+        case .notInAlbum: "Not in Any Album"
+        case .smartAlbum(_, let name), .group(_, let name): name
         case .decision(.keep): "Keeps"
         case .decision(.reject): "Rejects"
         case .decision(.undecided): "Undecided"
@@ -109,6 +116,8 @@ final class AppModel {
     }
     var toast: Toast?
     var showDefectSweep = false
+    /// Albums, groups, smart albums, the filter bar, keywords and metadata (library.json).
+    let collections = LibraryModel()
     var viewMode: ViewMode = .grid {
         didSet {
             guard viewMode != oldValue else { return }
@@ -180,6 +189,7 @@ final class AppModel {
         recentFolders = (UserDefaults.standard.stringArray(forKey: Self.recentFoldersKey) ?? [])
             .map { URL(fileURLWithPath: $0) }
         basketTarget = UserDefaults.standard.string(forKey: Self.basketTargetKey) ?? EngineLibrary.defaultBasketTarget
+        collections.app = self
     }
 
     // MARK: Observers
@@ -217,7 +227,7 @@ final class AppModel {
         }
     }
 
-    private var mainWindow: NSWindow? {
+    var mainWindow: NSWindow? {
         NSApp.keyWindow.flatMap { $0 is NSPanel ? nil : $0 } ?? NSApp.mainWindow
             ?? NSApp.windows.first { $0.isVisible && !($0 is NSPanel) }
     }
@@ -279,6 +289,7 @@ final class AppModel {
         isEngineBacked = cull.isEngineBacked
         closeDevelop()
         source = .all
+        collections.install(lib)
         compare = nil
         if viewMode == .compare { viewMode = modeBeforeCompare }
         rebuildVisible()
@@ -292,16 +303,19 @@ final class AppModel {
 
     private func rebuildVisible() {
         let items = library.items
+        // Engine search result for the source's scope + the filter bar (nil: not needed).
+        let matches = collections.matches
+        let matched = matches.map(Set.init)
         switch source {
-        case .all:
-            visible = Array(items.indices)
+        case .all, .notInAlbum, .smartAlbum, .group:
+            visible = matched.map { m in items.indices.filter { m.contains($0) } } ?? Array(items.indices)
         case .album(let name):
-            let members = Set(cull.members(ofAlbum: name))
-            visible = items.indices.filter { members.contains($0) }
+            // Manual album order (docs/06 §4.2); the search keeps it too.
+            visible = matches ?? cull.members(ofAlbum: name)
         case .decision(let d):
-            visible = items.indices.filter { cull[$0].decision == d }
+            visible = items.indices.filter { cull[$0].decision == d && matched?.contains($0) != false }
         case .mark(let m):
-            visible = items.indices.filter { cull[$0].mark == m }
+            visible = items.indices.filter { cull[$0].mark == m && matched?.contains($0) != false }
         }
         positionOfID = Array(repeating: -1, count: items.count)
         for (p, id) in visible.enumerated() { positionOfID[id] = p }
@@ -309,8 +323,16 @@ final class AppModel {
     }
 
     func setSource(_ s: LibrarySource) {
+        refreshVisible {
+            source = s
+            collections.refreshMatches()
+        }
+    }
+
+    /// Re-applies the source and filter bar, keeping the focused photo when it is still visible.
+    func refreshVisible(_ change: () -> Void = {}) {
         let focusedID = focus.map { visible[$0] }
-        source = s
+        change()
         rebuildVisible()
         if let focusedID, positionOfID[focusedID] >= 0 {
             focus = positionOfID[focusedID]
@@ -533,6 +555,7 @@ final class AppModel {
 
     private func didChange(_ change: CullChange) {
         undoDomain = .cull
+        collections.cullDidChange(albums: change.albumsChanged)
         var positions = IndexSet()
         for id in change.ids where positionOfID[id] >= 0 { positions.insert(positionOfID[id]) }
         refreshSummary()
@@ -543,7 +566,10 @@ final class AppModel {
         counts = cull.counts
         canUndo = cull.canUndo
         canRedo = cull.canRedo
-        if albums != cull.albums { albums = cull.albums }
+        if albums != cull.albums {
+            albums = cull.albums
+            collections.reloadNodes()
+        }
         if basketTarget != cull.basketTarget { basketTarget = cull.basketTarget }
         refreshFocusSummary()
     }
@@ -551,7 +577,10 @@ final class AppModel {
     private func refreshFocusSummary() {
         if let f = focus, f < visible.count {
             let it = item(at: f)
-            if focusedItem?.id != it.id { focusedItem = it }
+            if focusedItem?.id != it.id {
+                focusedItem = it
+                collections.focusDidChange()
+            }
             if focusedPosition != f { focusedPosition = f }
             let s = cull[it.id]
             if focusedState != s { focusedState = s }
@@ -567,7 +596,10 @@ final class AppModel {
             focusedStatus = ItemStatus()
             focusedIsBest = false
         }
-        if selectionCount != selection.count { selectionCount = selection.count }
+        if selectionCount != selection.count {
+            selectionCount = selection.count
+            collections.focusDidChange()
+        }
     }
 
     // MARK: Toast
@@ -614,11 +646,37 @@ final class AppModel {
         }
     }
 
+    /// Photos the next library action applies to: the selection, else the focused photo
+    /// (the active side in compare).
+    var targetIDs: [Int] {
+        if let pair = compare { return [pair.activeID] }
+        guard let f = focus else { return [] }
+        let positions = selection.contains(f) ? selection : IndexSet(integer: f)
+        return positions.map { visible[$0] }
+    }
+
+    /// library.json changed outside the cull session (sidebar, add to album, keyword tree).
+    func libraryDidChange(message: String? = nil) {
+        cull.reloadLibrary()
+        refreshSummary()
+        refreshVisible { collections.refreshMatches() }
+        if let message { statusMessage = message }
+    }
+
     // MARK: Safe delete (docs/06 §4.2)
 
     /// ⌫: inside an album removes from that album only, and says so. Elsewhere it does nothing
     /// destructive and points at the separate "Delete from Disk…" command.
     func deletePressed() {
+        switch source {
+        case .smartAlbum, .notInAlbum:
+            statusMessage = "\(source.title) is a saved search: change its rule to change what it shows. Nothing was removed."
+            return
+        case .group:
+            statusMessage = "Open an album to remove photos from it. Nothing was removed."
+            return
+        default: break
+        }
         guard case .album(let name) = source else {
             statusMessage = "Delete only removes photos from an album. To remove files use Cull ▸ Delete from Disk… (⌘⌫)"
             return

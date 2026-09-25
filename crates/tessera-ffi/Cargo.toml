@@ -15,6 +15,7 @@ sidecar = { path = "../sidecar" }
 previews = { path = "../previews" }
 raw-decode = { path = "../raw-decode" }
 cull = { path = "../cull" }
+library = { path = "../library" }
 image-core = { path = "../image-core" }
 pipeline-cpu = { path = "../pipeline-cpu" }
 pipeline-gpu = { path = "../pipeline-gpu" }

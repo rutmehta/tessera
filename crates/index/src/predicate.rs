@@ -86,7 +86,9 @@ impl Predicate {
                     Self::Lens(_) => "i.lens",
                     Self::Decision(_) => "s.decision",
                     Self::Mark(_) => "s.mark",
-                    Self::DateFrom(_) | Self::DateBefore(_) => "i.capture_time",
+                    // RAW scans store Unix seconds, EXIF scans ISO text: compare
+                    // both as ISO date-times ('auto' only affects numbers).
+                    Self::DateFrom(_) | Self::DateBefore(_) => "datetime(i.capture_time,'auto')",
                     _ => unreachable!(),
                 };
                 let op = match self {

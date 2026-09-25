@@ -12,6 +12,10 @@ struct InspectorView: View {
                 PanelSection("Histogram") { HistogramPanel(model: model).frame(height: 86) }
                 PanelSection("Image") { ImageInfoPanel(model: model) }
                 PanelSection("Selection") { SelectionPanel(model: model) }
+                if model.isEngineBacked {
+                    PanelSection("Keywords") { KeywordsPanel(model: model, library: model.collections) }
+                    PanelSection("Metadata") { MetadataPanel(model: model, library: model.collections) }
+                }
                 PanelSection("Basic") { BasicPanel(model: model) }
             }
         }
