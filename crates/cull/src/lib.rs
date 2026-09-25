@@ -127,6 +127,9 @@ impl<I: Deref<Target = Index>> CullSession<I> {
             decision: None,
             grade: None,
             mark: None,
+            // Boolean saved searches can contain selection terms under OR/NOT.
+            // Reconcile first; filtering stale selection would lose candidates.
+            predicate: None,
             limit: i64::MAX as usize,
             offset: 0,
             ..query.clone()
@@ -154,6 +157,17 @@ impl<I: Deref<Target = Index>> CullSession<I> {
                 continue;
             }
             images.push(id);
+        }
+        if query.predicate.is_some() {
+            let matching: std::collections::HashSet<_> = index
+                .search(&Query {
+                    predicate: query.predicate.clone(),
+                    limit: i64::MAX as usize,
+                    ..Default::default()
+                })?
+                .into_iter()
+                .collect();
+            images.retain(|id| matching.contains(id));
         }
         let images = images
             .into_iter()

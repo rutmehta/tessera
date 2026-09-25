@@ -9,6 +9,7 @@ members = [
     "crates/recipe",
     "crates/sidecar",
     "crates/index",
+    "crates/library",
     "crates/previews",
     "crates/import-lrcat",
     "crates/cull",

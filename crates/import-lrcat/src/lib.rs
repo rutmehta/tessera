@@ -40,81 +40,13 @@ pub struct ImportedImage {
     pub snapshots: Vec<SourceRow>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Keyword {
-    pub id: i64,
-    pub name: String,
-    pub synonyms: Vec<String>,
-    pub children: Vec<Keyword>,
-}
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Album {
-    pub id: i64,
-    pub name: String,
-    pub parent: Option<i64>,
-    pub images: Vec<i64>,
-}
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AlbumGroup {
-    pub id: i64,
-    pub name: String,
-    pub parent: Option<i64>,
-}
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct SmartAlbum {
-    pub id: i64,
-    pub name: String,
-    pub parent: Option<i64>,
-    pub search: SavedSearch,
-}
+pub use library::{Album, AlbumGroup, Keyword, Library, SmartAlbum};
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Stack {
     pub id: i64,
     pub scope: String,
     pub source: SourceRow,
     pub images: Vec<i64>,
-}
-/// Small cross-image document. Catalog ids are scoped to this library.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct Library {
-    pub schema_version: u32,
-    pub roots: Vec<PathBuf>,
-    pub albums: Vec<Album>,
-    pub album_groups: Vec<AlbumGroup>,
-    pub smart_albums: Vec<SmartAlbum>,
-    pub keywords: Vec<Keyword>,
-    pub people: Vec<String>,
-}
-impl Default for Library {
-    fn default() -> Self {
-        Self {
-            schema_version: 1,
-            roots: vec![],
-            albums: vec![],
-            album_groups: vec![],
-            smart_albums: vec![],
-            keywords: vec![],
-            people: vec![],
-        }
-    }
-}
-impl Library {
-    /// Atomically replace a library document; never called by `import` or `inspect`.
-    pub fn write(&self, path: impl AsRef<Path>) -> EngineResult<()> {
-        use std::io::Write;
-        let path = path.as_ref();
-        let parent = path
-            .parent()
-            .filter(|p| !p.as_os_str().is_empty())
-            .unwrap_or(Path::new("."));
-        let mut temp = tempfile::NamedTempFile::new_in(parent)?;
-        temp.write_all(&serde_json::to_vec_pretty(self)?)?;
-        temp.as_file().sync_all()?;
-        temp.persist(path)
-            .map_err(|e| EngineError::io_at(path, &e.error))?;
-        Ok(())
-    }
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImportPlan {
@@ -424,6 +356,18 @@ pub fn import(path: impl AsRef<Path>) -> EngineResult<ImportPlan> {
         }
     }
     library.people = people.into_iter().collect();
+    let source_name = source
+        .canonicalize()
+        .map_err(|e| EngineError::io_at(source, &e))?;
+    let image_id = |id: i64| {
+        let digest = Digest::derive(
+            "tessera Lightroom image",
+            format!("{}:{id}", source_name.display()).as_bytes(),
+        );
+        ImageId(u128::from_le_bytes(
+            digest.0[..16].try_into().expect("16 bytes"),
+        ))
+    };
     for row in &collections {
         let id = required_id(row, "id_local")?;
         let name = required_text(row, "name")?;
@@ -444,21 +388,29 @@ pub fn import(path: impl AsRef<Path>) -> EngineResult<ImportPlan> {
         } else if kind.contains("set") {
             library.album_groups.push(AlbumGroup { id, name, parent });
         } else {
-            library.albums.push(Album {
-                id,
-                name,
-                parent,
-                images: collection_images
-                    .iter()
-                    .filter(|r| number(r, "collection") == Some(id))
-                    .filter_map(|r| number(r, "image"))
-                    .collect(),
-            });
+            // Catalogs can contain identically named collections. Use an ID
+            // handle in that case rather than overwriting either membership.
+            let mut key = name.clone();
+            while library.albums.contains_key(&key) {
+                key = format!("{key} [{id}]");
+            }
+            library.albums.insert(
+                key,
+                Album {
+                    id,
+                    name,
+                    parent,
+                    images: collection_images
+                        .iter()
+                        .filter(|r| number(r, "collection") == Some(id))
+                        .filter_map(|r| number(r, "image"))
+                        .map(image_id)
+                        .collect(),
+                    ..Default::default()
+                },
+            );
         }
     }
-    let source_name = source
-        .canonicalize()
-        .map_err(|e| EngineError::io_at(source, &e))?;
     let mut result = vec![];
     for image in &images {
         let id = required_id(image, "id_local")?;
@@ -514,13 +466,7 @@ pub fn import(path: impl AsRef<Path>) -> EngineResult<ImportPlan> {
         } else {
             Recipe::default()
         };
-        let digest = Digest::derive(
-            "tessera Lightroom image",
-            format!("{}:{id}", source_name.display()).as_bytes(),
-        );
-        recipe.image_id = Some(ImageId(u128::from_le_bytes(
-            digest.0[..16].try_into().expect("16 bytes"),
-        )));
+        recipe.image_id = Some(image_id(id));
         let selection = selection(image);
         recipe.selection = selection.clone();
         let source_rows = |all: &[SourceRow]| {

@@ -1,7 +1,9 @@
 //! SQLite photo catalog and search index.
 mod api;
+mod predicate;
 mod semantic;
 pub use api::{FaceRecord, ImageInfo, Index, Scanner, Score};
+pub use predicate::{Comparison, Predicate};
 pub use semantic::SemanticSearch;
 use std::{path::Path, time::UNIX_EPOCH};
 
@@ -237,7 +239,7 @@ impl Core {
     /// Search matching images, ordered by capture time then stable id.
     pub fn search(&self, query: &Query) -> Result<Vec<ImageId>> {
         let sql = format!(
-            "SELECT i.id FROM image i JOIN file f ON f.id=i.file_id JOIN selection s ON s.image_id=i.id WHERE 1=1 {} ORDER BY i.capture_time,i.id LIMIT ? OFFSET ?",
+            "SELECT i.id FROM image i JOIN file f ON f.id=i.file_id LEFT JOIN selection s ON s.image_id=i.id WHERE 1=1 {} ORDER BY i.capture_time,i.id LIMIT ? OFFSET ?",
             filter_sql(query)
         );
         let mut stmt = self.conn.prepare(&sql)?;
@@ -253,7 +255,7 @@ impl Core {
     /// Counts camera, lens, keyword and decision values over the matching set.
     pub fn facets(&self, query: &Query) -> Result<Facets> {
         let base = format!(
-            "FROM image i JOIN file f ON f.id=i.file_id JOIN selection s ON s.image_id=i.id WHERE 1=1 {}",
+            "FROM image i JOIN file f ON f.id=i.file_id LEFT JOIN selection s ON s.image_id=i.id WHERE 1=1 {}",
             filter_sql(query)
         );
         Ok(Facets {
@@ -266,7 +268,7 @@ impl Core {
                 query,
             )?,
             decisions: self.counts(
-                &format!("SELECT s.decision,count(*) {base} GROUP BY s.decision"),
+                &format!("SELECT COALESCE(s.decision,'undecided'),count(*) {base} GROUP BY COALESCE(s.decision,'undecided')"),
                 query,
             )?,
             keywords: self.keyword_counts(query)?,
@@ -284,7 +286,7 @@ impl Core {
     }
     fn keyword_counts(&self, query: &Query) -> Result<Vec<(String, u64)>> {
         let sql = format!(
-            "SELECT k.name,count(*) FROM keyword k JOIN image_keyword ik ON ik.keyword_id=k.id JOIN image i ON i.id=ik.image_id JOIN file f ON f.id=i.file_id JOIN selection s ON s.image_id=i.id WHERE 1=1 {} GROUP BY k.name",
+            "SELECT k.name,count(*) FROM keyword k JOIN image_keyword ik ON ik.keyword_id=k.id JOIN image i ON i.id=ik.image_id JOIN file f ON f.id=i.file_id LEFT JOIN selection s ON s.image_id=i.id WHERE 1=1 {} GROUP BY k.name",
             filter_sql(query)
         );
         let mut stmt = self.conn.prepare(&sql)?;
@@ -510,6 +512,9 @@ fn basic_metadata(path: &Path) -> Result<Metadata> {
 /// Query filters and pagination.
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct Query {
+    /// Boolean expression ANDed with every legacy filter.
+    #[serde(default)]
+    pub predicate: Option<Predicate>,
     pub text: Option<String>,
     /// Natural-language vector query. Use `Index::search_with_semantic`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -565,6 +570,11 @@ fn filter_sql(q: &Query) -> String {
     if q.keyword.is_some() {
         s.push_str(" AND i.id IN (SELECT ik.image_id FROM keyword k JOIN keyword_closure c ON c.ancestor_id=k.id JOIN image_keyword ik ON ik.keyword_id=c.descendant_id WHERE k.name=?)")
     }
+    if let Some(predicate) = &q.predicate {
+        s.push_str(" AND (");
+        s.push_str(&predicate.compile(&mut Vec::new()));
+        s.push(')');
+    }
     s
 }
 fn query_params(q: &Query, paged: bool) -> Vec<Box<dyn rusqlite::types::ToSql>> {
@@ -603,6 +613,9 @@ fn query_params(q: &Query, paged: bool) -> Vec<Box<dyn rusqlite::types::ToSql>> 
     }
     if let Some(x) = &q.keyword {
         v.push(Box::new(x.clone()))
+    }
+    if let Some(predicate) = &q.predicate {
+        predicate.compile(&mut v);
     }
     if paged {
         v.push(Box::new((if q.limit == 0 { 100 } else { q.limit }) as i64));

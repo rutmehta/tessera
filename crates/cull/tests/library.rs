@@ -40,7 +40,8 @@ fn status_transitions_and_basket_share_global_history() {
     session.undo().unwrap();
     let lib = Library::read(&library_path).unwrap();
     assert_eq!(lib.albums["Portfolio"].images, [id]);
-    assert_eq!(lib.unknown["roots"], serde_json::json!(["preserve"]));
+    assert_eq!(lib.roots, vec![std::path::PathBuf::from("preserve")]);
+    assert_eq!(lib.unknown["future"], serde_json::json!({"v":1}));
     let paths = Sidecar::paths(index.image_info(id).unwrap().path);
     let mut doc = Sidecar::read_recipe(&paths.recipe).unwrap();
     doc.recipe

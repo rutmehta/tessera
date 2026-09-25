@@ -44,6 +44,37 @@ rejected. Tagging also refreshes searchable keyword text. Facets ignore paging
 and count camera/lens/decision and directly attached keyword values across all
 matching images. Missing camera/lens values use the empty string bucket.
 
+## Typed boolean predicates
+
+`Query::predicate: Option<Predicate>` defaults to `None` in Rust and when absent
+from old JSON. It is ANDed with all existing filters, including folder scope,
+for search and every facet. Exhaustive Rust `Query` literals must add
+`predicate: None`. `Predicate` and `Comparison` are exported, cloneable,
+comparable, and serde-serializable.
+
+Compose `All`, `Any`, and `Not` around `Text`, `Keyword`, `Camera`, `Lens`,
+`Decision`, `Mark`, `DateFrom`, `DateBefore`, `Grade`, `Focus`, `Person`, and
+`Ids` leaves. Numeric leaves take `(Comparison, f64)` with `Eq`, `Ne`, `Lt`,
+`Le`, `Gt`, or `Ge`. `Text` retains FTS5 query syntax. Unlike legacy `date_to`,
+`DateBefore` is exclusive; `DateFrom` is inclusive.
+
+Leaves with absent/NULL values are false; `Not` takes their boolean complement,
+including images with no selection row. Empty `All` is true; empty `Any` and
+`Ids` are false. Missing selections are counted in the `undecided` facet bucket.
+`Focus` reads the latest `score` value for signal `focus`. `Person` currently
+uses named keywords and their descendants, just like `Keyword`: schema v5 has
+no persistent named-person table, and a face ordinal is not a person identity.
+
+All user values are bound SQL parameters. ID scopes use catalog hex strings in
+a single JSON parameter (avoiding SQLite's per-statement variable limit).
+Facets ignore pagination and count the complete intersection. Semantic search's
+API is unchanged; predicates filter candidate eligibility before ranking/paging.
+
+`tests/predicates.rs` seeds the migrated SQLite schema directly, with no model
+or image-fixture dependency. Run it with `cargo test -p index --test predicates`
+when extending the compiler; include missing optional rows, nested negation,
+empty scopes, bound hostile strings, and search/facet set agreement.
+
 ## Semantic and hybrid queries
 
 `Query` is owned by `index`, not re-exported from engine-api. Its new

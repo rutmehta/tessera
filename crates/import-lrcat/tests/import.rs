@@ -46,7 +46,25 @@ fn synthetic_catalog_plan() {
         vec!["New York"]
     );
     assert_eq!(plan.library.album_groups.len(), 1);
-    assert_eq!(plan.library.albums[0].images, vec![30, 32]);
+    assert_eq!(
+        plan.library.albums["Selects"].images,
+        vec![
+            plan.images
+                .iter()
+                .find(|i| i.catalog_id == 30)
+                .unwrap()
+                .recipe
+                .image_id
+                .unwrap(),
+            plan.images
+                .iter()
+                .find(|i| i.catalog_id == 32)
+                .unwrap()
+                .recipe
+                .image_id
+                .unwrap(),
+        ]
+    );
     assert_eq!(
         plan.library.smart_albums[0].search,
         SavedSearch::All(vec![SavedSearch::Rule {

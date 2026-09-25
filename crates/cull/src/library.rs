@@ -3,38 +3,11 @@ use engine_api::{EngineError, EngineResult};
 use index::Index;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::BTreeMap,
     ops::Deref,
     path::{Path, PathBuf},
 };
 
-/// Minimal library.json schema. Album keys are names; member order is manual.
-/// Unrecognized library/album fields survive basket writes.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-#[serde(default)]
-pub struct Library {
-    pub albums: BTreeMap<String, Album>,
-    #[serde(flatten)]
-    pub unknown: BTreeMap<String, serde_json::Value>,
-}
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct Album {
-    pub images: Vec<ImageId>,
-    #[serde(flatten)]
-    pub unknown: BTreeMap<String, serde_json::Value>,
-}
-impl Library {
-    pub fn read(path: impl AsRef<Path>) -> EngineResult<Self> {
-        match persistence::optional_bytes(path.as_ref())? {
-            Some(bytes) => Ok(serde_json::from_slice(&bytes)?),
-            None => Ok(Self::default()),
-        }
-    }
-    pub fn write(&self, path: impl AsRef<Path>) -> EngineResult<()> {
-        persistence::atomic_write(path.as_ref(), &serde_json::to_vec_pretty(self)?)
-    }
-}
+pub use ::library::{Album, Library};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Status {
@@ -183,6 +156,10 @@ impl<I: Deref<Target = Index>> CullSession<I> {
         let library = Library::read(&path)?;
         let before = library.albums.get(&album).cloned();
         let mut after = before.clone().unwrap_or_default();
+        if before.is_none() {
+            after.id = library.next_id()?;
+            after.name = album.clone();
+        }
         change(&mut after.images);
         if before.as_ref().map(|a| &a.images) == Some(&after.images)
             || (before.is_none() && after.images.is_empty())
@@ -227,12 +204,7 @@ impl<I: Deref<Target = Index>> CullSession<I> {
         } else {
             Status::Unedited
         };
-        let in_album = library
-            .albums
-            .iter()
-            .filter(|(_, album)| album.images.contains(&id))
-            .map(|(name, _)| name.clone())
-            .collect();
+        let in_album = library.in_album(id);
         Ok(DerivedStatus { status, in_album })
     }
 }

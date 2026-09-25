@@ -1,18 +1,15 @@
 [package]
-name = "import-lrcat"
+name = "library"
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
 
-[lib]
-path = "src/lib.rs"
-
 [dependencies]
-library = { path = "../library" }
 engine-api = { path = "../engine-api" }
-sidecar = { path = "../sidecar" }
-rusqlite.workspace = true
+index = { path = "../index" }
 serde.workspace = true
 serde_json.workspace = true
 tempfile.workspace = true
-roxmltree = "0.20"
+
+[dev-dependencies]
+rusqlite.workspace = true
