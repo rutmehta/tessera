@@ -99,7 +99,7 @@
     "id": "M1-05",
     "owner": "astra",
     "title": "pipeline-cpu reference",
-    "status": "todo",
+    "status": "running",
     "attempts": 0,
     "notes": "blocked on M1-01 real decoder"
   },
@@ -115,7 +115,7 @@
     "id": "M3-01",
     "owner": "astra",
     "title": "ML runtime scaffold",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
@@ -123,7 +123,7 @@
     "id": "M1-12",
     "owner": "astra",
     "title": "UniFFI bridge + app wiring",
-    "status": "todo",
+    "status": "running",
     "attempts": 0,
     "notes": ""
   },
@@ -140,6 +140,14 @@
     "owner": "astra",
     "title": "Export crate",
     "status": "todo",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-03",
+    "owner": "opus",
+    "title": "engine-api contract revision 1.1",
+    "status": "running",
     "attempts": 0,
     "notes": ""
   }

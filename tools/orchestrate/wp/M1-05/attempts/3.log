@@ -1,0 +1,9 @@
+M1-05 remains blocked by two unresolved prerequisites:
+
+1. The required cam_xyz matrix is not exposed by libraw-ffi. Its sensor.rs:70–83 exports an rgb_cam-derived matrix for white-balanced RGB instead. Adding a RawMetadata field cannot recover the original matrix. Exposing it requires permission to modify crates/libraw-ffi/**, outside the allowed paths.
+
+2. The upstream RCD implementation is GPL-3, explicitly banned by docs/13-licensing.md:16. A source port needs a licensing decision or approval for an independent implementation instead.
+
+I ran the exact requested test, clippy, and formatting command with the external CARGO_TARGET_DIR. It exited 0, but tested only the existing placeholder. No implementation or goldens were produced, and no files were changed.
+
+RESULT: FAIL required cam_xyz exposure is outside allowed paths; upstream RCD source port conflicts with repository licensing policy.
