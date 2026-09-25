@@ -515,9 +515,9 @@
     "id": "M2-20",
     "owner": "opus",
     "title": "Export dialog, soft proof, Print",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
-    "notes": ""
+    "notes": "export CPU-only: 57s for 36MP -> M2-21 GPU export"
   },
   {
     "id": "M3-10",
