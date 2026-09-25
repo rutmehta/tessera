@@ -1,7 +1,7 @@
 //! Full-resolution image export.
 mod batch;
 mod codec;
-pub use batch::{BatchReport, ExportItem, Progress, export_batch};
+pub use batch::{BatchReport, ExportItem, Progress, export_batch, export_batch_with_jobs};
 mod filter;
 use engine_api::{EngineError, EngineResult};
 use engine_api::{jobs::CancellationToken, recipe::Recipe};

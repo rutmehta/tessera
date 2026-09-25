@@ -43,6 +43,20 @@ pub fn export_batch(
     progress: impl Fn(Progress),
     cancel: &CancellationToken,
 ) -> EngineResult<BatchReport> {
+    export_batch_with_jobs(items, settings, progress, cancel, usize::MAX)
+}
+
+/// Like `export_batch`, but limits simultaneous export workers to `jobs`.
+pub fn export_batch_with_jobs(
+    items: &[ExportItem<'_>],
+    settings: &ExportSettings,
+    progress: impl Fn(Progress),
+    cancel: &CancellationToken,
+    jobs: usize,
+) -> EngineResult<BatchReport> {
+    if jobs == 0 {
+        return Err(EngineError::invalid("jobs", "must be positive"));
+    }
     let mut report = BatchReport {
         results: vec![Err(EngineError::Cancelled); items.len()],
     };
@@ -76,6 +90,7 @@ pub fn export_batch(
     }
     let cores = std::thread::available_parallelism().map_or(1, usize::from);
     let workers = cores
+        .min(jobs)
         .min(items.len())
         .min((512 * 1024 * 1024 / max_bytes).max(1) as usize);
     let pool = rayon::ThreadPoolBuilder::new()
