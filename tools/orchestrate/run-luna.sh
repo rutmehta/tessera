@@ -6,11 +6,13 @@ usage(){ echo "Usage: run-luna.sh <wp-id> [--model MODEL] [--test CMD] [--max-at
 WP=$1; shift
 MODEL=gpt-6-luna; TEST_CMD=; MAX=3; PATHS='tools/orchestrate/wp/'"$WP"'/**'
 while [[ $# -gt 0 ]]; do case "$1" in --model) MODEL=$2; shift 2;; --test) TEST_CMD=$2; shift 2;; --max-attempts) MAX=$2; shift 2;; --paths) PATHS=$2; shift 2;; *) usage;; esac; done
-export CARGO_TARGET_DIR="$HOME/.cache/photo-engine-target/$WP"; mkdir -p "$CARGO_TARGET_DIR"
+export CARGO_TARGET_DIR="$HOME/.cache/tessera-target/$WP"; mkdir -p "$CARGO_TARGET_DIR"
 BASE="$ROOT/tools/orchestrate/wp/$WP"; BRIEF="$BASE/brief.md"; WT="$ROOT/.worktrees/$WP"
 [[ -f $BRIEF ]] || { echo "Missing $BRIEF" >&2; exit 2; }
 mkdir -p "$BASE/attempts"
 if [[ ! -d $WT ]]; then mkdir -p "$ROOT/.worktrees"; git -C "$ROOT" worktree add -b "wp/$WP" "$WT" main; fi
+# fixtures/raw is git-ignored; share the root copy with every worktree
+if [[ -d $ROOT/fixtures/raw && ! -e $WT/fixtures/raw ]]; then mkdir -p "$WT/fixtures"; ln -s "$ROOT/fixtures/raw" "$WT/fixtures/raw"; fi
 python3 - "$BRIEF" "$BASE/prompt.txt" "$WT" "$PATHS" "$TEST_CMD" <<'PY'
 import pathlib,sys,os
 brief,out,wt,paths,test=sys.argv[1:]
