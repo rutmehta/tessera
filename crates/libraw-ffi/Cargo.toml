@@ -1,0 +1,17 @@
+[package]
+name = "libraw-ffi"
+version = "0.1.0"
+edition = "2021"
+license = "CDDL-1.0"
+build = "build.rs"
+
+[dependencies]
+thiserror = "2"
+
+[build-dependencies]
+cc = "1"
+bindgen = "0.71"
+
+[lib]
+name = "libraw_ffi"
+path = "src/lib.rs"
