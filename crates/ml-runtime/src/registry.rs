@@ -15,6 +15,7 @@ pub enum Dtype {
     Fp32,
     Fp16,
     Int8,
+    Int64,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

@@ -44,6 +44,44 @@ rejected. Tagging also refreshes searchable keyword text. Facets ignore paging
 and count camera/lens/decision and directly attached keyword values across all
 matching images. Missing camera/lens values use the empty string bucket.
 
+## Semantic and hybrid queries
+
+`Query` is owned by `index`, not re-exported from engine-api. Its new
+`semantic: Option<String>` defaults to `None`; old JSON and existing Rust
+`..Default::default()` literals keep working. Exhaustive Rust struct literals
+must add `semantic: None`.
+
+Implement the dependency-inverted hook in the embedding crate or an application
+newtype (index does not depend on ml-embed):
+
+```rust,ignore
+pub trait SemanticSearch {
+    fn search_text(&mut self, query: &str, k: usize)
+        -> EngineResult<Vec<(ImageId, f32)>>;
+}
+```
+
+Call `index.search_with_semantic(&query, &mut provider)` for IDs, or
+`index.facets_with_semantic(&query, &mut provider)` for unpaged counts. These
+methods use the legacy behavior without calling the provider when semantic is
+`None`. Plain `search`/`facets` reject semantic queries instead of silently
+ignoring the request. Provider errors propagate.
+
+Vector scores are higher-is-better similarities. Non-finite scores and unknown
+catalog IDs are discarded; duplicates retain their best score. Vector-only
+queries rank by similarity, breaking ties by ImageId. With both `text` and
+`semantic`, FTS5 BM25 and vector ranks are fused over their **union** using equal
+weight reciprocal rank fusion, `1 / (60 + one_based_rank)` per list. All other
+catalog filters apply to both lists before ranks and offset/limit; fused ties
+also use ImageId. Text-only queries keep their historical capture-time ordering.
+
+For correctness with selective facets and stale vector entries, the hook is
+called with `k = usize::MAX` to request all available candidates. This is an
+upper bound, **not an allocation size**: adapters must clamp it to their stored
+vector count before allocating or calling a backend with a bounded integer k.
+This exact baseline materializes candidates and is not an ANN scalability claim.
+Facet counts cover the complete filtered union, not just the displayed page.
+
 ## Faces (schema v5)
 
 `index::FaceRecord` has `id: u32` (image-local ordinal),

@@ -64,6 +64,17 @@ components of burst and duplicate edges, so transitive membership is intentional
 Unreadable previews are exposed by `preview_errors` and do not block manual
 review. Missing embedded previews simply provide no duplicate signal.
 
+`set_grouping_strategy(Box<dyn GroupingStrategy>)` installs an optional replacement
+edge policy, effective on the next explicit `regroup`. The `Send + Sync` trait's
+`related(&self, a: &ImageInfo, b: &ImageInfo, hash_a: Option<u64>,
+hash_b: Option<u64>, options: GroupingOptions) -> bool` is called once per
+unordered pair; implementations should be symmetric. Default time/hash edges
+are not added when a strategy is installed. Hashes are `None` for unavailable
+previews or when `near_duplicates` is false; preview errors remain observable.
+The hook does not load embeddings or apply decisions. Tests demonstrate a
+consumer-owned cosine >= 0.92 AND (time OR hash) policy, with conservative
+time AND hash fallback when either vector is absent.
+
 Group/member ordering follows the review queue. `next_group`, `prev_group`,
 `next_in_group` and `prev_in_group` stop at boundaries; `group_of(id)` finds an image's group. `best_in_group` returns the suggested frame;
 `keep_best_reject_rest(group_index)` explicitly applies the decision batch.

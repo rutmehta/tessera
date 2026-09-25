@@ -1,0 +1,22 @@
+[package]
+name = "ml-embed"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+
+[dependencies]
+anyhow.workspace = true
+image.workspace = true
+rusqlite.workspace = true
+ml-runtime = { path = "../ml-runtime" }
+engine-api = { path = "../engine-api" }
+index = { path = "../index" }
+cull = { path = "../cull" }
+previews = { path = "../previews" }
+hnsw_rs = "0.3"
+tokenizers = { version = "0.22", default-features = false, features = ["fancy-regex"] }
+sha2 = "0.10"
+
+[dev-dependencies]
+tempfile.workspace = true
+jobs = { path = "../jobs" }

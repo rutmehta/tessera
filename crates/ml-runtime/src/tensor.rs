@@ -2,6 +2,21 @@ use anyhow::{Result, ensure};
 use engine_api::tile::{Tile, TileCoord, TileFormat, TileLayout};
 use half::f16;
 
+/// Owned contiguous input, with explicit dimensions (an empty shape is a scalar).
+#[derive(Clone, Debug)]
+pub enum TensorInput {
+    F32 { shape: Vec<usize>, data: Vec<f32> },
+    I64 { shape: Vec<usize>, data: Vec<i64> },
+}
+
+/// A named output in model declaration order, converted to contiguous fp32.
+#[derive(Clone, Debug)]
+pub struct TensorOutput {
+    pub name: String,
+    pub shape: Vec<usize>,
+    pub data: Vec<f32>,
+}
+
 /// Owned, contiguous NCHW image tensor (one image, no implicit normalization).
 #[derive(Clone, Debug)]
 pub struct Tensor {

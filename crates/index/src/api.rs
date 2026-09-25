@@ -60,7 +60,7 @@ impl From<IndexError> for EngineError {
 
 /// Rebuildable SQLite catalog. Each instance owns one connection.
 #[derive(Debug)]
-pub struct Index(Core);
+pub struct Index(pub(crate) Core);
 impl Index {
     pub fn open(path: impl AsRef<Path>) -> EngineResult<Self> {
         Core::open(path).map(Self).map_err(Into::into)
@@ -74,9 +74,11 @@ impl Index {
         self.0.scan(root, sidecars, metadata).map_err(Into::into)
     }
     pub fn search(&self, query: &Query) -> EngineResult<Vec<ImageId>> {
+        super::semantic::require_provider(query)?;
         self.0.search(query).map_err(Into::into)
     }
     pub fn facets(&self, query: &Query) -> EngineResult<Facets> {
+        super::semantic::require_provider(query)?;
         self.0.facets(query).map_err(Into::into)
     }
     pub fn set_selection(&self, id: ImageId, selection: &Selection) -> EngineResult<()> {
