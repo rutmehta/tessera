@@ -53,6 +53,17 @@ pub(crate) fn parameters(
     input: TileLayout,
     coord: TileCoord,
 ) -> EngineResult<(Vec<f32>, TileLayout)> {
+    parameters_at(ops, input, coord.level, coord.pixel_origin(TILE_SIZE))
+}
+
+/// [`parameters`] for a tile whose interior starts at pixel `origin` of
+/// level `level` (row bands).
+pub(crate) fn parameters_at(
+    ops: &[Op<'_>],
+    input: TileLayout,
+    level: u8,
+    origin: (u32, u32),
+) -> EngineResult<(Vec<f32>, TileLayout)> {
     if !supports(ops) || input.channels != 3 {
         return Err(EngineError::invalid(
             "fused chain",
@@ -74,10 +85,12 @@ pub(crate) fn parameters(
     for op in ops {
         let block = match op {
             Op::Effects(s, e) => {
-                crate::effects::parameters(input, coord, s, *e, &Default::default())?
+                crate::effects::parameters_at(input, level, origin, s, *e, &Default::default())?
             }
-            Op::EffectsInCrop(s, e, crop) => crate::effects::parameters(input, coord, s, *e, crop)?,
-            _ => crate::operator::parameters(op, input, coord.pixel_origin(TILE_SIZE))?.0,
+            Op::EffectsInCrop(s, e, crop) => {
+                crate::effects::parameters_at(input, level, origin, s, *e, crop)?
+            }
+            _ => crate::operator::parameters(op, input, origin)?.0,
         };
         p[33 + slot(op).unwrap()] = p.len() as f32;
         p.extend(block);

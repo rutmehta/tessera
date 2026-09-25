@@ -131,6 +131,13 @@ pub struct CfaPyramid {
     pixels: Vec<f32>,
 }
 
+impl CfaPyramid {
+    /// The row-major level-zero samples (`extent().area()` values).
+    pub fn pixels(&self) -> &[f32] {
+        &self.pixels
+    }
+}
+
 impl Pyramid for CfaPyramid {
     fn extent(&self) -> Extent {
         self.extent

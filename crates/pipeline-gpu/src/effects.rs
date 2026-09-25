@@ -33,6 +33,26 @@ pub(crate) fn parameters(
     extent: Extent,
     crop: &Crop,
 ) -> EngineResult<Vec<f32>> {
+    parameters_at(
+        l,
+        coord.level,
+        coord.pixel_origin(TILE_SIZE),
+        s,
+        extent,
+        crop,
+    )
+}
+
+/// [`parameters`] for a tile whose interior starts at pixel `origin` of
+/// its level (row bands are not pyramid-addressed).
+pub(crate) fn parameters_at(
+    l: TileLayout,
+    level: u8,
+    origin: (u32, u32),
+    s: &EffectsSettings,
+    extent: Extent,
+    crop: &Crop,
+) -> EngineResult<Vec<f32>> {
     if !crop.rect.is_valid() || !crop.angle.is_finite() {
         return Err(EngineError::invalid(
             "crop",
@@ -61,9 +81,9 @@ pub(crate) fn parameters(
             what: "M2 lens blur requires depth inference".into(),
         });
     }
-    let e = extent.at_level(coord.level);
-    let ox = u64::from(coord.x) * u64::from(TILE_SIZE);
-    let oy = u64::from(coord.y) * u64::from(TILE_SIZE);
+    let e = extent.at_level(level);
+    let ox = u64::from(origin.0);
+    let oy = u64::from(origin.1);
     if extent.width == 0
         || extent.height == 0
         || l.channels != 3
@@ -79,7 +99,7 @@ pub(crate) fn parameters(
     thread_local! {
         static CONSTANTS: std::cell::RefCell<Option<(Key, Vec<f32>)>> = const { std::cell::RefCell::new(None) };
     }
-    let key = (s.clone(), extent, crop.clone(), coord.level);
+    let key = (s.clone(), extent, crop.clone(), level);
     let mut prepared = CONSTANTS.with(|cache| {
         let mut cache = cache.borrow_mut();
         if let Some((old, p)) = &*cache

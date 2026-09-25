@@ -158,3 +158,69 @@ fn density_is_recorded_in_every_container() {
         2
     );
 }
+
+/// Stripe-parallel JPEG: byte-identical to one sequential encode with a
+/// restart interval of one stripe (same ICC/XMP/density segments), for both
+/// default samplings and ragged edges, and decodes to exactly the pixels of
+/// the unstriped encode.
+#[test]
+fn striped_jpeg_matches_sequential_restart_encode() {
+    let (width, height) = (997u32, 613u32);
+    let rgb = image::Rgb32FImage::from_fn(width, height, |x, y| {
+        let n = ((x * 7919 + y * 104_729) % 1013) as f32 / 1013.0;
+        image::Rgb([
+            x as f32 / width as f32,
+            (y as f32 / height as f32) * 0.7 + n * 0.3,
+            n,
+        ])
+    });
+    let bytes: Vec<u8> = rgb.as_raw().iter().map(|&v| quantize8(v)).collect();
+    let icc = vec![7u8; 70_000]; // spans two APP2 chunks
+    let xmp = "<x:xmpmeta/>";
+    let cancel = CancellationToken::new();
+    for (quality, mcu) in [(85u8, 16u32), (95, 8)] {
+        for stripe_mcu_rows in [1u32, 3, 7] {
+            let striped = jpeg_stripes_of(
+                &rgb,
+                quality,
+                Some(300),
+                &icc,
+                Some(xmp),
+                &cancel,
+                (mcu, stripe_mcu_rows),
+            )
+            .unwrap()
+            .expect("splits into stripes");
+            let mut sequential = Vec::new();
+            let mut encoder = jpeg_encoder(&mut sequential, quality, Some(300));
+            encoder.add_icc_profile(&icc).unwrap();
+            let mut packet = b"http://ns.adobe.com/xap/1.0/\0".to_vec();
+            packet.extend_from_slice(xmp.as_bytes());
+            encoder.add_app_segment(1, &packet).unwrap();
+            encoder.set_restart_interval((stripe_mcu_rows * width.div_ceil(mcu)) as u16);
+            encoder
+                .encode(
+                    &bytes,
+                    width as u16,
+                    height as u16,
+                    jpeg_encoder::ColorType::Rgb,
+                )
+                .unwrap();
+            assert!(
+                striped == sequential,
+                "q{quality} stripes of {stripe_mcu_rows} MCU rows differ"
+            );
+            let mut plain = Vec::new();
+            jpeg_encoder(&mut plain, quality, Some(300))
+                .encode(
+                    &bytes,
+                    width as u16,
+                    height as u16,
+                    jpeg_encoder::ColorType::Rgb,
+                )
+                .unwrap();
+            let decode = |b: &[u8]| image::load_from_memory(b).unwrap().to_rgb8().into_raw();
+            assert_eq!(decode(&striped), decode(&plain));
+        }
+    }
+}

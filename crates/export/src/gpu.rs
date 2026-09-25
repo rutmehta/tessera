@@ -10,6 +10,15 @@
 //! interactive job is queued or running on a scheduler
 //! ([`jobs::yield_to_interactive`]), so a slider drag never waits behind a
 //! band that had not yet started.
+//!
+//! Bands are full-width row bands rendered with one dispatch per stage
+//! (`Renderer::render_export_rows`), two in flight on their own threads,
+//! each with half of the budget: one encodes and uploads while the other
+//! executes and reads back. Recipes the band renderer declines (Texture,
+//! Clarity, Dehaze) use the pyramid-tile renderer. Environment switches for
+//! measurement: `TESSERA_EXPORT_TILES` (tile renderer only),
+//! `TESSERA_EXPORT_IN_FLIGHT=n`, `TESSERA_EXPORT_WEB_LEVEL=1` (see
+//! [`Options::web_level`]) and `TESSERA_EXPORT_TRACE=1`.
 
 use crate::{ColorSpace, ExportImage, codec};
 use engine_api::{
@@ -17,7 +26,7 @@ use engine_api::{
     id::ImageId,
     jobs::CancellationToken,
     recipe::Recipe,
-    tile::{Pyramid, TILE_SIZE, TileCoord},
+    tile::{Pyramid, TILE_SIZE},
 };
 use image_core::{PixelRect, RawImage, RendererConfig};
 use pipeline_cpu::RenderSource;
@@ -74,6 +83,12 @@ pub(crate) fn trace(phase: &str, since: std::time::Instant) {
     }
 }
 
+fn trace_note(note: &str) {
+    if std::env::var_os("TESSERA_EXPORT_TRACE").is_some() {
+        eprintln!("EXPORT_TRACE {note}");
+    }
+}
+
 pub(crate) fn render(
     image: &ExportImage<'_>,
     recipe: &Recipe,
@@ -105,6 +120,39 @@ pub(crate) fn render_resized(
     render_with_lens(image, recipe, space, scale, cancel, budget, resize, None)
 }
 
+/// Band renderer scratch per developed pixel of a band at level L: the
+/// level-L stages plus the full-resolution sensor stages (raw, highlights,
+/// demosaic, lateral CA) of its 4^L sensor pixels, and the readback. Fresh
+/// allocations measured 135–140 B/px at level 0 and about 245 B/px at level 1
+/// on the five fixtures (`TESSERA_EXPORT_TRACE=1` prints them per band).
+fn band_bytes_per_pixel(level: u8) -> usize {
+    150 + 40 * ((1usize << (2 * level)) - 1)
+}
+/// The map's mapped band and its display copy, per output pixel.
+const MAP_BYTES_PER_PIXEL: usize = 48;
+/// Bands in flight: one encodes and submits while the other executes.
+const BANDS_IN_FLIGHT: usize = 2;
+/// Upper bound on one band's developed pixels: bounds a single submission's
+/// GPU time (viewport frames queue behind it) and the f32 plane-length limit.
+const MAX_BAND_PIXELS: usize = 4 << 20;
+
+/// The deepest pyramid level whose output frame still covers `destination`
+/// (Web presets skip full resolution when the output is at most half size).
+pub(crate) fn web_level(
+    frame: impl Fn(u8) -> engine_api::tile::Extent,
+    destination: (u32, u32),
+) -> u8 {
+    let mut level = 0;
+    while level < 3 {
+        let next = frame(level + 1);
+        if next.width < destination.0 || next.height < destination.1 {
+            break;
+        }
+        level += 1;
+    }
+    level
+}
+
 /// `resolved`: a precomputed lens correction (tests force calibrations);
 /// None analyses the sensor like the reference renderer.
 #[allow(clippy::too_many_arguments)]
@@ -117,6 +165,58 @@ pub(crate) fn render_with_lens(
     budget: usize,
     resize: crate::Resize,
     resolved: Option<pipeline_cpu::ResolvedLens>,
+) -> EngineResult<Option<image::Rgb32FImage>> {
+    render_with_options(
+        image,
+        recipe,
+        space,
+        scale,
+        cancel,
+        budget,
+        resize,
+        resolved,
+        Options::default(),
+    )
+}
+
+/// Scheduling choices (tests compare them; results must not depend on them).
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Options {
+    /// Full-width band renderer (else the M2-21b pyramid-tile path).
+    pub bands: bool,
+    /// Develop resized exports at the pyramid level covering the output
+    /// (`TESSERA_EXPORT_WEB_LEVEL=1`). Off by default: it misses the docs/11
+    /// §1.3 gate at Web scale (tone, Detail and output encoding do not
+    /// commute with the box downsample; up to 56 codes on the fixtures, see
+    /// `five_fixture_web_scale_tolerance`), while full-resolution development
+    /// resized on the GPU meets it.
+    pub web_level: bool,
+    pub in_flight: usize,
+}
+impl Default for Options {
+    fn default() -> Self {
+        Self {
+            bands: std::env::var("TESSERA_EXPORT_TILES").is_err(),
+            web_level: std::env::var("TESSERA_EXPORT_WEB_LEVEL").is_ok_and(|v| v == "1"),
+            in_flight: std::env::var("TESSERA_EXPORT_IN_FLIGHT")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(BANDS_IN_FLIGHT),
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn render_with_options(
+    image: &ExportImage<'_>,
+    recipe: &Recipe,
+    space: ColorSpace,
+    scale: u32,
+    cancel: &CancellationToken,
+    budget: usize,
+    resize: crate::Resize,
+    resolved: Option<pipeline_cpu::ResolvedLens>,
+    options: Options,
 ) -> EngineResult<Option<image::Rgb32FImage>> {
     cancel.check()?;
     if !matches!(scale, 1 | 2 | 4 | 8) {
@@ -144,21 +244,7 @@ pub(crate) fn render_with_lens(
     // the scalar sensor plane, never a full developed RGB intermediate.
     let pyramid = cfa.pyramid();
     let extent = pyramid.extent();
-    let mut samples = vec![0.; extent.area() as usize];
-    for y in 0..extent.height.div_ceil(TILE_SIZE) {
-        for x in 0..extent.width.div_ceil(TILE_SIZE) {
-            cancel.check()?;
-            let tile = pyramid.tile(TileCoord::new(0, x, y))?;
-            let l = tile.layout();
-            let data = tile.samples::<f32>()?;
-            for row in 0..l.extent.height {
-                let from = (row * l.extent.width) as usize;
-                let to = ((y * TILE_SIZE + row) * extent.width + x * TILE_SIZE) as usize;
-                samples[to..to + l.extent.width as usize]
-                    .copy_from_slice(&data[from..from + l.extent.width as usize]);
-            }
-        }
-    }
+    let samples = pyramid.pixels().to_vec();
     trace("sensor copy", started);
     let started = std::time::Instant::now();
     let mut settings = recipe.settings.clone();
@@ -184,10 +270,17 @@ pub(crate) fn render_with_lens(
         )?),
         Arc::new((*metadata).clone()),
     )?;
-    let level = scale.trailing_zeros() as u8;
-    let developed = raw.level_extent(level);
-    let frame = image_core::Renderer::lens_output_extent(&raw, level, Some(&lens));
-    let (width, height) = resize.dimensions(frame.width, frame.height)?;
+    let requested = scale.trailing_zeros() as u8;
+    let output_frame = |level| image_core::Renderer::lens_output_extent(&raw, level, Some(&lens));
+    // Output dimensions follow the requested level, whatever level renders.
+    let requested_frame = output_frame(requested);
+    let (width, height) = resize.dimensions(requested_frame.width, requested_frame.height)?;
+    let level = if options.web_level && !matches!(resize, crate::Resize::None) {
+        web_level(output_frame, (width, height)).max(requested)
+    } else {
+        requested
+    };
+    let frame = output_frame(level);
     // Resident resize is a downsampling path. Enlargements (up to the public
     // 100 MP limit) retain the bounded, row-parallel CPU resampler rather than
     // allocating an expanded GPU band that could exceed a device buffer limit.
@@ -195,24 +288,6 @@ pub(crate) fn render_with_lens(
         return Ok(None);
     }
     let destination = engine_api::tile::Extent::new(width, height);
-    let resizing = destination != frame;
-    // Scratch per output row: the resident tile graph (~256 B/px), plus the
-    // map's assembled input, mapped band and its encoded copy.
-    let per_pixel = if lens.map.is_some() { 384 } else { 256 };
-    let row_bytes = (developed.width.max(frame.width) as usize)
-        .saturating_mul(per_pixel)
-        .saturating_mul((scale * scale) as usize);
-    let budget = budget.min(BUDGET);
-    let rows = (budget / row_bytes.max(1) / TILE_SIZE as usize).max(1);
-    let band = rows
-        .saturating_mul(TILE_SIZE as usize)
-        .min(frame.height as usize) as u32;
-    let tone = &recipe.settings.tone;
-    // Global Dehaze statistics / local-tone barriers cannot be independently
-    // evaluated per band. Preserve correctness via the scalar fallback.
-    if band < frame.height && (tone.texture != 0. || tone.clarity != 0. || tone.dehaze != 0.) {
-        return Ok(None);
-    }
     let mut registry = color_mgmt::Registry::new();
     let target = codec::profile(&mut registry, space)?;
     let output = Arc::new(GpuManagedOutput::new(
@@ -229,6 +304,301 @@ pub(crate) fn render_with_lens(
         cache_budget_bytes: 0,
         ..Default::default()
     };
+    let budget = budget.min(BUDGET);
+    let job = Job {
+        raw: &raw,
+        settings: &settings,
+        lens: &lens,
+        level,
+        frame,
+        destination,
+        budget,
+        cancel,
+    };
+    if options.bands && !has_presence(&recipe.settings.tone) {
+        let in_flight = options.in_flight.max(1);
+        // Pipelines compile once per export, not once per band.
+        // Each band in flight may allocate its share of the device budget;
+        // `budget` (tests pass tiny ones) only sizes the bands.
+        let base = ManagedRenderer::new_export_budgeted(
+            output.clone(),
+            config.clone(),
+            None,
+            (BUDGET / in_flight) as u64,
+        );
+        match render_bands(&job, &base, in_flight) {
+            Ok(Some(rgb)) => {
+                LAST_PATH.set("bands");
+                return Ok(Some(rgb));
+            }
+            Ok(None) => trace_note("band renderer declined; pyramid tiles"),
+            Err(EngineError::Unsupported { what }) => trace_note(&format!(
+                "band renderer unsupported ({what}); pyramid tiles"
+            )),
+            Err(e) => return Err(e),
+        }
+    }
+    let base = ManagedRenderer::new_export_budgeted(output, config, None, BUDGET as u64);
+    LAST_PATH.set("tiles");
+    render_tiles(&job, &base)
+}
+
+thread_local! {
+    /// The renderer the last GPU export on this thread used ("bands" or
+    /// "tiles"): tests assert which path produced their pixels.
+    pub(crate) static LAST_PATH: std::cell::Cell<&'static str> = const { std::cell::Cell::new("") };
+}
+
+fn has_presence(tone: &engine_api::recipe::settings::ToneSettings) -> bool {
+    tone.texture != 0. || tone.clarity != 0. || tone.dehaze != 0.
+}
+
+/// One export's resolved inputs, shared by its band workers.
+struct Job<'a> {
+    raw: &'a RawImage,
+    settings: &'a engine_api::recipe::DevelopSettings,
+    lens: &'a pipeline_cpu::LensPlan,
+    level: u8,
+    /// The rendered output frame at `level` (mapped with a lens map).
+    frame: engine_api::tile::Extent,
+    destination: engine_api::tile::Extent,
+    budget: usize,
+    cancel: &'a CancellationToken,
+}
+
+/// Full-width bands, `in_flight` at a time (each on its own thread with its
+/// share of the budget): one encodes and uploads while another executes and
+/// reads back. Returns None when the recipe needs the tiled path.
+fn render_bands(
+    job: &Job<'_>,
+    base: &ManagedRenderer,
+    in_flight: usize,
+) -> EngineResult<Option<image::Rgb32FImage>> {
+    let started = std::time::Instant::now();
+    let (frame, destination) = (job.frame, job.destination);
+    let resizing = destination != frame;
+    // Output (post-resize) rows per band: the largest count whose worst band
+    // fits this band's share of the budget.
+    let share = (job.budget / in_flight).max(1);
+    let developed = job.raw.level_extent(job.level);
+    let per_pixel = band_bytes_per_pixel(job.level);
+    let source_rows = |top: u32, rows: u32| -> EngineResult<std::ops::Range<u32>> {
+        if resizing {
+            let rect = pipeline_gpu::ExportResize {
+                source: frame,
+                destination,
+                top,
+                rows,
+            }
+            .support_rect()?;
+            Ok(rect.y..rect.y + rect.height)
+        } else {
+            Ok(top..top + rows)
+        }
+    };
+    // Developed rows each 16-row block of the output frame reads through the
+    // map (evaluated once per block, in parallel): a band's are the union.
+    const BLOCK: u32 = 16;
+    let blocks: Option<Vec<(u32, u32)>> = job.lens.map.as_ref().map(|map| {
+        use rayon::prelude::*;
+        (0..frame.height.div_ceil(BLOCK))
+            .into_par_iter()
+            .map(|b| {
+                let rows = b * BLOCK..((b + 1) * BLOCK).min(frame.height);
+                map.source_rows(rows, developed.width, developed.height)
+            })
+            .collect()
+    });
+    let developed_rows = |rows: std::ops::Range<u32>| -> usize {
+        match &blocks {
+            Some(blocks) => {
+                let span = &blocks[(rows.start / BLOCK) as usize
+                    ..(rows.end.div_ceil(BLOCK) as usize).min(blocks.len())];
+                let first = span.iter().map(|b| b.0).min().unwrap_or(0);
+                let end = span.iter().map(|b| b.1).max().unwrap_or(0);
+                end.saturating_sub(first) as usize
+            }
+            None => rows.len(),
+        }
+    };
+    let fits = |top: u32, rows: u32| -> EngineResult<bool> {
+        let source = source_rows(top, rows)?;
+        let developed_rows = developed_rows(source.clone());
+        let mapped = if blocks.is_some() {
+            source.len() * frame.width as usize * MAP_BYTES_PER_PIXEL
+        } else {
+            0
+        };
+        Ok(
+            developed_rows * developed.width as usize * per_pixel + mapped <= share
+                && developed_rows * developed.width as usize <= MAX_BAND_PIXELS,
+        )
+    };
+    // Greedy bands: each takes the most output rows (a multiple of 16) that
+    // still fits, so bands where the map spreads rows (edges of a distortion
+    // correction) are shorter than those in the middle.
+    let mut bands = Vec::new();
+    let mut top = 0;
+    while top < destination.height {
+        let left = destination.height - top;
+        let (mut lo, mut hi) = (1u32, left.div_ceil(16));
+        if !fits(top, 16.min(left))? {
+            hi = 1;
+        }
+        while lo < hi {
+            let mid = (lo + hi).div_ceil(2);
+            if fits(top, (mid * 16).min(left))? {
+                lo = mid;
+            } else {
+                hi = mid - 1;
+            }
+        }
+        let rows = (lo * 16).min(left);
+        bands.push((top, rows));
+        top += rows;
+    }
+    trace(&format!("band plan ({} bands)", bands.len()), started);
+    let row_len = destination.width as usize * 3;
+    let mut rgb = image::Rgb32FImage::new(destination.width, destination.height);
+    let mut slices = Vec::with_capacity(bands.len());
+    let mut rest: &mut [f32] = &mut rgb;
+    for &(top, rows) in &bands {
+        let (band, tail) = rest.split_at_mut(rows as usize * row_len);
+        slices.push((top, band));
+        rest = tail;
+    }
+    let queue = Mutex::new(slices.into_iter());
+    let unsupported = std::sync::atomic::AtomicBool::new(false);
+    // Any worker's failure stops the others at their next band.
+    let stop = std::sync::atomic::AtomicBool::new(false);
+    let waited = Mutex::new(std::time::Duration::ZERO);
+    let band_worker = || -> EngineResult<()> {
+        // A worker's share of the budget covers its band in flight and the
+        // idle buffers it retains for its next band, so it is held from the
+        // worker's first band to its last (declared first: dropped last).
+        let mut reservation = None;
+        // Each worker recycles its own bands' buffers.
+        let pool = base.export_band(None);
+        loop {
+            if stop.load(std::sync::atomic::Ordering::Relaxed) {
+                return Ok(());
+            }
+            let Some((top, dst)) = queue.lock().unwrap_or_else(|e| e.into_inner()).next() else {
+                return Ok(());
+            };
+            job.cancel.check()?;
+            let rows = (dst.len() / row_len) as u32;
+            // Export-priority: never start a band while interactive work waits.
+            let yielded = jobs::yield_to_interactive(
+                job.cancel,
+                pipeline_gpu::EXPORT_QUIET,
+                pipeline_gpu::EXPORT_MAX_YIELD,
+            )?;
+            *waited.lock().unwrap_or_else(|e| e.into_inner()) += yielded;
+            let band_started = std::time::Instant::now();
+            if reservation.is_none() {
+                reservation = Some(Reservation::acquire(share, job.cancel)?);
+            }
+            let resize = resizing.then_some(pipeline_gpu::ExportResize {
+                source: frame,
+                destination,
+                top,
+                rows,
+            });
+            let source = source_rows(top, rows)?;
+            let renderer = pool.export_band_recycling(resize);
+            let supported = renderer.render_export_rows(
+                job.raw,
+                job.settings,
+                job.level,
+                source.clone(),
+                Some(job.lens),
+                dst,
+                job.cancel,
+            )?;
+            if !supported {
+                unsupported.store(true, std::sync::atomic::Ordering::Relaxed);
+                stop.store(true, std::sync::atomic::Ordering::Relaxed);
+                return Ok(());
+            }
+            if std::env::var_os("TESSERA_EXPORT_TRACE").is_some() {
+                let stats = renderer.stats();
+                eprintln!(
+                    "EXPORT_TRACE band rows={}..{} yielded={:.1} ms render={:.1} ms scratch={:.1} MiB ({:.0} B/px) dispatches={}",
+                    source.start,
+                    source.end,
+                    yielded.as_secs_f64() * 1e3,
+                    band_started.elapsed().as_secs_f64() * 1e3,
+                    stats.last_resident_allocated_bytes as f64 / (1 << 20) as f64,
+                    stats.last_resident_allocated_bytes as f64
+                        / (f64::from(frame.width) * f64::from(source.end - source.start)),
+                    stats.last_resident_dispatches
+                );
+            }
+        }
+    };
+    let results: Vec<EngineResult<()>> = std::thread::scope(|scope| {
+        let worker = || {
+            let result = band_worker();
+            if result.is_err() {
+                stop.store(true, std::sync::atomic::Ordering::Relaxed);
+            }
+            result
+        };
+        let handles: Vec<_> = (0..in_flight).map(|_| scope.spawn(worker)).collect();
+        handles
+            .into_iter()
+            .map(|h| {
+                h.join()
+                    .unwrap_or_else(|_| Err(EngineError::internal("export band worker panicked")))
+            })
+            .collect()
+    });
+    // Cancellation first, then any other failure (e.g. an unsupported band).
+    job.cancel.check()?;
+    for result in results {
+        result?;
+    }
+    if unsupported.into_inner() {
+        return Ok(None);
+    }
+    trace("GPU bands (incl. yields)", started);
+    let waited = waited.into_inner().unwrap_or_else(|e| e.into_inner());
+    if !waited.is_zero() {
+        trace(
+            "  of which yielding before bands",
+            std::time::Instant::now() - waited,
+        );
+    }
+    Ok(Some(rgb))
+}
+
+/// The M2-21b pyramid-tile path (Texture/Clarity/Dehaze in one band, and
+/// the fallback when the band renderer declines).
+fn render_tiles(job: &Job<'_>, base: &ManagedRenderer) -> EngineResult<Option<image::Rgb32FImage>> {
+    let (frame, destination) = (job.frame, job.destination);
+    let (width, height) = (destination.width, destination.height);
+    let resizing = destination != frame;
+    let level = job.level;
+    let developed = job.raw.level_extent(level);
+    let scale = 1u32 << level;
+    // Scratch per output row: the resident tile graph (~256 B/px), plus the
+    // map's assembled input, mapped band and its encoded copy.
+    let per_pixel = if job.lens.map.is_some() { 384 } else { 256 };
+    let row_bytes = (developed.width.max(frame.width) as usize)
+        .saturating_mul(per_pixel)
+        .saturating_mul((scale * scale) as usize);
+    let budget = job.budget;
+    let rows = (budget / row_bytes.max(1) / TILE_SIZE as usize).max(1);
+    let band = rows
+        .saturating_mul(TILE_SIZE as usize)
+        .min(frame.height as usize) as u32;
+    let tone = &job.settings.tone;
+    // Global Dehaze statistics / local-tone barriers cannot be independently
+    // evaluated per band. Preserve correctness via the scalar fallback.
+    if band < frame.height && has_presence(tone) {
+        return Ok(None);
+    }
     let output_band = if resizing {
         (u64::from(band) * u64::from(height) / u64::from(frame.height))
             .max(1)
@@ -238,20 +608,18 @@ pub(crate) fn render_with_lens(
     };
     let started = std::time::Instant::now();
     let mut waited = std::time::Duration::ZERO;
-    // Pipelines compile once per export, not once per band.
-    let base = ManagedRenderer::new_export_budgeted(output, config, None, BUDGET as u64);
     let mut rgb = image::Rgb32FImage::new(width, height);
     for top in (0..height).step_by(output_band as usize) {
-        cancel.check()?;
+        job.cancel.check()?;
         // Export-priority: never start a band while interactive work waits.
         let yielded = jobs::yield_to_interactive(
-            cancel,
+            job.cancel,
             pipeline_gpu::EXPORT_QUIET,
             pipeline_gpu::EXPORT_MAX_YIELD,
         )?;
         waited += yielded;
         let band_started = std::time::Instant::now();
-        let reservation = Reservation::acquire(budget, cancel)?;
+        let reservation = Reservation::acquire(budget, job.cancel)?;
         let (renderer, rect) = if resizing {
             let request = pipeline_gpu::ExportResize {
                 source: frame,
@@ -266,7 +634,14 @@ pub(crate) fn render_with_lens(
                 PixelRect::new(0, top, frame.width, band.min(frame.height - top)),
             )
         };
-        let tiles = match renderer.render_export_lens(&raw, &settings, level, rect, &lens, cancel) {
+        let tiles = match renderer.render_export_lens(
+            job.raw,
+            job.settings,
+            level,
+            rect,
+            job.lens,
+            job.cancel,
+        ) {
             Ok(Some(tiles)) => tiles,
             Ok(None) | Err(EngineError::Unsupported { .. }) => return Ok(None),
             Err(e) => return Err(e),
@@ -299,8 +674,8 @@ pub(crate) fn render_with_lens(
             }
         }
     }
-    cancel.check()?;
-    trace("GPU bands (incl. yields)", started);
+    job.cancel.check()?;
+    trace("GPU tiles (incl. yields)", started);
     if !waited.is_zero() {
         trace(
             "  of which yielding before bands",
@@ -426,9 +801,11 @@ mod tests {
             let whole = render(&image, &recipe, ColorSpace::Srgb, 1, &cancel, usize::MAX)
                 .unwrap()
                 .unwrap_or_else(|| panic!("{name}: must stay on GPU"));
+            assert_eq!(LAST_PATH.get(), "bands", "{name}");
             let bands = render(&image, &recipe, ColorSpace::Srgb, 1, &cancel, 1)
                 .unwrap()
                 .unwrap();
+            assert_eq!(LAST_PATH.get(), "bands", "{name}");
             let (linear, codes) = compare(&cpu, &whole);
             eprintln!("LENS {name}: linear={linear} codes={codes}");
             assert!(linear <= 2e-3 && codes <= 1.0, "{name}: {linear} {codes}");
@@ -550,6 +927,7 @@ mod tests {
                 )
                 .unwrap()
                 .expect("fixture must use GPU");
+                assert_eq!(LAST_PATH.get(), "bands", "{name} {label}");
                 let (linear, codes) = compare(&cpu, &gpu);
                 eprintln!("PRECISION {name} {label} linear_max={linear} codes_max={codes}");
                 assert!(
@@ -664,12 +1042,9 @@ mod tests {
             assert!(seam < 1e-5, "band seam {seam}");
             let mode = crate::Resize::LongEdge(213);
             let reference = crate::filter::resize(cpu, mode, &cancel).unwrap();
-            let resized = render_resized(&image, &recipe, space, 1, &cancel, usize::MAX, mode)
-                .unwrap()
-                .unwrap();
-            let banded = render_resized(&image, &recipe, space, 1, &cancel, 1, mode)
-                .unwrap()
-                .unwrap();
+            // Full-resolution development, resized on the GPU: the gate.
+            let resized = render_opts(&image, &recipe, space, usize::MAX, mode, false);
+            let banded = render_opts(&image, &recipe, space, 1, mode, false);
             assert_eq!(reference.dimensions(), resized.dimensions());
             let error = reference
                 .as_raw()
@@ -685,6 +1060,221 @@ mod tests {
                 .map(|(a, b)| (a - b).abs())
                 .fold(0.0f32, f32::max);
             assert!(seam < 1e-5, "resized band seam {seam}");
+            // The Web-scale path develops at the covering pyramid level: its
+            // bands agree with each other; its distance from the reference
+            // is a documented approximation (see five_fixture_web_scale).
+            let web = render_opts(&image, &recipe, space, usize::MAX, mode, true);
+            let web_bands = render_opts(&image, &recipe, space, 1, mode, true);
+            assert_eq!(web.dimensions(), reference.dimensions());
+            let seam = web
+                .as_raw()
+                .iter()
+                .zip(web_bands.as_raw())
+                .map(|(a, b)| (a - b).abs())
+                .fold(0.0f32, f32::max);
+            assert!(seam < 1e-5, "web-scale band seam {seam}");
         }
+    }
+
+    /// The row-band renderer reproduces the pyramid-tile renderer (same
+    /// operators, different dispatch granularity) for Bayer and X-Trans,
+    /// a cropped active area, colour-reconstructing highlights, position-
+    /// dependent effects (vignette, grain) and a lens map, whole or in
+    /// 16-row bands, at levels 0 and 1, resized or not.
+    #[test]
+    fn band_renderer_matches_tile_renderer() {
+        let with = |edit: fn(&mut engine_api::recipe::DevelopSettings)| {
+            let mut recipe = resident_recipe();
+            recipe
+                .edit(engine_api::recipe::EditMeta::user("bands", 0), edit)
+                .unwrap();
+            recipe
+        };
+        let recipes = [
+            ("neutral", resident_recipe()),
+            (
+                "effects",
+                with(|s| {
+                    s.effects.vignette.amount = -30.;
+                    s.effects.grain.amount = 40.;
+                    s.tone.exposure = 0.7;
+                    s.linearize.highlight_reconstruction =
+                        engine_api::recipe::settings::HighlightReconstruction::ReconstructColor;
+                }),
+            ),
+            ("map", with(|s| s.lens.manual_distortion = 25.)),
+        ];
+        let sources = [
+            (
+                "bayer",
+                common::synthetic(501, 610, 452, common::RGGB, [5, 3, 598, 441]),
+            ),
+            (
+                "xtrans",
+                common::synthetic(502, 612, 450, common::xtrans(), [6, 0, 600, 444]),
+            ),
+        ];
+        let cancel = CancellationToken::new();
+        for (source, raw) in &sources {
+            let image = ExportImage {
+                source: RenderSource::Cfa {
+                    image: raw.cfa(),
+                    metadata: raw.metadata(),
+                },
+                name: "bands",
+                sequence: 1,
+                date: "",
+                metadata: None,
+            };
+            for (name, recipe) in &recipes {
+                for scale in [1, 2] {
+                    for resize in [crate::Resize::None, crate::Resize::LongEdge(190)] {
+                        let run = |bands: bool, budget: usize| {
+                            let rgb = render_with_options(
+                                &image,
+                                recipe,
+                                ColorSpace::Srgb,
+                                scale,
+                                &cancel,
+                                budget,
+                                resize,
+                                None,
+                                Options {
+                                    bands,
+                                    web_level: false,
+                                    in_flight: BANDS_IN_FLIGHT,
+                                },
+                            )
+                            .unwrap()
+                            .expect("stays on GPU");
+                            assert_eq!(
+                                LAST_PATH.get(),
+                                if bands { "bands" } else { "tiles" },
+                                "{source} {name}"
+                            );
+                            rgb
+                        };
+                        let tiles = run(false, usize::MAX);
+                        for budget in [usize::MAX, 1] {
+                            let bands = run(true, budget);
+                            assert_eq!(tiles.dimensions(), bands.dimensions());
+                            let error = tiles
+                                .as_raw()
+                                .iter()
+                                .zip(bands.as_raw())
+                                .map(|(a, b)| (a - b).abs())
+                                .fold(0.0f32, f32::max);
+                            assert!(
+                                error < 1e-5,
+                                "{source} {name} scale={scale} {resize:?} budget={budget}: {error}"
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn render_opts(
+        image: &ExportImage<'_>,
+        recipe: &Recipe,
+        space: ColorSpace,
+        budget: usize,
+        resize: crate::Resize,
+        web_level: bool,
+    ) -> image::Rgb32FImage {
+        let rgb = render_with_options(
+            image,
+            recipe,
+            space,
+            1,
+            &CancellationToken::new(),
+            budget,
+            resize,
+            None,
+            Options {
+                bands: true,
+                web_level,
+                in_flight: BANDS_IN_FLIGHT,
+            },
+        )
+        .unwrap()
+        .expect("stays on GPU");
+        assert_eq!(LAST_PATH.get(), "bands");
+        rgb
+    }
+
+    /// Error statistics against a reference: (max linear, max 8-bit codes,
+    /// share of samples more than one code apart, 99.9th percentile codes).
+    fn error_stats(cpu: &image::Rgb32FImage, gpu: &image::Rgb32FImage) -> (f32, f32, f64, f32) {
+        let (linear, codes) = compare(cpu, gpu);
+        let mut diffs: Vec<f32> = cpu
+            .as_raw()
+            .iter()
+            .zip(gpu.as_raw())
+            .map(|(a, b)| {
+                ((a.clamp(0., 1.) * 255.).round() - (b.clamp(0., 1.) * 255.).round()).abs()
+            })
+            .collect();
+        let over = diffs.iter().filter(|d| **d > 1.0).count() as f64 / diffs.len() as f64;
+        let k = ((diffs.len() as f64 * 0.999) as usize).min(diffs.len() - 1);
+        let (_, p999, _) = diffs.select_nth_unstable_by(k, f32::total_cmp);
+        (linear, codes, over, *p999)
+    }
+
+    /// docs/11 §1.3 gate at Web scale (Resize::LongEdge(2048)): the GPU
+    /// export against the CPU reference developed at full resolution and
+    /// resized by the CPU exporter. Development at full resolution must meet
+    /// the full-chain tolerance; the pyramid-level (Web-scale) development is
+    /// measured and reported.
+    #[test]
+    #[ignore = "Web-scale precision on all five real RAW fixtures"]
+    fn five_fixture_web_scale_tolerance() {
+        let root = std::path::PathBuf::from(
+            std::env::var_os("PIPELINE_RAW_FIXTURES").expect("fixture directory required"),
+        );
+        let mode = crate::Resize::LongEdge(2048);
+        let cancel = CancellationToken::new();
+        let mut failures = Vec::new();
+        for name in [
+            "canon-cr3.CR3",
+            "sony-arw.ARW",
+            "nikon-nef.NEF",
+            "fuji-raf.RAF",
+            "sample.dng",
+        ] {
+            let raw = RawImage::open(ImageId(1), root.join(name)).unwrap();
+            let image = ExportImage {
+                source: RenderSource::Cfa {
+                    image: raw.cfa(),
+                    metadata: raw.metadata(),
+                },
+                name,
+                sequence: 1,
+                date: "",
+                metadata: None,
+            };
+            let recipe = Recipe::default();
+            let cpu = crate::render_scaled_cpu(&image, &recipe, ColorSpace::Srgb, 1).unwrap();
+            let reference = crate::filter::resize(cpu, mode, &cancel).unwrap();
+            for web_level in [false, true] {
+                let gpu = render_opts(&image, &recipe, ColorSpace::Srgb, BUDGET, mode, web_level);
+                assert_eq!(gpu.dimensions(), reference.dimensions());
+                let (linear, codes, over, p999) = error_stats(&reference, &gpu);
+                eprintln!(
+                    "WEBGATE {name} {} linear_max={linear} codes_max={codes} over_1_code={:.4}% p99.9_codes={p999}",
+                    if web_level {
+                        "pyramid-level"
+                    } else {
+                        "full-res"
+                    },
+                    over * 100.
+                );
+                if !web_level && !(linear <= 2e-3 && codes <= 1.0) {
+                    failures.push(format!("{name}: linear={linear} codes={codes}"));
+                }
+            }
+        }
+        assert!(failures.is_empty(), "{failures:?}");
     }
 }

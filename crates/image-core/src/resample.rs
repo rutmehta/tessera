@@ -11,7 +11,7 @@ use engine_api::{EngineError, EngineResult};
 /// Maps a possibly out-of-range coordinate to the nearest in-range one with
 /// the same CFA phase (period 2 Bayer, 6 X-Trans, 1 RGB). Identical to the
 /// rule in `pipeline_cpu::Image::tile`.
-fn clamp_phase(v: i64, n: u32, period: u32) -> u32 {
+pub(crate) fn clamp_phase(v: i64, n: u32, period: u32) -> u32 {
     if v >= 0 && v < i64::from(n) {
         return v as u32;
     }

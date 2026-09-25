@@ -37,6 +37,19 @@ fn dehaze_statistics_key(r: &Resolved<'_>, level: u8) -> engine_api::stage::Memo
     key
 }
 
+/// The in-frame rows (of `n`) that a gather of `rows` with `halo` reads,
+/// folding out-of-frame positions to the same `period` phase.
+fn fold_rows(rows: std::ops::Range<u32>, halo: u16, period: u32, n: u32) -> std::ops::Range<u32> {
+    let halo = i64::from(halo);
+    let (mut first, mut last) = (u32::MAX, 0);
+    for v in i64::from(rows.start) - halo..i64::from(rows.end) + halo {
+        let y = crate::resample::clamp_phase(v, n, period);
+        first = first.min(y);
+        last = last.max(y);
+    }
+    first..last + 1
+}
+
 /// Gather halo for lateral CA: the largest displacement plus bilinear support.
 fn ca_halo(plan: &pipeline_cpu::CaPlan, sensor: Extent) -> EngineResult<u16> {
     let max = plan
@@ -155,6 +168,194 @@ impl Renderer {
         }
         drop(mapped);
         Ok(Some(batch.finish(tiles, true, None, cancel)?.tiles))
+    }
+
+    /// Export rows `rows` of the output frame at `level` (the mapped frame
+    /// with a lens map, [`Renderer::lens_output_extent`]) rendered as
+    /// full-width bands, one dispatch per stage instead of one per 256² tile,
+    /// read back once as interleaved RGB into `dst` (after the backend's
+    /// export resize, if configured). Returns false, without GPU work, when
+    /// the backend or recipe needs the tiled path ([`Renderer::render_resident_lens`]):
+    /// Texture/Clarity/Dehaze (whole-level barrier), or no band support.
+    /// Stages and their arithmetic are those of the tiled path; only the
+    /// scheduling granularity differs, so results match it sample for sample
+    /// up to GPU reassociation.
+    #[allow(clippy::too_many_arguments)]
+    pub fn render_export_rows(
+        &self,
+        image: &RawImage,
+        settings: &DevelopSettings,
+        level: u8,
+        rows: std::ops::Range<u32>,
+        lens: Option<&pipeline_cpu::LensPlan>,
+        dst: &mut [f32],
+        cancel: &CancellationToken,
+    ) -> EngineResult<bool> {
+        cancel.check()?;
+        self.validate_settings(settings)?;
+        let mut r = self.resolve(image, settings)?;
+        r.lens = lens.filter(|l| !l.is_identity());
+        if level > MAX_LEVEL
+            || has_presence(&settings.tone)
+            || !self.supports_resident(&r, Some(level))
+            || self.is_adobe()
+        {
+            return Ok(false);
+        }
+        let Some(mut batch) = self.ops.begin_resident() else {
+            return Ok(false);
+        };
+        if !batch.supports_bands() {
+            return Ok(false);
+        }
+        let frame = image.level_extent(level);
+        let band = match r.lens.and_then(|l| l.map.as_ref()) {
+            Some(map) => {
+                let (w, h) = map.output_extent(frame.width, frame.height);
+                if rows.is_empty() || rows.end > h {
+                    return Err(engine_api::EngineError::invalid(
+                        "export rows",
+                        "outside the mapped frame",
+                    ));
+                }
+                let (first, end) = map.source_rows(rows.clone(), frame.width, frame.height);
+                let developed = self.develop_band(
+                    &r,
+                    level,
+                    first..end,
+                    RenderOutput::SceneLinear,
+                    cancel,
+                    &mut *batch,
+                )?;
+                let mapped = batch.remap_rows(
+                    frame,
+                    &developed,
+                    (first, end),
+                    map,
+                    Extent::new(w, h),
+                    rows.clone(),
+                )?;
+                drop(developed);
+                match RenderOutput::Display.display_op(settings.output.gamut_mapping) {
+                    Some(display) => batch.run_at(&display, &mapped, (0, rows.start))?,
+                    None => mapped,
+                }
+            }
+            None => {
+                if rows.is_empty() || rows.end > frame.height {
+                    return Err(engine_api::EngineError::invalid(
+                        "export rows",
+                        "outside the level frame",
+                    ));
+                }
+                self.develop_band(&r, level, rows, RenderOutput::Display, cancel, &mut *batch)?
+            }
+        };
+        cancel.check()?;
+        batch.finish_rows(band, dst, cancel)?;
+        Ok(true)
+    }
+
+    /// Full-width rows `rows` of the level frame, developed through
+    /// `output`'s display op (Tone/Color/Effects included), as one band. The
+    /// sensor stage runs on the sensor rows the band needs: each stage's
+    /// input is the previous stage's band gathered once with its halo.
+    fn develop_band(
+        &self,
+        r: &Resolved<'_>,
+        level: u8,
+        rows: std::ops::Range<u32>,
+        output: RenderOutput,
+        cancel: &CancellationToken,
+        batch: &mut dyn ResidentBatch,
+    ) -> EngineResult<crate::resident::ResidentTile> {
+        let frame = r.image.level_extent(level);
+        let sensor = r.sensor;
+        let detail_halo = pipeline_cpu::detail_halo(&r.settings.detail);
+        // Rows each stage produces, from the output back to the sensor.
+        let balanced = fold_rows(rows.clone(), detail_halo, 1, frame.height);
+        let [_, top, _, h] = r.crop;
+        let scale = 1u32 << level;
+        let resampled = top + balanced.start * scale..top + (balanced.end * scale).min(h);
+        let ca = r.lens.and_then(|l| l.ca.as_ref());
+        let ca_halo = match ca {
+            Some(plan) => ca_halo(plan, sensor)?,
+            None => 0,
+        };
+        let demosaiced = fold_rows(resampled.clone(), ca_halo, 1, sensor.height);
+        let linear = fold_rows(demosaiced.clone(), r.dem_halo, r.period, sensor.height);
+        let raw = fold_rows(linear.clone(), r.lin_halo, r.period, sensor.height);
+        cancel.check()?;
+        let pixels = r.image.cfa().pyramid().pixels();
+        let t = batch.upload_rows(pixels, sensor.width, raw.clone())?;
+        let t = batch.gather_rows(sensor, &t, raw.start, linear.clone(), r.lin_halo, r.period)?;
+        let t = batch.run_at(
+            &Op::Highlights {
+                cfa: r.cfa,
+                mode: r.highlights,
+            },
+            &t,
+            (0, linear.start),
+        )?;
+        let t = batch.gather_rows(
+            sensor,
+            &t,
+            linear.start,
+            demosaiced.clone(),
+            r.dem_halo,
+            r.period,
+        )?;
+        let t = batch.run_at(
+            &Op::Demosaic {
+                cfa: r.cfa,
+                algorithm: r.algorithm,
+            },
+            &t,
+            (0, demosaiced.start),
+        )?;
+        cancel.check()?;
+        let (t, t_row) = match ca {
+            Some(plan) => {
+                let t = batch.gather_rows(
+                    sensor,
+                    &t,
+                    demosaiced.start,
+                    resampled.clone(),
+                    ca_halo,
+                    1,
+                )?;
+                (
+                    batch.lateral_ca_at(&t, (0, resampled.start), sensor, plan)?,
+                    resampled.start,
+                )
+            }
+            None => (t, demosaiced.start),
+        };
+        let t = batch.resample_rows(r.crop, level, balanced.clone(), &t, t_row)?;
+        let origin = (0, balanced.start);
+        let t = batch.run_at(&Op::Matrix(r.profile), &t, origin)?;
+        let t = batch.run_at(&Op::Matrix(r.wb), &t, origin)?;
+        let t = match r.lens.and_then(|l| l.vignette.as_ref()) {
+            Some(plan) => batch.lens_gain_at(&t, origin, frame, plan)?,
+            None => t,
+        };
+        cancel.check()?;
+        let t = if detail_halo > 0 {
+            let t = batch.gather_rows(frame, &t, balanced.start, rows.clone(), detail_halo, 1)?;
+            batch.run_at(&Op::Detail(&r.settings.detail), &t, (0, rows.start))?
+        } else {
+            // Disabled Detail still validates all controls (see develop_tiles).
+            batch.run_at(&Op::Detail(&r.settings.detail), &t, (0, rows.start))?
+        };
+        let mut chain = vec![Op::Tone(&r.settings.tone), Op::ToneExtra(&r.settings.tone)];
+        chain.extend([
+            Op::Color(&r.settings.color),
+            Op::EffectsInCrop(&r.settings.effects, frame, &r.settings.geometry.crop),
+        ]);
+        if let Some(display) = output.display_op(r.settings.output.gamut_mapping) {
+            chain.push(display);
+        }
+        batch.run_chain_at(&chain, &t, (0, rows.start))
     }
 
     /// Output extent at `level` of a lens plan's composed map (the active

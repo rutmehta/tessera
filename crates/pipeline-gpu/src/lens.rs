@@ -44,6 +44,7 @@ impl Batch<'_> {
     pub(super) fn lateral_ca_impl(
         &mut self,
         tile: &ResidentTile,
+        (ox, oy): (u32, u32),
         frame: Extent,
         plan: &CaPlan,
     ) -> EngineResult<ResidentTile> {
@@ -51,7 +52,6 @@ impl Batch<'_> {
         if l.channels != 3 {
             return Err(EngineError::invalid("lateral CA", "RGB tile required"));
         }
-        let (ox, oy) = tile.coord.pixel_origin(TILE_SIZE);
         let layout = TileLayout { halo: 0, ..l };
         let mut p = vec![
             l.extent.width,
@@ -77,6 +77,7 @@ impl Batch<'_> {
     pub(super) fn lens_gain_impl(
         &mut self,
         tile: &ResidentTile,
+        (ox, oy): (u32, u32),
         frame: Extent,
         plan: &VignettePlan,
     ) -> EngineResult<ResidentTile> {
@@ -87,7 +88,6 @@ impl Batch<'_> {
                 "halo-free RGB tile required",
             ));
         }
-        let (ox, oy) = tile.coord.pixel_origin(TILE_SIZE);
         let gains = plan.profile.as_ref().map_or(&[][..], |p| &p.embedded[..]);
         if gains.len() > pipeline_cpu::MAX_EMBEDDED {
             return Err(EngineError::Unsupported {
@@ -159,6 +159,42 @@ impl Batch<'_> {
             1,
             tiles,
         )?;
+        self.remap_band(frame, &src, (first, end), plan, output, rows, coord)
+    }
+
+    /// The composed map from one halo-free band holding exactly input rows
+    /// `[first, end)` of `frame` (full width).
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn remap_band(
+        &mut self,
+        frame: Extent,
+        src: &ResidentTile,
+        (first, end): (u32, u32),
+        plan: &MapPlan,
+        output: Extent,
+        rows: std::ops::Range<u32>,
+        coord: TileCoord,
+    ) -> EngineResult<ResidentTile> {
+        if first >= end || end > frame.height || rows.is_empty() || rows.end > output.height {
+            return Err(EngineError::invalid("lens map", "invalid row ranges"));
+        }
+        let (w, h) = plan.output_extent(frame.width, frame.height);
+        if (w, h) != (output.width, output.height) {
+            return Err(EngineError::invalid("lens map", "output extent mismatch"));
+        }
+        let lens = plan.lens.as_ref();
+        if lens.is_some_and(|l| l.embedded.len() > pipeline_cpu::MAX_EMBEDDED) {
+            return Err(EngineError::Unsupported {
+                what: "embedded lens warps".into(),
+            });
+        }
+        let l = src.layout;
+        if l.halo != 0 || l.channels != 3 || l.extent != Extent::new(frame.width, end - first) {
+            return Err(EngineError::invalid(
+                "lens map",
+                "source band must hold exactly the input rows",
+            ));
+        }
         let layout = TileLayout {
             extent: Extent::new(w, rows.len() as u32),
             halo: 0,
@@ -207,9 +243,8 @@ impl Batch<'_> {
             p.extend(bits(&[warp.radius]));
         }
         let dst = self.buffer(layout.len() * 4)?;
-        let src_buffer = self.storage(&src)?.clone();
+        let src_buffer = self.storage(src)?.clone();
         self.lens_dispatch(2, &src_buffer, &dst, &p, layout.plane_len() as u32);
-        drop(src);
         Ok(self.tile(coord, layout, dst))
     }
 }
