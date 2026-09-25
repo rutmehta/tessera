@@ -17,6 +17,21 @@ Decided 2026-09-25 after a review of how Adobe, Capture One, DxO, Affinity, Pixe
 
 JPEG XL: decode with `jxl-oxide` (MIT/Apache), encode through our own thin bindings to libjxl (BSD-3), which is what Adobe's DNG SDK ships.
 
+## Optional Lensfun data pack
+
+Lensfun's calibration XML database is CC-BY-SA-3.0, not Apache-2.0.
+It is not compiled into or bundled with the engine. Users may download the
+upstream data pack separately from https://lensfun.github.io/ and load its XML
+through `lens::ProfileDatabase::from_lensfun`. Attribution: Lensfun contributors,
+https://github.com/lensfun/lensfun, licensed under
+https://creativecommons.org/licenses/by-sa/3.0/ . Keep the upstream copyright,
+attribution and license notices with any redistributed pack. Modified calibration
+data must retain attribution, identify changes and be distributed under the same
+license. The engine implements its own reader and does not link Lensfun code.
+Adobe `.lcp` files are user-supplied only; no Adobe profile assets are shipped or
+downloaded automatically. User-created JSON calibration profiles are stored
+separately from third-party packs and retain their source provenance obligations.
+
 ## Why not GPL
 darktable and RawTherapee are GPL-3 and it works for them, but: GPL has blocked Mac App Store distribution in practice (VLC was pulled in 2011 and returned only after relicensing), selling a commercial licence later requires a CLA and removing every GPL dependency, and companies will not embed a GPL engine behind the MCP tool API. Moving Apache → GPL later is easy; the reverse is not.
 

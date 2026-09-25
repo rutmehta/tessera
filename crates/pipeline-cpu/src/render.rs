@@ -65,16 +65,29 @@ pub fn render_linear_scaled(
     source: &RenderSource<'_>,
     scale: u32,
 ) -> EngineResult<Image> {
+    render_linear_scaled_with_lens(settings, source, scale, &crate::LensContext::default())
+}
+
+/// Render with caller-owned database or user profile, without changing recipe schema.
+pub fn render_linear_scaled_with_lens(
+    settings: &DevelopSettings,
+    source: &RenderSource<'_>,
+    scale: u32,
+    context: &crate::LensContext<'_>,
+) -> EngineResult<Image> {
     validate_settings(settings)?;
     if scale == 0 {
         return Err(EngineError::invalid("scale", "must be positive"));
     }
-    let (mut rgb, mut crop) = match source {
+    let (mut rgb, mut crop, correction) = match source {
         RenderSource::Rgb(image) => {
             if image.planes().len() != 3 {
                 return Err(EngineError::invalid("RGB", "three planes required"));
             }
-            let mut out = (*image).clone();
+            let crop = [0, 0, image.width(), image.height()];
+            let correction = crate::resolve_lens(image, &settings.lens, None, context)?;
+            let mut out =
+                crate::optics::lateral_ca(image, None, crop, &settings.lens, &correction)?;
             let matrix = crate::white_balance_matrix(
                 &settings.white_balance,
                 WorkingSpace::LinearRec2020.to_xyz(),
@@ -85,7 +98,7 @@ pub fn render_linear_scaled(
                 crate::apply_matrix(&mut t, matrix)?;
                 out.put(&t)?;
             }
-            (out, [0, 0, image.width(), image.height()])
+            (out, crop, correction)
         }
         RenderSource::Cfa { image, metadata } => {
             if image.pyramid().extent().width != metadata.width
@@ -139,21 +152,66 @@ pub fn render_linear_scaled(
                 )?)?;
             }
             drop(raw);
-            let mut out = Image::blank(recovered.width(), recovered.height(), 3);
-            for coord in recovered.coords() {
-                let mut t = crate::demosaic(&recovered.tile(coord, 3, period)?, cfa, algorithm)?;
+            let demosaic_image = |raw: &Image| -> EngineResult<Image> {
+                let mut out = Image::blank(raw.width(), raw.height(), 3);
+                for coord in raw.coords() {
+                    out.put(&crate::demosaic(
+                        &raw.tile(coord, 3, period)?,
+                        cfa,
+                        algorithm,
+                    )?)?;
+                }
+                Ok(out)
+            };
+            // Resolve/estimate in original camera RGB, never mixed working primaries.
+            let mut out = demosaic_image(&recovered)?;
+            let analysis = out.downsample_crop(metadata.default_crop, 1)?;
+            let correction =
+                crate::resolve_lens(&analysis, &settings.lens, Some(metadata), context)?;
+            drop(analysis);
+            if correction.ca_active(&settings.lens) {
+                if correction.source() == crate::CorrectionSource::Database
+                    && matches!(cfa, CfaLayout::Bayer(_))
+                {
+                    let corrected = crate::optics::lateral_ca(
+                        &recovered,
+                        Some(cfa),
+                        metadata.default_crop,
+                        &settings.lens,
+                        &correction,
+                    )?;
+                    out = demosaic_image(&corrected)?;
+                } else {
+                    out = crate::optics::lateral_ca(
+                        &out,
+                        None,
+                        metadata.default_crop,
+                        &settings.lens,
+                        &correction,
+                    )?;
+                }
+            }
+            for coord in out.coords() {
+                let mut t = out.tile(coord, 0, 1)?;
                 // Contract ordering is CameraProfile THEN WhiteBalance.
                 crate::apply_matrix(&mut t, profile)?;
                 crate::apply_matrix(&mut t, wb)?;
                 out.put(&t)?;
             }
-            (out, metadata.default_crop)
+            (out, metadata.default_crop, correction)
         }
     };
-    if has_m2_settings(settings) {
-        rgb = rgb.downsample_crop(crop, 1)?;
+    // All channel alignment is complete before matrices/detail/tone.
+    let analysis = rgb.downsample_crop(crop, 1)?;
+    let needs_m2 = has_m2_settings(settings)
+        || correction.sample().is_some()
+        || correction.source() == crate::CorrectionSource::Embedded;
+    if needs_m2 {
+        rgb = analysis;
         crop = [0, 0, rgb.width(), rgb.height()];
     }
+    rgb = crate::optics::profile_vignette(&rgb, &settings.lens, &correction)?;
+    rgb = crate::optics::point_corrections(&rgb, &settings.lens)?;
     if crate::detail_halo(&settings.detail) > 0 || settings.detail != Default::default() {
         let workers = std::thread::available_parallelism().map_or(1, usize::from);
         rgb = detail_image(&rgb, &settings.detail, workers)?;
@@ -163,7 +221,7 @@ pub fn render_linear_scaled(
         crate::tone(&mut tile, &settings.tone)?;
         rgb.put(&tile)?;
     }
-    if has_m2_settings(settings) {
+    if needs_m2 {
         // Remove masked sensor margins before estimating global airlight.
         rgb = rgb.downsample_crop(crop, 1)?;
         rgb = crate::tone_extra_image(&rgb, &settings.tone)?;
@@ -183,7 +241,14 @@ pub fn render_linear_scaled(
             )?;
             rgb.put(&tile)?;
         }
-        rgb = crate::geometry(&rgb, &settings.geometry)?;
+        let mut common = settings.lens.clone();
+        common.remove_chromatic_aberration = false;
+        rgb = crate::geometry_effects::geometry_mapped(
+            &rgb,
+            &settings.geometry,
+            correction.geometry_active(&common),
+            |p, _| Some(correction.map(p, 1, &common)),
+        )?;
         rgb.downsample_crop([0, 0, rgb.width(), rgb.height()], scale)
     } else {
         rgb.downsample_crop(crop, scale)
@@ -232,6 +297,10 @@ pub fn has_m2_settings(s: &DevelopSettings) -> bool {
         || s.color != Default::default()
         || s.effects != Default::default()
         || s.geometry != Default::default()
+        || s.lens.manual_distortion != 0.
+        || s.lens.manual_vignetting != 0.
+        || s.lens.defringe_purple.amount != 0.
+        || s.lens.defringe_green.amount != 0.
         || s.tone.texture != 0.0
         || s.tone.clarity != 0.0
         || s.tone.dehaze != 0.0
@@ -261,13 +330,15 @@ pub fn validate_settings(s: &DevelopSettings) -> EngineResult<()> {
     supported.white_balance = s.white_balance.clone();
     supported.tone = s.tone.clone();
     supported.detail = s.detail.clone();
+    crate::optics::validate(&s.lens)?;
+    supported.lens = s.lens.clone();
     supported.color.vibrance = s.color.vibrance;
     supported.color.saturation = s.color.saturation;
     supported.color.hsl = s.color.hsl.clone();
     supported.color.grading = s.color.grading.clone();
     supported.effects.vignette = s.effects.vignette.clone();
     supported.effects.grain = s.effects.grain.clone();
-    supported.geometry.crop = s.geometry.crop.clone();
+    supported.geometry = s.geometry.clone();
     supported.output.gamut_mapping = s.output.gamut_mapping;
     if s != &supported
         || !matches!(

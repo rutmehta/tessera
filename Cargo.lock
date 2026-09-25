@@ -1684,6 +1684,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "lens"
+version = "0.1.0"
+dependencies = [
+ "quick-xml",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "libc"
 version = "0.2.189"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2338,6 +2348,7 @@ version = "0.1.0"
 dependencies = [
  "engine-api",
  "image",
+ "lens",
  "png 0.17.16",
  "raw-decode",
 ]

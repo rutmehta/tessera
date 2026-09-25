@@ -44,8 +44,12 @@ fn raw_fixture_goldens() {
         let mut source = RawSource::open(&path).unwrap();
         let cfa = source.decode_cfa().unwrap();
         let metadata = source.metadata();
+        let mut settings = DevelopSettings::default();
+        // Immutable M1/M2-08 goldens predate optics. Explicitly test the off path.
+        settings.lens.profile = engine_api::recipe::settings::LensProfileSource::None;
+        settings.lens.remove_chromatic_aberration = false;
         let rendered = render_scaled(
-            &DevelopSettings::default(),
+            &settings,
             &RenderSource::Cfa {
                 image: &cfa,
                 metadata: &metadata,
@@ -87,7 +91,7 @@ fn raw_fixture_goldens() {
             .unwrap();
         assert!(
             max == 0,
-            "{}: default render is not bit-identical (max error {max}/255)",
+            "{}: lens-off render is not bit-identical (max error {max}/255)",
             golden.display()
         );
         eprintln!(

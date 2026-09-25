@@ -1,5 +1,9 @@
 # M2 CPU geometry and effects
 
+> M2-09 adds lens composition, Upright and manual transforms; see [LENS_M2.md](LENS_M2.md).
+> The crop-only formulas and f32 sampling below remain unchanged. Extended optics/homography
+> coordinates use f64. Historical exclusions of Upright/manual transforms below are superseded.
+
 Implemented in `src/geometry_effects.rs`. Scalar f32 reference math throughout (maps, kernels, accumulation, Lab, vignette, and grain), not Adobe pixel matching. Public reference rendering and image-core StageOp assemble geometry's full source image and split its changed-size result into tiles.
 
 ## Contracts and stage ordering

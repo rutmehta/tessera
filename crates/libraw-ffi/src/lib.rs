@@ -55,6 +55,8 @@ pub struct Metadata {
     pub orientation: u16,
     pub has_opcode_list: bool,
     pub has_gain_map: bool,
+    /// Owned OpcodeList1/2/3 bytes from LibRaw-selected raw IFD. No calibration synthesized.
+    pub opcode_lists: [Option<Vec<u8>>; 3],
 }
 
 impl RawFile {
@@ -151,6 +153,19 @@ impl RawFile {
             if lens.is_empty() {
                 lens = sensor::c_string(&(*self.raw).lens.makernotes.Lens);
             }
+            let opcode_lists: [Option<Vec<u8>>; 3] = std::array::from_fn(|i| {
+                let op = &levels.rawopcodes[i];
+                // LibRaw owns these buffers and allocates with a strict <4 MiB bound.
+                if op.data.is_null() || op.len == 0 || op.len >= 4 * 1024 * 1024 {
+                    None
+                } else {
+                    Some(std::slice::from_raw_parts(op.data.cast::<u8>(), op.len as usize).to_vec())
+                }
+            });
+            let has_gain_map = opcode_lists
+                .iter()
+                .flatten()
+                .any(|bytes| sensor::opcode_has_gain_map(bytes));
             Metadata {
                 make: c
                     .make
@@ -171,15 +186,9 @@ impl RawFile {
                 focal: i.focal_len,
                 timestamp: i.timestamp,
                 orientation: sensor::exif_orientation((*self.raw).sizes.flip),
+                opcode_lists,
                 has_opcode_list: levels.parsedfields & ((1 << 7) | (1 << 16) | (1 << 17)) != 0,
-                has_gain_map: levels.rawopcodes.iter().any(|op| {
-                    !op.data.is_null()
-                        && op.len > 0
-                        && sensor::opcode_has_gain_map(std::slice::from_raw_parts(
-                            op.data.cast::<u8>(),
-                            op.len as usize,
-                        ))
-                }),
+                has_gain_map,
             }
         }
     }
@@ -193,6 +202,28 @@ impl Drop for RawFile {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn metadata_owns_opcode_bytes_in_stage_order() {
+        let ptr = unsafe { bindings::libraw_init(0) };
+        assert!(!ptr.is_null());
+        let raw = RawFile {
+            raw: ptr,
+            unpacked: false,
+        };
+        let mut bytes = [0u8, 0, 0, 0];
+        unsafe {
+            (*ptr).color.dng_levels.rawopcodes[1].data = bytes.as_mut_ptr().cast();
+            (*ptr).color.dng_levels.rawopcodes[1].len = 4;
+        }
+        let metadata = raw.metadata();
+        // Stack memory is not owned by LibRaw: detach before destruction.
+        unsafe {
+            (*ptr).color.dng_levels.rawopcodes[1].data = std::ptr::null_mut();
+        }
+        bytes[0] = 99;
+        assert_eq!(metadata.opcode_lists, [None, Some(vec![0; 4]), None]);
+        assert_eq!(bytes[0], 99);
+    }
     #[test]
     fn missing_file_is_error() {
         assert!(RawFile::open("/definitely/not/a/raw/file.dng").is_err());

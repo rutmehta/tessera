@@ -10,6 +10,7 @@ path = "src/lib.rs"
 [dependencies]
 engine-api = { path = "../engine-api" }
 raw-decode = { path = "../raw-decode" }
+lens = { path = "../lens" }
 image = { workspace = true }
 
 [dev-dependencies]
