@@ -25,7 +25,7 @@ Notes:
    export CARGO_TARGET_DIR="$HOME/.cache/tessera-target/verify"
    (cd apps/mac && ./build-ffi.sh && swift build && swift test && Support/make-app.sh release)
    ```
-   Expect: `swift test` reports `Executed 25 tests, with 0 failures` (XCTest, all suites) and the Swift Testing line
+   Expect: `swift test` reports `Executed 33 tests, with 0 failures` (XCTest, all suites) and the Swift Testing line
    `Test run with 5 tests in 2 suites passed`; the last line reads `Built …/apps/mac/build/Tessera.app`.
    Also run `cargo test -p tessera-ffi -p cull -p image-core -p library --release 2>&1 | grep "test result"`. Expect only `ok.` lines.
 2. Create scratch data (a fresh folder each run; do not reuse an old path):
@@ -316,3 +316,71 @@ PASS when steps 1–40 and 42–53 meet their expectations (step 32's first part
 steps 33–41 need the RAW fixtures).
 Report the command outputs from steps 1–2 and 33, the 📸 screenshots, the benchmark line and any readout values. Afterwards you may delete
 `$SCR` and reset preferences with `defaults delete dev.tessera.app`.
+
+## M. Masks and local adjustments (M2-14)
+
+Masking works on RAWs in the loupe. **M** (or the **Masks** button at the loupe's top right) shows the mask toolbar
+above the photo and opens the **MASKS** panel under BASIC. Every mask edit drives the same develop session as the
+sliders: drags are coalesced per display frame and each release is one undo step. AI masks (Subject, Sky, Background,
+People, Objects) run on this Mac: the first use loads the pinned segmentation weights (U²-Net and MobileSAM, about
+220 MB) into `~/Library/Application Support/Tessera/models/cache`, downloading them when missing, so the first AI mask
+needs the network and takes a while; later ones take a few seconds. To use weights fetched ahead of time
+(`python3 tools/segment_models.py fetch --registry-cache "$SCR/segment-registry"`, see crates/ml-segment/README.md),
+launch with `open -n --env TESSERA_SEGMENT_MODELS="$SCR/segment-registry" apps/mac/build/Tessera.app --args …`.
+The Sky mask is the documented phase-one heuristic (top-connected blue sky with the subject removed): blue sky is
+selected, grey clouds only partly, and it is not a semantic sky network.
+
+55. Engine and app tests (no UI): `cargo test -p tessera-ffi --release --test masks 2>&1 | grep "test result"` and
+    `(cd apps/mac && swift test --filter MaskingTests 2>&1 | grep Executed)`. Expect `test result: ok. 3 passed; 0 failed; 1 ignored` and
+    `Executed 8 tests, with 0 failures`. (The `subject_mask_on_the_canon_fixture_with_cached_models` test only runs
+    the real models when `TESSERA_SEGMENT_MODELS` or the M3-04 cache exists; otherwise it prints `SKIP offline`.)
+56. Relaunch on the RAW copies (`open -n apps/mac/build/Tessera.app --args --folder "$SCR/raw"`), select
+    **canon-cr3.CR3** (the tomato on the wooden table) and press **Return**; wait for the develop frame. Press **M**.
+    📸 Expect the mask toolbar centred at the top of the loupe (brush, linear, radial, colour range, luminance range |
+    Subject, Sky, Background, People, Objects | eye and overlay-colour dot | Done) and the MASKS panel open with
+    `No masks.` and a **Masking** switch that is on.
+57. **Subject mask on the tomato.** Click **Subject** in the toolbar. Expect a progress bar under the toolbar
+    (`Preparing image`, `Loading segmentation models`, `Segmenting`) and a new `Mask 1` row with a subject icon and a
+    spinner; then the status bar reads `Subject mask ready`. 📸 With the overlay on (default, red at 50 %), the tomato
+    (and its stem) is tinted red and the table is not; the row's thumbnail shows a white blob on black. Drag
+    **Exposure** in the panel to +1.00: only the tomato brightens, the table stays; on release HISTORY lists
+    `Mask 1: Exposure +1.00`. Press **O**: the overlay hides (the brighter tomato stays); **⇧O** switches the overlay
+    colour to green and shows it again. Press **X**: the mask inverts (now the table brightens and is tinted), the row
+    reads `inverted`; press **X** again.
+58. **Brush + local exposure.** Click the brush tool. The HUD shows Size/Feather/Flow; move the pointer over the photo:
+    a circle (and a dashed inner feather circle) follows it; **]** grows it, **[** shrinks it (⇧ changes feather).
+    Paint a stroke across the lower table. Because the selected Mask 1 has no brush, the stroke starts a new
+    `Mask 2` (brush icon) and becomes selected; the overlay follows the stroke within a frame or two. HISTORY shows one
+    `Brush Stroke` step per stroke. Drag its **Exposure** to −1.00: only the painted band darkens. Hold **⌥** and
+    paint over half the band: the cursor shows a minus and that part is erased (step `Brush Erase`); the darkening
+    there disappears.
+59. **Gradients and ranges.** Select the **linear** tool and drag from the top edge to the middle of the photo: three
+    lines follow (full effect, midpoint, none) and a `Mask 3` appears; set **Temp** −40: the top turns blue fading out
+    towards the middle. Drag its end knob: the gradient changes and history adds one `Edit Linear Gradient` step. In
+    MASKS choose **Subtract ▸ Color Range** and click the tomato: the tomato is excluded from the gradient (component
+    list shows `Linear Gradient` then `− Color Range`). ⇧-click another red spot adds a sample
+    (`Color Range (2 samples)`).
+60. **Undo.** Press **⌘Z** repeatedly: the steps come off in reverse order (the colour-range subtraction, the
+    gradient edit, Temp, the gradient, the erase, the brush exposure, the stroke, …) and the MASKS list follows each
+    step; **⌘⇧Z** redoes them. Quit and relaunch on the same folder, open the CR3 in the loupe and press **M**: the masks,
+    their sliders and the rendered result are restored (the Subject raster is recomputed from the model cache).
+61. **Sky on the Fuji RAF.** Select **fuji-raf.RAF** (the harbour with white houses), press **Return**, **M**, then
+    click **Sky**. Expect the blue sky at the top tinted, the houses, rocks and water not (clouds partly, see above).
+    Set **Dehaze** +40 and **Exposure** −0.50: the sky deepens while the foreground is unchanged. Choose **People**
+    and drag a box around a house's front: an `Object`-style `Person` mask appears (the promptable model segments
+    the boxed thing; it is a whole-person proxy, not part parsing). Choose **Objects** and click the right house: an
+    `Object` mask selecting that house.
+62. Optional automated pass: `apps/mac/build/Tessera.app/Contents/MacOS/Tessera --folder "$SCR/raw" --masks-selftest 2>&1 | grep -m1 masks-selftest`.
+    It opens the first photo, creates a linear gradient by dragging it, drags its local Exposure, paints a brush
+    stroke and drags the stroke's Saturation, each through the per-frame path; expect a line
+    `masks-selftest: linear gradient … median … ms; local exposure …; brush …; brush saturation …; masks 2; backend …`.
+    Local adjustments render on the whole-level chain like the heavy panels: during a drag the session drops to the
+    level that keeps frames near 16 ms (e.g. `L5`) and refines on release. Engine-only numbers:
+    `cargo test -p tessera-ffi --release --test masks -- --ignored --nocapture bench_mask` prints local exposure,
+    gradient handle and brush batch medians (expect each under 16 ms at its `L<n>`).
+
+## Verdict (masks)
+
+PASS when steps 55–61 meet their expectations. Steps 57 and 61 need the segmentation weights (network on first use,
+or `TESSERA_SEGMENT_MODELS`); if neither is available, record the `Loading segmentation models` failure message shown
+on the component (it offers **Retry**) and judge the remaining steps.

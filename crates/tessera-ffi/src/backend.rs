@@ -4,7 +4,7 @@ use engine_api::{
     EngineResult,
     recipe::{DevelopSettings, settings::WhiteBalanceMode},
 };
-use image_core::{PixelRect, RawImage, Renderer, RendererConfig, TileCache};
+use image_core::{CpuStageOp, PixelRect, RawImage, Renderer, RendererConfig, StageOp, TileCache};
 use std::{sync::Arc, time::Instant};
 
 fn gpu_is_faster(cpu: [f64; 3], gpu: [f64; 3]) -> bool {
@@ -42,19 +42,49 @@ fn measure(renderer: &Renderer, image: &RawImage) -> EngineResult<[f64; 3]> {
     }
     Ok(times)
 }
-pub(crate) fn select(image: &RawImage) -> (Arc<Renderer>, String) {
+/// The selected develop backend: operators and the memo cache every session
+/// shares. Each session builds its own [`Renderer`] over them so it can own
+/// its mask raster cache and mask hooks (AI rasters, loupe overlay).
+#[derive(Clone)]
+pub(crate) struct Backend {
+    ops: Arc<dyn StageOp>,
+    cache: Arc<TileCache>,
+    config: RendererConfig,
+    pub(crate) name: String,
+}
+
+impl Backend {
+    fn new(ops: Arc<dyn StageOp>, config: RendererConfig, name: String) -> Self {
+        Self {
+            ops,
+            cache: Arc::new(TileCache::new(config.cache_budget_bytes)),
+            config,
+            name,
+        }
+    }
+
+    /// A renderer over the shared operators and memo cache.
+    pub(crate) fn renderer(&self) -> Renderer {
+        Renderer::with_ops(self.ops.clone(), self.cache.clone(), self.config.clone())
+    }
+}
+
+pub(crate) fn select(image: &RawImage) -> Backend {
     let config = RendererConfig::default();
-    let cpu = Arc::new(Renderer::new(config.clone()));
-    let cpu_name = format!("CPU ×{}", config.threads);
+    let cpu = Backend::new(
+        Arc::new(CpuStageOp),
+        config.clone(),
+        format!("CPU ×{}", config.threads),
+    );
     let preference = std::env::var("TESSERA_RENDER_BACKEND").unwrap_or_default();
     if preference.eq_ignore_ascii_case("cpu") {
-        return (cpu, cpu_name);
+        return cpu;
     }
     let ctx = match pipeline_gpu::GpuContext::new() {
         Ok(ctx) => Arc::new(ctx),
         Err(e) => {
             eprintln!("develop: Metal unavailable, using CPU: {e}");
-            return (cpu, cpu_name);
+            return cpu;
         }
     };
     let name = format!("Metal ({})", ctx.adapter_info.name);
@@ -62,25 +92,24 @@ pub(crate) fn select(image: &RawImage) -> (Arc<Renderer>, String) {
         ctx,
         config.cache_budget_bytes,
     ));
-    let gpu = Arc::new(Renderer::with_ops(
-        ops,
-        Arc::new(TileCache::new(config.cache_budget_bytes)),
-        config,
-    ));
+    let gpu = Backend::new(ops, config, name);
     if preference.eq_ignore_ascii_case("gpu") {
-        return (gpu, name);
+        return gpu;
     }
-    match (measure(&cpu, image), measure(&gpu, image)) {
+    match (
+        measure(&cpu.renderer(), image),
+        measure(&gpu.renderer(), image),
+    ) {
         (Ok(c), Ok(g)) => {
             eprintln!("develop L2 calibration [first, tone, WB] ms: CPU {c:?}; GPU {g:?}");
             if gpu_is_faster(c, g) {
-                return (gpu, name);
+                return gpu;
             }
         }
         (_, Err(e)) => eprintln!("develop: GPU calibration failed, using CPU: {e}"),
         (Err(e), _) => eprintln!("develop: CPU calibration failed, retaining CPU: {e}"),
     }
-    (cpu, cpu_name)
+    cpu
 }
 
 #[cfg(test)]

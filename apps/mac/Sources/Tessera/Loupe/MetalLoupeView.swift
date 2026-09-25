@@ -1,5 +1,7 @@
 import AppKit
+import IOSurface
 import Metal
+import TesseraFFI
 import QuartzCore
 import TesseraCore
 
@@ -35,6 +37,8 @@ final class MetalLoupeView: NSView {
     /// Crop-tool presentation (image rotated about the crop, box axis-aligned), in view points.
     var cropView: CropView? { didSet { render() } }
     private var lastDisplayShape: (Int, Int)?
+    /// The selected mask's overlay plane (masking mode), shown over engine frames.
+    private var maskOverlay: LoupeRenderer.MaskOverlay?
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -169,6 +173,7 @@ final class MetalLoupeView: NSView {
         guard controller !== develop else { return }
         develop?.onNeedsFlush = nil
         develop = controller
+        maskOverlay = nil
         guard let controller else {
             flushLink?.isPaused = true
             return
@@ -244,8 +249,57 @@ final class MetalLoupeView: NSView {
         if metalLayer.colorspace != space { metalLayer.colorspace = space }
         let scale = metalLayer.contentsScale
         let placement = cropView.map { $0.placement(scale: scale) }
+        var overlay = cropView == nil && currentFrame?.pixelFormat == .rgba8Unorm_srgb ? maskOverlay : nil
+        if overlay != nil {
+            let tools = MaskTools.shared
+            let c = tools.overlayColor.rgb
+            // Engine frames are sampled as linear sRGB: linearise the tint.
+            let lin = { (v: Float) in v <= 0.04045 ? v / 12.92 : powf((v + 0.055) / 1.055, 2.4) }
+            overlay?.tint = SIMD4(lin(c.r), lin(c.g), lin(c.b), Float(tools.overlayOpacity))
+        }
         lastEncodeTime = renderer.draw(in: metalLayer, texture: texture, frame: currentFrame, placement: placement,
-                                       background: Theme.loupeBackgroundLinear)
+                                       background: Theme.loupeBackgroundLinear, overlay: overlay)
+    }
+
+    /// Shows (or clears) the selected mask's overlay plane from the attached session.
+    func present(maskOverlay f: MaskOverlayFrame?) {
+        guard let f, let develop, let surface = develop.maskOverlaySurface(f.surfaceId), let renderer else {
+            if maskOverlay != nil { maskOverlay = nil; render() }
+            return
+        }
+        let (w, h) = (IOSurfaceGetWidth(surface), IOSurfaceGetHeight(surface))
+        let desc = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .r8Unorm, width: w, height: h, mipmapped: false)
+        desc.usage = .shaderRead
+        desc.storageMode = renderer.device.hasUnifiedMemory ? .shared : .managed
+        guard let texture = renderer.device.makeTexture(descriptor: desc, iosurface: surface, plane: 0) else { return }
+        maskOverlay = LoupeRenderer.MaskOverlay(texture: texture,
+                                                scale: SIMD2(Float(f.width) / Float(w), Float(f.height) / Float(h)),
+                                                tint: .zero)
+        render()
+    }
+
+    /// Displayed-picture uv under a view point (y-down points), unclamped; nil without a frame or
+    /// in the crop tool.
+    func displayUV(_ p: CGPoint) -> (u: Double, v: Double)? {
+        guard cropView == nil, let frame = currentFrame, let metalLayer else { return nil }
+        let scale = metalLayer.contentsScale
+        let place = LoupePlacement.fit(display: frame.displaySize, drawable: metalLayer.drawableSize)
+        return place.uv(p.x * scale, p.y * scale)
+    }
+
+    /// View point (y-down points) of displayed-picture uv; the inverse of `displayUV`.
+    func viewPoint(u: Double, v: Double) -> CGPoint? {
+        guard cropView == nil, let frame = currentFrame, let metalLayer else { return nil }
+        let scale = metalLayer.contentsScale
+        let place = LoupePlacement.fit(display: frame.displaySize, drawable: metalLayer.drawableSize)
+        let x = (u - place.row0.z) / place.row0.x, y = (v - place.row1.z) / place.row1.y
+        return CGPoint(x: x / scale, y: y / scale)
+    }
+
+    /// Width of the displayed picture in view points.
+    var pictureWidthPoints: Double? {
+        guard let a = viewPoint(u: 0, v: 0), let b = viewPoint(u: 1, v: 0) else { return nil }
+        return Double(b.x - a.x)
     }
 
     // MARK: Tool geometry
