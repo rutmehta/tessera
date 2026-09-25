@@ -192,11 +192,13 @@ impl Default for RendererConfig {
 pub struct Renderer {
     ops: Arc<dyn StageOp>,
     cache: Arc<TileCache>,
+    mask_cache: crate::MaskRasterCache,
     config: RendererConfig,
 }
 
 /// Per-request parameters resolved once from the settings and metadata.
 struct Resolved<'a> {
+    allow_resident: bool,
     image: &'a RawImage,
     settings: &'a DevelopSettings,
     chain: [(StageId, ParamHash); StageId::COUNT],
@@ -222,12 +224,24 @@ impl Renderer {
     /// A renderer on any backend and (possibly shared) cache. The cache's own
     /// budget applies; `config.cache_budget_bytes` is ignored.
     pub fn with_ops(ops: Arc<dyn StageOp>, cache: Arc<TileCache>, config: RendererConfig) -> Self {
-        Self { ops, cache, config }
+        let mask_cache = crate::MaskRasterCache::new(cache.budget());
+        Self {
+            ops,
+            cache,
+            mask_cache,
+            config,
+        }
     }
 
     /// The memo cache.
     pub fn cache(&self) -> &Arc<TileCache> {
         &self.cache
+    }
+
+    /// Mask raster LRU; independent payload budget equal to the tile budget.
+    /// Local slider changes reuse these f32 alpha planes.
+    pub fn mask_cache(&self) -> &crate::MaskRasterCache {
+        &self.mask_cache
     }
 
     /// Configuration.
@@ -398,9 +412,13 @@ impl Renderer {
         base.detail.noise_reduction.color = 0.0;
         base.tone = Default::default();
         base.color = Default::default();
+        base.locals = Default::default();
         base.effects = Default::default();
         base.geometry = Default::default();
-        let r = self.resolve(image, &base)?;
+        let mut r = self.resolve(image, &base)?;
+        // Local EV can amplify resident f16 checkpoints beyond the linear
+        // tolerance. Keep this barrier's upstream in-flight computation f32.
+        r.allow_resident = settings.locals.adjustments.is_empty();
         let e = image.level_extent(level);
         let all = Self::tiles_for(image, level, PixelRect::full(e));
         let mut wb =
@@ -433,6 +451,39 @@ impl Renderer {
             (StageId::Geometry, Op::Geometry(&settings.geometry)),
         ] {
             developed = self.ops.run_image(stage, &op, developed, cancel)?;
+            if stage == StageId::Color && !settings.locals.adjustments.is_empty() {
+                let upstream = settings.stage_chain(self.config.process_version.chain_seed())
+                    [StageId::Color.index()]
+                .1;
+                let base = developed;
+                let mut planes = base.planes().to_vec();
+                for group in &settings.locals.adjustments {
+                    cancel.check()?;
+                    if !group.enabled || group.amount == 0.0 || group.components.is_empty() {
+                        continue;
+                    }
+                    let adjusted = pipeline_cpu::adjust_local(&base, &group.params, group.amount)?;
+                    let mask = self.mask_cache.rasterize(
+                        &base,
+                        group,
+                        level,
+                        upstream,
+                        pipeline_cpu::masks::MaskOptions::default(),
+                    )?;
+                    let blended = self.ops.blend_local(&base, &adjusted, &mask)?;
+                    // Every group is evaluated against immutable pre-local RGB,
+                    // never against an earlier group's result.
+                    for ((out, original), local) in
+                        planes.iter_mut().zip(base.planes()).zip(blended.planes())
+                    {
+                        for ((v, b), a) in out.iter_mut().zip(original).zip(local) {
+                            *v += a - b;
+                        }
+                    }
+                }
+                developed = pipeline_cpu::Image::new(base.width(), base.height(), planes)?;
+                cancel.check()?;
+            }
         }
         let mut seen = HashSet::new();
         for &coord in coords {
@@ -498,6 +549,7 @@ impl Renderer {
         };
         let highlights = settings.linearize.highlight_reconstruction;
         Ok(Resolved {
+            allow_resident: true,
             image,
             settings,
             chain: settings.stage_chain(self.config.process_version.chain_seed()),
@@ -544,7 +596,8 @@ impl Renderer {
             ));
         }
 
-        if matches!(r.cfa, CfaLayout::Bayer(_))
+        if r.allow_resident
+            && matches!(r.cfa, CfaLayout::Bayer(_))
             && let Some(batch) = self.ops.begin_resident()
         {
             for tile in self

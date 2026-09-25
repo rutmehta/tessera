@@ -127,7 +127,7 @@ fn mul(m: [[f32; 3]; 3], v: [f32; 3]) -> [f32; 3] {
 }
 
 // Rec.2020 -> Oklab LMS, D65. Signed cube roots retain negative values.
-fn to_lab(rgb: [f32; 3]) -> [f32; 3] {
+pub(crate) fn to_lab(rgb: [f32; 3]) -> [f32; 3] {
     let lms = mul(
         [
             [0.6167558, 0.3601984, 0.0230458],
@@ -147,7 +147,7 @@ fn to_lab(rgb: [f32; 3]) -> [f32; 3] {
     )
 }
 
-fn from_lab(lab: [f32; 3]) -> [f32; 3] {
+pub(crate) fn from_lab(lab: [f32; 3]) -> [f32; 3] {
     let lms = mul(
         [
             [1.0, 0.39633778, 0.21580376],

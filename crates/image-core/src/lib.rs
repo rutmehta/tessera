@@ -19,6 +19,8 @@
 
 pub mod cache;
 pub mod graph;
+pub mod mask_cache;
+pub use mask_cache::MaskRasterCache;
 pub mod ops;
 pub mod render;
 mod resample;

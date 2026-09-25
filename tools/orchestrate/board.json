@@ -283,7 +283,7 @@
     "id": "M2-08",
     "owner": "astra",
     "title": "Masks and local adjustments",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
@@ -339,6 +339,22 @@
     "id": "M2-09c",
     "owner": "astra",
     "title": "GPU geometry parity (fix main)",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M3-04",
+    "owner": "astra",
+    "title": "AI segmentation masks",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-15",
+    "owner": "astra",
+    "title": "Soft proofing + colour management",
     "status": "running",
     "attempts": 0,
     "notes": ""

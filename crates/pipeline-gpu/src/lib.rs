@@ -11,6 +11,7 @@ mod curves;
 mod detail;
 mod effects;
 mod geometry;
+mod locals;
 mod operator;
 mod tone_local;
 pub use batch::{GpuStageOp, GpuStats};

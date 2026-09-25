@@ -1,0 +1,10 @@
+# WP M2-15 — Soft proofing, output colour management, ICC display path (engine)
+
+Read docs/07 §6, docs/01 §2.18, crates/pipeline-cpu (Output stage, display transform), crates/export (lcms2 usage), crates/engine-api output/proofing settings fields.
+Implement in a new `crates/color-mgmt` (lcms2 wrapper) + wiring:
+- Profile registry: load ICC v2/v4 from bytes/files; built-ins sRGB, Display P3, Adobe RGB, ProPhoto, Rec.2020 (generate with lcms2); display profile discovery on macOS via ColorSync (`CGDisplayCopyColorSpace` through objc2/core-graphics; fallback sRGB) keyed by display id.
+- Transforms: working (linear Rec.2020 f32) → display profile with intent + BPC, cached per (profile digest, intent) with an f32 3D LUT (33³) for speed; soft-proof transform: working → printer profile (intent, BPC, simulate paper white/black) → display; gamut warning mask (out-of-gamut pixels for the proof profile) and display-gamut warning.
+- Output stage integration: pipeline-cpu's Output stage uses the transform for the target (display or export profile); export crate uses the same registry (replace its own lcms2 path).
+- GPU: apply the cached 3D LUT in pipeline-gpu's output kernel (LUT already exists from the spike) so the interactive path stays fast; CPU reference gate.
+- Tests: sRGB→sRGB is identity within 1e-4; ProPhoto saturated red maps into sRGB without NaN and with gamut warning set; proof with an included test printer profile (create a synthetic ICC with lcms2 in the test: smaller gamut) flags out-of-gamut pixels; paper-white simulation lowers white; GPU LUT vs CPU within tolerance.
+`cargo test -p color-mgmt -p pipeline-cpu -p pipeline-gpu -p export --release`, clippy -D warnings, fmt. engine-api unchanged (report needed fields).

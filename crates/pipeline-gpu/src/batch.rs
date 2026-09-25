@@ -328,6 +328,15 @@ fn cpu_fallback(op: &Op<'_>) -> bool {
     )
 }
 impl StageOp for GpuStageOp {
+    fn blend_local(
+        &self,
+        base: &pipeline_cpu::Image,
+        adjusted: &pipeline_cpu::Image,
+        mask: &[f32],
+    ) -> EngineResult<pipeline_cpu::Image> {
+        GpuStageOp::blend_local(self, base, adjusted, mask)
+    }
+
     fn begin_resident(&self) -> Option<Box<dyn image_core::resident::ResidentBatch + '_>> {
         Some(Box::new(crate::resident::Batch::new(self)))
     }

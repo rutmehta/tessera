@@ -1,0 +1,11 @@
+Implemented M2-08 within the allowed paths.
+
+Added procedural masks, brush painting/erasing, range masks, guided refinement, raster caching, and local adjustments in the Locals stage. GPU alpha blending runs through WGSL; rasterization and adjustment evaluation use the CPU reference.
+
+engine-api is unchanged. Missing color-range smoothness and refinement fields are handled through runtime options. Depth requires a supplied plane. Moiré remains the requested placeholder.
+
+Verification: 162 tests passed, 6 ignored, 0 failed. The full requested command passed, including clippy -D warnings and cargo fmt --check. Existing goldens are unchanged.
+
+Details and test log: tools/orchestrate/wp/M2-08/implementation.md and verification.log.
+
+RESULT: PASS
