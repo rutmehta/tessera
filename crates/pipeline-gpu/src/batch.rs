@@ -177,7 +177,12 @@ fn cpu_fallback(op: &Op<'_>) -> bool {
         } | Op::Demosaic {
             cfa: CfaLayout::XTrans(_),
             ..
-        }
+        } | Op::Detail(_)
+            | Op::ToneExtra(_)
+            | Op::Color(_)
+            | Op::Geometry(_)
+            | Op::Effects(..)
+            | Op::EffectsInCrop(..)
     )
 }
 impl StageOp for GpuStageOp {

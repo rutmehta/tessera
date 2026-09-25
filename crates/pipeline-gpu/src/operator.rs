@@ -24,6 +24,14 @@ pub(crate) fn parameters(
     p[8] = (origin.1 % 4) as f32;
     let mut matrix = None;
     match *op {
+        Op::Detail(_)
+        | Op::ToneExtra(_)
+        | Op::Color(_)
+        | Op::Geometry(_)
+        | Op::Effects(..)
+        | Op::EffectsInCrop(..) => {
+            return Err(EngineError::invalid("GPU operator", "requires CPU fallback"));
+        }
         Op::Highlights { cfa, .. } | Op::Demosaic { cfa, .. } => {
             if input.channels != 1 {
                 return Err(EngineError::invalid("CFA tile", "one plane required"));
