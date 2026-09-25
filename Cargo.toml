@@ -9,6 +9,7 @@ members = [
     "crates/image-core",
     "crates/raw-decode",
     "crates/pipeline-cpu",
+    "crates/pipeline-adobe",
     "crates/pipeline-gpu",
     "crates/recipe",
     "crates/sidecar",

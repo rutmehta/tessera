@@ -38,6 +38,12 @@ enum Command {
         /// DevelopSettings JSON, inline or a path to a JSON file. Replaces sidecar settings.
         #[arg(long)]
         settings: Option<String>,
+        /// Auto uses Adobe compatibility for sidecar PV3–6; native/adobe override it.
+        #[arg(long, value_enum, default_value = "auto")]
+        process: media::Process,
+        /// Explicit user-supplied camera profile, used only by Adobe rendering.
+        #[arg(long)]
+        dcp: Option<PathBuf>,
     },
     Preview {
         image: PathBuf,
@@ -73,16 +79,22 @@ enum Import {
         #[arg(
             long,
             conflicts_with = "apply",
-            required_unless_present_any = ["apply", "make_fixture"]
+            required_unless_present_any = ["apply", "make_fixture", "fidelity"]
         )]
         inspect: bool,
         /// Write the synthetic test catalog (JPEG originals, Previews.lrdata) into DIR.
-        #[arg(long, value_name = "DIR", conflicts_with_all = ["inspect", "apply", "file"])]
+        #[arg(long, value_name = "DIR", conflicts_with_all = ["inspect", "apply", "file", "fidelity", "reference_dir"])]
         make_fixture: Option<PathBuf>,
         #[arg(long, requires = "dest")]
         apply: bool,
         #[arg(long, requires = "apply")]
         dest: Option<PathBuf>,
+        /// Compare RAW compatibility renders with user-supplied Lightroom exports.
+        #[arg(long, requires = "reference_dir")]
+        fidelity: bool,
+        /// Directory of sRGB exports named <catalog_id>.jpg.
+        #[arg(long, requires = "fidelity")]
+        reference_dir: Option<PathBuf>,
     },
 }
 #[derive(Subcommand)]
@@ -157,41 +169,65 @@ fn run(cli: &Cli) -> Result<Value> {
             std::process::exit(status.code().unwrap_or(1));
         }
     }
+    // Catalog import/inspection/fidelity never needs or mutates the local index.
+    if let Command::Import(Import::Lrcat {
+        file,
+        inspect,
+        apply,
+        dest,
+        fidelity,
+        reference_dir,
+        make_fixture,
+    }) = &cli.command
+    {
+        if let Some(dir) = make_fixture {
+            let fixture = import_lrcat::fixture::write(dir)?;
+            return Ok(json!({
+                "catalog": fixture.catalog,
+                "photos": fixture.photos,
+                "previews": fixture.previews,
+                "moved_root": import_lrcat::fixture::MOVED_ROOT,
+            }));
+        }
+        let file = file.as_ref().context("a catalog path is required")?;
+        let mut result = if *inspect {
+            serde_json::to_value(import_lrcat::inspect(file)?)?
+        } else if *apply {
+            import::apply(file, dest.as_ref().context("--apply requires --dest")?)?
+        } else {
+            json!({})
+        };
+        if *fidelity {
+            result["fidelity"] = import::fidelity(
+                file,
+                reference_dir
+                    .as_ref()
+                    .context("--fidelity requires --reference-dir")?,
+            )?;
+        }
+        return Ok(result);
+    }
     std::fs::create_dir_all(&app)?;
     let mut index = Index::open(app.join("index.sqlite"))?;
     match &cli.command {
         Command::Mcp => unreachable!("MCP replaces this process before opening the catalog"),
         Command::Export(options) => export::run(&index, &app, options),
         Command::Ml(command) => models::run(&app, matches!(command, Ml::Check)),
-        Command::Import(Import::Lrcat {
-            file,
-            inspect,
-            dest,
-            make_fixture,
-            ..
-        }) => {
-            if let Some(dir) = make_fixture {
-                let fixture = import_lrcat::fixture::write(dir)?;
-                return Ok(serde_json::json!({
-                    "catalog": fixture.catalog,
-                    "photos": fixture.photos,
-                    "previews": fixture.previews,
-                    "moved_root": import_lrcat::fixture::MOVED_ROOT,
-                }));
-            }
-            let file = file.as_ref().context("a catalog path is required")?;
-            if *inspect {
-                Ok(serde_json::to_value(import_lrcat::inspect(file)?)?)
-            } else {
-                import::apply(file, dest.as_ref().context("--apply requires --dest")?)
-            }
-        }
+        Command::Import(_) => unreachable!("import handled before opening index"),
         Command::Render {
             image,
             out,
             scale,
             settings,
+            process,
+            dcp,
         } => {
+            let recipe = catalog::document(image)?.recipe;
+            let adobe = process.uses_adobe(recipe.process_version);
+            anyhow::ensure!(
+                dcp.is_none() || adobe,
+                "DCP requires Adobe rendering (--process adobe)"
+            );
             let settings = match settings {
                 Some(text) => {
                     serde_json::from_str::<engine_api::recipe::DevelopSettings>(&if text
@@ -203,7 +239,7 @@ fn run(cli: &Cli) -> Result<Value> {
                         std::fs::read_to_string(text)?
                     })?
                 }
-                None => catalog::document(image)?.recipe.settings,
+                None => recipe.settings,
             };
             let level = match scale.as_str() {
                 "1/8" => 3,
@@ -211,8 +247,12 @@ fn run(cli: &Cli) -> Result<Value> {
                 "1/2" => 1,
                 _ => 0,
             };
-            media::render(image, out, level, &settings)?;
-            Ok(json!({"out":out}))
+            if adobe {
+                media::render_adobe(image, out, 1 << level, &settings, dcp.as_deref())?;
+            } else {
+                media::render(image, out, level, &settings)?;
+            }
+            Ok(json!({"out":out,"process":if adobe { "adobe" } else { "native" }}))
         }
         Command::Preview { image, out, max } => {
             anyhow::ensure!(
@@ -365,5 +405,49 @@ fn main() -> ExitCode {
             eprintln!("{error:#}");
             ExitCode::FAILURE
         }
+    }
+}
+
+#[cfg(test)]
+mod cli_tests {
+    use super::*;
+
+    #[test]
+    fn fidelity_flags_compose_with_inspect_or_apply() {
+        for extra in [
+            vec![],
+            vec!["--inspect"],
+            vec!["--apply", "--dest", "bundle"],
+        ] {
+            let mut args = vec![
+                "tessera",
+                "import",
+                "lrcat",
+                "test.lrcat",
+                "--fidelity",
+                "--reference-dir",
+                "refs",
+            ];
+            args.extend(extra);
+            assert!(Cli::try_parse_from(args).is_ok());
+        }
+        for extra in [
+            vec![],
+            vec!["--fidelity"],
+            vec!["--reference-dir", "refs"],
+            vec!["--fidelity", "--reference-dir", "refs", "--apply"],
+        ] {
+            let mut args = vec!["tessera", "import", "lrcat", "test.lrcat"];
+            args.extend(extra);
+            assert!(Cli::try_parse_from(args).is_err());
+        }
+        let cli = Cli::try_parse_from(["tessera", "render", "in.dng", "--out", "out.png"]).unwrap();
+        assert!(matches!(
+            cli.command,
+            Command::Render {
+                process: media::Process::Auto,
+                ..
+            }
+        ));
     }
 }

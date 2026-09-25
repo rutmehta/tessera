@@ -107,6 +107,33 @@ fn make_fixture_writes_an_inspectable_catalog() {
     let summary: Value = serde_json::from_slice(&out).unwrap();
     assert_eq!(summary["images"], 7);
     assert_eq!(summary["virtual_copies"], 1);
+    let references = temp.path().join("references");
+    std::fs::create_dir(&references).unwrap();
+    let out = run(&[
+        catalog,
+        "--inspect",
+        "--fidelity",
+        "--reference-dir",
+        references.to_str().unwrap(),
+    ])
+    .assert()
+    .success()
+    .get_output()
+    .stdout
+    .clone();
+    let summary: Value = serde_json::from_slice(&out).unwrap();
+    assert_eq!(summary["images"], 7);
+    assert_eq!(summary["fidelity"]["skipped"], 7);
+    assert!(!temp.path().join("app").exists());
+    run(&[
+        "--make-fixture",
+        dir.to_str().unwrap(),
+        "--fidelity",
+        "--reference-dir",
+        references.to_str().unwrap(),
+    ])
+    .assert()
+    .code(2);
     run(&[catalog, "--make-fixture", dir.to_str().unwrap()])
         .assert()
         .code(2);

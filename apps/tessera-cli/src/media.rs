@@ -13,6 +13,73 @@ use image_core::{PixelRect, RawImage, Renderer, RendererConfig, render::MAX_LEVE
 use previews::Codec;
 use raw_decode::RawSource;
 
+#[derive(Clone, Copy, clap::ValueEnum)]
+pub enum Process {
+    Auto,
+    Native,
+    Adobe,
+}
+
+impl Process {
+    pub fn uses_adobe(self, version: engine_api::recipe::ProcessVersion) -> bool {
+        match self {
+            Self::Adobe => true,
+            Self::Native => false,
+            Self::Auto => {
+                version.family == engine_api::recipe::ProcessFamily::Adobe
+                    && (3..=6).contains(&version.revision)
+            }
+        }
+    }
+}
+
+/// Direct compatibility pipeline, deliberately bypassing image-core's native renderer.
+/// `scale` is a divisor (1, 2, 4 or 8), not a pyramid level.
+pub fn adobe_pixels(path: &Path, scale: u32, settings: &DevelopSettings) -> Result<RgbImage> {
+    adobe_pixels_with_profile(path, scale, settings, None)
+}
+
+fn adobe_pixels_with_profile(
+    path: &Path,
+    scale: u32,
+    settings: &DevelopSettings,
+    profile: Option<&pipeline_adobe::dcp::DcpProfile>,
+) -> Result<RgbImage> {
+    ensure!(matches!(scale, 1 | 2 | 4 | 8), "scale must be 1, 2, 4 or 8");
+    let mut raw = RawSource::open(path).with_context(|| format!("open RAW {}", path.display()))?;
+    let cfa = raw
+        .decode_cfa()
+        .with_context(|| format!("decode RAW {}", path.display()))?;
+    let metadata = raw.metadata();
+    let source = pipeline_adobe::RenderSource::Cfa {
+        image: &cfa,
+        metadata: &metadata,
+    };
+    let pixels = pipeline_adobe::render_scaled_with_profile(settings, &source, scale, profile)
+        .context("render Adobe compatibility pixels")?;
+    Ok(orient(pixels, metadata.orientation))
+}
+
+pub fn render_adobe(
+    path: &Path,
+    out: &Path,
+    scale: u32,
+    settings: &DevelopSettings,
+    dcp: Option<&Path>,
+) -> Result<()> {
+    let profile = dcp
+        .map(|path| -> Result<_> {
+            let bytes =
+                std::fs::read(path).with_context(|| format!("read DCP {}", path.display()))?;
+            pipeline_adobe::dcp::DcpProfile::parse(&bytes).map_err(anyhow::Error::msg)
+        })
+        .transpose()?;
+    save(
+        &adobe_pixels_with_profile(path, scale, settings, profile.as_ref())?,
+        out,
+    )
+}
+
 /// Render the active area at pyramid `level` (0 = full size), apply camera
 /// orientation, and save display-encoded RGB as JPEG or PNG. Settings are
 /// supplied by the caller, including any recipe/CLI overrides already merged.
@@ -167,6 +234,21 @@ fn save(pixels: &RgbImage, out: &Path) -> Result<()> {
 mod tests {
     use super::*;
     use engine_api::tile::{TileCoord, TileLayout};
+
+    #[test]
+    fn auto_routes_only_adobe_pv_three_through_six() {
+        use engine_api::recipe::ProcessVersion;
+        assert!(!Process::Auto.uses_adobe(ProcessVersion::default()));
+        for revision in 1..=7 {
+            let version = ProcessVersion::adobe(revision);
+            assert_eq!(
+                Process::Auto.uses_adobe(version),
+                (3..=6).contains(&revision)
+            );
+            assert!(Process::Adobe.uses_adobe(version));
+            assert!(!Process::Native.uses_adobe(version));
+        }
+    }
 
     #[test]
     fn stitches_planar_edge_tiles_and_ignores_halo() {

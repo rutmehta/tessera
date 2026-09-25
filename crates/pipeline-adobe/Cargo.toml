@@ -1,0 +1,13 @@
+[package]
+name = "pipeline-adobe"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+
+[dependencies]
+engine-api = { path = "../engine-api" }
+pipeline-cpu = { path = "../pipeline-cpu" }
+image.workspace = true
+
+[dev-dependencies]
+raw-decode = { path = "../raw-decode" }
