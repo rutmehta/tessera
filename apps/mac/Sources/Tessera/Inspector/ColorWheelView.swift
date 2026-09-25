@@ -44,7 +44,7 @@ final class ColorWheelView: NSView {
         if let img = Self.discImage(px) {
             NSGraphicsContext.current?.cgContext.draw(img, in: d)
         }
-        NSColor(calibratedWhite: 0, alpha: 0.5).setStroke()
+        Theme.Palette.hairlineStrong.setStroke()
         let ring = NSBezierPath(ovalIn: d.insetBy(dx: 0.5, dy: 0.5))
         ring.lineWidth = 1
         ring.stroke()
@@ -52,21 +52,21 @@ final class ColorWheelView: NSView {
         let cross = NSBezierPath()
         cross.move(to: CGPoint(x: d.midX - 4, y: d.midY)); cross.line(to: CGPoint(x: d.midX + 4, y: d.midY))
         cross.move(to: CGPoint(x: d.midX, y: d.midY - 4)); cross.line(to: CGPoint(x: d.midX, y: d.midY + 4))
-        NSColor(calibratedWhite: 0.1, alpha: 0.6).setStroke()
+        Theme.Palette.OnImage.shadow.setStroke()
         cross.stroke()
         let p = puck()
         if saturation > 0 {
             let line = NSBezierPath()
             line.move(to: CGPoint(x: d.midX, y: d.midY)); line.line(to: p)
-            NSColor(calibratedWhite: 1, alpha: 0.6).setStroke()
+            Theme.Palette.OnImage.guide.withAlphaComponent(0.6).setStroke()
             line.stroke()
         }
         let r = NSRect(x: p.x - 5, y: p.y - 5, width: 10, height: 10)
         let dot = NSBezierPath(ovalIn: r)
         let c = OkLab.srgb(l: 0.72, c: 0.14 * saturation / 100, hue: hue)
-        NSColor(srgbRed: c.r, green: c.g, blue: c.b, alpha: 1).setFill()
+        NSColor(srgbRed: c.r, green: c.g, blue: c.b, alpha: 1).setFill()   // lint:allow (the graded colour itself)
         dot.fill()
-        (dragging ? Theme.accent : NSColor.white).setStroke()
+        (dragging ? Theme.Palette.accent : Theme.Palette.thumb).setStroke()
         dot.lineWidth = 2
         dot.stroke()
     }

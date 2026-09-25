@@ -149,14 +149,17 @@ final class LoupeToolOverlay: NSView {
     }
 
     func hint(_ text: String) {
-        let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 11, weight: .medium),
-                                                    .foregroundColor: NSColor(calibratedWhite: 0.92, alpha: 1)]
+        let font = Theme.NSFonts.captionMedium
+        let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: Theme.Palette.OnImage.text]
         let str = text as NSString
         let size = str.size(withAttributes: attrs)
-        let r = NSRect(x: bounds.midX - size.width / 2 - 10, y: 14, width: size.width + 20, height: size.height + 8)
-        NSColor(calibratedWhite: 0.08, alpha: 0.82).setFill()
-        NSBezierPath(roundedRect: r, xRadius: r.height / 2, yRadius: r.height / 2).fill()
-        str.draw(at: NSPoint(x: r.minX + 10, y: r.minY + 4), withAttributes: attrs)
+        let h = Theme.Height.large
+        // Bottom centre, above the shortcut line: the top is the mask toolbar's.
+        let r = NSRect(x: bounds.midX - size.width / 2 - Theme.Space.m, y: bounds.height - h - Theme.Space.xxl - Theme.Space.s,
+                       width: ceil(size.width) + 2 * Theme.Space.m, height: h)
+        Theme.Palette.OnImage.scrim.setFill()
+        NSBezierPath(roundedRect: r, xRadius: Theme.Radius.card, yRadius: Theme.Radius.card).fill()
+        str.draw(at: NSPoint(x: r.minX + Theme.Space.m, y: r.midY - ceil(font.ascender - font.descender) / 2), withAttributes: attrs)
     }
 
     private func drawCrop(_ g: CropGeometry, _ view: CropView) {
@@ -190,7 +193,7 @@ final class LoupeToolOverlay: NSView {
             line(CGPoint(x: box.maxX, y: box.maxY), CGPoint(x: box.maxX - s, y: box.maxY - s))
         case .none: break
         }
-        NSColor(calibratedWhite: 1, alpha: 0.35).setStroke()
+        Theme.Palette.OnImage.guideFaint.setStroke()
         guide.lineWidth = 0.5
         guide.stroke()
         // While rotating, a fine grid helps levelling.
@@ -201,16 +204,16 @@ final class LoupeToolOverlay: NSView {
                 fine.move(to: CGPoint(x: fx(f), y: box.minY)); fine.line(to: CGPoint(x: fx(f), y: box.maxY))
                 fine.move(to: CGPoint(x: box.minX, y: fy(f))); fine.line(to: CGPoint(x: box.maxX, y: fy(f)))
             }
-            NSColor(calibratedWhite: 1, alpha: 0.18).setStroke()
+            Theme.Palette.OnImage.guideFaint.withAlphaComponent(0.18).setStroke()
             fine.lineWidth = 0.5
             fine.stroke()
         }
         // Frame and handles.
-        NSColor(calibratedWhite: 0.95, alpha: 0.9).setStroke()
+        Theme.Palette.OnImage.guide.setStroke()
         let frame = NSBezierPath(rect: box.insetBy(dx: 0.5, dy: 0.5))
         frame.lineWidth = 1
         frame.stroke()
-        NSColor(calibratedWhite: 0.97, alpha: 1).setFill()
+        Theme.Palette.OnImage.guide.setFill()
         for (sx, sy) in Self.handles {
             let c = handlePoint(box, sx, sy)
             let r = (sx != 0 && sy != 0)
@@ -223,16 +226,23 @@ final class LoupeToolOverlay: NSView {
             let p = NSBezierPath()
             p.move(to: a); p.line(to: b)
             p.lineWidth = 1.5
-            Theme.accent.setStroke()
+            Theme.Palette.accent.setStroke()
             p.stroke()
         }
         var info = String(format: "%.0f × %.0f", g.cropWidth, g.cropHeight)
         if g.angle != 0 || drag.map({ if case .rotate = $0 { true } else { false } }) == true {
             info += String(format: "   %+.2f°", g.angle)
         }
-        let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .medium),
-                                                    .foregroundColor: NSColor(calibratedWhite: 0.9, alpha: 1)]
-        (info as NSString).draw(at: NSPoint(x: box.minX, y: box.maxY + 6), withAttributes: attrs)
+        // Dimensions in a scrim chip under the box (legible over either canvas appearance).
+        let font = Theme.NSFonts.captionNumericMedium
+        let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: Theme.Palette.OnImage.text]
+        let tw = ceil((info as NSString).size(withAttributes: attrs).width)
+        let chip = NSRect(x: box.minX, y: box.maxY + Theme.Space.s - Theme.Space.xxs, width: tw + 2 * Theme.Space.s - 2 * Theme.Space.xxs,
+                          height: Theme.Height.small)
+        Theme.Palette.OnImage.scrim.setFill()
+        NSBezierPath(roundedRect: chip, xRadius: Theme.Radius.chip, yRadius: Theme.Radius.chip).fill()
+        (info as NSString).draw(at: NSPoint(x: chip.minX + Theme.Space.s - Theme.Space.xxs,
+                                            y: chip.midY - ceil(font.ascender - font.descender) / 2), withAttributes: attrs)
     }
 
     private static let handles: [(Int, Int)] = [(-1, -1), (0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0)]

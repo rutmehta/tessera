@@ -8,12 +8,12 @@ struct ContentView: View {
     var body: some View {
         NavigationSplitView {
             SidebarView(model: model)
-                .navigationSplitViewColumnWidth(min: 180, ideal: 210, max: 300)
+                .navigationSplitViewColumnWidth(min: Theme.Width.sidebarMin, ideal: Theme.Width.sidebarIdeal,
+                                                max: Theme.Width.sidebarMax)
         } detail: {
             VStack(spacing: 0) {
                 if model.isEngineBacked {
                     FilterBar(library: model.collections, model: model)
-                    Divider()
                 }
                 ZStack {
                     // Both stay alive so grid scroll position and loupe texture survive mode switches.
@@ -37,23 +37,23 @@ struct ContentView: View {
                         Spacer()
                         if let toast = model.toast {
                             ToastView(model: model, toast: toast)
-                                .padding(.bottom, 14)
-                                .transition(.opacity.combined(with: .move(edge: .bottom)))
+                                .padding(.bottom, Theme.Space.l)
+                                .transition(Theme.Motion.transition(from: .bottom))
                         }
                     }
-                    .animation(.easeOut(duration: 0.18), value: model.toast)
+                    .animation(Theme.Motion.appear, value: model.toast)
                 }
                 LightroomImportProgressBar(importer: model.lightroomImport)
                 ExportProgressBar(exporter: model.exporter)
                 PrintProgressBar(printing: model.printing)
                 StatusBar(model: model)
-                if model.showFilmstrip {
-                    Divider()
+                if model.showFilmstrip, !model.library.items.isEmpty {
+                    Hairline()
                     ThumbnailBrowser(model: model, style: .filmstrip)
-                        .frame(height: 92)
+                        .frame(height: Theme.Height.filmstrip)
                 }
             }
-            .background(Color(nsColor: Theme.gridBackground))
+            .background(Theme.canvas)
             .navigationTitle(model.library.items.isEmpty ? "Tessera" : model.library.title)
             .navigationSubtitle(subtitle)
         }
@@ -75,10 +75,12 @@ struct ContentView: View {
         }
         .inspector(isPresented: $model.showInspector) {
             InspectorView(model: model)
-                .inspectorColumnWidth(min: 250, ideal: 280, max: 360)
+                .inspectorColumnWidth(min: Theme.Width.inspectorMin, ideal: Theme.Width.inspectorIdeal,
+                                      max: Theme.Width.inspectorMax)
         }
         .toolbar { toolbar }
-        .preferredColorScheme(.dark)
+        .tint(Theme.accent)
+        .background(WindowToolbarConfigurator())
     }
 
     private var subtitle: String {
@@ -89,66 +91,185 @@ struct ContentView: View {
 
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
-        ToolbarItem(placement: .navigation) {
-            Button("Open Folder…") { model.presentOpenPanel() }
-                .help("Open a folder of JPEG / RAW images (⌘O)")
-        }
-        ToolbarItem(placement: .principal) {
-            Picker("View", selection: $model.viewMode) {
-                ForEach(ViewMode.allCases) { Text($0.rawValue).tag($0) }
+        ToolbarItem(id: "open", placement: .navigation) {
+            Button { model.presentOpenPanel() } label: {
+                Label("Open Folder…", systemImage: "folder")
             }
-            .pickerStyle(.segmented)
-            .frame(width: 210)
-            .help("Grid (G) / Loupe (E or Return) / Compare (C)")
+            .buttonStyle(ToolbarButtonStyle())
+            .help("Open a folder of JPEG / RAW images (⌘O)")
         }
-        ToolbarItemGroup(placement: .primaryAction) {
-            Slider(value: $model.thumbnailSize, in: 110...360)
-                .frame(width: 110)
-                .disabled(model.viewMode != .grid)
-                .help("Thumbnail size")
-            Toggle("Auto-advance", isOn: $model.autoAdvance)
-                .toggleStyle(.button)
-                .help("Move to the next image after X / U / P / 1–3 (A)")
-            Toggle("Inspector", isOn: $model.showInspector)
-                .toggleStyle(.button)
+        .flatToolbarItem()
+        ToolbarItem(id: "mode", placement: .principal) {
+            SegmentedPicker(selection: $model.viewMode, segments: [
+                .init(value: ViewMode.grid, title: "Grid", symbol: "square.grid.2x2", help: "Grid (G)"),
+                .init(value: ViewMode.loupe, title: "Loupe", symbol: "photo", help: "Loupe (E or Return)"),
+                .init(value: ViewMode.compare, title: "Compare", symbol: "rectangle.split.2x1", help: "Compare (C)"),
+            ], fill: false)
+            .fixedSize()
+            .accessibilityLabel("View")
+        }
+        .flatToolbarItem()
+        ToolbarItem(id: "size", placement: .primaryAction) {
+            // Grid only; in the loupe and compare the space stays empty so the toggles do not move.
+            HStack(spacing: Theme.Space.xs) {
+                Image(systemName: "square.grid.3x3").font(Theme.Fonts.iconSmall).foregroundStyle(Theme.textTertiary)
+                Slider(value: $model.thumbnailSize, in: 110...360)
+                    .controlSize(.mini)
+                    .frame(width: Theme.Width.thumbnailSlider)
+                Image(systemName: "square.grid.2x2").font(Theme.Fonts.iconSmall).foregroundStyle(Theme.textTertiary)
+            }
+            .opacity(model.viewMode == .grid ? 1 : 0)
+            .disabled(model.viewMode != .grid)
+            .accessibilityHidden(model.viewMode != .grid)
+            .help("Thumbnail size")
+        }
+        .flatToolbarItem()
+        ToolbarItem(id: "autoAdvance", placement: .primaryAction) {
+            Toggle(isOn: $model.autoAdvance) {
+                Label("Auto-advance", systemImage: "arrow.right.to.line")
+            }
+            .toggleStyle(ToolbarToggleStyle())
+            .help("Move to the next image after X / U / P / 1–3 (A)")
+        }
+        .flatToolbarItem()
+        ToolbarItem(id: "inspector", placement: .primaryAction) {
+            Toggle(isOn: $model.showInspector) {
+                Label("Inspector", systemImage: "sidebar.right")
+            }
+            .toggleStyle(ToolbarToggleStyle())
+            .help("Show or hide the inspector (⌥⌘I)")
+        }
+        .flatToolbarItem()
+    }
+}
+
+extension ToolbarContent {
+    /// macOS 26 wraps each toolbar item in a glass capsule; Tessera's toolbar is one flat bar.
+    @ToolbarContentBuilder
+    func flatToolbarItem() -> some ToolbarContent {
+        if #available(macOS 26.0, *) {
+            sharedBackgroundVisibility(.hidden)
+        } else {
+            self
         }
     }
 }
 
+/// Toolbar toggle: icon + label, flat. On = a neutral pressed fill and primary text (the accent
+/// stays reserved for content selection, focus and primary actions).
+struct ToolbarToggleStyle: ToggleStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Button { configuration.isOn.toggle() } label: {
+            configuration.label
+                .labelStyle(.titleAndIcon)
+        }
+        .buttonStyle(ToolbarButtonStyle(on: configuration.isOn))
+        .accessibilityAddTraits(configuration.isOn ? .isSelected : [])
+    }
+}
+
+/// Flat toolbar button: 28 pt, radius 6, hover and pressed fills only.
+struct ToolbarButtonStyle: ButtonStyle {
+    var on = false
+    func makeBody(configuration: Configuration) -> some View {
+        ToolbarButtonBody(configuration: configuration, on: on)
+    }
+}
+
+private struct ToolbarButtonBody: View {
+    let configuration: ButtonStyle.Configuration
+    let on: Bool
+    @State private var hovering = false
+    var body: some View {
+        configuration.label
+            .labelStyle(.titleAndIcon)
+            .font(Theme.Fonts.label)
+            .foregroundStyle(on ? Theme.textPrimary : Theme.textSecondary)
+            .padding(.horizontal, Theme.Space.s)
+            .frame(height: Theme.Height.large)
+            .background(RoundedRectangle(cornerRadius: Theme.Radius.control)
+                .fill(configuration.isPressed || on ? Theme.pressed : hovering ? Theme.hover : Theme.clear))
+            .contentShape(Rectangle())
+            .onHover { hovering = $0 }
+    }
+}
+
+/// Lets the window's toolbar keep the title visible and the items flat (no per-item glass).
+struct WindowToolbarConfigurator: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView { NSView() }
+    func updateNSView(_ view: NSView, context: Context) {
+        DispatchQueue.main.async {
+            MainActor.assumeIsolated {
+                guard let window = view.window else { return }
+                window.titlebarSeparatorStyle = .line
+            }
+        }
+    }
+}
+
+/// One line, three groups: where you are (position, group, decision) · what happened (message) ·
+/// the session (counts, basket). Hairline-separated, tabular figures throughout.
 struct StatusBar: View {
     let model: AppModel
 
     var body: some View {
-        HStack(spacing: 14) {
-            if let item = model.focusedItem, let p = model.focusedPosition {
-                Text("\((p + 1).formatted()) of \(model.visibleCount.formatted())")
-                Text("G\(item.groupID + 1) · \(model.indexInGroup(of: item) + 1)/\(model.groupSize(of: item))"
-                     + (model.focusedIsBest ? " · suggested best" : ""))
-                Text(stateText).foregroundStyle(Color(nsColor: model.focusedState.decision.color))
-                if model.selectionCount > 1 { Text("\(model.selectionCount.formatted()) selected") }
+        VStack(spacing: 0) {
+            Hairline()
+            HStack(spacing: Theme.Space.m) {
+                if let item = model.focusedItem, let p = model.focusedPosition {
+                    HStack(spacing: Theme.Space.s) {
+                        Text("\((p + 1).formatted()) of \(model.visibleCount.formatted())")
+                            .foregroundStyle(Theme.textPrimary)
+                        Text("G\(item.groupID + 1) · \(model.indexInGroup(of: item) + 1)/\(model.groupSize(of: item))"
+                             + (model.focusedIsBest ? " · suggested best" : ""))
+                        HStack(spacing: Theme.Space.xs) {
+                            Circle().fill(Color(nsColor: model.focusedState.decision.color))
+                                .frame(width: Theme.Space.s - Theme.Space.xxs, height: Theme.Space.s - Theme.Space.xxs)
+                            Text(stateText)
+                        }
+                        if model.selectionCount > 1 {
+                            Text("\(model.selectionCount.formatted()) selected").foregroundStyle(Theme.accent)
+                        }
+                    }
+                    .fixedSize()
+                    separator
+                }
+                if let msg = model.statusMessage {
+                    Text(msg).lineLimit(1).truncationMode(.tail).foregroundStyle(Theme.textTertiary)
+                        .help(msg)
+                }
+                Spacer(minLength: Theme.Space.s)
+                if model.showRenderReadout, let readout = model.renderReadout {
+                    Text(readout)
+                        .foregroundStyle(Theme.textTertiary)
+                        .help("Settings change → frame in the loupe surface (Debug ▸ Show Render Timing)")
+                        .accessibilityIdentifier("renderReadout")
+                    separator
+                }
+                HStack(spacing: Theme.Space.s) {
+                    Text("Keep \(model.counts.keep.formatted())")
+                    Text("Reject \(model.counts.reject.formatted())")
+                }
+                .fixedSize()
+                separator
+                HStack(spacing: Theme.Space.xs) {
+                    RoundedRectangle(cornerRadius: Theme.Space.xxs).fill(Theme.basket)
+                        .frame(width: Theme.Space.s, height: Theme.Space.s)
+                    Text("\(model.basketTarget) \(model.counts.basket.formatted())")
+                }
+                .fixedSize()
+                .help("Basket target: B adds to this album. Change it in Cull ▸ Basket Target or the sidebar.")
             }
-            Spacer(minLength: 8)
-            if let msg = model.statusMessage {
-                Text(msg).lineLimit(1).truncationMode(.tail).foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 8)
-            if model.showRenderReadout, let readout = model.renderReadout {
-                Text(readout)
-                    .foregroundStyle(.secondary)
-                    .help("Settings change → frame in the loupe surface (Debug ▸ Show Render Timing)")
-                    .accessibilityIdentifier("renderReadout")
-            }
-            Text("Keep \(model.counts.keep.formatted())  Reject \(model.counts.reject.formatted())")
-            Text("Basket → \(model.basketTarget) \(model.counts.basket.formatted())")
-                .foregroundStyle(Color(nsColor: Theme.basket))
-                .help("B adds to this album. Change it in Cull ▸ Basket Target or the sidebar.")
-            Text("Auto-advance \(model.autoAdvance ? "on" : "off")")
-                .foregroundStyle(model.autoAdvance ? .primary : .secondary)
+            .font(Theme.Fonts.captionNumeric)
+            .foregroundStyle(Theme.textSecondary)
+            .padding(.horizontal, Theme.Space.gutter)
+            .frame(height: Theme.Height.statusBar)
         }
-        .font(.system(size: 11).monospacedDigit())
-        .padding(.horizontal, 12)
-        .frame(height: 24)
-        .background(Color(nsColor: Theme.windowBackground))
+        .background(Theme.panel)
+    }
+
+    private var separator: some View {
+        Hairline(vertical: true).frame(height: Theme.Space.m)
     }
 
     private var stateText: String {
@@ -162,64 +283,69 @@ struct StatusBar: View {
     }
 }
 
+/// Loupe chrome: file and decision (top left), display / proof state (top right), shortcuts
+/// (bottom). A reserved 32 pt top strip keeps the mask toolbar clear of this text.
 struct LoupeOverlay: View {
     let model: AppModel
     var body: some View {
-        VStack {
-            HStack(alignment: .top) {
+        VStack(spacing: 0) {
+            HStack(alignment: .center, spacing: Theme.Space.s) {
                 if let item = model.focusedItem {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(item.name).font(.system(size: 12, weight: .medium))
-                        if let badge = model.focusedState.badgeText {
-                            Text(badge).font(.system(size: 10, weight: .bold))
-                                .foregroundStyle(Color(nsColor: model.focusedState.decision.color))
-                        }
-                        if model.focusedIsBest {
-                            Text("SUGGESTED BEST · K keeps it and rejects the rest")
-                                .font(.system(size: 10, weight: .medium))
-                                .foregroundStyle(Color(nsColor: Theme.keep).opacity(0.85))
-                        }
+                    Text(item.name).font(Theme.Fonts.labelMedium).foregroundStyle(Theme.textPrimary)
+                        .allowsHitTesting(false)
+                    if let badge = model.focusedState.badgeText {
+                        Chip(text: badge, color: Color(nsColor: model.focusedState.decision.color), style: .outlined,
+                             height: Theme.Height.chip)
+                    }
+                    if model.focusedIsBest {
+                        Chip(text: "Suggested best · K keeps it, rejects the rest", color: Theme.keep, style: .outlined,
+                             height: Theme.Height.chip)
                     }
                 }
-                Spacer()
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text(model.loupeInfo).font(.system(size: 10)).foregroundStyle(.secondary)
-                    if SoftProof.shared.enabled {
-                        Text(SoftProof.shared.lut.map { "SOFT PROOF · \($0.profileName)" + (SoftProof.shared.gamutWarning ? " · GAMUT WARNING" : "") }
-                             ?? SoftProof.shared.status)
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(Color(nsColor: Theme.accent))
-                            .accessibilityIdentifier("softproof-badge")
+                Spacer(minLength: Theme.Space.s)
+                if SoftProof.shared.enabled {
+                    Chip(text: SoftProof.shared.lut.map { "Soft proof · \($0.profileName)" + (SoftProof.shared.gamutWarning ? " · gamut warning" : "") }
+                         ?? SoftProof.shared.status, color: Theme.accent, style: .outlined, height: Theme.Height.chip)
+                        .accessibilityIdentifier("softproof-badge")
+                }
+                Text(model.loupeInfo).font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary).lineLimit(1)
+                    .allowsHitTesting(false)
+                if model.developStatus == .ready, !MaskTools.shared.active {
+                    Button { MaskTools.shared.setActive(true) } label: {
+                        Label("Masks", systemImage: "circle.lefthalf.striped.horizontal")
                     }
+                    .buttonStyle(.theme(.bordered, height: Theme.Height.small))
+                    .help("Local adjustments with masks (M)")
                 }
             }
+            .padding(.horizontal, Theme.Space.gutter)
+            .frame(height: Theme.Height.sectionHeader)
             Spacer()
-            Text("← → group    ↑ ↓ frame in group    X U P decide    1 2 3 grade    K keep best    C compare    ⌘Z undo    Esc grid")
-                .font(.system(size: 10)).foregroundStyle(.tertiary)
+                .allowsHitTesting(false)
+            Text("← → group  ·  ↑ ↓ frame in group  ·  X U P decide  ·  1 2 3 grade  ·  K keep best  ·  C compare  ·  ⌘Z undo  ·  Esc grid")
+                .font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary)
+                .lineLimit(1)
+                .padding(.bottom, Theme.Space.s)
+                .allowsHitTesting(false)
         }
-        .padding(10)
-        .allowsHitTesting(false)
     }
 }
 
 struct EmptyStateView: View {
     let model: AppModel
     var body: some View {
-        VStack(spacing: 14) {
-            Text(model.isLoading ? "Reading folder…" : "No images")
-                .font(.system(size: 17, weight: .medium))
-            Text("Open a folder of JPEG or RAW files to start culling.")
-                .font(.system(size: 12)).foregroundStyle(.secondary)
-            HStack(spacing: 10) {
-                Button("Open Folder…") { model.presentOpenPanel() }
-                    .keyboardShortcut(.defaultAction)
-                Button("Load 20,000 Stub Items") { model.loadStubItems(count: 20_000) }
-            }
-            .disabled(model.isLoading)
+        EmptyStateContent(symbol: "photo.on.rectangle.angled",
+                          title: model.isLoading ? "Reading folder…" : "No images",
+                          message: "Open a folder of JPEG or RAW files to start culling.") {
+            Button("Open Folder…") { model.presentOpenPanel() }
+                .buttonStyle(.theme(.primary, height: Theme.Height.large))
+                .keyboardShortcut(.defaultAction)
+            Button("Load 20,000 Stub Items") { model.loadStubItems(count: 20_000) }
+                .buttonStyle(.theme(.bordered, height: Theme.Height.large))
         }
-        .padding(40)
+        .disabled(model.isLoading)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(nsColor: Theme.gridBackground))
+        .background(Theme.canvas)
     }
 }
 
@@ -227,34 +353,35 @@ struct ToastView: View {
     let model: AppModel
     let toast: Toast
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 12) {
-                Text(toast.message).font(.system(size: 12)).lineLimit(1)
+        VStack(alignment: .leading, spacing: Theme.Space.xs) {
+            HStack(spacing: Theme.Space.m) {
+                Text(toast.message).font(Theme.Fonts.label).foregroundStyle(Theme.textPrimary).lineLimit(1)
                 if toast.undoable {
-                    Button("Undo  ⌘Z") { model.undo() }
-                        .buttonStyle(.plain)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(Color(nsColor: Theme.accent))
+                    Button { model.undo() } label: {
+                        HStack(spacing: Theme.Space.xs) {
+                            Text("Undo").font(Theme.Fonts.labelMedium).foregroundStyle(Theme.accent)
+                            Text("⌘Z").font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary)
+                        }
+                    }
+                    .buttonStyle(.theme(.borderless, height: Theme.Height.regular))
                 }
                 if !toast.details.isEmpty {
                     Button("Dismiss") { model.toast = nil }
-                        .buttonStyle(.plain)
-                        .font(.system(size: 11)).foregroundStyle(.secondary)
+                        .buttonStyle(.theme(.borderless, height: Theme.Height.regular))
                 }
             }
             ForEach(Array(toast.details.prefix(5).enumerated()), id: \.offset) { _, line in
-                Text(line).font(.system(size: 11)).foregroundStyle(Color(nsColor: Theme.reject))
-                    .lineLimit(1).truncationMode(.middle)
+                StatusLine(text: line, kind: .error).lineLimit(1).truncationMode(.middle)
             }
             if toast.details.count > 5 {
-                Text("and \(toast.details.count - 5) more").font(.system(size: 11)).foregroundStyle(.secondary)
+                Text("and \(toast.details.count - 5) more").font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
-        .background(RoundedRectangle(cornerRadius: 7).fill(Color(nsColor: Theme.toastBackground)))
-        .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(Color.white.opacity(0.08)))
-        .shadow(color: .black.opacity(0.35), radius: 10, y: 3)
+        .padding(.leading, Theme.Space.l)
+        .padding(.trailing, Theme.Space.xs)
+        .padding(.vertical, Theme.Space.xs)
+        .frame(minHeight: Theme.Height.large + Theme.Space.s)
+        .background(HUDBackground())
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("toast")
     }

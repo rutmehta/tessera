@@ -12,38 +12,52 @@ struct PrintSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("Print").font(.system(size: 15, weight: .semibold))
-                Text("\(printing.title) · \(printing.items.count) photo\(printing.items.count == 1 ? "" : "s")")
-                    .font(.system(size: 11)).foregroundStyle(.secondary)
-                Spacer()
-            }
-            .padding(16)
-            Divider()
-            HStack(spacing: 0) {
-                preview
-                    .frame(width: 400)
-                    .background(Color(nsColor: Theme.gridBackground))
-                Divider()
-                Form {
-                    paperSection
-                    layoutSection
-                    qualitySection
-                    colorSection
+        SheetScaffold(title: "Print",
+                      subtitle: "\(printing.title) · \(printing.items.count) photo\(printing.items.count == 1 ? "" : "s")") {
+            EmptyView()
+        } content: {
+            VStack(spacing: 0) {
+                HStack(spacing: 0) {
+                    preview
+                        .frame(width: 400)
+                        .background(Theme.canvas)
+                    Hairline(vertical: true)
+                    Form {
+                        paperSection
+                        layoutSection
+                        qualitySection
+                        colorSection
+                    }
+                    .formStyle(.grouped)
+                    .scrollContentBackground(.hidden)
                 }
-                .formStyle(.grouped)
+                if let error = printing.error {
+                    Hairline()
+                    StatusLine(text: error, kind: .error)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, Theme.Space.l).padding(.vertical, Theme.Space.s)
+                        .accessibilityIdentifier("print-error")
+                }
             }
-            if let error = printing.error {
-                Divider()
-                Label(error, systemImage: "exclamationmark.triangle.fill")
-                    .font(.system(size: 11)).foregroundStyle(Color(nsColor: Theme.reject))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 16).padding(.vertical, 6)
-                    .accessibilityIdentifier("print-error")
+        } leading: {
+            Text("Photos are rendered with the engine at \(Int(printing.settings.dpi)) dpi before printing.")
+        } actions: {
+            Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction).sheetButton()
+            Button("Save as JPEG…") {
+                printing.chooseDestination("jpeg", in: NSApp.keyWindow) { url in start(.jpeg(url)) }
             }
-            Divider()
-            footer
+            .sheetButton()
+            .disabled(printing.pageCount == 0)
+            Button("Save as PDF…") {
+                printing.chooseDestination("pdf", in: NSApp.keyWindow) { url in start(.pdf(url)) }
+            }
+            .sheetButton()
+            .disabled(printing.pageCount == 0)
+            .accessibilityIdentifier("print-save-pdf")
+            Button("Print…") { start(.printer) }
+                .keyboardShortcut(.defaultAction)
+                .sheetButton(primary: true)
+                .disabled(printing.pageCount == 0)
         }
         .frame(width: 900, height: 660)
     }
@@ -51,24 +65,25 @@ struct PrintSheet: View {
     // MARK: Preview
 
     private var preview: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: Theme.Space.s) {
             PrintPreview(composer: printing.previewComposer(), page: printing.previewPage)
                 .aspectRatio(printing.pageSize.width / max(printing.pageSize.height, 1), contentMode: .fit)
-                .shadow(color: .black.opacity(0.4), radius: 6, y: 2)
-                .padding(20)
-            HStack {
-                Button { printing.previewPage = max(printing.previewPage - 1, 0) } label: { Image(systemName: "chevron.left") }
-                    .disabled(printing.previewPage == 0)
+                .shadow(color: Theme.shadow.opacity(0.65), radius: Theme.Space.s, y: Theme.Space.xxs)
+                .padding(Theme.Space.xl)
+            HStack(spacing: Theme.Space.xs) {
+                IconButton(symbol: "chevron.left", help: "Previous page") {
+                    printing.previewPage = max(printing.previewPage - 1, 0)
+                }
+                .disabled(printing.previewPage == 0)
                 Text("Page \(min(printing.previewPage + 1, max(printing.pageCount, 1))) of \(printing.pageCount)")
-                    .font(.system(size: 11).monospacedDigit())
+                    .font(Theme.Fonts.captionNumeric).foregroundStyle(Theme.textSecondary)
                     .accessibilityIdentifier("print-page-count")
-                Button { printing.previewPage = min(printing.previewPage + 1, max(printing.pageCount - 1, 0)) } label: {
-                    Image(systemName: "chevron.right")
+                IconButton(symbol: "chevron.right", help: "Next page") {
+                    printing.previewPage = min(printing.previewPage + 1, max(printing.pageCount - 1, 0))
                 }
                 .disabled(printing.previewPage >= printing.pageCount - 1)
             }
-            .buttonStyle(.borderless)
-            .padding(.bottom, 12)
+            .padding(.bottom, Theme.Space.m)
         }
     }
 
@@ -77,21 +92,22 @@ struct PrintSheet: View {
     private var paperSection: some View {
         Section("Paper") {
             HStack {
-                Text(printing.paperDescription).font(.system(size: 12)).accessibilityIdentifier("print-paper")
+                Text(printing.paperDescription).font(Theme.Fonts.label).accessibilityIdentifier("print-paper")
                 Spacer()
-                Button("Page Setup…") { printing.pageSetup() }
+                Button("Page Setup…") { printing.pageSetup() }.buttonStyle(.themeBordered)
             }
-            Text(printing.hardwareMargins).font(.system(size: 11)).foregroundStyle(.secondary)
+            Hint(printing.hardwareMargins)
         }
     }
 
     private var layoutSection: some View {
         Section("Layout") {
-            Picker("Layout", selection: $printing.settings.layout.style) {
-                ForEach(PrintLayout.Style.allCases) { Text($0.title).tag($0) }
+            LabeledContent("Layout") {
+                SegmentedPicker(selection: $printing.settings.layout.style,
+                                segments: PrintLayout.Style.allCases.map { .init(value: $0, title: $0.title) }, fill: false)
+                .fixedSize()
+                .accessibilityIdentifier("print-layout")
             }
-            .pickerStyle(.segmented)
-            .accessibilityIdentifier("print-layout")
             switch printing.settings.layout.style {
             case .single:
                 EmptyView()
@@ -106,17 +122,21 @@ struct PrintSheet: View {
                 }
             }
             if printing.settings.layout.style != .single { inches("Spacing", \.layout.spacing) }
-            HStack {
-                inches("Margins: top", \.layout.marginTop)
-                inches("bottom", \.layout.marginBottom)
-            }
-            HStack {
-                inches("left", \.layout.marginLeft)
-                inches("right", \.layout.marginRight)
+            LabeledContent("Margins (in)") {
+                Grid(horizontalSpacing: Theme.Space.s, verticalSpacing: Theme.Space.xs) {
+                    GridRow {
+                        inches("Top", \.layout.marginTop)
+                        inches("Bottom", \.layout.marginBottom)
+                    }
+                    GridRow {
+                        inches("Left", \.layout.marginLeft)
+                        inches("Right", \.layout.marginRight)
+                    }
+                }
             }
             Toggle("Rotate to fit", isOn: $printing.settings.layout.rotateToFit)
             Text("\(printing.settings.layout.cellsPerPage(page: printing.pageSize)) per page · \(printing.pageCount) page\(printing.pageCount == 1 ? "" : "s")")
-                .font(.system(size: 11)).foregroundStyle(.secondary)
+                .font(Theme.Fonts.captionNumeric).foregroundStyle(Theme.textSecondary)
         }
     }
 
@@ -125,10 +145,11 @@ struct PrintSheet: View {
             Picker("Resolution", selection: $printing.settings.dpi) {
                 ForEach(PrintSettings.resolutions, id: \.self) { Text("\(Int($0)) dpi").tag($0) }
             }
-            Picker("Print sharpening", selection: $printing.settings.sharpening) {
-                ForEach(PrintSettings.Sharpening.allCases) { Text($0.title).tag($0) }
+            LabeledContent("Print sharpening") {
+                SegmentedPicker(selection: $printing.settings.sharpening,
+                                segments: PrintSettings.Sharpening.allCases.map { .init(value: $0, title: $0.title) }, fill: false)
+                .fixedSize()
             }
-            .pickerStyle(.segmented)
             Picker("JPEG pages at", selection: $printing.settings.fileDPI) {
                 ForEach(PrintSettings.resolutions, id: \.self) { Text("\(Int($0)) dpi").tag($0) }
             }
@@ -147,18 +168,17 @@ struct PrintSheet: View {
                         if printing.profiles.isEmpty { Text("No printer profiles installed").tag("") }
                         ForEach(printing.profiles, id: \.path) { p in Text("\(p.name) (\(p.colorSpace))").tag(p.path) }
                     }
-                    Button("Other…") { printing.chooseProfileFile(in: NSApp.keyWindow) }
+                    Button("Other…") { printing.chooseProfileFile(in: NSApp.keyWindow) }.buttonStyle(.themeBordered)
                 }
-                Picker("Intent", selection: $printing.settings.intent) {
-                    ForEach(PrintSettings.Intent.allCases) { Text($0.title).tag($0) }
+                LabeledContent("Intent") {
+                    SegmentedPicker(selection: $printing.settings.intent,
+                                    segments: PrintSettings.Intent.allCases.map { .init(value: $0, title: $0.title) }, fill: false)
+                    .fixedSize()
                 }
-                .pickerStyle(.segmented)
                 Toggle("Black point compensation", isOn: $printing.settings.blackPointCompensation)
-                Text("Turn off colour management in the printer driver's dialog: the pixels are already in the printer's space.")
-                    .font(.system(size: 11)).foregroundStyle(.secondary)
+                Hint("Turn off colour management in the printer driver's dialog: the pixels are already in the printer's space.")
             } else {
-                Text("Sends Display P3 pixels; the printer driver converts them for the paper you choose there.")
-                    .font(.system(size: 11)).foregroundStyle(.secondary)
+                Hint("Sends Display P3 pixels; the printer driver converts them for the paper you choose there.")
             }
         }
     }
@@ -168,30 +188,6 @@ struct PrintSheet: View {
                                         set: { printing.settings[keyPath: path] = max($0, 0) * 72 }),
                   format: .number.precision(.fractionLength(0...2)))
             .help("inches")
-    }
-
-    // MARK: Footer
-
-    private var footer: some View {
-        HStack {
-            Text("Photos are rendered with the engine at \(Int(printing.settings.dpi)) dpi before printing.")
-                .font(.system(size: 11)).foregroundStyle(.secondary)
-            Spacer()
-            Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
-            Button("Save as JPEG…") {
-                printing.chooseDestination("jpeg", in: NSApp.keyWindow) { url in start(.jpeg(url)) }
-            }
-            .disabled(printing.pageCount == 0)
-            Button("Save as PDF…") {
-                printing.chooseDestination("pdf", in: NSApp.keyWindow) { url in start(.pdf(url)) }
-            }
-            .disabled(printing.pageCount == 0)
-            .accessibilityIdentifier("print-save-pdf")
-            Button("Print…") { start(.printer) }
-                .keyboardShortcut(.defaultAction)
-                .disabled(printing.pageCount == 0)
-        }
-        .padding(16)
     }
 
     private func start(_ output: PrintController.Output) {
@@ -235,7 +231,7 @@ struct PrintPreview: NSViewRepresentable {
             ctx.scaleBy(x: scale, y: scale)
             composer.draw(page: page, in: ctx, placeholders: true)
             // Margins guide.
-            ctx.setStrokeColor(CGColor(red: 0.3, green: 0.55, blue: 1, alpha: 0.5))
+            ctx.setStrokeColor(Theme.Palette.accent.withAlphaComponent(0.6).cgColor)
             ctx.setLineWidth(0.5 / scale)
             ctx.stroke(composer.layout.contentRect(page: s))
             ctx.restoreGState()

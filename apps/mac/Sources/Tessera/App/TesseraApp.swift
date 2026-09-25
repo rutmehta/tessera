@@ -25,7 +25,7 @@ struct TesseraApp: App {
     }
 }
 
-/// Launch handling: activation (also when run as a bare SwiftPM executable), dark appearance,
+/// Launch handling: activation (also when run as a bare SwiftPM executable), the appearance,
 /// the culling key monitor, and the initial library.
 ///
 /// Launch arguments (used by the acceptance script and benchmarks):
@@ -37,6 +37,7 @@ struct TesseraApp: App {
 ///                     into the index after opening a folder, for the defect sweep
 ///   --import-lrcat <catalog.lrcat>  open File ▸ Import Lightroom Catalog… with this catalog chosen
 ///   --front           order the window front without activating (screenshots while another app is active)
+///   --appearance dark|light|system  (test aid) use this appearance for this run only
 ///   --develop-selftest  once a develop session opens, drag Exposure 0 → +1.5 through the slider path
 ///                     (60 display-rate steps, then mouse-up) and print frame timings to stderr
 ///   --develop-panels-selftest  open the first photo in the loupe and drag one control of each develop
@@ -67,7 +68,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
-        NSApp.appearance = NSAppearance(named: .darkAqua)
+        // Follows the system unless View ▸ Appearance picks one (DESIGN.md: dark first, full light).
+        let args = ProcessInfo.processInfo.arguments
+        if let i = args.firstIndex(of: "--appearance"), i + 1 < args.count, let forced = AppearancePreference(rawValue: args[i + 1]) {
+            forced.apply()
+        } else {
+            AppearancePreference.current.apply()
+        }
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {

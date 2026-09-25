@@ -39,67 +39,65 @@ struct SmartAlbumSheet: View {
     }
 
     private func content(_ d: SmartAlbumDraft) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(d.editing == nil ? "New Smart Album" : "Edit Smart Album").font(.system(size: 15, weight: .semibold))
-                Text("A saved search. It updates as photos change; removing a photo from it means changing the rule.")
-                    .font(.system(size: 11)).foregroundStyle(.secondary)
-            }
-            .padding(16)
-            Divider()
-            Form {
-                TextField("Name", text: draft.name)
-                Picker("Location", selection: draft.parent) {
-                    Text("Top level").tag(Int64?.none)
-                    ForEach(library.groups) { g in
-                        Text(String(repeating: "   ", count: g.depth) + g.name).tag(Int64?.some(g.id))
+        SheetScaffold(title: d.editing == nil ? "New Smart Album" : "Edit Smart Album",
+                      subtitle: "A saved search. It updates as photos change; removing a photo from it means changing the rule.") {
+            EmptyView()
+        } content: {
+            VStack(alignment: .leading, spacing: 0) {
+                Form {
+                    TextField("Name", text: draft.name)
+                    Picker("Location", selection: draft.parent) {
+                        Text("Top level").tag(Int64?.none)
+                        ForEach(library.groups) { g in
+                            Text(String(repeating: "   ", count: g.depth) + g.name).tag(Int64?.some(g.id))
+                        }
                     }
+                    Toggle("Only search albums in this group", isOn: Binding(
+                        get: { d.scoped && d.parent != nil },
+                        set: { library.editor?.scoped = $0; library.refreshEditorCount() }))
+                        .disabled(d.parent == nil)
+                        .help("Capture One–style project scope: match only photos in this group's albums (and nested groups)")
                 }
-                Toggle("Only search albums in this group", isOn: Binding(
-                    get: { d.scoped && d.parent != nil },
-                    set: { library.editor?.scoped = $0; library.refreshEditorCount() }))
-                    .disabled(d.parent == nil)
-                    .help("Capture One–style project scope: match only photos in this group's albums (and nested groups)")
-            }
-            .formStyle(.columns)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .onChange(of: d.parent) { library.refreshEditorCount() }
-            Divider()
-            ScrollView {
-                RuleGroupEditor(node: tree, isRoot: true, depth: 0, onRemove: nil)
-                    .padding(12)
-            }
-            .frame(minHeight: 180, maxHeight: 320)
-            Divider()
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Rule text").font(.system(size: 11, weight: .medium)).foregroundStyle(.secondary)
-                RuleTextField(text: text, diagnostic: d.diagnostic,
-                              placeholder: "keyword:beach AND rating>=2 AND NOT decision:reject",
-                              onSubmit: { library.saveEditor() })
-                    .frame(height: 24)
-                RuleMessage(diagnostic: d.diagnostic,
-                            hint: "Edit either the conditions above or this text. AND, OR, NOT and ( ) nest; quote values with spaces.")
-            }
-            .padding(16)
-            Divider()
-            HStack {
-                if let n = d.matchCount {
-                    Text("\(n.formatted()) photo\(n == 1 ? "" : "s") in this folder match")
-                        .font(.system(size: 11).monospacedDigit()).foregroundStyle(.secondary)
-                        .accessibilityIdentifier("smartAlbumMatchCount")
+                .formStyle(.columns)
+                .font(Theme.Fonts.label)
+                .padding(.horizontal, Theme.Space.l)
+                .padding(.vertical, Theme.Space.m)
+                .onChange(of: d.parent) { library.refreshEditorCount() }
+                Hairline()
+                ScrollView {
+                    RuleGroupEditor(node: tree, isRoot: true, depth: 0, onRemove: nil)
+                        .padding(Theme.Space.m)
                 }
-                Spacer()
-                Button("Cancel") { library.editor = nil }
-                    .keyboardShortcut(.cancelAction)
-                Button(d.editing == nil ? "Create" : "Save") { library.saveEditor() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(d.diagnostic != nil || d.name.trimmingCharacters(in: .whitespaces).isEmpty)
+                .frame(minHeight: 180, maxHeight: 320)
+                Hairline()
+                VStack(alignment: .leading, spacing: Theme.Space.xs) {
+                    Text("Rule text").font(Theme.Fonts.captionMedium).foregroundStyle(Theme.textSecondary)
+                    FieldContainer(invalid: d.diagnostic != nil) {
+                        RuleTextField(text: text, diagnostic: d.diagnostic,
+                                      placeholder: "keyword:beach AND rating>=2 AND NOT decision:reject",
+                                      onSubmit: { library.saveEditor() }, plain: true, monospaced: true)
+                    }
+                    RuleMessage(diagnostic: d.diagnostic,
+                                hint: "Edit either the conditions above or this text. AND, OR, NOT and ( ) nest; quote values with spaces.")
+                }
+                .padding(Theme.Space.l)
             }
-            .padding(16)
+        } leading: {
+            if let n = d.matchCount {
+                Text("\(n.formatted()) photo\(n == 1 ? "" : "s") in this folder match")
+                    .monospacedDigit()
+                    .accessibilityIdentifier("smartAlbumMatchCount")
+            }
+        } actions: {
+            Button("Cancel") { library.editor = nil }
+                .keyboardShortcut(.cancelAction)
+                .sheetButton()
+            Button(d.editing == nil ? "Create" : "Save") { library.saveEditor() }
+                .keyboardShortcut(.defaultAction)
+                .sheetButton(primary: true)
+                .disabled(d.diagnostic != nil || d.name.trimmingCharacters(in: .whitespaces).isEmpty)
         }
         .frame(width: 620)
-        .background(Color(nsColor: Theme.windowBackground))
     }
 }
 
@@ -110,23 +108,18 @@ struct RuleGroupEditor: View {
     let depth: Int
     let onRemove: (() -> Void)?
 
-    static func color(_ kind: RuleNode.Kind) -> Color {
-        switch kind {
-        case .all: Color(nsColor: Theme.basket)
-        case .any: Color(nsColor: Theme.accent)
-        case .not: Color(nsColor: Theme.reject)
-        case .rule: .secondary
-        }
-    }
+    /// Nesting is shown by indentation and a neutral rail; the kind is spelled out in the picker
+    /// (semantic colours stay reserved for cull decisions). NOT keeps a dashed rail.
+    static func dashed(_ kind: RuleNode.Kind) -> Bool { kind == .not }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            RoundedRectangle(cornerRadius: 1.5)
-                .fill(Self.color(node.kind).opacity(0.85))
-                .frame(width: 3)
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 6) {
-                    Text(isRoot ? "Match" : "Group:").font(.system(size: 11)).foregroundStyle(.secondary)
+        HStack(alignment: .top, spacing: Theme.Space.s) {
+            Rectangle()
+                .stroke(Theme.hairlineStrong, style: StrokeStyle(lineWidth: Theme.Space.xxs, dash: Self.dashed(node.kind) ? [4, 3] : []))
+                .frame(width: Theme.Space.xxs)
+            VStack(alignment: .leading, spacing: Theme.Space.s - Theme.Space.xxs) {
+                HStack(spacing: Theme.Space.s - Theme.Space.xxs) {
+                    Text(isRoot ? "Match" : "Group:").font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
                     Picker("", selection: $node.kind) {
                         Text("all (AND)").tag(RuleNode.Kind.all)
                         Text("any (OR)").tag(RuleNode.Kind.any)
@@ -135,7 +128,7 @@ struct RuleGroupEditor: View {
                     .labelsHidden()
                     .fixedSize()
                     .accessibilityIdentifier("ruleGroupKind")
-                    Text("of the following:").font(.system(size: 11)).foregroundStyle(.secondary)
+                    Text("of the following:").font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
                     Spacer()
                     Menu("Add") {
                         Button("Condition") { node.children.append(.condition()) }
@@ -143,31 +136,29 @@ struct RuleGroupEditor: View {
                         Button("Group (any)") { node.children.append(RuleNode(kind: .any, children: [.condition()])) }
                         Button("Group (none)") { node.children.append(RuleNode(kind: .not, children: [.condition()])) }
                     }
-                    .menuStyle(.button)
-                    .fixedSize()
+                    .menuStyle(ThemeMenuStyle(height: Theme.Height.small))
                     .disabled(depth >= 8)
                     if let onRemove {
-                        Button { onRemove() } label: { Text("−").frame(width: 14) }
-                            .help("Remove this group")
+                        IconButton(symbol: "minus", help: "Remove this group", size: Theme.Height.small) { onRemove() }
                     }
                 }
                 ForEach($node.children) { $child in
                     let remove = { node.children.removeAll { $0.id == child.id } }
                     if child.isGroup {
                         RuleGroupEditor(node: $child, isRoot: false, depth: depth + 1, onRemove: remove)
-                            .padding(.leading, 6)
+                            .padding(.leading, Theme.Space.s - Theme.Space.xxs)
                     } else {
                         RuleConditionRow(node: $child, onRemove: remove)
                     }
                 }
                 if node.children.isEmpty {
-                    Text("Empty group: add a condition").font(.system(size: 11)).foregroundStyle(.tertiary)
+                    Hint("Empty group: add a condition")
                 }
             }
-            .padding(.vertical, 4)
+            .padding(.vertical, Theme.Space.xs)
         }
-        .padding(6)
-        .background(RoundedRectangle(cornerRadius: 5).fill(Self.color(node.kind).opacity(isRoot ? 0.04 : 0.07)))
+        .padding(Theme.Space.s - Theme.Space.xxs)
+        .background(RoundedRectangle(cornerRadius: Theme.Radius.control).fill(isRoot ? Theme.clear : Theme.hover))
         .controlSize(.small)
     }
 }
@@ -178,7 +169,7 @@ struct RuleConditionRow: View {
 
     var body: some View {
         let field = RuleField.named(node.field)
-        HStack(spacing: 6) {
+        HStack(spacing: Theme.Space.s - Theme.Space.xxs) {
             Picker("", selection: Binding(get: { node.field }, set: { key in
                 node.field = key
                 let ops = RuleField.named(key).ops.map(\.op)
@@ -197,9 +188,8 @@ struct RuleConditionRow: View {
             .frame(width: 84)
             TextField(field.placeholder, text: $node.value)
                 .textFieldStyle(.roundedBorder)
-            Button { onRemove() } label: { Text("−").frame(width: 14) }
-                .help("Remove this condition")
+            IconButton(symbol: "minus", help: "Remove this condition", size: Theme.Height.small) { onRemove() }
         }
-        .font(.system(size: 11))
+        .font(Theme.Fonts.caption)
     }
 }

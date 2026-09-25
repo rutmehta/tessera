@@ -57,7 +57,7 @@ extension LoupeToolOverlay {
         switch maskDrag {
         case .box(_, let a, let b, _):
             let r = CGRect(x: min(a.x, b.x), y: min(a.y, b.y), width: abs(b.x - a.x), height: abs(b.y - a.y))
-            NSColor(calibratedWhite: 1, alpha: 0.9).setStroke()
+            Theme.Palette.OnImage.guide.setStroke()
             let path = NSBezierPath(rect: r.insetBy(dx: 0.5, dy: 0.5))
             path.setLineDash([4, 3], count: 2, phase: 0)
             path.stroke()
@@ -68,7 +68,7 @@ extension LoupeToolOverlay {
             let r = masks.brushSize
             let outer = NSBezierPath(ovalIn: CGRect(x: p.x - r, y: p.y - r, width: 2 * r, height: 2 * r))
             outer.lineWidth = 1
-            NSColor(calibratedWhite: erase ? 0.2 : 1, alpha: 0.85).setStroke()
+            (erase ? Theme.Palette.OnImage.ink : Theme.Palette.OnImage.guide).withAlphaComponent(0.85).setStroke()
             outer.stroke()
             let ri = r * (1 - masks.brushFeather / 100)
             if ri > 1 {
@@ -97,10 +97,10 @@ extension LoupeToolOverlay {
             path.move(to: points[0])
             points.dropFirst().forEach { path.line(to: $0) }
             path.lineWidth = width
-            NSColor(calibratedWhite: 0, alpha: 0.35 * alpha).setStroke()
+            Theme.Palette.OnImage.shadow.withAlphaComponent(0.35 * alpha).setStroke()
             path.stroke()
             path.lineWidth = max(width - 0.5, 0.5)
-            NSColor(calibratedWhite: 1, alpha: 0.85 * alpha).setStroke()
+            Theme.Palette.OnImage.guide.withAlphaComponent(0.85 * alpha).setStroke()
             path.stroke()
         }
         for c in g.components {
@@ -128,9 +128,9 @@ extension LoupeToolOverlay {
     private func knob(_ p: CGPoint, small: Bool = false) {
         let r: CGFloat = small ? 3.5 : 5
         let o = NSBezierPath(ovalIn: CGRect(x: p.x - r, y: p.y - r, width: 2 * r, height: 2 * r))
-        NSColor(calibratedWhite: 1, alpha: 0.95).setFill()
+        Theme.Palette.OnImage.guide.setFill()
         o.fill()
-        NSColor(calibratedWhite: 0, alpha: 0.5).setStroke()
+        Theme.Palette.OnImage.shadow.setStroke()
         o.lineWidth = 1
         o.stroke()
     }

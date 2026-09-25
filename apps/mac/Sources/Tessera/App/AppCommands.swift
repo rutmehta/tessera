@@ -5,6 +5,7 @@ import SwiftUI
 /// titles rather than bound as key equivalents, so they never fire while typing in a field).
 struct AppCommands: Commands {
     let model: AppModel
+    @AppStorage(AppearancePreference.defaultsKey) private var appearance = AppearancePreference.system.rawValue
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
@@ -55,6 +56,12 @@ struct AppCommands: Commands {
                 .keyboardShortcut("i", modifiers: [.command, .option])
             Button(model.showFilmstrip ? "Hide Filmstrip" : "Show Filmstrip") { model.showFilmstrip.toggle() }
                 .keyboardShortcut("f", modifiers: [.command, .option])
+            Picker("Appearance", selection: Binding(get: { appearance }, set: { new in
+                appearance = new
+                AppearancePreference(rawValue: new)?.apply()
+            })) {
+                ForEach(AppearancePreference.allCases) { Text($0.title).tag($0.rawValue) }
+            }
             Divider()
         }
         CommandMenu("Cull") {

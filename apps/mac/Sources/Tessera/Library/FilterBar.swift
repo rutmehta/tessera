@@ -12,43 +12,48 @@ struct FilterBar: View {
 
     var body: some View {
         let facets = library.facets
-        VStack(alignment: .leading, spacing: 5) {
-            HStack(spacing: 8) {
-                RuleTextField(text: $library.filter.text, diagnostic: library.diagnostic,
-                              placeholder: "Search or rule, e.g.  beach rating>=2 NOT decision:reject",
-                              onSubmit: {})
-                    .frame(minWidth: 160, maxWidth: 420)
-                    .help("Words search names, captions and keywords. Fields: keyword: camera: lens: rating>= "
-                          + "decision: mark: date: album: (none / any / name), combined with AND, OR, NOT and ( )")
+        VStack(alignment: .leading, spacing: Theme.Space.s) {
+            HStack(spacing: Theme.Space.s) {
+                FieldContainer(symbol: "magnifyingglass", invalid: library.diagnostic != nil) {
+                    RuleTextField(text: $library.filter.text, diagnostic: library.diagnostic,
+                                  placeholder: "Search or rule, e.g. beach rating>=2 NOT decision:reject",
+                                  onSubmit: {}, plain: true)
+                }
+                .frame(minWidth: 180, maxWidth: 400)
+                .help("Words search names, captions and keywords. Fields: keyword: camera: lens: rating>= "
+                      + "decision: mark: date: album: (none / any / name), combined with AND, OR, NOT and ( )")
                 if let d = library.diagnostic {
                     Text(d.message)
-                        .foregroundStyle(Color(nsColor: Theme.reject))
+                        .font(Theme.Fonts.caption)
+                        .foregroundStyle(Theme.reject)
                         .lineLimit(1)
                         .truncationMode(.tail)
                         .help(d.message)
                         .accessibilityIdentifier("filterDiagnostic")
                 }
-                Spacer(minLength: 4)
+                Spacer(minLength: Theme.Space.xs)
                 if let n = library.matchCount, !library.filter.isEmpty {
                     Text("\(n.formatted()) match\(n == 1 ? "" : "es")")
-                        .monospacedDigit()
-                        .foregroundStyle(.secondary)
+                        .font(Theme.Fonts.captionNumeric)
+                        .foregroundStyle(Theme.textSecondary)
                         .fixedSize()
                         .accessibilityIdentifier("filterMatchCount")
                 }
                 if !library.filter.isEmpty {
                     Button("Clear") { library.clearFilter() }
+                        .buttonStyle(.themeBorderless)
                         .fixedSize()
                         .help("Remove all filters (⌥⌘L)")
                 }
                 Button("Save as Smart Album…") { library.saveFilterAsSmartAlbum() }
+                    .buttonStyle(.themeBorderless)
                     .fixedSize()
                     .disabled(library.composedRule.isEmpty || library.diagnostic != nil)
                     .help(library.composedRule.isEmpty ? "Set a filter (or open an album) first"
                           : "Save “\(library.composedRule)” as a smart album")
             }
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 6) {
+                HStack(spacing: Theme.Space.xs) {
                     facetMenu("Decision", \.decisions, values: ["keep", "undecided", "reject"].map { v in
                         (v, v.capitalized, count(facets?.decisions, v))
                     })
@@ -62,14 +67,13 @@ struct FilterBar: View {
                     dateButton
                     albumMenu(facets)
                 }
-                .padding(.vertical, 1)
             }
         }
-        .controlSize(.small)
-        .font(.system(size: 11))
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(Color(nsColor: Theme.windowBackground))
+        .font(Theme.Fonts.caption)
+        .padding(.horizontal, Theme.Space.gutter)
+        .padding(.vertical, Theme.Space.s)
+        .background(Theme.panel)
+        .overlay(alignment: .bottom) { Hairline() }
         .disabled(!library.isAvailable)
     }
 
@@ -111,9 +115,7 @@ struct FilterBar: View {
             Text(selected.isEmpty ? title : "\(title) · \(selected.count == 1 ? selected.first! : "\(selected.count)")")
                 .lineLimit(1)
         }
-        .menuStyle(.button)
-        .fixedSize()
-        .tint(selected.isEmpty ? nil : Color(nsColor: Theme.accent))
+        .menuStyle(ThemeMenuStyle(height: Theme.Height.small, active: !selected.isEmpty))
         .accessibilityIdentifier("facet\(title)")
     }
 
@@ -122,24 +124,29 @@ struct FilterBar: View {
         return Button(active ? "Date · \(library.filter.dateValue!.replacingOccurrences(of: "0001..", with: "…").replacingOccurrences(of: "..9998", with: "…"))" : "Date") {
             showDates.toggle()
         }
+        .buttonStyle(ThemeButtonStyle(kind: .bordered, height: Theme.Height.small))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.control)
+            .strokeBorder(active ? Theme.accent.opacity(0.5) : Theme.clear, lineWidth: Theme.Space.hairline))
         .fixedSize()
         .popover(isPresented: $showDates, arrowEdge: .bottom) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Capture date").font(.system(size: 12, weight: .semibold))
-                HStack {
+            VStack(alignment: .leading, spacing: Theme.Space.s) {
+                Text("Capture date").font(Theme.Fonts.labelSemibold)
+                HStack(spacing: Theme.Space.s) {
                     TextField("From  YYYY[-MM[-DD]]", text: $library.filter.dateFrom).frame(width: 150)
-                    Text("to")
+                    Text("to").foregroundStyle(Theme.textSecondary)
                     TextField("To", text: $library.filter.dateTo).frame(width: 150)
                 }
-                Text("Inclusive. 2024 is the whole year; 2024-06 the whole month.")
-                    .font(.system(size: 11)).foregroundStyle(.secondary)
-                HStack {
-                    Button("Clear") { library.filter.dateFrom = ""; library.filter.dateTo = "" }
+                .textFieldStyle(.roundedBorder)
+                Hint("Inclusive. 2024 is the whole year; 2024-06 the whole month.")
+                HStack(spacing: Theme.Space.s) {
+                    Button("Clear") { library.filter.dateFrom = ""; library.filter.dateTo = "" }.buttonStyle(.themeBordered)
                     Spacer()
-                    Button("Done") { showDates = false }.keyboardShortcut(.defaultAction)
+                    Button("Done") { showDates = false }.keyboardShortcut(.defaultAction).buttonStyle(.themePrimary)
                 }
             }
-            .padding(12)
+            .font(Theme.Fonts.label)
+            .padding(Theme.Space.m)
+            .tint(Theme.accent)
         }
     }
 
@@ -155,9 +162,7 @@ struct FilterBar: View {
         } label: {
             Text(status == "none" ? "Not in Album" : status == "any" ? "In Album" : "Album")
         }
-        .menuStyle(.button)
-        .fixedSize()
-        .tint(status == nil ? nil : Color(nsColor: Theme.accent))
+        .menuStyle(ThemeMenuStyle(height: Theme.Height.small, active: status != nil))
         .accessibilityIdentifier("facetAlbum")
     }
 }
