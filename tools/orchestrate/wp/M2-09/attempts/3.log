@@ -1,0 +1,11 @@
+Fixed camera-aware profile selection and added regression tests. Third-party lenses now match independently of camera make, wrong-camera profiles are rejected, and ambiguous matches require explicit selection.
+
+Verification:
+  Required release tests, clippy, and fmt chain passed.
+  125 tests passed, with one fixture test ignored by default.
+  Separately ran that fixture test: all five RAW files rendered finite with auto corrections enabled.
+  Only allowed paths changed. engine-api unchanged. No commits.
+
+Remaining gaps are documented in tools/orchestrate/wp/M2-09/HANDOFF.md.
+
+RESULT: FAIL incomplete DNG stage execution, profile coordinate coverage, downloadable data pack, and independent manual CA controls.

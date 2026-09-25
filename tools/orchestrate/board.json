@@ -291,9 +291,9 @@
     "id": "M2-09",
     "owner": "astra",
     "title": "Lens corrections + Upright",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
-    "notes": ""
+    "notes": "baseline; follow-up M2-09b: data pack download, DNG opcode stage exec, manual CA"
   },
   {
     "id": "M2-11",
