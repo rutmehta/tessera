@@ -235,9 +235,9 @@
     "id": "M2-04",
     "owner": "astra",
     "title": "M2 operators CPU reference",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
-    "notes": ""
+    "notes": "follow-up M2-04b: apply default sharpen/NR, regenerate goldens, bump native process revision (contract invariant 4)"
   },
   {
     "id": "M3-03",

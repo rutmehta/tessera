@@ -1,0 +1,13 @@
+Implemented M2-04 in the allowed paths, with scalar f32 operators wired into pipeline-cpu rendering and image-core StageOp dispatch.
+
+Verified:
+- Required test, clippy -D warnings, and fmt command passed.
+- All five default RAW goldens remain bit-identical, unchanged.
+- All five RAW fixtures remain finite at level 3 with positive and negative extreme settings.
+- Crop dimensions, tile seams, deterministic grain, and cache reuse are tested.
+
+Formulas are in crates/pipeline-cpu/OPERATORS.md. MISSING_FIELDS.md documents skipped B&W controls, the fixed grain seed, and default-detail compatibility behavior. Preview approximations are documented. No commits made.
+
+Verification log: /Users/rutmehta/Developer/tessera/.worktrees/M2-04/tools/orchestrate/wp/M2-04/verification.log
+
+RESULT: PASS
