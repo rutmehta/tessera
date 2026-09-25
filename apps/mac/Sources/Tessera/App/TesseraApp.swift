@@ -1,14 +1,14 @@
 import AppKit
-import PhotoEditorCore
+import TesseraCore
 import SwiftUI
 
 @main
-struct PhotoEditorApp: App {
+struct TesseraApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     private let model = AppModel.shared
 
     var body: some Scene {
-        Window("PhotoEditor", id: "main") {
+        Window("Tessera", id: "main") {
             ContentView(model: model)
                 .frame(minWidth: 960, minHeight: 600)
         }

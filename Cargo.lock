@@ -251,13 +251,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pe-cli"
-version = "0.1.0"
-dependencies = [
- "image-core",
-]
-
-[[package]]
 name = "pipeline-cpu"
 version = "0.1.0"
 
@@ -419,6 +412,13 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
+]
+
+[[package]]
+name = "tessera-cli"
+version = "0.1.0"
+dependencies = [
+ "image-core",
 ]
 
 [[package]]

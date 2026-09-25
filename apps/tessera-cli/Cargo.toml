@@ -1,11 +1,11 @@
 [package]
-name = "pe-cli"
+name = "tessera-cli"
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
 
 [[bin]]
-name = "pe-cli"
+name = "tessera"
 path = "src/main.rs"
 
 [dependencies]

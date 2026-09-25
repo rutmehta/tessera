@@ -1,7 +1,7 @@
-# Agentic Editing — The Agent Makes the Base Edit, the App Is Where You Fine-Tune
+# Agentic Editing — The Agent Makes the Base Edit, Tessera Is Where You Fine-Tune
 
 ## 1. Concept
-A shoot comes in; an agent culls, groups, and produces a complete *base edit* for every keeper using **our engine's own tools** (recipe parameters, masks, retouch operations), not image generation. The photographer opens the app to review, tweak, and add creative intent. Every agent action is an ordinary recipe step: inspectable, undoable, and editable by hand.
+A shoot comes in; an agent culls, groups, and produces a complete *base edit* for every keeper using **our engine's own tools** (recipe parameters, masks, retouch operations), not image generation. The photographer opens Tessera to review, tweak, and add creative intent. Every agent action is an ordinary recipe step: inspectable, undoable, and editable by hand.
 
 ## 2. Architecture
 ```

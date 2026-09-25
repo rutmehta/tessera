@@ -1,4 +1,4 @@
-import PhotoEditorCore
+import TesseraCore
 import SwiftUI
 
 /// Window layout: sidebar | (grid or loupe) + status bar + filmstrip | inspector.
@@ -34,7 +34,7 @@ struct ContentView: View {
                 }
             }
             .background(Color(nsColor: Theme.gridBackground))
-            .navigationTitle(model.library.items.isEmpty ? "PhotoEditor" : model.library.title)
+            .navigationTitle(model.library.items.isEmpty ? "Tessera" : model.library.title)
             .navigationSubtitle(subtitle)
         }
         .inspector(isPresented: $model.showInspector) {

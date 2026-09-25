@@ -19,7 +19,7 @@ Written 2026-09-25. Covers how docs 01–10 get built, by which model, in what o
 3. **No "bit-for-bit" GPU/CPU claim.** wgpu's Metal path compiles with fast-math and WGSL permits FMA/reassociation, so spec 07 §1's "bit-identical on any GPU/CPU" is replaced by: deterministic per backend, and GPU output gated against the CPU reference at a tolerance (max abs error ≤ 1e-4 linear, ΔE2000 ≤ 0.5 on the golden suite).
 4. **Cached intermediates may be f16.** A 45 MP RGBA f32 buffer is ~720 MB; memoising post-demosaic and post-denoise per image at f32 does not fit in 24 GB alongside prefetch. Compute in f32, store cached stage buffers as f16 (spec 07 §1's "no 16-bit intermediate" is relaxed for caches only, never for in-flight math).
 5. **macOS app is AppKit where performance matters, SwiftUI elsewhere.** `NSCollectionView` for the grid (SwiftUI `LazyVGrid` does not recycle cells), an `NSView` with `CAMetalLayer` for the viewport, custom `NSControl` sliders on the < 16 ms path; SwiftUI for inspectors, panels, sheets, settings. This is what Pixelmator Pro and Nitro do.
-6. **Headless first.** Every engine feature ships with the `pe` CLI and, from Milestone 3, the MCP server (spec 10). Luna and Sol test through these before UI exists.
+6. **Headless first.** Every engine feature ships with the `tessera` CLI and, from Milestone 3, the MCP server (spec 10). Luna and Sol test through these before UI exists.
 7. **Third-party, licence-checked.** `libraw-sys` is dead (2015); we write an in-repo `libraw-ffi` crate (bindgen over vendored LibRaw 0.22.1, CDDL option), with `rawler` (LGPL, dynamic link) as cross-check decoder. `rusqlite` bundled with FTS5. `ort` 2.0 RC with the CoreML provider plus a CI test that fails if any hot model has CPU-partitioned operators; native Core ML `.mlpackage` route kept for denoise and segmentation. `lcms2` for ICC. JPEG XL: `jxl-oxide` for decode, direct `libjxl` (BSD) bindings for encode; `jpegxl-rs` is GPL and is banned. Thumbnail tier of the preview cache is JPEG (`zune-jpeg`/ImageIO hardware decode); JXL only for large previews and export. `uniffi` 0.32 for Swift bindings. A `cargo-deny` licence gate runs in CI from Milestone 0.
 8. **Fixtures**: CC0 sample raws from raw.pixls.us fetched by script into `fixtures/` (git-ignored); golden crops committed.
 9. **Cross-platform UI is deferred, engine stays UI-agnostic.** gpui, Slint, iced, Tauri were reviewed and rejected for v1 (licensing, maturity, or no EDR Metal viewport path). Windows UI is decided when Windows is scheduled.
@@ -64,7 +64,7 @@ crates/
   engine-api/              typed tool API, UniFFI bindings, MCP server (spec 10)
   compositor/              layered editor (Milestone 5)
 apps/
-  pe-cli/                  headless driver used by tests and Sol
+  tessera-cli/             headless driver used by tests and Sol
   mac/                     SwiftUI app
 fixtures/                  fetched raws (ignored) + committed golden crops
 tools/orchestrate/         run-luna.sh, verify-sol.sh, board.json, wp/<id>/{brief.md,acceptance.md}
@@ -98,7 +98,7 @@ Goal: open a folder of raws, see embedded previews in < 1 s, cull with X/U/P and
 | M1-08 | Luna | Export: tile-parallel render, JPEG/TIFF/PNG encoders, XMP embed, batch over an album |
 | M1-09 | Opus | Culling UX in the mac app: decision/grade/mark keys, group navigation, basket, safe delete (spec 06 §3–4) |
 | M1-10 | Opus | Develop UI: Basic panel sliders bound to recipe with < 16 ms screen-res update via the memoized graph; histogram |
-| M1-11 | Luna | `pe-cli`: `pe index <dir>`, `pe cull set`, `pe develop set`, `pe export`, `pe render --stage` used by tests and Sol |
+| M1-11 | Luna | `tessera`: `tessera index <dir>`, `tessera cull set`, `tessera develop set`, `tessera export`, `tessera render --stage` used by tests and Sol |
 | M1-V | Sol | Acceptance: open 200-raw fixture folder, grid visible < 1 s, cull 20 images by keyboard, sidecars written, adjust exposure, export 10 JPEGs, verify files exist |
 
 ### M2 — Parity for enthusiasts, P1 (3 waves)
@@ -123,7 +123,7 @@ Planner + critic loop over the MCP tool API (spec 10 phase 3), batch mode with c
 ## 6. Risks and how they are handled
 
 - **Workers run unsandboxed on the host** (Hermes `--yolo`). Mitigation: path allow-lists enforced by the merge script, worktrees, no secrets in the repo; a separate macOS user account is the next step if this becomes a problem.
-- **Sol computer use takes the screen.** Verification runs in batches at wave end; you will see the app being driven. If that is not acceptable on this machine, Sol runs headless `pe-cli` acceptance only and UI checks fall to Opus reading screenshots from `xcrun` captures.
+- **Sol computer use takes the screen.** Verification runs in batches at wave end; you will see the app being driven. If that is not acceptable on this machine, Sol runs headless `tessera` acceptance only and UI checks fall to Opus reading screenshots from `xcrun` captures.
 - **Luna drift across worktrees.** Each WP has an explicit path allow-list; the merge script rejects diffs outside it.
 - **Contract churn.** Contracts are versioned in `engine-api`; Luna WPs pin the version they built against; I own reconciliation.
 - **LibRaw coverage gaps** (CR3 etc.). Fallback to `rawloader`/`rawspeed` bindings per-format is a Luna task, not a redesign.

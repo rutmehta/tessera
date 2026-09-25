@@ -1,6 +1,6 @@
 import AppKit
 import Observation
-import PhotoEditorCore
+import TesseraCore
 
 enum ViewMode: String, CaseIterable, Identifiable {
     case grid = "Grid"

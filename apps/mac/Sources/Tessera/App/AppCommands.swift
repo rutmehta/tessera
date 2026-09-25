@@ -1,4 +1,4 @@
-import PhotoEditorCore
+import TesseraCore
 import SwiftUI
 
 /// Menu bar. Single-key culling shortcuts are handled by `KeyRouter` (they are listed in the menu

@@ -1,4 +1,6 @@
-# Photo Editing Platform — Specification Set
+# Tessera — Product and Architecture Documentation
+
+Tessera means a single tile of a mosaic, reflecting the image-tile foundation of the engine.
 
 Written 2026-09-24. Baselines: Lightroom Classic 15.x / Camera Raw 18.x, Photoshop 27.x.
 
@@ -13,5 +15,5 @@ Written 2026-09-24. Baselines: Lightroom Classic 15.x / Camera Raw 18.x, Photosh
 | [07-image-quality-and-color.md](07-image-quality-and-color.md) | SOTA raw pipeline, camera/lens support, optics correction, camera profiling, display colour management |
 | [08-performance.md](08-performance.md) | Performance targets versus Lightroom Classic/Photoshop and the architecture that meets them |
 | [09-ai-features.md](09-ai-features.md) | Complete on-device AI inventory (detection, recognition, segmentation, scoring, removal, retouch); generative as phase 2 |
-| [10-agentic-editing.md](10-agentic-editing.md) | Agent produces base edits through the engine's tool API; the app is for fine-tuning |
+| [10-agentic-editing.md](10-agentic-editing.md) | Agent produces base edits through the engine's tool API; Tessera is for fine-tuning |
 | [research/](research/) | Raw research notes with source URLs (current Adobe releases, raster competitors, raw/DAM competitors) |

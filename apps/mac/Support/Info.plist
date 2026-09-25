@@ -5,15 +5,15 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>PhotoEditor</string>
+	<string>Tessera</string>
 	<key>CFBundleExecutable</key>
-	<string>PhotoEditor</string>
+	<string>Tessera</string>
 	<key>CFBundleIdentifier</key>
-	<string>dev.local.photoeditor</string>
+	<string>dev.tessera.app</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>PhotoEditor</string>
+	<string>Tessera</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

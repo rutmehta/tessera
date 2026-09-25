@@ -1,5 +1,5 @@
 import AppKit
-import PhotoEditorCore
+import TesseraCore
 
 /// Culling key map (docs/06 §2–3), installed as a local event monitor so it works regardless of
 /// which pane has focus. Keys pass through when a text field is editing, a panel/sheet is up,
