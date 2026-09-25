@@ -4,7 +4,7 @@ import TesseraFFI
 @testable import TesseraCore
 
 final class BridgeTests: XCTestCase {
-    func testRawFixturesPersistAcrossReopen() throws {
+    @MainActor func testRawFixturesPersistAcrossReopen() async throws {
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
             .deletingLastPathComponent().deletingLastPathComponent()
         let fixture = root.appendingPathComponent("../../fixtures/raw").standardizedFileURL
@@ -17,19 +17,25 @@ final class BridgeTests: XCTestCase {
         let support = temp.appendingPathComponent("support")
         let library = try EngineLibrary.scan(folder: photos, appSupport: support)
         XCTAssertEqual(library.items.count, 5)
-        let item = try XCTUnwrap(library.items.first)
+        let item = try XCTUnwrap(library.items.first { $0.name == "sample.dng" })
         try library.persist(CullState(decision: .reject), for: item)
         let reopened = try EngineLibrary.scan(folder: photos, appSupport: support)
         let found = try XCTUnwrap(reopened.items.first { $0.url == item.url })
         XCTAssertEqual(reopened.initialState(for: found).decision, .reject)
-        XCTAssertNotNil(ThumbnailLoader.render(found, tier: .thumbnail))
+        let loader = ThumbnailLoader()
+        let ready = expectation(description: "cold RAW preview completes from worker callback")
+        let request = loader.request(found, tier: .thumbnail) { image in
+            XCTAssertGreaterThan(image.width, 0)
+            ready.fulfill()
+        }
+        await fulfillment(of: [ready], timeout: 30)
+        XCTAssertFalse(request?.isCancelled ?? true)
+        XCTAssertNotNil(loader.cached(found, tier: .thumbnail))
         let ref = try XCTUnwrap(found.engineImage)
-        let events = BridgeEvents()
-        ref.engine.setEventListener(listener: events)
-        _ = try ref.engine.indexFolder(path: photos.path)
-        _ = try ref.engine.embeddedPreview(imageId: ref.imageID, maxPx: 128)
-        XCTAssertEqual(events.count, 3)
-        ref.engine.setEventListener(listener: nil)
+        let cached = try ref.engine.embeddedPreview(imageId: ref.imageID, maxPx: 384)
+        XCTAssertFalse(cached.pending)
+        XCTAssertNotNil(cached.bytes)
+        XCTAssertNotNil(ThumbnailLoader.render(found, tier: .thumbnail))
 
         var cull = CullStore(count: reopened.items.count)
         for action: CullAction in [.keep, .grade(3), .mark(6), .reject, .undecided] {
@@ -54,11 +60,4 @@ final class BridgeTests: XCTestCase {
         XCTAssertEqual(store.counts.reject, 1)
         XCTAssertFalse(store.canUndo)
     }
-}
-
-private final class BridgeEvents: EngineEventListener, @unchecked Sendable {
-    private let lock = NSLock()
-    private var events: [EngineEvent] = []
-    var count: Int { lock.withLock { events.count } }
-    func onEvent(event: EngineEvent) { lock.withLock { events.append(event) } }
 }

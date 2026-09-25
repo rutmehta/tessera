@@ -3,8 +3,7 @@ import CoreText
 import Foundation
 import ImageIO
 
-/// Two preview tiers served from the embedded camera JPEG via ImageIO (docs/06 §3 "instant previews",
-/// docs/08 "embedded preview fast path"). Stand-in for `crates/previews`.
+/// Two preview tiers served by the Rust preview cache, including its scheduled RAW fallback.
 public enum PreviewTier: Sendable {
     /// Grid / filmstrip cells.
     case thumbnail
@@ -21,20 +20,36 @@ public enum PreviewTier: Sendable {
 
 /// A cancellable in-flight request. Cells cancel on reuse so fast scrolling never queues stale work.
 public final class PreviewRequest: @unchecked Sendable {
-    fileprivate let operation: BlockOperation
-    fileprivate init(_ op: BlockOperation) { operation = op }
-    public func cancel() { operation.cancel() }
-    public var isCancelled: Bool { operation.isCancelled }
+    private let lock = NSLock()
+    private var task: Task<Void, Never>?
+    private var cancelled = false
+    fileprivate init() {}
+    fileprivate func attach(_ task: Task<Void, Never>) {
+        lock.withLock {
+            if cancelled { task.cancel() } else { self.task = task }
+        }
+    }
+    public func cancel() {
+        lock.withLock { cancelled = true; task?.cancel(); task = nil }
+    }
+    public var isCancelled: Bool { lock.withLock { cancelled } }
 }
 
 /// Memory-bounded cache + bounded-concurrency decode queue.
 public final class ThumbnailLoader: @unchecked Sendable {
     private final class Box { let image: CGImage; init(_ i: CGImage) { image = i } }
-    private struct Key: Hashable { let item: Int; let tier: PreviewTier; let generation: Int }
+    private final class Key: NSObject {
+        let item: PhotoItem
+        init(_ item: PhotoItem) { self.item = item }
+        override var hash: Int { item.hashValue }
+        override func isEqual(_ object: Any?) -> Bool { (object as? Key)?.item == item }
+    }
 
-    private let thumbCache = NSCache<NSNumber, Box>()
-    private let previewCache = NSCache<NSNumber, Box>()
+    private let thumbCache = NSCache<Key, Box>()
+    private let previewCache = NSCache<Key, Box>()
     private let queue: OperationQueue
+    private let lock = NSLock()
+    private var active: [UUID: PreviewRequest] = [:]
 
     public init() {
         thumbCache.totalCostLimit = 512 << 20   // bytes
@@ -45,53 +60,110 @@ public final class ThumbnailLoader: @unchecked Sendable {
         queue.maxConcurrentOperationCount = max(2, ProcessInfo.processInfo.activeProcessorCount - 1)
     }
 
-    private func cache(_ tier: PreviewTier) -> NSCache<NSNumber, Box> {
+    private func cache(_ tier: PreviewTier) -> NSCache<Key, Box> {
         tier == .thumbnail ? thumbCache : previewCache
     }
 
     public func removeAll() {
-        queue.cancelAllOperations()
-        thumbCache.removeAllObjects()
-        previewCache.removeAllObjects()
+        lock.withLock {
+            for request in active.values { request.cancel() }
+            active.removeAll()
+            thumbCache.removeAllObjects()
+            previewCache.removeAllObjects()
+        }
     }
 
+    deinit { removeAll() }
+
     public func cached(_ item: PhotoItem, tier: PreviewTier) -> CGImage? {
-        cache(tier).object(forKey: NSNumber(value: item.id))?.image
+        cache(tier).object(forKey: Key(item))?.image
     }
 
     /// Loads asynchronously; `completion` runs on the main thread (not called if cancelled).
-    public func request(_ item: PhotoItem, tier: PreviewTier, priority: Operation.QueuePriority = .normal,
+    @MainActor public func request(_ item: PhotoItem, tier: PreviewTier, priority: Operation.QueuePriority = .normal,
                         completion: @escaping @MainActor @Sendable (CGImage) -> Void) -> PreviewRequest? {
         if let hit = cached(item, tier: tier) {
-            MainActor.assumeIsolated { completion(hit) }
+            completion(hit)
             return nil
         }
-        let op = BlockOperation()
-        let request = PreviewRequest(op)
-        nonisolated(unsafe) let cache = cache(tier)  // NSCache is thread-safe
-        op.addExecutionBlock { [weak op] in
-            guard let op, !op.isCancelled else { return }
-            guard let image = Self.render(item, tier: tier) else { return }
-            cache.setObject(Box(image), forKey: NSNumber(value: item.id), cost: image.bytesPerRow * image.height)
-            guard !op.isCancelled else { return }
-            DispatchQueue.main.async {
-                guard !request.isCancelled else { return }
-                MainActor.assumeIsolated { completion(image) }
+        let id = UUID()
+        let request = PreviewRequest()
+        lock.withLock { active[id] = request }
+        let queue = queue
+        let task = Task.detached { [weak self] in
+            defer { self?.finished(id) }
+            // Subscribe before the first FFI request. Buffered readiness closes the race where
+            // the worker finishes between returning pending and suspending for the callback.
+            let subscription = item.engineImage.map {
+                $0.previewEvents.subscribe(imageID: $0.imageID, maxPx: UInt32(tier.maxPixelSize))
+            }
+            defer { subscription?.cancel() }
+            var iterator = subscription?.stream.makeAsyncIterator()
+            while !Task.isCancelled && !request.isCancelled {
+                let result = await Self.renderQueued(item, tier: tier, priority: priority, queue: queue, request: request)
+                guard !Task.isCancelled, !request.isCancelled else { return }
+                if let image = result.image {
+                    self?.store(image, item: item, tier: tier, id: id, request: request)
+                    await MainActor.run {
+                        guard !request.isCancelled else { return }
+                        completion(image)
+                    }
+                    return
+                }
+                guard result.pending, await iterator?.next() != nil else { return }
             }
         }
-        op.queuePriority = priority
-        queue.addOperation(op)
+        request.attach(task)
         return request
+    }
+
+    private func finished(_ id: UUID) { _ = lock.withLock { active.removeValue(forKey: id) } }
+
+    private func store(_ image: CGImage, item: PhotoItem, tier: PreviewTier, id: UUID, request: PreviewRequest) {
+        lock.withLock {
+            guard active[id] != nil, !request.isCancelled else { return }
+            cache(tier).setObject(Box(image), forKey: Key(item), cost: image.bytesPerRow * image.height)
+        }
+    }
+
+    private static func renderQueued(_ item: PhotoItem, tier: PreviewTier, priority: Operation.QueuePriority,
+                                     queue: OperationQueue, request: PreviewRequest) async -> RenderResult {
+        await withCheckedContinuation { continuation in
+            let op = BlockOperation {
+                continuation.resume(returning: request.isCancelled ? RenderResult() : renderResult(item, tier: tier))
+            }
+            op.queuePriority = priority
+            // Do not cancel queued operations: each must resume its continuation, even on reuse.
+            queue.addOperation(op)
+        }
     }
 
     // MARK: Rendering
 
     public static func render(_ item: PhotoItem, tier: PreviewTier) -> CGImage? {
+        renderResult(item, tier: tier).image
+    }
+
+    private struct RenderResult: Sendable {
+        var image: CGImage? = nil
+        var pending = false
+    }
+
+    private static func renderResult(_ item: PhotoItem, tier: PreviewTier) -> RenderResult {
         if let ref = item.engineImage {
-            guard let bytes = try? ref.engine.embeddedPreview(imageId: ref.imageID, maxPx: UInt32(tier.maxPixelSize)),
-                  let src = CGImageSourceCreateWithData(Data(bytes) as CFData, nil) else { return nil }
-            return CGImageSourceCreateImageAtIndex(src, 0, [kCGImageSourceShouldCacheImmediately: true] as CFDictionary)
+            guard let response = try? ref.engine.embeddedPreview(imageId: ref.imageID, maxPx: UInt32(tier.maxPixelSize)) else {
+                return RenderResult()
+            }
+            guard let bytes = response.bytes, let src = CGImageSourceCreateWithData(bytes as CFData, nil) else {
+                return RenderResult(pending: response.pending)
+            }
+            return RenderResult(image: CGImageSourceCreateImageAtIndex(src, 0,
+                [kCGImageSourceShouldCacheImmediately: true] as CFDictionary), pending: response.pending)
         }
+        return RenderResult(image: renderLocal(item, tier: tier))
+    }
+
+    private static func renderLocal(_ item: PhotoItem, tier: PreviewTier) -> CGImage? {
         if item.kind == .synthetic {
             return SyntheticThumbnail.make(for: item, maxPixel: tier == .thumbnail ? 256 : 1600)
         }

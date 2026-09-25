@@ -16,7 +16,10 @@ final class ThumbnailCell: NSCollectionViewItem {
 
     private var cellView: ThumbnailCellView { view as! ThumbnailCellView }
     private var request: PreviewRequest?
+    private var representedItem: PhotoItem?
     private(set) var itemID: Int = -1
+
+    deinit { request?.cancel() }
 
     override func loadView() {
         view = ThumbnailCellView(frame: NSRect(x: 0, y: 0, width: 100, height: 100))
@@ -31,6 +34,7 @@ final class ThumbnailCell: NSCollectionViewItem {
         request?.cancel()
         request = nil
         itemID = -1
+        representedItem = nil
         cellView.setImage(nil)
     }
 
@@ -47,13 +51,13 @@ final class ThumbnailCell: NSCollectionViewItem {
             + (state.mark > 0 ? ", mark \(state.mark)" : "")
             + (state.inBasket ? ", in basket" : ""))
 
-        guard item.id != itemID else { return }
+        guard item != representedItem else { return }
+        representedItem = item
         itemID = item.id
         request?.cancel()
         v.setImage(nil)
-        let id = item.id
         request = loader.request(item, tier: .thumbnail, priority: .high) { [weak self] image in
-            guard let self, self.itemID == id else { return }
+            guard let self, self.representedItem == item else { return }
             self.cellView.setImage(image)
         }
     }

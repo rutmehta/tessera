@@ -1,6 +1,8 @@
 //! Narrow, synchronous commands. Swift dispatches blocking work off its main actor.
 mod catalog;
+mod preview;
 use engine_api::{id::ImageId, recipe as core};
+pub use preview::PreviewResponse;
 use rusqlite::{Connection, OpenFlags};
 use sidecar::Sidecar;
 use std::{
@@ -138,7 +140,9 @@ pub trait EngineEventListener: Send + Sync {
 #[derive(uniffi::Object)]
 pub struct Engine {
     catalog: Mutex<Catalog>,
-    previews: Mutex<previews::PreviewStore>,
+    previews: previews::PreviewStore,
+    preview_jobs: jobs::ThreadPoolScheduler,
+    preview_states: Mutex<std::collections::HashMap<preview::RequestKey, preview::State>>,
     listener: Mutex<Option<Arc<dyn EngineEventListener>>>,
 }
 impl Engine {
@@ -202,13 +206,13 @@ impl Engine {
         let reader = Connection::open_with_flags(db, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
         Ok(Arc::new(Self {
             catalog: Mutex::new(Catalog { index, reader }),
-            previews: Mutex::new(
-                previews::PreviewStore::new(
-                    Path::new(&app_support_dir).join("previews"),
-                    512 << 20,
-                )
-                .map_err(failure)?,
-            ),
+            previews: previews::PreviewStore::new(
+                Path::new(&app_support_dir).join("previews"),
+                512 << 20,
+            )
+            .map_err(failure)?,
+            preview_jobs: jobs::ThreadPoolScheduler::new(1),
+            preview_states: Mutex::new(std::collections::HashMap::new()),
             listener: Mutex::new(None),
         }))
     }
@@ -318,8 +322,12 @@ impl Engine {
         doc.record_write("tessera-mac", now_ms())?;
         Self::persist(&mut c, Path::new(&path), &doc)
     }
-    /// Camera JPEG fast path, not developed pixels or a raw decode fallback.
-    pub fn embedded_preview(&self, image_id: String, max_px: u32) -> Result<Vec<u8>> {
+    /// RAW cache misses return pending immediately; PreviewReady signals completion.
+    pub fn embedded_preview(
+        self: Arc<Self>,
+        image_id: String,
+        max_px: u32,
+    ) -> Result<PreviewResponse> {
         use previews::Codec;
         if max_px == 0 || max_px > 8192 {
             return Err(failure("max_px must be 1...8192"));
@@ -335,13 +343,10 @@ impl Engine {
             .unwrap_or_default()
             .to_string_lossy()
             .to_lowercase();
-        let jpeg = if matches!(ext.as_str(), "jpg" | "jpeg") {
-            std::fs::read(&path)?
-        } else {
-            raw_decode::RawSource::open(&path)?
-                .embedded_preview()
-                .ok_or_else(|| failure("no embedded JPEG preview"))?
-        };
+        if !matches!(ext.as_str(), "jpg" | "jpeg") {
+            return self.request_raw(image_id, path, max_px);
+        }
+        let jpeg = std::fs::read(&path)?;
         // Bound the pyramid work to the requested tier, not the full camera JPEG.
         let decoded = previews::Jpeg.decode(&jpeg).map_err(failure)?;
         let scaled = image::DynamicImage::ImageRgb8(decoded)
@@ -349,13 +354,14 @@ impl Engine {
             .to_rgb8();
         let jpeg = previews::Jpeg.encode(&scaled).map_err(failure)?;
         let bytes = {
-            let store = self.previews.lock().map_err(failure)?;
-            let key = previews::PreviewKey::new(&jpeg, orientation, [0; 32]);
+            let store = &self.previews;
+            let recipe_hash = core::Recipe::default().recipe_hash().0.0;
+            let key = previews::PreviewKey::new(&jpeg, orientation, recipe_hash);
             if let Some(bytes) = store.get(&key, previews::Level::Full) {
                 bytes
             } else {
                 let key = store
-                    .from_embedded_jpeg(&jpeg, orientation, [0; 32])
+                    .from_embedded_jpeg(&jpeg, orientation, recipe_hash)
                     .map_err(failure)?;
                 store
                     .get(&key, previews::Level::Full)
@@ -363,7 +369,10 @@ impl Engine {
             }
         };
         self.emit(EngineEvent::PreviewReady { image_id, max_px });
-        Ok(bytes)
+        Ok(PreviewResponse {
+            bytes: Some(bytes),
+            pending: false,
+        })
     }
 }
 

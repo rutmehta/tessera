@@ -1297,7 +1297,10 @@ name = "previews"
 version = "0.1.0"
 dependencies = [
  "blake3",
+ "engine-api",
  "image",
+ "pipeline-cpu",
+ "raw-decode",
  "thiserror",
 ]
 
@@ -1798,6 +1801,7 @@ dependencies = [
  "engine-api",
  "image",
  "index",
+ "jobs",
  "kamadak-exif",
  "previews",
  "raw-decode",

@@ -626,9 +626,9 @@ fileprivate struct FfiConverterData: FfiConverterRustBuffer {
 public protocol EngineProtocol: AnyObject, Sendable {
     
     /**
-     * Camera JPEG fast path, not developed pixels or a raw decode fallback.
+     * RAW cache misses return pending immediately; PreviewReady signals completion.
      */
-    func embeddedPreview(imageId: String, maxPx: UInt32) throws  -> Data
+    func embeddedPreview(imageId: String, maxPx: UInt32) throws  -> PreviewResponse
     
     func getRecipe(imageId: String) throws  -> String
     
@@ -706,10 +706,10 @@ public static func `open`(appSupportDir: String)throws  -> Engine  {
 
     
     /**
-     * Camera JPEG fast path, not developed pixels or a raw decode fallback.
+     * RAW cache misses return pending immediately; PreviewReady signals completion.
      */
-open func embeddedPreview(imageId: String, maxPx: UInt32)throws  -> Data  {
-    return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+open func embeddedPreview(imageId: String, maxPx: UInt32)throws  -> PreviewResponse  {
+    return try  FfiConverterTypePreviewResponse_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
         uniffiCallStatus in
     uniffi_tessera_ffi_fn_method_engine_embedded_preview(
             self.uniffiCloneHandle(),
@@ -1232,6 +1232,56 @@ public func FfiConverterTypeImageSummary_lower(_ value: ImageSummary) -> RustBuf
 }
 
 
+public struct PreviewResponse: Equatable, Hashable {
+    public var bytes: Data?
+    public var pending: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(bytes: Data?, pending: Bool) {
+        self.bytes = bytes
+        self.pending = pending
+    }
+}
+
+#if compiler(>=6)
+extension PreviewResponse: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePreviewResponse: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PreviewResponse {
+        return
+            try PreviewResponse(
+                bytes: FfiConverterOptionData.read(from: &buf),
+                pending: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PreviewResponse, into buf: inout [UInt8]) {
+        FfiConverterOptionData.write(value.bytes, into: &buf)
+        FfiConverterBool.write(value.pending, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePreviewResponse_lift(_ buf: RustBuffer) throws -> PreviewResponse {
+    return try FfiConverterTypePreviewResponse.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePreviewResponse_lower(_ value: PreviewResponse) -> RustBuffer {
+    return FfiConverterTypePreviewResponse.lower(value)
+}
+
+
 public struct Selection: Equatable, Hashable {
     public var decision: Decision
     public var grade: UInt8?
@@ -1563,6 +1613,30 @@ fileprivate struct FfiConverterOptionString: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionData: FfiConverterRustBuffer {
+    typealias SwiftType = Data?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterData.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterData.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeEngineEventListener: FfiConverterRustBuffer {
     typealias SwiftType = EngineEventListener?
 
@@ -1648,7 +1722,7 @@ private let initializationResult: InitializationResult = {
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_engine_embedded_preview() != 57237) {
+    if (uniffi_tessera_ffi_checksum_method_engine_embedded_preview() != 35338) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_engine_get_recipe() != 42736) {
