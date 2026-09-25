@@ -587,8 +587,8 @@
     "id": "M2-25v",
     "owner": "sol",
     "title": "Regression pass on redesigned app",
-    "status": "running",
+    "status": "pass",
     "attempts": 0,
-    "notes": ""
+    "notes": "no visual defects reported; real bugs: option-drag erase, SAM prompt quality -> M2-26"
   }
 ]
