@@ -267,9 +267,9 @@
     "id": "M2-06",
     "owner": "astra",
     "title": "GPU-resident render path",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
-    "notes": ""
+    "notes": "GPU tone 4.1ms, WB 7ms; X-Trans + some M2 controls still cross barriers"
   },
   {
     "id": "M2-07",
@@ -316,6 +316,14 @@
     "owner": "opus",
     "title": "Develop panels UI",
     "status": "todo",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-06b",
+    "owner": "astra",
+    "title": "Reconcile resident model with rev 2 defaults (fix main)",
+    "status": "running",
     "attempts": 0,
     "notes": ""
   }
