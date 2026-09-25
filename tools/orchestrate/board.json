@@ -566,5 +566,13 @@
     "status": "merged",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M2-24",
+    "owner": "sol",
+    "title": "Accessibility identifiers on all controls",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
