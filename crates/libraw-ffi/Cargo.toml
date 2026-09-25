@@ -1,0 +1,20 @@
+[package]
+name = "libraw-ffi"
+version = "0.1.0"
+edition = "2021"
+links = "raw"
+build = "build.rs"
+
+[dependencies]
+thiserror = "2"
+
+[build-dependencies]
+bindgen = "0.71"
+cc = "1"
+glob = "0.3"
+
+[dev-dependencies]
+
+[lib]
+name = "libraw_ffi"
+path = "src/lib.rs"
