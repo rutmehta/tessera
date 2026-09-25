@@ -539,9 +539,9 @@
     "id": "M2-22",
     "owner": "opus",
     "title": "HDR/EDR presentation",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
-    "notes": ""
+    "notes": "float path 1.8ms; SDR bit-identical; not seen on an EDR display (none here)"
   },
   {
     "id": "M2-20v",
