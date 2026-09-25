@@ -1,0 +1,21 @@
+[package]
+name = "ml-faces"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+
+[dependencies]
+anyhow.workspace = true
+image.workspace = true
+ort = { workspace = true, features = ["coreml"] }
+ml-runtime = { path = "../ml-runtime" }
+ml-quality = { path = "../ml-quality" }
+index = { path = "../index" }
+cull = { path = "../cull" }
+engine-api = { path = "../engine-api" }
+
+[dev-dependencies]
+tempfile.workspace = true
+raw-decode = { path = "../raw-decode" }
+previews = { path = "../previews" }
+ureq = "3"

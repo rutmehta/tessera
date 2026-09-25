@@ -1085,6 +1085,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "ml-faces"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cull",
+ "engine-api",
+ "image",
+ "index",
+ "ml-quality",
+ "ml-runtime",
+ "ort",
+ "previews",
+ "raw-decode",
+ "tempfile",
+ "ureq",
+]
+
+[[package]]
+name = "ml-quality"
+version = "0.1.0"
+dependencies = [
+ "cull",
+ "engine-api",
+ "image",
+ "index",
+ "tempfile",
+]
+
+[[package]]
 name = "ml-runtime"
 version = "0.1.0"
 dependencies = [

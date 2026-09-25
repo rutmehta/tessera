@@ -1,0 +1,14 @@
+[package]
+name = "ml-quality"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+index = { path = "../index" }
+cull = { path = "../cull" }
+engine-api = { path = "../engine-api" }
+image = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

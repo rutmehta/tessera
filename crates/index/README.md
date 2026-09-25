@@ -44,6 +44,44 @@ rejected. Tagging also refreshes searchable keyword text. Facets ignore paging
 and count camera/lens/decision and directly attached keyword values across all
 matching images. Missing camera/lens values use the empty string bucket.
 
+## Faces (schema v5)
+
+`index::FaceRecord` has `id: u32` (image-local ordinal),
+`bbox: [f32; 4]` (image pixels, xywh), `landmarks5: [[f32; 2]; 5]`,
+`confidence: f32`, `embedding: Option<Vec<f32>>`, `sharpness: f64`, and
+`eyes_open: Option<f64>`.
+
+`Index::replace_faces(&self, ImageId, &[FaceRecord]) -> EngineResult<()>`
+atomically replaces one image's faces, all reserved `face/*` scores, and
+`face_sharpness` / `eyes_open` image aggregates. Empty input clears these records;
+unknown image IDs fail even for empty input. Other image scores are unchanged.
+`Index::faces(&self, ImageId) -> EngineResult<Vec<FaceRecord>>` returns faces in
+ascending ordinal order (an empty list when no records exist).
+
+Geometry must be finite and nonnegative, with positive width/height and finite
+right/bottom edges. Landmarks are image-pixel coordinates; they need not lie
+inside the detected box. Image dimensions are not available here, so callers
+must clip detections to image bounds. Confidence, normalized sharpness, and
+optional eyes-open proxy must be in [0,1]. Embeddings must contain exactly 128
+finite components; normalization is not imposed. Duplicate ordinals fail.
+
+Per-face scores use `face/{ordinal}/sharpness` and optional
+`face/{ordinal}/eyes_open`. Image aggregates are the minimum sharpness across
+faces and the minimum eyes-open proxy across faces with that value. No faces
+means no aggregates; no eyes-open values means no `eyes_open` aggregate.
+All generated face rows and scores carry model provenance `yunet-sface-v1`.
+The existing `score` schema and generic image score APIs are unchanged, so
+`cull::defect_sweep` can use these named signals without changes. Callers should
+reserve `face/*` and the two aggregate names for `replace_faces`, rather than
+writing them individually with `set_score`.
+
+**Five-point landmarks cannot measure eyelid closure.** `eyes_open` is an
+optional confidence/proxy, not a reliable eye-state measurement; use `None` when
+no defensible proxy is available. Do not reject photos solely on this heuristic.
+Face and score rows cascade on image deletion. Older catalog tables such as
+`selection` retain their existing non-cascading foreign keys and must still be
+handled by the caller when deleting images.
+
 ## Verification
 
     cargo test -p index

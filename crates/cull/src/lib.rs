@@ -68,7 +68,7 @@ pub struct CullSession<'a> {
     redo: Vec<Action>,
     groups: Vec<Group>,
     preview_errors: Vec<(ImageId, EngineError)>,
-    scorer: Box<dyn Scorer>,
+    scorer: Option<Box<dyn Scorer>>,
     library: Option<PathBuf>,
     basket_target: Option<String>,
 }
@@ -130,7 +130,7 @@ impl<'a> CullSession<'a> {
             redo: Vec::new(),
             groups: Vec::new(),
             preview_errors: Vec::new(),
-            scorer: Box::new(LargestFile),
+            scorer: None,
             library: folder.map(|p| p.join("library.json")),
             basket_target: None,
         };
