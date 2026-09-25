@@ -190,5 +190,29 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M1-07",
+    "owner": "astra",
+    "title": "GPU operator ports",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-02",
+    "owner": "astra",
+    "title": "Sidecar develop export completeness",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M3-02",
+    "owner": "astra",
+    "title": "Faces + quality signals",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
