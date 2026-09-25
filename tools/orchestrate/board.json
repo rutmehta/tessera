@@ -403,7 +403,7 @@
     "id": "M3-06",
     "owner": "astra",
     "title": "Depth + lens blur",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
@@ -419,6 +419,14 @@
     "id": "M2-13v",
     "owner": "sol",
     "title": "Verify library + develop panels",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-13c",
+    "owner": "sol",
+    "title": "Swift strict-concurrency CI fix",
     "status": "running",
     "attempts": 0,
     "notes": ""

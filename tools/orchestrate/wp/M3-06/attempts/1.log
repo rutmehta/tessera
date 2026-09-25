@@ -1,0 +1,16 @@
+Implemented M3-06 within the allowed paths. Engine-api unchanged, no commits made.
+
+Added cached Depth Anything V2 Small inference with pinned Apache-2.0 ONNX weights, SHA verification, normalized inverse depth, guided refinement, and depth-plane conversion for masks. CPU Lens Blur supports layered compositing, focus bands, circle/6-/8-blade apertures, highlight boost, and an explicit cat-eye placeholder.
+
+Verification passed:
+- Required release tests, Clippy with -D warnings, and cargo fmt --check.
+- Exact focused-plane preservation and >50% background contrast reduction.
+- Far-plane mask selection and render integration.
+- Real model inference on synthetic input and a photograph.
+- Partition report: mixed CoreML/CPU execution.
+
+GPU blur deferred because the existing tile-oriented effects interface lacks full-image depth compositing support. Existing RAW acceptance test remains ignored.
+
+Documentation: tools/orchestrate/wp/M3-06/DEPTH.md
+
+RESULT: PASS
