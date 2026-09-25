@@ -81,6 +81,13 @@ fn generated_pattern_shapes_and_embeddings() -> Result<()> {
         assert!(found.bbox.iter().all(|v| v.is_finite()));
         assert!((0.0..=1.0).contains(&found.score));
     }
+    // This compares real detector output; no positive face count is assumed.
+    let detections = models.detect(&image)?;
+    assert_eq!(
+        models.face_strip(&image)?,
+        ml_faces::face_strip(&image, &detections)?
+    );
+    assert!(models.face_strip(&RgbImage::new(0, 0)).is_err());
     let embedding = models.embed(&image, &face)?;
     assert_eq!(embedding.len(), 128);
     assert!(embedding.iter().all(|v| v.is_finite()));

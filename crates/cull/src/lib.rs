@@ -1,6 +1,7 @@
 //! Sidecar-backed, keyboard-oriented culling. No AI signal applies a decision.
 mod defects;
 mod grouping;
+pub mod learning;
 mod library;
 mod persistence;
 pub use defects::{DefectReason, Direction, Threshold};

@@ -3,9 +3,11 @@ use anyhow::{Result, ensure};
 mod geometry;
 mod models;
 mod scorer;
+mod strip;
 pub use geometry::{FaceSignals, Letterbox, align_crop, face_signals, letterbox, nms};
 pub use models::FaceModels;
 pub use scorer::FaceScorer;
+pub use strip::{FaceChip, face_strip, face_strip_from_index, frames_with_person_eyes_closed};
 
 #[derive(Debug, Clone)]
 pub struct Face {
