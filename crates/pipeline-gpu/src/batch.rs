@@ -19,12 +19,25 @@ pub struct GpuStats {
     pub uploads: u64,
     pub readbacks: u64,
     pub submissions: u64,
+    /// Surface presentation reads only the histogram, never pixels.
+    pub histogram_readbacks: u64,
+    pub pixel_readback_bytes: u64,
+    /// Unique resident payload allocations in the last batch (excludes parameters).
+    pub last_resident_allocated_bytes: u64,
+    pub last_resident_buffers: u64,
+    /// Compute dispatches encoded in the last resident transaction.
+    pub last_resident_dispatches: u64,
 }
 #[derive(Default)]
-struct Counters {
-    uploads: AtomicU64,
-    readbacks: AtomicU64,
-    submissions: AtomicU64,
+pub(crate) struct Counters {
+    pub(crate) uploads: AtomicU64,
+    pub(crate) readbacks: AtomicU64,
+    pub(crate) submissions: AtomicU64,
+    pub(crate) histogram_readbacks: AtomicU64,
+    pub(crate) pixel_readback_bytes: AtomicU64,
+    pub(crate) last_resident_allocated_bytes: AtomicU64,
+    pub(crate) last_resident_buffers: AtomicU64,
+    pub(crate) last_resident_dispatches: AtomicU64,
 }
 
 /// Metal operators. X-Trans neighbourhood and unported M2 operators fall back
@@ -32,14 +45,122 @@ struct Counters {
 #[derive(Clone)]
 pub struct GpuStageOp {
     context: Arc<GpuContext>,
-    counters: Arc<Counters>,
+    pub(crate) counters: Arc<Counters>,
+    pub(crate) resident_cache: Arc<std::sync::Mutex<crate::resident::Cache>>,
+    pub(crate) resident_pipeline: wgpu::ComputePipeline,
+    pub(crate) gather_pipeline: wgpu::ComputePipeline,
+    pub(crate) surface_pipeline: wgpu::ComputePipeline,
+    pub(crate) zero_pipeline: wgpu::ComputePipeline,
+    pub(crate) histogram_pipeline: wgpu::ComputePipeline,
 }
 impl GpuStageOp {
     pub fn new(context: Arc<GpuContext>) -> Self {
+        Self::with_cache_budget(context, 512 * 1024 * 1024)
+    }
+    pub fn with_cache_budget(context: Arc<GpuContext>, budget: usize) -> Self {
+        let module = context
+            .device
+            .create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some("resident transfers"),
+                source: wgpu::ShaderSource::Wgsl(include_str!("resident.wgsl").into()),
+            });
+        let resident_pipeline =
+            context
+                .device
+                .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+                    label: Some("resident transfers"),
+                    layout: None,
+                    module: &module,
+                    entry_point: Some("main"),
+                    compilation_options: Default::default(),
+                    cache: None,
+                });
+        let module = context
+            .device
+            .create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some("resident gather"),
+                source: wgpu::ShaderSource::Wgsl(include_str!("gather.wgsl").into()),
+            });
+        let gather_pipeline =
+            context
+                .device
+                .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+                    label: Some("resident gather"),
+                    layout: None,
+                    module: &module,
+                    entry_point: Some("main"),
+                    compilation_options: Default::default(),
+                    cache: None,
+                });
+        let module = context
+            .device
+            .create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some("surface writer"),
+                source: wgpu::ShaderSource::Wgsl(include_str!("surface.wgsl").into()),
+            });
+        let surface_pipeline =
+            context
+                .device
+                .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+                    label: Some("surface writer"),
+                    layout: None,
+                    module: &module,
+                    entry_point: Some("main"),
+                    compilation_options: Default::default(),
+                    cache: None,
+                });
+        let module = context
+            .device
+            .create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some("display histogram"),
+                source: wgpu::ShaderSource::Wgsl(include_str!("histogram.wgsl").into()),
+            });
+        let histogram_pipeline =
+            context
+                .device
+                .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+                    label: Some("display histogram"),
+                    layout: None,
+                    module: &module,
+                    entry_point: Some("main"),
+                    compilation_options: Default::default(),
+                    cache: None,
+                });
+        let module = context
+            .device
+            .create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some("resident zero fill"),
+                source: wgpu::ShaderSource::Wgsl(include_str!("zero.wgsl").into()),
+            });
+        let zero_pipeline =
+            context
+                .device
+                .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+                    label: Some("resident zero fill"),
+                    layout: None,
+                    module: &module,
+                    entry_point: Some("main"),
+                    compilation_options: Default::default(),
+                    cache: None,
+                });
         Self {
             context,
             counters: Arc::default(),
+            resident_cache: crate::resident::cache(budget),
+            resident_pipeline,
+            gather_pipeline,
+            surface_pipeline,
+            histogram_pipeline,
+            zero_pipeline,
         }
+    }
+    pub fn cache_bytes(&self) -> usize {
+        self.resident_cache.lock().unwrap().bytes()
+    }
+    pub fn clear_cache(&self) {
+        let mut cache = self.resident_cache.lock().unwrap();
+        let budget = cache.budget();
+        *cache = crate::resident::Cache::new(budget);
     }
     pub fn context(&self) -> &Arc<GpuContext> {
         &self.context
@@ -49,6 +170,17 @@ impl GpuStageOp {
             uploads: self.counters.uploads.load(Ordering::Relaxed),
             readbacks: self.counters.readbacks.load(Ordering::Relaxed),
             submissions: self.counters.submissions.load(Ordering::Relaxed),
+            histogram_readbacks: self.counters.histogram_readbacks.load(Ordering::Relaxed),
+            pixel_readback_bytes: self.counters.pixel_readback_bytes.load(Ordering::Relaxed),
+            last_resident_allocated_bytes: self
+                .counters
+                .last_resident_allocated_bytes
+                .load(Ordering::Relaxed),
+            last_resident_buffers: self.counters.last_resident_buffers.load(Ordering::Relaxed),
+            last_resident_dispatches: self
+                .counters
+                .last_resident_dispatches
+                .load(Ordering::Relaxed),
         }
     }
 
@@ -194,6 +326,10 @@ fn cpu_fallback(op: &Op<'_>) -> bool {
     )
 }
 impl StageOp for GpuStageOp {
+    fn begin_resident(&self) -> Option<Box<dyn image_core::resident::ResidentBatch + '_>> {
+        Some(Box::new(crate::resident::Batch::new(self)))
+    }
+
     fn run_image(
         &self,
         stage: StageId,

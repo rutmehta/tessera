@@ -14,6 +14,7 @@ fn synthetic_renderer_and_tone_chain_transfers() {
         (common::RGGB, false),
         (common::xtrans(), false),
     ] {
+        gpu.clear_cache();
         let image = common::synthetic(71, 700, 533, cfa, [3, 5, 690, 521]);
         let mut s = DevelopSettings::default();
         s.tone.exposure = 0.3;
@@ -31,6 +32,7 @@ fn synthetic_renderer_and_tone_chain_transfers() {
         let rect = PixelRect::full(image.level_extent(0));
         for output in [RenderOutput::SceneLinear, RenderOutput::Display] {
             r.cache().clear();
+            gpu.clear_cache();
             cpu.cache().clear();
             let a = r.render_region_as(&image, &s, 0, rect, output).unwrap();
             let b = cpu.render_region_as(&image, &s, 0, rect, output).unwrap();
@@ -44,14 +46,20 @@ fn synthetic_renderer_and_tone_chain_transfers() {
                         .zip(b.samples::<f32>().unwrap())
                         .map(|(a, b)| (a - b).abs())
                         .fold(0.0f32, f32::max);
-                    assert!(diff <= 1e-4, "{diff}");
+                    // Resident Decode/Demosaic/WB checkpoints are f16 on cold and warm paths.
+                    let tolerance = if matches!(cfa, raw_decode::CfaLayout::Bayer(_)) {
+                        0.005
+                    } else {
+                        1e-4
+                    };
+                    assert!(diff <= tolerance, "{diff}");
                 } else {
                     assert!(
                         a.samples::<u8>()
                             .unwrap()
                             .iter()
                             .zip(b.samples::<u8>().unwrap())
-                            .all(|(a, b)| a.abs_diff(*b) <= 1)
+                            .all(|(a, b)| a.abs_diff(*b) <= 2)
                     );
                 }
             }
@@ -62,13 +70,21 @@ fn synthetic_renderer_and_tone_chain_transfers() {
         let after = gpu.stats();
         assert_eq!(
             after.uploads - before.uploads,
-            tiles.len() as u64,
-            "tone+display must upload once"
+            if matches!(cfa, raw_decode::CfaLayout::Bayer(_)) {
+                0
+            } else {
+                tiles.len() as u64
+            },
+            "resident tone edits must not upload"
         );
         assert_eq!(
             after.readbacks - before.readbacks,
-            tiles.len() as u64,
-            "tone+display must read back once"
+            if matches!(cfa, raw_decode::CfaLayout::Bayer(_)) {
+                1
+            } else {
+                tiles.len() as u64
+            },
+            "one final readback for a resident level"
         );
         assert_eq!(
             after.submissions - before.submissions,

@@ -4,7 +4,7 @@
 //! # Rendering
 //!
 //! The session owns a [`RawImage`] and shares the engine's [`Renderer`]
-//! (CPU operators by default, Metal with `TESSERA_RENDER_BACKEND=gpu`; see
+//! (measured CPU/Metal selection, with `TESSERA_RENDER_BACKEND` override; see
 //! `Engine::develop_renderer` for the measurements) and memo cache. Every
 //! settings change bumps a generation, cancels the previous job and submits a
 //! [`ProgressiveRenderJob`] at [`Priority::Viewport`] on the engine's shared
@@ -139,7 +139,24 @@ pub trait DevelopListener: Send + Sync {
 struct Frame {
     level: u8,
     settings: DevelopSettings,
-    tiles: Vec<Tile>,
+    // Surface frames retain immutable render metadata, not unconditional pixels.
+    // Saving an edited loupe/preview materializes this exact recipe on demand.
+    tiles: Option<Vec<Tile>>,
+}
+
+impl Frame {
+    fn pixels(
+        &self,
+        materialize: impl FnOnce(&DevelopSettings, u8) -> engine_api::EngineResult<Vec<Tile>>,
+    ) -> engine_api::EngineResult<std::borrow::Cow<'_, [Tile]>> {
+        match &self.tiles {
+            Some(tiles) => Ok(std::borrow::Cow::Borrowed(tiles)),
+            None => Ok(std::borrow::Cow::Owned(materialize(
+                &self.settings,
+                self.level,
+            )?)),
+        }
+    }
 }
 
 struct State {
@@ -149,7 +166,7 @@ struct State {
     rendered: Option<DevelopSettings>,
     rendered_level: Option<u8>,
     surfaces: Vec<Arc<Surface>>,
-    next_surface: usize,
+    next_surface: SurfaceCursor,
     screen_level: u8,
     job: Option<JobHandle>,
     generation: u64,
@@ -157,6 +174,27 @@ struct State {
     frame: Option<Arc<Frame>>,
     closed: bool,
 }
+
+/// Advances only after presentation; cancelled work keeps its unpresented slot.
+#[derive(Default)]
+struct SurfaceCursor(Option<u32>);
+impl SurfaceCursor {
+    fn candidate(&self, ids: &[u32]) -> Option<usize> {
+        if ids.is_empty() {
+            return None;
+        }
+        Some(
+            self.0
+                .and_then(|id| ids.iter().position(|&s| s == id))
+                .map_or(0, |i| (i + 1) % ids.len()),
+        )
+    }
+    fn published(&mut self, id: u32) {
+        self.0 = Some(id);
+    }
+}
+
+type SurfaceDestination = Arc<Mutex<Option<Arc<Surface>>>>;
 
 #[derive(Default)]
 struct SaveState {
@@ -175,6 +213,9 @@ pub(crate) struct Shared {
     renderer: Arc<Renderer>,
     backend: String,
     state: Mutex<State>,
+    // Held through GPU completion and publication: cancelled jobs cannot
+    // release an IOSurface while a submitted write is still in flight.
+    render_serial: Mutex<()>,
     generation: AtomicU64,
     listener: Mutex<Option<Arc<dyn DevelopListener>>>,
     save: Mutex<SaveState>,
@@ -325,7 +366,7 @@ impl Engine {
         }
         let recipe = catalog::document(&path, id)?.recipe;
         let image = RawImage::open(id, &path)?;
-        let (renderer, backend) = self.develop_renderer();
+        let (renderer, backend) = self.develop_renderer(&image);
         let screen_level = default_level(&image);
         let shared = Arc::new(Shared {
             engine: Arc::downgrade(&self),
@@ -340,7 +381,7 @@ impl Engine {
                 rendered: None,
                 rendered_level: None,
                 surfaces: Vec::new(),
-                next_surface: 0,
+                next_surface: SurfaceCursor::default(),
                 screen_level,
                 job: None,
                 generation: 0,
@@ -348,6 +389,7 @@ impl Engine {
                 frame: None,
                 closed: false,
             }),
+            render_serial: Mutex::new(()),
             generation: AtomicU64::new(0),
             listener: Mutex::new(None),
             save: Mutex::new(SaveState::default()),
@@ -459,7 +501,9 @@ impl Shared {
                 (l, n)
             })
             .collect();
-        let sink = LevelSink {
+        let surface = Arc::new(Mutex::new(None));
+        let sink = Arc::new(Mutex::new(LevelSink {
+            surface: surface.clone(),
             shared: Arc::downgrade(self),
             generation,
             started: Instant::now(),
@@ -469,8 +513,11 @@ impl Shared {
             settings: settings.clone(),
             dirty: dirty.map(stage_name),
             current: None,
-        };
+        }));
+        let cpu_sink = sink.clone();
         let job = DevelopJob {
+            sink,
+            surface,
             inner: ProgressiveRenderJob {
                 renderer: self.renderer.clone(),
                 image: self.image.clone(),
@@ -478,7 +525,9 @@ impl Shared {
                 viewport,
                 output: RenderOutput::Display,
                 priority: Priority::Viewport,
-                sink: Box::new(sink.into_fn()),
+                sink: Box::new(move |t| {
+                    cpu_sink.lock().unwrap_or_else(|e| e.into_inner()).accept(t)
+                }),
             },
             shared: Arc::downgrade(self),
             generation,
@@ -580,7 +629,12 @@ impl Shared {
             .map_err(failure)?;
         let e = self.image.level_extent(frame.level);
         let mut rgb = image::RgbImage::new(e.width, e.height);
-        for t in &frame.tiles {
+        // Pixel consumers render the immutable recipe, never a mutable surface ring.
+        let tiles = frame.pixels(|settings, level| {
+            self.renderer
+                .render_region(&self.image, settings, level, PixelRect::full(e))
+        })?;
+        for t in tiles.iter() {
             let l = t.layout();
             let n = l.plane_len();
             let d = t.samples::<u8>()?;
@@ -624,6 +678,7 @@ impl Shared {
 
 /// Collects one render's tiles level by level, writing them into the ring.
 struct LevelSink {
+    surface: SurfaceDestination,
     shared: std::sync::Weak<Shared>,
     generation: u64,
     started: Instant,
@@ -643,10 +698,6 @@ struct LevelWriter {
 }
 
 impl LevelSink {
-    fn into_fn(mut self) -> impl FnMut(Tile) + Send {
-        move |tile| self.accept(tile)
-    }
-
     fn accept(&mut self, tile: Tile) {
         let Some(shared) = self.shared.upgrade() else {
             return;
@@ -656,18 +707,11 @@ impl LevelSink {
         }
         let level = tile.coord().level;
         if self.current.as_ref().map(|c| c.level) != Some(level) {
-            let surface = {
-                let Ok(mut st) = shared.state.lock() else {
-                    return;
-                };
-                if st.surfaces.is_empty() {
-                    None
-                } else {
-                    let i = st.next_surface % st.surfaces.len();
-                    st.next_surface = st.next_surface.wrapping_add(1);
-                    Some(st.surfaces[i].clone())
-                }
-            };
+            let surface = self
+                .surface
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .clone();
             let remaining = self
                 .expected
                 .iter()
@@ -701,6 +745,26 @@ impl LevelSink {
                 return;
             }
         };
+        self.publish(shared, done, hist, false);
+    }
+
+    fn finish_surface(&self, level: u8, surface: Arc<Surface>, hist: Hist) {
+        if let Some(shared) = self.shared.upgrade() {
+            self.publish(
+                &shared,
+                LevelWriter {
+                    level,
+                    surface: Some(surface),
+                    remaining: 0,
+                    tiles: Vec::new(),
+                },
+                hist,
+                true,
+            );
+        }
+    }
+
+    fn publish(&self, shared: &Arc<Shared>, done: LevelWriter, hist: Hist, lazy_pixels: bool) {
         let render_ms = self.started.elapsed().as_secs_f64() * 1000.0;
         let extent = shared.image.level_extent(done.level);
         let (width, height) = match &done.surface {
@@ -715,6 +779,9 @@ impl LevelSink {
             if st.generation != self.generation {
                 return;
             }
+            if let Some(surface) = &done.surface {
+                st.next_surface.published(surface.id());
+            }
             st.histogram = Histogram {
                 red: r.to_vec(),
                 green: g.to_vec(),
@@ -727,7 +794,7 @@ impl LevelSink {
             st.frame = Some(Arc::new(Frame {
                 level: done.level,
                 settings: self.settings.clone(),
-                tiles: done.tiles,
+                tiles: if lazy_pixels { None } else { Some(done.tiles) },
             }));
         }
         if let Some(listener) = shared.listener() {
@@ -751,7 +818,10 @@ type Hist = [[u32; 256]; 4];
 /// Writes a complete level into `surface` (if any) and returns its
 /// histograms. Each thread owns one band of 256 surface rows (one tile row),
 /// so the bands are disjoint slices of the locked surface.
-fn write_level(surface: Option<&Surface>, tiles: &[Tile]) -> std::result::Result<Hist, String> {
+pub(crate) fn write_level(
+    surface: Option<&Surface>,
+    tiles: &[Tile],
+) -> std::result::Result<Hist, String> {
     let mut rows: std::collections::BTreeMap<u32, Vec<&Tile>> = Default::default();
     for t in tiles {
         rows.entry(t.coord().y).or_default().push(t);
@@ -838,6 +908,8 @@ fn accumulate(hist: &mut Hist, tile: &Tile) {
 
 /// Reports failures of the wrapped render to the session listener.
 struct DevelopJob {
+    sink: Arc<Mutex<LevelSink>>,
+    surface: SurfaceDestination,
     inner: ProgressiveRenderJob,
     shared: std::sync::Weak<Shared>,
     generation: u64,
@@ -853,7 +925,44 @@ impl Job for DevelopJob {
     fn run(self: Box<Self>, ctx: &JobContext) -> engine_api::EngineResult<()> {
         let shared = self.shared.clone();
         let generation = self.generation;
-        let result = Box::new(self.inner).run(ctx);
+        let owner = shared.upgrade();
+        let _serial = owner
+            .as_ref()
+            .map(|s| s.render_serial.lock().unwrap_or_else(|e| e.into_inner()));
+        let result = (|| {
+            ctx.cancellation.check()?;
+            let destination = if let Some(owner) = &owner {
+                let st = owner.state.lock().unwrap_or_else(|e| e.into_inner());
+                if st.generation != generation {
+                    return Err(engine_api::EngineError::Cancelled);
+                }
+                st.next_surface
+                    .candidate(&st.surfaces.iter().map(|s| s.id()).collect::<Vec<_>>())
+                    .map(|i| st.surfaces[i].clone())
+            } else {
+                return Err(engine_api::EngineError::Cancelled);
+            };
+            *self.surface.lock().unwrap_or_else(|e| e.into_inner()) = destination.clone();
+            if let Some(surface) = &destination
+                && self.inner.viewport.finest_level == self.inner.viewport.coarsest_level
+                && let Some(hist) = self.inner.renderer.render_surface(
+                    &self.inner.image,
+                    &self.inner.settings,
+                    self.inner.viewport.finest_level,
+                    surface.id(),
+                    &ctx.cancellation,
+                )?
+            {
+                ctx.cancellation.check()?;
+                self.sink
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .finish_surface(self.inner.viewport.finest_level, surface.clone(), hist);
+                ctx.report_progress(1.0, None);
+                return Ok(());
+            }
+            Box::new(self.inner).run(ctx)
+        })();
         if let Err(e) = &result
             && !matches!(e, engine_api::EngineError::Cancelled)
             && let Some(s) = shared.upgrade()
@@ -968,7 +1077,7 @@ impl DevelopSession {
     pub fn detach_surfaces(&self) {
         if let Ok(mut st) = self.shared.lock() {
             st.surfaces.clear();
-            st.next_surface = 0;
+            st.next_surface = SurfaceCursor::default();
         }
     }
 
@@ -1176,6 +1285,57 @@ impl DevelopSession {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn surface_frame_materializes_the_captured_recipe_only_on_demand() {
+        use std::cell::Cell;
+        let calls = Cell::new(0);
+        let mut live = DevelopSettings::default();
+        live.tone.exposure = 0.25;
+        let frame = Frame {
+            level: 2,
+            settings: live.clone(),
+            tiles: None,
+        };
+        live.tone.exposure = 1.0;
+        assert_eq!(calls.get(), 0);
+        let pixels = frame
+            .pixels(|settings, level| {
+                calls.set(calls.get() + 1);
+                assert_eq!(level, 2);
+                assert_eq!(settings.tone.exposure, 0.25);
+                Ok(Vec::new())
+            })
+            .unwrap();
+        assert!(pixels.is_empty());
+        assert_eq!(calls.get(), 1);
+        let cpu_frame = Frame {
+            level: 2,
+            settings: live,
+            tiles: Some(Vec::new()),
+        };
+        cpu_frame
+            .pixels(|_, _| panic!("CPU frame already has pixels"))
+            .unwrap();
+    }
+
+    #[test]
+    fn cancelled_frames_do_not_advance_the_surface_ring() {
+        let mut ring = SurfaceCursor::default();
+        assert_eq!(ring.candidate(&[]), None);
+        assert_eq!(ring.candidate(&[10, 20]), Some(0));
+        ring.published(10);
+        // Three jobs cancelled before publication must keep using B, while A
+        // remains displayed. The session write lock prevents overlapping jobs.
+        for _ in 0..3 {
+            assert_eq!(ring.candidate(&[10, 20]), Some(1));
+        }
+        ring.published(20);
+        assert_eq!(ring.candidate(&[10, 20]), Some(0));
+        assert_eq!(ring.candidate(&[20, 10]), Some(1));
+        assert_eq!(ring.candidate(&[20]), Some(0));
+        assert_eq!(ring.candidate(&[20, 30]), Some(1));
+    }
 
     #[test]
     fn merge_patch_follows_rfc7386() {

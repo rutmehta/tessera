@@ -61,6 +61,9 @@
 //! Halo gathering, memo storage and resampling end a chain. The cancellation token is
 //! polled before every tile of every step, and before each delivered tile.
 
+#[path = "resident_render.rs"]
+mod resident_render;
+
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -537,6 +540,19 @@ impl Renderer {
                 "tiles",
                 "coordinates must share one level and lie inside the output pyramid",
             ));
+        }
+
+        if matches!(r.cfa, CfaLayout::Bayer(_))
+            && let Some(batch) = self.ops.begin_resident()
+        {
+            for tile in self
+                .run_resident(r, &coords, output, cancel, batch, None)?
+                .tiles
+            {
+                cancel.check()?;
+                sink(tile);
+            }
+            return Ok(());
         }
 
         let graph = &self.config.graph;

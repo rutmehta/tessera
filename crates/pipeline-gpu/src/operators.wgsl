@@ -420,6 +420,9 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         case 6u: {
             write_rgb(i, creative_color(read_rgb(input_index(x, y))));
         }
+        case 7u: {
+            write_rgb(i, display(tone(read_rgb(input_index(x, y))), u32(x), u32(y)));
+        }
         default: {}
     }
 }

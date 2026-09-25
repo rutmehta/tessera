@@ -22,6 +22,8 @@ pub mod graph;
 pub mod ops;
 pub mod render;
 mod resample;
+/// Opaque backend handles and whole-render transactions.
+pub mod resident;
 mod source;
 
 pub use cache::{CacheStats, TileCache};
@@ -31,3 +33,8 @@ pub use render::{
     PixelRect, ProgressiveRenderJob, RenderOutput, Renderer, RendererConfig, Viewport,
 };
 pub use source::RawImage;
+
+#[cfg(test)]
+extern crate self as image_core;
+#[cfg(test)]
+mod resident_model;

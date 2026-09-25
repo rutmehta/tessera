@@ -16,9 +16,16 @@ pub struct GpuContext {
     pub adapter_info: wgpu::AdapterInfo,
     pub capabilities: GpuCapabilities,
     pub(crate) pipeline: wgpu::ComputePipeline,
+    device_loss: std::sync::Arc<std::sync::Mutex<Option<String>>>,
 }
 
 impl GpuContext {
+    pub(crate) fn device_failure(&self) -> Option<String> {
+        self.device_loss
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+    }
     pub fn new() -> EngineResult<Self> {
         let mut desc = wgpu::InstanceDescriptor::new_without_display_handle();
         desc.backends = wgpu::Backends::METAL;
@@ -45,6 +52,13 @@ impl GpuContext {
             ..Default::default()
         }))
         .map_err(|e| EngineError::internal(format!("Metal device: {e}")))?;
+        let device_loss = std::sync::Arc::new(std::sync::Mutex::new(None));
+        let loss = device_loss.clone();
+        device.set_device_lost_callback(move |reason, message| {
+            let detail = format!("Metal device lost: {reason:?}: {message}");
+            eprintln!("{detail}");
+            *loss.lock().unwrap_or_else(|e| e.into_inner()) = Some(detail);
+        });
         let scope = device.push_error_scope(wgpu::ErrorFilter::Validation);
         let module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("M1 operators"),
@@ -67,6 +81,7 @@ impl GpuContext {
             adapter_info: adapter.get_info(),
             capabilities,
             pipeline,
+            device_loss,
         })
     }
 }

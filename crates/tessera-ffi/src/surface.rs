@@ -1,7 +1,7 @@
 //! IOSurface pixel writer for the develop viewport (docs/11 §1.2).
 //!
 //! Swift allocates the surfaces and presents them through its `CAMetalLayer`;
-//! Rust only writes pixels through the surface's CPU mapping. The contract is
+//! Rust writes through a GPU-imported texture or the CPU fallback mapping. The contract is
 //! **RGBA8, display-encoded sRGB, straight alpha = 255**, 4 bytes per element
 //! (`kCVPixelFormatType_32RGBA`, `'RGBA'`). Metal imports it as
 //! `.rgba8Unorm_srgb`, so sampling yields linear sRGB and the layer's colour
@@ -57,6 +57,17 @@ unsafe impl Send for Surface {}
 unsafe impl Sync for Surface {}
 
 impl Surface {
+    /// Creates an owned, temporary presentation target for backend calibration.
+    #[cfg(target_os = "macos")]
+    pub(crate) fn create_rgba8(width: u32, height: u32) -> Result<Self, String> {
+        allocation::create_rgba8(width, height)
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    pub(crate) fn create_rgba8(_width: u32, _height: u32) -> Result<Self, String> {
+        Err("IOSurface requires macOS".into())
+    }
+
     /// Looks up a surface created in this process (or a global one) by id and
     /// checks it matches the RGBA8 contract and the expected size.
     #[cfg(target_os = "macos")]
@@ -183,9 +194,8 @@ pub fn write_rgba8(
     Ok(())
 }
 
-/// Test support: creates an RGBA8 IOSurface in this process.
 #[cfg(target_os = "macos")]
-pub mod testing {
+mod allocation {
     use super::*;
 
     type CFTypeRef = *const c_void;
@@ -215,9 +225,10 @@ pub mod testing {
         fn IOSurfaceCreate(properties: CFTypeRef) -> IOSurfaceRef;
     }
 
-    /// An RGBA8 surface; returns its id. The surface is intentionally kept
-    /// alive (leaked) for the life of the test process.
-    pub fn create_rgba8(width: u32, height: u32) -> u32 {
+    pub(super) fn create_rgba8(width: u32, height: u32) -> Result<Surface, String> {
+        if width == 0 || height == 0 {
+            return Err("IOSurface dimensions must be nonzero".into());
+        }
         const K_CF_NUMBER_SINT64: isize = 4;
         // SAFETY: standard CF object construction; values outlive the call.
         unsafe {
@@ -237,6 +248,12 @@ pub mod testing {
                     )
                 })
                 .collect();
+            if numbers.iter().any(|n| n.is_null()) {
+                for n in numbers.into_iter().filter(|n| !n.is_null()) {
+                    CFRelease(n);
+                }
+                return Err("CFNumberCreate failed".into());
+            }
             let keys = [
                 kIOSurfaceWidth,
                 kIOSurfaceHeight,
@@ -251,13 +268,287 @@ pub mod testing {
                 &kCFTypeDictionaryKeyCallBacks,
                 &kCFTypeDictionaryValueCallBacks,
             );
-            let surface = IOSurfaceCreate(dict);
-            CFRelease(dict);
+            let surface = if dict.is_null() {
+                std::ptr::null_mut()
+            } else {
+                let surface = IOSurfaceCreate(dict);
+                CFRelease(dict);
+                surface
+            };
             for n in numbers {
                 CFRelease(n);
             }
-            assert!(!surface.is_null(), "IOSurfaceCreate failed");
-            IOSurfaceGetID(surface)
+            if surface.is_null() {
+                return Err("IOSurfaceCreate failed".into());
+            }
+            Ok(Surface {
+                raw: surface,
+                id: IOSurfaceGetID(surface),
+                width,
+                height,
+            })
         }
+    }
+}
+
+/// Test support: creates an RGBA8 IOSurface in this process.
+#[cfg(target_os = "macos")]
+pub mod testing {
+    /// Intentionally retains the surface for the life of the test process.
+    pub fn create_rgba8(width: u32, height: u32) -> u32 {
+        let surface = super::Surface::create_rgba8(width, height).expect("IOSurfaceCreate failed");
+        let id = surface.id();
+        std::mem::forget(surface);
+        id
+    }
+}
+
+#[cfg(all(test, target_os = "macos"))]
+mod gpu_tests {
+    use super::*;
+    #[test]
+    fn calibration_surface_is_owned_and_released() {
+        assert!(Surface::create_rgba8(0, 3).is_err());
+        assert!(Surface::create_rgba8(3, 0).is_err());
+        let surface = Surface::create_rgba8(17, 19).unwrap();
+        let id = surface.id();
+        surface.with_pixels(|pixels, _| pixels.fill(57)).unwrap();
+        let retained = Surface::lookup(id, 17, 19).unwrap();
+        drop(surface);
+        retained
+            .with_pixels(|pixels, _| assert!(pixels.iter().all(|&p| p == 57)))
+            .unwrap();
+        drop(retained);
+        assert!(Surface::lookup(id, 17, 19).is_err());
+    }
+
+    use engine_api::{
+        jobs::CancellationToken,
+        stage::StageId,
+        tile::{Extent, TileCoord, TileLayout},
+    };
+    use image_core::{Op, StageOp};
+    use std::sync::Arc;
+
+    #[test]
+    fn resident_iosurface_roundtrip() {
+        let gpu = pipeline_gpu::GpuStageOp::new(Arc::new(pipeline_gpu::GpuContext::new().unwrap()));
+        let id = testing::create_rgba8(7, 5);
+        let surface = Surface::lookup(id, 7, 5).unwrap();
+        let tile = Tile::from_samples(
+            TileCoord::new(0, 0, 0),
+            TileLayout {
+                extent: Extent::new(7, 5),
+                halo: 0,
+                channels: 3,
+            },
+            vec![0.18_f32; 105],
+        )
+        .unwrap();
+        let op = Op::Display {
+            gamut: Default::default(),
+        };
+        let expected = image_core::CpuStageOp
+            .run(StageId::Output, &op, tile.clone())
+            .unwrap();
+        let before = gpu.stats();
+        let mut batch = gpu.begin_resident().unwrap();
+        let t = batch.upload(&tile).unwrap();
+        let t = batch.run(&op, &t).unwrap();
+        assert!(
+            batch
+                .finish(
+                    vec![t],
+                    true,
+                    Some(image_core::resident::SurfaceTarget {
+                        id,
+                        histogram: false
+                    }),
+                    &CancellationToken::new()
+                )
+                .unwrap()
+                .tiles
+                .is_empty()
+        );
+        assert_eq!(gpu.stats().readbacks, before.readbacks);
+        surface
+            .with_pixels(|pixels, stride| {
+                for y in 0..5 {
+                    for x in 0..7 {
+                        for c in 0..3 {
+                            assert!(
+                                pixels[y * stride + x * 4 + c].abs_diff(
+                                    expected.samples::<u8>().unwrap()[c * 35 + y * 7 + x]
+                                ) <= 1
+                            );
+                        }
+                        assert_eq!(pixels[y * stride + x * 4 + 3], 255);
+                    }
+                }
+            })
+            .unwrap();
+    }
+}
+
+#[cfg(all(test, target_os = "macos"))]
+mod histogram_tests {
+    use super::*;
+    use engine_api::{
+        jobs::CancellationToken,
+        tile::{Extent, TileCoord, TileLayout},
+    };
+    use image_core::{StageOp, resident::SurfaceTarget};
+    use std::sync::Arc;
+
+    #[test]
+    fn fused_surface_preserves_offsets_and_resets_histogram_between_frames() {
+        let gpu = pipeline_gpu::GpuStageOp::new(Arc::new(pipeline_gpu::GpuContext::new().unwrap()));
+        let id = testing::create_rgba8(273, 275);
+        let surface = Surface::lookup(id, 273, 275).unwrap();
+        surface.with_pixels(|pixels, _| pixels.fill(91)).unwrap();
+        for frame in [0, 1, 0] {
+            let mut expected = [[0u32; 256]; 4];
+            let mut batch = gpu.begin_resident().unwrap();
+            let mut resident = Vec::new();
+            let mut tiles = Vec::new();
+            for (x, y, width, height) in [(0, 0, 256, 256), (1, 1, 17, 19)] {
+                let layout = TileLayout {
+                    extent: Extent::new(width, height),
+                    halo: 0,
+                    channels: 3,
+                };
+                let n = layout.plane_len();
+                let values: Vec<_> = (0..layout.len())
+                    .map(|i| ((i * 17 + i / n * 31 + frame * 73) % 256) as f32)
+                    .collect();
+                for i in 0..n {
+                    let r = values[i] as usize;
+                    let g = values[n + i] as usize;
+                    let b = values[2 * n + i] as usize;
+                    expected[0][r] += 1;
+                    expected[1][g] += 1;
+                    expected[2][b] += 1;
+                    expected[3][(54 * r + 183 * g + 19 * b) >> 8] += 1;
+                }
+                let tile = Tile::from_samples(TileCoord::new(2, x, y), layout, values).unwrap();
+                resident.push(batch.upload(&tile).unwrap());
+                tiles.push(tile);
+            }
+            let result = batch
+                .finish(
+                    resident,
+                    true,
+                    Some(SurfaceTarget {
+                        id,
+                        histogram: true,
+                    }),
+                    &CancellationToken::new(),
+                )
+                .unwrap();
+            assert_eq!(result.histogram, Some(expected));
+            assert!(result.tiles.is_empty());
+            assert_eq!(gpu.stats().last_resident_dispatches, 3);
+            surface
+                .with_pixels(|pixels, stride| {
+                    for tile in &tiles {
+                        let (ox, oy) = tile.coord().pixel_origin(TILE_SIZE);
+                        let layout = tile.layout();
+                        let n = layout.plane_len();
+                        let values = tile.samples::<f32>().unwrap();
+                        for y in 0..layout.extent.height as usize {
+                            for x in 0..layout.extent.width as usize {
+                                let i = y * layout.stride() + x;
+                                let dst = (oy as usize + y) * stride + (ox as usize + x) * 4;
+                                assert_eq!(
+                                    &pixels[dst..dst + 4],
+                                    &[
+                                        values[i] as u8,
+                                        values[n + i] as u8,
+                                        values[2 * n + i] as u8,
+                                        255
+                                    ]
+                                );
+                            }
+                        }
+                    }
+                    // Neither tile covers the top-right or bottom-left gaps.
+                    assert_eq!(&pixels[256 * 4..273 * 4], &[91; 17 * 4]);
+                    assert_eq!(
+                        &pixels[274 * stride..274 * stride + 256 * 4],
+                        &[91; 256 * 4]
+                    );
+                })
+                .unwrap();
+        }
+        assert_eq!(gpu.stats().pixel_readback_bytes, 0);
+        assert_eq!(gpu.stats().histogram_readbacks, 3);
+    }
+
+    #[test]
+    fn surface_histogram_matches_pixels_without_pixel_readback() {
+        let gpu = pipeline_gpu::GpuStageOp::new(Arc::new(pipeline_gpu::GpuContext::new().unwrap()));
+        let id = testing::create_rgba8(256, 65);
+        let surface = Surface::lookup(id, 256, 65).unwrap();
+        let n = 256 * 65;
+        let tile = Tile::from_samples(
+            TileCoord::new(0, 0, 0),
+            TileLayout {
+                extent: Extent::new(256, 65),
+                halo: 0,
+                channels: 3,
+            },
+            (0..3 * n)
+                .map(|i| ((i * 17 + i / n * 31) % 256) as f32)
+                .collect(),
+        )
+        .unwrap();
+        let mut expected = [[0u32; 256]; 4];
+        let samples = tile.samples::<f32>().unwrap();
+        for i in 0..n {
+            let r = samples[i] as usize;
+            let g = samples[n + i] as usize;
+            let b = samples[2 * n + i] as usize;
+            expected[0][r] += 1;
+            expected[1][g] += 1;
+            expected[2][b] += 1;
+            expected[3][(54 * r + 183 * g + 19 * b) >> 8] += 1;
+        }
+        let before = gpu.stats();
+        let mut batch = gpu.begin_resident().unwrap();
+        let t = batch.upload(&tile).unwrap();
+        let out = batch
+            .finish(
+                vec![t],
+                true,
+                Some(SurfaceTarget {
+                    id,
+                    histogram: true,
+                }),
+                &CancellationToken::new(),
+            )
+            .unwrap();
+        assert!(out.tiles.is_empty());
+        assert_eq!(out.histogram, Some(expected));
+        let after = gpu.stats();
+        assert_eq!(after.readbacks, before.readbacks);
+        assert_eq!(after.pixel_readback_bytes, before.pixel_readback_bytes);
+        assert_eq!(after.histogram_readbacks - before.histogram_readbacks, 1);
+        assert_eq!(after.submissions - before.submissions, 1);
+        // One clear and one fused surface/histogram dispatch, not two pixel passes.
+        assert_eq!(after.last_resident_dispatches, 2);
+        surface
+            .with_pixels(|pixels, stride| {
+                for y in 0..65 {
+                    for x in 0..256 {
+                        for c in 0..3 {
+                            assert_eq!(
+                                pixels[y * stride + x * 4 + c],
+                                samples[c * n + y * 256 + x] as u8
+                            );
+                        }
+                    }
+                }
+            })
+            .unwrap();
     }
 }

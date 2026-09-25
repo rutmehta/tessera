@@ -1,3 +1,65 @@
+# M2-06 resident Bayer graph
+
+The standard Bayer develop graph uses one compute pass and one queue submission
+per requested level. It streams sensor dependencies in groups of 16, recycling
+transient f32 buffers within the ordered pass. Sensor demosaic, output-level
+demosaic, and WB checkpoints use packed f16 GPU buffers keyed by `MemoKey`. Raw
+Decode sources retain f32 precision and count their full bytes against the same
+LRU budget: f16 rounding before demosaic caused a verified display regression.
+Crop/downsample
+precedes both linear profile and WB matrices, reducing their work at preview
+levels. Output-level demosaic keys include the crop and a separate domain so
+level-zero crops cannot collide with sensor checkpoints. Cold and warm checkpoints
+are rounded identically. Tests allow 0.005 absolute scene-linear error and two
+8-bit display codes for this multi-checkpoint path.
+
+`GpuStageOp::with_cache_budget` controls LRU payload bytes including pair
+alignment. Transactions publish cache entries in access order only after successful
+GPU completion. Transient allocations are tracked separately and reused within a
+transaction; they are not included in the persistent memo budget.
+
+CPU tile consumers use one final staging buffer/map. Surface presentation imports
+an IOSurface through Metal's `newTextureWithDescriptor:iosurface:plane:` and
+wgpu-hal `texture_from_raw`. Develop calls `Renderer::render_surface`, writes pixels
+directly and reads back only a 4096-byte GPU histogram. Surface writes and
+histogram accumulation share one compute dispatch per tile, tested against exact
+pixels/counts and across repeated frames with partial tiles and nonzero origins.
+It retains an immutable
+recipe/level for on-demand saved preview/loupe pixels; it never unconditionally
+reads back the frame or snapshots a mutable surface ring. Surface writes are
+serialized per session and the ring advances only when a frame is published.
+`Renderer::render_to_surface` also omits the histogram readback.
+
+Host uploads use fresh buffers and `queue.write_buffer`. wgpu 30 opens a separate
+Metal command buffer for every compute pass. A pass per dispatch exceeded Metal's
+4096 outstanding-buffer limit on the NEF. Dispatches and compute clears are now
+recorded in order and replayed in a single compute pass, followed by final copies.
+Queue writes share the pending transfer encoder; successful renders retain one
+explicit queue submission. Abandoned transactions
+flush only their pending host transfers to release staging memory; cancelled
+compute commands are never submitted. Queue-written buffers must never
+be recycled for a later host upload in the same transaction. Failure diagnostics
+include adapter, dispatches, payload allocation count/bytes, staging bytes and
+captured device-loss reason. The host regression is `full_nef_transaction_keeps_device_alive`.
+
+Automatic develop selection measures CPU and GPU first-frame/tone/WB wall times
+at level 2 on the first opened RAW and chooses GPU only when both interactive
+edit classes are faster. Cold-fill time is reported separately, not weighted as
+if every edit were a cold render. Explicit `TESSERA_RENDER_BACKEND=cpu|gpu` skips
+calibration. This is a one-image calibration, not a universal speed claim.
+
+**Limits:** X-Trans and extended M2 image-level operators retain the existing
+hybrid dispatch. They are not a whole-chain single-submission resident path.
+Metal/IOSurface runtime checks were executed on the host Apple M4, including the
+full NEF transaction, surface histogram/roundtrip tests, and forced-GPU develop
+integration. See `tools/orchestrate/wp/M2-06/validation.md` for measurements and
+coverage limitations. The measured NEF L2 path now meets both latency targets
+(tone medians 4.0–4.3 ms, WB 8 ms in three M4 runs). Tone and display are fused
+on this path; cold GPU frames remain slower than CPU.
+The historical measurements below predate M2-06 and do not describe this change.
+
+---
+
 # Metal operators: M1 and M2 (full-suite acceptance blocked)
 
 ## M2 implementation status
@@ -54,7 +116,7 @@ not a silently successful CPU render. Optional capabilities are reported as
 `rgba16float_storage`. Supported timestamp-query / shader-f16 features are
 requested on the device, but neither is required to render. In-flight samples
 and shader math are always f32. The benchmark reports wall time, not GPU query
-time. f16 is used only by image-core's existing host memo cache.
+time. (Before M2-06, f16 was used only by the host memo cache.)
 
 Construct `GpuStageOp::new(Arc::new(GpuContext::new()?))` and pass an Arc of
 that operator to `Renderer::with_ops`, with a separate `TileCache` for that
