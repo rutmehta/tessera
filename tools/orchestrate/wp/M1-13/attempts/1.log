@@ -1,0 +1,13 @@
+Implemented M1-13 within the allowed paths: culling sessions, atomic sidecar writes, global undo/redo, basket persistence, burst/dHash grouping, pluggable scoring, derived status, and defect sweeps. Added index migration 004 for scores and export history.
+
+Required verification passed:
+  30 tests passed, 0 failed, 1 existing benchmark ignored
+  Clippy with -D warnings passed
+  Workspace formatting check passed
+
+Same-stem RAW/JPEG sidecar collisions now fail safely rather than overwrite data. CARGO_TARGET_DIR remained outside the repository. No commit made.
+
+Details: tools/orchestrate/wp/M1-13/result.md
+Test output: tools/orchestrate/wp/M1-13/verification.log
+
+RESULT: PASS

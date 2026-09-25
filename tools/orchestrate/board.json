@@ -163,6 +163,14 @@
     "id": "M1-13",
     "owner": "astra",
     "title": "Culling core",
+    "status": "merged",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M1-14",
+    "owner": "astra",
+    "title": "Rendered preview fallback (no embedded JPEG)",
     "status": "running",
     "attempts": 0,
     "notes": ""
