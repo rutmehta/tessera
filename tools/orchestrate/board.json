@@ -62,5 +62,45 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M1-01",
+    "owner": "luna",
+    "title": "raw-decode crate",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M1-02",
+    "owner": "luna",
+    "title": "index crate",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M1-03",
+    "owner": "luna",
+    "title": "sidecar crate",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M1-04",
+    "owner": "luna",
+    "title": "previews crate",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M1-05",
+    "owner": "luna",
+    "title": "pipeline-cpu reference",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
