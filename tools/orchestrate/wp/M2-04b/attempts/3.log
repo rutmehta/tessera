@@ -1,0 +1,11 @@
+Fixed the preview slowdown without bypassing default detail: independent tiles now run in parallel with bit-exact output. The failing preview test improved from 3.85s to 1.85s, below its unchanged 3s limit.
+
+Revision-2 WB, default detail, regenerated goldens, and CPU/GPU tests pass. Clippy, fmt, and Swift build also pass.
+
+Full workspace verification: 421 passed, 1 failed, 9 ignored. Remaining blockers are outside your allowlist:
+- crates/sidecar/tests/develop.rs:75 still expects revision 1.
+- crates/tessera-ffi/src/develop.rs still uses the old WB slider inverse and strips the newly enabled Basic controls.
+
+No out-of-scope files changed. No commit made. Full handoff: tools/orchestrate/wp/M2-04b/RESULT.md.
+
+RESULT: FAIL sidecar revision assertion and FFI integration require changes outside allowed paths.
