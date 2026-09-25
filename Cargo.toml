@@ -20,6 +20,7 @@ members = [
     "crates/ml-faces",
     "crates/ml-quality",
     "crates/ml-segment",
+    "crates/ml-depth",
     "crates/jobs",
     "crates/engine-api",
     "crates/tessera-ffi",

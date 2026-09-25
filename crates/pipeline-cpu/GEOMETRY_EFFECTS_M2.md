@@ -75,7 +75,7 @@ RGB += (delta,delta,delta)
 
 Grain is achromatic additive luminance noise (equal channel increments), not independent RGB noise. Larger size interpolates across larger source-pixel distances; roughness adds fine structure and contrast. Reference coordinates keep the same continuous texture anchored across preview levels. Coarse levels sample this texture rather than analytically integrating it, so previews are **not** exact area-filtered versions of full-resolution grain. It is not a physical film-density model. Grain can produce negative values and does not clip HDR.
 
-Lens blur returns `Unsupported` even if present with zero amount; it needs a depth model and is not falsely reported as rendered. Parameters, extent, channels, format, and finite input are checked before mutation; errors leave the tile untouched.
+The tile-only effects API returns `Unsupported` for lens blur even if present with zero amount; it cannot render a full-image depth effect. M3 adds the explicit depth-supplied CPU renderer and standalone operator described in [LENS_BLUR_M3.md](LENS_BLUR_M3.md); the legacy no-depth renderer still rejects it. Parameters, extent, channels, format, and finite input are checked before mutation; errors leave the tile untouched.
 
 ## Verification
 
