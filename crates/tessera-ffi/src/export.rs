@@ -943,7 +943,13 @@ impl Engine {
                 let crop = recipe.settings.geometry.crop.rect;
                 let settings = export::ExportSettings {
                     naming,
-                    render_scale: if options.upscale > 1 {
+                    // Always develop at full resolution and resize afterwards: rendering at a
+                    // reduced pyramid level fails the exactness gate (tone/detail differ when
+                    // applied before the downsample; see M2-21c RESULTS). Opt back in with
+                    // TESSERA_EXPORT_WEB_LEVEL=1 for speed at the cost of exactness.
+                    render_scale: if options.upscale > 1
+                        || std::env::var_os("TESSERA_EXPORT_WEB_LEVEL").is_none()
+                    {
                         1
                     } else {
                         export_scale(
