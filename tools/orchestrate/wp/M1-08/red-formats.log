@@ -1,0 +1,138 @@
+error[E0433]: cannot find type `Metadata` in this scope
+  --> crates/export/tests/export.rs:13:30
+   |
+13 |             for metadata in [Metadata::All, Metadata::CopyrightOnly, Metadata::None] {
+   |                              ^^^^^^^^ use of undeclared type `Metadata`
+   |
+help: consider importing one of these structs
+   |
+ 1 + use crate::fs::Metadata;
+   |
+ 1 + use std::fs::Metadata;
+   |
+
+error[E0433]: cannot find type `Metadata` in this scope
+  --> crates/export/tests/export.rs:13:45
+   |
+13 |             for metadata in [Metadata::All, Metadata::CopyrightOnly, Metadata::None] {
+   |                                             ^^^^^^^^ use of undeclared type `Metadata`
+   |
+help: consider importing one of these structs
+   |
+ 1 + use crate::fs::Metadata;
+   |
+ 1 + use std::fs::Metadata;
+   |
+
+error[E0433]: cannot find type `Metadata` in this scope
+  --> crates/export/tests/export.rs:13:70
+   |
+13 |             for metadata in [Metadata::All, Metadata::CopyrightOnly, Metadata::None] {
+   |                                                                      ^^^^^^^^ use of undeclared type `Metadata`
+   |
+help: consider importing one of these structs
+   |
+ 1 + use crate::fs::Metadata;
+   |
+ 1 + use std::fs::Metadata;
+   |
+
+error[E0433]: cannot find type `Metadata` in this scope
+  --> crates/export/tests/export.rs:43:39
+   |
+43 |                 if matches!(metadata, Metadata::None) {
+   |                                       ^^^^^^^^ use of undeclared type `Metadata`
+   |
+help: consider importing one of these structs
+   |
+ 1 + use crate::fs::Metadata;
+   |
+ 1 + use std::fs::Metadata;
+   |
+
+error[E0433]: cannot find type `Metadata` in this scope
+  --> crates/export/tests/export.rs:49:76
+   |
+49 |                     assert_eq!(text.contains("secret"), matches!(metadata, Metadata::All));
+   |                                                                            ^^^^^^^^ use of undeclared type `Metadata`
+   |
+help: consider importing one of these structs
+   |
+ 1 + use crate::fs::Metadata;
+   |
+ 1 + use std::fs::Metadata;
+   |
+
+error[E0599]: no variant, associated function, or constant named `Png` found for enum `export::Format` in the current scope
+  --> crates/export/tests/export.rs:11:58
+   |
+11 |     for format in [Format::Jpeg { quality: 90 }, Format::Png, Format::Tiff { bits: 8 }, Format::Tiff { bits: 16 }] {
+   |                                                          ^^^ variant, associated function, or constant not found in `export::Format`
+
+error[E0599]: no variant named `Tiff` found for enum `export::Format`
+  --> crates/export/tests/export.rs:11:71
+   |
+11 |     for format in [Format::Jpeg { quality: 90 }, Format::Png, Format::Tiff { bits: 8 }, Format::Tiff { bits: 16 }] {
+   |                                                                       ^^^^ variant not found in `export::Format`
+
+error[E0599]: no variant named `Tiff` found for enum `export::Format`
+  --> crates/export/tests/export.rs:11:97
+   |
+11 |     for format in [Format::Jpeg { quality: 90 }, Format::Png, Format::Tiff { bits: 8 }, Format::Tiff { bits: 16 }] {
+   |                                                                                                 ^^^^ variant not found in `export::Format`
+
+error[E0433]: cannot find type `ColorSpace` in this scope
+  --> crates/export/tests/export.rs:12:29
+   |
+12 |         for color_space in [ColorSpace::Srgb, ColorSpace::DisplayP3, ColorSpace::Rec2020, ColorSpace::ProPhoto] {
+   |                             ^^^^^^^^^^ use of undeclared type `ColorSpace`
+
+error[E0433]: cannot find type `ColorSpace` in this scope
+  --> crates/export/tests/export.rs:12:47
+   |
+12 |         for color_space in [ColorSpace::Srgb, ColorSpace::DisplayP3, ColorSpace::Rec2020, ColorSpace::ProPhoto] {
+   |                                               ^^^^^^^^^^ use of undeclared type `ColorSpace`
+
+error[E0433]: cannot find type `ColorSpace` in this scope
+  --> crates/export/tests/export.rs:12:70
+   |
+12 |         for color_space in [ColorSpace::Srgb, ColorSpace::DisplayP3, ColorSpace::Rec2020, ColorSpace::ProPhoto] {
+   |                                                                      ^^^^^^^^^^ use of undeclared type `ColorSpace`
+
+error[E0433]: cannot find type `ColorSpace` in this scope
+  --> crates/export/tests/export.rs:12:91
+   |
+12 |         for color_space in [ColorSpace::Srgb, ColorSpace::DisplayP3, ColorSpace::Rec2020, ColorSpace::ProPhoto] {
+   |                                                                                           ^^^^^^^^^^ use of undeclared type `ColorSpace`
+
+error[E0560]: struct `export::ExportSettings` has no field named `color_space`
+  --> crates/export/tests/export.rs:15:57
+   |
+15 |                 let settings = ExportSettings { format, color_space, metadata, output_dir: dir.path().into(), ..Default::default() };
+   |                                                         ^^^^^^^^^^^ `export::ExportSettings` does not have this field
+   |
+   = note: available fields are: `naming`
+
+error[E0560]: struct `export::ExportSettings` has no field named `metadata`
+  --> crates/export/tests/export.rs:15:70
+   |
+15 |                 let settings = ExportSettings { format, color_space, metadata, output_dir: dir.path().into(), ..Default::default() };
+   |                                                                      ^^^^^^^^ `export::ExportSettings` does not have this field
+   |
+   = note: available fields are: `naming`
+
+error[E0599]: no variant named `Tiff` found for enum `export::Format`
+  --> crates/export/tests/export.rs:20:29
+   |
+20 |                     Format::Tiff { bits } => {
+   |                             ^^^^ variant not found in `export::Format`
+
+error[E0599]: no variant, associated function, or constant named `Png` found for enum `export::Format` in the current scope
+  --> crates/export/tests/export.rs:29:29
+   |
+29 |                     Format::Png => {
+   |                             ^^^ variant, associated function, or constant not found in `export::Format`
+
+Some errors have detailed explanations: E0433, E0560, E0599.
+For more information about an error, try `rustc --explain E0433`.
+error: could not compile `export` (test "export") due to 16 previous errors

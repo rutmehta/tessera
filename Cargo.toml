@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "crates/export",
     "crates/image-core",
     "crates/raw-decode",
     "crates/pipeline-cpu",
