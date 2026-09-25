@@ -7,6 +7,8 @@
 // p[27..31]: highlights, shadows, whites, blacks divided by 100;
 // p[31]: neutral tone flag (all adjustments OTHER THAN exposure are zero).
 // p[32]: ln(a) for the default display sigmoid (contrast=1.5, skew=0).
+// Display p[10]: 0 = SDR (encoded 0..255); h > 0 = EDR linear output in [0, h]
+// (sigmoid rescaled to peak h, p[32] then holds its ln(a); no OETF/dither).
 // Host validates layouts, finite parameters, CFA and required halo, and
 // handles X-Trans on CPU. Highlights/demosaic/display have zero output halo.
 @group(0) @binding(0) var<storage, read> src: array<f32>;
@@ -219,7 +221,45 @@ fn srgb_oetf(v: f32) -> f32 {
     return 1.055 * pow(v, 1.0 / 2.4) - 0.055;
 }
 
+// EDR presentation (p[10] = headroom h > 0): pipeline_cpu::display_linear.
+fn display_linear(rgb: vec3<f32>) -> vec3<f32> {
+    let h = p[10];
+    let lum = luminance(rgb);
+    var mapped = vec3<f32>(0.0);
+    if lum > 0.0 {
+        let sigmoid = h / (1.0 + exp(1.5 * (p[32] - log(lum))));
+        mapped = vec3<f32>(rgb.x * sigmoid / lum,
+            rgb.y * sigmoid / lum, rgb.z * sigmoid / lum);
+    }
+    let v = matrix(mapped);
+    let grey = clamp((0.2126 * v.x + 0.7152 * v.y) + 0.0722 * v.z, 0.0, h);
+    var chroma = 1.0;
+    if u32(p[9]) == 1u {
+        for (var c = 0u; c < 3u; c = c + 1u) {
+            let d = v[c] - grey;
+            if v[c] < 0.0 {
+                chroma = min(chroma, -grey / d);
+            }
+            if v[c] > h {
+                chroma = min(chroma, (h - grey) / d);
+            }
+        }
+    }
+    var result = vec3<f32>(0.0);
+    for (var c = 0u; c < 3u; c = c + 1u) {
+        var linear = v[c];
+        if u32(p[9]) == 1u {
+            linear = grey + chroma * (v[c] - grey);
+        }
+        result[c] = clamp(linear, 0.0, h);
+    }
+    return result;
+}
+
 fn display(rgb: vec3<f32>, x: u32, y: u32) -> vec3<f32> {
+    if p[10] > 0.0 {
+        return display_linear(rgb);
+    }
     let lum = luminance(rgb);
     var mapped = vec3<f32>(0.0);
     if lum > 0.0 {

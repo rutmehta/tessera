@@ -5,8 +5,17 @@ import TesseraFFI
 import QuartzCore
 import TesseraCore
 
+/// A screen's EDR headroom, for `EDRPresentation`.
+extension NSScreen: EDRScreen {
+    public var currentEDRHeadroom: Double { Double(maximumExtendedDynamicRangeColorComponentValue) }
+    public var potentialEDRHeadroom: Double { Double(maximumPotentialExtendedDynamicRangeColorComponentValue) }
+}
+
 /// Loupe viewport: an NSView backed by a CAMetalLayer configured for EDR (RGBA16F,
 /// `wantsExtendedDynamicRangeContent`) whose colour space follows the window's screen.
+/// With HDR on and an EDR-capable screen, engine frames are RGBA16F display-linear with values
+/// above 1.0 up to the headroom the engine tone-mapped for (the screen's current EDR headroom,
+/// reported to the session through `DevelopController.updateDisplay`, M2-22).
 /// Swift owns presentation; the engine only supplies IOSurfaces (see `LoupeFrame`). While a
 /// develop session is attached, a display link sends coalesced slider changes once per frame.
 @MainActor
@@ -27,6 +36,8 @@ final class MetalLoupeView: NSView {
     /// The engine session for the image on screen; its frames replace the preview.
     private(set) weak var develop: DevelopController?
     private var flushLink: CADisplayLink?
+    /// Re-reads the screen's current EDR headroom (it follows the display brightness).
+    private var headroomTimer: Timer?
 
     /// Called with a human-readable description of the colour setup whenever the screen changes.
     var onColorInfoChange: ((String) -> Void)?
@@ -114,8 +125,39 @@ final class MetalLoupeView: NSView {
     private func screenDidChange() {
         updateDrawableSize()
         updateColorSpace()
+        reportScreen()
         planSurfaces()
         render()
+    }
+
+    /// Verification hook for SDR-only machines: `TESSERA_EDR_OVERRIDE=<current>,<potential>`
+    /// reports that EDR headroom instead of the screen's, forcing the RGBA16F path (values above
+    /// 1.0 then clip on an SDR panel).
+    private static let edrOverride: EDRScreenValues? = {
+        let parts = (ProcessInfo.processInfo.environment["TESSERA_EDR_OVERRIDE"] ?? "")
+            .split(separator: ",").compactMap { Double($0) }
+        return parts.count == 2 ? EDRScreenValues(current: parts[0], potential: parts[1]) : nil
+    }()
+
+    private var edrScreen: EDRScreen? { Self.edrOverride ?? window?.screen ?? NSScreen.main }
+
+    /// Tells the develop session which screen (EDR headroom) it renders for; polls the current
+    /// headroom while EDR frames are shown.
+    private func reportScreen() {
+        guard let develop else { return }
+        develop.updateDisplay(edrScreen)
+        let polling = develop.presentation.isEDRCapable
+        if polling, headroomTimer == nil {
+            headroomTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    guard let self, let d = self.develop else { return }
+                    d.updateDisplay(self.edrScreen)
+                }
+            }
+        } else if !polling {
+            headroomTimer?.invalidate()
+            headroomTimer = nil
+        }
     }
 
     private func updateDrawableSize() {
@@ -139,7 +181,12 @@ final class MetalLoupeView: NSView {
         let name = screen?.colorSpace?.localizedName ?? (screenSpace.name as String? ?? "Unknown")
         let potential = screen?.maximumPotentialExtendedDynamicRangeColorComponentValue ?? 1
         let current = screen?.maximumExtendedDynamicRangeColorComponentValue ?? 1
-        onColorInfoChange?(String(format: "%@ · linear extended · RGBA16F · EDR headroom %.1f× (max %.1f×)", name, current, potential))
+        var info = String(format: "%@ · linear extended · RGBA16F · EDR headroom %.1f× (max %.1f×)", name, current, potential)
+        if let develop {
+            let h = develop.presentation.effectiveHeadroom(stops: develop.hdrStops)
+            info += h > 0 ? String(format: " · engine HDR %.1f×", h) : " · engine SDR"
+        }
+        onColorInfoChange?(info)
 
         if changed, let img = sourceImage { rasterize(img, isFinal: sourceIsFinal) }
     }
@@ -176,12 +223,22 @@ final class MetalLoupeView: NSView {
     func attach(develop controller: DevelopController?) {
         guard controller !== develop else { return }
         develop?.onNeedsFlush = nil
+        develop?.onPresentationChange = nil
         develop = controller
         maskOverlay = nil
         guard let controller else {
             flushLink?.isPaused = true
+            headroomTimer?.invalidate()
+            headroomTimer = nil
             return
         }
+        controller.onPresentationChange = { [weak self] p in
+            DevelopTools.shared.edr = p
+            self?.updateColorSpace()
+            self?.reportScreen()
+        }
+        reportScreen()
+        DevelopTools.shared.edr = controller.presentation
         if flushLink == nil {
             let link = displayLink(target: self, selector: #selector(flushTick(_:)))
             link.add(to: .main, forMode: .common)
@@ -253,7 +310,7 @@ final class MetalLoupeView: NSView {
         if metalLayer.colorspace != space { metalLayer.colorspace = space }
         let scale = metalLayer.contentsScale
         let placement = cropView.map { $0.placement(scale: scale) }
-        var overlay = cropView == nil && currentFrame?.pixelFormat == .rgba8Unorm_srgb ? maskOverlay : nil
+        var overlay = cropView == nil && currentFrame?.isEngineFrame == true ? maskOverlay : nil
         if overlay != nil {
             let tools = MaskTools.shared
             let c = tools.overlayColor.rgb
@@ -261,7 +318,8 @@ final class MetalLoupeView: NSView {
             let lin = { (v: Float) in v <= 0.04045 ? v / 12.92 : powf((v + 0.055) / 1.055, 2.4) }
             overlay?.tint = SIMD4(lin(c.r), lin(c.g), lin(c.b), Float(tools.overlayOpacity))
         }
-        let proof = currentFrame?.pixelFormat == .rgba8Unorm_srgb ? proofLUT : nil
+        // EDR frames proof their SDR range (a print has no headroom): the shader clamps to 1.0.
+        let proof = currentFrame?.isEngineFrame == true ? proofLUT : nil
         lastEncodeTime = renderer.draw(in: metalLayer, texture: texture, frame: currentFrame, placement: placement,
                                        background: Theme.loupeBackgroundLinear, overlay: overlay, proof: proof)
     }

@@ -874,6 +874,9 @@ final class AppModel {
         if ProcessInfo.processInfo.arguments.contains("--develop-selftest"), !developSelfTestRan {
             developSelfTestRan = true
             runDevelopSelfTest(controller)
+        } else if ProcessInfo.processInfo.arguments.contains("--hdr-selftest"), !developSelfTestRan {
+            developSelfTestRan = true
+            runHDRSelfTest(controller)
         }
         if !controller.ignoredSettings.isEmpty {
             statusMessage = "Develop: \(controller.ignoredSettings.count) imported setting(s) are kept but not rendered yet"
@@ -956,6 +959,64 @@ final class AppModel {
                               controller.history.headLabel ?? "-")
             FileHandle.standardError.write(Data((line + "\n").utf8))
             self.statusMessage = line
+        }
+    }
+
+    /// `--hdr-selftest` (M2-22): switches HDR on, drags the headroom slider 0 → max like a user
+    /// would (coalesced per display frame), reports the ring format, the frame's peak value and
+    /// the float-path frame times, then leaves HDR on for a screenshot. On an SDR screen (without
+    /// `TESSERA_EDR_OVERRIDE`) it reports the SDR fallback instead.
+    private func runHDRSelfTest(_ controller: DevelopController) {
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(1.5))   // first paint settles
+            guard let self, self.develop === controller else { return }
+            let say = { (line: String) in
+                FileHandle.standardError.write(Data((line + "\n").utf8))
+                self.statusMessage = line
+            }
+            let p = controller.presentation
+            DevelopTools.shared.apply(controller.hdrPatch(true), final: true, label: "HDR On")
+            try? await Task.sleep(for: .seconds(1))
+            guard controller.presentation.floatSurfaces else {
+                say(String(format: "hdr-selftest: %@; ring %@; HDR stays in the recipe (hdr=%@), loupe SDR",
+                           p.readout, controller.surfacesAreFloat ? "RGBA16F" : "RGBA8",
+                           controller.hdrEnabled ? "on" : "off"))
+                return
+            }
+            self.selfTestFrames = []
+            let maxStops = controller.presentation.maxStops
+            let control = HDRControls.headroom(maxStops: maxStops)
+            for i in 0...30 {
+                DevelopTools.shared.set(control, maxStops * Double(i) / 30, final: i == 30)
+                try? await Task.sleep(for: .milliseconds(16))
+            }
+            try? await Task.sleep(for: .seconds(1))
+            self.developRevision += 1
+            let frames = (self.selfTestFrames ?? []).filter { $0.isFinal && !$0.isOverlay }
+            self.selfTestFrames = nil
+            let times = frames.map(\.renderMs).sorted()
+            guard let last = frames.last, let surface = controller.surface(last.surfaceID), !times.isEmpty else {
+                say("hdr-selftest: no frames"); return
+            }
+            let q = { (x: Double) in times[Int(Double(times.count - 1) * x)] }
+            // Peak linear value of the float frame (values above 1.0 are EDR headroom).
+            var peak: Float = 0
+            let float = IOSurfaceGetPixelFormat(surface) == DevelopController.floatSurfacePixelFormat
+            if float {
+                IOSurfaceLock(surface, .readOnly, nil)
+                let base = IOSurfaceGetBaseAddress(surface).assumingMemoryBound(to: Float16.self)
+                let stride = IOSurfaceGetBytesPerRow(surface) / 2
+                for y in 0..<last.height {
+                    for x in 0..<last.width {
+                        for c in 0..<3 { peak = max(peak, Float(base[y * stride + x * 4 + c])) }
+                    }
+                }
+                IOSurfaceUnlock(surface, .readOnly, nil)
+            }
+            let engine = (try? controller.session.presentationHeadroom()) ?? 0
+            say(String(format: "hdr-selftest: %@; ring %@; engine headroom %.1f×; frame peak %.2f; %d headroom frames at L%d, render median %.1f ms, p90 %.1f ms, max %.1f ms; backend %@; history: %@",
+                       controller.presentation.readout, float ? "RGBA16F" : "RGBA8", engine, peak, times.count,
+                       last.level, q(0.5), q(0.9), q(1), controller.info.backend, controller.history.headLabel ?? "-"))
         }
     }
 

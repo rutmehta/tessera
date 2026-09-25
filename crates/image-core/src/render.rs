@@ -72,7 +72,7 @@ use std::sync::{Arc, Mutex};
 
 use engine_api::color::{ColorMatrix3, WorkingSpace};
 use engine_api::jobs::{CancellationToken, Job, JobContext, Priority};
-use engine_api::recipe::settings::{DemosaicMethod, HighlightReconstruction};
+use engine_api::recipe::settings::{DemosaicMethod, GamutMapping, HighlightReconstruction};
 use engine_api::recipe::{DevelopSettings, ProcessVersion};
 use engine_api::stage::{ParamHash, StageId};
 use engine_api::tile::{Extent, TILE_SIZE, Tile, TileCoord};
@@ -141,6 +141,43 @@ pub enum RenderOutput {
     Display,
     /// Scene-linear Rec.2020 `F32` tiles after Tone, before Output.
     SceneLinear,
+    /// EDR viewport presentation: display-linear extended sRGB `F32` tiles
+    /// in `[0, headroom]` ([`pipeline_cpu::display_linear`]). The recipe's
+    /// SDR renditions (exports, previews) never use it.
+    DisplayLinear(Headroom),
+}
+
+impl RenderOutput {
+    /// The Output-stage operator for this output, if any.
+    pub fn display_op(self, gamut: GamutMapping) -> Option<Op<'static>> {
+        match self {
+            Self::Display => Some(Op::Display {
+                gamut,
+                headroom: None,
+            }),
+            Self::DisplayLinear(h) => Some(Op::Display {
+                gamut,
+                headroom: Some(h.get()),
+            }),
+            Self::SceneLinear => None,
+        }
+    }
+}
+
+/// An EDR headroom (linear multiple of SDR white), sanitized to
+/// `1..=`[`pipeline_cpu::MAX_HDR_HEADROOM`] and compared bitwise.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Headroom(u32);
+
+impl Headroom {
+    /// SDR white: the SDR tone curve, written unencoded.
+    pub const SDR: Self = Self(0x3f80_0000);
+    pub fn new(headroom: f32) -> Self {
+        Self(pipeline_cpu::sanitize_headroom(headroom).to_bits())
+    }
+    pub fn get(self) -> f32 {
+        f32::from_bits(self.0)
+    }
 }
 
 /// The on-screen region for [`Renderer::render_progressive`].
@@ -522,15 +559,13 @@ impl Renderer {
             }
             let mut t = developed.tile(TileCoord::new(0, coord.x, coord.y), 0, 1)?;
             cancel.check()?;
-            if output == RenderOutput::Display {
-                t = self.ops.run(
-                    StageId::Output,
-                    &Op::Display {
-                        gamut: settings.output.gamut_mapping,
-                    },
-                    t,
-                )?;
-                t = Tile::from_samples(coord, t.layout(), t.samples::<u8>()?.to_vec())?;
+            if let Some(display) = output.display_op(settings.output.gamut_mapping) {
+                t = self.ops.run(StageId::Output, &display, t)?;
+                t = if display.is_encoded_display() {
+                    Tile::from_samples(coord, t.layout(), t.samples::<u8>()?.to_vec())?
+                } else {
+                    Tile::from_samples(coord, t.layout(), t.samples::<f32>()?.to_vec())?
+                };
             } else {
                 t = Tile::from_samples(coord, t.layout(), t.samples::<f32>()?.to_vec())?;
             }
@@ -864,11 +899,8 @@ impl Renderer {
 
             // F. Tone → Output.
             let tone = Op::Tone(&r.settings.tone);
-            let display = Op::Display {
-                gamut: r.settings.output.gamut_mapping,
-            };
             let mut chain = vec![(StageId::Tone, tone)];
-            if output == RenderOutput::Display {
+            if let Some(display) = output.display_op(r.settings.output.gamut_mapping) {
                 chain.push((StageId::Output, display));
             }
             let inputs = pre_tone

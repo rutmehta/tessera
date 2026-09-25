@@ -543,3 +543,15 @@ Wall times vary with host/GPU contention. This implementation does not claim a
 universal speedup or a <16ms full-frame guarantee. Buffers are allocated per
 chain and host cache/gather/downsample boundaries remain; reuse and persistent
 GPU caches are future optimizations, not hidden in these timings.
+
+## EDR presentation (M2-22)
+
+`Op::Display { gamut, headroom: Some(h) }` is the viewport-only EDR transform
+(`pipeline_cpu::display_linear`): the default display sigmoid rescaled to peak
+at `h` (mid-grey stays 0.18), hue-preserving compression into `[0, h]`, F32
+display-linear sRGB with no OETF, quantization or dither. `headroom: None` is
+the unchanged SDR Output stage (bit-identical; `tests/hdr_surface.rs` pins
+pre-M2-22 fingerprints). `Renderer::render_surface_as(.., RenderOutput::DisplayLinear(h))`
+writes an `'RGhA'` RGBA16F IOSurface with `hdr_surface.wgsl`, fused with the
+display histogram (bins of the SDR-clipped encoding). Surface format and output
+must match: RGBA8 takes encoded Display, RGBA16F takes DisplayLinear.

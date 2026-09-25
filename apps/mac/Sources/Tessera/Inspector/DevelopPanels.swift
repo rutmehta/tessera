@@ -60,6 +60,9 @@ struct ControlSlider: NSViewRepresentable {
     func updateNSView(_ s: ValueSlider, context: Context) {
         _ = revision
         context.coordinator.ready = ready
+        // Ranges may follow the screen (the HDR headroom slider).
+        s.minValue = control.range.lowerBound
+        s.maxValue = control.range.upperBound
         s.isEnabled = ready
         s.trackColors = trackColors
         if !s.isDragging { s.doubleValue = ready ? DevelopTools.shared.value(control) : control.defaultValue }
@@ -434,6 +437,50 @@ struct EffectsPanel: View {
             }
         }
         .disabled(!ready)
+    }
+}
+
+// MARK: - HDR (M2-22)
+
+/// The recipe's HDR toggle and headroom (0 EV = SDR tone-mapped, up to the screen's EDR
+/// potential). On SDR screens the setting is kept in the recipe and the loupe stays SDR.
+struct HDRPanel: View {
+    let model: AppModel
+    let tools: DevelopTools
+    @Environment(\.developRevision) private var revision
+
+    var body: some View {
+        let ready = model.developStatus == .ready
+        let edr = tools.edr
+        let on = { _ = revision; return tools.develop?.hdrEnabled ?? false }()
+        VStack(alignment: .leading, spacing: 6) {
+            Toggle("HDR (extended dynamic range)", isOn: Binding(
+                get: { on },
+                set: { v in
+                    guard let d = tools.develop else { return }
+                    tools.apply(d.hdrPatch(v), final: true, label: v ? "HDR On" : "HDR Off")
+                    tools.bump()
+                }))
+                .font(.system(size: 11))
+                .accessibilityIdentifier("hdr-toggle")
+            ControlSlider(control: HDRControls.headroom(maxStops: max(edr.maxStops, 0.1)))
+                .frame(height: 30)
+                .disabled(!on || !edr.isEDRCapable)
+                .accessibilityIdentifier("hdr-headroom")
+            Text(status(edr, on: on)).font(.system(size: 10)).foregroundStyle(.secondary)
+                .accessibilityIdentifier("hdr-status")
+        }
+        .controlSize(.small)
+        .disabled(!ready)
+    }
+
+    private func status(_ edr: EDRPresentation, on: Bool) -> String {
+        guard edr.isEDRCapable else {
+            return on ? "SDR display: HDR is kept in the recipe, the loupe shows SDR." : "SDR display"
+        }
+        guard on else { return edr.readout }
+        let h = edr.effectiveHeadroom(stops: tools.develop?.hdrStops ?? 0)
+        return edr.readout + String(format: " · showing %.1f× (RGBA16F)", h)
     }
 }
 

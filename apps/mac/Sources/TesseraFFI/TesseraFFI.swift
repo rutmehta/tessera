@@ -1708,11 +1708,12 @@ public func FfiConverterTypeDevelopListener_lower(_ value: DevelopListener) -> U
 public protocol DevelopSessionProtocol: AnyObject, Sendable {
     
     /**
-     * Adds an RGBA8 IOSurface (see `surface.rs`) to the frame ring; call two
-     * or three times with surfaces of one `plan_surface` size so the host
-     * never samples the surface being written. A different size replaces
-     * the ring. The first surface of a ring starts a render at the new
-     * screen level.
+     * Adds an RGBA8 (SDR) or `'RGhA'` RGBA16F (EDR) IOSurface (see
+     * `surface.rs`) to the frame ring; call two or three times with
+     * surfaces of one `plan_surface` size and one format so the host never
+     * samples the surface being written. A different size or format
+     * replaces the ring. The first surface of a ring starts a render at the
+     * new screen level in the ring's contract.
      */
     func attachSurface(iosurfaceId: UInt32, width: UInt32, height: UInt32) throws 
     
@@ -1775,6 +1776,12 @@ public protocol DevelopSessionProtocol: AnyObject, Sendable {
      */
     func planSurface(width: UInt32, height: UInt32)  -> SurfacePlan
     
+    /**
+     * Headroom (linear multiple of SDR white) the viewport renders for:
+     * 0 for the SDR RGBA8 contract, else the float frames' peak.
+     */
+    func presentationHeadroom() throws  -> Float
+    
     func redo() throws  -> Bool
     
     /**
@@ -1808,6 +1815,14 @@ public protocol DevelopSessionProtocol: AnyObject, Sendable {
      * edit the crop over it; off renders the cropped result again.
      */
     func setCropEditing(editing: Bool) throws 
+    
+    /**
+     * Reports the EDR headroom of the display showing the viewport: the
+     * screen's current `maximumExtendedDynamicRangeColorComponentValue`
+     * (1.0 on SDR displays). Float rings tone-map for at most this; a
+     * change re-renders only when it changes the frame's headroom.
+     */
+    func setDisplayHeadroom(headroom: Float) throws 
     
     /**
      * Turns an applied step's changes off (or back on) as a new undoable
@@ -2018,11 +2033,12 @@ open class DevelopSession: DevelopSessionProtocol, @unchecked Sendable {
 
     
     /**
-     * Adds an RGBA8 IOSurface (see `surface.rs`) to the frame ring; call two
-     * or three times with surfaces of one `plan_surface` size so the host
-     * never samples the surface being written. A different size replaces
-     * the ring. The first surface of a ring starts a render at the new
-     * screen level.
+     * Adds an RGBA8 (SDR) or `'RGhA'` RGBA16F (EDR) IOSurface (see
+     * `surface.rs`) to the frame ring; call two or three times with
+     * surfaces of one `plan_surface` size and one format so the host never
+     * samples the surface being written. A different size or format
+     * replaces the ring. The first surface of a ring starts a render at the
+     * new screen level in the ring's contract.
      */
 open func attachSurface(iosurfaceId: UInt32, width: UInt32, height: UInt32)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
         uniffiCallStatus in
@@ -2179,6 +2195,19 @@ open func planSurface(width: UInt32, height: UInt32) -> SurfacePlan  {
 })
 }
     
+    /**
+     * Headroom (linear multiple of SDR white) the viewport renders for:
+     * 0 for the SDR RGBA8 contract, else the float frames' peak.
+     */
+open func presentationHeadroom()throws  -> Float  {
+    return try  FfiConverterFloat.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_presentation_headroom(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
 open func redo()throws  -> Bool  {
     return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
         uniffiCallStatus in
@@ -2255,6 +2284,21 @@ open func setCropEditing(editing: Bool)throws   {try rustCallWithError(FfiConver
     uniffi_tessera_ffi_fn_method_developsession_set_crop_editing(
             self.uniffiCloneHandle(),
         FfiConverterBool.lower(editing),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Reports the EDR headroom of the display showing the viewport: the
+     * screen's current `maximumExtendedDynamicRangeColorComponentValue`
+     * (1.0 on SDR displays). Float rings tone-map for at most this; a
+     * change re-renders only when it changes the frame's headroom.
+     */
+open func setDisplayHeadroom(headroom: Float)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_set_display_headroom(
+            self.uniffiCloneHandle(),
+        FfiConverterFloat.lower(headroom),uniffiCallStatus
     )
 }
 }
@@ -13682,7 +13726,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_developlistener_saved() != 29010) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_developsession_attach_surface() != 12651) {
+    if (uniffi_tessera_ffi_checksum_method_developsession_attach_surface() != 35112) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_developsession_checkout_history() != 2274) {
@@ -13721,6 +13765,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_developsession_plan_surface() != 56602) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tessera_ffi_checksum_method_developsession_presentation_headroom() != 27770) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_tessera_ffi_checksum_method_developsession_redo() != 20702) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -13737,6 +13784,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_developsession_set_crop_editing() != 11720) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_set_display_headroom() != 19319) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_developsession_set_history_step_enabled() != 35701) {

@@ -35,6 +35,7 @@ tempfile.workspace = true
 thiserror.workspace = true
 image.workspace = true
 kamadak-exif.workspace = true
+half.workspace = true
 
 [dev-dependencies]
 lcms2.workspace = true

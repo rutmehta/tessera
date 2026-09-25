@@ -51,11 +51,25 @@ pub enum Op<'a> {
         engine_api::tile::Extent,
         &'a engine_api::recipe::settings::Crop,
     ),
-    /// Display transform to 8-bit sRGB (`U8` output tile).
+    /// Display transform. `headroom: None` is the SDR Output stage: 8-bit
+    /// display-encoded sRGB (`U8` output tile). `Some(h)` is the EDR
+    /// presentation transform ([`pipeline_cpu::display_linear`]): `F32`
+    /// display-linear extended sRGB in `[0, h]`, `h` a linear multiple of
+    /// SDR white. Only the viewport requests it (see
+    /// [`crate::RenderOutput::DisplayLinear`]); recipes never do.
     Display {
         /// Gamut mapping mode.
         gamut: GamutMapping,
+        /// EDR headroom for float output; `None` for encoded SDR.
+        headroom: Option<f32>,
     },
+}
+
+impl Op<'_> {
+    /// The SDR Output stage, whose tiles are display-encoded `U8`.
+    pub fn is_encoded_display(&self) -> bool {
+        matches!(self, Op::Display { headroom: None, .. })
+    }
 }
 
 /// A backend that executes stage operators on single tiles.
@@ -188,9 +202,14 @@ impl StageOp for CpuStageOp {
                 "geometry",
                 "requires run_image",
             )),
-            Op::Display { gamut } => {
-                pipeline_cpu::display(&input, SigmoidSettings::default(), gamut)
-            }
+            Op::Display {
+                gamut,
+                headroom: None,
+            } => pipeline_cpu::display(&input, SigmoidSettings::default(), gamut),
+            Op::Display {
+                gamut,
+                headroom: Some(h),
+            } => pipeline_cpu::display_linear(&input, gamut, h),
         }
     }
 }
