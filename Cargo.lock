@@ -1034,15 +1034,19 @@ checksum = "d817e038c30374a4bcb22f94d0a8a0e216958d4c3dcde369b1439fec4bdda6e6"
 name = "export"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "color-mgmt",
  "engine-api",
  "image",
+ "image-core",
  "jpeg-encoder",
  "lcms2",
+ "mask-ai",
  "ml-enhance",
  "ml-runtime",
  "pipeline-cpu",
  "png 0.17.16",
+ "raw-decode",
  "rayon",
  "sidecar",
  "tempfile",
@@ -1823,6 +1827,18 @@ name = "macro_rules_attribute-proc_macro"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc04a4c58212d57930a24bf47d3fa87485264a3a054e9c10e042eb373573ad3c"
+
+[[package]]
+name = "mask-ai"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "engine-api",
+ "image",
+ "ml-runtime",
+ "ml-segment",
+ "pipeline-cpu",
+]
 
 [[package]]
 name = "matrixmultiply"

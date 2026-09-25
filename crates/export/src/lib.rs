@@ -1,5 +1,8 @@
 //! Full-resolution image export.
+mod ai_masks;
 mod batch;
+/// Shared preview/export segmentation implementation.
+pub use mask_ai;
 mod codec;
 pub use batch::{
     BatchReport, ExportItem, Progress, export_batch, export_batch_upscaled, export_batch_with_jobs,
@@ -90,6 +93,9 @@ fn render_full(
     recipe: &Recipe,
     space: ColorSpace,
 ) -> EngineResult<image::Rgb32FImage> {
+    if ai_masks::active(&recipe.settings) {
+        return encode_output_profile(render_full_float(image, recipe)?, recipe, space);
+    }
     let mut registry = color_mgmt::Registry::new();
     let target = codec::profile(&mut registry, space)?;
     let mut settings = recipe.settings.clone();
@@ -111,7 +117,11 @@ fn render_full(
 
 /// Enhancement input is tone-mapped linear Rec.2020, never encoded sRGB.
 fn render_full_float(image: &ExportImage<'_>, recipe: &Recipe) -> EngineResult<image::Rgb32FImage> {
-    pipeline_cpu::render_output_linear_scaled(&recipe.settings, &image.source, 1)
+    if ai_masks::active(&recipe.settings) {
+        ai_masks::render(&image.source, &recipe.settings, None)
+    } else {
+        pipeline_cpu::render_output_linear_scaled(&recipe.settings, &image.source, 1)
+    }
 }
 
 fn encode_output_profile(
@@ -179,6 +189,48 @@ fn prepare_enhanced(
     cancel: &CancellationToken,
     upscale: Option<&mut ml_enhance::SuperResolution>,
 ) -> EngineResult<PreparedExport> {
+    prepare_with_segmenter(image, recipe, settings, cancel, upscale, None)
+}
+
+/// Export with a caller-owned segmentation backend. No global backend is installed.
+pub fn export_one_with_segmenter(
+    image: &ExportImage<'_>,
+    recipe: &Recipe,
+    settings: &ExportSettings,
+    segmenter: &mut dyn mask_ai::MaskSegmenter,
+) -> EngineResult<PathBuf> {
+    let cancel = CancellationToken::new();
+    prepare_with_segmenter(image, recipe, settings, &cancel, None, Some(segmenter))?.commit(&cancel)
+}
+
+/// Enhanced export using the same segmentation backend and pre-local rasters.
+pub fn export_one_upscaled_with_segmenter(
+    image: &ExportImage<'_>,
+    recipe: &Recipe,
+    settings: &ExportSettings,
+    upscale: &mut ml_enhance::SuperResolution,
+    segmenter: &mut dyn mask_ai::MaskSegmenter,
+) -> EngineResult<PathBuf> {
+    let cancel = CancellationToken::new();
+    prepare_with_segmenter(
+        image,
+        recipe,
+        settings,
+        &cancel,
+        Some(upscale),
+        Some(segmenter),
+    )?
+    .commit(&cancel)
+}
+
+fn prepare_with_segmenter(
+    image: &ExportImage<'_>,
+    recipe: &Recipe,
+    settings: &ExportSettings,
+    cancel: &CancellationToken,
+    upscale: Option<&mut ml_enhance::SuperResolution>,
+    segmenter: Option<&mut dyn mask_ai::MaskSegmenter>,
+) -> EngineResult<PreparedExport> {
     cancel.check()?;
     recipe.validate()?;
     settings.format.validate()?;
@@ -199,7 +251,15 @@ fn prepare_enhanced(
     {
         return Err(EngineError::invalid("output", "destination already exists"));
     }
-    let rgb = if let Some(upscale) = upscale {
+    let rgb = if ai_masks::active(&recipe.settings) {
+        let rgb = ai_masks::render(&image.source, &recipe.settings, segmenter)?;
+        cancel.check()?;
+        let rgb = match upscale {
+            Some(model) => upscale_rgb(rgb, model)?,
+            None => rgb,
+        };
+        encode_output_profile(rgb, recipe, settings.color_space)?
+    } else if let Some(upscale) = upscale {
         let rgb = render_full_float(image, recipe)?;
         cancel.check()?;
         encode_output_profile(upscale_rgb(rgb, upscale)?, recipe, settings.color_space)?
@@ -385,6 +445,73 @@ pub fn filename(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn ai_subject_export_changes_pixels() {
+        use super::*;
+        use engine_api::recipe::mask::{LocalAdjustment, LocalParams, MaskComponent, MaskKind};
+        let pixels = pipeline_cpu::Image::new(8, 6, vec![vec![0.18; 48]; 3]).unwrap();
+        let image = ExportImage {
+            source: RenderSource::Rgb(&pixels),
+            name: "subject",
+            sequence: 1,
+            date: "",
+            metadata: None,
+        };
+        let dir = tempfile::tempdir().unwrap();
+        let settings = ExportSettings {
+            output_dir: dir.path().into(),
+            metadata: Metadata::None,
+            ..Default::default()
+        };
+        let mut recipe = Recipe::default();
+        recipe
+            .edit(engine_api::recipe::EditMeta::user("subject", 0), |s| {
+                s.locals.adjustments.push(LocalAdjustment {
+                    components: vec![MaskComponent::new(MaskKind::Subject { model: None })],
+                    params: LocalParams {
+                        exposure: 1.0,
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                })
+            })
+            .unwrap();
+        struct Subject;
+        impl mask_ai::MaskSegmenter for Subject {
+            fn segment(
+                &mut self,
+                image: &image::RgbImage,
+                request: &mask_ai::SegmentRequest,
+            ) -> anyhow::Result<Vec<f32>> {
+                assert_eq!(*request, mask_ai::SegmentRequest::Subject);
+                Ok((0..image.width() * image.height())
+                    .map(|i| {
+                        if i % image.width() < image.width() / 2 {
+                            1.0
+                        } else {
+                            0.0
+                        }
+                    })
+                    .collect())
+            }
+        }
+        let output = export_one_with_segmenter(&image, &recipe, &settings, &mut Subject);
+        assert!(output.is_ok(), "AI mask export must render: {output:?}");
+        let actual = image::open(output.unwrap()).unwrap().to_rgb8();
+        assert!(actual.get_pixel(1, 2)[0] > actual.get_pixel(6, 2)[0] + 20);
+        let baseline_settings = ExportSettings {
+            naming: "baseline".into(),
+            ..settings
+        };
+        let baseline = export_one(&image, &Recipe::default(), &baseline_settings).unwrap();
+        let baseline = image::open(baseline).unwrap().to_rgb8();
+        assert_ne!(actual, baseline);
+        assert!((actual.get_pixel(6, 2)[0] as i16 - baseline.get_pixel(6, 2)[0] as i16).abs() < 3);
+        let enhanced_input =
+            ai_masks::render(&image.source, &recipe.settings, Some(&mut Subject)).unwrap();
+        assert!(enhanced_input.get_pixel(1, 2)[0] > enhanced_input.get_pixel(6, 2)[0]);
+    }
+
     #[test]
     fn enhancement_render_does_not_quantize_model_input() {
         let pixels = pipeline_cpu::Image::new(8, 6, vec![vec![0.18; 48]; 3]).unwrap();

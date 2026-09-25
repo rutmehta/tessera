@@ -1,0 +1,126 @@
+Building for debugging...
+[0/4] Write swift-version--58304C5D6DBC2206.txt
+Build complete! (0.09s)
+Test Suite 'All tests' started at 2026-09-25 13:29:35.832.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-25 13:29:35.833.
+Test Suite 'BridgeTests' started at 2026-09-25 13:29:35.833.
+Test Case '-[TesseraCoreTests.BridgeTests testBasketAlbumsSafeDeleteAndDefectSweep]' started.
+Test Case '-[TesseraCoreTests.BridgeTests testBasketAlbumsSafeDeleteAndDefectSweep]' passed (0.162 seconds).
+Test Case '-[TesseraCoreTests.BridgeTests testDeleteFromDiskTrashesFileAndLeavesTheQueue]' started.
+Test Case '-[TesseraCoreTests.BridgeTests testDeleteFromDiskTrashesFileAndLeavesTheQueue]' passed (0.089 seconds).
+Test Case '-[TesseraCoreTests.BridgeTests testGroupNavigationComesFromTheSession]' started.
+Test Case '-[TesseraCoreTests.BridgeTests testGroupNavigationComesFromTheSession]' passed (0.048 seconds).
+Test Case '-[TesseraCoreTests.BridgeTests testKeepBestRejectRestIsOneUndoableStepThatPersists]' started.
+Test Case '-[TesseraCoreTests.BridgeTests testKeepBestRejectRestIsOneUndoableStepThatPersists]' passed (0.189 seconds).
+Test Case '-[TesseraCoreTests.BridgeTests testRawFixturesPersistAcrossReopenThroughTheSession]' started.
+Test Case '-[TesseraCoreTests.BridgeTests testRawFixturesPersistAcrossReopenThroughTheSession]' passed (2.475 seconds).
+Test Case '-[TesseraCoreTests.BridgeTests testRestoreDoesNotCreateUndoHistory]' started.
+Test Case '-[TesseraCoreTests.BridgeTests testRestoreDoesNotCreateUndoHistory]' passed (0.000 seconds).
+Test Suite 'BridgeTests' passed at 2026-09-25 13:29:38.798.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 2.964 (2.965) seconds
+Test Suite 'DevelopPanelsSessionTests' started at 2026-09-25 13:29:38.798.
+Test Case '-[TesseraCoreTests.DevelopPanelsSessionTests testPanelsDriveTheSession]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [289.546792, 193.820042, 252.519584]; GPU [157.583125, 2.529583, 9.830375]
+Test Case '-[TesseraCoreTests.DevelopPanelsSessionTests testPanelsDriveTheSession]' passed (2.015 seconds).
+Test Suite 'DevelopPanelsSessionTests' passed at 2026-09-25 13:29:40.813.
+	 Executed 1 test, with 0 failures (0 unexpected) in 2.015 (2.015) seconds
+Test Suite 'DevelopPanelsTests' started at 2026-09-25 13:29:40.813.
+Test Case '-[TesseraCoreTests.DevelopPanelsTests testCropOrientationRoundTripAndConstraints]' started.
+Test Case '-[TesseraCoreTests.DevelopPanelsTests testCropOrientationRoundTripAndConstraints]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DevelopPanelsTests testCurveEditorKeepsMonotoneValidPoints]' started.
+Test Case '-[TesseraCoreTests.DevelopPanelsTests testCurveEditorKeepsMonotoneValidPoints]' passed (0.374 seconds).
+Test Case '-[TesseraCoreTests.DevelopPanelsTests testCurveEvaluationMatchesKnotsAndIdentity]' started.
+Test Case '-[TesseraCoreTests.DevelopPanelsTests testCurveEvaluationMatchesKnotsAndIdentity]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DevelopPanelsTests testEachPanelControlWritesItsPatch]' started.
+Test Case '-[TesseraCoreTests.DevelopPanelsTests testEachPanelControlWritesItsPatch]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DevelopPanelsTests testHueBandWeightsAndTargetedAdjustment]' started.
+Test Case '-[TesseraCoreTests.DevelopPanelsTests testHueBandWeightsAndTargetedAdjustment]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.DevelopPanelsTests testMergePatchAccumulatesLikeRFC7386]' started.
+Test Case '-[TesseraCoreTests.DevelopPanelsTests testMergePatchAccumulatesLikeRFC7386]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DevelopPanelsTests testPresetsArePartialRecipesSavedAsJSON]' started.
+Test Case '-[TesseraCoreTests.DevelopPanelsTests testPresetsArePartialRecipesSavedAsJSON]' passed (0.001 seconds).
+Test Suite 'DevelopPanelsTests' passed at 2026-09-25 13:29:41.191.
+	 Executed 7 tests, with 0 failures (0 unexpected) in 0.377 (0.378) seconds
+Test Suite 'DevelopTests' started at 2026-09-25 13:29:41.191.
+Test Case '-[TesseraCoreTests.DevelopTests testJpegIsNotDevelopable]' started.
+Test Case '-[TesseraCoreTests.DevelopTests testJpegIsNotDevelopable]' passed (0.005 seconds).
+Test Case '-[TesseraCoreTests.DevelopTests testSettingsChangeRendersIntoTheSurfaceAndReopenRestoresExposure]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [280.904583, 186.125958, 212.715875]; GPU [147.0555, 2.5775, 10.297291]
+develop L2 calibration [first, tone, WB] ms: CPU [279.59275, 187.86741600000002, 218.762833]; GPU [144.268666, 2.608083, 9.926167]
+Test Case '-[TesseraCoreTests.DevelopTests testSettingsChangeRendersIntoTheSurfaceAndReopenRestoresExposure]' passed (1.914 seconds).
+Test Suite 'DevelopTests' passed at 2026-09-25 13:29:43.111.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 1.919 (1.920) seconds
+Test Suite 'LibraryTests' started at 2026-09-25 13:29:43.111.
+Test Case '-[TesseraCoreTests.LibraryTests testAlbumOrderingAndSidebarNestingPersist]' started.
+Test Case '-[TesseraCoreTests.LibraryTests testAlbumOrderingAndSidebarNestingPersist]' passed (0.063 seconds).
+Test Case '-[TesseraCoreTests.LibraryTests testFilterBarFacetsAndNotInAnyAlbum]' started.
+Test Case '-[TesseraCoreTests.LibraryTests testFilterBarFacetsAndNotInAnyAlbum]' passed (0.056 seconds).
+Test Case '-[TesseraCoreTests.LibraryTests testRuleDiagnosticsMapToSwiftRangesThroughTheBridge]' started.
+Test Case '-[TesseraCoreTests.LibraryTests testRuleDiagnosticsMapToSwiftRangesThroughTheBridge]' passed (0.013 seconds).
+Test Suite 'LibraryTests' passed at 2026-09-25 13:29:43.244.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.132 (0.132) seconds
+Test Suite 'MaskingTests' started at 2026-09-25 13:29:43.244.
+Test Case '-[TesseraCoreTests.MaskingTests testAIProgressFollowsJobsAndTheEngineList]' started.
+Test Case '-[TesseraCoreTests.MaskingTests testAIProgressFollowsJobsAndTheEngineList]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.MaskingTests testGradientShapesRoundTripTheirEngineJSON]' started.
+Test Case '-[TesseraCoreTests.MaskingTests testGradientShapesRoundTripTheirEngineJSON]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.MaskingTests testListCyclesAndEditsTheSelectedGroupOptimistically]' started.
+Test Case '-[TesseraCoreTests.MaskingTests testListCyclesAndEditsTheSelectedGroupOptimistically]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.MaskingTests testListSelectsNewGroupsAndNeighboursOfDeletedOnes]' started.
+Test Case '-[TesseraCoreTests.MaskingTests testListSelectsNewGroupsAndNeighboursOfDeletedOnes]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.MaskingTests testMaskEditsAreCoalescedPerFrameAndCommittedAsOneStep]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [275.851292, 187.84858400000002, 216.808]; GPU [162.191875, 3.098084, 12.659]
+Test Case '-[TesseraCoreTests.MaskingTests testMaskEditsAreCoalescedPerFrameAndCommittedAsOneStep]' passed (1.287 seconds).
+Test Case '-[TesseraCoreTests.MaskingTests testMaskSpaceRoundTripsThroughCropAndOrientation]' started.
+Test Case '-[TesseraCoreTests.MaskingTests testMaskSpaceRoundTripsThroughCropAndOrientation]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.MaskingTests testStrokeCoalescerBatchesManyEventsPerFrame]' started.
+Test Case '-[TesseraCoreTests.MaskingTests testStrokeCoalescerBatchesManyEventsPerFrame]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.MaskingTests testStrokeCoalescerDropsDenseSamplesAndKeepsTheLast]' started.
+Test Case '-[TesseraCoreTests.MaskingTests testStrokeCoalescerDropsDenseSamplesAndKeepsTheLast]' passed (0.000 seconds).
+Test Suite 'MaskingTests' passed at 2026-09-25 13:29:44.533.
+	 Executed 8 tests, with 0 failures (0 unexpected) in 1.289 (1.289) seconds
+Test Suite 'PreviewEventsTests' started at 2026-09-25 13:29:44.533.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testCacheDoesNotAliasReusedDenseItemIDs]' started.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testCacheDoesNotAliasReusedDenseItemIDs]' passed (0.004 seconds).
+Test Case '-[TesseraCoreTests.PreviewEventsTests testCacheKeysRemainRetrievableAcrossManyRequests]' started.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testCacheKeysRemainRetrievableAcrossManyRequests]' passed (0.091 seconds).
+Test Case '-[TesseraCoreTests.PreviewEventsTests testCancelledTaskStopsWaitingWithoutAnEvent]' started.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testCancelledTaskStopsWaitingWithoutAnEvent]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.PreviewEventsTests testCancellingOneSubscriberDoesNotRemoveAnother]' started.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testCancellingOneSubscriberDoesNotRemoveAnother]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.PreviewEventsTests testConcurrentDeliveriesPublishBeforeCallbackAndEvictOlderImages]' started.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testConcurrentDeliveriesPublishBeforeCallbackAndEvictOlderImages]' passed (0.002 seconds).
+Test Case '-[TesseraCoreTests.PreviewEventsTests testInvalidationCancelsInFlightRequestsForBothTiersOnlyForThatItem]' started.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testInvalidationCancelsInFlightRequestsForBothTiersOnlyForThatItem]' passed (0.010 seconds).
+Test Case '-[TesseraCoreTests.PreviewEventsTests testOverBudgetImageIsCachedBeforeDelivery]' started.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testOverBudgetImageIsCachedBeforeDelivery]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.PreviewEventsTests testReadyBeforeWaitIsBufferedAndFiltered]' started.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testReadyBeforeWaitIsBufferedAndFiltered]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.PreviewEventsTests testRemoveAllPreventsLateDeliveryAndCacheRepopulation]' started.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testRemoveAllPreventsLateDeliveryAndCacheRepopulation]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.PreviewEventsTests testUnrelatedEventsDoNotWakeSubscriber]' started.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testUnrelatedEventsDoNotWakeSubscriber]' passed (0.000 seconds).
+Test Suite 'PreviewEventsTests' passed at 2026-09-25 13:29:44.642.
+	 Executed 10 tests, with 0 failures (0 unexpected) in 0.108 (0.109) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-09-25 13:29:44.642.
+	 Executed 37 tests, with 0 failures (0 unexpected) in 8.805 (8.809) seconds
+Test Suite 'All tests' passed at 2026-09-25 13:29:44.642.
+	 Executed 37 tests, with 0 failures (0 unexpected) in 8.805 (8.810) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite GroupingTests started.
+◇ Suite CullStoreTests started.
+◇ Test splitsOnGaps() started.
+◇ Test exifDateParsing() started.
+◇ Test decisionsGradesMarksBasket() started.
+◇ Test undoRedo() started.
+◇ Test syntheticLibraryIsGroupedAndSorted() started.
+✔ Test splitsOnGaps() passed after 0.001 seconds.
+✔ Test decisionsGradesMarksBasket() passed after 0.001 seconds.
+✔ Test undoRedo() passed after 0.001 seconds.
+✔ Test exifDateParsing() passed after 0.001 seconds.
+✔ Suite CullStoreTests passed after 0.001 seconds.
+✔ Test syntheticLibraryIsGroupedAndSorted() passed after 0.041 seconds.
+✔ Suite GroupingTests passed after 0.042 seconds.
+✔ Test run with 5 tests in 2 suites passed after 0.042 seconds.

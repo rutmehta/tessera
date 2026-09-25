@@ -40,15 +40,26 @@ final class BridgeTests: XCTestCase {
 
         // M1-14: a cold RAW preview completes through the worker callback.
         let loader = ThumbnailLoader()
+        let ref = try XCTUnwrap(found.engineImage)
+        let subscription = ref.previewEvents.subscribe(imageID: ref.imageID, maxPx: 384)
+        let workerReady = expectation(description: "matching engine/image/tier PreviewReady")
+        let listener = Task {
+            var iterator = subscription.stream.makeAsyncIterator()
+            if await iterator.next() != nil { workerReady.fulfill() }
+        }
+        defer { subscription.cancel(); listener.cancel() }
         let ready = expectation(description: "cold RAW preview completes from worker callback")
         let request = loader.request(found, tier: .thumbnail) { image in
             XCTAssertGreaterThan(image.width, 0)
+            XCTAssertTrue(loader.cached(found, tier: .thumbnail) === image,
+                          "the matching item is cached before delivery")
+            XCTAssertNil(loader.cached(item, tier: .thumbnail), "the old engine cannot alias the reopened item")
             ready.fulfill()
         }
-        await fulfillment(of: [ready], timeout: 30)
+        defer { request?.cancel() }
+        await fulfillment(of: [workerReady, ready], timeout: 30)
         XCTAssertFalse(request?.isCancelled ?? true)
         XCTAssertNotNil(loader.cached(found, tier: .thumbnail))
-        let ref = try XCTUnwrap(found.engineImage)
         let cached = try ref.engine.embeddedPreview(imageId: ref.imageID, maxPx: 384)
         XCTAssertFalse(cached.pending)
         XCTAssertNotNil(cached.bytes)
