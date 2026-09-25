@@ -459,9 +459,9 @@
     "id": "M2-17b",
     "owner": "opus",
     "title": "Interactive performance redesign",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
-    "notes": ""
+    "notes": "all sliders <12ms at L2; L0 detail on 36MP NEF ~1.1s (GPU cache 512MiB)"
   },
   {
     "id": "M2-18",
