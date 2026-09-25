@@ -56,6 +56,46 @@ Unscored members rank below scored members; all-unscored groups use file size.
 Explicit scorers override this. Defect sweeps remain read-only and use the stored
 signal names, including per-face names, with user-selected thresholds.
 
+## Per-face UI strips
+
+`face_strip(&RgbImage, &[Face]) -> anyhow::Result<Vec<FaceChip>>` computes UI
+metadata from supplied detections, without model loading or downloads. It
+preserves detection order. Each chip exposes:
+
+- `crop_rect: [u32; 4]`: clipped source-image `[x, y, width, height]`, rounding
+  fractional bounds outward. Crop the original oriented RGB image at this rect;
+  chips do not allocate/store thumbnails or perform alignment.
+- `focus_score: f64`: normalized [0, 1] sharpness of that exact crop.
+- `eyes_open: Option<f64>`: the existing weak landmark geometry heuristic,
+  **not** measured eyelid aperture or a calibrated blink probability. Degenerate
+  geometry stays `None`; do not use this proxy to automatically reject photos.
+- `person_id: Option<String>`: initially `None`, for caller-assigned identities.
+  The catalog has named-person keyword predicates but no persistent face/person
+  identity API; image-local face ordinals must not be used as person IDs.
+
+Empty detections yield an empty strip. Empty images, invalid geometry/confidence,
+and wholly out-of-image boxes return errors rather than partial results.
+`FaceModels::face_strip(&mut self, &RgbImage)` detects with the loaded YuNet
+session and delegates to the same function. It does not embed, write the catalog,
+or fetch models during inference.
+
+`face_strip_from_index(&index, image_id, preview_dimensions, identity_resolver)`
+builds chips from cached face records. The resolver receives image ID and the
+full FaceRecord (including its optional descriptor) and returns a host-owned
+person ID. `frames_with_person_eyes_closed(&index, &image_ids, person_id,
+threshold, identity_resolver)` returns unique input-ordered frames where that
+person has a stored eyes proxy strictly below the threshold. Missing identities
+and unknown eyes are excluded. Both APIs are read-only; neither infers identity
+from a detection ordinal or writes a Decision. The filter is for review of a
+weak proxy, not proof that someone blinked.
+
+`cargo test -p ml-faces --test strip` exercises an explicitly supplied detection
+on a generated face-like drawing, clipping/rounding, input order, empty/invalid
+inputs, degenerate landmarks, and one-pixel crops with no model downloads.
+This supplied-detection fixture does **not** claim synthetic face detection.
+The separate model integration test compares the convenience method with real
+detector output, without asserting that the drawing contains any detected faces.
+
 ## Runtime and model licensing
 
 All weights are downloaded and SHA-256 verified by ml-runtime::ModelRegistry.
