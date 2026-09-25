@@ -590,5 +590,13 @@
     "status": "pass",
     "attempts": 0,
     "notes": "no visual defects reported; real bugs: option-drag erase, SAM prompt quality -> M2-26"
+  },
+  {
+    "id": "M2-26",
+    "owner": "astra",
+    "title": "Brush erase modifier + promptable mask quality",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
