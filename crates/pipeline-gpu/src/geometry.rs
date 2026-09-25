@@ -5,6 +5,16 @@ use engine_api::{
 };
 use wgpu::util::DeviceExt;
 
+/// Capability check, not validation: CPU owns all extended geometry semantics.
+/// Lens corrections are not part of GeometrySettings or this kernel's inputs.
+pub(crate) fn supports(s: &GeometrySettings) -> bool {
+    s.orientation == 1
+        && s.upright.mode == UprightMode::Off
+        && s.upright.guides.is_empty()
+        && s.transform == Transform::default()
+        && !s.constrain_crop
+}
+
 pub(crate) fn run(
     ctx: &crate::GpuContext,
     input: &pipeline_cpu::Image,
@@ -21,14 +31,9 @@ pub(crate) fn run(
             "valid rectangle, nonzero aspect and angle in -45..=45 required",
         ));
     }
-    if s.orientation != 1
-        || s.upright.mode != UprightMode::Off
-        || !s.upright.guides.is_empty()
-        || s.transform != Transform::default()
-        || s.constrain_crop
-    {
+    if !supports(s) {
         return Err(EngineError::Unsupported {
-            what: "EXIF orientation and constrain-crop are not implemented".into(),
+            what: "geometry compute implements crop and straighten only".into(),
         });
     }
     if r == NormalizedRect::FULL && s.crop.angle == 0. {

@@ -382,6 +382,11 @@ impl StageOp for GpuStageOp {
             return self.run_image(stage, &Op::ToneExtra(&curves), filtered, cancel);
         }
         if let Op::Geometry(s) = op {
+            // run_image receives host pixels. The renderer materializes resident
+            // output at its M2 image barrier before reaching this fallback.
+            if !crate::geometry::supports(s) {
+                return CpuStageOp.run_image(stage, op, input, cancel);
+            }
             let limits = self.context.device.limits();
             let bytes = u64::from(input.width())
                 * u64::from(input.height())
