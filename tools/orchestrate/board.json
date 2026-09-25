@@ -11,7 +11,7 @@
     "id": "M0-01",
     "owner": "luna",
     "title": "Cargo workspace scaffold",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
@@ -43,15 +43,15 @@
     "id": "M0-06",
     "owner": "luna",
     "title": "libraw-ffi crate",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
   {
     "id": "M0-07",
-    "owner": "luna",
+    "owner": "opus",
     "title": "GPU spike wgpu vs MSL",
-    "status": "running",
+    "status": "escalate",
     "attempts": 0,
     "notes": ""
   }
