@@ -1,0 +1,11 @@
+# WP M3-08 — Engine tool API as an MCP server + scripting console backend (`tessera-mcp`)
+
+Read docs/10 §2–3 (tool API, MCP server, phase 2), crates/engine-api/src/tools.rs (ToolCall/ToolRequest/ToolResponse, already MCP-shaped), CONTRACTS.md invariant 11, crates/tessera-ffi (Engine, sessions: how develop/cull/library operations are performed — reuse the underlying crates directly rather than going through UniFFI), crates/index, cull, library, export, image-core, ml-*.
+Implement `crates/tessera-mcp` (bin `tessera-mcp`, plus a library):
+- A JSON-RPC 2.0 server over stdio implementing the Model Context Protocol (`initialize`, `tools/list`, `tools/call`, `resources/list` for images/albums, `resources/read` for a low-res render or histogram as image content); use the `rmcp` crate if its licence is permissive (check), else hand-roll the small subset.
+- Tools: one per `ToolCall` variant (`set_tone`, `create_mask`, `adjust_mask`, `remove_object` → return Unsupported with a clear message until inpainting exists, `retouch_skin` → Unsupported, `apply_style` → apply a preset JSON, `crop`, `compare` (returns both renders as images + metrics: mean/contrast/clipping), `get_histogram`, `get_scores`, `index_folder`, `set_selection`, `export`) plus `open_image`, `render_preview` (max px), `list_images` (query), `describe_image` (metadata + faces + quality + embedding-based caption placeholder). Every mutating call becomes one recipe history entry with `Author::Agent`, the request's rationale and group (invariant 11); no generative pixels.
+- JSON schemas for each tool derived from the serde types (use `schemars`); `tools/list` returns them.
+- An in-process `Console` API used later by the app's scripting console: `execute(ToolRequest) -> ToolResponse` synchronous.
+- CLI: `tessera-mcp --app-dir <dir>`; `tessera mcp` subcommand in tessera-cli that execs it.
+- Tests: initialize/list/call round trip over an in-memory transport; `set_tone` on a fixture creates a history entry authored by Agent with the rationale; `get_histogram` returns 256 bins; `compare` returns two images; schema validation of a bad request returns a JSON-RPC error; a smoke test that spawns the binary over stdio and lists tools.
+`cargo test -p tessera-mcp -p tessera-cli --release`, clippy -D warnings, fmt. engine-api unchanged (report if a tool needs a field).
