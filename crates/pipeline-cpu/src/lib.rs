@@ -1,5 +1,8 @@
 //! Scalar f32 reference operators. See OPERATORS.md for formulas and scope.
 mod color;
+mod locals;
+pub mod masks;
+pub use locals::{adjust_local, blend_local, locals_image};
 mod color_detail;
 mod geometry_effects;
 mod tone_extra;

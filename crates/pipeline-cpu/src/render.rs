@@ -172,6 +172,7 @@ pub fn render_linear_scaled(
             crate::color(&mut tile, &settings.color)?;
             rgb.put(&tile)?;
         }
+        rgb = crate::locals_image(&rgb, &settings.locals.adjustments, Default::default())?;
         let extent = engine_api::tile::Extent::new(rgb.width(), rgb.height());
         for coord in rgb.coords() {
             let mut tile = rgb.tile(coord, 0, 1)?;
@@ -227,7 +228,8 @@ fn detail_image(
 
 /// Whether a recipe needs M2 neighbourhood, colour, effect or geometry passes.
 pub fn has_m2_settings(s: &DevelopSettings) -> bool {
-    crate::detail_halo(&s.detail) > 0
+    !s.locals.adjustments.is_empty()
+        || crate::detail_halo(&s.detail) > 0
         || s.detail != Default::default()
         || s.color != Default::default()
         || s.effects != Default::default()
@@ -261,6 +263,7 @@ pub fn validate_settings(s: &DevelopSettings) -> EngineResult<()> {
     supported.white_balance = s.white_balance.clone();
     supported.tone = s.tone.clone();
     supported.detail = s.detail.clone();
+    supported.locals.adjustments = s.locals.adjustments.clone();
     supported.color.vibrance = s.color.vibrance;
     supported.color.saturation = s.color.saturation;
     supported.color.hsl = s.color.hsl.clone();

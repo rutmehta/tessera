@@ -1,3 +1,33 @@
+# M2-08 local adjustment integration
+
+`image-core` applies Locals to the complete requested pyramid level after Color
+and before Effects/Geometry. Every group reads immutable pre-local RGB; masked
+deltas are summed, rather than feeding one group's output into another group.
+Procedural rasterization and adjustment operators use the CPU reference.
+`StageOp::blend_local` dispatches linear-light alpha blending through a WGSL
+kernel (three uploads, one submission, one readback). Oversized images exceeding
+storage-buffer or dispatch limits use the CPU reference blend.
+
+Any recipe containing local groups is explicitly excluded from direct resident
+surface rendering. `render_surface` returns `None` and `render_to_surface`
+returns `false`; callers must use normal tile delivery. The nonresident graph
+still uses GPU global operators and local blend. No local setting is silently
+ignored, and recipes without locals keep their previous resident path.
+
+`Renderer::mask_cache()` exposes an independent byte-budgeted f32 raster LRU
+with the same payload budget as its tile cache. Keys include procedural
+components/composite inversion, pyramid level, upstream Color chain, dimensions,
+exact RGB content for RGB-dependent masks/refinement, depth content and
+refinement/color smoothness. Local
+parameters, amount, id, name and enabled status do not identify alpha pixels.
+Retained Arcs may outlive eviction; the byte budget counts cache ownership, not
+in-flight callers. A zero budget computes without retaining rasters.
+
+The recipe contract has no local curve, local Point Color, local grain, brush
+density/auto-mask or general mask refinement fields. They are not invented here.
+Depth/refinement are accepted by the standalone raster cache through runtime
+`MaskOptions`; the RAW graph has no depth source and uses default options.
+
 # M2-06 resident Bayer graph
 
 The standard Bayer develop graph uses one compute pass and one queue submission

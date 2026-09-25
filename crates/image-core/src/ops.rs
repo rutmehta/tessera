@@ -66,6 +66,18 @@ pub enum Op<'a> {
 /// [`CpuStageOp`] is the reference implementation; a GPU implementation must
 /// match it within the contract's regression tolerance.
 pub trait StageOp: Send + Sync {
+    /// Linear-light alpha blend at the whole-image Locals barrier. Adjustment
+    /// operators and mask rasterization use CPU reference code; GPU backends
+    /// can override this pointwise operation without changing mask caching.
+    fn blend_local(
+        &self,
+        base: &pipeline_cpu::Image,
+        adjusted: &pipeline_cpu::Image,
+        mask: &[f32],
+    ) -> EngineResult<pipeline_cpu::Image> {
+        pipeline_cpu::blend_local(base, adjusted, mask)
+    }
+
     /// Optional resident graph execution; CPU implementations need no changes.
     fn begin_resident(&self) -> Option<Box<dyn crate::resident::ResidentBatch + '_>> {
         None
@@ -218,6 +230,16 @@ impl<O> CountingStageOp<O> {
 }
 
 impl<O: StageOp> StageOp for CountingStageOp<O> {
+    fn blend_local(
+        &self,
+        base: &pipeline_cpu::Image,
+        adjusted: &pipeline_cpu::Image,
+        mask: &[f32],
+    ) -> EngineResult<pipeline_cpu::Image> {
+        self.counts[StageId::Locals.index()].fetch_add(1, Ordering::Relaxed);
+        self.inner.blend_local(base, adjusted, mask)
+    }
+
     fn run_image(
         &self,
         stage: StageId,

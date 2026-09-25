@@ -7,6 +7,9 @@ impl Renderer {
         matches!(r.cfa, CfaLayout::Bayer(_))
             && self.ops.begin_resident().is_some()
             && s.color == Default::default()
+            // Local adjustment operators/rasterization use the whole-image
+            // nonresident path until all local kernels are resident-capable.
+            && s.locals.adjustments.is_empty()
             && s.effects == Default::default()
             && s.geometry == Default::default()
             && s.tone.texture == 0.0

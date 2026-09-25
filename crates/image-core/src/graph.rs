@@ -64,6 +64,7 @@ impl PipelineGraph {
         for stage in [
             StageId::Detail,
             StageId::Color,
+            StageId::Locals,
             StageId::Effects,
             StageId::Geometry,
         ] {
