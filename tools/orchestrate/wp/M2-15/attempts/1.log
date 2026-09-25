@@ -1,0 +1,12 @@
+Implemented the ICC registry, built-in profiles, macOS display discovery, proofing and gamut warnings, cached 33³ LUTs, managed CPU output, shared export transforms, and Metal LUT processing. Engine-api unchanged; missing fields documented.
+
+Verification:
+- Color-management, CPU, export, and new GPU output tests pass.
+- Strict clippy and formatting pass.
+- Required full test command fails at pipeline-gpu/tests/geometry_compute.rs:109: an existing test expects automatic upright to error, but CPU returns an image.
+
+Integration remains incomplete: GPU managed rendering still incurs readback/upload, and file export retains its existing sRGB8 intermediate. No commits; changes stay within allowed paths.
+
+Details: tools/orchestrate/wp/M2-15/RESULT.md
+
+RESULT: FAIL full release suite fails GPU geometry assertion; resident GPU output and wide-gamut file-export integration remain incomplete.
