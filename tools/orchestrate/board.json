@@ -582,5 +582,13 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M2-25v",
+    "owner": "sol",
+    "title": "Regression pass on redesigned app",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
