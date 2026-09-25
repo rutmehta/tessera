@@ -56,11 +56,21 @@ public final class EngineLibrary: PhotoLibrary {
 
     public static let defaultBasketTarget = "Selects"
 
-    /// `~/Library/Application Support/Tessera`: the index and preview caches.
-    public static var defaultSupportDirectory: URL {
-        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+    /// Explicit launch argument wins over the environment; otherwise use macOS Application Support.
+    public static func supportDirectory(arguments: [String] = ProcessInfo.processInfo.arguments,
+                                        environment: [String: String] = ProcessInfo.processInfo.environment) -> URL {
+        if let flag = arguments.firstIndex(of: "--app-dir"), arguments.indices.contains(flag + 1) {
+            return URL(fileURLWithPath: (arguments[flag + 1] as NSString).expandingTildeInPath, isDirectory: true)
+        }
+        if let path = environment["TESSERA_APP_DIR"], !path.isEmpty {
+            return URL(fileURLWithPath: (path as NSString).expandingTildeInPath, isDirectory: true)
+        }
+        return FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Tessera", isDirectory: true)
     }
+
+    /// The index and preview caches; overridable for tests and acceptance runs.
+    public static var defaultSupportDirectory: URL { supportDirectory() }
 
     private init(title: String, folder: URL, items: [PhotoItem], groups: [Range<Int>], subfolders: [URL],
                  scanDuration: TimeInterval, engine: Engine, session: CullSession, imageIDs: [String],

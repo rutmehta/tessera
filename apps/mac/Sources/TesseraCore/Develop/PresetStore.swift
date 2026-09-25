@@ -80,10 +80,9 @@ public final class PresetStore: @unchecked Sendable {
 
     public init(folder: URL) { self.folder = folder }
 
-    /// `~/Library/Application Support/Tessera/Presets`.
+    /// Presets in the resolved app support directory.
     public static var standard: PresetStore {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        return PresetStore(folder: base.appendingPathComponent("Tessera/Presets", isDirectory: true))
+        PresetStore(folder: EngineLibrary.defaultSupportDirectory.appendingPathComponent("Presets", isDirectory: true))
     }
 
     public func list() -> [DevelopPreset] {

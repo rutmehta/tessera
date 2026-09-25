@@ -2,7 +2,7 @@
 mod api;
 mod predicate;
 mod semantic;
-pub use api::{FaceRecord, ImageInfo, Index, Scanner, Score};
+pub use api::{FaceRecord, ImageInfo, Index, PruneCounts, Scanner, Score};
 pub use predicate::{Comparison, Predicate};
 pub use semantic::SemanticSearch;
 use std::{path::Path, time::UNIX_EPOCH};
@@ -37,6 +37,55 @@ struct Core {
 }
 
 impl Core {
+    fn prune_missing(&mut self, dry_run: bool) -> Result<PruneCounts> {
+        let missing: Vec<(i64, String)> = {
+            let mut stmt = self.conn.prepare("SELECT id,path FROM file")?;
+            let rows = stmt
+                .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+                .collect::<std::result::Result<Vec<_>, _>>()?;
+            rows.into_iter()
+                .filter_map(
+                    |(id, path): (i64, String)| match Path::new(&path).try_exists() {
+                        Ok(true) => None,
+                        Ok(false) => Some(Ok((id, path))),
+                        Err(error) => Some(Err(IndexError::Io(error))),
+                    },
+                )
+                .collect::<Result<Vec<_>>>()?
+        };
+        let tx = self.conn.transaction()?;
+        let mut images = 0;
+        for (file_id, _) in &missing {
+            let image: Option<(i64, String)> = tx
+                .query_row(
+                    "SELECT rowid,id FROM image WHERE file_id=?",
+                    [file_id],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .optional()?;
+            if let Some((rowid, id)) = image {
+                images += 1;
+                if !dry_run {
+                    tx.execute("DELETE FROM fts WHERE rowid=?", [rowid])?;
+                    for table in ["image_keyword", "selection", "recipe_hash"] {
+                        tx.execute(&format!("DELETE FROM {table} WHERE image_id=?"), [&id])?;
+                    }
+                    tx.execute("DELETE FROM image WHERE id=?", [&id])?;
+                }
+            }
+            if !dry_run {
+                tx.execute("DELETE FROM file WHERE id=?", [file_id])?;
+            }
+        }
+        if !dry_run {
+            tx.commit()?;
+        }
+        Ok(PruneCounts {
+            images,
+            files: missing.len(),
+        })
+    }
+
     /// Opens an index and applies all known schema migrations.
     pub fn open(path: impl AsRef<Path>) -> Result<Self> {
         let conn = Connection::open(path)?;

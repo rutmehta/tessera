@@ -25,12 +25,13 @@ Notes:
    export CARGO_TARGET_DIR="$HOME/.cache/tessera-target/verify"
    (cd apps/mac && ./build-ffi.sh && swift build && swift test && Support/make-app.sh release)
    ```
-   Expect: `swift test` reports `Executed 33 tests, with 0 failures` (XCTest, all suites) and the Swift Testing line
+   Expect: `swift test` reports `Executed 46 tests, with 0 failures` (XCTest, all suites) and the Swift Testing line
    `Test run with 5 tests in 2 suites passed`; the last line reads `Built …/apps/mac/build/Tessera.app`.
    Also run `cargo test -p tessera-ffi -p cull -p image-core -p library --release 2>&1 | grep "test result"`. Expect only `ok.` lines.
 2. Create scratch data (a fresh folder each run; do not reuse an old path):
    ```sh
    SCR="$(mktemp -d)"
+   export TESSERA_APP_DIR="$SCR/appdir"
    swift apps/mac/Support/make-sample-folder.swift "$SCR/shoot" 40
    cp -RL fixtures/raw "$SCR/raw"
    ```
@@ -38,7 +39,7 @@ Notes:
    If `fixtures/raw` is missing, skip step 32 and note it in the verdict.
 3. Reset app preferences: `defaults delete dev.tessera.app 2>/dev/null; true`.
 4. Launch with synthetic AI scores (hidden test flag):
-   `open -n apps/mac/build/Tessera.app --args --folder "$SCR/shoot" --seed-scores` 📸
+   `open -n apps/mac/build/Tessera.app --args --app-dir "$SCR/appdir" --folder "$SCR/shoot" --seed-scores` 📸
    Expect:
    - a grid of 40 cells with coloured block-mosaic images; the window subtitle reads `40 images`
    - the status bar message starts `Opened shoot: 40 images (0 RAW), 16 groups (12 with 2+)` and ends with
@@ -128,7 +129,7 @@ Notes:
 
 ## H. Persistence and history
 
-29. Quit with **⌘Q** and relaunch without the flag: `open -n apps/mac/build/Tessera.app --args --folder "$SCR/shoot"`.
+29. Quit with **⌘Q** and relaunch without the flag: `open -n apps/mac/build/Tessera.app --args --app-dir "$SCR/appdir" --folder "$SCR/shoot"`.
     Expect: the decisions from steps 18–20 are still shown (cells 5 and 7 REJECT, cell 6 KEEP) and
     `Basket → Selects 1`. Press **⌘Z**: message `Nothing to undo` (undo history belongs to one session).
 30. In the terminal: `ls "$SCR/shoot/.edits" | head -3; cat "$SCR/shoot/library.json"`.
@@ -136,7 +137,7 @@ Notes:
 
 ## I. RAW fixtures copy and stub performance
 
-31. Quit. `open -n apps/mac/build/Tessera.app --args --folder "$SCR/raw"`. 📸 Expect `Opened raw: 5 images (5 RAW), 5 groups`,
+31. Quit. `open -n apps/mac/build/Tessera.app --args --app-dir "$SCR/appdir" --folder "$SCR/raw"`. 📸 Expect `Opened raw: 5 images (5 RAW), 5 groups`,
     and the IMAGE panel shows a real capture date for fuji-raf.RAF (2016), not 1970. Press **X** then **⌘Z**:
     the REJECT pill appears and goes away again.
 32. Choose **Debug ▸ Load 20,000 Stub Items** (⇧⌘N) then **Debug ▸ Run Grid Scroll Benchmark** (⇧⌘B); do not touch input
@@ -155,7 +156,7 @@ is the time from the settings change to the finished level in the surface (`L2` 
     `p90` are below 16 ms (reference M4: median 11.7 ms, p90 12.3 ms). Metal is reported for comparison only.
 34. Quit Tessera. Turn the readout on and open the RAW copies:
     `defaults write dev.tessera.app ShowRenderReadout -bool true` (in the app: **Debug ▸ Show Render Timing**, ⌥⌘T), then
-    `open -n apps/mac/build/Tessera.app --args --folder "$SCR/raw"`. Click the **nikon-nef.NEF** cell and press **Return**. 📸
+    `open -n apps/mac/build/Tessera.app --args --app-dir "$SCR/appdir" --folder "$SCR/raw"`. Click the **nikon-nef.NEF** cell and press **Return**. 📸
     Expect within about a second: the loupe re-renders from the engine (colours change slightly from the camera
     preview); the **HISTOGRAM** panel shows red/green/blue curves with a white luminance outline; IMAGE ▸ Size reads
     `7378 × 4924` (or `4924 × 7378`); BASIC shows `Unedited`, Temperature shows the as-shot estimate in K, and
@@ -174,11 +175,11 @@ is the time from the settings change to the finished level in the surface (`L2` 
 39. In the terminal:
     `grep -o '"exposure":[^,}]*' "$SCR/raw/.edits/nikon-nef.json" | head -1; grep -c "Exposure2012" "$SCR/raw/nikon-nef.NEF.xmp"`.
     Expect `"exposure":1.0` (the value you set) and `1`.
-40. Quit with **⌘Q** and relaunch: `open -n apps/mac/build/Tessera.app --args --folder "$SCR/raw"`. Click the NEF and press
+40. Quit with **⌘Q** and relaunch: `open -n apps/mac/build/Tessera.app --args --app-dir "$SCR/appdir" --folder "$SCR/raw"`. Click the NEF and press
     **Return**. 📸 Expect: the edit is shown (bright, warm), Exposure reads +1.00, and **⌘Z** steps back through the saved
     history (message `Undo: …`).
 41. Optional automated drag: quit, then run
-    `apps/mac/build/Tessera.app/Contents/MacOS/Tessera --folder "$SCR/raw" --keys "return" --develop-selftest 2>&1 | grep -m1 develop-selftest`
+    `apps/mac/build/Tessera.app/Contents/MacOS/Tessera --app-dir "$SCR/appdir" --folder "$SCR/raw" --keys "return" --develop-selftest 2>&1 | grep -m1 develop-selftest`
     and quit the app once the line appears. It drags Exposure 0 → +1.5 on the first cell through the slider path. Expect
     `develop-selftest: <n> tone frames at L2, render median <m> ms, p90 <p> ms` with p90 below 16 ms (reference: median
     6.2 ms, p90 7.9 ms for the 16 MP RAF). This leaves an `Exposure +1.50` edit on that image.
@@ -191,7 +192,7 @@ simulated cameras, `Sim A` on 30 frames and `Sim B` on 10):
 
 ```sh
 swift apps/mac/Support/make-sample-folder.swift "$SCR/lib" 40
-open -n apps/mac/build/Tessera.app --args --folder "$SCR/lib"
+open -n apps/mac/build/Tessera.app --args --app-dir "$SCR/appdir" --folder "$SCR/lib"
 ```
 
 The filter bar is the two rows above the grid: a search field (the saved-search grammar, e.g. `beach rating>=2 NOT
@@ -264,7 +265,7 @@ level that keeps frames under 16 ms (the readout shows e.g. `render: L5, 8 ms`) 
     Expect a block per backend listing tone exposure, parametric curve, point curve, hsl, grading, sharpening,
     vignette and straighten, each with an `L<n>` and a median under 16 ms after the level adapts (the level for
     curve/HSL/grading/effects/crop is coarser than the screen level, e.g. `L5`/`L6` for the 36 MP NEF).
-43. Relaunch on the RAW copies (`open -n apps/mac/build/Tessera.app --args --folder "$SCR/raw"`), select
+43. Relaunch on the RAW copies (`open -n apps/mac/build/Tessera.app --args --app-dir "$SCR/appdir" --folder "$SCR/raw"`), select
     **sony-arw.ARW** and press **Return**. Open **TONE CURVE**. 📸 Expect the parametric curve over the luminance
     histogram, three split triangles under it and Highlights/Lights/Darks/Shadows sliders. Drag inside the curve's
     upper-middle area upwards: the Lights region highlights, the curve bows up, the **Lights** slider follows and the
@@ -298,7 +299,7 @@ level that keeps frames under 16 ms (the readout shows e.g. `render: L5, 8 ms`) 
     `Crop & Straighten +…°`. **⌘Z** restores the full frame; **Esc** in the tool discards changes.
 50. **PRESETS ▸ Save Preset…**, name `Look`, leave Crop unticked, **Save**. Select the NEF, press Return and click
     **Look** in PRESETS: the NEF takes the curve/HSL/grading/effects look but not the crop (one history step
-    `Preset: Look`). The file exists: `ls ~/Library/Application\ Support/Tessera/Presets/Look.json`.
+    `Preset: Look`). The file exists: `ls "$SCR/appdir/Presets/Look.json"`.
 51. **SNAPSHOTS ▸ New Snapshot…** `Graded`, Save; the list shows `Graded`. Change anything, click `Graded`: back.
 52. **HISTORY**: newest first, the current step highlighted, `Original` at the bottom. Click an older step: the image
     and all sliders go back to it; later steps stay listed (dimmed) until a new edit. Click the newest step again.
@@ -306,7 +307,7 @@ level that keeps frames under 16 ms (the readout shows e.g. `render: L5, 8 ms`) 
     `Turn Off Blue Saturation −100` appears (itself not toggleable); tick it again to turn it back on.
 53. Quit and relaunch; press Return on the ARW. Expect the crop, curve, HSL, grading, detail and effects restored;
     the grid thumbnail shows the cropped edit.
-54. Optional automated pass: `apps/mac/build/Tessera.app/Contents/MacOS/Tessera --folder "$SCR/raw" --develop-panels-selftest 2>&1 | grep -m1 develop-panels-selftest`.
+54. Optional automated pass: `apps/mac/build/Tessera.app/Contents/MacOS/Tessera --app-dir "$SCR/appdir" --folder "$SCR/raw" --develop-panels-selftest 2>&1 | grep -m1 develop-panels-selftest`.
     It opens the first photo in the loupe and drags one control of each panel through the slider path; expect a line
     `develop-panels-selftest: tone curve … L… median … ms; hsl …; grading …; detail …; vignette …; grain …`.
 
@@ -323,10 +324,10 @@ Masking works on RAWs in the loupe. **M** (or the **Masks** button at the loupe'
 above the photo and opens the **MASKS** panel under BASIC. Every mask edit drives the same develop session as the
 sliders: drags are coalesced per display frame and each release is one undo step. AI masks (Subject, Sky, Background,
 People, Objects) run on this Mac: the first use loads the pinned segmentation weights (U²-Net and MobileSAM, about
-220 MB) into `~/Library/Application Support/Tessera/models/cache`, downloading them when missing, so the first AI mask
+220 MB) into `$SCR/appdir/models/cache`, downloading them when missing, so the first AI mask
 needs the network and takes a while; later ones take a few seconds. To use weights fetched ahead of time
 (`python3 tools/segment_models.py fetch --registry-cache "$SCR/segment-registry"`, see crates/ml-segment/README.md),
-launch with `open -n --env TESSERA_SEGMENT_MODELS="$SCR/segment-registry" apps/mac/build/Tessera.app --args …`.
+launch with `open -n --env TESSERA_SEGMENT_MODELS="$SCR/segment-registry" apps/mac/build/Tessera.app --args --app-dir "$SCR/appdir" …`.
 The Sky mask is the documented phase-one heuristic (top-connected blue sky with the subject removed): blue sky is
 selected, grey clouds only partly, and it is not a semantic sky network.
 
@@ -334,7 +335,7 @@ selected, grey clouds only partly, and it is not a semantic sky network.
     `(cd apps/mac && swift test --filter MaskingTests 2>&1 | grep Executed)`. Expect `test result: ok. 3 passed; 0 failed; 1 ignored` and
     `Executed 8 tests, with 0 failures`. (The `subject_mask_on_the_canon_fixture_with_cached_models` test only runs
     the real models when `TESSERA_SEGMENT_MODELS` or the M3-04 cache exists; otherwise it prints `SKIP offline`.)
-56. Relaunch on the RAW copies (`open -n apps/mac/build/Tessera.app --args --folder "$SCR/raw"`), select
+56. Relaunch on the RAW copies (`open -n apps/mac/build/Tessera.app --args --app-dir "$SCR/appdir" --folder "$SCR/raw"`), select
     **canon-cr3.CR3** (the tomato on the wooden table) and press **Return**; wait for the develop frame. Press **M**.
     📸 Expect the mask toolbar centred at the top of the loupe (brush, linear, radial, colour range, luminance range |
     Subject, Sky, Background, People, Objects | eye and overlay-colour dot | Done) and the MASKS panel open with
@@ -370,7 +371,7 @@ selected, grey clouds only partly, and it is not a semantic sky network.
     and drag a box around a house's front: an `Object`-style `Person` mask appears (the promptable model segments
     the boxed thing; it is a whole-person proxy, not part parsing). Choose **Objects** and click the right house: an
     `Object` mask selecting that house.
-62. Optional automated pass: `apps/mac/build/Tessera.app/Contents/MacOS/Tessera --folder "$SCR/raw" --masks-selftest 2>&1 | grep -m1 masks-selftest`.
+62. Optional automated pass: `apps/mac/build/Tessera.app/Contents/MacOS/Tessera --app-dir "$SCR/appdir" --folder "$SCR/raw" --masks-selftest 2>&1 | grep -m1 masks-selftest`.
     It opens the first photo, creates a linear gradient by dragging it, drags its local Exposure, paints a brush
     stroke and drags the stroke's Saturation, each through the per-frame path; expect a line
     `masks-selftest: linear gradient … median … ms; local exposure …; brush …; brush saturation …; masks 2; backend …`.
@@ -405,7 +406,7 @@ renders, so the ΔE values below only show that the comparison works.
     Expect: JSON with `catalog` (`…/lr/Catalog/Fixture.lrcat`), `photos`, `previews` and
     `"moved_root": "/Volumes/Old Drive/Photos/"`; only `ok.` lines (the `lrcat` suite: `5 passed`); `Executed 8 tests,
     with 0 failures`.
-64. **Summary.** `open -n apps/mac/build/Tessera.app --args --folder "$SCR/shoot"`. Choose **File ▸ Import Lightroom
+64. **Summary.** `open -n apps/mac/build/Tessera.app --args --app-dir "$SCR/appdir" --folder "$SCR/shoot"`. Choose **File ▸ Import Lightroom
     Catalog…** (⇧⌘I), click **Choose Catalog…**, press ⇧⌘G, paste the `catalog` path, **Return**, **Choose**. 📸
     Expect the sheet **Import Lightroom Catalog** with the step line `Catalog › Summary › Mapping › Fidelity › Report`
     (Summary bold) and: Photos 6, Virtual copies 1, Folders 3, With develop edits 4, Keywords 7, Collections 2,
@@ -466,7 +467,7 @@ renders, so the ΔE values below only show that the comparison works.
 72. **Cancel and resume, while the window stays usable.** Create a second fixture and slow the import down (test aid):
     ```sh
     cargo run --release -p tessera-cli --bin tessera -- --app-dir "$SCR/lr-cli" import lrcat --make-fixture "$SCR/lr2"
-    open -n --env TESSERA_LRCAT_IMPORT_DELAY_MS=3000 apps/mac/build/Tessera.app --args --folder "$SCR/shoot" \
+    open -n --env TESSERA_LRCAT_IMPORT_DELAY_MS=3000 apps/mac/build/Tessera.app --args --app-dir "$SCR/appdir" --folder "$SCR/shoot" \
       --import-lrcat "$SCR/lr2/Catalog/Fixture.lrcat"
     ```
     The sheet opens on Summary. Continue, Locate `$SCR/lr2/Photos`, Preview Fidelity, **Import 5 Photos**. 📸 Expect a strip

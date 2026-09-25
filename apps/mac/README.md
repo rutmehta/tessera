@@ -125,6 +125,7 @@ produces a build warning and must be configured before publishing updates.
 | Argument | Effect |
 |---|---|
 | `--folder <path>` | Open this folder, overriding the remembered last folder |
+| `--app-dir <path>` | Store index and caches here; overrides `TESSERA_APP_DIR`, otherwise uses `~/Library/Application Support/Tessera` |
 | `--stub <n>` | Load `n` generated items (for example `20000`) instead of a folder |
 | `--stub-library` | Explicitly use the old ImageIO folder scanner and memory-only decisions |
 | `--benchmark` | Run the grid scroll benchmark 1.5 s after launch. The result appears in the status bar and on stderr |
