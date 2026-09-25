@@ -24,7 +24,7 @@ for ((n=1;n<=MAX;n++)); do
   set +e; hermes -z "$prompt" --provider openai-codex -m "$MODEL" --yolo --ignore-user-config --in "$WT" >"$BASE/attempts/$n.log" 2>&1; hrc=$?; set -e
   testout=''; last_exit=0
   if [[ -n $TEST_CMD ]]; then set +e; testout=$(cd "$WT" && bash -lc "$TEST_CMD" 2>&1); last_exit=$?; set -e; fi
-  changed=$(git -C "$WT" diff --name-only main)
+  changed=$(git -C "$WT" diff --name-only "$(git -C "$WT" merge-base main HEAD)")
   changed+=$'\n'"$(git -C "$WT" ls-files --others --exclude-standard)"
   violations=(); IFS=',' read -r -a pats <<< "$PATHS"
   while IFS= read -r f; do [[ -z $f ]] && continue; ok=0; for p in "${pats[@]}"; do
