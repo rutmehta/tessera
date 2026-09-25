@@ -14,8 +14,12 @@ M0-05 smoke (real engine), M1-09 culling (28/32, misses were verifier procedure)
 ## Since the last update (all merged)
 Masks and local adjustments + masking UI (verified on screen with the real subject model), soft proofing and ICC display path, lens corrections + Upright, HDR/panorama merge, AI denoise (DRUNet) + super-resolution (Real-ESRGAN), depth + lens blur, assisted culling that learns, MCP tool server (`tessera-mcp`), library UI, Develop panels UI (tone curve, HSL, grading, detail, effects, crop, presets, history), Lightroom import flow in the app (verified on screen), Adobe PV6 compatibility renderer wired into the graph, export dialog + Print + soft proof, style-profile auto-edit (agentic phase 1), agent planner/critic loop with Anthropic/OpenAI/Ollama providers (phase 3), performance redesign (every slider < 12 ms at screen level; Texture/Clarity/Dehaze 230 ms → < 10 ms), Sparkle auto-update with CI/release workflows, app-dir isolation and `tessera index prune`.
 
-## In progress
-M2-21 GPU export path (export is CPU-bound: 57 s for a 36 MP raw), M2-22 HDR/EDR presentation, M2-20v on-screen verification of export/print.
+## Since the previous update (all merged)
+Design system + visual overhaul (Theme tokens, light/dark, lint test), HDR/EDR presentation (float surfaces, SDR bit-identical), GPU export without viewport starvation (36 MP full-size export 51 s → ~4 s; GPU lens/geometry), accessibility identifiers on every control, brush-erase modifier fix and two-pass SAM mask selection, importer rating→grade mapping, app-dir isolation + `tessera index prune`, Adobe compat op set wired into the renderer, agent planner/critic (Anthropic/OpenAI/Ollama providers), style-profile auto-edit.
+
+## In progress / next
+- Export throughput targets (docs/08: 45 MP JPEG < 1.5 s, 100 Web JPEGs < 40 s): next step is whole-band sensor dispatches and two bands in flight (M2-21c).
+- GPT-6 (Codex) path is currently failing auth on this machine (Hermes 401, Codex CLI reconnect loop); Opus carries work until `codex login` / `hermes auth login openai-codex` is re-run.
 
 ## Known gaps / next
 - Adobe undocumented XMP structures (PointColors strings, brush dabs, Look tables) need **real Lightroom-exported sidecars** to finish (M2-02b).
