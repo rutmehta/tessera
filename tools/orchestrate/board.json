@@ -958,5 +958,21 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M3-20",
+    "owner": "astra",
+    "title": "Remove tool: real inpainting model (LaMa, Apache-2.0) + distraction detection hook",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M5-24",
+    "owner": "astra",
+    "title": "Auto-Align Layers, Auto-Blend Layers (panorama seams + focus stack), Photomerge into the document",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
