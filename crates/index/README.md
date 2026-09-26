@@ -8,6 +8,49 @@ needed. The `gps` virtual table is kept in sync by image triggers.
 The public API returns `engine_api::error::EngineResult`. Image IDs and selection
 values use engine-api types without contract modifications.
 
+## Persistent people (schema v9)
+
+Index-local exports: `Person { id: String, name: Option<String>, medoid:
+Option<Vec<f32>> }`, `FaceKey { image_id: ImageId, ordinal: u32 }`, and
+`FaceAssignment { face: FaceKey, person_id: String, person_name: Option<String>,
+confirmed: bool }`. No engine-api changes.
+
+All methods return `EngineResult`:
+
+- `create_person(id: &str, name: Option<&str>, medoid: Option<&[f32]>)`: caller
+  supplies a stable nonblank unique ID; medoid must have 128 finite components.
+- `people() -> Vec<Person>`: stable ID order, including empty clusters.
+- `name_person(id: &str, name: Option<&str>)`: rename/clear. Names need not be
+  unique; reads join the cluster, not copied face/image names.
+- `assign_face(face: FaceKey, person_id: &str)`: requires both rows. Reassignment
+  resets confirmation and clears both affected medoids atomically; idempotent
+  same-person assignment preserves confirmation and the medoid.
+- `confirm_face(face: FaceKey, confirmed: bool)`: requires an assignment.
+- `face_assignments(image_id: ImageId) -> Vec<FaceAssignment>`: assigned faces,
+  ordered by ordinal, with current names.
+- `merge_people(target: &str, source: &str)`: atomic, distinct existing IDs;
+  target name wins, source is removed, confirmations survive, target medoid clears.
+- `split_person(source: &str, new_id: &str, faces: &[FaceKey])`: atomic creation
+  of an unnamed cluster; nonempty unique selection must belong to source.
+  Selected confirmations reset and both medoids clear. Source survives even empty.
+- `images_with_person(person_id: &str, confirmed_only: bool, limit: usize,
+  offset: usize) -> Vec<ImageId>`: indexed, deduplicated, stable image-ID order;
+  zero limit means 100, unknown person returns empty. `Predicate::Person(name)`
+  supports name-based search/facets and composition with other filters.
+
+Composite face foreign keys cascade on face/image deletion. `replace_faces`
+invalidates previous assignments even if ordinals are reused; failed replacement
+rolls back assignments too. Names/confirmation persist across database reopen.
+Merge/split clear stale representative descriptors rather than inventing medoids.
+Migration v9 invalidates medoids on assignment deletion, including cascading
+face re-detection and image removal. The next people job rebuilds them from members.
+No face-table triggers reference people, so historical face-drop migration replay
+remains supported; migration v8 uses idempotent table/index creation.
+
+Run `cargo test -p index --test people`; opt-in synthetic 100k-image indexed
+search budget (<50 ms for all 100,000 matching images) is exercised with
+`cargo test -p index --release --test people -- --ignored --nocapture`.
+
 ## Scanning
 
 `Scanner::new(&sidecars, &metadata).scan(&mut index, root)` (or `Index::scan`)
@@ -61,9 +104,9 @@ Compose `All`, `Any`, and `Not` around `Text`, `Keyword`, `Camera`, `Lens`,
 Leaves with absent/NULL values are false; `Not` takes their boolean complement,
 including images with no selection row. Empty `All` is true; empty `Any` and
 `Ids` are false. Missing selections are counted in the `undecided` facet bucket.
-`Focus` reads the latest `score` value for signal `focus`. `Person` currently
-uses named keywords and their descendants, just like `Keyword`: schema v5 has
-no persistent named-person table, and a face ordinal is not a person identity.
+`Focus` reads the latest `score` value for signal `focus`. `Person` matches
+current cluster names via indexed joins, plus legacy named keywords and their
+descendants for compatibility. A face ordinal is not a person identity.
 
 All user values are bound SQL parameters. ID scopes use catalog hex strings in
 a single JSON parameter (avoiding SQLite's per-statement variable limit).

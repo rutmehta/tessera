@@ -83,6 +83,19 @@ pub struct Keyword {
     pub children: Vec<Keyword>,
 }
 impl Library {
+    /// Rebuild the sorted, unique display-name list from the authoritative index.
+    /// Unnamed/blank clusters are omitted; duplicate names do not merge identities.
+    pub fn sync_people_names(&mut self, index: &index::Index) -> EngineResult<()> {
+        self.people = index
+            .people()?
+            .into_iter()
+            .filter_map(|p| p.name)
+            .filter(|name| !name.trim().is_empty())
+            .collect();
+        self.people.sort();
+        self.people.dedup();
+        Ok(())
+    }
     pub fn read(path: impl AsRef<Path>) -> EngineResult<Self> {
         let path = path.as_ref();
         match std::fs::read(path) {

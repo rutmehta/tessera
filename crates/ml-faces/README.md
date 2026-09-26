@@ -18,12 +18,64 @@ landmarks to the OpenCV 112x112 template. Bilinear inverse warp with black borde
 Raw RGB floats, no external mean/scale (normalization lives inside the model).
 Output is a validated, L2-normalized [f32;128]. Degenerate geometry errors.
 
-`cluster(embeddings, cosine_threshold)` is deterministic agglomerative complete
-linkage: merge the most similar eligible pair of clusters, using minimum cross
-pair cosine similarity. Input scales do not matter; zero/nonfinite descriptors
-and invalid thresholds error. Returned cluster members are input ordinals, not
-persistent person IDs. Complete linkage avoids transitive identity chaining.
-This simple implementation is intended for small batches, not a full library.
+## Identity clustering and incremental suggestions
+
+`cluster(&[[f32; 128]], threshold: f32) -> Result<Vec<Vec<usize>>>` retains its
+signature and complete partition/singleton behavior. It now uses **HDBSCAN**
+(`hdbscan` 0.12, MIT OR Apache-2.0), not complete linkage or renamed DBSCAN.
+The dependency builds a mutual-reachability MST, condenses its hierarchy, and
+selects stable clusters. We supply a symmetric precomputed cosine-distance
+matrix (1 - normalized dot product), minimum cluster size 2, min samples 1,
+allow-single-cluster, and selection epsilon `1 - threshold`. Threshold is a
+cosine similarity in [-1, 1]. A subsequent similarity-to-training-medoid gate
+rejects distant members. It is **not** a minimum pairwise similarity guarantee.
+Zero/nonfinite eligible descriptors and invalid thresholds error. Empty input
+is empty. Noise remains singleton groups; every original ordinal occurs once.
+
+`cluster_with_medoids(embeddings, threshold) -> Result<ClusterResult>` adds:
+- `clusters: Vec<FaceCluster>` with sorted `members`, original `medoid_index`,
+  normalized `medoid: [f32;128]`, and `eligible: bool` (false for noise/singletons).
+- `eligibility: Vec<bool>`: input quality eligibility, all true in the ungated API.
+- `approximate: bool`: true when the bounded sampling path was used.
+
+A medoid is an actual member, not an averaged descriptor. It minimizes total
+cosine distance using argmax x.dot(sum(y)), computed in O(n*128). Medoids are
+recomputed after assignments, so the final medoid can differ from the training
+medoid used by the threshold gate. Ties choose the first original ordinal.
+
+**Large-catalog approximation:** up to 1024 eligible faces get full HDBSCAN.
+Above that, a fixed-seed reservoir of 1024 trains HDBSCAN; unsampled faces join
+the nearest eligible training medoid only above threshold, otherwise remain
+singleton noise. Sampled noise stays noise. Runtime is O(1024²*128 + n*k*128),
+k <= 512; distance-matrix storage is bounded at 1024² floats, plus O(n*128)
+normalized descriptors/results. This is not exact full-catalog HDBSCAN. Rare
+identities absent from the sample may be missed; density and input order affect
+results. No claim of guaranteed identity recall or full batch/incremental
+equivalence is made. Run a new batch to discover new identities, rather than
+silently treating incremental threshold matches as confirmed identities.
+
+`FaceQuality { confidence: f32, width: f32, height: f32, sharpness: f64 }` and
+`QualityGate { min_confidence: f32, min_size: f32, min_sharpness: f64 }` gate
+confidence, both box dimensions, and normalized face sharpness. Defaults are
+0.9, 32 pixels, 0.1; configurable heuristics, not calibrated probabilities.
+`gate.eligible(quality) -> Result<bool>` rejects invalid/nonfinite observations;
+invalid gate configuration is an error. No blink/eyes proxy participates.
+
+`cluster_eligible(embeddings, &[FaceQuality], threshold, gate)` returns the same
+`ClusterResult`, preserving original ordinals. Excluded faces cannot train or
+join identities. They remain ineligible singleton entries; if their descriptor
+is unusable, their medoid is zero and must never enter identity matching.
+`FaceModels::embed_eligible_faces(&RgbImage, &[Face], gate)` returns
+`Result<Vec<Option<[f32;128]>>>`, measuring face sharpness before inference and
+returning None for quality rejects. Existing `analyze_and_store` is unchanged.
+
+`nearest_medoid(&[f32;128], &[[f32;128]], threshold)` returns
+`Result<Option<MedoidMatch>>`; fields are `medoid_index: usize` (index in the
+supplied medoid slice) and `similarity: f32`. Inputs are normalized/validated;
+ties choose lowest index. None means no match. Callers must gate the new face
+and pass only eligible/confirmed person medoids, map indices to persistent IDs,
+and decide whether to offer a suggestion or create a person. No persistence or
+confirmation happens in these APIs.
 
 ## Face signals and limits
 
@@ -127,3 +179,23 @@ JPEG previews; no-preview files are skipped and at least one must be exercised.
 Only network transport failures skip model tests. Corrupt hashes, manifest,
 filesystem, inference and partition errors fail. Set `TESSERA_REQUIRE_MODELS=1`
 to prohibit offline skips. Tests cache weights in ignored `.model-cache/`.
+
+`tests/clustering.rs` verifies ARI > .95 against generated, labeled 128-D
+identity populations with varying within-person dispersion (not a real-person
+recognition accuracy claim), exact incremental-v-batch agreement on separated
+identities, original-index quality exclusion, and deterministic bounded sampling.
+The ignored release benchmark asserts 100k/100 identities under 30 seconds AND
+ARI > .95. Run explicitly:
+
+```sh
+export CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/M3-19
+cargo test --release -p ml-faces --test clustering benchmark_100k_under_30_seconds -- --ignored --nocapture
+```
+
+`tests/multiface_cached.rs` never initiates downloads when cache files are absent;
+it prints a skip (or fails with `TESSERA_REQUIRE_MODELS=1`). Override its cache
+with `TESSERA_FACE_MODEL_CACHE`. Once cached, hashes/runtime errors fail normally.
+It generates a two-face canvas, supplies known landmarks, embeds both crops with
+real SFace, excludes a low-confidence crop, and clusters the two same-pattern
+embeddings. It also executes YuNet, without claiming cartoon detection recall.
+The older `tests/models.rs` intentionally still resolves/downloads weights.

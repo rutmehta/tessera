@@ -29,7 +29,7 @@ pub(crate) fn atomic_write(path: &Path, bytes: &[u8]) -> EngineResult<()> {
         .map_err(|e| EngineError::io_at(path, &e.error))?;
     Ok(())
 }
-fn restore(path: &Path, bytes: &Option<Vec<u8>>) -> EngineResult<()> {
+pub(crate) fn restore(path: &Path, bytes: &Option<Vec<u8>>) -> EngineResult<()> {
     match bytes {
         Some(bytes) => atomic_write(path, bytes),
         None => match fs::remove_file(path) {

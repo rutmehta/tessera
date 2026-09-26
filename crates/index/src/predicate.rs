@@ -47,8 +47,7 @@ pub enum Predicate {
     Grade(Comparison, f64),
     /// Latest score whose signal is `focus` (not per-face sharpness).
     Focus(Comparison, f64),
-    /// Named person keyword, including descendants. The current schema has
-    /// no persistent face/person identities; face ordinals are not people.
+    /// Exact current cluster name, plus legacy person keywords/descendants.
     Person(String),
     /// Explicit scope; empty scopes match nothing. IDs use catalog hex strings.
     Ids(Vec<engine_api::id::ImageId>),
@@ -102,7 +101,12 @@ impl Predicate {
                 values.push(Box::new(value.clone()));
                 "i.rowid IN (SELECT rowid FROM fts WHERE fts MATCH ?)".into()
             }
-            Self::Keyword(value) | Self::Person(value) => {
+            Self::Person(value) => {
+                values.push(Box::new(value.clone()));
+                values.push(Box::new(value.clone()));
+                "i.id IN (SELECT fp.image_id FROM person p JOIN face_person fp ON fp.person_id=p.id WHERE p.name=? UNION SELECT ik.image_id FROM keyword k JOIN keyword_closure c ON c.ancestor_id=k.id JOIN image_keyword ik ON ik.keyword_id=c.descendant_id WHERE k.name=?)".into()
+            }
+            Self::Keyword(value) => {
                 values.push(Box::new(value.clone()));
                 "i.id IN (SELECT ik.image_id FROM keyword k JOIN keyword_closure c ON c.ancestor_id=k.id JOIN image_keyword ik ON ik.keyword_id=c.descendant_id WHERE k.name=?)".into()
             }

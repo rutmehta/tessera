@@ -217,3 +217,26 @@ boundaries across midnight, generated JPEG brightness/blur variants, pluggable
 best-frame selection, status/basket transitions, read-only synthetic score
 sweeps, migration from v3, destination collisions, malformed XMP, and batch
 rollback after an injected SQLite failure.
+
+
+## People names and optional MWG export
+
+`people::name_person(&index, library_path, person_id, name, &options)` renames a
+stable indexed identity (`None` clears the name) and rebuilds the library's
+sorted, unique, nonblank people display names. Assignments resolve current names
+through index joins, including images outside the current review queue.
+
+`NamePersonOptions::default()` performs **no sidecar I/O**. Set `write_sidecars`
+to export all indexed detector faces for affected images as normalized MWG
+center/size regions. `dimensions: HashMap<ImageId, (u32, u32)>` overrides persisted
+`analysis_width` / `analysis_height` scores: these must describe the oriented
+analysis preview, not RAW dimensions. Unassigned faces retain empty names.
+`person_keywords` separately opts into append-only person keywords.
+
+Existing full-name XMP wins; otherwise existing legacy stem XMP is edited in
+place (shared legacy destinations are rejected). Unknown XML and non-face regions
+survive, but replaced Face-entry extensions do not. All files are preflighted;
+ordinary failures compensate previous writes and the indexed name. Atomicity is
+per-file, not crash-atomic across files/SQLite. Serialize callers against other
+writers. `Library::sync_people_names(&index)` is also available after merges or
+splits; persist the modified library with `write`.

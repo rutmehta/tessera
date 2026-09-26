@@ -24,8 +24,6 @@ const ANALYSIS_PX: u32 = 1024;
 /// SFace cosine similarity above which two faces are the same person (OpenCV's
 /// recommended threshold for SFace).
 const SAME_PERSON: f32 = 0.363;
-/// Complete-link clustering is cubic; larger shoots use greedy centroid linking.
-const COMPLETE_LINK_MAX: usize = 400;
 
 #[derive(Clone, Copy, Debug, uniffi::Record)]
 pub struct AnalysisOptions {
@@ -76,7 +74,7 @@ pub struct FaceChipInfo {
     pub focus: f64,
     /// Weak geometric proxy; `None` when unknown.
     pub eyes_open: Option<f64>,
-    /// Session-local identity from descriptor clustering (`person-N`).
+    /// Persistent catalog identity, independent of queue order.
     pub person_id: Option<String>,
 }
 
@@ -142,6 +140,7 @@ pub(crate) struct AssistState {
     plan: Option<ReviewPlan>,
     dismissed: HashSet<ImageId>,
     people: Option<People>,
+    people_job: ml_faces::people::PeopleJob,
 }
 
 impl AssistState {
@@ -154,6 +153,9 @@ impl AssistState {
             plan: None,
             dismissed: HashSet::new(),
             people: None,
+            people_job:
+                ml_faces::people::PeopleJob::new(ml_faces::people::PeopleOptions::default())
+                    .expect("valid default people options"),
         }
     }
     pub(crate) fn learning(&self) -> bool {
@@ -185,6 +187,259 @@ pub(crate) fn library_key(folder: Option<&Path>) -> String {
             format!("folder-{}", &hash.to_hex()[..32])
         }
         None => "query".into(),
+    }
+}
+
+#[cfg(test)]
+mod persistent_people_tests {
+    use super::*;
+
+    #[test]
+    fn persistent_session_manual_operations_and_indexed_filters() {
+        let dir = tempfile::tempdir().unwrap();
+        let photos = dir.path().join("photos");
+        std::fs::create_dir(&photos).unwrap();
+        for n in 0..3 {
+            image::RgbImage::from_pixel(100, 100, image::Rgb([n * 50, 30, 20]))
+                .save(photos.join(format!("{n}.jpg")))
+                .unwrap();
+        }
+        let engine =
+            Engine::open(dir.path().join("support").to_string_lossy().into_owned()).unwrap();
+        let folder = engine
+            .index_folder(photos.to_string_lossy().into_owned())
+            .unwrap()
+            .path;
+        let ids: Vec<_> = engine
+            .list_images(crate::ImageQuery::default())
+            .unwrap()
+            .into_iter()
+            .map(|i| i.id)
+            .collect();
+        for (n, id) in ids.iter().enumerate() {
+            let mut embedding = vec![0.; 128];
+            embedding[0] = 1.;
+            engine
+                .set_faces(
+                    id.clone(),
+                    vec![FaceInput {
+                        x: 10.,
+                        y: 10.,
+                        width: 50.,
+                        height: 50.,
+                        focus: 0.9,
+                        eyes_open: Some(if n == 0 { 0.1 } else { 0.9 }),
+                        embedding: Some(embedding),
+                    }],
+                    100,
+                    100,
+                )
+                .unwrap();
+        }
+        let session = engine.open_cull_session(folder.clone()).unwrap();
+        let original = session.people(true).unwrap();
+        assert_eq!(original.len(), 1);
+        let person = original[0].id.clone();
+        session
+            .name_person(
+                person.clone(),
+                Some("Ada".into()),
+                PeopleNameOptions::default(),
+            )
+            .unwrap();
+        assert_eq!(session.people(false).unwrap()[0].name, "Ada");
+        assert_eq!(
+            session
+                .frames_with_person(person.clone(), Some(0.5))
+                .unwrap(),
+            vec![ids[0].clone()]
+        );
+        let key = PersonFace {
+            image_id: ids[0].clone(),
+            ordinal: 0,
+        };
+        session.confirm_person_face(key.clone(), true).unwrap();
+        assert!(session.person_assignments(ids[0].clone()).unwrap()[0].confirmed);
+        session.confirm_person_face(key.clone(), false).unwrap();
+        assert!(!session.person_assignments(ids[0].clone()).unwrap()[0].confirmed);
+        session
+            .split_person(person.clone(), "manual-split".into(), vec![key.clone()])
+            .unwrap();
+        assert_eq!(
+            session
+                .frames_with_person("manual-split".into(), None)
+                .unwrap(),
+            vec![ids[0].clone()]
+        );
+        session
+            .assign_person_face(key.clone(), person.clone())
+            .unwrap();
+        assert_eq!(
+            session.person_assignments(ids[0].clone()).unwrap()[0].person_id,
+            person
+        );
+        session
+            .assign_person_face(key.clone(), "manual-split".into())
+            .unwrap();
+        session
+            .merge_people(person.clone(), "manual-split".into())
+            .unwrap();
+        assert!(
+            session
+                .frames_with_person("manual-split".into(), None)
+                .unwrap()
+                .is_empty()
+        );
+        assert_eq!(
+            session
+                .frames_with_person(person.clone(), None)
+                .unwrap()
+                .len(),
+            3
+        );
+        assert!(
+            session
+                .assign_person_face(PersonFace { ordinal: 99, ..key }, person.clone())
+                .is_err()
+        );
+        assert!(session.people_name_suggestions(Some(f32::NAN)).is_err());
+        assert!(session.people_name_suggestions(None).unwrap().is_empty());
+        assert_eq!(session.refresh_people(true).unwrap().assigned, 0);
+        let reopened = engine.open_cull_session(folder).unwrap();
+        assert_eq!(reopened.people(false).unwrap()[0].id, person);
+        assert_eq!(reopened.people(false).unwrap()[0].name, "Ada");
+        let library = cull::Library::read(session.library_path().unwrap().unwrap()).unwrap();
+        assert_eq!(library.people, vec!["Ada".to_string()]);
+        for n in 0..3 {
+            assert!(!photos.join(format!("{n}.jpg.xmp")).exists());
+            assert!(!photos.join(format!("{n}.xmp")).exists());
+        }
+        // An indexed match outside the review queue must not leak into filters.
+        let subset = vec![parse_id(&ids[1]).unwrap()];
+        let s = session.lock().unwrap();
+        assert_eq!(
+            person_frames(s.core.index(), &subset, &person, None).unwrap(),
+            subset
+        );
+        // Suggestions are read-only and carry the persisted target ID/name.
+        let mut medoid = vec![0.; 128];
+        medoid[0] = 1.;
+        s.core
+            .index()
+            .create_person("named-example", Some("Grace"), Some(&medoid))
+            .unwrap();
+        s.core
+            .index()
+            .create_person("unnamed-example", None, Some(&medoid))
+            .unwrap();
+        drop(s);
+        let suggestions = session.people_name_suggestions(Some(0.99)).unwrap();
+        let suggestion = suggestions
+            .iter()
+            .find(|a| a.unnamed_id == "unnamed-example")
+            .unwrap();
+        assert_eq!(suggestion.named_id, "named-example");
+        assert_eq!(suggestion.name, "Grace");
+        assert!(
+            session
+                .lock()
+                .unwrap()
+                .core
+                .index()
+                .people()
+                .unwrap()
+                .iter()
+                .find(|p| p.id == "unnamed-example")
+                .unwrap()
+                .name
+                .is_none()
+        );
+        session
+            .name_person(
+                person.clone(),
+                Some("Ada Lovelace".into()),
+                PeopleNameOptions {
+                    write_sidecars: true,
+                    person_keywords: true,
+                },
+            )
+            .unwrap();
+        for n in 0..3 {
+            let packet = sidecar::Sidecar::read_xmp(
+                &sidecar::Sidecar::paths(photos.join(format!("{n}.jpg"))).xmp,
+            )
+            .unwrap();
+            assert_eq!(packet.face_regions().unwrap()[0].name, "Ada Lovelace");
+        }
+        // The other session must resolve fresh joined names, not stale cache.
+        assert_eq!(reopened.people(false).unwrap()[0].name, "Ada Lovelace");
+        assert_eq!(
+            session.face_strip(ids[0].clone()).unwrap()[0]
+                .person_id
+                .as_deref(),
+            Some(person.as_str())
+        );
+    }
+
+    #[test]
+    fn stored_ids_and_names_survive_reorder_and_reopen() {
+        let dir = tempfile::tempdir().unwrap();
+        for name in ["a.jpg", "b.jpg"] {
+            std::fs::write(dir.path().join(name), b"jpeg").unwrap();
+        }
+        let db = dir.path().join("index.sqlite");
+        let mut index = index::Index::open(&db).unwrap();
+        index
+            .scan(
+                dir.path(),
+                &index::NoopSidecarReader,
+                &index::NoopMetadataProvider,
+            )
+            .unwrap();
+        let mut ids = index.search(&index::Query::default()).unwrap();
+        index
+            .create_person("stable-ada", Some("Ada"), None)
+            .unwrap();
+        for &id in &ids {
+            index
+                .replace_faces(
+                    id,
+                    &[index::FaceRecord {
+                        id: 0,
+                        bbox: [0., 0., 40., 50.],
+                        landmarks5: [[0.; 2]; 5],
+                        confidence: 1.,
+                        embedding: None,
+                        sharpness: 0.8,
+                        eyes_open: Some(0.9),
+                    }],
+                )
+                .unwrap();
+            index
+                .assign_face(
+                    index::FaceKey {
+                        image_id: id,
+                        ordinal: 0,
+                    },
+                    "stable-ada",
+                )
+                .unwrap();
+        }
+        let first = people(&index, &ids).unwrap();
+        assert_eq!(first.list.len(), 1);
+        assert_eq!(first.list[0].id, "stable-ada");
+        assert_eq!(first.list[0].name, "Ada");
+        drop(index);
+        let index = index::Index::open(&db).unwrap();
+        ids.reverse();
+        let second = people(&index, &ids).unwrap();
+        assert_eq!(second.list[0].id, first.list[0].id);
+        assert_eq!(second.list[0].name, "Ada");
+        assert_eq!(
+            second.list[0].images,
+            ids.iter().map(ToString::to_string).collect::<Vec<_>>()
+        );
+        assert_eq!(second.of_face.len(), 2);
     }
 }
 
@@ -421,99 +676,134 @@ fn orient(img: image::RgbImage, orientation: u8) -> image::RgbImage {
 
 // ─────────────────────────────── people ───────────────────────────────
 
-/// Session-local identities from descriptor clustering.
+/// An image-local detector ordinal, not an identity.
+#[derive(Clone, Debug, uniffi::Record)]
+pub struct PersonFace {
+    pub image_id: String,
+    pub ordinal: u32,
+}
+impl PersonFace {
+    fn key(&self) -> Result<index::FaceKey> {
+        Ok(index::FaceKey {
+            image_id: parse_id(&self.image_id)?,
+            ordinal: self.ordinal,
+        })
+    }
+}
+
+/// Additional assignment metadata without changing the existing strip record.
+#[derive(Clone, Debug, uniffi::Record)]
+pub struct PersonAssignmentInfo {
+    pub face: PersonFace,
+    pub person_id: String,
+    pub name: Option<String>,
+    pub confirmed: bool,
+}
+
+#[derive(Clone, Copy, Debug, Default, uniffi::Record)]
+pub struct PeopleNameOptions {
+    /// Explicit opt-in; false does not even probe sidecar paths.
+    pub write_sidecars: bool,
+    /// Append names as keywords only when writing sidecars.
+    pub person_keywords: bool,
+}
+
+#[derive(Clone, Debug, uniffi::Record)]
+pub struct PeopleJobResult {
+    pub assigned: u64,
+    pub reclustered: bool,
+    pub approximate: bool,
+}
+
+#[derive(Clone, Debug, uniffi::Record)]
+pub struct PeopleNameSuggestion {
+    pub unnamed_id: String,
+    pub named_id: String,
+    pub name: String,
+    pub similarity: f32,
+}
+
+fn person_frames(
+    index: &index::Index,
+    queue: &[ImageId],
+    person_id: &str,
+    eyes_closed_below: Option<f64>,
+) -> Result<Vec<ImageId>> {
+    // Do not cap at queue.len(): catalog matches outside the queue can precede
+    // all its members in ID order. The index applies DISTINCT before LIMIT.
+    let matches: HashSet<_> = index
+        .images_with_person(person_id, false, i64::MAX as usize, 0)?
+        .into_iter()
+        .collect();
+    let images: Vec<_> = queue
+        .iter()
+        .copied()
+        .filter(|id| matches.contains(id))
+        .collect();
+    let Some(below) = eyes_closed_below else {
+        return Ok(images);
+    };
+    let mut assignments = HashMap::new();
+    for &image in &images {
+        for assignment in index.face_assignments(image)? {
+            assignments.insert((image, assignment.face.ordinal), assignment.person_id);
+        }
+    }
+    ml_faces::frames_with_person_eyes_closed(index, &images, person_id, below, |image, face| {
+        assignments.get(&(image, face.id)).cloned()
+    })
+    .map_err(failure)
+}
+
+/// Queue projection of persistent indexed identities.
 #[derive(Clone, Default)]
 pub(crate) struct People {
     of_face: HashMap<(ImageId, u32), String>,
     list: Vec<PersonInfo>,
 }
 
-fn cosine_unit(v: &[f32]) -> Option<[f32; 128]> {
-    let norm = v.iter().map(|x| f64::from(*x).powi(2)).sum::<f64>().sqrt();
-    if v.len() != 128 || !norm.is_finite() || norm == 0. {
-        return None;
-    }
-    Some(std::array::from_fn(|i| (f64::from(v[i]) / norm) as f32))
-}
-
-fn cluster(embeddings: &[[f32; 128]]) -> Vec<Vec<usize>> {
-    if embeddings.len() <= COMPLETE_LINK_MAX
-        && let Ok(groups) = ml_faces::cluster(embeddings, SAME_PERSON)
-    {
-        return groups;
-    }
-    // Greedy: join the most similar running centroid above the threshold.
-    let mut centroids: Vec<[f32; 128]> = Vec::new();
-    let mut groups: Vec<Vec<usize>> = Vec::new();
-    for (i, e) in embeddings.iter().enumerate() {
-        let best = centroids
-            .iter()
-            .enumerate()
-            .map(|(g, c)| (g, c.iter().zip(e).map(|(a, b)| a * b).sum::<f32>()))
-            .filter(|(_, s)| *s >= SAME_PERSON)
-            .max_by(|a, b| a.1.total_cmp(&b.1));
-        match best {
-            Some((g, _)) => {
-                groups[g].push(i);
-                let n = groups[g].len() as f32;
-                let mut c: [f32; 128] =
-                    std::array::from_fn(|k| centroids[g][k] * (n - 1.) / n + e[k] / n);
-                let norm = c.iter().map(|x| x * x).sum::<f32>().sqrt().max(1e-6);
-                c.iter_mut().for_each(|x| *x /= norm);
-                centroids[g] = c;
-            }
-            None => {
-                centroids.push(*e);
-                groups.push(vec![i]);
-            }
-        }
-    }
-    groups
-}
-
 fn people(index: &index::Index, images: &[ImageId]) -> Result<People> {
-    let mut faces = Vec::new();
-    let mut units = Vec::new();
+    let mut result = People::default();
+    let mut groups: HashMap<String, (PersonInfo, f64)> = HashMap::new();
     for &image in images {
-        for face in index.faces(image)? {
-            if let Some(unit) = face.embedding.as_deref().and_then(cosine_unit) {
-                faces.push((image, face.id, face.sharpness));
-                units.push(unit);
+        let faces: HashMap<_, _> = index.faces(image)?.into_iter().map(|f| (f.id, f)).collect();
+        for assignment in index.face_assignments(image)? {
+            let Some(face) = faces.get(&assignment.face.ordinal) else {
+                continue;
+            };
+            let id = assignment.person_id;
+            result.of_face.insert((image, face.id), id.clone());
+            let (person, best) = groups.entry(id.clone()).or_insert_with(|| {
+                (
+                    PersonInfo {
+                        name: assignment
+                            .person_name
+                            .unwrap_or_else(|| format!("Person {id}")),
+                        id,
+                        images: Vec::new(),
+                        faces: 0,
+                        cover_image: image.to_string(),
+                        cover_ordinal: face.id,
+                    },
+                    f64::NEG_INFINITY,
+                )
+            });
+            let image = image.to_string();
+            if person.images.last() != Some(&image) {
+                person.images.push(image.clone());
+            }
+            person.faces += 1;
+            if face.sharpness > *best {
+                *best = face.sharpness;
+                person.cover_image = image;
+                person.cover_ordinal = face.id;
             }
         }
     }
-    let mut groups = cluster(&units);
-    let position: HashMap<ImageId, usize> =
-        images.iter().enumerate().map(|(n, id)| (*id, n)).collect();
-    let distinct = |g: &Vec<usize>| g.iter().map(|&i| faces[i].0).collect::<HashSet<_>>().len();
-    groups.sort_by(|a, b| {
-        distinct(b)
-            .cmp(&distinct(a))
-            .then_with(|| a.iter().min().cmp(&b.iter().min()))
-    });
-    let mut result = People::default();
-    for (n, group) in groups.iter().enumerate() {
-        let id = format!("person-{}", n + 1);
-        let mut ids: Vec<ImageId> = group.iter().map(|&i| faces[i].0).collect();
-        ids.sort_by_key(|id| position[id]);
-        ids.dedup();
-        let cover = group
-            .iter()
-            .copied()
-            .max_by(|&a, &b| faces[a].2.total_cmp(&faces[b].2).then(b.cmp(&a)))
-            .expect("non-empty cluster");
-        for &i in group {
-            result.of_face.insert((faces[i].0, faces[i].1), id.clone());
-        }
-        result.list.push(PersonInfo {
-            name: format!("Person {}", n + 1),
-            id,
-            images: ids.iter().map(ToString::to_string).collect(),
-            faces: group.len() as u32,
-            cover_image: faces[cover].0.to_string(),
-            cover_ordinal: faces[cover].1,
-        });
-    }
+    result.list = groups.into_values().map(|(person, _)| person).collect();
+    result
+        .list
+        .sort_by(|a, b| b.images.len().cmp(&a.images.len()).then(a.id.cmp(&b.id)));
     Ok(result)
 }
 
@@ -538,11 +828,33 @@ fn analysis_space(index: &index::Index, id: ImageId) -> Result<Option<(u32, u32)
 }
 
 impl Inner {
+    fn refresh_people_job(&mut self, force: bool) -> Result<PeopleJobResult> {
+        // Refit over the catalog, not just this queue: persisted identities may
+        // also have members outside the active folder/filter.
+        let images = self.core.index().search(&index::Query {
+            limit: i64::MAX as usize,
+            ..Default::default()
+        })?;
+        let report = self
+            .assist
+            .people_job
+            .run(self.core.index(), &images, force)
+            .map_err(failure)?;
+        self.assist.people = Some(people(self.core.index(), self.core.images())?);
+        Ok(PeopleJobResult {
+            assigned: report.assigned as u64,
+            reclustered: report.reclustered,
+            approximate: report.approximate,
+        })
+    }
+
     fn people(&mut self) -> Result<&People> {
         if self.assist.people.is_none() {
-            let found = people(self.core.index(), self.core.images())?;
-            self.assist.people = Some(found);
+            self.refresh_people_job(false)?;
         }
+        // Resolve joins again: another session may have renamed/reassigned a face,
+        // and a review reorder must be reflected without rerunning clustering.
+        self.assist.people = Some(people(self.core.index(), self.core.images())?);
         Ok(self.assist.people.as_ref().expect("people computed"))
     }
 
@@ -593,6 +905,126 @@ impl Inner {
 
 #[uniffi::export]
 impl CullSession {
+    /// Incremental ingestion with periodic refits, or an explicit forced refit.
+    /// Blocking: invoke on the host worker queue, never the UI thread.
+    pub fn refresh_people(&self, force: bool) -> Result<PeopleJobResult> {
+        self.lock()?.refresh_people_job(force)
+    }
+
+    /// Read persisted names and confirmation state, including manual assignments
+    /// to faces without usable descriptors. This never runs a clustering job.
+    pub fn person_assignments(&self, image_id: String) -> Result<Vec<PersonAssignmentInfo>> {
+        let image = parse_id(&image_id)?;
+        let s = self.lock()?;
+        Ok(s.core
+            .index()
+            .face_assignments(image)?
+            .into_iter()
+            .map(|a| PersonAssignmentInfo {
+                face: PersonFace {
+                    image_id: image_id.clone(),
+                    ordinal: a.face.ordinal,
+                },
+                person_id: a.person_id,
+                name: a.person_name,
+                confirmed: a.confirmed,
+            })
+            .collect())
+    }
+
+    /// Assign an existing face to an existing persistent identity. Moving resets
+    /// confirmation; confirm separately to protect it from automatic refits.
+    pub fn assign_person_face(&self, face: PersonFace, person_id: String) -> Result<()> {
+        let key = face.key()?;
+        let mut s = self.lock()?;
+        s.core.index().assign_face(key, &person_id)?;
+        s.assist.people = None;
+        Ok(())
+    }
+
+    /// Confirm (`true`) or unconfirm (`false`) an existing face assignment.
+    pub fn confirm_person_face(&self, face: PersonFace, confirmed: bool) -> Result<()> {
+        let key = face.key()?;
+        let s = self.lock()?;
+        Ok(s.core.index().confirm_face(key, confirmed)?)
+    }
+
+    /// Explicit merge, target name wins. Does not export sidecars.
+    pub fn merge_people(&self, target_id: String, source_id: String) -> Result<()> {
+        let mut s = self.lock()?;
+        s.core.index().merge_people(&target_id, &source_id)?;
+        s.assist.people = None;
+        Ok(())
+    }
+
+    /// Split selected members into a new unnamed identity (caller supplies a
+    /// unique ID). Confirmations reset. Does not export sidecars.
+    pub fn split_person(
+        &self,
+        source_id: String,
+        new_id: String,
+        faces: Vec<PersonFace>,
+    ) -> Result<()> {
+        let keys = faces
+            .iter()
+            .map(PersonFace::key)
+            .collect::<Result<Vec<_>>>()?;
+        let mut s = self.lock()?;
+        s.core.index().split_person(&source_id, &new_id, &keys)?;
+        s.assist.people = None;
+        Ok(())
+    }
+
+    /// Rename/clear an identity and update the library's display names. Requires
+    /// a library-backed session; XMP export is strictly opt-in. Coordinates use
+    /// indexed analysis-preview dimensions, never RAW dimensions.
+    pub fn name_person(
+        &self,
+        person_id: String,
+        name: Option<String>,
+        options: PeopleNameOptions,
+    ) -> Result<()> {
+        let mut s = self.lock()?;
+        let path = s
+            .core
+            .library_path()
+            .ok_or_else(|| failure("naming requires a library-backed session"))?;
+        cull::people::name_person(
+            s.core.index(),
+            path,
+            &person_id,
+            name.as_deref(),
+            &cull::people::NamePersonOptions {
+                write_sidecars: options.write_sidecars,
+                person_keywords: options.person_keywords,
+                dimensions: HashMap::new(),
+            },
+        )?;
+        s.assist.people = None;
+        Ok(())
+    }
+
+    /// Read-only catalog suggestions. Accept explicitly with merge/assignment;
+    /// neither names nor assignments are changed by requesting suggestions.
+    pub fn people_name_suggestions(
+        &self,
+        threshold: Option<f32>,
+    ) -> Result<Vec<PeopleNameSuggestion>> {
+        let s = self.lock()?;
+        Ok(
+            ml_faces::people::name_suggestions(s.core.index(), threshold.unwrap_or(SAME_PERSON))
+                .map_err(failure)?
+                .into_iter()
+                .map(|a| PeopleNameSuggestion {
+                    unnamed_id: a.unnamed_id,
+                    named_id: a.named_id,
+                    name: a.name,
+                    similarity: a.similarity,
+                })
+                .collect(),
+        )
+    }
+
     /// Faces of one image, in detection order, with identities. Empty when the
     /// image has no analysed faces.
     pub fn face_strip(&self, image_id: String) -> Result<Vec<FaceChipInfo>> {
@@ -627,12 +1059,12 @@ impl CullSession {
             .collect())
     }
 
-    /// People in this queue, most frequent first. `refresh` re-clusters after
-    /// new face analysis.
+    /// People in this queue, most frequent first. `refresh` ingests new faces
+    /// and runs the job's periodic refit; use `refresh_people(true)` to force it.
     pub fn people(&self, refresh: bool) -> Result<Vec<PersonInfo>> {
         let mut s = self.lock()?;
         if refresh {
-            s.assist.people = None;
+            s.refresh_people_job(false)?;
         }
         Ok(s.people()?.list.clone())
     }
@@ -646,28 +1078,15 @@ impl CullSession {
         eyes_closed_below: Option<f64>,
     ) -> Result<Vec<String>> {
         let mut s = self.lock()?;
-        let of_face = s.people()?.of_face.clone();
-        let person =
-            |image: ImageId, face: &index::FaceRecord| of_face.get(&(image, face.id)).cloned();
-        let images = s.core.images().to_vec();
-        let found = match eyes_closed_below {
-            Some(below) => ml_faces::frames_with_person_eyes_closed(
-                s.core.index(),
-                &images,
-                &person_id,
-                below,
-                person,
-            )
-            .map_err(failure)?,
-            None => images
-                .into_iter()
-                .filter(|image| {
-                    of_face
-                        .iter()
-                        .any(|((i, _), p)| i == image && *p == person_id)
-                })
-                .collect(),
-        };
+        if s.assist.people.is_none() {
+            s.refresh_people_job(false)?;
+        }
+        let found = person_frames(
+            s.core.index(),
+            s.core.images(),
+            &person_id,
+            eyes_closed_below,
+        )?;
         Ok(found.iter().map(ToString::to_string).collect())
     }
 
