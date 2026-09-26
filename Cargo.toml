@@ -35,6 +35,7 @@ members = [
     "crates/tessera-ffi",
     "crates/libraw-ffi",
     "crates/compositor",
+    "crates/psd",
     "apps/tessera-cli",
 ]
 
