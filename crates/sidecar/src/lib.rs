@@ -1,6 +1,8 @@
 //! XMP metadata sidecar synchronization.
 mod develop;
+mod faces;
 pub use develop::ImportedRecipe;
+pub use faces::FaceRegion;
 mod xml;
 mod xmp;
 use engine_api::error::{EngineError, EngineResult};

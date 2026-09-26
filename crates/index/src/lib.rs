@@ -1,7 +1,9 @@
 //! SQLite photo catalog and search index.
 mod api;
 mod changes;
+mod people;
 mod predicate;
+pub use people::{FaceAssignment, FaceKey, Person};
 mod semantic;
 mod understanding;
 pub use api::{FaceRecord, ImageInfo, Index, PruneCounts, Scanner, Score};
@@ -122,11 +124,11 @@ impl Core {
             COMMIT;")?;
         let version: u32 =
             conn.query_row("SELECT max(version) FROM migration", [], |r| r.get(0))?;
-        if version > 7 {
+        if version > 9 {
             return Err(engine_api::error::EngineError::SchemaVersion {
                 document: "index".into(),
                 found: version,
-                supported: 7,
+                supported: 9,
             }
             .into());
         }
@@ -172,6 +174,14 @@ impl Core {
         }
         if missing(7)? {
             conn.execute_batch(include_str!("../migrations/007_changes.sql"))?;
+        }
+        if missing(8)? {
+            conn.execute_batch(include_str!("../migrations/008_people.sql"))?;
+        }
+        if missing(9)? {
+            conn.execute_batch(include_str!(
+                "../migrations/009_people_medoid_invalidation.sql"
+            ))?;
         }
         Ok(Self { conn })
     }
@@ -890,7 +900,7 @@ mod tests {
             i.conn
                 .query_row("SELECT count(*) FROM migration", [], |r| r.get::<_, u32>(0))
                 .unwrap(),
-            7
+            9
         );
     }
     #[test]
@@ -933,7 +943,7 @@ mod tests {
             .conn
             .query_row("SELECT count(*) FROM migration", [], |r| r.get(0))
             .unwrap();
-        assert_eq!(tables, 7);
+        assert_eq!(tables, 9);
         let id = ImageId(7);
         i.conn
             .execute("INSERT INTO root(path) VALUES('root')", [])

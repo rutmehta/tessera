@@ -4,6 +4,7 @@ mod grouping;
 mod incremental;
 pub mod learning;
 mod library;
+pub mod people;
 mod persistence;
 pub use defects::{DefectReason, Direction, Threshold};
 use engine_api::{EngineError, EngineResult};

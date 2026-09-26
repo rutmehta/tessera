@@ -159,6 +159,34 @@ impl FaceModels {
         nms(faces, overlap)
     }
 
+    /// Embed supplied detections only when their confidence, dimensions and measured
+    /// sharpness pass the quality gate. Preserves ordinals with `None` for rejects.
+    /// Explicit landmarks also support generated/test crops without claiming recall.
+    pub fn embed_eligible_faces(
+        &mut self,
+        image: &RgbImage,
+        faces: &[Face],
+        gate: crate::QualityGate,
+    ) -> Result<Vec<Option<[f32; 128]>>> {
+        gate.validate()?;
+        let mut result = Vec::with_capacity(faces.len());
+        for face in faces {
+            let signals = face_signals(image, face)?;
+            let quality = crate::FaceQuality {
+                confidence: face.score,
+                width: face.bbox[2],
+                height: face.bbox[3],
+                sharpness: signals.sharpness,
+            };
+            result.push(if gate.eligible(quality)? {
+                Some(self.embed(image, face)?)
+            } else {
+                None
+            });
+        }
+        Ok(result)
+    }
+
     /// Aligned RGB 112x112, raw 0..255. SFace includes its own normalization.
     /// The returned descriptor is L2-normalized, finite, and exactly 128 floats.
     pub fn embed(&mut self, image: &RgbImage, face: &Face) -> Result<[f32; 128]> {

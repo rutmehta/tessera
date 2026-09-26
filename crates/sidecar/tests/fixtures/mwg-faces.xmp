@@ -1,0 +1,14 @@
+<r:RDF xmlns:r="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+ <r:Description xmlns:m="http://www.metadataworkinggroup.com/schemas/regions/" xmlns:a="http://ns.adobe.com/xmp/sType/Area#" xmlns:d="http://ns.adobe.com/xap/1.0/sType/Dimensions#" xmlns:custom="urn:custom">
+  <m:Regions><r:Description>
+   <m:AppliedToDimensions r:parseType="Resource" d:w="6000" d:h="4000" d:unit="pixel"/>
+   <custom:keep> region metadata </custom:keep>
+   <m:RegionList><r:Bag>
+    <r:li r:parseType="Resource" m:Type="Pet" m:Name="Cat"><custom:payload/></r:li>
+    <r:li><r:Description m:Name="Ada &amp; Bob" m:Type="Face">
+     <m:Area><r:Description><a:x>0.4</a:x><a:y>0.3</a:y><a:w>0.2</a:w><a:h>0.1</a:h><a:unit>normalized</a:unit></r:Description></m:Area>
+    </r:Description></r:li>
+   </r:Bag></m:RegionList>
+  </r:Description></m:Regions>
+ </r:Description>
+</r:RDF>

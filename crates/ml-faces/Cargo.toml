@@ -6,6 +6,7 @@ license = "Apache-2.0"
 
 [dependencies]
 anyhow.workspace = true
+hdbscan = "0.12.0"
 image.workspace = true
 ort = { workspace = true, features = ["coreml"] }
 ml-runtime = { path = "../ml-runtime" }

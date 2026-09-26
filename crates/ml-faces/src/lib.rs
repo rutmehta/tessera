@@ -2,6 +2,7 @@
 use anyhow::{Result, ensure};
 mod geometry;
 mod models;
+pub mod people;
 mod scorer;
 mod strip;
 pub use geometry::{FaceSignals, Letterbox, align_crop, face_signals, letterbox, nms};
@@ -18,40 +19,11 @@ pub struct Face {
     pub score: f32,
 }
 
-/// Deterministic complete-link cosine clustering; entries are input ordinals.
-pub fn cluster(embeddings: &[[f32; 128]], threshold: f32) -> Result<Vec<Vec<usize>>> {
-    ensure!(
-        (-1.0..=1.0).contains(&threshold),
-        "invalid cosine threshold"
-    );
-    let unit = embeddings
-        .iter()
-        .map(normalize)
-        .collect::<Result<Vec<_>>>()?;
-    let mut groups: Vec<Vec<usize>> = (0..unit.len()).map(|i| vec![i]).collect();
-    loop {
-        let mut best = None;
-        let mut best_similarity = f32::NEG_INFINITY;
-        for a in 0..groups.len() {
-            for b in a + 1..groups.len() {
-                let similarity = groups[a]
-                    .iter()
-                    .flat_map(|&i| groups[b].iter().map(move |&j| (i, j)))
-                    .map(|(i, j)| unit[i].iter().zip(unit[j]).map(|(x, y)| x * y).sum::<f32>())
-                    .fold(1.0, f32::min);
-                if similarity >= threshold && similarity > best_similarity {
-                    best = Some((a, b));
-                    best_similarity = similarity;
-                }
-            }
-        }
-        let Some((a, b)) = best else { break };
-        let members = groups.remove(b);
-        groups[a].extend(members);
-        groups[a].sort_unstable();
-    }
-    Ok(groups)
-}
+mod clustering;
+pub use clustering::{
+    ClusterResult, FaceCluster, FaceQuality, MedoidMatch, QualityGate, cluster, cluster_eligible,
+    cluster_with_medoids, nearest_medoid,
+};
 
 fn normalize(input: &[f32; 128]) -> Result<[f32; 128]> {
     ensure!(input.iter().all(|v| v.is_finite()), "nonfinite descriptor");
