@@ -790,5 +790,13 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M5-10",
+    "owner": "astra",
+    "title": "Wire brush/selection into executor",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
