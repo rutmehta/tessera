@@ -4231,6 +4231,7 @@ dependencies = [
  "cull",
  "engine-api",
  "export",
+ "filters",
  "gpu-core",
  "half",
  "image",

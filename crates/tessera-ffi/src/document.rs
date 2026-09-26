@@ -41,6 +41,10 @@
 mod io;
 #[path = "document/render.rs"]
 mod render;
+// Filters, Image ▸ Adjustments and smart filters (WP M5-12).
+#[path = "document/filters.rs"]
+mod filtering;
+pub use filtering::{FilterDetail, FilterInfo, SmartFilterEdit, SmartFilterRecord, list_filters};
 
 use crate::{Engine, Result, failure, surface::Surface};
 use compositor::{
@@ -683,6 +687,8 @@ pub(crate) struct Shared {
     state: Mutex<State>,
     render: render::Renderer,
     listener: Mutex<Option<Arc<dyn DocumentListener>>>,
+    /// Filter previews and smart filter bakes (WP M5-12).
+    filters: filtering::FilterState,
 }
 
 impl Shared {
@@ -897,6 +903,7 @@ impl DocumentSession {
             }),
             render: render::Renderer::new(gpu),
             listener: Mutex::new(None),
+            filters: Default::default(),
         });
         let worker = {
             let shared = shared.clone();
@@ -917,6 +924,7 @@ impl DocumentSession {
             st.view.surfaces.clear();
         }
         self.shared.render.stop();
+        self.shared.filters.stop();
         if let Some(w) = self.worker.lock().ok().and_then(|mut w| w.take())
             && w.thread().id() != std::thread::current().id()
         {
@@ -1867,6 +1875,7 @@ impl DocumentSession {
             st.open()?;
             st.live().clone()
         };
+        let doc = filtering::for_output(doc)?;
         io::export_flat(&doc, std::path::Path::new(&path), format, quality, color)
     }
 
