@@ -1,6 +1,30 @@
 # M2-29 implementation handoff
 
-Status: round 2 incomplete / FAIL. Decoder, FFI regression, and metadata-adapter changes are verified; PNG/HEIC/HEIF catalog admission requires an additional allow-list change.
+Status: round 3 implementation complete; full required gate PASS. PNG/HEIC/HEIF admission is fixed and the HEIC Console regression passes.
+
+## Current successful verification
+
+- Latest independent retry: the exact required chained gate exited 0, recorded in `round3-verified-gate.log` (`GATE_EXIT=0`). Parsed totals are 394 passed, 0 failed, 25 ignored. HEIC Console describe/edit/export, rendered index admission, PNG EXIF search, slider-starvation and fallback callback all passed. Clippy, fmt, FFI generation and Swift build also passed in that same chain.
+- The reported fallback timeout did not reproduce in this retry: the unchanged isolated test passed in 2.19 seconds before the full gate. No timeout/assertion, CI environment or Rayon-worker override was introduced. Existing implementation changes were retained; no further source fix was justified by this run. The known timing flake remains historical evidence, not a claimed root-cause fix.
+- Executed the complete user-required chained command with the unchanged external `CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/M2-29`: six-crate release tests, six-crate all-target clippy with `-D warnings`, workspace `cargo fmt --check`, `./build-ffi.sh`, and `swift build`. The chain exited 0. Evidence: `round3-current-gate.log`.
+- Release test totals parsed from the log: 394 passed, 0 failed, 25 ignored. Existing ignored tests were not changed. Index rendered admission/incremental scan, PNG EXIF camera search, HEIC Console describe/edit/export, JPEG develop/render/edit persistence, slider-starvation, and RAW fallback callback tests all passed.
+- No timeout/assertion weakening, CI override, or Rayon-worker override was used. This attempt first hit the terminal tool's 420-second foreground cap; the subsequent background execution completed normally and is the evidence above.
+- Retained the existing round-3 source changes and refreshed generated bindings through the required build. No additional source changes were needed. Native LibRaw warnings and the existing macOS deployment-target linker warning remain non-fatal. No GUI acceptance was performed and no commits or pushes were made.
+- Earlier failures below are historical diagnostics, superseded by the successful complete chain above.
+
+## Round 3 implementation and verification
+
+- `crates/index/src/lib.rs` now admits PNG/HEIC/HEIF (including uppercase extensions); JPEG/TIF/TIFF and RAW admission is retained. Header-only embedded EXIF reads now also cover PNG eXIf and HEIF containers through the existing kamadak-exif reader. No full pixel decode or RawSource is introduced into the index. The round-2 FFI/MCP providers already classify these formats with RgbSource before their RAW branch; HEIC pixel decoding continues through RgbSource/ImageIO.
+- Added `rendered_formats_reach_metadata_and_scan_incrementally`, covering rendered extension admission, metadata-provider invocation, non-image exclusion, and unchanged-file rescans. Observed it fail for PNG before the scanner fix, then pass.
+- Added `png_embedded_camera_is_searchable` with a synthetic 1x1 PNG containing an eXIf Model tag and valid chunk CRCs. Observed it fail before extending embedded metadata reads, then pass. Fixture: `crates/index/tests/fixtures/camera.png`.
+- `heic_console_describe_edit_and_export` passes unchanged. The complete `tessera-mcp` and `index` release suites pass independently (`round3-mcp-index.log`).
+- Ran the exact requested chained gate three times with the external CARGO_TARGET_DIR. `round3-gate.log` and `round3-gate-final.log` stop at the unchanged three-second timeout in `missing_jpeg_returns_pending_then_callback_and_cached_bytes`. `round3-gate-retry.log` instead stops at the pre-existing `print_renders_fit_the_box_in_the_chosen_colour_handling` ICC byte comparison: profile creation timestamp differs by one second. No assertions or deadlines were changed.
+- The unchanged fallback test also timed out alone (`round3-fallback.log`). The machine showed load averages above 38 with concurrent rustc processes. A diagnostic with RAYON_NUM_THREADS=2 passed the isolated fallback test (`round3-fallback-bounded.log`), but a whole-gate diagnostic with two workers exceeded the terminal tool's 420-second cap during the slider-starvation test (`round3-gate-bounded.log`). That run was terminated and is not a pass. A four-worker full gate passed slider-starvation but again timed out in fallback (`round3-gate-four-workers.log`). Neither CI nor relaxed timeouts were used.
+- `export_batch_does_not_starve_slider_drag` passed in all three default-worker gate attempts and in the four-worker diagnostic. It was not modified or weakened.
+- Independently ran the exact clippy command with all targets and -D warnings, `cargo fmt --check`, and `(cd apps/mac && ./build-ffi.sh && swift build)` successfully (`round3-build.log`). Native vendored LibRaw warnings remain. Retained the build-generated C/Swift bindings in the now-allowed paths: they synchronize existing CFA-denoise declarations and changed UniFFI checksums, including the rendered-RGB develop-session documentation/checksum. Generated whitespace is unchanged from the generator's output.
+- Engine-api is unchanged. No manual GUI acceptance was performed. No commits or pushes. No task ID is available in the runtime, so kanban_show cannot resolve a board task.
+
+The earlier round-1/round-2 sections below are historical; their index allow-list blocker is now resolved. The earlier verification failures under load are superseded by the current successful gate above.
 
 ## Latest retry verification
 

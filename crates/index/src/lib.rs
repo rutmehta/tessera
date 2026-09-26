@@ -610,7 +610,9 @@ fn basic_metadata(path: &Path) -> Result<Metadata> {
         .and_then(|x| x.to_str())
         .unwrap_or("")
         .to_ascii_lowercase();
-    if !["jpg", "jpeg", "tif", "tiff", "dng"].contains(&ext.as_str()) {
+    // Read rendered containers directly, without decoding pixels or invoking LibRaw.
+    // kamadak-exif supports PNG eXIf and HEIF containers as well as JPEG/TIFF.
+    if !["jpg", "jpeg", "png", "heic", "heif", "tif", "tiff", "dng"].contains(&ext.as_str()) {
         return Ok(Metadata::default());
     }
     let file = std::fs::File::open(path)?;
@@ -803,6 +805,9 @@ fn is_image(path: &Path) -> bool {
             .as_str(),
         "jpg"
             | "jpeg"
+            | "png"
+            | "heic"
+            | "heif"
             | "tif"
             | "tiff"
             | "dng"
