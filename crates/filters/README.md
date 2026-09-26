@@ -23,7 +23,7 @@ Adjustment variants are externally tagged snake_case; unit variants use a
 string, e.g. `{"adjust": "invert"}`. Distortion parameters are nested under
 `distort` and retain their documented standalone defaults.
 
-### Camera Raw (M5-25, partial resident coverage)
+### Camera Raw (M5-28, exact CPU Develop memo; bounded resident coverage)
 
 Default feature `camera-raw-filter` enables `camera_raw`. Parameters are
 `{"settings": <engine_api::recipe::DevelopSettings JSON>, "amount": 1.0}`.
@@ -43,14 +43,35 @@ profiles error instead of falling back to sRGB. Alpha is preserved, including
 transparent pixels with nonzero RGB. Amount interpolates developed RGB against
 the original in the document space. Zero amount is an exact CPU COW identity.
 
-CPU evaluation uses `pipeline_cpu::render_linear_scaled(RenderSource::Rgb)`:
-no CFA stage or display transform, with shared WB/CAT, detail, tone/presence,
-curves, HSL/grading, procedural locals, lens, effects and geometry operators.
-The RGB source starts after demosaic. Geometry output is placed at the canvas
-origin, clipped/padded black to retain input extent; alpha stays unchanged.
-CPU tests compare the same decoded PNG developed by image-core, in sRGB and
-Display P3. This adapter has no internal image-core stage memo cache; compositor
-stack caches include context identity and cache filter outputs.
+CPU evaluation uses `image_core::Renderer::render_rgb_linear`, a native RGB
+Develop entry point with persistent **f32** stage checkpoints. It does not use
+`run_m2` or its f16 upstream cache. Lens analysis/CA/defringe, WB plus profile
+and manual vignette gains, Detail, Tone/presence/curves, Color, Locals, Effects
+and composed lens/Geometry run in reference order. The public resolved CPU
+optics entry point supplies the private lens operators with neutral creative
+settings; detail, tone, colour and effects use image-core StageOp dispatch.
+The final warp uses the calibration resolved from the original pixels, never
+re-estimates a lens from developed pixels. Geometry output is placed at the
+canvas origin, clipped/padded black to retain input extent; alpha is unchanged.
+
+The adapter shares a 256 MiB payload LRU, capped at 64 checkpoints. Entries own
+exact f32 planes and the small RGB calibration. Image-core exposes the same
+configurable cache through Renderer; it is separate from its legacy tile cache.
+Source identity hashes exact input bits, every tile revision, dimensions and
+colour/level/canvas context because FilterContext has no layer ID. This permits
+safe reuse between identical layer inputs and invalidates same-revision pixel
+changes. Image-core callers must supply an immutable image ID plus revision.
+Stage keys chain source identity and upstream settings. WB changes retain lens
+analysis/alignment, colour changes retain Detail/Tone, and crop changes also
+invalidate crop-anchored Effects. Lookup starts at the latest retained stage,
+so evicted ancestors are not rebuilt for a cached descendant. Amount changes
+reuse Develop; zero amount is an exact COW identity. Oversize checkpoints are
+not retained. The budget bounds retained payload, not in-flight full-frame
+scratch or output held by callers; evaluations sharing this CPU cache serialize.
+
+CPU tests compare identical in-memory pixels with the image-core renderer and
+with the independent scalar reference, including optics, signed/HDR samples,
+profiles, alpha, slider edits, revisions, eviction and exact warm/cold results.
 
 The resident evaluator uses the same device/queue and pipeline-gpu resident
 operators, never a CPU readback/re-upload. It supports WB, detail, tone,
@@ -65,12 +86,30 @@ point/detail operators are row-tiled with real halos, including 24MP frames.
 As in the CPU engine, local moire is a validated no-op and local defringe/color
 overlay are errors. AI/depth inputs are not fabricated.
 
-The evaluator still declines automatic lens/CA analysis (including the default
-Auto settings), defringe, Upright/orientation/constrain-crop and lens blur.
-Select `lens.profile="none"` and `lens.remove_chromatic_aberration=false`
-for supported resident recipes. The compositor's established fallback policy
-then determines CPU evaluation; the GPU entry point itself errors on unsupported
-settings. This is **not yet the full resident Develop chain required by M5-25**.
+The following exclusions are intentional in this adapter's resident capability
+contract. They return a capability miss or an explicit engine error; they are
+never silently treated as identity. The compositor controls CPU fallback.
+This documents bounded coverage, **not completion of the full resident M5-25
+chain**. Select `lens.profile={"kind":"none"}` and
+`lens.remove_chromatic_aberration=false` for resident recipes.
+
+| Control | Reason and CPU behavior |
+| --- | --- |
+| Lens Auto / AutoCalibrated, automatic CA (including profile None + CA enabled) | **GPU engineering gap, valid on RGB.** The existing image-derived line/edge fitting and CA estimator consume CPU pixels. Porting those estimators requires resident analysis kernels, not a fake identity calibration or hidden readback. CPU runs the actual estimators and caches their result. Distortion/vignetting/CA scale controls work on CPU with that calibration. |
+| Embedded lens profile | **Missing source data at this boundary.** Flattened RGBA carries no sensor opcodes/calibration. CPU errors when embedded calibration is requested but absent. RGB itself could carry metadata in a richer host interface. |
+| Named database lens profile | **Missing host binding.** FilterContext supplies ICC, not lens database/capture metadata. Neither adapter invents a profile; CPU errors for an unsupplied named profile. |
+| Purple/green defringe, including hue ranges | **GPU engineering gap, valid on RGB.** Edge-dependent hue suppression must precede WB; the resident lens planner rejects it. CPU supports it. |
+| Upright Auto/Level/Vertical/Full/Guided and guides | **GPU engineering gap, valid on RGB.** Analysis/guided fitting and the composed inverse map are not exposed by the resident optics planner. CPU uses its supported Upright implementation. |
+| Geometry orientation, constrain-crop | **Shared engine engineering gaps, not RGB limitations.** Both the CPU geometry implementation and resident planner reject these settings. Input file EXIF orientation is consumed at decode; this does not make an explicit recipe orientation a no-op. |
+| Lens softness correction | **Shared engine engineering gap.** No PSF correction implementation; explicit error on both backends. |
+| Lens blur, all focus/bokeh/model controls | **Missing depth/host interface plus integration gap.** An RGB image alone does not supply aligned depth; this adapter accepts no depth plane and does not run inference. Existing CPU/GPU depth-layer blur operators could support RGB given that input; engine schema validation rejects this effect here. |
+| AI/depth local masks | **Missing host-supplied segmentation/depth.** No fabricated masks or model downloads; explicitly rejected. |
+| Local defringe/color overlay; local moire | Defringe/overlay are shared operator gaps and error; moire is the shared validated no-op. These are not described as RGB impossibilities. |
+| WB Auto | Shared engine estimator gap; execution errors. Presets and Custom are supported. |
+| Point colors, LUT/style, retouch, nondefault camera profiles, unsupported display transforms | Shared native engine/host-resource gaps; schema validation rejects changed unsupported controls rather than approximating them. |
+| Raw denoise, demosaic, highlight reconstruction | **RGB source limitation.** There is no CFA or pre-demosaic signal. Valid raw-domain recipe settings are retained but skipped, matching the RGB Develop reference; unsupported engine settings still fail validation. |
+| Output HDR/proof/export controls | This filter returns document-linear RGB, before output encoding. Unsupported changed output controls fail shared validation; it does not apply a display/export transform inside a layer. |
+
 Whole-frame buffers must fit device storage limits; the manual optics bridge
 additionally retains the existing less-than-2^24-pixel operator limit. It is not
 a constant-memory streaming implementation.

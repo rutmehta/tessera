@@ -1379,7 +1379,8 @@ fn export_adjustment(a: &crate::Adjustment, layer: &mut ::psd::Layer) -> EngineR
         | A::Auto { .. }
         | A::MatchColor { .. }
         | A::ReplaceColor { .. }
-        | A::ShadowsHighlights { .. } => {
+        | A::ShadowsHighlights { .. }
+        | A::HdrToning { .. } => {
             return Err(error(
                 "adjustment is native-only; genuine PSD encoding is not implemented",
             ));

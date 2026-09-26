@@ -263,3 +263,91 @@ fn stack_parameter_edit_undo_and_native_roundtrip() {
         first
     );
 }
+
+#[test]
+fn in_memory_develop_slider_source_context_and_hdr_parity() {
+    use engine_api::{jobs::CancellationToken, tile::Extent};
+    let extent = Extent::new(29, 19);
+    let mut input = Raster::new(extent, 4, Depth::F32, 0.);
+    input
+        .edit_region(Rect::of_extent(extent), 7, |x, y, p| {
+            *p = [
+                x as f32 / 9. - 0.3,
+                y as f32 / 7.,
+                ((x + y) % 11) as f32 / 5.,
+                (x % 4) as f32 / 3.,
+            ];
+        })
+        .unwrap();
+    let mut s = settings();
+    s.lens.manual_distortion = 9.;
+    s.lens.manual_vignetting = 11.;
+    s.geometry.crop.rect.right = 0.8;
+    for builtin in [Builtin::Srgb, Builtin::DisplayP3] {
+        let profile = Registry::new().builtin(builtin).unwrap();
+        let context = FilterContext {
+            profile: Some(ColorProfile::from_icc(
+                "working",
+                profile.icc_bytes().to_vec(),
+            )),
+            level: 2,
+            canvas: Extent::new(116, 76),
+        };
+        for edit in 0..3 {
+            s.tone.exposure = edit as f32 * 0.25;
+            if edit == 2 {
+                // Same revision, different pixels must not hit stale stages.
+                input
+                    .edit_region(Rect::of_extent(extent), 7, |_, _, p| p[0] += 0.05)
+                    .unwrap();
+            }
+            let (forward, backward) = camera_raw::profile_matrices(&context).unwrap();
+            let mut planes = vec![Vec::new(); 3];
+            for y in 0..extent.height {
+                for x in 0..extent.width {
+                    let p = input.pixel(x, y);
+                    let rgb = forward.apply([p[0] as f64, p[1] as f64, p[2] as f64]);
+                    for c in 0..3 {
+                        planes[c].push(rgb[c] as f32);
+                    }
+                }
+            }
+            let pixels = pipeline_cpu::Image::new(extent.width, extent.height, planes).unwrap();
+            let src = RawImage::from_rgb(
+                ImageId(88),
+                image_core::RgbSource::from_linear_rec2020(pixels).unwrap(),
+            )
+            .unwrap();
+            let renderer = Renderer::new(RendererConfig {
+                cache_budget_bytes: 0,
+                ..Default::default()
+            });
+            let golden = renderer
+                .render_rgb_linear(&src, 0, &s, &CancellationToken::new())
+                .unwrap();
+            let params = node(&s, Some(0.63)).params;
+            let cold = camera_raw::evaluate(&input, &params, &context).unwrap();
+            let warm = camera_raw::evaluate(&input, &params, &context).unwrap();
+            for y in 0..extent.height {
+                for x in 0..extent.width {
+                    let before = input.pixel(x, y);
+                    let actual = cold.pixel(x, y);
+                    assert_eq!(actual, warm.pixel(x, y));
+                    assert_eq!(actual[3].to_bits(), before[3].to_bits());
+                    let expected = if x < golden.width() && y < golden.height() {
+                        let i = (y * golden.width() + x) as usize;
+                        backward.apply(std::array::from_fn(|c| golden.planes()[c][i] as f64))
+                    } else {
+                        [0.; 3]
+                    };
+                    for c in 0..3 {
+                        assert_eq!(
+                            actual[c],
+                            before[c] + 0.63 * (expected[c] as f32 - before[c])
+                        );
+                    }
+                }
+            }
+        }
+    }
+}

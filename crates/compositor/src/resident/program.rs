@@ -492,9 +492,6 @@ impl Compiler<'_> {
             }
             Adjustment::ShadowsHighlights { settings: a } => {
                 a.validate()?;
-                if a.needs_neighbourhood() {
-                    return Err(EngineError::Unsupported {what:"resident ShadowsHighlights needs a real backdrop halo; use Compositor::render_tile_with_neighbourhood CPU fallback".into()});
-                }
                 s.adj = 20;
                 s.p[0] = [
                     a.shadows_amount,
@@ -504,6 +501,48 @@ impl Compiler<'_> {
                 ];
                 s.p[1] = [a.color, a.midtone, a.black_clip, a.white_clip];
                 s.p[2][0] = if a.is_identity() { 1.0 } else { 0.0 };
+                if a.needs_neighbourhood() {
+                    s.p[2][1] = if a.shadows_amount != 0.0 {
+                        a.shadows_radius
+                    } else {
+                        0.0
+                    };
+                    s.p[2][2] = if a.highlights_amount != 0.0 {
+                        a.highlights_radius
+                    } else {
+                        0.0
+                    };
+                }
+            }
+            Adjustment::HdrToning { settings: a } => {
+                use crate::adjust::hdr::HdrMethod;
+                s.adj = 21;
+                s.aux = self.aux_offset();
+                let curve = a.curve_lut();
+                s.p[0] = [
+                    match a.method {
+                        HdrMethod::LocalAdaptation => 0.0,
+                        HdrMethod::EqualizeHistogram => 1.0,
+                        HdrMethod::ExposureGamma => 2.0,
+                        HdrMethod::HighlightCompression => 3.0,
+                    },
+                    a.strength,
+                    a.gamma,
+                    2.0f32.powf(a.exposure),
+                ];
+                s.p[1] = [a.detail, a.shadows, a.highlights, a.vibrance];
+                s.p[2] = [a.saturation, a.equalize_max, curve.len() as f32, 0.0];
+                s.aux_n = u32::try_from(a.equalize_map.len()).map_err(|_| {
+                    EngineError::invalid("hdr_toning", "histogram length exceeds u32")
+                })?;
+                self.p.aux.extend_from_slice(&curve);
+                self.p.aux.extend_from_slice(&a.equalize_map);
+                s._g[0] = if a.needs_neighbourhood() {
+                    a.radius
+                } else {
+                    0.0
+                };
+                s._g[1] = if a.is_identity() { 1.0 } else { 0.0 };
             }
             Adjustment::Desaturate => s.adj = 7,
             Adjustment::SelectiveColor { colors, absolute } => {
@@ -646,5 +685,24 @@ impl Compiler<'_> {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod spatial_tests {
+    use super::*;
+    #[test]
+    fn compiles_positive_radius() {
+        let layer = Layer::new(
+            "local",
+            LayerKind::Adjustment(Adjustment::ShadowsHighlights {
+                settings: crate::adjust::shadows::ShadowsHighlights {
+                    shadows_amount: 0.7,
+                    shadows_radius: 5.0,
+                    ..Default::default()
+                },
+            }),
+        );
+        assert!(Program::compile(&[Arc::new(layer)], 1).is_ok());
     }
 }

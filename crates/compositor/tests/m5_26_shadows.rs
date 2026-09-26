@@ -108,9 +108,7 @@ fn live_neighbourhood_matches_whole_backdrop_at_l0_l2_seams() {
     .unwrap();
     for (level, e, expected) in references {
         for tx in 0..e.width.div_ceil(256) {
-            let tile = comp
-                .render_tile_with_neighbourhood(&d, TileCoord::new(level, tx, 0))
-                .unwrap();
+            let tile = comp.render_tile(&d, TileCoord::new(level, tx, 0)).unwrap();
             let p = tile.samples::<f32>().unwrap();
             let w = tile.layout().extent.width as usize;
             let n = tile.layout().plane_len();
@@ -209,6 +207,7 @@ fn live_prefixes_preserve_groups_clips_and_refresh_after_adjacent_edits() {
                 .unwrap();
             }
             let comp = Compositor::new(1 << 24);
+            let cached = Compositor::new(1 << 24);
             let mut previous = None;
             for value in [0.3, 0.15, 0.35] {
                 let op = compositor::edit::paint_op(
@@ -238,6 +237,8 @@ fn live_prefixes_preserve_groups_clips_and_refresh_after_adjacent_edits() {
                     .render_tile_with_neighbourhood(&d, TileCoord::new(level, 0, 0))
                     .unwrap();
                 let p = tile.samples::<f32>().unwrap();
+                let cached_tile = cached.render_tile(&d, TileCoord::new(level, 0, 0)).unwrap();
+                assert_eq!(cached_tile.samples::<f32>().unwrap(), p);
                 for x in 0..256 {
                     let expected = if kind == 1 || kind == 2 {
                         0.8 + 0.5 * (image[x][0] - 0.8)
@@ -331,7 +332,7 @@ fn live_neighbourhood_rejects_eager_styled_sources() {
 }
 
 #[test]
-fn neighborhood_render_is_explicitly_unsupported_not_pointwise_or_panicking() {
+fn cached_neighborhood_render_matches_live_reference() {
     let d = document(
         ShadowsHighlights {
             shadows_amount: 0.5,
@@ -339,10 +340,14 @@ fn neighborhood_render_is_explicitly_unsupported_not_pointwise_or_panicking() {
         },
         1.0,
     );
-    let error = Compositor::new(1 << 20)
-        .render_tile(&d, TileCoord::new(0, 0, 0))
-        .unwrap_err();
-    assert!(matches!(error, engine_api::EngineError::Unsupported { .. }));
+    let comp = Compositor::new(1 << 20);
+    let coord = TileCoord::new(0, 0, 0);
+    let expected = comp.render_tile_with_neighbourhood(&d, coord).unwrap();
+    let actual = comp.render_tile(&d, coord).unwrap();
+    assert_eq!(
+        actual.samples::<f32>().unwrap(),
+        expected.samples::<f32>().unwrap()
+    );
 }
 
 #[test]
@@ -555,4 +560,65 @@ fn default_is_exact_identity_and_roundtrips() {
         s
     );
     assert!(!s.needs_neighbourhood());
+}
+
+#[test]
+fn native_separable_bilateral_reference_and_edge_preservation() {
+    // Independent two-pass reference. This asymmetric fixture distinguishes
+    // horizontal-then-vertical bilateral from the previous direct 2D operator.
+    let mut pixels = [[0.0; 4]; 25];
+    for (i, p) in pixels.iter_mut().enumerate() {
+        let l = 0.05 + ((i * 7) % 13) as f32 * 0.04;
+        *p = [l, l, l, if i % 7 == 0 { 0.0 } else { 0.8 }];
+    }
+    let tap = |values: &[f32], x: usize, y: usize, vertical: bool| {
+        let center = values[y * 5 + x];
+        let mut sum = 0.0;
+        let mut weights = 0.0;
+        for d in -1isize..=1 {
+            let xx = (x as isize + if vertical { 0 } else { d }).clamp(0, 4) as usize;
+            let yy = (y as isize + if vertical { d } else { 0 }).clamp(0, 4) as usize;
+            let j = yy * 5 + xx;
+            let w =
+                (-(d * d) as f32 / 0.5 - (values[j] - center).powi(2) / 0.045).exp() * pixels[j][3];
+            sum += w * values[j];
+            weights += w;
+        }
+        if weights > 0.0 { sum / weights } else { center }
+    };
+    let luma: Vec<_> = pixels
+        .iter()
+        .map(|p| 0.2126 * p[0] + 0.7152 * p[1] + 0.0722 * p[2])
+        .collect();
+    let h: Vec<_> = (0..25).map(|i| tap(&luma, i % 5, i / 5, false)).collect();
+    let base = tap(&h, 2, 2, true);
+    let settings = ShadowsHighlights {
+        shadows_amount: 1.0,
+        shadows_tone: 1.0,
+        shadows_radius: 1.0,
+        ..Default::default()
+    };
+    let actual = settings
+        .apply_padded(&pixels, 5, 5, [2, 2, 3, 3], 0)
+        .unwrap()[0];
+    let t = 1.0 - base;
+    let expected = luma[12] + 0.5 * t * t * (3.0 - 2.0 * t) * (1.0 - luma[12]);
+    assert!(
+        (actual[0] - expected).abs() < 1e-6,
+        "{} != {}",
+        actual[0],
+        expected
+    );
+    let edge: Vec<_> = (0..49)
+        .map(|i| {
+            let l = if i % 7 < 3 { 0.0 } else { 1.0 };
+            [l, l, l, 1.0]
+        })
+        .collect();
+    let mapped = settings.apply_padded(&edge, 7, 7, [2, 3, 4, 4], 0).unwrap();
+    assert!(
+        (mapped[0][0] - 0.5).abs() < 1e-6,
+        "bilateral must preserve dark side of a hard edge"
+    );
+    assert!((mapped[1][0] - 1.0).abs() < 1e-6);
 }

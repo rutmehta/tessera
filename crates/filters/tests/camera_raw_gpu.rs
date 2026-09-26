@@ -408,3 +408,38 @@ fn capability_rejects_pixel_analysis_and_unported_barriers() {
         });
     assert!(camera_raw_gpu::supports(&json!({"settings": settings})).unwrap());
 }
+
+#[test]
+fn documented_rgb_exclusions_remain_explicit() {
+    // These are engineering gaps on RGB, not missing CFA data.
+    let base = serde_json::to_value(resident_settings()).unwrap();
+    for (pointer, value) in [
+        ("/lens/profile", json!({"kind":"auto"})),
+        ("/lens/profile", json!({"kind":"auto_calibrated"})),
+        ("/lens/remove_chromatic_aberration", json!(true)),
+        ("/lens/defringe_purple/amount", json!(20)),
+        ("/lens/defringe_green/amount", json!(20)),
+        ("/geometry/orientation", json!(6)),
+        ("/geometry/constrain_crop", json!(true)),
+        ("/geometry/upright/mode", json!("auto")),
+    ] {
+        let mut settings = base.clone();
+        *settings.pointer_mut(pointer).unwrap() = value;
+        assert!(
+            !camera_raw_gpu::supports(&json!({"settings": settings})).unwrap(),
+            "{pointer}"
+        );
+    }
+    // No supplied depth/profile/model binding: engine rejects these controls.
+    for (pointer, value) in [
+        ("/effects/lens_blur", json!({"amount": 20})),
+        ("/lens/softness_correction", json!(10)),
+    ] {
+        let mut settings = base.clone();
+        *settings.pointer_mut(pointer).unwrap() = value;
+        assert!(
+            camera_raw_gpu::supports(&json!({"settings": settings})).is_err(),
+            "{pointer}"
+        );
+    }
+}

@@ -213,11 +213,45 @@ fn extended_adjustment(k: u32, c: vec3<f32>, position: vec2<u32>) -> vec3<f32> {
             if(steps[k].p[2].x!=0.0){return c;}
             let a=steps[k].p[0];let b=steps[k].p[1];
             let l=0.2126*c.x+0.7152*c.y+0.0722*c.z;
-            let shadow=adj_membership(l,a.y);let highlight=adj_membership(1.0-l,a.w);
+            var ls=l;var lh=l;
+            let index=position.y*frame.lw+position.x;
+            if(steps[k].u.z!=0u){ls=aux[steps[k].u.z+index];}
+            if(steps[k].u.w!=0u){lh=aux[steps[k].u.w+index];}
+            let shadow=adj_membership(ls,a.y);let highlight=adj_membership(1.0-lh,a.w);
             var mapped=l+0.5*a.x*shadow*max(1.0-l,0.0)-0.5*a.z*highlight*max(l,0.0);
             let t=clamp(mapped,0.0,1.0);mapped=mapped+b.y*(t-0.5)*4.0*t*(1.0-t);
             let span=1.0-b.z-b.w;
             return clamp(pdiv3(vec3<f32>(mapped)+(c-vec3<f32>(l))*(1.0+b.x)-vec3<f32>(b.z),vec3<f32>(span)),vec3<f32>(0.0),vec3<f32>(1.0));
+        }
+        case 21u: {
+            if(steps[k].g.z!=0.0){return c;}
+            let a=steps[k].p[0];let b=steps[k].p[1];let d=steps[k].p[2];
+            let l=max(0.2126*c.x+0.7152*c.y+0.0722*c.z,0.0);
+            if(a.x==2.0){
+                var v=max(c*a.w,vec3<f32>(0.0));
+                if(a.z!=1.0){v=pow(v,vec3<f32>(pdiv(1.0,a.z)));}
+                return clamp(v,vec3<f32>(0.0),vec3<f32>(1.0));
+            }
+            if(a.x==3.0){return clamp(pdiv3(c,vec3<f32>(1.0+l)),vec3<f32>(0.0),vec3<f32>(1.0));}
+            if(a.x==1.0){
+                let mapped=adj_lut(steps[k].t.w+u32(d.z),steps[k].u.x,clamp(pdiv(l,d.y),0.0,1.0));
+                var scale=0.0;if(l>1e-8){scale=pdiv(mapped,l);}
+                return clamp(c*scale,vec3<f32>(0.0),vec3<f32>(1.0));
+            }
+            var base=l;
+            if(steps[k].u.z!=0u){base=max(aux[steps[k].u.z+position.y*frame.lw+position.x],0.0);}
+            var mapped=max(pdiv(base,1.0+a.y*base)+(l-base)*(1.0+b.x),0.0)*a.w;
+            if(a.z!=1.0){mapped=pow(mapped,pdiv(1.0,a.z));}
+            let t=clamp(mapped,0.0,1.0);
+            let sw0=clamp(1.0-2.0*t,0.0,1.0);let hw0=clamp(2.0*t-1.0,0.0,1.0);
+            let sw=sw0*sw0*(3.0-2.0*sw0);let hw=hw0*hw0*(3.0-2.0*hw0);
+            mapped=mapped+0.5*b.y*sw*(1.0-t)-0.5*b.z*hw*t;
+            mapped=clamp(adj_lut(steps[k].t.w,u32(d.z),mapped),0.0,1.0);
+            let maximum=max(max(c.x,c.y),c.z);let minimum=min(min(c.x,c.y),c.z);
+            var sat=0.0;if(maximum>1e-8){sat=clamp(pdiv(maximum-minimum,maximum),0.0,1.0);}
+            let chroma=(1.0+d.x)*(1.0+b.w*(1.0-sat));
+            var scale=0.0;if(l>1e-8){scale=pdiv(mapped,l);}
+            return clamp(vec3<f32>(mapped)+(c-vec3<f32>(l))*scale*chroma,vec3<f32>(0.0),vec3<f32>(1.0));
         }
         case 14u: {
             let n=vec3<u32>(steps[k].p[0].xyz);let o=steps[k].t.w;
