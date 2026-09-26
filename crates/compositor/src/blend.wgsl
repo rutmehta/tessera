@@ -2,6 +2,17 @@
 // and src/render/pixel.rs exactly (same formulas, same op order); see
 // COMPOSITOR.md §2–3.
 
+// Every run-time f32 division goes through these. gpu_core's precise
+// pipelines compile them as metal::precise::divide (correctly rounded, as
+// on the CPU) while the rest of the shader may use relaxed maths.
+fn pdiv(a: f32, b: f32) -> f32 {
+    return a / b;
+}
+
+fn pdiv3(a: vec3<f32>, b: vec3<f32>) -> vec3<f32> {
+    return a / b;
+}
+
 fn lum(c: vec3<f32>) -> f32 {
     return 0.3 * c.x + 0.59 * c.y + 0.11 * c.z;
 }
@@ -13,11 +24,11 @@ fn clip_color(c: vec3<f32>) -> vec3<f32> {
     var o = c;
     if (n < 0.0) {
         let d = l - n;
-        if (d > 0.0) { o = vec3<f32>(l) + (o - vec3<f32>(l)) * l / d; } else { o = vec3<f32>(l); }
+        if (d > 0.0) { o = vec3<f32>(l) + pdiv3((o - vec3<f32>(l)) * l, vec3<f32>(d)); } else { o = vec3<f32>(l); }
     }
     if (x > 1.0) {
         let d = x - l;
-        if (d > 0.0) { o = vec3<f32>(l) + (o - vec3<f32>(l)) * (1.0 - l) / d; } else { o = vec3<f32>(l); }
+        if (d > 0.0) { o = vec3<f32>(l) + pdiv3((o - vec3<f32>(l)) * (1.0 - l), vec3<f32>(d)); } else { o = vec3<f32>(l); }
     }
     return o;
 }
@@ -35,19 +46,19 @@ fn set_sat(c: vec3<f32>, s: f32) -> vec3<f32> {
     let mx = max(max(c.x, c.y), c.z);
     let mn = min(min(c.x, c.y), c.z);
     let r = mx - mn;
-    if (r > 0.0) { return (c - vec3<f32>(mn)) * s / r; }
+    if (r > 0.0) { return pdiv3((c - vec3<f32>(mn)) * s, vec3<f32>(r)); }
     return vec3<f32>(0.0);
 }
 
 // Separable modes are evaluated on all three channels at once (one switch
 // per pixel); every component follows the scalar formula of blend.rs.
 fn color_burn(b: vec3<f32>, s: vec3<f32>) -> vec3<f32> {
-    let r = vec3<f32>(1.0) - min((vec3<f32>(1.0) - b) / s, vec3<f32>(1.0));
+    let r = vec3<f32>(1.0) - min(pdiv3(vec3<f32>(1.0) - b, s), vec3<f32>(1.0));
     return select(select(r, vec3<f32>(0.0), s <= vec3<f32>(0.0)), vec3<f32>(1.0), b >= vec3<f32>(1.0));
 }
 
 fn color_dodge(b: vec3<f32>, s: vec3<f32>) -> vec3<f32> {
-    let r = min(b / (vec3<f32>(1.0) - s), vec3<f32>(1.0));
+    let r = min(pdiv3(b, vec3<f32>(1.0) - s), vec3<f32>(1.0));
     return select(select(r, vec3<f32>(1.0), s >= vec3<f32>(1.0)), vec3<f32>(0.0), b <= vec3<f32>(0.0));
 }
 
@@ -89,7 +100,7 @@ fn blend_px(mode: u32, b: vec3<f32>, s: vec3<f32>) -> vec3<f32> {
         case 20u: { return b + s - 2.0 * b * s; }
         case 21u: { return max(b - s, zero); }
         case 22u: {
-            let q = min(b / s, one);
+            let q = min(pdiv3(b, s), one);
             return select(q, select(one, zero, b <= zero), s <= zero);
         }
         case 23u: { return set_lum(set_sat(s, sat(b)), lum(b)); }
@@ -103,11 +114,11 @@ fn blend_px(mode: u32, b: vec3<f32>, s: vec3<f32>) -> vec3<f32> {
 fn slider(v: f32, r: vec4<f32>) -> f32 {
     var lo = 1.0;
     if (r.y > 0.0 && v < r.y) {
-        if (v < r.x) { lo = 0.0; } else { lo = (v - r.x) / (r.y - r.x); }
+        if (v < r.x) { lo = 0.0; } else { lo = pdiv(v - r.x, r.y - r.x); }
     }
     var hi = 1.0;
     if (r.z < 1.0 && v > r.z) {
-        if (v > r.w) { hi = 0.0; } else { hi = (r.w - v) / (r.w - r.z); }
+        if (v > r.w) { hi = 0.0; } else { hi = pdiv(r.w - v, r.w - r.z); }
     }
     return min(lo, hi);
 }
@@ -131,7 +142,7 @@ fn dissolve_threshold(x: u32, y: u32, seed: u32) -> f32 {
 }
 
 fn unpremul(p: vec4<f32>) -> vec3<f32> {
-    if (p.w > 0.0) { return p.xyz * (1.0 / p.w); }
+    if (p.w > 0.0) { return p.xyz * pdiv(1.0, p.w); }
     return vec3<f32>(0.0);
 }
 

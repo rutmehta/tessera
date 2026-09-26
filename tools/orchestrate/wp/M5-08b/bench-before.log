@@ -1,0 +1,35 @@
+    Finished `release` profile [optimized] target(s) in 0.10s
+     Running tests/bench.rs (/Volumes/betterSSD/tessera-cache/target/M5-08/release/deps/bench-7d69129e3441e55c)
+
+running 1 test
+M5-08 adapter: Apple M4
+requested_specialization=false: first L0 1024.92 ms, compiled_pipelines=0
+specialized=false viewport_3840x2160=false: min=201.001 median=201.885 max=205.768 ms, blocks=77976
+L0 CPU gate specialized=false viewport=false: 5.570616e-3, worst (tile, planar sample, CPU, GPU)=Some((TileCoord { level: 0, x: 4, y: 8 }, 258, 0.0057057994, 0.00013518344))
+specialized=false viewport_3840x2160=true: min=83.310 median=83.656 max=84.590 ms, blocks=32400
+L0 CPU gate specialized=false viewport=true: 5.570616e-3, worst (tile, planar sample, CPU, GPU)=Some((TileCoord { level: 0, x: 4, y: 8 }, 258, 0.0057057994, 0.00013518344))
+requested_specialization=true: first L0 442.85 ms, compiled_pipelines=0
+specialized=true viewport_3840x2160=false: min=200.658 median=201.696 max=205.957 ms, blocks=77976
+L0 CPU gate specialized=true viewport=false: 5.570616e-3, worst (tile, planar sample, CPU, GPU)=Some((TileCoord { level: 0, x: 4, y: 8 }, 258, 0.0057057994, 0.00013518344))
+specialized=true viewport_3840x2160=true: min=83.529 median=83.986 max=86.359 ms, blocks=32400
+L0 CPU gate specialized=true viewport=true: 5.570616e-3, worst (tile, planar sample, CPU, GPU)=Some((TileCoord { level: 0, x: 4, y: 8 }, 258, 0.0057057994, 0.00013518344))
+
+thread 'm5_08_structure_and_viewport' (78198806) panicked at crates/compositor/tests/bench.rs:108:5:
+L0 CPU gate specialized=false viewport=false: 5.570616e-3
+L0 CPU gate specialized=false viewport=true: 5.570616e-3
+L0 CPU gate specialized=true viewport=false: 5.570616e-3
+performance viewport=false: 201.6955 ms
+L0 CPU gate specialized=true viewport=true: 5.570616e-3
+performance viewport=true: 83.986292 ms
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test m5_08_structure_and_viewport ... FAILED
+
+failures:
+
+failures:
+    m5_08_structure_and_viewport
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 14.09s
+
+error: test failed, to rerun pass `-p compositor --test bench`
+TESSERA_BENCH_ASSERT=1 cargo test -p compositor --release --test bench  --    7.48s user 1.50s system 62% cpu 14.277 total

@@ -21,10 +21,13 @@ fn m5_08_structure_and_viewport() {
         let mut r = ResidentRenderer::new(&g).unwrap();
         r.set_specialization(specialized);
         let cold = Instant::now();
-        r.render(&d, 0).unwrap();
+        let f = r.render(&d, 0).unwrap();
         r.wait().unwrap();
+        let first = ms(cold);
+        println!("cold full L0: {} pages uploaded", f.uploaded_pages);
+        r.wait_for_specializations();
         println!(
-            "requested_specialization={specialized}: first L0 {:.2} ms, compiled_pipelines={}",
+            "requested_specialization={specialized}: first L0 {first:.2} ms (uploads; interpreter while the kernel compiles), kernel ready after {:.2} ms, compiled_pipelines={}",
             ms(cold),
             r.specialized_pipeline_count()
         );
@@ -34,9 +37,18 @@ fn m5_08_structure_and_viewport() {
             if viewport {
                 r = ResidentRenderer::new(&g).unwrap();
                 r.set_specialization(specialized);
-                r.render_viewport(&d, 0, Rect::new(512, 512, 4352, 2672), 0)
+                let cold = Instant::now();
+                let f = r
+                    .render_viewport(&d, 0, Rect::new(512, 512, 4352, 2672), 0)
                     .unwrap();
                 r.wait().unwrap();
+                println!(
+                    "cold 3840x2160 L0 viewport: {:.2} ms, {} pages uploaded, {} blocks",
+                    ms(cold),
+                    f.uploaded_pages,
+                    f.blocks
+                );
+                r.wait_for_specializations();
             }
             let mut runs = Vec::new();
             let mut blocks = 0;

@@ -1,5 +1,5 @@
 //! GPU-resident document rendering: the compositor's interactive path
-//! (COMPOSITOR.md §10).
+//! (COMPOSITOR.md §12).
 //!
 //! A [`ResidentRenderer`] mirrors one open document on the GPU:
 //!
@@ -17,7 +17,15 @@
 //! - **Frames.** One dispatch composites a whole level, or only the 16²
 //!   blocks damaged since the level was last rendered, into a resident
 //!   premultiplied f32 level buffer. No per-tile uploads, no CPU pixel work.
-//!   Adjustment layers run on the GPU.
+//!   Adjustment layers run on the GPU. [`ResidentRenderer::render_viewport`]
+//!   resolves, uploads, mips and composites only the tiles and blocks under
+//!   the viewport.
+//! - **Kernels.** Every document kernel is compiled with IEEE f32 maths
+//!   (`gpu_core::precise_compute_pipeline`), so the GPU rounds exactly like
+//!   the CPU reference. A kernel specialized to the document's structure
+//!   (modes and group tree resolved at code generation) compiles in the
+//!   background and replaces the general interpreter when ready; both give
+//!   bit-identical pixels.
 //! - **Output.** [`ResidentRenderer::present`] writes a region into an
 //!   RGBA8 storage texture (an IOSurface via
 //!   [`ResidentRenderer::present_iosurface`]); readback is explicit
@@ -52,6 +60,8 @@ pub use program::MAX_NESTING;
 use program::{Part, Program, TableRef};
 
 const NONE: u32 = u32::MAX;
+/// A page-table entry not resolved yet (its tile was never needed).
+const UNRESOLVED: u64 = u64::MAX;
 /// Composite blocks are 16² pixels (one workgroup).
 const BLOCK: u32 = 16;
 /// Words per f32 RGBA page (smart-object pages).
@@ -68,6 +78,31 @@ pub(crate) struct Pipelines {
 
 /// Storage bindings the document shader needs.
 const STORAGE_BINDINGS: u32 = 14;
+
+/// The document shader's group 0: eight page slabs, smart pages, pool and
+/// frame uniforms, steps, tables, aux, block list and the level output.
+/// Explicit, so every specialization shares it even when constant folding
+/// drops bindings.
+pub(super) fn doc_layout_entries() -> Vec<wgpu::BindGroupLayoutEntry> {
+    (0..16)
+        .map(|binding| wgpu::BindGroupLayoutEntry {
+            binding,
+            visibility: wgpu::ShaderStages::COMPUTE,
+            ty: wgpu::BindingType::Buffer {
+                ty: if binding == 9 || binding == 10 {
+                    wgpu::BufferBindingType::Uniform
+                } else {
+                    wgpu::BufferBindingType::Storage {
+                        read_only: binding != 15,
+                    }
+                },
+                has_dynamic_offset: false,
+                min_binding_size: None,
+            },
+            count: None,
+        })
+        .collect()
+}
 
 impl Pipelines {
     pub(crate) fn new(device: &wgpu::Device) -> EngineResult<Self> {
@@ -95,14 +130,39 @@ impl Pipelines {
                 cache: None,
             })
         };
-        let doc = make(
+        let doc = gpu_core::precise_compute_pipeline(
+            device,
             "resident document",
-            shader(&format!("{}\n{}", pages("read"), include_str!("doc.wgsl"))),
-        );
-        let mip = make(
+            &shader(&format!("{}\n{}", pages("read"), include_str!("doc.wgsl"))),
+            "main",
+            (BLOCK, BLOCK, 1),
+            &doc_layout_entries(),
+        )?
+        .pipeline;
+        let mip = gpu_core::precise_compute_pipeline(
+            device,
             "resident mip",
-            format!("{}\n{}", pages("read_write"), include_str!("mip.wgsl")),
-        );
+            &format!("{}\n{}", pages("read_write"), include_str!("mip.wgsl")),
+            "main",
+            (256, 1, 1),
+            &(0..10)
+                .map(|binding| wgpu::BindGroupLayoutEntry {
+                    binding,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: match binding {
+                            9 => wgpu::BufferBindingType::Uniform,
+                            8 => wgpu::BufferBindingType::Storage { read_only: true },
+                            _ => wgpu::BufferBindingType::Storage { read_only: false },
+                        },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                })
+                .collect::<Vec<_>>(),
+        )?
+        .pipeline;
         let present = make("resident present", include_str!("present.wgsl").into());
         if let Some(e) = pollster::block_on(scope.pop()) {
             return Err(internal(e));
@@ -508,9 +568,16 @@ impl ResidentRenderer {
         }
     }
 
-    /// Successful pipelines currently in the bounded structure cache.
+    /// Specialized kernels compiled and ready in the bounded structure
+    /// cache.
     pub fn specialized_pipeline_count(&self) -> usize {
         self.specialized.len()
+    }
+
+    /// Blocks until every started background specialization has finished
+    /// compiling (benchmarks and tests; frames never wait for one).
+    pub fn wait_for_specializations(&mut self) {
+        self.specialized.wait();
     }
 
     /// Cumulative counters.
@@ -597,135 +664,123 @@ impl ResidentRenderer {
         id
     }
 
-    /// Node ids of every tile of `raster` at levels `have..=level`.
-    fn raster_levels(
+    /// The node of `raster`'s tile `(tx, ty)` at level `l` (0: absent),
+    /// interning it and, for mips, its descendants on first use. `levels`
+    /// memoizes per level; [`UNRESOLVED`] marks tiles not needed yet.
+    fn raster_node(
         &mut self,
         raster: &Raster,
         levels: &mut Vec<Vec<u64>>,
-        level: u8,
-    ) -> EngineResult<()> {
+        l: u8,
+        tx: u32,
+        ty: u32,
+    ) -> EngineResult<u64> {
         if levels.is_empty() {
             self.check_raster(raster)?;
-            let (cols, rows) = self.canvas.tile_grid(TILE_SIZE);
-            let mut v = vec![0u64; (cols * rows) as usize];
-            for ((tx, ty), slot) in raster.slots() {
-                if let Some(t) = &slot.tile {
-                    v[(ty * cols + tx) as usize] = self.intern_l0(t);
-                }
-            }
-            levels.push(v);
         }
-        let chans = raster.channels();
-        let default = raster.default_value().to_bits();
-        while levels.len() <= level as usize {
-            let l = levels.len() as u8;
-            let (pc, pr) = self.canvas.at_level(l - 1).tile_grid(TILE_SIZE);
-            let (cols, rows) = self.canvas.at_level(l).tile_grid(TILE_SIZE);
-            let mut v = vec![0u64; (cols * rows) as usize];
-            for ty in 0..rows {
-                for tx in 0..cols {
-                    let prev = &levels[l as usize - 1];
-                    let kid = |x: u32, y: u32| {
-                        if x < pc && y < pr {
-                            prev[(y * pc + x) as usize]
-                        } else {
-                            0
-                        }
-                    };
-                    let kids = [
-                        kid(2 * tx, 2 * ty),
-                        kid(2 * tx + 1, 2 * ty),
-                        kid(2 * tx, 2 * ty + 1),
-                        kid(2 * tx + 1, 2 * ty + 1),
-                    ];
-                    if kids != [0; 4] {
-                        v[(ty * cols + tx) as usize] = self.intern_mip(MipKey {
-                            level: l,
-                            tx,
-                            ty,
-                            kids,
-                            chans,
-                            default,
-                        });
-                    }
-                }
-            }
-            levels.push(v);
+        while levels.len() <= l as usize {
+            let (cols, rows) = self
+                .canvas
+                .at_level(levels.len() as u8)
+                .tile_grid(TILE_SIZE);
+            levels.push(vec![UNRESOLVED; (cols * rows) as usize]);
         }
-        Ok(())
+        let (cols, rows) = self.canvas.at_level(l).tile_grid(TILE_SIZE);
+        if tx >= cols || ty >= rows {
+            return Ok(0);
+        }
+        let i = (ty * cols + tx) as usize;
+        if levels[l as usize][i] != UNRESOLVED {
+            return Ok(levels[l as usize][i]);
+        }
+        let id = if l == 0 {
+            match raster.tile(tx, ty) {
+                Some(t) => self.intern_l0(t),
+                None => 0,
+            }
+        } else {
+            let mut kids = [0u64; 4];
+            for (k, (dx, dy)) in [(0, 0), (1, 0), (0, 1), (1, 1)].into_iter().enumerate() {
+                kids[k] = self.raster_node(raster, levels, l - 1, 2 * tx + dx, 2 * ty + dy)?;
+            }
+            if kids == [0; 4] {
+                0
+            } else {
+                self.intern_mip(MipKey {
+                    level: l,
+                    tx,
+                    ty,
+                    kids,
+                    chans: raster.channels(),
+                    default: raster.default_value().to_bits(),
+                })
+            }
+        };
+        levels[l as usize][i] = id;
+        Ok(id)
     }
 
-    fn smart_level(&mut self, doc: &Document, layer: &Layer, level: u8) -> EngineResult<Vec<u64>> {
+    /// The smart-object page of `layer` at `coord` (0: outside the object),
+    /// resampled on the GPU from the child's resident level.
+    fn smart_node(&mut self, doc: &Document, layer: &Layer, coord: TileCoord) -> EngineResult<u64> {
         let LayerKind::SmartObject(so) = &layer.kind else {
             return Err(EngineError::internal("smart table of a non-smart layer"));
         };
-        let (cols, rows) = self.canvas.at_level(level).tile_grid(TILE_SIZE);
-        let mut v = Vec::with_capacity((cols * rows) as usize);
-        for ty in 0..rows {
-            for tx in 0..cols {
-                let coord = TileCoord::new(level, tx, ty);
-                let key = SmartKey {
-                    doc: doc.key(),
-                    layer: layer.id.0,
-                    stamp: layer.content_rev,
-                    child: so.key,
-                    child_rev: so.state.rev,
-                    transform: so.transform.m.map(f64::to_bits),
-                    coord,
-                };
-                let id = match self.smarts.get(&key) {
-                    Some(&id) => {
-                        self.touch(id);
-                        id
-                    }
-                    None => {
-                        let bounds =
-                            Rect::of_tile(coord, self.canvas.at_level(level)).to_level0(level);
-                        let id = if !so.bounds().intersects(&bounds) {
-                            0
-                        } else {
-                            let plan = smart_gpu::SmartPlan::new(
-                                so.transform,
-                                so.state.canvas,
-                                self.canvas,
-                                coord,
-                            )?;
-                            if self
-                                .children
-                                .get(&layer.id)
-                                .is_none_or(|(state, _)| !Arc::ptr_eq(state, &so.state))
-                            {
-                                let child = smart_gpu::render_child(&self.gpu, so, &plan)?;
-                                self.children.insert(layer.id, (so.state.clone(), child));
-                            }
-                            let (_, child) = self.children.get_mut(&layer.id).unwrap();
-                            if !child.levels.contains_key(&plan.child_level()) {
-                                child.render(
-                                    &Document::new((*so.state).clone()),
-                                    plan.child_level(),
-                                )?;
-                            }
-                            let source = child.levels[&plan.child_level()].out.clone();
-                            debug_assert_eq!(
-                                plan.output_extent().width as i64,
-                                Rect::of_tile(coord, self.canvas.at_level(level)).width()
-                            );
-                            let id = self.id(NodeKey::Smart(key));
-                            self.pending_smart.push((id, plan, source));
-                            id
-                        };
-                        self.smarts.insert(key, id);
-                        id
-                    }
-                };
-                v.push(id);
-            }
+        let level = coord.level;
+        let key = SmartKey {
+            doc: doc.key(),
+            layer: layer.id.0,
+            stamp: layer.content_rev,
+            child: so.key,
+            child_rev: so.state.rev,
+            transform: so.transform.m.map(f64::to_bits),
+            coord,
+        };
+        if let Some(&id) = self.smarts.get(&key) {
+            self.touch(id);
+            return Ok(id);
         }
-        Ok(v)
+        let bounds = Rect::of_tile(coord, self.canvas.at_level(level)).to_level0(level);
+        let id = if !so.bounds().intersects(&bounds) {
+            0
+        } else {
+            let plan =
+                smart_gpu::SmartPlan::new(so.transform, so.state.canvas, self.canvas, coord)?;
+            if self
+                .children
+                .get(&layer.id)
+                .is_none_or(|(state, _)| !Arc::ptr_eq(state, &so.state))
+            {
+                let child = smart_gpu::render_child(&self.gpu, so, &plan)?;
+                self.children.insert(layer.id, (so.state.clone(), child));
+            }
+            let (_, child) = self.children.get_mut(&layer.id).unwrap();
+            if !child.levels.contains_key(&plan.child_level()) {
+                child.render(&Document::new((*so.state).clone()), plan.child_level())?;
+            }
+            let source = child.levels[&plan.child_level()].out.clone();
+            debug_assert_eq!(
+                plan.output_extent().width as i64,
+                Rect::of_tile(coord, self.canvas.at_level(level)).width()
+            );
+            let id = self.id(NodeKey::Smart(key));
+            self.pending_smart.push((id, plan, source));
+            id
+        };
+        self.smarts.insert(key, id);
+        Ok(id)
     }
 
-    /// Node ids of one page table at `level`.
-    fn resolve(&mut self, doc: &Document, t: &TableRef, level: u8) -> EngineResult<Vec<u64>> {
+    /// Node ids of one page table at `level` (grid order). Tiles in `need`
+    /// (tile rectangle at `level`) are resolved; others keep what earlier
+    /// frames resolved for the same layer state, or [`UNRESOLVED`].
+    fn resolve(
+        &mut self,
+        doc: &Document,
+        t: &TableRef,
+        level: u8,
+        need: Rect,
+    ) -> EngineResult<Vec<u64>> {
         let id = t.layer.id;
         let mut entry = match self.layers.remove(&id) {
             Some(e) if Arc::ptr_eq(&e.layer, &t.layer) && e.generation == self.generation => e,
@@ -741,22 +796,36 @@ impl ResidentRenderer {
         entry.seen = self.frame;
         let out = (|| -> EngineResult<Vec<u64>> {
             let layer = &*t.layer;
+            let tiles = || {
+                (need.y0 as u32..need.y1 as u32)
+                    .flat_map(move |y| (need.x0 as u32..need.x1 as u32).map(move |x| (x, y)))
+            };
+            let (cols, rows) = self.canvas.at_level(level).tile_grid(TILE_SIZE);
             let levels = match t.part {
                 Part::Smart => {
-                    if let std::collections::hash_map::Entry::Vacant(e) = entry.smart.entry(level) {
-                        e.insert(self.smart_level(doc, layer, level)?);
+                    let mut v = entry
+                        .smart
+                        .remove(&level)
+                        .unwrap_or_else(|| vec![UNRESOLVED; (cols * rows) as usize]);
+                    for (tx, ty) in tiles() {
+                        let i = (ty * cols + tx) as usize;
+                        if v[i] == UNRESOLVED {
+                            v[i] = self.smart_node(doc, layer, TileCoord::new(level, tx, ty))?;
+                        }
                     }
-                    let v = entry.smart[&level].clone();
                     for id in &v {
                         self.touch(*id);
                     }
+                    entry.smart.insert(level, v.clone());
                     return Ok(v);
                 }
                 Part::Content => {
                     let r = layer
                         .raster()
                         .ok_or_else(|| EngineError::internal("no raster"))?;
-                    self.raster_levels(r, &mut entry.content, level)?;
+                    for (tx, ty) in tiles() {
+                        self.raster_node(r, &mut entry.content, level, tx, ty)?;
+                    }
                     &entry.content
                 }
                 Part::Mask => {
@@ -764,13 +833,16 @@ impl ResidentRenderer {
                         .mask
                         .as_ref()
                         .ok_or_else(|| EngineError::internal("no mask"))?;
-                    self.raster_levels(&m.raster, &mut entry.mask, level)?;
+                    for (tx, ty) in tiles() {
+                        self.raster_node(&m.raster, &mut entry.mask, level, tx, ty)?;
+                    }
                     &entry.mask
                 }
             };
             for l in &levels[..=level as usize] {
                 for id in l {
                     if *id != 0
+                        && *id != UNRESOLVED
                         && let Some(n) = self.nodes.get_mut(id)
                     {
                         n.last = self.frame;
@@ -832,10 +904,10 @@ impl ResidentRenderer {
     }
 
     fn ensure(&mut self, smart: bool, need: u32) -> EngineResult<()> {
-        let device = self.device.clone();
+        let (device, queue) = (self.device.clone(), self.queue.clone());
         let budget = self.budget;
         // Grow within the budget first (a slab is capped by the binding
-        // limit, so a large first frame can take several).
+        // limit, so a very large first frame can take several).
         loop {
             let pool = if smart {
                 &mut self.smart
@@ -849,7 +921,8 @@ impl ResidentRenderer {
             if !pool.can_grow() || pool.bytes() + u64::from(short) * pool.page_bytes > budget {
                 break;
             }
-            pool.grow(&device, short)?;
+            let cap = u32::try_from(budget / pool.page_bytes).unwrap_or(u32::MAX);
+            pool.grow(&device, &queue, short, cap)?;
         }
         // Then reclaim pages the current state does not use (history).
         let freed = self.evict(smart, need);
@@ -865,7 +938,7 @@ impl ResidentRenderer {
             if short == 0 {
                 return Ok(());
             }
-            pool.grow(&device, short)?;
+            pool.grow(&device, &queue, short, 0)?;
         }
     }
 
@@ -991,11 +1064,19 @@ impl ResidentRenderer {
         let grid = (cols * rows) as usize;
         let program = Program::compile(&state.root, grid)?;
 
-        // Phase 1: resolve every page table to content-addressed nodes.
+        // Phase 1: resolve the page tables of the tiles under the viewport
+        // to content-addressed nodes (nothing outside it is interned,
+        // uploaded or mipped).
+        let need = Rect::new(
+            visible.x0 / i64::from(TILE_SIZE),
+            visible.y0 / i64::from(TILE_SIZE),
+            (visible.x1 + i64::from(TILE_SIZE) - 1) / i64::from(TILE_SIZE),
+            (visible.y1 + i64::from(TILE_SIZE) - 1) / i64::from(TILE_SIZE),
+        );
         let mut nodes = Vec::with_capacity(program.tables.len() * grid);
         let resolved = (|| -> EngineResult<()> {
             for t in &program.tables {
-                nodes.extend(self.resolve(doc, t, level)?);
+                nodes.extend(self.resolve(doc, t, level, need)?);
             }
             Ok(())
         })();
@@ -1161,6 +1242,16 @@ impl ResidentRenderer {
         self.queue.submit([encoder.finish()]);
         if let Some(st) = self.levels.get_mut(&level) {
             st.valid = valid;
+            // Remember the last known node of every entry, including
+            // entries this frame did not resolve (see `damage`).
+            let mut nodes = nodes;
+            if let Some(last) = st.last.as_ref().filter(|l| l.nodes.len() == nodes.len()) {
+                for (n, l) in nodes.iter_mut().zip(&last.nodes) {
+                    if *n == UNRESOLVED {
+                        *n = *l;
+                    }
+                }
+            }
             st.last = Some(Rendered {
                 key: doc.key(),
                 epoch: doc.epoch(),
@@ -1364,9 +1455,14 @@ impl ResidentRenderer {
         if last.program != program || last.nodes.len() != nodes.len() {
             return logged.map(|d| vec![d]);
         }
+        // A tile changed if any table's node differs from the one its
+        // blocks were last rendered with. Entries not resolved this frame
+        // (offscreen and never needed for this layer state) cannot be
+        // compared: their tiles are treated as changed, so only the damage
+        // log (sound on its own) can keep their blocks valid.
         let mut changed = vec![false; grid];
         for (i, (a, b)) in nodes.iter().zip(&last.nodes).enumerate() {
-            if a != b {
+            if a != b || *a == UNRESOLVED {
                 changed[i % grid] = true;
             }
         }

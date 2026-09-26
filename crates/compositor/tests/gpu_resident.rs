@@ -58,35 +58,31 @@ fn bits(r: &ResidentRenderer, level: u8) -> Vec<u32> {
         .collect()
 }
 
+/// Specialized kernels and the interpreter are compiled with IEEE maths from
+/// the same formulas: every mode, group kind, knockout, Blend If, mask,
+/// fill and adjustment of the chain scene is bit-identical between them
+/// and across devices, and matches the CPU.
 #[test]
 fn specialized_matches_interpreter_and_reuses_structure() {
     let g = gpu().expect("Metal required");
-    let mut d = scene(Depth::F32, Extent::new(31, 19));
-    // Discontinuous modes deliberately use the interpreter. Exercise the
-    // specialized path with continuous modes but the same group/feature tree.
-    for id in d.state().layer_ids() {
-        if matches!(
-            d.state().find(id).unwrap().props.blend_mode,
-            BlendMode::Dissolve
-                | BlendMode::DarkerColor
-                | BlendMode::LighterColor
-                | BlendMode::HardMix
-        ) {
-            set_props(&mut d, id, |p| p.blend_mode = BlendMode::SoftLight);
-        }
-    }
+    let mut d = scene(Depth::U8, Extent::new(31, 19));
     let mut fast = ResidentRenderer::new(&g).unwrap();
     let mut general = ResidentRenderer::new(&g).unwrap();
     general.set_specialization(false);
-    assert!(worst(&mut fast, &d, 0) <= 2e-3);
-    general.render(&d, 0).unwrap();
-    let a = fast.read_level(0, true).unwrap().1;
-    let b = general.read_level(0, true).unwrap().1;
-    assert!(a.iter().zip(&b).all(|(a, b)| (a - b).abs() <= 2e-3));
+    // The first frame renders with the interpreter while the kernel
+    // compiles in the background.
+    fast.render(&d, 0).unwrap();
+    assert_eq!(fast.specialized_pipeline_count(), 0);
+    fast.wait_for_specializations();
     assert_eq!(fast.specialized_pipeline_count(), 1);
+    fast.invalidate();
+    assert_eq!(worst(&mut fast, &d, 0), 0.0);
+    general.render(&d, 0).unwrap();
+    assert_eq!(bits(&fast, 0), bits(&general, 0));
     let id = d.state().root[0].id;
     set_props(&mut d, id, |p| p.opacity = 0.6);
     fast.render(&d, 0).unwrap();
+    fast.wait_for_specializations();
     assert_eq!(fast.specialized_pipeline_count(), 1);
     fast.invalidate();
     fast.render(&d, 0).unwrap();
@@ -94,8 +90,14 @@ fn specialized_matches_interpreter_and_reuses_structure() {
     fast.invalidate();
     fast.render(&d, 0).unwrap();
     assert_eq!(before, bits(&fast, 0));
+    general.render(&d, 0).unwrap();
+    assert_eq!(before, bits(&general, 0));
     let second_device = gpu().expect("second Metal device");
     let mut second = ResidentRenderer::new(&second_device).unwrap();
+    second.render(&d, 0).unwrap();
+    assert_eq!(before, bits(&second, 0));
+    second.wait_for_specializations();
+    second.invalidate();
     second.render(&d, 0).unwrap();
     assert_eq!(before, bits(&second, 0));
 }
@@ -132,6 +134,62 @@ fn viewport_pan_preserves_offscreen_damage() {
         r.render_viewport(&d, 0, Rect::new(200, 200, 300, 300), 0)
             .is_err()
     );
+}
+
+/// A viewport frame interns, uploads and mips only the tiles under the
+/// viewport; offscreen edits and history jumps stay sound.
+#[test]
+fn viewport_resolves_only_visible_tiles() {
+    let g = gpu().expect("Metal required");
+    let e = Extent::new(1000, 1000);
+    let mut d = doc(e, Depth::U8);
+    let a = add(&mut d, None, layer_fn("a", e, Depth::U8, wave(1)));
+    add(
+        &mut d,
+        None,
+        layer_fn("b", e, Depth::U8, wave(2)).with_mode(BlendMode::Divide),
+    );
+    let mut r = ResidentRenderer::new(&g).unwrap();
+    // L0 viewport inside tile (0, 0): one page per layer.
+    let f = r
+        .render_viewport(&d, 0, Rect::new(10, 10, 100, 90), 0)
+        .unwrap();
+    assert_eq!((f.uploaded_pages, f.mip_pages), (2, 0));
+    // L1 tile (1, 0) needs L0 tiles (2..4, 0..2) and one mip per layer.
+    let f = r
+        .render_viewport(&d, 1, Rect::new(300, 0, 310, 10), 0)
+        .unwrap();
+    assert_eq!((f.uploaded_pages, f.mip_pages), (8, 2));
+    // Offscreen paint: nothing under the viewport changes.
+    let op = paint_op(
+        d.state(),
+        a,
+        PaintTarget::Content,
+        Rect::new(900, 900, 950, 950),
+        |_, _, p| p[1] = 0.25,
+    )
+    .unwrap();
+    d.apply(op).unwrap();
+    let f = r
+        .render_viewport(&d, 0, Rect::new(10, 10, 100, 90), 0)
+        .unwrap();
+    assert_eq!((f.blocks, f.uploaded_pages), (0, 0));
+    let full = r.render(&d, 0).unwrap();
+    assert_eq!(full.uploaded_pages, 2 * 16 - 10);
+    let mut cold = ResidentRenderer::new(&g).unwrap();
+    cold.render(&d, 0).unwrap();
+    assert_eq!(bits(&r, 0), bits(&cold, 0));
+    // Undo (no damage log) while only a viewport is rendered: the
+    // offscreen blocks are invalid, and completing them is exact.
+    assert!(d.undo());
+    r.render_viewport(&d, 0, Rect::new(10, 10, 100, 90), 0)
+        .unwrap();
+    assert!(r.read_level(0, true).is_err());
+    r.render(&d, 0).unwrap();
+    let mut cold = ResidentRenderer::new(&g).unwrap();
+    cold.render(&d, 0).unwrap();
+    assert_eq!(bits(&r, 0), bits(&cold, 0));
+    assert_eq!(worst(&mut r, &d, 0), 0.0);
 }
 
 #[test]
@@ -175,15 +233,19 @@ fn specialization_cache_is_bounded_and_large_programs_fall_back() {
     let mut r = ResidentRenderer::new(&g).unwrap();
     for mode in BlendMode::ALL.into_iter().take(10) {
         set_props(&mut d, id, |p| p.blend_mode = mode);
-        assert!(worst(&mut r, &d, 0) <= 1e-4);
+        r.render(&d, 0).unwrap();
+        r.wait_for_specializations();
+        r.invalidate();
+        assert_eq!(worst(&mut r, &d, 0), 0.0);
         assert!(r.specialized_pipeline_count() <= 8);
     }
     assert_eq!(r.specialized_pipeline_count(), 8);
-    for _ in 0..130 {
+    for _ in 0..260 {
         d.apply(DocOp::DuplicateLayer { id }).unwrap();
     }
     let mut fallback = ResidentRenderer::new(&g).unwrap();
-    assert!(worst(&mut fallback, &d, 0) <= 2e-3);
+    assert_eq!(worst(&mut fallback, &d, 0), 0.0);
+    fallback.wait_for_specializations();
     assert_eq!(fallback.specialized_pipeline_count(), 0);
 }
 
@@ -419,7 +481,11 @@ fn resident_chain_matches_cpu_at_every_depth_and_level() {
         for level in [0u8, 1, 2, 4, 9] {
             let w = worst(&mut r, &d, level);
             eprintln!("{depth:?} L{level}: chain max |gpu − cpu| = {w:e}");
-            assert!(w <= 2e-3, "{depth:?} L{level}: {w:e}");
+            // The docs/11 bound is 2e-3. IEEE compilation (division,
+            // sqrt, no contraction) makes the chain bit-exact, which is
+            // what keeps Hard Mix / Divide / Darker Colour from amplifying
+            // one-ulp drift on large documents: gate exactness.
+            assert!(w == 0.0, "{depth:?} L{level}: {w:e}");
         }
     }
 }

@@ -1,8 +1,28 @@
-//! Bounded, collision-safe cache of structurally specialized document kernels.
-//! Parameters stay in the step buffer; pixel/opacity edits never compile shaders.
+//! Bounded, collision-safe cache of structurally specialized document
+//! kernels, compiled in the background.
+//!
+//! A kernel is keyed by the program's *structure* (per step: kind, blend
+//! mode, flags, source kind, adjustment kind; plus depth and live slab
+//! count). Parameters stay in the step buffer, so painting, opacity drags
+//! and mask edits never compile. A new structure starts compiling on a
+//! worker thread and the interpreter renders until the kernel is ready.
+//! Both are compiled with IEEE maths from the same WGSL formulas
+//! (`gpu_core::precise_compute_pipeline`), so they produce bit-identical
+//! pixels and switching needs no re-render.
+use std::collections::VecDeque;
+use std::sync::mpsc::{Receiver, TryRecvError, channel};
+
 use super::program::Program;
 use crate::gpu::shader;
-use std::collections::VecDeque;
+
+/// Structures cached (LRU).
+const CAPACITY: usize = 8;
+/// Longer programs use the interpreter (bounds compile time and code size).
+pub(super) const MAX_STEPS: usize = 256;
+/// Background compilations in flight at once.
+const MAX_COMPILING: usize = 2;
+
+type Structure = Vec<[u32; 5]>;
 
 #[derive(Default)]
 pub(super) struct Cache {
@@ -11,15 +31,53 @@ pub(super) struct Cache {
 
 struct Entry {
     hash: [u8; 32],
-    structure: Vec<[u32; 5]>,
-    pipeline: Option<wgpu::ComputePipeline>,
+    structure: Structure,
+    state: State,
+}
+
+enum State {
+    Compiling(Receiver<Option<wgpu::ComputePipeline>>),
+    Ready(wgpu::ComputePipeline),
+    Failed,
+}
+
+impl Entry {
+    /// Collects a finished compilation; `block` waits for it.
+    fn poll(&mut self, block: bool) {
+        if let State::Compiling(rx) = &self.state {
+            let got = if block {
+                rx.recv().map_err(|_| TryRecvError::Disconnected)
+            } else {
+                rx.try_recv()
+            };
+            self.state = match got {
+                Ok(Some(p)) => State::Ready(p),
+                Ok(None) | Err(TryRecvError::Disconnected) => State::Failed,
+                Err(TryRecvError::Empty) => return,
+            };
+        }
+    }
 }
 
 impl Cache {
+    /// Kernels compiled and ready.
     pub fn len(&self) -> usize {
-        self.entries.iter().filter(|e| e.pipeline.is_some()).count()
+        self.entries
+            .iter()
+            .filter(|e| matches!(e.state, State::Ready(_)))
+            .count()
     }
 
+    /// Blocks until every started compilation has finished.
+    pub fn wait(&mut self) {
+        for e in &mut self.entries {
+            e.poll(true);
+        }
+    }
+
+    /// The specialized kernel for `program`'s structure if it is compiled;
+    /// otherwise starts compiling it (at most [`MAX_COMPILING`] at a time)
+    /// and returns `None`, so the caller uses the interpreter.
     pub fn pipeline(
         &mut self,
         device: &wgpu::Device,
@@ -27,20 +85,10 @@ impl Cache {
         slabs: usize,
         program: &Program,
     ) -> Option<wgpu::ComputePipeline> {
-        // Cap compiler work and code size. Unsupported/failed programs stay on
-        // the interpreter, including repeated requests for a failed structure.
-        // Constant folding changes floating-point association. Discontinuous
-        // operators can turn a one-ulp input drift into a large output jump
-        // (the 100-layer benchmark demonstrated 0.082 vs the 0.002 gate).
-        // Preserve the reference interpreter for these entire structures.
-        let discontinuous = program.steps.iter().any(|s| {
-            matches!(s.mode, 1 | 6 | 11 | 18)
-                || (s.kind == super::program::K_ADJUST && matches!(s.adj, 2 | 3))
-        });
-        if program.steps.is_empty() || program.steps.len() > 128 || discontinuous {
+        if program.steps.is_empty() || program.steps.len() > MAX_STEPS {
             return None;
         }
-        let mut structure: Vec<_> = program
+        let mut structure: Structure = program
             .steps
             .iter()
             .map(|s| [s.kind, s.mode, s.flags, s.src, s.adj])
@@ -52,71 +100,81 @@ impl Cache {
             .iter()
             .position(|e| e.hash == hash && e.structure == structure)
         {
-            let entry = self.entries.remove(i).unwrap();
-            let result = entry.pipeline.clone();
+            let mut entry = self.entries.remove(i).unwrap();
+            entry.poll(false);
+            let result = match &entry.state {
+                State::Ready(p) => Some(p.clone()),
+                _ => None,
+            };
             self.entries.push_back(entry);
             return result;
         }
-        let scope = device.push_error_scope(wgpu::ErrorFilter::Validation);
-        let module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("specialized resident structure"),
-            source: wgpu::ShaderSource::Wgsl(source(program, depth, slabs).into()),
-        });
-        // Explicit layout retains bindings pruned by constant folding.
-        let entries: Vec<_> = (0..16)
-            .map(|binding| wgpu::BindGroupLayoutEntry {
-                binding,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Buffer {
-                    ty: if binding == 9 || binding == 10 {
-                        wgpu::BufferBindingType::Uniform
-                    } else {
-                        wgpu::BufferBindingType::Storage {
-                            read_only: binding != 15,
-                        }
-                    },
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
+        let compiling = self
+            .entries
+            .iter_mut()
+            .filter_map(|e| {
+                e.poll(false);
+                matches!(e.state, State::Compiling(_)).then_some(())
             })
-            .collect();
-        let bindings = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("resident explicit bindings"),
-            entries: &entries,
-        });
-        let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("resident shared layout"),
-            bind_group_layouts: &[Some(&bindings)],
-            immediate_size: 0,
-        });
-        let pipe = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-            label: Some("specialized resident structure"),
-            layout: Some(&layout),
-            module: &module,
-            entry_point: Some("main"),
-            compilation_options: Default::default(),
-            cache: None,
-        });
-        let result = if let Some(error) = pollster::block_on(scope.pop()) {
-            eprintln!("resident specialization fallback: {error}");
-            None
-        } else {
-            Some(pipe)
-        };
-        if self.entries.len() == 8 {
+            .count();
+        if compiling >= MAX_COMPILING {
+            return None;
+        }
+        let (tx, rx) = channel();
+        let (device, key) = (device.clone(), structure.clone());
+        let spawned = std::thread::Builder::new()
+            .name("resident specialization".into())
+            .spawn(move || {
+                let _ = tx.send(compile(&device, &key, depth, slabs));
+            });
+        if spawned.is_err() {
+            return None;
+        }
+        if self.entries.len() == CAPACITY {
+            // A dropped compilation finishes on its thread and is discarded.
             self.entries.pop_front();
         }
         self.entries.push_back(Entry {
             hash,
             structure,
-            pipeline: result.clone(),
+            state: State::Compiling(rx),
         });
-        result
+        None
     }
 }
 
-fn source(program: &Program, depth: u32, slabs: usize) -> String {
+/// Compiles one structure (on a worker thread). `None` on any failure:
+/// that structure then stays on the interpreter.
+fn compile(
+    device: &wgpu::Device,
+    structure: &Structure,
+    depth: u32,
+    slabs: usize,
+) -> Option<wgpu::ComputePipeline> {
+    let steps = &structure[..structure.len() - 1];
+    let scope = device.push_error_scope(wgpu::ErrorFilter::Validation);
+    let pipe = gpu_core::precise_compute_pipeline(
+        device,
+        "specialized resident structure",
+        &source(steps, depth, slabs),
+        "main",
+        (16, 16, 1),
+        &super::doc_layout_entries(),
+    );
+    match (pipe, pollster::block_on(scope.pop())) {
+        (Ok(p), None) => Some(p.pipeline),
+        (Err(error), _) => {
+            eprintln!("resident specialization fallback: {error}");
+            None
+        }
+        (_, Some(error)) => {
+            eprintln!("resident specialization fallback: {error}");
+            None
+        }
+    }
+}
+
+fn source(steps: &[[u32; 5]], depth: u32, slabs: usize) -> String {
     // Use the interpreter as the single source of semantics. Emit its step
     // body once per structural step with constant kind/mode/flags/source and
     // literal indices. Metal folds the branches and per-mode blend switch.
@@ -142,8 +200,8 @@ fn source(program: &Program, depth: u32, slabs: usize) -> String {
         .unwrap()
         .0;
     let mut modes = std::collections::BTreeSet::new();
-    for s in &program.steps {
-        modes.insert(s.mode);
+    for s in steps {
+        modes.insert(s[1]);
     }
     let mut functions = String::new();
     for mode in modes {
@@ -178,31 +236,25 @@ fn source(program: &Program, depth: u32, slabs: usize) -> String {
             step.replace("composite_core(", &format!("core_{mode}("))
         ));
     }
-    for (chunk, steps) in program.steps.chunks(64).enumerate() {
+    for (chunk, steps) in steps.chunks(64).enumerate() {
         out.push_str(&format!(
             "{{ let c0 = {}u; let n = {}u;\n",
             chunk * 64,
             steps.len()
         ));
         out.push_str(stage);
-        for (j, s) in steps.iter().enumerate() {
+        for (j, &[kind, mode, flags, src, _]) in steps.iter().enumerate() {
             out.push_str(&format!("loop {{ let j = {j}u;\n"));
             let body = body
                 .replace(
                     "let h = sh_h[j];",
-                    &format!(
-                        "let h = vec4<u32>({}u, {}u, {}u, {}u);",
-                        s.kind, s.mode, s.flags, s.src
-                    ),
+                    &format!("let h = vec4<u32>({kind}u, {mode}u, {flags}u, {src}u);"),
                 )
-                .replace("fast.z", &format!("{}u", s.flags))
-                .replace("fast.y", &format!("{}u", s.mode))
-                .replace(
-                    &format!("blend_px({}u,", s.mode),
-                    &format!("blend_{}(", s.mode),
-                )
-                .replace("blend_px(h.y,", &format!("blend_{}(", s.mode))
-                .replace("composite_step(", &format!("step_{}(", s.mode))
+                .replace("fast.z", &format!("{flags}u"))
+                .replace("fast.y", &format!("{mode}u"))
+                .replace(&format!("blend_px({mode}u,"), &format!("blend_{mode}("))
+                .replace("blend_px(h.y,", &format!("blend_{mode}("))
+                .replace("composite_step(", &format!("step_{mode}("))
                 .replace("continue;", "break;");
             out.push_str(&body);
             out.push_str("break; }\n");
