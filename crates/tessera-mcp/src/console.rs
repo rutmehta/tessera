@@ -20,6 +20,8 @@ pub struct Console {
     pub(crate) index: Index,
     pub(crate) app: PathBuf,
     pub(crate) previews: crate::preview::PreviewCache,
+    pub(crate) documents: crate::documents::Documents,
+    pub(crate) recorder: Option<crate::actions::Recorder>,
 }
 impl Console {
     pub fn open(app_dir: impl AsRef<Path>) -> EngineResult<Self> {
@@ -29,10 +31,18 @@ impl Console {
             index: Index::open(app.join("index.sqlite"))?,
             app,
             previews: crate::preview::PreviewCache::default(),
+            documents: crate::documents::Documents::new(),
+            recorder: None,
         })
     }
     pub fn execute(&mut self, request: ToolRequest) -> ToolResponse {
-        self.run(&request).into()
+        let result = self.run(&request);
+        if result.is_ok()
+            && let Some(recorder) = &mut self.recorder
+        {
+            recorder.record_tool(&request);
+        }
+        result.into()
     }
     pub fn open_image(&mut self, path: impl AsRef<Path>) -> EngineResult<ImageId> {
         let path = path.as_ref().canonicalize()?;

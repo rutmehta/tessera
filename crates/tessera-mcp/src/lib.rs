@@ -1,7 +1,10 @@
 //! Synchronous engine tool console and MCP transport.
+pub mod actions;
 mod catalog;
 mod console;
 mod delta;
+pub mod documents;
+mod documents_console;
 mod exports;
 mod mutations;
 mod pixels;

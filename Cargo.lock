@@ -4214,6 +4214,7 @@ dependencies = [
  "sidecar",
  "style-profile",
  "tempfile",
+ "tessera-mcp",
  "tether",
 ]
 
@@ -4264,6 +4265,7 @@ name = "tessera-mcp"
 version = "0.1.0"
 dependencies = [
  "base64 0.23.1",
+ "compositor",
  "engine-api",
  "export",
  "image",
@@ -4274,6 +4276,7 @@ dependencies = [
  "pipeline-cpu",
  "pipeline-gpu",
  "previews",
+ "psd",
  "quote",
  "raw-decode",
  "rmcp",
@@ -4283,6 +4286,7 @@ dependencies = [
  "sidecar",
  "syn 2.0.119",
  "tempfile",
+ "tiff",
  "tokio",
 ]
 
