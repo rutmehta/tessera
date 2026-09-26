@@ -694,5 +694,13 @@
     "status": "merged",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M3-12b",
+    "owner": "opus",
+    "title": "Tethered capture UI",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
