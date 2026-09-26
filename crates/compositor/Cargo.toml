@@ -27,4 +27,3 @@ zstd = { version = "0.13", default-features = false }
 [dev-dependencies]
 filters = { path = "../filters" }
 tempfile = { workspace = true }
-filters = { path = "../filters" }
