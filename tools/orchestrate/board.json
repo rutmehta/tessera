@@ -646,5 +646,13 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M3-14",
+    "owner": "astra",
+    "title": "Agent runs on GPU at preview res",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
