@@ -1,0 +1,12 @@
+Implemented CPU layer styles, ordered smart filters with shared masks and caching, global light/scaling, native persistence, PSD lfx2 basics, and the feature-gated Camera Raw tone stub.
+
+Verification passed:
+  Required test/clippy/fmt chain: 145 passed, 6 existing benchmarks ignored.
+  Camera Raw feature suite: 54 passed, 2 ignored.
+  Scope audit and git diff --check passed. Protected GPU/resident files and engine-api unchanged.
+
+Documented limitations: resident callers must use the new CPU-fallback preflight; PSD smart-filter records remain opaque and preserved. Rendering approximations and unsupported cases are detailed in COMPOSITOR.md §9.1.
+
+Handoff and logs: tools/orchestrate/wp/M5-14/RESULTS.md
+
+RESULT: PASS
