@@ -29,7 +29,7 @@ fn node(name: &str, params: serde_json::Value) -> SmartFilter {
 #[test]
 fn camera_raw_without_feature_is_unsupported() {
     assert!(matches!(
-        CompositorFilters.evaluate(&fixture(), &node("camera_raw", json!({}))),
+        CompositorFilters.evaluate(&fixture(), &node("camera_raw", json!({})), &context()),
         Err(engine_api::EngineError::Unsupported { .. })
     ));
 }
@@ -40,8 +40,8 @@ fn camera_raw_tone_on_raster_preserves_alpha() {
     let out = CompositorFilters
         .evaluate(
             &input,
-            &node("camera_raw", json!({"exposure":1,"amount":0.5})),
-        )
+            &node("camera_raw", json!({"settings":{"tone":{"exposure":1},"detail":{"sharpening":{"amount":0},"noise_reduction":{"color":0}}},"amount":0.5})),
+         &context())
         .unwrap();
     for x in [0, 255, 256, 258] {
         for c in 0..3 {
@@ -57,7 +57,7 @@ fn camera_raw_tone_on_raster_preserves_alpha() {
     ] {
         assert!(
             CompositorFilters
-                .evaluate(&input, &node("camera_raw", p))
+                .evaluate(&input, &node("camera_raw", p), &context())
                 .is_err()
         );
     }
@@ -142,17 +142,17 @@ fn rejects_invalid_params_explicitly() {
     ] {
         assert!(
             CompositorFilters
-                .evaluate(&input, &node("gaussian", params.clone()))
+                .evaluate(&input, &node("gaussian", params.clone()), &context())
                 .is_err(),
             "{params}"
         );
     }
     assert!(matches!(
-        CompositorFilters.evaluate(&input, &node("made_up", json!({}))),
+        CompositorFilters.evaluate(&input, &node("made_up", json!({})), &context()),
         Err(engine_api::EngineError::Unsupported { .. })
     ));
     let out = CompositorFilters
-        .evaluate(&input, &node("gaussian", json!({"amount":0})))
+        .evaluate(&input, &node("gaussian", json!({"amount":0})), &context())
         .unwrap();
     assert!(out.shares_all_tiles_with(&input));
 }
@@ -190,11 +190,15 @@ fn inventory_names_map_to_existing_effects() {
         "offset",
     ] {
         CompositorFilters
-            .evaluate(&fixture(), &node(name, json!({"amount":0})))
+            .evaluate(&fixture(), &node(name, json!({"amount":0})), &context())
             .unwrap();
     }
     let out = CompositorFilters
-        .evaluate(&fixture(), &node("adjust", json!({"adjust":"invert"})))
+        .evaluate(
+            &fixture(),
+            &node("adjust", json!({"adjust":"invert"})),
+            &context(),
+        )
         .unwrap();
     assert_eq!(out.pixel(255, 2)[0], 0.0);
 }
@@ -214,7 +218,7 @@ fn gaussian_aliases_default_active_and_cross_tile_halo() {
         .unwrap();
     for name in ["gaussian", "gaussian_blur"] {
         let out = CompositorFilters
-            .evaluate(&input, &node(name, json!({"radius":1.5})))
+            .evaluate(&input, &node(name, json!({"radius":1.5})), &context())
             .unwrap();
         assert!(out.pixel(256, 2)[0] > 0.0);
         for x in 0..259 {
@@ -224,4 +228,12 @@ fn gaussian_aliases_default_active_and_cross_tile_halo() {
         }
     }
     assert_eq!(input.pixel(255, 2)[0], 1.0);
+}
+
+fn context() -> compositor::render::smart_filters::FilterContext {
+    compositor::render::smart_filters::FilterContext {
+        profile: None,
+        level: 0,
+        canvas: engine_api::tile::Extent::new(259, 5),
+    }
 }

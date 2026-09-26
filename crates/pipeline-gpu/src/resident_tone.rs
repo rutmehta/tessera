@@ -6,8 +6,7 @@
 //! self-guided coefficients for every active scale, then coefficient means ->
 //! guided outputs -> no-new-extrema presence, written straight to the output
 //! rect. Dehaze uses separable min filters and box means.
-//! No pixels reach the host except the exact Dehaze statistics on a
-//! statistics-cache miss.
+//! Exact Dehaze order statistics and all intermediate pixels stay on-device.
 //!
 //! Exact mode reproduces `pipeline_cpu::tone_extra_image` on the level (the
 //! reference's radii, clipped normalisation and accumulation order). Preview
@@ -40,8 +39,6 @@ const V_TRANS: u32 = 4;
 const V_DEHAZE: u32 = 6;
 const F_WIDE_LOW: u32 = 4;
 const F_PACK_Z: u32 = 16;
-/// Retained exact Dehaze statistics (airlight, confidence) per input identity.
-const STATS_ENTRIES: usize = 8;
 /// Workgroups per grid row for linear kernels (see `Batch::record`).
 const ROW: u32 = 65535;
 
@@ -55,9 +52,14 @@ pub(crate) struct Pipelines {
     zpass: wgpu::ComputePipeline,
     pres_coef: wgpu::ComputePipeline,
     pres_apply: wgpu::ComputePipeline,
+    stats_sort: wgpu::ComputePipeline,
+    stats_candidates: wgpu::ComputePipeline,
+    stats_finish: wgpu::ComputePipeline,
 }
 
-pub(crate) type Statistics = std::collections::VecDeque<(MemoKey, Option<([f32; 3], f32)>)>;
+// Reserved cache storage owned by GpuStageOp; resident statistics are currently
+// transaction-local so aborted command encoders cannot publish incomplete data.
+pub(crate) type Statistics = std::collections::VecDeque<(MemoKey, wgpu::Buffer)>;
 
 impl Pipelines {
     pub(crate) fn new(ctx: &crate::GpuContext) -> EngineResult<Self> {
@@ -66,7 +68,14 @@ impl Pipelines {
             .device
             .create_shader_module(wgpu::ShaderModuleDescriptor {
                 label: Some("resident local tone"),
-                source: wgpu::ShaderSource::Wgsl(include_str!("presence.wgsl").into()),
+                source: wgpu::ShaderSource::Wgsl(
+                    concat!(
+                        include_str!("presence.wgsl"),
+                        "\n",
+                        include_str!("dehaze_stats.wgsl")
+                    )
+                    .into(),
+                ),
             });
         let entries: Vec<_> = (0..9)
             .map(|binding| wgpu::BindGroupLayoutEntry {
@@ -120,6 +129,9 @@ impl Pipelines {
             zpass: pipeline("zpass"),
             pres_coef: pipeline("pres_coef"),
             pres_apply: pipeline("pres_apply"),
+            stats_sort: pipeline("stats_sort"),
+            stats_candidates: pipeline("stats_candidates"),
+            stats_finish: pipeline("stats_finish"),
             layout,
         };
         if let Some(e) = pollster::block_on(scope.pop()) {
@@ -140,6 +152,9 @@ impl Pipelines {
             (&self.zpass, "local tone z"),
             (&self.pres_coef, "presence coefficients"),
             (&self.pres_apply, "presence apply"),
+            (&self.stats_sort, "dehaze exact sort"),
+            (&self.stats_candidates, "dehaze candidates"),
+            (&self.stats_finish, "dehaze statistics"),
         ]
         .into_iter()
         .find(|(q, _)| *q == p)
@@ -574,102 +589,92 @@ impl Batch<'_> {
         }
         // 3. Dehaze on the presence output.
         if dehaze {
-            let stats = match run.batch.gpu.dehaze_statistics(&options.statistics_key) {
-                Some(stats) => stats,
-                None => {
-                    let value = statistics(&mut run, &current)?;
-                    run.batch
-                        .gpu
-                        .store_dehaze_statistics(options.statistics_key, value);
-                    value
-                }
-            };
-            result = Some(match stats {
-                Some((air, confidence)) => {
-                    let strength = s.dehaze.abs().min(100.0) / 100.0 * confidence;
-                    let base = |mode, radii| {
-                        Params::new(frame, mode, radii)
-                            .f(14, air[0])
-                            .f(15, air[1])
-                            .f(16, air[2])
-                            .f(17, strength)
-                            .f(18, s.dehaze)
-                    };
-                    let h = run.vec4_buffer(frame)?;
-                    let hb = run.vec4_buffer(frame)?;
-                    let m = run.vec4_buffer(frame)?;
-                    let r3 = [3, INACTIVE, INACTIVE, INACTIVE];
-                    run.h(
-                        frame,
-                        base(LOAD_NORM, r3),
-                        Bind {
-                            src: Some(&current),
-                            outa: Some(&h),
-                            outb: Some(&hb),
-                            ..Default::default()
-                        },
-                    );
-                    run.v(
-                        base(V_TRANS, r3),
-                        Bind {
-                            src: Some(&current),
-                            ina: Some(&h),
-                            inb: Some(&h),
-                            outa: Some(&m),
-                            ..Default::default()
-                        },
-                    );
-                    let r4 = [4, 4, INACTIVE, INACTIVE];
-                    run.h(
-                        frame,
-                        Params::new(frame, LOAD_BUFFERS, r4),
-                        Bind {
-                            ina: Some(&m),
-                            inb: Some(&m),
-                            outa: Some(&h),
-                            outb: Some(&hb),
-                            ..Default::default()
-                        },
-                    );
-                    run.v(
-                        Params::new(frame, V_CROSS, r4),
-                        Bind {
-                            ina: Some(&h),
-                            inb: Some(&hb),
-                            outa: Some(&m),
-                            ..Default::default()
-                        },
-                    );
-                    let r = [4, INACTIVE, INACTIVE, INACTIVE];
-                    run.h(
-                        frame,
-                        Params::new(frame, LOAD_BUFFERS, r),
-                        Bind {
-                            ina: Some(&m),
-                            inb: Some(&m),
-                            outa: Some(&h),
-                            outb: Some(&hb),
-                            ..Default::default()
-                        },
-                    );
-                    let tiles = write_outputs(
-                        &mut run,
-                        whole.is_some(),
-                        outputs,
-                        base(V_DEHAZE, r),
-                        Bind {
-                            src: Some(&current),
-                            ina: Some(&h),
-                            inb: Some(&h),
-                            ..Default::default()
-                        },
-                        Output::Vertical,
-                    )?;
-                    run.release([h, hb, m]);
-                    tiles
-                }
-                None => run.copy_outputs(&current, whole.is_some(), outputs)?,
+            // Keep statistics transaction-local: publishing an unsubmitted GPU
+            // buffer in the shared cache would poison later/cancelled batches.
+            let stats = statistics(&mut run, &current)?;
+            result = Some({
+                let base = |mode, radii| {
+                    Params::new(frame, mode, radii)
+                        .f(17, s.dehaze.abs().min(100.0) / 100.0)
+                        .f(18, s.dehaze)
+                };
+                let h = run.vec4_buffer(frame)?;
+                let hb = run.vec4_buffer(frame)?;
+                let m = run.vec4_buffer(frame)?;
+                let r3 = [3, INACTIVE, INACTIVE, INACTIVE];
+                run.h(
+                    frame,
+                    base(LOAD_NORM, r3),
+                    Bind {
+                        src: Some(&current),
+                        low: Some(&stats),
+                        outa: Some(&h),
+                        outb: Some(&hb),
+                        ..Default::default()
+                    },
+                );
+                run.v(
+                    base(V_TRANS, r3),
+                    Bind {
+                        src: Some(&current),
+                        low: Some(&stats),
+                        ina: Some(&h),
+                        inb: Some(&h),
+                        outa: Some(&m),
+                        ..Default::default()
+                    },
+                );
+                let r4 = [4, 4, INACTIVE, INACTIVE];
+                run.h(
+                    frame,
+                    Params::new(frame, LOAD_BUFFERS, r4),
+                    Bind {
+                        ina: Some(&m),
+                        inb: Some(&m),
+                        outa: Some(&h),
+                        outb: Some(&hb),
+                        ..Default::default()
+                    },
+                );
+                run.v(
+                    Params::new(frame, V_CROSS, r4),
+                    Bind {
+                        ina: Some(&h),
+                        inb: Some(&hb),
+                        outa: Some(&m),
+                        ..Default::default()
+                    },
+                );
+                let r = [4, INACTIVE, INACTIVE, INACTIVE];
+                run.h(
+                    frame,
+                    Params::new(frame, LOAD_BUFFERS, r),
+                    Bind {
+                        ina: Some(&m),
+                        inb: Some(&m),
+                        outa: Some(&h),
+                        outb: Some(&hb),
+                        ..Default::default()
+                    },
+                );
+                let tiles = write_outputs(
+                    &mut run,
+                    whole.is_some(),
+                    outputs,
+                    base(V_DEHAZE, r),
+                    Bind {
+                        src: Some(&current),
+                        low: Some(&stats),
+                        ina: Some(&h),
+                        inb: Some(&h),
+                        ..Default::default()
+                    },
+                    Output::Vertical,
+                )?;
+                run.release([h, hb, m]);
+                tiles
             });
+            run.release([stats]);
         }
         let result = match result {
             Some(t) => t,
@@ -684,11 +689,8 @@ impl Batch<'_> {
     }
 }
 
-/// Exact global airlight/confidence: GPU dark channel, host order statistics.
-fn statistics(
-    run: &mut Run<'_, '_>,
-    current: &wgpu::Buffer,
-) -> EngineResult<Option<([f32; 3], f32)>> {
+/// Exact global airlight/confidence: GPU dark channel and merge order statistics.
+fn statistics(run: &mut Run<'_, '_>, current: &wgpu::Buffer) -> EngineResult<wgpu::Buffer> {
     let frame = run.frame;
     let h = run.vec4_buffer(frame)?;
     let unused = run.vec4_buffer(frame)?;
@@ -714,15 +716,76 @@ fn statistics(
             ..Default::default()
         },
     );
-    let data = run.batch.read_now(&[&d, current])?;
-    run.release([h, unused, d]);
-    let stats: &[[f32; 4]] = bytemuck::cast_slice(&data[0]);
-    let n = frame.area() as usize;
-    let planes: &[f32] = bytemuck::cast_slice(&data[1]);
-    let rgb: Vec<[f32; 4]> = (0..n)
-        .map(|i| [planes[i], planes[n + i], planes[2 * n + i], 0.0])
-        .collect();
-    Ok(crate::tone_local::airlight(stats, &rgb))
+    let mut a = h;
+    let mut b = unused;
+    // Preserve the unsorted dark channel for the candidate predicate.
+    let sort = run.pipelines.stats_sort.clone();
+    let n = frame.area() as u32;
+    let mut input = d.clone();
+    let mut width = 1;
+    while width < n {
+        run.dispatch(
+            &sort,
+            Params::new(frame, 0, [INACTIVE; 4]).u(11, width),
+            Bind {
+                ina: Some(&input),
+                outa: Some(&a),
+                ..Default::default()
+            },
+            linear(n),
+        );
+        input = a.clone();
+        std::mem::swap(&mut a, &mut b);
+        width *= 2;
+    }
+    let quantiles = run.batch.buffer(16)?;
+    let stats = run.batch.buffer(16)?;
+    let candidates = run.pipelines.stats_candidates.clone();
+    run.dispatch(
+        &candidates,
+        Params::new(frame, 0, [INACTIVE; 4]),
+        Bind {
+            src: Some(current),
+            ina: Some(&input),
+            inb: Some(&d),
+            outa: Some(&a),
+            outb: Some(&quantiles),
+            ..Default::default()
+        },
+        linear(n),
+    );
+    input = a.clone();
+    std::mem::swap(&mut a, &mut b);
+    width = 1;
+    while width < n {
+        run.dispatch(
+            &sort,
+            Params::new(frame, 0, [INACTIVE; 4]).u(11, width),
+            Bind {
+                ina: Some(&input),
+                outa: Some(&a),
+                ..Default::default()
+            },
+            linear(n),
+        );
+        input = a.clone();
+        std::mem::swap(&mut a, &mut b);
+        width *= 2;
+    }
+    let finish = run.pipelines.stats_finish.clone();
+    run.dispatch(
+        &finish,
+        Params::new(frame, 0, [INACTIVE; 4]),
+        Bind {
+            ina: Some(&input),
+            inb: Some(&quantiles),
+            outa: Some(&stats),
+            ..Default::default()
+        },
+        [1, 1],
+    );
+    run.release([a, b, d, quantiles]);
+    Ok(stats)
 }
 
 /// Final kernel shape per output rect.
@@ -786,19 +849,4 @@ fn write_outputs(
         out.insert(coord, run.batch.tile(coord, layout, dst));
     }
     Ok(out)
-}
-
-impl crate::GpuStageOp {
-    fn dehaze_statistics(&self, key: &MemoKey) -> Option<Option<([f32; 3], f32)>> {
-        let stats = self.dehaze_stats.lock().unwrap();
-        stats.iter().find(|(k, _)| k == key).map(|(_, v)| *v)
-    }
-    fn store_dehaze_statistics(&self, key: MemoKey, value: Option<([f32; 3], f32)>) {
-        let mut stats = self.dehaze_stats.lock().unwrap();
-        stats.retain(|(k, _)| *k != key);
-        if stats.len() >= STATS_ENTRIES {
-            stats.pop_front();
-        }
-        stats.push_back((key, value));
-    }
 }

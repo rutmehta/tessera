@@ -1,7 +1,9 @@
 //! Compositor bridge. Blending and shared masks belong to the compositor.
 use crate::{Effect, FilterParams, distort::Distortion};
 use compositor::{
-    document::SmartFilter, raster::Raster, render::smart_filters::SmartFilterEvaluator,
+    document::SmartFilter,
+    raster::Raster,
+    render::smart_filters::{FilterContext, SmartFilterEvaluator},
 };
 use engine_api::{EngineError, EngineResult};
 use std::sync::atomic::AtomicBool;
@@ -14,7 +16,14 @@ use std::sync::atomic::AtomicBool;
 #[derive(Clone, Copy, Debug, Default)]
 pub struct CompositorFilters;
 impl SmartFilterEvaluator for CompositorFilters {
-    fn evaluate(&self, input: &Raster, node: &SmartFilter) -> EngineResult<Raster> {
+    fn evaluate(
+        &self,
+        input: &Raster,
+        node: &SmartFilter,
+        context: &FilterContext,
+    ) -> EngineResult<Raster> {
+        #[cfg(not(feature = "camera-raw-filter"))]
+        let _ = context;
         if matches!(
             node.name.as_str(),
             "content_aware_fill" | "content_aware_move" | "content_aware_extend" | "remove"
@@ -37,7 +46,7 @@ impl SmartFilterEvaluator for CompositorFilters {
         }
         #[cfg(feature = "camera-raw-filter")]
         if node.name == "camera_raw" {
-            return camera_raw(input, &node.params);
+            return crate::camera_raw::evaluate(input, &node.params, context);
         }
         let (effect, params) = parse_filter(node, Some(input.extent()))?;
         effect.apply_tiled(input, &params, &AtomicBool::new(false))
@@ -107,7 +116,8 @@ impl CompositorFilters {
         resident_supports(node)
     }
 
-    /// Evaluate on the compositor's device without crossing the pixel residency boundary.
+    /// Legacy context-free entry point for filters that do not interpret colour.
+    /// Camera Raw requires the context-aware evaluator trait instead.
     pub fn evaluate_resident(
         &self,
         device: &wgpu::Device,
@@ -116,6 +126,47 @@ impl CompositorFilters {
         extent: engine_api::tile::Extent,
         node: &SmartFilter,
     ) -> EngineResult<wgpu::Buffer> {
+        if node.name == "camera_raw" {
+            return Err(EngineError::invalid("camera_raw", "FilterContext required"));
+        }
+        self.evaluate_resident_with_context(
+            device,
+            queue,
+            input,
+            extent,
+            node,
+            &FilterContext {
+                profile: None,
+                level: 0,
+                canvas: extent,
+            },
+        )
+    }
+
+    /// Evaluate on the compositor's device without crossing the pixel residency boundary.
+    #[allow(clippy::too_many_arguments)]
+    pub fn evaluate_resident_with_context(
+        &self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        input: &wgpu::Buffer,
+        extent: engine_api::tile::Extent,
+        node: &SmartFilter,
+        context: &FilterContext,
+    ) -> EngineResult<wgpu::Buffer> {
+        #[cfg(not(feature = "camera-raw-filter"))]
+        let _ = context;
+        #[cfg(feature = "camera-raw-filter")]
+        if node.name == "camera_raw" {
+            return crate::camera_raw_gpu::evaluate(
+                device,
+                queue,
+                input,
+                extent,
+                &node.params,
+                context,
+            );
+        }
         let (effect, params) = parse_filter(node, Some(extent))?;
         if !resident_supports(node)? {
             return Err(EngineError::Unsupported {
@@ -144,8 +195,11 @@ impl compositor::render::smart_filters::ResidentFilterEvaluator for CompositorFi
         input: &wgpu::Buffer,
         extent: engine_api::tile::Extent,
         filter: &SmartFilter,
+        context: &FilterContext,
     ) -> EngineResult<wgpu::Buffer> {
-        CompositorFilters::evaluate_resident(self, device, queue, input, extent, filter)
+        CompositorFilters::evaluate_resident_with_context(
+            self, device, queue, input, extent, filter, context,
+        )
     }
 }
 
@@ -230,6 +284,10 @@ fn parse_filter(
 }
 
 fn resident_supports(node: &SmartFilter) -> EngineResult<bool> {
+    #[cfg(feature = "camera-raw-filter")]
+    if node.name == "camera_raw" {
+        return crate::camera_raw_gpu::supports(&node.params);
+    }
     let (effect, params) = match parse_filter(node, None) {
         Ok(decoded) => decoded,
         Err(EngineError::Unsupported { .. }) => return Ok(false),
@@ -257,13 +315,7 @@ mod resident_tests {
         node.name = "adjust".into();
         node.params = serde_json::json!({"adjust": {"match_colour": {"target": [[0.2, 0.3, 0.4]], "amount": 1.0}}});
         assert!(!resident_supports(&node).unwrap());
-        for name in [
-            "smart_sharpen",
-            "median",
-            "camera_raw",
-            "transform",
-            "unknown",
-        ] {
+        for name in ["smart_sharpen", "median", "transform", "unknown"] {
             node.name = name.into();
             node.params = serde_json::json!({});
             assert!(!resident_supports(&node).unwrap());
@@ -274,101 +326,4 @@ mod resident_tests {
         node.params = serde_json::json!({"typo": 1});
         assert!(resident_supports(&node).is_err());
     }
-}
-
-/// Deliberately tone-only raster stub, not a RAW decoder/develop pipeline.
-#[cfg(feature = "camera-raw-filter")]
-fn camera_raw(input: &Raster, value: &serde_json::Value) -> EngineResult<Raster> {
-    use compositor::geom::Rect;
-    use engine_api::{
-        recipe::settings::ToneSettings,
-        tile::{Tile, TileCoord, TileLayout},
-    };
-    let object = value
-        .as_object()
-        .ok_or_else(|| EngineError::invalid("camera_raw", "object required"))?;
-    let mut settings = ToneSettings::default();
-    let mut amount = 1.0;
-    for (key, value) in object {
-        let (dst, bound) = match key.as_str() {
-            "exposure" => (&mut settings.exposure, 10.0),
-            "contrast" => (&mut settings.contrast, 100.0),
-            "highlights" => (&mut settings.highlights, 100.0),
-            "shadows" => (&mut settings.shadows, 100.0),
-            "whites" => (&mut settings.whites, 100.0),
-            "blacks" => (&mut settings.blacks, 100.0),
-            "amount" => (&mut amount, 1.0),
-            _ => {
-                return Err(EngineError::invalid(
-                    "camera_raw",
-                    format!("unknown parameter {key}"),
-                ));
-            }
-        };
-        let v = value
-            .as_f64()
-            .ok_or_else(|| EngineError::invalid("camera_raw", "number required"))?;
-        if !v.is_finite() || v.abs() > bound || (key == "amount" && v < 0.0) {
-            return Err(EngineError::invalid(
-                "camera_raw",
-                "parameter outside tone domain",
-            ));
-        }
-        *dst = v as f32;
-    }
-    if input.channels() != 4
-        || input.depth() != compositor::raster::Depth::F32
-        || input.extent().area() == 0
-    {
-        return Err(EngineError::invalid(
-            "camera_raw",
-            "nonempty F32 RGBA required",
-        ));
-    }
-    if amount == 0.0 {
-        return Ok(input.clone());
-    }
-    let rev = input
-        .max_rev()
-        .checked_add(1)
-        .ok_or_else(|| EngineError::invalid("camera_raw", "revision overflow"))?;
-    let mut out = input.clone();
-    let (nx, ny) = input.grid();
-    let mut samples = Vec::new();
-    for ty in 0..ny {
-        for tx in 0..nx {
-            input.read_tile(tx, ty, &mut samples)?;
-            if samples.iter().any(|v| !v.is_finite()) {
-                return Err(EngineError::invalid("camera_raw", "finite pixels required"));
-            }
-            let layout = TileLayout {
-                channels: 3,
-                ..input.layout(tx, ty)
-            };
-            let n = layout.plane_len();
-            let mut tile =
-                Tile::from_samples(TileCoord::new(0, tx, ty), layout, samples[..3 * n].to_vec())?;
-            pipeline_cpu::tone(&mut tile, &settings)?;
-            let data = tile.samples::<f32>()?;
-            if data.iter().any(|v| !v.is_finite()) {
-                return Err(EngineError::invalid("camera_raw", "nonfinite tone result"));
-            }
-            out.edit_region(
-                Rect::new(
-                    i64::from(tx) * 256,
-                    i64::from(ty) * 256,
-                    i64::from(tx + 1) * 256,
-                    i64::from(ty + 1) * 256,
-                ),
-                rev,
-                |x, y, p| {
-                    let i = (y - ty * 256) as usize * layout.stride() + (x - tx * 256) as usize;
-                    for c in 0..3 {
-                        p[c] += amount * (data[c * n + i] - p[c]);
-                    }
-                },
-            )?;
-        }
-    }
-    Ok(out)
 }

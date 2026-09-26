@@ -1,4 +1,7 @@
 use crate::{GpuStageOp, operator::parameters};
+#[path = "resident_bridge.rs"]
+mod bridge;
+pub use bridge::ResidentBuffer;
 #[path = "resident_band.rs"]
 mod band;
 #[path = "resident_cfa.rs"]
@@ -7,6 +10,9 @@ mod cfa;
 pub(crate) mod export_resize;
 #[path = "lens.rs"]
 mod lens;
+#[cfg(test)]
+#[path = "shared_bridge_tests.rs"]
+mod shared_bridge_tests;
 
 use engine_api::{
     EngineError, EngineResult,

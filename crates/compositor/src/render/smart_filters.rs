@@ -31,12 +31,62 @@ impl Default for FilterBlend {
     }
 }
 
+/// Shared ICC profile metadata and bytes, using the document's existing profile
+/// representation. Cloning retains the embedded bytes through their `Arc`.
+/// `engine_api` provides `IccProfileHandle`, but no byte-bearing profile reference.
+pub type ColorProfileRef = crate::document::ColorProfile;
+
+/// Interpretation and geometry of the straight-RGBA filter input.
+#[derive(Clone, Debug, PartialEq)]
+pub struct FilterContext {
+    /// Source document profile; `None` means untagged sRGB.
+    pub profile: Option<ColorProfileRef>,
+    /// Actual input mip level, not the eventual presentation level.
+    pub level: u32,
+    /// Full-resolution source document canvas.
+    pub canvas: engine_api::tile::Extent,
+}
+
+impl FilterContext {
+    pub(crate) fn native(state: &DocState) -> Self {
+        Self {
+            profile: state.profile.clone(),
+            level: 0,
+            canvas: state.canvas,
+        }
+    }
+
+    pub(crate) fn cache_digest(&self) -> [u8; 32] {
+        let mut h = blake3::Hasher::new();
+        h.update(&self.level.to_le_bytes());
+        h.update(&self.canvas.width.to_le_bytes());
+        h.update(&self.canvas.height.to_le_bytes());
+        h.update(&[u8::from(self.profile.is_some())]);
+        if let Some(profile) = &self.profile {
+            // Include both handle and embedded content: unresolved profiles must
+            // not reuse results produced when bytes were available.
+            h.update(profile.handle.0.as_bytes());
+            h.update(blake3::hash(profile.name.as_bytes()).as_bytes());
+            h.update(&[u8::from(profile.icc.is_some())]);
+            if let Some(icc) = &profile.icc {
+                h.update(blake3::hash(icc).as_bytes());
+            }
+        }
+        *h.finalize().as_bytes()
+    }
+}
+
 /// Adapter supplied by the filters crate (or a host extension). Implementations
 /// must return same-size straight F32 RGBA, preserve input, and be deterministic.
 pub trait SmartFilterEvaluator: Send + Sync {
     /// Evaluate a whole nested composite; neighbourhood operators gather their
     /// halos internally, never from separately filtered compositor tiles.
-    fn evaluate(&self, input: &Raster, filter: &SmartFilter) -> EngineResult<Raster>;
+    fn evaluate(
+        &self,
+        input: &Raster,
+        filter: &SmartFilter,
+        context: &FilterContext,
+    ) -> EngineResult<Raster>;
 }
 
 /// Shared-device smart-filter bridge. Buffers are tightly interleaved straight
@@ -52,12 +102,18 @@ pub trait ResidentFilterEvaluator: SmartFilterEvaluator {
         input: &wgpu::Buffer,
         extent: engine_api::tile::Extent,
         filter: &SmartFilter,
+        context: &FilterContext,
     ) -> EngineResult<wgpu::Buffer>;
 }
 
 struct BasicFilters;
 impl SmartFilterEvaluator for BasicFilters {
-    fn evaluate(&self, input: &Raster, filter: &SmartFilter) -> EngineResult<Raster> {
+    fn evaluate(
+        &self,
+        input: &Raster,
+        filter: &SmartFilter,
+        _context: &FilterContext,
+    ) -> EngineResult<Raster> {
         if matches!(filter.name.as_str(), "gaussian" | "gaussian_blur") {
             return gaussian(input, &filter.params);
         }
@@ -183,7 +239,7 @@ fn evaluate_transform(input: &Raster, op: &transform::TransformOp) -> EngineResu
     Ok(out)
 }
 
-type CacheKey = (u64, u64, [u8; 32]);
+type CacheKey = (u64, u64, [u8; 32], [u8; 32]);
 struct Cached {
     source: Raster,
     result: Raster,
@@ -233,7 +289,15 @@ impl Compositor {
         }
         let params = serde_json::to_vec(&so.filters)
             .map_err(|e| EngineError::invalid("smart filters", e.to_string()))?;
-        let key = (so.key, so.state.rev, *blake3::hash(&params).as_bytes());
+        // Stacks run on the child composite at native resolution, before any
+        // smart-object resampling. The outer document's profile is not the input's.
+        let context = FilterContext::native(&so.state);
+        let key = (
+            so.key,
+            so.state.rev,
+            *blake3::hash(&params).as_bytes(),
+            context.cache_digest(),
+        );
         let rt = &self.filter_runtime;
         let cached = rt
             .cache
@@ -270,7 +334,7 @@ impl Compositor {
                     let next = if let Some(op) = filter.transform_op()? {
                         evaluate_transform(&result, &op)?
                     } else {
-                        rt.evaluator.evaluate(&result, filter)?
+                        rt.evaluator.evaluate(&result, filter, &context)?
                     };
                     if next.extent() != source.extent()
                         || next.channels() != 4
@@ -372,6 +436,7 @@ impl Compositor {
             }
         }
         let mut state = DocState::new(raster.extent(), Depth::F32);
+        state.profile = context.profile;
         state.rev = so.state.rev;
         state.root.push(Arc::new(Layer::new(
             "filtered composite",

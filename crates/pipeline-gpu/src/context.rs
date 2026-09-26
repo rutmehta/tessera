@@ -19,18 +19,27 @@ pub struct GpuContext {
     /// Export Lanczos-3 resize (compiled on first use).
     pub(crate) resize_pipeline: std::sync::OnceLock<wgpu::ComputePipeline>,
     pub(crate) metrics_pipeline: std::sync::OnceLock<wgpu::ComputePipeline>,
-    shared: gpu_core::GpuDevice,
+    shared: Option<gpu_core::GpuDevice>,
 }
 
 impl GpuContext {
     pub(crate) fn device_failure(&self) -> Option<String> {
-        self.shared.device_failure()
+        self.shared.as_ref().and_then(|s| s.device_failure())
     }
 
-    /// The shared device handle, for other GPU consumers (the layer
-    /// compositor) so the app keeps one Metal context.
+    /// The shared device handle for contexts opened by `new` or `from_shared`.
+    ///
+    /// # Panics
+    /// Panics for [`Self::from_device`] contexts. Use [`Self::shared_device`]
+    /// when the context's origin is not known, or use `device`/`queue` directly.
     pub fn shared(&self) -> &gpu_core::GpuDevice {
-        &self.shared
+        self.shared_device()
+            .expect("from_device contexts have no GpuDevice wrapper")
+    }
+
+    /// Returns the original wrapper, if constructed with `new`/`from_shared`.
+    pub fn shared_device(&self) -> Option<&gpu_core::GpuDevice> {
+        self.shared.as_ref()
     }
 
     /// Opens the shared device ([`gpu_core::GpuDevice::new`]) and compiles
@@ -41,8 +50,36 @@ impl GpuContext {
 
     /// Compiles the operator pipeline on an existing shared device.
     pub fn from_shared(shared: gpu_core::GpuDevice) -> EngineResult<Self> {
-        let device = shared.device.clone();
-        let queue = shared.queue.clone();
+        let mut context = Self::from_device(&shared.device, &shared.queue)?;
+        context.adapter_info = shared.adapter_info.clone();
+        context.capabilities = shared.capabilities;
+        context.shared = Some(shared);
+        Ok(context)
+    }
+
+    /// Compiles on the caller's existing Metal device; clones handles only.
+    /// `queue` must belong to `device`. No new device, submissions or pixel
+    /// transfers are made. The caller must provide sufficient device limits
+    /// for the operators it uses (see [`gpu_core::limits`]).
+    ///
+    /// Enabled features are queried from the device. This does not replace
+    /// the caller's device-loss callback: the caller remains responsible for
+    /// loss notification/recovery; polling/validation errors still propagate.
+    pub fn from_device(device: &wgpu::Device, queue: &wgpu::Queue) -> EngineResult<Self> {
+        let adapter_info = device.adapter_info();
+        if adapter_info.backend != wgpu::Backend::Metal {
+            return Err(EngineError::invalid("GPU context", "requires Metal"));
+        }
+        let features = device.features();
+        let capabilities = GpuCapabilities {
+            timestamp_query: features.contains(wgpu::Features::TIMESTAMP_QUERY),
+            shader_f16: features.contains(wgpu::Features::SHADER_F16),
+            // Rgba16Float storage is part of wgpu's guaranteed format support.
+            rgba16float_storage: true,
+            passthrough_shaders: features.contains(wgpu::Features::PASSTHROUGH_SHADERS),
+        };
+        let device = device.clone();
+        let queue = queue.clone();
         let scope = device.push_error_scope(wgpu::ErrorFilter::Validation);
         let module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("M1 operators"),
@@ -62,8 +99,8 @@ impl GpuContext {
         Ok(Self {
             device,
             queue,
-            adapter_info: shared.adapter_info.clone(),
-            capabilities: shared.capabilities,
+            adapter_info,
+            capabilities,
             pipeline,
             local_tone_pipelines: std::sync::Mutex::new(None),
             lens_pipelines: std::sync::OnceLock::new(),
@@ -71,7 +108,7 @@ impl GpuContext {
             band_pipelines: std::sync::OnceLock::new(),
             resize_pipeline: std::sync::OnceLock::new(),
             metrics_pipeline: std::sync::OnceLock::new(),
-            shared,
+            shared: None,
         })
     }
 }

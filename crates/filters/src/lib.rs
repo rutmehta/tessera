@@ -3,6 +3,10 @@ mod compositor_adapter;
 pub use compositor_adapter::CompositorFilters;
 pub mod adjust;
 pub mod caf;
+#[cfg(feature = "camera-raw-filter")]
+pub mod camera_raw;
+#[cfg(feature = "camera-raw-filter")]
+pub mod camera_raw_gpu;
 mod cpu;
 pub mod distort;
 pub mod distraction;

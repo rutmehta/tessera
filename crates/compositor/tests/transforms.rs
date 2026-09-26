@@ -108,7 +108,12 @@ fn native_roundtrip_and_invalid_transform_rejection() {
 fn custom_evaluator_cannot_override_transform() {
     struct Reject;
     impl compositor::render::smart_filters::SmartFilterEvaluator for Reject {
-        fn evaluate(&self, _: &Raster, _: &SmartFilter) -> engine_api::EngineResult<Raster> {
+        fn evaluate(
+            &self,
+            _: &Raster,
+            _: &SmartFilter,
+            _: &compositor::render::smart_filters::FilterContext,
+        ) -> engine_api::EngineResult<Raster> {
             panic!("reserved transform dispatched externally")
         }
     }

@@ -6,6 +6,63 @@ use engine_api::tile::Extent;
 use std::sync::Arc;
 
 #[test]
+fn filters_receive_native_child_context_and_cache_by_profile() {
+    use compositor::raster::Raster;
+    use compositor::render::smart_filters::{FilterContext, SmartFilterEvaluator};
+    use std::sync::Mutex;
+
+    #[derive(Default)]
+    struct Capture(Mutex<Vec<FilterContext>>);
+    impl SmartFilterEvaluator for Capture {
+        fn evaluate(
+            &self,
+            input: &Raster,
+            _: &SmartFilter,
+            context: &FilterContext,
+        ) -> engine_api::EngineResult<Raster> {
+            self.0.lock().unwrap().push(context.clone());
+            Ok(input.clone())
+        }
+    }
+    let extent = Extent::new(8, 6);
+    let mut child = DocState::new(extent, Depth::F32);
+    child.profile = Some(compositor::ColorProfile::from_icc("child", vec![1, 2, 3]));
+    let mut so = SmartObject::new(child, Affine::IDENTITY);
+    so.filters.push(SmartFilter {
+        name: "capture".into(),
+        enabled: true,
+        ..Default::default()
+    });
+    let capture = Arc::new(Capture::default());
+    let mut c = Compositor::new(1 << 20);
+    c.set_filter_evaluator(capture.clone());
+    let render = |so: &SmartObject| {
+        let mut outer = DocState::new(Extent::new(10, 10), Depth::F32);
+        outer.profile = Some(compositor::ColorProfile::from_icc("outer", vec![9]));
+        outer.root.push(Arc::new(Layer::new(
+            "smart",
+            LayerKind::SmartObject(so.clone()),
+        )));
+        c.render_level_rgba(&Document::new(outer), 1).unwrap();
+    };
+    render(&so);
+    render(&so);
+    assert_eq!(capture.0.lock().unwrap().len(), 1);
+    // Keep source identity and revision unchanged to isolate context cache identity.
+    Arc::make_mut(&mut so.state).profile = None;
+    render(&so);
+    let seen = capture.0.lock().unwrap();
+    assert_eq!(seen.len(), 2);
+    assert_eq!(
+        seen[0].profile.as_ref().unwrap().icc.as_deref().unwrap(),
+        &vec![1, 2, 3]
+    );
+    assert_eq!(seen[0].level, 0); // Evaluation precedes output downsampling.
+    assert_eq!(seen[0].canvas, extent);
+    assert!(seen[1].profile.is_none());
+}
+
+#[test]
 fn smart_filter_is_evaluated_on_nested_composite() {
     let mut child = DocState::new(Extent::new(3, 3), Depth::F32);
     child.root.push(Arc::new(Layer::new(
