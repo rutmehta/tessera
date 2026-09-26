@@ -1,0 +1,13 @@
+Reverified the existing implementation with CARGO_TARGET_DIR preserved.
+
+- Release tests: 178 passed, 0 failed, 11 ignored.
+- Clippy with -D warnings: passed.
+- Five-fixture parity benchmark: passed, including exact histogram/clipping counts and native face crops.
+- NEF cached reduction: 8.84 ms. Complete agent step: 99.90 ms.
+- Scoped formatting and git diff --check: passed.
+
+The required workspace cargo fmt --check still fails at apps/tessera-cli/src/main.rs:10. That file matches HEAD and is outside your allowlist, so I left it untouched. No source changes were made during this retry.
+
+Evidence: tools/orchestrate/wp/M3-14b/retry-verification.md and retry-bench.log.
+
+RESULT: FAIL workspace formatting requires an out-of-scope module-order fix in apps/tessera-cli/src/main.rs.

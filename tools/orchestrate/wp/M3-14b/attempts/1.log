@@ -1,0 +1,13 @@
+Implemented full-resolution GPU reductions, memoized output reuse, native-resolution skin ΔE crops, and critic/histogram integration. Preview pixels are no longer used for objective critic metrics. Engine-api is unchanged.
+
+Verification:
+- 178 release tests passed.
+- Strict Clippy and scoped formatting passed.
+- Five-fixture benchmark passed: exact histogram/clipping counts against CPU counting of identical full-resolution output, mean error below 1e-4, and exact face crops.
+- NEF cached reduction: 8.81 ms median. Complete agent step: 116.49 ms.
+
+The required workspace-wide formatting check fails on pre-existing module ordering in apps/tessera-cli/src/main.rs:10. That file is unchanged and outside the allowed paths.
+
+Evidence and caveats: tools/orchestrate/wp/M3-14b/result.md, verification.log, and five-fixture-bench.log.
+
+RESULT: FAIL required cargo fmt --check fails on unchanged, out-of-scope apps/tessera-cli/src/main.rs module ordering.

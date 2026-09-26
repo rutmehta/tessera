@@ -683,9 +683,9 @@
     "id": "M5-01",
     "owner": "opus",
     "title": "Layer compositor core",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
-    "notes": ""
+    "notes": "73ms/100 layers @L2; GPU port correctness-only; styles/smart filters not rendered; wants engine-api DocumentId/LayerId + generic memo key (M5-03 contract rev)"
   },
   {
     "id": "M5-02",
