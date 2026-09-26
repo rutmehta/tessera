@@ -1,0 +1,9 @@
+{
+  "wp": "M3-16c",
+  "status": "escalate",
+  "attempts": 4,
+  "last_test_exit": 0,
+  "violations": [
+    "Cargo.lock"
+  ]
+}
