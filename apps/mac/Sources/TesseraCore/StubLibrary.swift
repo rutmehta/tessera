@@ -18,7 +18,7 @@ public final class StubLibrary: Sendable {
         "mef", "mos", "mrw", "nef", "nrw", "orf", "pef", "raf", "raw", "rw2", "rwl", "sr2", "srf", "srw", "x3f",
     ]
     public static let jpegExtensions: Set<String> = ["jpg", "jpeg", "jpe"]
-    public static let otherExtensions: [String: PhotoKind] = ["heic": .heif, "heif": .heif, "hif": .heif, "tif": .tiff, "tiff": .tiff]
+    public static let otherExtensions: [String: PhotoKind] = ["png": .png, "heic": .heif, "heif": .heif, "hif": .heif, "tif": .tiff, "tiff": .tiff]
 
     public static func kind(forExtension ext: String) -> PhotoKind? {
         let e = ext.lowercased()

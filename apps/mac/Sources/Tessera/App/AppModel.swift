@@ -1198,16 +1198,16 @@ final class AppModel {
 
     // MARK: Develop (Basic panel on the engine)
 
-    /// Opens the session for `item` (RAW only). Called by the loupe when it shows an image.
+    /// Opens the session for an indexed photo. Called by the loupe when it shows an image.
     func openDevelop(for item: PhotoItem) {
         if develop?.itemID == item.id {
             liveObservers.forEach { $0.developDidChange() }
             return
         }
         closeDevelop()
-        guard item.kind == .raw, let ref = item.engineImage else {
+        guard item.kind != .synthetic, let ref = item.engineImage else {
             developStatus = .unavailable(item.kind == .synthetic
-                ? "Stub items have no pixels to develop" : "Develop needs a RAW file (\(item.kind.rawValue))")
+                ? "Stub items have no pixels to develop" : "Develop needs an indexed photo (\(item.kind.rawValue))")
             return
         }
         developStatus = .loading

@@ -28,7 +28,7 @@ struct MasksPanel: View {
             }
             if masks.list.groups.isEmpty {
                 Hint(ready ? "No masks. Pick a tool on the loupe or from Create; AI masks run on this Mac."
-                           : "Open a RAW in the loupe (E)")
+                           : "Open a photo in the loupe (E)")
             } else {
                 VStack(spacing: Theme.Space.xxs) {
                     ForEach(masks.list.groups, id: \.id) { g in row(g) }

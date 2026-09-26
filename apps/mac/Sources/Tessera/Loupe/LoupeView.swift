@@ -11,7 +11,7 @@ struct LoupeView: NSViewRepresentable {
 }
 
 /// Feeds the loupe: instant first paint from the cached grid thumbnail, then the embedded preview,
-/// then the engine's develop frames once the session for a RAW is open; prefetches the neighbours
+/// then the engine's develop frames once the photo's session is open; prefetches the neighbours
 /// (docs/08 §2 "prefetch next/previous").
 @MainActor
 final class LoupeController: LibraryObserver {

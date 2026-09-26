@@ -4,6 +4,7 @@ import Foundation
 public enum PhotoKind: String, Sendable {
     case raw = "RAW"
     case jpeg = "JPEG"
+    case png = "PNG"
     case heif = "HEIF"
     case tiff = "TIFF"
     case synthetic = "STUB"

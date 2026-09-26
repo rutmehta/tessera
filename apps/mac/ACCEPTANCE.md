@@ -52,17 +52,15 @@ Notes:
 
 ## M2-29. Develop a rendered JPEG in the loupe
 
-On a scratch copy from `$SCR/shoot`, open a JPEG in the loupe and enter Develop. 📸
-Expect a non-black image, not a RAW-only error. Drag Exposure, Contrast and Tint,
-then commit: both the drag preview and refined frame must update. Reset must
-restore the original rendering. Close/reopen, verify the edit persists and that
-the recipe JSON contains `"source_kind": "rgb"`. Export JPEG and 16-bit TIFF and
-open both: colour, orientation and edits must agree with the loupe.
+1. **M2-29.1 — JPEG loupe.** On a scratch copy from `$SCR/shoot`, select a JPEG and press E to open the loupe, then D for Develop. 📸 Expect a non-black image, enabled sliders, and no RAW-only error.
+2. **M2-29.2 — Edits.** Drag Exposure, Contrast and Tint, then release each slider. 📸 Expect both the drag preview and refined frame to update. Reset and expect the original rendering; set Exposure again and commit.
+3. **M2-29.3 — Persistence.** Quit and relaunch with the same `--app-dir` and `--folder`. Reopen the JPEG; expect the Exposure value and brighter frame to persist. Check its recipe JSON for `"source_kind": "rgb"`.
+4. **M2-29.4 — Export.** Export Full-size JPEG and 16-bit TIFF into a scratch folder and open both. Expect colour, orientation and edits to agree with the loupe; compare mean pixel brightness of the JPEG export against the source.
+5. **M2-29.5 — Other rendered formats.** Index PNG, TIFF and a HEIC generated with `sips -s format heic input.jpg --out output.heic` in the scratch shoot; enter Develop on each. Expect sliders and non-black frames. Decode-level tests cover 16-bit and float TIFF; macOS HEIC decoding requires the default `imageio` Cargo feature.
+6. **M2-29.6 — Colour and orientation.** Repeat with an embedded AdobeRGB JPEG and an EXIF-rotated JPEG. Neither may be treated as untagged sRGB or rotated twice.
+7. **M2-29.7 — Masks.** On the JPEG, create a linear mask and adjust local Exposure; expect the masked region to change. Try AI Subject; expect a mask or an explicit model-availability error, not a RAW-only refusal.
 
-Repeat with an embedded AdobeRGB JPEG and an EXIF-rotated JPEG. Neither may be
-treated as untagged sRGB or rotated twice. Decode-level tests cover 16-bit and
-float TIFF. macOS HEIC decoding requires the default `imageio` Cargo feature.
-This is a manual acceptance script, not a claim that visual QA has been run.
+This is a manual acceptance script; individual expectations are not claims of visual QA unless accompanied by evidence.
 
 ## B. Group navigation
 
