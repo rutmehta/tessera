@@ -822,5 +822,21 @@
     "status": "todo",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M5-12",
+    "owner": "astra",
+    "title": "Text layers (typography)",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M5-13",
+    "owner": "astra",
+    "title": "Vector paths and shapes",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
