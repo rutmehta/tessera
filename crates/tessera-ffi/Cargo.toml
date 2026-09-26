@@ -28,6 +28,8 @@ export = { path = "../export" }
 ml-enhance = { path = "../ml-enhance" }
 ml-faces = { path = "../ml-faces" }
 ml-quality = { path = "../ml-quality" }
+ml-caption = { path = "../ml-caption" }
+ml-embed = { path = "../ml-embed" }
 style-profile = { path = "../style-profile" }
 agent = { path = "../agent" }
 anyhow.workspace = true

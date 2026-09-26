@@ -245,3 +245,24 @@ fn understanding_persists_provenance_without_accepting_suggestions() {
     assert_eq!(index.understanding(ImageId(42)).unwrap(), None);
     assert!(index.set_understanding(ImageId(42), &sample()).is_err());
 }
+
+#[test]
+fn forgetting_accepted_keywords_survives_rescan() {
+    let (dir, mut index, id) = fixture();
+    index.add_keyword("beach", None).unwrap();
+    index
+        .accept_keyword_names(&[id], &["beach".to_owned()])
+        .unwrap();
+    assert_eq!(index.accepted_keyword_names(id).unwrap(), ["beach"]);
+    assert_eq!(text(&index, "beach"), vec![id]);
+    index
+        .forget_accepted_keyword_names(&[id], &["beach".to_owned()])
+        .unwrap();
+    assert!(index.accepted_keyword_names(id).unwrap().is_empty());
+    assert!(text(&index, "beach").is_empty());
+    std::fs::write(dir.path().join("photo.cr3"), b"changed").unwrap();
+    index
+        .scan(dir.path(), &NoopSidecarReader, &NoopMetadataProvider)
+        .unwrap();
+    assert!(text(&index, "beach").is_empty());
+}

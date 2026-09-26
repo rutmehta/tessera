@@ -20,7 +20,8 @@ struct FilterBar: View {
                                   onSubmit: {}, plain: true)
                 }
                 .frame(minWidth: 180, maxWidth: 400)
-                .help("Words search names, captions and keywords. Fields: keyword: camera: lens: rating>= "
+                .help("Words search names, captions (yours and generated), text in images and keywords. "
+                      + "Fields: text: keyword: camera: lens: rating>= "
                       + "decision: mark: date: album: (none / any / name), combined with AND, OR, NOT and ( )")
                 if let d = library.diagnostic {
                     Text(d.message)

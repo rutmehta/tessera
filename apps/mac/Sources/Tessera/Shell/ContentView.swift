@@ -47,6 +47,7 @@ struct ContentView: View {
                     FaceStrip(model: model)
                 }
                 AssistProgressBar(assist: model.assist)
+                UnderstandingProgressBar(understanding: model.collections.understanding)
                 AgentProgressBar(agent: model.agent)
                 LightroomImportProgressBar(importer: model.lightroomImport)
                 ExportProgressBar(exporter: model.exporter)

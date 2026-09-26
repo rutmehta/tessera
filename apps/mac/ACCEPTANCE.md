@@ -785,3 +785,81 @@ time; record whether it was tried and its message.
 | `agent-provenance` | Inspector ▸ Agent Edit |
 | `agent-group` · `agent-group-amount` · `agent-group-amount-readout` · `agent-step-toggle-<id>` · `agent-step-rationale` · `agent-group-redo` · `agent-group-instruction` | History ▸ agent group |
 | `ai-default-provider` · `ai-key-<provider>` · `ai-key-status-<provider>` · `ai-profile-status` | Settings ▸ AI |
+
+## S. Keyword suggestions, captions / alt text and text in images (M3-15)
+
+Suggestions, captions and OCR run on this Mac (`ml-caption`: SigLIP keywords, Florence-2 captions and text) as
+background jobs; results are cached in the catalog and reused until the model changes. Nothing is applied until you
+accept it: suggestions become keywords only on click, generated captions only on **Save**. The hidden
+`--fake-captioner` aid swaps in deterministic test models that name each frame's dominant colour (keywords
+`photograph`, `<colour>`, `gradient`, `abstract`, `texture` at 93 / 81 / 62 / 41 / 22 %; caption
+`A <colour> gradient photograph.`; text `TEST CARD <COLOUR>`), so no weights or network are needed. Without it the real
+models need `python3 tools/fetch_siglip.py --cache APP_DIR/models/cache` and `tools/fetch_florence.py` (same cache).
+
+108. Quit Tessera. Create the shoot and launch:
+     ```sh
+     swift apps/mac/Support/make-sample-folder.swift "$SCR/words" 12
+     open -n apps/mac/build/Tessera.app --args --app-dir "$SCR/appdir-words" --folder "$SCR/words" --fake-captioner
+     ```
+     Expand the inspector's **Keywords** and **Metadata** panels. With cell 1 (SAMPLE_0001, pink) focused, Keywords shows a
+     **Suggested** sub-header with **Suggest** (`keyword-suggest-selection`) and the hint `Suggestions appear here…`.
+109. **Suggest.** Click **Suggest** (or Library ▸ Suggest Keywords for Selection, ⌥⌘K). Expect a brief
+     `Keyword suggestions` progress strip (`understanding-progress`, with **Stop**, `understanding-cancel`), then the
+     status `Keyword suggestions: 1 photo` and 📸 five dashed-outline chips (`keyword-suggestions`), highest first:
+     `+ photograph`, `+ pink`, `+ gradient`, `+ abstract`, `+ texture`, each with an ✕ and a confidence bar along its
+     bottom edge (the three at or above 50 % in primary ink). Hover `pink`: `pink: 81 % confidence · new keyword under
+     “Suggested” · click to accept…`. Below: `Accept all ≥ 50 %`, a threshold slider (`keyword-suggestion-threshold`) and
+     **Accept 3** (`keyword-suggestions-accept-all`). Click **Suggest** again: `Keyword suggestions: already up to date`.
+110. **Accept one.** Click the `pink` chip (`keyword-suggestion-pink`). Expect: status `Added “Suggested › pink” to the
+     catalog (XMP off)`; the chip leaves Suggested; `pink` appears as an applied keyword chip and in the Keyword List as
+     `Suggested` ▸ `pink` (count 1). `SAMPLE_0001.jpg.xmp` does not mention `pink` (catalog only, the default).
+     Type `keyword:pink` in the filter bar: `1 match`. Clear.
+111. **Mapping.** Keyword List ▸ **New…** `Colors`, then right-click `pink` ▸ Move Into ▸ `Colors`. Select cell 2
+     (SAMPLE_0002, pink) and **Suggest**. The `pink` chip now shows ↳ and its tooltip reads `adds “Colors › pink”`.
+     Click it: status `Added “Colors › pink” …`.
+112. **Reject and threshold.** On cell 2 click ✕ on `texture` (`keyword-suggestion-reject-texture`): it disappears and
+     stays gone after **Suggest** (cached). Drag the threshold to 40 %: **Accept 3** (photograph, gradient, abstract).
+     ⇧-click any chip: all three are accepted at once (`Added 3 suggested keywords …`).
+113. **Selection.** Select cells 1–12 (⌘A) and press ⌥⌘K. Expect the strip to count `n / 10` (cells 1 and 2 are cached), then
+     merged chips: a colour chip carries a small count (for example `pink 1`) when it is not suggested for every selected photo;
+     accepting one tags only the photos it was suggested for.
+114. **XMP opt-in.** Settings ▸ AI (⌘,) ▸ **Keywords, captions and text** 📸: `Suggest keywords for new photos`
+     (`ai-auto-suggest`), `Write accepted suggestions to XMP sidecars` (`ai-write-suggested-xmp`) and
+     `Test models (--fake-captioner)…` (`ai-caption-models`). Turn on XMP writing, accept `gradient` on cell 4. Then
+     `grep -c "Suggested|gradient" "$SCR/words/SAMPLE_0004.jpg.xmp"` prints `1`.
+115. **Generate caption.** Focus cell 1 only. Metadata shows **Caption**, **Alt text** (`iptc-altText`) and **Generate**
+     (`metadata-generate-caption`; disabled with several photos selected: `Select one photo…`). Click **Generate**.
+     📸 Expect Caption `A pink gradient photograph.` and Alt text `An abstract image of smooth pink tones with soft
+     light.` filled but unsaved, **Save** (`caption-draft-save`), **Discard** (`caption-draft-discard`) and
+     `Generated on this Mac. Edit the fields, then Save.`. Edit the caption to `Pink test frame.` and click **Save**:
+     status `Saved caption and alt text to SAMPLE_0001.jpg`; the XMP has `dc:description` `Pink test frame.` and
+     `Iptc4xmpCore:AltTextAccessibility`. **Discard** on another photo leaves its XMP untouched.
+116. **Text in image.** Click **Detect Text** (`ocr-detect`). Expect under **Text in Image** a read-only block
+     `TEST CARD PINK` (`ocr-text`) and **Find Photos with This Text** (`ocr-find`). Click it: the filter reads
+     `text:"TEST CARD PINK"` and shows `1 match`. Select all, Library ▸ Detect Text in Selection, then search
+     `text:"test card"`: all 12 match; `gradient` matches the frames with generated captions.
+117. **Auto-suggest.** Turn on `Suggest keywords for new photos`, quit, add a frame
+     (`cp "$SCR/words/SAMPLE_0003.jpg" "$SCR/words/NEW.jpg"`) and relaunch with the same arguments: a keyword strip runs
+     for the one uncached photo only (`n / 1`).
+118. **Tests.**
+     ```sh
+     cargo test -p tessera-ffi --release --test understanding 2>&1 | grep "test result"
+     cargo test -p ml-caption -p library -p index -p sidecar --release 2>&1 | grep "test result"
+     (cd apps/mac && swift test --filter "SuggestionChipTests|SearchTermTests|ThemeLintTests" 2>&1 | grep "Executed")
+     ```
+     Expect `5 passed`, only `ok.` lines, and `Executed 8 tests, with 0 failures`.
+
+## Verdict (keywords, captions and text)
+
+PASS when steps 108–118 meet their expectations. Real models (without `--fake-captioner`) need the fetch scripts once;
+record whether they were tried and the timing of a 12-photo caption job.
+
+## Appendix: accessibility identifiers (M3-15)
+
+| Identifier | Element |
+| --- | --- |
+| `keyword-suggest-selection` · `keyword-suggestions` · `keyword-suggestion-<keyword>` · `keyword-suggestion-reject-<keyword>` · `keyword-suggestion-threshold` · `keyword-suggestions-accept-all` | Keywords ▸ Suggested |
+| `iptc-altText` · `metadata-generate-caption` · `caption-draft-save` · `caption-draft-discard` | Metadata ▸ Caption and alt text |
+| `ocr-detect` · `ocr-text` · `ocr-find` | Metadata ▸ Text in Image |
+| `understanding-progress` · `understanding-cancel` | Status strip: suggestion / caption / text job |
+| `ai-auto-suggest` · `ai-write-suggested-xmp` · `ai-caption-models` | Settings ▸ AI ▸ Keywords, captions and text |

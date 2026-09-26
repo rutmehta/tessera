@@ -53,6 +53,40 @@ impl Index {
         tx.commit()?;
         Ok(())
     }
+    /// Undo explicit acceptance: drops the local acceptance rows and the image's
+    /// tags for `names`. A later sidecar rescan re-adds any keyword the XMP still
+    /// carries, so callers removing a keyword should also remove it from XMP.
+    pub fn forget_accepted_keyword_names(
+        &self,
+        images: &[ImageId],
+        names: &[String],
+    ) -> anyhow::Result<()> {
+        let tx = self.0.conn.unchecked_transaction()?;
+        for &id in images {
+            for name in names {
+                for table in ["accepted_keyword", "image_keyword"] {
+                    tx.execute(
+                        &format!(
+                            "DELETE FROM {table} WHERE image_id=? AND keyword_id IN (SELECT id FROM keyword WHERE name=?)"
+                        ),
+                        params![id.to_string(), name],
+                    )?;
+                }
+            }
+            refresh_fts(&tx, &id.to_string())?;
+        }
+        tx.commit()?;
+        Ok(())
+    }
+    /// Keywords explicitly accepted for `id` (sorted), independent of XMP.
+    pub fn accepted_keyword_names(&self, id: ImageId) -> anyhow::Result<Vec<String>> {
+        let mut stmt = self.0.conn.prepare(
+            "SELECT k.name FROM accepted_keyword a JOIN keyword k ON k.id=a.keyword_id WHERE a.image_id=? ORDER BY k.name",
+        )?;
+        Ok(stmt
+            .query_map([id.to_string()], |r| r.get(0))?
+            .collect::<rusqlite::Result<_>>()?)
+    }
     /// Atomically replaces model output without accepting any suggested keywords.
     pub fn set_understanding(&self, id: ImageId, value: &Understanding) -> anyhow::Result<()> {
         anyhow::ensure!(

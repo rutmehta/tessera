@@ -35,6 +35,7 @@ struct KeywordsPanel: View {
                 }
                 .disabled(model.focusedItem == nil)
                 .accessibilityIdentifier("keywordEntry")
+            SuggestedKeywordsSection(model: model, understanding: library.understanding)
             HStack {
                 SubHeader("Keyword List")
                 Spacer()
@@ -162,7 +163,7 @@ struct MetadataPanel: View {
     let model: AppModel
     @Bindable var library: LibraryModel
 
-    private enum Field: Hashable { case title, caption, creator, copyright, keywords }
+    private enum Field: Hashable { case title, caption, altText, creator, copyright, keywords }
     @State private var values: [Field: String] = [:]
     @State private var loaded: [Field: String] = [:]
     @FocusState private var focus: Field?
@@ -177,6 +178,9 @@ struct MetadataPanel: View {
             } else {
                 field("Title", .title, key: "title")
                 field("Caption", .caption, key: "caption", lines: 3)
+                field("Alt text", .altText, key: "altText", prompt: "for screen readers", lines: 3)
+                CaptionGenerateRow(model: model, understanding: library.understanding,
+                                   caption: values[.caption] ?? "", altText: values[.altText] ?? "")
                 field("Creator", .creator, key: "creator", prompt: "Name; Name")
                 field("Copyright", .copyright, key: "copyright", prompt: "© 2026 Name")
                 field("Keywords", .keywords, key: "keywords", prompt: "comma separated")
@@ -185,6 +189,8 @@ struct MetadataPanel: View {
                      : "Saved to the photo's XMP sidecar when you press Return or leave the field.")
                     .font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
+                Hairline().padding(.top, Theme.Space.s)
+                TextInImageBlock(model: model, understanding: library.understanding, library: library)
                 if let fields = library.metadata?.fields, !fields.isEmpty {
                     Hairline().padding(.vertical, Theme.Space.s)
                     ForEach(Array(fields.enumerated()), id: \.offset) { _, f in
@@ -203,6 +209,7 @@ struct MetadataPanel: View {
         }
         .onAppear(perform: load)
         .onChange(of: library.metadataRevision) { load() }
+        .onChange(of: library.understanding.draft) { applyDraft() }
         .onChange(of: focus) { old, new in
             if let old { commit(old) }
             if new != nil { targets = model.targetIDs }
@@ -232,21 +239,31 @@ struct MetadataPanel: View {
         let fresh: [Field: String] = [
             .title: mixed.contains("title") ? "" : m?.title ?? "",
             .caption: mixed.contains("caption") ? "" : m?.caption ?? "",
+            .altText: mixed.contains("altText") ? "" : m?.altText ?? "",
             .creator: mixed.contains("creator") ? "" : m?.creator ?? "",
             .copyright: mixed.contains("copyright") ? "" : m?.copyright ?? "",
             .keywords: mixed.contains("keywords") ? "" : (m?.keywords ?? []).joined(separator: ", "),
         ]
         values = fresh
         loaded = fresh
+        applyDraft()
+    }
+
+    /// A generated caption fills the fields (unsaved) for the photo it describes.
+    private func applyDraft() {
+        guard let d = library.understanding.draft, d.imageID == library.metadata?.imageId else { return }
+        values[.caption] = d.caption
+        values[.altText] = d.altText
     }
 
     private func commit(_ f: Field) {
         let value = values[f] ?? ""
         guard value != loaded[f] else { return }
-        var edit = IptcEdit(title: nil, caption: nil, copyright: nil, creator: nil, keywords: nil)
+        var edit = IptcEdit(title: nil, caption: nil, copyright: nil, creator: nil, keywords: nil, altText: nil)
         switch f {
         case .title: edit.title = value
         case .caption: edit.caption = value
+        case .altText: edit.altText = value
         case .creator: edit.creator = value
         case .copyright: edit.copyright = value
         case .keywords: edit.keywords = value.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }

@@ -28,3 +28,21 @@ fn calibrated_multilabel_ranking_is_stable_and_validated() {
         .is_err()
     );
 }
+
+#[test]
+fn model_version_is_computable_without_loading_the_model() {
+    use ml_caption::{Calibration, keyword_model_version, vocabulary};
+    let labels = vocabulary();
+    let a = keyword_model_version(&labels, Calibration::default());
+    assert_eq!(a, keyword_model_version(&labels, Calibration::default()));
+    assert!(a.starts_with(ml_embed::MODEL_VERSION));
+    let tuned = Calibration {
+        temperature: 0.07,
+        ..Calibration::default()
+    };
+    assert_ne!(a, keyword_model_version(&labels, tuned));
+    assert_ne!(
+        a,
+        keyword_model_version(&labels[1..], Calibration::default())
+    );
+}

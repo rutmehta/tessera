@@ -4169,6 +4169,8 @@ dependencies = [
  "kamadak-exif",
  "lcms2",
  "library",
+ "ml-caption",
+ "ml-embed",
  "ml-enhance",
  "ml-faces",
  "ml-quality",

@@ -47,6 +47,8 @@ final class LibraryModel {
     /// Bumped when the metadata panel should drop edits in progress (focus or file changed).
     private(set) var metadataRevision = 0
     var editor: SmartAlbumDraft?
+    /// Keyword suggestions, captions and text in images (WP M3-15).
+    let understanding = UnderstandingController()
 
     /// Items matching the current source scope and filter bar; nil when the source needs no
     /// engine search (All Photos, an album, a cull preset) and the filter bar is empty.
@@ -76,6 +78,8 @@ final class LibraryModel {
         reloadNodes()
         reloadKeywords()
         refreshMatches(applyMatches: false)
+        understanding.library = self
+        understanding.install()
     }
 
     private func report(_ verb: String, _ body: () throws -> Void) -> Bool {
@@ -418,6 +422,13 @@ final class LibraryModel {
             : "Removed \(what) from \(items.count) photo\(items.count == 1 ? "" : "s")"
     }
 
+    /// Keywords were applied outside `applyKeywords` (accepted suggestions).
+    func keywordsDidChange() {
+        reloadKeywords()
+        reloadMetadata()
+        cullDidChange(albums: false)
+    }
+
     func newKeyword(parent: String?) {
         promptName(title: parent.map { "New Keyword in “\($0)”" } ?? "New Keyword",
                    message: "Keywords are written to each photo's XMP sidecar when applied. Child keywords match searches for their parent.") { [weak self] name in
@@ -447,7 +458,9 @@ final class LibraryModel {
 
     func reloadMetadata() {
         metadataRevision += 1
-        guard let catalog, let app, let item = app.focusedItem else { metadata = nil; mixed = []; return }
+        guard let catalog, let app, let item = app.focusedItem else {
+            metadata = nil; mixed = []; understanding.reload(); return
+        }
         metadata = try? catalog.metadata(of: item.id)
         // Fields that differ across the selection (up to 500 photos compared) show "Mixed".
         var differing = Set<String>()
@@ -457,12 +470,14 @@ final class LibraryModel {
                 guard let m = try? catalog.metadata(of: id) else { continue }
                 if m.title != base.title { differing.insert("title") }
                 if m.caption != base.caption { differing.insert("caption") }
+                if m.altText != base.altText { differing.insert("altText") }
                 if m.creator != base.creator { differing.insert("creator") }
                 if m.copyright != base.copyright { differing.insert("copyright") }
                 if Set(m.keywords) != Set(base.keywords) { differing.insert("keywords") }
             }
         }
         mixed = differing
+        understanding.reload()
     }
 
     func saveIPTC(_ edit: IptcEdit, items: [Int]) {

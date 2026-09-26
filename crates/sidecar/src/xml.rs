@@ -10,6 +10,8 @@ pub(crate) const DC: &str = "http://purl.org/dc/elements/1.1/";
 pub(crate) const LR: &str = "http://ns.adobe.com/lightroom/1.0/";
 pub(crate) const CRS: &str = engine_api::recipe::crs::CRS_NAMESPACE;
 pub(crate) const PRIVATE: &str = engine_api::recipe::crs::TS_NAMESPACE;
+/// IPTC Core (2021+): `AltTextAccessibility` lives here.
+pub(crate) const IPTC_CORE: &str = "http://iptc.org/std/Iptc4xmpCore/1.0/xmlns/";
 
 pub(crate) fn error(e: impl std::fmt::Display) -> EngineError {
     EngineError::Decode {
@@ -39,7 +41,7 @@ pub(crate) fn container(name: &str, kind: &str, values: &[String]) -> String {
 }
 pub(crate) fn description(body: &str) -> String {
     format!(
-        r#"<rdf:Description rdf:about="" xmlns:rdf="{RDF}" xmlns:xmp="{XMP}" xmlns:xmpDM="{DM}" xmlns:dc="{DC}" xmlns:lr="{LR}" xmlns:crs="{CRS}" xmlns:ts="{PRIVATE}">{body}</rdf:Description>"#
+        r#"<rdf:Description rdf:about="" xmlns:rdf="{RDF}" xmlns:xmp="{XMP}" xmlns:xmpDM="{DM}" xmlns:dc="{DC}" xmlns:lr="{LR}" xmlns:crs="{CRS}" xmlns:ts="{PRIVATE}" xmlns:Iptc4xmpCore="{IPTC_CORE}">{body}</rdf:Description>"#
     )
 }
 pub(crate) fn packet(body: &str) -> String {

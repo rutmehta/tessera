@@ -133,6 +133,12 @@ struct AppCommands: Commands {
                 .keyboardShortcut("l", modifiers: [.command, .option])
             Divider()
             Button("Show Photos Not in Any Album") { model.setSource(.notInAlbum) }
+            Divider()
+            Button("Suggest Keywords for Selection") { model.collections.understanding.suggestForSelection() }
+                .keyboardShortcut("k", modifiers: [.command, .option])
+                .disabled(!model.collections.understanding.isAvailable)
+            Button("Detect Text in Selection") { model.collections.understanding.detectText() }
+                .disabled(!model.collections.understanding.isAvailable)
         }
         CommandMenu("Develop") {
             Button("Auto Edit…") { model.agent.present() }
