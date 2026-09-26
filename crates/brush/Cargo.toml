@@ -7,6 +7,7 @@ description = "Stamp-based brush engine, ABR import and healing (spec 02 §4–5
 publish = false
 
 [dependencies]
+transform = { path = "../transform" }
 serde = { workspace = true, features = ["rc"] }
 compositor = { path = "../compositor" }
 engine-api = { path = "../engine-api" }
@@ -15,4 +16,5 @@ bytemuck = { workspace = true }
 pollster = "0.4"
 
 [dev-dependencies]
+gpu-core = { path = "../gpu-core" }
 serde_json.workspace = true

@@ -1,10 +1,13 @@
 //! Non-destructive planar premultiplied RGBA transformations.
+pub mod adaptive;
+pub mod displacement;
 pub mod free;
 pub mod op;
 pub mod perspective;
 pub mod puppet;
 pub mod sample;
 pub mod seam;
+pub mod vanishing;
 pub mod warp;
 pub use op::{Operation, TransformOp};
 pub use sample::Kernel;

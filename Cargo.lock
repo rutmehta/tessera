@@ -389,9 +389,11 @@ dependencies = [
  "bytemuck",
  "compositor",
  "engine-api",
+ "gpu-core",
  "pollster",
  "serde",
  "serde_json",
+ "transform",
  "wgpu",
 ]
 
