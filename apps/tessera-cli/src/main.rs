@@ -3,6 +3,7 @@ use clap::{Parser, Subcommand};
 use index::{Index, Query};
 use serde_json::{Value, json};
 use std::{path::PathBuf, process::ExitCode, time::Instant};
+mod actions;
 mod agent_edit;
 mod catalog;
 mod develop;
@@ -31,6 +32,9 @@ enum Command {
     Agent(agent_edit::Command),
     /// Serve engine tools through the tessera-mcp stdio executable.
     Mcp,
+    /// Record-once, play-many layered-document Actions (.tessera-action).
+    #[command(subcommand)]
+    Actions(actions::Command),
     #[command(subcommand)]
     Import(Import),
     #[command(subcommand)]
@@ -235,12 +239,16 @@ fn run(cli: &Cli) -> Result<Value> {
     if let Command::Tether(command) = &cli.command {
         return tether::run(&app, command);
     }
+    if let Command::Actions(command) = &cli.command {
+        return actions::run(&app, command);
+    }
     std::fs::create_dir_all(&app)?;
     let mut index = Index::open(app.join("index.sqlite"))?;
     match &cli.command {
         Command::Tether(_) => unreachable!("tether handled before opening index"),
         Command::Agent(command) => agent_edit::run(&app, &mut index, command),
         Command::Mcp => unreachable!("MCP replaces this process before opening the catalog"),
+        Command::Actions(_) => unreachable!("actions handled before opening index"),
         Command::Export(options) => export::run(&index, &app, options),
         Command::Ml(command) => match command {
             Ml::Models | Ml::Check => models::run(&app, matches!(command, Ml::Check)),

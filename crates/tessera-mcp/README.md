@@ -78,6 +78,58 @@ an oriented normalized region; `render_noise_patch` returns a small central nati
 patch. CPU-only/RGB/unsupported recipes fall back at full resolution. The VLM
 preview remains independent, and engine-api/tool schemas are unchanged.
 
+## Layered documents (spec 02) and Actions
+
+The ten `DocumentToolCall` tools (`open_document`, `add_layer`,
+`set_layer_props`, `paint_stroke`, `set_pixel_selection`,
+`apply_adjustment_layer`, `transform_layer`, `merge_down`, `export_document`,
+`list_layers`) are listed with schemas derived by `build.rs` from engine-api's
+serde declarations plus the `DocumentToolRequest` envelope (`rationale`,
+`group`, `expect_head`). Extra tools: `describe_document`,
+`render_document_preview`, `actions_record`, `actions_stop`, `actions_play`
+(underscores, not `actions/…`, so names stay valid for clients that restrict
+tool names to `[A-Za-z0-9_-]`). Tool names are unique across all enums.
+
+`documents::Documents` keys open documents by session `DocumentId`. Each
+session pairs the compositor `Document` (copy-on-write states) with an
+engine-api `DocumentHistory`, one compositor state per entry. Every successful
+editing call applies exactly one compositor op and records exactly one entry
+with `Author::Agent`, the request's rationale and group, and
+`Action::from_document_tool(call)`; no-op updates still record their entry.
+Failures (including a stale `expect_head`, which returns `conflict`) change
+nothing. `open_document` reads `.tessera-doc`, PSD/PSB and JPEG/PNG (one
+Background layer; 16-bit PNG opens as 16-bit). `export_document` writes
+`.tessera-doc`, PSD/PSB (with retained source records) or a flattened
+JPEG/PNG 8/16/TIFF 8/16 rendered by the CPU reference compositor. Edits over
+MCP also return a 512 px preview; previews come from the per-document
+GPU-resident renderer at the finest pyramid level that fits (CPU fallback
+without Metal or with `TESSERA_NO_GPU`).
+
+Brushes and selections are pluggable (`BrushEngine`, `SelectionEngine`;
+`Documents::set_brush_engine`/`set_selection_engine`) so the brush and
+selection crates can be linked without changing the executor. Built-ins:
+`RoundBrush` (round dab, hardness falloff, spacing, flow build-up, opacity,
+pressure size/flow) and `BasicSelection` (rectangle/ellipse marquee and
+polygon lasso with 4×4 supersampled edges, box-blur feather). Layer
+transparency, saved selections, inverse and replace/add/subtract/intersect
+are handled by the executor.
+
+Actions: `actions_record {name}` records every successful non-query call;
+`actions_stop {path?}` returns (and writes) the `.tessera-action` JSON;
+`actions_play {path | action, documents}` replays it. Documents, created
+layers and saved selections are stored as `{"$input": i}`, `{"$doc": k}`,
+`{"$layer": k}`, `{"$selection": k}` references, so an action replays on
+documents with different layer ids and sizes; see `src/actions.rs` for the
+format. `tessera actions play <file> <inputs…> --out-dir DIR [--format …]`
+batches it from the CLI; `tessera actions show <file>` validates.
+
+Known gaps: saved selections live outside history (undo keeps them);
+`merge_down` needs a pixel layer below and keeps the lower layer's mask and
+properties; `transform_layer` handles pixel layers (content and mask) and
+smart objects only; PSD import warnings are not surfaced; image export ignores
+`profile` (Unsupported) and embeds no ICC; there is no magic wand
+(no `SelectionShape` exists for it).
+
 ## Preset lookup
 
 `apply_style` resolves the StyleId through `<app-dir>/styles/index.json`:

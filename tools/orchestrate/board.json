@@ -755,7 +755,7 @@
     "id": "M5-05",
     "owner": "opus",
     "title": "Brush engine + selection tools",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
@@ -763,7 +763,7 @@
     "id": "M5-07",
     "owner": "opus",
     "title": "Document tools executor + Actions",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
@@ -771,6 +771,46 @@
     "id": "M5-08",
     "owner": "astra",
     "title": "Compositor specialised shaders + viewport",
+    "status": "escalate",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M3-16",
+    "owner": "astra",
+    "title": "Joint CFA denoise net (self-supervised)",
+    "status": "merged",
+    "attempts": 0,
+    "notes": "trained CFA net works; GPU-resident handoff -> M3-16b"
+  },
+  {
+    "id": "M3-11v",
+    "owner": "sol",
+    "title": "Verify assisted culling + agent UI",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M5-10",
+    "owner": "astra",
+    "title": "Wire brush/selection into executor",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M3-16b",
+    "owner": "astra",
+    "title": "GPU-resident CFA denoise handoff",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M5-08b",
+    "owner": "opus",
+    "title": "Compositor L0/viewport targets",
     "status": "running",
     "attempts": 0,
     "notes": ""

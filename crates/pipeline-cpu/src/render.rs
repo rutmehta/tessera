@@ -254,6 +254,7 @@ fn render_linear_impl(
                 )?)?;
             }
             drop(raw);
+            let recovered = crate::raw_denoise(recovered, cfa, &settings.denoise, denoiser)?;
             let demosaic_image = |raw: &Image| -> EngineResult<Image> {
                 let mut out = Image::blank(raw.width(), raw.height(), 3);
                 for coord in raw.coords() {
@@ -305,7 +306,11 @@ fn render_linear_impl(
                 correction.manual_ca,
                 &settings.lens,
             )?;
-            out = crate::post_demosaic_denoise(out, camera_xyz, &settings.denoise, denoiser)?;
+            if !crate::cfa_denoise_selected(&settings.denoise)
+                || !matches!(cfa, CfaLayout::Bayer(_))
+            {
+                out = crate::post_demosaic_denoise(out, camera_xyz, &settings.denoise, denoiser)?;
+            }
             for coord in out.coords() {
                 let mut t = out.tile(coord, 0, 1)?;
                 // Contract ordering is CameraProfile THEN WhiteBalance.

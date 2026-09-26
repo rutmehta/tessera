@@ -1,0 +1,1 @@
+Machine A should start a joint CFA denoise+demosaic package next, extending the existing DRUNet denoise work rather than repeating it. It is an explicitly identified engine-side gap with a testable implementation path, avoids Machine B’s M5-09 layered-editor UI ownership, and does not depend on the missing Lightroom samples or physical camera needed for the other follow-ups.
