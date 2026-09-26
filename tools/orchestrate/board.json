@@ -878,5 +878,13 @@
     "status": "merged",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M3-19",
+    "owner": "astra",
+    "title": "People clustering + naming propagation",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
