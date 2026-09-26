@@ -51,7 +51,9 @@ fn missing_jpeg_returns_pending_then_callback_and_cached_bytes() {
     let timeout = if cfg!(debug_assertions) || std::env::var_os("CI").is_some() {
         Duration::from_secs(120)
     } else {
-        Duration::from_secs(3)
+        // A cold RAW decode can take several seconds even in release; the
+        // assertion above separately checks that requesting it is nonblocking.
+        Duration::from_secs(30)
     };
     let (callback_id, size, thread) = rx.recv_timeout(timeout).unwrap();
     assert_eq!(callback_id, id);

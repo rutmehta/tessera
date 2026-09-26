@@ -37,6 +37,9 @@ final class TetherController {
     var autoAdvance = true
     var intervalSeconds: Double = 10
     var intervalCount = 10
+    /// Observed by the incoming strip; cull states themselves live in an unobserved controller.
+    private(set) var decisionRevision = 0
+    private(set) var stripStates: [String: CullState] = [:]
     private(set) var interval: IntervalPlan?
     private(set) var strip = IncomingStrip()
     private(set) var thumbnails: [UInt64: CGImage] = [:]
@@ -65,6 +68,25 @@ final class TetherController {
     static let smartAlbumRule = "decision!=reject"
     static let intervalOptions: [Double] = [2, 5, 10, 15, 30, 60, 120]
     static let countOptions: [Int] = [5, 10, 20, 50, 100, 0]
+
+    func commitIntervalCount(_ text: String) {
+        guard let value = Int(text.trimmingCharacters(in: .whitespacesAndNewlines)) else { return }
+        intervalCount = min(999, max(0, value))
+    }
+
+    func decisionsDidChange() {
+        guard let app else { return }
+        stripStates = Dictionary(uniqueKeysWithValues: strip.frames.compactMap { frame in
+            guard let key = frame.imageID, let id = item(for: frame) else { return nil }
+            return (key, app.state(id: id))
+        })
+        decisionRevision &+= 1
+    }
+
+    func state(for frame: IncomingFrame) -> CullState? {
+        guard let key = frame.imageID else { return nil }
+        return stripStates[key]
+    }
 
     init(arguments: [String] = ProcessInfo.processInfo.arguments) {
         func value(_ flag: String) -> String? {
@@ -256,6 +278,7 @@ final class TetherController {
         connected = true
         connectedDevice = devices.first
         strip.reset()
+        stripStates = [:]
         thumbnails = [:]
         pollFailures = 0
         pendingFocus = nil
@@ -463,6 +486,7 @@ final class TetherController {
             app.select(id: id)
             if app.focusedItem?.id == id, app.viewMode != .compare { app.viewMode = .loupe }
         }
+        decisionsDidChange()
     }
 
     func item(for frame: IncomingFrame) -> Int? {
@@ -477,7 +501,6 @@ final class TetherController {
                 : "\(frame.name) is not in the open library yet"
             return
         }
-        NSApp.keyWindow?.makeFirstResponder(nil)
         if loupe { app.showInLoupe(id) } else {
             app.select(id: id)
             if app.focusedItem?.id != id, let album = sessionAlbum {
@@ -485,6 +508,7 @@ final class TetherController {
                 app.select(id: id)
             }
         }
+        NSApp.keyWindow?.makeFirstResponder(nil)
     }
 
     func showSessionSmartAlbum() {

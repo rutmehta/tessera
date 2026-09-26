@@ -240,8 +240,7 @@ struct TetherPanel: View {
                        options: TetherController.intervalOptions.map { ($0, $0 < 60 ? "\(Int($0)) s" : "\(Int($0 / 60)) min") })
                 .disabled(tether.interval != nil)
                 .accessibilityIdentifier("tether-interval-seconds")
-            MenuPicker(selection: $tether.intervalCount,
-                       options: TetherController.countOptions.map { ($0, $0 == 0 ? "until stopped" : "\($0) frames") })
+            IntervalCountField(tether: tether)
                 .disabled(tether.interval != nil)
                 .accessibilityIdentifier("tether-interval-count")
             if let plan = tether.interval {
@@ -272,6 +271,39 @@ struct TetherPanel: View {
         }
         .padding(.horizontal, Theme.Space.gutter)
         .frame(height: Theme.Height.sectionHeader)
+    }
+}
+
+/// An editable count; the plan only sees the committed, clamped value.
+private struct IntervalCountField: View {
+    let tether: TetherController
+    @State private var draft = ""
+    @FocusState private var editing: Bool
+
+    var body: some View {
+        HStack(spacing: Theme.Space.xxs) {
+            TextField("Frames", text: $draft)
+                .textFieldStyle(.plain)
+                .font(Theme.Fonts.captionNumeric)
+                .frame(width: 32)
+                .focused($editing)
+                .onSubmit(commit)
+                .onChange(of: editing) { _, focused in if !focused { commit() } }
+            Stepper("Frames", value: Binding(get: { tether.intervalCount }, set: {
+                tether.intervalCount = $0
+                draft = String($0)
+            }), in: 0...999)
+                .labelsHidden()
+        }
+        .onAppear { draft = String(tether.intervalCount) }
+        .onChange(of: tether.intervalCount) { _, value in if !editing { draft = String(value) } }
+        .help("Frame count (0 = until stopped)")
+    }
+
+    private func commit() {
+        tether.commitIntervalCount(draft)
+        draft = String(tether.intervalCount)
+        editing = false
     }
 }
 
@@ -308,7 +340,7 @@ struct IncomingStripView: View {
     private static let tileWidth = (Theme.Height.filmstrip - Theme.Space.l) * 3 / 2
 
     var body: some View {
-        // Decisions live in the cull controller (unobserved); the counts are the observed proxy.
+        // Strip states are observed snapshots of local culls and feed deltas.
         let counts = model.counts
         let focusedID = model.focusedItem?.id
         VStack(spacing: 0) {
@@ -324,11 +356,14 @@ struct IncomingStripView: View {
                         ForEach(0..<tether.strip.pending, id: \.self) { _ in pendingTile }
                         ForEach(tether.strip.frames) { frame in
                             let id = tether.item(for: frame)
-                            IncomingTile(frame: frame, image: tether.thumbnails[frame.sequence],
-                                         state: id.map { model.state(id: $0) }, focused: id != nil && id == focusedID,
-                                         width: Self.tileWidth, height: Self.tileHeight)
-                                .onTapGesture(count: 2) { tether.reveal(frame, loupe: true) }
-                                .onTapGesture { tether.reveal(frame, loupe: false) }
+                            Button {
+                                tether.reveal(frame, loupe: NSApp.currentEvent?.clickCount == 2)
+                            } label: {
+                                IncomingTile(frame: frame, image: tether.thumbnails[frame.sequence],
+                                             state: tether.state(for: frame), focused: id != nil && id == focusedID,
+                                             width: Self.tileWidth, height: Self.tileHeight)
+                            }
+                            .buttonStyle(.plain)
                         }
                         if tether.strip.frames.isEmpty && tether.strip.pending == 0 {
                             Hint(tether.isFake ? "Press Capture (⇧⌘T); the test camera also fires on its own timer."
