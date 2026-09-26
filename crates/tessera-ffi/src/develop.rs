@@ -769,10 +769,11 @@ impl Engine {
         let path = PathBuf::from(path);
         let mut recipe = catalog::document(&path, id)?.recipe;
         let image = RawImage::open(id, &path)?;
-        recipe.unknown.insert(
-            "source_kind".into(),
-            Value::String(image.source_kind().into()),
-        );
+        recipe.source_kind = if image.source_kind() == "rgb" {
+            engine_api::recipe::SourceKind::Rgb
+        } else {
+            engine_api::recipe::SourceKind::Raw
+        };
         let (renderer, backend) = self.develop_renderer(&image);
         let masks = masks::MaskShared::new(&image);
         renderer
@@ -844,20 +845,13 @@ impl Engine {
         doc.recipe.process_version = recipe.process_version;
         doc.recipe.settings = recipe.settings.clone();
         doc.recipe.history = recipe.history.clone();
-        // This one extension is owned by develop; preserve all other unknown
-        // members from concurrent writers. Promote to a typed schema field
-        // when engine-api's source-kind contract is available.
-        doc.recipe.unknown.insert(
-            "source_kind".into(),
-            Value::String(
-                if image_core::RgbSource::recognizes(path) {
-                    "rgb"
-                } else {
-                    "raw"
-                }
-                .into(),
-            ),
-        );
+        // Develop owns the source-kind field; all other unknown members from
+        // concurrent writers are preserved.
+        doc.recipe.source_kind = if image_core::RgbSource::recognizes(path) {
+            engine_api::recipe::SourceKind::Rgb
+        } else {
+            engine_api::recipe::SourceKind::Raw
+        };
         doc.recipe.ids.next_mask = doc.recipe.ids.next_mask.max(recipe.ids.next_mask);
         doc.recipe.ids.next_retouch = doc.recipe.ids.next_retouch.max(recipe.ids.next_retouch);
         doc.record_write("tessera-mac", now_ms())?;
@@ -2883,7 +2877,7 @@ mod tests {
             .unwrap();
         session.flush().unwrap();
         let saved: Recipe = serde_json::from_str(&engine.get_recipe(row.id).unwrap()).unwrap();
-        assert_eq!(saved.unknown["source_kind"], "rgb");
+        assert_eq!(saved.source_kind, engine_api::recipe::SourceKind::Rgb);
         assert_eq!(saved.settings.tone.exposure, 0.7);
     }
 

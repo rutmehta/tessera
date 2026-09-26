@@ -29,7 +29,7 @@ fn heic_console_describe_edit_and_export() {
     let response = console.execute(request(json!({"tool":"set_tone","image":id,"exposure":-1})));
     assert!(matches!(response, ToolResponse::Ok(_)), "{response:?}");
     let doc = sidecar::Sidecar::read_recipe(sidecar::Sidecar::paths(&path).recipe).unwrap();
-    assert_eq!(doc.recipe.unknown["source_kind"], "rgb");
+    assert_eq!(doc.recipe.source_kind, engine_api::recipe::SourceKind::Rgb);
     let out = dir.path().join("out");
     let response = console.execute(request(json!({"tool":"export","images":[id],"settings":{"destination":out,"format":{"format":"png","bit_depth":8}}})));
     assert!(
@@ -90,7 +90,7 @@ fn scene_linear_histogram_and_noop_history_are_explicit() {
         ));
     }
     let doc = sidecar::Sidecar::read_recipe(sidecar::Sidecar::paths(path).recipe).unwrap();
-    assert_eq!(doc.recipe.unknown["source_kind"], "rgb");
+    assert_eq!(doc.recipe.source_kind, engine_api::recipe::SourceKind::Rgb);
     assert_eq!(doc.recipe.history.entries.len(), 2);
     assert!(
         doc.recipe

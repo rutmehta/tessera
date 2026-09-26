@@ -197,10 +197,11 @@ impl Console {
     }
     pub(crate) fn save(&self, path: &Path, doc: &mut RecipeDocument) -> EngineResult<()> {
         catalog::writable(path)?;
-        doc.recipe.unknown.insert(
-            "source_kind".into(),
-            serde_json::Value::String(if pixels::is_rgb(path) { "rgb" } else { "raw" }.into()),
-        );
+        doc.recipe.source_kind = if pixels::is_rgb(path) {
+            engine_api::recipe::SourceKind::Rgb
+        } else {
+            engine_api::recipe::SourceKind::Raw
+        };
         doc.recipe.validate()?;
         for entry in &doc.recipe.history.entries {
             if let Some(id) = entry.meta.group
