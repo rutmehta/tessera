@@ -54,15 +54,7 @@ impl Console {
                 .map_or(fallback, |s| s.value as f32)
         };
         let (path, _) = self.document(image)?;
-        let (w, h) = if pixels::is_rgb(&path) {
-            image::image_dimensions(&path).map_err(|e| engine_api::EngineError::Decode {
-                format: "image".into(),
-                message: e.to_string(),
-            })?
-        } else {
-            let raw = raw_decode::RawSource::open(&path)?.metadata();
-            (raw.default_crop[2], raw.default_crop[3])
-        };
+        let (w, h) = self.previews.source_dimensions(image, &path)?;
         let faces = self
             .index
             .faces(image)?

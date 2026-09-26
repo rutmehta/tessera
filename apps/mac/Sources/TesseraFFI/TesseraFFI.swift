@@ -3565,8 +3565,8 @@ public protocol EngineProtocol: AnyObject, Sendable {
     func openLibrary(path: String) throws  -> LibraryStore
     
     /**
-     * Opens a develop session on an indexed RAW image. Blocking (decodes the
-     * raw): call off the main thread. One session per visible image.
+     * Opens a develop session on an indexed RAW or rendered RGB image.
+     * Blocking decode: call off the main thread. One session per visible image.
      */
     func openDevelopSession(imageId: String) throws  -> DevelopSession
     
@@ -4058,8 +4058,8 @@ open func openLibrary(path: String)throws  -> LibraryStore  {
 }
     
     /**
-     * Opens a develop session on an indexed RAW image. Blocking (decodes the
-     * raw): call off the main thread. One session per visible image.
+     * Opens a develop session on an indexed RAW or rendered RGB image.
+     * Blocking decode: call off the main thread. One session per visible image.
      */
 open func openDevelopSession(imageId: String)throws  -> DevelopSession  {
     return try  FfiConverterTypeDevelopSession_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
@@ -19535,7 +19535,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_engine_open_library() != 50227) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_engine_open_develop_session() != 22073) {
+    if (uniffi_tessera_ffi_checksum_method_engine_open_develop_session() != 50243) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_engine_delete_export_preset() != 3289) {

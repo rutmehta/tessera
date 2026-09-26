@@ -728,18 +728,25 @@ impl Renderer {
         settings: &'a DevelopSettings,
     ) -> EngineResult<Resolved<'a>> {
         self.validate_settings(settings)?;
-        if pipeline_cpu::denoise_active(&settings.denoise) && self.denoiser.is_none() {
+        if image.rgb().is_none()
+            && pipeline_cpu::denoise_active(&settings.denoise)
+            && self.denoiser.is_none()
+        {
             return Err(EngineError::invalid(
                 "denoise",
                 "no post-demosaic denoiser injected",
             ));
         }
         let m = image.metadata();
-        let (period, dem_halo) = match m.cfa_layout {
-            CfaLayout::Bayer(_) => (2, 2),
-            CfaLayout::XTrans(_) => (6, 3),
-            CfaLayout::Unsupported => {
-                return Err(EngineError::invalid("CFA", "unsupported pattern"));
+        let (period, dem_halo) = if image.rgb().is_some() {
+            (1, 0)
+        } else {
+            match m.cfa_layout {
+                CfaLayout::Bayer(_) => (2, 2),
+                CfaLayout::XTrans(_) => (6, 3),
+                CfaLayout::Unsupported => {
+                    return Err(EngineError::invalid("CFA", "unsupported pattern"));
+                }
             }
         };
         if m.width < period || m.height < period {
@@ -767,7 +774,8 @@ impl Renderer {
         let highlights = settings.linearize.highlight_reconstruction;
         Ok(Resolved {
             cfa_full: std::sync::OnceLock::new(),
-            allow_resident: !pipeline_cpu::denoise_active(&settings.denoise)
+            allow_resident: image.rgb().is_some()
+                || !pipeline_cpu::denoise_active(&settings.denoise)
                 || self.cfa_supported(m.cfa_layout, settings),
             image,
             settings,
@@ -849,7 +857,8 @@ impl Renderer {
             .collect();
         // Model halo is 192, larger than Tile's permitted halo. A complete
         // sensor-image barrier is required even for a small viewport request.
-        let full_demosaic = if pipeline_cpu::denoise_active(&r.settings.denoise)
+        let full_demosaic = if r.image.rgb().is_none()
+            && pipeline_cpu::denoise_active(&r.settings.denoise)
             && planned_miss.iter().any(|v| *v)
         {
             Some(self.denoised_demosaic(r, cancel)?)
@@ -928,6 +937,13 @@ impl Renderer {
             let dem_cached: Vec<Mutex<Option<Tile>>> = need_s
                 .iter()
                 .map(|&s| {
+                    if let Some(rgb) = r.image.rgb() {
+                        let tile = rgb.pixels().tile(s, 0, 1)?;
+                        if cache_dem {
+                            self.cache.insert(key(StageId::Demosaic, s), tile.clone());
+                        }
+                        return Ok(Mutex::new(Some(tile)));
+                    }
                     if let Some(full) = &full_demosaic {
                         return full.tile(s, 0, 1).map(|t| Mutex::new(Some(t)));
                     }
@@ -990,7 +1006,7 @@ impl Renderer {
                 (StageId::CameraProfile, Op::Matrix(r.profile)),
                 (StageId::WhiteBalance, Op::Matrix(r.wb)),
             ];
-            let balanced = if cache_dem || full_demosaic.is_some() {
+            let balanced = if cache_dem || full_demosaic.is_some() || r.image.rgb().is_some() {
                 // A host memoization boundary ends the first GPU chain.
                 let dem = self.run_ops(&[(StageId::Demosaic, dem_op)], dem_inputs, cancel)?;
                 let mut fresh: HashMap<_, _> = to_dem.iter().copied().zip(dem).collect();

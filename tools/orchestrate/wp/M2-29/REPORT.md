@@ -1,0 +1,85 @@
+# M2-29 implementation handoff
+
+Status: round 3 implementation complete; full required gate PASS. PNG/HEIC/HEIF admission is fixed and the HEIC Console regression passes.
+
+## Current successful verification
+
+- Latest independent retry: the exact required chained gate exited 0, recorded in `round3-verified-gate.log` (`GATE_EXIT=0`). Parsed totals are 394 passed, 0 failed, 25 ignored. HEIC Console describe/edit/export, rendered index admission, PNG EXIF search, slider-starvation and fallback callback all passed. Clippy, fmt, FFI generation and Swift build also passed in that same chain.
+- The reported fallback timeout did not reproduce in this retry: the unchanged isolated test passed in 2.19 seconds before the full gate. No timeout/assertion, CI environment or Rayon-worker override was introduced. Existing implementation changes were retained; no further source fix was justified by this run. The known timing flake remains historical evidence, not a claimed root-cause fix.
+- Executed the complete user-required chained command with the unchanged external `CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/M2-29`: six-crate release tests, six-crate all-target clippy with `-D warnings`, workspace `cargo fmt --check`, `./build-ffi.sh`, and `swift build`. The chain exited 0. Evidence: `round3-current-gate.log`.
+- Release test totals parsed from the log: 394 passed, 0 failed, 25 ignored. Existing ignored tests were not changed. Index rendered admission/incremental scan, PNG EXIF camera search, HEIC Console describe/edit/export, JPEG develop/render/edit persistence, slider-starvation, and RAW fallback callback tests all passed.
+- No timeout/assertion weakening, CI override, or Rayon-worker override was used. This attempt first hit the terminal tool's 420-second foreground cap; the subsequent background execution completed normally and is the evidence above.
+- Retained the existing round-3 source changes and refreshed generated bindings through the required build. No additional source changes were needed. Native LibRaw warnings and the existing macOS deployment-target linker warning remain non-fatal. No GUI acceptance was performed and no commits or pushes were made.
+- Earlier failures below are historical diagnostics, superseded by the successful complete chain above.
+
+## Round 3 implementation and verification
+
+- `crates/index/src/lib.rs` now admits PNG/HEIC/HEIF (including uppercase extensions); JPEG/TIF/TIFF and RAW admission is retained. Header-only embedded EXIF reads now also cover PNG eXIf and HEIF containers through the existing kamadak-exif reader. No full pixel decode or RawSource is introduced into the index. The round-2 FFI/MCP providers already classify these formats with RgbSource before their RAW branch; HEIC pixel decoding continues through RgbSource/ImageIO.
+- Added `rendered_formats_reach_metadata_and_scan_incrementally`, covering rendered extension admission, metadata-provider invocation, non-image exclusion, and unchanged-file rescans. Observed it fail for PNG before the scanner fix, then pass.
+- Added `png_embedded_camera_is_searchable` with a synthetic 1x1 PNG containing an eXIf Model tag and valid chunk CRCs. Observed it fail before extending embedded metadata reads, then pass. Fixture: `crates/index/tests/fixtures/camera.png`.
+- `heic_console_describe_edit_and_export` passes unchanged. The complete `tessera-mcp` and `index` release suites pass independently (`round3-mcp-index.log`).
+- Ran the exact requested chained gate three times with the external CARGO_TARGET_DIR. `round3-gate.log` and `round3-gate-final.log` stop at the unchanged three-second timeout in `missing_jpeg_returns_pending_then_callback_and_cached_bytes`. `round3-gate-retry.log` instead stops at the pre-existing `print_renders_fit_the_box_in_the_chosen_colour_handling` ICC byte comparison: profile creation timestamp differs by one second. No assertions or deadlines were changed.
+- The unchanged fallback test also timed out alone (`round3-fallback.log`). The machine showed load averages above 38 with concurrent rustc processes. A diagnostic with RAYON_NUM_THREADS=2 passed the isolated fallback test (`round3-fallback-bounded.log`), but a whole-gate diagnostic with two workers exceeded the terminal tool's 420-second cap during the slider-starvation test (`round3-gate-bounded.log`). That run was terminated and is not a pass. A four-worker full gate passed slider-starvation but again timed out in fallback (`round3-gate-four-workers.log`). Neither CI nor relaxed timeouts were used.
+- `export_batch_does_not_starve_slider_drag` passed in all three default-worker gate attempts and in the four-worker diagnostic. It was not modified or weakened.
+- Independently ran the exact clippy command with all targets and -D warnings, `cargo fmt --check`, and `(cd apps/mac && ./build-ffi.sh && swift build)` successfully (`round3-build.log`). Native vendored LibRaw warnings remain. Retained the build-generated C/Swift bindings in the now-allowed paths: they synchronize existing CFA-denoise declarations and changed UniFFI checksums, including the rendered-RGB develop-session documentation/checksum. Generated whitespace is unchanged from the generator's output.
+- Engine-api is unchanged. No manual GUI acceptance was performed. No commits or pushes. No task ID is available in the runtime, so kanban_show cannot resolve a board task.
+
+The earlier round-1/round-2 sections below are historical; their index allow-list blocker is now resolved. The earlier verification failures under load are superseded by the current successful gate above.
+
+## Latest retry verification
+
+- Current attempt independently reproduced the exact HEIC Console regression with `RUST_TEST_THREADS=1 cargo test -p tessera-mcp --release --test console heic_console_describe_edit_and_export -- --exact`, then ran the full user-required chained gate. The chain exited 101 at the same HEIC admission failure; current evidence is `current-gate.log`. Clippy/fmt/Swift were not reached in this attempt. JPEG develop/edit persistence and the unchanged slider-starvation regression passed. Re-inspection confirmed the scanner predicate is still outside the explicit allowed paths. No implementation changes were made, and permission for `crates/index/**` is still required. The runtime has no task ID, so `kanban_show()` could not resolve a board task.
+- Re-read the scanner and Console admission path. `Core::scan` skips PNG/HEIC/HEIF at `crates/index/src/lib.rs:202`, because `is_image` at line 797 omits their extensions, before either metadata adapter can run. `Console::open_image` uses that scanner and fails at `crates/tessera-mcp/src/console.rs:67`. The current permitted paths still exclude `crates/index/**`.
+- Ran the exact requested full command again with the existing external `CARGO_TARGET_DIR`. It exited 101 at `heic_console_describe_edit_and_export` (`tests/console.rs:27`), with `Unsupported { what: "image format is not indexable" }`. See `latest-retry-gate.log`. Clippy, fmt and Swift stages were not reached by this retry's short-circuiting chain; their previous independent results below are historical, not new runs.
+- JPEG develop/render/edit persistence, PNG/HEIC metadata adapters, direct HEIC preview/export decoding, ICC/orientation parity, and resident RGB tone parity passed in this run. `export_batch_does_not_starve_slider_drag` also passed unchanged.
+- No source changes or test weakening in this retry. Permission to edit `crates/index/**` remains necessary to fix the scanner and add scanner regression coverage. No task ID was present for a kanban blocked transition.
+
+## Round 2 implementation and verification
+
+- Replaced only `jpeg_images_are_refused` in the FFI integration suite with `jpeg_opens_renders_nonblack_and_persists_edits`. It renders through attached surfaces, checks non-black histogram and exposure response, commits/flushes, checks `source_kind`, and reopens the engine/session to verify persistence. Other existing develop tests are unchanged.
+- MCP export source loading and the cached CPU preview path now decode through `image_core::RgbSource`. The shared extension predicate recognizes HEIC/HEIF. ICC and EXIF are consumed once before preview downsampling, linear histograms, critic metrics and export. Scores use cached source dimensions instead of the image crate's HEIC-incompatible header reader. MCP saves record source_kind while preserving other unknown recipe members.
+- Added synthetic AdobeRGB/EXIF JPEG parity tests for export-source pixels, display and scene-linear output. Added direct ImageIO HEIC preview/export-source tests. Added a public Console HEIC describe/edit/export regression, intentionally left enabled: it exposes the out-of-scope scanner blocker below.
+- FFI EmbeddedMetadata now classifies rendered formats with RgbSource::recognizes instead of routing PNG/HEIC through LibRaw. PNG and HEIC metadata tests failed with LibRaw error -2 before the change and pass afterward. Metadata remains header-only; it does not decode full pixels during scans.
+- **Remaining blocker:** `crates/index/src/lib.rs:797-816` (`is_image`) excludes PNG, HEIC and HEIF. `Core::scan` rejects them before metadata hooks run (`:202`). `Console::open_image` therefore returns `Unsupported { what: "image format is not indexable" }`; FFI indexing likewise cannot discover these originals. No public single-image admission API exists to use instead. Fix requires permission for `crates/index/**` and scanner regression tests there. No SQL bypass, renamed copy, ignored test, or out-of-scope edit was introduced.
+- The exact required gate was run twice with the exported `CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/M2-29`. First run stopped at the pre-existing 3-second preview callback timeout in `missing_jpeg_returns_pending_then_callback_and_cached_bytes`. That test passed alone and in the second full gate. Second gate passed image-core, pipeline-gpu, export and tessera-ffi tests, then failed on the new Console HEIC admission regression. Logs: `round2-gate.log`, `round2-gate-retry.log`, `round2-fallback-retry.log`.
+- `export_batch_does_not_starve_slider_drag` passed in both full gate runs. It was not modified, skipped or weakened.
+- MCP's full suite was also run with `--no-fail-fast`: only the HEIC Console admission regression fails; all other executed tests pass (`round2-mcp-full.log`). Direct HEIC decoding and AdobeRGB/orientation parity pass.
+- Required clippy command with `--all-targets -- -D warnings` passes after moving the catalog test module to the end of the file. `cargo fmt --check` passes. `(cd apps/mac && ./build-ffi.sh && swift build)` passes independently, because the failed test chain short-circuits before those stages. Logs: `round2-clippy.log`, `round2-fmt.log`, `round2-swift.log`. Generated bindings contained unrelated CFA-denoise API updates and were restored to keep this patch focused.
+- No manual GUI/screenshot acceptance was performed. Engine-api remains unchanged. The typed source_kind / relative-WB contract observations below still apply.
+- No commits or pushes. All retained changes are within the round-2 allowlist. No kanban task ID was provided by the runtime, so no board lifecycle transition was available.
+
+## Round 1 historical handoff
+
+The sections below describe round 1 and its then-applicable path restrictions; items 1-3 are superseded by the round-2 findings above.
+
+## Implemented in this worktree
+
+- `image-core::RgbSource` decodes JPEG, PNG, 8/16-bit TIFF and float TIFF to upright planar f32 linear Rec.2020. Embedded RGB ICC is authoritative, absent ICC assumes sRGB. Invalid ICC fails rather than silently guessing. EXIF orientation is consumed exactly once.
+- Default feature `imageio` enables macOS HEIC/HEIF through an ImageIO-to-lossless-TIFF bridge in color-mgmt. Builds without that feature/platform return Unsupported. This path handles the primary image, not HDR auxiliary gain maps.
+- The historical `RawImage` source wrapper now owns either shared CFA or shared RGB, without a fabricated CFA plane. RGB seeds the Demosaic checkpoint in host and resident GPU paths, bypassing raw decode/linearization/demosaic/denoise. RGB source pages retain f32 precision. Existing working-space CAT white balance operates relative to D65, not camera WB. Existing Kelvin-valued settings/UI remain unchanged; this is not a new Lightroom-style zero-centred temperature slider contract.
+- Develop sessions accept RGB. A JPEG session regression verifies non-black rendering and persistence of an exposure edit plus top-level `source_kind: "rgb"`.
+- FFI export/print decoding shares RgbSource rather than assuming sRGB. RGB export uses the existing CPU export path; CFA-specific streaming GPU export bands explicitly decline RGB. Resident viewport rendering is supported and tested against pipeline-cpu for repeated tone edits, tolerance <= 3/255 per channel.
+- Recipe source_kind uses the existing flattened unknown-members extension. Develop saves own only that member and preserve other unknown members. Engine-api is unchanged.
+- ACCEPTANCE.md includes manual JPEG loupe/edit/reopen/export and ICC/orientation steps. Actual GUI screenshot acceptance has not been run.
+
+## Scope blockers / required follow-up
+
+1. `crates/tessera-ffi/tests/develop.rs:489` has `jpeg_images_are_refused`, which explicitly unwraps an error from opening a JPEG. That behavior is the bug this package removes. This test must become a success/render test, but the test path is outside the allowlist. It was not changed or disabled. The exact requested validation chain fails here.
+2. `crates/tessera-mcp/src/pixels.rs` has a separate RGB decoder that ignores ICC and EXIF, and omits HEIC. `crates/tessera-mcp/src/preview.rs` dispatches its own RGB CPU path. Agent uses this Console path. These callers need to adopt RgbSource and avoid applying orientation twice. They are outside the allowlist, so agent/MCP parity cannot honestly be claimed.
+3. `crates/tessera-ffi/src/catalog.rs:89` sends PNG/HEIC metadata reads to RawSource. Index/import behavior for those formats needs review outside this scope. The JPEG develop test indexes and opens successfully.
+4. For typed API support, engine-api needs a backward-compatible `Recipe.source_kind` enum (`raw`, `rgb`, with a legacy/unknown inference policy) and an explicit WB units/relative-offset contract if Lightroom-style relative sliders are desired. Current implementation uses the extension field and existing Kelvin controls, not a schema change.
+
+## Verification
+
+- Required exact command was executed with `CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/M2-29`. It fails only at the obsolete JPEG refusal test in the run observed. See verification.log.
+- An earlier diagnostic run excluding only `jpeg_images_are_refused` passed the requested four-crate release suite (293 passed, 24 ignored). The latest diagnostic run, serialized with `--test-threads=1`, reached FFI fallback tests but hit the three-second callback timeout in `missing_jpeg_returns_pending_then_callback_and_cached_bytes`. That test passes when rerun alone (fallback-retry.log). The current tests-excluding-obsolete.log retains the timeout, not the earlier green run. Neither run is presented as passing the exact required command.
+- pipeline-cpu release suite: 135 passed, 1 ignored. See cpu.log.
+- image-core RGB decoder unit tests: 9 passed, including synthetic AdobeRGB JPEG ICC, JPEG/TIFF orientation, adjacent 16-bit TIFF samples, float HDR TIFF and actual HEIC decode.
+- Native ImageIO unit tests: 2 passed (HEIC transcode, invalid input rejection).
+- Clippy with the exact requested crate/target flags and -D warnings passes. cargo fmt --check passes.
+- `(cd apps/mac && ./build-ffi.sh && swift build)` passes. Build-generated tracked FFI binding changes were restored because their paths are outside the allowlist. The build emitted a pre-existing deployment-target linker warning for blake3_neon.o.
+- No commits or pushes. Only allowed source/report paths remain modified. Cargo.lock additionally resolved the already-declared vector workspace member's dependencies while adding TIFF support.
+- Repeated verification exposed an order-dependent export cancellation test: it checked that exactly one result succeeded, then assumed result zero was that result. Updated that test, within the allowed export path, to inspect the successful result without weakening cancellation, file-count, ICC or XMP assertions. The final required run passes export and fails at the obsolete JPEG refusal assertion.
+- Final required-chain rerun used `RUST_TEST_THREADS=1` to avoid concurrent GPU test contention, retaining the exact requested command/flags. It exits 101 at `jpeg_images_are_refused`. Clippy and formatting were independently rerun successfully after the final code edits.
+
+The HEIC fixture is a synthetic 32x24 solid-colour image generated from heic-input.png using macOS `sips -s format heic`; it contains no personal photo data.

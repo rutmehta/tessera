@@ -1170,7 +1170,7 @@ dependencies = [
  "rayon",
  "sidecar",
  "tempfile",
- "tiff",
+ "tiff 0.10.3",
 ]
 
 [[package]]
@@ -1981,6 +1981,7 @@ dependencies = [
  "moxcms",
  "num-traits",
  "png 0.18.1",
+ "tiff 0.11.3",
  "zune-core 0.5.3",
  "zune-jpeg 0.5.15",
 ]
@@ -1989,14 +1990,18 @@ dependencies = [
 name = "image-core"
 version = "0.1.0"
 dependencies = [
+ "color-mgmt",
  "engine-api",
  "half",
+ "image",
  "jobs",
  "ml-enhance",
  "ml-runtime",
  "pipeline-adobe",
  "pipeline-cpu",
  "raw-decode",
+ "tempfile",
+ "tiff 0.11.3",
 ]
 
 [[package]]
@@ -3159,6 +3164,7 @@ dependencies = [
  "engine-api",
  "gpu-core",
  "half",
+ "image",
  "image-core",
  "jobs",
  "lcms2",
@@ -3172,6 +3178,7 @@ dependencies = [
  "pipeline-cpu",
  "pollster",
  "raw-decode",
+ "tempfile",
  "wgpu",
 ]
 
@@ -4520,7 +4527,7 @@ dependencies = [
  "sidecar",
  "syn 2.0.119",
  "tempfile",
- "tiff",
+ "tiff 0.10.3",
  "tokio",
 ]
 
@@ -4605,6 +4612,20 @@ dependencies = [
  "quick-error 2.0.1",
  "weezl",
  "zune-jpeg 0.4.21",
+]
+
+[[package]]
+name = "tiff"
+version = "0.11.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b63feaf3343d35b6ca4d50483f94843803b0f51634937cc2ec519fc32232bc52"
+dependencies = [
+ "fax",
+ "flate2",
+ "half",
+ "quick-error 2.0.1",
+ "weezl",
+ "zune-jpeg 0.5.15",
 ]
 
 [[package]]

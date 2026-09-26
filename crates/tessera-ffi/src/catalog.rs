@@ -79,14 +79,10 @@ pub(crate) fn selection_packet(path: &Path, doc: &RecipeDocument) -> EngineResul
 }
 
 pub(crate) struct EmbeddedMetadata;
+
 impl MetadataProvider for EmbeddedMetadata {
     fn read(&self, path: &Path) -> EngineResult<Metadata> {
-        let ext = path
-            .extension()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .to_lowercase();
-        if !matches!(ext.as_str(), "jpg" | "jpeg" | "tif" | "tiff") {
+        if !image_core::RgbSource::recognizes(path) {
             let source = raw_decode::RawSource::open(path)?;
             let m = source.metadata();
             return Ok(Metadata {
@@ -110,5 +106,34 @@ impl MetadataProvider for EmbeddedMetadata {
             values: vec![("orientation".into(), orientation.to_string())],
             ..Default::default()
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn png_metadata_does_not_use_raw_decoder() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("rendered.png");
+        image::RgbImage::from_pixel(32, 24, image::Rgb([100, 80, 40]))
+            .save(&path)
+            .unwrap();
+        let metadata = EmbeddedMetadata.read(&path).unwrap();
+        assert_eq!(metadata.values, vec![("orientation".into(), "1".into())]);
+        assert!(metadata.camera.is_none());
+    }
+
+    #[test]
+    #[cfg(target_os = "macos")]
+    fn heic_metadata_does_not_use_raw_decoder() {
+        let path = Path::new(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../image-core/tests/fixtures/rgb.heic"
+        ));
+        let metadata = EmbeddedMetadata.read(path).unwrap();
+        assert_eq!(metadata.values, vec![("orientation".into(), "1".into())]);
+        assert!(metadata.camera.is_none());
     }
 }

@@ -8,6 +8,79 @@ use index::{
 use std::path::Path;
 
 #[test]
+fn png_embedded_camera_is_searchable() {
+    let dir = tempfile::tempdir().unwrap();
+    // Synthetic 1x1 RGB PNG with an eXIf Model tag and valid chunk CRCs.
+    std::fs::write(
+        dir.path().join("camera.png"),
+        include_bytes!("fixtures/camera.png"),
+    )
+    .unwrap();
+    let mut index = Index::open(":memory:").unwrap();
+    assert_eq!(
+        index
+            .scan(dir.path(), &NoopSidecarReader, &NoopMetadataProvider)
+            .unwrap(),
+        1
+    );
+    assert_eq!(
+        index
+            .search(&Query {
+                camera: Some("CameraX".into()),
+                ..Default::default()
+            })
+            .unwrap()
+            .len(),
+        1
+    );
+}
+
+#[test]
+fn rendered_formats_reach_metadata_and_scan_incrementally() {
+    struct RenderedMetadata;
+    impl MetadataProvider for RenderedMetadata {
+        fn read(&self, path: &Path) -> EngineResult<Metadata> {
+            Ok(Metadata {
+                camera: Some(path.file_name().unwrap().to_str().unwrap().into()),
+                ..Default::default()
+            })
+        }
+    }
+    for extension in [
+        "jpg", "jpeg", "png", "heic", "heif", "tif", "tiff", "PNG", "HEIC", "HEIF",
+    ] {
+        let dir = tempfile::tempdir().unwrap();
+        let filename = format!("rendered.{extension}");
+        // Admission is independent of decoding; metadata is supplied by the host.
+        std::fs::write(dir.path().join(&filename), b"rendered").unwrap();
+        std::fs::write(dir.path().join("ignored.txt"), b"text").unwrap();
+        let mut index = Index::open(":memory:").unwrap();
+        let scanner = Scanner::new(&NoopSidecarReader, &RenderedMetadata);
+        assert_eq!(
+            scanner.scan(&mut index, dir.path()).unwrap(),
+            1,
+            "{extension}"
+        );
+        assert_eq!(
+            index
+                .search(&Query {
+                    camera: Some(filename),
+                    ..Default::default()
+                })
+                .unwrap()
+                .len(),
+            1,
+            "{extension}"
+        );
+        assert_eq!(
+            scanner.scan(&mut index, dir.path()).unwrap(),
+            0,
+            "{extension}"
+        );
+    }
+}
+
+#[test]
 fn raw_fixtures_scan_incrementally_when_available() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/raw");
     if !root.is_dir() {
