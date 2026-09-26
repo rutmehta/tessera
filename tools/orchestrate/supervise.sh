@@ -24,6 +24,11 @@ case "$mode" in
   ask) prompt="You are the supervisor for the Tessera build. Read the context file $ctx and answer: $*";;
   *) echo "usage: supervise.sh plan|review <wp>|ask <q>" >&2; exit 2;;
 esac
-codex exec -m "$MODEL" --dangerously-bypass-approvals-and-sandbox -C "$ROOT" -o "$ROOT/tools/orchestrate/supervisor-last.md" "$prompt" >/dev/null 2>&1 || true
-cat "$ROOT/tools/orchestrate/supervisor-last.md"
+out="$ROOT/tools/orchestrate/supervisor-last.md"
+# gpt-6-astra-900k is reachable through Hermes (Codex OAuth) but not the Codex CLI on a ChatGPT account;
+# try Hermes first, then Codex with plain gpt-6-astra.
+if hermes -z "$prompt" --provider openai-codex -m "$MODEL" --yolo --ignore-user-config --in "$ROOT" > "$out" 2>&1 && ! grep -q "HTTP 4" "$out"; then :; else
+  codex exec -m gpt-6-astra --dangerously-bypass-approvals-and-sandbox -C "$ROOT" -o "$out" "$prompt" >/dev/null 2>&1 || true
+fi
+cat "$out"
 rm -f "$ctx"
