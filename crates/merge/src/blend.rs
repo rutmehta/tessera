@@ -26,7 +26,7 @@ pub(crate) fn extend(p: &mut [[f32; 3]], mask: &[bool], w: usize, h: usize) {
         }
     }
 }
-fn down<const N: usize>(p: &[[f32; N]], w: usize, h: usize) -> Vec<[f32; N]> {
+pub(crate) fn down<const N: usize>(p: &[[f32; N]], w: usize, h: usize) -> Vec<[f32; N]> {
     let nw = w.div_ceil(2);
     let nh = h.div_ceil(2);
     let kernel = [1., 4., 6., 4., 1.];
@@ -46,7 +46,7 @@ fn down<const N: usize>(p: &[[f32; N]], w: usize, h: usize) -> Vec<[f32; N]> {
     }
     out
 }
-fn up(p: &[[f32; 3]], w: usize, h: usize, nw: usize, nh: usize) -> Vec<[f32; 3]> {
+pub(crate) fn up(p: &[[f32; 3]], w: usize, h: usize, nw: usize, nh: usize) -> Vec<[f32; 3]> {
     let mut out = vec![[0.; 3]; nw * nh];
     for y in 0..nh {
         for x in 0..nw {
@@ -87,10 +87,20 @@ impl Blender {
             dims,
         }
     }
-    pub(crate) fn add(&mut self, mut pixels: Vec<[f32; 3]>, weights: Vec<[f32; 1]>) {
-        let (w, h) = self.dims[0];
+    pub(crate) fn add(&mut self, pixels: Vec<[f32; 3]>, weights: Vec<[f32; 1]>) {
         let mask: Vec<_> = weights.iter().map(|v| v[0] > 0.).collect();
-        extend(&mut pixels, &mask, w, h);
+        self.add_covered(pixels, weights, &mask);
+    }
+    /// Ownership is not source support: retain real overlap samples for the
+    /// Laplacian stencils on both sides of the chosen seam.
+    pub(crate) fn add_covered(
+        &mut self,
+        mut pixels: Vec<[f32; 3]>,
+        weights: Vec<[f32; 1]>,
+        mask: &[bool],
+    ) {
+        let (w, h) = self.dims[0];
+        extend(&mut pixels, mask, w, h);
         let mut gp = vec![pixels];
         let mut gm = vec![weights];
         for l in 1..self.dims.len() {

@@ -693,8 +693,10 @@ dependencies = [
  "blake3",
  "bytemuck",
  "engine-api",
+ "filters",
  "gpu-core",
  "half",
+ "merge",
  "pollster",
  "psd",
  "rayon",
@@ -2508,10 +2510,12 @@ name = "merge"
 version = "0.1.0"
 dependencies = [
  "engine-api",
+ "lens",
  "pipeline-cpu",
  "raw-decode",
  "rustfft",
  "serde_json",
+ "transform",
 ]
 
 [[package]]

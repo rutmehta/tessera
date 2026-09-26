@@ -234,10 +234,13 @@ fn fit(pairs: &[([f64; 2], [f64; 2])]) -> Option<H> {
     Some(h)
 }
 pub(crate) fn ransac(pairs: &[([f64; 2], [f64; 2])]) -> Result<H> {
+    ransac_seeded(pairs, 39127)
+}
+fn ransac_seeded(pairs: &[([f64; 2], [f64; 2])], seed: u64) -> Result<H> {
     if pairs.len() < 8 {
         return Err("insufficient feature matches / disconnected panorama".into());
     }
-    let mut seed = 39127;
+    let mut seed = seed.max(1);
     let mut best = Vec::new();
     for _ in 0..3000 {
         let mut ids = Vec::new();
@@ -271,6 +274,9 @@ pub(crate) fn ransac(pairs: &[([f64; 2], [f64; 2])]) -> Result<H> {
     fit(&best).ok_or_else(|| "degenerate homography".into())
 }
 pub(crate) fn register(source: &LinearImage, target: &LinearImage) -> Result<H> {
+    register_seeded(source, target, 39127)
+}
+pub(crate) fn register_seeded(source: &LinearImage, target: &LinearImage, seed: u64) -> Result<H> {
     let a = detect(source);
     let b = detect(target);
     let mut pairs = Vec::new();
@@ -294,8 +300,68 @@ pub(crate) fn register(source: &LinearImage, target: &LinearImage) -> Result<H> 
             pairs.push((f.p, b[j].p));
         }
     }
-    let h = ransac(&pairs)?;
+    let h = if seed == 39127 {
+        ransac(&pairs)?
+    } else {
+        ransac_seeded(&pairs, seed)?
+    };
     Ok(refine(source, target, h))
+}
+pub(crate) fn similarity(src: &LinearImage, dst: &LinearImage, h: H) -> H {
+    let cx = src.width as f64 / 2.;
+    let cy = src.height as f64 / 2.;
+    let p = apply(h, cx, cy);
+    let px = apply(h, cx + 1., cy);
+    let py = apply(h, cx, cy + 1.);
+    let a = ((px[0] - p[0]) + (py[1] - p[1])) / 2.;
+    let b = ((px[1] - p[1]) - (py[0] - p[0])) / 2.;
+    let mut q = [a, b, p[0] - a * cx + b * cy, p[1] - b * cx - a * cy];
+    for _ in 0..30 {
+        let mut aa = [[0.; 8]; 8];
+        let mut bb = [0.; 8];
+        for (i, row) in aa.iter_mut().enumerate().skip(4) {
+            row[i] = 1.;
+        }
+        for y in (3..src.height.saturating_sub(3)).step_by(3) {
+            for x in (3..src.width.saturating_sub(3)).step_by(3) {
+                let x = x as f64;
+                let y = y as f64;
+                let u = q[0] * x - q[1] * y + q[2];
+                let v = q[1] * x + q[0] * y + q[3];
+                let (Some(c), Some(l), Some(r), Some(t), Some(b)) = (
+                    dst.sample(u, v),
+                    dst.sample(u - 0.5, v),
+                    dst.sample(u + 0.5, v),
+                    dst.sample(u, v - 0.5),
+                    dst.sample(u, v + 0.5),
+                ) else {
+                    continue;
+                };
+                let residual = gray(c) - gray(src.pixels[y as usize * src.width + x as usize]);
+                let gx = gray(r) - gray(l);
+                let gy = gray(b) - gray(t);
+                let j = [gx * x + gy * y, -gx * y + gy * x, gx, gy];
+                let weight = 1. / (1. + (residual / 0.05).powi(2));
+                for i in 0..4 {
+                    bb[i] -= weight * j[i] * residual;
+                    for k in 0..4 {
+                        aa[i][k] += weight * j[i] * j[k];
+                    }
+                }
+            }
+        }
+        let Some(d) = solve(aa, bb) else { break };
+        if d.iter().any(|v| !v.is_finite()) || d[0].abs() > 0.1 || d[1].abs() > 0.1 {
+            break;
+        }
+        for i in 0..4 {
+            q[i] += d[i];
+        }
+        if d.iter().map(|v| v * v).sum::<f64>() < 1e-12 {
+            break;
+        }
+    }
+    [[q[0], -q[1], q[2]], [q[1], q[0], q[3]], [0., 0., 1.]]
 }
 fn refine(src: &LinearImage, dst: &LinearImage, mut h: H) -> H {
     // Robust direct alignment after RANSAC removes integer FAST localization bias.
