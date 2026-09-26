@@ -942,5 +942,13 @@
     "status": "merged",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M2-40v",
+    "owner": "sol",
+    "title": "Verify People view on screen",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
