@@ -675,7 +675,7 @@
     "id": "M3-14b",
     "owner": "astra",
     "title": "Critic metrics exact via GPU reduction",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },

@@ -1,0 +1,13 @@
+Reverified the existing implementation with CARGO_TARGET_DIR preserved.
+
+- Release tests: 178 passed, 0 failed, 11 ignored.
+- Clippy with -D warnings: passed.
+- Five-fixture benchmark: passed exact full-output histogram/clipping parity and native crop checks.
+- NEF cached reduction: 11.54 ms, within the 20 ms target. Complete agent step: 203.81 ms.
+- Scoped formatting and git diff --check: passed.
+
+The required workspace cargo fmt --check still fails at apps/tessera-cli/src/main.rs:10. Rustfmt requires mod tether before mod understanding. That file is unchanged from HEAD and outside your allowlist, so I left it untouched.
+
+Evidence: tools/orchestrate/wp/M3-14b/current-verification.md and current-bench.log.
+
+RESULT: FAIL mandatory workspace formatting requires an out-of-scope CLI change.
