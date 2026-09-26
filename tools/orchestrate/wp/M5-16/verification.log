@@ -1,0 +1,352 @@
+   Compiling compositor v0.1.0 (/Users/rutmehta/Developer/tessera/.worktrees/M5-16/crates/compositor)
+    Finished `release` profile [optimized] target(s) in 5.73s
+     Running unittests src/lib.rs (/Volumes/betterSSD/tessera-cache/target/M5-16/release/deps/color_mgmt-b8eea82903620702)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/cache.rs (/Volumes/betterSSD/tessera-cache/target/M5-16/release/deps/cache-6401490f02dd1d8d)
+
+running 3 tests
+test concurrent_transform_creation_shares_one_lut ... ok
+test registry_reuses_lut_across_transform_lifetimes_and_profile_handles ... ok
+test cache_separates_every_profile_and_option ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.58s
+
+     Running tests/color.rs (/Volumes/betterSSD/tessera-cache/target/M5-16/release/deps/color-7b64b3e00e5d203d)
+
+running 2 tests
+test srgb_registry_deduplicates_bytes_and_files ... ok
+test builtin_profiles_have_expected_primaries_and_curves ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/display.rs (/Volumes/betterSSD/tessera-cache/target/M5-16/release/deps/display-64689767242f7540)
+
+running 2 tests
+test display_discovery_returns_valid_deduplicated_profiles ... ok
+test unavailable_display_falls_back_to_srgb ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/gamut.rs (/Volumes/betterSSD/tessera-cache/target/M5-16/release/deps/gamut-6bbf1a9401433869)
+
+running 1 test
+test saturated_prophoto_red_warns_but_neutral_does_not ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/linear_display.rs (/Volumes/betterSSD/tessera-cache/target/M5-16/release/deps/linear_display-817a659f0a590333)
+
+running 1 test
+test linearized_matrix_profile_preserves_signed_values_and_reuses_registry ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/lut.rs (/Volumes/betterSSD/tessera-cache/target/M5-16/release/deps/lut-2b18efca31fb7c0b)
+
+running 2 tests
+test lut_matches_direct_at_grid_points_for_non_identity ... ok
+test lut_is_cached_red_fastest_and_interpolates_identity ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/printer.rs (/Volumes/betterSSD/tessera-cache/target/M5-16/release/deps/printer-3fe50e589f8f4da1)
+
+running 2 tests
+test converts_to_rgb_and_cmyk_device_space ... ok
+test scans_output_profiles_only_once_and_by_name ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/proof.rs (/Volumes/betterSSD/tessera-cache/target/M5-16/release/deps/proof-c0479c9648b42e7e)
+
+running 2 tests
+test small_gamut_proof_warns_separately_and_simulates_paper ... ok
+test proof_preserves_ink_black_with_source_bpc_enabled ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/transform.rs (/Volumes/betterSSD/tessera-cache/target/M5-16/release/deps/transform-b8e61e0b347a82cf)
+
+running 1 test
+test srgb_identity_across_cube_and_intents ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (/Volumes/betterSSD/tessera-cache/target/M5-16/release/deps/compositor-a90c950b2d3e85df)
+
+running 32 tests
+test geom::tests::affine_inverse ... ok
+test adjust::tests::hsl_round_trip ... ok
+test blend::tests::set_sat_matches_pdf ... ok
+test geom::tests::rect_levels ... ok
+test adjust::tests::levels_formula ... ok
+test blend::tests::slider_weights ... ok
+test blend::tests::psd_keys_round_trip ... ok
+test adjust::tests::curve_is_monotone_and_interpolates ... ok
+test raster::tests::edit_and_read_back ... ok
+test render::styles::tests::invalid_numbers_kernels_and_patterns_are_rejected ... ok
+test render::styles::tests::overlay_is_straight_and_shape_clipped ... ok
+test render::styles::tests::all_stroke_positions_use_morphological_bands ... ok
+test render::styles::tests::gradient_and_pattern_overlays_use_fill_sampler_and_fill_alpha ... ok
+test render::styles::tests::outer_glow_gaussian_matches_impulse_kernel ... ok
+test render::styles::tests::satin_is_difference_of_opposite_offsets_and_can_invert ... ok
+test render::styles::tests::inner_shadow_is_complement_of_shifted_alpha ... ok
+test render::styles::tests::empty_disabled_transparent_and_zero_size_are_safe ... ok
+test render::styles::tests::inner_glow_edge_and_center_are_complements ... ok
+test render::styles::tests::effects_are_stably_sorted_behind_and_above ... ok
+test render::styles::tests::bevel_light_reversal_swaps_highlight_edge ... ok
+test render::styles::tests::shadow_distance_scales_and_uses_global_or_local_light ... ok
+test resident::output::tests::benchmark_present_before_after_resident_lut ... ignored, printing before/after resident presentation benchmark; run explicitly on Metal
+test render::styles::tests::spread_and_blur_size_scale ... ok
+test render::styles::tests::serde_round_trip_preserves_placeholder_controls_and_defaults ... ok
+test resident::output::tests::profiles_reject_unresolved_invalid_and_unsupported_contracts ... ok
+test resident::output::tests::validates_target_bounds_source_policy_and_lut ... ok
+test resident::output::tests::edr_preserves_extended_values_alpha_and_offsets ... ok
+test resident::output::tests::lut_clamps_input_but_preserves_extended_output ... ok
+test resident::output::tests::lut_transforms_straight_rgb_before_premultiplication_and_flattening ... ok
+test resident::output::tests::profiled_output_matches_cpu_and_caches_preparation ... ok
+test resident::output::tests::linear_profiled_hdr_preserves_highlights_and_caps_headroom ... ok
+test resident::output::tests::encoded_profiles_to_linear_displays_match_lcms_grid ... ok
+
+test result: ok. 31 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.27s
+
+     Running tests/bench.rs (/Volumes/betterSSD/tessera-cache/target/M5-16/release/deps/bench-7d69129e3441e55c)
+
+running 5 tests
+test composite_100_layers_20mp_at_level_2 ... ignored, bench: run with --ignored --nocapture
+test m5_08_l0_prefix_trace ... ignored, diagnostic: original 20 MP L0 failure, layer-prefix trace
+test m5_08_structure_and_viewport ... ignored, 20 MP / 100 layers, hardware timing
+test resident_100_layers_20mp ... ignored, bench: run with --ignored --nocapture
+test m5_08_hard_mix_boundary ... ok
+
+test result: ok. 1 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/bench_micro.rs (/Volumes/betterSSD/tessera-cache/target/M5-16/release/deps/bench_micro-b5ac087be5bf3bf0)
+
+running 3 tests
+test gpu_calibration ... ignored, bench
+test resident_micro ... ignored, bench
+test resident_per_mode ... ignored, bench
+
+test result: ok. 0 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/blend_modes.rs (/Volumes/betterSSD/tessera-cache/target/M5-16/release/deps/blend_modes-0aa2625e38329fdd)
+
+running 4 tests
+test partial_alpha_uses_general_compositing_formula ... ok
+test dissolve_is_a_deterministic_binary_threshold ... ok
+test eight_bit_documents_quantize_only_storage ... ok
+test every_mode_matches_reference_opaque ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/caching.rs (/Volumes/betterSSD/tessera-cache/target/M5-16/release/deps/caching-c616a7136a90e172)
+
+running 5 tests
+test duplicate_then_edit_one_tile_leaves_original_untouched ... ok
+test pyramid_view_matches_level_render ... ok
+test non_linear_history_and_snapshots ... ok
+test cache_invalidation_is_local_to_the_edited_tiles ... ok
+test dirty_rect_compositing_is_bit_exact ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/contracts.rs (/Volumes/betterSSD/tessera-cache/target/M5-16/release/deps/contracts-fde93cbdbe03cb0e)
+
+running 3 tests
+test layer_ids_are_the_contract_type ... ok
+test blend_modes_match_in_menu_order ... ok
+test adjustments_depth_group_mode_rect_and_affine_convert ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/gpu.rs (/Volumes/betterSSD/tessera-cache/target/M5-16/release/deps/gpu-7c842a3096059052)
+
+running 3 tests
+test gpu_declines_adjustment_layers ... ok
+test gpu_matches_cpu_reference ... ok
+test every_mode_matches_on_the_gpu ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+     Running tests/gpu_profiled_output.rs (/Volumes/betterSSD/tessera-cache/target/M5-16/release/deps/gpu_profiled_output-92e43ba99642c405)
+
+running 1 test
+test profiled_viewport_rebases_and_rejects_stale_or_foreign_document ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/gpu_resident.rs (/Volumes/betterSSD/tessera-cache/target/M5-16/release/deps/gpu_resident-fec5ffaeb4a05682)
+
+running 16 tests
+test cached_composites_are_flagged_premultiplied_and_levels_go_to_one_pixel ... ok
+test one_shared_device_serves_the_compositor ... ok
+test present_flattens_into_an_rgba8_storage_texture ... ok
+test smart_objects_render_through_gpu_resampled_pages ... ok
+test copy_on_write_duplicates_share_pages ... ok
+test smart_transform_invalidates_even_with_newer_child_revision ... ok
+test small_budget_evicts_history_pages_and_stays_correct ... ok
+test viewport_pan_preserves_offscreen_damage ... ok
+test specialization_cache_is_bounded_and_large_programs_fall_back ... ok
+test specialized_matches_interpreter_and_reuses_structure ... ok
+test viewport_resolves_only_visible_tiles ... ok
+test integer_mips_are_exact ... ok
+test rendering_is_deterministic ... ok
+test every_mode_and_adjustment_within_operator_tolerance ... ok
+test resident_chain_matches_cpu_at_every_depth_and_level ... ok
+test dirty_rect_frames_are_bit_exact_and_local ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.66s
+
+     Running tests/gpu_resident_output.rs (/Volumes/betterSSD/tessera-cache/target/M5-16/release/deps/gpu_resident_output-6a30dd2366ee067d)
+
+running 1 test
+test resident_viewport_presents_edr_and_rejects_unrendered_regions ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/gpu_resident_viewport.rs (/Volumes/betterSSD/tessera-cache/target/M5-16/release/deps/gpu_resident_viewport-a07a3eb1417fcc49)
+
+running 5 tests
+test output_storage_tracks_viewport_not_canvas ... ok
+test huge_smart_child_renders_only_the_sampling_window ... ok
+test oversized_full_render_does_not_poison_viewport_mips ... ok
+test nonzero_viewport_rgba8_matches_full_render_after_pan_and_specialization ... ok
+test compact_smart_windows_match_cpu_across_parent_tiles ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests/gpu_smart_resample.rs (/Volumes/betterSSD/tessera-cache/target/M5-16/release/deps/gpu_smart_resample-4d686963c51fa0e6)
+
+running 7 tests
+test plan_rejects_invalid_geometry_and_selects_determinant_mip ... ok
+test large_parent_coordinates_keep_fractional_footprints ... ok
+test identity_writes_straight_planar_at_page_offset ... ok
+test lanczos_level_zero_matches_independent_reference_and_is_deterministic ... ok
+test lanczos_support_reaches_beyond_object_bounds_into_adjacent_tile ... ok
+test resident_quality_switch_invalidates_nested_caches_and_higher_levels_stay_bilinear ... ok
+test gpu_child_and_resampling_match_cpu_smart_tiles ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests/layer_styles.rs (/Volumes/betterSSD/tessera-cache/target/M5-16/release/deps/layer_styles-0d1fcfc39c94e9dc)
+
+running 5 tests
+test layer_opacity_fades_entire_style_stack_once ... ok
+test global_light_changes_all_layers_and_undo_restores_cached_result ... ok
+test shadow_crosses_tiles_and_paint_invalidates_its_neighbour ... ok
+test overlay_preserves_antialiased_shape_alpha ... ok
+test overlay_survives_zero_fill_and_native_roundtrip ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/psd.rs (/Volumes/betterSSD/tessera-cache/target/M5-16/release/deps/psd-6be8eae2e9e64566)
+
+running 16 tests
+test edited_pixels_expand_bounds_and_refresh_merged_composite ... ok
+test nested_groups_preserve_file_order_and_boundary_metadata ... ok
+test hue_saturation_master_is_editable_without_losing_extension_data ... ok
+test channel_mixer_imports_signed_rgb_and_monochrome_records ... ok
+test document_resources_and_flattened_rgb_import ... ok
+test adjustment_parameters_are_editable_and_unknown_adjustments_stay_opaque ... ok
+test masks_import_density_feather_flags_and_preserve_payloads ... ok
+test rgb_pixels_all_depths_are_imported_and_roundtrip ... ok
+test curves_import_channel_selection_and_editable_export ... ok
+test selective_hue_bands_remain_opaque_until_replaced ... ok
+test unsupported_features_are_reported_without_losing_opaque_data ... ok
+test text_and_smart_originals_remain_available_with_raster_proxies ... ok
+test unsupported_text_edits_and_invalid_inputs_fail_explicitly ... ok
+test properties_blend_keys_and_unknown_blocks_survive_edits ... ok
+test new_adjustments_match_native_render_after_psd_serialization ... ok
+test native_tree_export_import_renders_identically_at_all_depths ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/psd_document.rs (/Volumes/betterSSD/tessera-cache/target/M5-16/release/deps/psd_document-0dcec80564d1b863)
+
+running 1 test
+test document_psd_api_roundtrip ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/roundtrip.rs (/Volumes/betterSSD/tessera-cache/target/M5-16/release/deps/roundtrip-efccd3e32c8f0a63)
+
+running 2 tests
+test save_and_load_files ... ok
+test round_trip_preserves_model_and_pixels ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/smart_filters.rs (/Volumes/betterSSD/tessera-cache/target/M5-16/release/deps/smart_filters-d831b0670c5016d9)
+
+running 2 tests
+test smart_filter_is_evaluated_on_nested_composite ... ok
+test cache_reuse_mask_params_source_and_undo ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/structure.rs (/Volumes/betterSSD/tessera-cache/target/M5-16/release/deps/structure-1b571c6ff2194aac)
+
+running 11 tests
+test locks_are_enforced ... ok
+test selections_are_float_rasters_with_boolean_ops ... ok
+test clipped_and_masked_adjustments ... ok
+test mips_are_alpha_weighted_box_averages ... ok
+test adjustment_layers_stack_in_order ... ok
+test clipping_mask_limits_to_base_alpha ... ok
+test layer_mask_density_and_fill_layers ... ok
+test knockout_shallow_and_deep ... ok
+test group_isolation_vs_pass_through ... ok
+test blend_if_split_sliders_interpolate_linearly ... ok
+test smart_objects_render_nested_documents_with_transforms ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/style_psd.rs (/Volumes/betterSSD/tessera-cache/target/M5-16/release/deps/style_psd-a40520610c7d09e4)
+
+running 5 tests
+test unrepresentable_styles_fail_export_instead_of_disappearing ... ok
+test unsupported_units_remain_opaque_instead_of_becoming_pixels ... ok
+test editing_disabled_styles_does_not_enable_opaque_effects ... ok
+test native_lfx2_style_set_roundtrip ... ok
+test independent_descriptor_import_edit_and_opaque_preservation ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (/Volumes/betterSSD/tessera-cache/target/M5-16/release/deps/gpu_core-1a457d5df1af6c32)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/precise.rs (/Volumes/betterSSD/tessera-cache/target/M5-16/release/deps/precise-1b8ce0f06e1b3768)
+
+running 1 test
+test precise_pipeline_rounds_like_the_cpu ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+   Doc-tests color_mgmt
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests compositor
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests gpu_core
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+    Checking compositor v0.1.0 (/Users/rutmehta/Developer/tessera/.worktrees/M5-16/crates/compositor)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.70s

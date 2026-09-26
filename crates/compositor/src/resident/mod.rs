@@ -40,7 +40,8 @@ mod pool;
 mod program;
 mod smart_gpu;
 mod specialize;
-pub use output::SourceColorPolicy;
+pub use output::{DisplayDestination, Headroom, OutputCacheStats, SourceColorPolicy, SourceDomain};
+pub use smart_gpu::SmartQuality;
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -198,7 +199,9 @@ struct FrameUniform {
     brows: u32,
     clamp: u32,
     level: u32,
-    _p: [u32; 3],
+    ox: u32,
+    oy: u32,
+    stride: u32,
 }
 
 #[repr(C)]
@@ -352,6 +355,7 @@ struct Rendered {
 struct LevelState {
     out: wgpu::Buffer,
     extent: Extent,
+    region: Rect,
     last: Option<Rendered>,
     valid: Vec<bool>,
 }
@@ -360,6 +364,7 @@ impl LevelState {
     fn require_valid(&self, rect: Rect) -> EngineResult<()> {
         if rect.is_empty()
             || rect.intersect(&Rect::of_extent(self.extent)) != rect
+            || rect.intersect(&self.region) != rect
             || self.last.is_none()
         {
             return Err(EngineError::invalid("src", "outside rendered level"));
@@ -463,6 +468,7 @@ pub struct ResidentRenderer {
     report: FrameReport,
     specialized: specialize::Cache,
     specialization: bool,
+    smart_quality: SmartQuality,
 }
 
 fn page_bytes(depth: Depth) -> u64 {
@@ -557,7 +563,31 @@ impl ResidentRenderer {
             report: FrameReport::default(),
             specialized: specialize::Cache::default(),
             specialization: true,
+            smart_quality: SmartQuality::default(),
         })
+    }
+
+    /// Select smart-object reconstruction, including nested children. Defaults
+    /// to legacy bilinear. A change discards smart pages, child renderers and
+    /// rendered level validity; raster/mip pages remain resident. Previously
+    /// submitted GPU work keeps its own resource references. Re-selecting the
+    /// current quality is a no-op. Render again before presenting/readback.
+    pub fn set_smart_quality(&mut self, quality: SmartQuality) -> EngineResult<()> {
+        if self.smart_quality == quality {
+            return Ok(());
+        }
+        let smart = Pool::new(&self.device, F32_PAGE_WORDS * 4, "resident smart pages", 1)?;
+        self.smart = smart;
+        self.nodes.retain(|_, node| !node.smart());
+        self.smarts.clear();
+        self.pending_smart.clear();
+        self.children.clear();
+        for layer in self.layers.values_mut() {
+            layer.smart.clear();
+        }
+        self.invalidate();
+        self.smart_quality = quality;
+        Ok(())
     }
 
     /// Enable structural specialization (disable for interpreter comparisons).
@@ -741,24 +771,42 @@ impl ResidentRenderer {
             return Ok(id);
         }
         let bounds = Rect::of_tile(coord, self.canvas.at_level(level)).to_level0(level);
-        let id = if !so.bounds().intersects(&bounds) {
+        // Lanczos support extends beyond the geometric object bounds. Let the
+        // exact footprint union decide empty pages in that mode, including
+        // halo-only tiles; preserve legacy bilinear culling byte-for-byte.
+        let lanczos = self.smart_quality == SmartQuality::Lanczos3 && level == 0;
+        let id = if !lanczos && !so.bounds().intersects(&bounds) {
             0
         } else {
-            let plan =
-                smart_gpu::SmartPlan::new(so.transform, so.state.canvas, self.canvas, coord)?;
+            let mut plan = smart_gpu::SmartPlan::with_quality(
+                so.transform,
+                so.state.canvas,
+                self.canvas,
+                coord,
+                self.smart_quality,
+            )?;
+            if plan.child_region().is_empty() {
+                self.smarts.insert(key, 0);
+                return Ok(0);
+            }
             if self
                 .children
                 .get(&layer.id)
                 .is_none_or(|(state, _)| !Arc::ptr_eq(state, &so.state))
             {
-                let child = smart_gpu::render_child(&self.gpu, so, &plan)?;
+                let mut child = ResidentRenderer::new(&self.gpu)?;
+                child.set_smart_quality(self.smart_quality)?;
                 self.children.insert(layer.id, (so.state.clone(), child));
             }
             let (_, child) = self.children.get_mut(&layer.id).unwrap();
-            if !child.levels.contains_key(&plan.child_level()) {
-                child.render(&Document::new((*so.state).clone()), plan.child_level())?;
-            }
+            child.render_viewport(
+                &Document::new((*so.state).clone()),
+                plan.child_level(),
+                plan.child_region(),
+                0,
+            )?;
             let source = child.levels[&plan.child_level()].out.clone();
+            plan.rebase(child.levels[&plan.child_level()].region);
             debug_assert_eq!(
                 plan.output_extent().width as i64,
                 Rect::of_tile(coord, self.canvas.at_level(level)).width()
@@ -1011,7 +1059,11 @@ impl ResidentRenderer {
 
     /// Composite only visible blocks, including `margin` level pixels on each
     /// side. Coordinates are at the requested level, clipped to the canvas.
-    /// Offscreen dirty blocks remain invalid until a later pan or full render.
+    /// Output storage covers only the block-aligned viewport plus margin.
+    /// Panning copies valid overlapping blocks on the GPU and discards blocks
+    /// outside the new window. Offscreen blocks are recomputed when needed.
+    /// Presentation coordinates remain level-relative; full-level readback
+    /// requires a full render.
     pub fn render_viewport(
         &mut self,
         doc: &Document,
@@ -1060,6 +1112,31 @@ impl ResidentRenderer {
         if visible.is_empty() {
             return Err(EngineError::invalid("viewport", "outside level"));
         }
+        // Reject unsupported output before resolving/materializing pages. A
+        // discarded materialization encoder would otherwise leave cached mip
+        // and smart pages marked resident without ever computing their pixels.
+        let region = Rect::new(
+            visible.x0 / i64::from(BLOCK) * i64::from(BLOCK),
+            visible.y0 / i64::from(BLOCK) * i64::from(BLOCK),
+            (visible.x1 as u32)
+                .div_ceil(BLOCK)
+                .saturating_mul(BLOCK)
+                .min(le.width) as i64,
+            (visible.y1 as u32)
+                .div_ceil(BLOCK)
+                .saturating_mul(BLOCK)
+                .min(le.height) as i64,
+        );
+        let size = (region.width() as u64)
+            .checked_mul(region.height() as u64)
+            .and_then(|n| n.checked_mul(16))
+            .filter(|&n| {
+                n <= self.device.limits().max_storage_buffer_binding_size
+                    && n <= self.device.limits().max_buffer_size
+            })
+            .ok_or_else(|| EngineError::ResourceExhausted {
+                resource: format!("level {level} viewport exceeds the storage binding limit"),
+            })?;
         let (cols, rows) = le.tile_grid(TILE_SIZE);
         let grid = (cols * rows) as usize;
         let program = Program::compile(&state.root, grid)?;
@@ -1088,13 +1165,67 @@ impl ResidentRenderer {
         self.children.retain(|id, _| self.layers.contains_key(id));
 
         // Phase 2: pages for new nodes, uploads and mip jobs.
-        let encoder = match self.materialize() {
+        let mut encoder = match self.materialize() {
             Ok(e) => e,
             Err(e) => {
                 self.drop_pending();
                 return Err(e);
             }
         };
+
+        // A block-aligned, compact output window. Copy overlapping pixels before
+        // discarding the old window; only copied blocks may remain valid.
+        if self.levels.get(&level).is_none_or(|st| st.region != region) {
+            let out = self.device.create_buffer(&wgpu::BufferDescriptor {
+                label: Some("resident viewport"),
+                size,
+                usage: wgpu::BufferUsages::STORAGE
+                    | wgpu::BufferUsages::COPY_SRC
+                    | wgpu::BufferUsages::COPY_DST,
+                mapped_at_creation: false,
+            });
+            let mut valid =
+                vec![false; (le.width.div_ceil(BLOCK) * le.height.div_ceil(BLOCK)) as usize];
+            let last = if let Some(old) = self.levels.remove(&level) {
+                let overlap = old.region.intersect(&region);
+                if !overlap.is_empty() {
+                    for y in overlap.y0..overlap.y1 {
+                        let src = ((y - old.region.y0) * old.region.width() + overlap.x0
+                            - old.region.x0) as u64
+                            * 16;
+                        let dst =
+                            ((y - region.y0) * region.width() + overlap.x0 - region.x0) as u64 * 16;
+                        encoder.copy_buffer_to_buffer(
+                            &old.out,
+                            src,
+                            &out,
+                            dst,
+                            overlap.width() as u64 * 16,
+                        );
+                    }
+                    let cols = le.width.div_ceil(BLOCK);
+                    for by in overlap.y0 as u32 / BLOCK..(overlap.y1 as u32).div_ceil(BLOCK) {
+                        for bx in overlap.x0 as u32 / BLOCK..(overlap.x1 as u32).div_ceil(BLOCK) {
+                            let i = (by * cols + bx) as usize;
+                            valid[i] = old.valid[i];
+                        }
+                    }
+                }
+                old.last
+            } else {
+                None
+            };
+            self.levels.insert(
+                level,
+                LevelState {
+                    out,
+                    extent: le,
+                    region,
+                    last,
+                    valid,
+                },
+            );
+        }
 
         // Damage since this level was last rendered.
         let bytes = program.bytes();
@@ -1168,24 +1299,7 @@ impl ResidentRenderer {
                 .write(&device, &queue, bytemuck::cast_slice(&program.aux));
             self.blocks
                 .write(&device, &queue, bytemuck::cast_slice(&list));
-            let out_size = u64::from(le.width) * u64::from(le.height) * 16;
-            if out_size > device.limits().max_storage_buffer_binding_size {
-                return Err(EngineError::ResourceExhausted {
-                    resource: format!("level {level} exceeds the storage binding limit"),
-                });
-            }
-            let st = self.levels.entry(level).or_insert_with(|| LevelState {
-                out: device.create_buffer(&wgpu::BufferDescriptor {
-                    label: Some("resident level"),
-                    size: out_size,
-                    usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
-                    mapped_at_creation: false,
-                }),
-                extent: le,
-                last: None,
-                valid: Vec::new(),
-            });
-            let out = st.out.clone();
+            let out = self.levels[&level].out.clone();
             let frame = FrameUniform {
                 lw: le.width,
                 lh: le.height,
@@ -1196,7 +1310,9 @@ impl ResidentRenderer {
                 brows,
                 clamp: u32::from(!state.depth.is_float()),
                 level: u32::from(level),
-                _p: [0; 3],
+                ox: region.x0 as u32,
+                oy: region.y0 as u32,
+                stride: region.width() as u32,
             };
             let init = |label: &str, bytes: &[u8]| {
                 device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -1546,9 +1662,9 @@ impl ResidentRenderer {
         }
         let bg = background.unwrap_or([0.0; 3]);
         let u = PresentUniform {
-            lw: e.width,
-            sx: src.x0 as u32,
-            sy: src.y0 as u32,
+            lw: st.region.width() as u32,
+            sx: (src.x0 - st.region.x0) as u32,
+            sy: (src.y0 - st.region.y0) as u32,
             dx: dst.0,
             dy: dst.1,
             w,
@@ -1613,13 +1729,110 @@ impl ResidentRenderer {
             &self.device,
             &self.queue,
             &st.out,
-            st.extent,
-            src,
+            Extent::new(st.region.width() as u32, st.region.height() as u32),
+            Rect::new(
+                src.x0 - st.region.x0,
+                src.y0 - st.region.y0,
+                src.x1 - st.region.x0,
+                src.y1 - st.region.y0,
+            ),
             target,
             dst,
             background,
             policy,
             lut,
+        )
+    }
+
+    /// Profile-aware output from exactly the document revision rendered into
+    /// this level. Rejects foreign documents, edits and undo/redo until render.
+    /// Untagged documents are sRGB; unresolved handle-only profiles are errors.
+    /// `domain` explicitly declares whether the composite is encoded [0,1] or
+    /// already linear in the document primaries (extended matrix RGB only).
+    #[allow(clippy::too_many_arguments)]
+    pub fn present_profiled(
+        &self,
+        doc: &Document,
+        level: u8,
+        target: &wgpu::Texture,
+        src: Rect,
+        dst: (u32, u32),
+        background: Option<[f32; 3]>,
+        domain: SourceDomain,
+        destination: DisplayDestination,
+        options: gpu_core::color_mgmt::TransformOptions,
+        headroom: Headroom,
+    ) -> EngineResult<()> {
+        let st = self.level(level)?;
+        st.require_valid(src)?;
+        let state = doc.state();
+        if !st.last.as_ref().is_some_and(|last| {
+            last.key == doc.key() && last.epoch == doc.epoch() && last.rev == state.rev
+        }) {
+            return Err(EngineError::invalid(
+                "document",
+                "presentation requires the rendered document revision",
+            ));
+        }
+        let prepared = self.pipes.output.prepare(
+            &self.device,
+            state.profile.as_ref(),
+            domain,
+            destination,
+            options,
+            headroom,
+        )?;
+        self.pipes.output.present_prepared(
+            &self.device,
+            &self.queue,
+            &st.out,
+            Extent::new(st.region.width() as u32, st.region.height() as u32),
+            Rect::new(
+                src.x0 - st.region.x0,
+                src.y0 - st.region.y0,
+                src.x1 - st.region.x0,
+                src.y1 - st.region.y0,
+            ),
+            target,
+            dst,
+            background,
+            &prepared,
+        )
+    }
+
+    /// Shared pipeline's LUT upload/preparation counters (no pixel readback).
+    pub fn output_cache_stats(&self) -> OutputCacheStats {
+        self.pipes.output.cache_stats()
+    }
+
+    /// Profile-aware IOSurface presentation; host must tag the surface/layer
+    /// with the selected encoded or extended-linear destination color space.
+    #[allow(clippy::too_many_arguments)]
+    pub fn present_iosurface_profiled(
+        &self,
+        doc: &Document,
+        level: u8,
+        surface: u32,
+        src: Rect,
+        dst: (u32, u32),
+        background: Option<[f32; 3]>,
+        domain: SourceDomain,
+        destination: DisplayDestination,
+        options: gpu_core::color_mgmt::TransformOptions,
+        headroom: Headroom,
+    ) -> EngineResult<()> {
+        let (texture, _) = gpu_core::write_to_iosurface(&self.device, surface)?;
+        self.present_profiled(
+            doc,
+            level,
+            &texture,
+            src,
+            dst,
+            background,
+            domain,
+            destination,
+            options,
+            headroom,
         )
     }
 
