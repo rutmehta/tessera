@@ -2,7 +2,11 @@ use crate::{Console, schema};
 use base64::Engine as _;
 use engine_api::{
     EngineError,
-    tools::{ToolCall, ToolRequest, ToolResponse},
+    id::DocumentId,
+    tools::{
+        DocumentToolCall, DocumentToolOutput, DocumentToolRequest, DocumentToolResponse, ToolCall,
+        ToolRequest, ToolResponse,
+    },
 };
 use rmcp::{ErrorData, RoleServer, ServerHandler, model::*, service::RequestContext};
 use serde::de::DeserializeOwned;
@@ -38,7 +42,7 @@ impl Server {
 }
 impl ServerHandler for Server {
     fn get_info(&self) -> ServerConfig {
-        serde_json::from_value(json!({"protocolVersion":"2025-03-26","capabilities":{"tools":{},"resources":{}},"serverInfo":{"name":"tessera-mcp","version":env!("CARGO_PKG_VERSION")},"instructions":"Non-generative photo editing. Mutation arguments accept rationale, group, and expect_recipe. Export and indexing complete synchronously. See crate README for engine limitations."})).expect("valid static server config")
+        serde_json::from_value(json!({"protocolVersion":"2025-03-26","capabilities":{"tools":{},"resources":{}},"serverInfo":{"name":"tessera-mcp","version":env!("CARGO_PKG_VERSION")},"instructions":"Non-generative photo editing. Recipe mutations accept rationale, group, and expect_recipe; layered-document tools (open_document … list_layers) accept rationale, group, and expect_head, and each edit is one Agent history entry. actions_record/actions_stop/actions_play record and replay tool calls. Export and indexing complete synchronously. See crate README for engine limitations."})).expect("valid static server config")
     }
     fn supported_protocol_versions(&self) -> std::borrow::Cow<'static, [ProtocolVersion]> {
         std::borrow::Cow::Owned(vec![ProtocolVersion::V_2025_03_26])
@@ -94,6 +98,12 @@ impl ServerHandler for Server {
 }
 enum Input {
     Engine(Box<ToolRequest>),
+    Document(Box<DocumentToolRequest>),
+    DescribeDocument(schema::DescribeDocument),
+    DocumentPreview(schema::RenderDocumentPreview),
+    Record(schema::ActionsRecord),
+    Stop(schema::ActionsStop),
+    Play(schema::ActionsPlay),
     Open(schema::OpenImage),
     Render(schema::RenderPreview),
     List(schema::ListImages),
@@ -106,6 +116,15 @@ impl Input {
             "render_preview" => Self::Render(arguments(args)?),
             "list_images" => Self::List(arguments(args)?),
             "describe_image" => Self::Describe(arguments(args)?),
+            "describe_document" => Self::DescribeDocument(arguments(args)?),
+            "render_document_preview" => Self::DocumentPreview(arguments(args)?),
+            "actions_record" => Self::Record(arguments(args)?),
+            "actions_stop" => Self::Stop(arguments(args)?),
+            "actions_play" => Self::Play(arguments(args)?),
+            _ if DocumentToolCall::NAMES.contains(&name) => {
+                args["tool"] = json!(name);
+                Self::Document(Box::new(arguments(args)?))
+            }
             _ => {
                 args["tool"] = json!(name);
                 Self::Engine(Box::new(arguments(args)?))
@@ -113,8 +132,90 @@ impl Input {
         })
     }
 }
+/// Long edge of the preview attached to document edits (critic loop).
+const EDIT_PREVIEW_PX: u32 = 512;
+
 fn dispatch(console: &mut Console, input: Input) -> Result<CallToolResult, ErrorData> {
     let result: Result<Vec<Value>, EngineError> = (|| match input {
+        Input::Document(request) => match console.execute_document(*request) {
+            DocumentToolResponse::Ok(output) => {
+                let mut content = vec![text(json!({ "ok": output }))];
+                if let DocumentToolOutput::DocumentEdited { document, .. } = output
+                    && let Ok(preview) = console.render_document_preview(document, EDIT_PREVIEW_PX)
+                {
+                    content.push(rgba_image(&preview)?);
+                }
+                Ok(content)
+            }
+            DocumentToolResponse::Error(error) => Err(error),
+        },
+        Input::DescribeDocument(args) => {
+            let d = console.describe_document(
+                DocumentId(args.document),
+                args.max_px,
+                args.thumbnail_px,
+            )?;
+            let mut summary = d.summary;
+            summary["images"] = json!(
+                "content[1] is the composite; content[2 + i] is thumbnail i (layers[].thumbnail)"
+            );
+            let mut content = vec![text(summary), rgba_image(&d.composite)?];
+            for t in &d.thumbnails {
+                content.push(rgba_image(&t.image)?);
+            }
+            Ok(content)
+        }
+        Input::DocumentPreview(args) => Ok(vec![rgba_image(
+            &console.render_document_preview(DocumentId(args.document), args.max_px)?,
+        )?]),
+        Input::Record(args) => {
+            console.start_recording(args.name.clone())?;
+            Ok(vec![text(json!({ "recording": args.name }))])
+        }
+        Input::Stop(args) => {
+            let action = console.stop_recording()?;
+            if let Some(path) = &args.path {
+                let path = std::path::Path::new(path);
+                if !path.is_absolute()
+                    || path.extension().and_then(|e| e.to_str())
+                        != Some(crate::actions::ACTION_EXTENSION)
+                {
+                    return Err(EngineError::invalid(
+                        "path",
+                        "absolute path ending in .tessera-action required",
+                    ));
+                }
+                action.write(path)?;
+            }
+            Ok(vec![text(json!({ "action": action, "path": args.path }))])
+        }
+        Input::Play(args) => {
+            let action = match (&args.path, args.action) {
+                (Some(path), None) => crate::actions::ActionFile::read(path)?,
+                (None, Some(inline)) => crate::actions::ActionFile::from_json(&inline.to_string())?,
+                _ => {
+                    return Err(EngineError::invalid(
+                        "action",
+                        "give exactly one of `path` and `action`",
+                    ));
+                }
+            };
+            let docs: Vec<DocumentId> = args.documents.iter().copied().map(DocumentId).collect();
+            let report = console.play_action(&action, &docs)?;
+            if let Some(failure) = &report.failed {
+                return Err(EngineError::invalid(
+                    "action",
+                    format!(
+                        "step {} (`{}`) failed: {}; {} earlier step(s) remain applied",
+                        failure.step,
+                        action.steps[failure.step].action.command,
+                        failure.error,
+                        report.steps.len()
+                    ),
+                ));
+            }
+            Ok(vec![text(json!({ "ok": report }))])
+        }
         Input::Open(args) => Ok(vec![text(json!({"image":console.open_image(args.path)?}))]),
         Input::Render(args) => Ok(vec![image(
             &console.render_preview(args.image.parse()?, args.max_px)?,
@@ -154,9 +255,17 @@ fn text(value: Value) -> Value {
 fn image(rgb: &image::RgbImage) -> Result<Value, EngineError> {
     Ok(json!({"type":"image","data":png(rgb)?,"mimeType":"image/png"}))
 }
+fn rgba_image(rgba: &image::RgbaImage) -> Result<Value, EngineError> {
+    Ok(
+        json!({"type":"image","data":encode_png(image::DynamicImage::ImageRgba8(rgba.clone()))?,"mimeType":"image/png"}),
+    )
+}
 fn png(rgb: &image::RgbImage) -> Result<String, EngineError> {
+    encode_png(image::DynamicImage::ImageRgb8(rgb.clone()))
+}
+fn encode_png(image: image::DynamicImage) -> Result<String, EngineError> {
     let mut bytes = std::io::Cursor::new(Vec::new());
-    image::DynamicImage::ImageRgb8(rgb.clone())
+    image
         .write_to(&mut bytes, image::ImageFormat::Png)
         .map_err(|e| EngineError::Encode {
             format: "png".into(),

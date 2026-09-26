@@ -16,6 +16,9 @@ raw-decode = { path = "../raw-decode" }
 previews = { path = "../previews" }
 ml-quality = { path = "../ml-quality" }
 export = { path = "../export" }
+compositor = { path = "../compositor" }
+psd = { path = "../psd" }
+tiff = "0.10"
 serde.workspace = true
 serde_json.workspace = true
 image = { workspace = true, features = ["png"] }
