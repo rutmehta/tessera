@@ -187,6 +187,22 @@ fn score(
     errors[..n].iter().map(|v| v * v).sum::<f64>() / n as f64
 }
 pub fn align(a: &LinearImage, b: &LinearImage, ratio: f64) -> Result<Alignment> {
+    align_impl(a, b, ratio, true)
+}
+
+/// Global rigid registration without HDR-specific local motion refinement.
+/// Layer TransformOps cannot represent tile offsets; do not pay to compute
+/// them when the caller only needs the global translation and rotation.
+pub(crate) fn align_global(a: &LinearImage, b: &LinearImage, ratio: f64) -> Result<Alignment> {
+    align_impl(a, b, ratio, false)
+}
+
+fn align_impl(
+    a: &LinearImage,
+    b: &LinearImage,
+    ratio: f64,
+    local_motion: bool,
+) -> Result<Alignment> {
     a.validate()?;
     b.validate()?;
     if a.width != b.width || a.height != b.height || !ratio.is_finite() || ratio <= 0. {
@@ -264,6 +280,13 @@ pub fn align(a: &LinearImage, b: &LinearImage, ratio: f64) -> Result<Alignment> 
     if !cost.is_finite() || cost > 0.03 {
         return Err("insufficient consistent HDR overlap".into());
     }
+    if local_motion {
+        refine_tiles(a, b, ratio, &mut best);
+    }
+    Ok(best)
+}
+
+fn refine_tiles(a: &LinearImage, b: &LinearImage, ratio: f64, best: &mut Alignment) {
     let nx = a.width.div_ceil(best.tile_size);
     let ny = a.height.div_ceil(best.tile_size);
     let mut offsets = Vec::with_capacity(nx * ny);
@@ -275,7 +298,7 @@ pub fn align(a: &LinearImage, b: &LinearImage, ratio: f64) -> Result<Alignment> 
                 ((tx + 1) * best.tile_size).min(a.width),
                 ((ty + 1) * best.tile_size).min(a.height),
             ];
-            let mut tile_cost = score(a, b, &best, ratio, rect, 2);
+            let mut tile_cost = score(a, b, best, ratio, rect, 2);
             let initial = tile_cost;
             let mut offset = [0.; 2];
             for dy in -4..=4 {
@@ -298,5 +321,46 @@ pub fn align(a: &LinearImage, b: &LinearImage, ratio: f64) -> Result<Alignment> 
         }
     }
     best.tile_offsets = offsets;
-    Ok(best)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn global_registration_preserves_hdr_transform_without_tile_refinement() {
+        let (width, height) = (64, 48);
+        let a = LinearImage {
+            width,
+            height,
+            pixels: (0..width * height)
+                .map(|i| {
+                    let x = (i % width) as f32;
+                    let y = (i / width) as f32;
+                    [0.4 + 0.15 * (x * 0.31).sin() + 0.12 * (y * 0.27).cos(); 3]
+                })
+                .collect(),
+            color_matrix: [[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]],
+            as_shot_neutral: [1.; 3],
+        };
+        let mut b = a.clone();
+        for y in 0..height {
+            for x in 0..width {
+                b.pixels[y * width + x] =
+                    a.sample(x as f64 - 2.25, y as f64 + 1.3).unwrap_or([0.; 3]);
+            }
+        }
+        let global = align_global(&a, &b, 1.).unwrap();
+        let hdr = align(&a, &b, 1.).unwrap();
+        assert_eq!(global.translation, hdr.translation);
+        assert_eq!(global.rotation_radians, hdr.rotation_radians);
+        assert!(global.tile_offsets.is_empty());
+        assert_eq!(hdr.tile_offsets.len(), 4);
+        assert!((global.translation[0] - 2.25).abs() < 0.5);
+        assert!((global.translation[1] + 1.3).abs() < 0.5);
+
+        b.pixels.fill([0.5; 3]);
+        assert!(align(&b, &b, 1.).unwrap().tile_offsets.is_empty());
+        assert!(align_global(&a, &b, 0.).is_err());
+    }
 }

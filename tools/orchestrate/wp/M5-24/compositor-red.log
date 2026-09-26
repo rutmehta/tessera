@@ -1,0 +1,162 @@
+   Compiling libc v0.2.189
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.26
+   Compiling cfg-if v1.0.5
+   Compiling find-msvc-tools v0.1.13
+   Compiling shlex v2.0.1
+   Compiling bitflags v2.13.2
+   Compiling objc2 v0.6.4
+   Compiling objc2-encode v4.1.0
+   Compiling thiserror v2.0.21
+   Compiling cfg_aliases v0.2.2
+   Compiling serde_core v1.0.229
+   Compiling log v0.4.34
+   Compiling serde v1.0.229
+   Compiling once_cell v1.21.4
+   Compiling pkg-config v0.3.34
+   Compiling libm v0.2.16
+   Compiling autocfg v1.5.1
+   Compiling zerocopy v0.8.58
+   Compiling num-traits v0.2.19
+   Compiling foldhash v0.2.0
+   Compiling hashbrown v0.17.1
+   Compiling syn v3.0.6
+   Compiling syn v2.0.119
+   Compiling equivalent v1.0.2
+   Compiling arrayvec v0.7.8
+   Compiling jobserver v0.1.35
+   Compiling version_check v0.9.5
+   Compiling rustc-hash v1.1.0
+   Compiling naga v30.0.1
+   Compiling bit-vec v0.9.1
+   Compiling generic-array v0.14.7
+   Compiling cc v1.4.7
+   Compiling parking_lot_core v0.9.12
+   Compiling unicode-width v0.2.2
+   Compiling itoa v1.0.18
+   Compiling bit-set v0.10.0
+   Compiling codespan-reporting v0.13.1
+   Compiling objc2-core-foundation v0.3.2
+   Compiling indexmap v2.14.2
+   Compiling block2 v0.6.2
+   Compiling dispatch2 v0.3.1
+   Compiling crossbeam-utils v0.8.23
+   Compiling smallvec v1.16.2
+   Compiling crc32fast v1.5.2
+   Compiling typenum v1.20.1
+   Compiling raw-window-handle v0.6.2
+   Compiling scopeguard v1.2.0
+   Compiling zeroize v1.9.0
+   Compiling zmij v1.0.23
+   Compiling rustix v1.1.5
+   Compiling static_assertions v1.1.0
+   Compiling rustls-pki-types v1.15.1
+   Compiling objc2-foundation v0.3.2
+   Compiling objc2-core-graphics v0.3.2
+   Compiling lock_api v0.4.14
+   Compiling ring v0.17.14
+   Compiling errno v0.3.14
+   Compiling getrandom v0.2.17
+   Compiling wgpu-hal v30.0.1
+   Compiling memchr v2.8.3
+   Compiling crossbeam-epoch v0.9.21
+   Compiling serde_json v1.0.151
+   Compiling untrusted v0.9.0
+   Compiling simd-adler32 v0.3.10
+   Compiling dunce v1.0.5
+   Compiling adler2 v2.0.1
+   Compiling httparse v1.10.1
+   Compiling miniz_oxide v0.9.1
+   Compiling lcms2-sys v4.0.7
+   Compiling parking_lot v0.12.5
+   Compiling blake3 v1.8.7
+   Compiling zstd-sys v2.0.16+zstd.1.5.7
+   Compiling thiserror-impl v2.0.21
+   Compiling serde_derive v1.0.229
+   Compiling bytemuck_derive v1.12.1
+   Compiling zerocopy-derive v0.8.58
+   Compiling libloading v0.8.9
+   Compiling getrandom v0.4.3
+   Compiling profiling v1.0.18
+   Compiling crossbeam-deque v0.8.8
+   Compiling rustls v0.23.45
+   Compiling bytes v1.12.1
+   Compiling naga-types v30.0.1
+   Compiling bytemuck v1.25.2
+   Compiling http v1.5.0
+   Compiling wgpu-types v30.0.1
+   Compiling foreign-types-macros v0.2.4
+   Compiling objc2-io-surface v0.3.2
+   Compiling objc2-metal v0.3.2
+   Compiling flate2 v1.1.10
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling wgpu-core v30.0.1
+   Compiling rayon-core v1.13.0
+   Compiling subtle v2.6.1
+   Compiling litrs v1.0.0
+   Compiling constant_time_eq v0.4.2
+   Compiling base64 v0.23.1
+   Compiling foreign-types-shared v0.3.1
+   Compiling foreign-types v0.5.0
+   Compiling ureq-proto v0.6.4
+   Compiling document-features v0.2.12
+   Compiling digest v0.10.7
+   Compiling xattr v1.6.1
+   Compiling webpki-roots v1.0.9
+   Compiling filetime v0.2.29
+   Compiling cpufeatures v0.2.17
+   Compiling wgpu v30.0.1
+   Compiling utf8-zero v0.8.1
+   Compiling zstd-safe v7.2.4
+   Compiling fastrand v2.5.0
+   Compiling percent-encoding v2.3.2
+   Compiling tempfile v3.27.0
+   Compiling sha2 v0.10.9
+   Compiling tar v0.4.46
+   Compiling quick-xml v0.38.4
+   Compiling either v1.18.0
+   Compiling pollster v0.4.0
+   Compiling psd v0.1.0 (/Users/rutmehta/Developer/tessera/.worktrees/M5-24/crates/psd)
+   Compiling rayon v1.12.0
+   Compiling half v2.7.1
+   Compiling engine-api v0.1.0 (/Users/rutmehta/Developer/tessera/.worktrees/M5-24/crates/engine-api)
+   Compiling rustls-webpki v0.103.15
+   Compiling lcms2 v6.2.0
+   Compiling color-mgmt v0.1.0 (/Users/rutmehta/Developer/tessera/.worktrees/M5-24/crates/color-mgmt)
+   Compiling objc2-quartz-core v0.3.2
+   Compiling raw-window-metal v1.1.0
+   Compiling zstd v0.13.3
+   Compiling ureq v3.4.2
+   Compiling lens v0.1.0 (/Users/rutmehta/Developer/tessera/.worktrees/M5-24/crates/lens)
+   Compiling wgpu-naga-bridge v30.0.1
+   Compiling transform v0.1.0 (/Users/rutmehta/Developer/tessera/.worktrees/M5-24/crates/transform)
+   Compiling wgpu-core-deps-apple v30.0.1
+   Compiling gpu-core v0.1.0 (/Users/rutmehta/Developer/tessera/.worktrees/M5-24/crates/gpu-core)
+   Compiling compositor v0.1.0 (/Users/rutmehta/Developer/tessera/.worktrees/M5-24/crates/compositor)
+error[E0433]: cannot find module or crate `merge` in this scope
+ --> crates/compositor/tests/photomerge.rs:3:5
+  |
+3 | use merge::{LinearImage, layers::{AlignOptions, BlendOptions}};
+  |     ^^^^^ use of unresolved module or unlinked crate `merge`
+  |
+  = help: if you wanted to use a crate named `merge`, use `cargo add merge` to add it to your `Cargo.toml`
+
+error[E0432]: unresolved import `merge`
+ --> crates/compositor/tests/photomerge.rs:3:5
+  |
+3 | use merge::{LinearImage, layers::{AlignOptions, BlendOptions}};
+  |     ^^^^^ use of unresolved module or unlinked crate `merge`
+  |
+  = help: if you wanted to use a crate named `merge`, use `cargo add merge` to add it to your `Cargo.toml`
+
+error[E0599]: no variant named `Photomerge` found for enum `DocOp`
+  --> crates/compositor/tests/photomerge.rs:18:35
+   |
+18 |     let result = doc.apply(DocOp::Photomerge {
+   |                                   ^^^^^^^^^^ variant not found in `DocOp`
+
+Some errors have detailed explanations: E0432, E0433, E0599.
+For more information about an error, try `rustc --explain E0432`.
+error: could not compile `compositor` (test "photomerge") due to 3 previous errors

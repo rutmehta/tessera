@@ -37,12 +37,44 @@ pub struct TileDelta {
     pub tile: Option<Tile>,
 }
 
+/// Host adapter for `filters::caf::fill` (filters already depends on compositor).
+/// Receives straight RGBA, a union-hole mask and the deterministic seed. Return
+/// a same-size RGBA composite; only hole pixels are installed in a new layer.
+pub type ContentAwareFill = fn(&Raster, &[f32], u64) -> EngineResult<Raster>;
+
 /// A document mutation — the unit of history.
 // Ops are transient (history stores states, not ops), so the inline
 // `Layer` in `AddLayer` is not worth a box in every caller.
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone)]
 pub enum DocOp {
+    /// Register root pixel layers, retain their sources and extend the canvas.
+    AutoAlignLayers {
+        /// Ordered unique root layer IDs. First is the default reference.
+        ids: Vec<LayerId>,
+        /// Registration parameters.
+        options: merge::layers::AlignOptions,
+    },
+    /// Compute editable panorama/focus masks in document coordinates.
+    AutoBlendLayers {
+        /// Ordered unique root layer IDs.
+        ids: Vec<LayerId>,
+        /// Seam, focus and fill parameters.
+        options: merge::layers::BlendOptions,
+        /// Required when content-aware filling is requested.
+        fill: Option<ContentAwareFill>,
+    },
+    /// Open caller-decoded RGB images, align and blend in one atomic history node.
+    Photomerge {
+        /// Display names and scene-linear RGB images in overlap order.
+        images: Vec<(String, merge::LinearImage)>,
+        /// Alignment parameters.
+        align: merge::layers::AlignOptions,
+        /// Blending parameters.
+        blend: merge::layers::BlendOptions,
+        /// Adapter to `filters::caf::fill`, needed only for requested fill.
+        fill: Option<ContentAwareFill>,
+    },
     /// Insert a channel. Zero ID requests allocation.
     AddChannel {
         /// Channel to insert.
@@ -197,6 +229,9 @@ impl DocOp {
     /// Short label for the history panel.
     pub fn label(&self) -> String {
         match self {
+            DocOp::AutoAlignLayers { .. } => "Auto-Align Layers".into(),
+            DocOp::AutoBlendLayers { .. } => "Auto-Blend Layers".into(),
+            DocOp::Photomerge { .. } => "Photomerge".into(),
             DocOp::AddChannel { .. } => "Add Channel".into(),
             DocOp::DeleteChannel { .. } => "Delete Channel".into(),
             DocOp::RenameChannel { .. } => "Rename Channel".into(),
@@ -258,6 +293,43 @@ fn apply_op(
     let full = Rect::of_extent(s.canvas);
     let styled_before = s.has_layer_styles();
     let damage: EngineResult<Rect> = match op {
+        DocOp::AutoAlignLayers { ids, options } => {
+            align_document_layers(s, &ids, &options, rev)?;
+            Ok(full.union(&Rect::of_extent(s.canvas)))
+        }
+        DocOp::AutoBlendLayers { ids, options, fill } => {
+            blend_document_layers(s, &ids, &options, fill, rev, created)?;
+            Ok(full)
+        }
+        DocOp::Photomerge {
+            images,
+            align,
+            blend,
+            fill,
+        } => {
+            if images.is_empty() || images.len() > 128 {
+                return Err(EngineError::invalid("photomerge", "expected 1..128 images"));
+            }
+            let mut ids = Vec::new();
+            for (name, image) in images {
+                image.validate().map_err(merge_error)?;
+                let extent = engine_api::tile::Extent::new(image.width as u32, image.height as u32);
+                let mut raster = Raster::new(extent, 4, crate::Depth::F32, 0.);
+                raster.edit_region(Rect::of_extent(extent), rev, |x, y, p| {
+                    let rgb = image.pixels[y as usize * image.width + x as usize];
+                    *p = [rgb[0], rgb[1], rgb[2], 1.];
+                })?;
+                let mut layer = Layer::new(name, LayerKind::Pixel(raster));
+                s.assign_ids(&mut layer, false);
+                stamp_new(&mut layer, rev);
+                ids.push(layer.id);
+                created.push(layer.id);
+                s.root.push(Arc::new(layer));
+            }
+            align_document_layers(s, &ids, &align, rev)?;
+            blend_document_layers(s, &ids, &blend, fill, rev, created)?;
+            Ok(full.union(&Rect::of_extent(s.canvas)))
+        }
         DocOp::AddChannel { mut channel } => {
             channel.validate(s)?;
             let largest = s.channels.iter().map(|c| c.id.0).max().unwrap_or(0);
@@ -641,6 +713,327 @@ fn apply_op(
     })
 }
 
+fn merge_error(message: String) -> EngineError {
+    EngineError::invalid("layer merge", message)
+}
+
+fn merge_indices(s: &DocState, ids: &[LayerId]) -> EngineResult<Vec<usize>> {
+    if ids.is_empty() || ids.len() > 128 {
+        return Err(merge_error("expected 1..128 root layers".into()));
+    }
+    let mut indices = Vec::new();
+    for id in ids {
+        let i = s
+            .root
+            .iter()
+            .position(|l| l.id == *id)
+            .ok_or_else(|| not_found(*id))?;
+        if indices.contains(&i) {
+            return Err(merge_error("duplicate layer selection".into()));
+        }
+        let l = &s.root[i];
+        if l.props.locks.all || l.props.locks.pixels || l.props.locks.position {
+            return Err(merge_error("selected layer is locked".into()));
+        }
+        if l.props.clipped
+            || !matches!(
+                l.kind,
+                LayerKind::Pixel(_) | LayerKind::SmartObject(_) | LayerKind::Text(_)
+            )
+        {
+            return Err(merge_error(
+                "merge requires independent root image layers".into(),
+            ));
+        }
+        indices.push(i);
+    }
+    Ok(indices)
+}
+
+fn linear_image(r: &Raster) -> merge::LinearImage {
+    let e = r.extent();
+    merge::LinearImage {
+        width: e.width as usize,
+        height: e.height as usize,
+        pixels: (0..e.height)
+            .flat_map(|y| {
+                (0..e.width).map(move |x| {
+                    let p = r.pixel(x, y);
+                    [p[0], p[1], p[2]]
+                })
+            })
+            .collect(),
+        color_matrix: [[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]],
+        as_shot_neutral: [1.; 3],
+    }
+}
+
+fn shift_plane(
+    r: &Raster,
+    extent: engine_api::tile::Extent,
+    dx: u32,
+    dy: u32,
+    rev: u64,
+) -> EngineResult<Raster> {
+    let mut out = Raster::new(extent, r.channels(), r.depth(), 0.);
+    out.edit_region(Rect::of_extent(extent), rev, |x, y, p| {
+        if x >= dx && y >= dy && x - dx < r.extent().width && y - dy < r.extent().height {
+            *p = r.pixel(x - dx, y - dy);
+        }
+    })?;
+    Ok(out)
+}
+
+// Retain the original pixels/masks inside a child; layer-level appearance stays
+// on the wrapper so opacity and blend modes are not applied twice.
+fn source_child(layer: &Layer, extent: engine_api::tile::Extent, depth: crate::Depth) -> DocState {
+    let mut source = layer.clone();
+    source.id = LayerId(1);
+    source.props = LayerProps {
+        name: "Original source".into(),
+        ..Default::default()
+    };
+    // Pixel tiles at a source's right/bottom edge have native-size layouts.
+    // Rendering those directly under a larger canvas violates the tile-copy
+    // contract. Nest a native-size document instead of resizing/retagging tiles.
+    if let Some(raster) = source.raster()
+        && raster.extent() != extent
+    {
+        let mut native = DocState::new(raster.extent(), depth);
+        native.root.push(Arc::new(source));
+        native.next_id = 2;
+        source = Layer::new(
+            "Original source",
+            LayerKind::SmartObject(crate::document::SmartObject::new(native, Affine::IDENTITY)),
+        );
+        source.id = LayerId(1);
+    }
+    let mut child = DocState::new(extent, depth);
+    child.root.push(Arc::new(source));
+    child.next_id = 2;
+    child
+}
+
+fn align_document_layers(
+    s: &mut DocState,
+    ids: &[LayerId],
+    options: &merge::layers::AlignOptions,
+    rev: u64,
+) -> EngineResult<()> {
+    let indices = merge_indices(s, ids)?;
+    let mut images = Vec::new();
+    for &i in &indices {
+        let LayerKind::Pixel(r) = &s.root[i].kind else {
+            return Err(merge_error(
+                "alignment currently requires pixel layers".into(),
+            ));
+        };
+        if r.channels() != 4 {
+            return Err(merge_error("alignment requires RGBA rasters".into()));
+        }
+        images.push(linear_image(r));
+    }
+    let aligned = merge::layers::align_layers(&images, options).map_err(merge_error)?;
+    let dx = (-aligned.origin[0]).max(0.) as u32;
+    let dy = (-aligned.origin[1]).max(0.) as u32;
+    let canvas = engine_api::tile::Extent::new(
+        (aligned.width as u32).max(
+            s.canvas
+                .width
+                .checked_add(dx)
+                .ok_or_else(|| merge_error("canvas overflow".into()))?,
+        ),
+        (aligned.height as u32).max(
+            s.canvas
+                .height
+                .checked_add(dy)
+                .ok_or_else(|| merge_error("canvas overflow".into()))?,
+        ),
+    );
+    if u64::from(canvas.width) * u64::from(canvas.height) > 64 * 1024 * 1024 {
+        return Err(merge_error("document union exceeds 64 MP".into()));
+    }
+    for (i, arc) in s.root.iter_mut().enumerate() {
+        let old = arc.as_ref();
+        let selected = indices.iter().position(|j| *j == i);
+        if selected.is_none() && dx == 0 && dy == 0 {
+            continue;
+        }
+        if selected.is_none()
+            && (old.props.locks.all
+                || old.props.locks.position
+                || old.is_group()
+                || old.props.clipped)
+        {
+            return Err(merge_error(
+                "cannot shift locked/grouped/clipped unselected layers".into(),
+            ));
+        }
+        let (child_extent, transform) = if let Some(k) = selected {
+            (
+                engine_api::tile::Extent::new(
+                    canvas.width.max(images[k].width as u32),
+                    canvas.height.max(images[k].height as u32),
+                ),
+                Some(aligned.transforms[k].clone()),
+            )
+        } else {
+            (s.canvas, None)
+        };
+        let mut child = source_child(old, child_extent, s.depth);
+        if let Some(k) = selected
+            && let Some(gains) = aligned.source_gains.get(k)
+        {
+            // Linear, unclamped gain before geometry; keep source and masks intact.
+            child.depth = crate::Depth::F32;
+            let mut raster = Raster::new(child_extent, 4, crate::Depth::F32, 0.);
+            raster.edit_region(Rect::of_extent(child_extent), rev, |x, y, p| {
+                let gain = if (x as usize) < images[k].width && (y as usize) < images[k].height {
+                    gains[y as usize * images[k].width + x as usize]
+                } else {
+                    1.
+                };
+                *p = [gain, gain, gain, 1.];
+            })?;
+            let mut correction = Layer::new("Vignette removal", LayerKind::Pixel(raster));
+            correction.id = LayerId(2);
+            correction.props.clipped = true;
+            correction.props.blend_mode = crate::BlendMode::Multiply;
+            child.root.push(Arc::new(correction));
+            child.next_id = 3;
+        }
+        let mut so = crate::document::SmartObject::new(child, Affine::IDENTITY);
+        if let Some(op) = transform {
+            so.filters
+                .push(crate::document::SmartFilter::transform(op)?);
+        } else {
+            so.transform = Affine {
+                m: [1., 0., dx as f64, 0., 1., dy as f64],
+            };
+        }
+        let layer = Arc::make_mut(arc);
+        layer.kind = LayerKind::SmartObject(so);
+        layer.mask = None;
+        layer.vector_mask = None;
+        layer.content_rev = rev;
+        layer.props_rev = rev;
+    }
+    if let Some(selection) = &s.selection {
+        s.selection = Some(Arc::new(shift_plane(selection, canvas, dx, dy, rev)?));
+    }
+    for channel in &mut s.channels {
+        channel.raster = shift_plane(&channel.raster, canvas, dx, dy, rev)?;
+    }
+    s.canvas = canvas;
+    s.root_rev = rev;
+    Ok(())
+}
+
+fn render_merge_source(s: &DocState, layer: &Layer) -> EngineResult<Raster> {
+    let child = source_child(layer, s.canvas, crate::Depth::F32);
+    let (_, pixels) =
+        crate::Compositor::new(64 << 20).render_level_rgba(&Document::new(child), 0)?;
+    let mut out = Raster::new(s.canvas, 4, crate::Depth::F32, 0.);
+    out.edit_region(Rect::of_extent(s.canvas), 1, |x, y, p| {
+        let i = ((y * s.canvas.width + x) * 4) as usize;
+        p.copy_from_slice(&pixels[i..i + 4]);
+    })?;
+    Ok(out)
+}
+
+fn blend_document_layers(
+    s: &mut DocState,
+    ids: &[LayerId],
+    options: &merge::layers::BlendOptions,
+    fill: Option<ContentAwareFill>,
+    rev: u64,
+    created: &mut Vec<LayerId>,
+) -> EngineResult<()> {
+    let indices = merge_indices(s, ids)?;
+    if options.fill_transparent && fill.is_none() {
+        return Err(merge_error(
+            "content-aware fill requires a filters::caf adapter".into(),
+        ));
+    }
+    let mut images = Vec::new();
+    let mut coverage = Vec::new();
+    for &i in &indices {
+        let r = render_merge_source(s, &s.root[i])?;
+        images.push(linear_image(&r));
+        coverage.push(
+            (0..s.canvas.height)
+                .flat_map(|y| {
+                    let r = &r;
+                    (0..s.canvas.width).map(move |x| r.pixel(x, y)[3] > 1e-6)
+                })
+                .collect(),
+        );
+    }
+    let blended = merge::layers::blend_layers(&images, &coverage, options).map_err(merge_error)?;
+    for (k, &i) in indices.iter().enumerate() {
+        let mut child = source_child(&s.root[i], s.canvas, crate::Depth::F32);
+        if blended.corrections[k].iter().flatten().any(|v| *v != 0.) {
+            let mut delta = Raster::new(s.canvas, 4, crate::Depth::F32, 0.);
+            delta.edit_region(Rect::of_extent(s.canvas), rev, |x, y, p| {
+                let d = blended.corrections[k][y as usize * s.canvas.width as usize + x as usize];
+                *p = [d[0], d[1], d[2], 1.];
+            })?;
+            let mut correction = Layer::new("Seamless tones and colors", LayerKind::Pixel(delta));
+            correction.id = LayerId(2);
+            correction.props.clipped = true;
+            correction.props.blend_mode = crate::BlendMode::LinearDodge;
+            child.root.push(Arc::new(correction));
+            child.next_id = 3;
+        }
+        let mut mask = Mask::hide_all(s.canvas, s.depth);
+        mask.raster
+            .edit_region(Rect::of_extent(s.canvas), rev, |x, y, p| {
+                p[0] = blended.masks[k][y as usize * s.canvas.width as usize + x as usize];
+            })?;
+        let layer = Arc::make_mut(&mut s.root[i]);
+        layer.kind =
+            LayerKind::SmartObject(crate::document::SmartObject::new(child, Affine::IDENTITY));
+        layer.mask = Some(mask);
+        layer.vector_mask = None;
+        layer.content_rev = rev;
+        layer.props_rev = rev;
+    }
+    if blended.fill_mask.iter().any(|v| *v) {
+        let mut raster = Raster::new(s.canvas, 4, crate::Depth::F32, 0.);
+        raster.edit_region(Rect::of_extent(s.canvas), rev, |x, y, p| {
+            let j = y as usize * s.canvas.width as usize + x as usize;
+            let rgb = blended.image.pixels[j];
+            *p = [rgb[0], rgb[1], rgb[2], f32::from(blended.coverage[j])];
+        })?;
+        let holes: Vec<_> = blended.fill_mask.iter().map(|b| f32::from(*b)).collect();
+        let filled = fill.ok_or_else(|| merge_error("missing CAF adapter".into()))?(
+            &raster,
+            &holes,
+            options.seed,
+        )?;
+        if filled.extent() != s.canvas || filled.channels() != 4 {
+            return Err(merge_error(
+                "CAF returned invalid dimensions/channels".into(),
+            ));
+        }
+        raster.edit_region(Rect::of_extent(s.canvas), rev, |x, y, p| {
+            let j = y as usize * s.canvas.width as usize + x as usize;
+            *p = if holes[j] > 0. {
+                filled.pixel(x, y)
+            } else {
+                [0.; 4]
+            };
+        })?;
+        let mut layer = Layer::new("Content-aware fill", LayerKind::Pixel(raster));
+        s.assign_ids(&mut layer, false);
+        stamp_new(&mut layer, rev);
+        created.push(layer.id);
+        s.root.push(Arc::new(layer));
+    }
+    s.root_rev = rev;
+    Ok(())
+}
+
 fn retag(t: Tile, tx: u32, ty: u32) -> EngineResult<Tile> {
     let coord = engine_api::tile::TileCoord::new(0, tx, ty);
     if t.coord() == coord {
@@ -762,6 +1155,34 @@ impl Clone for Document {
 }
 
 impl Document {
+    /// Rasterize each root image layer's transforms while retaining its editable
+    /// mask and layer properties, for layered PSD export. Unlike flattened
+    /// export this preserves seam/focus masks. Groups and adjustments must be
+    /// exported natively or flattened explicitly, not silently reinterpreted.
+    pub fn rasterized_layers_for_export(&self) -> EngineResult<Self> {
+        let mut state = (**self.state()).clone();
+        for arc in &mut state.root {
+            if !matches!(
+                arc.kind,
+                LayerKind::Pixel(_) | LayerKind::SmartObject(_) | LayerKind::Text(_)
+            ) {
+                return Err(merge_error(
+                    "layer rasterization supports root image layers only".into(),
+                ));
+            }
+            let mut source = arc.as_ref().clone();
+            source.mask = None;
+            source.vector_mask = None;
+            let raster = render_merge_source(self.state(), &source)?;
+            let layer = Arc::make_mut(arc);
+            layer.kind = LayerKind::Pixel(raster);
+            layer.content_rev = next_rev();
+        }
+        state.root_rev = next_rev();
+        state.rev = state.root_rev;
+        Ok(Self::new(state))
+    }
+
     /// Explicit, lossy export proxy for formats without native smart filters.
     /// Renders the complete document (including masks/blends/transforms) using
     /// the caller's evaluator. The original editable document is not changed.

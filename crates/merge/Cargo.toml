@@ -10,3 +10,5 @@ raw-decode = { path = "../raw-decode" }
 pipeline-cpu = { path = "../pipeline-cpu" }
 serde_json.workspace = true
 rustfft = "6.4"
+transform = { path = "../transform" }
+lens = { path = "../lens" }

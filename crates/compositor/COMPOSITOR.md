@@ -5,6 +5,67 @@ The layered document model and tiled compositor of spec 02 §1–2 and spec 04
 cache and revision invariants, and what the GPU paths match. Built against
 engine-api 1.2.0 (`CONTRACT_VERSION`), which this crate does not modify.
 
+## M5-24: layer merging
+
+`DocOp::AutoAlignLayers { ids, options }`, `AutoBlendLayers { ids, options,
+fill }`, and `Photomerge { images, align, blend, fill }` integrate
+`merge::layers` into document history. Photomerge accepts named, already-decoded
+RGB images, inserts them at the top of the root, aligns and blends them in one
+atomic history state. Any validation, registration or fill error leaves the
+document and history unchanged. No file I/O or color-space conversion is implied:
+callers must supply RGB in the document working encoding.
+
+Alignment currently accepts independent root pixel layers. It checks unique IDs
+and all/pixel/position locks, preserves original rasters and source masks in
+nested smart objects, installs `SmartFilter::transform` stages, and extends the
+canvas to fit the union. Native-size child documents retain partial edge-tile
+layouts when the transform stage needs a larger output canvas. Unselected image
+layers, selection and named channels translate with negative union origins.
+Locked/grouped/clipped unselected layers that would need moving are rejected.
+Nested selections and already-transformed sources are not accepted by Auto-Align.
+
+Auto-Blend accepts root pixel/text/smart-object image layers; it renders isolated
+content without applying outer opacity/blend/style properties twice. Panorama
+graph-cut ownership and multiscale focus ownership become editable document-space
+layer masks. Signed RGB multiband/tone deltas are stored as independently editable
+F32, clipped Linear Dodge correction rasters inside each source wrapper. This is
+a spatial correction layer, not a parameterized `Adjustment` enum variant. Source
+pixels and transform stages remain available in the nested document. Visibility,
+opacity and blend modes remain outer layer properties; ordinary visible, opaque,
+Normal-mode inputs are the panorama reconstruction contract.
+
+Content-aware filling uses `edit::ContentAwareFill`, a host function pointer with
+signature `fn(&Raster, &[f32], u64) -> EngineResult<Raster>`. The host calls
+`filters::caf::fill` with that union-hole mask and seed, returning its `composite`.
+This adapter avoids the existing filters → compositor dependency cycle. Requesting
+fill without an adapter is an explicit error. Only hole pixels from its result
+are installed in a separate fill layer. `tests/merge_validation.rs` exercises the
+real CAF implementation, hole isolation and undo/redo, not a flood-fill substitute.
+
+For layered PSD output call `Document::rasterized_layers_for_export()` and export
+the returned proxy with `compositor::psd::to_psd`. Each root image's transforms and
+internal corrections are rasterized separately; its outer mask/properties survive.
+The editable native document is untouched. Groups/adjustments are rejected by this
+explicit proxy API; direct PSD smart-filter export retains its existing explicit
+unsupported behavior. Tests serialize/read actual PSD bytes with three nontrivial
+black/white seam masks and compare composited pixels.
+
+Optional vignette/geometric distortion removal takes one `LensCorrection` per
+source through `AlignOptions::lens_corrections`. Vignette removal installs an
+editable, clipped F32 Multiply gain raster before the transform stage. Geometry
+uses the existing lens Brown-Conrady inverse, composed with registration and
+projection in one editable WarpMesh. Original source pixels/masks are retained.
+Callers supply calibrated radial coefficients and linear RGB; missing calibration,
+folding geometry and invalid illumination fail atomically. No profile discovery or
+scene-based calibration is implied. Native roundtrip, layered PSD, and undo/redo
+are tested with both corrections enabled.
+
+See `../merge/LAYERS.md` for geometry, focus and seam algorithm limits. The supplied
+3×24 MP Reposition + Panorama benchmark passes (4.180 s), but does not time the full
+document operation or optional calibration. The required gate passes: 201 tests
+passed, 10 ignored, clippy and formatting clean.
+Verification and benchmark evidence are in `../../tools/orchestrate/wp/M5-24/`.
+
 | Module | Contents |
 |---|---|
 | `document` | `DocState`, `Layer`, `LayerKind`, `LayerProps`, `Mask`, `Fill`, `SmartObject`, `TextLayer`, selections |
