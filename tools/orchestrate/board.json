@@ -838,5 +838,13 @@
     "status": "merged",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M2-33",
+    "owner": "sol",
+    "title": "README, CONTRIBUTING (DCO), ARCHITECTURE",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
