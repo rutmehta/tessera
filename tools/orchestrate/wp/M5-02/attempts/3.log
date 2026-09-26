@@ -1,0 +1,7 @@
+Reran the required command with CARGO_TARGET_DIR preserved.
+
+Release tests and strict clippy passed. PSD-only formatting also passed. Workspace-wide cargo fmt --check still fails on module ordering in apps/tessera-cli/src/main.rs:13, which matches HEAD and is outside the allowed paths. I left it unchanged.
+
+Fresh output: tools/orchestrate/wp/M5-02/verification.log
+
+RESULT: FAIL workspace formatting requires an out-of-scope change to apps/tessera-cli/src/main.rs

@@ -1,0 +1,5 @@
+Reran the exact required command with CARGO_TARGET_DIR preserved. Release tests and strict clippy passed. PSD-only formatting also passed.
+
+Workspace-wide cargo fmt --check still fails at apps/tessera-cli/src/main.rs:13: mod tether must precede mod understanding. That file matches HEAD and is outside the allowed paths, so I left it untouched. Updated tools/orchestrate/wp/M5-02/report.md with the retry results.
+
+RESULT: FAIL workspace formatting requires an out-of-scope change to apps/tessera-cli/src/main.rs

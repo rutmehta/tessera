@@ -1,0 +1,10 @@
+Implemented crates/psd with standalone PsdDocument, layered PSD/PSB read/write, all four compression modes, opaque metadata preservation, and typed metadata views.
+
+Verification: 32 release tests passed, strict clippy passed, and psd formatting passed. Tests include five licensed Photoshop fixtures, truncation/mutation coverage, and a 30,001-pixel PSB.
+
+The required workspace-wide fmt check fails on pre-existing module ordering at apps/tessera-cli/src/main.rs:13. That file is outside the allowlist and remains untouched. All changes are within allowed paths; engine-api is unchanged.
+
+Coverage and limitations: crates/psd/README.md
+Verification log: tools/orchestrate/wp/M5-02/verification.log
+
+RESULT: FAIL pre-existing workspace formatting error in apps/tessera-cli/src/main.rs outside allowed paths
