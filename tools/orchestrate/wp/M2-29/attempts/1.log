@@ -1,7 +1,0 @@
-Implemented round 3: PNG/HEIC/HEIF indexing, embedded EXIF reads, and scanner regression tests. The HEIC describe/edit/export test and complete MCP/index suites pass. Clippy, formatting, FFI build, and Swift build pass independently.
-
-The full gate remains blocked by the unchanged three-second preview callback timeout. One retry also hit an ICC creation-timestamp comparison failure. No tests were weakened.
-
-Details and logs: tools/orchestrate/wp/M2-29/REPORT.md. All changes are within allowed paths. Nothing committed.
-
-RESULT: FAIL full gate blocked by missing_jpeg_returns_pending_then_callback_and_cached_bytes timeout
