@@ -990,5 +990,13 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M2-42",
+    "owner": "astra",
+    "title": "People FFI follow-ups (medoid, counts, members, undo)",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]

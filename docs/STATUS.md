@@ -34,7 +34,8 @@ Compositor bit-exact GPU maths and L0 < 100 ms (92 ms; 4K viewport 38 ms, full r
 
 ## In progress / next
 - Merged today: M5-14 layer styles + smart filters, M5-15 alpha/spot channels + PSD, M5-16 EDR/profiled presentation + GPU Lanczos smart objects, M3-19 people clustering (HDBSCAN, MWG regions, indexed person filters).
-- Running: M2-29 develop JPEG/TIFF/PNG/HEIC (round 2), M2-35 regression fixes (Sol), M5-20 engine-api 1.3, M5-21 transform/warp crate, M5-22 Liquify + content-aware fill (Astra).
+- Merged since: M2-29 develop JPEG/TIFF/PNG/HEIC (RgbSource, ICC/EXIF once, HEIC via ImageIO), M2-35 regression fixes, M5-20 engine-api 1.3 (channels, people, source_kind) + MCP integration, M5-21 transform crate (free transform, warp mesh, perspective/puppet warp, content-aware scale; GPU displacement stage), M5-22 Liquify + content-aware fill/move + Remove hook, M2-40 People view (naming, merge/split, person filter).
+- Running: M5-23 GPU-resident smart-filter stack routing, M3-20 LaMa inpainting weights, M5-24 Auto-Align/Auto-Blend/Photomerge, M2-42 people FFI follow-ups (Astra); M2-41 People view layout fixes (Sol).
 - Machine A now uses ids M5-20+ and M2-40+ for new packages so Machine B's M5-09–M5-19 / M2-30–M2-39 ranges stay free (M5-15/M5-16/M2-35 were already taken here before the split).
 - Machine B owns the layered-editor UI (M5-09). Coordinator fallback: `tools/orchestrate/supervise.sh` (Astra 900k via Hermes) if the Fable session is downgraded.
 - Needs from the owner: real Lightroom-written XMP sidecars in `fixtures/lightroom/` to finish Adobe-specific structures (M2-02b).
