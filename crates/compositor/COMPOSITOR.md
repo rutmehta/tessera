@@ -277,13 +277,115 @@ through to the backdrop.
 | Posterize n | `min(n − 1, ⌊v·n⌋)/(n − 1)` |
 | Threshold t | `Y601 ≥ t ? 1 : 0` |
 | Channel Mixer | `out_i = Σ_j m_ij·v_j + c_i`; monochrome uses row 0 |
+| Brightness/Contrast | `b=clamp(brightness,−150,150)/150`, `k=clamp(contrast,−100,100)/100`. Legacy: `clamp((v−½)(1+k)+½+b)`. Modern: `t=v+b·v·(1−v)`, `p=2^k`, `t^p/(t^p+(1−t)^p)` sampled into a shared 4096-knot curve; endpoint-preserving, linear interpolation |
+| Vibrance | sRGB → Oklab; multiply a,b by `(1+saturation/100)·(1+(vibrance/100)·(1−S)·(1−0.75·skin))`; S is HSL saturation, skin is a triangular hue weight centered at 30° with 30° half-width; inverse transform and clamp |
+| Color Balance | Percent RGB offsets for shadows/midtones/highlights weighted by `(1−Y)^2`, `2Y(1−Y)`, `Y^2`; optional luminosity preservation |
+| Black & White | Six R,Y,G,C,B,M percentage sliders, interpolated between adjacent hue bands: `gray=min(RGB)+(max−min)·slider/100`. Optional tint uses the tint's HSL hue/saturation and gray as lightness |
+| Photo Filter | Resolved preset or custom RGB, density d/100: `c_i·(1−d+d·filter_i)`, optional luminosity preservation. `adjust::PhotoFilterPreset` supplies 20 named approximate sRGB swatches and Custom |
+| Gradient Map | Rec.601 luma → sorted gradient stops; optional reverse and spatial dither. Classic interpolates encoded RGB, Linear interpolates linear sRGB, Perceptual interpolates Oklab |
+| Selective Color | Nine groups R,Y,G,C,B,M,white,neutral,black. Hue-triangle membership times chroma for chromatic groups; achromatic weights `(1−chroma)·max(2Y−1,0)`, `(1−chroma)·(1−abs(2Y−1))`, `(1−chroma)·max(1−2Y,0)`. Subtract membership-weighted CMY and K percentages; relative scales CMY by `1−c_i`, K by `1−max(RGB)`, absolute uses 1 |
+| Desaturate | HSL lightness: `(max(RGB)+min(RGB))/2` on all channels |
+| Equalize | One-shot channel histograms → stored CDF-min normalized maps, linearly interpolated. Empty/constant populations use identity |
+| Auto Tone/Contrast/Color | One-shot histograms → stored black/white/gamma. Tone clips each channel's tails; Contrast uses pooled endpoints; Color also derives per-channel gamma from stretched means. Nonidentity gamma uses shared 4096-knot LUTs |
+| Match Color | Frozen source-layer identity and source/target Lab D65 population mean/std. `mapped=(Lab−target_mean)·source_std/max(target_std,1e−6)+source_mean`; luminance and color intensity scale L and a,b, fade blends with original |
+| Replace Color | Native normalized encoded-RGB distance `dist=length(c−selected)/sqrt(3)`; radius `clamp(fuzziness/200)`. Mask `clamp(1−dist/radius)` (zero radius selects exact color within 1e−7), blending the existing HSL shift with original |
+| Color Lookup | Red-fastest RGB cube, trilinear interpolation, checked CUBE/3DL/ICC loaders; samples/size stored in the adjustment, not an external filename |
+| Shadows/Highlights | Separate amount/tone/radius controls, bilateral luminance bases (Rec.709 weights; spatial σ=radius/2, range σ=0.15), shadow lift/highlight compression, color/midtone and black/white endpoints. Live CPU halo replay for positive radius; zero-radius/identity also resident GPU |
 
 These are display-referred operators on the document encoding.
 pipeline-cpu's operators are scene-referred linear Rec.2020, and reusing them
 would pull `raw-decode`/LibRaw into the compositor, so they are not reused.
-Photoshop's per-range Hue/Saturation bands, Brightness/Contrast, Colour
-Balance, Black & White, Selective Colour, Gradient Map, Photo Filter and
-3D LUTs are not implemented yet.
+
+### 4.1 M5-26 controls, numerical definition and serialization
+
+These are native implementations of spec 02 §7, **not claims of numerical
+equivalence to Photoshop's proprietary algorithms**. Color-space-dependent
+operators currently assume sRGB primaries/encoding. Convert non-sRGB document
+pixels and preset colors before using them; no implicit document-ICC transform
+is performed by the adjustment evaluator. Unless noted, Y is Rec.601 luma.
+Luminosity preservation scales RGB to the original Y, then contracts chroma
+toward gray only as needed to fit gamut. This avoids naive clipping changing Y.
+
+To retain CPU/GPU bit equality, nonlinear sRGB powers and cube roots use a
+shared CPU-generated mantissa/exponent table (4097 knots over [1,2], exponents
+−149..127), not shader `pow`. Modern brightness and Auto gamma use the sampled
+curves above. These interpolation rules are part of the native numerical
+definition. The Metal precise pipeline evaluates the same arithmetic order;
+other backends retain the existing relaxed-precision caveat in §12.3.
+Gradient dither hashes absolute pixel coordinates at the requested mip level
+with wrapping u32 arithmetic, producing an offset within ±½/255 before lookup.
+It is repeatable across tile boundaries, viewport renders and specialization.
+
+All new enum variants use the existing tagged serde form. For independently
+stored adjustments, `to_versioned_json` / `from_versioned_json` add/check a
+version-1 envelope; unknown versions fail. `Adjustment::validate` rejects
+nonfinite parameters and invalid LUT shapes, and both executors validate before
+compilation. The existing native document serialization remains compatible.
+
+`equalize_from_histogram` and `auto_from_histogram` freeze their resolved
+parameters. Auto's tail clipping is a fraction [0,½); empty/constant histograms
+avoid division by zero. `match_color_from_layer` resolves a real layer ID and
+analyzes its raw level-zero pixel/text-proxy samples, excluding zero alpha.
+It deliberately rejects tagged documents and non-raster source layers; masks,
+effects, layer opacity and selection are not included in those statistics.
+`match_color_from_pixels` supports caller-selected source/target populations.
+Source edits do not silently recompute a one-shot adjustment.
+
+`color_lookup_from_cube` accepts unit-domain 3D CUBE; `color_lookup_from_3dl`
+accepts uniform integer grids and requires an explicit output scale. 1D shapers,
+non-unit CUBE domains, nonuniform 3DL grids and `.look` are not implemented.
+`color_lookup_from_icc` samples real LCMS abstract profiles through
+sRGB → PCS look → sRGB, or RGB→RGB device links directly. Other profile classes
+and color spaces are rejected. LUTs have 2..256 knots per dimension. Resident
+uploads check the aggregate, power-of-two allocation against device storage
+binding and buffer limits and return `ResourceExhausted` rather than a wgpu
+validation panic; a valid CPU LUT can exceed a particular GPU's capacity.
+
+### 4.2 PSD interchange
+
+`brit` plus `CgEd` carries legacy/modern Brightness/Contrast, `vibA` Vibrance,
+`blnc` Color Balance, `blwh` Black & White, `phfl` Photo Filter v2 RGB,
+`grdm` Gradient Map v1/v3 including interpolation method, `selc` Selective Color,
+and `clrL` an embedded 3D CUBE Color Lookup. Payloads are genuine Adobe binary
+layouts/Action Descriptors, not native JSON under Adobe keys. Serialized PSD
+and PSB tests verify the layouts and roundtrips; Photoshop itself was not run.
+Integer PSD controls/colors/stops undergo the format's quantization. Unsupported
+photo-filter color spaces/version 3, gradient opacity/midpoint/noise features,
+and other Color Lookup representations remain opaque with original bytes
+retained. Malformed supported layouts fail explicitly. `SoCo` is a solid fill,
+not a Shadows/Highlights or Selective Color key.
+
+Desaturate, Equalize, Auto, Match Color, Replace Color and Shadows/Highlights
+are native-only adjustment-layer representations here; exporting them as PSD
+adjustment records returns an explicit error. Their corresponding Photoshop
+image commands do not acquire invented tagged-layer keys.
+
+### 4.3 Shadows/Highlights CPU fallback
+
+`settings.needs_neighbourhood()` and `settings.halo(level)` declare the local
+support. For an enabled positive radius, use
+`Compositor::render_tile_with_neighbourhood(&document, coord)`, which returns
+straight planar f32 RGBA. It renders the live document, replays the backdrop
+prefix for halo tiles, and passes a padded window to `apply_padded`. Only
+document edges replicate pixels, never tile edges. Earlier local adjustments
+are evaluated recursively; isolated/pass-through/clipping groups, masks, blend
+modes, opacity and alpha retain normal adjustment semantics.
+
+This explicit reference fallback creates a fresh zero-cache compositor for
+each call. It therefore cannot return stale neighbor-dependent output after
+edits, but can be slow (direct bilateral cost is O(area·radius²), with repeated
+prefix evaluation for stacked operators). Standard cached CPU rendering and
+resident rendering return `Unsupported` for positive radius, directing callers
+to this fallback; the caller selects it, it is not an automatic GPU upload path.
+Layer styles and local adjustments inside smart-object child documents are not
+supported by this fallback. Black/white clip controls are normalized endpoints,
+not Photoshop histogram percentiles. Zero-radius and identity settings run in
+both ordinary CPU and resident paths with exact parity.
+
+**Still not done:** HDR Toning; per-range Hue/Saturation bands (pre-existing);
+the unsupported formats/features above; accelerated/cached neighborhood
+execution. No adjustment is silently substituted with identity for unsupported
+execution.
 
 ## 5. Revisions, stamps and caches
 
@@ -897,6 +999,7 @@ representative of release performance.
 |---|---|
 | Each of 27 modes over a 4-layer stack | **0** (bit-exact) |
 | Each adjustment (10 variants) at float and 8-bit, with opacity, fill and a mode | 0, except Exposure 1.2e-7 (`pow` is not correctly rounded on either side) |
+| M5-26 pointwise adjustments, L0/L2, F32/U8/U16, interpreter/specialized, including spatial dither across tiles and HDR perceptual inputs (`m5_26_gpu`) | **0**, asserted by comparing `to_bits()`; positive-radius Shadows/Highlights is the explicit CPU fallback in §4.3 |
 | 8/16-bit mips, levels 0–11, odd extent, masked | ≤ 1e-6 (mips bit-identical) |
 | 50-node chain (all modes, both group kinds, both knockouts, masks, Blend If, clip group with Dissolve, radial gradient, pattern, masked Hue/Saturation with Blend If, Curves in a pass-through group), float/16/8-bit at levels 0, 1, 2, 4, 9 | **0**, asserted exactly (bound 2e-3; float mips are now exact too) |
 | Viewport-only resolution, offscreen paint, undo while only a viewport is rendered | completing the level equals a cold render bit for bit; 0 vs CPU |

@@ -1,0 +1,128 @@
+warning: unnecessary parentheses around function argument
+  --> crates/compositor/src/adjust/color.rs:49:16
+   |
+49 |     let l=root((0.41222146*r+0.53633255*g+0.051445995*b));
+   |                ^                                       ^
+   |
+   = note: `#[warn(unused_parens)]` (part of `#[warn(unused)]`) on by default
+help: remove these parentheses
+   |
+49 -     let l=root((0.41222146*r+0.53633255*g+0.051445995*b));
+49 +     let l=root(0.41222146*r+0.53633255*g+0.051445995*b);
+   |
+
+warning: unnecessary parentheses around function argument
+  --> crates/compositor/src/adjust/color.rs:50:16
+   |
+50 |     let m=root((0.2119035*r+0.6806995*g+0.10739696*b));
+   |                ^                                    ^
+   |
+help: remove these parentheses
+   |
+50 -     let m=root((0.2119035*r+0.6806995*g+0.10739696*b));
+50 +     let m=root(0.2119035*r+0.6806995*g+0.10739696*b);
+   |
+
+warning: unnecessary parentheses around function argument
+  --> crates/compositor/src/adjust/color.rs:51:16
+   |
+51 |     let s=root((0.08830246*r+0.28171885*g+0.6299787*b));
+   |                ^                                     ^
+   |
+help: remove these parentheses
+   |
+51 -     let s=root((0.08830246*r+0.28171885*g+0.6299787*b));
+51 +     let s=root(0.08830246*r+0.28171885*g+0.6299787*b);
+   |
+
+warning: missing documentation for a struct field
+  --> crates/compositor/src/adjust/shadows.rs:10:5
+   |
+10 |     pub shadows_amount: f32,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: the lint level is defined here
+  --> crates/compositor/src/lib.rs:19:9
+   |
+19 | #![warn(missing_docs)]
+   |         ^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> crates/compositor/src/adjust/shadows.rs:11:5
+   |
+11 |     pub shadows_tone: f32,
+   |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> crates/compositor/src/adjust/shadows.rs:12:5
+   |
+12 |     pub shadows_radius: f32,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> crates/compositor/src/adjust/shadows.rs:13:5
+   |
+13 |     pub highlights_amount: f32,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> crates/compositor/src/adjust/shadows.rs:14:5
+   |
+14 |     pub highlights_tone: f32,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> crates/compositor/src/adjust/shadows.rs:15:5
+   |
+15 |     pub highlights_radius: f32,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> crates/compositor/src/adjust/shadows.rs:16:5
+   |
+16 |     pub color: f32,
+   |     ^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> crates/compositor/src/adjust/shadows.rs:17:5
+   |
+17 |     pub midtone: f32,
+   |     ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> crates/compositor/src/adjust/shadows.rs:18:5
+   |
+18 |     pub black_clip: f32,
+   |     ^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> crates/compositor/src/adjust/shadows.rs:19:5
+   |
+19 |     pub white_clip: f32,
+   |     ^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a method
+   --> crates/compositor/src/adjust/shadows.rs:156:5
+    |
+156 |     pub fn is_identity(&self) -> bool {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+running 1 test
+direct_serde_invalid_lookup_returns_error_instead_of_panicking --- FAILED
+
+failures:
+
+---- direct_serde_invalid_lookup_returns_error_instead_of_panicking stdout ----
+
+thread 'direct_serde_invalid_lookup_returns_error_instead_of_panicking' (81996562) panicked at crates/compositor/src/adjust.rs:599:17:
+invalid ColorLookup: use checked constructors or validate before rendering
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    direct_serde_invalid_lookup_returns_error_instead_of_panicking
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p compositor --test m5_26_validation`

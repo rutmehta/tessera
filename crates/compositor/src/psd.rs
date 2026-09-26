@@ -385,11 +385,568 @@ fn read_curve(data: &[u8], offset: &mut usize) -> EngineResult<crate::Curve> {
     Ok(crate::Curve(points))
 }
 
+// Genuine Adobe adjustment payloads. Descriptor blocks have a u32 version 16,
+// never a native JSON envelope. Unknown source fields survive no-op exports.
+mod adjustment_interop {
+    use super::*;
+    use ::psd::metadata::{Descriptor as D, Value as V};
+    pub(super) fn descriptor(data: &[u8]) -> EngineResult<D<'_>> {
+        if data.get(..4) != Some(&16u32.to_be_bytes()) {
+            return Err(error("invalid adjustment descriptor version"));
+        }
+        let (d, used) = ::psd::metadata::parse_descriptor(&data[4..]).map_err(error)?;
+        let padding = &data[4 + used..];
+        if padding.len() > 3 || padding.iter().any(|b| *b != 0) {
+            return Err(error("unexpected adjustment descriptor trailing data"));
+        }
+        Ok(d)
+    }
+    pub(super) fn encode(items: Vec<(&[u8], V<'_>)>) -> Vec<u8> {
+        let d = D {
+            name: String::new(),
+            class_id: b"null",
+            items,
+        };
+        let mut data = 16u32.to_be_bytes().to_vec();
+        style_interop::descriptor(&d, &mut data);
+        data
+    }
+    pub(super) fn number(d: &D<'_>, key: &[u8]) -> EngineResult<f32> {
+        match d.get(key) {
+            Some(V::Integer(v)) => Ok(*v as f32),
+            Some(V::Double(v)) if v.is_finite() && (*v as f32).is_finite() => Ok(*v as f32),
+            _ => Err(error("missing or invalid adjustment numeric field")),
+        }
+    }
+    pub(super) fn boolean(d: &D<'_>, key: &[u8]) -> EngineResult<bool> {
+        match d.get(key) {
+            Some(V::Bool(v)) => Ok(*v),
+            _ => Err(error("missing or invalid adjustment boolean field")),
+        }
+    }
+    pub(super) fn integer(v: f32, min: f32, max: f32) -> EngineResult<i16> {
+        if !v.is_finite() || !(min..=max).contains(&v) {
+            return Err(error("adjustment parameter outside PSD range"));
+        }
+        Ok(v.round() as i16)
+    }
+    pub(super) fn validate(a: &crate::Adjustment) -> EngineResult<()> {
+        use crate::Adjustment as A;
+        let range = |values: &[f32], min, max| -> EngineResult<()> {
+            if values
+                .iter()
+                .any(|v| !v.is_finite() || !(min..=max).contains(v))
+            {
+                Err(error("adjustment parameter outside PSD range"))
+            } else {
+                Ok(())
+            }
+        };
+        match a {
+            A::BrightnessContrast {
+                brightness,
+                contrast,
+                ..
+            } => {
+                range(&[*brightness], -150.0, 150.0)?;
+                range(&[*contrast], -100.0, 100.0)?;
+            }
+            A::Vibrance {
+                vibrance,
+                saturation,
+            } => range(&[*vibrance, *saturation], -100.0, 100.0)?,
+            A::ColorBalance {
+                shadows,
+                midtones,
+                highlights,
+                ..
+            } => {
+                for row in [shadows, midtones, highlights] {
+                    range(row, -100.0, 100.0)?;
+                }
+            }
+            A::SelectiveColor { colors, .. } => {
+                for row in colors {
+                    range(row, -100.0, 100.0)?;
+                }
+            }
+            A::BlackWhite { sliders, tint } => {
+                range(sliders, -200.0, 300.0)?;
+                if let Some(c) = tint {
+                    range(c, 0.0, 1.0)?;
+                }
+            }
+            A::PhotoFilter { color, density, .. } => {
+                range(color, 0.0, 1.0)?;
+                range(&[*density], 0.0, 100.0)?;
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+    pub(super) fn flag(data: &[u8], offset: usize) -> EngineResult<bool> {
+        match data.get(offset) {
+            Some(0) => Ok(false),
+            Some(1) => Ok(true),
+            _ => Err(error("invalid or truncated adjustment boolean")),
+        }
+    }
+    pub(super) fn u32_at(data: &[u8], offset: usize) -> EngineResult<u32> {
+        Ok(u32::from_be_bytes(
+            data.get(offset..offset + 4)
+                .ok_or_else(|| error("truncated adjustment"))?
+                .try_into()
+                .unwrap(),
+        ))
+    }
+    pub(super) fn rgb(data: &[u8], offset: usize) -> EngineResult<Option<[f32; 3]>> {
+        read_u16(data, offset + 8)?;
+        if read_u16(data, offset)? != 0 {
+            return Ok(None);
+        }
+        Ok(Some([
+            read_u16(data, offset + 2)? as f32 / 65535.0,
+            read_u16(data, offset + 4)? as f32 / 65535.0,
+            read_u16(data, offset + 6)? as f32 / 65535.0,
+        ]))
+    }
+    pub(super) fn write_rgb(color: &[f32; 3], data: &mut Vec<u8>) -> EngineResult<()> {
+        data.extend_from_slice(&0u16.to_be_bytes());
+        for value in color {
+            if !value.is_finite() || !(0.0..=1.0).contains(value) {
+                return Err(error("invalid PSD RGB color"));
+            }
+            data.extend_from_slice(&crate::raster::quantize_u16(*value).to_be_bytes());
+        }
+        data.extend_from_slice(&0u16.to_be_bytes());
+        Ok(())
+    }
+}
+// Gradient-map v1/v3 binary layout: color stops, opacity stops, then the
+// documented 32-byte noise-gradient expansion (inactive for solid maps).
+mod gradient_interop {
+    use super::adjustment_interop::{flag, rgb, u32_at, write_rgb};
+    use super::*;
+    use crate::adjust::GradientMethod;
+    pub(super) fn read(data: &[u8]) -> EngineResult<Option<crate::Adjustment>> {
+        let version = read_u16(data, 0)?;
+        if !matches!(version, 1 | 3) {
+            return Err(error("invalid gradient map version"));
+        }
+        let reverse = flag(data, 2)?;
+        let dither = flag(data, 3)?;
+        let mut offset = 4;
+        let mut supported = true;
+        let method = if version == 3 {
+            let signature = data
+                .get(4..8)
+                .ok_or_else(|| error("truncated gradient method"))?;
+            offset = 8;
+            match signature {
+                b"Gcls" => GradientMethod::Classic,
+                b"Perc" => GradientMethod::Perceptual,
+                b"Lnr " => GradientMethod::Linear,
+                _ => {
+                    supported = false;
+                    GradientMethod::Classic
+                }
+            }
+        } else {
+            GradientMethod::Classic
+        };
+        let name_len = u32_at(data, offset)? as usize;
+        if name_len > 1_000_000 {
+            return Err(error("gradient name exceeds limit"));
+        }
+        offset += 4;
+        let name = data
+            .get(offset..offset + name_len * 2)
+            .ok_or_else(|| error("truncated gradient name"))?;
+        String::from_utf16(
+            &name
+                .as_chunks::<2>()
+                .0
+                .iter()
+                .map(|b| u16::from_be_bytes([b[0], b[1]]))
+                .collect::<Vec<_>>(),
+        )
+        .map_err(error)?;
+        offset += name_len * 2;
+        let count = read_u16(data, offset)? as usize;
+        offset += 2;
+        if count > 4096 {
+            return Err(error("too many gradient stops"));
+        }
+        supported &= count >= 2;
+        let mut stops = Vec::new();
+        for _ in 0..count {
+            let position = u32_at(data, offset)?;
+            let midpoint = u32_at(data, offset + 4)?;
+            let color = rgb(data, offset + 8)?;
+            read_u16(data, offset + 18)?;
+            supported &= color.is_some() && midpoint == 50;
+            let c = color.unwrap_or([0.0; 3]);
+            stops.push([position as f32, c[0], c[1], c[2]]);
+            offset += 20;
+        }
+        let opacity_count = read_u16(data, offset)? as usize;
+        offset += 2;
+        if opacity_count > 4096 {
+            return Err(error("too many opacity stops"));
+        }
+        for _ in 0..opacity_count {
+            u32_at(data, offset)?;
+            u32_at(data, offset + 4)?;
+            supported &= read_u16(data, offset + 8)? == 255;
+            offset += 10;
+        }
+        if read_u16(data, offset)? != 2 || read_u16(data, offset + 4)? != 32 {
+            return Err(error("invalid gradient expansion layout"));
+        }
+        let interpolation = read_u16(data, offset + 2)?;
+        if interpolation == 0 {
+            return Err(error("zero gradient interpolation"));
+        }
+        supported &= interpolation == 4096 && read_u16(data, offset + 6)? == 0;
+        data.get(offset..offset + 38)
+            .ok_or_else(|| error("truncated gradient expansion"))?;
+        for stop in &mut stops {
+            stop[0] /= interpolation as f32;
+        }
+        if stops.iter().any(|s| s[0] > 1.0) || stops.windows(2).any(|w| w[0][0] >= w[1][0]) {
+            return Err(error("invalid gradient stop positions"));
+        }
+        if !supported {
+            return Ok(None);
+        }
+        Ok(Some(crate::Adjustment::GradientMap {
+            stops,
+            dither,
+            reverse,
+            method,
+        }))
+    }
+    pub(super) fn write(
+        stops: &[[f32; 4]],
+        dither: bool,
+        reverse: bool,
+        method: GradientMethod,
+    ) -> EngineResult<Vec<u8>> {
+        if !(2..=4096).contains(&stops.len())
+            || stops
+                .iter()
+                .flatten()
+                .any(|v| !v.is_finite() || !(0.0..=1.0).contains(v))
+            || stops
+                .windows(2)
+                .any(|w| (w[0][0] * 4096.0).round() >= (w[1][0] * 4096.0).round())
+        {
+            return Err(error(
+                "PSD gradient requires 2..4096 distinct normalized stops",
+            ));
+        }
+        let mut data = vec![0, 3, u8::from(reverse), u8::from(dither)];
+        data.extend_from_slice(match method {
+            GradientMethod::Classic => b"Gcls",
+            GradientMethod::Perceptual => b"Perc",
+            GradientMethod::Linear => b"Lnr ",
+        });
+        data.extend_from_slice(&1u32.to_be_bytes());
+        data.extend_from_slice(&0u16.to_be_bytes());
+        data.extend_from_slice(&(stops.len() as u16).to_be_bytes());
+        for s in stops {
+            data.extend_from_slice(&((s[0] * 4096.0).round() as u32).to_be_bytes());
+            data.extend_from_slice(&50u32.to_be_bytes());
+            write_rgb(&[s[1], s[2], s[3]], &mut data)?;
+            data.extend_from_slice(&0u16.to_be_bytes());
+        }
+        data.extend_from_slice(&2u16.to_be_bytes());
+        for position in [0u32, 4096] {
+            data.extend_from_slice(&position.to_be_bytes());
+            data.extend_from_slice(&50u32.to_be_bytes());
+            data.extend_from_slice(&255u16.to_be_bytes());
+        }
+        for value in [2u16, 4096, 32, 0] {
+            data.extend_from_slice(&value.to_be_bytes());
+        }
+        data.extend_from_slice(&0u32.to_be_bytes()); // seed
+        data.extend_from_slice(&[0; 4]); // transparency, restrict colors
+        data.extend_from_slice(&4096u32.to_be_bytes());
+        data.extend_from_slice(&3u16.to_be_bytes()); // RGB noise model, inactive
+        data.extend_from_slice(&[0; 8]);
+        for _ in 0..4 {
+            data.extend_from_slice(&32768u16.to_be_bytes());
+        }
+        data.extend_from_slice(&[0; 4]);
+        Ok(data)
+    }
+}
+// clrL framing and enum IDs follow ag-psd additionalInfo.ts and psd-tools
+// ColorLookup: u16 version 1, u32 descriptor version 16, Action Descriptor.
+mod lookup_interop {
+    use super::*;
+    use ::psd::metadata::Value as V;
+
+    pub(super) fn read(bytes: &[u8]) -> EngineResult<Option<crate::Adjustment>> {
+        if read_u16(bytes, 0)? != 1 {
+            return Err(error("invalid clrL version"));
+        }
+        let d = adjustment_interop::descriptor(&bytes[2..])?;
+        let enum_is = |key: &[u8], ty: &[u8], expected: &[u8]| -> EngineResult<bool> {
+            match d.get(key) {
+                Some(V::Enum { type_id, value }) if *type_id == ty => Ok(*value == expected),
+                None => Ok(false),
+                _ => Err(error("invalid clrL enum field")),
+            }
+        };
+        if !enum_is(b"lookupType", b"colorLookupType", b"3DLUT")?
+            || !enum_is(b"LUTFormat", b"LUTFormatType", b"LUTFormatCUBE")?
+        {
+            return Ok(None);
+        }
+        for key in [b"dataOrder".as_slice(), b"tableOrder"] {
+            if d.get(key).is_some() && !enum_is(key, b"colorLookupOrder", b"rgbOrder")? {
+                return Ok(None);
+            }
+        }
+        if d.get(b"Dthr").is_some() && adjustment_interop::boolean(&d, b"Dthr")? {
+            return Ok(None);
+        }
+        let text = match d.get(b"LUT3DFileData") {
+            Some(V::Raw(data)) => {
+                std::str::from_utf8(data).map_err(|_| error("invalid clrL CUBE text"))?
+            }
+            None => return Ok(None), // External-only LUT remains opaque.
+            _ => return Err(error("invalid clrL LUT3DFileData")),
+        };
+        // These valid CUBE features need a shaper/domain model we do not have.
+        // Keep their original descriptor opaque rather than misrendering it.
+        for line in text.lines() {
+            let fields: Vec<_> = line
+                .split('#')
+                .next()
+                .unwrap_or("")
+                .split_whitespace()
+                .collect();
+            let Some(&key) = fields.first() else {
+                continue;
+            };
+            if key.starts_with("LUT_") && key != "LUT_3D_SIZE" {
+                return Ok(None);
+            }
+            if matches!(key, "DOMAIN_MIN" | "DOMAIN_MAX") {
+                if fields.len() != 4 {
+                    return Err(error("invalid clrL CUBE domain"));
+                }
+                let expected = if key == "DOMAIN_MIN" { 0.0 } else { 1.0 };
+                let mut unsupported = false;
+                for field in &fields[1..] {
+                    let value: f32 = field
+                        .parse()
+                        .map_err(|_| error("invalid clrL CUBE domain"))?;
+                    if !value.is_finite() {
+                        return Err(error("invalid clrL CUBE domain"));
+                    }
+                    unsupported |= value != expected;
+                }
+                if unsupported {
+                    return Ok(None);
+                }
+            }
+        }
+        Ok(Some(crate::Adjustment::color_lookup_from_cube(text)?))
+    }
+
+    pub(super) fn write(size: u32, data: &[[f32; 3]]) -> EngineResult<Vec<u8>> {
+        use std::fmt::Write;
+        if !(2..=256).contains(&size)
+            || data.len() != (size as usize).pow(3)
+            || data.iter().flatten().any(|v| !v.is_finite())
+        {
+            return Err(error("invalid clrL cube dimensions or samples"));
+        }
+        let mut cube = format!("LUT_3D_SIZE {size}\n");
+        // Native storage and CUBE both use red-fastest samples, with RGB columns.
+        for [r, g, b] in data {
+            writeln!(cube, "{r} {g} {b}").expect("writing to String");
+        }
+        let mut bytes = 1u16.to_be_bytes().to_vec();
+        bytes.extend(adjustment_interop::encode(vec![
+            (
+                b"lookupType",
+                V::Enum {
+                    type_id: b"colorLookupType",
+                    value: b"3DLUT",
+                },
+            ),
+            (
+                b"LUTFormat",
+                V::Enum {
+                    type_id: b"LUTFormatType",
+                    value: b"LUTFormatCUBE",
+                },
+            ),
+            (
+                b"dataOrder",
+                V::Enum {
+                    type_id: b"colorLookupOrder",
+                    value: b"rgbOrder",
+                },
+            ),
+            (
+                b"tableOrder",
+                V::Enum {
+                    type_id: b"colorLookupOrder",
+                    value: b"rgbOrder",
+                },
+            ),
+            (b"Dthr", V::Bool(false)),
+            (b"LUT3DFileName", V::Text("Tessera.cube".into())),
+            (b"LUT3DFileData", V::Raw(cube.as_bytes())),
+        ]));
+        Ok(bytes)
+    }
+}
 fn import_adjustment(layer: &::psd::Layer) -> EngineResult<Option<crate::Adjustment>> {
     use crate::{Adjustment as A, LevelsChannel};
+    use adjustment_interop as ai;
+    // CgEd must take precedence regardless of tagged-block ordering. Other
+    // adjustment types also use CgEd for presets, so require brightness fields.
+    if let Some(block) = layer.info(b"CgEd") {
+        let d = ai::descriptor(&block.data)?;
+        if d.get(b"Brgh").is_some() {
+            if ai::number(&d, b"Vrsn")? != 1.0 {
+                return Err(error("unsupported CgEd version"));
+            }
+            if ai::boolean(&d, b"Lab ")? {
+                return Ok(None);
+            }
+            let a = A::BrightnessContrast {
+                brightness: ai::number(&d, b"Brgh")?,
+                contrast: ai::number(&d, b"Cntr")?,
+                legacy: ai::boolean(&d, b"useLegacy")?,
+            };
+            ai::validate(&a)?;
+            return Ok(Some(a));
+        }
+    }
     for b in &layer.additional {
         let d = &b.data;
         let a = match &b.key {
+            b"clrL" => {
+                let Some(a) = lookup_interop::read(d)? else {
+                    continue;
+                };
+                a
+            }
+            b"grdm" => {
+                let Some(a) = gradient_interop::read(d)? else {
+                    continue;
+                };
+                a
+            }
+            b"vibA" => {
+                let d = ai::descriptor(d)?;
+                A::Vibrance {
+                    vibrance: if d.get(b"vibrance").is_some() {
+                        ai::number(&d, b"vibrance")?
+                    } else {
+                        0.0
+                    },
+                    saturation: if d.get(b"Strt").is_some() {
+                        ai::number(&d, b"Strt")?
+                    } else {
+                        0.0
+                    },
+                }
+            }
+            b"blwh" => {
+                let d = ai::descriptor(d)?;
+                let mut sliders = [0.0; 6];
+                for (v, key) in sliders
+                    .iter_mut()
+                    .zip([b"Rd  ", b"Yllw", b"Grn ", b"Cyn ", b"Bl  ", b"Mgnt"])
+                {
+                    *v = ai::number(&d, key)?;
+                }
+                let tint = if ai::boolean(&d, b"useTint")? {
+                    let c = d
+                        .get(b"tintColor")
+                        .and_then(::psd::metadata::Value::object)
+                        .ok_or_else(|| error("missing tint color"))?;
+                    if c.class_id != b"RGBC" {
+                        continue;
+                    }
+                    Some([
+                        ai::number(c, b"Rd  ")? / 255.0,
+                        ai::number(c, b"Grn ")? / 255.0,
+                        ai::number(c, b"Bl  ")? / 255.0,
+                    ])
+                } else {
+                    None
+                };
+                A::BlackWhite { sliders, tint }
+            }
+            b"blnc" => {
+                let mut rows = [[0.0; 3]; 3];
+                for (i, row) in rows.iter_mut().enumerate() {
+                    for (j, v) in row.iter_mut().enumerate() {
+                        *v = read_u16(d, i * 6 + j * 2)? as i16 as f32;
+                    }
+                }
+                A::ColorBalance {
+                    shadows: rows[0],
+                    midtones: rows[1],
+                    highlights: rows[2],
+                    preserve_luminosity: ai::flag(d, 18)?,
+                }
+            }
+            b"selc" => {
+                if read_u16(d, 0)? != 1 || read_u16(d, 2)? > 1 {
+                    return Err(error("invalid selective color version or mode"));
+                }
+                let mut colors = [[0.0; 4]; 9];
+                for (i, row) in colors.iter_mut().enumerate() {
+                    for (j, v) in row.iter_mut().enumerate() {
+                        *v = read_u16(d, 12 + i * 8 + j * 2)? as i16 as f32;
+                    }
+                }
+                A::SelectiveColor {
+                    colors,
+                    absolute: read_u16(d, 2)? != 0,
+                }
+            }
+            b"phfl" => {
+                let version = read_u16(d, 0)?;
+                if !matches!(version, 2 | 3) {
+                    return Err(error("invalid photo filter version"));
+                }
+                if version == 3 {
+                    ai::u32_at(d, 14)?;
+                    ai::flag(d, 18)?;
+                    continue; // Lab version remains opaque; no guessed RGB conversion.
+                }
+                let density = ai::u32_at(d, 12)? as f32 / 100.0;
+                let preserve_luminosity = ai::flag(d, 16)?;
+                let Some(color) = ai::rgb(d, 2)? else {
+                    continue;
+                };
+                A::PhotoFilter {
+                    color,
+                    density,
+                    preserve_luminosity,
+                }
+            }
+            b"brit" => {
+                if ai::flag(d, 6)? {
+                    continue;
+                }
+                A::BrightnessContrast {
+                    brightness: read_u16(d, 0)? as i16 as f32,
+                    contrast: read_u16(d, 2)? as i16 as f32,
+                    legacy: true,
+                }
+            }
             b"nvrt" => A::Invert,
             b"post" => A::Posterize {
                 levels: u32::from(read_u16(d, 0)?),
@@ -529,6 +1086,7 @@ fn import_adjustment(layer: &::psd::Layer) -> EngineResult<Option<crate::Adjustm
             }
             _ => continue,
         };
+        ai::validate(&a)?;
         return Ok(Some(a));
     }
     Ok(None)
@@ -538,7 +1096,136 @@ fn export_adjustment(a: &crate::Adjustment, layer: &mut ::psd::Layer) -> EngineR
         return Ok(());
     }
     use crate::Adjustment as A;
+    use ::psd::metadata::Value as V;
+    use adjustment_interop as ai;
+    // Remove stale modern brightness data when changing type or legacy mode.
+    layer.additional.retain(|b| b.key != *b"CgEd");
     let (key, data) = match a {
+        A::ColorLookup { size, data } => (*b"clrL", lookup_interop::write(*size, data)?),
+        A::GradientMap {
+            stops,
+            dither,
+            reverse,
+            method,
+        } => (
+            *b"grdm",
+            gradient_interop::write(stops, *dither, *reverse, *method)?,
+        ),
+        A::Vibrance {
+            vibrance,
+            saturation,
+        } => (
+            *b"vibA",
+            ai::encode(vec![
+                (
+                    b"vibrance",
+                    V::Integer(ai::integer(*vibrance, -100.0, 100.0)?.into()),
+                ),
+                (
+                    b"Strt",
+                    V::Integer(ai::integer(*saturation, -100.0, 100.0)?.into()),
+                ),
+            ]),
+        ),
+        A::BlackWhite { sliders, tint } => {
+            let mut items: Vec<(&[u8], V<'_>)> = Vec::new();
+            for (v, key) in sliders
+                .iter()
+                .zip([b"Rd  ", b"Yllw", b"Grn ", b"Cyn ", b"Bl  ", b"Mgnt"])
+            {
+                items.push((key, V::Integer(ai::integer(*v, -200.0, 300.0)?.into())));
+            }
+            items.push((b"useTint", V::Bool(tint.is_some())));
+            if let Some(color) = tint {
+                let mut c = ::psd::metadata::Descriptor {
+                    name: String::new(),
+                    class_id: b"RGBC",
+                    items: Vec::new(),
+                };
+                for (v, key) in color.iter().zip([b"Rd  ", b"Grn ", b"Bl  "]) {
+                    if !v.is_finite() || !(0.0..=1.0).contains(v) {
+                        return Err(error("invalid tint color"));
+                    }
+                    c.items.push((key, V::Double(*v as f64 * 255.0)));
+                }
+                items.push((b"tintColor", V::Object(c)));
+            }
+            items.push((b"bwPresetKind", V::Integer(1)));
+            items.push((b"blackAndWhitePresetFileName", V::Text(String::new())));
+            (*b"blwh", ai::encode(items))
+        }
+        A::ColorBalance {
+            shadows,
+            midtones,
+            highlights,
+            preserve_luminosity,
+        } => {
+            let mut data = Vec::new();
+            for row in [shadows, midtones, highlights] {
+                for v in row {
+                    data.extend_from_slice(&ai::integer(*v, -100.0, 100.0)?.to_be_bytes());
+                }
+            }
+            data.extend_from_slice(&[u8::from(*preserve_luminosity), 0]);
+            (*b"blnc", data)
+        }
+        A::SelectiveColor { colors, absolute } => {
+            let mut data = [1u16.to_be_bytes(), u16::from(*absolute).to_be_bytes()].concat();
+            data.extend_from_slice(&[0; 8]);
+            for row in colors {
+                for v in row {
+                    data.extend_from_slice(&ai::integer(*v, -100.0, 100.0)?.to_be_bytes());
+                }
+            }
+            (*b"selc", data)
+        }
+        A::PhotoFilter {
+            color,
+            density,
+            preserve_luminosity,
+        } => {
+            let mut data = 2u16.to_be_bytes().to_vec();
+            ai::write_rgb(color, &mut data)?;
+            if !density.is_finite() || !(0.0..=100.0).contains(density) {
+                return Err(error("invalid photo filter density"));
+            }
+            data.extend_from_slice(&((*density * 100.0).round() as u32).to_be_bytes());
+            data.extend_from_slice(&[u8::from(*preserve_luminosity), 0, 0, 0]);
+            (*b"phfl", data)
+        }
+        A::BrightnessContrast {
+            brightness,
+            contrast,
+            legacy,
+        } => {
+            let brightness = ai::integer(*brightness, -150.0, 150.0)?;
+            let contrast = ai::integer(*contrast, -100.0, 100.0)?;
+            if !legacy {
+                set_tag(
+                    layer,
+                    *b"CgEd",
+                    ai::encode(vec![
+                        (b"Vrsn", V::Integer(1)),
+                        (b"Brgh", V::Integer(brightness.into())),
+                        (b"Cntr", V::Integer(contrast.into())),
+                        (b"means", V::Integer(127)),
+                        (b"Lab ", V::Bool(false)),
+                        (b"useLegacy", V::Bool(false)),
+                        (b"Auto", V::Bool(false)),
+                    ]),
+                );
+            }
+            (
+                *b"brit",
+                [
+                    brightness.to_be_bytes(),
+                    contrast.to_be_bytes(),
+                    127i16.to_be_bytes(),
+                    [0, 0],
+                ]
+                .concat(),
+            )
+        }
         A::Invert => (*b"nvrt", Vec::new()),
         A::Posterize { levels } => (*b"post", (*levels as u16).to_be_bytes().to_vec()),
         A::Threshold { level } => (
@@ -686,6 +1373,16 @@ fn export_adjustment(a: &crate::Adjustment, layer: &mut ::psd::Layer) -> EngineR
                 }
             }
             (*b"levl", data)
+        }
+        A::Desaturate
+        | A::Equalize { .. }
+        | A::Auto { .. }
+        | A::MatchColor { .. }
+        | A::ReplaceColor { .. }
+        | A::ShadowsHighlights { .. } => {
+            return Err(error(
+                "adjustment is native-only; genuine PSD encoding is not implemented",
+            ));
         }
     };
     layer

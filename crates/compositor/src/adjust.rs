@@ -7,6 +7,174 @@
 
 use serde::{Deserialize, Serialize};
 
+#[path = "adjust/presets.rs"]
+mod presets;
+pub use presets::PhotoFilterPreset;
+
+#[path = "adjust/color.rs"]
+pub(crate) mod color;
+#[path = "adjust/icc.rs"]
+mod icc;
+#[path = "adjust/lookup.rs"]
+mod lookup;
+#[path = "adjust/shadows.rs"]
+pub mod shadows;
+#[path = "adjust/statistics.rs"]
+mod statistics;
+
+/// Color space used between gradient stops.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GradientMethod {
+    /// Interpolate encoded RGB.
+    Classic,
+    /// Interpolate Oklab.
+    Perceptual,
+    /// Interpolate decoded linear sRGB.
+    Linear,
+}
+/// Histogram-derived automatic correction mode.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AutoMode {
+    /// Stretch each channel independently.
+    Tone,
+    /// Stretch with pooled channel endpoints.
+    Contrast,
+    /// Stretch and neutralize channel means.
+    Color,
+}
+
+/// Opt-in versioned interchange. Existing document enum encoding is unchanged.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct VersionedAdjustment {
+    /// Schema version; checked decoding accepts only 1.
+    pub version: u32,
+    /// Parameters; direct serde decoding does not validate them.
+    pub adjustment: Adjustment,
+}
+impl Adjustment {
+    /// Check finite parameters and structural invariants before rendering.
+    /// Direct enum deserialization is intentionally unchanged; callers must
+    /// validate it before compilation. Existing finite clamping stays intact.
+    pub fn validate(&self) -> engine_api::EngineResult<()> {
+        let finite = |v: &[f32]| v.iter().all(|x| x.is_finite());
+        let level = |c: &LevelsChannel| {
+            finite(&[c.in_black, c.in_white, c.gamma, c.out_black, c.out_white])
+        };
+        let valid = match self {
+            Self::Vibrance {
+                vibrance,
+                saturation,
+            } => finite(&[*vibrance, *saturation]),
+            Self::ColorBalance {
+                shadows,
+                midtones,
+                highlights,
+                ..
+            } => finite(shadows) && finite(midtones) && finite(highlights),
+            Self::BlackWhite { sliders, tint } => {
+                finite(sliders) && tint.as_ref().is_none_or(|v| finite(v))
+            }
+            Self::PhotoFilter { color, density, .. } => finite(color) && density.is_finite(),
+            Self::GradientMap { stops, .. } => stops.iter().all(|v| finite(v)),
+            Self::SelectiveColor { colors, .. } => colors.iter().all(|v| finite(v)),
+            Self::Equalize { maps } => maps.iter().all(|v| finite(v)),
+            Self::Auto {
+                black,
+                white,
+                gamma,
+                ..
+            } => finite(black) && finite(white) && finite(gamma),
+            Self::MatchColor {
+                source_layer,
+                source_mean,
+                source_std,
+                target_mean,
+                target_std,
+                luminance,
+                color_intensity,
+                fade,
+            } => {
+                *source_layer != 0
+                    && finite(source_mean)
+                    && finite(source_std)
+                    && finite(target_mean)
+                    && finite(target_std)
+                    && source_std.iter().chain(target_std).all(|v| *v >= 0.0)
+                    && finite(&[*luminance, *color_intensity, *fade])
+            }
+            Self::ReplaceColor {
+                color,
+                fuzziness,
+                hue,
+                saturation,
+                lightness,
+            } => finite(color) && finite(&[*fuzziness, *hue, *saturation, *lightness]),
+            Self::ColorLookup { size, data } => lookup::valid(*size, data),
+            Self::ShadowsHighlights { settings } => return settings.validate(),
+            Self::BrightnessContrast {
+                brightness,
+                contrast,
+                ..
+            } => finite(&[*brightness, *contrast]),
+            Self::Levels { master, rgb } => level(master) && rgb.iter().all(level),
+            Self::Curves { master, rgb } => std::iter::once(master)
+                .chain(rgb)
+                .all(|c| c.0.iter().all(|p| finite(p))),
+            Self::HueSaturation {
+                hue,
+                saturation,
+                lightness,
+                ..
+            } => finite(&[*hue, *saturation, *lightness]),
+            Self::Exposure {
+                exposure,
+                offset,
+                gamma,
+            } => finite(&[*exposure, *offset, *gamma]),
+            Self::Threshold { level } => level.is_finite(),
+            Self::ChannelMixer {
+                matrix, constant, ..
+            } => matrix.iter().all(|r| finite(r)) && finite(constant),
+            Self::Invert | Self::Desaturate | Self::Posterize { .. } => true,
+        };
+        if valid {
+            Ok(())
+        } else {
+            Err(engine_api::EngineError::invalid(
+                "adjustment",
+                "nonfinite parameter or invalid structure",
+            ))
+        }
+    }
+    /// Serialize the unchanged enum inside the version-1 interchange envelope.
+    pub fn to_versioned_json(&self) -> Result<String, serde_json::Error> {
+        serde_json::to_string(&VersionedAdjustment {
+            version: 1,
+            adjustment: self.clone(),
+        })
+    }
+    /// Decode version 1 and reject nonfinite parameters or invalid structures.
+    pub fn from_versioned_json(s: &str) -> Result<Self, serde_json::Error> {
+        let envelope: VersionedAdjustment = serde_json::from_str(s)?;
+        if envelope.version != 1 {
+            return Err(<serde_json::Error as serde::de::Error>::custom(
+                "unsupported adjustment version",
+            ));
+        }
+        envelope
+            .adjustment
+            .validate()
+            .map_err(<serde_json::Error as serde::de::Error>::custom)?;
+        Ok(envelope.adjustment)
+    }
+}
+
+#[cfg(test)]
+#[path = "adjust/extended_tests.rs"]
+mod extended_tests;
+
 /// Levels for one channel.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -129,6 +297,129 @@ impl Curve {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Adjustment {
+    /// Oklab chroma scale with inverse-saturation and skin-hue protection.
+    Vibrance {
+        /// Chroma boost percent, conventionally -100..100.
+        vibrance: f32,
+        /// Saturation shift percent, conventionally -100..100.
+        saturation: f32,
+    },
+    /// Percent RGB offsets by tonal range.
+    ColorBalance {
+        /// Shadow RGB offsets in percent.
+        shadows: [f32; 3],
+        /// Midtone RGB offsets in percent.
+        midtones: [f32; 3],
+        /// Highlight RGB offsets in percent.
+        highlights: [f32; 3],
+        /// Restore input weighted luminance after filtering.
+        preserve_luminosity: bool,
+    },
+    /// Hue-band percent weights in R,Y,G,C,B,M order; optional RGB tint.
+    BlackWhite {
+        /// R,Y,G,C,B,M hue-band weights in percent.
+        sliders: [f32; 6],
+        /// Optional encoded RGB tint.
+        tint: Option<[f32; 3]>,
+    },
+    /// Multiply by an encoded RGB filter, blended by density.
+    PhotoFilter {
+        /// Encoded RGB filter or selection color; normally [0,1].
+        color: [f32; 3],
+        /// Filter strength in percent, 0..100.
+        density: f32,
+        /// Restore input weighted luminance after filtering.
+        preserve_luminosity: bool,
+    },
+    /// Stops are [position, red, green, blue], in document encoding.
+    GradientMap {
+        /// Position plus encoded RGB; compiled in sorted order.
+        stops: Vec<[f32; 4]>,
+        /// Add deterministic spatial sub-byte noise at the requested mip level.
+        dither: bool,
+        /// Reverse the luminance-to-gradient mapping.
+        reverse: bool,
+        /// Interpolation color space.
+        method: GradientMethod,
+    },
+    /// CMYK percent corrections for R,Y,G,C,B,M,white,neutral,black.
+    SelectiveColor {
+        /// R,Y,G,C,B,M,white,neutral,black CMYK percent offsets.
+        colors: [[f32; 4]; 9],
+        /// Use absolute rather than available-ink-relative corrections.
+        absolute: bool,
+    },
+    /// Neutral gray at HSL lightness.
+    Desaturate,
+    /// Frozen histogram equalization.
+    Equalize {
+        /// Frozen per-channel CDF maps over [0,1].
+        maps: [Vec<f32>; 3],
+    },
+    /// Frozen automatic tone, contrast or color correction.
+    Auto {
+        /// Histogram analysis mode retained for interchange.
+        mode: AutoMode,
+        /// Per-channel input black points.
+        black: [f32; 3],
+        /// Per-channel input white points.
+        white: [f32; 3],
+        /// Per-channel midtone gamma.
+        gamma: [f32; 3],
+    },
+    /// Frozen CIE Lab D65 statistics; source_layer preserves source identity.
+    MatchColor {
+        /// Identity of the source whose statistics were frozen.
+        source_layer: u64,
+        /// Source CIE Lab D65 population mean.
+        source_mean: [f32; 3],
+        /// Source CIE Lab D65 population standard deviation.
+        source_std: [f32; 3],
+        /// Destination CIE Lab D65 population mean.
+        target_mean: [f32; 3],
+        /// Destination CIE Lab D65 population standard deviation.
+        target_std: [f32; 3],
+        /// Luminance transfer strength, neutral at 100.
+        luminance: f32,
+        /// Chroma transfer strength, neutral at 100.
+        color_intensity: f32,
+        /// Blend back to original, 0..100 percent.
+        fade: f32,
+    },
+    /// Normalized encoded-RGB distance selection with HSL shifts.
+    ReplaceColor {
+        /// Encoded RGB filter or selection color; normally [0,1].
+        color: [f32; 3],
+        /// Fuzziness 0..200 maps to normalized RGB distance radius 0..1.
+        fuzziness: f32,
+        /// Hue rotation in degrees.
+        hue: f32,
+        /// Saturation shift percent, conventionally -100..100.
+        saturation: f32,
+        /// Lightness shift in percent.
+        lightness: f32,
+    },
+    /// Red-fastest cube: r + size * (g + size * b).
+    ColorLookup {
+        /// Cube edge length; checked constructors require 2..=256.
+        size: u32,
+        /// Red-fastest finite RGB cube samples.
+        data: Vec<[f32; 3]>,
+    },
+    /// Local tonal operator; requires neighborhood rendering.
+    ShadowsHighlights {
+        /// Validated local neighborhood operator controls.
+        settings: shadows::ShadowsHighlights,
+    },
+    /// Endpoint-preserving tone curve, or legacy affine correction.
+    BrightnessContrast {
+        /// Brightness percent-like control, conventionally -150..150.
+        brightness: f32,
+        /// Contrast control, conventionally -100..100.
+        contrast: f32,
+        /// Use the legacy affine instead of modern tone curve.
+        legacy: bool,
+    },
     /// Levels: per channel, then the composite ("RGB") channel.
     Levels {
         /// Applied after the channels.
@@ -189,15 +480,24 @@ pub enum Adjustment {
 /// A compiled adjustment, cheap to evaluate per pixel.
 pub(crate) enum Compiled<'a> {
     Luts([Vec<f32>; 3], Vec<f32>),
+    Channels([Vec<f32>; 3]),
+    Auto(&'a Adjustment, [Vec<f32>; 3]),
     Direct(&'a Adjustment),
+    Gradient(Vec<[f32; 4]>, bool, bool, GradientMethod),
 }
 
 const LUT_N: usize = 4096;
 
 #[inline(always)]
 fn lut_eval(lut: &[f32], v: f32) -> f32 {
-    let x = v.clamp(0.0, 1.0) * (LUT_N - 1) as f32;
-    let i = (x as usize).min(LUT_N - 2);
+    if lut.is_empty() {
+        return v;
+    }
+    if lut.len() == 1 {
+        return lut[0];
+    }
+    let x = v.clamp(0.0, 1.0) * (lut.len() - 1) as f32;
+    let i = (x as usize).min(lut.len() - 2);
     let f = x - i as f32;
     lut[i] + (lut[i + 1] - lut[i]) * f
 }
@@ -254,6 +554,23 @@ fn hsl_to_rgb(h: [f32; 3]) -> [f32; 3] {
 impl Adjustment {
     pub(crate) fn compile(&self) -> Compiled<'_> {
         match self {
+            // Native modern brightness is the piecewise-linear 4096-sample
+            // curve. CPU-generated knots are shared verbatim with the GPU.
+            Adjustment::BrightnessContrast { legacy: false, .. } => {
+                let l: Vec<f32> = (0..LUT_N)
+                    .map(|i| apply_direct(self, [i as f32 / (LUT_N - 1) as f32; 3])[0])
+                    .collect();
+                Compiled::Channels([l.clone(), l.clone(), l])
+            }
+            Adjustment::Auto { gamma, .. } => Compiled::Auto(
+                self,
+                std::array::from_fn(|j| {
+                    let g = if gamma[j] > 0.0 { gamma[j] } else { 1.0 };
+                    (0..LUT_N)
+                        .map(|i| (i as f32 / (LUT_N - 1) as f32).powf(1.0 / g))
+                        .collect()
+                }),
+            ),
             Adjustment::Levels { master, rgb } => {
                 let ch = |c: &LevelsChannel| -> Vec<f32> {
                     (0..LUT_N)
@@ -266,15 +583,42 @@ impl Adjustment {
                 [rgb[0].lut(LUT_N), rgb[1].lut(LUT_N), rgb[2].lut(LUT_N)],
                 master.lut(LUT_N),
             ),
+            Adjustment::GradientMap {
+                stops,
+                dither,
+                reverse,
+                method,
+            } => {
+                let mut stops = stops.clone();
+                stops.retain(|p| p.iter().all(|v| v.is_finite()));
+                stops.sort_by(|a, b| a[0].total_cmp(&b[0]));
+                stops.dedup_by(|a, b| a[0] == b[0]);
+                Compiled::Gradient(stops, *dither, *reverse, *method)
+            }
+            Adjustment::ColorLookup { size, data } => {
+                assert!(
+                    lookup::valid(*size, data),
+                    "invalid ColorLookup: use checked constructors or validate before rendering"
+                );
+                Compiled::Direct(self)
+            }
             other => Compiled::Direct(other),
         }
     }
 }
 
 impl Compiled<'_> {
-    /// The adjusted colour (straight RGB in, straight RGB out).
+    /// The adjusted colour at the origin (straight RGB in, straight RGB out).
+    #[allow(dead_code)] // Tests and legacy callers without spatial coordinates.
     #[inline]
     pub(crate) fn apply(&self, c: [f32; 3]) -> [f32; 3] {
+        self.apply_at(c, 0, 0)
+    }
+
+    /// Adjust at absolute integer pixel coordinates in the requested mip level.
+    /// Coordinates must include the tile origin so spatial dither never resets.
+    #[inline]
+    pub(crate) fn apply_at(&self, c: [f32; 3], x: u32, y: u32) -> [f32; 3] {
         match self {
             Compiled::Luts(ch, master) => {
                 let mut o = [0.0; 3];
@@ -283,13 +627,285 @@ impl Compiled<'_> {
                 }
                 o
             }
+            Compiled::Auto(a, ch) => {
+                let Adjustment::Auto {
+                    black,
+                    white,
+                    gamma,
+                    ..
+                } = a
+                else {
+                    unreachable!()
+                };
+                std::array::from_fn(|i| {
+                    let t = LevelsChannel {
+                        in_black: black[i],
+                        in_white: white[i],
+                        ..Default::default()
+                    }
+                    .apply(c[i]);
+                    if gamma[i] <= 0.0 || gamma[i] == 1.0 {
+                        t
+                    } else {
+                        lut_eval(&ch[i], t)
+                    }
+                })
+            }
+            Compiled::Channels(ch) => std::array::from_fn(|i| lut_eval(&ch[i], c[i])),
             Compiled::Direct(a) => apply_direct(a, c),
+            Compiled::Gradient(stops, dither, reverse, method) => {
+                gradient(stops, *dither, *reverse, *method, c, [x, y])
+            }
         }
     }
 }
 
+fn gradient(
+    stops: &[[f32; 4]],
+    dither: bool,
+    reverse: bool,
+    method: GradientMethod,
+    c: [f32; 3],
+    position: [u32; 2],
+) -> [f32; 3] {
+    let mut t = luma(c).clamp(0.0, 1.0);
+    if reverse {
+        t = 1.0 - t;
+    }
+    if dither {
+        // Spatial noise, independent of content, tiles and processing order.
+        // Keep wrapping integer math identical to resident/adjustments.wgsl.
+        let mut h = position[0] ^ position[1].wrapping_mul(0x9e3779b9);
+        h = (h ^ (h >> 16)).wrapping_mul(0x7feb352d);
+        h = (h ^ (h >> 15)).wrapping_mul(0x846ca68b);
+        h ^= h >> 16;
+        t = (t + ((h & 65535) as f32 / 65535.0 - 0.5) / 255.0).clamp(0.0, 1.0);
+    }
+    if stops.is_empty() {
+        return [t; 3];
+    }
+    let rgb = |p: [f32; 4]| [p[1], p[2], p[3]];
+    if t <= stops[0][0] {
+        return rgb(stops[0]);
+    }
+    let i = stops.partition_point(|p| p[0] <= t);
+    if i == stops.len() {
+        return rgb(stops[i - 1]);
+    }
+    let a = rgb(stops[i - 1]);
+    let b = rgb(stops[i]);
+    let f = ((t - stops[i - 1][0]) / (stops[i][0] - stops[i - 1][0])).clamp(0.0, 1.0);
+    let lerp = |a: [f32; 3], b: [f32; 3]| std::array::from_fn(|j| a[j] + f * (b[j] - a[j]));
+    match method {
+        GradientMethod::Classic => lerp(a, b),
+        GradientMethod::Linear => {
+            lerp(a.map(color::decode), b.map(color::decode)).map(color::encode)
+        }
+        GradientMethod::Perceptual => color::from_oklab(lerp(color::oklab(a), color::oklab(b))),
+    }
+    .map(|v| v.clamp(0.0, 1.0))
+}
+fn luma(c: [f32; 3]) -> f32 {
+    0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]
+}
+fn preserve_luma(c: [f32; 3], y: f32) -> [f32; 3] {
+    let y = y.clamp(0.0, 1.0);
+    let old = luma(c);
+    if old.abs() < 1e-8 {
+        return [y; 3];
+    }
+    let c = c.map(|v| v * y / old);
+    let mut scale = 1.0_f32;
+    for v in c {
+        if v > 1.0 {
+            scale = scale.min((1.0 - y) / (v - y));
+        } else if v < 0.0 {
+            scale = scale.min(y / (y - v));
+        }
+    }
+    c.map(|v| y + (v - y) * scale)
+}
 fn apply_direct(a: &Adjustment, c: [f32; 3]) -> [f32; 3] {
     match *a {
+        Adjustment::MatchColor {
+            source_mean,
+            source_std,
+            target_mean,
+            target_std,
+            luminance,
+            color_intensity,
+            fade,
+            ..
+        } => {
+            let f = (fade / 100.0).clamp(0.0, 1.0);
+            if f == 1.0 {
+                return c;
+            }
+            let lab = color::lab(c);
+            let mut mapped = std::array::from_fn(|i| {
+                (lab[i] - target_mean[i]) * source_std[i].max(0.0) / target_std[i].max(1e-6)
+                    + source_mean[i]
+            });
+            mapped[0] *= (luminance / 100.0).clamp(0.0, 2.0);
+            mapped[1] *= (color_intensity / 100.0).clamp(0.0, 2.0);
+            mapped[2] *= (color_intensity / 100.0).clamp(0.0, 2.0);
+            let o = color::from_lab(mapped).map(|v| v.clamp(0.0, 1.0));
+            std::array::from_fn(|i| o[i] * (1.0 - f) + c[i] * f)
+        }
+        Adjustment::Auto {
+            black,
+            white,
+            gamma,
+            ..
+        } => std::array::from_fn(|i| {
+            LevelsChannel {
+                in_black: black[i],
+                in_white: white[i],
+                gamma: gamma[i],
+                ..Default::default()
+            }
+            .apply(c[i])
+        }),
+        Adjustment::Equalize { ref maps } => std::array::from_fn(|i| lut_eval(&maps[i], c[i])),
+        Adjustment::Vibrance {
+            vibrance,
+            saturation,
+        } => {
+            if vibrance == 0.0 && saturation == 0.0 {
+                return c;
+            }
+            let [h, s, _] = rgb_to_hsl(c);
+            let dist = (h - 1.0 / 12.0).abs();
+            let dist = dist.min(1.0 - dist);
+            let skin = (1.0 - dist / (1.0 / 12.0)).max(0.0);
+            let scale = (1.0 + (saturation / 100.0).clamp(-1.0, 1.0))
+                * (1.0 + (vibrance / 100.0).clamp(-1.0, 1.0) * (1.0 - s) * (1.0 - 0.75 * skin));
+            let mut lab = color::oklab(c);
+            lab[1] *= scale;
+            lab[2] *= scale;
+            color::from_oklab(lab).map(|v| v.clamp(0.0, 1.0))
+        }
+        Adjustment::ReplaceColor {
+            color,
+            fuzziness,
+            hue,
+            saturation,
+            lightness,
+        } => {
+            let distance =
+                ((c[0] - color[0]).powi(2) + (c[1] - color[1]).powi(2) + (c[2] - color[2]).powi(2))
+                    .sqrt()
+                    / 3.0_f32.sqrt();
+            let radius = (fuzziness / 200.0).clamp(0.0, 1.0);
+            let weight = if radius <= 0.0 {
+                if distance <= 1e-7 { 1.0 } else { 0.0 }
+            } else {
+                (1.0 - distance / radius).clamp(0.0, 1.0)
+            };
+            let o = apply_direct(
+                &Adjustment::HueSaturation {
+                    hue,
+                    saturation,
+                    lightness,
+                    colorize: false,
+                },
+                c,
+            );
+            std::array::from_fn(|i| c[i] + weight * (o[i] - c[i]))
+        }
+        Adjustment::SelectiveColor { colors, absolute } => {
+            let mx = c[0].max(c[1]).max(c[2]);
+            let mn = c[0].min(c[1]).min(c[2]);
+            let chroma = (mx - mn).clamp(0.0, 1.0);
+            let h = rgb_to_hsl(c)[0] * 6.0;
+            let y = luma(c).clamp(0.0, 1.0);
+            let mut weights = [0.0; 9];
+            for (i, w) in weights[..6].iter_mut().enumerate() {
+                let d = (h - i as f32).abs();
+                *w = chroma * (1.0 - d.min(6.0 - d)).max(0.0);
+            }
+            weights[6] = (1.0 - chroma) * (2.0 * y - 1.0).max(0.0);
+            weights[8] = (1.0 - chroma) * (1.0 - 2.0 * y).max(0.0);
+            weights[7] = (1.0 - chroma) * (1.0 - (2.0 * y - 1.0).abs());
+            std::array::from_fn(|i| {
+                let mut v = c[i];
+                for j in 0..9 {
+                    let correction = colors[j][i].clamp(-100.0, 100.0) / 100.0;
+                    let key = colors[j][3].clamp(-100.0, 100.0) / 100.0;
+                    v -= weights[j]
+                        * (correction * if absolute { 1.0 } else { 1.0 - c[i] }
+                            + key * if absolute { 1.0 } else { 1.0 - mx });
+                }
+                v.clamp(0.0, 1.0)
+            })
+        }
+        Adjustment::BlackWhite { sliders, tint } => {
+            let h = rgb_to_hsl(c)[0] * 6.0;
+            let i = h.floor() as usize % 6;
+            let f = h.fract();
+            let mx = c[0].max(c[1]).max(c[2]);
+            let mn = c[0].min(c[1]).min(c[2]);
+            let y = (mn + (mx - mn) * (sliders[i] * (1.0 - f) + sliders[(i + 1) % 6] * f) / 100.0)
+                .clamp(0.0, 1.0);
+            if let Some(tint) = tint {
+                let hs = rgb_to_hsl(tint);
+                hsl_to_rgb([hs[0], hs[1], y])
+            } else {
+                [y; 3]
+            }
+        }
+        Adjustment::ColorBalance {
+            shadows,
+            midtones,
+            highlights,
+            preserve_luminosity,
+        } => {
+            let y = luma(c).clamp(0.0, 1.0);
+            let o = std::array::from_fn(|i| {
+                c[i] + ((1.0 - y).powi(2) * shadows[i].clamp(-100.0, 100.0)
+                    + 2.0 * y * (1.0 - y) * midtones[i].clamp(-100.0, 100.0)
+                    + y * y * highlights[i].clamp(-100.0, 100.0))
+                    / 100.0
+            });
+            if preserve_luminosity {
+                preserve_luma(o, y)
+            } else {
+                o.map(|v| v.clamp(0.0, 1.0))
+            }
+        }
+        Adjustment::PhotoFilter {
+            color,
+            density,
+            preserve_luminosity,
+        } => {
+            let d = (density / 100.0).clamp(0.0, 1.0);
+            let o = std::array::from_fn(|i| c[i] * (1.0 - d + d * color[i].clamp(0.0, 1.0)));
+            if preserve_luminosity {
+                preserve_luma(o, luma(c))
+            } else {
+                o
+            }
+        }
+        Adjustment::Desaturate => [rgb_to_hsl(c)[2]; 3],
+        Adjustment::BrightnessContrast {
+            brightness,
+            contrast,
+            legacy,
+        } => {
+            let b = brightness.clamp(-150.0, 150.0) / 150.0;
+            let k = contrast.clamp(-100.0, 100.0) / 100.0;
+            c.map(|v| {
+                if legacy {
+                    ((v - 0.5) * (1.0 + k) + 0.5 + b).clamp(0.0, 1.0)
+                } else {
+                    let v = v.clamp(0.0, 1.0);
+                    let t = v + b * v * (1.0 - v);
+                    let p = k.exp2();
+                    let x = t.powf(p);
+                    x / (x + (1.0 - t).powf(p))
+                }
+            })
+        }
         Adjustment::Invert => [1.0 - c[0], 1.0 - c[1], 1.0 - c[2]],
         Adjustment::Posterize { levels } => {
             let n = levels.clamp(2, 255) as f32;
@@ -352,7 +968,13 @@ fn apply_direct(a: &Adjustment, c: [f32; 3]) -> [f32; 3] {
                 }
             })
         }
-        Adjustment::Levels { .. } | Adjustment::Curves { .. } => c,
+        Adjustment::Levels { .. } | Adjustment::Curves { .. } | Adjustment::GradientMap { .. } => {
+            unreachable!("adjustment must be compiled")
+        }
+        Adjustment::ShadowsHighlights { .. } => {
+            panic!("ShadowsHighlights requires neighborhood execution")
+        }
+        Adjustment::ColorLookup { size, ref data } => lookup::sample(size, data, c),
     }
 }
 

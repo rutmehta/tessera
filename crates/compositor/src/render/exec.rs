@@ -3,7 +3,7 @@
 
 use std::sync::Arc;
 
-use engine_api::tile::{Tile, TileCoord, TileLayout};
+use engine_api::tile::{TILE_SIZE, Tile, TileCoord, TileLayout};
 use engine_api::{EngineError, EngineResult};
 
 use super::cache::{NodeKey, Part};
@@ -13,6 +13,41 @@ use crate::adjust::Adjustment;
 use crate::blend::{BlendMode, blend_pixel};
 use crate::document::{Fill, GroupMode, Knockout, Layer, LayerKind, SmartObject};
 use crate::raster::{load_normalized, load_normalized_region};
+
+impl Compositor {
+    /// Live CPU reference fallback, returning straight planar f32 RGBA.
+    /// Replays backdrop prefixes over the halo using a fresh zero-cache
+    /// compositor on every call; never bakes adjustments or reuses damage tiles.
+    /// Ordinary isolated/pass-through/clipping groups are supported. Layer
+    /// styles are rejected because their eager source compilation cannot replay
+    /// adjustment prefixes. Neighbourhood adjustments inside smart-object child
+    /// documents remain unsupported (their renderer uses the standard path).
+    /// Unlike `render_tile`, this explicitly opts into expensive halo replay.
+    pub fn render_tile_with_neighbourhood(
+        &self,
+        doc: &crate::edit::Document,
+        coord: TileCoord,
+    ) -> EngineResult<Tile> {
+        if super::effects::has_styles(doc.state()) {
+            return Err(EngineError::Unsupported {
+                what: "neighbourhood CPU fallback does not support layer styles".into(),
+            });
+        }
+        let fresh = Self::new(0);
+        let job = fresh.job(
+            DocRef {
+                state: doc.state(),
+                key: doc.key(),
+            },
+            coord,
+        )?;
+        let ops = job.compile()?;
+        let acc = job.run_with_neighbourhood(&ops)?;
+        super::unpremultiply(
+            &Tile::from_samples(coord, job.layout(), acc)?.with_premultiplied(true)?,
+        )
+    }
+}
 
 /// Where a blended layer's straight RGBA comes from.
 pub(crate) enum Src<'a> {
@@ -165,6 +200,7 @@ impl<'a> TileJob<'a> {
             return Ok(());
         }
         if let LayerKind::Adjustment(adj) = &layer.kind {
+            adj.validate()?;
             ops.push(Op::Adjust {
                 layer,
                 adj,
@@ -347,6 +383,19 @@ impl<'a> TileJob<'a> {
     /// Runs the program; returns the premultiplied root accumulator (only
     /// the region is meaningful).
     pub fn run(&self, ops: &[Op<'_>]) -> EngineResult<Vec<f32>> {
+        self.run_until(ops, None, false)
+    }
+
+    fn run_with_neighbourhood(&self, ops: &[Op<'_>]) -> EngineResult<Vec<f32>> {
+        self.run_until(ops, None, true)
+    }
+
+    fn run_until(
+        &self,
+        ops: &[Op<'_>],
+        target: Option<u64>,
+        neighbourhood: bool,
+    ) -> EngineResult<Vec<f32>> {
         let n = self.n;
         let mut frames: Vec<(FrameKind, Vec<f32>)> = vec![(FrameKind::Root, vec![0.0; 4 * n])];
         let mut deep: Option<Vec<f32>> = None;
@@ -375,9 +424,34 @@ impl<'a> TileJob<'a> {
                     self.blend_top(&mut frames, deep.as_deref(), &src, params);
                 }
                 Op::Adjust { layer, adj, params } => {
+                    if target == Some(layer.id.0) {
+                        // The adjustment consumes its current group/clip frame,
+                        // not the root accumulator. Do not execute the target.
+                        return Ok(frames.pop().ok_or_else(stack)?.1);
+                    }
                     let has_mask = self.load_mask(layer, &mut mask)?;
                     let acc = &mut frames.last_mut().ok_or_else(stack)?.1;
-                    self.adjust(acc, adj, params, has_mask.then_some(&mask[..]), clamp);
+                    if let Adjustment::ShadowsHighlights { settings } = adj {
+                        settings.validate()?;
+                        if settings.needs_neighbourhood() && !neighbourhood {
+                            // Root/group region stamps and partial-damage reuse do not
+                            // yet cover the backdrop halo. Never substitute a tile-local
+                            // bilateral (seams), a pointwise result, or a stale cache hit.
+                            return Err(EngineError::Unsupported {
+                                what: "Shadows/Highlights needs a padded backdrop; use Compositor::render_tile_with_neighbourhood for live CPU fallback".into(),
+                            });
+                        }
+                        self.adjust_shadows(
+                            acc,
+                            settings,
+                            params,
+                            has_mask.then_some(&mask[..]),
+                            clamp,
+                            layer.id.0,
+                        )?;
+                    } else {
+                        self.adjust(acc, adj, params, has_mask.then_some(&mask[..]), clamp);
+                    }
                 }
                 Op::Push(kind) => {
                     let acc = match kind {
@@ -418,6 +492,11 @@ impl<'a> TileJob<'a> {
                 }
                 Op::SnapshotBackground => deep = Some(frames[0].1.clone()),
             }
+        }
+        if target.is_some() {
+            return Err(EngineError::internal(
+                "neighbourhood adjustment prefix not found",
+            ));
         }
         if frames.len() != 1 {
             return Err(stack());
@@ -597,6 +676,104 @@ impl<'a> TileJob<'a> {
         }
     }
 
+    /// Reconstruct only earlier adjustment prefixes. Each recursive replay
+    /// terminates at an earlier op, including when inside a nested group.
+    fn shadows_backdrop(
+        &self,
+        acc: &[f32],
+        target: u64,
+        halo: usize,
+    ) -> EngineResult<Vec<[f32; 4]>> {
+        let e = self.doc.state.canvas.at_level(self.coord.level);
+        let (w, h) = (self.w + 2 * halo, self.n / self.w + 2 * halo);
+        let mut tiles = std::collections::HashMap::new();
+        tiles.insert((self.coord.x, self.coord.y), (acc.to_vec(), self.w, self.n));
+        let mut padded = Vec::with_capacity(w * h);
+        for y in 0..h {
+            let gy = (self.origin.1 as i64 + y as i64 - halo as i64)
+                .clamp(0, i64::from(e.height) - 1) as u32;
+            for x in 0..w {
+                let gx = (self.origin.0 as i64 + x as i64 - halo as i64)
+                    .clamp(0, i64::from(e.width) - 1) as u32;
+                let key = (gx / TILE_SIZE, gy / TILE_SIZE);
+                if let std::collections::hash_map::Entry::Vacant(entry) = tiles.entry(key) {
+                    let coord = TileCoord::new(self.coord.level, key.0, key.1);
+                    let job = self.comp.job(self.doc, coord)?;
+                    let ops = job.compile()?;
+                    entry.insert((job.run_until(&ops, Some(target), true)?, job.w, job.n));
+                }
+                let (pm, tw, n) = &tiles[&key];
+                let i = (gy % TILE_SIZE) as usize * tw + (gx % TILE_SIZE) as usize;
+                let p = [pm[i], pm[n + i], pm[2 * n + i], pm[3 * n + i]];
+                let rgb = unpremul(p);
+                padded.push([rgb[0], rgb[1], rgb[2], p[3]]);
+            }
+        }
+        Ok(padded)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn adjust_shadows(
+        &self,
+        acc: &mut [f32],
+        settings: &crate::adjust::shadows::ShadowsHighlights,
+        p: &Params,
+        mask: Option<&[f32]>,
+        clamp: bool,
+        target: u64,
+    ) -> EngineResult<()> {
+        let (n, w, r) = (self.n, self.w, self.region);
+        let mut backdrop = Vec::with_capacity((r.x1 - r.x0) * (r.y1 - r.y0));
+        for y in r.y0..r.y1 {
+            for i in y * w + r.x0..y * w + r.x1 {
+                let b = [acc[i], acc[n + i], acc[2 * n + i], acc[3 * n + i]];
+                let rgb = unpremul(b);
+                backdrop.push([rgb[0], rgb[1], rgb[2], b[3]]);
+            }
+        }
+        let rw = r.x1 - r.x0;
+        let rh = r.y1 - r.y0;
+        let adjusted = if settings.needs_neighbourhood() {
+            let halo = settings.halo(self.coord.level);
+            let padded = self.shadows_backdrop(acc, target, halo)?;
+            settings.apply_padded(
+                &padded,
+                w + 2 * halo,
+                n / w + 2 * halo,
+                [halo + r.x0, halo + r.y0, halo + r.x1, halo + r.y1],
+                self.coord.level,
+            )?
+        } else {
+            settings.apply_padded(&backdrop, rw, rh, [0, 0, rw, rh], self.coord.level)?
+        };
+        for y in r.y0..r.y1 {
+            for x in r.x0..r.x1 {
+                let i = y * w + x;
+                let b = [acc[i], acc[n + i], acc[2 * n + i], acc[3 * n + i]];
+                let a = adjusted[(y - r.y0) * rw + x - r.x0];
+                let rgb = [a[0], a[1], a[2]];
+                let rgb = if clamp {
+                    rgb.map(|v| v.clamp(0.0, 1.0))
+                } else {
+                    rgb
+                };
+                let wt = p.opacity * p.fill * mask.map_or(1.0, |m| m[i]);
+                let out = adjust_px(
+                    b,
+                    rgb,
+                    wt,
+                    p,
+                    self.origin.0 + x as u32,
+                    self.origin.1 + y as u32,
+                );
+                for c in 0..3 {
+                    acc[c * n + i] = out[c];
+                }
+            }
+        }
+        Ok(())
+    }
+
     fn adjust(
         &self,
         acc: &mut [f32],
@@ -615,7 +792,7 @@ impl<'a> TileJob<'a> {
                 if b[3] <= 0.0 {
                     continue;
                 }
-                let mut a = compiled.apply(unpremul(b));
+                let mut a = compiled.apply_at(unpremul(b), ox + (i - y * w) as u32, oy + y as u32);
                 if clamp {
                     a = a.map(|v| v.clamp(0.0, 1.0));
                 }

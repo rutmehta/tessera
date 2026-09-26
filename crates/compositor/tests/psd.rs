@@ -514,7 +514,9 @@ fn unsupported_features_are_reported_without_losing_opaque_data() {
     let mut source = fixture(8);
     let layer = &mut source.layer_section.layers[0];
     layer.blend_mode = *b"????";
-    layer.additional = vec![tag(b"brit", vec![0, 5, 0, 10]), tag(b"vmsk", vec![1, 2, 3])];
+    // Brightness/Contrast is now decoded (and malformed payloads rejected).
+    // The older hue/saturation block (not hue2) still remains opaque.
+    layer.additional = vec![tag(b"hue ", vec![0, 5, 0, 10]), tag(b"vmsk", vec![1, 2, 3])];
     let imported = from_psd(&source).unwrap();
     assert!(imported.warnings.iter().any(|w| w.contains("blend")));
     assert!(imported.warnings.iter().any(|w| w.contains("adjustment")));
