@@ -1,0 +1,68 @@
+    Finished `release` profile [optimized] target(s) in 0.31s
+     Running unittests src/lib.rs (/Volumes/betterSSD/tessera-cache/target/M5-12/release/deps/typography-cec47cb3650c22c0)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/engine.rs (/Volumes/betterSSD/tessera-cache/target/M5-12/release/deps/engine-a6704d4ddd5de480)
+
+running 2 tests
+test engine_data_roundtrip_and_version_guard ... ok
+test layout_is_deterministic_and_ligatures_are_live ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/fonts.rs (/Volumes/betterSSD/tessera-cache/target/M5-12/release/deps/fonts-da70155c849159af)
+
+running 3 tests
+test kerning_toggle_changes_pair_advance ... ok
+test user_font_directory_is_loaded_and_postscript_names_resolve ... ok
+test macos_system_discovery_finds_fonts ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/geometry.rs (/Volumes/betterSSD/tessera-cache/target/M5-12/release/deps/geometry-ef9546de1a56418c)
+
+running 3 tests
+test editable_path_roundtrips_and_is_used_by_render ... ok
+test circular_path_has_expected_origins_and_tangents ... ok
+test warp_identity_and_nonzero_mesh_deformation ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/layout.rs (/Volumes/betterSSD/tessera-cache/target/M5-12/release/deps/layout-b906b2681b1ee0b3)
+
+running 6 tests
+test explicit_leading_indents_and_paragraph_spacing ... ok
+test mandatory_unicode_line_separator_is_not_a_space ... ok
+test baseline_shift_and_tracking_apply_without_moving_the_baseline ... ok
+test paragraph_overflow_empty_text_and_missing_fonts_are_explicit ... ok
+test mixed_bidi_clusters_are_visual_but_keep_source_offsets ... ok
+test paragraph_alignment_and_justification ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/psd.rs (/Volumes/betterSSD/tessera-cache/target/M5-12/release/deps/psd-56d431fe43f6eb25)
+
+running 1 test
+test tysh_engine_styles_use_utf16_lengths_and_preserve_original ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/render.rs (/Volumes/betterSSD/tessera-cache/target/M5-12/release/deps/render-b0b9ce84679af2f1)
+
+running 3 tests
+test bundled_font_coverage_checksum ... ok
+test unhinted_raster_has_premultiplied_coverage_and_vector_export ... ok
+test variable_axes_affect_both_shaping_and_outlines ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+   Doc-tests typography
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.24s

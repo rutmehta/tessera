@@ -41,6 +41,7 @@ members = [
     "crates/brush",
     "crates/selection",
     "crates/vector",
+    "crates/typography",
     "apps/tessera-cli",
 ]
 

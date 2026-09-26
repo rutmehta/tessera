@@ -1,0 +1,19 @@
+[package]
+name = "typography"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+description = "Editable text, shaping, outline geometry and unhinted rasterization"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+fontdb = "0.23"
+rustybuzz = "0.20"
+ttf-parser = "0.25"
+unicode-bidi = "0.3"
+unicode-linebreak = "0.1"
+lyon_path = "1"
+tiny-skia = { version = "0.11", default-features = false, features = ["std"] }
+psd = { path = "../psd" }
