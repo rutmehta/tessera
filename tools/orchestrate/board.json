@@ -998,5 +998,13 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M5-25",
+    "owner": "astra",
+    "title": "Camera Raw smart filter (full develop chain on RGB layers)",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
