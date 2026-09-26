@@ -651,9 +651,9 @@
     "id": "M3-14",
     "owner": "astra",
     "title": "Agent runs on GPU at preview res",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
-    "notes": ""
+    "notes": "~50ms/step on NEF; clipping metric parity at preview res open -> M3-14b"
   },
   {
     "id": "M2-27",
