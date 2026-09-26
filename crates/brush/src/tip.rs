@@ -7,7 +7,7 @@ use engine_api::{EngineError, EngineResult};
 use crate::planner::Dab;
 
 /// A grayscale sampled tip or pattern; `1.0` = full paint.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq)]
 pub struct SampledTip {
     /// Name (ABR sample id or preset name).
     pub name: String,
@@ -79,7 +79,7 @@ impl SampledTip {
 }
 
 /// Shape of a tip.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq)]
 pub enum TipShape {
     /// Computed round tip; `hardness` 0 = soft, 1 = hard (1 px anti-aliasing).
     Round {
@@ -91,7 +91,7 @@ pub enum TipShape {
 }
 
 /// A tip with its static pose.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq)]
 pub struct Tip {
     /// Shape.
     pub shape: TipShape,
@@ -206,7 +206,7 @@ pub struct Pose {
 
 /// Dual brush: coverage is multiplied by a second tip stamped `count` times
 /// per primary dab, scattered around it.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq)]
 pub struct DualBrush {
     /// Secondary tip.
     pub tip: Tip,
@@ -219,7 +219,7 @@ pub struct DualBrush {
 }
 
 /// How a texture modulates coverage.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum TextureMode {
     /// `c · (1 − depth · (1 − t))`.
     #[default]
@@ -231,7 +231,7 @@ pub enum TextureMode {
 }
 
 /// Canvas-anchored pattern applied to every dab ("texture each tip").
-#[derive(Debug, Clone, PartialEq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq)]
 pub struct Texture {
     /// Tiled pattern.
     pub pattern: Arc<SampledTip>,

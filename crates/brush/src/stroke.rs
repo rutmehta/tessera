@@ -44,7 +44,7 @@ impl InputPoint {
 }
 
 /// Stroke smoothing ("pulled string" stabiliser).
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq)]
 pub struct Smoothing {
     /// String length in pixels; the brush only moves once the pointer is
     /// farther than this. 0 disables smoothing.

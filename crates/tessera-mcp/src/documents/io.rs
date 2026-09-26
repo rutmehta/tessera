@@ -3,12 +3,14 @@
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use color_mgmt::{Builtin, Registry};
 use compositor::{Compositor, Depth, DocState, Document, Layer, Rect};
 use engine_api::document::{DocumentExportSettings, DocumentFormat};
 use engine_api::id::{DocumentId, JobId};
 use engine_api::tile::Extent;
 use engine_api::tools::{DocumentToolOutput, ExportFormat, Resize};
 use engine_api::{EngineError, EngineResult};
+use image::{ImageDecoder, ImageEncoder};
 
 use super::{DocumentSession, Documents, summary};
 
@@ -73,9 +75,11 @@ pub(crate) fn open_file(path: &Path) -> EngineResult<(Document, Vec<String>)> {
         "psd" | "psb" => {
             let bytes = std::fs::read(path).map_err(|e| EngineError::io_at(path, &e))?;
             let source = ::psd::PsdDocument::read(&bytes).map_err(|e| decode("psd", e))?;
-            // `Document::from_psd` keeps the original records for a
-            // preserving PSD export; its import warnings are not exposed.
-            Ok((Document::from_psd(source)?, Vec::new()))
+            // The preserving constructor retains opaque PSD records. The public
+            // importer also exposes warnings; keep these on the session rather
+            // than replacing the preserving document with a bare DocState.
+            let warnings = compositor::psd::from_psd(&source)?.warnings;
+            Ok((Document::from_psd(source)?, warnings))
         }
         "jpg" | "jpeg" | "png" => Ok((flat_image(path)?, Vec::new())),
         other => Err(crate::unsupported(format!(
@@ -85,12 +89,16 @@ pub(crate) fn open_file(path: &Path) -> EngineResult<(Document, Vec<String>)> {
 }
 
 fn flat_image(path: &Path) -> EngineResult<Document> {
-    let img = image::ImageReader::open(path)
+    let mut decoder = image::ImageReader::open(path)
         .map_err(|e| EngineError::io_at(path, &e))?
         .with_guessed_format()
         .map_err(|e| EngineError::io_at(path, &e))?
-        .decode()
+        .into_decoder()
         .map_err(|e| decode("image", e))?;
+    // Decoding does not color-convert samples. Retain their profile so a later
+    // export cannot silently relabel a tagged wide-gamut image as sRGB.
+    let icc = decoder.icc_profile().map_err(|e| decode("icc", e))?;
+    let img = image::DynamicImage::from_decoder(decoder).map_err(|e| decode("image", e))?;
     let (w, h) = (img.width(), img.height());
     let sixteen = matches!(
         img.color(),
@@ -120,6 +128,7 @@ fn flat_image(path: &Path) -> EngineResult<Document> {
     };
     let extent = Extent::new(w, h);
     let mut state = DocState::new(extent, depth);
+    state.profile = icc.map(|bytes| compositor::ColorProfile::from_icc("Embedded ICC", bytes));
     let mut layer = Layer::pixel("Background", extent, depth);
     layer.props.background = true;
     layer.id = engine_api::id::LayerId(1);
@@ -166,13 +175,54 @@ pub(super) fn export(
         } => {
             if profile.is_some() {
                 return Err(crate::unsupported(
-                    "output ICC profiles need the colour registry; documents export in their own encoding",
+                    "output ICC profile handles are not resolved for document exports; omit profile to keep the document color space",
                 ));
             }
             let (e, rgba) = Compositor::new(256 << 20).render_level_rgba(doc, 0)?;
-            let float = doc.state().depth == Depth::F32;
-            let (e, rgba) = resized(e, rgba, resize.as_ref())?;
-            write_image(&path, e, &rgba, float, encoding)
+            let mut float = doc.state().depth == Depth::F32;
+            let (e, mut rgba) = resized(e, rgba, resize.as_ref())?;
+            let mut registry = Registry::new();
+            let icc = match &doc.state().profile {
+                Some(profile) => {
+                    let bytes = profile.icc.as_ref().ok_or_else(|| {
+                        crate::unsupported("document ICC profile bytes are unavailable")
+                    })?;
+                    let profile = registry.load_bytes(bytes).map_err(|e| encode("icc", e))?;
+                    if profile.icc_bytes().get(16..20) != Some(b"RGB ") {
+                        return Err(crate::unsupported(
+                            "document image export needs an RGB ICC profile",
+                        ));
+                    }
+                    profile
+                }
+                None => registry
+                    .builtin(Builtin::Srgb)
+                    .map_err(|e| encode("icc", e))?,
+            };
+            if float && doc.state().profile.is_some() {
+                // F32 documents are scene-linear in their profile's primaries.
+                // Encode into that profile, never apply an sRGB transfer curve
+                // then attach an unrelated ICC. LUT profiles cannot safely be
+                // linearized; fail rather than guess their scene encoding.
+                let linear = registry
+                    .linearized_rgb(&icc)
+                    .map_err(|e| encode("icc", e))?
+                    .ok_or_else(|| {
+                        crate::unsupported("float export needs a matrix RGB ICC profile")
+                    })?;
+                let transform = color_mgmt::Transform::new(
+                    &linear,
+                    &icc,
+                    color_mgmt::TransformOptions::default(),
+                )
+                .map_err(|e| encode("icc", e))?;
+                for p in rgba.as_chunks_mut::<4>().0 {
+                    let rgb = transform.apply([p[0], p[1], p[2]].map(|v| v.clamp(0.0, 1.0)));
+                    p[..3].copy_from_slice(&rgb);
+                }
+                float = false;
+            }
+            write_image(&path, e, &rgba, float, encoding, icc.icc_bytes())
         }
     }
 }
@@ -246,6 +296,7 @@ fn write_image(
     rgba: &[f32],
     float: bool,
     encoding: &ExportFormat,
+    icc: &[u8],
 ) -> EngineResult<()> {
     let enc = |v: f32| {
         if float {
@@ -277,7 +328,12 @@ fn write_image(
                     })
                 })
                 .collect();
-            image::codecs::jpeg::JpegEncoder::new_with_quality(&mut bytes, *quality)
+            let mut encoder =
+                image::codecs::jpeg::JpegEncoder::new_with_quality(&mut bytes, *quality);
+            encoder
+                .set_icc_profile(icc.to_vec())
+                .map_err(|e| encode("jpeg", e))?;
+            encoder
                 .encode(&rgb, e.width, e.height, image::ExtendedColorType::Rgb8)
                 .map_err(|e| encode("jpeg", e))?;
         }
@@ -288,9 +344,12 @@ fn write_image(
                 .iter()
                 .flat_map(|p| [q8(p[0]), q8(p[1]), q8(p[2]), alpha8(p[3])])
                 .collect();
-            image::RgbaImage::from_raw(e.width, e.height, px)
-                .ok_or_else(|| EngineError::internal("composite size"))?
-                .write_to(&mut bytes, image::ImageFormat::Png)
+            let mut encoder = image::codecs::png::PngEncoder::new(&mut bytes);
+            encoder
+                .set_icc_profile(icc.to_vec())
+                .map_err(|e| encode("png", e))?;
+            encoder
+                .write_image(&px, e.width, e.height, image::ExtendedColorType::Rgba8)
                 .map_err(|e| encode("png", e))?;
         }
         ExportFormat::Png { bit_depth: 16 } => {
@@ -300,9 +359,14 @@ fn write_image(
                 .iter()
                 .flat_map(|p| [q16(p[0]), q16(p[1]), q16(p[2]), alpha16(p[3])])
                 .collect();
-            image::ImageBuffer::<image::Rgba<u16>, _>::from_raw(e.width, e.height, px)
-                .ok_or_else(|| EngineError::internal("composite size"))?
-                .write_to(&mut bytes, image::ImageFormat::Png)
+            // ImageEncoder accepts native-endian u16 samples, unlike the PNG wire format.
+            let px: Vec<u8> = px.into_iter().flat_map(u16::to_ne_bytes).collect();
+            let mut encoder = image::codecs::png::PngEncoder::new(&mut bytes);
+            encoder
+                .set_icc_profile(icc.to_vec())
+                .map_err(|e| encode("png", e))?;
+            encoder
+                .write_image(&px, e.width, e.height, image::ExtendedColorType::Rgba16)
                 .map_err(|e| encode("png", e))?;
         }
         ExportFormat::Tiff {
@@ -317,9 +381,14 @@ fn write_image(
                     .iter()
                     .flat_map(|p| [q16(p[0]), q16(p[1]), q16(p[2]), alpha16(p[3])])
                     .collect();
-                encoder
-                    .write_image::<colortype::RGBA16>(e.width, e.height, &px)
+                let mut image = encoder
+                    .new_image::<colortype::RGBA16>(e.width, e.height)
                     .map_err(|e| encode("tiff", e))?;
+                image
+                    .encoder()
+                    .write_tag(tiff::tags::Tag::Unknown(34675), icc)
+                    .map_err(|e| encode("tiff", e))?;
+                image.write_data(&px).map_err(|e| encode("tiff", e))?;
             } else {
                 let px: Vec<u8> = rgba
                     .as_chunks::<4>()
@@ -327,9 +396,14 @@ fn write_image(
                     .iter()
                     .flat_map(|p| [q8(p[0]), q8(p[1]), q8(p[2]), alpha8(p[3])])
                     .collect();
-                encoder
-                    .write_image::<colortype::RGBA8>(e.width, e.height, &px)
+                let mut image = encoder
+                    .new_image::<colortype::RGBA8>(e.width, e.height)
                     .map_err(|e| encode("tiff", e))?;
+                image
+                    .encoder()
+                    .write_tag(tiff::tags::Tag::Unknown(34675), icc)
+                    .map_err(|e| encode("tiff", e))?;
+                image.write_data(&px).map_err(|e| encode("tiff", e))?;
             }
         }
         _ => {

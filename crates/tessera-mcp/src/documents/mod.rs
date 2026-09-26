@@ -13,8 +13,11 @@
 //! `Action::from_document_tool(call)`. A call that fails leaves both the
 //! state and the history untouched. `expect_head` is checked before
 //! anything else.
+pub mod advanced;
+pub mod brush_presets;
 mod dense;
 mod io;
+pub(crate) mod local_tools;
 pub mod paint;
 mod preview;
 pub mod select;
@@ -75,6 +78,8 @@ pub struct DocumentSession {
     /// Compositor state as opened.
     root_node: u64,
     saved: Vec<SavedSelection>,
+    saved_nodes: Vec<Vec<SavedSelection>>,
+    next_selection: u64,
     renderer: Option<ResidentRenderer>,
     /// Import warnings (features preserved but not rendered).
     pub warnings: Vec<String>,
@@ -91,6 +96,8 @@ impl DocumentSession {
             nodes: Vec::new(),
             root_node,
             saved: Vec::new(),
+            saved_nodes: Vec::new(),
+            next_selection: 1,
             renderer: None,
             warnings,
         }
@@ -130,7 +137,9 @@ impl DocumentSession {
     pub fn checkout(&mut self, target: Option<HistoryEntryId>) -> EngineResult<()> {
         let node = self.node_of(target)?;
         self.doc.checkout(node)?;
-        self.history.checkout(target)
+        self.history.checkout(target)?;
+        self.saved = target.map_or_else(Vec::new, |id| self.saved_nodes[id.0 as usize - 1].clone());
+        Ok(())
     }
 
     /// Applies `op` and records the entry for `request`.
@@ -147,6 +156,7 @@ impl DocumentSession {
         let applied = self.doc.apply(op)?;
         let entry = self.history.record(action, meta(request));
         self.nodes.push(applied.node);
+        self.saved_nodes.push(self.saved.clone());
         if let Some(group) = request.group
             && !self.history.groups.iter().any(|g| g.id == group)
         {
@@ -205,6 +215,7 @@ pub struct Documents {
     next: u64,
     brush: Box<dyn BrushEngine>,
     selection: Box<dyn SelectionEngine>,
+    segment_model: Option<Box<dyn selection::ml::SegmentModel + Send>>,
 }
 
 impl Default for Documents {
@@ -219,12 +230,18 @@ impl Documents {
         Self {
             sessions: BTreeMap::new(),
             next: 1,
-            brush: Box::new(RoundBrush),
-            selection: Box::new(BasicSelection),
+            brush: Box::new(paint::RealBrush),
+            selection: Box::new(select::RealSelection),
+            segment_model: None,
         }
     }
 
-    /// Installs a brush engine (the brush crate, when linked).
+    /// Installs the segmentation provider for object, subject and sky tools.
+    pub fn set_segment_model(&mut self, model: Box<dyn selection::ml::SegmentModel + Send>) {
+        self.segment_model = Some(model);
+    }
+
+    /// Installs a custom brush engine.
     pub fn set_brush_engine(&mut self, engine: Box<dyn BrushEngine>) {
         self.brush = engine;
     }
@@ -332,8 +349,8 @@ impl Documents {
                 let (entry, applied) = session.commit(op, request)?;
                 let layer = layer.or_else(|| applied.created.first().copied());
                 let selection = save.map(|(name, mask)| {
-                    let sid =
-                        SelectionId(session.saved.iter().map(|s| s.id.0).max().unwrap_or(0) + 1);
+                    let sid = SelectionId(session.next_selection);
+                    session.next_selection += 1;
                     session.saved.push(SavedSelection {
                         id: sid,
                         name,
@@ -341,6 +358,7 @@ impl Documents {
                     });
                     sid
                 });
+                session.saved_nodes[entry.0 as usize - 1] = session.saved.clone();
                 Ok(DocumentToolOutput::DocumentEdited {
                     document: id,
                     entry: Some(entry),
@@ -611,6 +629,31 @@ impl Documents {
                 (PaintTarget::Mask, ops)
             }
         };
+        let base_mask = Mask::reveal_all(state.canvas, state.depth);
+        let base = match paint_target {
+            PaintTarget::Content => layer.raster().expect("validated pixel layer"),
+            PaintTarget::Mask => &layer.mask.as_ref().unwrap_or(&base_mask).raster,
+        };
+        if let Some((dirty, tiles)) =
+            self.brush
+                .paint_tiles(base, state.selection.as_deref(), points, brush)?
+        {
+            let tiles = tiles
+                .into_iter()
+                .map(|(tx, ty, tile)| compositor::TileDelta {
+                    tx,
+                    ty,
+                    tile: Some(tile),
+                })
+                .collect();
+            prelude.push(DocOp::PaintTiles {
+                id,
+                target: paint_target,
+                tiles,
+                dirty,
+            });
+            return Ok(DocOp::Batch(prelude));
+        }
         let cov = self.brush.rasterize(points, brush, state.canvas)?;
         let expected = (cov.rect.width().max(0) * cov.rect.height().max(0)) as usize;
         if cov.alpha.len() != expected {

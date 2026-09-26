@@ -384,6 +384,8 @@ dependencies = [
  "compositor",
  "engine-api",
  "pollster",
+ "serde",
+ "serde_json",
  "wgpu",
 ]
 
@@ -4265,6 +4267,8 @@ name = "tessera-mcp"
 version = "0.1.0"
 dependencies = [
  "base64 0.23.1",
+ "brush",
+ "color-mgmt",
  "compositor",
  "engine-api",
  "export",
@@ -4281,6 +4285,7 @@ dependencies = [
  "raw-decode",
  "rmcp",
  "schemars",
+ "selection",
  "serde",
  "serde_json",
  "sidecar",

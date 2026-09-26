@@ -107,7 +107,10 @@ without Metal or with `TESSERA_NO_GPU`).
 
 Brushes and selections are pluggable (`BrushEngine`, `SelectionEngine`;
 `Documents::set_brush_engine`/`set_selection_engine`) so the brush and
-selection crates can be linked without changing the executor. Built-ins:
+selection crates are linked by default. The brush adapter commits the real
+brush engine's tile deltas directly (seed 0 for engine-api strokes), avoiding
+double compositing. The selection adapter uses selection-crate geometry and
+Gaussian feathering. Legacy engines remain available:
 `RoundBrush` (round dab, hardness falloff, spacing, flow build-up, opacity,
 pressure size/flow) and `BasicSelection` (rectangle/ellipse marquee and
 polygon lasso with 4×4 supersampled edges, box-blur feather). Layer
@@ -123,12 +126,32 @@ documents with different layer ids and sizes; see `src/actions.rs` for the
 format. `tessera actions play <file> <inputs…> --out-dir DIR [--format …]`
 batches it from the CLI; `tessera actions show <file>` validates.
 
-Known gaps: saved selections live outside history (undo keeps them);
-`merge_down` needs a pixel layer below and keeps the lower layer's mask and
+Saved selections participate in branching undo/redo. MCP `undo` and `redo`
+accept `{document, expect_head?}`. `import_brushes {path}` reads ABR and persists
+tips under `<app-dir>/brush-presets.json`; `list_brushes {}` returns full presets.
+`paint_preset {document, layer, preset_id, points, target?, seed?}` resolves a
+complete brush snapshot, preserving tip, dynamics, texture, symmetry and
+clone/heal settings. The Rust `BrushPresetStore::save` API creates custom presets.
+
+`select_advanced {document, operation: {kind, ...}, mode?, feather?}` exposes
+`wand`, `quick`, `colour_range`, `object`, `subject`, and `sky`. The last three
+require a real provider installed with `Documents::set_segment_model`; absent
+providers return explicit errors. `refine_edge` exposes edge refinement and
+`selection_boolean` combines the current mask with a saved selection ID.
+Schemas in `tools/list` describe all parameters. Local edits accept rationale
+and expect_head and retain one Agent history entry. Portable Actions do not yet
+support these local commands, so calls during Action recording are rejected.
+
+PSD import warnings are included beside `ok` in MCP open responses. Document
+JPEG, PNG 8/16 and TIFF 8/16 exports embed ICC via color-mgmt (retained RGB
+document profile or sRGB for untagged documents). Custom output profile handles
+still return Unsupported. See `tools/orchestrate/wp/M5-10/NEEDS.md` for contract
+requests; engine-api is unchanged.
+
+Known gaps: `merge_down` needs a pixel layer below and keeps the lower layer's mask and
 properties; `transform_layer` handles pixel layers (content and mask) and
-smart objects only; PSD import warnings are not surfaced; image export ignores
-`profile` (Unsupported) and embeds no ICC; there is no magic wand
-(no `SelectionShape` exists for it).
+smart objects only. Saved selections are session-local, not persisted as alpha
+channels in the document container.
 
 ## Preset lookup
 

@@ -97,6 +97,7 @@ impl ServerHandler for Server {
     }
 }
 enum Input {
+    Local(String, Value),
     Engine(Box<ToolRequest>),
     Document(Box<DocumentToolRequest>),
     DescribeDocument(schema::DescribeDocument),
@@ -112,6 +113,9 @@ enum Input {
 impl Input {
     fn parse(name: &str, mut args: Value) -> Result<Self, ErrorData> {
         Ok(match name {
+            _ if crate::documents::local_tools::NAMES.contains(&name) => {
+                Self::Local(name.into(), args)
+            }
             "open_image" => Self::Open(arguments(args)?),
             "render_preview" => Self::Render(arguments(args)?),
             "list_images" => Self::List(arguments(args)?),
@@ -137,9 +141,16 @@ const EDIT_PREVIEW_PX: u32 = 512;
 
 fn dispatch(console: &mut Console, input: Input) -> Result<CallToolResult, ErrorData> {
     let result: Result<Vec<Value>, EngineError> = (|| match input {
+        Input::Local(name, args) => Ok(vec![text(
+            json!({"ok":crate::documents::local_tools::execute(console, &name, args)?}),
+        )]),
         Input::Document(request) => match console.execute_document(*request) {
             DocumentToolResponse::Ok(output) => {
-                let mut content = vec![text(json!({ "ok": output }))];
+                let mut envelope = json!({"ok":output});
+                if let DocumentToolOutput::DocumentOpened { document, .. } = &output {
+                    envelope["warnings"] = json!(console.documents().session(*document)?.warnings);
+                }
+                let mut content = vec![text(envelope)];
                 if let DocumentToolOutput::DocumentEdited { document, .. } = output
                     && let Ok(preview) = console.render_document_preview(document, EDIT_PREVIEW_PX)
                 {
