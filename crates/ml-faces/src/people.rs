@@ -26,6 +26,8 @@ pub struct PeopleReport {
     pub assigned: usize,
     pub reclustered: bool,
     pub approximate: bool,
+    /// Eligible pending faces fitted, bounded by clustering's 1024 reservoir.
+    pub sample_size: usize,
 }
 /// Keep one job per catalog. Run on the host's worker queue, with all catalog
 /// images for a periodic refit; queue subsets are valid incremental scopes.
@@ -195,8 +197,52 @@ impl PeopleJob {
             assigned: assignments.len(),
             reclustered: refit,
             approximate: result.approximate,
+            // cluster_eligible fits exactly these eligible pending rows; it
+            // uses a 1024-entry reservoir only on the approximate branch.
+            sample_size: result
+                .eligibility
+                .iter()
+                .filter(|&&ok| ok)
+                .count()
+                .min(1024),
         })
     }
+}
+
+/// Resolve an indexed medoid descriptor back to its catalog member. Identical
+/// descriptors choose the first image/ordinal, independent of sharpness/queue.
+/// Missing or stale descriptors have no representative (no cover fallback).
+pub fn medoid_face(index: &Index, person: &str, medoid: &[f32]) -> Result<Option<FaceKey>> {
+    if medoid.len() != 128 {
+        return Ok(None);
+    }
+    for image in index.images_with_person(person, false, i64::MAX as usize, 0)? {
+        let members: HashSet<_> = index
+            .face_assignments(image)?
+            .into_iter()
+            .filter(|a| a.person_id == person)
+            .map(|a| a.face.ordinal)
+            .collect();
+        for face in index.faces(image)? {
+            if members.contains(&face.id)
+                && let Some(unit) = face
+                    .embedding
+                    .as_deref()
+                    .and_then(|e| <&[f32; 128]>::try_from(e).ok())
+                    .and_then(|e| normalize(e).ok())
+                // Repair stores one normalization, clustering stores two.
+                // Match those exact descriptors, not the first near-neighbor:
+                // even a tiny epsilon can select a different member.
+                && (unit.as_slice() == medoid || normalize(&unit)?.as_slice() == medoid)
+            {
+                return Ok(Some(FaceKey {
+                    image_id: image,
+                    ordinal: face.id,
+                }));
+            }
+        }
+    }
+    Ok(None)
 }
 
 // Merge/split deliberately invalidate their medoids. Rebuild from the entire

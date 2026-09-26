@@ -88,6 +88,18 @@ pub struct PersonInfo {
     /// A representative face (the sharpest).
     pub cover_image: String,
     pub cover_ordinal: u32,
+    #[uniffi(default = false)]
+    pub named: bool,
+    /// Confirmed faces in the active queue (same scope as `faces`).
+    #[uniffi(default = 0)]
+    pub confirmed_count: u32,
+    /// Alias of `faces` retained for existing consumers.
+    #[uniffi(default = 0)]
+    pub face_count: u32,
+    /// Indexed medoid member, possibly outside the active queue. None when
+    /// invalidated or no usable descriptor exists; never the sharpest fallback.
+    #[uniffi(default = None)]
+    pub medoid_face: Option<PersonFace>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, uniffi::Enum)]
@@ -141,6 +153,8 @@ pub(crate) struct AssistState {
     dismissed: HashSet<ImageId>,
     people: Option<People>,
     people_job: ml_faces::people::PeopleJob,
+    people_undo: Vec<PeopleEdit>,
+    people_redo: Vec<PeopleEdit>,
 }
 
 impl AssistState {
@@ -153,6 +167,8 @@ impl AssistState {
             plan: None,
             dismissed: HashSet::new(),
             people: None,
+            people_undo: Vec::new(),
+            people_redo: Vec::new(),
             people_job:
                 ml_faces::people::PeopleJob::new(ml_faces::people::PeopleOptions::default())
                     .expect("valid default people options"),
@@ -677,7 +693,7 @@ fn orient(img: image::RgbImage, orientation: u8) -> image::RgbImage {
 // ─────────────────────────────── people ───────────────────────────────
 
 /// An image-local detector ordinal, not an identity.
-#[derive(Clone, Debug, uniffi::Record)]
+#[derive(Clone, Debug, PartialEq, uniffi::Record)]
 pub struct PersonFace {
     pub image_id: String,
     pub ordinal: u32,
@@ -713,6 +729,9 @@ pub struct PeopleJobResult {
     pub assigned: u64,
     pub reclustered: bool,
     pub approximate: bool,
+    /// Actual fitted sample size, zero if this job had no eligible pending faces.
+    #[uniffi(default = 0)]
+    pub sample_size: u32,
 }
 
 #[derive(Clone, Debug, uniffi::Record)]
@@ -764,6 +783,11 @@ pub(crate) struct People {
 
 fn people(index: &index::Index, images: &[ImageId]) -> Result<People> {
     let mut result = People::default();
+    let medoids: HashMap<_, _> = index
+        .people()?
+        .into_iter()
+        .map(|p| (p.id, p.medoid))
+        .collect();
     let mut groups: HashMap<String, (PersonInfo, f64)> = HashMap::new();
     for &image in images {
         let faces: HashMap<_, _> = index.faces(image)?.into_iter().map(|f| (f.id, f)).collect();
@@ -776,6 +800,10 @@ fn people(index: &index::Index, images: &[ImageId]) -> Result<People> {
             let (person, best) = groups.entry(id.clone()).or_insert_with(|| {
                 (
                     PersonInfo {
+                        named: assignment.person_name.is_some(),
+                        confirmed_count: 0,
+                        face_count: 0,
+                        medoid_face: None,
                         name: assignment
                             .person_name
                             .unwrap_or_else(|| format!("Person {id}")),
@@ -793,6 +821,8 @@ fn people(index: &index::Index, images: &[ImageId]) -> Result<People> {
                 person.images.push(image.clone());
             }
             person.faces += 1;
+            person.face_count += 1;
+            person.confirmed_count += u32::from(assignment.confirmed);
             if face.sharpness > *best {
                 *best = face.sharpness;
                 person.cover_image = image;
@@ -801,6 +831,16 @@ fn people(index: &index::Index, images: &[ImageId]) -> Result<People> {
         }
     }
     result.list = groups.into_values().map(|(person, _)| person).collect();
+    for person in &mut result.list {
+        if let Some(Some(medoid)) = medoids.get(&person.id) {
+            person.medoid_face = ml_faces::people::medoid_face(index, &person.id, medoid)
+                .map_err(failure)?
+                .map(|face| PersonFace {
+                    image_id: face.image_id.to_string(),
+                    ordinal: face.ordinal,
+                });
+        }
+    }
     result
         .list
         .sort_by(|a, b| b.images.len().cmp(&a.images.len()).then(a.id.cmp(&b.id)));
@@ -827,7 +867,166 @@ fn analysis_space(index: &index::Index, id: ImageId) -> Result<Option<(u32, u32)
     )
 }
 
+/// History is separate from cull/recipe undo, scoped to the affected people and
+/// bounded to the most recent 32 edits. File bytes are included only for naming.
+struct PeopleEdit {
+    description: &'static str,
+    before: String,
+    after: String,
+    files_before: Vec<PeopleFile>,
+    files_after: Vec<PeopleFile>,
+}
+
+#[derive(PartialEq)]
+struct PeopleFile {
+    path: PathBuf,
+    bytes: Option<Vec<u8>>,
+}
+
+impl PeopleFile {
+    fn read(path: PathBuf) -> Result<Self> {
+        let bytes = match std::fs::read(&path) {
+            Ok(bytes) => Some(bytes),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+            Err(e) => return Err(failure(e)),
+        };
+        Ok(Self { path, bytes })
+    }
+
+    fn restore(&self) -> Result<()> {
+        use std::io::Write;
+        if let Some(bytes) = &self.bytes {
+            let mut file = tempfile::NamedTempFile::new_in(
+                self.path
+                    .parent()
+                    .ok_or_else(|| failure("missing parent"))?,
+            )
+            .map_err(failure)?;
+            file.write_all(bytes).map_err(failure)?;
+            file.as_file().sync_all().map_err(failure)?;
+            file.persist(&self.path).map_err(failure)?;
+        } else {
+            match std::fs::remove_file(&self.path) {
+                Ok(()) => (),
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),
+                Err(e) => return Err(failure(e)),
+            }
+        }
+        Ok(())
+    }
+}
+
 impl Inner {
+    fn edit_people(
+        &mut self,
+        description: &'static str,
+        ids: &[String],
+        faces: &[index::FaceKey],
+        paths: Vec<PathBuf>,
+        edit: impl FnOnce(&mut Self) -> Result<()>,
+    ) -> Result<()> {
+        let before = self.core.index().snapshot_people_edit(ids, faces)?;
+        let files_before = paths
+            .into_iter()
+            .map(PeopleFile::read)
+            .collect::<Result<Vec<_>>>()?;
+        edit(self)?;
+        let after = self.core.index().resnapshot_people_edit(&before)?;
+        let files_after = files_before
+            .iter()
+            .map(|f| PeopleFile::read(f.path.clone()))
+            .collect::<Result<Vec<_>>>()?;
+        if before != after || files_before != files_after {
+            self.assist.people_redo.clear();
+            if self.assist.people_undo.len() == 32 {
+                self.assist.people_undo.remove(0);
+            }
+            self.assist.people_undo.push(PeopleEdit {
+                description,
+                before,
+                after,
+                files_before,
+                files_after,
+            });
+        }
+        // A manual edit must not implicitly recluster on the next read. The
+        // projection is rebuilt by people(); explicit refresh still works.
+        self.assist.people = Some(People::default());
+        Ok(())
+    }
+
+    fn replay_people_edit(&mut self, redo: bool) -> Result<Option<String>> {
+        let stack = if redo {
+            &self.assist.people_redo
+        } else {
+            &self.assist.people_undo
+        };
+        let Some(edit) = stack.last() else {
+            return Ok(None);
+        };
+        let (expected, desired, old_files, new_files) = if redo {
+            (
+                &edit.before,
+                &edit.after,
+                &edit.files_before,
+                &edit.files_after,
+            )
+        } else {
+            (
+                &edit.after,
+                &edit.before,
+                &edit.files_after,
+                &edit.files_before,
+            )
+        };
+        // Never overwrite intervening external edits. History is left intact on
+        // failure so an ordinary I/O problem can be fixed and retried.
+        for file in old_files {
+            if PeopleFile::read(file.path.clone())? != *file {
+                return Err(failure("people undo file changed since edit"));
+            }
+        }
+        let mut written = 0;
+        let result = (|| {
+            for file in new_files {
+                written += 1;
+                file.restore()?;
+            }
+            self.core.index().restore_people_edit(expected, desired)?;
+            Ok(())
+        })();
+        if let Err(error) = result {
+            let mut failures = Vec::new();
+            for file in old_files[..written].iter().rev() {
+                if let Err(e) = file.restore() {
+                    failures.push(e.to_string());
+                }
+            }
+            return if failures.is_empty() {
+                Err(error)
+            } else {
+                Err(failure(format!(
+                    "{error}; rollback failed: {}",
+                    failures.join(", ")
+                )))
+            };
+        }
+        let edit = if redo {
+            self.assist.people_redo.pop()
+        } else {
+            self.assist.people_undo.pop()
+        }
+        .expect("history present");
+        let description = edit.description.to_string();
+        if redo {
+            self.assist.people_undo.push(edit);
+        } else {
+            self.assist.people_redo.push(edit);
+        }
+        self.assist.people = Some(People::default());
+        Ok(Some(description))
+    }
+
     fn refresh_people_job(&mut self, force: bool) -> Result<PeopleJobResult> {
         // Refit over the catalog, not just this queue: persisted identities may
         // also have members outside the active folder/filter.
@@ -845,6 +1044,7 @@ impl Inner {
             assigned: report.assigned as u64,
             reclustered: report.reclustered,
             approximate: report.approximate,
+            sample_size: report.sample_size as u32,
         })
     }
 
@@ -911,6 +1111,33 @@ impl CullSession {
         self.lock()?.refresh_people_job(force)
     }
 
+    /// All catalog members in stable image-ID/ordinal order. No clustering or
+    /// queue filtering; unknown/empty identities return an empty list.
+    pub fn person_members(&self, person_id: String) -> Result<Vec<PersonFace>> {
+        Ok(self
+            .lock()?
+            .core
+            .index()
+            .person_members(&person_id)?
+            .into_iter()
+            .map(|a| PersonFace {
+                image_id: a.face.image_id.to_string(),
+                ordinal: a.face.ordinal,
+            })
+            .collect())
+    }
+
+    /// Undo the last session-local people edit and return its menu description.
+    /// None means empty history; conflicts/errors leave history and state intact.
+    pub fn undo_people_edit(&self) -> Result<Option<String>> {
+        self.lock()?.replay_people_edit(false)
+    }
+
+    /// Redo the last undone people edit. A new successful edit clears redo.
+    pub fn redo_people_edit(&self) -> Result<Option<String>> {
+        self.lock()?.replay_people_edit(true)
+    }
+
     /// Read persisted names and confirmation state, including manual assignments
     /// to faces without usable descriptors. This never runs a clustering job.
     pub fn person_assignments(&self, image_id: String) -> Result<Vec<PersonAssignmentInfo>> {
@@ -937,24 +1164,55 @@ impl CullSession {
     pub fn assign_person_face(&self, face: PersonFace, person_id: String) -> Result<()> {
         let key = face.key()?;
         let mut s = self.lock()?;
-        s.core.index().assign_face(key, &person_id)?;
-        s.assist.people = None;
-        Ok(())
+        let mut ids = vec![person_id.clone()];
+        ids.extend(
+            s.core
+                .index()
+                .face_assignments(key.image_id)?
+                .into_iter()
+                .filter(|a| a.face == key)
+                .map(|a| a.person_id),
+        );
+        s.edit_people("Assign face", &ids, &[key], vec![], |s| {
+            Ok(s.core.index().assign_face(key, &person_id)?)
+        })
     }
 
     /// Confirm (`true`) or unconfirm (`false`) an existing face assignment.
     pub fn confirm_person_face(&self, face: PersonFace, confirmed: bool) -> Result<()> {
         let key = face.key()?;
-        let s = self.lock()?;
-        Ok(s.core.index().confirm_face(key, confirmed)?)
+        let mut s = self.lock()?;
+        let ids: Vec<_> = s
+            .core
+            .index()
+            .face_assignments(key.image_id)?
+            .into_iter()
+            .filter(|a| a.face == key)
+            .map(|a| a.person_id)
+            .collect();
+        s.edit_people(
+            if confirmed {
+                "Confirm face"
+            } else {
+                "Unconfirm face"
+            },
+            &ids,
+            &[key],
+            vec![],
+            |s| Ok(s.core.index().confirm_face(key, confirmed)?),
+        )
     }
 
     /// Explicit merge, target name wins. Does not export sidecars.
     pub fn merge_people(&self, target_id: String, source_id: String) -> Result<()> {
         let mut s = self.lock()?;
-        s.core.index().merge_people(&target_id, &source_id)?;
-        s.assist.people = None;
-        Ok(())
+        s.edit_people(
+            "Merge people",
+            &[target_id.clone(), source_id.clone()],
+            &[],
+            vec![],
+            |s| Ok(s.core.index().merge_people(&target_id, &source_id)?),
+        )
     }
 
     /// Split selected members into a new unnamed identity (caller supplies a
@@ -970,9 +1228,13 @@ impl CullSession {
             .map(PersonFace::key)
             .collect::<Result<Vec<_>>>()?;
         let mut s = self.lock()?;
-        s.core.index().split_person(&source_id, &new_id, &keys)?;
-        s.assist.people = None;
-        Ok(())
+        s.edit_people(
+            "Split person",
+            &[source_id.clone(), new_id.clone()],
+            &keys,
+            vec![],
+            |s| Ok(s.core.index().split_person(&source_id, &new_id, &keys)?),
+        )
     }
 
     /// Rename/clear an identity and update the library's display names. Requires
@@ -988,20 +1250,47 @@ impl CullSession {
         let path = s
             .core
             .library_path()
-            .ok_or_else(|| failure("naming requires a library-backed session"))?;
-        cull::people::name_person(
-            s.core.index(),
-            path,
-            &person_id,
-            name.as_deref(),
-            &cull::people::NamePersonOptions {
-                write_sidecars: options.write_sidecars,
-                person_keywords: options.person_keywords,
-                dimensions: HashMap::new(),
+            .ok_or_else(|| failure("naming requires a library-backed session"))?
+            .to_path_buf();
+        let mut paths = vec![path.clone()];
+        if options.write_sidecars {
+            for image in
+                s.core
+                    .index()
+                    .images_with_person(&person_id, false, i64::MAX as usize, 0)?
+            {
+                let image = s.core.index().image_info(image)?.path;
+                let mut destination = sidecar::Sidecar::paths(&image).xmp;
+                if !destination.try_exists().map_err(failure)?
+                    && image.with_extension("xmp").try_exists().map_err(failure)?
+                {
+                    destination = image.with_extension("xmp");
+                }
+                paths.push(destination);
+            }
+        }
+        paths.sort();
+        paths.dedup();
+        s.edit_people(
+            "Name person",
+            std::slice::from_ref(&person_id),
+            &[],
+            paths,
+            |s| {
+                cull::people::name_person(
+                    s.core.index(),
+                    &path,
+                    &person_id,
+                    name.as_deref(),
+                    &cull::people::NamePersonOptions {
+                        write_sidecars: options.write_sidecars,
+                        person_keywords: options.person_keywords,
+                        dimensions: HashMap::new(),
+                    },
+                )?;
+                Ok(())
             },
-        )?;
-        s.assist.people = None;
-        Ok(())
+        )
     }
 
     /// Read-only catalog suggestions. Accept explicitly with merge/assignment;

@@ -92,6 +92,79 @@ fn assignments_join_names_confirm_and_search_unique_images() {
 }
 
 #[test]
+fn scoped_people_inverse_restores_source_id_and_medoids_without_erasing_unrelated_edits() {
+    let (_dir, index, ids) = catalog();
+    let a = FaceKey {
+        image_id: ids[0],
+        ordinal: 0,
+    };
+    let b = FaceKey {
+        image_id: ids[1],
+        ordinal: 0,
+    };
+    index.create_person("a", Some("Ada"), None).unwrap();
+    index.create_person("b", Some("Bob"), None).unwrap();
+    index.create_person("unrelated", None, None).unwrap();
+    index.assign_face(a, "a").unwrap();
+    index.assign_face(b, "b").unwrap();
+    index.confirm_face(b, true).unwrap();
+    index
+        .apply_people_plan(
+            &[
+                index::Person {
+                    id: "a".into(),
+                    name: None,
+                    medoid: Some(vec![0.1; 128]),
+                },
+                index::Person {
+                    id: "b".into(),
+                    name: None,
+                    medoid: Some(vec![0.2; 128]),
+                },
+            ],
+            &[],
+        )
+        .unwrap();
+    let before = index
+        .snapshot_people_edit(&["a".into(), "b".into()], &[])
+        .unwrap();
+    let people = index.people().unwrap();
+    index.merge_people("a", "b").unwrap();
+    let after = index.resnapshot_people_edit(&before).unwrap();
+    index.name_person("unrelated", Some("Eve")).unwrap();
+    index.restore_people_edit(&after, &before).unwrap();
+    assert_eq!(&index.people().unwrap()[..2], &people[..2]);
+    assert_eq!(index.people().unwrap()[2].name.as_deref(), Some("Eve"));
+    assert_eq!(index.person_members("b").unwrap()[0].face, b);
+    assert!(index.person_members("b").unwrap()[0].confirmed);
+    index.restore_people_edit(&before, &after).unwrap();
+    assert!(index.person_members("b").unwrap().is_empty());
+    assert_eq!(index.person_members("a").unwrap().len(), 2);
+    // Representative-only repairs do not make an inverse stale.
+    index
+        .apply_people_plan(
+            &[index::Person {
+                id: "a".into(),
+                name: None,
+                medoid: Some(vec![0.3; 128]),
+            }],
+            &[],
+        )
+        .unwrap();
+    index.restore_people_edit(&after, &before).unwrap();
+    assert_eq!(&index.people().unwrap()[..2], &people[..2]);
+    // Even a re-detected ordinal reassigned to the same person is not the old face.
+    let mut replacement = face(0);
+    replacement.bbox[0] = 4.;
+    index.replace_faces(ids[1], &[replacement]).unwrap();
+    index.assign_face(b, "b").unwrap();
+    index.confirm_face(b, true).unwrap();
+    let changed = index.people().unwrap();
+    assert!(index.restore_people_edit(&before, &after).is_err());
+    assert_eq!(index.people().unwrap(), changed);
+}
+
+#[test]
 fn merge_split_are_atomic_and_preserve_identity_rules() {
     let (dir, index, ids) = catalog();
     index
