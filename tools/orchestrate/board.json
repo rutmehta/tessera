@@ -1011,6 +1011,14 @@
     "id": "M2-29v",
     "owner": "sol",
     "title": "Verify JPEG develop on screen",
+    "status": "fail",
+    "attempts": 0,
+    "notes": "app still gates Develop on RAW (Swift); engine works -> M2-43"
+  },
+  {
+    "id": "M2-43",
+    "owner": "sol",
+    "title": "App: Develop on rendered files",
     "status": "running",
     "attempts": 0,
     "notes": ""
