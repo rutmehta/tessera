@@ -904,6 +904,11 @@ int8_t uniffi_tessera_ffi_fn_method_developsession_commit(uint64_t ptr, RustBuff
 int8_t uniffi_tessera_ffi_fn_method_developsession_commit_group_amount(uint64_t ptr, uint32_t group_id, double amount, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_CONFIGURE_CFA_DENOISE
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_CONFIGURE_CFA_DENOISE
+void uniffi_tessera_ffi_fn_method_developsession_configure_cfa_denoise(uint64_t ptr, RustBuffer config, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_DETACH_SURFACES
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_DETACH_SURFACES
 void uniffi_tessera_ffi_fn_method_developsession_detach_surfaces(uint64_t ptr, RustCallStatus *_Nonnull out_status
@@ -1300,9 +1305,19 @@ uint64_t uniffi_tessera_ffi_fn_clone_cullsession(uint64_t handle, RustCallStatus
 void uniffi_tessera_ffi_fn_free_cullsession(uint64_t handle, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_ASSIGN_PERSON_FACE
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_ASSIGN_PERSON_FACE
+void uniffi_tessera_ffi_fn_method_cullsession_assign_person_face(uint64_t ptr, RustBuffer face, RustBuffer person_id, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_ASSIST_STATUS
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_ASSIST_STATUS
 RustBuffer uniffi_tessera_ffi_fn_method_cullsession_assist_status(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_CONFIRM_PERSON_FACE
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_CONFIRM_PERSON_FACE
+void uniffi_tessera_ffi_fn_method_cullsession_confirm_person_face(uint64_t ptr, RustBuffer face, int8_t confirmed, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_CONFIRM_SUGGESTIONS
@@ -1325,9 +1340,34 @@ RustBuffer uniffi_tessera_ffi_fn_method_cullsession_face_strip(uint64_t ptr, Rus
 RustBuffer uniffi_tessera_ffi_fn_method_cullsession_frames_with_person(uint64_t ptr, RustBuffer person_id, RustBuffer eyes_closed_below, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_MERGE_PEOPLE
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_MERGE_PEOPLE
+void uniffi_tessera_ffi_fn_method_cullsession_merge_people(uint64_t ptr, RustBuffer target_id, RustBuffer source_id, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_NAME_PERSON
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_NAME_PERSON
+void uniffi_tessera_ffi_fn_method_cullsession_name_person(uint64_t ptr, RustBuffer person_id, RustBuffer name, RustBuffer options, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_PEOPLE
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_PEOPLE
 RustBuffer uniffi_tessera_ffi_fn_method_cullsession_people(uint64_t ptr, int8_t refresh, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_PEOPLE_NAME_SUGGESTIONS
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_PEOPLE_NAME_SUGGESTIONS
+RustBuffer uniffi_tessera_ffi_fn_method_cullsession_people_name_suggestions(uint64_t ptr, RustBuffer threshold, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_PERSON_ASSIGNMENTS
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_PERSON_ASSIGNMENTS
+RustBuffer uniffi_tessera_ffi_fn_method_cullsession_person_assignments(uint64_t ptr, RustBuffer image_id, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_REFRESH_PEOPLE
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_REFRESH_PEOPLE
+RustBuffer uniffi_tessera_ffi_fn_method_cullsession_refresh_people(uint64_t ptr, int8_t force, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_REORDER_QUEUE
@@ -1343,6 +1383,11 @@ RustBuffer uniffi_tessera_ffi_fn_method_cullsession_review(uint64_t ptr, RustCal
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_SET_ASSIST_MODE
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_SET_ASSIST_MODE
 RustBuffer uniffi_tessera_ffi_fn_method_cullsession_set_assist_mode(uint64_t ptr, RustBuffer mode, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_SPLIT_PERSON
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_SPLIT_PERSON
+void uniffi_tessera_ffi_fn_method_cullsession_split_person(uint64_t ptr, RustBuffer source_id, RustBuffer new_id, RustBuffer faces, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_ALBUMS
@@ -2415,6 +2460,12 @@ uint16_t uniffi_tessera_ffi_checksum_method_developsession_commit_group_amount(v
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_CONFIGURE_CFA_DENOISE
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_CONFIGURE_CFA_DENOISE
+uint16_t uniffi_tessera_ffi_checksum_method_developsession_configure_cfa_denoise(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_DETACH_SURFACES
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_DETACH_SURFACES
 uint16_t uniffi_tessera_ffi_checksum_method_developsession_detach_surfaces(void
@@ -2793,9 +2844,21 @@ uint16_t uniffi_tessera_ffi_checksum_method_lrcatprogresslistener_on_progress(vo
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_ASSIGN_PERSON_FACE
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_ASSIGN_PERSON_FACE
+uint16_t uniffi_tessera_ffi_checksum_method_cullsession_assign_person_face(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_ASSIST_STATUS
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_ASSIST_STATUS
 uint16_t uniffi_tessera_ffi_checksum_method_cullsession_assist_status(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_CONFIRM_PERSON_FACE
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_CONFIRM_PERSON_FACE
+uint16_t uniffi_tessera_ffi_checksum_method_cullsession_confirm_person_face(void
     
 );
 #endif
@@ -2823,9 +2886,39 @@ uint16_t uniffi_tessera_ffi_checksum_method_cullsession_frames_with_person(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_MERGE_PEOPLE
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_MERGE_PEOPLE
+uint16_t uniffi_tessera_ffi_checksum_method_cullsession_merge_people(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_NAME_PERSON
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_NAME_PERSON
+uint16_t uniffi_tessera_ffi_checksum_method_cullsession_name_person(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_PEOPLE
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_PEOPLE
 uint16_t uniffi_tessera_ffi_checksum_method_cullsession_people(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_PEOPLE_NAME_SUGGESTIONS
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_PEOPLE_NAME_SUGGESTIONS
+uint16_t uniffi_tessera_ffi_checksum_method_cullsession_people_name_suggestions(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_PERSON_ASSIGNMENTS
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_PERSON_ASSIGNMENTS
+uint16_t uniffi_tessera_ffi_checksum_method_cullsession_person_assignments(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_REFRESH_PEOPLE
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_REFRESH_PEOPLE
+uint16_t uniffi_tessera_ffi_checksum_method_cullsession_refresh_people(void
     
 );
 #endif
@@ -2844,6 +2937,12 @@ uint16_t uniffi_tessera_ffi_checksum_method_cullsession_review(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_SET_ASSIST_MODE
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_SET_ASSIST_MODE
 uint16_t uniffi_tessera_ffi_checksum_method_cullsession_set_assist_mode(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_SPLIT_PERSON
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_SPLIT_PERSON
+uint16_t uniffi_tessera_ffi_checksum_method_cullsession_split_person(void
     
 );
 #endif

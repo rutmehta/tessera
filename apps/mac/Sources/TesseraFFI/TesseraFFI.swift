@@ -1023,7 +1023,18 @@ public func FfiConverterTypeCancelFlag_lower(_ value: CancelFlag) -> UInt64 {
  */
 public protocol CullSessionProtocol: AnyObject, Sendable {
     
+    /**
+     * Assign an existing face to an existing persistent identity. Moving resets
+     * confirmation; confirm separately to protect it from automatic refits.
+     */
+    func assignPersonFace(face: PersonFace, personId: String) throws 
+    
     func assistStatus() throws  -> AssistStatus
+    
+    /**
+     * Confirm (`true`) or unconfirm (`false`) an existing face assignment.
+     */
+    func confirmPersonFace(face: PersonFace, confirmed: Bool) throws 
     
     /**
      * Applies the listed suggestions as one undo step and teaches the learner.
@@ -1052,10 +1063,40 @@ public protocol CullSessionProtocol: AnyObject, Sendable {
     func framesWithPerson(personId: String, eyesClosedBelow: Double?) throws  -> [String]
     
     /**
-     * People in this queue, most frequent first. `refresh` re-clusters after
-     * new face analysis.
+     * Explicit merge, target name wins. Does not export sidecars.
+     */
+    func mergePeople(targetId: String, sourceId: String) throws 
+    
+    /**
+     * Rename/clear an identity and update the library's display names. Requires
+     * a library-backed session; XMP export is strictly opt-in. Coordinates use
+     * indexed analysis-preview dimensions, never RAW dimensions.
+     */
+    func namePerson(personId: String, name: String?, options: PeopleNameOptions) throws 
+    
+    /**
+     * People in this queue, most frequent first. `refresh` ingests new faces
+     * and runs the job's periodic refit; use `refresh_people(true)` to force it.
      */
     func people(refresh: Bool) throws  -> [PersonInfo]
+    
+    /**
+     * Read-only catalog suggestions. Accept explicitly with merge/assignment;
+     * neither names nor assignments are changed by requesting suggestions.
+     */
+    func peopleNameSuggestions(threshold: Float?) throws  -> [PeopleNameSuggestion]
+    
+    /**
+     * Read persisted names and confirmation state, including manual assignments
+     * to faces without usable descriptors. This never runs a clustering job.
+     */
+    func personAssignments(imageId: String) throws  -> [PersonAssignmentInfo]
+    
+    /**
+     * Incremental ingestion with periodic refits, or an explicit forced refit.
+     * Blocking: invoke on the host worker queue, never the UI thread.
+     */
+    func refreshPeople(force: Bool) throws  -> PeopleJobResult
     
     /**
      * Reorders the review queue by the last `review` (navigation order only;
@@ -1075,6 +1116,12 @@ public protocol CullSessionProtocol: AnyObject, Sendable {
      * `cull-learning/`) and survives sessions.
      */
     func setAssistMode(mode: AssistMode) throws  -> AssistStatus
+    
+    /**
+     * Split selected members into a new unnamed identity (caller supplies a
+     * unique ID). Confirmations reset. Does not export sidecars.
+     */
+    func splitPerson(sourceId: String, newId: String, faces: [PersonFace]) throws 
     
     func albums() throws  -> [AlbumInfo]
     
@@ -1262,6 +1309,20 @@ open class CullSession: CullSessionProtocol, @unchecked Sendable {
     
 
     
+    /**
+     * Assign an existing face to an existing persistent identity. Moving resets
+     * confirmation; confirm separately to protect it from automatic refits.
+     */
+open func assignPersonFace(face: PersonFace, personId: String)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_cullsession_assign_person_face(
+            self.uniffiCloneHandle(),
+        FfiConverterTypePersonFace_lower(face),
+        FfiConverterString.lower(personId),uniffiCallStatus
+    )
+}
+}
+    
 open func assistStatus()throws  -> AssistStatus  {
     return try  FfiConverterTypeAssistStatus_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
         uniffiCallStatus in
@@ -1269,6 +1330,19 @@ open func assistStatus()throws  -> AssistStatus  {
             self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
+}
+    
+    /**
+     * Confirm (`true`) or unconfirm (`false`) an existing face assignment.
+     */
+open func confirmPersonFace(face: PersonFace, confirmed: Bool)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_cullsession_confirm_person_face(
+            self.uniffiCloneHandle(),
+        FfiConverterTypePersonFace_lower(face),
+        FfiConverterBool.lower(confirmed),uniffiCallStatus
+    )
+}
 }
     
     /**
@@ -1330,8 +1404,37 @@ open func framesWithPerson(personId: String, eyesClosedBelow: Double?)throws  ->
 }
     
     /**
-     * People in this queue, most frequent first. `refresh` re-clusters after
-     * new face analysis.
+     * Explicit merge, target name wins. Does not export sidecars.
+     */
+open func mergePeople(targetId: String, sourceId: String)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_cullsession_merge_people(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(targetId),
+        FfiConverterString.lower(sourceId),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Rename/clear an identity and update the library's display names. Requires
+     * a library-backed session; XMP export is strictly opt-in. Coordinates use
+     * indexed analysis-preview dimensions, never RAW dimensions.
+     */
+open func namePerson(personId: String, name: String?, options: PeopleNameOptions)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_cullsession_name_person(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(personId),
+        FfiConverterOptionString.lower(name),
+        FfiConverterTypePeopleNameOptions_lower(options),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * People in this queue, most frequent first. `refresh` ingests new faces
+     * and runs the job's periodic refit; use `refresh_people(true)` to force it.
      */
 open func people(refresh: Bool)throws  -> [PersonInfo]  {
     return try  FfiConverterSequenceTypePersonInfo.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
@@ -1339,6 +1442,48 @@ open func people(refresh: Bool)throws  -> [PersonInfo]  {
     uniffi_tessera_ffi_fn_method_cullsession_people(
             self.uniffiCloneHandle(),
         FfiConverterBool.lower(refresh),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Read-only catalog suggestions. Accept explicitly with merge/assignment;
+     * neither names nor assignments are changed by requesting suggestions.
+     */
+open func peopleNameSuggestions(threshold: Float?)throws  -> [PeopleNameSuggestion]  {
+    return try  FfiConverterSequenceTypePeopleNameSuggestion.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_cullsession_people_name_suggestions(
+            self.uniffiCloneHandle(),
+        FfiConverterOptionFloat.lower(threshold),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Read persisted names and confirmation state, including manual assignments
+     * to faces without usable descriptors. This never runs a clustering job.
+     */
+open func personAssignments(imageId: String)throws  -> [PersonAssignmentInfo]  {
+    return try  FfiConverterSequenceTypePersonAssignmentInfo.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_cullsession_person_assignments(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(imageId),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Incremental ingestion with periodic refits, or an explicit forced refit.
+     * Blocking: invoke on the host worker queue, never the UI thread.
+     */
+open func refreshPeople(force: Bool)throws  -> PeopleJobResult  {
+    return try  FfiConverterTypePeopleJobResult_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_cullsession_refresh_people(
+            self.uniffiCloneHandle(),
+        FfiConverterBool.lower(force),uniffiCallStatus
     )
 })
 }
@@ -1382,6 +1527,21 @@ open func setAssistMode(mode: AssistMode)throws  -> AssistStatus  {
         FfiConverterTypeAssistMode_lower(mode),uniffiCallStatus
     )
 })
+}
+    
+    /**
+     * Split selected members into a new unnamed identity (caller supplies a
+     * unique ID). Confirmations reset. Does not export sidecars.
+     */
+open func splitPerson(sourceId: String, newId: String, faces: [PersonFace])throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_cullsession_split_person(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(sourceId),
+        FfiConverterString.lower(newId),
+        FfiConverterSequenceTypePersonFace.lower(faces),uniffiCallStatus
+    )
+}
 }
     
 open func albums()throws  -> [AlbumInfo]  {
@@ -2181,6 +2341,13 @@ public protocol DevelopSessionProtocol: AnyObject, Sendable {
     func commitGroupAmount(groupId: UInt32, amount: Double) throws  -> Bool
     
     /**
+     * Installs a lazy, pinned CFA backend for this develop session. Does not
+     * invent a noise calibration, download weights, or enable denoise in the
+     * recipe. Subsequent Amount/tone edits share inference and resident caches.
+     */
+    func configureCfaDenoise(config: CfaDenoiseConfig) throws 
+    
+    /**
      * Releases every surface. Renders continue (histogram only) until a new
      * surface is attached.
      */
@@ -2250,7 +2417,7 @@ public protocol DevelopSessionProtocol: AnyObject, Sendable {
      * orientation, into an RGBA8 IOSurface of `width × height`. Blocking:
      * call off the main thread. Crop and post-crop effects are not applied
      * (the crop shows sensor pixels); global dehaze statistics come from the
-     * window.
+     * window (the full sensor when learned denoise is active).
      */
     func renderDetailPreview(iosurfaceId: UInt32, width: UInt32, height: UInt32, centerX: Float, centerY: Float) throws  -> DetailPreview
     
@@ -2571,6 +2738,20 @@ open func commitGroupAmount(groupId: UInt32, amount: Double)throws  -> Bool  {
 }
     
     /**
+     * Installs a lazy, pinned CFA backend for this develop session. Does not
+     * invent a noise calibration, download weights, or enable denoise in the
+     * recipe. Subsequent Amount/tone edits share inference and resident caches.
+     */
+open func configureCfaDenoise(config: CfaDenoiseConfig)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_configure_cfa_denoise(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeCfaDenoiseConfig_lower(config),uniffiCallStatus
+    )
+}
+}
+    
+    /**
      * Releases every surface. Renders continue (histogram only) until a new
      * surface is attached.
      */
@@ -2737,7 +2918,7 @@ open func refresh()throws   {try rustCallWithError(FfiConverterTypeBridgeError_l
      * orientation, into an RGBA8 IOSurface of `width × height`. Blocking:
      * call off the main thread. Crop and post-crop effects are not applied
      * (the crop shows sensor pixels); global dehaze statistics come from the
-     * window.
+     * window (the full sensor when learned denoise is active).
      */
 open func renderDetailPreview(iosurfaceId: UInt32, width: UInt32, height: UInt32, centerX: Float, centerY: Float)throws  -> DetailPreview  {
     return try  FfiConverterTypeDetailPreview_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
@@ -7355,6 +7536,90 @@ public func FfiConverterTypeBrushSettings_lower(_ value: BrushSettings) -> RustB
 
 
 /**
+ * Explicit caller-owned calibration in normalized linear sensor units. The
+ * four noise coefficients are canonical RGGB sites; ISO alone is insufficient.
+ */
+public struct CfaDenoiseConfig: Equatable, Hashable {
+    public var manifestPath: String
+    public var cachePath: String
+    public var modelId: String
+    public var modelDigest: String
+    public var shot: [Float]
+    public var read: [Float]
+    /**
+     * Optional full-sensor raster, one independent coverage per Bayer site.
+     */
+    public var mask: [Float]?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(manifestPath: String, cachePath: String, modelId: String, modelDigest: String, shot: [Float], read: [Float], 
+        /**
+         * Optional full-sensor raster, one independent coverage per Bayer site.
+         */mask: [Float]?) {
+        self.manifestPath = manifestPath
+        self.cachePath = cachePath
+        self.modelId = modelId
+        self.modelDigest = modelDigest
+        self.shot = shot
+        self.read = read
+        self.mask = mask
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension CfaDenoiseConfig: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCfaDenoiseConfig: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CfaDenoiseConfig {
+        return
+            try CfaDenoiseConfig(
+                manifestPath: FfiConverterString.read(from: &buf), 
+                cachePath: FfiConverterString.read(from: &buf), 
+                modelId: FfiConverterString.read(from: &buf), 
+                modelDigest: FfiConverterString.read(from: &buf), 
+                shot: FfiConverterSequenceFloat.read(from: &buf), 
+                read: FfiConverterSequenceFloat.read(from: &buf), 
+                mask: FfiConverterOptionSequenceFloat.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CfaDenoiseConfig, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.manifestPath, into: &buf)
+        FfiConverterString.write(value.cachePath, into: &buf)
+        FfiConverterString.write(value.modelId, into: &buf)
+        FfiConverterString.write(value.modelDigest, into: &buf)
+        FfiConverterSequenceFloat.write(value.shot, into: &buf)
+        FfiConverterSequenceFloat.write(value.read, into: &buf)
+        FfiConverterOptionSequenceFloat.write(value.mask, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCfaDenoiseConfig_lift(_ buf: RustBuffer) throws -> CfaDenoiseConfig {
+    return try FfiConverterTypeCfaDenoiseConfig.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCfaDenoiseConfig_lower(_ value: CfaDenoiseConfig) -> RustBuffer {
+    return FfiConverterTypeCfaDenoiseConfig.lower(value)
+}
+
+
+/**
  * What changed about an image (all false for adds and removes).
  */
 public struct ChangedFields: Equatable, Hashable {
@@ -8240,7 +8505,7 @@ public struct FaceChipInfo: Equatable, Hashable {
      */
     public var eyesOpen: Double?
     /**
-     * Session-local identity from descriptor clustering (`person-N`).
+     * Persistent catalog identity, independent of queue order.
      */
     public var personId: String?
 
@@ -8254,7 +8519,7 @@ public struct FaceChipInfo: Equatable, Hashable {
          * Weak geometric proxy; `None` when unknown.
          */eyesOpen: Double?, 
         /**
-         * Session-local identity from descriptor clustering (`person-N`).
+         * Persistent catalog identity, independent of queue order.
          */personId: String?) {
         self.ordinal = ordinal
         self.x = x
@@ -12599,6 +12864,314 @@ public func FfiConverterTypeOcrRegionInfo_lift(_ buf: RustBuffer) throws -> OcrR
 #endif
 public func FfiConverterTypeOcrRegionInfo_lower(_ value: OcrRegionInfo) -> RustBuffer {
     return FfiConverterTypeOcrRegionInfo.lower(value)
+}
+
+
+public struct PeopleJobResult: Equatable, Hashable {
+    public var assigned: UInt64
+    public var reclustered: Bool
+    public var approximate: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(assigned: UInt64, reclustered: Bool, approximate: Bool) {
+        self.assigned = assigned
+        self.reclustered = reclustered
+        self.approximate = approximate
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension PeopleJobResult: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePeopleJobResult: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PeopleJobResult {
+        return
+            try PeopleJobResult(
+                assigned: FfiConverterUInt64.read(from: &buf), 
+                reclustered: FfiConverterBool.read(from: &buf), 
+                approximate: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PeopleJobResult, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.assigned, into: &buf)
+        FfiConverterBool.write(value.reclustered, into: &buf)
+        FfiConverterBool.write(value.approximate, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePeopleJobResult_lift(_ buf: RustBuffer) throws -> PeopleJobResult {
+    return try FfiConverterTypePeopleJobResult.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePeopleJobResult_lower(_ value: PeopleJobResult) -> RustBuffer {
+    return FfiConverterTypePeopleJobResult.lower(value)
+}
+
+
+public struct PeopleNameOptions: Equatable, Hashable {
+    /**
+     * Explicit opt-in; false does not even probe sidecar paths.
+     */
+    public var writeSidecars: Bool
+    /**
+     * Append names as keywords only when writing sidecars.
+     */
+    public var personKeywords: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Explicit opt-in; false does not even probe sidecar paths.
+         */writeSidecars: Bool, 
+        /**
+         * Append names as keywords only when writing sidecars.
+         */personKeywords: Bool) {
+        self.writeSidecars = writeSidecars
+        self.personKeywords = personKeywords
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension PeopleNameOptions: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePeopleNameOptions: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PeopleNameOptions {
+        return
+            try PeopleNameOptions(
+                writeSidecars: FfiConverterBool.read(from: &buf), 
+                personKeywords: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PeopleNameOptions, into buf: inout [UInt8]) {
+        FfiConverterBool.write(value.writeSidecars, into: &buf)
+        FfiConverterBool.write(value.personKeywords, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePeopleNameOptions_lift(_ buf: RustBuffer) throws -> PeopleNameOptions {
+    return try FfiConverterTypePeopleNameOptions.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePeopleNameOptions_lower(_ value: PeopleNameOptions) -> RustBuffer {
+    return FfiConverterTypePeopleNameOptions.lower(value)
+}
+
+
+public struct PeopleNameSuggestion: Equatable, Hashable {
+    public var unnamedId: String
+    public var namedId: String
+    public var name: String
+    public var similarity: Float
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(unnamedId: String, namedId: String, name: String, similarity: Float) {
+        self.unnamedId = unnamedId
+        self.namedId = namedId
+        self.name = name
+        self.similarity = similarity
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension PeopleNameSuggestion: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePeopleNameSuggestion: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PeopleNameSuggestion {
+        return
+            try PeopleNameSuggestion(
+                unnamedId: FfiConverterString.read(from: &buf), 
+                namedId: FfiConverterString.read(from: &buf), 
+                name: FfiConverterString.read(from: &buf), 
+                similarity: FfiConverterFloat.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PeopleNameSuggestion, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.unnamedId, into: &buf)
+        FfiConverterString.write(value.namedId, into: &buf)
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterFloat.write(value.similarity, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePeopleNameSuggestion_lift(_ buf: RustBuffer) throws -> PeopleNameSuggestion {
+    return try FfiConverterTypePeopleNameSuggestion.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePeopleNameSuggestion_lower(_ value: PeopleNameSuggestion) -> RustBuffer {
+    return FfiConverterTypePeopleNameSuggestion.lower(value)
+}
+
+
+/**
+ * Additional assignment metadata without changing the existing strip record.
+ */
+public struct PersonAssignmentInfo: Equatable, Hashable {
+    public var face: PersonFace
+    public var personId: String
+    public var name: String?
+    public var confirmed: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(face: PersonFace, personId: String, name: String?, confirmed: Bool) {
+        self.face = face
+        self.personId = personId
+        self.name = name
+        self.confirmed = confirmed
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension PersonAssignmentInfo: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePersonAssignmentInfo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PersonAssignmentInfo {
+        return
+            try PersonAssignmentInfo(
+                face: FfiConverterTypePersonFace.read(from: &buf), 
+                personId: FfiConverterString.read(from: &buf), 
+                name: FfiConverterOptionString.read(from: &buf), 
+                confirmed: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PersonAssignmentInfo, into buf: inout [UInt8]) {
+        FfiConverterTypePersonFace.write(value.face, into: &buf)
+        FfiConverterString.write(value.personId, into: &buf)
+        FfiConverterOptionString.write(value.name, into: &buf)
+        FfiConverterBool.write(value.confirmed, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePersonAssignmentInfo_lift(_ buf: RustBuffer) throws -> PersonAssignmentInfo {
+    return try FfiConverterTypePersonAssignmentInfo.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePersonAssignmentInfo_lower(_ value: PersonAssignmentInfo) -> RustBuffer {
+    return FfiConverterTypePersonAssignmentInfo.lower(value)
+}
+
+
+/**
+ * An image-local detector ordinal, not an identity.
+ */
+public struct PersonFace: Equatable, Hashable {
+    public var imageId: String
+    public var ordinal: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(imageId: String, ordinal: UInt32) {
+        self.imageId = imageId
+        self.ordinal = ordinal
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension PersonFace: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePersonFace: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PersonFace {
+        return
+            try PersonFace(
+                imageId: FfiConverterString.read(from: &buf), 
+                ordinal: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PersonFace, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.imageId, into: &buf)
+        FfiConverterUInt32.write(value.ordinal, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePersonFace_lift(_ buf: RustBuffer) throws -> PersonFace {
+    return try FfiConverterTypePersonFace.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePersonFace_lower(_ value: PersonFace) -> RustBuffer {
+    return FfiConverterTypePersonFace.lower(value)
 }
 
 
@@ -18516,6 +19089,81 @@ fileprivate struct FfiConverterSequenceTypeOcrRegionInfo: FfiConverterRustBuffer
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypePeopleNameSuggestion: FfiConverterRustBuffer {
+    typealias SwiftType = [PeopleNameSuggestion]
+
+    public static func write(_ value: [PeopleNameSuggestion], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypePeopleNameSuggestion.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [PeopleNameSuggestion] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [PeopleNameSuggestion]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypePeopleNameSuggestion.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypePersonAssignmentInfo: FfiConverterRustBuffer {
+    typealias SwiftType = [PersonAssignmentInfo]
+
+    public static func write(_ value: [PersonAssignmentInfo], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypePersonAssignmentInfo.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [PersonAssignmentInfo] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [PersonAssignmentInfo]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypePersonAssignmentInfo.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypePersonFace: FfiConverterRustBuffer {
+    typealias SwiftType = [PersonFace]
+
+    public static func write(_ value: [PersonFace], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypePersonFace.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [PersonFace] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [PersonFace]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypePersonFace.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypePersonInfo: FfiConverterRustBuffer {
     typealias SwiftType = [PersonInfo]
 
@@ -19094,6 +19742,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_developsession_commit_group_amount() != 57151) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tessera_ffi_checksum_method_developsession_configure_cfa_denoise() != 26853) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_tessera_ffi_checksum_method_developsession_detach_surfaces() != 32727) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -19136,7 +19787,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_developsession_refresh() != 50490) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_developsession_render_detail_preview() != 52080) {
+    if (uniffi_tessera_ffi_checksum_method_developsession_render_detail_preview() != 3279) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_developsession_reset() != 11852) {
@@ -19283,7 +19934,13 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_lrcatprogresslistener_on_progress() != 48396) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tessera_ffi_checksum_method_cullsession_assign_person_face() != 63718) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_tessera_ffi_checksum_method_cullsession_assist_status() != 64314) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_cullsession_confirm_person_face() != 35245) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_cullsession_confirm_suggestions() != 38479) {
@@ -19298,7 +19955,22 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_cullsession_frames_with_person() != 649) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_cullsession_people() != 39944) {
+    if (uniffi_tessera_ffi_checksum_method_cullsession_merge_people() != 10891) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_cullsession_name_person() != 65324) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_cullsession_people() != 10890) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_cullsession_people_name_suggestions() != 33853) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_cullsession_person_assignments() != 28580) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_cullsession_refresh_people() != 52987) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_cullsession_reorder_queue() != 22330) {
@@ -19308,6 +19980,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_cullsession_set_assist_mode() != 20018) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_cullsession_split_person() != 21278) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_cullsession_albums() != 24789) {
