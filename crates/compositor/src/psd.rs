@@ -2,6 +2,7 @@
 //!
 //! The editable state uses canvas-clipped rasters. Source records retain
 //! off-canvas pixels and metadata that the compositor cannot interpret.
+use crate::channels::{ChannelId, ChannelKind, DocumentChannel};
 use crate::{Depth, DocState, Layer, LayerId, LayerKind, Raster, Rect};
 use ::psd::{Channel, ColorMode, Compression, PsdDocument};
 use engine_api::{EngineError, EngineResult, tile::Extent};
@@ -139,6 +140,139 @@ fn raster(layer: &::psd::Layer, extent: Extent, depth: Depth) -> EngineResult<Ra
     )?;
     Ok(out)
 }
+// Some producers include a leading merged-transparency metadata entry, while
+// others describe only saved channels. Its plane is identified by the signed
+// layer count, NEVER inferred merely from a fourth RGB composite plane.
+fn saved_metadata<T>(mut values: Vec<T>, count: usize, merged: bool) -> EngineResult<Vec<T>> {
+    if merged && values.len() == count + 1 {
+        values.remove(0);
+    }
+    if values.len() != count {
+        return Err(error("channel metadata count does not match saved planes"));
+    }
+    Ok(values)
+}
+fn import_channels(source: &PsdDocument, state: &mut DocState) -> EngineResult<()> {
+    let base = 3 + usize::from(source.layer_section.merged_alpha);
+    let total = usize::from(source.channels);
+    let plane = (source.width as usize)
+        .checked_mul(source.height as usize)
+        .and_then(|n| n.checked_mul(state.depth.bytes()))
+        .ok_or_else(|| error("composite size overflow"))?;
+    if total < base || total > 56 || plane.checked_mul(total) != Some(source.composite.len()) {
+        return Err(error("incorrect merged sample count"));
+    }
+    let count = total - base;
+    let names = source
+        .alpha_names()
+        .map_err(error)?
+        .map(|v| saved_metadata(v, count, source.layer_section.merged_alpha))
+        .transpose()?;
+    let display = source
+        .channel_display_info()
+        .map_err(error)?
+        .map(|v| saved_metadata(v, count, source.layer_section.merged_alpha))
+        .transpose()?;
+    for i in 0..count {
+        let bytes = &source.composite[(base + i) * plane..(base + i + 1) * plane];
+        let mut raster = Raster::new(state.canvas, 1, state.depth, 0.0);
+        raster.edit_region(Rect::of_extent(state.canvas), 0, |x, y, p| {
+            p[0] = sample(
+                bytes,
+                y as usize * source.width as usize + x as usize,
+                state.depth,
+            );
+        })?;
+        let kind = match display.as_ref().map(|v| v[i]) {
+            Some(info) if info.mode == 2 => {
+                if info.color_space != 0 {
+                    return Err(error(
+                        "spot display colors currently require RGB color space",
+                    ));
+                }
+                ChannelKind::Spot {
+                    color: std::array::from_fn(|c| info.color[c] as f32 / 65535.0),
+                    solidity: info.opacity as f32 / 100.0,
+                }
+            }
+            _ => ChannelKind::Alpha,
+        };
+        state.channels.push(DocumentChannel {
+            id: ChannelId((i + 1) as u64),
+            name: names
+                .as_ref()
+                .map(|n| n[i].clone())
+                .unwrap_or_else(|| format!("Alpha {}", i + 1)),
+            kind,
+            raster,
+        });
+    }
+    state.next_channel_id = count as u64 + 1;
+    Ok(())
+}
+fn export_channels(
+    imported: &ImportedPsd,
+    source: &mut PsdDocument,
+    plane: usize,
+) -> EngineResult<()> {
+    let channels = &imported.state.channels;
+    // Rebuild all owned channel metadata; unrelated resources stay byte-for-byte.
+    source
+        .resources
+        .retain(|r| !matches!(r.id, 1006 | 1045 | 1007 | 1077));
+    if !channels.is_empty() {
+        let names: Vec<_> = channels.iter().map(|c| c.name.clone()).collect();
+        source
+            .resources
+            .extend(::psd::resources::alpha_name_resources(&names).map_err(error)?);
+    }
+    let mut modern = 1u32.to_be_bytes().to_vec();
+    let mut legacy = Vec::new();
+    let base = 3 + usize::from(source.layer_section.merged_alpha);
+    for (i, channel) in channels.iter().enumerate() {
+        let (color, solidity, mode) = match &channel.kind {
+            ChannelKind::Alpha => ([1.0, 0.0, 0.0], 0.5, 0),
+            ChannelKind::Spot { color, solidity } => (*color, *solidity, 2),
+        };
+        if color
+            .iter()
+            .chain(std::iter::once(&solidity))
+            .any(|v| !v.is_finite() || !(0.0..=1.0).contains(v))
+        {
+            return Err(error("invalid spot color or solidity"));
+        }
+        let mut display = 0u16.to_be_bytes().to_vec(); // RGB color space
+        for v in color {
+            display.extend_from_slice(&crate::raster::quantize_u16(v).to_be_bytes());
+        }
+        display.extend_from_slice(&0u16.to_be_bytes());
+        display.extend_from_slice(&((solidity * 100.0).round() as u16).to_be_bytes());
+        display.push(mode);
+        modern.extend_from_slice(&display);
+        legacy.extend_from_slice(&display);
+        legacy.push(0);
+        if channel.raster.channels() != 1 || channel.raster.extent() != imported.canvas {
+            return Err(error("saved channel must be a single canvas-sized plane"));
+        }
+        let mut bytes = Vec::with_capacity(plane);
+        for y in 0..source.height {
+            for x in 0..source.width {
+                encode(channel.raster.pixel(x, y)[0], imported.depth, &mut bytes);
+            }
+        }
+        source.composite[(base + i) * plane..(base + i + 1) * plane].copy_from_slice(&bytes);
+    }
+    if !channels.is_empty() {
+        source
+            .resources
+            .push(::psd::ImageResource::new(1007, legacy));
+        source
+            .resources
+            .push(::psd::ImageResource::new(1077, modern));
+    }
+    Ok(())
+}
+
 /// Import RGB layers; PSD file order is top-first, compositor order bottom-first.
 pub fn from_psd(source: &PsdDocument) -> EngineResult<ImportedPsd> {
     if source.color_mode != ColorMode::Rgb {
@@ -151,6 +285,7 @@ pub fn from_psd(source: &PsdDocument) -> EngineResult<ImportedPsd> {
         Extent::new(source.width, source.height),
         depth(source.depth)?,
     );
+    import_channels(source, &mut state)?;
     if let Some(resolution) = source.resolution().map_err(error)? {
         state.ppi = resolution.horizontal as f32 / 65536.0;
     }
@@ -177,6 +312,16 @@ pub fn from_psd(source: &PsdDocument) -> EngineResult<ImportedPsd> {
         originals: BTreeMap::new(),
         endings: BTreeMap::new(),
     };
+    if imported
+        .state
+        .channels
+        .iter()
+        .any(|c| matches!(c.kind, ChannelKind::Spot { .. }))
+    {
+        imported.warnings.push(
+            "Spot channels are editable ink planes; spot overprint preview is not rendered".into(),
+        );
+    }
     imported.state.root =
         import_nodes(&source.layer_section.layers, &mut 0, &mut imported, None, 0)?;
     if source.layer_section.layers.is_empty() {
@@ -192,7 +337,7 @@ pub fn from_psd(source: &PsdDocument) -> EngineResult<ImportedPsd> {
                 bottom: source.height as i32,
                 right: source.width as i32,
             },
-            channels: (0..source.channels.min(4))
+            channels: (0..(3 + u16::from(source.layer_section.merged_alpha)))
                 .map(|c| Channel {
                     id: if c == 3 { -1 } else { c as i16 },
                     compression: source.compression,
@@ -1518,14 +1663,47 @@ fn export_imported(imported: &ImportedPsd) -> EngineResult<PsdDocument> {
     let document = crate::Document::new(imported.state.clone());
     let (_, rgba) = crate::Compositor::new(64 << 20).render_level_rgba(&document, 0)?;
     let plane = source.width as usize * source.height as usize * imported.depth.bytes();
+    // The only standard merged-alpha signal is a negative layer count. An
+    // empty native canvas therefore needs a transparent placeholder layer;
+    // negative zero cannot carry that signal through serialization.
+    if source.layer_section.layers.is_empty() {
+        source.layer_section.layers.push(::psd::Layer {
+            name: b"Empty canvas".to_vec(),
+            bounds: ::psd::Rect {
+                top: 0,
+                left: 0,
+                bottom: source.height as i32,
+                right: source.width as i32,
+            },
+            channels: [0, 1, 2, -1]
+                .into_iter()
+                .map(|id| Channel {
+                    id,
+                    compression: Compression::Raw,
+                    data: vec![0; plane],
+                })
+                .collect(),
+            ..Default::default()
+        });
+    }
+    source.layer_section.merged_alpha |= rgba.as_chunks::<4>().0.iter().any(|p| p[3] != 1.0);
+    source.channels = u16::try_from(
+        3 + usize::from(source.layer_section.merged_alpha) + imported.state.channels.len(),
+    )
+    .map_err(|_| error("too many PSD channels"))?;
+    if source.channels > 56 {
+        return Err(error("PSD supports at most 56 composite channels"));
+    }
+    source.composite.clear();
     source.composite.resize(plane * source.channels as usize, 0);
-    for c in 0..usize::from(source.channels.min(4)) {
+    for c in 0..(3 + usize::from(source.layer_section.merged_alpha)) {
         let mut bytes = Vec::with_capacity(plane);
         for p in rgba.as_chunks::<4>().0 {
             encode(p[c], imported.depth, &mut bytes);
         }
         source.composite[c * plane..(c + 1) * plane].copy_from_slice(&bytes);
     }
+    export_channels(imported, &mut source, plane)?;
     if let Some(profile) = &imported.profile {
         if let Some(bytes) = &profile.icc {
             if let Some(r) = source.resources.iter_mut().find(|r| r.id == 1039) {

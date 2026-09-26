@@ -167,8 +167,8 @@ pub(crate) fn execute(console: &mut Console, name: &str, mut args: Value) -> Eng
             }
             "selection_boolean" => {
                 let p: advanced::SelectionBoolean = serde_json::from_value(args.clone())?;
-                let operand = s
-                    .saved
+                let saved = s.saved_selections();
+                let operand = saved
                     .iter()
                     .find(|v| v.id.0 == p.selection)
                     .ok_or_else(|| EngineError::not_found("selection", p.selection))?;
@@ -195,6 +195,6 @@ pub(crate) fn execute(console: &mut Console, name: &str, mut args: Value) -> Eng
         },
     );
     s.nodes.push(applied.node);
-    s.saved_nodes.push(s.saved.clone());
+
     Ok(json!({"document":id,"entry":entry}))
 }

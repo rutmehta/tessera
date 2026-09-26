@@ -77,9 +77,7 @@ pub struct DocumentSession {
     nodes: Vec<u64>,
     /// Compositor state as opened.
     root_node: u64,
-    saved: Vec<SavedSelection>,
-    saved_nodes: Vec<Vec<SavedSelection>>,
-    next_selection: u64,
+
     renderer: Option<ResidentRenderer>,
     /// Import warnings (features preserved but not rendered).
     pub warnings: Vec<String>,
@@ -95,9 +93,7 @@ impl DocumentSession {
             history: DocumentHistory::default(),
             nodes: Vec::new(),
             root_node,
-            saved: Vec::new(),
-            saved_nodes: Vec::new(),
-            next_selection: 1,
+
             renderer: None,
             warnings,
         }
@@ -114,8 +110,17 @@ impl DocumentSession {
     }
 
     /// Saved selections.
-    pub fn saved_selections(&self) -> &[SavedSelection] {
-        &self.saved
+    pub fn saved_selections(&self) -> Vec<SavedSelection> {
+        self.state()
+            .channels
+            .iter()
+            .filter(|c| matches!(c.kind, compositor::channels::ChannelKind::Alpha))
+            .map(|c| SavedSelection {
+                id: SelectionId(c.id.0),
+                name: c.name.clone(),
+                mask: Arc::new(c.raster.clone()),
+            })
+            .collect()
     }
 
     fn state(&self) -> &DocState {
@@ -138,7 +143,7 @@ impl DocumentSession {
         let node = self.node_of(target)?;
         self.doc.checkout(node)?;
         self.history.checkout(target)?;
-        self.saved = target.map_or_else(Vec::new, |id| self.saved_nodes[id.0 as usize - 1].clone());
+
         Ok(())
     }
 
@@ -156,7 +161,7 @@ impl DocumentSession {
         let applied = self.doc.apply(op)?;
         let entry = self.history.record(action, meta(request));
         self.nodes.push(applied.node);
-        self.saved_nodes.push(self.saved.clone());
+
         if let Some(group) = request.group
             && !self.history.groups.iter().any(|g| g.id == group)
         {
@@ -346,19 +351,34 @@ impl Documents {
             _ => {
                 let (op, layer, save) = self.plan(session, call)?;
                 let session = self.session_mut(id)?;
+                let op = if let Some((name, mask)) = &save {
+                    DocOp::Batch(vec![
+                        op,
+                        DocOp::AddChannel {
+                            channel: compositor::channels::DocumentChannel {
+                                id: compositor::channels::ChannelId(0),
+                                name: name.clone(),
+                                kind: compositor::channels::ChannelKind::Alpha,
+                                raster: (**mask).clone(),
+                            },
+                        },
+                    ])
+                } else {
+                    op
+                };
                 let (entry, applied) = session.commit(op, request)?;
                 let layer = layer.or_else(|| applied.created.first().copied());
-                let selection = save.map(|(name, mask)| {
-                    let sid = SelectionId(session.next_selection);
-                    session.next_selection += 1;
-                    session.saved.push(SavedSelection {
-                        id: sid,
-                        name,
-                        mask,
-                    });
-                    sid
+                let selection = save.map(|_| {
+                    SelectionId(
+                        session
+                            .state()
+                            .channels
+                            .last()
+                            .expect("inserted channel")
+                            .id
+                            .0,
+                    )
                 });
-                session.saved_nodes[entry.0 as usize - 1] = session.saved.clone();
                 Ok(DocumentToolOutput::DocumentEdited {
                     document: id,
                     entry: Some(entry),
@@ -789,7 +809,7 @@ impl Documents {
                 )?
             }
             SelectionShape::Saved { selection } => session
-                .saved
+                .saved_selections()
                 .iter()
                 .find(|s| s.id == *selection)
                 .map(|s| (*s.mask).clone())

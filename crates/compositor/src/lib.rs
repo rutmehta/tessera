@@ -20,6 +20,7 @@
 
 pub mod adjust;
 pub mod blend;
+pub mod channels;
 pub mod document;
 pub mod edit;
 pub mod format;

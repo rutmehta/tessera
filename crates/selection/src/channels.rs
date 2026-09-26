@@ -8,7 +8,39 @@ use engine_api::{EngineError, EngineResult};
 
 use crate::mask::Mask;
 
-/// A document's alpha channels: named single-channel rasters.
+/// Save a lossless F32 selection in document history, returning its identity.
+pub fn save(
+    doc: &mut compositor::Document,
+    name: &str,
+    mask: &Mask,
+) -> EngineResult<compositor::channels::ChannelId> {
+    let raster = mask.to_raster(Depth::F32)?;
+    doc.apply(compositor::DocOp::AddChannel {
+        channel: compositor::channels::DocumentChannel {
+            id: compositor::channels::ChannelId(0),
+            name: name.into(),
+            kind: compositor::channels::ChannelKind::Alpha,
+            raster,
+        },
+    })?;
+    Ok(doc.state().channels.last().expect("inserted channel").id)
+}
+
+/// Load a document alpha or spot plane as a dense selection.
+pub fn load(
+    state: &compositor::DocState,
+    id: compositor::channels::ChannelId,
+) -> EngineResult<Mask> {
+    let c = state
+        .channels
+        .iter()
+        .find(|c| c.id == id)
+        .ok_or_else(|| EngineError::not_found("channel", id.0))?;
+    Mask::from_raster(&c.raster)
+}
+
+/// Legacy standalone collection. Use [`save`]/[`load`] for document persistence
+/// and undo support. Retained for callers manipulating detached masks.
 #[derive(Debug, Clone)]
 pub struct AlphaChannels {
     extent: Extent,
