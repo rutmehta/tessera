@@ -33,7 +33,9 @@ Brush engine (dynamics, ABR import, heal/clone/patch, GPU dabs) + selection tool
 Compositor bit-exact GPU maths and L0 < 100 ms (92 ms; 4K viewport 38 ms, full recomposite under 8 ms shown infeasible on M4), text layers (`typography`), vector shapes (`vector`), CFA denoise GPU-resident handoff + restored training prerequisites (6 dB gain), performance benchmark harness with CI workflow, public-repo docs (README/CONTRIBUTING/ARCHITECTURE).
 
 ## In progress / next
-- M5-14 layer styles + smart filters, M2-29 develop JPEG/TIFF/HEIC, M3-19 people clustering (Astra); M2-25v2 regression pass (Sol).
+- Merged today: M5-14 layer styles + smart filters, M5-15 alpha/spot channels + PSD, M5-16 EDR/profiled presentation + GPU Lanczos smart objects, M3-19 people clustering (HDBSCAN, MWG regions, indexed person filters).
+- Running: M2-29 develop JPEG/TIFF/PNG/HEIC (round 2), M2-35 regression fixes (Sol), M5-20 engine-api 1.3, M5-21 transform/warp crate, M5-22 Liquify + content-aware fill (Astra).
+- Machine A now uses ids M5-20+ and M2-40+ for new packages so Machine B's M5-09–M5-19 / M2-30–M2-39 ranges stay free (M5-15/M5-16/M2-35 were already taken here before the split).
 - Machine B owns the layered-editor UI (M5-09). Coordinator fallback: `tools/orchestrate/supervise.sh` (Astra 900k via Hermes) if the Fable session is downgraded.
 - Needs from the owner: real Lightroom-written XMP sidecars in `fixtures/lightroom/` to finish Adobe-specific structures (M2-02b).
 
