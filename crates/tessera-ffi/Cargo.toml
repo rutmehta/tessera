@@ -24,7 +24,7 @@ pipeline-cpu = { path = "../pipeline-cpu" }
 pipeline-gpu = { path = "../pipeline-gpu" }
 ml-runtime = { path = "../ml-runtime" }
 ml-segment = { path = "../ml-segment" }
-# Layered-editor tools (WP M5-11).
+# Layered-editor tools (WP B5-04).
 brush = { path = "../brush" }
 selection = { path = "../selection" }
 export = { path = "../export" }
@@ -55,7 +55,7 @@ thiserror.workspace = true
 image = { workspace = true, features = ["png"] }
 kamadak-exif.workspace = true
 half.workspace = true
-# Filters and smart filters in document mode (WP M5-12).
+# Filters and smart filters in document mode (WP B5-05).
 filters = { path = "../filters" }
 
 [dev-dependencies]

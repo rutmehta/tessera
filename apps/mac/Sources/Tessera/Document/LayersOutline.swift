@@ -47,7 +47,7 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
     private var thumbnailCache = ThumbnailCache()
     private let thumbnailLoader = LayerThumbnailLoader()
     static let dragType = NSPasteboard.PasteboardType("dev.tessera.layer-ids")
-    // Smart filter rows under smart objects (WP M5-12).
+    // Smart filter rows under smart objects (WP B5-05).
     private let smart = SmartFilterOutline()
     private var filters: DocumentFilters? { DocumentFilters.active }
     static let thumbnailPx: UInt32 = 64
@@ -95,7 +95,7 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
         thumbnailCache = ThumbnailCache()
         thumbnailLoader.reset()
         smart.reset()
-        if let f = filters { _ = smart.refresh(doc, filters: f) }   // WP M5-12
+        if let f = filters { _ = smart.refresh(doc, filters: f) }   // WP B5-05
         doc.onLayersReload = { [weak self] old, new in self?.apply(old: old, new: new) }
         doc.onSelectionChange = { [weak self] in self?.syncSelectionFromModel() }
         outline.reloadData()
@@ -118,7 +118,7 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
     private func apply(old: DocumentOutline, new: DocumentOutline) {
         guard let changes = DocumentOutline.diff(from: tree, to: new) else {
             tree = new
-            if let d = document, let f = filters { _ = smart.refresh(d, filters: f) }   // WP M5-12
+            if let d = document, let f = filters { _ = smart.refresh(d, filters: f) }   // WP B5-05
             outline.reloadData()
             outline.expandItem(nil, expandChildren: true)
             syncSelectionFromModel()
@@ -143,7 +143,7 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
             outline.endUpdates()
             outline.sizeLastColumnToFit()
         }
-        // Smart filter rows (WP M5-12): reload the smart objects whose list changed.
+        // Smart filter rows (WP B5-05): reload the smart objects whose list changed.
         if let doc = document, let f = filters {
             for id in smart.refresh(doc, filters: f) {
                 guard new.node(id) != nil else { continue }
@@ -192,28 +192,28 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
     // MARK: Data source
 
     func outlineView(_ outlineView: NSOutlineView, numberOfChildrenOfItem item: Any?) -> Int {
-        if let i = item as? LayerItem, tree.node(i.id)?.kind == .smartObject { return smart.count(i.id) }   // WP M5-12
+        if let i = item as? LayerItem, tree.node(i.id)?.kind == .smartObject { return smart.count(i.id) }   // WP B5-05
         if item is SmartFilterItem { return 0 }
         return tree.children(of: (item as? LayerItem)?.id ?? DocumentOutline.root).count
     }
 
     func outlineView(_ outlineView: NSOutlineView, child index: Int, ofItem item: Any?) -> Any {
-        if let i = item as? LayerItem, let f = smart.item(i.id, index) { return f }   // WP M5-12
+        if let i = item as? LayerItem, let f = smart.item(i.id, index) { return f }   // WP B5-05
         return self.item(tree.children(of: (item as? LayerItem)?.id ?? DocumentOutline.root)[index])
     }
 
     func outlineView(_ outlineView: NSOutlineView, isItemExpandable item: Any) -> Bool {
         guard let i = item as? LayerItem else { return false }
-        return tree.node(i.id)?.kind == .group || smart.count(i.id) > 0   // WP M5-12: smart filters
+        return tree.node(i.id)?.kind == .group || smart.count(i.id) > 0   // WP B5-05: smart filters
     }
 
-    /// Smart filter rows are not layers: they act on click, they are not selected (WP M5-12).
+    /// Smart filter rows are not layers: they act on click, they are not selected (WP B5-05).
     func outlineView(_ outlineView: NSOutlineView, shouldSelectItem item: Any) -> Bool { !(item is SmartFilterItem) }
 
     func outlineView(_ outlineView: NSOutlineView, rowViewForItem item: Any) -> NSTableRowView? { LayerRowView() }
 
     func outlineView(_ outlineView: NSOutlineView, viewFor tableColumn: NSTableColumn?, item: Any) -> NSView? {
-        if let f = item as? SmartFilterItem, let doc = document, let filters {   // WP M5-12
+        if let f = item as? SmartFilterItem, let doc = document, let filters {   // WP B5-05
             return smart.cell(outlineView, f, doc: doc, filters: filters)
         }
         guard let i = item as? LayerItem, let n = tree.node(i.id) else { return nil }
@@ -288,7 +288,7 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
 
     @objc private func doubleClicked(_ sender: Any?) {
         let row = outline.clickedRow
-        if row >= 0, let f = outline.item(atRow: row) as? SmartFilterItem, let doc = document, let filters {   // WP M5-12
+        if row >= 0, let f = outline.item(atRow: row) as? SmartFilterItem, let doc = document, let filters {   // WP B5-05
             smart.edit(f, doc: doc, filters: filters)
             return
         }
@@ -316,7 +316,7 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
 
     func outlineView(_ outlineView: NSOutlineView, validateDrop info: any NSDraggingInfo, proposedItem item: Any?,
                      proposedChildIndex index: Int) -> NSDragOperation {
-        if item is SmartFilterItem { return [] }   // WP M5-12
+        if item is SmartFilterItem { return [] }   // WP B5-05
         if let i = item as? LayerItem, tree.node(i.id)?.kind == .smartObject, index != NSOutlineViewDropOnItemIndex { return [] }
         guard let target = dropTarget(item: item, index: index) else { return [] }
         let ids = draggedIDs(info)
@@ -351,7 +351,7 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
         menu.removeAllItems()
         guard let doc = document else { return }
         let row = outline.clickedRow
-        if row >= 0, let f = outline.item(atRow: row) as? SmartFilterItem, let filters {   // WP M5-12
+        if row >= 0, let f = outline.item(atRow: row) as? SmartFilterItem, let filters {   // WP B5-05
             smart.menu(menu, f, doc: doc, filters: filters)
             return
         }

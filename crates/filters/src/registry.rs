@@ -1,4 +1,4 @@
-//! The host-facing filter catalogue (WP M5-12): every menu filter with its
+//! The host-facing filter catalogue (WP B5-05): every menu filter with its
 //! group, display name and parameter schema, and the mapping from the
 //! schema's user-facing values (Photoshop units: pixels, degrees, percent,
 //! 0–255 levels) to an [`Effect`] with [`FilterParams`].

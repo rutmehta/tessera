@@ -3,7 +3,7 @@ import Observation
 import TesseraCore
 
 /// One open layered document: the observed model of the Layers, Properties and History panels
-/// over a `DocumentBackend` (the stub now, M5-09's `DocumentSession` from M5-13b on). Every edit
+/// over a `DocumentBackend` (the stub now, B5-01's `DocumentSession` from B5-03 on). Every edit
 /// goes through here so errors land in the status bar and the panels refresh once per change.
 @MainActor @Observable
 final class DocumentController: Identifiable {

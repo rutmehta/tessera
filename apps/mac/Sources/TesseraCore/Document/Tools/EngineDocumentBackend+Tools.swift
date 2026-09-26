@@ -1,7 +1,7 @@
 import Foundation
 import TesseraFFI
 
-// `DocumentToolsBackend` over the engine session (WP M5-11): one session call per requirement,
+// `DocumentToolsBackend` over the engine session (WP B5-04): one session call per requirement,
 // records converted field by field (name table in DocumentToolsBackend.swift).
 
 extension ToolColor {

@@ -11,7 +11,7 @@ struct DocumentView: View {
             if let doc = workspace.current {
                 DocumentViewportRepresentable(workspace: workspace, document: doc)
                 VStack(spacing: 0) {
-                    // WP M5-11: tools palette (left) and the options bar (top).
+                    // WP B5-04: tools palette (left) and the options bar (top).
                     HStack(alignment: .top, spacing: Theme.Space.s) {
                         ToolsPalette(document: doc, tools: DocumentTools.shared)
                         ToolOptionsBar(document: doc, tools: DocumentTools.shared)
@@ -36,10 +36,10 @@ struct DocumentView: View {
                 .background(Theme.canvas)
             }
         }
-        // WP M5-11: the tools serve this workspace; their sheets hang off the document view.
+        // WP B5-04: the tools serve this workspace; their sheets hang off the document view.
         .onAppear { DocumentTools.shared.attach(workspace) }
         .modifier(ToolSheetsModifier(tools: DocumentTools.shared))
-        .modifier(DocumentFilterSheets(filters: workspace.filters))   // WP M5-12
+        .modifier(DocumentFilterSheets(filters: workspace.filters))   // WP B5-05
     }
 }
 
@@ -93,7 +93,7 @@ struct DocumentInspector: View {
             if let doc = workspace.current {
                 ScrollView {
                     PanelSection("Properties") { PropertiesPanel(document: doc) }
-                    // WP M5-11: Color and Brushes.
+                    // WP B5-04: Color and Brushes.
                     ToolInspectorSections(tools: DocumentTools.shared, document: doc)
                 }
                 .scrollIndicators(.never)
@@ -222,7 +222,7 @@ struct DocumentStatusBar: View {
                         .accessibilityIdentifier("document.status.zoom")
                     separator
                     Text("\(doc.tool.title) (\(doc.tool.key))").fixedSize()
-                    if let r = DocumentTools.shared.strokeReadout, model.showRenderReadout {   // WP M5-11
+                    if let r = DocumentTools.shared.strokeReadout, model.showRenderReadout {   // WP B5-04
                         separator
                         Text(r).lineLimit(1).truncationMode(.tail).accessibilityIdentifier("document.status.stroke")
                     }

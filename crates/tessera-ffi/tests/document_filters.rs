@@ -1,5 +1,5 @@
 //! Filters, Image ▸ Adjustments and smart filters on `DocumentSession`
-//! (WP M5-12): the menu catalogue, previews (no history, viewport level),
+//! (WP B5-05): the menu catalogue, previews (no history, viewport level),
 //! destructive apply (one node, selection, undo), direct adjustments,
 //! smart filters (list edits, rendering, save/load round trip, export).
 #![cfg(target_os = "macos")]

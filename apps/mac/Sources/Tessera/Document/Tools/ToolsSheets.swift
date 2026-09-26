@@ -1,7 +1,7 @@
 import SwiftUI
 import TesseraCore
 
-/// The tools' sheets (WP M5-11): Select and Mask (Refine Edge, live preview in the chosen view mode),
+/// The tools' sheets (WP B5-04): Select and Mask (Refine Edge, live preview in the chosen view mode),
 /// Color Range, Modify ▸ Border / Smooth / Expand / Contract / Feather, Fill, Save Selection.
 struct ToolSheetsModifier: ViewModifier {
     @Bindable var tools: DocumentTools

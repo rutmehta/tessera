@@ -3787,7 +3787,7 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
     /**
      * A rectangular marquee selection (level-0 pixels), its edges ramped
      * over `feather` pixels (0: hard edges). Other selection tools arrive
-     * with M5-11.
+     * with B5-04.
      */
     func setSelectionRect(x: Int64, y: Int64, width: Int64, height: Int64, feather: Float) throws  -> DocumentUpdate
     
@@ -4776,7 +4776,7 @@ open func setSelectedLayers(ids: [UInt64])throws   {try rustCallWithError(FfiCon
     /**
      * A rectangular marquee selection (level-0 pixels), its edges ramped
      * over `feather` pixels (0: hard edges). Other selection tools arrive
-     * with M5-11.
+     * with B5-04.
      */
 open func setSelectionRect(x: Int64, y: Int64, width: Int64, height: Int64, feather: Float)throws  -> DocumentUpdate  {
     return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {

@@ -1,6 +1,6 @@
-# M5-12 implementation status: filters and direct adjustments in the app
+# B5-05 implementation status: filters and direct adjustments in the app
 
-Branch `wp/M5-12` (base: M5-09 FFI, M5-13/M5-13b document UI, main with M5-06 filters and M5-07).
+Branch `wp/B5-05` (base: B5-01 FFI, B5-02/B5-03 document UI, main with M5-06 filters and M5-07).
 
 ## What was built
 
@@ -61,7 +61,7 @@ mask_png?}`; masks are canvas-sized 8-bit PNG, base64), so they round-trip throu
   `SmartFilterRows.swift` (rows under smart objects: eye, mask thumbnail, name, blending button; double-click re-edits;
   context menu), `FilterSelfTest.swift` (`--filter-selftest <dir>`, started from `DocumentFilters.init`, no TesseraApp hook).
 - Shared files, small marked blocks: `AppCommands.swift` (2 menus), `DocumentWorkspace.swift` (`let filters`),
-  `DocumentView.swift` (sheet modifier), `LayersOutline.swift` (smart filter hooks marked `WP M5-12`),
+  `DocumentView.swift` (sheet modifier), `LayersOutline.swift` (smart filter hooks marked `WP B5-05`),
   `PropertiesPanel.swift` (`AdjustmentEditor.onEdit`, 4 lines), `EngineDocumentBackend.swift` (`change` no longer
   `private`), `DESIGN.md` §10, `ACCEPTANCE.md` §U part 3 + identifiers, `README.md` (launch argument).
 - Accessibility identifiers: `document.filter.<id>.<key>` / `.detail` / `.preview` / `.reset` / `.cancel` / `.ok`,
@@ -94,7 +94,7 @@ mask_png?}`; masks are canvas-sized 8-bit PNG, base64), so they round-trip throu
 - `swift test`: `Executed 140 tests, with 0 failures` (133 + 7 in `DocumentFiltersTests`: schema → control mapping for
   every kind, the engine catalogue, filter JSON, Last Filter memory with persistence, the engine adapter, the stub, the
   controller: dialog, reset, OK → one node, ⌃F, Levels sheet, non-pixel targets) and `Test run with 5 tests in 2 suites passed`.
-- `xcodebuild -scheme Tessera … -derivedDataPath ~/.cache/tessera-derived-data-M5-12 build`: `** BUILD SUCCEEDED **`.
+- `xcodebuild -scheme Tessera … -derivedDataPath ~/.cache/tessera-derived-data-B5-05 build`: `** BUILD SUCCEEDED **`.
 - engine-api unchanged.
 
 ## Evidence

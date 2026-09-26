@@ -3,7 +3,7 @@ import SwiftUI
 import TesseraCore
 import UniformTypeIdentifiers
 
-/// The inspector's tool sections in document mode (WP M5-11): Color (foreground / background, colour
+/// The inspector's tool sections in document mode (WP B5-04): Color (foreground / background, colour
 /// wells, hex, swap, default) and Brushes (presets with tip previews, ABR import, tip settings).
 struct ToolInspectorSections: View {
     @Bindable var tools: DocumentTools

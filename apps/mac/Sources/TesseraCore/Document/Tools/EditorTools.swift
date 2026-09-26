@@ -1,6 +1,6 @@
 import Foundation
 
-// UI-free parts of the layered editor's tools (WP M5-11): tool titles, keys and groups, the tool key
+// UI-free parts of the layered editor's tools (WP B5-04): tool titles, keys and groups, the tool key
 // map, brush HUD maths, selection modifier mapping, the pressure curve and per-frame stroke
 // coalescing. Everything here is unit tested (DocumentToolsTests).
 

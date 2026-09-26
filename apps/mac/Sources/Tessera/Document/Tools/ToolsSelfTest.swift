@@ -1,7 +1,7 @@
 import AppKit
 import TesseraCore
 
-/// `--tools-selftest <dir>` (test aid, WP M5-11): ACCEPTANCE §V through the viewport's own mouse
+/// `--tools-selftest <dir>` (test aid, WP B5-04): ACCEPTANCE §V through the viewport's own mouse
 /// path (synthesized mouse events sent to the document viewport, so the tools' stroke capture,
 /// per-frame coalescing and engine calls are the ones a user drives). After the library loads it
 /// focuses `sample.dng`, runs Edit in Layers, paints a brush stroke (checks it and undo / redo),

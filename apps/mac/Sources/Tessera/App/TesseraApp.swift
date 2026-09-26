@@ -94,7 +94,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             AppearancePreference.current.apply()
         }
-        // Layered documents run on the engine (WP M5-13b); `--stub-library` keeps the stub backend.
+        // Layered documents run on the engine (WP B5-03); `--stub-library` keeps the stub backend.
         AppModel.shared.documents.policy = args.contains("--stub-library") ? .stub : .engine
     }
 
@@ -157,13 +157,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         if let dir = value(after: "--document-selftest") {
-            // Test aid (WP M5-13b): ACCEPTANCE §U part 2 on the engine, step by step, then quit.
+            // Test aid (WP B5-03): ACCEPTANCE §U part 2 on the engine, step by step, then quit.
             let hold = value(after: "--document-selftest-hold").flatMap(Double.init) ?? 2.5
             let test = DocumentSelfTest(model: model, dir: URL(fileURLWithPath: (dir as NSString).expandingTildeInPath), hold: hold)
             Task { @MainActor in await test.run() }
         }
         if let dir = value(after: "--tools-selftest") {
-            // Test aid (WP M5-11): ACCEPTANCE §V (layered editor tools) through the viewport's mouse path.
+            // Test aid (WP B5-04): ACCEPTANCE §V (layered editor tools) through the viewport's mouse path.
             let hold = value(after: "--tools-selftest-hold").flatMap(Double.init) ?? 2
             let test = ToolsSelfTest(model: model, dir: URL(fileURLWithPath: (dir as NSString).expandingTildeInPath), hold: hold)
             Task { @MainActor in await test.run() }

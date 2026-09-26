@@ -1,12 +1,12 @@
-# M5-13b implementation status: engine `DocumentSession` in document mode
+# B5-03 implementation status: engine `DocumentSession` in document mode
 
-Branch `wp/M5-13b` (contains wp/M5-09 and wp/M5-13). Document mode now runs on the engine; the stub stays for
+Branch `wp/B5-03` (contains wp/B5-01 and wp/B5-02). Document mode now runs on the engine; the stub stays for
 `--stub-library` and unit tests.
 
 ## What was wired
 
 - `apps/mac/Sources/TesseraCore/Document/EngineDocumentBackend.swift`
-  - Conversions both ways for every record and enum in the M5-13 name table (`DocumentInfo` ⇄ `DocumentSummary`,
+  - Conversions both ways for every record and enum in the B5-02 name table (`DocumentInfo` ⇄ `DocumentSummary`,
     `LayerNode` ⇄ `LayerRecord`, `DocumentUpdate` ⇄ `DocumentChange`, `DocFrameInfo` ⇄ `DocFrame`, `DocSurfacePlan`,
     `LayerPropsRecord`, `LayerLocks`, `DocRect`, `NewLayer`, `MaskInit`, `DocDepth`, `DocLayerKind`, `DocGroupMode`,
     `ExportFormat`, `ExportColor`). `BridgeError.Failure` becomes `DocumentError` (not found / unsupported / io / invalid).
@@ -29,7 +29,7 @@ Branch `wp/M5-13b` (contains wp/M5-09 and wp/M5-13). Document mode now runs on t
   Engine opens (files, Edit in Layers) run off the main thread and then install the document. New Document gives the
   engine's blank canvas: one transparent pixel layer `Layer 1`, selected.
 - `DocumentViewport`: `detachSurfaces()` before attaching a resized ring (and on close via the controller). Surfaces are
-  sized to the visible level region and `setViewport` takes level pixels, as M5-09 documents.
+  sized to the visible level region and `setViewport` takes level pixels, as B5-01 documents.
 - Render timing: `DocumentController.renderReadout` (`render: L1 2606 × 1734, 3.6 ms`, 10 Hz) appears in the document
   status bar with Debug ▸ Show Render Timing. `TESSERA_DOC_FRAME_LOG=1` logs every frame.
 - `LayersOutline`: layer and mask thumbnails render on a background queue, newest request per slot only; the row
@@ -102,7 +102,7 @@ passes `--stub-library` for the stub part, part 2 rewritten as steps 143–150 w
   adapter (blank canvas, every adjustment and fill kind, interactive + commit, selection nodes, undo, checkout 0,
   errors, same path = same backend), frames reaching the listener on main, and engine-vs-stub selection in the
   workspace (including an `EngineLibrary`).
-- `xcodebuild … -derivedDataPath ~/.cache/tessera-derived-data-M5-13 build`: BUILD SUCCEEDED. `Support/make-app.sh`: built.
+- `xcodebuild … -derivedDataPath ~/.cache/tessera-derived-data-B5-02 build`: BUILD SUCCEEDED. `Support/make-app.sh`: built.
 
 ## Deviations and notes
 
@@ -117,4 +117,4 @@ passes `--stub-library` for the stub part, part 2 rewritten as steps 143–150 w
 - A group's thumbnail still follows its children's properties, so dragging a child's opacity re-renders the group's
   thumbnail. It renders in the background and is coalesced to the newest request.
 - Not done: Photoshop-verified PSD round trip (no Photoshop here); EDR document frames (M5-08); rulers and the Move
-  tool as in M5-13.
+  tool as in B5-02.

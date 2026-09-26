@@ -958,10 +958,10 @@ the battery readout.
 | `tether-capture` · `tether-interval-seconds` · `tether-interval-count` · `tether-interval-toggle` · `tether-interval-status` · `tether-auto-advance` · `tether-summary` | Capture row |
 | `tether-incoming` · `tether-frame-<sequence>` · `tether-pending` | Incoming strip |
 
-## U. Document mode: layered documents (M5-13)
+## U. Document mode: layered documents (B5-02)
 
 **Layers** (the fourth view-mode segment) is Tessera's layered editor: a viewport, and Properties, Layers and History
-panels in the inspector. Since M5-13b documents run on the engine's `DocumentSession` (`EngineDocumentBackend`): the
+panels in the inspector. Since B5-03 documents run on the engine's `DocumentSession` (`EngineDocumentBackend`): the
 engine of the open folder, or a standalone engine in the app-support directory when no folder is open. With
 `--stub-library` they run on the **stub backend** (`StubDocumentBackend`): a new document opens with six sample layers
 (Paper, Landscape with a soft elliptical mask, Vignette clipped to it, and a Grade group holding Curves 1 and
@@ -1029,7 +1029,7 @@ Hue/Saturation 1), rendered on the CPU. Part 1 runs on the stub; part 2 repeats 
      gains `Snapshot “Snapshot 1”` (undoable). The memory line reads `<n> states · <size>`.
 140. **Save, reopen, close.** ⌘S on the new document opens Save As; save `Poster.tessera-doc` into `$SCR`. The tab title
      becomes `Poster.tessera-doc`, the dirty dot goes. Choose **Save As…** with a `.psd` name: the status bar reads
-     `Save As: Saving as PSD / PSB needs the engine (M5-13b); save as .tessera-doc`. **File ▸ Export Flat…** (⇧⌘E): format
+     `Save As: Saving as PSD / PSB needs the engine (B5-03); save as .tessera-doc`. **File ▸ Export Flat…** (⇧⌘E): format
      PNG / JPEG / TIFF, quality for JPEG, colour space; export `Poster.png` into `$SCR` and check it opens in Preview with
      transparent margins (JPEG: white). Make one edit and press ⌘W: `Do you want to save the changes made to
      “Poster.tessera-doc”?` with Save…, Cancel, Don’t Save; choose Don’t Save: the tab closes and the viewport shows the
@@ -1044,9 +1044,9 @@ Hue/Saturation 1), rendered on the CPU. Part 1 runs on the stub; part 2 repeats 
      ```sh
      (cd apps/mac && swift test --filter "Document|ThemeLint" 2>&1 | grep "Executed")
      ```
-     Expect `Executed 41 tests, with 0 failures` (32 from M5-13, 9 engine-adapter tests from M5-13b).
+     Expect `Executed 41 tests, with 0 failures` (32 from B5-02, 9 engine-adapter tests from B5-03).
 
-### Part 2: over the real engine (M5-13b)
+### Part 2: over the real engine (B5-03)
 
 Work on a copy of the fixture: `mkdir -p "$SCR/shoot" && cp fixtures/raw/sample.dng "$SCR/shoot/"` (the app writes
 sidecars next to photos; never point it at `fixtures/raw`). Turn on **Debug ▸ Show Render Timing** for the readout.
@@ -1083,7 +1083,7 @@ sidecars next to photos; never point it at `fixtures/raw`). Turn on **Debug ▸ 
      Expect every `check … ok`, `opacity drag: frames 61, render median <16 ms`, and `done, 0 failure(s)`.
      `TESSERA_DOC_FRAME_LOG=1` prints every frame (`doc-frame: epoch … L1 … render … ms`) during manual drags.
 
-### Part 3: filters, Image ▸ Adjustments and smart filters (M5-12)
+### Part 3: filters, Image ▸ Adjustments and smart filters (B5-05)
 
 Same scratch copy as part 2 (`$SCR/shoot/sample.dng`). In the grid select `sample.dng`, ⌘E (Edit in Layers).
 
@@ -1097,7 +1097,7 @@ Same scratch copy as part 2 (`$SCR/shoot/sample.dng`). In the grid select `sampl
      detail pane (drag it to move) and **Radius**. Drag Radius: the canvas blurs live at the viewport level and the
      detail pane follows; History does not change and the document stays as it was. Untick **Preview**: the canvas shows
      the original, the pane still shows the filter. **Reset** returns Radius to 2.0 px
-     (📸 `tools/orchestrate/wp/M5-12/evidence/filters-01-gaussian-dialog.png`).
+     (📸 `tools/orchestrate/wp/B5-05/evidence/filters-01-gaussian-dialog.png`).
 153. **Apply and undo.** Radius 12, **OK**: the status bar reads `Applying Gaussian Blur…`, then
      `Gaussian Blur applied (<s> s)`; History gains one row `Gaussian Blur` (📸 `filters-02-gaussian-applied.png`).
      ⌘Z restores the sharp photo (📸 `filters-03-gaussian-undone.png`). ⌃F applies Gaussian Blur 12 px again without a
@@ -1129,7 +1129,7 @@ PASS when steps 130–142 (stub), 143–150 (engine) and 151–156 (filters) mee
 large window (drag Opacity on `Landscape` at 100 %) as an observation; the stub renders on the CPU and is not held to the
 engine's budget.
 
-## V. Layered editor tools: painting, selections, transform (M5-11)
+## V. Layered editor tools: painting, selections, transform (B5-04)
 
 Engine backend (not `--stub-library`), a scratch copy of `fixtures/raw/sample.dng` in `$SCR/shoot`, opened with
 Library ▸ Edit in Layers (⌘E). The tools palette sits on the left of the canvas, the options bar across the top.
@@ -1179,7 +1179,7 @@ Library ▸ Edit in Layers (⌘E). The tools palette sits on the left of the can
 
 PASS when steps 151–160 meet their expectations and the brush frames' median render time is under 16 ms.
 
-## Appendix: accessibility identifiers (M5-13)
+## Appendix: accessibility identifiers (B5-02)
 
 | Identifier | Element |
 | --- | --- |
@@ -1191,7 +1191,7 @@ PASS when steps 151–160 meet their expectations and the brush frames' median r
 | `document.properties` · `document.properties.name` · `.kind` · `.bounds` · `.groupMode` · `.channel` · `.levels.*` · `.curves.editor` · `.curves.reset` · `.hueSaturation.*` · `.exposure.*` · `.posterize.levels` · `.threshold.level` · `.channelMixer.*` · `.fill.*` · `.editContents` | Properties panel |
 | `document.history` · `document.history.row.<index>` (0 = Opened) · `document.history.snapshot.<n>` · `document.history.snapshot.<n>.restore` · `document.history.newSnapshot` · `document.history.memory` | History panel |
 | `document.new.*` · `document.export.*` · `document.empty.new` · `document.empty.open` · `document.status.*` | Sheets, empty state, status bar |
-| `document.tools` · `document.tool.<tool>` · `document.colors` · `document.optionsBar` · `document.option.*` · `document.transform.commit` · `document.colorPanel` · `document.color.{foreground,background}` · `document.brushes` · `document.brushes.import` · `document.brush.*` · `document.status.stroke` | Tools palette, options bar, Color and Brushes (M5-11) |
-| `document.filter.<id>.<key>` (e.g. `document.filter.gaussian_blur.radius`, `.dial` for angles) · `document.filter.<id>.detail` · `.preview` · `.reset` · `.cancel` · `.ok` | Filter dialogs (M5-12) |
+| `document.tools` · `document.tool.<tool>` · `document.colors` · `document.optionsBar` · `document.option.*` · `document.transform.commit` · `document.colorPanel` · `document.color.{foreground,background}` · `document.brushes` · `document.brushes.import` · `document.brush.*` · `document.status.stroke` | Tools palette, options bar, Color and Brushes (B5-04) |
+| `document.filter.<id>.<key>` (e.g. `document.filter.gaussian_blur.radius`, `.dial` for angles) · `document.filter.<id>.detail` · `.preview` · `.reset` · `.cancel` · `.ok` | Filter dialogs (B5-05) |
 | `document.adjustment.<kind>` · `.preview` · `.reset` · `.cancel` · `.ok` | Image ▸ Adjustments sheets (the editor inside keeps its `document.properties.*` identifiers) |
 | `document.layers.smartFilter.<layer>.<index>` · `.visibility` · `.mask` · `.name` · `.blending` · `document.smartFilter.blending.{mode,opacity,ok}` | Smart filter rows and their blending options |

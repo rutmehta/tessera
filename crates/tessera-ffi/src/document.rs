@@ -41,11 +41,11 @@
 mod io;
 #[path = "document/render.rs"]
 mod render;
-// Layered-editor tools: painting, selections, transform (WP M5-11).
+// Layered-editor tools: painting, selections, transform (WP B5-04).
 #[path = "document/tools.rs"]
 mod tools;
 pub use tools::*;
-// Filters, Image ▸ Adjustments and smart filters (WP M5-12).
+// Filters, Image ▸ Adjustments and smart filters (WP B5-05).
 #[path = "document/filters.rs"]
 mod filtering;
 pub use filtering::{FilterDetail, FilterInfo, SmartFilterEdit, SmartFilterRecord, list_filters};
@@ -662,7 +662,7 @@ pub(crate) struct State {
         std::sync::Weak<compositor::Raster>,
         Option<compositor::Rect>,
     )>,
-    /// Strokes, transforms, clone source, channels (WP M5-11).
+    /// Strokes, transforms, clone source, channels (WP B5-04).
     tools: tools::ToolState,
     closed: bool,
     pub(crate) view: render::View,
@@ -693,7 +693,7 @@ pub(crate) struct Shared {
     state: Mutex<State>,
     render: render::Renderer,
     listener: Mutex<Option<Arc<dyn DocumentListener>>>,
-    /// Filter previews and smart filter bakes (WP M5-12).
+    /// Filter previews and smart filter bakes (WP B5-05).
     filters: filtering::FilterState,
 }
 
@@ -755,7 +755,7 @@ fn changed_layers(a: &DocState, b: &DocState) -> Vec<u64> {
 /// its mask and, for groups, every child with its properties. The layer's
 /// own properties (opacity, blend mode, visibility, name, …) are left out:
 /// thumbnails ignore them, so an opacity drag does not re-render the
-/// thumbnail on every step (WP M5-13b).
+/// thumbnail on every step (WP B5-03).
 fn layer_revision(l: &Layer) -> u64 {
     let mut r = l.content_rev;
     if let Some(m) = &l.mask {
@@ -1557,7 +1557,7 @@ impl DocumentSession {
 
     /// A rectangular marquee selection (level-0 pixels), its edges ramped
     /// over `feather` pixels (0: hard edges). Other selection tools arrive
-    /// with M5-11.
+    /// with B5-04.
     pub fn set_selection_rect(
         &self,
         x: i64,

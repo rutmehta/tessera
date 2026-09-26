@@ -1,5 +1,5 @@
 //! Filters, Image ▸ Adjustments and smart filters on a [`DocumentSession`]
-//! (WP M5-12).
+//! (WP B5-05).
 //!
 //! # Calls
 //!

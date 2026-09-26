@@ -1,6 +1,6 @@
-# M5-11 implementation status: layered editor tools (painting, selections, transform)
+# B5-04 implementation status: layered editor tools (painting, selections, transform)
 
-Branch `wp/M5-11` (contains M5-09, M5-13, M5-13b and main with the `brush` / `selection` crates of M5-05).
+Branch `wp/B5-04` (contains B5-01, B5-02, B5-03 and main with the `brush` / `selection` crates of M5-05).
 
 ## What was built
 
@@ -49,7 +49,7 @@ Branch `wp/M5-11` (contains M5-09, M5-13, M5-13b and main with the `brush` / `se
   sections), `ToolsSheets` (Select and Mask, Color Range, Modify, Fill, Save Selection), `ToolsMenus` (Select menu,
   Edit ▸ Fill / Clear / Free Transform ⌘T / Transform ▸), `ToolsSelfTest` (`--tools-selftest`).
 - Shared files, small delimited blocks: `DocumentViewport` (tool drag case and forwarding, overlay, coordinate helpers,
-  tracking area, right mouse), `DocumentView` (palette + options bar instead of the M5-13 tool bar, inspector sections,
+  tracking area, right mouse), `DocumentView` (palette + options bar instead of the B5-02 tool bar, inspector sections,
   sheets, stroke readout), `AppCommands` (Select menu body, Edit group, ⇧⌘I only outside document mode for Import
   Lightroom Catalog), `KeyRouter` (tool keys first in document mode), `TesseraApp` (`--tools-selftest`),
   `DocumentKeyMap` (`DocumentTool` gains the new cases), `EngineDocumentBackend.change` made internal (the tools
@@ -90,7 +90,7 @@ the viewport's mouse path): `stroke_points` median 0.64–0.84 ms, frame render 
 - `(cd apps/mac && ./build-ffi.sh && swift build && swift test)`: `Executed 148 tests, with 0 failures` (133 before +
   15 in `DocumentToolsTests`) and `Test run with 5 tests in 2 suites passed`. ThemeLintTests green.
 - `xcodebuild -scheme Tessera -configuration Debug -destination 'platform=macOS' -derivedDataPath
-  ~/.cache/tessera-derived-data-M5-11 build`: BUILD SUCCEEDED.
+  ~/.cache/tessera-derived-data-B5-04 build`: BUILD SUCCEEDED.
 - `--tools-selftest` on a scratch copy of `sample.dng`: 13 checks ok, `done, 0 failure(s)`; screenshots (Tessera window
   region only) `evidence/tools-1-edit-in-layers.png` … `tools-9-psd-reopen.png`.
 
@@ -116,6 +116,6 @@ the viewport's mouse path): `stroke_points` median 0.64–0.84 ms, frame render 
 - **Object Selection** is click-to-select (point prompt); the box and lasso prompt modes are not wired.
 - **Select and Mask** is a sheet (not a workspace) with Overlay / On Black / On White / Marching Ants previews drawn
   from the refined outline; output is the selection only (no decontaminate / new layer).
-- The inspector column is clipped on a 1440 pt window with the sidebar open, as in M5-13b's screenshots (pre-existing
+- The inspector column is clipped on a 1440 pt window with the sidebar open, as in B5-03's screenshots (pre-existing
   layout); the new options bar scrolls sideways instead of widening the canvas.
 - Clone / heal "Sample All Layers" reads the full-resolution composite at stroke start (≈ 0.3 s on 18 MP).

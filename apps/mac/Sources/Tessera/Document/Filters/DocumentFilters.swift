@@ -5,7 +5,7 @@ import Observation
 import SwiftUI
 import TesseraCore
 
-/// Filter menu, Image ▸ Adjustments and smart filters in document mode (WP M5-12). One per
+/// Filter menu, Image ▸ Adjustments and smart filters in document mode (WP B5-05). One per
 /// workspace: it owns the open filter / adjustment / blending sheet, the Last Filter memory, and
 /// runs full-resolution applies off the main thread.
 @MainActor @Observable

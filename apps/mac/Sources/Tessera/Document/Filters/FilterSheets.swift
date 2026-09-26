@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 import TesseraCore
 
-/// A filter dialog (WP M5-12): controls generated from the filter's schema, the 1:1 detail pane,
+/// A filter dialog (WP B5-05): controls generated from the filter's schema, the 1:1 detail pane,
 /// Preview (live on the canvas), Reset, Cancel and OK. Identifiers: `document.filter.<id>.<key>`,
 /// `.preview`, `.reset`, `.cancel`, `.ok`, `.detail`.
 struct FilterSheet: View {

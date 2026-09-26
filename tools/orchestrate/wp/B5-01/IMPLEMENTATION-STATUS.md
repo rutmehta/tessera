@@ -1,6 +1,6 @@
-# M5-09 — FFI `DocumentSession`: implementation status
+# B5-01 — FFI `DocumentSession`: implementation status
 
-Branch `wp/M5-09`. Layered documents (the `compositor` crate) over UniFFI for the mac app's
+Branch `wp/B5-01`. Layered documents (the `compositor` crate) over UniFFI for the mac app's
 document mode, following the `DevelopSession` conventions: `Arc` sessions created by `Engine`,
 a `with_foreign` listener, IOSurface presentation, `EngineError`-backed `BridgeError` results,
 and records (never pixels) across the bridge.
@@ -141,7 +141,7 @@ Target < 16 ms: met with a wide margin.
   cache key is `LayerNode.revision`, which includes property changes (a re-render on opacity
   changes is harmless).
 - **`LayerNode.bounds`** is tile-granular (stored 256-px tiles) for pixel layers; pixel-exact
-  bounds need a scan and are left to M5-11.
+  bounds need a scan and are left to B5-04.
 - **EDR:** frames are SDR RGBA8; `set_display_headroom` is stored only (the compositor's
   RGBA16F presentation is M5-08).
 - **Merge down** composites the pair in isolation (lower layer at Normal/100 % with its mask

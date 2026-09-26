@@ -89,7 +89,7 @@ struct AdjustmentEditor: View {
     let document: DocumentController
     let id: DocLayerID
     let model: AdjustmentModel
-    /// Edits go here instead of to the adjustment layer (Image ▸ Adjustments sheets, WP M5-12).
+    /// Edits go here instead of to the adjustment layer (Image ▸ Adjustments sheets, WP B5-05).
     var onEdit: ((AdjustmentModel, Bool) -> Void)? = nil
     @State private var channel = 0      // 0 = composite (RGB), 1…3 = red, green, blue
     @State private var mixerRow = 0

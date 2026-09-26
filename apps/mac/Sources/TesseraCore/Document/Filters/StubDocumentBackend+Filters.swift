@@ -1,6 +1,6 @@
 import Foundation
 
-// The stub backend (`--stub-library`, unit tests) and filters (WP M5-12): the menu is the engine's
+// The stub backend (`--stub-library`, unit tests) and filters (WP B5-05): the menu is the engine's
 // catalogue (static data), previews show nothing and applying explains that filters need the engine.
 // The stub has no smart objects, so its smart filter lists are empty.
 

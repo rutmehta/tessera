@@ -291,7 +291,7 @@ group's suggested best; the filmstrip at 72 pt; a one-line status bar in three g
 * The toolbar opts out of macOS 26's per-item glass with `sharedBackgroundVisibility(.hidden)`
   (`flatToolbarItem()`); macOS 15 ignores it.
 
-## 10. Document mode (WP M5-13)
+## 10. Document mode (WP B5-02)
 
 Layered documents reuse the system above; nothing here adds a colour, size or font.
 
@@ -323,7 +323,7 @@ Layered documents reuse the system above; nothing here adds a colour, size or fo
   tabular type.
 * **Status bar** in document mode: canvas size · depth · profile | zoom | tool | selection size,
   then the message.
-* **Tools (WP M5-11)**: the tools palette is a vertical HUD column of 28 pt `IconButton`s at the canvas's top left, one
+* **Tools (WP B5-04)**: the tools palette is a vertical HUD column of 28 pt `IconButton`s at the canvas's top left, one
   slot per tool group in Photoshop's order, then the foreground / background swatches (user colours, radius 4,
   `hairlineStrong` outline) with swap and default. The options bar is a HUD bar beside it (scrolls sideways when
   narrow): the tool's icon and name, then compact small native fields with 11 pt captions, checkboxes, the neutral
@@ -332,7 +332,7 @@ Layered documents reuse the system above; nothing here adds a colour, size or fo
   `OnImage.shadow`, hardness ring and symmetry guides in `OnImage.guideFaint`, square transform handles in
   `OnImage.text` with `OnImage.ink`, and the HUD readout as a scrim chip. Select and Mask previews tint outside the
   selection with `OnImage.reject` at 50 % (Overlay), `OnImage.ink` (On Black) or `OnImage.text` (On White).
-* **Filter dialogs** (WP M5-12) are `SheetScaffold` sheets: the filter name as title, the layer as
+* **Filter dialogs** (WP B5-05) are `SheetScaffold` sheets: the filter name as title, the layer as
   subtitle; content is a 180 pt 1:1 detail pane on `plotWell` (radius 4, a `1:1` chip in the
   on-image pair) left of the controls generated from the filter's schema: `ValueSlider` rows for
   numbers (unit in the value), a 28 pt angle dial (`well`, hairline, `textPrimary` needle) beside

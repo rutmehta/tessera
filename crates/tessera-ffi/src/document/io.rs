@@ -496,7 +496,7 @@ fn convert(source: &[u8], target: &[u8], rgba: &mut [f32]) -> Result<()> {
 
 /// Pixel-exact bounds of a selection raster: the pixels with any
 /// selection (`None`: nothing selected). The marching ants and the status
-/// bar show them, so stored-tile granularity is not enough (WP M5-13b).
+/// bar show them, so stored-tile granularity is not enough (WP B5-03).
 /// Scans the stored tiles; `info` caches the result per selection.
 pub(crate) fn selection_bounds(r: &Raster) -> Option<Rect> {
     let mut out = Rect::default();
@@ -504,7 +504,7 @@ pub(crate) fn selection_bounds(r: &Raster) -> Option<Rect> {
     let tile = engine_api::tile::TILE_SIZE;
     if r.default_value() > 0.0 {
         // Absent tiles are selected (Select All, Inverse): every tile
-        // without stored samples counts whole (WP M5-11).
+        // without stored samples counts whole (WP B5-04).
         let (cols, rows) = r.grid();
         for ty in 0..rows {
             for tx in 0..cols {

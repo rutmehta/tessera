@@ -1,7 +1,7 @@
 import AppKit
 import TesseraCore
 
-/// Draws the layered editor's on-canvas feedback over the document viewport (WP M5-11): marching ants
+/// Draws the layered editor's on-canvas feedback over the document viewport (WP B5-04): marching ants
 /// from the engine's selection outline, gestures in progress (marquee, lassos, quick-selection
 /// stroke), the brush outline at brush size with its hardness ring, symmetry guides, the clone
 /// source, the brush HUD readout, the Free Transform box, and Select and Mask preview modes. It never

@@ -777,7 +777,7 @@ impl Engine {
         *self.segmenter.0.lock().unwrap_or_else(|e| e.into_inner()) = Some(segmenter);
     }
 
-    /// Runs `f` with the engine's segmenter, loading it on first use (WP M5-11:
+    /// Runs `f` with the engine's segmenter, loading it on first use (WP B5-04:
     /// Select ▸ Subject / Sky and the Object Selection tool in document mode).
     pub(crate) fn with_segmenter<R>(
         &self,

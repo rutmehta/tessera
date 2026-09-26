@@ -4,7 +4,7 @@ import TesseraFFI
 @testable import Tessera
 @testable import TesseraCore
 
-/// Filters in document mode (WP M5-12): schema → control mapping, filter JSON, Last Filter memory,
+/// Filters in document mode (WP B5-05): schema → control mapping, filter JSON, Last Filter memory,
 /// the engine adapter (preview without history, apply as one node, smart filters) and the dialogs'
 /// controller.
 final class DocumentFiltersTests: XCTestCase {

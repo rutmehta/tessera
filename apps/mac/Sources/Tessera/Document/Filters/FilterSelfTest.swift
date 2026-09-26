@@ -1,7 +1,7 @@
 import AppKit
 import TesseraCore
 
-/// `--filter-selftest <dir>` (test aid, WP M5-12): ACCEPTANCE §U part 3 through the same controller
+/// `--filter-selftest <dir>` (test aid, WP B5-05): ACCEPTANCE §U part 3 through the same controller
 /// calls the menus and dialogs make. After the library loads it opens `sample.dng` with Edit in
 /// Layers, opens Filter ▸ Blur ▸ Gaussian Blur…, drags Radius through 12 values measuring the preview
 /// latency (value change → the listener's frame showing it), applies (one "Gaussian Blur" row),

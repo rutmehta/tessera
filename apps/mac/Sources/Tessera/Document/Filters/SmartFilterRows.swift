@@ -9,7 +9,7 @@ final class SmartFilterItem: NSObject {
     init(layer: DocLayerID, row: SmartFilterRow) { self.layer = layer; self.row = row }
 }
 
-/// Smart filters in the Layers outline (WP M5-12): under each smart object, one row per smart
+/// Smart filters in the Layers outline (WP B5-05): under each smart object, one row per smart
 /// filter, last applied on top (Photoshop's order): enable eye, mask thumbnail, name (double-click
 /// re-edits the filter), blending options button. `LayersOutlineController` calls in here from a
 /// few clearly marked hooks.

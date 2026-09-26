@@ -1,7 +1,7 @@
 import SwiftUI
 import TesseraCore
 
-/// Filter menu (document mode, WP M5-12), built from the engine's `list_filters()` catalogue:
+/// Filter menu (document mode, WP B5-05), built from the engine's `list_filters()` catalogue:
 /// Last Filter (⌃F), Convert for Smart Filters, then one submenu per group.
 struct FilterMenu: View {
     let doc: DocumentController?

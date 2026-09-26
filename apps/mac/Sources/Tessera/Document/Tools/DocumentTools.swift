@@ -2,7 +2,7 @@ import AppKit
 import Observation
 import TesseraCore
 
-/// The layered editor's tools (WP M5-11): tool options, colours, the gestures of every tool on the
+/// The layered editor's tools (WP B5-04): tool options, colours, the gestures of every tool on the
 /// document viewport, stroke capture (tablet pressure and tilt, coalesced per frame), selections,
 /// Free Transform, and the Select / Edit menu commands. One instance serves the workspace's current
 /// document; the viewport forwards mouse events here and `ToolOverlayView` draws what this holds.

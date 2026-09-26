@@ -1,6 +1,6 @@
 import Foundation
 
-// The Filter menu's data model (WP M5-12): the engine's `list_filters()` catalogue
+// The Filter menu's data model (WP B5-05): the engine's `list_filters()` catalogue
 // (crates/filters/src/registry.rs) decoded into controls, the values a filter dialog edits, the
 // filter JSON the session takes, and the memory behind Filter ▸ Last Filter (⌃F).
 

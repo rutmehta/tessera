@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 import TesseraCore
 
-/// The tools palette (WP M5-11): a vertical HUD column on the left of the canvas, one slot per tool
+/// The tools palette (WP B5-04): a vertical HUD column on the left of the canvas, one slot per tool
 /// group in Photoshop's order (the slot shows the group's current tool; right-click lists the group,
 /// ⇧ + its key cycles it), then the foreground / background swatches with swap (X) and default (D).
 struct ToolsPalette: View {
@@ -140,7 +140,7 @@ struct OptionToggle: View {
     }
 }
 
-/// The options bar (WP M5-11): a HUD bar across the top of the canvas with the current tool's options.
+/// The options bar (WP B5-04): a HUD bar across the top of the canvas with the current tool's options.
 struct ToolOptionsBar: View {
     @Bindable var document: DocumentController
     @Bindable var tools: DocumentTools

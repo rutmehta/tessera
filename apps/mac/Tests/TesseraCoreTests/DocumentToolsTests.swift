@@ -4,7 +4,7 @@ import TesseraFFI
 @testable import Tessera
 @testable import TesseraCore
 
-/// The layered editor's tools (WP M5-11): stroke coalescing and the pressure curve, brush HUD maths,
+/// The layered editor's tools (WP B5-04): stroke coalescing and the pressure curve, brush HUD maths,
 /// selection modifier mapping, transform matrix composition, the tool key map, and the engine adapter
 /// of `DocumentToolsBackend` (a real session: stroke, selections, outline, transform, fill, eyedropper).
 final class DocumentToolsTests: XCTestCase {

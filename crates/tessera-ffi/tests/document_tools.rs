@@ -1,4 +1,4 @@
-//! Layered-editor tools over the bridge (WP M5-11): strokes (brush,
+//! Layered-editor tools over the bridge (WP B5-04): strokes (brush,
 //! eraser, mask, clone, heal, symmetry, sampled tips), every selection call,
 //! outlines, channels, Free Transform, fill / clear and the eyedropper. The
 //! ignored bench measures interactive dab latency on a sample.dng-sized

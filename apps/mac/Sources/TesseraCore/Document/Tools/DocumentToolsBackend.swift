@@ -1,10 +1,10 @@
 import Foundation
 
-// The layered editor's tools (WP M5-11): painting, selections, Free Transform, fill / clear and the
+// The layered editor's tools (WP B5-04): painting, selections, Free Transform, fill / clear and the
 // eyedropper. A second protocol next to `DocumentBackend` so the document protocol itself stays
-// M5-09's call list: `EngineDocumentBackend` adopts it over the engine session's M5-11 calls
+// B5-01's call list: `EngineDocumentBackend` adopts it over the engine session's B5-04 calls
 // (crates/tessera-ffi/src/document/tools.rs) and `StubDocumentBackend` adopts a geometric subset.
-// Records carry TesseraCore names distinct from the FFI's (as in M5-13): `ToolColor` ⇄ `PaintColor`,
+// Records carry TesseraCore names distinct from the FFI's (as in B5-02): `ToolColor` ⇄ `PaintColor`,
 // `CanvasPoint` ⇄ `ToolPoint`, `BrushOptions` ⇄ `PaintBrush`, `PenSample` ⇄ `StrokeSample`,
 // `StrokeFrameResult` ⇄ `StrokeFrame`, `SelectionCombine` ⇄ `SelectionOp`, `MarqueeKind` ⇄
 // `MarqueeShape`, `LassoMode` ⇄ `LassoKind`, `SelectionModifyKind` ⇄ `SelectionModify`,
@@ -222,7 +222,7 @@ public struct BrushTipBitmap: Equatable, Sendable {
     public init(width: UInt32, height: UInt32, pixels: [UInt8]) { self.width = width; self.height = height; self.pixels = pixels }
 }
 
-/// The session's M5-11 calls, one for one (crates/tessera-ffi/src/document/tools.rs).
+/// The session's B5-04 calls, one for one (crates/tessera-ffi/src/document/tools.rs).
 public protocol DocumentToolsBackend: AnyObject, Sendable {
     // Painting
     func beginStroke(layer: DocLayerID, target: BrushStrokeTarget, tool: BrushToolKind, brush: BrushOptions,

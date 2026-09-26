@@ -13,7 +13,7 @@ struct AppCommands: Commands {
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
-            // Layered documents (WP M5-13).
+            // Layered documents (WP B5-02).
             Group {
                 Button("New Document…") { docs.showNewDocument = true }
                     .keyboardShortcut("n", modifiers: .command)
@@ -31,7 +31,7 @@ struct AppCommands: Commands {
             .disabled(model.recentFolders.isEmpty)
             Divider()
             Button("Import Lightroom Catalog…") { model.presentLightroomImport() }
-                .shortcut(!docMode, "i", [.command, .shift])   // ⇧⌘I is Select ▸ Inverse in document mode (M5-11)
+                .shortcut(!docMode, "i", [.command, .shift])   // ⇧⌘I is Select ▸ Inverse in document mode (B5-04)
                 .disabled(model.lightroomImport.isRunning)
             Divider()
             Button(model.tether.showPanel ? "Hide Tethered Capture" : "Tethered Capture…") { model.tether.togglePanel() }
@@ -216,7 +216,7 @@ struct AppCommands: Commands {
         }
     }
 
-    /// Save items, Layer and Select (document mode, WP M5-13).
+    /// Save items, Layer and Select (document mode, WP B5-02).
     @CommandsBuilder private var documentMenus: some Commands {
         // Close / Save / Save As / Export Flat: ⌘W closes the current document in document mode
         // (asking to save), the window otherwise.
@@ -234,16 +234,16 @@ struct AppCommands: Commands {
                 .disabled(doc == nil)
         }
         CommandMenu("Layer") { LayerMenu(doc: doc) }
-        // Image ▸ Adjustments and Filter (WP M5-12).
+        // Image ▸ Adjustments and Filter (WP B5-05).
         CommandMenu("Image") { ImageMenu(doc: doc, filters: docs.filters) }
         CommandMenu("Filter") { FilterMenu(doc: doc, filters: docs.filters) }
         CommandMenu("Select") {
-            // WP M5-11: selection commands and tools (Tools/ToolsMenus.swift).
+            // WP B5-04: selection commands and tools (Tools/ToolsMenus.swift).
             SelectMenuItems(doc: doc, docMode: docMode)
             Button("Move    (V)") { DocumentTools.shared.select(.move) }
                 .disabled(doc == nil)
         }
-        // WP M5-11: Edit ▸ Fill…, Clear, Free Transform (⌘T), Transform ▸ (document mode).
+        // WP B5-04: Edit ▸ Fill…, Clear, Free Transform (⌘T), Transform ▸ (document mode).
         CommandGroup(after: .pasteboard) {
             if docMode {
                 Divider()
@@ -253,7 +253,7 @@ struct AppCommands: Commands {
     }
 }
 
-/// Layer menu (document mode, WP M5-13). The Layers panel's context menu mirrors it.
+/// Layer menu (document mode, WP B5-02). The Layers panel's context menu mirrors it.
 struct LayerMenu: View {
     let doc: DocumentController?
 

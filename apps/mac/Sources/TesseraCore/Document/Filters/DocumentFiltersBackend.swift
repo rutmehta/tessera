@@ -1,7 +1,7 @@
 import Foundation
 
-// Filters, Image ▸ Adjustments and smart filters (WP M5-12): the second protocol document backends
-// adopt, next to `DocumentBackend`. It mirrors the M5-12 calls of `DocumentSession`
+// Filters, Image ▸ Adjustments and smart filters (WP B5-05): the second protocol document backends
+// adopt, next to `DocumentBackend`. It mirrors the B5-05 calls of `DocumentSession`
 // (crates/tessera-ffi/src/document/filters.rs) one to one; `EngineDocumentBackend` forwards them and
 // `StubDocumentBackend` lists the catalogue but applies nothing (filters need the engine).
 

@@ -1,6 +1,6 @@
 import Foundation
 
-// `DocumentToolsBackend` on the stub (WP M5-11). The stub keeps a rectangular selection and has no
+// `DocumentToolsBackend` on the stub (WP B5-04). The stub keeps a rectangular selection and has no
 // pixels, so it adopts the geometric subset — marquees, lassos and every other selection as their
 // bounding rectangle, Select All / Deselect, a rectangular outline — and reports painting,
 // transforms and image-driven tools as needing the engine (`--stub-library` runs and unit tests).

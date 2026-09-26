@@ -151,7 +151,7 @@ final class DocumentViewportView: NSView {
         case pan(last: CGPoint)
         case scrubby(start: CGPoint, zoom: Double)
         case marquee(start: CGPoint)
-        /// A layered-editor tool gesture (WP M5-11, `DocumentTools`).
+        /// A layered-editor tool gesture (WP B5-04, `DocumentTools`).
         case tool
     }
 
@@ -166,7 +166,7 @@ final class DocumentViewportView: NSView {
         ants.frame = bounds
         ants.autoresizingMask = [.width, .height]
         addSubview(ants)
-        // WP M5-11: marching ants from the selection outline, brush cursor, guides, transform box.
+        // WP B5-04: marching ants from the selection outline, brush cursor, guides, transform box.
         toolOverlay.frame = bounds
         toolOverlay.autoresizingMask = [.width, .height]
         toolOverlay.viewport = self
@@ -281,7 +281,7 @@ final class DocumentViewportView: NSView {
                 guard let s = DocumentSurfaces.make(width: Int(w), height: Int(h)) else { continue }
                 next[IOSurfaceGetID(s)] = (s, renderer?.texture(for: s))
             }
-            // Release the old ring first (M5-09: a different size replaces the ring; detaching makes it
+            // Release the old ring first (B5-01: a different size replaces the ring; detaching makes it
             // explicit). The frame on screen keeps its texture until the new ring's first frame arrives.
             if !ring.isEmpty { doc.backend.detachSurfaces() }
             do {
@@ -397,7 +397,7 @@ final class DocumentViewportView: NSView {
         if workspace?.spaceHeld == true {
             drag = .pan(last: p)
             NSCursor.closedHand.set()
-        } else if DocumentTools.shared.mouseDown(event, in: self) {   // WP M5-11
+        } else if DocumentTools.shared.mouseDown(event, in: self) {   // WP B5-04
             drag = .tool
         } else if event.modifierFlags.contains(.option) {
             drag = .scrubby(start: p, zoom: math.zoom)
@@ -451,7 +451,7 @@ final class DocumentViewportView: NSView {
     }
 
     func selectionDidChange() {
-        // WP M5-11: the marching ants follow the engine's selection outline (ToolOverlayView).
+        // WP B5-04: the marching ants follow the engine's selection outline (ToolOverlayView).
         ants.rect = nil
         DocumentTools.shared.selectionDidChange(in: self)
         toolOverlay.needsDisplay = true
@@ -462,7 +462,7 @@ final class DocumentViewportView: NSView {
         addCursorRect(bounds, cursor: cursor)
     }
 
-    // MARK: Tools (WP M5-11)
+    // MARK: Tools (WP B5-04)
 
     let toolOverlay = ToolOverlayView()
 

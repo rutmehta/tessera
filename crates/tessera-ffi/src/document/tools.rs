@@ -1,4 +1,4 @@
-//! Layered-editor tools on a [`DocumentSession`] (WP M5-11): painting
+//! Layered-editor tools on a [`DocumentSession`] (WP B5-04): painting
 //! (brush, eraser, clone stamp, healing brush) on pixels or layer masks,
 //! pixel selections (marquee, lasso, magic wand, quick selection, colour
 //! range, subject / sky / object, modify, refine edge, alpha channels,

@@ -14,9 +14,9 @@ import TesseraCore
 ///   Compare: ← → pick side · Return choose this · Z fit/1:1 · Esc back
 ///   Masking (loupe): M on/off · O overlay (⇧ colour) · [ ] brush size (⇧ feather) · X invert · ⌫ delete
 ///   Develop (loupe): S soft proofing on/off · ⇧S gamut warning
-///   Document mode (M5-13, `DocumentKeyMap`): V move · M marquee · Space-drag pan · Tab panels ·
+///   Document mode (B5-02, `DocumentKeyMap`): V move · M marquee · Space-drag pan · Tab panels ·
 ///   F screen modes · ⌫ delete layer; no culling key fires. ⌘ shortcuts are Layer / Select / View menu items.
-///   Document tools (M5-11, `ToolKeyMap`): V M L W B E S J G C T I H Z (⇧ cycles M / L / W), [ ] size,
+///   Document tools (B5-04, `ToolKeyMap`): V M L W B E S J G C T I H Z (⇧ cycles M / L / W), [ ] size,
 ///   ⇧[ ⇧] hardness, 0–9 opacity, X swap / D default colours, Return / Esc, ⌫ clears the selection.
 /// First responders that own their keyboard input. The local monitor must leave their events
 /// untouched even when they do not handle a particular key themselves.
@@ -119,7 +119,7 @@ final class KeyRouter {
 
     /// Document mode: only the document key map; culling, develop and mask keys never fire here.
     private func handleDocument(_ event: NSEvent) -> Bool {
-        // WP M5-11: tool letters (⇧ cycles a group), [ ] / ⇧[ ⇧] brush size and hardness, 0–9 opacity,
+        // WP B5-04: tool letters (⇧ cycles a group), [ ] / ⇧[ ⇧] brush size and hardness, 0–9 opacity,
         // X / D colours, Return / Esc (transform, polygon lasso), ⌫ clears a pixel selection.
         if DocumentTools.shared.handleKey(event) { return true }
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)

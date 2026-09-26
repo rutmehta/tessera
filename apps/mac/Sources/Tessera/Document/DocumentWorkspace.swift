@@ -5,11 +5,11 @@ import TesseraCore
 import TesseraFFI
 import UniformTypeIdentifiers
 
-/// Document mode's open documents (WP M5-13): the tab switcher, New / Open / Edit in Layers,
+/// Document mode's open documents (WP B5-02): the tab switcher, New / Open / Edit in Layers,
 /// Save / Save As / Export Flat, close with a save prompt, panels (Tab) and screen modes (F).
 @MainActor @Observable
 final class DocumentWorkspace {
-    /// Where documents come from when no engine-backed library is open (WP M5-13b).
+    /// Where documents come from when no engine-backed library is open (WP B5-03).
     enum BackendPolicy: Equatable {
         /// The stub backend (`--stub-library`, unit tests).
         case stub
@@ -73,7 +73,7 @@ final class DocumentWorkspace {
     /// New Document sheet values, remembered for the session.
     var newSettings = NewDocumentSettings()
     var exportSettings = ExportFlatSettings()
-    /// Filter menu, Image ▸ Adjustments and smart filters (WP M5-12).
+    /// Filter menu, Image ▸ Adjustments and smart filters (WP B5-05).
     let filters = DocumentFilters()
 
     static let documentTypes: [UTType] = [

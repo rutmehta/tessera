@@ -1,11 +1,11 @@
 import Foundation
 import IOSurface
 
-// The layered-document backend the mac app's document mode codes against (WP M5-13).
+// The layered-document backend the mac app's document mode codes against (WP B5-02).
 //
-// This mirrors the `DocumentSession` UniFFI object of WP M5-09 (crates/tessera-ffi/src/document.rs)
-// one to one: every record below is the Swift shape of an M5-09 record, every requirement is one
-// session call (snake_case in Rust, camelCase here), so M5-13b wires the real session by writing a
+// This mirrors the `DocumentSession` UniFFI object of WP B5-01 (crates/tessera-ffi/src/document.rs)
+// one to one: every record below is the Swift shape of an B5-01 record, every requirement is one
+// session call (snake_case in Rust, camelCase here), so B5-03 wires the real session by writing a
 // thin adapter (`extension DocumentSession: DocumentBackend`) that converts records field by field.
 // Until then `StubDocumentBackend` implements it in Swift so the UI runs and tests pass without the
 // engine. Conventions from apps/mac/README.md hold: ids and small records cross the bridge, pixels
@@ -337,7 +337,7 @@ public protocol DocumentEngine: AnyObject, Sendable {
     func openDocumentFromImage(imageId: String, developed: Bool) throws -> any DocumentBackend
 }
 
-/// `DocumentSession`, call for call (M5-09 `crates/tessera-ffi/src/document.rs`). Every edit is one
+/// `DocumentSession`, call for call (B5-01 `crates/tessera-ffi/src/document.rs`). Every edit is one
 /// `DocOp` (one history node) unless it says `interactive`: interactive calls re-render without a
 /// history node until `commit(label)`.
 public protocol DocumentBackend: AnyObject, Sendable {

@@ -1,7 +1,7 @@
 import Foundation
 import TesseraFFI
 
-// `EngineDocumentBackend` as a `DocumentFiltersBackend` (WP M5-12): each call is the session call of
+// `EngineDocumentBackend` as a `DocumentFiltersBackend` (WP B5-05): each call is the session call of
 // the same name, records converted field by field.
 
 extension FilterCatalogEntry {

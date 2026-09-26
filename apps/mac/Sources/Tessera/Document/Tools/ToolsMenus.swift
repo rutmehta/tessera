@@ -1,7 +1,7 @@
 import SwiftUI
 import TesseraCore
 
-/// Select menu in document mode (WP M5-11): All, Deselect, Inverse, Subject, Sky, Color Range…,
+/// Select menu in document mode (WP B5-04): All, Deselect, Inverse, Subject, Sky, Color Range…,
 /// Select and Mask…, Modify ▸, Save / Load Selection, and the selection tools.
 struct SelectMenuItems: View {
     let doc: DocumentController?
@@ -54,7 +54,7 @@ struct SelectMenuItems: View {
     }
 }
 
-/// Edit menu additions in document mode (WP M5-11): Fill…, Clear, Free Transform (⌘T), Transform ▸.
+/// Edit menu additions in document mode (WP B5-04): Fill…, Clear, Free Transform (⌘T), Transform ▸.
 struct EditToolsMenuItems: View {
     let doc: DocumentController?
     let docMode: Bool

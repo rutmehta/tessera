@@ -433,7 +433,7 @@ fn present_frame(shared: &Arc<Shared>, since: Instant) -> Result<Option<DocFrame
     let le = canvas.at_level(level);
     let mut report = compositor::resident::FrameReport::default();
     if !src.is_empty() {
-        // Smart filters baked and a filter preview shown (WP M5-12).
+        // Smart filters baked and a filter preview shown (WP B5-05).
         let overlay = super::filtering::presented(shared, st.live(), level, src);
         let doc: &Document = overlay.as_deref().unwrap_or(st.live());
         let mut backend = r.backend.lock().map_err(failure)?;

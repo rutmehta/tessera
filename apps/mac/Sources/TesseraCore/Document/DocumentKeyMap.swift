@@ -1,11 +1,11 @@
 import Foundation
 
-/// Document tools (spec 02 §3–6). M5-13 had Move and Rectangular Marquee; WP M5-11 adds the
+/// Document tools (spec 02 §3–6). B5-02 had Move and Rectangular Marquee; WP B5-04 adds the
 /// selection, painting, retouching and navigation tools (titles, keys and groups in
 /// `Document/Tools/EditorTools.swift`).
 public enum DocumentTool: String, CaseIterable, Sendable {
     case move, marquee
-    // WP M5-11
+    // WP B5-04
     case ellipseMarquee, lasso, polygonLasso, magneticLasso, quickSelect, wand, objectSelect
     case brush, eraser, cloneStamp, heal, gradient, crop, type, eyedropper, hand, zoom
 }
