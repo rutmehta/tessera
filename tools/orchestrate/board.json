@@ -870,5 +870,13 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M3-16c",
+    "owner": "astra",
+    "title": "Restore CFA training prerequisites",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
