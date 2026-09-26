@@ -494,13 +494,59 @@ fn convert(source: &[u8], target: &[u8], rgba: &mut [f32]) -> Result<()> {
 
 // ─────────────────────────────── edits ───────────────────────────────
 
-/// Bounds of a selection raster (`None`: nothing selected).
+/// Pixel-exact bounds of a selection raster: the pixels with any
+/// selection (`None`: nothing selected). The marching ants and the status
+/// bar show them, so stored-tile granularity is not enough (WP M5-10b).
+/// Scans the stored tiles; `info` caches the result per selection.
 pub(crate) fn selection_bounds(r: &Raster) -> Option<Rect> {
     if r.default_value() > 0.0 {
-        Some(Rect::of_extent(r.extent()))
-    } else {
-        r.bounds()
+        return Some(Rect::of_extent(r.extent()));
     }
+    let mut out = Rect::default();
+    let mut buf = Vec::new();
+    for ((tx, ty), slot) in r.slots() {
+        if slot.tile.is_none() {
+            continue;
+        }
+        let l = r.layout(tx, ty);
+        let tile = engine_api::tile::TILE_SIZE;
+        let (ox, oy) = (i64::from(tx * tile), i64::from(ty * tile));
+        if r.read_tile(tx, ty, &mut buf).is_err() {
+            // Unreadable tile: fall back to its whole extent.
+            out = out.union(&Rect::new(
+                ox,
+                oy,
+                ox + i64::from(l.extent.width),
+                oy + i64::from(l.extent.height),
+            ));
+            continue;
+        }
+        let (w, h, stride) = (
+            l.extent.width as usize,
+            l.extent.height as usize,
+            l.stride(),
+        );
+        let (mut x0, mut y0, mut x1, mut y1) = (w, h, 0, 0);
+        for y in 0..h {
+            let row = &buf[y * stride..y * stride + w];
+            if let Some(first) = row.iter().position(|v| *v > 0.0) {
+                let last = row.iter().rposition(|v| *v > 0.0).unwrap_or(first);
+                x0 = x0.min(first);
+                x1 = x1.max(last + 1);
+                y0 = y0.min(y);
+                y1 = y + 1;
+            }
+        }
+        if x1 > x0 && y1 > y0 {
+            out = out.union(&Rect::new(
+                ox + x0 as i64,
+                oy + y0 as i64,
+                ox + x1 as i64,
+                oy + y1 as i64,
+            ));
+        }
+    }
+    (!out.is_empty()).then_some(out)
 }
 
 /// A one-channel raster in `depth` from a (float) selection raster.

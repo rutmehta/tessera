@@ -12223,8 +12223,10 @@ public struct LayerNode: Equatable, Hashable {
      */
     public var bounds: DocRect?
     /**
-     * Increases whenever the layer's pixels, mask or properties change
-     * (the thumbnail cache key).
+     * Changes whenever what the layer's thumbnails show changes: its
+     * pixels or content, its mask, and for groups their children (with the
+     * children's properties). The layer's own properties (opacity, blend
+     * mode, visibility, name) do not change it. The thumbnail cache key.
      */
     public var revision: UInt64
 
@@ -12276,8 +12278,10 @@ public struct LayerNode: Equatable, Hashable {
          * and for empty layers.
          */bounds: DocRect?, 
         /**
-         * Increases whenever the layer's pixels, mask or properties change
-         * (the thumbnail cache key).
+         * Changes whenever what the layer's thumbnails show changes: its
+         * pixels or content, its mask, and for groups their children (with the
+         * children's properties). The layer's own properties (opacity, blend
+         * mode, visibility, name) do not change it. The thumbnail cache key.
          */revision: UInt64) {
         self.id = id
         self.parent = parent

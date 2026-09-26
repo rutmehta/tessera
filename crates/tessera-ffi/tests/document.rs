@@ -198,6 +198,64 @@ fn new_document_layers_are_flat_preorder_top_first() {
     assert_eq!(blend_mode_names()[4], "color_burn");
 }
 
+/// Default names follow Photoshop: numbered per kind ("Levels 1",
+/// "Hue/Saturation 1", "Color Fill 1", "Layer 2"), not by layer id (WP M5-10b).
+#[test]
+fn default_layer_names_are_numbered_per_kind() {
+    let (_d, engine) = engine();
+    let s = engine
+        .clone()
+        .new_document(64, 64, DocDepth::U8, None)
+        .unwrap();
+    let add = |kind: NewLayer| {
+        let id = s
+            .add_layer(kind, String::new(), None, None)
+            .unwrap()
+            .created[0];
+        s.layer(id).unwrap().name
+    };
+    let adj = |json: &str| NewLayer::Adjustment { json: json.into() };
+    assert_eq!(s.layers().unwrap()[0].name, "Layer 1");
+    assert_eq!(add(adj(&exposure_json(0.5))), "Exposure 1");
+    assert_eq!(add(adj(r#"{"kind":"invert"}"#)), "Invert 1");
+    assert_eq!(add(adj(&exposure_json(1.0))), "Exposure 2");
+    assert_eq!(
+        add(adj(
+            r#"{"kind":"hue_saturation","hue":0,"saturation":0,"lightness":0,"colorize":false}"#
+        )),
+        "Hue/Saturation 1"
+    );
+    assert_eq!(add(NewLayer::Pixel), "Layer 2");
+    assert_eq!(
+        add(NewLayer::Fill {
+            json: r#"{"kind":"solid","color":[1,0,0]}"#.into()
+        }),
+        "Color Fill 1"
+    );
+    let g = s
+        .add_layer(
+            NewLayer::Group {
+                mode: DocGroupMode::PassThrough,
+            },
+            String::new(),
+            None,
+            None,
+        )
+        .unwrap()
+        .created[0];
+    assert_eq!(s.layer(g).unwrap().name, "Group 1");
+    s.add_layer(NewLayer::Pixel, String::new(), Some(g), None)
+        .unwrap();
+    assert_eq!(
+        add(NewLayer::Pixel),
+        "Layer 4",
+        "layers inside groups count"
+    );
+    let base = s.layers().unwrap().last().unwrap().id;
+    let grouped = s.group_layers(vec![base], String::new()).unwrap().created[0];
+    assert_eq!(s.layer(grouped).unwrap().name, "Group 2");
+}
+
 #[test]
 fn undo_redo_and_checkout_restore_the_tree() {
     let (_d, engine) = engine();
@@ -291,16 +349,45 @@ fn tessera_doc_round_trip_and_same_path_same_session() {
         )
         .unwrap()
         .created[0];
-    s.set_selection_rect(10, 20, 100, 50, 0.0).unwrap();
+    // Selections are history nodes and report pixel-exact bounds (the
+    // marching ants follow them; WP M5-10b).
+    let nodes = s.history_items().unwrap().len();
+    s.set_selection_rect(250, 240, 20, 30, 0.0).unwrap();
+    assert_eq!(
+        s.info().unwrap().selection_bounds,
+        Some(DocRect {
+            x: 250,
+            y: 240,
+            width: 20,
+            height: 30
+        }),
+        "exact across a tile corner"
+    );
+    s.clear_selection().unwrap();
+    assert_eq!(s.info().unwrap().selection_bounds, None);
+    assert_eq!(s.history_items().unwrap().len(), nodes + 2);
+    s.undo().unwrap();
+    assert_eq!(s.info().unwrap().selection_bounds.unwrap().x, 250);
+    s.set_selection_rect(-40, 250, 100, 100, 0.0).unwrap();
     assert_eq!(
         s.info().unwrap().selection_bounds,
         Some(DocRect {
             x: 0,
-            y: 0,
-            width: 256,
-            height: 256
+            y: 250,
+            width: 60,
+            height: 20
         }),
-        "tile-granular bounds"
+        "clipped to the canvas"
+    );
+    s.set_selection_rect(10, 20, 100, 50, 0.0).unwrap();
+    assert_eq!(
+        s.info().unwrap().selection_bounds,
+        Some(DocRect {
+            x: 10,
+            y: 20,
+            width: 100,
+            height: 50
+        })
     );
     s.add_mask(adj, MaskInit::FromSelection).unwrap();
     s.set_blend_mode(adj, "soft_light".into()).unwrap();
@@ -598,15 +685,42 @@ fn thumbnails_are_cached_per_revision() {
         t1,
         "other layers do not invalidate"
     );
+    // The layer's own properties are not part of its thumbnail: an opacity
+    // drag (interactive or committed) neither changes the revision nor
+    // re-renders (WP M5-10b).
     let rev = s.layer(id).unwrap().revision;
-    s.set_opacity(id, 0.3, false).unwrap();
+    for v in [0.9, 0.6, 0.3] {
+        s.set_opacity(id, v, true).unwrap();
+        assert_eq!(s.layer(id).unwrap().revision, rev);
+        assert_eq!(s.layer_thumbnail(id, 128).unwrap(), t1);
+    }
+    s.commit("Opacity".into()).unwrap();
+    s.set_blend_mode(id, "multiply".into()).unwrap();
+    s.rename_layer(id, "renamed".into()).unwrap();
+    assert_eq!(s.layer(id).unwrap().revision, rev);
+    assert_eq!(s.layer_thumbnail(id, 128).unwrap(), t1, "properties");
+    assert_eq!(s.thumbnail_renders(), n0 + 1);
+    // A group's thumbnail shows its children with their properties.
+    let g = s.group_layers(vec![other], "g".into()).unwrap().created[0];
+    let grev = s.layer(g).unwrap().revision;
+    s.set_opacity(other, 0.5, false).unwrap();
+    assert!(s.layer(g).unwrap().revision > grev, "a child's opacity");
+    s.set_opacity(g, 0.5, false).unwrap();
+    let grev = s.layer(g).unwrap().revision;
+    s.set_visible(g, true).unwrap();
+    assert_eq!(s.layer(g).unwrap().revision, grev, "the group's own props");
+    let n1 = s.thumbnail_renders();
+    // Content changes do: the mask is content (and the mask thumbnail's key).
+    s.add_mask(id, MaskInit::RevealAll).unwrap();
     assert!(s.layer(id).unwrap().revision > rev);
     let t2 = s.layer_thumbnail(id, 128).unwrap();
     assert_ne!(t2, t1);
-    assert_eq!(s.thumbnail_renders(), n0 + 2);
+    assert_eq!(s.thumbnail_renders(), n1 + 1);
+    s.remove_mask(id).unwrap();
+    let n2 = s.thumbnail_renders();
     let c1 = s.composite_thumbnail(64).unwrap();
     assert_eq!(s.composite_thumbnail(64).unwrap(), c1);
-    assert_eq!(s.thumbnail_renders(), n0 + 3);
+    assert_eq!(s.thumbnail_renders(), n2 + 1);
     s.add_mask(id, MaskInit::HideAll).unwrap();
     let m = s.mask_thumbnail(id, 64).unwrap();
     let mask = Surface::lookup(m, 38, 25).unwrap();

@@ -224,8 +224,10 @@ pub struct LayerNode {
     /// layers that can change anywhere (adjustments, fills, smart objects)
     /// and for empty layers.
     pub bounds: Option<DocRect>,
-    /// Increases whenever the layer's pixels, mask or properties change
-    /// (the thumbnail cache key).
+    /// Changes whenever what the layer's thumbnails show changes: its
+    /// pixels or content, its mask, and for groups their children (with the
+    /// children's properties). The layer's own properties (opacity, blend
+    /// mode, visibility, name) do not change it. The thumbnail cache key.
     pub revision: u64,
 }
 
@@ -647,6 +649,11 @@ pub(crate) struct State {
     labels: HashMap<u64, String>,
     /// Masks unlinked from their layer (session state).
     unlinked_masks: std::collections::BTreeSet<u64>,
+    /// Exact bounds of the last selection `info` measured.
+    selection_bounds: Option<(
+        std::sync::Weak<compositor::Raster>,
+        Option<compositor::Rect>,
+    )>,
     closed: bool,
     pub(crate) view: render::View,
 }
@@ -732,18 +739,22 @@ fn changed_layers(a: &DocState, b: &DocState) -> Vec<u64> {
     out
 }
 
-/// Maximum revision over everything a layer's rows and thumbnails show.
+/// Maximum revision over everything a layer's thumbnails show: its content,
+/// its mask and, for groups, every child with its properties. The layer's
+/// own properties (opacity, blend mode, visibility, name, …) are left out:
+/// thumbnails ignore them, so an opacity drag does not re-render the
+/// thumbnail on every step (WP M5-10b).
 fn layer_revision(l: &Layer) -> u64 {
-    let mut r = l.props_rev.max(l.content_rev);
+    let mut r = l.content_rev;
     if let Some(m) = &l.mask {
         r = r.max(m.raster.max_rev());
     }
     match &l.kind {
         LayerKind::Pixel(raster) => r.max(raster.max_rev()),
         LayerKind::Text(t) => r.max(t.proxy.max_rev()),
-        LayerKind::Group { children, .. } => {
-            children.iter().fold(r, |a, c| a.max(layer_revision(c)))
-        }
+        LayerKind::Group { children, .. } => children
+            .iter()
+            .fold(r, |a, c| a.max(c.props_rev).max(layer_revision(c))),
         LayerKind::SmartObject(so) => r.max(so.state.rev),
         LayerKind::Adjustment(_) | LayerKind::Fill(_) => r,
     }
@@ -880,6 +891,7 @@ impl DocumentSession {
                 epoch: 0,
                 labels,
                 unlinked_masks: Default::default(),
+                selection_bounds: None,
                 closed: false,
                 view: Default::default(),
             }),
@@ -1065,7 +1077,18 @@ impl DocumentSession {
     }
 
     pub fn info(&self) -> Result<DocumentInfo> {
-        let st = self.shared.lock()?;
+        let mut st = self.shared.lock()?;
+        let selection_bounds = match st.live().state().selection.clone() {
+            None => None,
+            Some(sel) => match &st.selection_bounds {
+                Some((seen, b)) if seen.upgrade().is_some_and(|s| Arc::ptr_eq(&s, &sel)) => *b,
+                _ => {
+                    let b = io::selection_bounds(&sel);
+                    st.selection_bounds = Some((Arc::downgrade(&sel), b));
+                    b
+                }
+            },
+        };
         let doc = st.live();
         let s = doc.state();
         let h = st.doc.history();
@@ -1091,11 +1114,7 @@ impl DocumentSession {
                 .copied()
                 .filter(|id| ids.contains_key(id))
                 .collect(),
-            selection_bounds: s
-                .selection
-                .as_ref()
-                .and_then(|r| io::selection_bounds(r))
-                .and_then(DocRect::of),
+            selection_bounds: selection_bounds.and_then(DocRect::of),
             source_image_id: st.source_image_id.clone(),
             layer_count: ids.len() as u32,
             epoch: st.epoch,
@@ -1155,10 +1174,13 @@ impl DocumentSession {
         parent: Option<u64>,
         index: Option<u32>,
     ) -> Result<DocumentUpdate> {
-        let (canvas, depth, next) = {
+        let (canvas, depth, numbered) = {
             let st = self.shared.lock()?;
             let s = st.live().state();
-            (s.canvas, s.depth, s.next_id)
+            let names = layer_names(s);
+            (s.canvas, s.depth, move |base: &str| {
+                numbered_name(&names, base)
+            })
         };
         let or = |default: String| {
             if name.is_empty() {
@@ -1168,24 +1190,17 @@ impl DocumentSession {
             }
         };
         let layer = match kind {
-            NewLayer::Pixel => Layer::pixel(or(format!("Layer {next}")), canvas, depth),
-            NewLayer::Group { mode } => Layer::group(or(format!("Group {next}")), mode.into()),
+            NewLayer::Pixel => Layer::pixel(or(numbered("Layer")), canvas, depth),
+            NewLayer::Group { mode } => Layer::group(or(numbered("Group")), mode.into()),
             NewLayer::Adjustment { json } => {
                 let a: Adjustment = serde_json::from_str(&json)
                     .map_err(|e| failure(format!("adjustment JSON: {e}")))?;
-                let label = serde_json::to_value(&a)
-                    .ok()
-                    .and_then(|v| v.get("kind").and_then(|k| k.as_str()).map(str::to_owned))
-                    .unwrap_or_else(|| "Adjustment".into());
-                Layer::new(
-                    or(format!("{} {next}", title_case(&label))),
-                    LayerKind::Adjustment(a),
-                )
+                Layer::new(or(numbered(adjustment_title(&a))), LayerKind::Adjustment(a))
             }
             NewLayer::Fill { json } => {
                 let f: Fill =
                     serde_json::from_str(&json).map_err(|e| failure(format!("fill JSON: {e}")))?;
-                Layer::new(or(format!("Fill {next}")), LayerKind::Fill(f))
+                Layer::new(or(numbered(fill_title(&f))), LayerKind::Fill(f))
             }
         };
         self.edit(
@@ -1942,16 +1957,54 @@ fn unit(v: f32) -> Result<f32> {
     }
 }
 
-fn title_case(s: &str) -> String {
-    s.split('_')
-        .map(|w| {
-            let mut c = w.chars();
-            c.next()
-                .map(|f| f.to_uppercase().chain(c).collect::<String>())
-                .unwrap_or_default()
-        })
-        .collect::<Vec<_>>()
-        .join(" ")
+/// Every layer name in the document (all depths).
+fn layer_names(s: &DocState) -> Vec<String> {
+    fn walk(layers: &[Arc<Layer>], out: &mut Vec<String>) {
+        for l in layers {
+            out.push(l.props.name.clone());
+            if let LayerKind::Group { children, .. } = &l.kind {
+                walk(children, out);
+            }
+        }
+    }
+    let mut out = Vec::new();
+    walk(&s.root, &mut out);
+    out
+}
+
+/// Photoshop's default names: `<base> <n>` numbered per base, one above the
+/// highest `<base> <n>` in the document ("Levels 1", "Levels 2", "Layer 2").
+fn numbered_name(names: &[String], base: &str) -> String {
+    let prefix = format!("{base} ");
+    let n = names
+        .iter()
+        .filter_map(|n| n.strip_prefix(&prefix)?.parse::<u64>().ok())
+        .max()
+        .unwrap_or(0);
+    format!("{base} {}", n + 1)
+}
+
+/// Photoshop's adjustment layer names.
+fn adjustment_title(a: &Adjustment) -> &'static str {
+    match a {
+        Adjustment::Levels { .. } => "Levels",
+        Adjustment::Curves { .. } => "Curves",
+        Adjustment::HueSaturation { .. } => "Hue/Saturation",
+        Adjustment::Exposure { .. } => "Exposure",
+        Adjustment::Invert => "Invert",
+        Adjustment::Posterize { .. } => "Posterize",
+        Adjustment::Threshold { .. } => "Threshold",
+        Adjustment::ChannelMixer { .. } => "Channel Mixer",
+    }
+}
+
+/// Photoshop's fill layer names.
+fn fill_title(f: &Fill) -> &'static str {
+    match f {
+        Fill::Solid { .. } => "Color Fill",
+        Fill::Gradient { .. } => "Gradient Fill",
+        Fill::Pattern { .. } => "Pattern Fill",
+    }
 }
 
 /// A blend name for a layer: `(mode, group mode to set)`. `pass_through`
@@ -1993,7 +2046,7 @@ fn group_op(s: &DocState, ids: &[u64], name: String) -> Result<DocOp> {
     let gid = LayerId(s.next_id);
     let mut group = Layer::group(
         if name.is_empty() {
-            format!("Group {}", gid.0)
+            numbered_name(&layer_names(s), "Group")
         } else {
             name
         },
