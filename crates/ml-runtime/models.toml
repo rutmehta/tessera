@@ -256,22 +256,19 @@ inputs = [{ name = "cfa_noise", shape = [1, 8, 64, 64], dtype = "fp32" }]
 outputs = [{ name = "denoised", shape = [1, 4, 64, 64], dtype = "fp32" }]
 # END GENERATED CFA MODELS
 
-# Remove ONNX installation slot, deliberately unavailable in distributed builds.
-# Intended upstream: big-lama (Apache-2.0). No weights are bundled or downloaded.
-# TODO: select/license an actual LaMa-class export, validate its colour/shape
-# contract and replace the all-zero SENTINEL with the SHA-256 of verified bytes.
-# This is NOT a claimed model hash. filters::remove refuses to resolve it.
-# No download URL: model installation is an explicit local administrator action.
-# Adapter contract: display-sRGB NCHW [0,1], masked image pixels zero; mask 1=hole;
-# H/W dynamic multiples of 8; output NCHW display-sRGB. Input names are normative.
+# Carve big-LaMa fp32, Apache-2.0 code AND weights. Opset 17.
+# size_bytes = 208044816; provenance: filters/training/README.md.
+# FIXED 512x512 spatial input (not arbitrary stride-8). Batch pinned to 1.
+# RGB NCHW display-sRGB [0,1], mask 1=hole. Output float RGB [0,255].
+# Filters bounds the working image, pads to 512, crops and divides output by 255.
+# Explicit load may download; automatic selection is verified-cache-only.
 [[models]]
 id = "remove/lama"
-version = "local-slot-v1"
+version = "c3c0c9e468934d62e79c329e35d82dd09ff8c444"
 task = "object-removal-inpainting"
 dtype = "fp32"
-source = "local"
-local_path = "models/remove-lama.onnx"
-sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
+download_url = "https://huggingface.co/Carve/LaMa-ONNX/resolve/c3c0c9e468934d62e79c329e35d82dd09ff8c444/lama_fp32.onnx"
+sha256 = "1faef5301d78db7dda502fe59966957ec4b79dd64e16f03ed96913c7a4eb68d6"
 inputs = [
   { name = "image", shape = [1, 3, 512, 512], dtype = "fp32" },
   { name = "mask", shape = [1, 1, 512, 512], dtype = "fp32" },

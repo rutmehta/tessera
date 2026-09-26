@@ -7,52 +7,69 @@ use crate::{
 };
 use compositor::Raster;
 use engine_api::{EngineError, EngineResult};
-use ml_runtime::{ModelRegistry, ModelSource, Session, SessionOptions, Tensor};
+use ml_runtime::{ModelRegistry, Session, SessionOptions, Tensor};
 use std::sync::atomic::AtomicBool;
 
 pub const REMOVE_MODEL_ID: &str = "remove/lama";
-pub const REMOVE_VERSION: &str = "local-slot-v1";
-/// Registry placeholder, NOT a digest of any actual artifact. Never resolve it.
-pub const REMOVE_UNINSTALLED_SHA256: &str =
-    "0000000000000000000000000000000000000000000000000000000000000000";
+pub const REMOVE_VERSION: &str = "c3c0c9e468934d62e79c329e35d82dd09ff8c444";
+pub const REMOVE_SHA256: &str = "1faef5301d78db7dda502fe59966957ec4b79dd64e16f03ed96913c7a4eb68d6";
+pub const WORKING_EDGE: usize = 512;
 
 pub struct OnnxInpainter {
     session: Session,
+    fixed_lama: bool,
 }
 impl OnnxInpainter {
     /// Adapts an explicitly loaded session. Caller owns provenance verification;
     /// its graph must obey the image/mask -> output contract documented below.
     pub fn from_session(session: Session) -> Self {
-        Self { session }
+        Self {
+            session,
+            fixed_lama: false,
+        }
     }
-    /// Only local, hash-verified registry artifacts may be loaded here. No URL
-    /// resolution, even for Auto mode. A TODO hash is unavailable, not a model.
+    /// Load only an already cached, hash-verified artifact. No downloads.
     pub fn load_local(registry: &ModelRegistry, options: SessionOptions) -> EngineResult<Self> {
-        let spec = registry
-            .models()
-            .iter()
-            .find(|m| m.id == REMOVE_MODEL_ID && m.version == REMOVE_VERSION)
-            .ok_or_else(|| EngineError::not_found("model weights", REMOVE_MODEL_ID))?;
-        if spec.sha256 == REMOVE_UNINSTALLED_SHA256 {
-            return Err(EngineError::not_found(
-                "model weights",
-                format!("{REMOVE_MODEL_ID}: TODO verified local weights/hash"),
-            ));
-        }
-        if spec.source != ModelSource::Local {
-            return Err(model_error(
-                "Remove only accepts local registry weights; downloads are disabled",
-            ));
-        }
         let handle = registry
-            .resolve_ref(&engine_api::id::ModelRef {
-                id: REMOVE_MODEL_ID.into(),
-                version: REMOVE_VERSION.into(),
-            })
-            .map_err(model_error)?;
+            .resolve_cached_ref(&model_ref())
+            .map_err(model_error)?
+            .ok_or_else(|| EngineError::not_found("model weights", REMOVE_MODEL_ID))?;
+        Self::load_handle(handle, options)
+    }
+    /// Explicit user-initiated installation/load may download missing weights.
+    pub fn load(registry: &ModelRegistry, options: SessionOptions) -> EngineResult<Self> {
+        Self::load_handle(
+            registry.resolve_ref(&model_ref()).map_err(model_error)?,
+            options,
+        )
+    }
+    fn load_handle(handle: ml_runtime::ModelHandle, options: SessionOptions) -> EngineResult<Self> {
+        if handle.spec().sha256 != REMOVE_SHA256 {
+            return Err(model_error("unexpected LaMa weights"));
+        }
         Ok(Self {
-            session: Session::load(handle.path(), options).map_err(model_error)?,
+            session: Session::load_with_dimensions_and_threads(
+                handle.path(),
+                options,
+                &[("batch", 1)],
+                6,
+            )
+            .map_err(model_error)?,
+            fixed_lama: true,
         })
+    }
+    /// Executed provider assignments, not merely requested EP configuration.
+    pub fn partition_report(&mut self) -> EngineResult<ml_runtime::PartitionReport> {
+        self.session.partition_report().map_err(model_error)
+    }
+    pub fn fallback_reason(&self) -> Option<&str> {
+        self.session.fallback_reason.as_deref()
+    }
+}
+fn model_ref() -> engine_api::id::ModelRef {
+    engine_api::id::ModelRef {
+        id: REMOVE_MODEL_ID.into(),
+        version: REMOVE_VERSION.into(),
     }
 }
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -104,6 +121,32 @@ pub trait Remove {
 }
 #[derive(Default)]
 pub struct CpuPatchMatch;
+/// Reusable automatic backend: resolves only once, never downloads implicitly.
+pub struct AutoRemove {
+    model: Option<OnnxInpainter>,
+}
+impl dyn Remove {
+    pub fn auto(registry: &ModelRegistry, options: SessionOptions) -> EngineResult<AutoRemove> {
+        let model = match OnnxInpainter::load_local(registry, options) {
+            Ok(model) => Some(model),
+            Err(EngineError::NotFound { .. }) => None,
+            Err(e) => return Err(e),
+        };
+        Ok(AutoRemove { model })
+    }
+}
+impl Remove for AutoRemove {
+    fn apply(
+        &mut self,
+        input: &Raster,
+        mask: &[f32],
+        params: &RemoveParams,
+        cancel: &AtomicBool,
+    ) -> EngineResult<RemoveResult> {
+        let model = self.model.as_mut().map(|m| m as &mut dyn InpaintModel);
+        remove(input, mask, params, model, cancel)
+    }
+}
 impl Remove for CpuPatchMatch {
     fn apply(
         &mut self,
@@ -171,6 +214,16 @@ impl InpaintModel for OnnxInpainter {
             .checked_add(7)
             .map(|v| v / 8 * 8)
             .ok_or_else(|| model_error("shape overflow"))?;
+        let (ph, pw) = if self.fixed_lama {
+            if h > WORKING_EDGE || w > WORKING_EDGE {
+                return Err(model_error(
+                    "LaMa input must be bounded to 512; use Remove::apply",
+                ));
+            }
+            (WORKING_EDGE, WORKING_EDGE)
+        } else {
+            (ph, pw)
+        };
         let area = ph
             .checked_mul(pw)
             .filter(|&n| n <= 16_777_216)
@@ -212,6 +265,11 @@ impl InpaintModel for OnnxInpainter {
             for y in 0..h {
                 data[c * h * w + y * w..c * h * w + (y + 1) * w]
                     .copy_from_slice(&output[0].data[c * area + y * pw..c * area + y * pw + w]);
+            }
+        }
+        if self.fixed_lama {
+            for v in &mut data {
+                *v /= 255.0;
             }
         }
         Tensor::new(3, h, w, data).map_err(model_error)
@@ -258,20 +316,7 @@ pub fn remove(
                     "ONNX adapter requires bounded linear sRGB, not HDR/camera RGB",
                 ));
             }
-            let binary: Vec<f32> = mask
-                .iter()
-                .map(|&v| if v > 0.0 { 1.0 } else { 0.0 })
-                .collect();
-            let data: Vec<f32> = (0..3)
-                .flat_map(|c| {
-                    src.pixels.iter().enumerate().map({
-                        let binary = &binary;
-                        move |(i, p)| if binary[i] > 0.0 { 0.0 } else { encode(p[c]) }
-                    })
-                })
-                .collect();
-            let image = Tensor::new(3, src.h, src.w, data).map_err(model_error)?;
-            let tensor_mask = Tensor::new(1, src.h, src.w, binary).map_err(model_error)?;
+            let (image, tensor_mask) = working_inputs(&src, &mask, cancel)?;
             checkpoint(cancel)?;
             let output = model.inpaint(&image, &tensor_mask, cancel)?;
             checkpoint(cancel)?;
@@ -279,11 +324,26 @@ pub fn remove(
                 return Err(model_error("invalid output shape or nonfinite samples"));
             }
             let mut paint = src.clone();
-            for i in 0..mask.len() {
-                for c in 0..3 {
-                    paint.pixels[i][c] = decode(output.data()[c * mask.len() + i].clamp(0.0, 1.0));
+            for y in 0..src.h {
+                checkpoint(cancel)?;
+                for x in 0..src.w {
+                    // Only covered predictions enter harmonization or the
+                    // boundary solve. Leave the exterior in its original
+                    // linear representation instead of resampling/decoding
+                    // pixels that finish() will never publish.
+                    if mask[y * src.w + x] == 0.0 {
+                        continue;
+                    }
+                    for c in 0..3 {
+                        paint.pixels[y * src.w + x][c] =
+                            decode(sample_output(&output, c, x, y, src.w, src.h).clamp(0.0, 1.0));
+                    }
                 }
             }
+            if !matches!(params.fill.colour_adaptation, caf::ColourAdaptation::None) {
+                harmonize(&src, &mut paint, &mask, cancel)?;
+            }
+            blend_boundary(&src, &mut paint, &mask, cancel)?;
             return Ok(RemoveResult {
                 result: caf::finish(
                     input,
@@ -307,6 +367,211 @@ pub fn remove(
         fallback_reason: (params.backend == Backend::Auto)
             .then(|| "No inpainting model supplied; CPU PatchMatch used".into()),
     })
+}
+/// Match local first/second moments before the boundary solve, analogous to
+/// PatchMatch colour adaptation. Bounded affine correction retains the model's
+/// structure, but avoids dull/shifted fills. No source pixels inside the hole
+/// participate. Constant predictions cannot manufacture texture this way.
+fn harmonize(
+    src: &Buffer,
+    paint: &mut Buffer,
+    mask: &[f32],
+    cancel: &AtomicBool,
+) -> EngineResult<()> {
+    let ring = dilate(mask, src.w, src.h, 16, cancel)?;
+    let mut sums = [[0.0f64; 6]; 2];
+    let mut counts = [0.0f64; 2];
+    for (i, &m) in mask.iter().enumerate() {
+        if i % src.w == 0 {
+            checkpoint(cancel)?;
+        }
+        let (group, pixel) = if m > 0.0 {
+            (0, paint.pixels[i])
+        } else if ring[i] > 0.0 {
+            (1, src.pixels[i])
+        } else {
+            continue;
+        };
+        counts[group] += 1.0;
+        for c in 0..3 {
+            let v = f64::from(pixel[c]);
+            sums[group][c] += v;
+            sums[group][c + 3] += v * v;
+        }
+    }
+    if counts.iter().any(|&n| n < 16.0) {
+        return Ok(());
+    }
+    let mut mean = [[0.0; 3]; 2];
+    let mut sigma = [[0.0; 3]; 2];
+    for g in 0..2 {
+        for c in 0..3 {
+            mean[g][c] = sums[g][c] / counts[g];
+            sigma[g][c] = (sums[g][c + 3] / counts[g] - mean[g][c].powi(2))
+                .max(0.0)
+                .sqrt();
+        }
+    }
+    for (i, &m) in mask.iter().enumerate() {
+        if i % src.w == 0 {
+            checkpoint(cancel)?;
+        }
+        if m == 0.0 {
+            continue;
+        }
+        for c in 0..3 {
+            let gain = if sigma[0][c] > 1e-4 {
+                (sigma[1][c] / sigma[0][c]).clamp(0.5, 2.0)
+            } else {
+                1.0
+            };
+            let shift = (mean[1][c] - mean[0][c]).clamp(-0.1, 0.1);
+            paint.pixels[i][c] =
+                ((f64::from(paint.pixels[i][c]) - mean[0][c]) * gain + mean[0][c] + shift)
+                    .clamp(0.0, 1.0) as f32;
+        }
+    }
+    Ok(())
+}
+/// Solve a discrete gradient-domain problem on an eight-pixel inner band.
+/// Exterior pixels are Dirichlet constraints from the untouched source; deep
+/// interior is fixed to the model. Preserve model gradients within the hole,
+/// use zero normal gradient across its boundary (never the erased object's
+/// gradient). 64 deterministic Gauss-Seidel sweeps bound work and cancellation.
+fn blend_boundary(
+    src: &Buffer,
+    paint: &mut Buffer,
+    mask: &[f32],
+    cancel: &AtomicBool,
+) -> EngineResult<()> {
+    let mut distance: Vec<u8> = mask.iter().map(|&m| if m > 0.0 { 9 } else { 0 }).collect();
+    for y in 0..src.h {
+        checkpoint(cancel)?;
+        for x in 0..src.w {
+            let i = y * src.w + x;
+            if x > 0 {
+                distance[i] = distance[i].min(distance[i - 1] + 1);
+            }
+            if y > 0 {
+                distance[i] = distance[i].min(distance[i - src.w] + 1);
+            }
+        }
+    }
+    for y in (0..src.h).rev() {
+        checkpoint(cancel)?;
+        for x in (0..src.w).rev() {
+            let i = y * src.w + x;
+            if x + 1 < src.w {
+                distance[i] = distance[i].min(distance[i + 1] + 1);
+            }
+            if y + 1 < src.h {
+                distance[i] = distance[i].min(distance[i + src.w] + 1);
+            }
+        }
+    }
+    let mut band = Vec::new();
+    for (i, &d) in distance.iter().enumerate() {
+        if i % src.w == 0 {
+            checkpoint(cancel)?;
+        }
+        if d == 0 {
+            paint.pixels[i] = src.pixels[i];
+        } else if d <= 8 {
+            let adjacent = neighbours(i, src.w, src.h);
+            let mut gradient = [0.0; 3];
+            let mut count = 0;
+            for &j in &adjacent {
+                if j == i {
+                    continue;
+                }
+                count += 1;
+                if mask[j] > 0.0 {
+                    for (c, g) in gradient.iter_mut().enumerate() {
+                        *g += paint.pixels[i][c] - paint.pixels[j][c];
+                    }
+                }
+            }
+            band.push((i, adjacent, gradient, count as f32));
+        }
+    }
+    for _ in 0..64 {
+        checkpoint(cancel)?;
+        for (k, &(i, adjacent, gradient, count)) in band.iter().enumerate() {
+            if k % 4096 == 0 {
+                checkpoint(cancel)?;
+            }
+            for (c, &g) in gradient.iter().enumerate() {
+                let sum = adjacent
+                    .iter()
+                    .filter(|&&j| j != i)
+                    .map(|&j| paint.pixels[j][c])
+                    .sum::<f32>();
+                paint.pixels[i][c] = ((sum + g) / count).clamp(0.0, 1.0);
+            }
+        }
+    }
+    Ok(())
+}
+fn neighbours(i: usize, w: usize, h: usize) -> [usize; 4] {
+    let (x, y) = (i % w, i / w);
+    [
+        if x > 0 { i - 1 } else { i },
+        if x + 1 < w { i + 1 } else { i },
+        if y > 0 { i - w } else { i },
+        if y + 1 < h { i + w } else { i },
+    ]
+}
+/// Area pooling for image and conservative max pooling for coverage. Every
+/// contributing source pixel is considered, so thin wires cannot disappear.
+fn working_inputs(
+    src: &Buffer,
+    mask: &[f32],
+    cancel: &AtomicBool,
+) -> EngineResult<(Tensor, Tensor)> {
+    let edge = src.w.max(src.h).max(WORKING_EDGE);
+    let w = (src.w * WORKING_EDGE / edge).max(1);
+    let h = (src.h * WORKING_EDGE / edge).max(1);
+    let mut rgb = vec![0.0; 3 * w * h];
+    let mut binary = vec![0.0; w * h];
+    for y in 0..h {
+        checkpoint(cancel)?;
+        for x in 0..w {
+            let (x0, x1) = (x * src.w / w, ((x + 1) * src.w).div_ceil(w));
+            let (y0, y1) = (y * src.h / h, ((y + 1) * src.h).div_ceil(h));
+            let mut sum = [0.0; 3];
+            let mut hole = false;
+            for sy in y0..y1 {
+                for sx in x0..x1 {
+                    let i = sy * src.w + sx;
+                    hole |= mask[i] > 0.0;
+                    for (c, channel) in sum.iter_mut().enumerate() {
+                        *channel += encode(src.pixels[i][c]);
+                    }
+                }
+            }
+            binary[y * w + x] = f32::from(hole);
+            if !hole {
+                for c in 0..3 {
+                    rgb[c * w * h + y * w + x] = sum[c] / ((x1 - x0) * (y1 - y0)) as f32;
+                }
+            }
+        }
+    }
+    Ok((
+        Tensor::new(3, h, w, rgb).map_err(model_error)?,
+        Tensor::new(1, h, w, binary).map_err(model_error)?,
+    ))
+}
+fn sample_output(t: &Tensor, c: usize, x: usize, y: usize, w: usize, h: usize) -> f32 {
+    let [_, _, th, tw] = t.shape();
+    let fx = ((x as f32 + 0.5) * tw as f32 / w as f32 - 0.5).max(0.0);
+    let fy = ((y as f32 + 0.5) * th as f32 / h as f32 - 0.5).max(0.0);
+    let (x0, y0) = (fx as usize, fy as usize);
+    let (x1, y1) = ((x0 + 1).min(tw - 1), (y0 + 1).min(th - 1));
+    let (dx, dy) = (fx - x0 as f32, fy - y0 as f32);
+    let at = |xx, yy| t.data()[c * tw * th + yy * tw + xx];
+    (at(x0, y0) * (1.0 - dx) + at(x1, y0) * dx) * (1.0 - dy)
+        + (at(x0, y1) * (1.0 - dx) + at(x1, y1) * dx) * dy
 }
 fn model_error(e: impl std::fmt::Display) -> EngineError {
     EngineError::Model {

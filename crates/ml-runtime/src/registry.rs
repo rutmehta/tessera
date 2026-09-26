@@ -166,6 +166,28 @@ impl ModelRegistry {
             .context("unknown model version")?;
         self.resolve_model(spec)
     }
+    /// Cache-only lookup for automatic backend selection. Never downloads or
+    /// imports local sources. Missing is distinct from corrupt/unreadable:
+    /// callers may fall back on None, but must not hide integrity failures.
+    pub fn resolve_cached_ref(&self, model: &ModelRef) -> Result<Option<ModelHandle>> {
+        let spec = self
+            .models
+            .iter()
+            .find(|m| m.id == model.id.as_str() && m.version == model.version)
+            .context("unknown model version")?;
+        let path = self.cache.join(format!("{}.onnx", spec.sha256));
+        match fs::metadata(&path) {
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            other => {
+                other?;
+            }
+        }
+        verify(&path, &spec.sha256)?;
+        Ok(Some(ModelHandle {
+            spec: spec.clone(),
+            path,
+        }))
+    }
     fn resolve_model(&self, spec: &ModelSpec) -> Result<ModelHandle> {
         let path = self.cache.join(format!("{}.onnx", spec.sha256));
         if !path.exists() {

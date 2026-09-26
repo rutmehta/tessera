@@ -51,6 +51,30 @@ fn cpu_conv_matches_reference() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[test]
+fn explicit_cpu_thread_budget_preserves_inference() -> anyhow::Result<()> {
+    assert!(
+        Session::load_with_dimensions_and_threads(
+            fixture("conv.onnx"),
+            SessionOptions::cpu(),
+            &[],
+            0
+        )
+        .is_err()
+    );
+    let mut session = Session::load_with_dimensions_and_threads(
+        fixture("conv.onnx"),
+        SessionOptions::cpu(),
+        &[],
+        4,
+    )?;
+    let input = Tensor::new(3, 64, 64, vec![0.5; 3 * 64 * 64])?;
+    for (a, b) in session.run(&input)?.data().iter().zip(reference(&input)) {
+        assert!((a - b).abs() < 1e-4);
+    }
+    Ok(())
+}
+
 fn reference(input: &Tensor) -> Vec<f32> {
     let [_, _, h, w] = input.shape();
     let mut out = vec![0.; 3 * h * w];
