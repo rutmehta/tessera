@@ -1126,5 +1126,13 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M5-29",
+    "owner": "astra",
+    "title": "Wire retouch + neural filters into document tools/FFI",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]

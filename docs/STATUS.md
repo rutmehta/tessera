@@ -36,7 +36,8 @@ Compositor bit-exact GPU maths and L0 < 100 ms (92 ms; 4K viewport 38 ms, full r
 - Merged today: M5-14 layer styles + smart filters, M5-15 alpha/spot channels + PSD, M5-16 EDR/profiled presentation + GPU Lanczos smart objects, M3-19 people clustering (HDBSCAN, MWG regions, indexed person filters).
 - Merged since: M2-29 develop JPEG/TIFF/PNG/HEIC (RgbSource, ICC/EXIF once, HEIC via ImageIO), M2-35 regression fixes, M5-20 engine-api 1.3 (channels, people, source_kind) + MCP integration, M5-21 transform crate (free transform, warp mesh, perspective/puppet warp, content-aware scale; GPU displacement stage), M5-22 Liquify + content-aware fill/move + Remove hook, M2-40 People view (naming, merge/split, person filter).
 - Also merged: M5-23 GPU-resident smart-filter stacks + automatic transform routing (CPU 96 ms → GPU 15 ms), M3-20 LaMa inpainting for Remove (Apache-2.0 weights, hash-pinned) + distraction hook, M5-24 Auto-Align/Auto-Blend/focus stack/Photomerge, M2-41 People layout fixes, M2-42/M2-44 people FFI (medoid tiles, members, undo/redo), M2-43 app develops JPEG/PNG/TIFF/HEIC (verified on screen: edit persists, export brighter). People view verified on screen (M2-44v: naming, split, move, XMP opt-ins, person facet).
-- Running: M5-25 Camera Raw smart filter, M5-26 remaining adjustment layers, M5-27 Adaptive Wide Angle + Vanishing Point (Astra).
+- Also merged: M5-25 Camera Raw smart filter (develop chain on RGB layers, FilterContext with profile), M5-26 the remaining 13 adjustment layers with bit-exact GPU ports + PSD keys, M5-27 Adaptive Wide Angle + Vanishing Point, M5-28 GPU Shadows/Highlights + HDR Toning + Camera Raw stage caching, M3-21 neural filters batch 1 (skin smoothing, DDColor colorize, JPEG artifact removal; GFPGAN excluded for licence), **Machine B's layered-editor UI (B5-01..B5-05: DocumentSession FFI, document mode, tools, filters in the app)**.
+- Running: M2-45 export completeness (AVIF/JXL/DNG/watermark/HDR), M5-29 retouch + neural filters wired into document tools/FFI (Astra); B5-v document mode on-screen pass (Sol).
 - Machine A now uses ids M5-20+ and M2-40+ for new packages so Machine B's M5-09–M5-19 / M2-30–M2-39 ranges stay free (M5-15/M5-16/M2-35 were already taken here before the split).
 - Machine B owns the layered-editor UI (M5-09). Coordinator fallback: `tools/orchestrate/supervise.sh` (Astra 900k via Hermes) if the Fable session is downgraded.
 - Needs from the owner: real Lightroom-written XMP sidecars in `fixtures/lightroom/` to finish Adobe-specific structures (M2-02b).
@@ -44,7 +45,6 @@ Compositor bit-exact GPU maths and L0 < 100 ms (92 ms; 4K viewport 38 ms, full r
 ## Known gaps / next
 - Adobe undocumented XMP structures (PointColors strings, brush dabs, Look tables) need **real Lightroom-exported sidecars** to finish (M2-02b).
 - Layered editor: HDR Toning adjustment; GPU path for positive-radius Shadows/Highlights; Camera Raw smart filter (M5-25 in flight); neural filters wiring into the compositor (after M3-21); generative/cloud features (spec 02 §10) are deferred to the paid cloud tier.
-- Machine B's layered-editor UI (wp/B5-ui, B5-01..B5-05) is being merged.
 - Release: needs your Developer ID certificate + notarization profile and a Sparkle EdDSA key (see apps/mac/Support/release/README.md).
 
 ## Coordination across machines (2026-09-26)
