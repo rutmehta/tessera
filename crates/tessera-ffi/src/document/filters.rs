@@ -28,8 +28,9 @@
 //! preview is not part of the document. The session therefore renders a
 //! *presented* document: the live one with (a) each smart object that has
 //! enabled smart filters replaced by a baked pixel layer, (b) the previewed
-//! layer replaced by a proxy (a smart object holding the filtered viewport
-//! level, mapped back onto the canvas with a `2^level` scale), and (c) for an
+//! layer replaced by a proxy pixel layer (the filtered viewport level, each
+//! level pixel repeated `2^level` times, so the pyramid shows it exactly at
+//! that level; outside the previewed region the layer's own tiles), and (c) for an
 //! adjustment preview, the adjustment clipped directly above the layer. Bakes
 //! run on the same worker at the viewport level and are refined at level 0
 //! when the view is at 100 % or closer; export bakes at full resolution.
@@ -670,26 +671,9 @@ fn eval_stack(
     Ok(cur)
 }
 
-/// A proxy smart object showing `img` (pixels of `level`) at its canvas place.
-fn proxy(img: &Img, level: u8, depth: compositor::Depth) -> Result<SmartObject> {
-    let e = Extent::new(img.w().max(1) as u32, img.h().max(1) as u32);
-    let mut state = DocState::new(e, depth);
-    let mut l = Layer::new(
-        "preview",
-        LayerKind::Pixel(raster_from_rgba(e, depth, &img.px, true)?),
-    );
-    l.id = LayerId(1);
-    state.next_id = 2;
-    state.root = vec![Arc::new(l)];
-    let s = f64::from(1u32 << level);
-    Ok(SmartObject::new(
-        state,
-        Affine::scale_translate(s, s, img.rect.x0 as f64 * s, img.rect.y0 as f64 * s),
-    ))
-}
-
 /// A canvas-sized raster showing `img` (pixels of `level`), each level pixel
-/// repeated `2^level` times; tiles outside `img` come from `under`.
+/// repeated `2^level` times; tiles outside `img` come from `under`. Tiles
+/// are built in parallel.
 fn upsampled(
     img: &Img,
     level: u8,
@@ -700,51 +684,79 @@ fn upsampled(
     let mut r = under
         .cloned()
         .unwrap_or_else(|| Raster::new(canvas, 4, depth, 0.0));
+    let rev = r.max_rev() + 1;
     let area = img
         .rect
         .to_level0(level)
         .intersect(&Rect::of_extent(canvas));
-    let ts = i64::from(TILE_SIZE);
-    let mut buf = Vec::new();
     if area.is_empty() {
         return Ok(r);
     }
-    for ty in area.y0 / ts..=(area.y1 - 1) / ts {
-        for tx in area.x0 / ts..=(area.x1 - 1) / ts {
-            let (tx32, ty32) = (tx as u32, ty as u32);
-            let l = r.layout(tx32, ty32);
-            r.read_tile(tx32, ty32, &mut buf)?;
-            let n = l.plane_len();
-            let mut any = false;
-            for y in 0..l.extent.height as i64 {
-                let gy = ty * ts + y;
-                for x in 0..l.extent.width as i64 {
-                    let gx = tx * ts + x;
-                    let i = y as usize * l.stride() + x as usize;
-                    if gx >= area.x0 && gx < area.x1 && gy >= area.y0 && gy < area.y1 {
-                        let p = img.at(
-                            ((gx >> level) - img.rect.x0) as usize,
-                            ((gy >> level) - img.rect.y0) as usize,
-                        );
-                        for c in 0..4 {
-                            buf[c * n + i] = p[c];
+    let ts = i64::from(TILE_SIZE);
+    let coords: Vec<(i64, i64)> = (area.y0 / ts..=(area.y1 - 1) / ts)
+        .flat_map(|ty| (area.x0 / ts..=(area.x1 - 1) / ts).map(move |tx| (tx, ty)))
+        .collect();
+    let base = &r;
+    let next = std::sync::atomic::AtomicUsize::new(0);
+    let (tx_, rx) =
+        std::sync::mpsc::channel::<Result<(u32, u32, Option<engine_api::tile::Tile>)>>();
+    let results: Vec<_> = std::thread::scope(|s| {
+        for _ in 0..threads().min(coords.len()) {
+            let tx_ = tx_.clone();
+            let (next, coords) = (&next, &coords);
+            s.spawn(move || {
+                let mut buf = Vec::new();
+                loop {
+                    let i = next.fetch_add(1, Ordering::Relaxed);
+                    let Some(&(tx, ty)) = coords.get(i) else {
+                        break;
+                    };
+                    let r = (|| -> Result<(u32, u32, Option<engine_api::tile::Tile>)> {
+                        let (tx32, ty32) = (tx as u32, ty as u32);
+                        let l = base.layout(tx32, ty32);
+                        base.read_tile(tx32, ty32, &mut buf)?;
+                        let n = l.plane_len();
+                        let mut any = false;
+                        for y in 0..l.extent.height as i64 {
+                            let gy = ty * ts + y;
+                            let inside_y = gy >= area.y0 && gy < area.y1;
+                            let row = ((gy >> level) - img.rect.y0) as usize;
+                            for x in 0..l.extent.width as i64 {
+                                let gx = tx * ts + x;
+                                let i = y as usize * l.stride() + x as usize;
+                                if inside_y && gx >= area.x0 && gx < area.x1 {
+                                    let p = img.at(((gx >> level) - img.rect.x0) as usize, row);
+                                    for c in 0..4 {
+                                        buf[c * n + i] = p[c];
+                                    }
+                                }
+                                any |= buf[3 * n + i] != 0.0;
+                            }
                         }
+                        let tile = if any {
+                            Some(tile_from_f32(
+                                TileCoord::new(0, tx32, ty32),
+                                l,
+                                depth,
+                                buf.clone(),
+                            )?)
+                        } else {
+                            None
+                        };
+                        Ok((tx32, ty32, tile))
+                    })();
+                    if tx_.send(r).is_err() {
+                        break;
                     }
-                    any |= buf[3 * n + i] != 0.0;
                 }
-            }
-            let tile = if any {
-                Some(tile_from_f32(
-                    TileCoord::new(0, tx32, ty32),
-                    l,
-                    depth,
-                    buf.clone(),
-                )?)
-            } else {
-                None
-            };
-            r.set_slot(tx32, ty32, tile, 0)?;
+            });
         }
+        drop(tx_);
+        rx.iter().collect()
+    });
+    for res in results {
+        let (tx, ty, tile) = res?;
+        r.set_slot(tx, ty, tile, rev)?;
     }
     Ok(r)
 }
@@ -832,7 +844,7 @@ struct PreviewJob {
 #[derive(Clone)]
 enum PreviewShown {
     /// The layer replaced by this proxy.
-    Replace(u64, Arc<SmartObject>),
+    Replace(u64, Arc<Raster>),
     /// An adjustment clipped directly above the layer.
     ClippedAdjustment(u64, Adjustment),
 }
@@ -1130,15 +1142,23 @@ fn worker_loop(q: Arc<Queue>, comp: Arc<Compositor>, shared: Weak<Shared>) {
                             &q, &comp, &p.base, layer, &nodes, p.level, p.region, &cancel,
                         )
                         .map_err(|e| e.to_string())?;
-                        proxy(&img, p.level, p.base.depth).map_err(|e| e.to_string())
+                        // The layer's own pixels outside the region; the preview inside.
+                        let under = match &layer.kind {
+                            LayerKind::Pixel(r) => Some(r),
+                            _ => None,
+                        };
+                        upsampled(&img, p.level, p.base.canvas, p.base.depth, under)
+                            .map_err(|e| e.to_string())
                     });
                 let mut i = q.lock();
                 i.running = None;
                 if i.generation == p.generation && !cancel.load(Ordering::Relaxed) {
                     match result {
-                        Ok(so) => {
-                            i.preview =
-                                Some((p.generation, PreviewShown::Replace(p.layer, Arc::new(so))));
+                        Ok(raster) => {
+                            i.preview = Some((
+                                p.generation,
+                                PreviewShown::Replace(p.layer, Arc::new(raster)),
+                            ));
                             i.last_error = None;
                         }
                         Err(e) => i.last_error = Some(e),
@@ -1351,7 +1371,7 @@ pub(crate) fn presented(
             PreviewShown::Replace(id, so) => {
                 if let Some(l) = state.find(LayerId(*id)) {
                     let mut nl = l.clone();
-                    nl.kind = LayerKind::SmartObject((**so).clone());
+                    nl.kind = LayerKind::Pixel((**so).clone());
                     subs.retain(|(s, _)| s != id);
                     subs.push((*id, nl));
                     key.push_str(&format!("p{generation}:{:p}", Arc::as_ptr(so)));

@@ -28,7 +28,12 @@ final class DocumentFilters {
     init(memory: FilterMemory = FilterMemory(defaults: .standard)) {
         self.memory = memory
         Self.active = self
+        if !Self.selfTestStarted {
+            Self.selfTestStarted = true
+            FilterSelfTest.startIfRequested()   // --filter-selftest <dir>
+        }
     }
+    private static var selfTestStarted = false
 
     // MARK: Catalogue
 

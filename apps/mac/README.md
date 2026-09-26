@@ -177,6 +177,7 @@ produces a build warning and must be configured before publishing updates.
 | `--import-lrcat <catalog>` | Open File ▸ Import Lightroom Catalog… with this `.lrcat` already chosen (acceptance aid) |
 | `--new-document` · `--open-document <file>` | Create a layered document (engine: one blank layer; stub: sample layers) / open one after launch |
 | `--document-selftest <dir>` | Self-test aid: after the library loads, Edit in Layers on `sample.dng` (or the first RAW), add an Exposure layer, drag Opacity 100 → 40 % at display rate, undo, save / reopen `.tessera-doc`, export PNG, save and open a PSD in `<dir>`; prints `document-selftest: step …`, `check …` and the listener's frame timing, then quits (`--document-selftest-hold <s>` pauses per step). `TESSERA_DOC_FRAME_LOG=1` logs every document frame |
+| `--filter-selftest <dir>` | Self-test aid (WP M5-12): Edit in Layers on `sample.dng`, Filter ▸ Gaussian Blur… with a 12-step Radius drag (prints the preview latency, value → frame), OK, undo, Image ▸ Adjustments ▸ Levels…, Convert for Smart Filters, Gaussian Blur as a smart filter toggled off and on, save in `<dir>`; prints `filter-selftest: step …` and `check …`, then quits (`--filter-selftest-hold <s>`) |
 | `--develop-selftest` | Self-test aid: once a develop session opens, drag Exposure 0 → +1.5 through the slider path (61 steps at display rate, then mouse-up) and print `develop-selftest: … render median … p90 …` to stderr |
 
 `--keys` also accepts `wait` (one idle 0.3 s step), e.g. `--keys "return wait wait cmd-z"`.
