@@ -1,0 +1,20 @@
+[package]
+name = "tessera-bench"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+publish = false
+
+[dependencies]
+anyhow.workspace = true
+serde_json.workspace = true
+tempfile.workspace = true
+rusqlite.workspace = true
+image.workspace = true
+engine-api = { path = "../../crates/engine-api" }
+index = { path = "../../crates/index" }
+sidecar = { path = "../../crates/sidecar" }
+previews = { path = "../../crates/previews" }
+pipeline-cpu = { path = "../../crates/pipeline-cpu" }
+export = { path = "../../crates/export" }
+compositor = { path = "../../crates/compositor" }

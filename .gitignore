@@ -4,3 +4,5 @@ target/
 fixtures/raw
 .DS_Store
 *.xcuserstate
+bench-results/
+tools/bench/__pycache__/

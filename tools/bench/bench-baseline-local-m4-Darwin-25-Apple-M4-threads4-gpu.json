@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-09-26T05-45-07.402936Z",
+  "tolerances": {
+    "median_ms": 0.15,
+    "p90_ms": 0.2,
+    "elapsed_ms": 0.15
+  },
+  "results": [
+    {
+      "bench": "develop-slider",
+      "fixture": "sony-arw.ARW-tone-L2-v1",
+      "metric": "median_ms",
+      "value": 1.1,
+      "unit": "ms",
+      "backend": "gpu",
+      "host": "local-m4-Darwin-25-Apple-M4-threads4"
+    },
+    {
+      "bench": "develop-slider",
+      "fixture": "sony-arw.ARW-tone-L2-v1",
+      "metric": "p90_ms",
+      "value": 1.3,
+      "unit": "ms",
+      "backend": "gpu",
+      "host": "local-m4-Darwin-25-Apple-M4-threads4"
+    },
+    {
+      "bench": "export-web",
+      "fixture": "sony-arw.ARW-full-development-web-v1",
+      "metric": "elapsed_ms",
+      "value": 475.0,
+      "unit": "ms",
+      "backend": "gpu",
+      "host": "local-m4-Darwin-25-Apple-M4-threads4"
+    },
+    {
+      "bench": "resident-l2",
+      "fixture": "100-layer-20mp-v1",
+      "metric": "median_ms",
+      "value": 13.91,
+      "unit": "ms",
+      "backend": "gpu",
+      "host": "local-m4-Darwin-25-Apple-M4-threads4"
+    },
+    {
+      "bench": "resident-dab",
+      "fixture": "100-layer-20mp-v1",
+      "metric": "median_ms",
+      "value": 2.61,
+      "unit": "ms",
+      "backend": "gpu",
+      "host": "local-m4-Darwin-25-Apple-M4-threads4"
+    },
+    {
+      "bench": "resident-l0",
+      "fixture": "100-layer-20mp-v1",
+      "metric": "median_ms",
+      "value": 197.5,
+      "unit": "ms",
+      "backend": "gpu",
+      "host": "local-m4-Darwin-25-Apple-M4-threads4"
+    }
+  ]
+}
