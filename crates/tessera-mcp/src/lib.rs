@@ -9,6 +9,7 @@ mod reads;
 pub mod schema;
 mod server;
 pub use console::Console;
+mod preview;
 pub use reads::{Comparison, Metrics};
 pub use server::Server;
 

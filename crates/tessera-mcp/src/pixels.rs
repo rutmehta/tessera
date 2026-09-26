@@ -1,4 +1,4 @@
-use engine_api::{EngineError, EngineResult, recipe::DevelopSettings, tools::Histogram};
+use engine_api::{EngineError, EngineResult, tools::Histogram};
 use pipeline_cpu::{Image, RenderSource};
 use std::path::Path;
 
@@ -58,32 +58,8 @@ impl Source {
             },
         }
     }
-    pub(crate) fn orientation(&self) -> u16 {
-        match self {
-            Self::Raw(raw) => raw.1.orientation,
-            _ => 1,
-        }
-    }
 }
-pub(crate) fn render(
-    path: &Path,
-    settings: &DevelopSettings,
-    max: u32,
-) -> EngineResult<image::RgbImage> {
-    if !(1..=4096).contains(&max) {
-        return Err(EngineError::invalid("max_px", "must be 1..=4096"));
-    }
-    let source = Source::open(path)?;
-    let rgb = pipeline_cpu::render(settings, &source.borrowed())?;
-    let rgb = orient(rgb, source.orientation());
-    if rgb.width().max(rgb.height()) <= max {
-        return Ok(rgb);
-    }
-    Ok(image::DynamicImage::ImageRgb8(rgb)
-        .resize(max, max, image::imageops::FilterType::Triangle)
-        .to_rgb8())
-}
-fn orient(rgb: image::RgbImage, orientation: u16) -> image::RgbImage {
+pub(crate) fn orient(rgb: image::RgbImage, orientation: u16) -> image::RgbImage {
     use image::imageops::*;
     match orientation {
         2 => flip_horizontal(&rgb),
@@ -125,16 +101,11 @@ pub(crate) fn luma(p: &image::Rgb<u8>) -> f32 {
     (0.2126 * f32::from(p[0]) + 0.7152 * f32::from(p[1]) + 0.0722 * f32::from(p[2])) / 255.
 }
 
-pub(crate) fn linear_histogram(
-    path: &Path,
-    settings: &DevelopSettings,
-    bins: u16,
-) -> EngineResult<Histogram> {
+pub(crate) fn linear_histogram(linear: &Image, bins: u16) -> EngineResult<Histogram> {
     if !(2..=4096).contains(&bins) {
         return Err(EngineError::invalid("bins", "must be 2..=4096"));
     }
-    let source = Source::open(path)?;
-    let linear = pipeline_cpu::render_linear_scaled(settings, &source.borrowed(), 1)?;
+
     let mut out = Histogram {
         red: vec![0; bins as usize],
         green: vec![0; bins as usize],

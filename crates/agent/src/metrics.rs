@@ -1,4 +1,9 @@
 //! Objective measurements of the engine's display preview, not planner pixels.
+//! Critic metrics are preview-resolution estimates (pyramid long edge <=1024,
+//! optionally resized to 512 for the planner), not full-resolution guarantees.
+//! Clipping is a pixel fraction in [0,1] (multiply by 100 for percent); mean
+//! luminance is linear sRGB. Skin CIE76 delta-E uses normalized face boxes
+//! scaled to the measured preview dimensions, never full-resolution indices.
 use anyhow::{Result, ensure};
 use engine_api::tools::FaceScore;
 use serde::{Deserialize, Serialize};
