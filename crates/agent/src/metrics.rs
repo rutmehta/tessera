@@ -1,9 +1,9 @@
-//! Objective measurements of the engine's display preview, not planner pixels.
-//! Critic metrics are preview-resolution estimates (pyramid long edge <=1024,
-//! optionally resized to 512 for the planner), not full-resolution guarantees.
-//! Clipping is a pixel fraction in [0,1] (multiply by 100 for percent); mean
-//! luminance is linear sRGB. Skin CIE76 delta-E uses normalized face boxes
-//! scaled to the measured preview dimensions, never full-resolution indices.
+//! Objective measurements use full-resolution SDR output, never VLM pixels.
+//! Clipping and histograms count all encoded pixels; mean is linear sRGB.
+//! Percentiles/contrast use full-resolution linear-luma bins (1/256 precision).
+//! Skin CIE76 delta-E uses native-resolution face crops in oriented coordinates.
+//! Noise is a diagnostic estimate on a central native-resolution 256px patch.
+//! `measure` remains the CPU reference for an explicitly supplied image.
 use anyhow::{Result, ensure};
 use engine_api::tools::FaceScore;
 use serde::{Deserialize, Serialize};
@@ -39,6 +39,52 @@ pub fn linear(v: u8) -> f64 {
         ((x + 0.055) / 1.055).powf(2.4)
     }
 }
+/// One global reduction and small native-resolution crops; no preview measurements.
+pub fn measure_console(
+    console: &tessera_mcp::Console,
+    image: engine_api::id::ImageId,
+    faces: &[FaceScore],
+    band: Option<&SkinBand>,
+) -> Result<(Metrics, engine_api::tools::Histogram)> {
+    let output = console.output_metrics(image)?;
+    let mut deltas = Vec::new();
+    if let Some(band) = band {
+        validate_band(band)?;
+        for face in faces {
+            let crop = console.render_face_crop(image, face.region)?;
+            let measured = measure(&crop, &[FaceScore::default()], Some(band))?;
+            if let Some(values) = measured.skin_delta_e {
+                deltas.extend(values);
+            }
+        }
+    }
+    let noise = ml_quality::analyze(&console.render_noise_patch(image)?)?.noise;
+    Ok((
+        Metrics {
+            highlight_clipping: output.highlight_fraction(),
+            shadow_clipping: output.shadow_fraction(),
+            mean_luminance: output.mean_luminance(),
+            percentiles: output.percentiles(),
+            contrast: output.contrast(),
+            noise,
+            skin_delta_e: (!deltas.is_empty()).then_some(deltas),
+        },
+        output.display_histogram()?,
+    ))
+}
+
+fn validate_band(band: &SkinBand) -> Result<()> {
+    ensure!(
+        band.max_delta_e.is_finite()
+            && band.max_delta_e >= 0.
+            && (0..3).all(|i| band.low[i].is_finite()
+                && band.high[i].is_finite()
+                && band.low[i] <= band.high[i]),
+        "invalid skin target band"
+    );
+    Ok(())
+}
+
 fn lab(rgb: [f64; 3]) -> [f64; 3] {
     let [r, g, b] = rgb;
     let f = |t: f64| {
@@ -74,14 +120,7 @@ pub fn measure(
         .sum::<f64>()
         / count;
     let skin_delta_e = if let Some(band) = band {
-        ensure!(
-            band.max_delta_e.is_finite()
-                && band.max_delta_e >= 0.
-                && (0..3).all(|i| band.low[i].is_finite()
-                    && band.high[i].is_finite()
-                    && band.low[i] <= band.high[i]),
-            "invalid skin target band"
-        );
+        validate_band(band)?;
         let mut deltas = Vec::new();
         for face in faces {
             let r = face.region;

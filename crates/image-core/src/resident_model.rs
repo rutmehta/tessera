@@ -176,6 +176,7 @@ impl ResidentBatch for Batch<'_> {
         Ok(ResidentOutput {
             tiles: tiles.iter().map(cpu).collect(),
             histogram: None,
+            metrics: None,
         })
     }
 }

@@ -7,6 +7,24 @@ use engine_api::recipe::settings::ToneSettings;
 /// Whole-level WB padding: the largest `pipeline_cpu::detail_halo`.
 const LEVEL_PAD: u16 = pipeline_cpu::DETAIL_HALO;
 
+fn metrics_output_key(r: &Resolved<'_>) -> engine_api::stage::MemoKey {
+    let mut k = PipelineGraph::memo_key(
+        r.image.id(),
+        &r.chain,
+        StageId::Output,
+        TileCoord::new(0, 0, 0),
+    );
+    let frame = r.image.level_extent(0);
+    k.params_hash = ParamHash::chain(
+        k.params_hash,
+        ParamHash::of(
+            StageId::Output,
+            &("critic-output-v1", frame.width, frame.height),
+        ),
+    );
+    k
+}
+
 pub(super) fn has_presence(s: &ToneSettings) -> bool {
     s.texture != 0.0 || s.clarity != 0.0 || s.dehaze != 0.0
 }
@@ -67,6 +85,32 @@ fn ca_halo(plan: &pipeline_cpu::CaPlan, sensor: Extent) -> EngineResult<u16> {
 }
 
 impl Renderer {
+    /// Reduce full-resolution, quantized SDR output on the resident backend.
+    /// None means unsupported: callers must measure full-resolution CPU output,
+    /// never substitute a pyramid preview. Reuses the render's memoized stages.
+    pub fn render_output_metrics(
+        &self,
+        image: &RawImage,
+        settings: &DevelopSettings,
+        cancel: &CancellationToken,
+    ) -> EngineResult<Option<crate::resident::OutputMetrics>> {
+        cancel.check()?;
+        self.validate_settings(settings)?;
+        let r = self.resolve(image, settings)?;
+        if !r.allow_resident || !self.supports_resident(&r, Some(0)) || self.is_adobe() {
+            return Ok(None);
+        }
+        let Some(mut batch) = self.ops.begin_resident() else {
+            return Ok(None);
+        };
+        if !batch.enable_metrics() {
+            return Ok(None);
+        }
+        let coords = Self::tiles_for(image, 0, PixelRect::full(image.level_extent(0)));
+        Ok(self
+            .run_resident(&r, &coords, RenderOutput::Display, cancel, batch, None)?
+            .metrics)
+    }
     /// Resident-only output, with explicit capability failure and cancellation.
     /// Export backends can retain float Output samples instead of display U8.
     pub fn render_resident_region(
@@ -763,8 +807,11 @@ impl Renderer {
         t.coord.level = 0;
         let mut t = batch.run_chain(&chain, &t)?;
         t.coord = lc;
+        if batch.metrics_enabled() && level == 0 && r.lens.is_none() {
+            t = batch.cache_exact(metrics_output_key(r), &t)?;
+        }
         cancel.check()?;
-        let finished = if surface.is_some() {
+        let finished = if surface.is_some() || batch.metrics_enabled() {
             vec![t]
         } else {
             coords
@@ -795,13 +842,57 @@ impl Renderer {
         if let Some(first) = coords.first() {
             let frame = r.image.level_extent(first.level);
             let all = Self::tiles_for(r.image, first.level, PixelRect::full(frame));
+            // A prior critic reduction retained the encoded output. Face/noise
+            // crops read just their tiles from it; repeated metrics dispatch only
+            // the reduction. Its key includes the entire recipe chain and frame.
+            if first.level == 0
+                && output == RenderOutput::Display
+                && r.lens.is_none()
+                && let Some(t) = batch.cached(&metrics_output_key(r))?
+            {
+                let finished = if batch.metrics_enabled()
+                    || (surface.is_some() && coords.len() == all.len())
+                {
+                    vec![t]
+                } else {
+                    coords
+                        .iter()
+                        .map(|&c| {
+                            let (x, y) = c.pixel_origin(TILE_SIZE);
+                            batch.crop(
+                                &t,
+                                c,
+                                (x, y),
+                                Extent::new(
+                                    (frame.width - x).min(TILE_SIZE),
+                                    (frame.height - y).min(TILE_SIZE),
+                                ),
+                            )
+                        })
+                        .collect::<EngineResult<Vec<_>>>()?
+                };
+                return batch.finish(finished, true, surface, cancel);
+            }
             // `coords` are unique tiles of one level: whole-level requests
             // (every surface frame) run as one level-sized tile.
             if coords.len() == all.len() && batch.supports_level(frame, LEVEL_PAD) {
                 return self.run_resident_level(r, &all, coords, output, cancel, batch, surface);
             }
         }
-        let finished = self.develop_tiles(r, coords, output, cancel, &mut *batch)?;
+        let mut finished = self.develop_tiles(r, coords, output, cancel, &mut *batch)?;
+        if batch.metrics_enabled()
+            && let Some(first) = coords.first()
+        {
+            let frame = r.image.level_extent(first.level);
+            if batch.supports_output_level(frame) {
+                // >16MP operators still run per tile, but the reduction and
+                // subsequent face crops use one integer-indexed encoded frame.
+                let tiles = finished.into_iter().map(|t| (t.coord, t)).collect();
+                let t = batch.gather_level(frame, TileCoord::new(0, 0, 0), 0, &tiles)?;
+                let t = batch.cache_exact(metrics_output_key(r), &t)?;
+                finished = vec![t];
+            }
+        }
         batch.finish(finished, output == RenderOutput::Display, surface, cancel)
     }
 

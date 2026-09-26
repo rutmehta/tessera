@@ -153,19 +153,12 @@ impl Agent {
             quality.faces = faces.clone();
         }
         let rgb = self.console.render_preview(image, 512)?;
-        let measured = metrics::measure(&rgb, &quality.faces, self.config.skin_band.as_ref())?;
-        let histogram = match self.console.execute(request(
-            ToolCall::GetHistogram {
-                image,
-                space: HistogramSpace::Display,
-                bins: 64,
-            },
-            "Measure current preview",
-        )) {
-            ToolResponse::Ok(ToolOutput::Histogram { histogram, .. }) => histogram,
-            ToolResponse::Error(e) => return Err(e.into()),
-            _ => bail!("unexpected histogram response"),
-        };
+        let (measured, histogram) = metrics::measure_console(
+            &self.console,
+            image,
+            &quality.faces,
+            self.config.skin_band.as_ref(),
+        )?;
         // Style features are measured from the source, never the edited preview.
         let source = self.console.source_preview(image)?;
         let mut features = crate::source::features(&source, &quality.faces, &description)?;
@@ -287,8 +280,12 @@ impl Agent {
                 doc.record_write("agent", now())?;
                 Sidecar::write_recipe(Sidecar::paths(path).recipe, &doc)?;
                 let rgb = self.console.render_preview(packet.image, 512)?;
-                packet.metrics =
-                    metrics::measure(&rgb, &packet.faces, self.config.skin_band.as_ref())?;
+                (packet.metrics, packet.histogram) = metrics::measure_console(
+                    &self.console,
+                    packet.image,
+                    &packet.faces,
+                    self.config.skin_band.as_ref(),
+                )?;
                 packet.preview_jpeg_base64 = jpeg(&rgb)?;
             }
             let mut critique = self.critique(&packet.metrics);

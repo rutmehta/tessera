@@ -141,11 +141,14 @@ struct Dispatch {
     workgroups: [u32; 2],
 }
 
+#[path = "resident_metrics.rs"]
+mod metrics;
 #[path = "resident_tone.rs"]
 mod tone;
 pub(crate) use tone::{Pipelines as LocalTonePipelines, Statistics as DehazeStatistics};
 
 pub(crate) struct Batch<'a> {
+    metrics_only: bool,
     gpu: &'a GpuStageOp,
     encoder: wgpu::CommandEncoder,
     pending: HashMap<MemoKey, (u64, ResidentTile)>,
@@ -199,6 +202,7 @@ impl<'a> Batch<'a> {
         }));
         Self {
             _recycler: Recycler {
+                // Scratch is retired after the final reduction as for pixels.
                 pool: pool.clone(),
                 recycled: gpu.recycled.clone(),
                 cap: if gpu.export_float {
@@ -207,6 +211,7 @@ impl<'a> Batch<'a> {
                     u64::MAX
                 },
             },
+            metrics_only: false,
             gpu,
             encoder: gpu
                 .context()
@@ -991,6 +996,14 @@ impl Batch<'_> {
     }
 }
 impl ResidentBatch for Batch<'_> {
+    fn enable_metrics(&mut self) -> bool {
+        // Metrics are encoded SDR sRGB, not a monitor/print proof transform.
+        self.metrics_only = !self.gpu.export_float && self.gpu.managed_output.is_none();
+        self.metrics_only
+    }
+    fn metrics_enabled(&self) -> bool {
+        self.metrics_only
+    }
     fn checkpoint(&mut self, cancel: &CancellationToken) -> EngineResult<()> {
         cancel.check()?;
         // Export yields the device to interactive renders at dependency
@@ -1108,6 +1121,13 @@ impl ResidentBatch for Batch<'_> {
                 <= limits
                     .max_storage_buffer_binding_size
                     .min(limits.max_buffer_size)
+    }
+    fn supports_output_level(&self, frame: Extent) -> bool {
+        let limits = self.gpu.context().device.limits();
+        frame.area() * 12
+            <= limits
+                .max_storage_buffer_binding_size
+                .min(limits.max_buffer_size)
     }
     fn gather_level(
         &mut self,
@@ -1431,6 +1451,15 @@ impl ResidentBatch for Batch<'_> {
         cancel: &CancellationToken,
     ) -> EngineResult<ResidentOutput> {
         cancel.check()?;
+        if self.metrics_only {
+            if !display || surface.is_some() {
+                return Err(EngineError::invalid(
+                    "metrics",
+                    "requires SDR display output without a surface",
+                ));
+            }
+            return self.finish_metrics(tiles, cancel);
+        }
         let tiles = if let Some(resize) = self.gpu.export_resize {
             self.resize_export(tiles, resize)?
         } else {
@@ -1916,6 +1945,7 @@ mod tests {
             include_str!("surface.wgsl"),
             include_str!("gather.wgsl"),
             include_str!("histogram.wgsl"),
+            include_str!("critic_metrics.wgsl"),
             include_str!("hdr_surface.wgsl"),
             include_str!("zero.wgsl"),
             include_str!("presence.wgsl"),

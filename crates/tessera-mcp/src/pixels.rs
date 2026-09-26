@@ -73,6 +73,13 @@ pub(crate) fn orient(rgb: image::RgbImage, orientation: u16) -> image::RgbImage 
     }
 }
 pub(crate) fn histogram(rgb: &image::RgbImage, bins: u16) -> EngineResult<Histogram> {
+    if bins == 256 {
+        let mut metrics = crate::OutputMetrics::default();
+        for p in rgb.pixels() {
+            metrics.add_pixel(p.0);
+        }
+        return metrics.display_histogram();
+    }
     if !(2..=4096).contains(&bins) {
         return Err(EngineError::invalid("bins", "must be 2..=4096"));
     }
@@ -84,17 +91,18 @@ pub(crate) fn histogram(rgb: &image::RgbImage, bins: u16) -> EngineResult<Histog
         ..Default::default()
     };
     let bin = |v: f32| ((v.clamp(0., 1.) * f32::from(bins)) as usize).min(bins as usize - 1);
+    let (mut shadows, mut highlights) = (0u64, 0u64);
     for p in rgb.pixels() {
         out.red[bin(f32::from(p[0]) / 255.)] += 1;
         out.green[bin(f32::from(p[1]) / 255.)] += 1;
         out.blue[bin(f32::from(p[2]) / 255.)] += 1;
         out.luminance[bin(luma(p))] += 1;
-        out.clipped_shadows += f32::from(p.0.contains(&0));
-        out.clipped_highlights += f32::from(p.0.contains(&255));
+        shadows += u64::from(p.0.contains(&0));
+        highlights += u64::from(p.0.contains(&255));
     }
-    let count = (rgb.width() as f32 * rgb.height() as f32).max(1.);
-    out.clipped_shadows /= count;
-    out.clipped_highlights /= count;
+    let count = (f64::from(rgb.width()) * f64::from(rgb.height())).max(1.);
+    out.clipped_shadows = (shadows as f64 / count) as f32;
+    out.clipped_highlights = (highlights as f64 / count) as f32;
     Ok(out)
 }
 pub(crate) fn luma(p: &image::Rgb<u8>) -> f32 {
@@ -115,17 +123,18 @@ pub(crate) fn linear_histogram(linear: &Image, bins: u16) -> EngineResult<Histog
     };
     let bin = |v: f32| ((v.clamp(0., 1.) * f32::from(bins)) as usize).min(bins as usize - 1);
     let planes = linear.planes();
+    let (mut shadows, mut highlights) = (0u64, 0u64);
     for ((red, green), blue) in planes[0].iter().zip(&planes[1]).zip(&planes[2]) {
         let p = [*red, *green, *blue];
         out.red[bin(p[0])] += 1;
         out.green[bin(p[1])] += 1;
         out.blue[bin(p[2])] += 1;
         out.luminance[bin(0.2627 * p[0] + 0.678 * p[1] + 0.0593 * p[2])] += 1;
-        out.clipped_shadows += f32::from(p.iter().any(|v| *v <= 0.));
-        out.clipped_highlights += f32::from(p.iter().any(|v| *v >= 1.));
+        shadows += u64::from(p.iter().any(|v| *v <= 0.));
+        highlights += u64::from(p.iter().any(|v| *v >= 1.));
     }
-    let count = planes[0].len().max(1) as f32;
-    out.clipped_shadows /= count;
-    out.clipped_highlights /= count;
+    let count = planes[0].len().max(1) as f64;
+    out.clipped_shadows = (shadows as f64 / count) as f32;
+    out.clipped_highlights = (highlights as f64 / count) as f32;
     Ok(out)
 }

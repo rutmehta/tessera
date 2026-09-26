@@ -5,6 +5,8 @@ use crate::pixels::{self, Source};
 use engine_api::{EngineError, EngineResult, id::ImageId, recipe::Recipe, tile::TILE_SIZE};
 use image_core::{PixelRect, RawImage, RenderOutput, Renderer, RendererConfig, TileCache};
 use pipeline_cpu::{Image, RenderSource};
+#[path = "critic.rs"]
+mod critic;
 #[cfg(test)]
 #[path = "preview_tests.rs"]
 mod tests;
@@ -38,7 +40,12 @@ impl PreviewCache {
             let config = RendererConfig::default();
             match GPU.get_or_init(|| pipeline_gpu::GpuContext::new().ok().map(Arc::new)) {
                 Some(gpu) => Renderer::with_ops(
-                    Arc::new(pipeline_gpu::GpuStageOp::new(gpu.clone())),
+                    // Retain WB, Detail and encoded frames together (36MP NEF),
+                    // plus preview/crop entries. Still a bounded 1.5 GiB LRU.
+                    Arc::new(pipeline_gpu::GpuStageOp::with_cache_budget(
+                        gpu.clone(),
+                        1536 << 20,
+                    )),
                     Arc::new(TileCache::new(config.cache_budget_bytes)),
                     config,
                 ),

@@ -24,6 +24,7 @@ pub struct GpuContext {
     pub(crate) band_pipelines: std::sync::OnceLock<[wgpu::ComputePipeline; 2]>,
     /// Export Lanczos-3 resize (compiled on first use).
     pub(crate) resize_pipeline: std::sync::OnceLock<wgpu::ComputePipeline>,
+    pub(crate) metrics_pipeline: std::sync::OnceLock<wgpu::ComputePipeline>,
     device_loss: std::sync::Arc<std::sync::Mutex<Option<String>>>,
 }
 
@@ -109,6 +110,7 @@ impl GpuContext {
             lens_pipelines: std::sync::OnceLock::new(),
             band_pipelines: std::sync::OnceLock::new(),
             resize_pipeline: std::sync::OnceLock::new(),
+            metrics_pipeline: std::sync::OnceLock::new(),
             device_loss,
         })
     }

@@ -70,7 +70,26 @@ impl Console {
         self.previews
             .display(id, &path, &doc.recipe, Some(max_px.min(1024)))
     }
-    /// Explicit full-resolution render, for a caller's final acceptance only.
+    /// Full-resolution SDR measurements, with GPU reduction when supported.
+    pub fn output_metrics(&self, id: ImageId) -> EngineResult<crate::OutputMetrics> {
+        let (path, doc) = self.document(id)?;
+        self.previews.metrics(id, &path, &doc.recipe)
+    }
+    /// Native-resolution crop in oriented display coordinates; no downsampling.
+    pub fn render_noise_patch(&self, id: ImageId) -> EngineResult<image::RgbImage> {
+        let (path, doc) = self.document(id)?;
+        self.previews.noise_patch(id, &path, &doc.recipe)
+    }
+    /// Native-resolution face crop in oriented display coordinates; no downsampling.
+    pub fn render_face_crop(
+        &self,
+        id: ImageId,
+        region: engine_api::recipe::settings::NormalizedRect,
+    ) -> EngineResult<image::RgbImage> {
+        let (path, doc) = self.document(id)?;
+        self.previews.crop(id, &path, &doc.recipe, region)
+    }
+    /// Explicit full-resolution pixel render; metrics use the small reduction instead.
     pub fn render_final(&self, id: ImageId) -> EngineResult<image::RgbImage> {
         let (path, doc) = self.document(id)?;
         self.previews.display(id, &path, &doc.recipe, None)
@@ -105,7 +124,11 @@ impl Console {
             ToolCall::GetHistogram { image, space, bins } => {
                 let histogram = match space {
                     HistogramSpace::Display => {
-                        pixels::histogram(&self.render_preview(*image, 1024)?, *bins)?
+                        if *bins == 256 {
+                            self.output_metrics(*image)?.display_histogram()?
+                        } else {
+                            pixels::histogram(&self.render_final(*image)?, *bins)?
+                        }
                     }
                     HistogramSpace::SceneLinear => {
                         let (path, doc) = self.document(*image)?;
