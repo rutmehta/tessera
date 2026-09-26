@@ -73,6 +73,8 @@ final class DocumentWorkspace {
     /// New Document sheet values, remembered for the session.
     var newSettings = NewDocumentSettings()
     var exportSettings = ExportFlatSettings()
+    /// Filter menu, Image ▸ Adjustments and smart filters (WP M5-12).
+    let filters = DocumentFilters()
 
     static let documentTypes: [UTType] = [
         UTType(exportedAs: "dev.tessera.document", conformingTo: .data),

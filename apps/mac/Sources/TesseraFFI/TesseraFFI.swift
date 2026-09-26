@@ -3816,6 +3816,95 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
      */
     func ungroupLayer(id: UInt64) throws  -> DocumentUpdate
     
+    /**
+     * Image ▸ Adjustments: `adjustment_json` (`compositor::Adjustment`, the
+     * JSON of the adjustment layer of the same kind) applied to a pixel
+     * layer's pixels inside the selection, as one history node.
+     */
+    func applyAdjustment(layer: UInt64, adjustmentJson: String) throws  -> DocumentUpdate
+    
+    /**
+     * Applies `filter_json` to `layer` as one history node (labelled with
+     * the filter's name). Pixel layers are filtered at full resolution
+     * inside the selection (all of it without one); smart objects get the
+     * filter appended to their smart filters, masked by the selection.
+     * Blocking (seconds on large layers): call off the main thread;
+     * `cancel_filter` stops it.
+     */
+    func applyFilter(layer: UInt64, filterJson: String) throws  -> DocumentUpdate
+    
+    /**
+     * Cancels a running `apply_filter` / `apply_adjustment` and the preview.
+     */
+    func cancelFilter() 
+    
+    /**
+     * Ends a filter or adjustment preview (the viewport shows the document).
+     */
+    func clearPreview() throws 
+    
+    /**
+     * Filter ▸ Convert for Smart Filters: the layer becomes a smart object
+     * holding it (same id, name, opacity, blend mode and mask; the contents
+     * keep their pixels at identity transform). One history node.
+     */
+    func convertForSmartFilters(layer: UInt64) throws  -> DocumentUpdate
+    
+    /**
+     * `filter_json` on the layer's own pixels (on a smart object: after its
+     * smart filters) over `width × height` level-0 pixels at `(x, y)`,
+     * written into an RGBA8 IOSurface (straight alpha) the session retains
+     * until the next call: the filter dialog's 1:1 detail pane. Blocking.
+     */
+    func filterDetail(layer: UInt64, filterJson: String, x: Int64, y: Int64, width: UInt32, height: UInt32) throws  -> FilterDetail
+    
+    /**
+     * The last preview or smart filter render error (cleared by a good one).
+     */
+    func filterError()  -> String?
+    
+    /**
+     * Shows an Image ▸ Adjustments result (`compositor::Adjustment` JSON)
+     * on a pixel layer, live on the GPU (the adjustment clipped to the
+     * layer). No history node.
+     */
+    func previewAdjustment(layer: UInt64, adjustmentJson: String) throws 
+    
+    /**
+     * Shows `filter_json` applied to `layer` in the viewport, rendered on
+     * the viewport's pyramid level over `region` (level-0 canvas pixels;
+     * `None`: the whole canvas) on a worker thread. No history node. A newer
+     * preview cancels this one; the frame arrives through the listener.
+     * On a smart object the filter is previewed on top of its smart filters.
+     */
+    func previewFilter(layer: UInt64, filterJson: String, region: DocRect?) throws 
+    
+    /**
+     * Like `preview_filter`, re-editing smart filter `index` of a smart object.
+     */
+    func previewSmartFilter(layer: UInt64, index: UInt32, filterJson: String, region: DocRect?) throws 
+    
+    /**
+     * Deletes smart filter `index` (one history node).
+     */
+    func removeSmartFilter(layer: UInt64, index: UInt32) throws  -> DocumentUpdate
+    
+    /**
+     * Edits smart filter `index` of a smart object (one history node).
+     */
+    func setSmartFilter(layer: UInt64, index: UInt32, edit: SmartFilterEdit) throws  -> DocumentUpdate
+    
+    /**
+     * The mask of smart filter `index` as a grey RGBA8 IOSurface (white =
+     * filtered; all white without a mask), cached per mask.
+     */
+    func smartFilterMaskThumbnail(layer: UInt64, index: UInt32, maxPx: UInt32) throws  -> UInt32
+    
+    /**
+     * The smart filters of a smart object, first applied first.
+     */
+    func smartFilters(layer: UInt64) throws  -> [SmartFilterRecord]
+    
 }
 open class DocumentSession: DocumentSessionProtocol, @unchecked Sendable {
     fileprivate let handle: UInt64
@@ -4587,6 +4676,217 @@ open func ungroupLayer(id: UInt64)throws  -> DocumentUpdate  {
     uniffi_tessera_ffi_fn_method_documentsession_ungroup_layer(
             self.uniffiCloneHandle(),
         FfiConverterUInt64.lower(id),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Image ▸ Adjustments: `adjustment_json` (`compositor::Adjustment`, the
+     * JSON of the adjustment layer of the same kind) applied to a pixel
+     * layer's pixels inside the selection, as one history node.
+     */
+open func applyAdjustment(layer: UInt64, adjustmentJson: String)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_apply_adjustment(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),
+        FfiConverterString.lower(adjustmentJson),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Applies `filter_json` to `layer` as one history node (labelled with
+     * the filter's name). Pixel layers are filtered at full resolution
+     * inside the selection (all of it without one); smart objects get the
+     * filter appended to their smart filters, masked by the selection.
+     * Blocking (seconds on large layers): call off the main thread;
+     * `cancel_filter` stops it.
+     */
+open func applyFilter(layer: UInt64, filterJson: String)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_apply_filter(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),
+        FfiConverterString.lower(filterJson),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Cancels a running `apply_filter` / `apply_adjustment` and the preview.
+     */
+open func cancelFilter()  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_cancel_filter(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Ends a filter or adjustment preview (the viewport shows the document).
+     */
+open func clearPreview()throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_clear_preview(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Filter ▸ Convert for Smart Filters: the layer becomes a smart object
+     * holding it (same id, name, opacity, blend mode and mask; the contents
+     * keep their pixels at identity transform). One history node.
+     */
+open func convertForSmartFilters(layer: UInt64)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_convert_for_smart_filters(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * `filter_json` on the layer's own pixels (on a smart object: after its
+     * smart filters) over `width × height` level-0 pixels at `(x, y)`,
+     * written into an RGBA8 IOSurface (straight alpha) the session retains
+     * until the next call: the filter dialog's 1:1 detail pane. Blocking.
+     */
+open func filterDetail(layer: UInt64, filterJson: String, x: Int64, y: Int64, width: UInt32, height: UInt32)throws  -> FilterDetail  {
+    return try  FfiConverterTypeFilterDetail_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_filter_detail(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),
+        FfiConverterString.lower(filterJson),
+        FfiConverterInt64.lower(x),
+        FfiConverterInt64.lower(y),
+        FfiConverterUInt32.lower(width),
+        FfiConverterUInt32.lower(height),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * The last preview or smart filter render error (cleared by a good one).
+     */
+open func filterError() -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_filter_error(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Shows an Image ▸ Adjustments result (`compositor::Adjustment` JSON)
+     * on a pixel layer, live on the GPU (the adjustment clipped to the
+     * layer). No history node.
+     */
+open func previewAdjustment(layer: UInt64, adjustmentJson: String)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_preview_adjustment(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),
+        FfiConverterString.lower(adjustmentJson),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Shows `filter_json` applied to `layer` in the viewport, rendered on
+     * the viewport's pyramid level over `region` (level-0 canvas pixels;
+     * `None`: the whole canvas) on a worker thread. No history node. A newer
+     * preview cancels this one; the frame arrives through the listener.
+     * On a smart object the filter is previewed on top of its smart filters.
+     */
+open func previewFilter(layer: UInt64, filterJson: String, region: DocRect?)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_preview_filter(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),
+        FfiConverterString.lower(filterJson),
+        FfiConverterOptionTypeDocRect.lower(region),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Like `preview_filter`, re-editing smart filter `index` of a smart object.
+     */
+open func previewSmartFilter(layer: UInt64, index: UInt32, filterJson: String, region: DocRect?)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_preview_smart_filter(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),
+        FfiConverterUInt32.lower(index),
+        FfiConverterString.lower(filterJson),
+        FfiConverterOptionTypeDocRect.lower(region),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Deletes smart filter `index` (one history node).
+     */
+open func removeSmartFilter(layer: UInt64, index: UInt32)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_remove_smart_filter(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),
+        FfiConverterUInt32.lower(index),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Edits smart filter `index` of a smart object (one history node).
+     */
+open func setSmartFilter(layer: UInt64, index: UInt32, edit: SmartFilterEdit)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_set_smart_filter(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),
+        FfiConverterUInt32.lower(index),
+        FfiConverterTypeSmartFilterEdit_lower(edit),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * The mask of smart filter `index` as a grey RGBA8 IOSurface (white =
+     * filtered; all white without a mask), cached per mask.
+     */
+open func smartFilterMaskThumbnail(layer: UInt64, index: UInt32, maxPx: UInt32)throws  -> UInt32  {
+    return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_smart_filter_mask_thumbnail(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),
+        FfiConverterUInt32.lower(index),
+        FfiConverterUInt32.lower(maxPx),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * The smart filters of a smart object, first applied first.
+     */
+open func smartFilters(layer: UInt64)throws  -> [SmartFilterRecord]  {
+    return try  FfiConverterSequenceTypeSmartFilterRecord.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_smart_filters(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),uniffiCallStatus
     )
 })
 }
@@ -10462,6 +10762,174 @@ public func FfiConverterTypeFacetFilter_lower(_ value: FacetFilter) -> RustBuffe
 }
 
 
+/**
+ * A 1:1 filter detail crop written into an RGBA8 IOSurface.
+ */
+public struct FilterDetail: Equatable, Hashable {
+    public var surfaceId: UInt32
+    public var width: UInt32
+    public var height: UInt32
+    /**
+     * Pyramid level the crop was filtered at: 0 (true 1:1) except for
+     * whole-image filters on large layers, which are filtered on a coarser
+     * level and enlarged.
+     */
+    public var level: UInt8
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(surfaceId: UInt32, width: UInt32, height: UInt32, 
+        /**
+         * Pyramid level the crop was filtered at: 0 (true 1:1) except for
+         * whole-image filters on large layers, which are filtered on a coarser
+         * level and enlarged.
+         */level: UInt8) {
+        self.surfaceId = surfaceId
+        self.width = width
+        self.height = height
+        self.level = level
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension FilterDetail: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFilterDetail: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FilterDetail {
+        return
+            try FilterDetail(
+                surfaceId: FfiConverterUInt32.read(from: &buf), 
+                width: FfiConverterUInt32.read(from: &buf), 
+                height: FfiConverterUInt32.read(from: &buf), 
+                level: FfiConverterUInt8.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: FilterDetail, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.surfaceId, into: &buf)
+        FfiConverterUInt32.write(value.width, into: &buf)
+        FfiConverterUInt32.write(value.height, into: &buf)
+        FfiConverterUInt8.write(value.level, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFilterDetail_lift(_ buf: RustBuffer) throws -> FilterDetail {
+    return try FfiConverterTypeFilterDetail.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFilterDetail_lower(_ value: FilterDetail) -> RustBuffer {
+    return FfiConverterTypeFilterDetail.lower(value)
+}
+
+
+/**
+ * One Filter menu entry (`filters::registry`).
+ */
+public struct FilterInfo: Equatable, Hashable {
+    /**
+     * Stable id used in filter JSON (`gaussian_blur`).
+     */
+    public var id: String
+    /**
+     * `Blur`, `Sharpen`, `Noise`, `Distort`, `Stylize`, `Render` or `Other`.
+     */
+    public var group: String
+    /**
+     * Menu title (`Gaussian Blur`).
+     */
+    public var name: String
+    /**
+     * `{"params":[…]}`: controls with kind (`slider`, `angle`, `choice`,
+     * `point`, `toggle`), label, range, default, step, unit (see
+     * `filters::registry::FilterInfo::schema_json`).
+     */
+    public var paramsSchemaJson: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Stable id used in filter JSON (`gaussian_blur`).
+         */id: String, 
+        /**
+         * `Blur`, `Sharpen`, `Noise`, `Distort`, `Stylize`, `Render` or `Other`.
+         */group: String, 
+        /**
+         * Menu title (`Gaussian Blur`).
+         */name: String, 
+        /**
+         * `{"params":[…]}`: controls with kind (`slider`, `angle`, `choice`,
+         * `point`, `toggle`), label, range, default, step, unit (see
+         * `filters::registry::FilterInfo::schema_json`).
+         */paramsSchemaJson: String) {
+        self.id = id
+        self.group = group
+        self.name = name
+        self.paramsSchemaJson = paramsSchemaJson
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension FilterInfo: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFilterInfo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FilterInfo {
+        return
+            try FilterInfo(
+                id: FfiConverterString.read(from: &buf), 
+                group: FfiConverterString.read(from: &buf), 
+                name: FfiConverterString.read(from: &buf), 
+                paramsSchemaJson: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: FilterInfo, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.group, into: &buf)
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterString.write(value.paramsSchemaJson, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFilterInfo_lift(_ buf: RustBuffer) throws -> FilterInfo {
+    return try FfiConverterTypeFilterInfo.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFilterInfo_lower(_ value: FilterInfo) -> RustBuffer {
+    return FfiConverterTypeFilterInfo.lower(value)
+}
+
+
 public struct FolderHandle: Equatable, Hashable {
     public var path: String
     public var updated: UInt64
@@ -15819,6 +16287,111 @@ public func FfiConverterTypeSessionImage_lower(_ value: SessionImage) -> RustBuf
 
 
 /**
+ * One smart filter of a smart object, bottom (first applied) first.
+ */
+public struct SmartFilterRecord: Equatable, Hashable {
+    public var index: UInt32
+    public var filterId: String
+    /**
+     * Menu title of the filter.
+     */
+    public var name: String
+    public var enabled: Bool
+    /**
+     * `{"id":…,"params":{…}}` (the JSON `apply_filter` took).
+     */
+    public var filterJson: String
+    /**
+     * Blending options: opacity 0…1 and a blend mode name.
+     */
+    public var opacity: Float
+    public var blendMode: String
+    /**
+     * A filter mask (from the selection when the filter was applied).
+     */
+    public var hasMask: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(index: UInt32, filterId: String, 
+        /**
+         * Menu title of the filter.
+         */name: String, enabled: Bool, 
+        /**
+         * `{"id":…,"params":{…}}` (the JSON `apply_filter` took).
+         */filterJson: String, 
+        /**
+         * Blending options: opacity 0…1 and a blend mode name.
+         */opacity: Float, blendMode: String, 
+        /**
+         * A filter mask (from the selection when the filter was applied).
+         */hasMask: Bool) {
+        self.index = index
+        self.filterId = filterId
+        self.name = name
+        self.enabled = enabled
+        self.filterJson = filterJson
+        self.opacity = opacity
+        self.blendMode = blendMode
+        self.hasMask = hasMask
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SmartFilterRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSmartFilterRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SmartFilterRecord {
+        return
+            try SmartFilterRecord(
+                index: FfiConverterUInt32.read(from: &buf), 
+                filterId: FfiConverterString.read(from: &buf), 
+                name: FfiConverterString.read(from: &buf), 
+                enabled: FfiConverterBool.read(from: &buf), 
+                filterJson: FfiConverterString.read(from: &buf), 
+                opacity: FfiConverterFloat.read(from: &buf), 
+                blendMode: FfiConverterString.read(from: &buf), 
+                hasMask: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SmartFilterRecord, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.index, into: &buf)
+        FfiConverterString.write(value.filterId, into: &buf)
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterBool.write(value.enabled, into: &buf)
+        FfiConverterString.write(value.filterJson, into: &buf)
+        FfiConverterFloat.write(value.opacity, into: &buf)
+        FfiConverterString.write(value.blendMode, into: &buf)
+        FfiConverterBool.write(value.hasMask, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSmartFilterRecord_lift(_ buf: RustBuffer) throws -> SmartFilterRecord {
+    return try FfiConverterTypeSmartFilterRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSmartFilterRecord_lower(_ value: SmartFilterRecord) -> RustBuffer {
+    return FfiConverterTypeSmartFilterRecord.lower(value)
+}
+
+
+/**
  * `size`³ nodes, red fastest, then green, then blue. Each node is RGBA
  * 16-bit unorm: the proofed colour in display-encoded sRGB, and alpha 65535
  * where the printer cannot reproduce the colour (ΔE76 > 2 after a clipped
@@ -18849,6 +19422,98 @@ public func FfiConverterTypeSearchScope_lower(_ value: SearchScope) -> RustBuffe
 
 
 
+/**
+ * What [`DocumentSession::set_smart_filter`] changes.
+ */
+
+public enum SmartFilterEdit: Equatable, Hashable {
+    
+    case enabled(enabled: Bool
+    )
+    /**
+     * New filter JSON (the same filter id).
+     */
+    case params(filterJson: String
+    )
+    /**
+     * Blending options (mode name as `LayerNode::blend_mode`, opacity 0…1).
+     */
+    case blending(mode: String, opacity: Float
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension SmartFilterEdit: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSmartFilterEdit: FfiConverterRustBuffer {
+    typealias SwiftType = SmartFilterEdit
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SmartFilterEdit {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .enabled(enabled: try FfiConverterBool.read(from: &buf)
+        )
+        
+        case 2: return .params(filterJson: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 3: return .blending(mode: try FfiConverterString.read(from: &buf), opacity: try FfiConverterFloat.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: SmartFilterEdit, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .enabled(enabled):
+            writeInt(&buf, Int32(1))
+            FfiConverterBool.write(enabled, into: &buf)
+            
+        
+        case let .params(filterJson):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(filterJson, into: &buf)
+            
+        
+        case let .blending(mode,opacity):
+            writeInt(&buf, Int32(3))
+            FfiConverterString.write(mode, into: &buf)
+            FfiConverterFloat.write(opacity, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSmartFilterEdit_lift(_ buf: RustBuffer) throws -> SmartFilterEdit {
+    return try FfiConverterTypeSmartFilterEdit.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSmartFilterEdit_lower(_ value: SmartFilterEdit) -> RustBuffer {
+    return FfiConverterTypeSmartFilterEdit.lower(value)
+}
+
+
+
 
 public enum StatusPhase: Equatable, Hashable {
     
@@ -20465,6 +21130,31 @@ fileprivate struct FfiConverterSequenceTypeFacetFilter: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeFilterInfo: FfiConverterRustBuffer {
+    typealias SwiftType = [FilterInfo]
+
+    public static func write(_ value: [FilterInfo], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeFilterInfo.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [FilterInfo] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [FilterInfo]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeFilterInfo.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeHistoryGroupState: FfiConverterRustBuffer {
     typealias SwiftType = [HistoryGroupState]
 
@@ -21265,6 +21955,31 @@ fileprivate struct FfiConverterSequenceTypeSessionImage: FfiConverterRustBuffer 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeSmartFilterRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [SmartFilterRecord]
+
+    public static func write(_ value: [SmartFilterRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeSmartFilterRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [SmartFilterRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [SmartFilterRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeSmartFilterRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeTetherDevice: FfiConverterRustBuffer {
     typealias SwiftType = [TetherDevice]
 
@@ -21373,6 +22088,16 @@ public func blendModeNames() -> [String]  {
 })
 }
 /**
+ * Every filter of the Filter menu, in menu order.
+ */
+public func listFilters() -> [FilterInfo]  {
+    return try!  FfiConverterSequenceTypeFilterInfo.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_func_list_filters(uniffiCallStatus
+    )
+})
+}
+/**
  * Describes one profile file (for "Other…"); fails unless it is an output profile.
  */
 public func describePrinterProfile(path: String)throws  -> PrinterProfile  {
@@ -21448,6 +22173,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.contractVersionMismatch
     }
     if (uniffi_tessera_ffi_checksum_func_blend_mode_names() != 47688) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_func_list_filters() != 15632) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_func_describe_printer_profile() != 56173) {
@@ -22072,6 +22800,48 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_ungroup_layer() != 16163) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_apply_adjustment() != 62065) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_apply_filter() != 26962) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_cancel_filter() != 59874) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_clear_preview() != 6621) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_convert_for_smart_filters() != 47318) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_filter_detail() != 61247) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_filter_error() != 38602) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_preview_adjustment() != 1682) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_preview_filter() != 18047) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_preview_smart_filter() != 63495) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_remove_smart_filter() != 18175) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_set_smart_filter() != 22273) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_smart_filter_mask_thumbnail() != 1951) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_smart_filters() != 21975) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_cancelflag_cancel() != 15413) {

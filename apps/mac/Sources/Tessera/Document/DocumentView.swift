@@ -34,6 +34,7 @@ struct DocumentView: View {
                 .background(Theme.canvas)
             }
         }
+        .modifier(DocumentFilterSheets(filters: workspace.filters))   // WP M5-12
     }
 }
 
