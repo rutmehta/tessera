@@ -1,0 +1,7 @@
+Added Channel Mixer PSD import/export with signed RGB and monochrome parameters, preserving inactive rows and opaque extensions. GPU region edits now retain mip buffers and recompute only damaged rectangles, with regression coverage for accumulated edits and odd edges.
+
+Ran the exact required test, Clippy, and formatting command successfully, exit 0. All changes remain in allowed paths. engine-api is unchanged.
+
+M5-04 remains incomplete: the resident API has not replaced document-level tile rendering, embedded smart objects still use raster proxies, and the 100-layer performance targets are unverified. Details are in tools/orchestrate/wp/M5-04/IMPLEMENTATION-STATUS.md.
+
+RESULT: FAIL incomplete resident document integration, embedded smart-object import, and performance gates

@@ -715,9 +715,9 @@
     "id": "M5-04",
     "owner": "astra",
     "title": "PSD adapter + GPU-resident compositing",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
-    "notes": ""
+    "notes": "PSD adapter done; resident document render + perf gates -> M5-04b"
   },
   {
     "id": "M5-06",
