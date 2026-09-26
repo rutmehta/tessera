@@ -289,6 +289,33 @@ pub struct SmartFilter {
     pub params: serde_json::Value,
 }
 
+impl SmartFilter {
+    /// Construct an enabled, validated non-destructive transform stage.
+    pub fn transform(op: transform::TransformOp) -> EngineResult<Self> {
+        op.validate()
+            .map_err(|e| EngineError::invalid("transform", e.to_string()))?;
+        Ok(Self {
+            name: "transform".into(),
+            enabled: true,
+            params: serde_json::to_value(op)
+                .map_err(|e| EngineError::invalid("transform", e.to_string()))?,
+            ..Self::default()
+        })
+    }
+
+    /// Decode reserved transform parameters, including disabled stages.
+    pub fn transform_op(&self) -> EngineResult<Option<transform::TransformOp>> {
+        if self.name != "transform" {
+            return Ok(None);
+        }
+        let op: transform::TransformOp = serde_json::from_value(self.params.clone())
+            .map_err(|e| EngineError::invalid("transform", e.to_string()))?;
+        op.validate()
+            .map_err(|e| EngineError::invalid("transform", e.to_string()))?;
+        Ok(Some(op))
+    }
+}
+
 /// An embedded document rendered through the compositor and mapped into
 /// the parent with an affine transform.
 #[derive(Debug, Clone)]

@@ -399,6 +399,27 @@ Re-serializing a loaded document reproduces the input bytes exactly
 
 ## 9. Not done / deviations
 
+### M5-21 transform integration
+
+The reserved `SmartFilter::transform` stage stores a versioned `transform::TransformOp`.
+`DocOp::AddTransform`/`SetTransform` are undoable, position-lock-aware stack edits.
+Native load validates transform params even for disabled stages. The CPU stack
+converts straight raster storage to premultiplied planes for geometry, then back
+for filter blending. All stages run before the existing smart-object placement.
+The child canvas is fixed: bounds expansion is caller-managed; content-aware
+resize is padded/clipped at the origin to preserve mask/blend dimensions.
+
+SmartObject affine placement exports/imports standard SoLd/PlLd descriptors and
+embedded liFD PSD source pixels. Unsupported warped/external source descriptors
+stay opaque proxies. Enabled TransformOp/filter stacks are native-only and PSD
+export explicitly requests rasterization instead of silently dropping them.
+
+ResidentRenderer has an explicit precise displacement-texture transform stage
+over resident buffers or a fully rendered level. It is not automatically selected
+for document smart-filter stacks; those still route through CPU. See
+`src/resident/TRANSFORM.md` for the API, parity tests and measured GPU timings, and
+`../transform/TRANSFORM.md` for geometry formulas and implementation limits.
+
 - The fill-opacity behaviour of Photoshop's "special eight" modes (§2.4).
 - Mask feather (stored only), vector-mask rasterization (payload stored only), and the
   translation op and position lock semantics.

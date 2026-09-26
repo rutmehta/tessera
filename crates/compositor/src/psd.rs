@@ -2,6 +2,8 @@
 //!
 //! The editable state uses canvas-clipped rasters. Source records retain
 //! off-canvas pixels and metadata that the compositor cannot interpret.
+mod placed;
+
 use crate::channels::{ChannelId, ChannelKind, DocumentChannel};
 use crate::{Depth, DocState, Layer, LayerId, LayerKind, Raster, Rect};
 use ::psd::{Channel, ColorMode, Compression, PsdDocument};
@@ -956,7 +958,14 @@ fn import_nodes(
             nodes.reverse();
             return Ok(nodes);
         }
-        let mut layer = Layer::new("", import_kind(original, imported.canvas, imported.depth)?);
+        let layer_kind = if let Some(so) =
+            placed::import(original, &imported.source.layer_section.additional)?
+        {
+            LayerKind::SmartObject(so)
+        } else {
+            import_kind(original, imported.canvas, imported.depth)?
+        };
+        let mut layer = Layer::new("", layer_kind);
         layer.props = props(original)?;
         layer.mask = import_mask(original, imported.canvas, imported.depth)?;
         if crate::BlendMode::from_psd_key(&original.blend_mode).is_none()
@@ -1393,7 +1402,7 @@ mod style_interop {
             out.extend_from_slice(&u.to_be_bytes());
         }
     }
-    fn descriptor(d: &D<'_>, out: &mut Vec<u8>) {
+    pub(super) fn descriptor(d: &D<'_>, out: &mut Vec<u8>) {
         text(&d.name, out);
         id(d.class_id, out);
         out.extend_from_slice(&(d.items.len() as u32).to_be_bytes());
@@ -1659,7 +1668,9 @@ fn export_imported(imported: &ImportedPsd) -> EngineResult<PsdDocument> {
             ));
         }
     }
-    source.layer_section.layers = export_nodes(&imported.root, imported)?;
+    let mut linked = Vec::new();
+    source.layer_section.layers = export_nodes(&imported.root, imported, &mut linked)?;
+    placed::append_linked(&mut source.layer_section.additional, &linked)?;
     let document = crate::Document::new(imported.state.clone());
     let (_, rgba) = crate::Compositor::new(64 << 20).render_level_rgba(&document, 0)?;
     let plane = source.width as usize * source.height as usize * imported.depth.bytes();
@@ -1820,7 +1831,11 @@ fn export_raster(
     layer.bounds = bounds;
     Ok(())
 }
-fn export_nodes(nodes: &[Arc<Layer>], imported: &ImportedPsd) -> EngineResult<Vec<::psd::Layer>> {
+fn export_nodes(
+    nodes: &[Arc<Layer>],
+    imported: &ImportedPsd,
+    linked: &mut Vec<u8>,
+) -> EngineResult<Vec<::psd::Layer>> {
     let mut records = Vec::new();
     for layer in nodes.iter().rev() {
         let mut original = imported
@@ -1861,7 +1876,7 @@ fn export_nodes(nodes: &[Arc<Layer>], imported: &ImportedPsd) -> EngineResult<Ve
                 set_tag(&mut original, tag_key, data);
             }
             records.push(original);
-            records.extend(export_nodes(children, imported)?);
+            records.extend(export_nodes(children, imported, linked)?);
             let end = imported.endings.get(&layer.id).cloned().unwrap_or_else(|| {
                 let mut e = ::psd::Layer::default();
                 set_tag(&mut e, *b"lsct", 3u32.to_be_bytes().to_vec());
@@ -1870,6 +1885,7 @@ fn export_nodes(nodes: &[Arc<Layer>], imported: &ImportedPsd) -> EngineResult<Ve
             records.push(end);
             continue;
         }
+        let rendered;
         let r = match &layer.kind {
             LayerKind::Pixel(r) => r,
             LayerKind::Text(t) => {
@@ -1890,12 +1906,30 @@ fn export_nodes(nodes: &[Arc<Layer>], imported: &ImportedPsd) -> EngineResult<Ve
                 &t.proxy
             }
             LayerKind::SmartObject(so) => {
-                if so.transform != crate::Affine::default() || so.state.root.len() != 1 {
-                    return Err(error("edited smart object needs a rasterized proxy"));
+                if so.filters.iter().any(|f| f.enabled) {
+                    return Err(error(
+                        "TransformOp and smart-filter stages are native-only; rasterize explicitly for PSD",
+                    ));
                 }
-                so.state.root[0]
-                    .raster()
-                    .ok_or_else(|| error("smart object proxy is not a raster"))?
+                let retained_proxy = imported.originals.contains_key(&layer.id)
+                    && placed::import(&original, &imported.source.layer_section.additional)?
+                        .is_none();
+                if retained_proxy {
+                    if so.transform != crate::Affine::default() || so.state.root.len() != 1 {
+                        return Err(error(
+                            "opaque smart object needs explicit rasterization before transforming",
+                        ));
+                    }
+                    so.state.root[0]
+                        .raster()
+                        .ok_or_else(|| error("smart object proxy is not a raster"))?
+                } else {
+                    rendered = placed::export(so, &mut original, imported.canvas, imported.depth)?;
+                    if let Some(i) = original.additional.iter().position(|b| b.key == *b"lnk2") {
+                        linked.extend(original.additional.remove(i).data);
+                    }
+                    &rendered
+                }
             }
             LayerKind::Adjustment(adjustment) => {
                 export_adjustment(adjustment, &mut original)?;

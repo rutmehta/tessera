@@ -502,7 +502,13 @@ impl Reader<'_> {
             } => LayerKind::SmartObject(SmartObject {
                 state: Arc::new(self.doc(document)?),
                 transform: *transform,
-                filters: filters.clone(),
+                filters: filters
+                    .iter()
+                    .map(|filter| {
+                        filter.transform_op()?;
+                        Ok(filter.clone())
+                    })
+                    .collect::<EngineResult<_>>()?,
                 filter_mask: filter_mask
                     .as_ref()
                     .map(|m| -> EngineResult<Mask> {

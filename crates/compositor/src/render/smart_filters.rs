@@ -122,6 +122,51 @@ fn gaussian(input: &Raster, params: &serde_json::Value) -> EngineResult<Raster> 
     Ok(out)
 }
 
+// Transform kernels require premultiplied planes. Evaluate at native child
+// resolution; the existing smart-object resampler selects output mip levels.
+fn evaluate_transform(input: &Raster, op: &transform::TransformOp) -> EngineResult<Raster> {
+    let e = input.extent();
+    let (w, h) = (e.width as usize, e.height as usize);
+    let mut planes: [Vec<f32>; 4] = std::array::from_fn(|_| Vec::with_capacity(w * h));
+    for y in 0..e.height {
+        for x in 0..e.width {
+            let p = input.pixel(x, y);
+            for c in 0..4 {
+                planes[c].push(if c == 3 { p[3] } else { p[c] * p[3] });
+            }
+        }
+    }
+    let image = transform::Image::new(w, h, planes)
+        .map_err(|e| EngineError::invalid("transform", e.to_string()))?;
+    // A content-aware resize changes content bounds, not the child canvas.
+    // Keep stack masks/blends in the original canvas, clipping or padding at origin.
+    let (rw, rh) = match &op.operation {
+        transform::Operation::ContentAwareScale(p) => (p.target_width, p.target_height),
+        _ => (w, h),
+    };
+    let result = op
+        .apply(&image, rw, rh, 0)
+        .map_err(|e| EngineError::invalid("transform", e.to_string()))?;
+    let mut out = Raster::new(e, 4, Depth::F32, 0.0);
+    out.edit_region(Rect::of_extent(e), 1, |x, y, p| {
+        if x as usize >= rw || y as usize >= rh {
+            *p = [0.; 4];
+            return;
+        }
+        let i = y as usize * rw + x as usize;
+        let a = result.planes[3][i];
+        for (c, channel) in p.iter_mut().enumerate().take(3) {
+            *channel = if a > 0.0 {
+                result.planes[c][i] / a
+            } else {
+                0.0
+            };
+        }
+        p[3] = a;
+    })?;
+    Ok(out)
+}
+
 type CacheKey = (u64, u64, [u8; 32]);
 struct Cached {
     source: Raster,
@@ -206,7 +251,11 @@ impl Compositor {
                     if filter.blend.opacity == 0.0 {
                         continue;
                     }
-                    let next = rt.evaluator.evaluate(&result, filter)?;
+                    let next = if let Some(op) = filter.transform_op()? {
+                        evaluate_transform(&result, &op)?
+                    } else {
+                        rt.evaluator.evaluate(&result, filter)?
+                    };
                     if next.extent() != source.extent()
                         || next.channels() != 4
                         || next.depth() != Depth::F32
