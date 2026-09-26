@@ -1,0 +1,7 @@
+Added editable PSD Curves and Hue/Saturation master/colorize conversion, preserving untouched payloads and opaque extensions. Added regression tests for round trips and imported-vs-native rendering across 8/16/32-bit documents.
+
+Ran the exact required test, clippy, and fmt command successfully. All 15 adapter tests pass. Only allowed paths changed, engine-api is unchanged, and nothing was committed.
+
+M5-04 remains incomplete: resident rendering is not integrated with document traversal, still uses buffers rather than textures, and the performance targets are unmeasured. Embedded smart-object parsing and Channel Mixer conversion also remain unfinished. Details are in tools/orchestrate/wp/M5-04/IMPLEMENTATION-STATUS.md.
+
+RESULT: FAIL GPU-resident integration, performance gates, and remaining PSD adapter requirements are incomplete.

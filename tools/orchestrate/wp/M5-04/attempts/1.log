@@ -1,0 +1,14 @@
+Implemented a tested partial M5-04, not the full work package.
+
+Added Document PSD import/export, opaque record retention, pixel/mask/group round trips, and imported-render equivalence tests. Added an explicit resident GPU API with revision reuse, GPU mips, adjustments, dirty-region uploads and shared-device construction.
+
+Your exact release-test, clippy and fmt command passed. Changes are confined to allowed paths. No commits.
+
+Still missing: resident document-tree integration, texture-based residency, embedded-original smart-object parsing, remaining PSD adjustment mappings, and verified 100-layer performance targets.
+
+Full handoff: tools/orchestrate/wp/M5-04/IMPLEMENTATION-STATUS.md
+
+RESULT: FAIL incomplete GPU integration and PSD coverage; performance targets unverified
+
+⚠️ File-mutation verifier: 1 file(s) were NOT modified this turn despite any wording above that may suggest otherwise. Run `git status` or `read_file` to confirm.
+  • `/Users/rutmehta/Developer/tessera/.worktrees/M5-04/crates/compositor/tests/psd.rs` — [patch] Patch validation failed (no files were modified): • `/Users/rutmehta/Developer/tessera/.worktrees/M5-04/crates/compositor/tests/psd.rs`: hunk 2 (no hint) not found — Found 67 matche…

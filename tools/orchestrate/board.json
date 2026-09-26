@@ -699,9 +699,9 @@
     "id": "M3-12b",
     "owner": "opus",
     "title": "Tethered capture UI",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
-    "notes": ""
+    "notes": "each frame reloads library (resets undo/filter) -> incremental insert later"
   },
   {
     "id": "M5-03",
