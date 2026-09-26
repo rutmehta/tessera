@@ -13,6 +13,8 @@ pub use presets::PhotoFilterPreset;
 
 #[path = "adjust/color.rs"]
 pub(crate) mod color;
+#[path = "adjust/hdr.rs"]
+pub mod hdr;
 #[path = "adjust/icc.rs"]
 mod icc;
 #[path = "adjust/lookup.rs"]
@@ -113,6 +115,7 @@ impl Adjustment {
             } => finite(color) && finite(&[*fuzziness, *hue, *saturation, *lightness]),
             Self::ColorLookup { size, data } => lookup::valid(*size, data),
             Self::ShadowsHighlights { settings } => return settings.validate(),
+            Self::HdrToning { settings } => return settings.validate(),
             Self::BrightnessContrast {
                 brightness,
                 contrast,
@@ -411,6 +414,11 @@ pub enum Adjustment {
         /// Validated local neighborhood operator controls.
         settings: shadows::ShadowsHighlights,
     },
+    /// Native HDR tone mapping (native document interchange only).
+    HdrToning {
+        /// Validated tone mapping method and controls.
+        settings: hdr::HdrToning,
+    },
     /// Endpoint-preserving tone curve, or legacy affine correction.
     BrightnessContrast {
         /// Brightness percent-like control, conventionally -150..150.
@@ -483,6 +491,7 @@ pub(crate) enum Compiled<'a> {
     Channels([Vec<f32>; 3]),
     Auto(&'a Adjustment, [Vec<f32>; 3]),
     Direct(&'a Adjustment),
+    Hdr(&'a hdr::HdrToning, Vec<f32>),
     Gradient(Vec<[f32; 4]>, bool, bool, GradientMethod),
 }
 
@@ -602,6 +611,7 @@ impl Adjustment {
                 );
                 Compiled::Direct(self)
             }
+            Adjustment::HdrToning { settings } => Compiled::Hdr(settings, settings.curve_lut()),
             other => Compiled::Direct(other),
         }
     }
@@ -653,6 +663,7 @@ impl Compiled<'_> {
             }
             Compiled::Channels(ch) => std::array::from_fn(|i| lut_eval(&ch[i], c[i])),
             Compiled::Direct(a) => apply_direct(a, c),
+            Compiled::Hdr(settings, curve) => settings.map_with_lut(c, hdr::luminance(c), curve),
             Compiled::Gradient(stops, dither, reverse, method) => {
                 gradient(stops, *dither, *reverse, *method, c, [x, y])
             }
@@ -975,6 +986,7 @@ fn apply_direct(a: &Adjustment, c: [f32; 3]) -> [f32; 3] {
             panic!("ShadowsHighlights requires neighborhood execution")
         }
         Adjustment::ColorLookup { size, ref data } => lookup::sample(size, data, c),
+        Adjustment::HdrToning { ref settings } => settings.map_rgb(c, hdr::luminance(c)),
     }
 }
 

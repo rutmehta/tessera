@@ -3,6 +3,8 @@
 //! Capability is deliberately conservative: lens auto-calibration/CA estimation
 //! still requires CPU pixels. Default Auto lens settings are declined. Select
 //! lens.profile=None and remove_chromatic_aberration=false for this path.
+//! These are GPU engineering gaps on RGB, not CFA-only restrictions. See
+//! README.md for the per-control capability and missing-host-input inventory.
 //! Manual lens gains/distortion and crop/transform are supported. Unsupported
 //! geometry plans error explicitly, never silently discard controls.
 //!

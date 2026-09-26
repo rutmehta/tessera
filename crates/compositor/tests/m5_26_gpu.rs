@@ -100,7 +100,7 @@ fn pointwise_adjustments_exact() {
 }
 
 #[test]
-fn shadows_highlights_requires_real_cpu_route() {
+fn shadows_highlights_resident_positive_radius() {
     let gpu = GpuCompositor::new().expect("requires GPU");
     let e = Extent::new(8, 8);
     let mut d = doc(e, Depth::F32);
@@ -123,10 +123,8 @@ fn shadows_highlights_requires_real_cpu_route() {
         ),
     );
     let mut r = ResidentRenderer::new(&gpu).unwrap();
-    assert!(matches!(
-        r.render(&d, 0),
-        Err(engine_api::EngineError::Unsupported { .. })
-    ));
+    r.render(&d, 0).unwrap();
+    assert!(!r.read_tiles(0).unwrap().is_empty());
 }
 
 #[test]

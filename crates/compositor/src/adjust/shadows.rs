@@ -101,8 +101,10 @@ impl ShadowsHighlights {
     /// knows where document edges are and may replicate those edges. Tile-edge
     /// clamping is intentionally NOT performed here. Alpha is preserved exactly.
     ///
-    /// A direct bilateral luminance base uses spatial sigma radius/2 and range
-    /// sigma 0.15. This reference path is O(interior area * radius squared).
+    /// A native separable bilateral base runs horizontal then vertical, using
+    /// spatial sigma max(radius/2, 0.5), range sigma 0.15, and original alpha
+    /// weights in both passes. The vertical range compares horizontal bases.
+    /// This intentionally replaces the previous direct 2D bilateral contract.
     /// It is a native operator, not a claim of Adobe numerical equivalence.
     pub fn apply_padded(
         &self,
@@ -137,6 +139,10 @@ impl ShadowsHighlights {
             ));
         }
         let scale = 2.0f32.powi(i32::from(level));
+        let shadow_base = (self.shadows_amount != 0.0)
+            .then(|| separable_bases(pixels, width, height, self.shadows_radius / scale));
+        let highlight_base = (self.highlights_amount != 0.0)
+            .then(|| separable_bases(pixels, width, height, self.highlights_radius / scale));
         let mut out = Vec::with_capacity((x1 - x0) * (y1 - y0));
         for y in y0..y1 {
             for x in x0..x1 {
@@ -146,16 +152,8 @@ impl ShadowsHighlights {
                     continue;
                 }
                 let l = luma(p);
-                let sb = if self.shadows_amount != 0.0 {
-                    bilateral(pixels, width, x, y, self.shadows_radius / scale)
-                } else {
-                    l
-                };
-                let hb = if self.highlights_amount != 0.0 {
-                    bilateral(pixels, width, x, y, self.highlights_radius / scale)
-                } else {
-                    l
-                };
+                let sb = shadow_base.as_ref().map_or(l, |v| v[y * width + x]);
+                let hb = highlight_base.as_ref().map_or(l, |v| v[y * width + x]);
                 let rgb = self.map_rgb([p[0], p[1], p[2]], sb, hb);
                 out.push([rgb[0], rgb[1], rgb[2], p[3]]);
             }
@@ -198,34 +196,49 @@ fn membership(l: f32, tone: f32) -> f32 {
     let t = (1.0 - l / tone).clamp(0.0, 1.0);
     t * t * (3.0 - 2.0 * t)
 }
-fn bilateral(pixels: &[[f32; 4]], width: usize, x: usize, y: usize, radius: f32) -> f32 {
-    let center = luma(pixels[y * width + x]);
-    if radius <= 0.0 {
-        return center;
+/// Native horizontal/vertical bilateral luminance base shared by HDR Toning.
+/// The caller supplies real halo samples; clamping here affects only the outer
+/// buffer border, never the validated interior's support.
+pub(crate) fn separable_bases(
+    pixels: &[[f32; 4]],
+    width: usize,
+    height: usize,
+    radius: f32,
+) -> Vec<f32> {
+    let mut values: Vec<_> = pixels.iter().copied().map(luma).collect();
+    if radius <= 0.0 || width == 0 || height == 0 {
+        return values;
     }
-    let support = radius.ceil() as usize;
+    let support = radius.ceil() as isize;
     let sigma = (radius * 0.5).max(0.5);
-    let (mut sum, mut weight) = (0.0f64, 0.0f64);
-    for yy in y - support..=y + support {
-        for xx in x - support..=x + support {
-            let p = pixels[yy * width + xx];
-            if p[3] <= 0.0 {
-                continue;
+    for vertical in [false, true] {
+        let mut next = vec![0.0; values.len()];
+        for y in 0..height {
+            for x in 0..width {
+                let center = values[y * width + x];
+                let (mut sum, mut weight) = (0.0f32, 0.0f32);
+                for d in -support..=support {
+                    let xx = (x as isize + if vertical { 0 } else { d })
+                        .clamp(0, width as isize - 1) as usize;
+                    let yy = (y as isize + if vertical { d } else { 0 })
+                        .clamp(0, height as isize - 1) as usize;
+                    let i = yy * width + xx;
+                    if pixels[i][3] <= 0.0 {
+                        continue;
+                    }
+                    let delta = values[i] - center;
+                    let distance = d as f32;
+                    let w = (-distance * distance / (2.0 * sigma * sigma)
+                        - delta * delta / (2.0 * 0.15 * 0.15))
+                        .exp()
+                        * pixels[i][3];
+                    sum += w * values[i];
+                    weight += w;
+                }
+                next[y * width + x] = if weight > 0.0 { sum / weight } else { center };
             }
-            let l = luma(p);
-            let dx = xx as f32 - x as f32;
-            let dy = yy as f32 - y as f32;
-            let w = (-(dx * dx + dy * dy) / (2.0 * sigma * sigma)
-                - (l - center).powi(2) / (2.0 * 0.15 * 0.15))
-                .exp()
-                * p[3];
-            sum += f64::from(w) * f64::from(l);
-            weight += f64::from(w);
         }
+        values = next;
     }
-    if weight > 0.0 {
-        (sum / weight) as f32
-    } else {
-        center
-    }
+    values
 }

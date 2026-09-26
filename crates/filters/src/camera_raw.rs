@@ -148,12 +148,56 @@ pub fn evaluate(
     }
     let extent = input.extent();
     let pixels = pipeline_cpu::Image::new(extent.width, extent.height, planes)?;
-    // The scalar RGB entry point shares the Develop operators and procedural
-    // mask hooks with image-core, without a file round-trip or CFA fabrication.
-    let developed = pipeline_cpu::render_linear_scaled(
+    // FilterContext has no layer identifier. Hash exact source bits, all tile
+    // revisions and interpretation so independent layers/revisions cannot alias.
+    // Hash one row at a time to avoid another full-frame key allocation.
+    use engine_api::{
+        id::{Digest, ImageId},
+        jobs::CancellationToken,
+        stage::{ParamHash, StageId},
+    };
+    let mut identity = ParamHash::of(
+        StageId::Decode,
+        &(
+            extent.width,
+            extent.height,
+            context.level,
+            context.canvas.width,
+            context.canvas.height,
+            forward.0,
+            input
+                .slots()
+                .map(|(coord, slot)| (coord, slot.rev))
+                .collect::<Vec<_>>(),
+        ),
+    );
+    for row in source.pixels.chunks(source.w) {
+        let bytes: Vec<u8> = row
+            .iter()
+            .flat_map(|p| p.iter().flat_map(|v| v.to_bits().to_le_bytes()))
+            .collect();
+        identity = ParamHash::chain(
+            identity,
+            ParamHash(Digest::derive("camera raw source row", &bytes)),
+        );
+    }
+    let id = ImageId(u128::from_le_bytes(
+        identity.0.0[..16].try_into().expect("digest prefix"),
+    ));
+    let rgb = image_core::RgbSource::from_linear_rec2020(pixels)?;
+    let image = image_core::RawImage::from_rgb(id, rgb)?;
+    static RENDERER: std::sync::OnceLock<image_core::Renderer> = std::sync::OnceLock::new();
+    let renderer = RENDERER.get_or_init(|| {
+        image_core::Renderer::new(image_core::RendererConfig {
+            cache_budget_bytes: 256 << 20,
+            ..Default::default()
+        })
+    });
+    let developed = renderer.render_rgb_linear(
+        &image,
+        input.max_rev(),
         &params.settings,
-        &pipeline_cpu::RenderSource::Rgb(&pixels),
-        1,
+        &CancellationToken::new(),
     )?;
     let output_extent = engine_api::tile::Extent::new(developed.width(), developed.height());
     let mut result = source.clone();

@@ -179,6 +179,9 @@ fn soco_is_not_an_adjustment_and_native_only_errors_are_explicit() {
         A::ShadowsHighlights {
             settings: Default::default(),
         },
+        A::HdrToning {
+            settings: Default::default(),
+        },
     ] {
         let mut state = DocState::new(Extent::new(1, 1), Depth::U8);
         state

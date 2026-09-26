@@ -52,6 +52,13 @@
 //! M2 intermediates are request-local, never inserted into the upstream cache;
 //! changing any M2 control therefore reuses WB without stale developed pixels.
 //!
+//! # Exact RGB layer Develop
+//!
+//! [`Renderer::render_rgb_linear`] is the full-resolution native RGB entry
+//! point for layered editing. It includes resolved optics and retains a separate
+//! bounded f32 stage LRU; it never reads the f16 preview tile cache. See that
+//! method for source identity and revision requirements.
+//!
 //! # Parallelism and cancellation
 //!
 //! Output tiles are processed in chunks bounded by the number of new sensor
@@ -67,6 +74,9 @@ mod cfa_render;
 mod denoise_render;
 #[path = "resident_render.rs"]
 mod resident_render;
+#[path = "rgb_render.rs"]
+mod rgb_render;
+pub use rgb_render::RgbCacheStats;
 
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
@@ -210,6 +220,7 @@ pub struct RendererConfig {
     /// Payload budget of the memo cache created by [`Renderer::new`]. Also
     /// caps a separate single-entry packed CFA inference memo; request-local
     /// inference remains shared even when too large for persistent retention.
+    /// Also caps the separate exact-f32 RGB Develop checkpoint cache.
     pub cache_budget_bytes: usize,
     /// Worker threads per request (1 renders on the calling thread).
     pub threads: usize,
@@ -248,6 +259,7 @@ pub struct Renderer {
     cfa_denoiser: Option<Arc<dyn crate::cfa::CfaDenoise>>,
     cfa_memo: Arc<Mutex<crate::cfa::InferenceMemo>>,
     cache: Arc<TileCache>,
+    rgb_memo: Arc<Mutex<rgb_render::RgbMemo>>,
     mask_cache: Arc<crate::MaskRasterCache>,
     config: RendererConfig,
 }
@@ -300,6 +312,7 @@ impl Renderer {
             cfa_denoiser: None,
             cfa_memo: Arc::new(std::sync::Mutex::new(None)),
             cache,
+            rgb_memo: Arc::new(Mutex::new(Default::default())),
             mask_cache,
             config,
         }
@@ -329,6 +342,8 @@ impl Renderer {
     pub fn for_backend(&self, ops: Arc<dyn StageOp>) -> Self {
         let mut next = self.clone();
         next.native_ops = ops;
+        // CPU f32 checkpoints belong to the selected backend arithmetic.
+        next.rgb_memo = Arc::new(Mutex::new(Default::default()));
         next.for_process_version(self.config.process_version)
     }
 

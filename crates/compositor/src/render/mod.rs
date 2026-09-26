@@ -527,7 +527,7 @@ impl Compositor {
             doc: doc.key,
             node: 0,
             part: Part::Root,
-            stamp: if effects::has_styles(doc.state) {
+            stamp: if effects::has_styles(doc.state) || has_local_adjustments(doc.state) {
                 doc.state.rev
             } else {
                 doc.state.root_stamp(coord.level, coord.x, coord.y)
@@ -559,7 +559,7 @@ impl Compositor {
             state,
             key: doc.key(),
         };
-        if effects::has_styles(state) {
+        if effects::has_styles(state) || has_local_adjustments(state) {
             return self.composite_premult(dref, coord);
         }
         let stamp = state.root_stamp(coord.level, coord.x, coord.y);
@@ -811,4 +811,24 @@ impl Pyramid for CompositePyramid<'_> {
     fn tile(&self, coord: TileCoord) -> EngineResult<Tile> {
         self.comp.render_tile(self.doc, coord)
     }
+}
+
+/// Spatial adjustments require whole-document revision stamps and full tiles:
+/// a pixel edit outside this tile can alter its backdrop halo. Groups are not
+/// cached while replaying prefixes, since a cached group may hide the target.
+pub(crate) fn has_local_adjustments(state: &DocState) -> bool {
+    fn local(layer: &Layer) -> bool {
+        match &layer.kind {
+            crate::document::LayerKind::Adjustment(
+                crate::adjust::Adjustment::ShadowsHighlights { settings },
+            ) => settings.needs_neighbourhood(),
+            crate::document::LayerKind::Adjustment(crate::adjust::Adjustment::HdrToning {
+                settings,
+            }) => settings.needs_neighbourhood(),
+            crate::document::LayerKind::Group { children, .. } => children.iter().any(|l| local(l)),
+            crate::document::LayerKind::SmartObject(so) => has_local_adjustments(&so.state),
+            _ => false,
+        }
+    }
+    state.root.iter().any(|l| local(l))
 }

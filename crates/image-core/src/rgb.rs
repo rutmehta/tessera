@@ -13,6 +13,69 @@ pub struct RgbSource {
 }
 
 impl RgbSource {
+    /// Validated already-linear Rec.2020 boundary; retains exact f32 bits.
+    pub fn from_linear_rec2020(pixels: pipeline_cpu::Image) -> EngineResult<Self> {
+        if pixels.planes().len() != 3
+            || pixels.width() == 0
+            || pixels.height() == 0
+            || pixels.planes().iter().flatten().any(|v| !v.is_finite())
+        {
+            return Err(EngineError::invalid(
+                "RGB raster",
+                "nonempty finite three planes required",
+            ));
+        }
+        Ok(Self { pixels })
+    }
+
+    /// Construct from upright, planar **linear** RGB tagged with its working
+    /// profile. The profile's TRCs are removed, not applied a second time.
+    /// Signed/HDR samples are transformed by a matrix without clipping. A CLUT
+    /// profile is rejected because it cannot describe this linear boundary.
+    pub fn from_raster(
+        pixels: pipeline_cpu::Image,
+        profile: &color_mgmt::Profile,
+    ) -> EngineResult<Self> {
+        if pixels.planes().len() != 3 {
+            return Err(EngineError::invalid("RGB raster", "three planes required"));
+        }
+        let mut registry = color_mgmt::Registry::new();
+        let linear = registry
+            .linearized_rgb(profile)
+            .map_err(color_error)?
+            .ok_or_else(|| EngineError::Unsupported {
+                what: "RGB raster requires a matrix-shaper working profile".into(),
+            })?;
+        let output = registry
+            .builtin(color_mgmt::Builtin::LinearRec2020)
+            .map_err(color_error)?;
+        let transform = color_mgmt::Transform::new(
+            &linear,
+            &output,
+            color_mgmt::TransformOptions {
+                black_point_compensation: false,
+                ..Default::default()
+            },
+        )
+        .map_err(color_error)?;
+        let basis = [[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]].map(|v| transform.apply(v));
+        let matrix = engine_api::color::ColorMatrix3(std::array::from_fn(|r| {
+            std::array::from_fn(|c| f64::from(basis[c][r]))
+        }));
+        let mut planes: Vec<_> = (0..3)
+            .map(|_| Vec::with_capacity(pixels.planes()[0].len()))
+            .collect();
+        for i in 0..pixels.planes()[0].len() {
+            let rgb = matrix.apply(std::array::from_fn(|c| f64::from(pixels.planes()[c][i])));
+            for (plane, value) in planes.iter_mut().zip(rgb) {
+                plane.push(value as f32);
+            }
+        }
+        Ok(Self {
+            pixels: pipeline_cpu::Image::new(pixels.width(), pixels.height(), planes)?,
+        })
+    }
+
     /// Decode JPEG, PNG or TIFF without reducing integer/float sample precision.
     /// EXIF orientation is consumed here exactly once, before renderer geometry.
     /// HEIC/HEIF uses ImageIO on macOS when the `imageio` feature is enabled.
@@ -142,6 +205,51 @@ mod tests {
         Transform::new(&input, &output, TransformOptions::default())
             .unwrap()
             .apply(rgb)
+    }
+
+    #[test]
+    fn raster_constructor_preserves_linear_hdr_and_rejects_monochrome() {
+        let profile = Registry::new().builtin(Builtin::LinearRec2020).unwrap();
+        let planes = vec![vec![-0.25, 2.5], vec![0.25, 1.5], vec![0.75, 3.5]];
+        let pixels = pipeline_cpu::Image::new(2, 1, planes.clone()).unwrap();
+        let source = RgbSource::from_raster(pixels, &profile).unwrap();
+        for (actual, expected) in source.pixels().planes().iter().zip(&planes) {
+            for (a, b) in actual.iter().zip(expected) {
+                assert!((a - b).abs() < 1e-5, "{a} != {b}");
+            }
+        }
+        let mono = pipeline_cpu::Image::new(2, 1, vec![vec![0.5; 2]]).unwrap();
+        assert!(RgbSource::from_raster(mono, &profile).is_err());
+    }
+
+    #[test]
+    fn raster_constructor_uses_linear_profile_primaries_not_encoded_trcs() {
+        let mut registry = Registry::new();
+        let profile = registry.builtin(Builtin::DisplayP3).unwrap();
+        let linear = registry.linearized_rgb(&profile).unwrap().unwrap();
+        let output = registry.builtin(Builtin::LinearRec2020).unwrap();
+        let transform = Transform::new(
+            &linear,
+            &output,
+            TransformOptions {
+                black_point_compensation: false,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let samples = [[0.15, 0.45, 0.8], [-0.2, 1.5, 3.0]];
+        let planes = (0..3)
+            .map(|c| samples.iter().map(|v| v[c]).collect())
+            .collect();
+        let pixels = pipeline_cpu::Image::new(2, 1, planes).unwrap();
+        let source = RgbSource::from_raster(pixels, &profile).unwrap();
+        for (i, sample) in samples.into_iter().enumerate() {
+            for (plane, expected) in source.pixels().planes().iter().zip(transform.apply(sample)) {
+                assert!((plane[i] - expected).abs() < 1e-5);
+            }
+        }
+        let encoded = expected(samples[0], Builtin::DisplayP3);
+        assert!((source.pixels().planes()[0][0] - encoded[0]).abs() > 0.01);
     }
 
     #[test]

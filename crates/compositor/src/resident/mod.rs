@@ -42,6 +42,7 @@ mod output;
 mod pool;
 mod program;
 mod smart_gpu;
+mod spatial;
 mod specialize;
 mod transform_gpu;
 pub use output::{DisplayDestination, Headroom, OutputCacheStats, SourceColorPolicy, SourceDomain};
@@ -77,6 +78,7 @@ const F32_PAGE_WORDS: u64 = 256 * 256 * 4;
 pub(crate) struct Pipelines {
     doc: wgpu::ComputePipeline,
     mip: wgpu::ComputePipeline,
+    spatial: wgpu::ComputePipeline,
     present: wgpu::ComputePipeline,
     output: output::OutputPresenter,
     smart: smart_gpu::SmartGpu,
@@ -182,6 +184,7 @@ impl Pipelines {
         Ok(Self {
             doc,
             mip,
+            spatial: spatial::pipeline(device)?,
             present,
             output: output::OutputPresenter::new(device)?,
             smart: smart_gpu::SmartGpu::new(device)?,
@@ -1144,6 +1147,26 @@ impl ResidentRenderer {
         self.frame += 1;
         self.report = FrameReport::default();
         let le = state.canvas.at_level(level);
+        let (cols, rows) = le.tile_grid(TILE_SIZE);
+        let grid = (cols * rows) as usize;
+        let mut program = Program::compile(&state.root, grid)?;
+        let radii = |s: &program::Step| -> [f32; 2] {
+            match s.adj {
+                20 => [s.p[2][1], s.p[2][2]],
+                21 => [s._g[0], 0.0],
+                _ => [0.0; 2],
+            }
+        };
+        let spatial = program
+            .steps
+            .iter()
+            .any(|s| radii(s).iter().any(|&r| r > 0.0));
+        // Conservatively retain the entire level as a real backdrop halo. This
+        // also supports sequential local operators and nested current frames.
+        if viewport.is_some_and(|r| r.intersect(&Rect::of_extent(le)).is_empty()) {
+            return Err(EngineError::invalid("viewport", "outside level"));
+        }
+        let viewport = if spatial { None } else { viewport };
         let visible = viewport
             .unwrap_or(Rect::of_extent(le))
             .intersect(&Rect::of_extent(le));
@@ -1175,10 +1198,29 @@ impl ResidentRenderer {
             .ok_or_else(|| EngineError::ResourceExhausted {
                 resource: format!("level {level} viewport exceeds the storage binding limit"),
             })?;
-        let (cols, rows) = le.tile_grid(TILE_SIZE);
-        let grid = (cols * rows) as usize;
-        let program = Program::compile(&state.root, grid)?;
-        adjustment_limits::validate_aux(program.aux.len(), &self.device.limits())?;
+        let pixels = (le.width as usize)
+            .checked_mul(le.height as usize)
+            .ok_or_else(|| EngineError::invalid("canvas", "spatial size overflow"))?;
+        let bases = program
+            .steps
+            .iter()
+            .map(|s| radii(s).iter().filter(|&&r| r > 0.0).count())
+            .sum::<usize>();
+        let samples = pixels
+            .checked_mul(bases)
+            .and_then(|n| n.checked_add(program.aux.len()))
+            .ok_or_else(|| EngineError::invalid("canvas", "spatial auxiliary size overflow"))?;
+        adjustment_limits::validate_aux(samples, &self.device.limits())?;
+        let mut offset = program.aux.len();
+        for step in &mut program.steps {
+            for (axis, radius) in radii(step).iter().enumerate() {
+                if *radius > 0.0 {
+                    step._u[axis] = offset as u32;
+                    offset += pixels;
+                }
+            }
+        }
+        program.aux.resize(samples, 0.0);
 
         // Phase 1: resolve the page tables of the tiles under the viewport
         // to content-addressed nodes (nothing outside it is interned,
@@ -1270,6 +1312,11 @@ impl ResidentRenderer {
         let bytes = program.bytes();
         let level_rect = Rect::of_extent(le);
         let damage = self.damage(doc, level, &bytes, &nodes, grid, cols, le);
+        let damage = if spatial && damage.as_ref().is_none_or(|r| !r.is_empty()) {
+            None
+        } else {
+            damage
+        };
         let (bcols, brows) = (le.width.div_ceil(BLOCK), le.height.div_ceil(BLOCK));
         let total = bcols * brows;
         let mut valid = self
@@ -1317,7 +1364,7 @@ impl ResidentRenderer {
 
         let mut encoder = encoder;
         if nblocks > 0 {
-            let pipeline = if self.specialization {
+            let pipeline = if self.specialization && !spatial {
                 self.specialized.pipeline(
                     &self.device,
                     self.pool_uniform().depth,
@@ -1360,39 +1407,70 @@ impl ResidentRenderer {
                     usage: wgpu::BufferUsages::UNIFORM,
                 })
             };
-            let fb = init("resident frame", bytemuck::bytes_of(&frame));
-            let pb = init("resident pool", bytemuck::bytes_of(&self.pool_uniform()));
-            let mut entries = self.slab_entries();
-            let smart_buf = self
-                .smart
-                .slabs
-                .first()
-                .map_or(&self.dummies[SLABS], |s| &s.0);
-            for (binding, resource) in [
-                (8, smart_buf.as_entire_binding()),
-                (9, pb.as_entire_binding()),
-                (10, fb.as_entire_binding()),
-                (11, self.steps.binding()),
-                (12, self.tables.binding()),
-                (13, self.aux.binding()),
-                (14, self.blocks.binding()),
-                (15, out.as_entire_binding()),
-            ] {
-                entries.push(wgpu::BindGroupEntry { binding, resource });
+            let prefixes = program
+                .steps
+                .iter()
+                .enumerate()
+                .filter(|(_, s)| s._u.iter().any(|&o| o != 0))
+                .map(|(i, _)| i)
+                .chain(std::iter::once(program.steps.len()));
+            for end in prefixes {
+                let frame = FrameUniform {
+                    nsteps: end as u32,
+                    ..frame
+                };
+                let fb = init("resident frame", bytemuck::bytes_of(&frame));
+                let pb = init("resident pool", bytemuck::bytes_of(&self.pool_uniform()));
+                let mut entries = self.slab_entries();
+                let smart_buf = self
+                    .smart
+                    .slabs
+                    .first()
+                    .map_or(&self.dummies[SLABS], |s| &s.0);
+                for (binding, resource) in [
+                    (8, smart_buf.as_entire_binding()),
+                    (9, pb.as_entire_binding()),
+                    (10, fb.as_entire_binding()),
+                    (11, self.steps.binding()),
+                    (12, self.tables.binding()),
+                    (13, self.aux.binding()),
+                    (14, self.blocks.binding()),
+                    (15, out.as_entire_binding()),
+                ] {
+                    entries.push(wgpu::BindGroupEntry { binding, resource });
+                }
+                let group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+                    label: Some("resident document"),
+                    layout: &pipeline.get_bind_group_layout(0),
+                    entries: &entries,
+                });
+                let (gx, gy) = split(nblocks);
+                let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+                    label: Some("resident composite"),
+                    timestamp_writes: None,
+                });
+                pass.set_pipeline(&pipeline);
+                pass.set_bind_group(0, &group, &[]);
+                pass.dispatch_workgroups(gx, gy, 1);
+                drop(pass);
+                if let Some(step) = program.steps.get(end) {
+                    for (axis, radius) in radii(step).iter().enumerate() {
+                        if *radius > 0.0 {
+                            spatial::encode(
+                                &device,
+                                &mut encoder,
+                                &self.pipes.spatial,
+                                &out,
+                                self.aux.buffer.as_ref().expect("allocated auxiliary"),
+                                le.width,
+                                le.height,
+                                *radius / (1u32 << level) as f32,
+                                step._u[axis],
+                            );
+                        }
+                    }
+                }
             }
-            let group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("resident document"),
-                layout: &pipeline.get_bind_group_layout(0),
-                entries: &entries,
-            });
-            let (gx, gy) = split(nblocks);
-            let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-                label: Some("resident composite"),
-                timestamp_writes: None,
-            });
-            pass.set_pipeline(&pipeline);
-            pass.set_bind_group(0, &group, &[]);
-            pass.dispatch_workgroups(gx, gy, 1);
         }
         self.queue.submit([encoder.finish()]);
         if let Some(st) = self.levels.get_mut(&level) {

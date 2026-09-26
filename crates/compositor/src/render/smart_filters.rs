@@ -246,7 +246,7 @@ struct Cached {
     bytes: usize,
 }
 pub(super) struct FilterRuntime {
-    evaluator: Arc<dyn SmartFilterEvaluator>,
+    pub(super) evaluator: Arc<dyn SmartFilterEvaluator>,
     cache: Mutex<HashMap<CacheKey, Arc<Cached>>>,
     budget: usize,
     evaluations: AtomicU64,

@@ -290,7 +290,7 @@ through to the backdrop.
 | Match Color | Frozen source-layer identity and source/target Lab D65 population mean/std. `mapped=(Lab−target_mean)·source_std/max(target_std,1e−6)+source_mean`; luminance and color intensity scale L and a,b, fade blends with original |
 | Replace Color | Native normalized encoded-RGB distance `dist=length(c−selected)/sqrt(3)`; radius `clamp(fuzziness/200)`. Mask `clamp(1−dist/radius)` (zero radius selects exact color within 1e−7), blending the existing HSL shift with original |
 | Color Lookup | Red-fastest RGB cube, trilinear interpolation, checked CUBE/3DL/ICC loaders; samples/size stored in the adjustment, not an external filename |
-| Shadows/Highlights | Separate amount/tone/radius controls, bilateral luminance bases (Rec.709 weights; spatial σ=radius/2, range σ=0.15), shadow lift/highlight compression, color/midtone and black/white endpoints. Live CPU halo replay for positive radius; zero-radius/identity also resident GPU |
+| Shadows/Highlights | Separate amount/tone/radius controls, native separable bilateral luminance bases (Rec.709 weights; spatial σ=max(radius/2,0.5), range σ=0.15), shadow lift/highlight compression, color/midtone and black/white endpoints. CPU halo replay and resident GPU prefix/blur passes, including positive radius |
 
 These are display-referred operators on the document encoding.
 pipeline-cpu's operators are scene-referred linear Rec.2020, and reusing them
@@ -355,37 +355,85 @@ and other Color Lookup representations remain opaque with original bytes
 retained. Malformed supported layouts fail explicitly. `SoCo` is a solid fill,
 not a Shadows/Highlights or Selective Color key.
 
-Desaturate, Equalize, Auto, Match Color, Replace Color and Shadows/Highlights
+Desaturate, Equalize, Auto, Match Color, Replace Color, Shadows/Highlights and HDR Toning
 are native-only adjustment-layer representations here; exporting them as PSD
 adjustment records returns an explicit error. Their corresponding Photoshop
 image commands do not acquire invented tagged-layer keys.
 
-### 4.3 Shadows/Highlights CPU fallback
+### 4.3 Spatial Shadows/Highlights and HDR Toning
 
-`settings.needs_neighbourhood()` and `settings.halo(level)` declare the local
-support. For an enabled positive radius, use
-`Compositor::render_tile_with_neighbourhood(&document, coord)`, which returns
-straight planar f32 RGBA. It renders the live document, replays the backdrop
-prefix for halo tiles, and passes a padded window to `apply_padded`. Only
-document edges replicate pixels, never tile edges. Earlier local adjustments
-are evaluated recursively; isolated/pass-through/clipping groups, masks, blend
-modes, opacity and alpha retain normal adjustment semantics.
+`needs_neighbourhood()` and `halo(level)` declare local support. Standard CPU
+rendering gathers real neighboring backdrop prefixes and passes padded straight
+RGBA to `apply_padded`. Only document edges replicate pixels, never tile edges.
+Earlier local adjustments are evaluated recursively; isolated/pass-through/clipping
+groups, masks, blend modes, opacity and alpha retain normal adjustment semantics.
+Spatial documents use whole-document revision stamps for root caches, disable
+partial-tile damage reuse, and expand groups during prefix replay. This conservative
+invalidation prevents stale halo results after edits in adjacent tiles.
+`render_tile_with_neighbourhood` remains the fresh, zero-cache reference entry point.
 
-This explicit reference fallback creates a fresh zero-cache compositor for
-each call. It therefore cannot return stale neighbor-dependent output after
-edits, but can be slow (direct bilateral cost is O(area·radius²), with repeated
-prefix evaluation for stacked operators). Standard cached CPU rendering and
-resident rendering return `Unsupported` for positive radius, directing callers
-to this fallback; the caller selects it, it is not an automatic GPU upload path.
-Layer styles and local adjustments inside smart-object child documents are not
-supported by this fallback. Black/white clip controls are normalized endpoints,
-not Photoshop histogram percentiles. Zero-radius and identity settings run in
-both ordinary CPU and resident paths with exact parity.
+M5-28 explicitly changes the native CPU bilateral formulation: the former direct
+2D bilateral is replaced by horizontal then vertical normalized bilateral passes.
+Each pass uses support `ceil(radius / 2^level)`, spatial sigma
+`max(radius / 2^level / 2, 0.5)`, range sigma 0.15 and original alpha as a sample
+weight. The vertical pass compares the horizontal luminance bases. Transparent
+samples have zero weight; zero total weight retains the center. This is an
+edge-aware separable approximation, **not** a Gaussian or the previous 2D
+bilateral. Order is part of the native contract. CPU accumulation is f32 to match
+the shader. The per-pass cost is linear in radius; sequential prefix replay can
+still be expensive. Black/white clip controls remain normalized endpoints, not
+Photoshop histogram percentiles.
 
-**Still not done:** HDR Toning; per-range Hue/Saturation bands (pre-existing);
-the unsupported formats/features above; accelerated/cached neighborhood
-execution. No adjustment is silently substituted with identity for unsupported
-execution.
+Resident rendering replays each spatial adjustment's prefix into a GPU backdrop,
+then runs horizontal and vertical bilateral compute passes and retains the bases
+for subsequent adjustments. Prefix termination captures the current group frame.
+No backdrop readback or CPU evaluation is involved. Spatial documents conservatively
+render the entire requested pyramid level, including for a viewport request: this
+supplies complete real halos across tiles and document-edge extension, analogous
+to the whole-source backing used by smart-filter stacks. Any changed input
+invalidates the whole level. Allocation/binding limits are checked; large spatial
+canvases may return ResourceExhausted rather than silently approximate a halo.
+Spatial programs use the interpreter, while pointwise programs retain specialization.
+
+The numerical contract for positive-radius Shadows/Highlights and HDR Toning is
+absolute CPU/GPU error <= 1e-4 on straight or premultiplied normalized output,
+including alpha. Transcendental exp/pow operations do not promise bit identity.
+Zero-radius Shadows/Highlights retains its existing exact Metal contract. Tests
+include an independent separable reference, hard edges, transparent samples,
+L0/L2 seams, and cached neighbor edits. Real GPU tests require an adapter and fail
+explicitly if none is available; shader validation alone is not parity evidence.
+
+### 4.4 Native HDR Toning
+
+`Adjustment::HdrToning { settings: hdr::HdrToning }` supports four methods and the
+versioned adjustment serialization. It is native-only: compositor PSD export
+returns an explicit error rather than inventing an Adobe key. The PSD crate is
+unchanged. These are documented native formulas, not Adobe numerical equivalence.
+
+Local Adaptation exposes radius [0,250] level-zero pixels, strength [0,1], gamma
+[0.1,10], exposure [-20,20] stops, detail/shadows/highlights/vibrance/saturation
+[-1,1], and a unit-domain luminance Curve sampled at 4096 points. With luminance
+`L = .2126 R + .7152 G + .0722 B` and the bilateral base B, it computes
+`M = max(B/(1+strength*B) + (L-B)*(1+detail), 0)`, then exposure `2^exposure`
+and reciprocal gamma. Shadows/highlights apply smoothstep weights over the lower
+and upper luminance halves. The curve maps output luminance. Chroma is scaled
+about luminance by `(1+saturation)*(1+vibrance*(1-RGB_saturation))`, with mapped
+luminance gain. Active tone mapping clamps output to [0,1]; fully neutral local
+settings preserve HDR and negative RGB exactly. Alpha is preserved.
+
+Exposure-Gamma maps channels by `max(channel*2^exposure,0)^(1/gamma)` and clamps
+to [0,1], with neutral settings preserving the input. Highlight Compression maps
+`RGB/(1+max(L,0))`, clamped to [0,1]. Equalize Histogram uses a frozen luminance
+CDF built by `HdrToning::equalize_from_histogram(histogram,max_luminance)`; bins
+uniformly span [0,max_luminance]. The first occupied CDF count is subtracted,
+empty/constant histograms use a linear map, and interpolation is linear. The
+result scales RGB by mapped luminance/L, preserving hue before output clamping.
+Histogram parameters serialize with the adjustment, so per-tile analysis cannot
+produce seams. Controls are validated, including inactive method fields.
+
+**Still not done:** per-range Hue/Saturation bands (pre-existing), the unsupported
+formats/features above, and resident layer styles. The explicit live CPU reference
+rejects styled documents because eager style sources cannot replay their prefixes.
 
 ## 5. Revisions, stamps and caches
 
@@ -999,7 +1047,7 @@ representative of release performance.
 |---|---|
 | Each of 27 modes over a 4-layer stack | **0** (bit-exact) |
 | Each adjustment (10 variants) at float and 8-bit, with opacity, fill and a mode | 0, except Exposure 1.2e-7 (`pow` is not correctly rounded on either side) |
-| M5-26 pointwise adjustments, L0/L2, F32/U8/U16, interpreter/specialized, including spatial dither across tiles and HDR perceptual inputs (`m5_26_gpu`) | **0**, asserted by comparing `to_bits()`; positive-radius Shadows/Highlights is the explicit CPU fallback in §4.3 |
+| M5-26 pointwise adjustments, L0/L2, F32/U8/U16, interpreter/specialized, including spatial dither across tiles and HDR perceptual inputs (`m5_26_gpu`) | **0**, asserted by comparing `to_bits()`; positive-radius Shadows/Highlights and HDR use the 1e-4 spatial contract in §4.3 |
 | 8/16-bit mips, levels 0–11, odd extent, masked | ≤ 1e-6 (mips bit-identical) |
 | 50-node chain (all modes, both group kinds, both knockouts, masks, Blend If, clip group with Dissolve, radial gradient, pattern, masked Hue/Saturation with Blend If, Curves in a pass-through group), float/16/8-bit at levels 0, 1, 2, 4, 9 | **0**, asserted exactly (bound 2e-3; float mips are now exact too) |
 | Viewport-only resolution, offscreen paint, undo while only a viewport is rendered | completing the level equals a cold render bit for bit; 0 vs CPU |

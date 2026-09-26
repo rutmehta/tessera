@@ -21,8 +21,8 @@ impl Compositor {
     /// Ordinary isolated/pass-through/clipping groups are supported. Layer
     /// styles are rejected because their eager source compilation cannot replay
     /// adjustment prefixes. Neighbourhood adjustments inside smart-object child
-    /// documents remain unsupported (their renderer uses the standard path).
-    /// Unlike `render_tile`, this explicitly opts into expensive halo replay.
+    /// documents use the same spatial execution through the standard renderer.
+    /// Unlike `render_tile`, this bypasses root caching for reference comparisons.
     pub fn render_tile_with_neighbourhood(
         &self,
         doc: &crate::edit::Document,
@@ -33,7 +33,8 @@ impl Compositor {
                 what: "neighbourhood CPU fallback does not support layer styles".into(),
             });
         }
-        let fresh = Self::new(0);
+        let mut fresh = Self::new(0);
+        fresh.set_filter_evaluator(self.filter_runtime.evaluator.clone());
         let job = fresh.job(
             DocRef {
                 state: doc.state(),
@@ -42,7 +43,7 @@ impl Compositor {
             coord,
         )?;
         let ops = job.compile()?;
-        let acc = job.run_with_neighbourhood(&ops)?;
+        let acc = job.run(&ops)?;
         super::unpremultiply(
             &Tile::from_samples(coord, job.layout(), acc)?.with_premultiplied(true)?,
         )
@@ -240,7 +241,10 @@ impl<'a> TileJob<'a> {
                     },
                     coord: self.coord,
                 };
-                if let Some(t) = self.comp.cache_get(&key) {
+                if let Some(t) = (!super::has_local_adjustments(self.doc.state))
+                    .then(|| self.comp.cache_get(&key))
+                    .flatten()
+                {
                     Src::Group(t)
                 } else {
                     ops.push(Op::Push(FrameKind::Isolated));
@@ -250,7 +254,8 @@ impl<'a> TileJob<'a> {
                         params,
                         mask,
                         pass: false,
-                        cache: self.full.then_some(key),
+                        cache: (self.full && !super::has_local_adjustments(self.doc.state))
+                            .then_some(key),
                     });
                     return Ok(());
                 }
@@ -383,19 +388,10 @@ impl<'a> TileJob<'a> {
     /// Runs the program; returns the premultiplied root accumulator (only
     /// the region is meaningful).
     pub fn run(&self, ops: &[Op<'_>]) -> EngineResult<Vec<f32>> {
-        self.run_until(ops, None, false)
+        self.run_until(ops, None)
     }
 
-    fn run_with_neighbourhood(&self, ops: &[Op<'_>]) -> EngineResult<Vec<f32>> {
-        self.run_until(ops, None, true)
-    }
-
-    fn run_until(
-        &self,
-        ops: &[Op<'_>],
-        target: Option<u64>,
-        neighbourhood: bool,
-    ) -> EngineResult<Vec<f32>> {
+    fn run_until(&self, ops: &[Op<'_>], target: Option<u64>) -> EngineResult<Vec<f32>> {
         let n = self.n;
         let mut frames: Vec<(FrameKind, Vec<f32>)> = vec![(FrameKind::Root, vec![0.0; 4 * n])];
         let mut deep: Option<Vec<f32>> = None;
@@ -431,19 +427,13 @@ impl<'a> TileJob<'a> {
                     }
                     let has_mask = self.load_mask(layer, &mut mask)?;
                     let acc = &mut frames.last_mut().ok_or_else(stack)?.1;
-                    if let Adjustment::ShadowsHighlights { settings } = adj {
-                        settings.validate()?;
-                        if settings.needs_neighbourhood() && !neighbourhood {
-                            // Root/group region stamps and partial-damage reuse do not
-                            // yet cover the backdrop halo. Never substitute a tile-local
-                            // bilateral (seams), a pointwise result, or a stale cache hit.
-                            return Err(EngineError::Unsupported {
-                                what: "Shadows/Highlights needs a padded backdrop; use Compositor::render_tile_with_neighbourhood for live CPU fallback".into(),
-                            });
-                        }
-                        self.adjust_shadows(
+                    if matches!(
+                        adj,
+                        Adjustment::ShadowsHighlights { .. } | Adjustment::HdrToning { .. }
+                    ) {
+                        self.adjust_local(
                             acc,
-                            settings,
+                            adj,
                             params,
                             has_mask.then_some(&mask[..]),
                             clamp,
@@ -678,12 +668,7 @@ impl<'a> TileJob<'a> {
 
     /// Reconstruct only earlier adjustment prefixes. Each recursive replay
     /// terminates at an earlier op, including when inside a nested group.
-    fn shadows_backdrop(
-        &self,
-        acc: &[f32],
-        target: u64,
-        halo: usize,
-    ) -> EngineResult<Vec<[f32; 4]>> {
+    fn local_backdrop(&self, acc: &[f32], target: u64, halo: usize) -> EngineResult<Vec<[f32; 4]>> {
         let e = self.doc.state.canvas.at_level(self.coord.level);
         let (w, h) = (self.w + 2 * halo, self.n / self.w + 2 * halo);
         let mut tiles = std::collections::HashMap::new();
@@ -700,7 +685,7 @@ impl<'a> TileJob<'a> {
                     let coord = TileCoord::new(self.coord.level, key.0, key.1);
                     let job = self.comp.job(self.doc, coord)?;
                     let ops = job.compile()?;
-                    entry.insert((job.run_until(&ops, Some(target), true)?, job.w, job.n));
+                    entry.insert((job.run_until(&ops, Some(target))?, job.w, job.n));
                 }
                 let (pm, tw, n) = &tiles[&key];
                 let i = (gy % TILE_SIZE) as usize * tw + (gx % TILE_SIZE) as usize;
@@ -713,15 +698,29 @@ impl<'a> TileJob<'a> {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn adjust_shadows(
+    fn adjust_local(
         &self,
         acc: &mut [f32],
-        settings: &crate::adjust::shadows::ShadowsHighlights,
+        adj: &Adjustment,
         p: &Params,
         mask: Option<&[f32]>,
         clamp: bool,
         target: u64,
     ) -> EngineResult<()> {
+        let halo = match adj {
+            Adjustment::ShadowsHighlights { settings } => settings.halo(self.coord.level),
+            Adjustment::HdrToning { settings } => settings.halo(self.coord.level),
+            _ => unreachable!("local adjustment"),
+        };
+        let apply = |pixels: &[[f32; 4]], width, height, interior| match adj {
+            Adjustment::ShadowsHighlights { settings } => {
+                settings.apply_padded(pixels, width, height, interior, self.coord.level)
+            }
+            Adjustment::HdrToning { settings } => {
+                settings.apply_padded(pixels, width, height, interior, self.coord.level)
+            }
+            _ => unreachable!("local adjustment"),
+        };
         let (n, w, r) = (self.n, self.w, self.region);
         let mut backdrop = Vec::with_capacity((r.x1 - r.x0) * (r.y1 - r.y0));
         for y in r.y0..r.y1 {
@@ -733,18 +732,16 @@ impl<'a> TileJob<'a> {
         }
         let rw = r.x1 - r.x0;
         let rh = r.y1 - r.y0;
-        let adjusted = if settings.needs_neighbourhood() {
-            let halo = settings.halo(self.coord.level);
-            let padded = self.shadows_backdrop(acc, target, halo)?;
-            settings.apply_padded(
+        let adjusted = if halo > 0 {
+            let padded = self.local_backdrop(acc, target, halo)?;
+            apply(
                 &padded,
                 w + 2 * halo,
                 n / w + 2 * halo,
                 [halo + r.x0, halo + r.y0, halo + r.x1, halo + r.y1],
-                self.coord.level,
             )?
         } else {
-            settings.apply_padded(&backdrop, rw, rh, [0, 0, rw, rh], self.coord.level)?
+            apply(&backdrop, rw, rh, [0, 0, rw, rh])?
         };
         for y in r.y0..r.y1 {
             for x in r.x0..r.x1 {
