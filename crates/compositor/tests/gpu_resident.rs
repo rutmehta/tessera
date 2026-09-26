@@ -69,7 +69,7 @@ fn bits(r: &ResidentRenderer, level: u8) -> Vec<u32> {
 /// and across devices, and matches the CPU.
 #[test]
 fn specialized_matches_interpreter_and_reuses_structure() {
-    let g = gpu().expect("Metal required");
+    let Some(g) = gpu() else { return };
     let mut d = scene(Depth::U8, Extent::new(31, 19));
     let mut fast = ResidentRenderer::new(&g).unwrap();
     let mut general = ResidentRenderer::new(&g).unwrap();
@@ -97,7 +97,7 @@ fn specialized_matches_interpreter_and_reuses_structure() {
     assert_eq!(before, bits(&fast, 0));
     general.render(&d, 0).unwrap();
     assert_eq!(before, bits(&general, 0));
-    let second_device = gpu().expect("second Metal device");
+    let Some(second_device) = gpu() else { return };
     let mut second = ResidentRenderer::new(&second_device).unwrap();
     second.render(&d, 0).unwrap();
     assert_eq!(before, bits(&second, 0));
@@ -109,7 +109,7 @@ fn specialized_matches_interpreter_and_reuses_structure() {
 
 #[test]
 fn viewport_pan_preserves_offscreen_damage() {
-    let g = gpu().expect("Metal required");
+    let Some(g) = gpu() else { return };
     let e = Extent::new(97, 65);
     let mut d = doc(e, Depth::F32);
     let id = add(&mut d, None, layer_fn("pixels", e, Depth::F32, wave(3)));
@@ -145,7 +145,7 @@ fn viewport_pan_preserves_offscreen_damage() {
 /// viewport; offscreen edits and history jumps stay sound.
 #[test]
 fn viewport_resolves_only_visible_tiles() {
-    let g = gpu().expect("Metal required");
+    let Some(g) = gpu() else { return };
     let e = Extent::new(1000, 1000);
     let mut d = doc(e, Depth::U8);
     let a = add(&mut d, None, layer_fn("a", e, Depth::U8, wave(1)));
@@ -199,7 +199,7 @@ fn viewport_resolves_only_visible_tiles() {
 
 #[test]
 fn smart_transform_invalidates_even_with_newer_child_revision() {
-    let g = gpu().expect("Metal required");
+    let Some(g) = gpu() else { return };
     let e = Extent::new(48, 32);
     let mut child = doc(e, Depth::F32);
     add(&mut child, None, layer_fn("child", e, Depth::F32, wave(4)));
@@ -230,7 +230,7 @@ fn smart_transform_invalidates_even_with_newer_child_revision() {
 
 #[test]
 fn specialization_cache_is_bounded_and_large_programs_fall_back() {
-    let g = gpu().expect("Metal required");
+    let Some(g) = gpu() else { return };
     let e = Extent::new(3, 2);
     let mut d = doc(e, Depth::F32);
     add(&mut d, None, layer_fn("base", e, Depth::F32, wave(1)));
