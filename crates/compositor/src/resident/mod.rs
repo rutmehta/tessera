@@ -40,8 +40,10 @@ mod pool;
 mod program;
 mod smart_gpu;
 mod specialize;
+mod transform_gpu;
 pub use output::{DisplayDestination, Headroom, OutputCacheStats, SourceColorPolicy, SourceDomain};
 pub use smart_gpu::SmartQuality;
+pub use transform_gpu::TransformPlan;
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -75,6 +77,7 @@ pub(crate) struct Pipelines {
     present: wgpu::ComputePipeline,
     output: output::OutputPresenter,
     smart: smart_gpu::SmartGpu,
+    transform: [std::sync::OnceLock<gpu_core::PrecisePipeline>; 4],
 }
 
 /// Storage bindings the document shader needs.
@@ -174,6 +177,7 @@ impl Pipelines {
             present,
             output: output::OutputPresenter::new(device)?,
             smart: smart_gpu::SmartGpu::new(device)?,
+            transform: std::array::from_fn(|_| std::sync::OnceLock::new()),
         })
     }
 }

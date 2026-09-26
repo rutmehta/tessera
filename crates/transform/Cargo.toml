@@ -1,0 +1,15 @@
+[package]
+name = "transform"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+description = "Non-destructive planar RGBA geometry and content-aware scaling"
+
+[dependencies]
+serde = { workspace = true }
+thiserror = { workspace = true }
+lens = { path = "../lens" }
+rayon = "1.12"
+
+[dev-dependencies]
+serde_json = { workspace = true }

@@ -67,6 +67,24 @@ pub enum DocOp {
     },
     /// Changes the shared light direction and invalidates all styled layers.
     SetGlobalLight(crate::render::styles::GlobalLight),
+    /// Inserts a validated transform at an exact filter-stack position.
+    AddTransform {
+        /// Smart-object layer (convert pixel layers first).
+        id: LayerId,
+        /// Insertion index, at most the current stack length.
+        index: usize,
+        /// Non-destructive operation in child coordinates.
+        transform: transform::TransformOp,
+    },
+    /// Replaces only an existing transform, preserving its blend and enabled state.
+    SetTransform {
+        /// Smart-object layer.
+        id: LayerId,
+        /// Index of an existing reserved transform node.
+        index: usize,
+        /// Replacement operation.
+        transform: transform::TransformOp,
+    },
     /// Replaces the non-destructive filter stack and shared child-space mask.
     SetSmartFilters {
         /// Smart-object layer.
@@ -185,6 +203,8 @@ impl DocOp {
             DocOp::EditChannel { .. } => "Edit Channel".into(),
             DocOp::SetGlobalLight(_) => "Global Light".into(),
             DocOp::SetSmartFilters { .. } => "Smart Filters".into(),
+            DocOp::AddTransform { .. } => "Add Transform".into(),
+            DocOp::SetTransform { .. } => "Set Transform".into(),
             DocOp::AddLayer { layer, .. } => format!("New Layer {}", layer.props.name),
             DocOp::RemoveLayer { .. } => "Delete Layer".into(),
             DocOp::MoveLayer { .. } => "Move Layer".into(),
@@ -434,16 +454,86 @@ fn apply_op(
             s.root_rev = rev;
             Ok(full)
         }
+        DocOp::AddTransform {
+            id,
+            index,
+            transform,
+        } => {
+            let filter = crate::document::SmartFilter::transform(transform)?;
+            s.layer_mut(id, |l| {
+                if l.props.locks.all || l.props.locks.position {
+                    return Err(EngineError::invalid("layer", "transform is locked"));
+                }
+                match &mut l.kind {
+                    LayerKind::SmartObject(so) if index <= so.filters.len() => {
+                        so.filters.insert(index, filter);
+                        l.content_rev = rev;
+                        Ok(())
+                    }
+                    _ => Err(EngineError::invalid(
+                        "transform",
+                        "smart object and valid insertion index required",
+                    )),
+                }
+            })
+            .ok_or_else(|| not_found(id))??;
+            Ok(full)
+        }
+        DocOp::SetTransform {
+            id,
+            index,
+            transform,
+        } => {
+            let filter = crate::document::SmartFilter::transform(transform)?;
+            s.layer_mut(id, |l| {
+                if l.props.locks.all || l.props.locks.position {
+                    return Err(EngineError::invalid("layer", "transform is locked"));
+                }
+                let LayerKind::SmartObject(so) = &mut l.kind else {
+                    return Err(EngineError::invalid("layer", "not a smart object"));
+                };
+                let old = so
+                    .filters
+                    .get_mut(index)
+                    .filter(|f| f.name == "transform")
+                    .ok_or_else(|| {
+                        EngineError::invalid("transform", "index is not a transform stage")
+                    })?;
+                old.params = filter.params;
+                l.content_rev = rev;
+                Ok(())
+            })
+            .ok_or_else(|| not_found(id))??;
+            Ok(full)
+        }
         DocOp::SetSmartFilters {
             id,
             filters,
             mut mask,
         } => {
+            for filter in &filters {
+                filter.transform_op()?;
+            }
             if let Some(mask) = &mut mask {
                 restamp(&mut mask.raster, rev);
             }
             s.layer_mut(id, |l| match &mut l.kind {
                 LayerKind::SmartObject(so) => {
+                    // Replacing the whole stack must not bypass Add/SetTransform
+                    // locks. Include stack indices and enabled/blend options:
+                    // moving or disabling a transform also changes geometry.
+                    let changes_transforms = so
+                        .filters
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, f)| f.name == "transform")
+                        .ne(filters
+                            .iter()
+                            .enumerate()
+                            .filter(|(_, f)| f.name == "transform"));
+                    if l.props.locks.all || (l.props.locks.position && changes_transforms) {
+                        return Err(EngineError::invalid("layer", "transform is locked"));
+                    }
                     so.filters = filters;
                     so.filter_mask = mask;
                     l.content_rev = rev;
@@ -460,6 +550,9 @@ fn apply_op(
             }
             s.layer_mut(id, |l| match &mut l.kind {
                 LayerKind::SmartObject(so) => {
+                    if l.props.locks.all || l.props.locks.position {
+                        return Err(EngineError::invalid("layer", "transform is locked"));
+                    }
                     so.transform = transform;
                     l.content_rev = rev;
                     Ok(())

@@ -9,6 +9,7 @@ description = "Layered document model and tiled compositor (spec 02 §1–2, spe
 path = "src/lib.rs"
 
 [dependencies]
+transform = { path = "../transform" }
 psd = { path = "../psd" }
 engine-api = { path = "../engine-api" }
 gpu-core = { path = "../gpu-core" }

@@ -36,6 +36,7 @@ members = [
     "crates/tessera-ffi",
     "crates/libraw-ffi",
     "crates/compositor",
+    "crates/transform",
     "crates/filters",
     "crates/psd",
     "crates/brush",
