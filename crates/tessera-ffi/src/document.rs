@@ -48,7 +48,10 @@ pub use tools::*;
 // Filters, Image ▸ Adjustments and smart filters (WP B5-05).
 #[path = "document/filters.rs"]
 mod filtering;
-pub use filtering::{FilterDetail, FilterInfo, SmartFilterEdit, SmartFilterRecord, list_filters};
+pub use filtering::{
+    DistractionRemovalResult, FilterDetail, FilterInfo, RasterFilterOperation, RasterFilterRequest,
+    SmartFilterEdit, SmartFilterRecord, list_filters,
+};
 
 use crate::{Engine, Result, failure, surface::Surface};
 use compositor::{

@@ -143,7 +143,23 @@ pub fn tools() -> Vec<Value> {
         .chain(EXTRA)
         .chain(crate::documents::local_tools::NAMES)
         .zip(schemas)
-        .map(|(name, schema)| {
+        .map(|(name, mut schema)| {
+            if name == "remove_object" {
+                let mut document =
+                    serde_json::to_value(schemars::schema_for!(wire::DocumentRemoveObject))
+                        .unwrap();
+                let mut defs = schema
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("$defs")
+                    .unwrap_or_else(|| json!({}));
+                if let Some(extra) = document.as_object_mut().unwrap().remove("$defs") {
+                    defs.as_object_mut()
+                        .unwrap()
+                        .extend(extra.as_object().unwrap().clone());
+                }
+                schema = json!({"type":"object", "oneOf":[schema,document], "$defs":defs});
+            }
             json!({"name":name,"description":description(name),"inputSchema":schema})
         })
         .collect()
@@ -169,7 +185,7 @@ fn description(name: &str) -> &str {
             "Name or explicitly clear a numeric catalog identity. Catalog keywords and sidecar writes are independently opt-in; XMP keywords require both."
         }
         "remove_object" => {
-            "Unsupported until non-generative inpainting exists; never generates pixels."
+            "Recipe calls retain their existing behavior. With document, layer and params, aliases document_remove_object: local non-generative removal, no implicit model downloads."
         }
         "retouch_skin" => "Unsupported until a non-generative skin retouch backend exists.",
         "apply_style" => {
@@ -298,6 +314,11 @@ pub(crate) fn validate(name: &str, input: &Value) -> Result<(), String> {
     if crate::documents::local_tools::NAMES.contains(&name) {
         return crate::documents::local_tools::validate(name, input);
     }
+    let name = if name == "remove_object" && input.get("document").is_some() {
+        "document_remove_object"
+    } else {
+        name
+    };
     if let Some(index) = engine_api::tools::ToolCall::NAMES
         .iter()
         .position(|n| *n == name)

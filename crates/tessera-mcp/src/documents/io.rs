@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use color_mgmt::{Builtin, Registry};
-use compositor::{Compositor, Depth, DocState, Document, Layer, Rect};
+use compositor::{Depth, DocState, Document, Layer, Rect};
 use engine_api::document::{DocumentExportSettings, DocumentFormat};
 use engine_api::id::{DocumentId, JobId};
 use engine_api::tile::Extent;
@@ -178,7 +178,7 @@ pub(super) fn export(
                     "output ICC profile handles are not resolved for document exports; omit profile to keep the document color space",
                 ));
             }
-            let (e, rgba) = Compositor::new(256 << 20).render_level_rgba(doc, 0)?;
+            let (e, rgba) = super::filters::compositor(256 << 20).render_level_rgba(doc, 0)?;
             let mut float = doc.state().depth == Depth::F32;
             let (e, mut rgba) = resized(e, rgba, resize.as_ref())?;
             let mut registry = Registry::new();

@@ -20,6 +20,7 @@ color-mgmt = { path = "../color-mgmt", optional = true }
 pipeline-gpu = { path = "../pipeline-gpu", optional = true }
 ml-runtime = { path = "../ml-runtime" }
 ml-faces = { path = "../ml-faces" }
+ml-filters = { path = "../ml-filters" }
 wgpu.workspace = true
 bytemuck.workspace = true
 pollster = "0.4"

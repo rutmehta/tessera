@@ -760,11 +760,119 @@ pub enum DocumentToolCall {
         #[serde(default)]
         mode: SelectionMode,
     },
+    /// Apply document_remove_object to a layer. Evaluated before committing; no implicit model download.
+    DocumentRemoveObject {
+        /// Target document.
+        document: DocumentId,
+        /// Target pixel layer or smart object.
+        layer: LayerId,
+        /// Filter adapter parameters in full-resolution layer coordinates.
+        params: serde_json::Value,
+        /// Append a non-destructive smart filter instead of baking pixels.
+        #[serde(default)]
+        smart: bool,
+    },
+    /// Apply remove_distractions to a layer. Evaluated before committing; no implicit model download.
+    RemoveDistractions {
+        /// Target document.
+        document: DocumentId,
+        /// Target pixel layer or smart object.
+        layer: LayerId,
+        /// Filter adapter parameters in full-resolution layer coordinates.
+        params: serde_json::Value,
+        /// Append a non-destructive smart filter instead of baking pixels.
+        #[serde(default)]
+        smart: bool,
+    },
+    /// Apply content_aware_fill to a layer. Evaluated before committing; no implicit model download.
+    ContentAwareFill {
+        /// Target document.
+        document: DocumentId,
+        /// Target pixel layer or smart object.
+        layer: LayerId,
+        /// Filter adapter parameters in full-resolution layer coordinates.
+        params: serde_json::Value,
+        /// Append a non-destructive smart filter instead of baking pixels.
+        #[serde(default)]
+        smart: bool,
+    },
+    /// Apply content_aware_move to a layer. Evaluated before committing; no implicit model download.
+    ContentAwareMove {
+        /// Target document.
+        document: DocumentId,
+        /// Target pixel layer or smart object.
+        layer: LayerId,
+        /// Filter adapter parameters in full-resolution layer coordinates.
+        params: serde_json::Value,
+        /// Append a non-destructive smart filter instead of baking pixels.
+        #[serde(default)]
+        smart: bool,
+    },
+    /// Apply liquify to a layer. Evaluated before committing; no implicit model download.
+    Liquify {
+        /// Target document.
+        document: DocumentId,
+        /// Target pixel layer or smart object.
+        layer: LayerId,
+        /// Filter adapter parameters in full-resolution layer coordinates.
+        params: serde_json::Value,
+        /// Append a non-destructive smart filter instead of baking pixels.
+        #[serde(default)]
+        smart: bool,
+    },
+    /// Apply camera_raw_filter to a layer. Evaluated before committing; no implicit model download.
+    CameraRawFilter {
+        /// Target document.
+        document: DocumentId,
+        /// Target pixel layer or smart object.
+        layer: LayerId,
+        /// Filter adapter parameters in full-resolution layer coordinates.
+        params: serde_json::Value,
+        /// Append a non-destructive smart filter instead of baking pixels.
+        #[serde(default)]
+        smart: bool,
+    },
+    /// Apply neural_skin_smoothing to a layer. Evaluated before committing; no implicit model download.
+    NeuralSkinSmoothing {
+        /// Target document.
+        document: DocumentId,
+        /// Target pixel layer or smart object.
+        layer: LayerId,
+        /// Filter adapter parameters in full-resolution layer coordinates.
+        params: serde_json::Value,
+        /// Append a non-destructive smart filter instead of baking pixels.
+        #[serde(default)]
+        smart: bool,
+    },
+    /// Apply neural_colorize to a layer. Evaluated before committing; no implicit model download.
+    NeuralColorize {
+        /// Target document.
+        document: DocumentId,
+        /// Target pixel layer or smart object.
+        layer: LayerId,
+        /// Filter adapter parameters in full-resolution layer coordinates.
+        params: serde_json::Value,
+        /// Append a non-destructive smart filter instead of baking pixels.
+        #[serde(default)]
+        smart: bool,
+    },
+    /// Apply neural_jpeg_artifact_removal to a layer. Evaluated before committing; no implicit model download.
+    NeuralJpegArtifactRemoval {
+        /// Target document.
+        document: DocumentId,
+        /// Target pixel layer or smart object.
+        layer: LayerId,
+        /// Filter adapter parameters in full-resolution layer coordinates.
+        params: serde_json::Value,
+        /// Append a non-destructive smart filter instead of baking pixels.
+        #[serde(default)]
+        smart: bool,
+    },
 }
 
 impl DocumentToolCall {
     /// Every tool name, in declaration order.
-    pub const NAMES: [&'static str; 15] = [
+    pub const NAMES: [&'static str; 24] = [
         "open_document",
         "add_layer",
         "set_layer_props",
@@ -780,6 +888,15 @@ impl DocumentToolCall {
         "rename_channel",
         "edit_channel",
         "load_channel_as_selection",
+        "document_remove_object",
+        "remove_distractions",
+        "content_aware_fill",
+        "content_aware_move",
+        "liquify",
+        "camera_raw_filter",
+        "neural_skin_smoothing",
+        "neural_colorize",
+        "neural_jpeg_artifact_removal",
     ];
 
     /// The tool (MCP) name.
@@ -800,6 +917,15 @@ impl DocumentToolCall {
             Self::RenameChannel { .. } => "rename_channel",
             Self::EditChannel { .. } => "edit_channel",
             Self::LoadChannelAsSelection { .. } => "load_channel_as_selection",
+            Self::DocumentRemoveObject { .. } => "document_remove_object",
+            Self::RemoveDistractions { .. } => "remove_distractions",
+            Self::ContentAwareFill { .. } => "content_aware_fill",
+            Self::ContentAwareMove { .. } => "content_aware_move",
+            Self::Liquify { .. } => "liquify",
+            Self::CameraRawFilter { .. } => "camera_raw_filter",
+            Self::NeuralSkinSmoothing { .. } => "neural_skin_smoothing",
+            Self::NeuralColorize { .. } => "neural_colorize",
+            Self::NeuralJpegArtifactRemoval { .. } => "neural_jpeg_artifact_removal",
         }
     }
 
@@ -820,6 +946,15 @@ impl DocumentToolCall {
             | Self::DeleteChannel { document, .. }
             | Self::RenameChannel { document, .. }
             | Self::EditChannel { document, .. }
+            | Self::DocumentRemoveObject { document, .. }
+            | Self::RemoveDistractions { document, .. }
+            | Self::ContentAwareFill { document, .. }
+            | Self::ContentAwareMove { document, .. }
+            | Self::Liquify { document, .. }
+            | Self::CameraRawFilter { document, .. }
+            | Self::NeuralSkinSmoothing { document, .. }
+            | Self::NeuralColorize { document, .. }
+            | Self::NeuralJpegArtifactRemoval { document, .. }
             | Self::LoadChannelAsSelection { document, .. } => Some(*document),
         }
     }
@@ -898,6 +1033,17 @@ pub enum DocumentToolOutput {
         /// return its allocated ID here; deletion returns the deleted ID.
         #[serde(default)]
         channel: Option<ChannelId>,
+    },
+    /// Distraction removal with the exact geometric masks reported to the caller.
+    DistractionsRemoved {
+        /// Edited document.
+        document: DocumentId,
+        /// History entry.
+        entry: HistoryEntryId,
+        /// Edited layer.
+        layer: LayerId,
+        /// Row-major wire, people and union masks, plus detection limitations.
+        report: serde_json::Value,
     },
     /// The layer tree, bottom to top, every group before its children.
     LayerList {
@@ -1074,6 +1220,60 @@ pub(crate) mod tests {
                 document: doc,
                 channel: ChannelId(1),
                 mode: SelectionMode::Replace,
+            },
+            DocumentToolCall::DocumentRemoveObject {
+                document: doc,
+                layer: LayerId(1),
+                params: serde_json::json!({}),
+                smart: false,
+            },
+            DocumentToolCall::RemoveDistractions {
+                document: doc,
+                layer: LayerId(1),
+                params: serde_json::json!({}),
+                smart: false,
+            },
+            DocumentToolCall::ContentAwareFill {
+                document: doc,
+                layer: LayerId(1),
+                params: serde_json::json!({}),
+                smart: false,
+            },
+            DocumentToolCall::ContentAwareMove {
+                document: doc,
+                layer: LayerId(1),
+                params: serde_json::json!({}),
+                smart: false,
+            },
+            DocumentToolCall::Liquify {
+                document: doc,
+                layer: LayerId(1),
+                params: serde_json::json!({}),
+                smart: false,
+            },
+            DocumentToolCall::CameraRawFilter {
+                document: doc,
+                layer: LayerId(1),
+                params: serde_json::json!({}),
+                smart: false,
+            },
+            DocumentToolCall::NeuralSkinSmoothing {
+                document: doc,
+                layer: LayerId(1),
+                params: serde_json::json!({}),
+                smart: false,
+            },
+            DocumentToolCall::NeuralColorize {
+                document: doc,
+                layer: LayerId(1),
+                params: serde_json::json!({}),
+                smart: false,
+            },
+            DocumentToolCall::NeuralJpegArtifactRemoval {
+                document: doc,
+                layer: LayerId(1),
+                params: serde_json::json!({}),
+                smart: false,
             },
         ]
     }

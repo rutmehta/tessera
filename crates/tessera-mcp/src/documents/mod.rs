@@ -17,6 +17,7 @@ pub mod advanced;
 pub mod brush_presets;
 mod channels;
 mod dense;
+mod filters;
 mod io;
 pub(crate) mod local_tools;
 pub mod paint;
@@ -370,6 +371,15 @@ impl Documents {
             });
         }
         match call {
+            DocumentToolCall::DocumentRemoveObject { .. }
+            | DocumentToolCall::RemoveDistractions { .. }
+            | DocumentToolCall::ContentAwareFill { .. }
+            | DocumentToolCall::ContentAwareMove { .. }
+            | DocumentToolCall::Liquify { .. }
+            | DocumentToolCall::CameraRawFilter { .. }
+            | DocumentToolCall::NeuralSkinSmoothing { .. }
+            | DocumentToolCall::NeuralColorize { .. }
+            | DocumentToolCall::NeuralJpegArtifactRemoval { .. } => self.run_filter(request),
             DocumentToolCall::OpenDocument { .. } => unreachable!("handled above"),
             DocumentToolCall::ListLayers { .. } => Ok(DocumentToolOutput::LayerList {
                 document: id,
@@ -635,7 +645,16 @@ impl Documents {
                 let (op, lower) = merge_down(state, *layer)?;
                 (op, Some(lower), None)
             }
-            DocumentToolCall::OpenDocument { .. }
+            DocumentToolCall::DocumentRemoveObject { .. }
+            | DocumentToolCall::RemoveDistractions { .. }
+            | DocumentToolCall::ContentAwareFill { .. }
+            | DocumentToolCall::ContentAwareMove { .. }
+            | DocumentToolCall::Liquify { .. }
+            | DocumentToolCall::CameraRawFilter { .. }
+            | DocumentToolCall::NeuralSkinSmoothing { .. }
+            | DocumentToolCall::NeuralColorize { .. }
+            | DocumentToolCall::NeuralJpegArtifactRemoval { .. }
+            | DocumentToolCall::OpenDocument { .. }
             | DocumentToolCall::ExportDocument { .. }
             | DocumentToolCall::ListLayers { .. } => {
                 return Err(EngineError::internal("not an editing call"));

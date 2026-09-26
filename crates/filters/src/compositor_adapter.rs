@@ -7,6 +7,21 @@ use compositor::{
 };
 use engine_api::{EngineError, EngineResult};
 use std::sync::atomic::AtomicBool;
+use std::sync::{Mutex, OnceLock};
+
+// Explicit host installation only. Immutable model slots prevent replacement
+// underneath compositor caches. Model sessions serialize their own inference.
+static COLORIZE: OnceLock<ml_filters::Colorize> = OnceLock::new();
+static JPEG: OnceLock<ml_filters::JpegArtifactRemoval> = OnceLock::new();
+static REMOVE: OnceLock<Mutex<crate::remove::OnnxInpainter>> = OnceLock::new();
+
+fn missing_weights(name: &str) -> EngineError {
+    EngineError::Unsupported {
+        what: format!(
+            "{name}: model weights are not loaded; document evaluation never downloads weights"
+        ),
+    }
+}
 
 /// Stateless CPU evaluator installed with `Compositor::set_filter_evaluator`.
 /// Names are snake_case Effect names, plus `gaussian_blur` for `gaussian`.
@@ -22,6 +37,9 @@ impl SmartFilterEvaluator for CompositorFilters {
         node: &SmartFilter,
         context: &FilterContext,
     ) -> EngineResult<Raster> {
+        if node.name.starts_with("neural/") {
+            return neural(input, node);
+        }
         #[cfg(not(feature = "camera-raw-filter"))]
         let _ = context;
         if matches!(
@@ -53,8 +71,158 @@ impl SmartFilterEvaluator for CompositorFilters {
     }
 }
 
+/// Metadata for the neural menu; this never loads models or accesses the network.
+pub fn neural_catalog() -> Vec<ml_filters::FilterInfo> {
+    ml_filters::catalog()
+}
+
+fn neural_params(node: &SmartFilter) -> EngineResult<ml_filters::Params> {
+    let catalog = neural_catalog();
+    let index = match node.name.as_str() {
+        "neural/skin_smoothing" => 0,
+        "neural/colorize" => 1,
+        "neural/jpeg_artifact_removal" => 2,
+        _ => {
+            return Err(EngineError::Unsupported {
+                what: node.name.clone(),
+            });
+        }
+    };
+    let object = node
+        .params
+        .as_object()
+        .ok_or_else(|| EngineError::invalid("neural params", "expected object"))?;
+    let mut p = ml_filters::Params::default();
+    for (key, value) in object {
+        if index == 0 && key == "faces" {
+            p.faces = serde_json::from_value(value.clone())
+                .map_err(|e| EngineError::invalid("faces", e.to_string()))?;
+            if p.faces
+                .iter()
+                .any(|b| b.iter().any(|v| !v.is_finite()) || b[2] <= 0.0 || b[3] <= 0.0)
+            {
+                return Err(EngineError::invalid(
+                    "faces",
+                    "finite positive boxes required",
+                ));
+            }
+            continue;
+        }
+        let schema = catalog[index]
+            .params
+            .iter()
+            .find(|s| s.name.to_lowercase().replace(' ', "_") == *key)
+            .ok_or_else(|| EngineError::invalid("neural params", format!("unknown field {key}")))?;
+        let value = value
+            .as_f64()
+            .filter(|v| v.is_finite() && *v >= schema.min as f64 && *v <= schema.max as f64)
+            .ok_or_else(|| {
+                EngineError::invalid(key, format!("must be {}..{}", schema.min, schema.max))
+            })? as f32;
+        match key.as_str() {
+            "blur" => p.blur = value,
+            "smoothness" => p.smoothness = value,
+            "artifact_reduction" => p.artifact_reduction = value,
+            "saturation" => p.saturation = value,
+            "strength" => p.strength = value,
+            _ => unreachable!(),
+        }
+    }
+    if index == 0 && p.faces.is_empty() {
+        return Err(EngineError::invalid(
+            "faces",
+            "skin smoothing needs explicit face boxes; no implicit detector",
+        ));
+    }
+    Ok(p)
+}
+
+fn neural(input: &Raster, node: &SmartFilter) -> EngineResult<Raster> {
+    use ml_filters::NeuralFilter;
+    let params = neural_params(node)?;
+    let filter: &dyn NeuralFilter = match node.name.as_str() {
+        "neural/skin_smoothing" => &ml_filters::SkinSmoothing,
+        "neural/colorize" => COLORIZE.get().ok_or_else(|| missing_weights(&node.name))?,
+        "neural/jpeg_artifact_removal" => JPEG.get().ok_or_else(|| missing_weights(&node.name))?,
+        _ => {
+            return Err(EngineError::Unsupported {
+                what: node.name.clone(),
+            });
+        }
+    };
+    filter
+        .apply(input, &params, &ml_filters::Cancel::new())
+        .map_err(|e| EngineError::invalid("neural filter", e.to_string()))
+}
+
+/// Detect explicitly selected geometric distraction proxies, and freeze the
+/// resulting masks in a replayable Remove node. Not semantic segmentation.
+pub fn detect_distractions(
+    input: &Raster,
+    params: &serde_json::Value,
+) -> EngineResult<(SmartFilter, serde_json::Value)> {
+    use crate::distraction::DistractionDetector;
+    #[derive(serde::Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct Params {
+        #[serde(default)]
+        faces: Vec<[f32; 4]>,
+        #[serde(default = "yes")]
+        wires: bool,
+        #[serde(default = "yes")]
+        people: bool,
+        #[serde(default)]
+        remove: crate::remove::RemoveParams,
+    }
+    fn yes() -> bool {
+        true
+    }
+    let p: Params = serde_json::from_value(params.clone())
+        .map_err(|e| EngineError::invalid("distractions", e.to_string()))?;
+    let faces = p
+        .faces
+        .into_iter()
+        .map(|bbox| ml_faces::Face {
+            bbox,
+            score: 1.0,
+            landmarks5: [[0.0; 2]; 5],
+        })
+        .collect::<Vec<_>>();
+    let mut masks = crate::distraction::CpuDistractionDetector.detect(
+        input,
+        &faces,
+        &AtomicBool::new(false),
+    )?;
+    if !p.wires {
+        masks.wires.fill(0.0);
+    }
+    if !p.people {
+        masks.people.fill(0.0);
+    }
+    let mask = masks.union(input.extent().area() as usize)?;
+    let report = serde_json::json!({"wires": masks.wires, "people": masks.people, "mask": mask,
+        "mask_space": "source pixels before removal dilation and selection/shared-mask clipping",
+        "dilation": p.remove.dilation,
+        "backend_requested": p.remove.backend,
+        "limitation": "geometric wire and dilated face-box proxies, not semantic segmentation"});
+    Ok((
+        SmartFilter {
+            name: "remove".into(),
+            params: serde_json::json!({"mask":mask,"remove":p.remove}),
+            ..Default::default()
+        },
+        report,
+    ))
+}
+
 fn retouch(input: &Raster, node: &SmartFilter) -> EngineResult<Raster> {
     use crate::caf::{self, ColourAdaptation, FillParams, MoveMode};
+    fn composite_only(fill: &FillParams) -> EngineResult<()> {
+        if fill.output_new_layer {
+            return Err(EngineError::Unsupported { what: "output_new_layer is not supported by single-raster document filters; duplicate the layer first".into() });
+        }
+        Ok(())
+    }
     let cancel = AtomicBool::new(false);
     let decode = |e: serde_json::Error| EngineError::invalid("retouch params", e.to_string());
     match node.name.as_str() {
@@ -67,6 +235,7 @@ fn retouch(input: &Raster, node: &SmartFilter) -> EngineResult<Raster> {
                 fill: FillParams,
             }
             let p: Params = serde_json::from_value(node.params.clone()).map_err(decode)?;
+            composite_only(&p.fill)?;
             Ok(caf::fill(input, &p.mask, &p.fill, &cancel)?.composite)
         }
         "remove" => {
@@ -78,9 +247,25 @@ fn retouch(input: &Raster, node: &SmartFilter) -> EngineResult<Raster> {
                 remove: crate::remove::RemoveParams,
             }
             let p: Params = serde_json::from_value(node.params.clone()).map_err(decode)?;
-            // A serialized document never authorizes downloading/loading a model.
+            composite_only(&p.remove.fill)?;
+            // A serialized document never authorizes installing a model. Only
+            // an explicitly installed session is considered for Auto/Onnx.
+            let mut loaded = if p.remove.backend == crate::remove::Backend::Cpu {
+                None
+            } else {
+                REMOVE
+                    .get()
+                    .map(|m| {
+                        m.lock()
+                            .map_err(|_| EngineError::internal("remove model lock poisoned"))
+                    })
+                    .transpose()?
+            };
+            let model = loaded
+                .as_deref_mut()
+                .map(|m| m as &mut dyn crate::remove::InpaintModel);
             Ok(
-                crate::remove::remove(input, &p.mask, &p.remove, None, &cancel)?
+                crate::remove::remove(input, &p.mask, &p.remove, model, &cancel)?
                     .result
                     .composite,
             )
@@ -97,6 +282,7 @@ fn retouch(input: &Raster, node: &SmartFilter) -> EngineResult<Raster> {
                 seam: ColourAdaptation,
             }
             let p: Params = serde_json::from_value(node.params.clone()).map_err(decode)?;
+            composite_only(&p.fill)?;
             let mode = if node.name == "content_aware_move" {
                 MoveMode::Move
             } else {
@@ -111,8 +297,57 @@ fn retouch(input: &Raster, node: &SmartFilter) -> EngineResult<Raster> {
 }
 
 impl CompositorFilters {
+    /// Explicit host opt-in to install weights, possibly downloading them using
+    /// the supplied registry. Never called by evaluation, capability probes or
+    /// document parsing. Sessions are pinned for the lifetime of this process.
+    /// CPU execution is mandatory here; no resident GPU filter is advertised.
+    pub fn load_model(
+        name: &str,
+        registry: Option<&ml_runtime::ModelRegistry>,
+    ) -> EngineResult<()> {
+        if !matches!(
+            name,
+            "remove" | "neural/colorize" | "neural/jpeg_artifact_removal"
+        ) {
+            return Err(EngineError::invalid("model", "unknown model-backed filter"));
+        }
+        let registry = registry.ok_or_else(|| missing_weights(name))?;
+        let options = ml_runtime::SessionOptions::default()
+            .with_execution_preference(ml_runtime::ExecutionPreference::CpuOnly);
+
+        match name {
+            "neural/colorize" if COLORIZE.get().is_none() => {
+                let model = ml_filters::Colorize::load(registry, options).map_err(|e| {
+                    EngineError::Unsupported {
+                        what: format!("{name} weights/model unavailable: {e}"),
+                    }
+                })?;
+                let _ = COLORIZE.set(model);
+            }
+            "neural/jpeg_artifact_removal" if JPEG.get().is_none() => {
+                let model =
+                    ml_filters::JpegArtifactRemoval::load(registry, options).map_err(|e| {
+                        EngineError::Unsupported {
+                            what: format!("{name} weights/model unavailable: {e}"),
+                        }
+                    })?;
+                let _ = JPEG.set(model);
+            }
+            "remove" if REMOVE.get().is_none() => {
+                let model = crate::remove::OnnxInpainter::load(registry, options)?;
+                let _ = REMOVE.set(Mutex::new(model));
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
     /// Capability probe without image allocation or device creation.
     pub fn supports(&self, node: &SmartFilter) -> EngineResult<bool> {
+        if node.name.starts_with("neural/") {
+            neural_params(node)?;
+            return Ok(false);
+        }
         resident_supports(node)
     }
 
