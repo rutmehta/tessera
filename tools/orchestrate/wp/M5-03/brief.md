@@ -1,0 +1,8 @@
+# WP M5-03 — engine-api 1.2: layered-document contracts (Opus)
+
+Read crates/engine-api CONTRACTS.md (change log, invariants), crates/compositor/COMPOSITOR.md §11 (requested fields) and its document model, crates/psd (PsdDocument IR), docs/02 §1 and §11 (scripting DOM / action descriptors), docs/10 §2 (tool API). Revise engine-api to 1.2.0 additively:
+- Typed `DocumentId`, `LayerId`, `SelectionId`; a generic memo key `NodeMemoKey { doc, node, revision, level, tile }` alongside the raw-pipeline `MemoKey`; a `premultiplied: bool` flag on `Tile` metadata (default straight) with invariants; `Pyramid::level_count` semantics extended for deeper levels (document).
+- Layered-document tool calls in `tools.rs` (MCP-shaped, invariant 11): `open_document`, `add_layer`, `set_layer_props`, `paint_stroke` (points + brush params, no pixels), `set_selection`, `apply_adjustment_layer`, `transform_layer`, `merge_down`, `export_document`, `list_layers`; recipe-history equivalents for documents: a `DocumentHistoryEntry` mirroring the recipe history invariants (append-only, Author, rationale).
+- Action descriptors: a serializable `Action` record type (command + params) with a stable name registry, to back Actions/batch/droplets later.
+Update CONTRACTS.md (invariants + change log), bump `CONTRACT_VERSION`, keep every existing test green and add tests for the new types (round trip, MCP tag names stable). Then adapt `crates/compositor` to use the new ids and memo key (minimal edits) and keep its tests green.
+`cargo test -p engine-api -p compositor -p tessera-mcp --release`, clippy -D warnings, fmt. Allowed: crates/engine-api/**, crates/compositor/**, crates/tessera-mcp/** (only if tag names require), tools/orchestrate/wp/M5-03/**.
