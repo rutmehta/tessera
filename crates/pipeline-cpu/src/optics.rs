@@ -2,6 +2,51 @@
 use crate::Image;
 use engine_api::{EngineError, EngineResult, recipe::settings::LensSettings};
 
+/// Independent manual alignment and hue-selective defringe in sensor-frame RGB.
+/// Both run before channel mixing, irrespective of automatic CA enable/amount.
+pub(crate) fn lateral_manual(
+    image: &Image,
+    crop: [u32; 4],
+    manual: crate::ManualCaSettings,
+    s: &LensSettings,
+) -> EngineResult<Image> {
+    defringe(&manual_ca(image, crop, manual)?, s)
+}
+
+/// Manual CA is an additive alignment pass, never gated by automatic CA.
+pub(crate) fn manual_ca(
+    image: &Image,
+    crop: [u32; 4],
+    s: crate::ManualCaSettings,
+) -> EngineResult<Image> {
+    s.validate()?;
+    if s.is_identity() {
+        return Ok(image.clone());
+    }
+    let center = [
+        crop[0] as f64 + crop[2] as f64 / 2. - 0.5,
+        crop[1] as f64 + crop[3] as f64 / 2. - 0.5,
+    ];
+    let mut planes = image.planes().to_vec();
+    for (channel, amount) in [(0, s.red_cyan), (2, s.blue_yellow)] {
+        if amount == 0. {
+            continue;
+        }
+        let scale = 1. + amount.clamp(-100., 100.) as f64 / 10000.;
+        for y in 0..image.height() {
+            for x in 0..image.width() {
+                let q = [
+                    center[0] + (x as f64 - center[0]) * scale,
+                    center[1] + (y as f64 - center[1]) * scale,
+                ];
+                planes[channel][(y * image.width() + x) as usize] =
+                    crate::embedded_lens::sample_phase(image, channel, q, [0, 0], 1) as f32;
+            }
+        }
+    }
+    Image::new(image.width(), image.height(), planes)
+}
+
 pub(crate) fn validate(s: &LensSettings) -> EngineResult<()> {
     if [
         s.distortion_scale,
@@ -130,8 +175,7 @@ pub(crate) fn lateral_ca(
 }
 
 pub(crate) fn point_corrections(image: &Image, s: &LensSettings) -> EngineResult<Image> {
-    if s.manual_vignetting == 0. && s.defringe_purple.amount == 0. && s.defringe_green.amount == 0.
-    {
+    if s.manual_vignetting == 0. {
         return Ok(image.clone());
     }
     let mut planes = image.planes().to_vec();
@@ -152,6 +196,14 @@ pub(crate) fn point_corrections(image: &Image, s: &LensSettings) -> EngineResult
             }
         }
     }
+    Image::new(image.width(), image.height(), planes)
+}
+
+fn defringe(image: &Image, s: &LensSettings) -> EngineResult<Image> {
+    if s.defringe_purple.amount <= 0. && s.defringe_green.amount <= 0. {
+        return Ok(image.clone());
+    }
+    let mut planes = image.planes().to_vec();
     if s.defringe_purple.amount > 0. || s.defringe_green.amount > 0. {
         let w = image.width() as usize;
         let h = image.height() as usize;
@@ -193,7 +245,9 @@ pub(crate) fn point_corrections(image: &Image, s: &LensSettings) -> EngineResult
                 for band in [&s.defringe_purple, &s.defringe_green] {
                     let lo = band.hue_range[0].rem_euclid(360.);
                     let hi = band.hue_range[1].rem_euclid(360.);
-                    if (lo <= hi && hue >= lo && hue <= hi) || (lo > hi && (hue >= lo || hue <= hi))
+                    if (band.hue_range[1] - band.hue_range[0]).abs() >= 360.
+                        || (lo <= hi && hue >= lo && hue <= hi)
+                        || (lo > hi && (hue >= lo || hue <= hi))
                     {
                         amount = amount.max(band.amount.clamp(0., 20.) / 20.);
                     }
@@ -206,4 +260,50 @@ pub(crate) fn point_corrections(image: &Image, s: &LensSettings) -> EngineResult
         }
     }
     Image::new(image.width(), image.height(), planes)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn independent_defringe_is_in_lateral_pass() {
+        let image =
+            Image::new(3, 1, vec![vec![0., 1., 0.], vec![0.; 3], vec![0., 1., 0.]]).unwrap();
+        let mut s = LensSettings {
+            remove_chromatic_aberration: false,
+            ..Default::default()
+        };
+        s.defringe_purple.amount = 20.;
+        s.defringe_purple.hue_range = [280., 320.];
+        let out =
+            lateral_manual(&image, [0, 0, 3, 1], crate::ManualCaSettings::default(), &s).unwrap();
+        assert!((out.planes()[0][1] - out.planes()[1][1]).abs() < 1e-6);
+        assert_eq!(
+            point_corrections(&image, &s).unwrap().planes(),
+            image.planes()
+        );
+    }
+    #[test]
+    fn defringe_hue_ranges_wrap_and_full_circle() {
+        let image = Image::new(
+            3,
+            1,
+            vec![vec![0., 1., 0.], vec![0., 0., 0.], vec![0., 1., 0.]],
+        )
+        .unwrap();
+        for range in [[280., 320.], [280., 20.], [0., 360.]] {
+            let mut s = LensSettings::default();
+            s.defringe_purple.amount = 20.;
+            s.defringe_purple.hue_range = range;
+            let out = defringe(&image, &s).unwrap();
+            assert!(
+                (out.planes()[0][1] - out.planes()[1][1]).abs() < 1e-6,
+                "{range:?}"
+            );
+        }
+        let mut s = LensSettings::default();
+        s.defringe_purple.amount = 20.;
+        s.defringe_purple.hue_range = [20., 100.];
+        assert_eq!(defringe(&image, &s).unwrap().planes(), image.planes());
+    }
 }

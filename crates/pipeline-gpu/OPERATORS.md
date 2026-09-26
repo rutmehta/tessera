@@ -1,3 +1,37 @@
+# M2-09b sensor-frame lateral CA batching
+
+`GpuStageOp::demosaic_ca_batch` is the host-tile bridge for callers which
+otherwise materialize demosaic before running CA. It accepts linear CFA
+sensor dependencies with demosaic halos, a resolved `CaPlan`, and requested
+level-zero output coordinates. It uploads each dependency once, encodes
+Demosaic → RGB neighbour gather → the existing `lens.wgsl` lateral-CA kernel,
+and reads only the corrected outputs in one submission/readback. Output order
+matches the request. Missing neighbours are errors, not synthetic edge pixels.
+Callers bound the dependency chunk; this entry point does not cache or crop it.
+
+The resident graph already encodes that same ordering, including row bands;
+its CA dispatch remains separate **within the same encoder**, not a separate
+host round trip. A single fused shader would require recomputing neighbouring
+demosaic samples: a dispatch barrier is required before sampling RGB. Both
+paths retain full sensor coordinates and the active-area optical normalization,
+with CA before crop/downsample and camera/white-balance channel mixing.
+
+Staged DNG opcodes are not native here. The host bridge and all managed export
+entry points conservatively decline metadata with an opcode payload in any
+list or the opcode-presence flag, even if a caller supplies an identity lens
+plan. `None`/`false` requests the caller's CPU path; no pixels are submitted or
+written on that fallback. Existing resolved-plan capability checks additionally
+exclude unsupported manual/embedded plans. Low-level `ResidentBatch` methods
+have no metadata and require their caller to perform that resolution.
+
+`tests/lateral_ca_batch.rs` gates camera RGB against scalar CPU demosaic plus
+`CaPlan::source` and f64 bilinear sampling at absolute error < 1e-4. It covers
+active-crop offsets, seams, odd sensor dimensions, all Bayer phases, X-Trans,
+both demosaicers, explicit band origins, one final readback, missing source
+rejection, cancellation, and staged-opcode export fallback. The generic
+`image-core::StageOp` chain has no CA variant; host graph callers must opt into
+the new bridge rather than expecting `run_chain_batch` to infer lens metadata.
+
 # M2-17b interactive performance redesign
 
 This section supersedes the M2-17 notes below where they conflict.

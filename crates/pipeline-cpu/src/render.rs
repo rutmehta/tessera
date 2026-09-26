@@ -119,7 +119,10 @@ pub fn render_linear_scaled_resolved(
         settings,
         source,
         scale,
-        &crate::LensContext::default(),
+        &crate::LensContext {
+            manual_ca: resolved.manual_ca,
+            ..Default::default()
+        },
         None,
         None,
         Some(resolved),
@@ -174,6 +177,7 @@ fn render_linear_impl(
             };
             let mut out =
                 crate::optics::lateral_ca(image, None, crop, &settings.lens, &correction)?;
+            out = crate::optics::lateral_manual(&out, crop, correction.manual_ca, &settings.lens)?;
             let matrix = crate::white_balance_matrix(
                 &settings.white_balance,
                 WorkingSpace::LinearRec2020.to_xyz(),
@@ -227,7 +231,19 @@ fn render_linear_impl(
                     ));
                 }
             };
+            // Parse regardless of profile selection; malformed required data fails closed.
+            let embedded = crate::embedded_lens::Embedded::parse(metadata)?;
+            let use_embedded = matches!(
+                settings.lens.profile,
+                engine_api::recipe::settings::LensProfileSource::Auto
+                    | engine_api::recipe::settings::LensProfileSource::Embedded
+            );
             let raw = Image::from_pyramid(image.pyramid())?;
+            let raw = if use_embedded {
+                embedded.apply(raw, 0, Some(cfa), &settings.lens)?
+            } else {
+                raw
+            };
             let mut recovered = Image::blank(raw.width(), raw.height(), 1);
             for coord in raw.coords() {
                 let t = raw.tile(coord, 4, period)?;
@@ -251,7 +267,7 @@ fn render_linear_impl(
             };
             // Resolve/estimate in original camera RGB, never mixed working primaries.
             let mut out = demosaic_image(&recovered)?;
-            let correction = match resolved {
+            let correction = match resolved.filter(|_| !use_embedded || !embedded.present()) {
                 Some(r) => r.clone(),
                 None => {
                     let analysis = out.downsample_crop(metadata.default_crop, 1)?;
@@ -280,6 +296,15 @@ fn render_linear_impl(
                     )?;
                 }
             }
+            if use_embedded {
+                out = embedded.apply(out, 1, None, &settings.lens)?;
+            }
+            out = crate::optics::lateral_manual(
+                &out,
+                metadata.default_crop,
+                correction.manual_ca,
+                &settings.lens,
+            )?;
             out = crate::post_demosaic_denoise(out, camera_xyz, &settings.denoise, denoiser)?;
             for coord in out.coords() {
                 let mut t = out.tile(coord, 0, 1)?;
@@ -287,6 +312,9 @@ fn render_linear_impl(
                 crate::apply_matrix(&mut t, profile)?;
                 crate::apply_matrix(&mut t, wb)?;
                 out.put(&t)?;
+            }
+            if use_embedded {
+                out = embedded.apply(out, 2, None, &settings.lens)?;
             }
             (out, metadata.default_crop, correction)
         }

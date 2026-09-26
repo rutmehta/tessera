@@ -28,6 +28,23 @@ https://creativecommons.org/licenses/by-sa/3.0/ . Keep the upstream copyright,
 attribution and license notices with any redistributed pack. Modified calibration
 data must retain attribution, identify changes and be distributed under the same
 license. The engine implements its own reader and does not link Lensfun code.
+`lens::LensDataPack::new(app_dir)?.resolve()` explicitly downloads on demand,
+verifies SHA-256, and atomically caches the original archive under
+`app_dir/lens/<sha256>.tar.gz`. Construction does not access the network.
+The pinned source is Lensfun v0.3.4, commit
+`101c745e847a5de4a1e569a94368ce2027198598`, at
+https://codeload.github.com/lensfun/lensfun/tar.gz/101c745e847a5de4a1e569a94368ce2027198598 .
+Its SHA-256 is `a11cbe6aeec657839540448b253217c25d20b7a45b6aebfef406f7239933c7a6`.
+The returned `LoadedLensDataPack.spec` exposes version, attribution, source and
+license for display. Attribution includes Lensfun contributors and original
+PTLens data by Tom Niemann. The original archive retains upstream license and
+copyright notices; source-code members are never extracted, executed or linked.
+Only calibration XML is interpreted through the existing loader. Unsupported
+or uncalibrated lenses are reported in `skipped`, not silently approximated.
+Archive loading is bounded (16 MiB compressed, 64 MiB expanded, 2 MiB per XML),
+rejects links/unsafe paths, and rechecks integrity on cache reuse. Updates require
+an explicit new trusted manifest rather than an automatic mutable download.
+
 Adobe `.lcp` files are user-supplied only; no Adobe profile assets are shipped or
 downloaded automatically. User-created JSON calibration profiles are stored
 separately from third-party packs and retain their source provenance obligations.

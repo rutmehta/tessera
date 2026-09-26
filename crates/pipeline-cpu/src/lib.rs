@@ -36,7 +36,8 @@ pub use display::{
 };
 pub use image::Image;
 pub use lens_resolve::{
-    CorrectionSource, LensContext, ResolvedLens, resolve_lens, resolve_lens_sensor,
+    CorrectionSource, LensContext, ManualCaSettings, ResolvedLens, resolve_lens,
+    resolve_lens_sensor,
 };
 pub use render::{
     RenderSource, Rgb8Image, has_m2_settings, render, render_linear_scaled,
