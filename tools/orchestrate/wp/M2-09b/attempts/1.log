@@ -1,0 +1,16 @@
+Implemented M2-09b within the allowed paths. No commits.
+
+Delivered pinned Lensfun pack download/cache with attribution, staged DNG warp/vignette/GainMap execution, independent manual CA and defringe controls, and GPU demosaic/CA batching with CPU parity tests.
+
+Required verification passed:
+  286 tests passed, 11 ignored
+  Clippy with -D warnings passed
+  cargo fmt --check passed
+  git diff --check passed
+
+Live pack download verified: 470 profiles loaded, 835 unsupported/uncalibrated profiles reported. All five RAW fixtures lack opcode payloads; synthetic tests cover staged execution.
+
+Engine API unchanged. Handoff documents the two required persistent manual-CA fields, CPU fallback requirements, and out-of-scope graph wiring:
+tools/orchestrate/wp/M2-09b/HANDOFF.md
+
+RESULT: PASS
