@@ -674,6 +674,7 @@ dependencies = [
  "blake3",
  "bytemuck",
  "engine-api",
+ "gpu-core",
  "half",
  "pollster",
  "psd",
@@ -1513,6 +1514,17 @@ dependencies = [
  "presser",
  "thiserror 2.0.21",
  "windows 0.62.2",
+]
+
+[[package]]
+name = "gpu-core"
+version = "0.1.0"
+dependencies = [
+ "engine-api",
+ "objc2-io-surface",
+ "objc2-metal",
+ "pollster",
+ "wgpu",
 ]
 
 [[package]]
@@ -2948,6 +2960,7 @@ dependencies = [
  "bytemuck",
  "color-mgmt",
  "engine-api",
+ "gpu-core",
  "half",
  "image-core",
  "jobs",
@@ -2957,7 +2970,6 @@ dependencies = [
  "naga",
  "objc2-core-foundation",
  "objc2-io-surface",
- "objc2-metal",
  "pipeline-cpu",
  "pollster",
  "raw-decode",

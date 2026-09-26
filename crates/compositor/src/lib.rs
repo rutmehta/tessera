@@ -9,7 +9,9 @@
 //! - [`Compositor`]: per-tile scene-graph traversal at any pyramid level,
 //!   per-layer tile caches keyed by `(layer, stamp, tile)`, dirty-rect
 //!   recompositing; CPU reference maths in [`blend`].
-//! - [`gpu::GpuCompositor`]: WGSL port of the blend/group/knockout pipeline.
+//! - [`gpu::GpuCompositor`]: the GPU device and the per-tile WGSL port.
+//! - [`resident::ResidentRenderer`]: the GPU-resident interactive path
+//!   (layers, mips and composites stay on the GPU).
 //! - [`format`]: the `.tessera-doc` container.
 //!
 //! COMPOSITOR.md documents the maths and invariants.
@@ -26,6 +28,7 @@ pub mod gpu;
 pub mod psd;
 pub mod raster;
 pub mod render;
+pub mod resident;
 
 pub use adjust::{Adjustment, Curve, LevelsChannel};
 pub use blend::{BlendIf, BlendIfChannel, BlendMode};

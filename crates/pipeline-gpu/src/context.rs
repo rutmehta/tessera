@@ -1,13 +1,6 @@
 use engine_api::{EngineError, EngineResult};
 
-/// Optional adapter capabilities. In-flight samples always remain f32.
-#[derive(Debug, Clone, Copy)]
-pub struct GpuCapabilities {
-    pub timestamp_query: bool,
-    /// WGSL f16, including storage-buffer elements.
-    pub shader_f16: bool,
-    pub rgba16float_storage: bool,
-}
+pub use gpu_core::GpuCapabilities;
 
 /// Shared Metal device and queue. Initialization fails explicitly without Metal.
 pub struct GpuContext {
@@ -25,65 +18,30 @@ pub struct GpuContext {
     /// Export Lanczos-3 resize (compiled on first use).
     pub(crate) resize_pipeline: std::sync::OnceLock<wgpu::ComputePipeline>,
     pub(crate) metrics_pipeline: std::sync::OnceLock<wgpu::ComputePipeline>,
-    device_loss: std::sync::Arc<std::sync::Mutex<Option<String>>>,
-}
-
-/// Defaults plus what whole-level resident filters need: nine storage
-/// bindings, 32 KiB workgroup tiles and single buffers up to 1 GiB (a 61 MP
-/// level as packed f32 RGBA), each capped by the adapter.
-fn limits(adapter: &wgpu::Limits) -> wgpu::Limits {
-    let base = wgpu::Limits::default();
-    wgpu::Limits {
-        max_storage_buffers_per_shader_stage: adapter.max_storage_buffers_per_shader_stage.min(16),
-        max_compute_workgroup_storage_size: adapter
-            .max_compute_workgroup_storage_size
-            .min(32 << 10),
-        max_storage_buffer_binding_size: adapter.max_storage_buffer_binding_size.min(1 << 30),
-        max_buffer_size: adapter.max_buffer_size.min(1 << 30),
-        ..base
-    }
+    shared: gpu_core::GpuDevice,
 }
 
 impl GpuContext {
     pub(crate) fn device_failure(&self) -> Option<String> {
-        self.device_loss
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .clone()
+        self.shared.device_failure()
     }
+
+    /// The shared device handle, for other GPU consumers (the layer
+    /// compositor) so the app keeps one Metal context.
+    pub fn shared(&self) -> &gpu_core::GpuDevice {
+        &self.shared
+    }
+
+    /// Opens the shared device ([`gpu_core::GpuDevice::new`]) and compiles
+    /// the operator pipeline on it.
     pub fn new() -> EngineResult<Self> {
-        let mut desc = wgpu::InstanceDescriptor::new_without_display_handle();
-        desc.backends = wgpu::Backends::METAL;
-        let instance = wgpu::Instance::new(desc);
-        let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
-            power_preference: wgpu::PowerPreference::HighPerformance,
-            ..Default::default()
-        }))
-        .map_err(|e| EngineError::internal(format!("Metal adapter: {e}")))?;
-        let features = adapter.features();
-        let capabilities = GpuCapabilities {
-            timestamp_query: features.contains(wgpu::Features::TIMESTAMP_QUERY),
-            shader_f16: features.contains(wgpu::Features::SHADER_F16),
-            rgba16float_storage: adapter
-                .get_texture_format_features(wgpu::TextureFormat::Rgba16Float)
-                .allowed_usages
-                .contains(wgpu::TextureUsages::STORAGE_BINDING),
-        };
-        let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
-            label: Some("tessera M1"),
-            required_features: features
-                & (wgpu::Features::TIMESTAMP_QUERY | wgpu::Features::SHADER_F16),
-            required_limits: limits(&adapter.limits()),
-            ..Default::default()
-        }))
-        .map_err(|e| EngineError::internal(format!("Metal device: {e}")))?;
-        let device_loss = std::sync::Arc::new(std::sync::Mutex::new(None));
-        let loss = device_loss.clone();
-        device.set_device_lost_callback(move |reason, message| {
-            let detail = format!("Metal device lost: {reason:?}: {message}");
-            eprintln!("{detail}");
-            *loss.lock().unwrap_or_else(|e| e.into_inner()) = Some(detail);
-        });
+        Self::from_shared(gpu_core::GpuDevice::new()?)
+    }
+
+    /// Compiles the operator pipeline on an existing shared device.
+    pub fn from_shared(shared: gpu_core::GpuDevice) -> EngineResult<Self> {
+        let device = shared.device.clone();
+        let queue = shared.queue.clone();
         let scope = device.push_error_scope(wgpu::ErrorFilter::Validation);
         let module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("M1 operators"),
@@ -103,15 +61,15 @@ impl GpuContext {
         Ok(Self {
             device,
             queue,
-            adapter_info: adapter.get_info(),
-            capabilities,
+            adapter_info: shared.adapter_info.clone(),
+            capabilities: shared.capabilities,
             pipeline,
             local_tone_pipelines: std::sync::Mutex::new(None),
             lens_pipelines: std::sync::OnceLock::new(),
             band_pipelines: std::sync::OnceLock::new(),
             resize_pipeline: std::sync::OnceLock::new(),
             metrics_pipeline: std::sync::OnceLock::new(),
-            device_loss,
+            shared,
         })
     }
 }

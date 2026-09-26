@@ -1,0 +1,18 @@
+[package]
+name = "gpu-core"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+description = "Shared Metal device/queue, limits and IOSurface import for pipeline-gpu and the compositor"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+engine-api = { path = "../engine-api" }
+wgpu.workspace = true
+pollster = "0.4"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-metal = { version = "0.3.2", features = ["objc2-io-surface"] }
+objc2-io-surface = "0.3.2"

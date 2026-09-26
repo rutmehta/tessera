@@ -220,7 +220,9 @@ fn pyramid_view_matches_level_render() {
     let (d, _) = three_layer_doc(e);
     let c = Compositor::new(256 << 20);
     let p = c.pyramid(&d);
-    assert_eq!(p.level_count(), 3);
+    // Every level down to 1×1, past the one-tile level (3).
+    assert_eq!(p.level_count(), e.full_level_count());
+    assert_eq!(p.level_count(), 11);
     let t = p.tile(TileCoord::new(1, 1, 0)).unwrap();
     let lvl = c.render_level(&d, 1, &Default::default()).unwrap();
     assert_eq!(

@@ -1,9 +1,9 @@
-# compositor: maths and invariants (M5-01)
+# compositor: maths and invariants (M5-01, M5-04b)
 
 The layered document model and tiled compositor of spec 02 §1–2 and spec 04
 §4. This file is the reference for the blend and compositing maths, the
-cache and revision invariants, and what the GPU port matches. Built against
-engine-api 1.1.0, which is unchanged.
+cache and revision invariants, and what the GPU paths match. Built against
+engine-api 1.2.0 (`CONTRACT_VERSION`), which this crate does not modify.
 
 | Module | Contents |
 |---|---|
@@ -13,7 +13,8 @@ engine-api 1.1.0, which is unchanged.
 | `blend` | blend modes, Blend If, dissolve hash: the scalar CPU reference |
 | `adjust` | adjustment layers |
 | `render` | `Compositor`: tile programs, CPU executor, caches, mips, smart objects, dirty rects |
-| `gpu`, `composite.wgsl` | WGSL port of the tile program |
+| `gpu`, `blend.wgsl`, `composite.wgsl` | the GPU device (shared through `gpu-core`) and the per-tile WGSL port of the tile program |
+| `resident` | `ResidentRenderer`: the GPU-resident interactive path (§12) |
 | `format` | the `.tessera-doc` container |
 
 ## 1. Conventions
@@ -22,9 +23,11 @@ engine-api 1.1.0, which is unchanged.
   depth (`U8`, `U16`, or `F32`), planar, in 256² engine-api `Tile`s with no
   halo. Masks and selections have one channel. Selections are always `F32`.
 - All maths runs in f32. Accumulators are **premultiplied** f32 RGBA. Cached
-  composites (`Part::Root`, `Part::Group`) are premultiplied f32. The public
-  outputs `render_tile` and `render_level` are straight f32 RGBA.
-  `render_tile_premultiplied` returns the premultiplied form.
+  composites (`Part::Root`, `Part::Group`) are premultiplied f32 and carry
+  engine-api's `Tile::premultiplied` flag, as do the tiles of
+  `render_tile_premultiplied` (CPU and GPU) and `ResidentRenderer::read_tiles`.
+  The public outputs `render_tile`, `render_level` and the `Pyramid` are
+  straight f32 RGBA with the flag clear.
 - `b` / `Cb` / `αb` is the backdrop (the composite below). `s` / `Cs` / `αs`
   is the source (the layer). A colour written without a subscript is
   straight.
@@ -273,8 +276,17 @@ exact counts:
 **Mips:** level n+1 is the recursive 2×2 box of level n, clipped at odd
 edges. Colour is alpha-weighted: `C = Σαᵢcᵢ / Σαᵢ`, `α = Σαᵢ / count`.
 One-channel rasters use a plain mean. Levels are computed lazily through the
-cache and stored in the raster's depth. Levels beyond the one-tile level are
-allowed, up to `MAX_LEVEL = 24`.
+cache and stored in the raster's depth. For 8- and 16-bit rasters whose
+default is 0 or 1 (every layer and mask), the definition is evaluated
+**exactly** on code values: `C = round(ΣAᵢCᵢ / ΣAᵢ)`, `A = round(ΣAᵢ / n)`
+(one channel: `round(Σvᵢ / n)`), halves rounding up, in 64-bit integers
+(`render::mip_exact`). The GPU mip shader evaluates the same integers (with
+64-bit sums emulated in two words), so 8/16-bit mips are bit-identical on
+both backends and quantization ties cannot flip between them. Float rasters
+(and integer rasters with another default) use the f32 form. Levels beyond
+the one-tile level are allowed, up to `MAX_LEVEL = 24`;
+`CompositePyramid::level_count` exposes them all (down to 1×1, capped at
+`MAX_LEVEL`).
 
 **Smart objects:** a parent pixel centre at level L maps through the inverse
 transform into the child's level-0 space. The child level is
@@ -301,11 +313,14 @@ common case (no knockout, Blend If, atop or Dissolve) is a branch-free,
 bounds-check-free row loop that LLVM vectorizes. It is the same maths as
 `pixel::blend_px`, and the reference tests hold at 2e-6.
 
-The GPU port (`composite.wgsl`) interprets the same program per pixel, with
-an 8-deep private stack of premultiplied accumulators. The CPU resolves the
-sources (mips, masks, fills, smart objects, cached groups) through the same
-caches and uploads them. Every formula above is mirrored exactly. Adjustment
-layers return `Unsupported` and the caller uses the CPU path.
+The per-tile GPU port (`composite.wgsl`) interprets the same program per
+pixel, with an 8-deep private stack of premultiplied accumulators. The CPU
+resolves the sources (mips, masks, fills, smart objects, cached groups)
+through the same caches and uploads them for every tile. Every formula above
+is mirrored exactly. Adjustment layers return `Unsupported` there. It is a
+correctness port; the interactive path is the resident renderer (§12), which
+shares the blend maths (`blend.wgsl`: separable modes evaluated on all three
+channels with one `switch`, component formulas identical to `blend.rs`).
 
 Gate, as in docs/11 §1.3:
 
@@ -381,25 +396,26 @@ Re-serializing a loaded document reproduces the input bytes exactly
 - "Blend RGB colours using gamma 1.0" and colour conversion between
   profiles. The profile is stored and resolved by `color-mgmt`, and the
   compositor does not need a CMM.
-- GPU adjustment layers, and GPU-resident caches: sources are uploaded for
-  every tile, and the GPU path is a correctness port, not the interactive
-  path yet.
-- Band-parallel rendering for levels with few tiles. At level 2 of 20 MP
-  there are only 24 tiles across 10 threads, and single-thread time is
-  360 ms against 75 ms on 10 threads.
+- The resident renderer's full level-0 composite of the 100-layer 20 MP
+  bench is about 2× over its 100 ms target (§12.4).
+- Band-parallel CPU rendering for levels with few tiles. At level 2 of 20 MP
+  there are only 24 tiles across 10 threads (the resident GPU path replaces
+  the CPU for interactive frames).
 - Pixel-exact agreement with Photoshop is not claimed. The formulas are the
   published ones, but there was no Photoshop to diff against. The Divide 0/0
   and Hard Mix tie conventions are assumptions.
 - Brush engine and selections tools are out of scope. `paint_op` is the
   primitive a brush engine emits.
 
-## 10. Bench
+## 10. CPU bench
 
 Run it with:
 
 ```
-cargo test -p compositor --release --test bench -- --ignored --nocapture
+cargo test -p compositor --release --test bench -- --ignored --nocapture composite_100
 ```
+
+The GPU-resident numbers for the same document are in §12.4.
 
 The document is 100 semi-transparent 8-bit pixel layers at 5472×3648
 (20 MP): 10 distinct layers plus 90 COW duplicates with one repainted tile
@@ -417,18 +433,150 @@ one pass-through and one isolated group of 10. Measured on an M4 with
 | 32² dab → level-0 dirty-rect update (2 partial tiles × 100 layers) | 0.70 ms |
 | History for 100 layers | 821 MB (the 10 distinct 80 MB layers plus 90 tiles) |
 
-## 11. engine-api (unchanged; fields that would help)
+## 11. engine-api 1.2
 
-- A generic tile memo key for non-pipeline nodes, for example
-  `NodeMemoKey { namespace, node, stamp, tile }`. `MemoKey` is tied to
-  `ImageId` and `StageId`, so the compositor keeps its own LRU instead of
-  image-core's `TileCache`.
-- `DocumentId` and `LayerId` in `id`, plus layer tool calls in `tools`
-  (spec 10), so MCP can address layers.
-- A premultiplied/straight flag on `TileLayout` or `Tile`. Premultiplication
-  is currently a convention per cache part.
-- The `Pyramid::level_count` default stops at the one-tile level. The
-  compositor renders deeper levels, and a `max_level` hook would expose that.
-- Not engine-api, but related: `pipeline-gpu::GpuContext` depends on
-  image-core, raw-decode and LibRaw, so the compositor creates its own Metal
-  device. A small shared GPU-context crate would let them share one.
+The fields M5-01 asked for arrived in engine-api 1.2.0 and are used:
+
+- **`NodeMemoKey` / `NodePart`**: the render cache is keyed by it
+  (`render::cache`), one-to-one with the renderer's `(doc, node, part, stamp,
+  coord)`.
+- **`Tile::premultiplied` / `Pyramid::premultiplied`**: set on every
+  premultiplied tile the crate hands out or caches (root and group
+  composites, the per-tile GPU port, resident readback), clear on straight
+  outputs; `CompositePyramid` is straight.
+- **`Pyramid::level_count`**: `CompositePyramid` overrides it to
+  `Extent::full_level_count()` capped at `MAX_LEVEL`, so thumbnails and far
+  zoom-outs down to 1×1 are addressable.
+- **`DocumentId` / `LayerId`**: the cache key's document and node.
+
+Not engine-api, but the other M5-01 wish is done: the device, queue, limits,
+device-loss tracking and IOSurface import live in the `gpu-core` crate.
+`pipeline_gpu::GpuContext::{new, from_shared, shared}` and
+`GpuCompositor::from_shared` take the same `gpu_core::GpuDevice`, so the app
+has one Metal context (the app still has to be switched over; apps/mac was
+out of scope).
+
+Still missing: layer tool calls in `tools` (spec 10) so MCP can address
+layers, and a resident-texture handle type in engine-api for passing a GPU
+level composite between crates without readback.
+
+## 12. GPU-resident rendering (`resident`)
+
+### 12.1 Model
+
+A `ResidentRenderer` mirrors one open document on the GPU. `render(doc,
+level)` brings the mirror to the document's current state and composites
+`level` into a resident premultiplied f32 buffer of the whole level, then
+returns without waiting. No CPU pixel work happens on the interactive path
+except for smart objects (below).
+
+- **Pages.** Pixels live in a page pool: fixed 256² pages (one tile at any
+  level, stored in its own extent) in up to eight storage-buffer slabs sized
+  from demand and capped by the binding limit. RGBA pages are interleaved per
+  texel (8-bit: one word, 16-bit: two, float: four); one-channel mask pages
+  are planar as stored. Pages are in the document depth, exactly the tile
+  samples, so the GPU normalizes them with the CPU's own tables (8-bit LUT,
+  the CPU's `1/65535`).
+- **Content addressing.** A level-0 page is keyed by its `Tile`'s buffer
+  identity (the renderer pins the tile), so copy-on-write duplicates share
+  pages and an edit uploads only the tiles it replaced. A mip page is
+  hash-consed by `(level, tile, child page ids, channels, default)` and
+  computed on the GPU (`mip.wgsl`, §5's exact form) the first time any layer
+  needs it. A 64² brush dab therefore costs one upload and one new page per
+  level above it, whatever the layer count. A whole-layer duplicate costs
+  nothing. Page tables per raster and level are resolved on the CPU from the
+  document tree and cached per layer while its `Arc` is unchanged.
+- **Program.** The layer tree is flattened once per state into GPU steps
+  (`resident::program`, the tile-independent twin of `TileJob::compile`):
+  blend (raster, fill, smart), adjustment, push isolated/clip, push
+  pass-through, pop, pop pass-through and background snapshot, with the
+  Params of §3. Steps, page tables and auxiliary data (LUTs, gradient stops,
+  patterns) live in persistent buffers that grow by powers of two and are
+  rewritten only when their bytes change.
+- **Composite.** `doc.wgsl` runs the whole program per pixel: one workgroup
+  per 16² block (always inside one tile), steps and this block's page-table
+  entries staged through workgroup memory 64 at a time, parent frames held in
+  registers (at most 7 nested frames; deeper trees are `Unsupported`). Steps
+  with nothing but mode, opacity and fill take a straight-line path. Every
+  §2–4 feature is ported: all 27 modes, Blend If, Dissolve, knockout,
+  clipping, masks with density, isolated and pass-through groups, fills
+  (solid, linear and radial gradient, pattern) and **all adjustment layers**
+  (Levels, Curves, Hue/Saturation and Colorize, Exposure, Invert, Posterize,
+  Threshold, Channel Mixer) with mask, Blend If, mode and Dissolve.
+- **Smart objects** are the one CPU-assisted source: their resampled tiles
+  come from `Compositor::smart_tile` and are uploaded as f32 pages once per
+  (child revision, tile).
+- **Eviction.** Pages not used by the current state (undo history) are kept
+  until the pool would pass its budget (default 2 GiB), then evicted
+  least-recently-used; eviction invalidates the cached tables. The live
+  working set may exceed the budget; eight full slabs is `ResourceExhausted`.
+
+### 12.2 Frames and damage
+
+Each level buffer remembers the program bytes and page-table node ids it was
+rendered from. The next frame recomposites only 16² blocks inside the union
+of (a) tiles whose page-table entries changed and (b), within one document
+lineage and epoch, the damage log of §7 between the two revisions; a changed
+program falls back to (b) alone and, without a usable log, to the whole
+level. Both are sound on their own (pages are immutable and content
+addressed; §7 is sound for every op), so the intersection is. Undo, redo and
+checkout take the page-table path. Unchanged state dispatches nothing.
+
+The result is bit-identical to a cold full render of the same state
+(`dirty_rect_frames_are_bit_exact_and_local`), and rendering is deterministic
+across renderers and devices (`rendering_is_deterministic`).
+
+`present` writes a level region into an RGBA8 storage texture (flattened
+over an opaque background or premultiplied), `present_iosurface` imports an
+IOSurface on the renderer's device through `gpu-core` for that, and
+`read_level` / `read_tiles` are the explicit readback for export.
+
+### 12.3 Gate (docs/11 §1.3)
+
+`tests/gpu_resident.rs`, against `Compositor::render_tile_premultiplied`:
+
+| Case | Max abs error |
+|---|---|
+| Each of 27 modes over a 4-layer stack | ≤ 2.4e-7 (Saturation 2.3e-6) |
+| Each adjustment (10 variants) at float and 8-bit, with opacity, fill and a mode | ≤ 3.6e-7 |
+| 8/16-bit mips, levels 0–11, odd extent, masked | ≤ 1e-6 (mips bit-identical) |
+| 50-node chain (all modes, both group kinds, both knockouts, masks, Blend If, clip group with Dissolve, radial gradient, pattern, masked Hue/Saturation with Blend If, Curves in a pass-through group), float/16/8-bit at levels 0, 1, 2, 4, 9 | ≤ 1.4e-3 (bound 2e-3) |
+| Bench document at level 2 | 2.0e-5 |
+
+As in §6, the chain error comes from threshold modes amplifying 1-ulp
+differences. Threshold and Posterize are step functions; they are allowed
+the chain bound in the per-operator test, though they measured 6e-8.
+
+### 12.4 Bench
+
+```
+cargo test -p compositor --release --test bench -- --ignored --nocapture resident
+```
+
+The §10 document (100 layers, 20 MP, 8-bit), M4 (10-core GPU), measured
+while other builds were loading the machine (load average 12–17):
+
+| Measurement | Before (CPU compositor / per-tile GPU port) | After (resident) | Target |
+|---|---|---|---|
+| Cold open → first level-2 frame (all 3390 tiles uploaded once, 1300 mip pages on the GPU) | 1322–2613 ms (CPU mips + composite) | **537–1044 ms**, typically ~860 | < 1.5 s ✔ |
+| 64² brush dab → level-2 recomposite | 3.8–7.1 ms (CPU partial tiles) | **median 1.6 ms**, max 3.1 (1 upload, 2 mip pages, 4 blocks) | < 16 ms ✔ |
+| Full level-2 recomposite (1368×912 × 100 layers) | 74–107 ms (CPU, 10 threads); 2.3–3.9 s (per-tile GPU port) | **13.6 ms** | — |
+| Full level-0 composite (20 MP × 100 layers) | 1311 ms (CPU, 10 threads) | **198 ms** | < 100 ms ✘ |
+| 64² dab → level-0 dirty-rect update | 0.7 ms (CPU, 2 partial tiles) | **1.2 ms** (25 blocks) | — |
+| Opacity change → level-2 frame | full CPU recomposite | 13.7 ms | — |
+| Two adjustment layers added, level-2 recomposite | not supported on the GPU | 14.6–17.5 ms | — |
+| GPU memory | — | 2.49 GB (4772 pages + level buffers) | — |
+
+Ranges are the spread over runs at different load.
+
+`tests/bench_micro.rs` (ignored) has the per-layer-pixel costs of the
+shader and a calibration kernel. A minimal hand-written normal-blend loop
+runs at about 0.03 ns per layer-pixel on this GPU; the interpreter's plain
+path is about 0.06 (Normal) to 0.11 (non-separable), and the mixed-mode bench
+averages 0.1. The level-0 target needs 0.05: the remaining cost is the
+per-step mode `switch` (0.03 ns on its own for non-Normal modes) and the
+generic step loop. The next step is structural specialization: generate and
+cache a straight-line WGSL kernel per program *structure* (kinds, modes,
+flags, nesting), with parameters still read from the step buffer so opacity
+drags and painting never recompile, and keep the interpreter as the fallback
+while a new structure compiles in the background.

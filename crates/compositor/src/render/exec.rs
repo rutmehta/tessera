@@ -386,7 +386,8 @@ impl<'a> TileJob<'a> {
                     } else {
                         if let Some(key) = cache {
                             self.comp.stats.bump_group();
-                            let t = Tile::from_samples(self.coord, self.layout(), child.clone())?;
+                            let t = Tile::from_samples(self.coord, self.layout(), child.clone())?
+                                .with_premultiplied(true)?;
                             self.comp.cache_put(*key, t);
                         }
                         self.unpremul_into(&child, &mut src);

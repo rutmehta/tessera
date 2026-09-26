@@ -11,6 +11,7 @@ path = "src/lib.rs"
 [dependencies]
 psd = { path = "../psd" }
 engine-api = { path = "../engine-api" }
+gpu-core = { path = "../gpu-core" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 half = { workspace = true }
