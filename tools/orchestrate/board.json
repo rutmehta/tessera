@@ -1123,15 +1123,15 @@
     "id": "B5-v",
     "owner": "sol",
     "title": "Verify document mode on screen",
-    "status": "running",
+    "status": "fail",
     "attempts": 0,
-    "notes": ""
+    "notes": "7/37; self-tests pass; verifier incomplete; real: step 144 \u2318E on DNG stayed in grid; step 140 Save As sheet field not targetable; step 142 test count stale (63 vs 41) -> Machine B"
   },
   {
     "id": "M5-29",
     "owner": "astra",
     "title": "Wire retouch + neural filters into document tools/FFI",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   }
