@@ -15,6 +15,9 @@ struct ContentView: View {
                 if model.isEngineBacked {
                     FilterBar(library: model.collections, model: model)
                 }
+                if model.tether.showPanel {
+                    TetherPanel(model: model, tether: model.tether)
+                }
                 ZStack {
                     // Both stay alive so grid scroll position and loupe texture survive mode switches.
                     ThumbnailBrowser(model: model, style: .grid)

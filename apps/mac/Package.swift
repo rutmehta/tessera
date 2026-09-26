@@ -23,7 +23,9 @@ let package = Package(
         .systemLibrary(name: "CTesseraFFI", path: "Sources/CTesseraFFI"),
         .target(name: "TesseraFFI", dependencies: ["CTesseraFFI"],
                 linkerSettings: [.unsafeFlags([ffiArchive]), .linkedLibrary("c++"), .linkedLibrary("z"),
-                                 .linkedFramework("Security"), .linkedFramework("CoreFoundation")]),
+                                 .linkedFramework("Security"), .linkedFramework("CoreFoundation"),
+                                 // crates/tether's ImageCaptureCore bridge (tethered capture).
+                                 .linkedFramework("Foundation"), .linkedFramework("ImageCaptureCore")]),
         // UI-free model: items, cull decisions, grouping, stub library, thumbnail loading.
         // Kept separate so it can be unit tested and later swapped for the Rust engine (UniFFI).
         .target(

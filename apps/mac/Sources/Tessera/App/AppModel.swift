@@ -133,6 +133,8 @@ final class AppModel {
     /// Auto Edit, Settings ▸ AI and the agent's review queue (WP M3-11).
     let agent = AgentController()
     var showAutoEdit = false
+    /// File ▸ Tethered Capture… (WP M3-12b): the docked Tether panel and its session.
+    let tether = TetherController()
     var viewMode: ViewMode = .grid {
         didSet {
             guard viewMode != oldValue else { return }
@@ -209,6 +211,7 @@ final class AppModel {
         collections.app = self
         assist.app = self
         agent.app = self
+        tether.app = self
         lightroomImport.presentSheet = { [weak self] in
             // Re-assert the binding on the next turn so a dismissal still in flight cannot swallow it.
             self?.showLightroomImport = false
@@ -265,7 +268,8 @@ final class AppModel {
             ?? NSApp.windows.first { $0.isVisible && !($0 is NSPanel) }
     }
 
-    func openFolder(_ url: URL, message: String? = nil) {
+    /// `then` runs after the load (success or failure; the tether session restores its view on reloads).
+    func openFolder(_ url: URL, message: String? = nil, then: (@MainActor (AppModel, _ loaded: Bool) -> Void)? = nil) {
         loadGeneration += 1
         let generation = loadGeneration
         let useStub = ProcessInfo.processInfo.arguments.contains("--stub-library")
@@ -291,8 +295,10 @@ final class AppModel {
                     self.statusMessage = message ?? "Opened \(lib.title): \(lib.items.count.formatted()) images (\(raws.formatted()) RAW), "
                         + "\(lib.groups.count.formatted()) groups (\(multi.formatted()) with 2+), \(Self.ms(lib.scanDuration))"
                         + (seedFaces ? ", synthetic faces seeded" : "")
+                    then?(self, true)
                 case .failure(let error):
                     self.statusMessage = error.localizedDescription
+                    then?(self, false)
                 }
             }
         }

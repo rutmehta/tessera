@@ -221,7 +221,8 @@ void *tessera_tether_new(void) {
 }
 void tessera_tether_string_free(char *value) { free(value); }
 
-typedef void (*DeviceVisitor)(void *, const char *, const char *, int);
+// id, name, can capture, battery percent (-1 when the camera does not report it)
+typedef void (*DeviceVisitor)(void *, const char *, const char *, int, int);
 typedef void (*PathVisitor)(void *, const char *);
 char *tessera_tether_devices(void *handle, DeviceVisitor visit, void *user) {
     @autoreleasepool {
@@ -232,8 +233,9 @@ char *tessera_tether_devices(void *handle, DeviceVisitor visit, void *user) {
         for (ICCameraDevice *camera in context.cameras) {
             NSString *identifier = camera.UUIDString ?: camera.persistentIDString ?:
                 [NSString stringWithFormat:@"usb:%d:%d:%d", camera.usbVendorID, camera.usbProductID, camera.usbLocationID];
+            int battery = camera.batteryLevelAvailable ? (int)MIN(camera.batteryLevel, (NSUInteger)100) : -1;
             visit(user, identifier.UTF8String, (camera.name ?: @"Camera").UTF8String,
-                  [camera.capabilities containsObject:ICCameraDeviceCanTakePicture]);
+                  [camera.capabilities containsObject:ICCameraDeviceCanTakePicture], battery);
         }
         return NULL;
     }
@@ -333,7 +335,7 @@ void tessera_tether_free(void *handle) {
 #include <assert.h>
 #include <stdio.h>
 
-static void test_device(void *user, const char *identifier, const char *name, int capture) {
+static void test_device(void *user, const char *identifier, const char *name, int capture, int battery) {
     assert(identifier && name);
     (*(unsigned *)user)++;
 }

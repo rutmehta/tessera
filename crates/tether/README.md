@@ -51,11 +51,29 @@ open-eyes heuristic. Missing weights or inference errors set `face_warning`;
 they are never recorded as a successful zero-face result. Quality scoring and
 manual culling remain usable without weights. No weights are bundled here.
 
+## Test camera
+
+`fake::FolderDropBackend` stands in for a camera without hardware: it "shoots"
+the image files of a source folder in file-name order, one per `capture` (on the
+next `poll`) and, with a non-zero interval, on a timer like a physical shutter.
+Frames are copied (never moved) into staging under a hidden name, then renamed,
+so the ingest never sees a partial file. It reports one device with an 80 %
+battery and the frames left in the folder as `shots_remaining`. `Device` carries
+`battery_percent` (ImageCaptureCore's `batteryLevel` when available) and
+`shots_remaining` (unknown for ImageCaptureCore before a session). `Session`
+works with `Box<dyn TetherBackend>`, so hosts choose a backend at run time.
+
 ## FFI and CLI
 
 Engine exports `tether_devices`, `tether_start(session_folder, naming)`,
-`tether_capture`, `tether_set_listener`, `tether_poll`, `tether_stop`, and
-`tether_live_view`. There is one native session on the main thread, associated
+`tether_capture`, `tether_set_listener`, `tether_poll`, `tether_stop`,
+`tether_live_view`, `tether_active` and the hidden test aid
+`tether_use_fake(source_folder, interval_ms)` (the Mac app's `--fake-tether`), which
+makes later sessions on that thread use the test camera. Published `TetherFrame`s
+also carry the stored scores: whole-frame `sharpness`, and when faces were
+analysed `faces`, `face_focus` (the largest face) and `eyes_open` (the lowest
+proxy); without face models these stay `None` next to `face_warning`. During a
+session `tether_devices` asks the session's own backend. There is one native session on the main thread, associated
 with its catalog. Start and stop explicitly. Call `tether_poll` from a main-thread
 timer (for example every 100 ms). It returns frames and calls the optional
 `TetherEventListener.on_frame` outside all session borrows, permitting reentry.

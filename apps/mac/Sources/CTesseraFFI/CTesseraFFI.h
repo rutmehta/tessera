@@ -306,6 +306,13 @@ typedef void (*UniffiCallbackInterfaceLrcatProgressListenerMethod0)(uint64_t, Ru
     );
 
 #endif
+#ifndef UNIFFI_FFIDEF_CALLBACK_INTERFACE_TETHER_EVENT_LISTENER_METHOD0
+#define UNIFFI_FFIDEF_CALLBACK_INTERFACE_TETHER_EVENT_LISTENER_METHOD0
+typedef void (*UniffiCallbackInterfaceTetherEventListenerMethod0)(uint64_t, RustBuffer, void* _Nonnull, 
+        RustCallStatus *_Nonnull uniffiCallStatus
+    );
+
+#endif
 #ifndef UNIFFI_FFIDEF_V_TABLE_CALLBACK_INTERFACE_ENGINE_EVENT_LISTENER
 #define UNIFFI_FFIDEF_V_TABLE_CALLBACK_INTERFACE_ENGINE_EVENT_LISTENER
 typedef struct UniffiVTableCallbackInterfaceEngineEventListener {
@@ -361,6 +368,15 @@ typedef struct UniffiVTableCallbackInterfaceLrcatProgressListener {
     UniffiCallbackInterfaceClone _Nonnull uniffiClone;
     UniffiCallbackInterfaceLrcatProgressListenerMethod0 _Nonnull onProgress;
 } UniffiVTableCallbackInterfaceLrcatProgressListener;
+
+#endif
+#ifndef UNIFFI_FFIDEF_V_TABLE_CALLBACK_INTERFACE_TETHER_EVENT_LISTENER
+#define UNIFFI_FFIDEF_V_TABLE_CALLBACK_INTERFACE_TETHER_EVENT_LISTENER
+typedef struct UniffiVTableCallbackInterfaceTetherEventListener {
+    UniffiCallbackInterfaceFree _Nonnull uniffiFree;
+    UniffiCallbackInterfaceClone _Nonnull uniffiClone;
+    UniffiCallbackInterfaceTetherEventListenerMethod0 _Nonnull onFrame;
+} UniffiVTableCallbackInterfaceTetherEventListener;
 
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_CLONE_ENGINE
@@ -521,6 +537,51 @@ uint64_t uniffi_tessera_ffi_fn_method_engine_open_cull_session_for_query(uint64_
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_SET_SCORE
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_SET_SCORE
 void uniffi_tessera_ffi_fn_method_engine_set_score(uint64_t ptr, RustBuffer image_id, RustBuffer signal, double value, RustBuffer model, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_TETHER_ACTIVE
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_TETHER_ACTIVE
+int8_t uniffi_tessera_ffi_fn_method_engine_tether_active(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_TETHER_CAPTURE
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_TETHER_CAPTURE
+void uniffi_tessera_ffi_fn_method_engine_tether_capture(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_TETHER_DEVICES
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_TETHER_DEVICES
+RustBuffer uniffi_tessera_ffi_fn_method_engine_tether_devices(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_TETHER_LIVE_VIEW
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_TETHER_LIVE_VIEW
+RustBuffer uniffi_tessera_ffi_fn_method_engine_tether_live_view(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_TETHER_POLL
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_TETHER_POLL
+RustBuffer uniffi_tessera_ffi_fn_method_engine_tether_poll(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_TETHER_SET_LISTENER
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_TETHER_SET_LISTENER
+void uniffi_tessera_ffi_fn_method_engine_tether_set_listener(uint64_t ptr, RustBuffer listener, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_TETHER_START
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_TETHER_START
+void uniffi_tessera_ffi_fn_method_engine_tether_start(uint64_t ptr, RustBuffer session_folder, RustBuffer naming, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_TETHER_STOP
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_TETHER_STOP
+RustBuffer uniffi_tessera_ffi_fn_method_engine_tether_stop(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_TETHER_USE_FAKE
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_TETHER_USE_FAKE
+void uniffi_tessera_ffi_fn_method_engine_tether_use_fake(uint64_t ptr, RustBuffer source_folder, uint64_t interval_ms, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_AI_METADATA_SETTINGS
@@ -1459,6 +1520,26 @@ RustBuffer uniffi_tessera_ffi_fn_method_cullsession_toggle_basket(uint64_t ptr, 
 RustBuffer uniffi_tessera_ffi_fn_method_cullsession_undo(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_CLONE_TETHEREVENTLISTENER
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_CLONE_TETHEREVENTLISTENER
+uint64_t uniffi_tessera_ffi_fn_clone_tethereventlistener(uint64_t handle, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_FREE_TETHEREVENTLISTENER
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_FREE_TETHEREVENTLISTENER
+void uniffi_tessera_ffi_fn_free_tethereventlistener(uint64_t handle, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_INIT_CALLBACK_VTABLE_TETHEREVENTLISTENER
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_INIT_CALLBACK_VTABLE_TETHEREVENTLISTENER
+void uniffi_tessera_ffi_fn_init_callback_vtable_tethereventlistener(const UniffiVTableCallbackInterfaceTetherEventListener* _Nonnull vtable
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_TETHEREVENTLISTENER_ON_FRAME
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_TETHEREVENTLISTENER_ON_FRAME
+void uniffi_tessera_ffi_fn_method_tethereventlistener_on_frame(uint64_t ptr, RustBuffer frame, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_FUNC_DESCRIBE_PRINTER_PROFILE
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_FUNC_DESCRIBE_PRINTER_PROFILE
 RustBuffer uniffi_tessera_ffi_fn_func_describe_printer_profile(RustBuffer path, RustCallStatus *_Nonnull out_status
@@ -1946,6 +2027,60 @@ uint16_t uniffi_tessera_ffi_checksum_method_engine_open_cull_session_for_query(v
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_SET_SCORE
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_SET_SCORE
 uint16_t uniffi_tessera_ffi_checksum_method_engine_set_score(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_TETHER_ACTIVE
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_TETHER_ACTIVE
+uint16_t uniffi_tessera_ffi_checksum_method_engine_tether_active(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_TETHER_CAPTURE
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_TETHER_CAPTURE
+uint16_t uniffi_tessera_ffi_checksum_method_engine_tether_capture(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_TETHER_DEVICES
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_TETHER_DEVICES
+uint16_t uniffi_tessera_ffi_checksum_method_engine_tether_devices(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_TETHER_LIVE_VIEW
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_TETHER_LIVE_VIEW
+uint16_t uniffi_tessera_ffi_checksum_method_engine_tether_live_view(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_TETHER_POLL
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_TETHER_POLL
+uint16_t uniffi_tessera_ffi_checksum_method_engine_tether_poll(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_TETHER_SET_LISTENER
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_TETHER_SET_LISTENER
+uint16_t uniffi_tessera_ffi_checksum_method_engine_tether_set_listener(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_TETHER_START
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_TETHER_START
+uint16_t uniffi_tessera_ffi_checksum_method_engine_tether_start(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_TETHER_STOP
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_TETHER_STOP
+uint16_t uniffi_tessera_ffi_checksum_method_engine_tether_stop(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_TETHER_USE_FAKE
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_TETHER_USE_FAKE
+uint16_t uniffi_tessera_ffi_checksum_method_engine_tether_use_fake(void
     
 );
 #endif
@@ -2894,6 +3029,12 @@ uint16_t uniffi_tessera_ffi_checksum_method_cullsession_toggle_basket(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_UNDO
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_UNDO
 uint16_t uniffi_tessera_ffi_checksum_method_cullsession_undo(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_TETHEREVENTLISTENER_ON_FRAME
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_TETHEREVENTLISTENER_ON_FRAME
+uint16_t uniffi_tessera_ffi_checksum_method_tethereventlistener_on_frame(void
     
 );
 #endif

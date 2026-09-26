@@ -1,6 +1,7 @@
 //! Tethered capture. Backends deliver completed downloads, never partial files.
 //! A single scoring worker preserves arrival order; queue events follow persisted
 //! indexing, preview extraction and scoring. Decisions are never changed.
+pub mod fake;
 mod ingest;
 mod naming;
 pub mod native;
@@ -29,6 +30,10 @@ pub struct Device {
     pub id: String,
     pub name: String,
     pub can_capture: bool,
+    /// Battery charge when the camera reports it.
+    pub battery_percent: Option<u8>,
+    /// Frames left on the card when the backend knows it.
+    pub shots_remaining: Option<u32>,
 }
 
 /// Backends own their threading requirements. A dynamic libgphoto2 adapter can
@@ -41,6 +46,28 @@ pub trait TetherBackend {
     fn stop(&mut self) -> Result<()>;
     fn live_view(&mut self) -> Result<Vec<u8>> {
         Err(Error::Unsupported)
+    }
+}
+
+/// Lets callers choose a backend at run time (the app's `--fake-tether` aid).
+impl<T: TetherBackend + ?Sized> TetherBackend for Box<T> {
+    fn devices(&mut self) -> Result<Vec<Device>> {
+        (**self).devices()
+    }
+    fn start(&mut self, folder: &Path) -> Result<()> {
+        (**self).start(folder)
+    }
+    fn capture(&mut self) -> Result<()> {
+        (**self).capture()
+    }
+    fn poll(&mut self) -> Result<Vec<PathBuf>> {
+        (**self).poll()
+    }
+    fn stop(&mut self) -> Result<()> {
+        (**self).stop()
+    }
+    fn live_view(&mut self) -> Result<Vec<u8>> {
+        (**self).live_view()
     }
 }
 
@@ -108,6 +135,13 @@ impl<B: TetherBackend> Session<B> {
     }
     pub fn live_view(&mut self) -> Result<Vec<u8>> {
         self.backend.live_view()
+    }
+    /// The session's camera(s), e.g. to refresh battery or remaining-frame readouts.
+    pub fn devices(&mut self) -> Result<Vec<Device>> {
+        self.backend.devices()
+    }
+    pub fn folder(&self) -> &Path {
+        &self.folder
     }
     pub fn events(&self) -> &mpsc::Receiver<Frame> {
         &self.rx

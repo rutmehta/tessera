@@ -44,6 +44,10 @@ struct TesseraApp: App {
 ///                     index after opening a folder, for the face strip and per-person filters
 ///   --fake-planner    (hidden test aid) offer and preselect the scripted FakePlanner in Auto Edit,
 ///                     so agent runs need no API key or network
+///   --fake-tether <folder>  (hidden test aid) File ▸ Tethered Capture… uses a test camera that shoots this
+///                     folder's images (on Capture, and every --fake-tether-interval <s> seconds, default 6; 0 = off)
+///   --tether          open the Tethered Capture panel after launch
+///   --tether-connect  (test aid) also connect to the (single) camera once the folder has loaded
 ///   --import-lrcat <catalog.lrcat>  open File ▸ Import Lightroom Catalog… with this catalog chosen
 ///   --front           order the window front without activating (screenshots while another app is active)
 ///   --appearance dark|light|system  (test aid) use this appearance for this run only
@@ -125,6 +129,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if exportDir != nil || printPDF != nil {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
                 MainActor.assumeIsolated { model.runOutputSelfTest(exportTo: exportDir, pdf: printPDF) }
+            }
+        }
+        if args.contains("--tether") || args.contains("--tether-connect") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                MainActor.assumeIsolated {
+                    if !model.tether.showPanel { model.tether.togglePanel() }
+                    if args.contains("--tether-connect") { model.tether.connectWhenReady() }
+                }
             }
         }
         if args.contains("--front") {   // test aid: show the window without activating the app
@@ -218,6 +230,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return true
         }
         return false
+    }
+
+    /// Closes the camera session (finishing accepted downloads) before the process exits.
+    func applicationWillTerminate(_ notification: Notification) {
+        AppModel.shared.tether.disconnect()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }

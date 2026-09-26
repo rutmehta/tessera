@@ -22,6 +22,10 @@ struct AppCommands: Commands {
                 .keyboardShortcut("i", modifiers: [.command, .shift])
                 .disabled(model.lightroomImport.isRunning)
             Divider()
+            Button(model.tether.showPanel ? "Hide Tethered Capture" : "Tethered Capture…") { model.tether.togglePanel() }
+            Button("Capture") { model.tether.capture() }
+                .keyboardShortcut("t", modifiers: [.command, .shift])
+            Divider()
             Button("Export…") { model.presentExport() }
                 .keyboardShortcut("e", modifiers: [.command, .shift])
                 .disabled(model.exporter.isRunning)
