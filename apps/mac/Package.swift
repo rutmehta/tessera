@@ -39,7 +39,7 @@ let package = Package(
         ),
         .testTarget(
             name: "TesseraCoreTests",
-            dependencies: ["TesseraCore", "TesseraFFI"],
+            dependencies: ["TesseraCore", "TesseraFFI", "Tessera"],
             path: "Tests/TesseraCoreTests"
         ),
     ],

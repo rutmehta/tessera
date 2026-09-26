@@ -278,10 +278,16 @@ level that keeps frames under 16 ms (the readout shows e.g. `render: L5, 8 ms`) 
     redder. With the point selected press **↑** three times: it nudges up; the burst becomes one history step
     `Point Curve (Red)` after a pause. Double-click the point: it is removed. **Curve Presets ▸ Strong Contrast** on
     **RGB**: an S-curve and a punchier image.
+    With a point selected, arrow keys must move the point without moving the loupe selection; its amber focus outline
+    stays visible until **Esc** blurs the editor.
 45. Open **HSL / COLOR** ▸ **Saturation**. Drag **Blue** to −100: the sky greys. Click the target button (◎) and
     drag **up** on the cube's orange face in the loupe (cursor ↕): the Orange (and a little Red/Yellow) saturation
     sliders rise together, and the status/History read `Orange Saturation +…`. Press **Esc** to disarm. There is no
     B&W mix (the recipe schema has no field for it yet).
+    Click or Tab to a slider: expect an amber focus outline. **→** nudges one step, **⇧→** ten,
+    **⌥→** a fine tenth step; **Home/End** reach the limits and **Return/Esc** commit and blur.
+    None of these keys move the loupe/grid selection while the slider is focused. Click the search field and type
+    `xup`: expect text input, not reject/undecided/keep decisions. Blur the field and confirm loupe arrows navigate again.
 46. Open **COLOR GRADING**. In **3-Way**, drag the Shadows wheel puck towards blue (lower left) and the Highlights
     puck towards orange: shadows cool, highlights warm. The wheels show the engine's OkLab hues (the puck colour is
     the colour added). Move **Balance** and **Blending**: the split moves / softens. Double-click a wheel: it resets.
