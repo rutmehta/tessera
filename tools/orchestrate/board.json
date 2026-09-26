@@ -771,7 +771,7 @@
     "id": "M5-08",
     "owner": "astra",
     "title": "Compositor specialised shaders + viewport",
-    "status": "escalate",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
@@ -811,9 +811,9 @@
     "id": "M5-08b",
     "owner": "opus",
     "title": "Compositor L0/viewport targets",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
-    "notes": ""
+    "notes": "L0 92ms, bit-exact GPU; 4K viewport 38ms (8ms infeasible on M4 for full recomposite)"
   },
   {
     "id": "M2-29",
