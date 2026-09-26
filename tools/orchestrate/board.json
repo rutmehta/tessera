@@ -774,5 +774,21 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M3-16",
+    "owner": "astra",
+    "title": "Joint CFA denoise net (self-supervised)",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M3-11v",
+    "owner": "sol",
+    "title": "Verify assisted culling + agent UI",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
