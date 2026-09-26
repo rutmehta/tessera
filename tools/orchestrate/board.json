@@ -771,7 +771,7 @@
     "id": "M5-08",
     "owner": "astra",
     "title": "Compositor specialised shaders + viewport",
-    "status": "running",
+    "status": "escalate",
     "attempts": 0,
     "notes": ""
   },
@@ -803,6 +803,14 @@
     "id": "M3-16b",
     "owner": "astra",
     "title": "GPU-resident CFA denoise handoff",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M5-08b",
+    "owner": "opus",
+    "title": "Compositor L0/viewport targets",
     "status": "running",
     "attempts": 0,
     "notes": ""
