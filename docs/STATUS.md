@@ -29,9 +29,13 @@ Compositor core (27 blend modes exact, groups/knockout/Blend If, adjustments, sm
 ## Also merged (2026-09-26)
 Brush engine (dynamics, ABR import, heal/clone/patch, GPU dabs) + selection tools (all shapes, refine edge, contours, alpha channels), document tool executor with 32 MCP tools and Actions record/replay, brush/selection wired into it, self-supervised CFA denoise network (training + export scripts; weights local), incremental library updates (change feed; tether/import/rescan update in place), assisted culling + agent UI verified on screen.
 
+## Also merged (2026-09-26, later)
+Compositor bit-exact GPU maths and L0 < 100 ms (92 ms; 4K viewport 38 ms, full recomposite under 8 ms shown infeasible on M4), text layers (`typography`), vector shapes (`vector`), CFA denoise GPU-resident handoff + restored training prerequisites (6 dB gain), performance benchmark harness with CI workflow, public-repo docs (README/CONTRIBUTING/ARCHITECTURE).
+
 ## In progress / next
-- M5-08b compositor L0/viewport targets (Opus), M3-16b GPU-resident CFA handoff, M5-12 text layers, M5-13 vector shapes (Astra); then M2-29 develop JPEG/TIFF/HEIC.
+- M5-14 layer styles + smart filters, M2-29 develop JPEG/TIFF/HEIC, M3-19 people clustering (Astra); M2-25v2 regression pass (Sol).
 - Machine B owns the layered-editor UI (M5-09). Coordinator fallback: `tools/orchestrate/supervise.sh` (Astra 900k via Hermes) if the Fable session is downgraded.
+- Needs from the owner: real Lightroom-written XMP sidecars in `fixtures/lightroom/` to finish Adobe-specific structures (M2-02b).
 
 ## Known gaps / next
 - Adobe undocumented XMP structures (PointColors strings, brush dabs, Look tables) need **real Lightroom-exported sidecars** to finish (M2-02b).
