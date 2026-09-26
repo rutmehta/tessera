@@ -11,12 +11,18 @@ use pipeline_cpu::{Image, PostDemosaicDenoise};
 use raw_decode::CfaLayout;
 use std::sync::{Arc, Mutex};
 
+#[derive(Default)]
+struct Runtime {
+    model: Option<CfaDenoiser>,
+    memo: Option<(ParamHash, crate::cfa::PackedCfa)>,
+}
+
 pub struct MlCfaDenoise {
     registry: Arc<ModelRegistry>,
     options: SessionOptions,
     model: ModelRef,
     noise: CfaNoise,
-    session: Mutex<Option<CfaDenoiser>>,
+    session: Mutex<Runtime>,
     fallback: crate::MlPostDemosaicDenoise,
     mask: Option<Image>,
     revision: String,
@@ -31,11 +37,12 @@ impl MlCfaDenoise {
         noise: CfaNoise,
     ) -> Self {
         let revision = format!(
-            "cfa-unet-v1/{}/{}/{}/{}",
+            "cfa-unet-packed-v2/{}/{}/{}/{}/{:?}",
             model.id,
             model.version,
             ParamHash::of(StageId::Denoise, &(noise.shot, noise.read)),
-            pipeline_cpu::POST_DENOISE_ADAPTER
+            pipeline_cpu::POST_DENOISE_ADAPTER,
+            options
         );
         Self {
             fallback: crate::MlPostDemosaicDenoise::new(registry.clone(), options.clone()),
@@ -43,7 +50,7 @@ impl MlCfaDenoise {
             options,
             model,
             noise,
-            session: Mutex::new(None),
+            session: Mutex::new(Runtime::default()),
             mask: None,
             revision,
         }
@@ -91,25 +98,74 @@ impl PostDemosaicDenoise for MlCfaDenoise {
                 "single-plane Bayer required",
             ));
         }
-        let colors = [
-            cfa.channel_at(0, 0),
-            cfa.channel_at(1, 0),
-            cfa.channel_at(0, 1),
-            cfa.channel_at(1, 1),
-        ];
-        let colors = colors.map(|c| if c == 3 { 1 } else { c });
-        let turns = match colors {
-            [0, 1, 1, 2] => 0,
-            [1, 0, 2, 1] => 1,
-            [2, 1, 1, 0] => 2,
-            [1, 2, 0, 1] => 3,
-            _ => {
-                return Err(EngineError::invalid(
-                    "CFA model",
-                    "unsupported Bayer pattern",
-                ));
-            }
-        };
+        crate::cfa::CfaDenoise::infer(self, input, cfa, settings)?
+            .blend_cpu(input, settings.amount / 100.0)
+    }
+}
+
+impl crate::cfa::CfaDenoise for MlCfaDenoise {
+    fn supports(&self, cfa: CfaLayout, settings: &DenoiseSettings) -> bool {
+        crate::cfa::bayer_turns(cfa).is_some()
+            && matches!(&settings.method, DenoiseMethod::Neural { model, joint_demosaic: false } if model == &self.model)
+    }
+    fn infer(
+        &self,
+        input: &Image,
+        cfa: CfaLayout,
+        settings: &DenoiseSettings,
+    ) -> EngineResult<crate::cfa::PackedCfa> {
+        self.infer_with_identity(input, cfa, settings, None)
+    }
+    fn infer_keyed(
+        &self,
+        input: &Image,
+        cfa: CfaLayout,
+        settings: &DenoiseSettings,
+        identity: engine_api::stage::MemoKey,
+    ) -> EngineResult<crate::cfa::PackedCfa> {
+        self.infer_with_identity(input, cfa, settings, Some(identity))
+    }
+}
+impl MlCfaDenoise {
+    fn infer_with_identity(
+        &self,
+        input: &Image,
+        cfa: CfaLayout,
+        settings: &DenoiseSettings,
+        identity: Option<engine_api::stage::MemoKey>,
+    ) -> EngineResult<crate::cfa::PackedCfa> {
+        use crate::cfa::CfaDenoise;
+        pipeline_cpu::validate_denoise(settings)?;
+        if !self.supports(cfa, settings) || input.planes().len() != 1 {
+            return Err(EngineError::invalid(
+                "CFA inference",
+                "unsupported input/model",
+            ));
+        }
+        let turns = crate::cfa::bayer_turns(cfa).expect("supported Bayer");
+        // Content addresses the upstream sensor for direct legacy callers, who
+        // have no ImageId. Renderer memoization additionally includes ImageId
+        // and the upstream graph key. Neither identity contains Amount/tone.
+        let key = ParamHash::of(
+            StageId::Denoise,
+            &(
+                input.width(),
+                input.height(),
+                turns,
+                &input.planes()[0],
+                &self.revision,
+                identity,
+            ),
+        );
+        let mut guard = self
+            .session
+            .lock()
+            .map_err(|_| EngineError::internal("CFA session poisoned"))?;
+        if let Some((cached, output)) = &guard.memo
+            && *cached == key
+        {
+            return Ok(output.clone());
+        }
         let err = |e: String| EngineError::invalid("CFA runtime", e);
         let packing = BayerPacking::new(input.width() as usize, input.height() as usize, turns)
             .map_err(|e| err(e.to_string()))?;
@@ -120,9 +176,6 @@ impl PostDemosaicDenoise for MlCfaDenoise {
             if mask.width() != input.width() || mask.height() != input.height() {
                 return Err(EngineError::invalid("CFA mask", "sensor extent mismatch"));
             }
-            if mask.planes()[0].iter().all(|v| *v == 0.0) {
-                return Ok(input.clone());
-            }
             Some(
                 packing
                     .pack(&mask.planes()[0])
@@ -131,34 +184,45 @@ impl PostDemosaicDenoise for MlCfaDenoise {
         } else {
             None
         };
-        let mut guard = self
-            .session
-            .lock()
-            .map_err(|_| EngineError::internal("CFA session poisoned"))?;
-        if guard.is_none() {
-            *guard = Some(
+        if mask
+            .as_ref()
+            .is_some_and(|m| m.data().iter().all(|v| *v == 0.0))
+        {
+            return crate::cfa::PackedCfa::from_tensors(
+                engine_api::tile::Extent::new(input.width(), input.height()),
+                turns,
+                packed,
+                mask,
+            );
+        }
+        if guard.model.is_none() {
+            guard.model = Some(
                 CfaDenoiser::load(&self.registry, &self.model, self.options.clone())
                     .map_err(|e| err(e.to_string()))?,
             );
         }
         let output = guard
+            .model
             .as_mut()
             .expect("loaded")
             .apply(
                 &packed,
                 self.noise,
-                settings.amount,
-                mask.as_ref().map(|m| m.data()),
+                100.0,
+                None,
                 Tiling {
                     tile_size: 128,
                     halo: 16,
                 },
             )
             .map_err(|e| err(e.to_string()))?;
-        Image::new(
-            input.width(),
-            input.height(),
-            vec![packing.unpack(&output).map_err(|e| err(e.to_string()))?],
-        )
+        let output = crate::cfa::PackedCfa::from_tensors(
+            engine_api::tile::Extent::new(input.width(), input.height()),
+            turns,
+            output,
+            mask,
+        )?;
+        guard.memo = Some((key, output.clone()));
+        Ok(output)
     }
 }

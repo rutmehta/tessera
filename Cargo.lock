@@ -2978,6 +2978,8 @@ dependencies = [
  "lcms2",
  "lens",
  "log",
+ "ml-enhance",
+ "ml-runtime",
  "naga",
  "objc2-core-foundation",
  "objc2-io-surface",

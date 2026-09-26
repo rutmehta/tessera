@@ -137,6 +137,11 @@ pub fn denoise_cfa_with(
         out.shape() == input.shape() && out.data().iter().all(|v| v.is_finite()),
         "invalid CFA output"
     );
+    // The resident handoff needs the owned full-strength output, without a
+    // second full tensor allocation just to blend at the exact endpoint.
+    if amount == 100.0 && mask.is_none() {
+        return Ok(out);
+    }
     Tensor::new(
         4,
         h,

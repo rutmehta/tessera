@@ -53,7 +53,19 @@ impl Renderer {
             && matches!(r.cfa, CfaLayout::Bayer(_));
         if raw_selected {
             let cache_raw = self.config.graph.node(StageId::Denoise).cacheable;
-            let raw_key = |c| PipelineGraph::memo_key(r.image.id(), &r.chain, StageId::Denoise, c);
+            // Full-strength inference has its own identity, independent of Amount.
+            let mut full_settings = r.settings.clone();
+            full_settings.denoise.amount = 100.0;
+            let full_chain = self.stage_chain(&full_settings);
+            let raw_key = |c| {
+                let mut key =
+                    PipelineGraph::memo_key(r.image.id(), &full_chain, StageId::Denoise, c);
+                key.params_hash = ParamHash::chain(
+                    key.params_hash,
+                    ParamHash::of(StageId::Denoise, &"cpu-fullstrength-cfa-v1"),
+                );
+                key
+            };
             let mut cached = blank(1)?;
             let mut complete = cache_raw;
             if cache_raw {
@@ -67,15 +79,19 @@ impl Renderer {
                     }
                 }
             }
-            linear = if complete {
+            let restored = if complete {
                 cached
             } else {
-                let restored = pipeline_cpu::raw_denoise(
-                    linear,
-                    r.cfa,
-                    &r.settings.denoise,
-                    self.denoiser.as_deref(),
-                )?;
+                let restored = if self.cfa_supported(r.cfa, r.settings) {
+                    self.full_cfa(r, cancel)?.blend_cpu(&linear, 1.0)?
+                } else {
+                    pipeline_cpu::raw_denoise(
+                        linear.clone(),
+                        r.cfa,
+                        &full_settings.denoise,
+                        self.denoiser.as_deref(),
+                    )?
+                };
                 if cache_raw {
                     for c in restored.coords() {
                         cancel.check()?;
@@ -85,6 +101,26 @@ impl Renderer {
                 }
                 restored
             };
+            let alpha = r.settings.denoise.amount / 100.0;
+            linear = pipeline_cpu::Image::new(
+                r.sensor.width,
+                r.sensor.height,
+                vec![
+                    linear.planes()[0]
+                        .iter()
+                        .zip(&restored.planes()[0])
+                        .map(|(&a, &b)| {
+                            if alpha == 0.0 {
+                                a
+                            } else if alpha == 1.0 {
+                                b
+                            } else {
+                                a * (1.0 - alpha) + b * alpha
+                            }
+                        })
+                        .collect(),
+                ],
+            )?;
         }
         for c in linear.coords() {
             cancel.check()?;

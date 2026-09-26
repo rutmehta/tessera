@@ -53,6 +53,35 @@ pub struct LocalToneOptions {
 /// A render transaction. Dropping it before `finish` must discard pending work
 /// and must not publish uninitialized cache entries. Cache hits may outlive LRU eviction.
 pub trait ResidentBatch {
+    fn supports_cfa(&self) -> bool {
+        false
+    }
+    /// Upload one packed RGGB region including the requested halo and unpack
+    /// on device. Returns two f32 planes: full-strength sensor and coverage.
+    /// `origin` addresses the interior in the unrotated full sensor frame.
+    fn upload_cfa(
+        &mut self,
+        _full: &crate::cfa::PackedCfa,
+        _coord: TileCoord,
+        _layout: TileLayout,
+        _origin: (u32, u32),
+    ) -> EngineResult<ResidentTile> {
+        Err(engine_api::EngineError::Unsupported {
+            what: "resident CFA upload".into(),
+        })
+    }
+    /// Amount in 0..=1. Exact endpoint selection, per-site coverage retained.
+    fn blend_cfa(
+        &mut self,
+        _original: &ResidentTile,
+        _full: &ResidentTile,
+        _amount: f32,
+    ) -> EngineResult<ResidentTile> {
+        Err(engine_api::EngineError::Unsupported {
+            what: "resident CFA blend".into(),
+        })
+    }
+
     /// Request only full-resolution output statistics, not pixel readback.
     fn enable_metrics(&mut self) -> bool {
         false
