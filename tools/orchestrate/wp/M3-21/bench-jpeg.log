@@ -1,9 +1,0 @@
-
-running 1 test
-test jpeg_12mp_coreml has been running for over 60 seconds
-JPEG Artifact Removal 12 MP apply 227.948s (load excluded)
-DRUNet partitions: PartitionReport { nodes: [NodeAssignment { node: "CoreMLExecutionProvider_10668944104047120370_CoreML_10668944104047120370_0_0", provider: "CoreMLExecutionProvider" }] }
-.
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 229.06s
-
-E5RT encountered an STL exception. msg = Failed to PropagateInputTensorShapes: std::invalid_argument during type inference for ios18.conv: output size is too small..
