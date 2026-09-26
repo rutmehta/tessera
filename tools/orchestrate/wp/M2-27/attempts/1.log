@@ -1,0 +1,5 @@
+Implemented M2-27 in the specified worktree. The key router now yields to focused sliders, curve editors, and text fields. Sliders take focus by click or Tab, show a Theme focus ring, and handle nudging, modifiers, Home/End, and commit/blur keys. I added focus-routing tests and updated the keyboard acceptance steps.
+
+The required `build-ffi.sh && swift build && swift test -c release -Xswiftc -enable-testing` sequence passed: 77 XCTest cases and 5 Swift Testing cases, including Theme lint. I did not run the on-screen acceptance steps.
+
+RESULT: PASS
