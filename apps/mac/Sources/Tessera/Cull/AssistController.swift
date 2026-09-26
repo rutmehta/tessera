@@ -119,7 +119,10 @@ final class AssistController {
             app.statusMessage = "Analyzed \(result.analyzed) photo\(result.analyzed == 1 ? "" : "s")"
                 + (faces ? " for faces" : "") + (cancelAnalysis ? " (cancelled)" : "")
         }
-        if faces { refreshPeople(refresh: true) }
+        if faces {
+            refreshPeople(refresh: true)
+            app.peopleAfterFaceAnalysis()
+        }
         refreshFaces(force: true)
         if enabled { refresh() }
     }

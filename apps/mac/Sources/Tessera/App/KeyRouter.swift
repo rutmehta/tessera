@@ -46,6 +46,8 @@ final class KeyRouter {
 
     func handle(_ event: NSEvent) -> Bool {
         if shouldIgnore(event) { return false }
+        // The People view owns its keys (name fields, Esc); culling keys would act on a hidden photo.
+        if model.source == .people { return false }
         // Develop tools receive shortcuts only when a key-owning control is not focused.
         if MaskTools.shared.handleKey(event) { return true }
         if DevelopTools.shared.handleKey(event) { return true }

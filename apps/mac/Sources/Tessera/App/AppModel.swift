@@ -22,12 +22,15 @@ enum LibrarySource: Hashable {
     case smartAlbum(id: Int64, name: String)
     /// Every photo in the group's albums (and nested groups).
     case group(id: Int64, name: String)
+    /// The People view (WP M2-40): person tiles over the grid; the photo list stays All Photos.
+    case people
 
     var title: String {
         switch self {
         case .all: "All Photos"
         case .album(let name): name
         case .notInAlbum: "Not in Any Album"
+        case .people: "People"
         case .smartAlbum(_, let name), .group(_, let name): name
         case .decision(.keep): "Keeps"
         case .decision(.reject): "Rejects"
@@ -149,6 +152,10 @@ final class AppModel {
     let collections = LibraryModel()
     /// Assisted culling: real signals, learner suggestions, faces and people (WP M3-11).
     let assist = AssistController()
+    /// People view, naming, merge / split and the Person facet (WP M2-40).
+    let people = PeopleModel()
+    /// Thumbnails behind the People view's face crops.
+    let faceThumbnails = FaceThumbnails()
     /// Auto Edit, Settings ▸ AI and the agent's review queue (WP M3-11).
     let agent = AgentController()
     var showAutoEdit = false
@@ -239,6 +246,7 @@ final class AppModel {
         assist.app = self
         agent.app = self
         tether.app = self
+        people.onPeopleChange = { [weak self] in self?.peopleDidChange() }
         lightroomImport.presentSheet = { [weak self] in
             // Re-assert the binding on the next turn so a dismissal still in flight cannot swallow it.
             self?.showLightroomImport = false
@@ -324,6 +332,7 @@ final class AppModel {
                 case .success(let lib):
                     self.install(lib)
                     self.assist.libraryDidLoad(seedFaces: seedFaces)
+                    self.openPeople()
                     let raws = lib.items.lazy.filter { $0.kind == .raw }.count
                     let multi = lib.groups.lazy.filter { $0.count > 1 }.count
                     self.statusMessage = message ?? "Opened \(lib.title): \(lib.items.count.formatted()) images (\(raws.formatted()) RAW), "
@@ -364,6 +373,8 @@ final class AppModel {
         isEngineBacked = cull.isEngineBacked
         closeDevelop()
         source = .all
+        people.install(cull.isEngineBacked ? cull : nil)
+        faceThumbnails.removeAll()
         collections.install(lib)
         compare = nil
         if viewMode == .compare { viewMode = modeBeforeCompare }
@@ -393,7 +404,7 @@ final class AppModel {
         let base: [Int]
         let passes: (Int) -> Bool
         switch source {
-        case .all, .notInAlbum, .smartAlbum, .group:
+        case .all, .notInAlbum, .smartAlbum, .group, .people:
             base = Array(items.indices)
             passes = { matched?.contains($0) != false }
         case .album(let name):
@@ -414,7 +425,11 @@ final class AppModel {
         }
         // Assisted culling: the per-person filter, then the confidence order (docs/06 §3).
         let person = assist.personFilter
-        let shown: (Int) -> Bool = { id in passes(id) && person?.items.contains(id) != false }
+        // Filter bar ▸ Person (frames with any of the chosen people) intersects every other filter.
+        let facetItems = people.facetItems
+        let shown: (Int) -> Bool = { id in
+            passes(id) && person?.items.contains(id) != false && facetItems?.contains(id) != false
+        }
         if let keeping {
             visible = base.filter { keeping.contains($0) || (admitting.contains($0) && shown($0)) }
         } else {
@@ -434,9 +449,64 @@ final class AppModel {
     }
 
     func setSource(_ s: LibrarySource) {
+        let opening = s == .people && source != .people
         refreshVisible {
             source = s
             collections.refreshMatches()
+        }
+        if opening { openPeople() }
+    }
+
+    // MARK: People (WP M2-40)
+
+    /// Sidebar ▸ People: the incremental clustering job off the main actor, then the tiles.
+    func openPeople() {
+        guard isEngineBacked else { return }
+        Task { [weak self] in
+            await self?.people.refresh()
+            self?.reportPeople()
+        }
+    }
+
+    /// After Analyze Faces: new faces join identities (or become new ones).
+    func peopleAfterFaceAnalysis() {
+        Task { [weak self] in
+            await self?.people.refresh()
+            self?.peopleDidChange()
+        }
+    }
+
+    /// Names, merges, splits or moves changed identities: the face strip, the inspector's People
+    /// panel and the Person facet follow.
+    func peopleDidChange() {
+        assist.refreshPeople()
+        assist.refreshFaces(force: true)
+        reportPeople()
+        if people.facetItems != nil { refreshVisible() }
+    }
+
+    private func reportPeople() {
+        if let message = people.message { statusMessage = message }
+    }
+
+    func togglePersonFacet(_ id: String) {
+        refreshVisible { people.toggleFacet(id) }
+    }
+
+    func setPersonFacet(_ ids: Set<String>) {
+        refreshVisible { people.setFacet(ids) }
+    }
+
+    /// People ▸ Show Photos: All Photos with the Person facet set to this person.
+    func showPhotos(of id: String) {
+        refreshVisible {
+            people.setFacet([id])
+            source = .all
+            collections.refreshMatches()
+        }
+        viewMode = .grid
+        if let p = people.person(id) {
+            statusMessage = "\(p.displayName): \(visibleCount.formatted()) photo\(visibleCount == 1 ? "" : "s")"
         }
     }
 
@@ -553,6 +623,7 @@ final class AppModel {
         let remap: (Int) -> Int? = { update.newID($0) }
         relinking = true
         assist.libraryDidUpdate(remap)
+        people.libraryDidUpdate(remap)
         agent.libraryDidUpdate(lib)
         if let d = develop {
             if let id = remap(d.itemID) { d.relink(itemID: id) } else { closeDevelop() }

@@ -33,15 +33,22 @@ struct FilterBar: View {
                         .accessibilityIdentifier("filterDiagnostic")
                 }
                 Spacer(minLength: Theme.Space.xs)
-                if let n = library.matchCount, !library.filter.isEmpty {
+                if let n = library.matchCount, !library.filter.isEmpty, model.people.facet.isEmpty {
                     Text("\(n.formatted()) match\(n == 1 ? "" : "es")")
                         .font(Theme.Fonts.captionNumeric)
                         .foregroundStyle(Theme.textSecondary)
                         .fixedSize()
                         .accessibilityIdentifier("filterMatchCount")
                 }
-                if !library.filter.isEmpty {
-                    Button("Clear") { library.clearFilter() }
+                if !model.people.facet.isEmpty {
+                    Text("\(model.visibleCount.formatted()) match\(model.visibleCount == 1 ? "" : "es")")
+                        .font(Theme.Fonts.captionNumeric)
+                        .foregroundStyle(Theme.textSecondary)
+                        .fixedSize()
+                        .accessibilityIdentifier("filterMatchCount")
+                }
+                if !library.filter.isEmpty || !model.people.facet.isEmpty {
+                    Button("Clear") { library.clearFilter(); model.setPersonFacet([]) }
                         .buttonStyle(.themeBorderless)
                         .fixedSize()
                         .help("Remove all filters (⌥⌘L)")
@@ -65,6 +72,7 @@ struct FilterBar: View {
                     facetMenu("Camera", \.cameras, values: listed(facets?.cameras, selected: library.filter.cameras))
                     facetMenu("Lens", \.lenses, values: listed(facets?.lenses, selected: library.filter.lenses))
                     facetMenu("Keyword", \.keywords, values: listed(facets?.keywords, selected: library.filter.keywords))
+                    personMenu
                     dateButton
                     albumMenu(facets)
                 }
@@ -118,6 +126,34 @@ struct FilterBar: View {
         }
         .menuStyle(ThemeMenuStyle(height: Theme.Height.small, active: !selected.isEmpty))
         .accessibilityIdentifier("facet\(title)")
+    }
+
+    /// Person (WP M2-40): named people, multi-select (any of them), counted within the other
+    /// filters; frames come from the engine's per-person search and intersect every other facet.
+    private var personMenu: some View {
+        let people = model.people
+        let selected = people.facet
+        let matches = library.matches.map(Set.init)
+        return Menu {
+            if people.named.isEmpty {
+                Text("No named people yet: name them in People")
+            }
+            ForEach(people.named) { person in
+                Toggle(isOn: Binding(get: { selected.contains(person.id) },
+                                     set: { _ in model.togglePersonFacet(person.id) })) {
+                    Text("\(person.displayName)    \(people.facetCount(person.id, within: matches).formatted())")
+                }
+            }
+            if !selected.isEmpty {
+                Divider()
+                Button("Any Person") { model.setPersonFacet([]) }
+            }
+        } label: {
+            Text(people.facetTitle).lineLimit(1)
+        }
+        .menuStyle(ThemeMenuStyle(height: Theme.Height.small, active: !selected.isEmpty))
+        .help("Photos with any of the chosen people (named in the People view)")
+        .accessibilityIdentifier("facetPerson")
     }
 
     private var dateButton: some View {

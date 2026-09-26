@@ -32,6 +32,7 @@ struct SidebarSnapshot: Equatable {
     var undecided: Int
     var reject: Int
     var source: LibrarySource
+    var peopleCount: Int?
 
     @MainActor init(model: AppModel) {
         // The library object updates in place (M2-28): observe its revision for the counts.
@@ -52,6 +53,7 @@ struct SidebarSnapshot: Equatable {
         undecided = model.counts.undecided
         reject = model.counts.reject
         source = model.source
+        peopleCount = model.people.tiles.isEmpty ? nil : model.people.tiles.count
     }
 }
 
@@ -187,6 +189,7 @@ final class SidebarController: NSObject, NSOutlineViewDataSource, NSOutlineViewD
         case .smartAlbum(let id, _), .group(let id, _): "node:\(id)"
         case .decision(let d): "src:decision:\(d)"
         case .mark(let m): "src:mark:\(m)"
+        case .people: "src:people"
         }
     }
 
@@ -214,6 +217,11 @@ final class SidebarController: NSObject, NSOutlineViewDataSource, NSOutlineViewD
             unfiled.count = s.unfiledCount
             unfiled.tooltip = "Derived status: photos in this folder that no album contains"
             library.children.append(unfiled)
+            // WP M2-40: persistent identities from face clusters (the People view).
+            let people = SidebarRow(.source(.people), key: "src:people", title: "People")
+            people.count = s.peopleCount
+            people.tooltip = "People: name face clusters, merge and split them (Cull ▸ Analyze Faces finds faces)"
+            library.children.append(people)
         }
 
         let folders = SidebarRow(.header(.folders), key: "hdr:folders", title: "Folders")
@@ -673,5 +681,6 @@ final class SidebarCell: NSTableCellView {
         count.stringValue = row.count.map { $0.formatted() } ?? ""
         toolTip = row.tooltip
         setAccessibilityLabel(row.title)
+        setAccessibilityIdentifier(row.key == "src:people" ? "sidebar-people" : nil)
     }
 }

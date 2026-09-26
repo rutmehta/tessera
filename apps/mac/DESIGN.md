@@ -245,6 +245,14 @@ height: 3:2 tiles at radius 4 with a HUD badge bar (sequence, focus dot keep / w
 faces were found), a filled decision chip once decided, rejected tiles at 35 %, accent ring on the focused frame and
 `Downloading` placeholders for shutter requests on their way.
 
+**People view** (`PeopleView`, sidebar ▸ People): on the canvas, a 32 pt panel header (title, tabular counts, a
+borderless **Refit**); tiles like grid cells (no box: face crop at radius 4 with a hairline, accent on hover; selection =
+accent-subtle fill at radius 6; a drop target adds a 2 px accent ring), the name in 12 pt medium or a small native name
+field, a tertiary tabular photo count and an outlined `Confirmed` chip in keep ink. The detail view reuses the header
+(back chevron, name field, counts, bordered **Confirm All** / **Split**), 96 pt face chips with a confirm seal on a HUD
+square (keep ink when confirmed) and a `panel` **Move to** column of 28 pt drop-target rows. The toolbar's **Merge** is a
+plain toolbar button. The sampled-clustering footnote is a 24 pt tertiary caption with an info glyph.
+
 **Scopes** (`HistogramView`, `CurveEditorView`, `DetailPreviewView`): `plotWell`, radius 4,
 channel colours composited additively.
 
