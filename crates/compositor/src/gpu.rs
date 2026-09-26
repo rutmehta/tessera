@@ -31,6 +31,10 @@ struct GpuOp {
 
 const NO_MASK: u32 = u32::MAX;
 
+#[path = "gpu_resident.rs"]
+mod resident;
+pub use resident::ResidentComposite;
+
 /// A Metal device with the compositor pipeline.
 pub struct GpuCompositor {
     device: wgpu::Device,
@@ -59,9 +63,23 @@ impl GpuCompositor {
         .map_err(internal)?;
         let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
             label: Some("tessera compositor"),
+            required_limits: wgpu::Limits {
+                max_storage_buffer_binding_size: adapter.limits().max_storage_buffer_binding_size,
+                max_buffer_size: adapter.limits().max_buffer_size,
+                ..Default::default()
+            },
             ..Default::default()
         }))
         .map_err(internal)?;
+        Self::from_device(device, queue, adapter.get_info().name)
+    }
+
+    /// Compile on a caller-owned shared device/queue pair.
+    pub fn from_device(
+        device: wgpu::Device,
+        queue: wgpu::Queue,
+        adapter: String,
+    ) -> EngineResult<Self> {
         let scope = device.push_error_scope(wgpu::ErrorFilter::Validation);
         let module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("composite"),
@@ -82,7 +100,7 @@ impl GpuCompositor {
             device,
             queue,
             pipeline,
-            adapter: adapter.get_info().name,
+            adapter,
         })
     }
 

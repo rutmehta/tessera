@@ -676,6 +676,7 @@ dependencies = [
  "engine-api",
  "half",
  "pollster",
+ "psd",
  "rayon",
  "serde",
  "serde_json",
