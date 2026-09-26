@@ -787,9 +787,9 @@
     "id": "M3-11v",
     "owner": "sol",
     "title": "Verify assisted culling + agent UI",
-    "status": "running",
+    "status": "pass",
     "attempts": 0,
-    "notes": ""
+    "notes": "assist/agent flows work; loupe black for JPEGs (develop is raw-only) -> M2-29; accessibility tree walk slow"
   },
   {
     "id": "M5-10",
