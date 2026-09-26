@@ -979,7 +979,15 @@
     "id": "M2-40v2",
     "owner": "sol",
     "title": "People view focused re-verification",
-    "status": "todo",
+    "status": "fail",
+    "attempts": 0,
+    "notes": "3/8; naming/filter work; detail view overflows window; launch glitch with --seed-faces -> M2-41"
+  },
+  {
+    "id": "M2-41",
+    "owner": "sol",
+    "title": "People view: detail overflow + launch layout glitch",
+    "status": "running",
     "attempts": 0,
     "notes": ""
   }
