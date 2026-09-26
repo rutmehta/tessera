@@ -133,7 +133,12 @@ impl Backend {
     }
 }
 
-pub(crate) fn select(image: &RawImage) -> Backend {
+/// `gpu` yields the engine's shared Metal device (created on first use and
+/// shared with layered-document sessions), or `None` without Metal.
+pub(crate) fn select(
+    image: &RawImage,
+    gpu: impl FnOnce() -> Option<gpu_core::GpuDevice>,
+) -> Backend {
     let config = RendererConfig::default();
     let cpu = Backend::new(
         Arc::new(CpuStageOp),
@@ -144,10 +149,14 @@ pub(crate) fn select(image: &RawImage) -> Backend {
     if preference.eq_ignore_ascii_case("cpu") {
         return cpu;
     }
-    let ctx = match pipeline_gpu::GpuContext::new() {
+    let Some(device) = gpu() else {
+        eprintln!("develop: Metal unavailable, using CPU");
+        return cpu;
+    };
+    let ctx = match pipeline_gpu::GpuContext::from_shared(device) {
         Ok(ctx) => Arc::new(ctx),
         Err(e) => {
-            eprintln!("develop: Metal unavailable, using CPU: {e}");
+            eprintln!("develop: Metal operators unavailable, using CPU: {e}");
             return cpu;
         }
     };

@@ -32,6 +32,15 @@ ml-caption = { path = "../ml-caption" }
 ml-embed = { path = "../ml-embed" }
 style-profile = { path = "../style-profile" }
 agent = { path = "../agent" }
+compositor = { path = "../compositor" }
+psd = { path = "../psd" }
+gpu-core = { path = "../gpu-core" }
+wgpu.workspace = true
+bytemuck.workspace = true
+png.workspace = true
+tiff = "0.10"
+jpeg-encoder = "0.6"
+lcms2.workspace = true
 anyhow.workspace = true
 blake3.workspace = true
 uniffi = { workspace = true, features = ["cli"] }
@@ -40,12 +49,11 @@ serde.workspace = true
 serde_json.workspace = true
 tempfile.workspace = true
 thiserror.workspace = true
-image.workspace = true
+image = { workspace = true, features = ["png"] }
 kamadak-exif.workspace = true
 half.workspace = true
 
 [dev-dependencies]
-lcms2.workspace = true
 import-lrcat = { path = "../import-lrcat", features = ["fixture"] }
 
 [[bin]]

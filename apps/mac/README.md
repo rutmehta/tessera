@@ -82,6 +82,39 @@ index is refreshed, and the edited preview is stored under the new recipe hash, 
 `embeddedPreview` serves edited thumbnails (edited RAWs without a stored preview are rendered from
 the recipe on the preview worker). The CPU operators are the default renderer; set
 `TESSERA_RENDER_BACKEND=gpu` for the Metal operators (slower on the M4, see `Engine::develop_renderer`).
+Layered documents (crates/tessera-ffi/src/document.rs, WP M5-09): `newDocument(width:height:depth:profile:)`,
+`openDocument(path:)` (`.tessera-doc`, `.psd`/`.psb` with unknown PSD records kept for save-back, flat
+JPEG/PNG/TIFF as one pixel layer), `openDocumentFromImage(imageId:developed:)` (the library image rendered at
+full resolution through the export path into one 16-bit sRGB pixel layer), `documentSession(id:)` and
+`documentIds()` return a `DocumentSession`; opening the same file or image twice returns the same session.
+Reads: `info()` (`DocumentInfo`: id `doc#N`, path, title, canvas, depth, profile, dirty, history head,
+undo/redo availability, selected layers, selection bounds, source image, epoch, backend), `layers()`
+(`LayerNode`s flat in pre-order, siblings top-first, `index` = compositor child index with 0 = bottom,
+blend modes as the stable snake_case names of `blendModeNames()` plus `pass_through`, adjustment/fill JSON,
+bounds, `revision` for thumbnail caches), `layer(id:)`, `setSelectedLayers(ids:)`. Edits, each one history
+node returning `DocumentUpdate` (changed/created layers, head, level-0 dirty rect, epoch, dirty):
+`addLayer(kind:name:parent:index:)` (`NewLayer`: pixel, group, adjustment JSON, fill JSON),
+`duplicateLayer`, `removeLayer`, `moveLayer`, `setProps` (`LayerPropsRecord`), `renameLayer`, `setVisible`,
+`setOpacity`/`setFillOpacity(id:value:interactive:)`, `setBlendMode`, `setGroupMode`, `setClipped`,
+`setLocks`, `setAdjustmentJson`/`setFillJson(id:json:interactive:)`, `addMask(id:mask:)` (`MaskInit`:
+reveal all, hide all, from selection), `removeMask`, `setMaskEnabled`, `setMaskDensity`, `setMaskLinked`
+(session state only), `mergeDown`, `flatten`, `groupLayers(ids:name:)`, `ungroupLayer`,
+`setSelectionRect(x:y:width:height:feather:)`, `clearSelection`. `interactive: true` edits are live only
+(the viewport and `layers()` show them) until `commit(label:)` records the whole drag as one node; any other
+edit, undo or save commits a pending drag first. History: `undo`, `redo`, `historyItems()`
+(`DocHistoryItem`), `checkoutHistory(id:)`, `snapshot(name:)`, `snapshots()`, `restoreSnapshot(name:)`,
+`setMaxStates`, `historyMemoryBytes()`. Presentation mirrors `DevelopSession`: `setListener` with a
+`DocumentListener` (`onFrame(DocFrameInfo)`, `onLayersChanged`, `onHistoryChanged`, `onRenderFailed`; once per
+coalesced frame, on the session's render thread), `planSurface` (fit-to-window level extent),
+`attachSurface` (a ring of RGBA8 IOSurfaces), `setViewport(level:x:y:width:height:zoom:)` (a region of a
+pyramid level, top-left in the surface; frames report it in level and level-0 coordinates),
+`setDisplayHeadroom` (stored; frames are SDR until M5-08), `refresh`, `detachSurfaces`. Frames are
+display-encoded sRGB with **straight alpha**: the host draws the transparency checkerboard. Rendering is
+the compositor's GPU-resident renderer on the engine's single Metal device (shared with develop).
+`layerThumbnail`, `maskThumbnail` and `compositeThumbnail(maxPx:)` return RGBA8 IOSurface ids cached per
+revision. Output: `save()`, `saveAs(path:)` (`.tessera-doc`, `.psd`, `.psb` with the flattened composite),
+`exportFlat(path:format:quality:color:)` (`ExportFormat` PNG/JPEG/TIFF, `ExportColor` document profile or a
+built-in space, ICC embedded), `close()`.
 `ImageQuery` accepts folder, FTS text, decision, limit (0 = all), and offset. Folder paths are
 canonical paths returned by `indexFolder`; filtering includes descendants. RAW capture times
 are Unix seconds as strings; JPEG EXIF capture times are local ISO date-times. Recipe JSON is
