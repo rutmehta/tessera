@@ -9,6 +9,7 @@ description = "Layered document model and tiled compositor (spec 02 §1–2, spe
 path = "src/lib.rs"
 
 [dependencies]
+color-mgmt = { path = "../color-mgmt" }
 merge = { path = "../merge" }
 transform = { path = "../transform" }
 psd = { path = "../psd" }
@@ -25,5 +26,6 @@ rayon = "1.12"
 zstd = { version = "0.13", default-features = false }
 
 [dev-dependencies]
+lcms2 = { workspace = true }
 filters = { path = "../filters" }
 tempfile = { workspace = true }

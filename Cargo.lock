@@ -694,10 +694,12 @@ version = "0.1.0"
 dependencies = [
  "blake3",
  "bytemuck",
+ "color-mgmt",
  "engine-api",
  "filters",
  "gpu-core",
  "half",
+ "lcms2",
  "merge",
  "pollster",
  "psd",

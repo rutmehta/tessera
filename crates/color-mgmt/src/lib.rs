@@ -2,12 +2,14 @@
 mod display;
 #[cfg(all(target_os = "macos", feature = "imageio"))]
 mod imageio;
+mod lookup;
 mod lut;
 mod printer;
 mod transform;
 pub use display::DisplayProfile;
 #[cfg(all(target_os = "macos", feature = "imageio"))]
 pub use imageio::decode_to_tiff;
+pub use lookup::sample_color_lookup_icc;
 pub use lut::Lut3d;
 pub use printer::*;
 use std::{collections::HashMap, path::Path, sync::Arc};

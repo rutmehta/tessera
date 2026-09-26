@@ -76,8 +76,8 @@ fn y601(c: vec3<f32>) -> f32 {
     return 0.299 * c.x + 0.587 * c.y + 0.114 * c.z;
 }
 
-// adjust.rs::Compiled::apply.
-fn adjustment(k: u32, c: vec3<f32>) -> vec3<f32> {
+// adjust.rs::Compiled::apply_at; position is absolute in the requested mip level.
+fn adjustment(k: u32, c: vec3<f32>, position: vec2<u32>) -> vec3<f32> {
     let a = steps[k].p[0];
     switch steps[k].t.z {
         case 0u: { return vec3<f32>(1.0) - c; }
@@ -131,7 +131,7 @@ fn adjustment(k: u32, c: vec3<f32>) -> vec3<f32> {
             if (a.z < 0.0) { return rgb * (1.0 + a.z); }
             return rgb + (vec3<f32>(1.0) - rgb) * a.z;
         }
-        default: { return c; }
+        default: { return extended_adjustment(k, c, position); }
     }
 }
 
@@ -384,7 +384,7 @@ fn main(@builtin(workgroup_id) wg: vec3<u32>, @builtin(num_workgroups) nwg: vec3
         } else if (op == 1u) {
             if (cur.w > 0.0) {
                 let cb = unpremul(cur);
-                var a = adjustment(k, cb);
+                var a = adjustment(k, cb, vec2<u32>(x, y));
                 if (frame.clamp != 0u) { a = clamp(a, vec3<f32>(0.0), vec3<f32>(1.0)); }
                 var w = f.x * f.y;
                 if ((h.z & 16u) != 0u) { w = w * mask_at(k, pg.y, f.w, q); }

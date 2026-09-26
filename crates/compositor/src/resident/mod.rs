@@ -35,6 +35,7 @@
 //! directly into GPU pages. The host computes f64 sampling footprints, not
 //! pixels, to preserve the CPU reference's affine-coordinate precision.
 
+mod adjustment_limits;
 mod filters;
 mod fusion;
 mod output;
@@ -139,7 +140,12 @@ impl Pipelines {
         let doc = gpu_core::precise_compute_pipeline(
             device,
             "resident document",
-            &shader(&format!("{}\n{}", pages("read"), include_str!("doc.wgsl"))),
+            &shader(&format!(
+                "{}\n{}\n{}",
+                pages("read"),
+                include_str!("doc.wgsl"),
+                include_str!("adjustments.wgsl")
+            )),
             "main",
             (BLOCK, BLOCK, 1),
             &doc_layout_entries(),
@@ -1172,6 +1178,7 @@ impl ResidentRenderer {
         let (cols, rows) = le.tile_grid(TILE_SIZE);
         let grid = (cols * rows) as usize;
         let program = Program::compile(&state.root, grid)?;
+        adjustment_limits::validate_aux(program.aux.len(), &self.device.limits())?;
 
         // Phase 1: resolve the page tables of the tiles under the viewport
         // to content-addressed nodes (nothing outside it is interned,

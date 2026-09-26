@@ -261,7 +261,7 @@ impl Compiler<'_> {
         if let LayerKind::Adjustment(adj) = &layer.kind {
             let mut s = Step::new(K_ADJUST);
             s.set(&Params::of(layer, atop));
-            self.adjustment(&mut s, adj);
+            self.adjustment(&mut s, adj)?;
             self.mask(&mut s, layer)?;
             self.p.steps.push(s);
             return Ok(());
@@ -367,8 +367,225 @@ impl Compiler<'_> {
         }
     }
 
-    fn adjustment(&mut self, s: &mut Step, adj: &Adjustment) {
+    fn adjustment(&mut self, s: &mut Step, adj: &Adjustment) -> EngineResult<()> {
+        adj.validate()?;
+        if matches!(adj, Adjustment::BrightnessContrast { legacy: false, .. })
+            && let Compiled::Channels(ch) = adj.compile()
+        {
+            s.adj = 14;
+            s.aux = self.aux_offset();
+            for (i, l) in ch.iter().enumerate() {
+                s.p[0][i] = l.len() as f32;
+                self.p.aux.extend_from_slice(l);
+            }
+            return Ok(());
+        }
         match adj {
+            Adjustment::Vibrance {
+                vibrance,
+                saturation,
+            } => {
+                s.adj = 15;
+                s.aux = self.aux_offset();
+                self.p
+                    .aux
+                    .extend_from_slice(crate::adjust::color::power_tables());
+                s.p[0] = [
+                    (vibrance / 100.0).clamp(-1.0, 1.0),
+                    (saturation / 100.0).clamp(-1.0, 1.0),
+                    0.0,
+                    0.0,
+                ];
+            }
+            Adjustment::GradientMap { .. } => {
+                use crate::adjust::GradientMethod;
+                if let Compiled::Gradient(stops, dither, reverse, method) = adj.compile() {
+                    s.adj = 16;
+                    s.aux = self.aux_offset();
+                    s.aux_n = stops.len() as u32;
+                    for stop in stops {
+                        self.p.aux.extend_from_slice(&stop);
+                    }
+                    s.p[0] = [
+                        if dither { 1.0 } else { 0.0 },
+                        if reverse { 1.0 } else { 0.0 },
+                        match method {
+                            GradientMethod::Classic => 0.0,
+                            GradientMethod::Linear => 1.0,
+                            GradientMethod::Perceptual => 2.0,
+                        },
+                        0.0,
+                    ];
+                    self.p
+                        .aux
+                        .extend_from_slice(crate::adjust::color::power_tables());
+                }
+            }
+            Adjustment::Auto {
+                black,
+                white,
+                gamma,
+                ..
+            } => {
+                s.adj = 17;
+                s.aux = self.aux_offset();
+                if let Compiled::Auto(_, ch) = adj.compile() {
+                    for l in ch {
+                        self.p.aux.extend_from_slice(&l);
+                    }
+                }
+                for i in 0..3 {
+                    s.p[i] = [
+                        black[i],
+                        white[i],
+                        if gamma[i] > 0.0 { gamma[i] } else { 1.0 },
+                        0.0,
+                    ];
+                }
+            }
+            Adjustment::Equalize { maps } => {
+                s.adj = 14;
+                s.aux = self.aux_offset();
+                for (i, l) in maps.iter().enumerate() {
+                    s.p[0][i] = l.len() as f32;
+                    self.p.aux.extend_from_slice(l);
+                }
+            }
+            Adjustment::MatchColor {
+                source_mean,
+                source_std,
+                target_mean,
+                target_std,
+                luminance,
+                color_intensity,
+                fade,
+                ..
+            } => {
+                s.adj = 18;
+                s.aux = self.aux_offset();
+                for v in [source_mean, source_std, target_mean, target_std] {
+                    self.p.aux.extend_from_slice(v);
+                }
+                self.p
+                    .aux
+                    .extend_from_slice(crate::adjust::color::power_tables());
+                s.p[0] = [
+                    (luminance / 100.0).clamp(0.0, 2.0),
+                    (color_intensity / 100.0).clamp(0.0, 2.0),
+                    (fade / 100.0).clamp(0.0, 1.0),
+                    0.0,
+                ];
+            }
+            Adjustment::ColorLookup { size, data } => {
+                if !(2..=256).contains(size)
+                    || (*size as usize).checked_pow(3) != Some(data.len())
+                    || data.iter().flatten().any(|v| !v.is_finite())
+                {
+                    return Err(EngineError::invalid("color_lookup", "invalid cube"));
+                }
+                s.adj = 19;
+                s.aux = self.aux_offset();
+                s.aux_n = *size;
+                for row in data {
+                    self.p.aux.extend_from_slice(row);
+                }
+            }
+            Adjustment::ShadowsHighlights { settings: a } => {
+                a.validate()?;
+                if a.needs_neighbourhood() {
+                    return Err(EngineError::Unsupported {what:"resident ShadowsHighlights needs a real backdrop halo; use Compositor::render_tile_with_neighbourhood CPU fallback".into()});
+                }
+                s.adj = 20;
+                s.p[0] = [
+                    a.shadows_amount,
+                    a.shadows_tone,
+                    a.highlights_amount,
+                    a.highlights_tone,
+                ];
+                s.p[1] = [a.color, a.midtone, a.black_clip, a.white_clip];
+                s.p[2][0] = if a.is_identity() { 1.0 } else { 0.0 };
+            }
+            Adjustment::Desaturate => s.adj = 7,
+            Adjustment::SelectiveColor { colors, absolute } => {
+                s.adj = 12;
+                s.aux = self.aux_offset();
+                for row in colors {
+                    for v in row {
+                        self.p.aux.push(v.clamp(-100.0, 100.0) / 100.0);
+                    }
+                }
+                s.p[0][0] = if *absolute { 1.0 } else { 0.0 };
+            }
+            Adjustment::ReplaceColor {
+                color,
+                fuzziness,
+                hue,
+                saturation,
+                lightness,
+            } => {
+                s.adj = 13;
+                s.p[0] = [
+                    color[0],
+                    color[1],
+                    color[2],
+                    (fuzziness / 200.0).clamp(0.0, 1.0),
+                ];
+                s.p[1] = [
+                    hue / 360.0,
+                    (saturation / 100.0).clamp(-1.0, 1.0),
+                    (lightness / 100.0).clamp(-1.0, 1.0),
+                    3.0_f32.sqrt(),
+                ];
+            }
+            Adjustment::PhotoFilter {
+                color,
+                density,
+                preserve_luminosity,
+            } => {
+                s.adj = 9;
+                s.p[0] = [
+                    color[0].clamp(0.0, 1.0),
+                    color[1].clamp(0.0, 1.0),
+                    color[2].clamp(0.0, 1.0),
+                    (density / 100.0).clamp(0.0, 1.0),
+                ];
+                s.p[1][0] = if *preserve_luminosity { 1.0 } else { 0.0 };
+            }
+            Adjustment::ColorBalance {
+                shadows,
+                midtones,
+                highlights,
+                preserve_luminosity,
+            } => {
+                s.adj = 10;
+                for (i, range) in [shadows, midtones, highlights].into_iter().enumerate() {
+                    for (j, v) in range.iter().enumerate() {
+                        s.p[i][j] = v.clamp(-100.0, 100.0);
+                    }
+                }
+                s.p[0][3] = if *preserve_luminosity { 1.0 } else { 0.0 };
+            }
+            Adjustment::BlackWhite { sliders, tint } => {
+                s.adj = 11;
+                s.aux = self.aux_offset();
+                self.p.aux.extend_from_slice(sliders);
+                if let Some(tint) = tint {
+                    s.p[0] = [tint[0], tint[1], tint[2], 1.0];
+                }
+            }
+            Adjustment::BrightnessContrast {
+                brightness,
+                contrast,
+                legacy,
+            } => {
+                s.adj = 8;
+                s.p[0] = [
+                    brightness.clamp(-150.0, 150.0) / 150.0,
+                    contrast.clamp(-100.0, 100.0) / 100.0,
+                    if *legacy { 1.0 } else { 0.0 },
+                    (contrast.clamp(-100.0, 100.0) / 100.0).exp2(),
+                ];
+            }
             Adjustment::Invert => s.adj = 0,
             Adjustment::Exposure {
                 exposure,
@@ -421,6 +638,13 @@ impl Compiler<'_> {
                     if *colorize { 1.0 } else { 0.0 },
                 ];
             }
+            #[allow(unreachable_patterns)]
+            _ => {
+                return Err(EngineError::Unsupported {
+                    what: format!("resident GPU adjustment: {adj:?}; use CPU renderer"),
+                });
+            }
         }
+        Ok(())
     }
 }

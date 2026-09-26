@@ -263,6 +263,7 @@ fn source(steps: &[[u32; 5]], depth: u32, slabs: usize) -> String {
     }
     out.push_str(suffix);
     out.push_str(&functions);
+    out.push_str(include_str!("adjustments.wgsl"));
     let pages = include_str!("pages.wgsl").replace("ACCESS", "read");
     let (head, tail) = pages.split_once("    switch page >> 29u {").unwrap();
     let (_, tail) = tail.split_once("\n    }\n").unwrap();
