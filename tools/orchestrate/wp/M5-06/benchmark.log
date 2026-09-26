@@ -1,0 +1,68 @@
+
+running 1 test
+L0 5000x4000 Gaussian: 911.097 ms
+L0 5000x4000 Box: 280.740 ms
+L0 5000x4000 Motion: 13893.071 ms
+L0 5000x4000 RadialSpin: 26647.365 ms
+test filters_20mp_l0_l2 has been running for over 60 seconds
+L0 5000x4000 RadialZoom: 33537.430 ms
+L0 5000x4000 LensBlur: 1543.883 ms
+L0 5000x4000 SurfaceBlur: 1339.653 ms
+L0 5000x4000 UnsharpMask: 596.117 ms
+L0 5000x4000 SmartSharpen: 1469.326 ms
+L0 5000x4000 HighPass: 718.615 ms
+L0 5000x4000 AddNoise: 431.845 ms
+L0 5000x4000 ReduceNoise: 6674.086 ms
+L0 5000x4000 Median: 1259.194 ms
+L0 5000x4000 DustScratches: 1298.064 ms
+L0 5000x4000 Emboss: 302.997 ms
+L0 5000x4000 FindEdges: 441.121 ms
+L0 5000x4000 Solarize: 188.906 ms
+L0 OilPaint: unavailable (invalid argument `filters`: explicit placeholder: not implemented), 73.523 ms dispatch
+L0 5000x4000 Clouds: 6659.880 ms
+L0 5000x4000 DifferenceClouds: 6951.230 ms
+L0 LensFlare: unavailable (invalid argument `filters`: explicit placeholder: not implemented), 101.283 ms dispatch
+L0 5000x4000 Adjust: 329.498 ms
+L0 CameraRaw: unavailable (invalid argument `camera raw`: requires an injected CameraRawProcessor), 90.341 ms dispatch
+L0 5000x4000 Distort(Pinch): 19747.544 ms
+L0 5000x4000 Distort(Spherize): 15614.873 ms
+L0 5000x4000 Distort(Twirl): 8967.400 ms
+L0 5000x4000 Distort(Wave): 5162.720 ms
+L0 5000x4000 Distort(Ripple): 43490.426 ms
+L0 5000x4000 Distort(PolarToRectangular): 13494.074 ms
+L0 5000x4000 Distort(RectangularToPolar): 9225.143 ms
+L0 5000x4000 Distort(Offset): 559.468 ms
+L2 1250x1000 Gaussian: 23.088 ms
+L2 1250x1000 Box: 14.724 ms
+L2 1250x1000 Motion: 1003.736 ms
+L2 1250x1000 RadialSpin: 1437.638 ms
+L2 1250x1000 RadialZoom: 816.427 ms
+L2 1250x1000 LensBlur: 49.994 ms
+L2 1250x1000 SurfaceBlur: 38.595 ms
+L2 1250x1000 UnsharpMask: 20.382 ms
+L2 1250x1000 SmartSharpen: 47.798 ms
+L2 1250x1000 HighPass: 20.331 ms
+L2 1250x1000 AddNoise: 12.617 ms
+L2 1250x1000 ReduceNoise: 229.093 ms
+L2 1250x1000 Median: 78.462 ms
+L2 1250x1000 DustScratches: 80.599 ms
+L2 1250x1000 Emboss: 18.847 ms
+L2 1250x1000 FindEdges: 26.443 ms
+L2 1250x1000 Solarize: 11.258 ms
+L2 OilPaint: unavailable (invalid argument `filters`: explicit placeholder: not implemented), 4.095 ms dispatch
+L2 1250x1000 Clouds: 304.640 ms
+L2 1250x1000 DifferenceClouds: 362.403 ms
+L2 LensFlare: unavailable (invalid argument `filters`: explicit placeholder: not implemented), 8.537 ms dispatch
+L2 1250x1000 Adjust: 34.051 ms
+L2 CameraRaw: unavailable (invalid argument `camera raw`: requires an injected CameraRawProcessor), 18.408 ms dispatch
+L2 1250x1000 Distort(Pinch): 1874.976 ms
+L2 1250x1000 Distort(Spherize): 1744.827 ms
+L2 1250x1000 Distort(Twirl): 1795.380 ms
+L2 1250x1000 Distort(Wave): 371.648 ms
+L2 1250x1000 Distort(Ripple): 1936.461 ms
+L2 1250x1000 Distort(PolarToRectangular): 462.738 ms
+L2 1250x1000 Distort(RectangularToPolar): 476.314 ms
+L2 1250x1000 Distort(Offset): 33.550 ms
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 235.71s
+

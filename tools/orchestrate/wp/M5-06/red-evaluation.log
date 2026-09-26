@@ -1,0 +1,12 @@
+error[E0432]: unresolved imports `filters::SmartFilter`, `filters::SmartFilters`, `filters::CameraRawProcessor`, `filters::CameraRawFilter`
+ --> crates/filters/tests/evaluation.rs:3:42
+  |
+3 | use filters::{Effect,Filter,FilterParams,SmartFilter,SmartFilters,CameraRawProcessor,CameraRawFilter};
+  |                                          ^^^^^^^^^^^ ^^^^^^^^^^^^ ^^^^^^^^^^^^^^^^^^ ^^^^^^^^^^^^^^^ no `CameraRawFilter` in the root
+  |                                          |           |            |
+  |                                          |           |            no `CameraRawProcessor` in the root
+  |                                          |           no `SmartFilters` in the root
+  |                                          no `SmartFilter` in the root
+
+For more information about this error, try `rustc --explain E0432`.
+error: could not compile `filters` (test "evaluation") due to 1 previous error

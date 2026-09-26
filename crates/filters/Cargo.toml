@@ -1,0 +1,17 @@
+[package]
+name = "filters"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+description = "Non-destructive raster filters and direct image adjustments"
+
+[dependencies]
+compositor = { path = "../compositor" }
+engine-api = { path = "../engine-api" }
+pipeline-cpu = { path = "../pipeline-cpu" }
+wgpu.workspace = true
+bytemuck.workspace = true
+pollster = "0.4"
+
+[dev-dependencies]
+naga = { version = "30", features = ["wgsl-in"] }
