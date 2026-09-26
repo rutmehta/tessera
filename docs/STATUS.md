@@ -26,9 +26,12 @@ Tethered capture + live ingest (ImageCaptureCore; no camera here to verify physi
 ## Milestone 5 (layered editor) so far — merged
 Compositor core (27 blend modes exact, groups/knockout/Blend If, adjustments, smart objects, COW tiles, dirty rects, non-linear history, .tessera-doc), PSD/PSB read/write + adapter, engine-api 1.2 (document/layer ids, node memo key, document tool calls, history, action descriptors), GPU-resident compositing via a shared `gpu-core` device (dab 1.6 ms, L2 13.6 ms; L0 198 ms vs 100 target), filters crate (blurs/sharpen/noise/distort/stylize/adjust with Metal parity), exact critic metrics, tethering UI, keywords/captions UI.
 
+## Also merged (2026-09-26)
+Brush engine (dynamics, ABR import, heal/clone/patch, GPU dabs) + selection tools (all shapes, refine edge, contours, alpha channels), document tool executor with 32 MCP tools and Actions record/replay, brush/selection wired into it, self-supervised CFA denoise network (training + export scripts; weights local), incremental library updates (change feed; tether/import/rescan update in place), assisted culling + agent UI verified on screen.
+
 ## In progress / next
-- M2-28 incremental library updates (+ tether naming fixes), M5-05 brush engine + selections, M5-07 document tool executor + Actions; then the layered-editor UI (Opus) and L0 compositor shader specialisation.
-- GPT-6 (Codex) quota exhausted until 2026-09-26 13:51; Opus carries work meanwhile.
+- M5-08b compositor L0/viewport targets (Opus), M3-16b GPU-resident CFA handoff, M5-12 text layers, M5-13 vector shapes (Astra); then M2-29 develop JPEG/TIFF/HEIC.
+- Machine B owns the layered-editor UI (M5-09). Coordinator fallback: `tools/orchestrate/supervise.sh` (Astra 900k via Hermes) if the Fable session is downgraded.
 
 ## Known gaps / next
 - Adobe undocumented XMP structures (PointColors strings, brush dabs, Look tables) need **real Lightroom-exported sidecars** to finish (M2-02b).
