@@ -8,6 +8,8 @@ enum ViewMode: String, CaseIterable, Identifiable {
     case grid = "Grid"
     case loupe = "Loupe"
     case compare = "Compare"
+    /// Layered documents (WP B5-02): viewport, Layers, Properties and History.
+    case document = "Document"
     var id: String { rawValue }
 }
 
@@ -161,6 +163,8 @@ final class AppModel {
     var showAutoEdit = false
     /// File ▸ Tethered Capture… (WP M3-12b): the docked Tether panel and its session.
     let tether = TetherController()
+    /// Layered documents (WP B5-02): open documents, tabs, New / Open / Save.
+    let documents = DocumentWorkspace()
     var viewMode: ViewMode = .grid {
         didSet {
             guard viewMode != oldValue else { return }
@@ -172,8 +176,9 @@ final class AppModel {
             }
             if viewMode != .compare {
                 compare = nil
-                modeBeforeCompare = viewMode
+                modeBeforeCompare = viewMode == .document ? .grid : viewMode
             }
+            if oldValue == .document { documents.didLeaveDocumentMode() }
             notifySelection(scroll: true)
         }
     }
@@ -246,6 +251,7 @@ final class AppModel {
         assist.app = self
         agent.app = self
         tether.app = self
+        documents.app = self
         people.onPeopleChange = { [weak self] in self?.peopleDidChange() }
         lightroomImport.presentSheet = { [weak self] in
             // Re-assert the binding on the next turn so a dismissal still in flight cannot swallow it.
@@ -745,6 +751,7 @@ final class AppModel {
     }
 
     func selectAll() {
+        if viewMode == .document { documents.current?.selectAll(); return }
         guard !visible.isEmpty else { return }
         selection = IndexSet(integersIn: 0..<visible.count)
         refreshFocusSummary()
@@ -901,10 +908,14 @@ final class AppModel {
     }
 
     /// Edit ▸ Undo / Redo titles: the People view names the engine's people edit.
-    var undoMenuTitle: String { source == .people ? people.undoTitle : "Undo" }
-    var redoMenuTitle: String { source == .people ? people.redoTitle : "Redo" }
+    var undoMenuTitle: String { viewMode != .document && source == .people ? people.undoTitle : "Undo" }
+    var redoMenuTitle: String { viewMode != .document && source == .people ? people.redoTitle : "Redo" }
 
     func undo() {
+        if viewMode == .document {
+            if let doc = documents.current { doc.undo() } else { statusMessage = "Nothing to undo" }
+            return
+        }
         // The People view (grid or detail) is frontmost: ⌘Z replays the engine's people history.
         if source == .people {
             people.undo()
@@ -930,6 +941,10 @@ final class AppModel {
     }
 
     func redo() {
+        if viewMode == .document {
+            if let doc = documents.current { doc.redo() } else { statusMessage = "Nothing to redo" }
+            return
+        }
         if source == .people {
             people.redo()
             reportPeople()

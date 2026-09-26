@@ -6,6 +6,7 @@ mod catalog;
 mod changes;
 mod collections;
 mod develop;
+mod document;
 mod export;
 mod lrcat;
 mod lrcat_fidelity;
@@ -22,6 +23,7 @@ pub use changes::*;
 pub mod tether;
 pub use collections::*;
 pub use develop::*;
+pub use document::*;
 use engine_api::{id::ImageId, recipe as core};
 pub use export::*;
 pub use lrcat::*;
@@ -193,6 +195,12 @@ pub struct Engine {
     listener: Mutex<Option<Arc<dyn EngineEventListener>>>,
     /// Keyword suggestions, captions and OCR: models and background jobs.
     understanding: understanding::UnderstandingState,
+    /// The process's one Metal device (`gpu-core`), created on first use by
+    /// a develop or document session and shared by both.
+    gpu: std::sync::OnceLock<Option<gpu_core::GpuDevice>>,
+    /// Layered-document sessions (`document.rs`) and the compositor's GPU
+    /// pipelines on the shared device.
+    documents: document::Registry,
     /// Highest change sequence announced with `LibraryChanged`.
     notified: AtomicU64,
     /// Reads the change head without the catalog lock (tether polls must never wait on a scan).
@@ -219,8 +227,22 @@ impl Engine {
         &self,
         image: &image_core::RawImage,
     ) -> (Arc<image_core::Renderer>, String) {
-        let backend = self.renderer.get_or_init(|| backend::select(image));
+        let backend = self
+            .renderer
+            .get_or_init(|| backend::select(image, || self.shared_gpu()));
         (Arc::new(backend.renderer()), backend.name.clone())
+    }
+    /// The shared Metal device, or `None` when Metal is unavailable.
+    fn shared_gpu(&self) -> Option<gpu_core::GpuDevice> {
+        self.gpu
+            .get_or_init(|| match gpu_core::GpuDevice::new() {
+                Ok(device) => Some(device),
+                Err(e) => {
+                    eprintln!("engine: Metal unavailable: {e}");
+                    None
+                }
+            })
+            .clone()
     }
     fn lock(&self) -> Result<MutexGuard<'_, Catalog>> {
         self.catalog.lock().map_err(failure)
@@ -289,6 +311,8 @@ impl Engine {
             preview_states: Mutex::new(std::collections::HashMap::new()),
             listener: Mutex::new(None),
             understanding: Default::default(),
+            gpu: std::sync::OnceLock::new(),
+            documents: Default::default(),
             notified,
             heads,
             watching: AtomicBool::new(false),

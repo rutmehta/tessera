@@ -72,6 +72,10 @@ enum Theme {
         static let plotGrid = srgb(0xFFFFFF, 0.08)
         static let plotGuide = srgb(0xFFFFFF, 0.16)
         static let plotText = srgb(0xA7A39C)
+        /// Transparency checkerboard (document viewport, layer thumbnails): aliases of existing
+        /// tokens, light in both appearances like every image editor's grid (DESIGN.md §5).
+        static let checkerLight = thumb
+        static let checkerDark = plotText
 
         // On-image chips are drawn over photos, so they use one appearance-independent set.
         enum OnImage {
