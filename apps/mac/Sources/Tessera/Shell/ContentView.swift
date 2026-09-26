@@ -122,7 +122,7 @@ struct ContentView: View {
     private var subtitle: String {
         if model.viewMode == .document {
             guard let doc = model.documents.current else { return "" }
-            return (doc.isDirty ? "Edited · " : "") + "\(doc.layers.count) layers"
+            return (doc.isDirty ? "Edited · " : "") + "\(doc.layers.count) layer\(doc.layers.count == 1 ? "" : "s")"
         }
         let n = model.visibleCount
         guard n > 0 else { return "" }

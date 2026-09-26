@@ -115,6 +115,14 @@ the compositor's GPU-resident renderer on the engine's single Metal device (shar
 revision. Output: `save()`, `saveAs(path:)` (`.tessera-doc`, `.psd`, `.psb` with the flattened composite),
 `exportFlat(path:format:quality:color:)` (`ExportFormat` PNG/JPEG/TIFF, `ExportColor` document profile or a
 built-in space, ICC embedded), `close()`.
+Document mode uses them through `EngineDocumentBackend` (TesseraCore/Document, WP M5-10b): `EngineDocumentEngine.for(engine)`
+opens sessions (one backend object per session, so the same file or image is the same tab) and each call converts
+records field by field to the UI's `DocumentBackend` types. The engine's base history node is the History panel's
+`Opened` row (id 0). The listener adapter hops to the main queue and coalesces callbacks (newest frame, union of changed
+layers, latest head). The workspace uses the open folder's engine, or a standalone engine when no folder is open, and
+the stub backend only with `--stub-library` (and in unit tests). Opening documents and Edit in Layers run off the main
+thread. `LayerNode.revision` changes only with what thumbnails show (content, mask, a group's children), so property
+drags never re-render thumbnails; thumbnails render off the main thread anyway. Selection bounds are pixel-exact.
 `ImageQuery` accepts folder, FTS text, decision, limit (0 = all), and offset. Folder paths are
 canonical paths returned by `indexFolder`; filtering includes descendants. RAW capture times
 are Unix seconds as strings; JPEG EXIF capture times are local ISO date-times. Recipe JSON is
@@ -160,13 +168,15 @@ produces a build warning and must be configured before publishing updates.
 | `--folder <path>` | Open this folder, overriding the remembered last folder |
 | `--app-dir <path>` | Store index and caches here; overrides `TESSERA_APP_DIR`, otherwise uses `~/Library/Application Support/Tessera` |
 | `--stub <n>` | Load `n` generated items (for example `20000`) instead of a folder |
-| `--stub-library` | Explicitly use the old ImageIO folder scanner and memory-only decisions |
+| `--stub-library` | Explicitly use the old ImageIO folder scanner and memory-only decisions, and the stub document backend |
 | `--benchmark` | Run the grid scroll benchmark 1.5 s after launch. The result appears in the status bar and on stderr |
 | `--keys "x p opt-right …"` | Self-test aid: after the library loads, feed one key every 0.3 s through the culling key map; `cmd-` tokens trigger the matching menu item (e.g. `cmd-z`, `cmd-shift-d`, `cmd-delete`) |
 | `--seed-faces` | Hidden test aid: write deterministic synthetic faces (two people) for the face strip, People and per-person filters (0-based item n: person A in every frame, eyes closed when n % 6 == 5, out of focus when n % 5 == 2, the frames `make-sample-folder.swift --defects` blurs; person B in odd groups) |
 | `--fake-planner` | Hidden test aid: Auto Edit offers and preselects the scripted planner (the engine's `FakePlanner` with a fixed three-step script), so agent runs need no API key or network |
 | `--front` | Bring the window to the front without activating the app (for screenshots) |
 | `--import-lrcat <catalog>` | Open File ▸ Import Lightroom Catalog… with this `.lrcat` already chosen (acceptance aid) |
+| `--new-document` · `--open-document <file>` | Create a layered document (engine: one blank layer; stub: sample layers) / open one after launch |
+| `--document-selftest <dir>` | Self-test aid: after the library loads, Edit in Layers on `sample.dng` (or the first RAW), add an Exposure layer, drag Opacity 100 → 40 % at display rate, undo, save / reopen `.tessera-doc`, export PNG, save and open a PSD in `<dir>`; prints `document-selftest: step …`, `check …` and the listener's frame timing, then quits (`--document-selftest-hold <s>` pauses per step). `TESSERA_DOC_FRAME_LOG=1` logs every document frame |
 | `--develop-selftest` | Self-test aid: once a develop session opens, drag Exposure 0 → +1.5 through the slider path (61 steps at display rate, then mouse-up) and print `develop-selftest: … render median … p90 …` to stderr |
 
 `--keys` also accepts `wait` (one idle 0.3 s step), e.g. `--keys "return wait wait cmd-z"`.

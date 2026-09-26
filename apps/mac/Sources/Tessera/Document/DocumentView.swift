@@ -220,6 +220,10 @@ struct DocumentStatusBar: View {
                             .accessibilityIdentifier("document.status.selection")
                     }
                     separator
+                    if model.showRenderReadout, let readout = doc.renderReadout {
+                        Text(readout).fixedSize().accessibilityIdentifier("document.status.render")
+                        separator
+                    }
                 }
                 if let msg = model.statusMessage {
                     Text(msg).lineLimit(1).truncationMode(.tail).foregroundStyle(Theme.textTertiary).help(msg)

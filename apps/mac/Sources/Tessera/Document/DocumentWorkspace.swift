@@ -2,15 +2,62 @@ import AppKit
 import Observation
 import SwiftUI
 import TesseraCore
+import TesseraFFI
 import UniformTypeIdentifiers
 
 /// Document mode's open documents (WP M5-10): the tab switcher, New / Open / Edit in Layers,
 /// Save / Save As / Export Flat, close with a save prompt, panels (Tab) and screen modes (F).
 @MainActor @Observable
 final class DocumentWorkspace {
-    /// The backend factory. M5-10b replaces the stub with the engine's `DocumentEngine` adapter.
-    @ObservationIgnored var engine: any DocumentEngine = StubDocumentEngine.shared
+    /// Where documents come from when no engine-backed library is open (WP M5-10b).
+    enum BackendPolicy: Equatable {
+        /// The stub backend (`--stub-library`, unit tests).
+        case stub
+        /// A standalone engine opened on first use in the app-support directory.
+        case engine
+    }
+
+    /// The app sets `.engine` at launch unless `--stub-library` is given; unit tests keep `.stub`.
+    @ObservationIgnored var policy: BackendPolicy = .stub
+    /// An explicit backend factory (tests); nil = `resolvedEngine`.
+    @ObservationIgnored private var engineOverride: (any DocumentEngine)?
+    @ObservationIgnored private var standaloneEngine: EngineDocumentEngine?
     @ObservationIgnored weak var app: AppModel?
+
+    /// The backend factory: an explicit one when set, else the engine of an engine-backed library,
+    /// else the policy's (a standalone engine, or the stub).
+    var engine: any DocumentEngine {
+        get { engineOverride ?? resolvedEngine }
+        set { engineOverride = newValue }
+    }
+
+    /// Engine vs stub, per library and policy (the `engine` getter without an override).
+    var resolvedEngine: any DocumentEngine {
+        Self.selectEngine(library: app?.library, policy: policy) { [weak self] in
+            if let e = self?.standaloneEngine { return e.engine }
+            do {
+                let e = try Engine.open(appSupportDir: EngineLibrary.defaultSupportDirectory.path)
+                self?.standaloneEngine = EngineDocumentEngine.for(e)
+                return e
+            } catch {
+                self?.say("Documents: the engine did not open (\(error.localizedDescription)); using the stub backend")
+                return nil
+            }
+        }
+    }
+
+    /// The engine adapter of an engine-backed library; otherwise, under `.engine`, a standalone engine
+    /// (`standalone()`, nil when it cannot open), and the stub under `.stub` or as the fallback.
+    static func selectEngine(library: (any PhotoLibrary)?, policy: BackendPolicy,
+                             standalone: () -> Engine?) -> any DocumentEngine {
+        if let lib = library as? EngineLibrary { return EngineDocumentEngine.for(lib.engine) }
+        if policy == .engine, let e = standalone() { return EngineDocumentEngine.for(e) }
+        return StubDocumentEngine.shared
+    }
+
+    var usesStub: Bool { engine is StubDocumentEngine }
+    /// A document is being opened off the main thread (engine opens decode or render).
+    private(set) var opening: String?
 
     private(set) var documents: [DocumentController] = []
     private(set) var current: DocumentController?
@@ -58,12 +105,37 @@ final class DocumentWorkspace {
     }
 
     func newDocument(_ s: NewDocumentSettings) {
+        let engine = self.engine
         do {
             try install(engine.newDocument(width: UInt32(s.width), height: UInt32(s.height), depth: s.depth, profile: s.profile))
             say("New document \(s.width) × \(s.height) px, \(s.depth.title), \(s.profile)"
                 + (engine is StubDocumentEngine ? " (stub backend: sample layers)" : ""))
         } catch {
             say("New document: \(error.localizedDescription)")
+        }
+    }
+
+    /// Opens through `engine`: synchronously on the stub, off the main thread on the engine (opening
+    /// decodes files and renders library images at full resolution), then installs the document.
+    private func load(_ what: String, engine: any DocumentEngine, done: String,
+                      _ body: @escaping @Sendable (any DocumentEngine) throws -> any DocumentBackend) {
+        if engine is StubDocumentEngine {
+            do {
+                try install(body(engine))
+                say(done)
+            } catch { say("\(what): \(error.localizedDescription)") }
+            return
+        }
+        opening = what
+        say("\(what)…")
+        Task { @MainActor [weak self] in
+            let result = await Task.detached(priority: .userInitiated) { Result { try body(engine) } }.value
+            guard let self else { return }
+            self.opening = nil
+            do {
+                try self.install(result.get())
+                self.say(done)
+            } catch { self.say("\(what): \(error.localizedDescription)") }
         }
     }
 
@@ -85,24 +157,35 @@ final class DocumentWorkspace {
     }
 
     func open(_ url: URL) {
-        do {
-            try install(engine.openDocument(path: url.path))
-            say("Opened \(url.lastPathComponent)")
-        } catch {
-            say("Open \(url.lastPathComponent): \(error.localizedDescription)")
+        let path = url.path
+        load("Open \(url.lastPathComponent)", engine: engine, done: "Opened \(url.lastPathComponent)") {
+            try $0.openDocument(path: path)
         }
     }
 
-    /// Library ▸ Edit in Layers (⌘E): the focused image, developed, as a new document.
+    /// Library ▸ Edit in Layers (⌘E): the focused image, developed, as a new document. Engine images
+    /// open on their own engine by image id (`open_document_from_image(id, developed: true)`); the stub
+    /// takes the file.
     func editInLayers(_ item: PhotoItem?) {
         guard let item else { say("Edit in Layers: select a photo first"); return }
-        let id: String? = engine is StubDocumentEngine ? item.url.map { "file:\($0.path)" } : item.engineImage?.imageID
-        guard let id else { say("Edit in Layers needs a photo file (stub items have none)"); return }
-        do {
-            try install(engine.openDocumentFromImage(imageId: id, developed: true))
-            say("Editing \(item.name) in layers")
-        } catch {
-            say("Edit in Layers: \(error.localizedDescription)")
+        let what = "Edit \(item.name) in Layers", done = "Editing \(item.name) in layers"
+        if !(engineOverride is StubDocumentEngine), let ref = item.engineImage {
+            let id = ref.imageID
+            load(what, engine: EngineDocumentEngine.for(ref.engine), done: done) {
+                try $0.openDocumentFromImage(imageId: id, developed: true)
+            }
+            return
+        }
+        let engine = self.engine
+        guard let url = item.url else { say("Edit in Layers needs a photo file (stub items have none)"); return }
+        if engine is StubDocumentEngine {
+            let id = "file:\(url.path)"
+            load(what, engine: engine, done: done) { try $0.openDocumentFromImage(imageId: id, developed: true) }
+        } else if item.kind == .raw {
+            say("Edit in Layers: open the photo's folder to edit a RAW on the engine")
+        } else {
+            let path = url.path
+            load(what, engine: engine, done: done) { try $0.openDocument(path: path) }
         }
     }
 
@@ -136,18 +219,41 @@ final class DocumentWorkspace {
         panel.nameFieldStringValue = stem + ".tessera-doc"
         let handle: @MainActor (NSApplication.ModalResponse) -> Void = { [weak self] r in
             guard r == .OK, let url = panel.url else { return }
-            do {
-                try doc.backend.saveAs(path: url.path)
-                doc.reloadModel()
-                doc.reloadHistory()
-                self?.say("Saved \(url.lastPathComponent)")
-                then?()
-            } catch { self?.say("Save As: \(error.localizedDescription)") }
+            if self?.write(doc, to: url) == true { then?() }
         }
         if let window = self.window {
             panel.beginSheetModal(for: window) { r in MainActor.assumeIsolated { handle(r) } }
         } else {
             handle(panel.runModal())
+        }
+    }
+
+    /// Save As to `url` (`.tessera-doc`, `.psd`, `.psb`); the document takes that path.
+    @discardableResult
+    func write(_ doc: DocumentController, to url: URL) -> Bool {
+        do {
+            try doc.backend.saveAs(path: url.path)
+            doc.reloadModel()
+            doc.reloadHistory()
+            say("Saved \(url.lastPathComponent)")
+            return true
+        } catch {
+            say("Save As: \(error.localizedDescription)")
+            return false
+        }
+    }
+
+    /// Export Flat of `doc` to `url` with `s`.
+    @discardableResult
+    func exportFlat(_ doc: DocumentController, _ s: ExportFlatSettings, to url: URL) -> Bool {
+        do {
+            try doc.backend.exportFlat(path: url.path, format: s.format.documentFormat, quality: UInt8(s.quality),
+                                       color: s.color.documentColor)
+            say("Exported \(url.lastPathComponent) (\(s.format.title), \(s.color.title))")
+            return true
+        } catch {
+            say("Export Flat: \(error.localizedDescription)")
+            return false
         }
     }
 
@@ -161,11 +267,7 @@ final class DocumentWorkspace {
         panel.nameFieldStringValue = (doc.title as NSString).deletingPathExtension + "." + s.format.fileExtension
         let handle: @MainActor (NSApplication.ModalResponse) -> Void = { [weak self] r in
             guard r == .OK, let url = panel.url else { return }
-            do {
-                try doc.backend.exportFlat(path: url.path, format: s.format.documentFormat, quality: UInt8(s.quality),
-                                           color: s.color.documentColor)
-                self?.say("Exported \(url.lastPathComponent) (\(s.format.title), \(s.color.title))")
-            } catch { self?.say("Export Flat: \(error.localizedDescription)") }
+            self?.exportFlat(doc, s, to: url)
         }
         if let window = self.window {
             panel.beginSheetModal(for: window) { r in MainActor.assumeIsolated { handle(r) } }
@@ -197,7 +299,7 @@ final class DocumentWorkspace {
         }
     }
 
-    private func discard(_ doc: DocumentController) {
+    func discard(_ doc: DocumentController) {
         guard let i = documents.firstIndex(where: { $0 === doc }) else { return }
         documents.remove(at: i)
         doc.close()

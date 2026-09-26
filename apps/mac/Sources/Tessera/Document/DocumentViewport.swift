@@ -274,6 +274,9 @@ final class DocumentViewportView: NSView {
                 guard let s = DocumentSurfaces.make(width: Int(w), height: Int(h)) else { continue }
                 next[IOSurfaceGetID(s)] = (s, renderer?.texture(for: s))
             }
+            // Release the old ring first (M5-09: a different size replaces the ring; detaching makes it
+            // explicit). The frame on screen keeps its texture until the new ring's first frame arrives.
+            if !ring.isEmpty { doc.backend.detachSurfaces() }
             do {
                 for id in next.keys { try doc.backend.attachSurface(iosurfaceId: id, width: w, height: h) }
             } catch {

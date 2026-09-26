@@ -45,6 +45,7 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
     private var items: [DocLayerID: LayerItem] = [:]
     private var syncingSelection = false
     private var thumbnailCache = ThumbnailCache()
+    private let thumbnailLoader = LayerThumbnailLoader()
     static let dragType = NSPasteboard.PasteboardType("dev.tessera.layer-ids")
     static let thumbnailPx: UInt32 = 64
 
@@ -89,6 +90,7 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
         tree = doc.outline
         items.removeAll()
         thumbnailCache = ThumbnailCache()
+        thumbnailLoader.reset()
         doc.onLayersReload = { [weak self] old, new in self?.apply(old: old, new: new) }
         doc.onSelectionChange = { [weak self] in self?.syncSelectionFromModel() }
         outline.reloadData()
@@ -206,16 +208,43 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
     private func configure(_ cell: LayerRowCell, node n: LayerRecord, row: Int) {
         guard let doc = document else { return }
         var thumb: NSImage?
+        let backend = doc.backend, id = n.id, px = Self.thumbnailPx
         if n.kind != .adjustment {
-            thumb = thumbnailCache.image(key: "l\(n.id):\(n.revision)") {
-                try? doc.backend.layerThumbnail(id: n.id, maxPx: Self.thumbnailPx)
-            }
+            thumb = thumbnail(key: "l\(n.id):\(n.revision)", slot: "l\(n.id)") { try? backend.layerThumbnail(id: id, maxPx: px) }
         }
-        let mask = n.hasMask ? thumbnailCache.image(key: "m\(n.id):\(n.revision):\(n.maskEnabled)") {
-            try? doc.backend.maskThumbnail(id: n.id, maxPx: Self.thumbnailPx)
+        let mask = n.hasMask ? thumbnail(key: "m\(n.id):\(n.revision):\(n.maskEnabled)", slot: "m\(n.id)") {
+            try? backend.maskThumbnail(id: id, maxPx: px)
         } : nil
         cell.configure(n, thumbnail: thumb, mask: mask)
         cell.setRow(row)
+    }
+
+    /// A cached thumbnail, or (on a miss) the slot's previous image while the new one renders off the
+    /// main thread (thumbnails of large layers take tens of milliseconds); the row refreshes when it lands.
+    private func thumbnail(key: String, slot: String, fetch: @escaping @Sendable () -> UInt32?) -> NSImage? {
+        if let image = thumbnailCache.cached(key) {
+            thumbnailLoader.shown[slot] = image
+            return image
+        }
+        thumbnailLoader.load(key: key, slot: slot, fetch: fetch) { [weak self] image in
+            guard let self, let image else { return }
+            self.thumbnailCache.store(key, image)
+            self.refreshRows(showing: key)
+        }
+        return thumbnailLoader.shown[slot]
+    }
+
+    /// Re-configures the row whose current record maps to `key`.
+    private func refreshRows(showing key: String) {
+        guard let doc = document else { return }
+        for n in doc.layers {
+            let keys = ["l\(n.id):\(n.revision)", "m\(n.id):\(n.revision):\(n.maskEnabled)"]
+            guard keys.contains(key), let i = items[n.id] else { continue }
+            let row = outline.row(forItem: i)
+            if row >= 0, let cell = outline.view(atColumn: 0, row: row, makeIfNecessary: false) as? LayerRowCell {
+                configure(cell, node: n, row: row)
+            }
+        }
     }
 
     // MARK: Actions from rows
@@ -346,13 +375,19 @@ struct ThumbnailCache {
     mutating func image(key: String, surfaceID: () -> UInt32?) -> NSImage? {
         if let i = images[key] { return i }
         guard let id = surfaceID(), let s = IOSurfaceLookup(id), let image = Self.image(from: s) else { return nil }
-        if images.count > 600 { images.removeAll() }
-        images[key] = image
+        store(key, image)
         return image
     }
 
+    func cached(_ key: String) -> NSImage? { images[key] }
+
+    mutating func store(_ key: String, _ image: NSImage) {
+        if images.count > 600 { images.removeAll() }
+        images[key] = image
+    }
+
     /// RGBA8 straight alpha → NSImage.
-    static func image(from s: IOSurfaceRef) -> NSImage? {
+    nonisolated static func image(from s: IOSurfaceRef) -> NSImage? {
         let w = IOSurfaceGetWidth(s), h = IOSurfaceGetHeight(s), stride = IOSurfaceGetBytesPerRow(s)
         IOSurfaceLock(s, .readOnly, nil)
         let data = Data(bytes: IOSurfaceGetBaseAddress(s), count: stride * h)
@@ -364,6 +399,54 @@ struct ThumbnailCache {
                                provider: provider, decode: nil, shouldInterpolate: true, intent: .defaultIntent)
         else { return nil }
         return NSImage(cgImage: cg, size: NSSize(width: w, height: h))
+    }
+}
+
+/// Renders layer and mask thumbnails on a background queue, newest request per slot only: while a
+/// value drags, stale requests are skipped instead of queueing one render per step.
+@MainActor
+final class LayerThumbnailLoader {
+    /// The image each slot (`l<id>` / `m<id>`) last showed.
+    var shown: [String: NSImage] = [:]
+    private var inFlight = Set<String>()
+    private let latest = LatestKeys()
+    private let queue = DispatchQueue(label: "dev.tessera.layer-thumbnails", qos: .userInitiated)
+    private var generation = 0
+
+    /// Thread-safe newest key per slot.
+    private final class LatestKeys: @unchecked Sendable {
+        private let lock = NSLock()
+        private var keys: [String: String] = [:]
+        func set(_ slot: String, _ key: String) { lock.lock(); keys[slot] = key; lock.unlock() }
+        func isLatest(_ slot: String, _ key: String) -> Bool { lock.lock(); defer { lock.unlock() }; return keys[slot] == key }
+        func removeAll() { lock.lock(); keys.removeAll(); lock.unlock() }
+    }
+
+    func reset() {
+        shown.removeAll()
+        inFlight.removeAll()
+        latest.removeAll()
+        generation += 1
+    }
+
+    func load(key: String, slot: String, fetch: @escaping @Sendable () -> UInt32?,
+              done: @escaping @MainActor (NSImage?) -> Void) {
+        latest.set(slot, key)
+        guard inFlight.insert(key).inserted else { return }
+        let latest = self.latest, gen = generation
+        queue.async { [weak self] in
+            // Skipped when a newer revision of the slot was asked for meanwhile.
+            let image = latest.isLatest(slot, key)
+                ? fetch().flatMap { IOSurfaceLookup($0) }.flatMap { ThumbnailCache.image(from: $0) } : nil
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated {
+                    guard let self, self.generation == gen else { return }
+                    self.inFlight.remove(key)
+                    if let image { self.shown[slot] = image }
+                    done(image)
+                }
+            }
+        }
     }
 }
 

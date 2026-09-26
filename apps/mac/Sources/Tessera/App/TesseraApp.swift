@@ -51,7 +51,11 @@ struct TesseraApp: App {
 ///   --import-lrcat <catalog.lrcat>  open File ▸ Import Lightroom Catalog… with this catalog chosen
 ///   --front           order the window front without activating (screenshots while another app is active)
 ///   --appearance dark|light|system  (test aid) use this appearance for this run only
-///   --new-document    (test aid) create a layered document (2400 × 1600, sample layers on the stub) after launch
+///   --new-document    (test aid) create a layered document (2400 × 1600; one blank layer on the engine, sample layers
+///                     on the stub) after launch. Documents use the engine unless --stub-library is given
+///   --document-selftest <dir>  (test aid) ACCEPTANCE §U part 2 on the engine (Edit in Layers on sample.dng, adjustment,
+///                     opacity drag timing, undo, save, reopen, export, PSD), step markers on stderr, then quit;
+///                     --document-selftest-hold <s> sets the pause per step (2.5)
 ///   --open-document <file>  open a .tessera-doc / .psd / .psb / flat image in document mode after launch
 ///   --develop-selftest  once a develop session opens, drag Exposure 0 → +1.5 through the slider path
 ///                     (60 display-rate steps, then mouse-up) and print frame timings to stderr
@@ -90,6 +94,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             AppearancePreference.current.apply()
         }
+        // Layered documents run on the engine (WP M5-10b); `--stub-library` keeps the stub backend.
+        AppModel.shared.documents.policy = args.contains("--stub-library") ? .stub : .engine
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -149,6 +155,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     else { model.documents.newDocument(model.documents.newSettings) }
                 }
             }
+        }
+        if let dir = value(after: "--document-selftest") {
+            // Test aid (WP M5-10b): ACCEPTANCE §U part 2 on the engine, step by step, then quit.
+            let hold = value(after: "--document-selftest-hold").flatMap(Double.init) ?? 2.5
+            let test = DocumentSelfTest(model: model, dir: URL(fileURLWithPath: (dir as NSString).expandingTildeInPath), hold: hold)
+            Task { @MainActor in await test.run() }
         }
         if args.contains("--front") {   // test aid: show the window without activating the app
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {

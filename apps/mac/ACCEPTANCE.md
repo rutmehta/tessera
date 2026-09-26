@@ -961,10 +961,11 @@ the battery readout.
 ## U. Document mode: layered documents (M5-10)
 
 **Layers** (the fourth view-mode segment) is Tessera's layered editor: a viewport, and Properties, Layers and History
-panels in the inspector. Until M5-10b wires the engine's `DocumentSession`, documents run on the **stub backend**
-(`StubDocumentBackend`): a new document opens with six sample layers (Paper, Landscape with a soft elliptical mask,
-Vignette clipped to it, and a Grade group holding Curves 1 and Hue/Saturation 1), rendered on the CPU. Part 1 runs on
-the stub; part 2 repeats the key steps on the real engine once M5-10b has landed (skip it before then and say so).
+panels in the inspector. Since M5-10b documents run on the engine's `DocumentSession` (`EngineDocumentBackend`): the
+engine of the open folder, or a standalone engine in the app-support directory when no folder is open. With
+`--stub-library` they run on the **stub backend** (`StubDocumentBackend`): a new document opens with six sample layers
+(Paper, Landscape with a soft elliptical mask, Vignette clipped to it, and a Grade group holding Curves 1 and
+Hue/Saturation 1), rendered on the CPU. Part 1 runs on the stub; part 2 repeats the key steps on the real engine.
 `--new-document` (test aid) creates a document at launch; `--open-document <file>` opens one.
 
 ### Part 1: over the stub backend
@@ -972,7 +973,7 @@ the stub; part 2 repeats the key steps on the real engine once M5-10b has landed
 130. Quit Tessera. Build and launch:
      ```sh
      (cd apps/mac && swift build && Support/make-app.sh)
-     open -n apps/mac/build/Tessera.app --args --app-dir "$SCR/appdir-doc" --stub 200
+     open -n apps/mac/build/Tessera.app --args --app-dir "$SCR/appdir-doc" --stub 200 --stub-library
      ```
      Choose **File ▸ New Document…** (⌘N). 📸 Expect a sheet `New Document` with Preset, Width `2400`, Height `1600`,
      Bit depth `8-bit | 16-bit | 32-bit float`, Colour profile `sRGB IEC61966-2.1`, the footer note `Stub backend: the
@@ -1043,22 +1044,48 @@ the stub; part 2 repeats the key steps on the real engine once M5-10b has landed
      ```sh
      (cd apps/mac && swift test --filter "Document|ThemeLint" 2>&1 | grep "Executed")
      ```
-     Expect `Executed 32 tests, with 0 failures`.
+     Expect `Executed 41 tests, with 0 failures` (32 from M5-10, 9 engine-adapter tests from M5-10b).
 
-### Part 2: over the real engine (after M5-10b)
+### Part 2: over the real engine (M5-10b)
 
-143. Launch as in step 130 (M5-10b builds with the engine's `DocumentEngine`), create a document: expect a single blank
-     layer (no sample layers), the status bar message without `(stub backend: sample layers)`, and Properties `Kind Pixel`.
-144. Repeat steps 132–137 on a document opened with **File ▸ Open Document…** from a PSD in `fixtures/` (or one written by
-     the `psd` crate's tests): layer names, groups, blend modes, masks and clipping match Photoshop's Layers panel; opacity
-     and adjustment drags stay live (the brief's budget is < 16 ms per frame at the viewport level; turn on **Debug ▸ Show
-     Render Timing** if M5-10b wires it).
-145. Repeat step 140 with **Save As…** to `.psd`: the save succeeds and the PSD reopens in Tessera (and Photoshop, if
-     available) with the same layers. Repeat step 141 on a RAW: the new document has the photo's developed size.
+Work on a copy of the fixture: `mkdir -p "$SCR/shoot" && cp fixtures/raw/sample.dng "$SCR/shoot/"` (the app writes
+sidecars next to photos; never point it at `fixtures/raw`). Turn on **Debug ▸ Show Render Timing** for the readout.
+
+143. **Blank document.** Launch without `--stub-library`:
+     `open -n apps/mac/build/Tessera.app --args --app-dir "$SCR/appdir-doc" --folder "$SCR/shoot"`. ⌘N, **Create**: the
+     sheet has no stub footer; one transparent pixel layer `Layer 1` (checkerboard over the whole canvas), selected,
+     Properties `Pixel`, History `Opened` only, subtitle `1 layer`, status bar without `(stub backend: sample layers)`.
+144. **Edit in Layers.** In the grid select `sample.dng`, press ⌘E. The status bar reads `Edit sample.dng in Layers…`
+     while the engine develops it (about 1.5–3 s), then a tab `sample` with one pixel layer `sample`, Properties
+     `Bounds 0, 0 · 5212 × 3468 px`, status bar `5,212 × 3,468 px · 16-bit · sRGB IEC61966-2.1` and
+     `render: L1 <w> × <h>, <ms>` (📸 `evidence/engine-01-edit-in-layers.png`).
+145. **Adjustment layer.** Footer adjustment menu ▸ **Exposure**: a layer `Exposure 1` (engine names are numbered per
+     kind, as in Photoshop: `Levels 1`, `Hue/Saturation 1`, `Color Fill 1`) above `sample`, History `New Layer Exposure 1`.
+     Drag Exposure to +1.00: the photo brightens live; one `Exposure` row on release (📸 `engine-02-adjustment.png`).
+146. **Opacity drag.** Select `sample`, drag **Opacity** to 40 %: the photo fades over the checkerboard live and the
+     readout stays in single-digit milliseconds (budget < 16 ms at the viewport level); on release one row `Opacity 40 %`
+     (📸 `engine-03-opacity-drag.png`). The layer thumbnail does not re-render during the drag (opacity is not part of it).
+147. **Undo.** ⌘Z: opacity returns to 100 % (📸 `engine-04-undo.png`); ⇧⌘Z re-applies it. Click `Opened`: the document
+     returns to one layer. **M** and a marquee drag: the ants hug the dragged rectangle exactly (bounds are pixel-exact),
+     `Selection W × H` in the status bar, and History gains `Rectangular Marquee`; ⌘D adds `Deselect`.
+148. **Save and reopen.** ⌘S → Save As `SelfTest.tessera-doc`: the dirty dot goes (📸 `engine-05-saved.png`). ⌘W, then
+     **Open Document…** it: the same layers and the Exposure settings come back (📸 `engine-06-reopened.png`).
+149. **Export Flat** (⇧⌘E) PNG, sRGB: a 5212 × 3468 PNG (📸 `engine-07-exported.png`). **Save As…** `SelfTest.psd`: the
+     save succeeds (the engine writes PSD/PSB); close and open the PSD: `Exposure 1` (an adjustment layer) over `sample`,
+     History `Opened` (📸 `engine-08-psd-open.png`). A document with fill layers cannot be saved as PSD yet (the status
+     bar shows the engine's message).
+150. **Scripted run.** The same flow through the controller calls the UI makes, with step markers and the frame timing
+     of the listener, then quit:
+     ```sh
+     apps/mac/build/Tessera.app/Contents/MacOS/Tessera --folder "$SCR/shoot" --app-dir "$SCR/appdir-doc" \
+       --document-selftest "$SCR/doc-out" 2>&1 | grep document-selftest
+     ```
+     Expect every `check … ok`, `opacity drag: frames 61, render median <16 ms`, and `done, 0 failure(s)`.
+     `TESSERA_DOC_FRAME_LOG=1` prints every frame (`doc-frame: epoch … L1 … render … ms`) during manual drags.
 
 ## Verdict (document mode)
 
-PASS when steps 130–142 meet their expectations (and 143–145 once M5-10b has landed). Record the stub render time on a
+PASS when steps 130–142 (stub) and 143–150 (engine) meet their expectations. Record the stub render time on a
 large window (drag Opacity on `Landscape` at 100 %) as an observation; the stub renders on the CPU and is not held to the
 engine's budget.
 

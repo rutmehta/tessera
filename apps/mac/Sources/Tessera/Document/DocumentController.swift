@@ -94,7 +94,44 @@ final class DocumentController: Identifiable {
         }
     }
 
-    fileprivate func listenerFrame(_ f: DocFrame) { onFrame?(f) }
+    /// "render: L2 1368 × 912, 3.8 ms" of the latest frame, at most ten updates a second (Debug ▸ Show
+    /// Render Timing).
+    private(set) var renderReadout: String?
+    /// The latest presented frame (the listener's `FrameInfo`).
+    @ObservationIgnored private(set) var lastFrame: DocFrame?
+    /// Called with every frame after the viewport (self-test timing).
+    @ObservationIgnored var frameObserver: ((DocFrame) -> Void)?
+    @ObservationIgnored private var readoutAt = Date.distantPast
+    @ObservationIgnored private var readoutPending = false
+    @ObservationIgnored private let logFrames = ProcessInfo.processInfo.environment["TESSERA_DOC_FRAME_LOG"] != nil
+
+    fileprivate func listenerFrame(_ f: DocFrame) {
+        lastFrame = f
+        onFrame?(f)
+        frameObserver?(f)
+        if logFrames {
+            FileHandle.standardError.write(Data(String(format: "doc-frame: epoch %llu L%u %u×%u render %.2f ms%@\n", f.epoch,
+                                                       UInt32(f.level), f.width, f.height, f.renderMs,
+                                                       f.fullRecomposite ? " full" : "").utf8))
+        }
+        let wait = 0.1 - Date().timeIntervalSince(readoutAt)
+        if wait <= 0 {
+            publishReadout()
+        } else if !readoutPending {
+            readoutPending = true
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .milliseconds(Int(wait * 1000) + 1))
+                self?.readoutPending = false
+                self?.publishReadout()
+            }
+        }
+    }
+
+    private func publishReadout() {
+        guard let f = lastFrame else { return }
+        readoutAt = Date()
+        renderReadout = String(format: "render: L%u %u × %u, %.1f ms", UInt32(f.level), f.width, f.height, f.renderMs)
+    }
 
     // MARK: Running edits
 
