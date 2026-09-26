@@ -19,7 +19,7 @@ struct PeopleView: View {
                 PeopleGrid(model: model)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Theme.canvas)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("people-view")
@@ -31,7 +31,7 @@ struct PeopleView: View {
 private struct PeopleGrid: View {
     let model: AppModel
     private var people: PeopleModel { model.people }
-    private let columns = [GridItem(.adaptive(minimum: PeopleMetrics.tile, maximum: PeopleMetrics.tile + Theme.Space.xxl),
+    private let columns = [GridItem(.adaptive(minimum: PeopleMetrics.tile, maximum: PeopleMetrics.tile),
                                     spacing: Theme.Space.l, alignment: .top)]
 
     var body: some View {
@@ -79,7 +79,7 @@ private struct PeopleGrid: View {
 
 enum PeopleMetrics {
     /// Tile width: the face plus its caption.
-    static let tile: CGFloat = 136
+    static let tile: CGFloat = 176
     /// Face chips in the detail view.
     static let chip: CGFloat = 96
     /// "Move to" column in the detail view.
@@ -281,6 +281,7 @@ private struct PersonDetailView: View {
                         }
                         .padding(Theme.Space.gutter)
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                     .accessibilityIdentifier("person-faces")
                     Hairline()
                     Hint("Click faces to select them, then Split. Drag a face onto a person on the right to move it. "
@@ -292,7 +293,9 @@ private struct PersonDetailView: View {
                 MoveTargets(model: model, person: person)
                     .frame(width: PeopleMetrics.column)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .onAppear { draft = person.name ?? "" }
         .onChange(of: person.name) { draft = person.name ?? "" }
         .onExitCommand { people.closeDetail() }

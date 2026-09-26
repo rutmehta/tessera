@@ -108,7 +108,7 @@ final class DevelopTests: XCTestCase {
         _ = saved
     }
 
-    func testJpegIsNotDevelopable() async throws {
+    func testJpegIsDevelopable() async throws {
         let temp = root.appendingPathComponent("build/develop-jpeg-\(UUID().uuidString)")
         addTeardownBlock { try? FileManager.default.removeItem(at: temp) }
         let folder = temp.appendingPathComponent("shoot")
@@ -122,12 +122,10 @@ final class DevelopTests: XCTestCase {
         XCTAssertTrue(CGImageDestinationFinalize(dest))
         let library = try EngineLibrary.scan(folder: folder, appSupport: temp.appendingPathComponent("support"))
         let item = try XCTUnwrap(library.items.first)
-        do {
-            _ = try await DevelopController.open(try XCTUnwrap(item.engineImage), itemID: item.id)
-            XCTFail("JPEG must be refused")
-        } catch {
-            XCTAssertTrue(error.localizedDescription.contains("RAW") || "\(error)".contains("RAW"), "\(error)")
-        }
+        let controller = try await DevelopController.open(try XCTUnwrap(item.engineImage), itemID: item.id)
+        XCTAssertEqual(controller.info.width, 8)
+        XCTAssertEqual(controller.info.height, 8)
+        await controller.close()
     }
 
     private func mean(_ bins: [UInt32]) -> Double {
