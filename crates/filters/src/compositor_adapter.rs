@@ -15,6 +15,26 @@ use std::sync::atomic::AtomicBool;
 pub struct CompositorFilters;
 impl SmartFilterEvaluator for CompositorFilters {
     fn evaluate(&self, input: &Raster, node: &SmartFilter) -> EngineResult<Raster> {
+        if matches!(
+            node.name.as_str(),
+            "content_aware_fill" | "content_aware_move" | "content_aware_extend" | "remove"
+        ) {
+            return retouch(input, node);
+        }
+        if node.name == "liquify" {
+            #[derive(serde::Deserialize)]
+            #[serde(deny_unknown_fields)]
+            struct Params {
+                mesh: crate::liquify::Mesh,
+                #[serde(default)]
+                interpolation: crate::liquify::Interpolation,
+            }
+            let p: Params = serde_json::from_value(node.params.clone())
+                .map_err(|e| EngineError::invalid("liquify", e.to_string()))?;
+            return p
+                .mesh
+                .render(input, p.interpolation, &AtomicBool::new(false));
+        }
         #[cfg(feature = "camera-raw-filter")]
         if node.name == "camera_raw" {
             return camera_raw(input, &node.params);
@@ -91,6 +111,63 @@ impl SmartFilterEvaluator for CompositorFilters {
             &AtomicBool::new(false),
         )?;
         effect.apply_tiled(input, &params, &AtomicBool::new(false))
+    }
+}
+
+fn retouch(input: &Raster, node: &SmartFilter) -> EngineResult<Raster> {
+    use crate::caf::{self, ColourAdaptation, FillParams, MoveMode};
+    let cancel = AtomicBool::new(false);
+    let decode = |e: serde_json::Error| EngineError::invalid("retouch params", e.to_string());
+    match node.name.as_str() {
+        "content_aware_fill" => {
+            #[derive(serde::Deserialize)]
+            #[serde(deny_unknown_fields)]
+            struct Params {
+                mask: Vec<f32>,
+                #[serde(default)]
+                fill: FillParams,
+            }
+            let p: Params = serde_json::from_value(node.params.clone()).map_err(decode)?;
+            Ok(caf::fill(input, &p.mask, &p.fill, &cancel)?.composite)
+        }
+        "remove" => {
+            #[derive(serde::Deserialize)]
+            #[serde(deny_unknown_fields)]
+            struct Params {
+                mask: Vec<f32>,
+                #[serde(default)]
+                remove: crate::remove::RemoveParams,
+            }
+            let p: Params = serde_json::from_value(node.params.clone()).map_err(decode)?;
+            // A serialized document never authorizes downloading/loading a model.
+            Ok(
+                crate::remove::remove(input, &p.mask, &p.remove, None, &cancel)?
+                    .result
+                    .composite,
+            )
+        }
+        _ => {
+            #[derive(serde::Deserialize)]
+            #[serde(deny_unknown_fields)]
+            struct Params {
+                mask: Vec<f32>,
+                offset: [i32; 2],
+                #[serde(default)]
+                fill: FillParams,
+                #[serde(default)]
+                seam: ColourAdaptation,
+            }
+            let p: Params = serde_json::from_value(node.params.clone()).map_err(decode)?;
+            let mode = if node.name == "content_aware_move" {
+                MoveMode::Move
+            } else {
+                MoveMode::Extend
+            };
+            Ok(
+                caf::move_or_extend(input, &p.mask, p.offset, mode, &p.fill, p.seam, &cancel)?
+                    .composite,
+            )
+        }
     }
 }
 

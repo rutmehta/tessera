@@ -1,0 +1,18 @@
+
+running 1 test
+24MP Bilinear: cold prepare/upload 394.812 ms; first resident submit+wait 14.518 ms; resident render WALL min/median/max 11.127/11.837/13.077 ms (10 changed-mesh frames, target <25); download+Raster 294.881 ms; CPU end-to-end 269.851 ms (target <300); existing Raster GPU roundtrip 572.484 ms (NOT a <25 ms path); timestamp dispatch Some(11.458291000000001) ms
+24MP Bicubic: cold prepare/upload 246.704 ms; first resident submit+wait 25.825 ms; resident render WALL min/median/max 14.703/16.116/21.337 ms (10 changed-mesh frames, target <25); download+Raster 296.628 ms; CPU end-to-end 586.918 ms (target <300); existing Raster GPU roundtrip 572.471 ms (NOT a <25 ms path); timestamp dispatch Some(25.982458) ms
+
+thread 'benchmark_24mp' (80761578) panicked at crates/filters/tests/liquify_gpu.rs:366:9:
+Bicubic CPU end-to-end 586.918 ms exceeds 300 ms
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+benchmark_24mp --- FAILED
+
+failures:
+
+failures:
+    benchmark_24mp
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 5.22s
+
+error: test failed, to rerun pass `-p filters --test liquify_gpu`

@@ -1234,6 +1234,7 @@ dependencies = [
  "bytemuck",
  "compositor",
  "engine-api",
+ "ml-runtime",
  "naga",
  "pipeline-cpu",
  "pollster",
