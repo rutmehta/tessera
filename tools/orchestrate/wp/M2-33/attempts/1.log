@@ -1,0 +1,5 @@
+Wrote the public README, DCO contribution guide, and architecture map. I also updated the docs index and corrected stale statements in the Mac app README.
+
+The required acceptance command passed. Local links, script syntax, CLI and MCP help commands, and `git diff --check` also passed. I did not run the full `ci.sh` suite.
+
+RESULT: PASS
