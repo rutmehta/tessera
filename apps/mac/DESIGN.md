@@ -225,6 +225,17 @@ shadow; kept below the loupe's 32 pt information strip so they never cover its t
 6; focus = 2 px accent ring; rejected photos at 35 % opacity; caption = 11 pt name (secondary) and
 11 pt tabular group (tertiary) on one baseline.
 
+**Assist pills** (`BadgeOverlayView`): a pre-filled decision is an *outlined* chip over the scrim
+(`Keep?` in keep ink, `Reject?` in reject ink; `K?` / `X?` on the filmstrip), never a filled
+decision chip, until Y confirms it. **Face strip** (`FaceStrip`, loupe only): a filmstrip-height
+panel row under the loupe; square close-ups at radius 4 with a hairline (accent on hover), a focus
+dot in keep / warning / reject and an eyes glyph whose *shape* also changes (eye, eye with warning,
+eye slashed), plus a text legend so colour is never the only signal; click opens a popover.
+**Agent groups** (History panel): an outlined `AI` chip in the accent, the group name and its
+amount, a `ValueSlider` "Amount" (0–100 %) and per-step checkboxes with the rationale in
+secondary ink; the review queue and Auto Edit sheet use `SheetScaffold` and the confidence chip
+(warning below 40 %, secondary to 70 %, keep above).
+
 **Scopes** (`HistogramView`, `CurveEditorView`, `DetailPreviewView`): `plotWell`, radius 4,
 channel colours composited additively.
 

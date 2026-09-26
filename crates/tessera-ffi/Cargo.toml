@@ -25,6 +25,10 @@ ml-runtime = { path = "../ml-runtime" }
 ml-segment = { path = "../ml-segment" }
 export = { path = "../export" }
 ml-enhance = { path = "../ml-enhance" }
+ml-faces = { path = "../ml-faces" }
+ml-quality = { path = "../ml-quality" }
+style-profile = { path = "../style-profile" }
+agent = { path = "../agent" }
 anyhow.workspace = true
 blake3.workspace = true
 uniffi = { workspace = true, features = ["cli"] }

@@ -363,6 +363,15 @@ impl Profile {
             .collect();
         Ok(Prediction { settings, sliders })
     }
+    pub fn questionnaire(&self) -> &Questionnaire {
+        &self.questionnaire
+    }
+    /// Replaces the cold-start prior; learned samples and the fitted model are kept.
+    pub fn set_questionnaire(&mut self, questionnaire: Questionnaire) -> EngineResult<()> {
+        questionnaire.validate()?;
+        self.questionnaire = questionnaire;
+        Ok(())
+    }
     pub fn sample_count(&self) -> usize {
         self.samples.len()
     }

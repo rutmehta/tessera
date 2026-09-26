@@ -637,11 +637,18 @@ struct HistoryPanel: View {
         let ready = model.developStatus == .ready
         let items = tools.historyItems
         let key = "\(model.developRevision)|\(model.developHistory?.entries ?? 0)|\(model.developHistory?.headLabel ?? "")"
+        let groups = tools.historyGroups
+        let grouped = Set(groups.flatMap(\.steps))
         VStack(alignment: .leading, spacing: 0) {
             if items.isEmpty {
                 Hint(ready ? "No edits yet" : "Open a RAW in the loupe")
             }
-            ForEach(items.reversed(), id: \.id) { item in HistoryRow(item: item, tools: tools) }
+            // Agent groups first (docs/10 §2): amount, per-step toggles, rationale, redo.
+            ForEach(groups.reversed(), id: \.groupId) { group in
+                AgentGroupSection(model: model, tools: tools, group: group)
+                Hairline().padding(.bottom, Theme.Space.xs)
+            }
+            ForEach(items.reversed().filter { !grouped.contains($0.id) }, id: \.id) { item in HistoryRow(item: item, tools: tools) }
             if !items.isEmpty {
                 let atBase = !items.contains { $0.isHead }
                 Button { tools.checkout(nil) } label: {
@@ -670,7 +677,7 @@ private struct HistoryRow: View {
 
     var body: some View {
         HStack(spacing: Theme.Space.s - Theme.Space.xxs) {
-            if item.toggles == nil && item.applied {
+            if item.toggles == nil && item.groupAmount == nil && item.applied {
                 Toggle("", isOn: Binding(get: { item.enabled }, set: { tools.setStep(item, enabled: $0) }))
                     .toggleStyle(.checkbox)
                     .labelsHidden()
@@ -678,7 +685,7 @@ private struct HistoryRow: View {
                     .frame(width: Theme.Space.l)
                     .help(item.enabled ? "Turn this step off (recorded as a new step)" : "Turn this step back on")
             } else {
-                Image(systemName: item.toggles != nil ? "arrow.uturn.left" : "circle")
+                Image(systemName: item.toggles != nil ? "arrow.uturn.left" : item.groupAmount != nil ? "slider.horizontal.below.rectangle" : "circle")
                     .font(Theme.Fonts.iconSmall).foregroundStyle(Theme.textTertiary).frame(width: Theme.Space.l)
             }
             Button { tools.checkout(item.id) } label: {

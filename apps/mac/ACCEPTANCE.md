@@ -25,7 +25,7 @@ Notes:
    export CARGO_TARGET_DIR="$HOME/.cache/tessera-target/verify"
    (cd apps/mac && ./build-ffi.sh && swift build && swift test && Support/make-app.sh release)
    ```
-   Expect: `swift test` reports `Executed 64 tests, with 0 failures` (XCTest, all suites) and the Swift Testing line
+   Expect: `swift test` reports `Executed 72 tests, with 0 failures` (XCTest, all suites) and the Swift Testing line
    `Test run with 5 tests in 2 suites passed`; the last line reads `Built …/apps/mac/build/Tessera.app`.
    Also run `cargo test -p tessera-ffi -p cull -p image-core -p library --release 2>&1 | grep "test result"`. Expect only `ok.` lines.
 2. Create scratch data (a fresh folder each run; do not reuse an old path):
@@ -38,12 +38,12 @@ Notes:
    Expect: `Wrote 40 JPEGs in 16 bursts to …/shoot`, and `ls "$SCR/raw"` lists 5 RAW files.
    If `fixtures/raw` is missing, skip step 32 and note it in the verdict.
 3. Reset app preferences: `defaults delete dev.tessera.app 2>/dev/null; true`.
-4. Launch with synthetic AI scores (hidden test flag):
-   `open -n apps/mac/build/Tessera.app --args --app-dir "$SCR/appdir" --folder "$SCR/shoot" --seed-scores` 📸
+4. Launch (the app measures real quality signals for the defect sweep in the background on open):
+   `open -n apps/mac/build/Tessera.app --args --app-dir "$SCR/appdir" --folder "$SCR/shoot"` 📸
    Expect:
    - a grid of 40 cells with coloured block-mosaic images; the window subtitle reads `40 images`
-   - the status bar message starts `Opened shoot: 40 images (0 RAW), 16 groups (12 with 2+)` and ends with
-     `synthetic scores seeded`
+   - the status bar message starts `Opened shoot: 40 images (0 RAW), 16 groups (12 with 2+)`; an `Analyzing`
+     progress strip may show above the status bar for a few seconds, then disappears
    - captions end with group labels: cells 1–2 read `G1 · 1/2`, `G1 · 2/2`; cell 3 `G2`; cell 4 `G3`;
      cells 5–8 `G4 · 1/4` … `G4 · 4/4`
    - cell 2 (SAMPLE_0002) shows the outlined **SUGGESTED** pill; cells 3 and 4 (single-frame groups) do not
@@ -77,18 +77,21 @@ Notes:
 
 ## D. Defect sweep (review, then apply)
 
-12. Press **⇧⌘D** (or Cull ▸ Defect Sweep…). 📸 Expect a sheet titled **Defect Sweep**:
-    - three threshold rows, all checked: `Missed focus below 0.40`, `Closed eyes above 0.80`, `Blown highlights above 0.05`
-    - the counter reads `16 candidates · 16 selected`
-    - the first rows are SAMPLE_0002 `Missed focus 0.25 < 0.40`, SAMPLE_0003 `Closed eyes 0.92 > 0.80`,
-      SAMPLE_0006 `Missed focus 0.25 < 0.40`, each with a checkbox and a thumbnail
+12. Press **⇧⌘D** (or Cull ▸ Defect Sweep…). 📸 Expect a sheet titled **Defect Sweep** over the real signals
+    measured on open (sharpness of the displayed preview; the samples have no faces and no clipped highlights):
+    - four threshold rows, all checked: `Missed focus below 0.30`, `Soft faces below 0.30`, `Closed eyes below 0.30`,
+      `Blown highlights above 0.05`
+    - the counter reads `10 candidates · 10 selected` (the grain-free frames measure soft)
+    - the first rows are SAMPLE_0001 `Missed focus 0.13 < 0.30`, SAMPLE_0003 `Missed focus 0.13 < 0.30`,
+      SAMPLE_0009 `Missed focus 0.14 < 0.30`, each with a checkbox and a thumbnail
     - no grid cell has changed yet (the sweep is review-only).
-13. Uncheck **Closed eyes**. Expect: `10 candidates`. Check it again: `16 candidates`.
-    Drag the Missed-focus slider to 0.20. Expect: the focus rows disappear (`8 candidates`, all closed eyes); drag it back to about 0.40 (`16 candidates`).
-14. Uncheck the checkbox of the first row (SAMPLE_0002). Expect: `16 candidates · 15 selected` and the default button
-    reads **Reject 15 Frames**. Click it.
-    Expect: the sheet closes, toast `Rejected 15 frames from the defect sweep`, status `Reject 15`; SAMPLE_0002 is not rejected.
-15. Press **⌘Z**. Expect: `Undo: 15 images`, `Reject 0`.
+13. Uncheck **Missed focus**. Expect: `0 candidates` and the empty state `Nothing to reject`. Check it again: `10 candidates`.
+    Drag the Missed-focus slider to about 0.42. Expect: `21 candidates` (frames measuring 0.35–0.38 join); drag it back
+    to about 0.30 (`10 candidates`).
+14. Uncheck the checkbox of the first row (SAMPLE_0001). Expect: `10 candidates · 9 selected` and the default button
+    reads **Reject 9 Frames**. Click it.
+    Expect: the sheet closes, toast `Rejected 9 frames from the defect sweep`, status `Reject 9`; SAMPLE_0001 is not rejected.
+15. Press **⌘Z**. Expect: `Undo: 9 images`, `Reject 0`.
 
 ## E. Compare (2-up, synced zoom/pan, choose this)
 
@@ -639,3 +642,140 @@ through the forced variant (step 87).
 
 PASS when steps 84–85 and 88–89 meet their expectations, and step 86 on an EDR screen (or step 87 on an SDR-only
 machine). Record the screen's headroom from the first command and the frame times of step 85.
+
+## Q. Assisted culling: real signals, suggestions, face strip and people (M3-11)
+
+The culler measures real signals (ml-quality on the displayed preview) when a folder opens, learns from the
+photographer's keep / reject decisions (per library), and in *automated* mode pre-fills decisions outside its
+thresholds as translucent, outlined pills that change nothing until confirmed (Y) or dismissed (N). The sample
+generator's `--defects` flag blurs every fifth frame and blows out the top third of every seventh. The samples have
+no faces, so the hidden `--seed-faces` aid writes two synthetic people (person A in every frame, out of focus on the
+blurred frames and with closed eyes on SAMPLE_0006, 0012, 0018, 0024, 0030, 0036; person B in every second group);
+Cull ▸ Analyze Faces runs the real YuNet/SFace models instead (they download once, about 40 MB).
+
+90. Quit Tessera. Create the shoot and launch:
+    ```sh
+    swift apps/mac/Support/make-sample-folder.swift "$SCR/cull" 40 --defects
+    open -n apps/mac/build/Tessera.app --args --app-dir "$SCR/appdir-cull" --folder "$SCR/cull" --seed-faces --fake-planner
+    ```
+    Expect `Wrote 40 JPEGs in 16 bursts to …/cull (8 blurred, 6 with blown highlights)` and a status message ending
+    `synthetic faces seeded`. Press **⇧⌘D**. 📸 Expect `25 candidates · 25 selected`, with rows such as SAMPLE_0003
+    `Missed focus 0.00 < 0.30 · Soft faces 0.18 < 0.30`, SAMPLE_0004 `Blown highlights 0.33 > 0.05` and SAMPLE_0006
+    `Closed eyes 0.12 < 0.30`. Click **Cancel**.
+91. **Assist.** Click **Assist** in the toolbar (or Cull ▸ Assist, ⌥⌘A). 📸 Expect: the toolbar toggle turns on with a
+    small menu chevron beside it; the grid re-sorts by keep confidence; frames carry outlined `Keep?` pills near the
+    top of the grid and `Reject?` pills on the blurred and closed-eyes frames at the end; the status message reads
+    `Assist on: 32 suggested decisions · Y confirms all · N dismisses`; the counts stay `Keep 0  Reject 0`
+    (identifiers `toolbar-assist`, `toolbar-assist-menu`). The inspector's **Assist** panel shows `Keep likelihood`
+    with a bar and up to four signed terms; on a `Reject?` frame with closed eyes the first term is `Eyes closed -8.00`
+    (`assist-pkeep`, `assist-explanation`), a `Reject?` chip, **Dismiss** and **Confirm All**, and
+    `32 suggested · learner has 0 confirmed labels…` (`assist-status`).
+92. **Dismiss.** Click the last cell of the grid (a `Reject?` frame) and press **N**. Expect: its pill disappears, the
+    message reads `Dismissed 1 suggestion`, the inspector reads `31 suggested`, and nothing was decided.
+93. **Confirm all.** Press **Y**. Expect: toast `Confirmed 31 suggestions: 15 keep, 16 reject` with Undo; status
+    `Keep 15  Reject 16`; the dismissed frame stays undecided; the inspector reports `learner has 31 confirmed labels`.
+    Press **⌘Z**. Expect `Undo: 31 images` and `Keep 0  Reject 0` in one step. Press **X** on any frame: the learner
+    count goes up by one (manual decisions teach it too); **⌘Z** again.
+94. **Assisted mode.** In the inspector's Assist panel choose **Assisted**. Expect: every pill disappears (no
+    pre-filled decisions), the grid keeps its confidence order and the keep likelihood still shows. Choose **Automated**
+    again. Cull ▸ **Sort by Keep Confidence** off: the grid returns to capture order (cell 1 = SAMPLE_0001).
+95. **Face strip.** With the capture order, click cell 3 (SAMPLE_0003, a blurred frame) and press **Return**. 📸 Expect a
+    `Faces` row under the loupe (`face-strip`) with two close-ups: the first with a red focus dot and an open-eye glyph,
+    the second with a yellow dot and an eye-with-warning glyph; the legend on the right reads `Sharp  Soft  Missed  Eyes`.
+    Hover the first: `Person 1: missed focus, eyes open. Click to zoom.`
+96. **Zoom and per-person filter.** Click the first face (`face-chip-0`). Expect a popover (`face-zoom`) with the face
+    large, `Person 1 in 40 frames`, chips `Focus 0.18 · missed focus` and `Eyes 0.86 · eyes open`, and two buttons. Click
+    **…with eyes closed** (`face-filter-eyes-closed`). Expect: the loupe/grid shows only 6 frames (SAMPLE_0006, 0012, 0018,
+    0024, 0030, 0036), the status bar shows an accent `Person 1 · eyes closed ⊗` (`status-person-filter`) and the message
+    `Person 1 with eyes closed: 6 frames`. Click the status-bar chip: all 40 frames return. Expand the inspector's
+    **People** panel: `Person 1  40 frames` and `Person 2  19 frames`, each with **Frames** and **Eyes closed**.
+97. Press **Esc**, turn **Assist** off. Expect `Assist off` and no pills.
+
+## R. Auto Edit and the agent review queue (M3-11)
+
+The agent makes a base edit with the engine's own controls (no generated pixels); each step is an ordinary recipe
+step in an "Agent base edit" history group with a one-line rationale. `--fake-planner` preselects the **Scripted test
+planner** (the engine's FakePlanner with a fixed three-step script: exposure toward mid-grey, contrast + clarity,
+vibrance), so no API key or network is needed.
+
+98. **Settings ▸ AI** (⌘,). 📸 Expect an **AI** pane: Planner (default provider), Anthropic and OpenAI (model, API key
+    field with **Save** / **Remove**, `Stored in your login Keychain, never in Tessera's files or logs.`), Ollama,
+    Auto edit guardrails, Assisted culling thresholds and Style profile (questionnaire sliders, **Save Answers**,
+    **Learn from My Edits**). Type `sk-test-verifier-0000` into the OpenAI key field and click **Save**. Expect
+    `Key in Keychain: sk-t…0000`. Then:
+    ```sh
+    security find-generic-password -s dev.tessera.app.ai -a openai-api-key -w
+    grep -c sk-test "$SCR/appdir-cull/ai-preferences.json" 2>/dev/null || true
+    ```
+    Expect the key from `security` (macOS may ask whether `security` may read Tessera's item: click Allow), and `0`
+    (or no file) from grep: keys never reach preferences. Click **Remove**;
+    `security …` then reports that the item could not be found. Close Settings.
+99. **Auto Edit.** In the grid (capture order) click cell 1 and ⇧-click cell 4 (SAMPLE_0001–0004). Press **⇧⌘A**
+    (or the toolbar's **Auto Edit**). 📸 Expect a sheet **Auto Edit**: Provider `Scripted test planner`
+    (`autoedit-provider`), Photos `Selection (4)` selected among `Current view (40)` and `Whole shoot (40)`
+    (`autoedit-scope`), both consistency toggles on, guardrails (masks on, crop off, skin retouch off and disabled,
+    visual critic off, 3 rounds, 120 s), footer `Style profile: questionnaire only (Settings ▸ AI)` and **Edit 4 Photos**
+    (`autoedit-start`). Choose **Anthropic**: the footer warns `Add an Anthropic API key in Settings ▸ AI` and the
+    button is disabled. Choose the scripted planner again and click **Edit 4 Photos**.
+100. Expect a progress strip `Auto edit · Scripted test planner` (`autoedit-progress`) with `n / 4`, the phase and a
+     **Cancel** button, then (within about 30 s) the **Agent Review** sheet (`agent-review-list`): subtitle
+     `4 to review · planned by scripted planner`, rows sorted least confident first, each with a confidence chip
+     (`Low`, `Medium` or `High` with a percentage), the first rationale (`Exposure … EV because mean luminance measured … against a
+     0.18 mid-grey target`, with `constrained to style-profile scene/person consensus` for the burst and person), the
+     steps line, and **Show**, **Accept**, **Redo…**, **Revert**. The toolbar shows **Review 4**; the four cells show
+     the `Edited` status pill.
+101. Click **Accept** on the first row: chip `Accepted`, subtitle `3 to review · 1 accepted`, status
+     `Accepted SAMPLE_… · style profile now has 1 sample`. Click **Revert** on the second row: chip `Reverted`, status
+     `Reverted the agent's edit of … (one step in its history)`. Click **Redo…** on the third row, type
+     `warmer, keep the sky` and press **Redo**: a `Redo “warmer, keep the sky”` progress strip, then that row's
+     rationale reads `Redo “warmer, keep the sky”: temperature +400 K; other controls untouched`. Click **Done**.
+102. With one of the edited photos focused, the inspector's **Agent Edit** panel shows `AI-assisted, non-generative
+     edits` (`agent-provenance`), Confidence, Review status, Stopped, each step's controls and rationale, **Accept**,
+     **Revert** and a `Redo with instruction…` field.
+103. **Develop: the agent group.** Quit Tessera, then
+     ```sh
+     mkdir "$SCR/raw1" && cp "$SCR/raw/nikon-nef.NEF" "$SCR/raw1/"
+     open -n apps/mac/build/Tessera.app --args --app-dir "$SCR/appdir-raw1" --folder "$SCR/raw1" --fake-planner
+     ```
+     Press **Return** and wait for the render, then **⇧⌘A** ▸ **Edit 1 Photo**. After about 40 s the review sheet lists
+     `nikon-nef.NEF`; click **Done**. The loupe re-renders about half a stop darker. Expand **History** in the inspector.
+     📸 Expect an `AI  Agent base edit  100 %` section (`agent-group`) with an **Amount** slider at `100 %`
+     (`agent-group-amount`) and three checked steps: `Exposure` (`Exposure -0.40 EV because mean luminance measured 0.32
+     against a 0.18 mid-grey target`), `Clarity, Contrast` and `Vibrance`, each with its rationale
+     (`agent-step-rationale`), and **Redo with Instruction…** (`agent-group-redo`).
+104. Drag **Amount** to about 60 %. Expect the loupe to follow while dragging; on release the readout shows `60 %`, the
+     status reads `Agent base edit: 60 %` and the history list gains `Agent base edit 60%`. Press **⌘Z**: back to 100 %.
+105. Uncheck the **Exposure** step. Expect the picture to brighten, a new history step `Turn Off Exposure`, and the other
+     two steps still applied. Drag Amount to about 50 % again: the fade applies to the remaining steps only.
+106. Click **Redo with Instruction…**, type `cooler`, press **Redo**. Expect a progress strip, the develop session to
+     close and reopen, and a second section `Agent redo: cooler` with one step `Temperature`
+     (`Redo “cooler”: temperature -400 K; other controls untouched`). The first group keeps its amount and toggles.
+107. **Tests.**
+     ```sh
+     cargo test -p tessera-ffi --release --test assist 2>&1 | grep "test result"
+     cargo test -p tessera-ffi --release --lib group_amount 2>&1 | grep "test result"
+     cargo test -p cull -p style-profile -p agent --release 2>&1 | grep "test result"
+     (cd apps/mac && swift test --filter "AgentFadeTests|AgentReviewQueueTests|AISettingsTests|AssistBridgeTests" 2>&1 | grep "Executed")
+     ```
+     Expect `6 passed`, `1 passed`, only `ok.` lines, and `Executed 10 tests, with 0 failures`.
+
+## Verdict (assisted culling and agent review)
+
+PASS when steps 90–107 meet their expectations. Real face analysis (Cull ▸ Analyze Faces) needs a network the first
+time; record whether it was tried and its message.
+
+## Appendix: accessibility identifiers (M3-11)
+
+| Identifier | Element |
+| --- | --- |
+| `toolbar-assist` · `toolbar-assist-menu` | Toolbar Assist toggle and its mode / sort menu |
+| `toolbar-auto-edit` · `toolbar-agent-review` | Toolbar Auto Edit and Review n |
+| `analysis-progress` | Background analysis progress strip |
+| `assist-panel-toggle` · `assist-pkeep` · `assist-explanation` · `assist-status` · `assist-confirm-all` | Inspector ▸ Assist |
+| `face-strip` · `face-chip-<n>` · `face-zoom` · `face-filter-person` · `face-filter-eyes-closed` | Loupe face strip and zoom popover |
+| `people-clear-filter` · `people-eyes-closed-<person>` · `status-person-filter` | People panel and the status-bar person filter |
+| `autoedit-provider` · `autoedit-scope` · `autoedit-start` · `autoedit-blocker` · `autoedit-progress` · `autoedit-cancel` | Auto Edit sheet and run |
+| `agent-review-list` · `agent-review-row` · `agent-review-confidence` · `agent-review-accept` · `agent-review-redo` · `agent-review-revert` · `agent-review-instruction` | Agent Review sheet |
+| `agent-provenance` | Inspector ▸ Agent Edit |
+| `agent-group` · `agent-group-amount` · `agent-group-amount-readout` · `agent-step-toggle-<id>` · `agent-step-rationale` · `agent-group-redo` · `agent-group-instruction` | History ▸ agent group |
+| `ai-default-provider` · `ai-key-<provider>` · `ai-key-status-<provider>` · `ai-profile-status` | Settings ▸ AI |

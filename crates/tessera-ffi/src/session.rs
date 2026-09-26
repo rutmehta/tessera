@@ -113,9 +113,10 @@ pub struct DefectCandidate {
     pub reasons: Vec<DefectReason>,
 }
 
-struct Inner {
-    core: Core,
+pub(crate) struct Inner {
+    pub(crate) core: Core,
     reader: Connection,
+    pub(crate) assist: crate::assist::AssistState,
 }
 
 /// Owns its own index connection (WAL) so the engine's catalog lock is never
@@ -132,13 +133,25 @@ fn ids(values: &[String]) -> Result<Vec<ImageId>> {
 
 impl Engine {
     fn open_session(&self, source: cull::Source) -> Result<Arc<CullSession>> {
+        let folder = match &source {
+            cull::Source::Folder(path) => Some(path.canonicalize()?),
+            cull::Source::Query(_) => None,
+        };
+        let assist = crate::assist::AssistState::new(
+            self.support_dir()?.to_path_buf(),
+            crate::assist::library_key(folder.as_deref()),
+        );
         let index = index::Index::open(&self.db)?;
         let reader = Connection::open_with_flags(&self.db, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
         let mut core = Core::open_owned(index, source)?;
         // The host owns cursor movement so it can follow its display order.
         core.set_auto_advance(false);
         Ok(Arc::new(CullSession {
-            inner: Mutex::new(Inner { core, reader }),
+            inner: Mutex::new(Inner {
+                core,
+                reader,
+                assist,
+            }),
         }))
     }
 }
@@ -189,7 +202,7 @@ impl Engine {
 }
 
 impl CullSession {
-    fn lock(&self) -> Result<MutexGuard<'_, Inner>> {
+    pub(crate) fn lock(&self) -> Result<MutexGuard<'_, Inner>> {
         self.inner.lock().map_err(failure)
     }
 }
@@ -207,7 +220,13 @@ impl Inner {
             .map(|a| a.images.clone())
             .unwrap_or_default())
     }
-    fn update(&self, mut changed: Vec<ImageId>, albums_changed: bool) -> Result<CullUpdate> {
+    /// Every mutation reports through here, which also retires a stale review plan.
+    pub(crate) fn update(
+        &mut self,
+        mut changed: Vec<ImageId>,
+        albums_changed: bool,
+    ) -> Result<CullUpdate> {
+        self.assist.invalidate();
         changed.dedup();
         let basket = self.basket_members()?;
         let mut seen = Vec::with_capacity(changed.len());
@@ -229,7 +248,7 @@ impl Inner {
             current: self.core.current().map(|id| id.to_string()),
         })
     }
-    fn current_update(&self) -> Result<CullUpdate> {
+    fn current_update(&mut self) -> Result<CullUpdate> {
         self.update(self.core.current().into_iter().collect(), false)
     }
     fn current(&self) -> Option<String> {
@@ -353,10 +372,12 @@ impl CullSession {
     }
 
     // Decisions on the current image. Writes recipe + XMP before returning.
+    /// With assistance on (`set_assist_mode`), a Keep/Reject also teaches the
+    /// library's learner.
     pub fn decide(&self, decision: Decision) -> Result<CullUpdate> {
         let mut s = self.lock()?;
         let id = s.core.current();
-        s.core.decide(decision.into())?;
+        s.decide_learning(decision.into())?;
         s.update(id.into_iter().collect(), false)
     }
     pub fn grade(&self, grade: u8) -> Result<CullUpdate> {
@@ -464,7 +485,8 @@ impl CullSession {
     pub fn toggle_basket(&self) -> Result<CullUpdate> {
         let mut s = self.lock()?;
         s.core.toggle_basket()?;
-        s.update(s.core.current().into_iter().collect(), true)
+        let current = s.core.current().into_iter().collect();
+        s.update(current, true)
     }
     pub fn set_basket(&self, image_ids: Vec<String>, add: bool) -> Result<CullUpdate> {
         let ids = ids(&image_ids)?;

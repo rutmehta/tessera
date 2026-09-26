@@ -70,7 +70,7 @@ use crate::{Engine, Result, catalog, failure, now_ms, parse_id, surface::Surface
 mod masks;
 use engine_api::{
     color::ColorMatrix3,
-    id::{HistoryEntryId, ImageId},
+    id::{HistoryEntryId, HistoryGroupId, ImageId},
     jobs::{Job, JobContext, JobHandle, Priority, Scheduler},
     recipe::{
         DevelopSettings, EditMeta, Recipe,
@@ -185,6 +185,32 @@ pub struct HistoryItem {
     pub enabled: bool,
     /// The step is itself a toggle of another step (shown as such, not toggleable).
     pub toggles: Option<u64>,
+    /// The step sets the amount (0...1) of a history group (the agent group's
+    /// fade slider); not toggleable.
+    pub group_amount: Option<f64>,
+    /// Id of the named group, when `group` is set.
+    pub group_id: Option<u32>,
+    /// One-line explanation (agents supply one per step); markers are omitted.
+    pub rationale: Option<String>,
+}
+
+/// A named history group on the current lineage (e.g. "Agent base edit"), for
+/// its amount slider and per-step toggles (docs/10 §2 "fine-tune surface").
+#[derive(Clone, Debug, PartialEq, uniffi::Record)]
+pub struct HistoryGroupState {
+    pub group_id: u32,
+    pub name: String,
+    /// Current amount in [0, 1] (the latest amount step, 1 without one).
+    pub amount: f64,
+    /// The group's steps (history entry ids), oldest first.
+    pub steps: Vec<u64>,
+    /// `DevelopSettings` JSON with the group at 0 % and at 100 %, everything
+    /// else (other steps, toggles, other groups' amounts) as it is now. A host
+    /// previews an amount `a` as `without + a · (with − without)` on numbers
+    /// (rounded for integers) and `with` for other values once `a ≥ 0.5`;
+    /// `commit_group_amount` records exactly that.
+    pub without_json: String,
+    pub with_json: String,
 }
 
 /// A rendered 1:1 detail crop.
@@ -1888,6 +1914,9 @@ impl DevelopSession {
             if toggle_of(step).is_some() {
                 return Err(failure("a step toggle cannot itself be toggled"));
             }
+            if amount_of(step).is_some() {
+                return Err(failure("a group amount step cannot be toggled"));
+            }
             let mut off = disabled_steps(&lineage);
             if off.contains(&id) != enabled {
                 return Ok(false);
@@ -1897,11 +1926,11 @@ impl DevelopSession {
             } else {
                 off.insert(id);
             }
-            let next = replay_without(&h.base, &lineage, &off)?;
+            let next = replay_state(&h.base, &lineage, &off, &Default::default())?;
             let label = format!(
                 "{} {}",
                 if enabled { "Turn On" } else { "Turn Off" },
-                step.meta.label
+                display_label(step)
             );
             let meta = EditMeta {
                 rationale: Some(format!(
@@ -1922,6 +1951,34 @@ impl DevelopSession {
             st.live = st.recipe.settings.clone();
             self.shared.render(&mut st, false);
             true
+        };
+        if changed {
+            self.shared.schedule_save();
+        }
+        Ok(changed)
+    }
+
+    /// Named groups on the current lineage with their amount and the settings
+    /// at 0 % and 100 % (see `HistoryGroupState`), oldest group first.
+    pub fn history_groups(&self) -> Result<Vec<HistoryGroupState>> {
+        Ok(history_groups(&self.shared.lock()?.recipe)?)
+    }
+
+    /// Records the amount (0...1) of history group `group_id` as one undoable
+    /// step: the state is the history replayed with that group blended in at
+    /// `amount` (numbers interpolate between the group off and on; other
+    /// values switch at 50 %), later steps and toggles kept. Uncommitted live
+    /// changes (an amount preview) are replaced by the recorded state.
+    pub fn commit_group_amount(&self, group_id: u32, amount: f64) -> Result<bool> {
+        if !(0.0..=1.0).contains(&amount) {
+            return Err(failure("amount must be in [0, 1]"));
+        }
+        let changed = {
+            let mut st = self.shared.lock()?;
+            let changed = record_group_amount(&mut st.recipe, group_id, amount, now_ms())?;
+            st.live = st.recipe.settings.clone();
+            self.shared.render(&mut st, false);
+            changed
         };
         if changed {
             self.shared.schedule_save();
@@ -2283,7 +2340,7 @@ impl Job for MaskJob {
 /// Marker in [`EditMeta::rationale`] of a step-toggle entry.
 const TOGGLE_MARKER: &str = "tessera:step-toggle";
 
-fn toggle_of(e: &HistoryEntry) -> Option<(u64, bool)> {
+pub(crate) fn toggle_of(e: &HistoryEntry) -> Option<(u64, bool)> {
     let rest = e.meta.rationale.as_deref()?.strip_prefix(TOGGLE_MARKER)?;
     let mut parts = rest.trim_start_matches(':').split(':');
     let id = parts.next()?.parse().ok()?;
@@ -2296,7 +2353,7 @@ fn toggle_of(e: &HistoryEntry) -> Option<(u64, bool)> {
 }
 
 /// Steps turned off along `lineage` (toggle entries replayed in order).
-fn disabled_steps(lineage: &[&HistoryEntry]) -> std::collections::BTreeSet<u64> {
+pub(crate) fn disabled_steps(lineage: &[&HistoryEntry]) -> std::collections::BTreeSet<u64> {
     let mut off = std::collections::BTreeSet::new();
     for e in lineage {
         if let Some((id, enabled)) = toggle_of(e) {
@@ -2310,22 +2367,251 @@ fn disabled_steps(lineage: &[&HistoryEntry]) -> std::collections::BTreeSet<u64> 
     off
 }
 
-/// Replays `lineage` from `base`, skipping toggle entries and `off` steps.
-fn replay_without(
+const AMOUNT_MARKER: &str = "tessera:group-amount";
+
+/// `(group, amount)` of a group-amount step.
+pub(crate) fn amount_of(e: &HistoryEntry) -> Option<(u32, f64)> {
+    let rest = e.meta.rationale.as_deref()?.strip_prefix(AMOUNT_MARKER)?;
+    let mut parts = rest.trim_start_matches(':').split(':');
+    let group = parts.next()?.parse().ok()?;
+    let amount: f64 = parts.next()?.parse().ok()?;
+    (0.0..=1.0).contains(&amount).then_some((group, amount))
+}
+
+/// Replays `lineage` from `base`, skipping toggle entries, group-amount
+/// entries and `off` steps; groups with an amount below 1 (the latest amount
+/// step on the lineage, or `overrides`) are blended in at that amount.
+pub(crate) fn replay_state(
     base: &DevelopSettings,
     lineage: &[&HistoryEntry],
     off: &std::collections::BTreeSet<u64>,
+    overrides: &std::collections::BTreeMap<u32, f64>,
 ) -> engine_api::EngineResult<DevelopSettings> {
-    let mut value = serde_json::to_value(base)?;
+    let mut amounts = std::collections::BTreeMap::new();
     for e in lineage {
-        if toggle_of(e).is_some() || off.contains(&e.id.0) {
-            continue;
-        }
-        for change in &e.changes {
-            apply_change(&mut value, change)?;
+        if let Some((group, amount)) = amount_of(e) {
+            amounts.insert(group, amount);
         }
     }
-    Ok(serde_json::from_value(value)?)
+    amounts.extend(overrides.iter().map(|(g, a)| (*g, *a)));
+    let faded: Vec<(u32, f64)> = amounts.into_iter().filter(|(_, a)| *a < 1.0).collect();
+    let replay = |include: Option<u32>| -> engine_api::EngineResult<Value> {
+        let mut value = serde_json::to_value(base)?;
+        for e in lineage {
+            if toggle_of(e).is_some() || amount_of(e).is_some() || off.contains(&e.id.0) {
+                continue;
+            }
+            if let Some(g) = e.meta.group.map(|g| g.0)
+                && Some(g) != include
+                && faded.iter().any(|(f, _)| *f == g)
+            {
+                continue;
+            }
+            for change in &e.changes {
+                apply_change(&mut value, change)?;
+            }
+        }
+        Ok(value)
+    };
+    let without = replay(None)?;
+    let mut out = without.clone();
+    for &(group, amount) in &faded {
+        if amount > 0.0 {
+            blend_into(&mut out, &without, &replay(Some(group))?, amount);
+        }
+    }
+    Ok(serde_json::from_value(out)?)
+}
+
+/// Adds `amount · (with − without)` to `out` on numbers (rounded when both
+/// are integers); other differing values take `with` from 50 %.
+fn blend_into(out: &mut Value, without: &Value, with: &Value, amount: f64) {
+    match (without, with) {
+        (Value::Number(a), Value::Number(b)) => {
+            let (Some(x), Some(y)) = (a.as_f64(), b.as_f64()) else {
+                return;
+            };
+            let current = out.as_f64().unwrap_or(x);
+            let next = current + amount * (y - x);
+            *out = if a.is_f64() || b.is_f64() {
+                serde_json::Number::from_f64(next).map_or(Value::Null, Value::Number)
+            } else {
+                Value::from(next.round() as i64)
+            };
+        }
+        (Value::Object(a), Value::Object(b)) => {
+            let Value::Object(target) = out else {
+                if amount >= 0.5 {
+                    *out = with.clone();
+                }
+                return;
+            };
+            for (key, vb) in b {
+                match a.get(key) {
+                    Some(va) => {
+                        let slot = target.entry(key.clone()).or_insert_with(|| va.clone());
+                        blend_into(slot, va, vb, amount);
+                    }
+                    None if amount >= 0.5 => {
+                        target.insert(key.clone(), vb.clone());
+                    }
+                    None => {}
+                }
+            }
+            if amount >= 0.5 {
+                for key in a.keys().filter(|k| !b.contains_key(*k)) {
+                    target.remove(key);
+                }
+            }
+        }
+        (a, b) if a == b => {}
+        _ if amount >= 0.5 => *out = with.clone(),
+        _ => {}
+    }
+}
+
+/// Applies `amount` to `group` as one recorded step (see `commit_group_amount`).
+pub(crate) fn record_group_amount(
+    recipe: &mut Recipe,
+    group: u32,
+    amount: f64,
+    timestamp_ms: i64,
+) -> engine_api::EngineResult<bool> {
+    let h = &recipe.history;
+    let lineage = h.lineage(h.head)?;
+    if !lineage
+        .iter()
+        .any(|e| e.meta.group.map(|g| g.0) == Some(group) && amount_of(e).is_none())
+    {
+        return Err(engine_api::EngineError::not_found(
+            "history group",
+            HistoryGroupId(group),
+        ));
+    }
+    let current = lineage
+        .iter()
+        .rev()
+        .find_map(|e| amount_of(e).filter(|(g, _)| *g == group))
+        .map_or(1.0, |(_, a)| a);
+    if (current - amount).abs() < 1e-9 {
+        return Ok(false);
+    }
+    let off = disabled_steps(&lineage);
+    let next = replay_state(&h.base, &lineage, &off, &[(group, amount)].into())?;
+    let name = h
+        .groups
+        .iter()
+        .find(|g| g.id.0 == group)
+        .map_or_else(|| "Group".to_owned(), |g| g.name.clone());
+    let meta = EditMeta {
+        rationale: Some(format!("{AMOUNT_MARKER}:{group}:{amount}")),
+        ..EditMeta::user(format!("{name} {:.0}%", amount * 100.0), timestamp_ms)
+    };
+    if recipe.edit(meta.clone(), |s| *s = next)?.is_none() {
+        // The amount changes nothing visible but is still the new state.
+        let history = &mut recipe.history;
+        let id = HistoryEntryId(history.entries.len() as u64 + 1);
+        history.entries.push(HistoryEntry {
+            id,
+            parent: history.head,
+            meta,
+            changes: vec![],
+        });
+        history.head = Some(id);
+    }
+    Ok(true)
+}
+
+/// "Exposure, Contrast": the controls a step sets (agent steps are labelled
+/// with tool names such as `set_tone`).
+pub(crate) fn changes_title(changes: &[engine_api::recipe::history::ParamChange]) -> String {
+    let mut names: Vec<String> = Vec::new();
+    for change in changes {
+        let token = change.path().rsplit('/').next().unwrap_or_default();
+        let name = match token {
+            "temperature" => "Temperature".to_owned(),
+            "mode" => continue,
+            t => {
+                let mut c = t.replace('_', " ").chars().collect::<Vec<_>>();
+                if let Some(first) = c.first_mut() {
+                    *first = first.to_ascii_uppercase();
+                }
+                c.into_iter().collect()
+            }
+        };
+        if !name.is_empty() && !names.contains(&name) {
+            names.push(name);
+        }
+    }
+    if names.is_empty() {
+        "No change".into()
+    } else {
+        names.join(", ")
+    }
+}
+
+/// History label: agent steps named after an engine tool read as their controls.
+fn display_label(e: &HistoryEntry) -> String {
+    let tool = !e.meta.label.is_empty()
+        && e.meta
+            .label
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b == b'_');
+    if matches!(e.meta.author, Author::Agent { .. }) && tool && !e.changes.is_empty() {
+        changes_title(&e.changes)
+    } else {
+        e.meta.label.clone()
+    }
+}
+
+pub(crate) fn history_groups(recipe: &Recipe) -> engine_api::EngineResult<Vec<HistoryGroupState>> {
+    let h = &recipe.history;
+    let lineage = h.lineage(h.head)?;
+    let off = disabled_steps(&lineage);
+    let mut order: Vec<u32> = Vec::new();
+    for e in &lineage {
+        if let Some(g) = e.meta.group.map(|g| g.0)
+            && amount_of(e).is_none()
+            && toggle_of(e).is_none()
+            && !order.contains(&g)
+        {
+            order.push(g);
+        }
+    }
+    order
+        .into_iter()
+        .map(|group| {
+            let amount = lineage
+                .iter()
+                .rev()
+                .find_map(|e| amount_of(e).filter(|(g, _)| *g == group))
+                .map_or(1.0, |(_, a)| a);
+            let at = |a: f64| -> engine_api::EngineResult<String> {
+                let s = replay_state(&h.base, &lineage, &off, &[(group, a)].into())?;
+                Ok(serde_json::to_string(&s)?)
+            };
+            Ok(HistoryGroupState {
+                group_id: group,
+                name: h
+                    .groups
+                    .iter()
+                    .find(|g| g.id.0 == group)
+                    .map_or_else(|| "Group".to_owned(), |g| g.name.clone()),
+                amount,
+                steps: lineage
+                    .iter()
+                    .filter(|e| {
+                        e.meta.group.map(|g| g.0) == Some(group)
+                            && amount_of(e).is_none()
+                            && toggle_of(e).is_none()
+                    })
+                    .map(|e| e.id.0)
+                    .collect(),
+                without_json: at(0.0)?,
+                with_json: at(1.0)?,
+            })
+        })
+        .collect()
 }
 
 fn history_items(recipe: &Recipe) -> engine_api::EngineResult<Vec<HistoryItem>> {
@@ -2347,7 +2633,7 @@ fn history_items(recipe: &Recipe) -> engine_api::EngineResult<Vec<HistoryItem>> 
     };
     let item = |e: &HistoryEntry, applied: bool| HistoryItem {
         id: e.id.0,
-        label: e.meta.label.clone(),
+        label: display_label(e),
         author: author(e),
         group: group(e),
         timestamp_ms: e.meta.timestamp_ms,
@@ -2355,6 +2641,13 @@ fn history_items(recipe: &Recipe) -> engine_api::EngineResult<Vec<HistoryItem>> 
         is_head: h.head == Some(e.id),
         enabled: !off.contains(&e.id.0),
         toggles: toggle_of(e).map(|(id, _)| id),
+        group_amount: amount_of(e).map(|(_, a)| a),
+        group_id: e.meta.group.map(|g| g.0),
+        rationale: e
+            .meta
+            .rationale
+            .clone()
+            .filter(|_| toggle_of(e).is_none() && amount_of(e).is_none()),
     };
     let mut items: Vec<HistoryItem> = lineage.iter().map(|e| item(e, true)).collect();
     // Undone steps redo would reapply, newest child first at each step.
@@ -2596,6 +2889,129 @@ mod tests {
         assert_eq!(renderable(&s).geometry, Default::default());
     }
 
+    /// docs/10 §2: the agent group fades as a whole; later manual edits and
+    /// step toggles survive; the amount itself is an ordinary undo step.
+    #[test]
+    fn group_amount_blends_the_agent_group_and_keeps_later_edits() {
+        let mut recipe = Recipe::new(ImageId(7));
+        let group = recipe.history.add_group("Agent base edit");
+        let agent = |label: &str, t: i64| EditMeta {
+            author: Author::Agent {
+                name: "test".into(),
+            },
+            group: Some(group),
+            rationale: Some(format!("because {label}")),
+            ..EditMeta::user(label, t)
+        };
+        recipe
+            .edit(agent("Exposure", 1), |s| s.tone.exposure = 1.0)
+            .unwrap();
+        recipe
+            .edit(agent("Contrast", 2), |s| {
+                s.tone.contrast = 20.0;
+                s.white_balance.mode = WhiteBalanceMode::Custom;
+            })
+            .unwrap();
+        recipe
+            .edit(EditMeta::user("Shadows +10", 3), |s| s.tone.shadows = 10.0)
+            .unwrap();
+        let groups = history_groups(&recipe).unwrap();
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0].amount, 1.0);
+        assert_eq!(groups[0].steps, [1, 2]);
+        let without: DevelopSettings = serde_json::from_str(&groups[0].without_json).unwrap();
+        assert_eq!(
+            (
+                without.tone.exposure,
+                without.tone.contrast,
+                without.tone.shadows
+            ),
+            (0.0, 0.0, 10.0)
+        );
+
+        assert!(record_group_amount(&mut recipe, group.0, 0.25, 4).unwrap());
+        let s = &recipe.settings;
+        assert_eq!(
+            (s.tone.exposure, s.tone.contrast, s.tone.shadows),
+            (0.25, 5.0, 10.0)
+        );
+        assert_eq!(
+            s.white_balance.mode,
+            WhiteBalanceMode::AsShot,
+            "non-numeric switches at 50 %"
+        );
+        assert!(
+            !record_group_amount(&mut recipe, group.0, 0.25, 5).unwrap(),
+            "same amount: no step"
+        );
+        let items = history_items(&recipe).unwrap();
+        assert_eq!(items[3].group_amount, Some(0.25));
+        assert_eq!(items[0].rationale.as_deref(), Some("because Exposure"));
+        assert_eq!(items[0].group_id, Some(group.0));
+        assert_eq!(history_groups(&recipe).unwrap()[0].amount, 0.25);
+
+        // A later manual edit of a group control wins over the fade.
+        recipe
+            .edit(EditMeta::user("Exposure +2.00", 6), |s| {
+                s.tone.exposure = 2.0
+            })
+            .unwrap();
+        assert!(record_group_amount(&mut recipe, group.0, 1.0, 7).unwrap());
+        let s = &recipe.settings;
+        assert_eq!(
+            (s.tone.exposure, s.tone.contrast, s.tone.shadows),
+            (2.0, 20.0, 10.0)
+        );
+
+        // Toggling a step off inside a faded group keeps the fade.
+        assert!(record_group_amount(&mut recipe, group.0, 0.5, 8).unwrap());
+        let lineage: Vec<HistoryEntry> = recipe
+            .history
+            .lineage(recipe.history.head)
+            .unwrap()
+            .into_iter()
+            .cloned()
+            .collect();
+        let refs: Vec<&HistoryEntry> = lineage.iter().collect();
+        let off = [2u64].into();
+        let next = replay_state(&recipe.history.base, &refs, &off, &Default::default()).unwrap();
+        assert_eq!((next.tone.exposure, next.tone.contrast), (2.0, 0.0));
+        assert!(
+            record_group_amount(&mut recipe, 99, 0.5, 9).is_err(),
+            "unknown group"
+        );
+    }
+
+    #[test]
+    fn agent_steps_named_after_tools_read_as_their_controls() {
+        let mut recipe = Recipe::new(ImageId(7));
+        let group = recipe.history.add_group("Agent base edit");
+        let meta = EditMeta {
+            author: Author::Agent {
+                name: "tessera-mcp".into(),
+            },
+            group: Some(group),
+            rationale: Some("warmer".into()),
+            ..EditMeta::user("set_tone", 1)
+        };
+        recipe
+            .edit(meta, |s| {
+                s.white_balance.temperature = 6000.0;
+                s.white_balance.mode = WhiteBalanceMode::Custom;
+                s.color.vibrance = 12.0;
+            })
+            .unwrap();
+        recipe
+            .edit(EditMeta::user("set_tone", 2), |s| s.tone.exposure = 1.0)
+            .unwrap();
+        let items = history_items(&recipe).unwrap();
+        assert_eq!(
+            items[0].label, "Vibrance, Temperature",
+            "the mode switch is implied"
+        );
+        assert_eq!(items[1].label, "set_tone", "only agent steps are renamed");
+    }
+
     #[test]
     fn step_toggles_replay_history_without_the_step() {
         let mut recipe = Recipe::new(ImageId(7));
@@ -2621,7 +3037,7 @@ mod tests {
         let l = lineage(&recipe);
         let refs: Vec<&HistoryEntry> = l.iter().collect();
         let off: std::collections::BTreeSet<u64> = [1].into();
-        let next = replay_without(&recipe.history.base, &refs, &off).unwrap();
+        let next = replay_state(&recipe.history.base, &refs, &off, &Default::default()).unwrap();
         assert_eq!(next.tone.exposure, 0.0);
         assert_eq!(next.tone.contrast, 20.0);
         let meta = EditMeta {
@@ -2641,7 +3057,13 @@ mod tests {
         assert!(!items[0].enabled && items[1].enabled);
         assert_eq!(items[2].toggles, Some(1));
         assert!(items[3].is_head && items.iter().all(|i| i.applied));
-        let on = replay_without(&recipe.history.base, &refs, &Default::default()).unwrap();
+        let on = replay_state(
+            &recipe.history.base,
+            &refs,
+            &Default::default(),
+            &Default::default(),
+        )
+        .unwrap();
         assert_eq!(
             (on.tone.exposure, on.tone.contrast, on.tone.shadows),
             (1.0, 20.0, 10.0)

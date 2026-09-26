@@ -43,6 +43,11 @@ struct ContentView: View {
                     }
                     .animation(Theme.Motion.appear, value: model.toast)
                 }
+                if model.viewMode == .loupe, !model.assist.faces.isEmpty {
+                    FaceStrip(model: model)
+                }
+                AssistProgressBar(assist: model.assist)
+                AgentProgressBar(agent: model.agent)
                 LightroomImportProgressBar(importer: model.lightroomImport)
                 ExportProgressBar(exporter: model.exporter)
                 PrintProgressBar(printing: model.printing)
@@ -59,6 +64,12 @@ struct ContentView: View {
         }
         .sheet(isPresented: $model.showDefectSweep) {
             DefectSweepSheet(model: model)
+        }
+        .sheet(isPresented: $model.showAutoEdit) {
+            AutoEditSheet(agent: model.agent, model: model)
+        }
+        .sheet(isPresented: Binding(get: { model.agent.showReview }, set: { model.agent.showReview = $0 })) {
+            AgentReviewSheet(agent: model.agent, model: model)
         }
         .sheet(isPresented: $model.showLightroomImport) {
             LightroomImportSheet(importer: model.lightroomImport)
@@ -122,6 +133,58 @@ struct ContentView: View {
             .disabled(model.viewMode != .grid)
             .accessibilityHidden(model.viewMode != .grid)
             .help("Thumbnail size")
+        }
+        .flatToolbarItem()
+        ToolbarItem(id: "assist", placement: .primaryAction) {
+            HStack(spacing: Theme.Space.xxs) {
+                Toggle(isOn: Binding(get: { model.assist.enabled }, set: { model.assist.setEnabled($0) })) {
+                    Label("Assist", systemImage: "sparkles")
+                }
+                .toggleStyle(ToolbarToggleStyle())
+                .help("Assisted culling: keep predictions, a confidence order and suggested decisions (Y confirms, N dismisses)")
+                .accessibilityIdentifier("toolbar-assist")
+                if model.assist.enabled {
+                    Menu {
+                        Picker("Mode", selection: Binding(get: { model.agent.preferences.assistAutomated },
+                                                          set: { model.assist.setAutomated($0) })) {
+                            Text("Suggest decisions (automated)").tag(true)
+                            Text("Predictions only (assisted)").tag(false)
+                        }
+                        .pickerStyle(.inline)
+                        Divider()
+                        Toggle("Sort by Keep Confidence", isOn: Binding(get: { model.assist.sortByConfidence },
+                                                                         set: { model.assist.sortByConfidence = $0 }))
+                        Button("Confirm \(model.assist.suggestionCount) Suggested    (Y)") { model.assist.confirmAll() }
+                            .disabled(model.assist.suggestionCount == 0)
+                    } label: {
+                        Image(systemName: "chevron.down").font(Theme.Fonts.iconSmall)
+                    }
+                    .menuStyle(IconMenuStyle())
+                    .help("Assist mode and sort")
+                    .accessibilityIdentifier("toolbar-assist-menu")
+                }
+            }
+        }
+        .flatToolbarItem()
+        ToolbarItem(id: "autoEdit", placement: .primaryAction) {
+            Button { model.agent.present() } label: {
+                Label(model.agent.isRunning ? "Editing…" : "Auto Edit", systemImage: "wand.and.stars")
+            }
+            .buttonStyle(ToolbarButtonStyle())
+            .disabled(!model.isEngineBacked || model.agent.isRunning)
+            .help("Auto Edit: the agent makes a non-generative base edit (⇧⌘A)")
+            .accessibilityIdentifier("toolbar-auto-edit")
+        }
+        .flatToolbarItem()
+        ToolbarItem(id: "review", placement: .primaryAction) {
+            if !model.agent.queue.isEmpty {
+                Button { model.agent.showReview = true } label: {
+                    Label("Review \(model.agent.queue.pendingCount)", systemImage: "checklist")
+                }
+                .buttonStyle(ToolbarButtonStyle())
+                .help("Agent review queue, least confident first")
+                .accessibilityIdentifier("toolbar-agent-review")
+            }
         }
         .flatToolbarItem()
         ToolbarItem(id: "autoAdvance", placement: .primaryAction) {
@@ -234,6 +297,19 @@ struct StatusBar: View {
                     .fixedSize()
                     separator
                 }
+                if let person = model.assist.personFilterTitle {
+                    Button { model.assist.clearPersonFilter() } label: {
+                        HStack(spacing: Theme.Space.xs) {
+                            Text(person)
+                            Image(systemName: "xmark.circle.fill").font(Theme.Fonts.iconSmall)
+                        }
+                    }
+                    .buttonStyle(.theme(.borderless, height: Theme.Height.small))
+                    .foregroundStyle(Theme.accent)
+                    .help("Showing frames with this person only. Click to show all.")
+                    .accessibilityIdentifier("status-person-filter")
+                    separator
+                }
                 if let msg = model.statusMessage {
                     Text(msg).lineLimit(1).truncationMode(.tail).foregroundStyle(Theme.textTertiary)
                         .help(msg)
@@ -322,7 +398,7 @@ struct LoupeOverlay: View {
             .frame(height: Theme.Height.sectionHeader)
             Spacer()
                 .allowsHitTesting(false)
-            Text("← → group  ·  ↑ ↓ frame in group  ·  X U P decide  ·  1 2 3 grade  ·  K keep best  ·  C compare  ·  ⌘Z undo  ·  Esc grid")
+            Text("← → group  ·  ↑ ↓ frame in group  ·  X U P decide  ·  1 2 3 grade  ·  K keep best  ·  C compare  ·  Y N suggestions  ·  ⌘Z undo  ·  Esc grid")
                 .font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary)
                 .lineLimit(1)
                 .padding(.bottom, Theme.Space.s)

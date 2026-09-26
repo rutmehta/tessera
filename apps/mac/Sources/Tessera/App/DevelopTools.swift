@@ -35,6 +35,8 @@ final class DevelopTools: LibraryObserver {
 
     private(set) var presets: [DevelopPreset] = []
     private(set) var historyItems: [HistoryItem] = []
+    /// Agent groups on the current lineage (History panel "Agent base edit" sections).
+    private(set) var historyGroups: [HistoryGroupState] = []
     /// Bumped when panel values change outside a slider drag.
     private(set) var revision = 0
     /// The loupe screen's EDR presentation (HDR panel: slider range, status).
@@ -353,7 +355,25 @@ final class DevelopTools: LibraryObserver {
 
     // MARK: History
 
-    func refreshHistory() { historyItems = develop?.historyItems() ?? [] }
+    func refreshHistory() {
+        historyItems = develop?.historyItems() ?? []
+        historyGroups = develop?.historyGroups() ?? []
+    }
+
+    /// The group's amount slider: previews while dragging, one undo step on release.
+    func setGroupAmount(_ group: HistoryGroupState, _ amount: Double, final: Bool) {
+        guard let d = develop else { return }
+        if !final {
+            d.previewGroupAmount(group, amount)
+            return
+        }
+        model.developHistoryMove(group.name, label: AgentFade.percent(amount)) {
+            try d.commitGroupAmount(group.groupId, amount)
+        }
+        revision += 1
+        NotificationCenter.default.post(name: Self.valuesChanged, object: nil)
+        refreshHistory()
+    }
 
     func checkout(_ id: UInt64?) {
         guard let d = develop else { return }

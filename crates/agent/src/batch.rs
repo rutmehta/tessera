@@ -13,9 +13,22 @@ impl Agent {
     pub fn edit_batch(
         &mut self,
         inputs: &[BatchInput],
+        planner: Option<&mut dyn Planner>,
+        redo: Option<&str>,
+        dry_run: bool,
+    ) -> Result<Vec<Report>> {
+        self.edit_batch_with_progress(inputs, planner, redo, dry_run, &mut |_, _| Ok(()))
+    }
+    /// `edit_batch` with a host callback after each image's report, in input order
+    /// (index, report). An error from the callback (e.g. a cancel) stops the batch
+    /// before the next image; images already edited keep their recipes.
+    pub fn edit_batch_with_progress(
+        &mut self,
+        inputs: &[BatchInput],
         mut planner: Option<&mut dyn Planner>,
         redo: Option<&str>,
         dry_run: bool,
+        progress: &mut dyn FnMut(usize, &Report) -> Result<()>,
     ) -> Result<Vec<Report>> {
         let mut images = Vec::new();
         let mut recipes = Vec::new();
@@ -64,6 +77,7 @@ impl Agent {
             if let Some(entry) = review.iter().find(|r| r.image == report.image) {
                 report.confidence = report.confidence.min(entry.confidence);
             }
+            progress(i, &report)?;
             reports.push(report);
         }
         reports.sort_by(|a, b| {

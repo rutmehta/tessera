@@ -40,16 +40,18 @@ final class ThumbnailCell: NSCollectionViewItem {
 
     func configure(item: PhotoItem, state: CullState, status: ItemStatus, basketTarget: String,
                    suggestedBest: Bool, groupIndex: Int, groupSize: Int,
-                   focused: Bool, style: CellStyle, loader: ThumbnailLoader) {
+                   focused: Bool, style: CellStyle, loader: ThumbnailLoader, suggestion: Decision? = nil) {
         let v = cellView
         v.style = style
         v.isFocusedCell = focused
         v.altGroup = item.groupID % 2 == 1
         v.overlay.set(item: item, state: state, status: status, basketTarget: basketTarget,
                       suggestedBest: suggestedBest, groupIndex: groupIndex, groupSize: groupSize, style: style)
+        v.overlay.set(suggestion: suggestion)
         v.imageLayer.opacity = state.decision == .reject ? Theme.Opacity.rejectedImage : 1
         name = item.name
         self.suggestedBest = suggestedBest
+        self.suggestion = suggestion
         updateAccessibility(state: state, status: status, basketTarget: basketTarget)
 
         guard item != representedItem else { return }
@@ -74,20 +76,24 @@ final class ThumbnailCell: NSCollectionViewItem {
         }
     }
 
-    func update(state: CullState, status: ItemStatus, basketTarget: String) {
+    func update(state: CullState, status: ItemStatus, basketTarget: String, suggestion: Decision? = nil) {
         cellView.imageLayer.opacity = state.decision == .reject ? Theme.Opacity.rejectedImage : 1
         cellView.overlay.set(state: state, status: status, basketTarget: basketTarget)
+        cellView.overlay.set(suggestion: suggestion)
+        self.suggestion = suggestion
         updateAccessibility(state: state, status: status, basketTarget: basketTarget)
     }
 
     private var name = ""
     private var suggestedBest = false
+    private var suggestion: Decision?
 
     private func updateAccessibility(state: CullState, status: ItemStatus, basketTarget: String) {
         cellView.setAccessibilityLabel("\(name), \(state.decision.label)"
             + (state.grade > 0 ? ", grade \(state.grade)" : "")
             + (state.mark > 0 ? ", mark \(state.mark)" : "")
             + (suggestedBest ? ", suggested best" : "")
+            + (suggestion.map { ", suggested \($0.label.lowercased())" } ?? "")
             + ", \(status.phase.rawValue)"
             + (status.albums.isEmpty ? "" : ", in " + status.albums.joined(separator: ", ")))
     }
@@ -168,6 +174,8 @@ final class BadgeOverlayView: NSView {
     private var status = ItemStatus()
     private var basketTarget = ""
     private var suggestedBest = false
+    /// Assist's pre-filled decision (a translucent, outlined pill until confirmed).
+    private var suggestion: Decision?
     private var style: CellStyle = .grid
     var imageRect: NSRect = .zero { didSet { if imageRect != oldValue { needsDisplay = true } } }
 
@@ -193,6 +201,13 @@ final class BadgeOverlayView: NSView {
             needsDisplay = true
         }
         set(state: state, status: status, basketTarget: basketTarget)
+    }
+
+    func set(suggestion: Decision?) {
+        if self.suggestion != suggestion {
+            self.suggestion = suggestion
+            needsDisplay = true
+        }
     }
 
     func set(state: CullState, status: ItemStatus, basketTarget: String) {
@@ -231,6 +246,13 @@ final class BadgeOverlayView: NSView {
         if let text = state.badgeText {
             let t = small ? (state.decision == .keep ? (state.grade > 0 ? "\(state.grade)" : "K") : "X") : text
             x += drawChip(t, fill: state.decision.chipColor, text: OnImage.ink,
+                          at: NSPoint(x: x, y: r.minY + pad), maxWidth: r.width / 2).width + gap
+        }
+        // Assist's pre-filled decision: an outlined hint over the scrim until Y confirms it.
+        if let suggestion, state.decision == .undecided {
+            let color = suggestion == .keep ? OnImage.keep : OnImage.reject
+            let text = small ? (suggestion == .keep ? "K?" : "X?") : (suggestion == .keep ? "Keep?" : "Reject?")
+            x += drawChip(text, fill: OnImage.scrim, text: color, outline: color,
                           at: NSPoint(x: x, y: r.minY + pad), maxWidth: r.width / 2).width + gap
         }
         if suggestedBest, !small {

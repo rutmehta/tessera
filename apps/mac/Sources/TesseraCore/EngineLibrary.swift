@@ -46,7 +46,7 @@ public final class EngineLibrary: PhotoLibrary {
     public let session: CullSession
     /// Engine image id per item id.
     public let imageIDs: [String]
-    let itemOfImage: [String: Int]
+    public let itemOfImage: [String: Int]
     let initialStates: [CullState]
     let initialStatuses: [ItemStatus]
     /// Suggested best item id per group.
@@ -144,18 +144,6 @@ public final class EngineLibrary: PhotoLibrary {
     }
 
     public func makeCullController() -> CullController { CullController(engine: self) }
-
-    /// Test aid behind the hidden `--seed-scores` flag: deterministic synthetic AI signals so the
-    /// defect sweep has something to find before ML producers exist. Item n (display order) gets
-    /// focus 0.25 when n % 4 == 1 (else 0.85) and closed_eyes 0.92 when n % 5 == 2 (else 0.05).
-    public func seedSyntheticScores() throws {
-        for (n, imageID) in imageIDs.enumerated() {
-            try engine.setScore(imageId: imageID, signal: DefectRule.focus.signal,
-                                value: n % 4 == 1 ? 0.25 : 0.85, model: "seed-scores/1")
-            try engine.setScore(imageId: imageID, signal: DefectRule.closedEyes.signal,
-                                value: n % 5 == 2 ? 0.92 : 0.05, model: "seed-scores/1")
-        }
-    }
 }
 
 extension ItemStatus {

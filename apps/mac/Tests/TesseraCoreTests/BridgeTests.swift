@@ -188,17 +188,30 @@ final class BridgeTests: XCTestCase {
         XCTAssertEqual(Set(cull.albums.map(\.name)), ["Portfolio", "Print"])
         XCTAssertEqual(Set(cull.statuses[2].albums), ["Print"])
 
-        // Seeded scores: n % 4 == 1 fails focus, n % 5 == 2 has closed eyes -> items 1, 2, 5.
-        try library.seedSyntheticScores()
+        // Real scores (M3-11): smooth, grain-free gradients measure as soft; grainy frames do not.
+        XCTAssertEqual(try cull.defectSweep(DefectRule.defaults), [], "nothing measured yet")
+        let pass = library.analyze(Array(library.items.indices), faces: false)
+        XCTAssertEqual(pass.analyzed, library.items.count)
+        XCTAssertEqual(pass.errors, [])
+        XCTAssertEqual(library.analyze(Array(library.items.indices), faces: false).analyzed, 0, "already analysed")
+        // Every frame's measured sharpness (a threshold above any value lists them all).
+        var everything = DefectRule.focus
+        everything.threshold = 1.01
+        let sharpness = Dictionary(uniqueKeysWithValues: try cull.defectSweep([everything]).map { finding in
+            (library.items[finding.item].name, Double(finding.reasons[0].split(separator: " ")[2])!)
+        })
+        XCTAssertEqual(sharpness.count, 6)
+        XCTAssertLessThan(sharpness["a1.jpg"]!, sharpness["a2.jpg"]!, "grain measures sharper than a smooth gradient")
         let found = try cull.defectSweep(DefectRule.defaults)
-        XCTAssertEqual(found.map(\.item), [1, 2, 5])
-        XCTAssertTrue(found[0].reasons[0].hasPrefix("Missed focus 0.25 <"))
+        let names = Set(found.map { library.items[$0.item].name })
+        XCTAssertTrue(names.isSuperset(of: ["a1.jpg", "b1.jpg", "c1.jpg"]), "\(names) \(sharpness)")
+        XCTAssertTrue(found[0].reasons[0].hasPrefix("Missed focus"))
         XCTAssertTrue(found.allSatisfy { cull[$0.item].decision == .undecided }, "the sweep is review-only")
-        var focusOnly = DefectRule.defaults
-        focusOnly[1].enabled = false
-        XCTAssertEqual(try cull.defectSweep(focusOnly).map(\.item), [1, 5])
+        var highlightsOnly = DefectRule.defaults
+        for i in highlightsOnly.indices where highlightsOnly[i].signal != "highlight_clipping" { highlightsOnly[i].enabled = false }
+        XCTAssertEqual(try cull.defectSweep(highlightsOnly), [], "no clipped frames")
         try cull.apply(.reject, to: found.map(\.item))
-        XCTAssertEqual(cull.counts.reject, 3)
+        XCTAssertEqual(cull.counts.reject, found.count)
         _ = try cull.undo()
         XCTAssertEqual(cull.counts.reject, 0)
         XCTAssertEqual(try StubLibrary.synthetic(count: 3).makeCullController().defectSweep(DefectRule.defaults), [])

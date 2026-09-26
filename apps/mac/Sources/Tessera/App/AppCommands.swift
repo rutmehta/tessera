@@ -90,6 +90,26 @@ struct AppCommands: Commands {
             Button("Defect Sweep…") { model.showDefectSweep = true }
                 .keyboardShortcut("d", modifiers: [.command, .shift])
             Divider()
+            Toggle("Assist", isOn: Binding(get: { model.assist.enabled }, set: { model.assist.setEnabled($0) }))
+                .keyboardShortcut("a", modifiers: [.command, .option])
+            Picker("Assist Mode", selection: Binding(get: { model.agent.preferences.assistAutomated },
+                                                     set: { model.assist.setAutomated($0) })) {
+                Text("Suggest Decisions to Confirm (Automated)").tag(true)
+                Text("Predictions and Order Only (Assisted)").tag(false)
+            }
+            Toggle("Sort by Keep Confidence", isOn: Binding(get: { model.assist.sortByConfidence },
+                                                             set: { model.assist.sortByConfidence = $0 }))
+            Button("Confirm Suggested Decisions    (Y)") { model.assist.confirmAll() }
+                .disabled(!model.assist.enabled)
+            Button("Dismiss Suggestion    (N)") { model.assist.dismiss(model.targetIDs) }
+                .disabled(!model.assist.enabled)
+            Button("Analyze Shoot Again") { model.assist.analyze(faces: false, force: true, title: "Analyzing") }
+                .disabled(!model.isEngineBacked || model.assist.isRunning)
+            Button("Analyze Faces") { model.assist.analyze(faces: true, force: false, title: "Finding faces") }
+                .disabled(!model.isEngineBacked || model.assist.isRunning)
+            Button("Clear Person Filter") { model.assist.clearPersonFilter() }
+                .disabled(model.assist.personFilter == nil)
+            Divider()
             Button("Next Group    (→ in loupe, ⌥→ in grid)") { model.navigate(.right, groupwise: true, extend: false) }
             Button("Previous Group    (← in loupe, ⌥← in grid)") { model.navigate(.left, groupwise: true, extend: false) }
             Button("Next Frame in Group    (↓ in loupe, ⌥↓ in grid)") { model.navigate(.down, groupwise: true, extend: false) }
@@ -115,6 +135,12 @@ struct AppCommands: Commands {
             Button("Show Photos Not in Any Album") { model.setSource(.notInAlbum) }
         }
         CommandMenu("Develop") {
+            Button("Auto Edit…") { model.agent.present() }
+                .keyboardShortcut("a", modifiers: [.command, .shift])
+                .disabled(model.agent.isRunning)
+            Button("Agent Review…") { model.agent.showReview = true }
+                .disabled(model.agent.queue.isEmpty)
+            Divider()
             Button("Reset All Settings") { model.resetDevelop() }
                 .keyboardShortcut("r", modifiers: [.command, .shift])
             Button("New Snapshot…") { model.promptSnapshot() }
