@@ -4,9 +4,11 @@ mod batch;
 /// Shared preview/export segmentation implementation.
 pub use mask_ai;
 mod codec;
+mod watermark;
 pub use batch::{
     BatchReport, ExportItem, Progress, export_batch, export_batch_upscaled, export_batch_with_jobs,
 };
+pub use watermark::{Anchor, Watermark, apply_watermark};
 mod filter;
 mod gpu;
 use engine_api::{EngineError, EngineResult};
@@ -85,6 +87,11 @@ pub struct ExportSettings {
     /// a scale that still covers the output size. Ignored with AI masks or
     /// super-resolution (both need full resolution).
     pub render_scale: u32,
+    /// JPEG byte budget including embedded metadata. An impossible budget
+    /// fails without publishing output. Quality is an upper bound.
+    pub max_file_bytes: Option<u64>,
+    /// Composited in document-encoded RGB after output sharpening.
+    pub watermark: Option<Watermark>,
 }
 impl Default for ExportSettings {
     fn default() -> Self {
@@ -99,6 +106,8 @@ impl Default for ExportSettings {
             dpi: None,
             apply_orientation: false,
             render_scale: 1,
+            max_file_bytes: None,
+            watermark: None,
         }
     }
 }
@@ -414,6 +423,17 @@ pub fn render_one_cancellable(
     cancel.check()?;
     recipe.validate()?;
     settings.format.validate()?;
+    if let Some(mark) = &settings.watermark {
+        mark.validate()?;
+    }
+    if settings.max_file_bytes.is_some()
+        && (!matches!(settings.format, Format::Jpeg { .. }) || settings.max_file_bytes == Some(0))
+    {
+        return Err(EngineError::invalid(
+            "max_file_bytes",
+            "positive JPEG-only byte budget required",
+        ));
+    }
     let path = settings.output_dir.join(filename(
         &settings.naming,
         image.name,
@@ -488,7 +508,10 @@ pub fn render_one_cancellable(
     } else {
         filter::resize(rgb, settings.resize, cancel)?
     };
-    let rgb = filter::sharpen(rgb, settings.sharpen_for, cancel)?;
+    let mut rgb = filter::sharpen(rgb, settings.sharpen_for, cancel)?;
+    if let Some(mark) = &settings.watermark {
+        apply_watermark(&mut rgb, mark, cancel)?;
+    }
     let packet = metadata_packet(image, recipe, settings.metadata)?;
     gpu::trace("CPU render/orient/resize/sharpen", started);
     Ok(RenderedExport {
@@ -517,7 +540,7 @@ fn encode_rendered(
     fs::create_dir_all(&settings.output_dir)
         .map_err(|e| EngineError::io_at(&settings.output_dir, &e))?;
     let mut temp = new_output_temp(&settings.output_dir)?;
-    codec::encode(
+    codec::encode_limited(
         temp.as_file_mut(),
         &rgb,
         codec::Encoding {
@@ -527,6 +550,7 @@ fn encode_rendered(
         },
         packet.as_ref().map(XmpPacket::serialize),
         cancel,
+        settings.max_file_bytes,
     )?;
     temp.as_file().sync_all().map_err(encode_error)?;
     let side_temp = if let Some(packet) = &packet {

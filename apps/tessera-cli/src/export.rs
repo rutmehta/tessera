@@ -22,6 +22,12 @@ pub struct Options {
     format: String,
     #[arg(long, default_value_t = 90, value_parser = clap::value_parser!(u8).range(1..=100))]
     quality: u8,
+    /// Maximum JPEG bytes including ICC and XMP (fails if unattainable).
+    #[arg(long, value_parser = clap::value_parser!(u64).range(1..))]
+    max_file_bytes: Option<u64>,
+    /// Watermark JSON file (text/font or PNG graphic, anchor, inset, opacity).
+    #[arg(long)]
+    watermark: Option<PathBuf>,
     #[arg(long, conflicts_with = "fit", value_parser = clap::value_parser!(u32).range(1..))]
     long_edge: Option<u32>,
     #[arg(long)]
@@ -89,6 +95,10 @@ fn is_image(path: &Path) -> bool {
 }
 
 fn settings(options: &Options) -> Result<ExportSettings> {
+    ensure!(
+        options.max_file_bytes.is_none() || options.format == "jpeg",
+        "--max-file-bytes requires JPEG"
+    );
     let resize = if let Some(edge) = options.long_edge {
         Resize::LongEdge(edge)
     } else if let Some(fit) = &options.fit {
@@ -127,6 +137,16 @@ fn settings(options: &Options) -> Result<ExportSettings> {
         },
         naming: options.name.clone(),
         output_dir: options.out.clone(),
+        max_file_bytes: options.max_file_bytes,
+        watermark: options
+            .watermark
+            .as_ref()
+            .map(|path| -> Result<export::Watermark> {
+                let mark: export::Watermark = serde_json::from_slice(&std::fs::read(path)?)?;
+                mark.validate()?;
+                Ok(mark)
+            })
+            .transpose()?,
         ..ExportSettings::default()
     })
 }
@@ -370,6 +390,49 @@ fn load(path: &Path) -> Result<Loaded> {
 #[cfg(test)]
 mod tests {
     use clap::Parser;
+
+    #[test]
+    fn byte_limit_and_watermark_flags_are_exposed() {
+        use clap::CommandFactory;
+        let mut command = crate::Cli::command();
+        let help = command
+            .find_subcommand_mut("export")
+            .unwrap()
+            .render_long_help()
+            .to_string();
+        assert!(help.contains("--max-file-bytes"));
+        assert!(help.contains("--watermark"));
+        assert!(
+            crate::Cli::try_parse_from([
+                "tessera",
+                "export",
+                "input.png",
+                "--out",
+                "out",
+                "--format",
+                "jpeg",
+                "--max-file-bytes",
+                "4096",
+                "--watermark",
+                "mark.json"
+            ])
+            .is_ok()
+        );
+        assert!(
+            crate::Cli::try_parse_from([
+                "tessera",
+                "export",
+                "input.png",
+                "--out",
+                "out",
+                "--format",
+                "jpeg",
+                "--max-file-bytes",
+                "0"
+            ])
+            .is_err()
+        );
+    }
 
     #[test]
     fn upscale_parser_accepts_only_two_or_four() {

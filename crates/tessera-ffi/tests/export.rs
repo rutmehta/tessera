@@ -83,6 +83,14 @@ fn settings_json_is_validated_and_normalized() {
     assert_eq!(value["color_space"], "srgb");
     assert_eq!(value["resize"]["mode"], "none");
     assert_eq!(value["on_conflict"], "unique");
+    assert!(value["max_file_bytes"].is_null());
+    assert!(value["watermark"].is_null());
+    let options = ExportOptions::from_json(r#"{"max_file_bytes":4096,"watermark":{"kind":"text","text":"Copyright","font":"font.ttf","size":0.05,"color":[1,1,1],"opacity":0.5,"anchor":"bottom_right","inset":0.02,"rotation":0}}"#).unwrap();
+    assert_eq!(options.max_file_bytes, Some(4096));
+    assert_eq!(
+        ExportOptions::from_json(&options.to_json()).unwrap(),
+        options
+    );
     for bad in [
         r#"{"quality":0}"#,
         r#"{"format":"jpeg","bit_depth":16}"#,
@@ -91,6 +99,9 @@ fn settings_json_is_validated_and_normalized() {
         r#"{"naming":"{unknown}"}"#,
         r#"{"resize":{"mode":"long_edge","long_edge":0}}"#,
         r#"{"surprise":true}"#,
+        r#"{"max_file_bytes":0}"#,
+        r#"{"format":"png","max_file_bytes":4096}"#,
+        r#"{"watermark":{"kind":"graphic","path":"a.png","scale":0,"opacity":1,"anchor":"center","inset":0}}"#,
     ] {
         assert!(normalize_export_settings(bad.into()).is_err(), "{bad}");
     }

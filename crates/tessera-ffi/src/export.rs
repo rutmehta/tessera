@@ -139,6 +139,9 @@ pub struct ExportOptions {
     pub format: FileFormat,
     /// JPEG quality 1–100.
     pub quality: u8,
+    /// JPEG byte budget including the embedded ICC and XMP packets.
+    pub max_file_bytes: Option<u64>,
+    pub watermark: Option<export::Watermark>,
     /// TIFF 8 or 16 (PNG and JPEG are 8-bit).
     pub bit_depth: u8,
     pub color_space: DocumentSpace,
@@ -163,6 +166,8 @@ impl Default for ExportOptions {
         Self {
             format: FileFormat::Jpeg,
             quality: 90,
+            max_file_bytes: None,
+            watermark: None,
             bit_depth: 8,
             color_space: DocumentSpace::Srgb,
             resize: ResizeOptions::default(),
@@ -197,6 +202,16 @@ impl ExportOptions {
     }
     /// Everything but the destination (checked when a batch runs).
     pub fn validate(&self) -> Result<()> {
+        if let Some(mark) = &self.watermark {
+            mark.validate()?;
+        }
+        if self.max_file_bytes.is_some()
+            && (self.format != FileFormat::Jpeg || self.max_file_bytes == Some(0))
+        {
+            return Err(failure(
+                "file size limit must be positive and requires JPEG",
+            ));
+        }
         if !(1..=100).contains(&self.quality) {
             return Err(failure("JPEG quality must be 1–100"));
         }
@@ -275,6 +290,8 @@ impl ExportOptions {
             dpi: Some(self.dpi),
             apply_orientation: true,
             render_scale: 1,
+            max_file_bytes: self.max_file_bytes,
+            watermark: self.watermark.clone(),
         })
     }
 }
