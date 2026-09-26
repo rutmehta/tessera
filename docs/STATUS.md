@@ -23,9 +23,12 @@ Export throughput (36 MP full-size 1.2 s; 100 Web JPEGs 26 s render+encode; app 
 ## Also merged since
 Tethered capture + live ingest (ImageCaptureCore; no camera here to verify physically), keywords/captions/OCR engine (SigLIP zero-shot over 2,080 concepts, Florence-2 captions + OCR) and the app UI for them, agent runs on the GPU renderer (~50 ms/step vs 40 s/image), slider keyboard focus fix, Develop panels verified on screen.
 
+## Milestone 5 (layered editor) so far — merged
+Compositor core (27 blend modes exact, groups/knockout/Blend If, adjustments, smart objects, COW tiles, dirty rects, non-linear history, .tessera-doc), PSD/PSB read/write + adapter, engine-api 1.2 (document/layer ids, node memo key, document tool calls, history, action descriptors), GPU-resident compositing via a shared `gpu-core` device (dab 1.6 ms, L2 13.6 ms; L0 198 ms vs 100 target), filters crate (blurs/sharpen/noise/distort/stylize/adjust with Metal parity), exact critic metrics, tethering UI, keywords/captions UI.
+
 ## In progress / next
-- M3-14b critic metrics exact at full resolution via GPU reduction; M5-01 layer compositor core (Milestone 5 started); M5-02 PSD/PSB read/write.
-- Next app work: tethering UI, layered-editor UI once the compositor lands.
+- M2-28 incremental library updates (+ tether naming fixes), M5-05 brush engine + selections, M5-07 document tool executor + Actions; then the layered-editor UI (Opus) and L0 compositor shader specialisation.
+- GPT-6 (Codex) quota exhausted until 2026-09-26 13:51; Opus carries work meanwhile.
 
 ## Known gaps / next
 - Adobe undocumented XMP structures (PointColors strings, brush dabs, Look tables) need **real Lightroom-exported sidecars** to finish (M2-02b).
