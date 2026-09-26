@@ -1,4 +1,10 @@
 //! The GPU page pool: fixed-size pages in up to eight storage-buffer slabs.
+//!
+//! The first slab grows by reallocation (a GPU copy into a larger buffer,
+//! page numbers unchanged) up to the storage-binding limit; only then are
+//! further slabs added. Kernels therefore almost always see one slab and
+//! load pages without a per-texel slab switch, and pool growth does not
+//! change the specialized kernels' structure key.
 
 use engine_api::{EngineError, EngineResult};
 
@@ -56,32 +62,72 @@ impl Pool {
         u64::from(self.total) * self.page_bytes
     }
 
-    /// Whether another slab can be added.
+    /// Whether the pool can take more pages.
     pub fn can_grow(&self) -> bool {
         self.slabs.len() < self.max_slabs
+            || self
+                .slabs
+                .last()
+                .is_some_and(|&(_, _, pages)| pages < self.max_slab_pages)
     }
 
-    /// Adds a slab for at least `need` more pages (sized to the larger of
-    /// `need` plus a quarter and the pages so far, capped by the binding
-    /// limit).
-    pub fn grow(&mut self, device: &wgpu::Device, need: u32) -> EngineResult<()> {
-        if !self.can_grow() {
-            return Err(EngineError::ResourceExhausted {
-                resource: format!("{} (all {} slabs allocated)", self.label, self.max_slabs),
-            });
-        }
-        let pages = (need + need / 4)
-            .max(self.total)
-            .max(MIN_SLAB_PAGES)
-            .min(self.max_slab_pages);
-        let buffer = device.create_buffer(&wgpu::BufferDescriptor {
+    fn buffer(&self, device: &wgpu::Device, pages: u32) -> wgpu::Buffer {
+        device.create_buffer(&wgpu::BufferDescriptor {
             label: Some(self.label),
             size: u64::from(pages) * self.page_bytes,
             usage: wgpu::BufferUsages::STORAGE
                 | wgpu::BufferUsages::COPY_DST
                 | wgpu::BufferUsages::COPY_SRC,
             mapped_at_creation: false,
-        });
+        })
+    }
+
+    /// Makes room for more pages, at least `need` if the binding limit
+    /// allows: the last slab is reallocated at least twice as large (and to
+    /// fit `need` plus a quarter) while under the binding limit, with its
+    /// pages copied on the GPU (queued before any later upload); otherwise a
+    /// slab is added. Growth past `cap` total pages is limited to `need`.
+    pub fn grow(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        need: u32,
+        cap: u32,
+    ) -> EngineResult<()> {
+        if !self.can_grow() {
+            return Err(EngineError::ResourceExhausted {
+                resource: format!("{} (all {} slabs allocated)", self.label, self.max_slabs),
+            });
+        }
+        let want = need.saturating_add(need / 4);
+        if let Some(&(ref old, first, pages)) = self.slabs.last()
+            && pages < self.max_slab_pages
+        {
+            let room = cap
+                .saturating_sub(self.total - pages)
+                .max(pages.saturating_add(need));
+            let grown = pages
+                .saturating_mul(2)
+                .max(pages.saturating_add(want))
+                .min(room)
+                .min(self.max_slab_pages);
+            let buffer = self.buffer(device, grown);
+            let mut enc = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("resident pool growth"),
+            });
+            enc.copy_buffer_to_buffer(old, 0, &buffer, 0, u64::from(pages) * self.page_bytes);
+            queue.submit([enc.finish()]);
+            let last = self.slabs.len() - 1;
+            self.slabs[last] = (buffer, first, grown);
+            self.total += grown - pages;
+            return Ok(());
+        }
+        let pages = want
+            .max(self.total)
+            .max(MIN_SLAB_PAGES)
+            .min(cap.saturating_sub(self.total).max(need))
+            .min(self.max_slab_pages);
+        let buffer = self.buffer(device, pages);
         self.slabs.push((buffer, self.total, pages));
         self.total += pages;
         Ok(())

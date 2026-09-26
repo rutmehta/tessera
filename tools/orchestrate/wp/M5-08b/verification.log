@@ -1,0 +1,38 @@
+FMT-OK
+    Checking gpu-core v0.1.0 (/Users/rutmehta/Developer/tessera/.worktrees/M5-08/crates/gpu-core)
+    Checking compositor v0.1.0 (/Users/rutmehta/Developer/tessera/.worktrees/M5-08/crates/compositor)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.07s
+     Running unittests src/lib.rs (/Volumes/betterSSD/tessera-cache/target/M5-08/release/deps/compositor-a90c950b2d3e85df)
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+     Running tests/bench.rs (/Volumes/betterSSD/tessera-cache/target/M5-08/release/deps/bench-7d69129e3441e55c)
+test result: ok. 1 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 0.06s
+     Running tests/bench_micro.rs (/Volumes/betterSSD/tessera-cache/target/M5-08/release/deps/bench_micro-b5ac087be5bf3bf0)
+test result: ok. 0 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/blend_modes.rs (/Volumes/betterSSD/tessera-cache/target/M5-08/release/deps/blend_modes-0aa2625e38329fdd)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/caching.rs (/Volumes/betterSSD/tessera-cache/target/M5-08/release/deps/caching-c616a7136a90e172)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+     Running tests/contracts.rs (/Volumes/betterSSD/tessera-cache/target/M5-08/release/deps/contracts-fde93cbdbe03cb0e)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/gpu.rs (/Volumes/betterSSD/tessera-cache/target/M5-08/release/deps/gpu-7c842a3096059052)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+     Running tests/gpu_resident.rs (/Volumes/betterSSD/tessera-cache/target/M5-08/release/deps/gpu_resident-fec5ffaeb4a05682)
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.18s
+     Running tests/gpu_resident_output.rs (/Volumes/betterSSD/tessera-cache/target/M5-08/release/deps/gpu_resident_output-6a30dd2366ee067d)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+     Running tests/gpu_smart_resample.rs (/Volumes/betterSSD/tessera-cache/target/M5-08/release/deps/gpu_smart_resample-4d686963c51fa0e6)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+     Running tests/psd.rs (/Volumes/betterSSD/tessera-cache/target/M5-08/release/deps/psd-6be8eae2e9e64566)
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/psd_document.rs (/Volumes/betterSSD/tessera-cache/target/M5-08/release/deps/psd_document-0dcec80564d1b863)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/roundtrip.rs (/Volumes/betterSSD/tessera-cache/target/M5-08/release/deps/roundtrip-efccd3e32c8f0a63)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+     Running tests/structure.rs (/Volumes/betterSSD/tessera-cache/target/M5-08/release/deps/structure-1b571c6ff2194aac)
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running unittests src/lib.rs (/Volumes/betterSSD/tessera-cache/target/M5-08/release/deps/gpu_core-1a457d5df1af6c32)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/precise.rs (/Volumes/betterSSD/tessera-cache/target/M5-08/release/deps/precise-1b8ce0f06e1b3768)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

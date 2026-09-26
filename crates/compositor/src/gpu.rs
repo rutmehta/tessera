@@ -35,11 +35,12 @@ struct GpuOp {
 const NO_MASK: u32 = u32::MAX;
 
 /// A Metal device with the compositor pipeline.
+#[derive(Clone)]
 pub struct GpuCompositor {
     pub(crate) device: wgpu::Device,
     pub(crate) queue: wgpu::Queue,
     pipeline: wgpu::ComputePipeline,
-    resident: std::sync::Mutex<Option<std::sync::Arc<crate::resident::Pipelines>>>,
+    resident: std::sync::Arc<std::sync::Mutex<Option<std::sync::Arc<crate::resident::Pipelines>>>>,
     /// Adapter description.
     pub adapter: String,
 }
@@ -80,18 +81,30 @@ impl GpuCompositor {
         adapter: String,
     ) -> EngineResult<Self> {
         let scope = device.push_error_scope(wgpu::ErrorFilter::Validation);
-        let module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("composite"),
-            source: wgpu::ShaderSource::Wgsl(shader(include_str!("composite.wgsl")).into()),
-        });
-        let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-            label: Some("composite"),
-            layout: None,
-            module: &module,
-            entry_point: Some("main"),
-            compilation_options: Default::default(),
-            cache: None,
-        });
+        // IEEE maths (correctly rounded division and sqrt, no contraction),
+        // like the resident shaders: the port rounds like the CPU.
+        let pipeline = gpu_core::precise_compute_pipeline(
+            &device,
+            "composite",
+            &shader(include_str!("composite.wgsl")),
+            "main",
+            (64, 1, 1),
+            &(0..4)
+                .map(|binding| wgpu::BindGroupLayoutEntry {
+                    binding,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage {
+                            read_only: binding != 3,
+                        },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                })
+                .collect::<Vec<_>>(),
+        )?
+        .pipeline;
         if let Some(e) = pollster::block_on(scope.pop()) {
             return Err(internal(e));
         }
@@ -99,7 +112,7 @@ impl GpuCompositor {
             device,
             queue,
             pipeline,
-            resident: std::sync::Mutex::new(None),
+            resident: std::sync::Arc::new(std::sync::Mutex::new(None)),
             adapter,
         })
     }

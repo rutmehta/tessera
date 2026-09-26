@@ -1,0 +1,23 @@
+    Finished `release` profile [optimized] target(s) in 0.24s
+     Running tests/bench.rs (/Volumes/betterSSD/tessera-cache/target/M5-08/release/deps/bench-7d69129e3441e55c)
+
+running 1 test
+device + pipelines: 13 ms (Apple M4)
+cold open → first L2 frame: 407 ms  [3390 pages / 821 MB uploaded, 1300 mip pages, 4902 blocks]
+L2 full recomposite (100 layers, 1368×912): min 6.33 ms, median 6.49 ms
+64² dab → L2 recomposite: min 2.61 ms, median 3.76 ms, max 6.38 ms  [last: 4 blocks, 1 uploads, 2 mips; Document::apply median 0.03 ms]
+first L0 frame: 109.9 ms  [77976 blocks, 0 uploads]
+L0 full composite (20 MP × 100 layers): min 93.8 ms, median 96.9 ms
+64² dab → L0 dirty-rect update: 7.40 ms  [25 blocks]
+opacity change → L2 frame: median 10.06 ms
+L2 max |resident − CPU| over the bench document: 0e0
+L2 general CPU error 0e0, specialized/general drift 0e0
+L2 full recomposite with 2 adjustment layers (cpu, total): [(0.98, 19.06), (1.93, 20.05), (1.90, 20.19), (1.93, 19.05), (1.85, 18.66)] ms
+resident: 1876 MB GPU (4772 live pages), ResidentStats { frames: 45, full_frames: 27, partial_frames: 17, idle_frames: 1, blocks: 570883, uploaded_pages: 3422, uploaded_bytes: 829800448, mip_pages: 1350, smart_pages: 0, evicted_pages: 0, live_pages: 4772, resident_bytes: 1876039680 }
+before: CPU L0 full composite (10 threads): 2860 ms
+before: per-tile GPU port, L2 (24 tiles, sources uploaded per tile): 5359 ms (adjustments unsupported there)
+test resident_100_layers_20mp ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 38.31s
+
+ 1:29  up 30 days, 21:28, 5 users, load averages: 40.82 24.60 22.76

@@ -8,8 +8,11 @@
 //! in the raw stack. Cloning a [`GpuDevice`] clones handles, not the device.
 #![deny(unsafe_code)]
 
+pub use color_mgmt::Lut3d;
 mod iosurface;
+mod precise;
 pub use iosurface::{SurfaceFormat, write_to_iosurface};
+pub use precise::{PrecisePipeline, Precision, precise_compute_pipeline, translate};
 
 use std::sync::{Arc, Mutex};
 
@@ -24,11 +27,16 @@ pub struct GpuCapabilities {
     pub shader_f16: bool,
     /// `Rgba16Float` storage textures.
     pub rgba16float_storage: bool,
+    /// MSL passthrough, used for IEEE-conformant compute pipelines
+    /// ([`precise_compute_pipeline`]).
+    pub passthrough_shaders: bool,
 }
 
 /// Defaults plus what whole-level resident work needs: sixteen storage
-/// bindings, 32 KiB workgroup storage and single buffers up to 1 GiB (a
-/// 61 MP level as packed f32 RGBA), each capped by the adapter.
+/// bindings, 32 KiB workgroup storage and single buffers up to 2 GiB (a
+/// 61 MP level as packed f32 RGBA is 1 GiB; the compositor's page pool
+/// keeps its whole default 2 GiB budget in one binding, so its kernels
+/// need no per-texel slab switch), each capped by the adapter.
 pub fn limits(adapter: &wgpu::Limits) -> wgpu::Limits {
     let base = wgpu::Limits::default();
     wgpu::Limits {
@@ -36,11 +44,14 @@ pub fn limits(adapter: &wgpu::Limits) -> wgpu::Limits {
         max_compute_workgroup_storage_size: adapter
             .max_compute_workgroup_storage_size
             .min(32 << 10),
-        max_storage_buffer_binding_size: adapter.max_storage_buffer_binding_size.min(1 << 30),
-        max_buffer_size: adapter.max_buffer_size.min(1 << 30),
+        max_storage_buffer_binding_size: adapter.max_storage_buffer_binding_size.min(MAX_BINDING),
+        max_buffer_size: adapter.max_buffer_size.min(MAX_BINDING),
         ..base
     }
 }
+
+/// Largest single buffer / storage binding requested.
+const MAX_BINDING: u64 = 2 << 30;
 
 /// A shared Metal device and queue. Initialization fails explicitly without
 /// Metal.
@@ -68,7 +79,7 @@ impl std::fmt::Debug for GpuDevice {
 
 impl GpuDevice {
     /// Opens the high-performance Metal adapter with [`limits`] and the
-    /// timestamp/f16 features when available.
+    /// timestamp, f16 and MSL-passthrough features when available.
     pub fn new() -> EngineResult<Self> {
         let mut desc = wgpu::InstanceDescriptor::new_without_display_handle();
         desc.backends = wgpu::Backends::METAL;
@@ -86,11 +97,14 @@ impl GpuDevice {
                 .get_texture_format_features(wgpu::TextureFormat::Rgba16Float)
                 .allowed_usages
                 .contains(wgpu::TextureUsages::STORAGE_BINDING),
+            passthrough_shaders: features.contains(wgpu::Features::PASSTHROUGH_SHADERS),
         };
         let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
             label: Some("tessera"),
             required_features: features
-                & (wgpu::Features::TIMESTAMP_QUERY | wgpu::Features::SHADER_F16),
+                & (wgpu::Features::TIMESTAMP_QUERY
+                    | wgpu::Features::SHADER_F16
+                    | wgpu::Features::PASSTHROUGH_SHADERS),
             required_limits: limits(&adapter.limits()),
             ..Default::default()
         }))
