@@ -1,4 +1,10 @@
-# Explicit precise resident transform stage
+# Precise resident transform stage
+
+M5-23 also invokes this API automatically from smart-filter stacks. Free, Warp,
+Perspective and Puppet execute at native child resolution before placement and
+mips. ContentAwareScale remains a layer-local CPU fallback. See COMPOSITOR.md
+§12.6 for stage caching, exact lossless nearest-chain fusion eligibility, and
+why general resampled/translucent chains cannot be fused without changing pixels.
 
 ## API and integration boundary
 
@@ -19,7 +25,7 @@
 `ResidentRenderer::encode_transform_level(&mut CommandEncoder, &destination: Buffer, &TransformPlan, Option<ComputePassTimestampWrites>) -> EngineResult<()>`
 
 - Borrows the renderer's internal premultiplied level buffer directly, at the level selected by the plan. Requires the complete rendered level with matching source dimensions; rejects missing, partial, compact or invalid level state.
-- Does not overwrite the level or change document/SmartObject behavior. This is an explicit callable resident stage, **not automatic Transform SmartFilter or SmartObject integration**. It can consume a child renderer's full composite explicitly, but does not replace the existing smart-page path.
+- Does not overwrite the level. This explicit entry point remains available; the M5-23 stack router uses `encode_transform_buffers` and then the existing smart-page placement path.
 
 `TransformPlan::precision() -> gpu_core::Precision` reports the mandatory IEEE compilation mode.
 

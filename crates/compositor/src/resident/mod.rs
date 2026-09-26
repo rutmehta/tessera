@@ -35,6 +35,8 @@
 //! directly into GPU pages. The host computes f64 sampling footprints, not
 //! pixels, to preserve the CPU reference's affine-coordinate precision.
 
+mod filters;
+mod fusion;
 mod output;
 mod pool;
 mod program;
@@ -473,6 +475,7 @@ pub struct ResidentRenderer {
     specialized: specialize::Cache,
     specialization: bool,
     smart_quality: SmartQuality,
+    stack: filters::StackRuntime,
 }
 
 fn page_bytes(depth: Depth) -> u64 {
@@ -568,6 +571,7 @@ impl ResidentRenderer {
             specialized: specialize::Cache::default(),
             specialization: true,
             smart_quality: SmartQuality::default(),
+            stack: filters::StackRuntime::new(budget),
         })
     }
 
@@ -586,6 +590,7 @@ impl ResidentRenderer {
         self.smarts.clear();
         self.pending_smart.clear();
         self.children.clear();
+        self.stack.clear();
         for layer in self.layers.values_mut() {
             layer.smart.clear();
         }
@@ -620,7 +625,8 @@ impl ResidentRenderer {
         s.live_pages = self.nodes.len() as u64;
         s.resident_bytes = self.main.bytes()
             + self.smart.bytes()
-            + self.levels.values().map(|l| l.out.size()).sum::<u64>();
+            + self.levels.values().map(|l| l.out.size()).sum::<u64>()
+            + self.stack.bytes();
         s
     }
 
@@ -634,6 +640,7 @@ impl ResidentRenderer {
         self.layers.clear();
         self.levels.clear();
         self.children.clear();
+        self.stack.clear();
         self.depth = Some(depth);
         self.canvas = canvas;
         Ok(())
@@ -793,24 +800,32 @@ impl ResidentRenderer {
                 self.smarts.insert(key, 0);
                 return Ok(0);
             }
-            if self
-                .children
-                .get(&layer.id)
-                .is_none_or(|(state, _)| !Arc::ptr_eq(state, &so.state))
-            {
-                let mut child = ResidentRenderer::new(&self.gpu)?;
-                child.set_smart_quality(self.smart_quality)?;
-                self.children.insert(layer.id, (so.state.clone(), child));
-            }
-            let (_, child) = self.children.get_mut(&layer.id).unwrap();
-            child.render_viewport(
-                &Document::new((*so.state).clone()),
-                plan.child_level(),
-                plan.child_region(),
-                0,
-            )?;
-            let source = child.levels[&plan.child_level()].out.clone();
-            plan.rebase(child.levels[&plan.child_level()].region);
+            let source = if so.filters.iter().any(|f| f.enabled) || so.state.has_layer_styles() {
+                self.filtered_buffer(layer, plan.child_level())?
+            } else {
+                if self
+                    .children
+                    .get(&layer.id)
+                    .is_none_or(|(state, _)| !Arc::ptr_eq(state, &so.state))
+                {
+                    let mut child = ResidentRenderer::new(&self.gpu)?;
+                    child.set_smart_quality(self.smart_quality)?;
+                    if let Some(adapter) = self.stack.evaluator.clone() {
+                        child.set_filter_evaluator(adapter)?;
+                    }
+                    self.children.insert(layer.id, (so.state.clone(), child));
+                }
+                let (_, child) = self.children.get_mut(&layer.id).unwrap();
+                child.render_viewport(
+                    &Document::new((*so.state).clone()),
+                    plan.child_level(),
+                    plan.child_region(),
+                    0,
+                )?;
+                let source = child.levels[&plan.child_level()].out.clone();
+                plan.rebase(child.levels[&plan.child_level()].region);
+                source
+            };
             debug_assert_eq!(
                 plan.output_extent().width as i64,
                 Rect::of_tile(coord, self.canvas.at_level(level)).width()
@@ -1095,6 +1110,19 @@ impl ResidentRenderer {
         viewport: Option<Rect>,
     ) -> EngineResult<FrameReport> {
         let state = doc.state();
+        // Smart children have a layer-local fallback; direct styles need the
+        // backdrop-aware CPU program. Never silently omit them.
+        fn styled(layer: &Layer) -> bool {
+            !layer.props.styles.effects.is_empty()
+                || layer
+                    .children()
+                    .is_some_and(|c| c.iter().any(|l| styled(l)))
+        }
+        if state.root.iter().any(|l| styled(l)) {
+            return Err(EngineError::Unsupported {
+                what: "styles in the resident document program require CPU composition".into(),
+            });
+        }
         if level >= MAX_LEVEL {
             return Err(EngineError::invalid(
                 "level",

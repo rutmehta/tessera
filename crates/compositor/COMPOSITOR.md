@@ -414,9 +414,9 @@ embedded liFD PSD source pixels. Unsupported warped/external source descriptors
 stay opaque proxies. Enabled TransformOp/filter stacks are native-only and PSD
 export explicitly requests rasterization instead of silently dropping them.
 
-ResidentRenderer has an explicit precise displacement-texture transform stage
-over resident buffers or a fully rendered level. It is not automatically selected
-for document smart-filter stacks; those still route through CPU. See
+ResidentRenderer retains the explicit precise displacement-texture API and now
+automatically selects it for geometric smart-filter stages (M5-23, §12.6).
+Content-aware scaling remains a layer-local CPU fallback. See
 `src/resident/TRANSFORM.md` for the API, parity tests and measured GPU timings, and
 `../transform/TRANSFORM.md` for geometry formulas and implementation limits.
 
@@ -520,14 +520,16 @@ nested source compositing never runs under the filter-cache lock.
 
 ### GPU routing and PSD
 
-No resident, gpu.rs, or blend.rs files are modified by this work package.
-The per-tile GPU port returns `Unsupported` for styled source operations.
-Before selecting `ResidentRenderer`, hosts must call
-`DocState::check_resident_effects()` and route its `Unsupported` result to the
-CPU. This preflight rejects styles and enabled smart filters recursively.
-The resident backend itself has not been patched to call the preflight, because
-that integration belongs to the concurrently edited M5-08b files. Bypassing the
-preflight can still omit these effects on the resident path.
+M5-14 supplied CPU layer styles, not GPU style kernels. The per-tile GPU port
+returns `Unsupported` for styled source operations. M5-23 adds automatic resident
+smart-filter routing and CPU fallback confined to a smart-object source (§12.6).
+Styles inside that source also use this local fallback. Styles directly in the
+resident document/group program are explicitly rejected, never silently omitted,
+because their backdrop-dependent composition cannot be replaced by one flattened
+source. `DocState::check_resident_effects()` remains the old conservative host
+preflight; it rejects even GPU-capable filters. Hosts using the new resident
+router should call `render`/`render_viewport` directly and handle `Unsupported`
+for direct styles, rather than using that legacy all-filter rejection.
 
 PSD lfx2 basics map drop/inner shadows, outer/inner glows, solid colour overlays,
 and solid strokes, including scale, blend mode, opacity, and global light
@@ -921,3 +923,85 @@ Not done:
 - Compilation is on a worker thread per structure; large programs (250
   steps) take several seconds to specialize, rendering on the interpreter
   (about 2× slower) meanwhile.
+
+### 12.6 M5-23: resident smart-filter stacks
+
+Install `Arc::new(filters::CompositorFilters)` using
+`ResidentRenderer::set_filter_evaluator`. The dependency-inverted
+`render::smart_filters::ResidentFilterEvaluator` extends the CPU evaluator with
+capability preflight and a shared-device buffer method. No second device is
+created and no source pixels are downloaded by a supported stack. The standalone
+`GpuFilters::apply` raster interface is preserved; `from_device`/`apply_buffer`
+provide the resident path. Native invert and geometric transforms also work
+without an installed adapter. Unknown filters remain explicit errors if the
+installed CPU evaluator cannot execute them.
+
+Routing preflights the entire enabled stack before pixel work. Supported stages
+run at native child resolution, in vector order, before the existing placement
+and mip selection. All blend modes, per-stage opacity, the shared mask, straight/
+premultiplied conversion and alpha-aware mips are GPU operations. Mask samples
+are ordinary source uploads, not a composite readback. Disabled and zero-opacity
+stages do not execute. Children inherit the evaluator, including nested stacks.
+If any effective stage is CPU-only, the whole stack for that smart layer is
+evaluated by the existing CPU compositor and only its result is uploaded. The
+parent document, sibling pages and other GPU-capable layers remain resident.
+Invalid parameters propagate errors rather than masquerading as a fallback.
+CPU fallback currently requires default bilinear smart-object quality. Explicit
+Lanczos3 with a CPU-only stack returns `Unsupported`, rather than silently
+switching nested smart-object reconstruction to bilinear. Matching that quality
+in CPU fallback is not implemented.
+
+Adapter inventory: Gaussian/Box, Motion, RadialSpin/Zoom, LensBlur with supplied
+depth and supported radius, SurfaceBlur, UnsharpMask, HighPass, AddNoise, all
+eight distortions, and fifteen pixel-local adjustment variants. MatchColour is
+not fully resident: its existing GPU backend still computes source statistics
+on CPU, so that stage conservatively falls back. Median and the remaining
+CPU-only filters likewise fall back. Camera RAW retains its feature-gated CPU
+implementation. M5-14 has no GPU layer-style evaluation to route to.
+
+Free/Warp/Perspective/Puppet stages use the M5-21 RG32Float displacement texture
+and precise kernel on resident premultiplied buffers. Geometry preparation is
+still host-side. ContentAwareScale has no geometry-only map and falls back.
+Nearest-neighbor chains compose into one displacement map only when they are
+lossless integer signed-axis permutations of the complete canvas, with normal
+full-opacity blends and a source proven opaque from fill parameters. The source
+proof currently accepts one unmasked default-property solid/opaque gradient/
+opaque pattern fill. This avoids pixel readback for opacity classification.
+Other chains remain sequential: bilinear/bicubic/Lanczos reconstruction is not
+associative, clipping loses information, and translucent stages include rounded
+alpha blending and straight/premultiplied conversions. Combining their matrices
+would not preserve the CPU document render. Broader opacity proofs and fusion
+are not implemented.
+
+The stack cache is a byte-bounded LRU of interleaved F32 GPU buffers, using the
+renderer constructor's budget (the same policy as the CPU filter cache, separate
+from the page pool). Prefix keys hash child namespace, source revision, extent
+and each serialized stage including parameters/blend. Editing a suffix reuses
+earlier stages; source revisions invalidate every dependent prefix; undo may
+reuse old revisions. Mask/result keys additionally include layer identity and
+content revision. Oversized buffers execute transiently but are not retained.
+Final requested mips are cached; unrequested intermediate mips are transient.
+Existing dirty rectangles/revisions invalidate placed smart pages. Replacing an
+evaluator, changing quality, or resetting the canvas clears dependent results.
+`filter_evaluations`, `filter_fallbacks`, and `filter_cache_bytes` expose local
+renderer counters. These are not aggregate child counters. The existing soft
+page-pool budget still permits an over-budget active working set; this is not a
+new hard cap on the entire recursive renderer or transient GPU allocations.
+
+Real-device tests: `resident_filters` and `resident_filter_inventory` exercise
+L0/L2 parity for the adapter inventory, all four geometric transform kinds with
+all five kernel selections, content-aware fallback, three-stage nested stacks,
+mask/parameter/source edits and undo, bounded retention, opaque nearest fusion,
+and an actual CPU-only Median stage that leaves sibling uploads unchanged.
+Exact native invert/cache/fusion cases assert zero error; resampled and existing
+filter kernels assert at most 1e-4. Existing filters retain their existing WGSL
+arithmetic; no new bit-exact claim is made for their transcendental functions.
+
+Ignored benchmark: `cargo test -p compositor --release --test resident_filter_bench -- --ignored --nocapture`.
+The fixture has a 5472×3648 canvas, 100 layers including ten filtered 512² smart
+children, and a full L2 viewport. Seven warm full-recomposite samples (not idle
+frames), excluding compilation: CPU median **95.870 ms**, resident submit+wait
+median **15.033 ms**, within the **16 ms** interactive target. Cold CPU was
+266.815 ms and cold resident 83.633 ms; maximum output error was zero and the
+retained stack buffers used 86,507,520 bytes. These are this fixture's numbers,
+not a claim for ten full-20-MP filtered sources or the unresolved 4K <8 ms gate.
