@@ -42,6 +42,8 @@ Written 2026-09-25. Covers how docs 01–10 get built, by which model, in what o
 
 **Concurrency**: Opus 2–3 agents, Luna 4–6 codex processes, Sol 1. Each WP runs in its own git worktree on branch `wp/<id>`; I merge into `main` after the gate for that WP passes.
 
+**Coordinator fallback (2026-09-26)**: if the Fable 5.1 coordinator session is downgraded to Opus 5.5 by a usage limit, the coordinator must use GPT-6 Astra (900k context) through the Codex CLI as supervisor/planner: `tools/orchestrate/supervise.sh plan|review <wp>|ask <q>` builds the context (plan, STATUS, board, log) and returns the supervisor's decision; the Opus coordinator executes it. A second laptop runs a parallel session owning a disjoint slice of packages; only one coordinator merges to `main`.
+
 **Cost policy (revised)**: Astra first for substantive packages; Luna for mechanical ones; Sol for verification and medium refactors; Opus for architecture, UI and reviews. Escalate Astra failures to Opus. Fable never codes leaves. Lessons: never edit a runner script while a run is active (bash reads scripts incrementally), always invoke the harness with absolute paths, and a "test passes" verdict is only as strong as the test, so briefs must include completeness checks (e.g. minimum test counts, required API items) rather than only "cargo test".
 
 ## 3. Repository layout (created in Milestone 0)
