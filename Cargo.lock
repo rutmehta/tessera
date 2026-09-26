@@ -1197,6 +1197,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "filters"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "compositor",
+ "engine-api",
+ "naga",
+ "pipeline-cpu",
+ "pollster",
+ "wgpu",
+]
+
+[[package]]
 name = "find-msvc-tools"
 version = "0.1.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"

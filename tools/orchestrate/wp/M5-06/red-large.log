@@ -1,0 +1,28 @@
+warning: unused import: `super::*`
+ --> crates/filters/src/large.rs:4:9
+  |
+4 |     use super::*;
+  |         ^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+error[E0425]: cannot find function `gaussian` in this scope
+  --> crates/filters/src/large.rs:15:26
+   |
+15 |                 let fast=gaussian(&src,sigma,&cancel).unwrap();
+   |                          ^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `factor` in this scope
+  --> crates/filters/src/large.rs:27:19
+   |
+27 |             let f=factor(sigma);let pad=padding(sigma,f);
+   |                   ^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `padding` in this scope
+  --> crates/filters/src/large.rs:27:41
+   |
+27 |             let f=factor(sigma);let pad=padding(sigma,f);
+   |                                         ^^^^^^^ not found in this scope
+
+For more information about this error, try `rustc --explain E0425`.
+error: could not compile `filters` (lib test) due to 3 previous errors; 1 warning emitted

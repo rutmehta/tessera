@@ -1,0 +1,125 @@
+error[E0599]: no variant, associated function, or constant named `inventory` found for enum `Effect` in the current scope
+  --> crates/filters/tests/inventory.rs:12:19
+   |
+12 |  for e in Effect::inventory() {
+   |                   ^^^^^^^^^ variant, associated function, or constant not found in `Effect`
+
+error[E0560]: struct `FilterParams` has no field named `angle`
+  --> crates/filters/tests/inventory.rs:14:44
+   |
+14 |   let p=FilterParams{amount:0.8,radius:1.5,angle:0.5,depth:Some(vec![1.0;17*13]),..Default::default()};
+   |                                            ^^^^^ `FilterParams` does not have this field
+   |
+   = note: all struct fields are already assigned
+
+error[E0560]: struct `FilterParams` has no field named `depth`
+  --> crates/filters/tests/inventory.rs:14:54
+   |
+14 |   let p=FilterParams{amount:0.8,radius:1.5,angle:0.5,depth:Some(vec![1.0;17*13]),..Default::default()};
+   |                                                      ^^^^^ `FilterParams` does not have this field
+   |
+   = note: all struct fields are already assigned
+
+error[E0599]: no variant, associated function, or constant named `OilPaint` found for enum `Effect` in the current scope
+  --> crates/filters/tests/inventory.rs:16:25
+   |
+16 |   if matches!(e,Effect::OilPaint|Effect::LensFlare|Effect::CameraRaw) { assert!(out.is_err()); continue; }
+   |                         ^^^^^^^^ variant, associated function, or constant not found in `Effect`
+
+error[E0599]: no variant, associated function, or constant named `LensFlare` found for enum `Effect` in the current scope
+  --> crates/filters/tests/inventory.rs:16:42
+   |
+16 |   if matches!(e,Effect::OilPaint|Effect::LensFlare|Effect::CameraRaw) { assert!(out.is_err()); continue; }
+   |                                          ^^^^^^^^^ variant, associated function, or constant not found in `Effect`
+
+error[E0599]: no variant, associated function, or constant named `CameraRaw` found for enum `Effect` in the current scope
+  --> crates/filters/tests/inventory.rs:16:60
+   |
+16 |   if matches!(e,Effect::OilPaint|Effect::LensFlare|Effect::CameraRaw) { assert!(out.is_err()); continue; }
+   |                                                            ^^^^^^^^^ variant, associated function, or constant not found in `Effect`
+
+error[E0599]: no variant, associated function, or constant named `Median` found for enum `Effect` in the current scope
+  --> crates/filters/tests/inventory.rs:27:21
+   |
+27 |  assert_eq!(Effect::Median.apply(&r,&p,&c).unwrap().pixel(4,4)[0],0.0);
+   |                     ^^^^^^ variant, associated function, or constant not found in `Effect`
+
+error[E0599]: no variant, associated function, or constant named `DustScratches` found for enum `Effect` in the current scope
+  --> crates/filters/tests/inventory.rs:28:21
+   |
+28 |  assert_eq!(Effect::DustScratches.apply(&r,&FilterParams{threshold:2.0,..p.clone()},&c).unwrap().pixel(4,4)[0],1.0);
+   |                     ^^^^^^^^^^^^^ variant, associated function, or constant not found in `Effect`
+
+error[E0560]: struct `FilterParams` has no field named `threshold`
+  --> crates/filters/tests/inventory.rs:28:58
+   |
+28 |  assert_eq!(Effect::DustScratches.apply(&r,&FilterParams{threshold:2.0,..p.clone()},&c).unwrap().pixel(4,4)[0],1.0);
+   |                                                          ^^^^^^^^^ `FilterParams` does not have this field
+   |
+   = note: available fields are: `radius`, `amount`
+
+error[E0599]: no variant, associated function, or constant named `DustScratches` found for enum `Effect` in the current scope
+  --> crates/filters/tests/inventory.rs:29:21
+   |
+29 |  assert_eq!(Effect::DustScratches.apply(&r,&p,&c).unwrap().pixel(4,4)[0],0.0);
+   |                     ^^^^^^^^^^^^^ variant, associated function, or constant not found in `Effect`
+
+error[E0560]: struct `FilterParams` has no field named `monochrome`
+  --> crates/filters/tests/inventory.rs:34:32
+   |
+34 |  let p=FilterParams{amount:1.0,monochrome:true,seed:12,..Default::default()};
+   |                                ^^^^^^^^^^ `FilterParams` does not have this field
+   |
+   = note: available fields are: `radius`
+
+error[E0560]: struct `FilterParams` has no field named `seed`
+  --> crates/filters/tests/inventory.rs:34:48
+   |
+34 |  let p=FilterParams{amount:1.0,monochrome:true,seed:12,..Default::default()};
+   |                                                ^^^^ `FilterParams` does not have this field
+   |
+   = note: available fields are: `radius`
+
+error[E0599]: no variant, associated function, or constant named `AddNoise` found for enum `Effect` in the current scope
+  --> crates/filters/tests/inventory.rs:35:16
+   |
+35 |  let a=Effect::AddNoise.apply(&r,&p,&c).unwrap();let b=Effect::AddNoise.apply(&r,&p,&c).unwrap();
+   |                ^^^^^^^^ variant, associated function, or constant not found in `Effect`
+
+error[E0599]: no variant, associated function, or constant named `AddNoise` found for enum `Effect` in the current scope
+  --> crates/filters/tests/inventory.rs:35:64
+   |
+35 |  let a=Effect::AddNoise.apply(&r,&p,&c).unwrap();let b=Effect::AddNoise.apply(&r,&p,&c).unwrap();
+   |                                                                ^^^^^^^^ variant, associated function, or constant not found in `Effect`
+
+error[E0560]: struct `FilterParams` has no field named `adjust`
+  --> crates/filters/tests/inventory.rs:43:32
+   |
+43 |  let p=FilterParams{amount:1.0,adjust:filters::adjust::Adjustment::Invert,..Default::default()};
+   |                                ^^^^^^ `FilterParams` does not have this field
+   |
+   = note: available fields are: `radius`
+
+error[E0599]: no variant, associated function, or constant named `Adjust` found for enum `Effect` in the current scope
+  --> crates/filters/tests/inventory.rs:44:18
+   |
+44 |  let out=Effect::Adjust.apply(&r,&p,&c).unwrap();assert!((out.pixel(2,3)[0]+r.pixel(2,3)[0]-1.0).abs()<1e-6);
+   |                  ^^^^^^ variant, associated function, or constant not found in `Effect`
+
+error[E0560]: struct `FilterParams` has no field named `distort`
+  --> crates/filters/tests/inventory.rs:45:32
+   |
+45 |  let p=FilterParams{amount:1.0,distort:filters::distort::DistortParams{offset:[2.0,0.0],..Default::default()},..Default::default()};
+   |                                ^^^^^^^ `FilterParams` does not have this field
+   |
+   = note: available fields are: `radius`
+
+error[E0599]: no variant, associated function, or constant named `Distort` found for enum `Effect` in the current scope
+  --> crates/filters/tests/inventory.rs:46:18
+   |
+46 |  let out=Effect::Distort(Distortion::Offset).apply(&r,&p,&c).unwrap();assert_eq!(out.pixel(4,3),r.pixel(2,3));
+   |                  ^^^^^^^ variant, associated function, or constant not found in `Effect`
+
+Some errors have detailed explanations: E0560, E0599.
+For more information about an error, try `rustc --explain E0560`.
+error: could not compile `filters` (test "inventory") due to 18 previous errors
