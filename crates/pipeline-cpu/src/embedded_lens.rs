@@ -1,13 +1,40 @@
-//! Supported post-demosaic DNG subset. Never relocate pre-demosaic opcodes.
+//! Ordered DNG corrections in their declared sensor/linear/post-colour stages.
+#[cfg(test)]
+#[path = "embedded_lens_tests.rs"]
+mod tests;
 use engine_api::{EngineError, EngineResult};
 use lens::opcodes::{CorrectionOpcode, FixVignetteRadial, WarpRectilinear, parse_opcode_list};
 use raw_decode::RawMetadata;
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Embedded {
+    pub stages: [Vec<CorrectionOpcode>; 3],
     pub warps: Vec<WarpRectilinear>,
     pub gains: Vec<FixVignetteRadial>,
     size: [f64; 2],
     crop: [f64; 4],
+}
+pub(crate) fn sample_phase(
+    image: &crate::Image,
+    plane: usize,
+    q: [f64; 2],
+    phase: [u32; 2],
+    step: u32,
+) -> f64 {
+    let [px, py] = phase;
+    let (w, h) = (
+        (image.width() - 1 - px) / step,
+        (image.height() - 1 - py) / step,
+    );
+    let u = ((q[0] - px as f64) / step as f64).clamp(0., w as f64);
+    let v = ((q[1] - py as f64) / step as f64).clamp(0., h as f64);
+    let (a, b) = (u.floor() as u32, v.floor() as u32);
+    let at = |x: u32, y: u32| {
+        image.planes()[plane]
+            [((y.min(h) * step + py) * image.width() + x.min(w) * step + px) as usize]
+            as f64
+    };
+    (at(a, b) * (1. - u.fract()) + at(a + 1, b) * u.fract()) * (1. - v.fract())
+        + (at(a, b + 1) * (1. - u.fract()) + at(a + 1, b + 1) * u.fract()) * v.fract()
 }
 impl Embedded {
     pub fn parse(m: &RawMetadata) -> EngineResult<Self> {
@@ -40,7 +67,7 @@ impl Embedded {
                 let length = word(12) as usize;
                 // Explicit policy: FixBadPixelsConstant/List are intentionally ignored.
                 // Other unknown required operations still fail closed.
-                if !matches!(id, 1 | 3 | 4 | 5) && flags & 1 == 0 {
+                if !matches!(id, 1 | 3 | 4 | 5 | 9) && flags & 1 == 0 {
                     return Err(EngineError::Unsupported {
                         what: format!("required DNG opcode {id} is not implemented"),
                     });
@@ -56,40 +83,141 @@ impl Embedded {
                         what: "DNG opcode version or flags".into(),
                     });
                 }
-                if stage != 2 {
+                if let CorrectionOpcode::WarpRectilinear(w) = &op.correction
+                    && w.coefficients.len() == 2
+                {
                     return Err(EngineError::Unsupported {
-                        what: format!(
-                            "lens correction in OpcodeList{} requires raw-stage execution",
-                            stage + 1
-                        ),
+                        what: "two-plane warp".into(),
                     });
                 }
-                match op.correction {
-                    CorrectionOpcode::WarpRectilinear(w) => {
-                        if w.coefficients.len() == 2 {
-                            return Err(EngineError::Unsupported {
-                                what: "two-plane warp on RGB".into(),
-                            });
-                        }
-                        out.warps.push(w);
-                    }
-                    CorrectionOpcode::FixVignetteRadial(v) => {
-                        if !out.warps.is_empty() {
-                            return Err(EngineError::Unsupported {
-                                what:
-                                    "vignette after warp requires stage-coordinate gain composition"
-                                        .into(),
-                            });
-                        }
-                        out.gains.push(v);
-                    }
-                }
+                out.stages[stage].push(op.correction);
             }
         }
         Ok(out)
     }
+    /// Execute each opcode in file order, in the full sensor coordinate frame.
+    /// CFA resampling stays on the destination's exact phase lattice.
+    pub fn apply(
+        &self,
+        mut image: crate::Image,
+        stage: usize,
+        cfa: Option<raw_decode::CfaLayout>,
+        s: &engine_api::recipe::settings::LensSettings,
+    ) -> EngineResult<crate::Image> {
+        for op in &self.stages[stage] {
+            let mut planes = image.planes().to_vec();
+            if let CorrectionOpcode::GainMap(g) = op
+                && g.plane + g.planes > planes.len() as u32
+            {
+                return Err(EngineError::invalid(
+                    "DNG GainMap",
+                    "plane range exceeds stage image",
+                ));
+            }
+            for (plane, dst) in planes.iter_mut().enumerate() {
+                for y in 0..image.height() {
+                    for x in 0..image.width() {
+                        let i = (y * image.width() + x) as usize;
+                        let p = [
+                            2. * (x as f64 + 0.5 - self.crop[0]) / self.crop[2] - 1.,
+                            2. * (y as f64 + 0.5 - self.crop[1]) / self.crop[3] - 1.,
+                        ];
+                        let value = match op {
+                            CorrectionOpcode::WarpRectilinear(w) => {
+                                let channel = cfa.map_or(plane, |c| {
+                                    let n = c.channel_at(x, y);
+                                    if n == 3 { 1 } else { n }
+                                });
+                                let green = self.warp(p, w, 1);
+                                let chroma = self.warp(p, w, channel);
+                                let amount = s.distortion_scale.clamp(0., 200.) as f64 / 100.;
+                                let ca = if s.remove_chromatic_aberration {
+                                    s.chromatic_aberration_scale.clamp(0., 200.) as f64 / 100.
+                                } else {
+                                    0.
+                                };
+                                let q: [f64; 2] = std::array::from_fn(|j| {
+                                    p[j] + amount * (green[j] - p[j]) + ca * (chroma[j] - green[j])
+                                });
+                                let sx = (q[0] + 1.) * self.crop[2] / 2. + self.crop[0] - 0.5;
+                                let sy = (q[1] + 1.) * self.crop[3] / 2. + self.crop[1] - 0.5;
+                                if !sx.is_finite() || !sy.is_finite() {
+                                    return Err(EngineError::invalid(
+                                        "DNG warp",
+                                        "nonfinite source coordinate",
+                                    ));
+                                }
+                                let step = match cfa {
+                                    Some(raw_decode::CfaLayout::Bayer(_)) => 2,
+                                    Some(raw_decode::CfaLayout::XTrans(_)) => 6,
+                                    _ => 1,
+                                };
+                                sample_phase(&image, plane, [sx, sy], [x % step, y % step], step)
+                            }
+                            CorrectionOpcode::FixVignetteRadial(v) => {
+                                let (q, _, _) = self.metric(p, v.center);
+                                let r = q[0] * q[0] + q[1] * q[1];
+                                let gain =
+                                    1. + r * v.coefficients.iter().rev().fold(0., |a, k| a * r + k);
+                                image.planes()[plane][i] as f64
+                                    * (1.
+                                        + (gain - 1.) * s.vignetting_scale.clamp(0., 200.) as f64
+                                            / 100.)
+                            }
+                            CorrectionOpcode::GainMap(g) => {
+                                let [top, left, bottom, right] = g.area;
+                                if y < top
+                                    || y >= bottom
+                                    || x < left
+                                    || x >= right
+                                    || (y - top) % g.pitch[0] != 0
+                                    || (x - left) % g.pitch[1] != 0
+                                    || (plane as u32) < g.plane
+                                    || plane as u32 >= g.plane + g.planes
+                                {
+                                    continue;
+                                }
+                                let v = (((y as f64 + 0.5) / self.size[1] - g.origin[0])
+                                    / g.spacing[0])
+                                    .clamp(0., (g.points[0] - 1) as f64);
+                                let u = (((x as f64 + 0.5) / self.size[0] - g.origin[1])
+                                    / g.spacing[1])
+                                    .clamp(0., (g.points[1] - 1) as f64);
+                                let mp = if g.map_planes == 1 {
+                                    0
+                                } else {
+                                    plane as u32 - g.plane
+                                };
+                                let at = |yy: u32, xx: u32| {
+                                    g.gains[((yy.min(g.points[0] - 1) * g.points[1]
+                                        + xx.min(g.points[1] - 1))
+                                        * g.map_planes
+                                        + mp) as usize] as f64
+                                };
+                                let (a, b) = (u.floor() as u32, v.floor() as u32);
+                                let gain = (at(b, a) * (1. - u.fract()) + at(b, a + 1) * u.fract())
+                                    * (1. - v.fract())
+                                    + (at(b + 1, a) * (1. - u.fract())
+                                        + at(b + 1, a + 1) * u.fract())
+                                        * v.fract();
+                                image.planes()[plane][i] as f64 * gain
+                            }
+                        };
+                        if !value.is_finite() || value.abs() > f32::MAX as f64 {
+                            return Err(EngineError::invalid("DNG opcode", "nonfinite output"));
+                        }
+                        dst[i] = value as f32;
+                    }
+                }
+            }
+            image = crate::Image::new(image.width(), image.height(), planes)?;
+        }
+        Ok(image)
+    }
     pub fn present(&self) -> bool {
-        !self.warps.is_empty() || !self.gains.is_empty()
+        self.stages.iter().any(|s| !s.is_empty())
+            || !self.warps.is_empty()
+            || !self.gains.is_empty()
     }
     /// Pixel-space centre and radius of a normalized opcode centre, and the
     /// active-area crop the public [-1, 1] coordinates refer to.

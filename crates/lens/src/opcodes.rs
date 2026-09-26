@@ -10,6 +10,22 @@ pub struct WarpRectilinear {
 pub enum CorrectionOpcode {
     WarpRectilinear(WarpRectilinear),
     FixVignetteRadial(FixVignetteRadial),
+    GainMap(GainMap),
+}
+/// DNG AreaSpec and row-major, pixel-interleaved floating gain table.
+#[derive(Debug, Clone, PartialEq)]
+pub struct GainMap {
+    /// top, left, bottom, right (exclusive).
+    pub area: [u32; 4],
+    pub plane: u32,
+    pub planes: u32,
+    pub pitch: [u32; 2],
+    pub points: [u32; 2],
+    /// Vertical then horizontal, normalized to image extent.
+    pub spacing: [f64; 2],
+    pub origin: [f64; 2],
+    pub map_planes: u32,
+    pub gains: Vec<f32>,
 }
 /// Gain polynomial coefficients for r^2 through r^10, normalized center.
 #[derive(Debug, Clone, PartialEq)]
@@ -98,6 +114,51 @@ pub fn parse_opcode_list(bytes: &[u8]) -> Result<Vec<ParsedOpcode>, OpcodeError>
                     center: p.center()?,
                 })
             }
+            9 => {
+                let area = [p.u32()?, p.u32()?, p.u32()?, p.u32()?];
+                let plane = p.u32()?;
+                let planes = p.u32()?;
+                let pitch = [p.u32()?, p.u32()?];
+                let points = [p.u32()?, p.u32()?];
+                let spacing: [f64; 2] = p.doubles()?;
+                let origin = p.doubles()?;
+                let map_planes = p.u32()?;
+                let count = (points[0] as usize)
+                    .checked_mul(points[1] as usize)
+                    .and_then(|n| n.checked_mul(map_planes as usize))
+                    .ok_or(OpcodeError("gain map size overflow"))?;
+                if area[0] >= area[2]
+                    || area[1] >= area[3]
+                    || planes == 0
+                    || plane.checked_add(planes).is_none()
+                    || pitch.contains(&0)
+                    || points.contains(&0)
+                    || spacing.iter().any(|x| *x <= 0.)
+                    || !(map_planes == 1 || map_planes == planes)
+                    || count.checked_mul(4) != Some(p.0.len())
+                {
+                    return Err(OpcodeError("invalid gain map layout"));
+                }
+                let mut gains = Vec::with_capacity(count);
+                for _ in 0..count {
+                    let g = f32::from_be_bytes(p.take(4)?.try_into().unwrap());
+                    if !g.is_finite() || g <= 0. {
+                        return Err(OpcodeError("invalid gain"));
+                    }
+                    gains.push(g);
+                }
+                CorrectionOpcode::GainMap(GainMap {
+                    area,
+                    plane,
+                    planes,
+                    pitch,
+                    points,
+                    spacing,
+                    origin,
+                    map_planes,
+                    gains,
+                })
+            }
             _ => continue,
         };
         result.push(ParsedOpcode {
@@ -141,6 +202,22 @@ mod tests {
         let end = p.len();
         p[end - 8..].copy_from_slice(&(-1f64).to_be_bytes());
         assert!(parse_opcode_list(&list(1, &p)).is_err());
+    }
+    #[test]
+    fn gain_map_is_parsed_not_skipped() {
+        let mut p = Vec::new();
+        for n in [0u32, 0, 8, 8, 0, 1, 2, 2, 1, 1] {
+            p.extend(n.to_be_bytes());
+        }
+        for n in [1f64, 1., 0., 0.] {
+            p.extend(n.to_be_bytes());
+        }
+        p.extend(1u32.to_be_bytes());
+        p.extend(2f32.to_be_bytes());
+        assert_eq!(parse_opcode_list(&list(9, &p)).unwrap().len(), 1);
+        for n in 0..p.len() {
+            assert!(parse_opcode_list(&list(9, &p[..n])).is_err());
+        }
     }
     #[test]
     fn vignette_and_malformed() {

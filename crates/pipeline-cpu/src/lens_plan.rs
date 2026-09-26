@@ -282,6 +282,7 @@ impl ResolvedLens {
     /// Test/analysis constructor: an image-derived calibration.
     pub fn from_calibration(sample: lens::CalibrationSample) -> Self {
         Self {
+            manual_ca: Default::default(),
             source: CorrectionSource::Image,
             sample: Some(sample),
             embedded: Default::default(),
@@ -298,7 +299,9 @@ impl ResolvedLens {
         let s = &settings.lens;
         let g = &settings.geometry;
         crate::optics::validate(s)?;
-        if s.defringe_purple.amount != 0.
+        if !self.manual_ca.is_identity()
+            || self.embedded.present()
+            || s.defringe_purple.amount != 0.
             || s.defringe_green.amount != 0.
             || g.upright.mode != UprightMode::Off
             || !g.upright.guides.is_empty()

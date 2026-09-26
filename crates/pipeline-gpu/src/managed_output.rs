@@ -504,6 +504,10 @@ impl ManagedRenderer {
                 "float export renderer required",
             ));
         }
+        cancel.check()?;
+        if !crate::ca_batch::supports_metadata(image.metadata()) {
+            return Ok(None);
+        }
         let scene = self.output.scene_settings(settings)?;
         self.renderer
             .render_resident_region(image, &scene, level, rect, cancel)
@@ -525,6 +529,10 @@ impl ManagedRenderer {
                 "renderer",
                 "float export renderer required",
             ));
+        }
+        cancel.check()?;
+        if !crate::ca_batch::supports_metadata(image.metadata()) {
+            return Ok(None);
         }
         let scene = self.output.scene_settings(settings)?;
         self.renderer
@@ -552,6 +560,10 @@ impl ManagedRenderer {
                 "renderer",
                 "float export renderer required",
             ));
+        }
+        cancel.check()?;
+        if !crate::ca_batch::supports_metadata(image.metadata()) {
+            return Ok(false);
         }
         let scene = self.output.scene_settings(settings)?;
         self.renderer

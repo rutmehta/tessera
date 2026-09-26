@@ -34,7 +34,7 @@ fn metadata() -> RawMetadata {
     }
 }
 #[test]
-fn embedded_fallback_aligns_camera_planes_before_matrix_and_nonlinear_tone() {
+fn list2_aligns_camera_planes_before_matrix_and_nonlinear_tone() {
     use engine_api::color::WorkingSpace;
     use pipeline_cpu::{DemosaicAlgorithm, Image};
     for layout in [
@@ -68,7 +68,7 @@ fn embedded_fallback_aligns_camera_planes_before_matrix_and_nonlinear_tone() {
         for v in [0.5_f64, 0.5] {
             bytes.extend(v.to_be_bytes());
         }
-        m.opcode_lists[2] = Some(bytes);
+        m.opcode_lists[1] = Some(bytes);
         let raw = Image::new(
             32,
             24,

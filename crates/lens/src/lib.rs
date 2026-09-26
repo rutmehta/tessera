@@ -12,6 +12,8 @@ pub mod calibration;
 pub use calibration::*;
 pub mod profiles;
 pub use profiles::*;
+pub mod data_pack;
+pub use data_pack::*;
 use serde::{Deserialize, Serialize};
 pub type Point = [f64; 2];
 #[derive(Debug, thiserror::Error)]

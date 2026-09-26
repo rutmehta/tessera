@@ -7,9 +7,49 @@ use engine_api::{
 use lens::{CalibrationSample, Profile, ProfileDatabase};
 use raw_decode::RawMetadata;
 
+/// Independent radial R/B adjustment. Zero is identity; -100..100 maps to
+/// -1..1 percent radial displacement. Positive samples farther from centre.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct ManualCaSettings {
+    pub red_cyan: f32,
+    pub blue_yellow: f32,
+}
+impl ManualCaSettings {
+    /// Map numeric CRS properties without changing the persistent recipe schema.
+    /// Keys are namespace-qualified. Other settings belong to the sidecar mapper
+    /// and are ignored here; repeated keys use their last value.
+    pub fn from_crs<'a>(
+        properties: impl IntoIterator<Item = (&'a str, f32)>,
+    ) -> EngineResult<Self> {
+        let mut out = Self::default();
+        for (key, value) in properties {
+            match key {
+                "crs:ChromaticAberrationR" => out.red_cyan = value,
+                "crs:ChromaticAberrationB" => out.blue_yellow = value,
+                _ => continue,
+            }
+            out.validate()?;
+        }
+        Ok(out)
+    }
+    pub fn is_identity(self) -> bool {
+        self.red_cyan == 0. && self.blue_yellow == 0.
+    }
+    pub(crate) fn validate(self) -> EngineResult<()> {
+        if !self.red_cyan.is_finite() || !self.blue_yellow.is_finite() {
+            return Err(EngineError::invalid(
+                "manual CA",
+                "finite parameters required",
+            ));
+        }
+        Ok(())
+    }
+}
 /// Caller-owned profiles, including profiles loaded by `lens::load_user_profile`.
 #[derive(Default)]
 pub struct LensContext<'a> {
+    /// Additive manual lateral CA, independent of profile/automatic CA toggles.
+    pub manual_ca: ManualCaSettings,
     pub profile: Option<&'a Profile>,
     pub database: Option<&'a ProfileDatabase>,
     /// Overrides unavailable/missing capture data. Focus distance is not exposed by RawMetadata.
@@ -24,6 +64,7 @@ pub enum CorrectionSource {
 }
 #[derive(Clone, Debug)]
 pub struct ResolvedLens {
+    pub(crate) manual_ca: ManualCaSettings,
     pub(crate) source: CorrectionSource,
     pub(crate) sample: Option<CalibrationSample>,
     pub(crate) embedded: crate::embedded_lens::Embedded,
@@ -337,18 +378,22 @@ fn resolve_with(
     context: &LensContext<'_>,
 ) -> EngineResult<ResolvedLens> {
     crate::optics::validate(s)?;
+    context.manual_ca.validate()?;
     let mut out = ResolvedLens {
+        manual_ca: context.manual_ca,
         source: CorrectionSource::Manual,
         sample: None,
         embedded: Default::default(),
     };
+    let embedded = metadata
+        .map(crate::embedded_lens::Embedded::parse)
+        .transpose()?
+        .unwrap_or_default();
     if matches!(
         s.profile,
         LensProfileSource::Auto | LensProfileSource::Embedded
     ) {
-        if let Some(m) = metadata {
-            out.embedded = crate::embedded_lens::Embedded::parse(m)?;
-        }
+        out.embedded = embedded;
         if out.embedded.present() {
             out.source = CorrectionSource::Embedded;
             return Ok(out);
