@@ -726,5 +726,21 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M2-28",
+    "owner": "astra",
+    "title": "Incremental library updates",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M3-15v",
+    "owner": "sol",
+    "title": "Verify keywords + tethering UI",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
