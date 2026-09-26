@@ -130,7 +130,8 @@ produces a build warning and must be configured before publishing updates.
 | `--stub-library` | Explicitly use the old ImageIO folder scanner and memory-only decisions |
 | `--benchmark` | Run the grid scroll benchmark 1.5 s after launch. The result appears in the status bar and on stderr |
 | `--keys "x p opt-right …"` | Self-test aid: after the library loads, feed one key every 0.3 s through the culling key map; `cmd-` tokens trigger the matching menu item (e.g. `cmd-z`, `cmd-shift-d`, `cmd-delete`) |
-| `--seed-scores` | Hidden test aid: write deterministic synthetic `focus` / `closed_eyes` scores for the defect sweep (item n: focus 0.25 when n % 4 == 1, closed eyes 0.92 when n % 5 == 2) |
+| `--seed-faces` | Hidden test aid: write deterministic synthetic faces (two people) for the face strip, People and per-person filters (0-based item n: person A in every frame, eyes closed when n % 6 == 5, out of focus when n % 5 == 2, the frames `make-sample-folder.swift --defects` blurs; person B in odd groups) |
+| `--fake-planner` | Hidden test aid: Auto Edit offers and preselects the scripted planner (the engine's `FakePlanner` with a fixed three-step script), so agent runs need no API key or network |
 | `--front` | Bring the window to the front without activating the app (for screenshots) |
 | `--import-lrcat <catalog>` | Open File ▸ Import Lightroom Catalog… with this `.lrcat` already chosen (acceptance aid) |
 | `--develop-selftest` | Self-test aid: once a develop session opens, drag Exposure 0 → +1.5 through the slider path (61 steps at display rate, then mouse-up) and print `develop-selftest: … render median … p90 …` to stderr |
@@ -155,7 +156,8 @@ groups, 12 with 2+ frames); grain varies so the default best-frame score differs
 | K | Keep the group's suggested best, reject the rest: one undo step, a toast with Undo, then the next group |
 | C | Compare: the two selected frames, or the focused frame and its group neighbour |
 | Compare: ← → · Return · Z · Esc | Pick side · "choose this" (keep it, reject the other; the next undecided frame of the group takes the rejected side) · fit ↔ 1:1 · back |
-| ⇧⌘D | Defect sweep sheet: thresholds, reviewable list with checkboxes, "Reject N Frames" as one undo step |
+| ⇧⌘D | Defect sweep sheet: thresholds on real signals (sharpness, face sharpness, eyes-open proxy, highlight clipping), reviewable list with checkboxes, "Reject N Frames" as one undo step |
+| Y · N | Assist on: confirm every suggested decision in view (one undo step) · dismiss the suggestion on the focused / selected frames |
 | ⌫ | In an album: remove from that album only (undoable). Elsewhere: explains, deletes nothing |
 | ⌘⌫ | Delete from Disk…: confirmed; file and sidecars go to the Trash, removed from all albums (not undoable) |
 | ⌘Z / ⇧⌘Z | The session's single global undo / redo (decisions, batches, basket and album edits) |
@@ -166,6 +168,45 @@ bar (`Basket → <album> n`), in the sidebar (`B` tag) and on member cells as a 
 album's name. Cull ▸ Basket Target switches or creates it; the choice is remembered. Derived status
 (edited / exported / published, other albums) is an outlined pill bottom-right; unedited shows nothing
 on the cell and `Status: Unedited` in the inspector. Albums live in `<folder>/library.json`.
+
+## Assisted culling and Auto Edit (docs/06 §3, docs/10, WP M3-11)
+
+**Signals.** Opening a folder measures every photo that has no scores yet, in the background
+(progress strip "Analyzing", Stop): `Engine.analyzeImage` runs ml-quality on the displayed preview
+(≤ 1024 px) and stores `sharpness`, `motion_blur`, `noise`, per-channel exposure / clipping,
+`quality` and `highlight_clipping` (worst channel). Cull ▸ Analyze Faces adds YuNet/SFace faces
+(weights download once into `<app-dir>/models/cache`, or `TESSERA_MODEL_CACHE`): per-face sharpness,
+the eyes-open proxy and descriptors, and the `face_sharpness` / `eyes_open` aggregates. The defect
+sweep reads these real signals; `--seed-scores` is gone.
+
+**Assist** (toolbar, Cull menu, inspector ▸ Assist) switches the library's learner
+(`<app-dir>/cull-learning/`, per folder) on the session: *automated* (default) pre-fills decisions
+outside the thresholds as outlined `Keep?` / `Reject?` pills (Y confirms all in view as one undo
+step, N dismisses), *assisted* only predicts and orders. The grid sorts by keep confidence (likely
+rejects last) unless Cull ▸ Sort by Keep Confidence is off. Every manual keep / reject teaches the
+learner; the inspector shows P(keep) with its additive explanation. Nothing is decided without a key.
+
+**Faces.** In the loupe a face strip sits under the photo: close-ups with a focus dot (green sharp,
+yellow soft, red missed) and an eyes glyph; click one to zoom and to filter the shoot by that person
+(or only where their eyes read closed). People are session-local descriptor clusters (inspector ▸
+People); the status bar shows an active person filter with a clear button.
+
+**Auto Edit** (⇧⌘A, toolbar) runs the agent (`crates/agent`) through `Engine.runAgent`: planner =
+style profile only, Anthropic, OpenAI or Ollama (keys from the Keychain via Settings ▸ AI; never
+stored in files or logged), scope = selection / current view / whole shoot, batch consistency (same
+burst → one tone and white balance, same person → one exposure), guardrails (masks, crop; retouch off).
+The run is non-modal (progress strip with Cancel) and closes develop sessions on those photos first.
+It ends in **Agent Review** (Develop menu, toolbar "Review n"): least confident first, with Accept
+(marks it and teaches the style profile), Redo… (natural-language, scoped to the controls named) and
+Revert (the agent group at 0 %, one history step). The inspector's **Agent Edit** panel shows the
+provenance ("AI-assisted, non-generative edits"), confidence and each step's rationale for any photo.
+
+**Develop ▸ History** lists each agent group ("Agent base edit", "Agent redo: …") with an **Amount**
+slider (0–100 %; the drag previews through `AgentFade`'s merge patch, the release records one step via
+`DevelopSession.commitGroupAmount`), per-step checkboxes with rationales, and "Redo with Instruction…".
+Later manual edits survive any amount. **Settings ▸ AI** (⌘,) holds the providers, keys, guardrails,
+assist thresholds and the style profile (questionnaire, Learn from My Edits). Preferences live in
+`<app-dir>/ai-preferences.json`.
 
 ## Lightroom Classic import (docs/05 §3, WP M2-13b)
 
@@ -264,10 +305,9 @@ Support/                      Info.plist, make-app.sh, make-sample-folder.swift
 
 ## Not in this WP
 
-The face strip, survey mode, 3–6-up compare, learning/reordering, and per-person filters are not built.
-Compare uses CGImage layers of the embedded preview, not the Metal loupe, so it has no EDR path yet.
-Scores come only from `--seed-scores` until ML producers land; with real folders the defect sweep is
-empty. Filtered views (Keeps, albums, marks) navigate groups over the visible frames in the app with the
+Survey mode and 3–6-up compare are not built (the face strip, learning / reordering and per-person
+filters arrived with M3-11). Compare uses CGImage layers of the embedded preview, not the Metal loupe,
+so it has no EDR path yet. Face zoom is a popover crop of the preview, not a loupe zoom. Filtered views (Keeps, albums, marks) navigate groups over the visible frames in the app with the
 same semantics as the engine; the unfiltered view uses the Rust session. The 20k-item stub keeps
 decisions in memory.
 

@@ -22,6 +22,13 @@ struct TesseraApp: App {
                     .help(appDelegate.updatesConfigured ? "Check for updates" : "updates not configured for this build")
             }
         }
+        // Settings ▸ AI (WP M3-11): providers, Keychain-stored keys, guardrails, style profile.
+        Settings {
+            TabView {
+                AISettingsView(agent: model.agent, model: model)
+                    .tabItem { Label("AI", systemImage: "sparkles") }
+            }
+        }
     }
 }
 
@@ -33,8 +40,10 @@ struct TesseraApp: App {
 ///   --app-dir <path>  store the index and caches here (overrides TESSERA_APP_DIR)
 ///   --stub <count>    load <count> synthetic items (e.g. 20000)
 ///   --benchmark       run the grid scroll benchmark after loading
-///   --seed-scores     (hidden test aid) write deterministic synthetic focus / closed-eyes scores
-///                     into the index after opening a folder, for the defect sweep
+///   --seed-faces      (hidden test aid) write deterministic synthetic faces (two people) into the
+///                     index after opening a folder, for the face strip and per-person filters
+///   --fake-planner    (hidden test aid) offer and preselect the scripted FakePlanner in Auto Edit,
+///                     so agent runs need no API key or network
 ///   --import-lrcat <catalog.lrcat>  open File ▸ Import Lightroom Catalog… with this catalog chosen
 ///   --front           order the window front without activating (screenshots while another app is active)
 ///   --appearance dark|light|system  (test aid) use this appearance for this run only

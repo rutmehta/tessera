@@ -1,4 +1,6 @@
 //! Narrow, synchronous commands. Swift dispatches blocking work off its main actor.
+mod agent_runs;
+mod assist;
 mod backend;
 mod catalog;
 mod collections;
@@ -12,6 +14,8 @@ mod proof;
 mod session;
 #[doc(hidden)]
 pub mod surface;
+pub use agent_runs::*;
+pub use assist::*;
 pub use collections::*;
 pub use develop::*;
 use engine_api::{id::ImageId, recipe as core};
@@ -170,6 +174,8 @@ pub struct Engine {
     renderer: std::sync::OnceLock<backend::Backend>,
     /// AI mask segmentation (loaded on first use; see `develop::masks`).
     segmenter: develop::SegmenterSlot,
+    /// Face detector + recognizer (downloaded and loaded on first face analysis).
+    faces: Mutex<Option<ml_faces::FaceModels>>,
     preview_states: Mutex<std::collections::HashMap<preview::RequestKey, preview::State>>,
     listener: Mutex<Option<Arc<dyn EngineEventListener>>>,
 }
@@ -252,6 +258,7 @@ impl Engine {
             jobs: jobs::ThreadPoolScheduler::new(3),
             renderer: std::sync::OnceLock::new(),
             segmenter: Default::default(),
+            faces: Mutex::new(None),
             preview_states: Mutex::new(std::collections::HashMap::new()),
             listener: Mutex::new(None),
         }))

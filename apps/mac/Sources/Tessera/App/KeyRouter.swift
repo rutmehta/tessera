@@ -10,6 +10,7 @@ import TesseraCore
 ///   Loupe: ← → previous/next group, ↑ ↓ previous/next frame within the group
 ///   Grid:  arrows move spatially (⇧ extends), ⌥ + arrows = group navigation as in the loupe
 ///   K keep the group's suggested best and reject the rest · C compare · ⌫ remove from album
+///   Assist (toolbar): Y confirm every suggested decision in view · N dismiss the suggestion here
 ///   Compare: ← → pick side · Return choose this · Z fit/1:1 · Esc back
 ///   Masking (loupe): M on/off · O overlay (⇧ colour) · [ ] brush size (⇧ feather) · X invert · ⌫ delete
 ///   Develop (loupe): S soft proofing on/off · ⇧S gamut warning
@@ -83,6 +84,8 @@ final class KeyRouter {
         case "b": model.perform(.toggleBasket)
         case "a": model.autoAdvance.toggle(); model.statusMessage = "Auto-advance \(model.autoAdvance ? "on" : "off")"
         case "k": model.keepBestRejectRest()
+        case "y": model.assist.confirmAll()
+        case "n": model.assist.dismiss(model.targetIDs)
         case "c": comparing ? model.exitCompare() : model.enterCompare()
         case "z" where comparing: model.toggleCompareZoom()
         case "s" where loupe:

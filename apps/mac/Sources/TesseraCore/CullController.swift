@@ -48,10 +48,14 @@ public struct DefectRule: Sendable, Equatable, Identifiable {
     public var enabled = true
     public var id: String { signal }
 
-    public static let focus = DefectRule(title: "Missed focus", signal: "focus", threshold: 0.40, below: true)
-    public static let closedEyes = DefectRule(title: "Closed eyes", signal: "closed_eyes", threshold: 0.80, below: false)
+    // Real signals from `Engine.analyzeImage` (ml-quality and the face models, M3-11).
+    public static let focus = DefectRule(title: "Missed focus", signal: "sharpness", threshold: 0.30, below: true)
+    public static let softFaces = DefectRule(title: "Soft faces", signal: "face_sharpness", threshold: 0.30, below: true)
+    /// The weak eyes-open proxy (lowest face in the frame), not a verified blink signal.
+    public static let closedEyes = DefectRule(title: "Closed eyes", signal: "eyes_open", threshold: 0.30, below: true)
+    /// Share of pixels clipped in the worst channel.
     public static let highlights = DefectRule(title: "Blown highlights", signal: "highlight_clipping", threshold: 0.05, below: false)
-    public static let defaults = [focus, closedEyes, highlights]
+    public static let defaults = [focus, softFaces, closedEyes, highlights]
 }
 
 public struct DefectFinding: Sendable, Equatable, Identifiable {
@@ -81,11 +85,11 @@ public final class CullController {
     public private(set) var basketTarget: String
     public private(set) var albums: [AlbumSummary] = []
 
-    private enum Backend {
+    enum Backend {
         case engine(EngineLibrary)
         case memory(CullStore)
     }
-    private var backend: Backend
+    var backend: Backend
 
     public init(engine library: EngineLibrary) {
         groups = library.groups
@@ -408,7 +412,7 @@ public final class CullController {
         refreshAlbums()
     }
 
-    private func absorb(_ update: CullUpdate, library lib: EngineLibrary) -> CullChange {
+    func absorb(_ update: CullUpdate, library lib: EngineLibrary) -> CullChange {
         var ids: [Int] = []
         for change in update.changed {
             guard let id = lib.itemOfImage[change.imageId] else { continue }

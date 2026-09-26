@@ -377,7 +377,7 @@ const PRESET_DIR: &str = "ExportPresets";
 const SEEDED: &str = ".defaults-installed";
 
 impl Engine {
-    fn support_dir(&self) -> Result<&Path> {
+    pub(crate) fn support_dir(&self) -> Result<&Path> {
         self.db
             .parent()
             .ok_or_else(|| failure("app support directory"))

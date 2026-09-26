@@ -4107,6 +4107,7 @@ dependencies = [
 name = "tessera-ffi"
 version = "0.1.0"
 dependencies = [
+ "agent",
  "anyhow",
  "blake3",
  "color-mgmt",
@@ -4123,6 +4124,8 @@ dependencies = [
  "lcms2",
  "library",
  "ml-enhance",
+ "ml-faces",
+ "ml-quality",
  "ml-runtime",
  "ml-segment",
  "pipeline-cpu",
@@ -4133,6 +4136,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sidecar",
+ "style-profile",
  "tempfile",
  "thiserror 2.0.21",
  "uniffi",

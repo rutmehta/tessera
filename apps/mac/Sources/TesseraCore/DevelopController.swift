@@ -403,6 +403,22 @@ public final class DevelopController {
         try historyMove { try session.setHistoryStepEnabled(id: id, enabled: enabled) }
     }
 
+    /// Named history groups (the agent's "Agent base edit" and redos) with their amount.
+    public func historyGroups() -> [HistoryGroupState] { (try? session.historyGroups()) ?? [] }
+
+    /// Amount slider drag: previews `amount` of `group` through the coalesced patch path.
+    public func previewGroupAmount(_ group: HistoryGroupState, _ amount: Double) {
+        guard let patch = AgentFade.patch(current: settings, withoutJSON: group.withoutJson,
+                                          withJSON: group.withJson, amount: amount), !patch.isEmpty else { return }
+        apply(patch: patch, interactive: true)
+    }
+
+    /// Amount slider release: the engine records the amount as one undo step.
+    @discardableResult
+    public func commitGroupAmount(_ groupID: UInt32, _ amount: Double) throws -> Bool {
+        try historyMove { try session.commitGroupAmount(groupId: groupID, amount: min(max(amount, 0), 1)) }
+    }
+
     /// Applies a partial recipe (preset) as one undo step labelled `label`.
     @discardableResult
     public func applyPreset(_ patch: [String: Any], label: String) -> Bool {

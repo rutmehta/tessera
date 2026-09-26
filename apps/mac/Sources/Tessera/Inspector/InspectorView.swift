@@ -14,6 +14,9 @@ struct InspectorView: View {
                 PanelSection("Image") { ImageInfoPanel(model: model) }
                 PanelSection("Selection") { SelectionPanel(model: model) }
                 if model.isEngineBacked {
+                    PanelSection("Assist") { AssistPanel(model: model) }
+                    PanelSection("People", expanded: false) { PeoplePanel(model: model) }
+                    PanelSection("Agent Edit") { AgentEditPanel(model: model) }
                     PanelSection("Keywords") { KeywordsPanel(model: model, library: model.collections) }
                     PanelSection("Metadata") { MetadataPanel(model: model, library: model.collections) }
                 }

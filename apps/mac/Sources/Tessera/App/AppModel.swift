@@ -128,6 +128,11 @@ final class AppModel {
     var showPrint = false
     /// Albums, groups, smart albums, the filter bar, keywords and metadata (library.json).
     let collections = LibraryModel()
+    /// Assisted culling: real signals, learner suggestions, faces and people (WP M3-11).
+    let assist = AssistController()
+    /// Auto Edit, Settings ▸ AI and the agent's review queue (WP M3-11).
+    let agent = AgentController()
+    var showAutoEdit = false
     var viewMode: ViewMode = .grid {
         didSet {
             guard viewMode != oldValue else { return }
@@ -157,6 +162,8 @@ final class AppModel {
     /// Bumped when develop values change outside a slider drag (open, undo, reset, snapshot).
     private(set) var developRevision = 0
     private(set) var developHistory: HistoryState?
+    /// Bumped when the agent rewrote recipes (inspector provenance refreshes).
+    private(set) var agentRevision = 0
     /// "render: L3 → L2, 7.8 ms", throttled to 10 Hz; shown when `showRenderReadout`.
     private(set) var renderReadout: String?
     var showRenderReadout = UserDefaults.standard.bool(forKey: AppModel.renderReadoutKey) {
@@ -200,6 +207,8 @@ final class AppModel {
             .map { URL(fileURLWithPath: $0) }
         basketTarget = UserDefaults.standard.string(forKey: Self.basketTargetKey) ?? EngineLibrary.defaultBasketTarget
         collections.app = self
+        assist.app = self
+        agent.app = self
         lightroomImport.presentSheet = { [weak self] in
             // Re-assert the binding on the next turn so a dismissal still in flight cannot swallow it.
             self?.showLightroomImport = false
@@ -260,7 +269,7 @@ final class AppModel {
         loadGeneration += 1
         let generation = loadGeneration
         let useStub = ProcessInfo.processInfo.arguments.contains("--stub-library")
-        let seedScores = ProcessInfo.processInfo.arguments.contains("--seed-scores")
+        let seedFaces = ProcessInfo.processInfo.arguments.contains("--seed-faces")
         let target = basketTarget
         isLoading = true
         statusMessage = "Reading \(url.lastPathComponent)…"
@@ -268,9 +277,7 @@ final class AppModel {
         Task.detached(priority: .userInitiated) {
             let result = Result<any PhotoLibrary, Error> {
                 if useStub { return try StubLibrary.scan(folder: url) }
-                let lib = try EngineLibrary.scan(folder: url, basketTarget: target)
-                if seedScores { try lib.seedSyntheticScores() }
-                return lib
+                return try EngineLibrary.scan(folder: url, basketTarget: target)
             }
             await MainActor.run {
                 guard generation == self.loadGeneration else { return }
@@ -278,11 +285,12 @@ final class AppModel {
                 switch result {
                 case .success(let lib):
                     self.install(lib)
+                    self.assist.libraryDidLoad(seedFaces: seedFaces)
                     let raws = lib.items.lazy.filter { $0.kind == .raw }.count
                     let multi = lib.groups.lazy.filter { $0.count > 1 }.count
                     self.statusMessage = message ?? "Opened \(lib.title): \(lib.items.count.formatted()) images (\(raws.formatted()) RAW), "
                         + "\(lib.groups.count.formatted()) groups (\(multi.formatted()) with 2+), \(Self.ms(lib.scanDuration))"
-                        + (seedScores ? ", synthetic scores seeded" : "")
+                        + (seedFaces ? ", synthetic faces seeded" : "")
                 case .failure(let error):
                     self.statusMessage = error.localizedDescription
                 }
@@ -341,6 +349,18 @@ final class AppModel {
         case .mark(let m):
             visible = items.indices.filter { cull[$0].mark == m && matched?.contains($0) != false }
         }
+        // Assisted culling: the per-person filter, then the confidence order (docs/06 §3).
+        if let person = assist.personFilter {
+            visible = visible.filter { person.items.contains($0) }
+        }
+        if assist.enabled, assist.sortByConfidence, !assist.order.isEmpty {
+            var rank = [Int: Int](minimumCapacity: assist.order.count)
+            for (n, id) in assist.order.enumerated() { rank[id] = n }
+            visible = visible.enumerated().sorted { a, b in
+                let (ra, rb) = (rank[a.element] ?? Int.max, rank[b.element] ?? Int.max)
+                return ra != rb ? ra < rb : a.offset < b.offset
+            }.map(\.element)
+        }
         positionOfID = Array(repeating: -1, count: items.count)
         for (p, id) in visible.enumerated() { positionOfID[id] = p }
         visibleCount = visible.count
@@ -376,6 +396,8 @@ final class AppModel {
     func state(at position: Int) -> CullState { cull[visible[position]] }
     func status(at position: Int) -> ItemStatus { cull.statuses[visible[position]] }
     func isSuggestedBest(_ item: PhotoItem) -> Bool { cull.isSuggestedBest(item.id) }
+    /// Assist's pre-filled decision for the cell (automated mode, undecided frames only).
+    func suggestion(at position: Int) -> Decision? { assist.suggestion(for: visible[position]) }
     func groupSize(of item: PhotoItem) -> Int { library.groups[item.groupID].count }
     func indexInGroup(of item: PhotoItem) -> Int { item.id - library.groups[item.groupID].lowerBound }
     func item(id: Int) -> PhotoItem { library.items[id] }
@@ -512,6 +534,28 @@ final class AppModel {
         }
     }
 
+    /// Visible item ids in display order.
+    var visibleIDs: [Int] { visible }
+
+    /// A cull mutation from another controller (assist): reflected like a key press.
+    @discardableResult
+    func runCull(_ body: () throws -> CullChange) -> Bool { run(body) }
+
+    /// Assist predictions changed: re-sort when sorting by confidence, else redraw the cells.
+    func assistDidChange() {
+        if assist.sortByConfidence || !assist.enabled {
+            refreshVisible()
+        } else {
+            liveObservers.forEach { $0.itemsDidChange(IndexSet(integersIn: 0..<visibleCount)) }
+        }
+    }
+
+    func assistItemsChanged(_ ids: [Int]) {
+        var positions = IndexSet()
+        for id in ids where positionOfID.indices.contains(id) && positionOfID[id] >= 0 { positions.insert(positionOfID[id]) }
+        liveObservers.forEach { $0.itemsDidChange(positions) }
+    }
+
     /// Runs a controller mutation and reflects its changes. Returns false on failure.
     @discardableResult
     private func run(_ body: () throws -> CullChange) -> Bool {
@@ -557,6 +601,7 @@ final class AppModel {
             }
             statusMessage = "Undo: \(change.ids.count) image\(change.ids.count == 1 ? "" : "s")"
             if toast?.undoable == true { toast = nil }
+            if assist.enabled { assist.refresh() }
         } catch {
             statusMessage = "Undo failed: \(error.localizedDescription)"
         }
@@ -572,6 +617,7 @@ final class AppModel {
             didChange(change)
             if let current = change.current, compare == nil { select(id: current) }
             statusMessage = "Redo: \(change.ids.count) image\(change.ids.count == 1 ? "" : "s")"
+            if assist.enabled { assist.refresh() }
         } catch {
             statusMessage = "Redo failed: \(error.localizedDescription)"
         }
@@ -579,6 +625,7 @@ final class AppModel {
 
     private func didChange(_ change: CullChange) {
         undoDomain = .cull
+        assist.itemsDecided(change.ids)
         collections.cullDidChange(albums: change.albumsChanged)
         var positions = IndexSet()
         for id in change.ids where positionOfID[id] >= 0 { positions.insert(positionOfID[id]) }
@@ -604,6 +651,7 @@ final class AppModel {
             if focusedItem?.id != it.id {
                 focusedItem = it
                 collections.focusDidChange()
+                assist.refreshFaces()
             }
             if focusedPosition != f { focusedPosition = f }
             let s = cull[it.id]
@@ -1107,6 +1155,47 @@ final class AppModel {
             statusMessage = moved ? [verb, label].compactMap { $0 }.joined(separator: ": ") : "Nothing to \(verb.lowercased())"
         } catch {
             statusMessage = "\(verb) failed: \(error.localizedDescription)"
+        }
+    }
+
+    // MARK: Agent edits (WP M3-11)
+
+    /// "Show" in the review queue: that photo in the loupe.
+    func showInLoupe(_ itemID: Int) {
+        if positionOfID.indices.contains(itemID), positionOfID[itemID] < 0 {
+            assist.clearPersonFilter()
+            if positionOfID[itemID] < 0 { setSource(.all) }
+        }
+        select(id: itemID)
+        viewMode = .loupe
+    }
+
+    /// Writes pending develop edits and closes the session when it shows one of `itemIDs`, so an
+    /// agent run or a revert does not race the session's debounced save.
+    func releaseDevelop(for itemIDs: Set<Int>) async {
+        guard let d = develop else { return }
+        guard itemIDs.contains(d.itemID) else {
+            try? d.session.flush()
+            return
+        }
+        closeDevelop()
+        await d.close()
+    }
+
+    /// The agent changed these photos' recipes: thumbnails, derived status, the inspector's
+    /// provenance, and the develop session of the focused photo (reopened on the new recipe).
+    func agentDidEdit(_ itemIDs: [Int]) {
+        var positions = IndexSet()
+        for id in itemIDs where library.items.indices.contains(id) {
+            loader.invalidate(library.items[id])
+            if positionOfID[id] >= 0 { positions.insert(positionOfID[id]) }
+        }
+        cull.refreshStatuses(itemIDs)
+        refreshFocusSummary()
+        liveObservers.forEach { $0.thumbnailsDidChange(positions); $0.itemsDidChange(positions) }
+        agentRevision += 1
+        if viewMode == .loupe, let item = focusedItem, itemIDs.contains(item.id), develop == nil {
+            openDevelop(for: item)
         }
     }
 
