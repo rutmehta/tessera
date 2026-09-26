@@ -12,13 +12,25 @@
 //! Mutating calls become ordinary recipe history entries; the
 //! [`ToolRequest`] envelope carries the rationale and history group that the
 //! entry records.
+//!
+//! Layered documents (spec 02) have their own call enum,
+//! [`DocumentToolCall`], with the same conventions: tagged on `"tool"`,
+//! snake_case names that are MCP tool names and are unique across both
+//! enums (see [`crate::action::COMMANDS`]), and one
+//! [`crate::document::DocumentHistoryEntry`] per mutating call.
 
 use serde::{Deserialize, Serialize};
 
 use crate::color::IccProfileHandle;
+use crate::document::{
+    AdjustmentSpec, AffineTransform, BrushParams, DocumentExportSettings, DocumentSummary,
+    Interpolation, LayerInfo, LayerPropsUpdate, NewLayer, SelectionMode, SelectionShape,
+    StrokePoint, StrokeTarget,
+};
 use crate::error::EngineError;
 use crate::id::{
-    HistoryEntryId, HistoryGroupId, ImageId, JobId, MaskId, PersonId, SimilarityGroupId, StyleId,
+    DocumentId, HistoryEntryId, HistoryGroupId, ImageId, JobId, LayerId, MaskId, PersonId,
+    SelectionId, SimilarityGroupId, StyleId,
 };
 use crate::recipe::mask::{LocalParams, MaskComponent};
 use crate::recipe::selection::{Decision, Grade, Mark};
@@ -566,17 +578,403 @@ impl From<Result<ToolOutput, EngineError>> for ToolResponse {
     }
 }
 
+/// A layered-document tool call. Variant names (snake_case) are the MCP tool
+/// names; none collides with a [`ToolCall`] name. Layers are addressed by
+/// [`LayerId`] within a [`DocumentId`]; strokes and selections are geometry
+/// and parameters, never pixels.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "tool", rename_all = "snake_case")]
+pub enum DocumentToolCall {
+    /// Open a PSD/PSB, `.tessera-doc` or image file as a layered document.
+    OpenDocument {
+        /// Absolute file path.
+        path: String,
+    },
+    /// Add a layer.
+    AddLayer {
+        /// Document.
+        document: DocumentId,
+        /// Kind of layer.
+        layer: NewLayer,
+        /// Display name (engine default if absent).
+        #[serde(default)]
+        name: Option<String>,
+        /// Enclosing group; `None` = the root.
+        #[serde(default)]
+        parent: Option<LayerId>,
+        /// Sibling to insert directly above; `None` = top of `parent`.
+        #[serde(default)]
+        above: Option<LayerId>,
+        /// Initial properties.
+        #[serde(default)]
+        props: LayerPropsUpdate,
+    },
+    /// Change a layer's common properties.
+    SetLayerProps {
+        /// Document.
+        document: DocumentId,
+        /// Layer.
+        layer: LayerId,
+        /// Properties to change.
+        #[serde(flatten)]
+        props: LayerPropsUpdate,
+    },
+    /// Paint one brush stroke on a layer (or its mask), limited by the
+    /// current selection.
+    PaintStroke {
+        /// Document.
+        document: DocumentId,
+        /// Layer.
+        layer: LayerId,
+        /// Stroke path, in order; at least one point.
+        points: Vec<StrokePoint>,
+        /// Brush.
+        #[serde(default)]
+        brush: BrushParams,
+        /// Pixels or mask.
+        #[serde(default)]
+        target: StrokeTarget,
+    },
+    /// Change the document's pixel selection.
+    SetPixelSelection {
+        /// Document.
+        document: DocumentId,
+        /// Region.
+        #[serde(flatten)]
+        shape: SelectionShape,
+        /// Combination with the current selection.
+        #[serde(default)]
+        mode: SelectionMode,
+        /// Feather radius, level-0 pixels.
+        #[serde(default)]
+        feather: f32,
+        /// Also save the result as a named selection.
+        #[serde(default)]
+        save_as: Option<String>,
+    },
+    /// Add an adjustment layer (non-destructive).
+    ApplyAdjustmentLayer {
+        /// Document.
+        document: DocumentId,
+        /// Adjustment.
+        adjustment: AdjustmentSpec,
+        /// Display name (engine default if absent).
+        #[serde(default)]
+        name: Option<String>,
+        /// Enclosing group; `None` = the root.
+        #[serde(default)]
+        parent: Option<LayerId>,
+        /// Sibling to insert directly above; `None` = top of `parent`.
+        #[serde(default)]
+        above: Option<LayerId>,
+        /// Clip to the layer below.
+        #[serde(default)]
+        clipped: bool,
+        /// Use the current selection as the layer mask.
+        #[serde(default = "yes")]
+        mask_from_selection: bool,
+    },
+    /// Transform a layer's pixels (or a smart object's placement).
+    TransformLayer {
+        /// Document.
+        document: DocumentId,
+        /// Layer.
+        layer: LayerId,
+        /// Map from current to new level-0 canvas coordinates.
+        transform: AffineTransform,
+        /// Resampling filter (ignored by smart objects, which resample on render).
+        #[serde(default)]
+        interpolation: Interpolation,
+    },
+    /// Merge a layer into the one below it.
+    MergeDown {
+        /// Document.
+        document: DocumentId,
+        /// Upper layer.
+        layer: LayerId,
+    },
+    /// Write the document to a file.
+    ExportDocument {
+        /// Document.
+        document: DocumentId,
+        /// Settings.
+        settings: DocumentExportSettings,
+    },
+    /// Describe the layer tree.
+    ListLayers {
+        /// Document.
+        document: DocumentId,
+    },
+}
+
+impl DocumentToolCall {
+    /// Every tool name, in declaration order.
+    pub const NAMES: [&'static str; 10] = [
+        "open_document",
+        "add_layer",
+        "set_layer_props",
+        "paint_stroke",
+        "set_pixel_selection",
+        "apply_adjustment_layer",
+        "transform_layer",
+        "merge_down",
+        "export_document",
+        "list_layers",
+    ];
+
+    /// The tool (MCP) name.
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::OpenDocument { .. } => "open_document",
+            Self::AddLayer { .. } => "add_layer",
+            Self::SetLayerProps { .. } => "set_layer_props",
+            Self::PaintStroke { .. } => "paint_stroke",
+            Self::SetPixelSelection { .. } => "set_pixel_selection",
+            Self::ApplyAdjustmentLayer { .. } => "apply_adjustment_layer",
+            Self::TransformLayer { .. } => "transform_layer",
+            Self::MergeDown { .. } => "merge_down",
+            Self::ExportDocument { .. } => "export_document",
+            Self::ListLayers { .. } => "list_layers",
+        }
+    }
+
+    /// The target document (`None` for `open_document`).
+    pub fn document(&self) -> Option<DocumentId> {
+        match self {
+            Self::OpenDocument { .. } => None,
+            Self::AddLayer { document, .. }
+            | Self::SetLayerProps { document, .. }
+            | Self::PaintStroke { document, .. }
+            | Self::SetPixelSelection { document, .. }
+            | Self::ApplyAdjustmentLayer { document, .. }
+            | Self::TransformLayer { document, .. }
+            | Self::MergeDown { document, .. }
+            | Self::ExportDocument { document, .. }
+            | Self::ListLayers { document } => Some(*document),
+        }
+    }
+
+    /// True if the call changes a document (and therefore records exactly
+    /// one document history entry).
+    pub fn edits_document(&self) -> bool {
+        !matches!(
+            self,
+            Self::OpenDocument { .. } | Self::ExportDocument { .. } | Self::ListLayers { .. }
+        )
+    }
+
+    /// True if the call has no side effects.
+    pub fn is_read_only(&self) -> bool {
+        matches!(self, Self::ListLayers { .. })
+    }
+}
+
+/// Envelope for a [`DocumentToolCall`].
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DocumentToolRequest {
+    /// The call.
+    #[serde(flatten)]
+    pub call: DocumentToolCall,
+    /// One-line rationale recorded on the history entry.
+    #[serde(default)]
+    pub rationale: Option<String>,
+    /// History group to record into.
+    #[serde(default)]
+    pub group: Option<HistoryGroupId>,
+    /// Optimistic concurrency: fail with [`EngineError::Conflict`] unless the
+    /// document's history head is this entry. Absent = no check; `null` =
+    /// expect the state as opened.
+    #[serde(
+        default,
+        deserialize_with = "present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub expect_head: Option<Option<HistoryEntryId>>,
+}
+
+fn present<'de, D, T>(d: D) -> Result<Option<T>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    T::deserialize(d).map(Some)
+}
+
+/// Result of a [`DocumentToolCall`].
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "tool", rename_all = "snake_case")]
+pub enum DocumentToolOutput {
+    /// A document was opened.
+    DocumentOpened {
+        /// New session handle.
+        document: DocumentId,
+        /// Canvas, depth, layer count.
+        #[serde(flatten)]
+        summary: DocumentSummary,
+    },
+    /// A document edit was applied (or was a no-op, `entry: null`).
+    DocumentEdited {
+        /// Document.
+        document: DocumentId,
+        /// History entry recorded.
+        entry: Option<HistoryEntryId>,
+        /// Layer created or changed, if one.
+        #[serde(default)]
+        layer: Option<LayerId>,
+        /// Selection saved by `save_as`, if any.
+        #[serde(default)]
+        selection: Option<SelectionId>,
+    },
+    /// The layer tree, bottom to top, every group before its children.
+    LayerList {
+        /// Document.
+        document: DocumentId,
+        /// Rows.
+        layers: Vec<LayerInfo>,
+    },
+    /// Export queued.
+    DocumentExportQueued {
+        /// Document.
+        document: DocumentId,
+        /// Background job.
+        job: JobId,
+    },
+}
+
+/// Response to a [`DocumentToolRequest`]: `{"ok": …}` or `{"error": …}`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DocumentToolResponse {
+    /// Success.
+    Ok(DocumentToolOutput),
+    /// Failure.
+    Error(EngineError),
+}
+
+impl From<Result<DocumentToolOutput, EngineError>> for DocumentToolResponse {
+    fn from(r: Result<DocumentToolOutput, EngineError>) -> Self {
+        match r {
+            Ok(o) => Self::Ok(o),
+            Err(e) => Self::Error(e),
+        }
+    }
+}
+
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
+    use crate::document::{BlendMode, CanvasRect, DocumentDepth, DocumentFormat, GroupMode};
     use crate::recipe::mask::MaskKind;
+    use crate::tile::Extent;
     use serde_json::json;
 
     fn img() -> ImageId {
         ImageId(0xabc)
     }
 
-    fn all_calls() -> Vec<ToolCall> {
+    pub(crate) fn all_document_calls() -> Vec<DocumentToolCall> {
+        let doc = DocumentId(1);
+        vec![
+            DocumentToolCall::OpenDocument {
+                path: "/work/poster.psd".into(),
+            },
+            DocumentToolCall::AddLayer {
+                document: doc,
+                layer: NewLayer::Group {
+                    mode: GroupMode::Isolated,
+                },
+                name: Some("Retouch".into()),
+                parent: None,
+                above: Some(LayerId(2)),
+                props: LayerPropsUpdate {
+                    blend_mode: Some(BlendMode::Multiply),
+                    ..Default::default()
+                },
+            },
+            DocumentToolCall::SetLayerProps {
+                document: doc,
+                layer: LayerId(3),
+                props: LayerPropsUpdate {
+                    opacity: Some(0.5),
+                    visible: Some(false),
+                    color_tag: Some(FieldUpdate::Set("red".into())),
+                    ..Default::default()
+                },
+            },
+            DocumentToolCall::PaintStroke {
+                document: doc,
+                layer: LayerId(3),
+                points: vec![
+                    StrokePoint {
+                        x: 10.0,
+                        y: 10.0,
+                        pressure: 0.5,
+                    },
+                    StrokePoint {
+                        x: 40.0,
+                        y: 12.0,
+                        pressure: 1.0,
+                    },
+                ],
+                brush: BrushParams {
+                    size: 12.0,
+                    color: [1.0, 0.0, 0.0],
+                    ..Default::default()
+                },
+                target: StrokeTarget::Mask,
+            },
+            DocumentToolCall::SetPixelSelection {
+                document: doc,
+                shape: SelectionShape::Ellipse {
+                    rect: CanvasRect {
+                        x0: 0,
+                        y0: 0,
+                        x1: 64,
+                        y1: 32,
+                    },
+                },
+                mode: SelectionMode::Add,
+                feather: 2.0,
+                save_as: Some("face".into()),
+            },
+            DocumentToolCall::ApplyAdjustmentLayer {
+                document: doc,
+                adjustment: AdjustmentSpec::HueSaturation {
+                    hue: 10.0,
+                    saturation: -20.0,
+                    lightness: 0.0,
+                    colorize: false,
+                },
+                name: None,
+                parent: Some(LayerId(4)),
+                above: None,
+                clipped: true,
+                mask_from_selection: true,
+            },
+            DocumentToolCall::TransformLayer {
+                document: doc,
+                layer: LayerId(3),
+                transform: AffineTransform([0.5, 0.0, 10.0, 0.0, 0.5, 20.0]),
+                interpolation: Interpolation::Bilinear,
+            },
+            DocumentToolCall::MergeDown {
+                document: doc,
+                layer: LayerId(3),
+            },
+            DocumentToolCall::ExportDocument {
+                document: doc,
+                settings: DocumentExportSettings {
+                    path: "/out/poster.psd".into(),
+                    format: DocumentFormat::Psd {
+                        maximize_compatibility: true,
+                    },
+                },
+            },
+            DocumentToolCall::ListLayers { document: doc },
+        ]
+    }
+
+    pub(crate) fn all_calls() -> Vec<ToolCall> {
         vec![
             ToolCall::SetTone {
                 image: img(),
@@ -674,6 +1072,177 @@ mod tests {
             assert_eq!(v["tool"], name);
             assert_eq!(serde_json::from_value::<ToolCall>(v).unwrap(), *call);
         }
+    }
+
+    #[test]
+    fn every_document_call_round_trips_and_is_tagged_by_name() {
+        let calls = all_document_calls();
+        assert_eq!(calls.len(), DocumentToolCall::NAMES.len());
+        for (call, name) in calls.iter().zip(DocumentToolCall::NAMES) {
+            assert_eq!(call.name(), name);
+            assert!(!ToolCall::NAMES.contains(&name), "{name} collides");
+            let v = serde_json::to_value(call).unwrap();
+            assert_eq!(v["tool"], name);
+            assert_eq!(
+                serde_json::from_value::<DocumentToolCall>(v).unwrap(),
+                *call
+            );
+            assert_eq!(call.document().is_none(), name == "open_document");
+            assert!(!(call.edits_document() && call.is_read_only()));
+        }
+    }
+
+    #[test]
+    fn document_call_wire_form() {
+        // Flat JSON, as an MCP client sends it; defaults fill the rest.
+        let c: DocumentToolCall = serde_json::from_value(json!({
+            "tool": "set_pixel_selection",
+            "document": 2,
+            "shape": "rect",
+            "rect": {"x0": 0, "y0": 0, "x1": 10, "y1": 10}
+        }))
+        .unwrap();
+        assert_eq!(
+            c,
+            DocumentToolCall::SetPixelSelection {
+                document: DocumentId(2),
+                shape: SelectionShape::Rect {
+                    rect: CanvasRect {
+                        x0: 0,
+                        y0: 0,
+                        x1: 10,
+                        y1: 10
+                    }
+                },
+                mode: SelectionMode::Replace,
+                feather: 0.0,
+                save_as: None,
+            }
+        );
+        let p: DocumentToolCall = serde_json::from_value(json!({
+            "tool": "set_layer_props", "document": 2, "layer": 5, "opacity": 0.25,
+            "blend_mode": "soft_light"
+        }))
+        .unwrap();
+        let DocumentToolCall::SetLayerProps { props, .. } = &p else {
+            panic!()
+        };
+        assert_eq!(props.opacity, Some(0.25));
+        assert_eq!(props.blend_mode, Some(BlendMode::SoftLight));
+        let s: DocumentToolCall = serde_json::from_value(json!({
+            "tool": "paint_stroke", "document": 2, "layer": 5,
+            "points": [{"x": 1, "y": 2}]
+        }))
+        .unwrap();
+        let DocumentToolCall::PaintStroke { brush, target, .. } = &s else {
+            panic!()
+        };
+        assert_eq!(*brush, BrushParams::default());
+        assert_eq!(*target, StrokeTarget::Pixels);
+        assert!(s.edits_document());
+        let a: DocumentToolCall = serde_json::from_value(json!({
+            "tool": "apply_adjustment_layer", "document": 2,
+            "adjustment": {"kind": "invert"}
+        }))
+        .unwrap();
+        let DocumentToolCall::ApplyAdjustmentLayer {
+            mask_from_selection,
+            ..
+        } = a
+        else {
+            panic!()
+        };
+        assert!(mask_from_selection);
+    }
+
+    #[test]
+    fn document_envelopes() {
+        let req = DocumentToolRequest {
+            call: DocumentToolCall::MergeDown {
+                document: DocumentId(1),
+                layer: LayerId(2),
+            },
+            rationale: Some("flatten retouch".into()),
+            group: Some(HistoryGroupId(1)),
+            expect_head: None,
+        };
+        let v = serde_json::to_value(&req).unwrap();
+        assert_eq!(v["tool"], "merge_down");
+        assert!(v.get("expect_head").is_none());
+        assert_eq!(
+            serde_json::from_value::<DocumentToolRequest>(v).unwrap(),
+            req
+        );
+        for expect in [Some(None), Some(Some(HistoryEntryId(3)))] {
+            let r = DocumentToolRequest {
+                expect_head: expect,
+                ..req.clone()
+            };
+            let v = serde_json::to_value(&r).unwrap();
+            assert!(v.get("expect_head").is_some());
+            assert_eq!(serde_json::from_value::<DocumentToolRequest>(v).unwrap(), r);
+        }
+
+        let outputs = [
+            DocumentToolOutput::DocumentOpened {
+                document: DocumentId(1),
+                summary: DocumentSummary {
+                    canvas: Extent::new(640, 480),
+                    depth: DocumentDepth::U16,
+                    layers: 3,
+                },
+            },
+            DocumentToolOutput::DocumentEdited {
+                document: DocumentId(1),
+                entry: Some(HistoryEntryId(1)),
+                layer: Some(LayerId(4)),
+                selection: None,
+            },
+            DocumentToolOutput::LayerList {
+                document: DocumentId(1),
+                layers: vec![LayerInfo {
+                    id: LayerId(1),
+                    parent: None,
+                    name: "Background".into(),
+                    kind: crate::document::LayerKindTag::Pixel,
+                    visible: true,
+                    opacity: 1.0,
+                    fill_opacity: 1.0,
+                    blend_mode: BlendMode::Normal,
+                    group_mode: None,
+                    clipped: false,
+                    has_mask: false,
+                    bounds: Some(CanvasRect {
+                        x0: 0,
+                        y0: 0,
+                        x1: 640,
+                        y1: 480,
+                    }),
+                }],
+            },
+            DocumentToolOutput::DocumentExportQueued {
+                document: DocumentId(1),
+                job: JobId(7),
+            },
+        ];
+        let tags = [
+            "document_opened",
+            "document_edited",
+            "layer_list",
+            "document_export_queued",
+        ];
+        for (o, tag) in outputs.into_iter().zip(tags) {
+            let ok: DocumentToolResponse = Ok(o).into();
+            let v = serde_json::to_value(&ok).unwrap();
+            assert_eq!(v["ok"]["tool"], tag);
+            assert_eq!(
+                serde_json::from_value::<DocumentToolResponse>(v).unwrap(),
+                ok
+            );
+        }
+        let err: DocumentToolResponse = Err(EngineError::not_found("layer", LayerId(9))).into();
+        let v = serde_json::to_value(&err).unwrap();
+        assert_eq!(v["error"]["code"], "not_found");
     }
 
     #[test]

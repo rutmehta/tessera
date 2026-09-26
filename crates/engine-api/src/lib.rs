@@ -13,13 +13,17 @@
 //! - [`recipe`]: the per-image edit document (settings, selection, history) and the `crs:` table.
 //! - [`jobs`]: job/scheduler traits, priority classes, cancellation.
 //! - [`tools`]: the typed tool API (commands and results) behind scripting and MCP.
+//! - [`document`]: layered-document value types and the document history.
+//! - [`action`]: serializable action descriptors and the command-name registry.
 //! - [`id`]: strongly typed identifiers shared by all of the above.
 //! - [`error`]: the single [`EngineError`] type.
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+pub mod action;
 pub mod color;
+pub mod document;
 pub mod error;
 pub mod id;
 pub mod jobs;
@@ -33,4 +37,4 @@ pub use error::{EngineError, EngineResult};
 /// Version of the contracts in this crate. Bumped on any breaking change to a
 /// public type or serialized schema; work packages record the version they
 /// were built against.
-pub const CONTRACT_VERSION: &str = "1.1.0";
+pub const CONTRACT_VERSION: &str = "1.2.0";

@@ -64,13 +64,25 @@ impl Extent {
     }
 
     /// Number of pyramid levels needed until the whole image fits in one
-    /// tile (always at least 1).
+    /// tile (always at least 1). This is the default
+    /// [`Pyramid::level_count`]; deeper levels are allowed (see there).
     pub fn level_count(self, tile_size: u32) -> u8 {
         let mut levels = 1u8;
         while {
             let e = self.at_level(levels - 1);
             e.width > tile_size || e.height > tile_size
         } {
+            levels += 1;
+        }
+        levels
+    }
+
+    /// Number of pyramid levels down to and including the first 1×1 level
+    /// (always at least 1, at most 33). No pyramid has more distinct levels:
+    /// every level past the last one here is also 1×1.
+    pub fn full_level_count(self) -> u8 {
+        let mut levels = 1u8;
+        while self.at_level(levels - 1) != Self::new(1, 1) {
             levels += 1;
         }
         levels
@@ -340,11 +352,17 @@ impl TileLayout {
 /// Cloning is O(1) and shares the buffer; the first mutable access on a
 /// shared tile copies it (copy-on-write). This is what makes history, virtual
 /// copies and cache hand-off cheap.
+///
+/// A tile whose last channel is alpha is either *straight* (the default) or
+/// *premultiplied* (colour channels already multiplied by alpha); see
+/// [`Tile::premultiplied`]. The flag is metadata only: no method converts
+/// samples.
 #[derive(Clone)]
 pub struct Tile {
     coord: TileCoord,
     layout: TileLayout,
     buffer: TileBuffer,
+    premultiplied: bool,
 }
 
 impl Tile {
@@ -355,6 +373,7 @@ impl Tile {
             coord,
             layout,
             buffer: TileBuffer::zeroed(format, layout.len()),
+            premultiplied: false,
         })
     }
 
@@ -380,6 +399,7 @@ impl Tile {
             coord,
             layout,
             buffer: T::wrap(data),
+            premultiplied: false,
         })
     }
 
@@ -429,6 +449,37 @@ impl Tile {
     /// Halo width in pixels.
     pub fn halo(&self) -> u16 {
         self.layout.halo
+    }
+
+    /// True if the colour channels are premultiplied by the last (alpha)
+    /// channel. `false` (straight, or no alpha channel) for every tile built
+    /// by [`Tile::zeroed`] or [`Tile::from_samples`]. Only a tile with at
+    /// least two channels can be premultiplied.
+    pub fn premultiplied(&self) -> bool {
+        self.premultiplied
+    }
+
+    /// Declares whether the samples are premultiplied. Does not touch the
+    /// samples. Fails if `premultiplied` is requested on a tile with fewer
+    /// than two channels (no alpha to premultiply by).
+    pub fn set_premultiplied(&mut self, premultiplied: bool) -> EngineResult<()> {
+        if premultiplied && self.layout.channels < 2 {
+            return Err(EngineError::invalid(
+                "premultiplied",
+                format!(
+                    "tile {} has {} channel(s); premultiplied needs colour plus alpha",
+                    self.coord, self.layout.channels
+                ),
+            ));
+        }
+        self.premultiplied = premultiplied;
+        Ok(())
+    }
+
+    /// Builder form of [`Tile::set_premultiplied`].
+    pub fn with_premultiplied(mut self, premultiplied: bool) -> EngineResult<Self> {
+        self.set_premultiplied(premultiplied)?;
+        Ok(self)
     }
 
     /// All samples, planar, if `T` matches the tile's format.
@@ -506,6 +557,7 @@ impl fmt::Debug for Tile {
             .field("coord", &self.coord)
             .field("format", &self.format())
             .field("layout", &self.layout)
+            .field("premultiplied", &self.premultiplied)
             .finish_non_exhaustive()
     }
 }
@@ -533,9 +585,25 @@ pub trait Pyramid: Send + Sync {
         TILE_SIZE
     }
 
-    /// Number of levels; defaults to "until the image fits in one tile".
+    /// Number of addressable levels (levels `0..level_count()`).
+    ///
+    /// Defaults to "until the image fits in one tile"
+    /// ([`Extent::level_count`]). Implementations may return more, up to
+    /// [`Extent::full_level_count`], to serve the deeper single-tile levels
+    /// (a layered document's thumbnails and far zoom-outs do). Every level
+    /// follows [`Extent::at_level`] (halve, round up, never below 1×1), and
+    /// the other default methods ([`contains`](Pyramid::contains),
+    /// [`level_extent`](Pyramid::level_extent),
+    /// [`tile_extent`](Pyramid::tile_extent)) are correct for any level
+    /// below `level_count()`.
     fn level_count(&self) -> u8 {
         self.extent().level_count(self.tile_size())
+    }
+
+    /// Whether every tile's colour channels are premultiplied by alpha
+    /// ([`Tile::premultiplied`]). Defaults to `false` (straight).
+    fn premultiplied(&self) -> bool {
+        false
     }
 
     /// Size at `level`.
@@ -590,6 +658,39 @@ mod tests {
         assert_eq!(Extent::new(257, 1).level_count(256), 2);
         assert_eq!(e.tile_grid(256), (32, 22));
         assert_eq!(Extent::new(3, 3).at_level(40), Extent::new(1, 1));
+        assert_eq!(e.full_level_count(), 14); // 8192 → 1 in 13 halvings
+        assert_eq!(Extent::new(1, 1).full_level_count(), 1);
+        assert_eq!(Extent::new(2, 1).full_level_count(), 2);
+        assert_eq!(Extent::new(u32::MAX, 1).full_level_count(), 33);
+        assert!(e.full_level_count() >= e.level_count(256));
+    }
+
+    #[test]
+    fn premultiplied_flag() {
+        let t = Tile::zeroed(
+            TileCoord::new(0, 0, 0),
+            TileFormat::F32Planar,
+            layout(2, 2, 0, 4),
+        )
+        .unwrap();
+        assert!(!t.premultiplied());
+        let p = t.clone().with_premultiplied(true).unwrap();
+        assert!(p.premultiplied() && !t.premultiplied());
+        assert!(p.shares_buffer_with(&t));
+        assert!(p.clone().premultiplied());
+        let mut m = p.clone();
+        m.plane_mut::<f32>(3).unwrap()[0] = 1.0;
+        assert!(m.premultiplied(), "copy-on-write keeps the flag");
+        let mask =
+            Tile::zeroed(TileCoord::new(0, 0, 0), TileFormat::U8, layout(2, 2, 0, 1)).unwrap();
+        assert!(mask.clone().with_premultiplied(true).is_err());
+        assert!(mask.with_premultiplied(false).is_ok());
+        assert!(
+            Tile::from_samples(TileCoord::new(0, 0, 0), layout(1, 1, 0, 2), vec![0u8, 0])
+                .unwrap()
+                .with_premultiplied(true)
+                .is_ok()
+        );
     }
 
     #[test]
@@ -703,5 +804,52 @@ mod tests {
             Extent::new(150, 75)
         );
         assert!(p.tile(TileCoord::new(0, 9, 9)).is_err());
+        assert!(!p.premultiplied());
+    }
+
+    /// A pyramid that serves every level down to 1×1.
+    struct Deep(Flat);
+    impl Pyramid for Deep {
+        fn extent(&self) -> Extent {
+            self.0.extent()
+        }
+        fn format(&self) -> TileFormat {
+            TileFormat::U8
+        }
+        fn channels(&self) -> u8 {
+            1
+        }
+        fn halo(&self) -> u16 {
+            0
+        }
+        fn level_count(&self) -> u8 {
+            self.extent().full_level_count()
+        }
+        fn tile(&self, coord: TileCoord) -> EngineResult<Tile> {
+            if !self.contains(coord) {
+                return Err(EngineError::invalid("coord", coord.to_string()));
+            }
+            let layout = TileLayout {
+                extent: self.tile_extent(coord),
+                halo: 0,
+                channels: 1,
+            };
+            Tile::zeroed(coord, TileFormat::U8, layout)
+        }
+    }
+
+    #[test]
+    fn pyramid_deeper_levels() {
+        let p = Deep(Flat(Extent::new(600, 300)));
+        assert_eq!(p.level_count(), 11); // 600 → 1 in 10 halvings
+        assert!(p.contains(TileCoord::new(3, 0, 0)));
+        assert_eq!(p.tile_extent(TileCoord::new(3, 0, 0)), Extent::new(75, 38));
+        assert_eq!(p.tile_extent(TileCoord::new(10, 0, 0)), Extent::new(1, 1));
+        assert!(!p.contains(TileCoord::new(3, 1, 0)));
+        assert!(!p.contains(TileCoord::new(11, 0, 0)));
+        assert_eq!(
+            p.tile(TileCoord::new(9, 0, 0)).unwrap().layout().extent,
+            Extent::new(2, 1)
+        );
     }
 }
