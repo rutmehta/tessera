@@ -19,78 +19,183 @@ impl SmartFilterEvaluator for CompositorFilters {
         if node.name == "camera_raw" {
             return camera_raw(input, &node.params);
         }
-        let effect = match node.name.as_str() {
-            "gaussian" | "gaussian_blur" => Effect::Gaussian,
-            "box" => Effect::Box,
-            "motion" => Effect::Motion,
-            "radial_spin" => Effect::RadialSpin,
-            "radial_zoom" => Effect::RadialZoom,
-            "lens_blur" => Effect::LensBlur,
-            "surface_blur" => Effect::SurfaceBlur,
-            "unsharp_mask" => Effect::UnsharpMask,
-            "smart_sharpen" => Effect::SmartSharpen,
-            "high_pass" => Effect::HighPass,
-            "add_noise" => Effect::AddNoise,
-            "reduce_noise" => Effect::ReduceNoise,
-            "median" => Effect::Median,
-            "dust_scratches" => Effect::DustScratches,
-            "emboss" => Effect::Emboss,
-            "find_edges" => Effect::FindEdges,
-            "solarize" => Effect::Solarize,
-            "oil_paint" => Effect::OilPaint,
-            "clouds" => Effect::Clouds,
-            "difference_clouds" => Effect::DifferenceClouds,
-            "lens_flare" => Effect::LensFlare,
-            "adjust" => Effect::Adjust,
-            "pinch" => Effect::Distort(Distortion::Pinch),
-            "spherize" => Effect::Distort(Distortion::Spherize),
-            "twirl" => Effect::Distort(Distortion::Twirl),
-            "wave" => Effect::Distort(Distortion::Wave),
-            "ripple" => Effect::Distort(Distortion::Ripple),
-            "polar_to_rectangular" => Effect::Distort(Distortion::PolarToRectangular),
-            "rectangular_to_polar" => Effect::Distort(Distortion::RectangularToPolar),
-            "offset" => Effect::Distort(Distortion::Offset),
-            _ => {
-                return Err(EngineError::Unsupported {
-                    what: format!("smart filter {}", node.name),
-                });
-            }
-        };
-        let object = node
-            .params
-            .as_object()
-            .ok_or_else(|| EngineError::invalid("filter params", "object required"))?;
-        let mut params: FilterParams = serde_json::from_value(node.params.clone())
-            .map_err(|e| EngineError::invalid("filter params", e.to_string()))?;
-        if !object.contains_key("amount") {
-            params.amount = 1.0;
-        }
-        crate::validate(&params)?;
-        params.adjust.validate()?;
-        if params.focus.iter().any(|v| !v.is_finite())
-            || params.depth.as_ref().is_some_and(|d| {
-                d.len() != input.extent().area() as usize
-                    || d.iter().any(|v| !v.is_finite() || !(0.0..=1.0).contains(v))
-            })
-        {
-            return Err(EngineError::invalid("filter params", "invalid focus/depth"));
-        }
-        // Validate nested geometry even for zero-opacity or unrelated effects;
-        // invalid supplied controls must never silently become an identity.
-        let kind = if let Effect::Distort(kind) = effect {
-            kind
-        } else {
-            Distortion::Twirl
-        };
-        crate::distort::apply(
-            kind,
-            &params.distort,
-            &[[0.0; 4]; 4],
-            2,
-            2,
-            &AtomicBool::new(false),
-        )?;
+        let (effect, params) = parse_filter(node, Some(input.extent()))?;
         effect.apply_tiled(input, &params, &AtomicBool::new(false))
+    }
+}
+
+impl CompositorFilters {
+    /// Capability probe without image allocation or device creation.
+    pub fn supports(&self, node: &SmartFilter) -> EngineResult<bool> {
+        resident_supports(node)
+    }
+
+    /// Evaluate on the compositor's device without crossing the pixel residency boundary.
+    pub fn evaluate_resident(
+        &self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        input: &wgpu::Buffer,
+        extent: engine_api::tile::Extent,
+        node: &SmartFilter,
+    ) -> EngineResult<wgpu::Buffer> {
+        let (effect, params) = parse_filter(node, Some(extent))?;
+        if !resident_supports(node)? {
+            return Err(EngineError::Unsupported {
+                what: format!("resident smart filter {}", node.name),
+            });
+        }
+        crate::gpu::GpuFilters::from_device(device, queue)?.apply_buffer(
+            effect,
+            input,
+            extent,
+            &params,
+            &AtomicBool::new(false),
+        )
+    }
+}
+
+impl compositor::render::smart_filters::ResidentFilterEvaluator for CompositorFilters {
+    fn supports(&self, filter: &SmartFilter) -> EngineResult<bool> {
+        CompositorFilters::supports(self, filter)
+    }
+
+    fn evaluate_resident(
+        &self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        input: &wgpu::Buffer,
+        extent: engine_api::tile::Extent,
+        filter: &SmartFilter,
+    ) -> EngineResult<wgpu::Buffer> {
+        CompositorFilters::evaluate_resident(self, device, queue, input, extent, filter)
+    }
+}
+
+// Keep CPU and resident decoding/validation identical; capability probes do not
+// know the image extent, so size-dependent checks run during evaluation.
+fn parse_filter(
+    node: &SmartFilter,
+    extent: Option<engine_api::tile::Extent>,
+) -> EngineResult<(Effect, FilterParams)> {
+    let effect = match node.name.as_str() {
+        "gaussian" | "gaussian_blur" => Effect::Gaussian,
+        "box" => Effect::Box,
+        "motion" => Effect::Motion,
+        "radial_spin" => Effect::RadialSpin,
+        "radial_zoom" => Effect::RadialZoom,
+        "lens_blur" => Effect::LensBlur,
+        "surface_blur" => Effect::SurfaceBlur,
+        "unsharp_mask" => Effect::UnsharpMask,
+        "smart_sharpen" => Effect::SmartSharpen,
+        "high_pass" => Effect::HighPass,
+        "add_noise" => Effect::AddNoise,
+        "reduce_noise" => Effect::ReduceNoise,
+        "median" => Effect::Median,
+        "dust_scratches" => Effect::DustScratches,
+        "emboss" => Effect::Emboss,
+        "find_edges" => Effect::FindEdges,
+        "solarize" => Effect::Solarize,
+        "oil_paint" => Effect::OilPaint,
+        "clouds" => Effect::Clouds,
+        "difference_clouds" => Effect::DifferenceClouds,
+        "lens_flare" => Effect::LensFlare,
+        "adjust" => Effect::Adjust,
+        "pinch" => Effect::Distort(Distortion::Pinch),
+        "spherize" => Effect::Distort(Distortion::Spherize),
+        "twirl" => Effect::Distort(Distortion::Twirl),
+        "wave" => Effect::Distort(Distortion::Wave),
+        "ripple" => Effect::Distort(Distortion::Ripple),
+        "polar_to_rectangular" => Effect::Distort(Distortion::PolarToRectangular),
+        "rectangular_to_polar" => Effect::Distort(Distortion::RectangularToPolar),
+        "offset" => Effect::Distort(Distortion::Offset),
+        _ => {
+            return Err(EngineError::Unsupported {
+                what: format!("smart filter {}", node.name),
+            });
+        }
+    };
+    let object = node
+        .params
+        .as_object()
+        .ok_or_else(|| EngineError::invalid("filter params", "object required"))?;
+    let mut params: FilterParams = serde_json::from_value(node.params.clone())
+        .map_err(|e| EngineError::invalid("filter params", e.to_string()))?;
+    if !object.contains_key("amount") {
+        params.amount = 1.0;
+    }
+    crate::validate(&params)?;
+    params.adjust.validate()?;
+    if params.focus.iter().any(|v| !v.is_finite())
+        || params.depth.as_ref().is_some_and(|d| {
+            extent.is_some_and(|e| d.len() != e.area() as usize)
+                || d.iter().any(|v| !v.is_finite() || !(0.0..=1.0).contains(v))
+        })
+    {
+        return Err(EngineError::invalid("filter params", "invalid focus/depth"));
+    }
+    // Validate nested geometry even for zero-opacity or unrelated effects;
+    // invalid supplied controls must never silently become an identity.
+    let kind = if let Effect::Distort(kind) = effect {
+        kind
+    } else {
+        Distortion::Twirl
+    };
+    crate::distort::apply(
+        kind,
+        &params.distort,
+        &[[0.0; 4]; 4],
+        2,
+        2,
+        &AtomicBool::new(false),
+    )?;
+    Ok((effect, params))
+}
+
+fn resident_supports(node: &SmartFilter) -> EngineResult<bool> {
+    let (effect, params) = match parse_filter(node, None) {
+        Ok(decoded) => decoded,
+        Err(EngineError::Unsupported { .. }) => return Ok(false),
+        Err(error) => return Err(error),
+    };
+    // Lens depth is caller-supplied parameter data, not source-image pixels.
+    if effect == Effect::LensBlur && (params.depth.is_none() || params.radius > 128.0) {
+        return Ok(false);
+    }
+    Ok(crate::gpu::GpuFilters::supports_resident(effect, &params))
+}
+
+#[cfg(test)]
+mod resident_tests {
+    use super::*;
+
+    #[test]
+    fn capability_is_conservative_and_params_are_strict() {
+        let mut node = SmartFilter {
+            name: "gaussian_blur".into(),
+            params: serde_json::json!({}),
+            ..Default::default()
+        };
+        assert!(resident_supports(&node).unwrap());
+        node.name = "adjust".into();
+        node.params = serde_json::json!({"adjust": {"match_colour": {"target": [[0.2, 0.3, 0.4]], "amount": 1.0}}});
+        assert!(!resident_supports(&node).unwrap());
+        for name in [
+            "smart_sharpen",
+            "median",
+            "camera_raw",
+            "transform",
+            "unknown",
+        ] {
+            node.name = name.into();
+            node.params = serde_json::json!({});
+            assert!(!resident_supports(&node).unwrap());
+        }
+        node.name = "gaussian".into();
+        node.params = serde_json::json!({"radius": -1});
+        assert!(resident_supports(&node).is_err());
+        node.params = serde_json::json!({"typo": 1});
+        assert!(resident_supports(&node).is_err());
     }
 }
 

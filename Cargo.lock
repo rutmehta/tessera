@@ -693,6 +693,7 @@ dependencies = [
  "blake3",
  "bytemuck",
  "engine-api",
+ "filters",
  "gpu-core",
  "half",
  "pollster",

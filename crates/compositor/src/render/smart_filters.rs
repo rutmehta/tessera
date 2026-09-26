@@ -39,6 +39,22 @@ pub trait SmartFilterEvaluator: Send + Sync {
     fn evaluate(&self, input: &Raster, filter: &SmartFilter) -> EngineResult<Raster>;
 }
 
+/// Shared-device smart-filter bridge. Buffers are tightly interleaved straight
+/// f32 RGBA. Implementations submit on the supplied queue without pixel readback.
+pub trait ResidentFilterEvaluator: SmartFilterEvaluator {
+    /// Capability preflight, before any stage is executed.
+    fn supports(&self, filter: &SmartFilter) -> EngineResult<bool>;
+    /// Return a same-extent STORAGE | COPY_SRC buffer on `device`.
+    fn evaluate_resident(
+        &self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        input: &wgpu::Buffer,
+        extent: engine_api::tile::Extent,
+        filter: &SmartFilter,
+    ) -> EngineResult<wgpu::Buffer>;
+}
+
 struct BasicFilters;
 impl SmartFilterEvaluator for BasicFilters {
     fn evaluate(&self, input: &Raster, filter: &SmartFilter) -> EngineResult<Raster> {
@@ -193,7 +209,7 @@ impl FilterRuntime {
     }
 }
 
-pub(super) struct FilteredSource {
+pub(crate) struct FilteredSource {
     pub state: DocState,
     pub key: u64,
 }
@@ -211,7 +227,7 @@ impl Compositor {
         self.filter_runtime.evaluations.load(Ordering::Relaxed)
     }
 
-    pub(super) fn filtered_source(&self, so: &SmartObject) -> EngineResult<Option<FilteredSource>> {
+    pub(crate) fn filtered_source(&self, so: &SmartObject) -> EngineResult<Option<FilteredSource>> {
         if !so.filters.iter().any(|f| f.enabled) {
             return Ok(None);
         }

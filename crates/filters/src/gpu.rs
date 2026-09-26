@@ -27,6 +27,11 @@ impl GpuFilters {
             ..Default::default()
         }))
         .map_err(|e| EngineError::internal(format!("filter Metal device: {e}")))?;
+        Self::from_device(&device, &queue)
+    }
+
+    /// Reuses the caller's device and queue; never opens another adapter.
+    pub fn from_device(device: &wgpu::Device, queue: &wgpu::Queue) -> EngineResult<Self> {
         let scope = device.push_error_scope(wgpu::ErrorFilter::Validation);
         let module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("filters"),
@@ -51,8 +56,8 @@ impl GpuFilters {
             return Err(EngineError::internal(format!("filter shader: {e}")));
         }
         Ok(Self {
-            device,
-            queue,
+            device: device.clone(),
+            queue: queue.clone(),
             pipeline,
         })
     }
@@ -69,9 +74,146 @@ impl GpuFilters {
             return Ok(input.clone());
         }
         let src = Buffer::read(input, cancel)?;
+        let bytes = bytemuck::cast_slice(&src.pixels);
+        if bytes.len() as u64 > self.device.limits().max_storage_buffer_binding_size
+            || bytes.len() as u64 > self.device.limits().max_buffer_size
+        {
+            return Err(EngineError::invalid(
+                "GPU filter",
+                "image exceeds storage buffer limit",
+            ));
+        }
+        let original = self
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("source"),
+                contents: bytes,
+                usage: wgpu::BufferUsages::STORAGE,
+            });
+        let source_statistics = if matches!(p.adjust, crate::adjust::Adjustment::MatchColour { .. })
+        {
+            Some(statistics(src.pixels.iter().map(|p| [p[0], p[1], p[2]])))
+        } else {
+            None
+        };
+        let current = self.run_buffer(
+            effect,
+            &original,
+            input.extent(),
+            p,
+            cancel,
+            source_statistics,
+        )?;
+        let staging = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("readback"),
+            size: bytes.len() as u64,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            mapped_at_creation: false,
+        });
+        let mut encoder = self.device.create_command_encoder(&Default::default());
+        encoder.copy_buffer_to_buffer(&current, 0, &staging, 0, bytes.len() as u64);
+        self.queue.submit([encoder.finish()]);
+        let (tx, rx) = std::sync::mpsc::channel();
+        staging.slice(..).map_async(wgpu::MapMode::Read, move |v| {
+            let _ = tx.send(v);
+        });
+        self.device
+            .poll(wgpu::PollType::wait_indefinitely())
+            .map_err(|e| EngineError::internal(e.to_string()))?;
+        rx.recv()
+            .map_err(|e| EngineError::internal(e.to_string()))?
+            .map_err(|e| EngineError::internal(e.to_string()))?;
+        checkpoint(cancel)?;
+        let pixels = bytemuck::cast_slice::<u8, [f32; 4]>(
+            &staging
+                .slice(..)
+                .get_mapped_range()
+                .map_err(|e| EngineError::internal(e.to_string()))?,
+        )
+        .to_vec();
+        staging.unmap();
+        Buffer {
+            w: src.w,
+            h: src.h,
+            pixels,
+        }
+        .write(input, cancel)
+    }
+    /// Operators whose kernels need no source-pixel CPU preprocessing.
+    pub fn supports_resident(effect: Effect, p: &FilterParams) -> bool {
+        match effect {
+            Effect::Gaussian
+            | Effect::Box
+            | Effect::Motion
+            | Effect::RadialSpin
+            | Effect::RadialZoom
+            | Effect::LensBlur
+            | Effect::SurfaceBlur
+            | Effect::UnsharpMask
+            | Effect::HighPass
+            | Effect::AddNoise
+            | Effect::Distort(_) => true,
+            Effect::Adjust => !matches!(p.adjust, crate::adjust::Adjustment::MatchColour { .. }),
+            _ => false,
+        }
+    }
+
+    /// Evaluate tight interleaved straight f32 RGBA on this device. Only
+    /// parameters (including caller-supplied lens depth) are uploaded. Pixels
+    /// are never mapped, read back, or uploaded. Returns STORAGE | COPY_SRC.
+    /// The caller guarantees finite source samples and shared-device ownership.
+    pub fn apply_buffer(
+        &self,
+        effect: Effect,
+        input: &wgpu::Buffer,
+        extent: engine_api::tile::Extent,
+        p: &FilterParams,
+        cancel: &AtomicBool,
+    ) -> EngineResult<wgpu::Buffer> {
+        if !Self::supports_resident(effect, p) {
+            return Err(EngineError::Unsupported {
+                what: format!("resident filter {effect:?}"),
+            });
+        }
+        self.run_buffer(effect, input, extent, p, cancel, None)
+    }
+
+    fn run_buffer(
+        &self,
+        effect: Effect,
+        original: &wgpu::Buffer,
+        extent: engine_api::tile::Extent,
+        p: &FilterParams,
+        cancel: &AtomicBool,
+        source_statistics: Option<([f64; 3], [f64; 3])>,
+    ) -> EngineResult<wgpu::Buffer> {
+        checkpoint(cancel)?;
+        validate(p)?;
+        p.adjust.validate()?;
+        let (w, h) = (extent.width as usize, extent.height as usize);
+        let size = extent
+            .area()
+            .checked_mul(16)
+            .ok_or_else(|| EngineError::invalid("GPU filter", "image size overflow"))?;
+        let limits = self.device.limits();
+        if w == 0
+            || h == 0
+            || original.size() != size
+            || !original.usage().contains(wgpu::BufferUsages::STORAGE)
+            || size > limits.max_storage_buffer_binding_size
+            || size > limits.max_buffer_size
+            || extent.width.div_ceil(8) > limits.max_compute_workgroups_per_dimension
+            || extent.height.div_ceil(8) > limits.max_compute_workgroups_per_dimension
+        {
+            return Err(EngineError::invalid(
+                "GPU filter",
+                "invalid storage buffer, extent or device limits",
+            ));
+        }
+        let count = extent.area() as usize;
         let mut data = vec![0.0_f32; 32];
-        data[0] = src.w as f32;
-        data[1] = src.h as f32;
+        data[0] = w as f32;
+        data[1] = h as f32;
         data[3] = p.amount;
         data[4] = p.radius;
         data[5] = p.angle;
@@ -82,7 +224,7 @@ impl GpuFilters {
                 let depth = p.depth.as_ref().ok_or_else(|| {
                     EngineError::invalid("GPU lens blur", "supply near-to-far depth/mask")
                 })?;
-                if depth.len() != src.pixels.len()
+                if depth.len() != count
                     || depth
                         .iter()
                         .any(|v| !v.is_finite() || !(0.0..=1.0).contains(v))
@@ -132,7 +274,7 @@ impl GpuFilters {
                 }
                 18
             }
-            Effect::Adjust => encode_adjustment(&p.adjust, &src, &mut data)?,
+            Effect::Adjust => encode_adjustment(&p.adjust, source_statistics, &mut data)?,
             Effect::Distort(kind) => {
                 use crate::distort::Distortion::*;
                 let d = &p.distort;
@@ -154,8 +296,7 @@ impl GpuFilters {
                         && 2.0 * f64::from(d.amount).abs() * std::f64::consts::TAU
                             / f64::from(d.wavelength)
                             >= 1.0)
-                    || (matches!(kind, PolarToRectangular | RectangularToPolar)
-                        && (src.w < 2 || src.h < 2))
+                    || (matches!(kind, PolarToRectangular | RectangularToPolar) && (w < 2 || h < 2))
                 {
                     return Err(EngineError::invalid(
                         "GPU distortion",
@@ -172,8 +313,8 @@ impl GpuFilters {
                     d.center[1],
                 ]);
                 // Normalize huge periodic offsets on the host before f32 shader subtraction.
-                data[19] = f64::from(d.offset[0]).rem_euclid(src.w as f64) as f32;
-                data[20] = f64::from(d.offset[1]).rem_euclid(src.h as f64) as f32;
+                data[19] = f64::from(d.offset[0]).rem_euclid(w as f64) as f32;
+                data[20] = f64::from(d.offset[1]).rem_euclid(h as f64) as f32;
                 match kind {
                     Pinch => 10,
                     Spherize => 11,
@@ -224,44 +365,30 @@ impl GpuFilters {
         data[10] = (p.seed >> 16) as f32;
         data[11] = u8::from(p.monochrome) as f32;
         data[12] = u8::from(p.gaussian_noise) as f32;
-        let bytes = bytemuck::cast_slice(&src.pixels);
-        if bytes.len() as u64 > self.device.limits().max_storage_buffer_binding_size {
-            return Err(EngineError::invalid(
-                "GPU filter",
-                "image exceeds storage buffer limit",
-            ));
-        }
-        let original = self
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("source"),
-                contents: bytes,
-                usage: wgpu::BufferUsages::STORAGE,
-            });
         let mut current = original.clone();
         let stages = if convolution && factor > 1 {
             let pad = crate::large::padding(p.radius, factor);
-            let cw = (src.w + 2 * pad).div_ceil(factor);
-            let ch = (src.h + 2 * pad).div_ceil(factor);
+            let cw = (w + 2 * pad).div_ceil(factor);
+            let ch = (h + 2 * pad).div_ceil(factor);
             data[16] = factor as f32;
             data[17] = pad as f32;
-            data[18] = src.w as f32;
-            data[19] = src.h as f32;
+            data[18] = w as f32;
+            data[19] = h as f32;
             data[20] = cw as f32;
             data[21] = ch as f32;
             data[0] = cw as f32;
             data[1] = ch as f32;
             data[2] = 40.0;
-            current = self.dispatch(&original, &current, &data, cw * ch)?;
+            current = self.dispatch(original, &current, &data, cw * ch)?;
             for stage in [0, 1] {
                 checkpoint(cancel)?;
                 data[2] = stage as f32;
-                current = self.dispatch(&original, &current, &data, cw * ch)?;
+                current = self.dispatch(original, &current, &data, cw * ch)?;
             }
-            data[0] = src.w as f32;
-            data[1] = src.h as f32;
+            data[0] = w as f32;
+            data[1] = h as f32;
             data[2] = 41.0;
-            current = self.dispatch(&original, &current, &data, src.pixels.len())?;
+            current = self.dispatch(original, &current, &data, count)?;
             vec![op]
         } else if convolution {
             vec![0, 1, op]
@@ -271,43 +398,11 @@ impl GpuFilters {
         for stage in stages {
             checkpoint(cancel)?;
             data[2] = stage as f32;
-            current = self.dispatch(&original, &current, &data, src.pixels.len())?;
+            current = self.dispatch(original, &current, &data, count)?;
         }
-        let staging = self.device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("readback"),
-            size: bytes.len() as u64,
-            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-            mapped_at_creation: false,
-        });
-        let mut encoder = self.device.create_command_encoder(&Default::default());
-        encoder.copy_buffer_to_buffer(&current, 0, &staging, 0, bytes.len() as u64);
-        self.queue.submit([encoder.finish()]);
-        let (tx, rx) = std::sync::mpsc::channel();
-        staging.slice(..).map_async(wgpu::MapMode::Read, move |v| {
-            let _ = tx.send(v);
-        });
-        self.device
-            .poll(wgpu::PollType::wait_indefinitely())
-            .map_err(|e| EngineError::internal(e.to_string()))?;
-        rx.recv()
-            .map_err(|e| EngineError::internal(e.to_string()))?
-            .map_err(|e| EngineError::internal(e.to_string()))?;
-        checkpoint(cancel)?;
-        let pixels = bytemuck::cast_slice::<u8, [f32; 4]>(
-            &staging
-                .slice(..)
-                .get_mapped_range()
-                .map_err(|e| EngineError::internal(e.to_string()))?,
-        )
-        .to_vec();
-        staging.unmap();
-        Buffer {
-            w: src.w,
-            h: src.h,
-            pixels,
-        }
-        .write(input, cancel)
+        Ok(current)
     }
+
     fn dispatch(
         &self,
         original: &wgpu::Buffer,
@@ -315,8 +410,13 @@ impl GpuFilters {
         data: &[f32],
         count: usize,
     ) -> EngineResult<wgpu::Buffer> {
-        if (count as u64) * 16 > self.device.limits().max_storage_buffer_binding_size
-            || (data.len() as u64) * 4 > self.device.limits().max_storage_buffer_binding_size
+        let limits = self.device.limits();
+        if (count as u64) * 16 > limits.max_storage_buffer_binding_size
+            || (count as u64) * 16 > limits.max_buffer_size
+            || (data.len() as u64) * 4 > limits.max_storage_buffer_binding_size
+            || (data.len() as u64) * 4 > limits.max_buffer_size
+            || (data[0] as u32).div_ceil(8) > limits.max_compute_workgroups_per_dimension
+            || (data[1] as u32).div_ceil(8) > limits.max_compute_workgroups_per_dimension
         {
             return Err(EngineError::invalid(
                 "GPU filter",
@@ -376,7 +476,7 @@ impl GpuFilters {
 // on the host. All per-pixel adjustment evaluation runs in WGSL.
 fn encode_adjustment(
     a: &crate::adjust::Adjustment,
-    src: &Buffer,
+    source_statistics: Option<([f64; 3], [f64; 3])>,
     data: &mut Vec<f32>,
 ) -> EngineResult<u32> {
     use crate::adjust::Adjustment::*;
@@ -484,7 +584,9 @@ fn encode_adjustment(
             32
         }
         MatchColour { target, amount } => {
-            let (sm, ss) = statistics(src.pixels.iter().map(|p| [p[0], p[1], p[2]]));
+            let (sm, ss) = source_statistics.ok_or_else(|| EngineError::Unsupported {
+                what: "resident MatchColour requires source statistics".into(),
+            })?;
             let (tm, ts) = statistics(target.iter().copied());
             data.extend(sm.map(|v| v as f32));
             data.extend(tm.map(|v| v as f32));
@@ -563,4 +665,174 @@ fn statistics(samples: impl Iterator<Item = [f32; 3]>) -> ([f64; 3], [f64; 3]) {
         }
     }
     (mean, m2.map(|v| (v / n.max(1.0)).max(0.0).sqrt()))
+}
+
+#[cfg(test)]
+mod resident_tests {
+    use super::*;
+    use engine_api::tile::Extent;
+
+    #[test]
+    fn resident_adapter_chain_and_supported_inventory() {
+        use crate::{CompositorFilters, Filter};
+        use compositor::{document::SmartFilter, geom::Rect, raster::Depth};
+        let gpu = GpuFilters::new().expect("Metal device");
+        let extent = Extent::new(9, 7);
+        let cancel = AtomicBool::new(false);
+        let mut raster = Raster::new(extent, 4, Depth::F32, 0.0);
+        raster
+            .edit_region(Rect::of_extent(extent), 1, |x, y, p| {
+                *p = [x as f32 / 9.0, y as f32 / 7.0, 0.25, (x + y) as f32 / 16.0];
+            })
+            .unwrap();
+        let pixels = Buffer::read(&raster, &cancel).unwrap();
+        let input = gpu
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: None,
+                contents: bytemuck::cast_slice(&pixels.pixels),
+                usage: wgpu::BufferUsages::STORAGE,
+            });
+        let staging = gpu.device.create_buffer(&wgpu::BufferDescriptor {
+            label: None,
+            size: input.size(),
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            mapped_at_creation: false,
+        });
+        let check = |out: &wgpu::Buffer, expected: &Raster| {
+            let mut enc = gpu.device.create_command_encoder(&Default::default());
+            enc.copy_buffer_to_buffer(out, 0, &staging, 0, out.size());
+            gpu.queue.submit([enc.finish()]);
+            let (tx, rx) = std::sync::mpsc::channel();
+            staging.slice(..).map_async(wgpu::MapMode::Read, move |r| {
+                tx.send(r).unwrap();
+            });
+            gpu.device
+                .poll(wgpu::PollType::wait_indefinitely())
+                .unwrap();
+            rx.recv().unwrap().unwrap();
+            {
+                let mapped = staging.slice(..).get_mapped_range().unwrap();
+                let actual = bytemuck::cast_slice::<u8, [f32; 4]>(&mapped);
+                for (a, b) in actual
+                    .iter()
+                    .zip(Buffer::read(expected, &cancel).unwrap().pixels)
+                {
+                    for c in 0..4 {
+                        assert!((a[c] - b[c]).abs() < 1e-4, "{a:?} vs {b:?}");
+                    }
+                }
+            }
+            staging.unmap();
+        };
+        let p = FilterParams {
+            amount: 0.75,
+            radius: 1.5,
+            angle: 0.1,
+            depth: Some(vec![0.8; extent.area() as usize]),
+            ..Default::default()
+        };
+        for effect in Effect::inventory() {
+            if !GpuFilters::supports_resident(effect, &p) {
+                continue;
+            }
+            let out = gpu
+                .apply_buffer(effect, &input, extent, &p, &cancel)
+                .unwrap();
+            check(&out, &effect.apply(&raster, &p, &cancel).unwrap());
+        }
+        let node = SmartFilter {
+            name: "adjust".into(),
+            params: serde_json::json!({"adjust": "invert"}),
+            ..Default::default()
+        };
+        let adapter = CompositorFilters;
+        assert!(adapter.supports(&node).unwrap());
+        let once = adapter
+            .evaluate_resident(&gpu.device, &gpu.queue, &input, extent, &node)
+            .unwrap();
+        let twice = adapter
+            .evaluate_resident(&gpu.device, &gpu.queue, &once, extent, &node)
+            .unwrap();
+        check(&twice, &raster);
+    }
+
+    #[test]
+    fn resident_buffer_shared_device_and_validation() {
+        let owner = GpuFilters::new().expect("Metal device");
+        let gpu = GpuFilters::from_device(&owner.device, &owner.queue).unwrap();
+        let pixels = [[0.25_f32, 0.5, 0.75, 0.5]; 4];
+        let input = owner
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: None,
+                contents: bytemuck::cast_slice(&pixels),
+                usage: wgpu::BufferUsages::STORAGE,
+            });
+        let p = FilterParams {
+            amount: 1.0,
+            adjust: crate::adjust::Adjustment::Invert,
+            ..Default::default()
+        };
+        let out = gpu
+            .apply_buffer(
+                Effect::Adjust,
+                &input,
+                Extent::new(2, 2),
+                &p,
+                &AtomicBool::new(false),
+            )
+            .unwrap();
+        assert_eq!(out.size(), 64);
+        assert!(
+            out.usage()
+                .contains(wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC)
+        );
+        let staging = owner.device.create_buffer(&wgpu::BufferDescriptor {
+            label: None,
+            size: 64,
+            usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        let mut encoder = owner.device.create_command_encoder(&Default::default());
+        encoder.copy_buffer_to_buffer(&out, 0, &staging, 0, 64);
+        owner.queue.submit([encoder.finish()]);
+        let (tx, rx) = std::sync::mpsc::channel();
+        staging.slice(..).map_async(wgpu::MapMode::Read, move |r| {
+            tx.send(r).unwrap();
+        });
+        owner
+            .device
+            .poll(wgpu::PollType::wait_indefinitely())
+            .unwrap();
+        rx.recv().unwrap().unwrap();
+        {
+            let mapped = staging.slice(..).get_mapped_range().unwrap();
+            assert_eq!(
+                bytemuck::cast_slice::<u8, [f32; 4]>(&mapped),
+                &[[0.75, 0.5, 0.25, 0.5]; 4]
+            );
+        }
+        staging.unmap();
+        assert!(
+            gpu.apply_buffer(
+                Effect::Adjust,
+                &input,
+                Extent::new(0, 2),
+                &p,
+                &AtomicBool::new(false)
+            )
+            .is_err()
+        );
+        assert!(
+            gpu.apply_buffer(
+                Effect::Adjust,
+                &input,
+                Extent::new(3, 2),
+                &p,
+                &AtomicBool::new(false)
+            )
+            .is_err()
+        );
+    }
 }
