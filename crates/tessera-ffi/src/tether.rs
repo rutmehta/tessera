@@ -227,12 +227,16 @@ impl Engine {
     }
     /// Returns frames as well as notifying the optional listener. Callbacks run
     /// outside the session borrow, so UI code may safely reenter tether commands.
+    /// The ingest worker writes the catalog on its own connection; each poll
+    /// announces those writes as `EngineEvent::LibraryChanged` (frames join the
+    /// library through the change feed, not a reload).
     pub fn tether_poll(&self) -> Result<Vec<TetherFrame>> {
         let (frames, listener, status) = with_active(self, |a| {
             let status = a.session.poll().map_err(failure);
             let raw: Vec<::tether::Frame> = a.session.events().try_iter().collect();
             Ok((frames(&a.db, raw), a.listener.clone(), status))
         })?;
+        self.notify_changes();
         if let Some(listener) = listener {
             for frame in &frames {
                 listener.on_frame(frame.clone());
@@ -249,6 +253,7 @@ impl Engine {
         let status = active.session.stop().map_err(failure);
         let raw: Vec<::tether::Frame> = active.session.events().try_iter().collect();
         let frames = frames(&active.db, raw);
+        self.notify_changes();
         if let Some(listener) = active.listener {
             for frame in &frames {
                 listener.on_frame(frame.clone());

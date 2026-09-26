@@ -85,14 +85,17 @@ fn preview_hash(info: &ImageInfo) -> EngineResult<Option<u64>> {
     };
     bytes.as_deref().map(dhash_jpeg).transpose()
 }
-fn root(parents: &mut [usize], mut n: usize) -> usize {
+fn near_duplicate(a: u64, b: u64) -> bool {
+    (a ^ b).count_ones() <= 6
+}
+pub(crate) fn root(parents: &mut [usize], mut n: usize) -> usize {
     while parents[n] != n {
         parents[n] = parents[parents[n]];
         n = parents[n];
     }
     n
 }
-fn join(parents: &mut [usize], a: usize, b: usize) {
+pub(crate) fn join(parents: &mut [usize], a: usize, b: usize) {
     let a = root(parents, a);
     let b = root(parents, b);
     parents[a.max(b)] = a.min(b);
@@ -129,16 +132,16 @@ impl<I: Deref<Target = Index>> CullSession<I> {
             .collect::<EngineResult<Vec<_>>>()?;
         let mut parents: Vec<_> = (0..infos.len()).collect();
         let mut errors = Vec::new();
-        if let Some(strategy) = &self.grouping_strategy {
-            let mut hashes = vec![None; infos.len()];
-            if options.near_duplicates {
-                for (n, info) in infos.iter().enumerate() {
-                    match preview_hash(info) {
-                        Ok(hash) => hashes[n] = hash,
-                        Err(error) => errors.push((info.id, error)),
-                    }
+        let mut hashes = vec![None; infos.len()];
+        if options.near_duplicates {
+            for (n, info) in infos.iter().enumerate() {
+                match preview_hash(info) {
+                    Ok(hash) => hashes[n] = hash,
+                    Err(error) => errors.push((info.id, error)),
                 }
             }
+        }
+        if let Some(strategy) = &self.grouping_strategy {
             for n in 0..infos.len() {
                 for m in 0..n {
                     if strategy.related(&infos[m], &infos[n], hashes[m], hashes[n], options) {
@@ -158,21 +161,15 @@ impl<I: Deref<Target = Index>> CullSession<I> {
                     join(&mut parents, pair[0].0, pair[1].0);
                 }
             }
-            if options.near_duplicates {
-                let mut hashes: Vec<(usize, u64)> = Vec::new();
-                for (n, info) in infos.iter().enumerate() {
-                    match preview_hash(info) {
-                        Ok(Some(hash)) => {
-                            for &(m, other) in &hashes {
-                                if (hash ^ other).count_ones() <= 6 {
-                                    join(&mut parents, m, n);
-                                }
-                            }
-                            hashes.push((n, hash));
+            let mut seen: Vec<(usize, u64)> = Vec::new();
+            for (n, hash) in hashes.iter().enumerate() {
+                if let Some(hash) = *hash {
+                    for &(m, other) in &seen {
+                        if near_duplicate(hash, other) {
+                            join(&mut parents, m, n);
                         }
-                        Ok(None) => {}
-                        Err(error) => errors.push((info.id, error)),
                     }
+                    seen.push((n, hash));
                 }
             }
         }
@@ -186,6 +183,53 @@ impl<I: Deref<Target = Index>> CullSession<I> {
         }
         self.groups = groups.into_values().collect();
         self.preview_errors = errors;
+        self.options = options;
+        self.hashes = self.images.iter().copied().zip(hashes).collect();
+        self.infos = infos.into_iter().map(|i| (i.id, i)).collect();
+        Ok(())
+    }
+    /// Whether two queue images belong together under the session's policy
+    /// (`a` before `b` in queue order). The pairwise form of `regroup`: a
+    /// burst chain within the gap is a chain of pairs within the gap.
+    pub(crate) fn related(&self, a: ImageId, b: ImageId) -> bool {
+        let (Some(ia), Some(ib)) = (self.infos.get(&a), self.infos.get(&b)) else {
+            return false;
+        };
+        let options = self.options;
+        let hash = |id| {
+            if options.near_duplicates {
+                self.hashes.get(&id).copied().flatten()
+            } else {
+                None
+            }
+        };
+        if let Some(strategy) = &self.grouping_strategy {
+            return strategy.related(ia, ib, hash(a), hash(b), options);
+        }
+        if let (Some(ta), Some(tb)) = (ia.capture_seconds, ib.capture_seconds)
+            && (ta - tb).abs() <= options.burst_gap_seconds
+        {
+            return true;
+        }
+        matches!((hash(a), hash(b)), (Some(x), Some(y)) if near_duplicate(x, y))
+    }
+    /// Refreshes the grouping inputs of `id` (new, moved or re-timed image).
+    pub(crate) fn refresh_grouping_inputs(&mut self, id: ImageId) -> EngineResult<()> {
+        let info = self.index.image_info(id)?;
+        self.preview_errors.retain(|(e, _)| *e != id);
+        let hash = if self.options.near_duplicates {
+            match preview_hash(&info) {
+                Ok(hash) => hash,
+                Err(error) => {
+                    self.preview_errors.push((id, error));
+                    None
+                }
+            }
+        } else {
+            None
+        };
+        self.hashes.insert(id, hash);
+        self.infos.insert(id, info);
         Ok(())
     }
     pub fn current_group(&self) -> Option<usize> {

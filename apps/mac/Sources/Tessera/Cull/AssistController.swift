@@ -35,6 +35,30 @@ final class AssistController {
 
     var isRunning: Bool { progress != nil }
 
+    /// The library was renumbered in place (M2-28): follow the photos, drop those that left.
+    /// New frames get predictions on the next refresh.
+    func libraryDidUpdate(_ remap: (Int) -> Int?) {
+        predictions = Dictionary(predictions.compactMap { id, p -> (Int, AssistPrediction)? in
+            guard let new = remap(id) else { return nil }
+            var p = p
+            p.itemID = new
+            return (new, p)
+        }, uniquingKeysWith: { a, _ in a })
+        order = order.compactMap(remap)
+        suggestionCount = predictions.values.filter { $0.suggested != nil }.count
+        func relink(_ person: PersonSummary) -> PersonSummary {
+            var person = person
+            person.items = person.items.compactMap(remap)
+            person.coverItem = person.coverItem.flatMap(remap)
+            return person
+        }
+        people = people.map(relink)
+        if let filter = personFilter {
+            personFilter = (relink(filter.person), filter.eyesClosed, Set(filter.items.compactMap(remap)))
+        }
+        facesItem = facesItem.flatMap(remap)
+    }
+
     // MARK: Library lifecycle
 
     /// A folder opened: forget the old state and measure what is missing (quality only; faces
@@ -65,10 +89,10 @@ final class AssistController {
         analysisGeneration += 1
         let generation = analysisGeneration
         cancelAnalysis = false
-        let ids = Array(lib.items.indices)
-        progress = (0, ids.count, "", title)
+        let targets = lib.analysisTargets(Array(lib.items.indices))
+        progress = (0, targets.count, "", title)
         Task.detached(priority: .utility) { [weak self] in
-            let result = lib.analyze(ids, faces: faces, force: force) { done, total, name in
+            let result = lib.analyze(images: targets, faces: faces, force: force) { done, total, name in
                 let keepGoing = DispatchQueue.main.sync {
                     MainActor.assumeIsolated { () -> Bool in
                         guard let self, generation == self.analysisGeneration, !self.cancelAnalysis else { return false }

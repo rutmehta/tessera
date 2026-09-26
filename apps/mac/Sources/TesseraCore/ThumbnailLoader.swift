@@ -54,15 +54,16 @@ public final class ThumbnailLoader: @unchecked Sendable {
             var access: UInt64
         }
         var totalCostLimit = 0
-        private var entries: [PhotoItem: Entry] = [:]
+        private var entries: [AnyHashable: Entry] = [:]
         private var cost = 0
         private var clock: UInt64 = 0
 
         func image(for item: PhotoItem) -> CGImage? {
-            guard var entry = entries[item] else { return nil }
+            let key = ThumbnailLoader.key(item)
+            guard var entry = entries[key] else { return nil }
             clock &+= 1
             entry.access = clock
-            entries[item] = entry
+            entries[key] = entry
             return entry.image
         }
 
@@ -70,16 +71,16 @@ public final class ThumbnailLoader: @unchecked Sendable {
             remove(item)
             clock &+= 1
             let bytes = image.bytesPerRow * image.height
-            entries[item] = Entry(image: image, cost: bytes, access: clock)
+            entries[ThumbnailLoader.key(item)] = Entry(image: image, cost: bytes, access: clock)
             cost += bytes
             while cost > totalCostLimit && entries.count > 1 {
                 guard let oldest = entries.min(by: { $0.value.access < $1.value.access })?.key else { break }
-                remove(oldest)
+                if let entry = entries.removeValue(forKey: oldest) { cost -= entry.cost }
             }
         }
 
         func remove(_ item: PhotoItem) {
-            if let entry = entries.removeValue(forKey: item) { cost -= entry.cost }
+            if let entry = entries.removeValue(forKey: ThumbnailLoader.key(item)) { cost -= entry.cost }
         }
 
         func removeAllObjects() {
@@ -111,6 +112,12 @@ public final class ThumbnailLoader: @unchecked Sendable {
         queue.maxConcurrentOperationCount = max(2, ProcessInfo.processInfo.activeProcessorCount - 1)
     }
 
+    /// Engine items are cached per image reference (one per image and library, kept across
+    /// in-place library updates that renumber items); synthetic items by value.
+    static func key(_ item: PhotoItem) -> AnyHashable {
+        item.engineImage.map(AnyHashable.init) ?? AnyHashable(item)
+    }
+
     private func cache(_ tier: PreviewTier) -> Cache {
         tier == .thumbnail ? thumbCache : previewCache
     }
@@ -130,8 +137,9 @@ public final class ThumbnailLoader: @unchecked Sendable {
     public func invalidate(_ item: PhotoItem) {
         lock.withLock {
             // An old decode may already have finished and be awaiting main-actor delivery.
-            // Cancel both tiers before clearing them, using full item identity, not dense ids.
-            let ids = active.filter { $0.value.item == item }.map(\.key)
+            // Cancel both tiers before clearing them, using image identity, not dense ids.
+            let key = Self.key(item)
+            let ids = active.filter { Self.key($0.value.item) == key }.map(\.key)
             for id in ids { active.removeValue(forKey: id)?.request.cancel() }
             thumbCache.remove(item)
             previewCache.remove(item)

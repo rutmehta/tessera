@@ -167,10 +167,10 @@ struct TetherPanel: View {
                     .frame(width: 240)
                     Menu {
                         ForEach(TetherNaming.tokens, id: \.token) { t in
-                            Button("\(t.title)  \(t.token)") { tether.template = insert(t.token) }
+                            Button("\(t.title)  \(t.token)") { tether.insertToken(t.token) }
                         }
                         Divider()
-                        Button("Reset to \(TetherNaming.defaultTemplate)") { tether.template = TetherNaming.defaultTemplate }
+                        Button("Reset to \(TetherNaming.defaultTemplate)") { tether.resetTemplate() }
                     } label: {
                         Image(systemName: "plus").font(Theme.Fonts.iconSmall)
                     }
@@ -216,15 +216,6 @@ struct TetherPanel: View {
     private var namingProblem: TetherNaming.Problem? {
         if case .failure(let p) = tether.namingExample { return p }
         return nil
-    }
-
-    /// Tokens go before the extension so the name keeps its format.
-    private func insert(_ token: String) -> String {
-        let t = tether.template
-        if token != "{ext}", let r = t.range(of: ".{ext}", options: .backwards) {
-            return t.replacingCharacters(in: r, with: "_\(token).{ext}")
-        }
-        return t + token
     }
 
     private func label(_ text: String) -> some View {

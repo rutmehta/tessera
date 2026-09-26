@@ -474,6 +474,21 @@ RustBuffer uniffi_tessera_ffi_fn_method_engine_analyze_image(uint64_t ptr, RustB
 void uniffi_tessera_ffi_fn_method_engine_set_faces(uint64_t ptr, RustBuffer image_id, RustBuffer faces, uint32_t width, uint32_t height, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_CHANGE_SEQUENCE
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_CHANGE_SEQUENCE
+uint64_t uniffi_tessera_ffi_fn_method_engine_change_sequence(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_CHANGES_SINCE
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_CHANGES_SINCE
+RustBuffer uniffi_tessera_ffi_fn_method_engine_changes_since(uint64_t ptr, uint64_t sequence, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_FORGET_MISSING
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_FORGET_MISSING
+uint32_t uniffi_tessera_ffi_fn_method_engine_forget_missing(uint64_t ptr, RustBuffer image_ids, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_OPEN_LIBRARY
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_OPEN_LIBRARY
 uint64_t uniffi_tessera_ffi_fn_method_engine_open_library(uint64_t ptr, RustBuffer path, RustCallStatus *_Nonnull out_status
@@ -1360,6 +1375,11 @@ int8_t uniffi_tessera_ffi_fn_method_cullsession_can_redo(uint64_t ptr, RustCallS
 int8_t uniffi_tessera_ffi_fn_method_cullsession_can_undo(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_CHANGE_SEQUENCE
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_CHANGE_SEQUENCE
+uint64_t uniffi_tessera_ffi_fn_method_cullsession_change_sequence(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_CURRENT
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_CURRENT
 RustBuffer uniffi_tessera_ffi_fn_method_cullsession_current(uint64_t ptr, RustCallStatus *_Nonnull out_status
@@ -1508,6 +1528,11 @@ void uniffi_tessera_ffi_fn_method_cullsession_set_library(uint64_t ptr, RustBuff
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_SET_POSITION
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_SET_POSITION
 void uniffi_tessera_ffi_fn_method_cullsession_set_position(uint64_t ptr, uint32_t position, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_SYNC_CHANGES
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_SYNC_CHANGES
+RustBuffer uniffi_tessera_ffi_fn_method_cullsession_sync_changes(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_TOGGLE_BASKET
@@ -1949,6 +1974,24 @@ uint16_t uniffi_tessera_ffi_checksum_method_engine_analyze_image(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_SET_FACES
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_SET_FACES
 uint16_t uniffi_tessera_ffi_checksum_method_engine_set_faces(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_CHANGE_SEQUENCE
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_CHANGE_SEQUENCE
+uint16_t uniffi_tessera_ffi_checksum_method_engine_change_sequence(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_CHANGES_SINCE
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_CHANGES_SINCE
+uint16_t uniffi_tessera_ffi_checksum_method_engine_changes_since(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_FORGET_MISSING
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_FORGET_MISSING
+uint16_t uniffi_tessera_ffi_checksum_method_engine_forget_missing(void
     
 );
 #endif
@@ -2840,6 +2883,12 @@ uint16_t uniffi_tessera_ffi_checksum_method_cullsession_can_undo(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_CHANGE_SEQUENCE
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_CHANGE_SEQUENCE
+uint16_t uniffi_tessera_ffi_checksum_method_cullsession_change_sequence(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_CURRENT
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_CURRENT
 uint16_t uniffi_tessera_ffi_checksum_method_cullsession_current(void
@@ -3017,6 +3066,12 @@ uint16_t uniffi_tessera_ffi_checksum_method_cullsession_set_library(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_SET_POSITION
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_SET_POSITION
 uint16_t uniffi_tessera_ffi_checksum_method_cullsession_set_position(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_SYNC_CHANGES
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_SYNC_CHANGES
+uint16_t uniffi_tessera_ffi_checksum_method_cullsession_sync_changes(void
     
 );
 #endif

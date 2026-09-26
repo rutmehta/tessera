@@ -75,6 +75,12 @@ impl Index {
     pub fn prune_missing(&mut self, dry_run: bool) -> EngineResult<PruneCounts> {
         self.0.prune_missing(dry_run).map_err(Into::into)
     }
+    /// Removes the catalog rows of those `ids` whose original no longer exists
+    /// (files the host just moved to the Trash); others are kept. Returns the
+    /// number removed. Unlike `prune_missing`, offline volumes are untouched.
+    pub fn forget_missing(&mut self, ids: &[ImageId]) -> EngineResult<usize> {
+        self.0.forget_missing(ids).map_err(Into::into)
+    }
     pub fn scan(
         &mut self,
         root: impl AsRef<Path>,

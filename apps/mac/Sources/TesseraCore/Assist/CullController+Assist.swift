@@ -128,20 +128,32 @@ extension EngineLibrary {
     /// collected per file rather than stopping the pass.
     public func analyze(_ itemIDs: [Int], faces: Bool, force: Bool = false,
                         progress: (Int, Int, String) -> Bool = { _, _, _ in true }) -> (analyzed: Int, errors: [String]) {
+        analyze(images: analysisTargets(itemIDs), faces: faces, force: force, progress: progress)
+    }
+
+    /// (image id, file name) of `itemIDs`, resolved now: the layout can change in place
+    /// while a background pass runs, so resolve on the main actor before handing off.
+    public func analysisTargets(_ itemIDs: [Int]) -> [(imageID: String, name: String)] {
+        itemIDs.filter(items.indices.contains).map { (imageIDs[$0], items[$0].name) }
+    }
+
+    /// `analyze` over targets resolved with `analysisTargets` (safe off the main actor).
+    public func analyze(images: [(imageID: String, name: String)], faces: Bool, force: Bool = false,
+                        progress: (Int, Int, String) -> Bool = { _, _, _ in true }) -> (analyzed: Int, errors: [String]) {
         var analyzed = 0
         var errors: [String] = []
         let options = AnalysisOptions(quality: true, faces: faces, force: force)
-        for (n, id) in itemIDs.enumerated() {
-            guard progress(n, itemIDs.count, items[id].name) else { break }
+        for (n, image) in images.enumerated() {
+            guard progress(n, images.count, image.name) else { break }
             do {
-                if !(try engine.analyzeImage(imageId: imageIDs[id], options: options)).skipped { analyzed += 1 }
+                if !(try engine.analyzeImage(imageId: image.imageID, options: options)).skipped { analyzed += 1 }
             } catch {
-                errors.append("\(items[id].name): \(error.localizedDescription)")
+                errors.append("\(image.name): \(error.localizedDescription)")
                 // Without the face models nothing else will succeed: stop at the first such error.
                 if faces, error.localizedDescription.contains("face models") { break }
             }
         }
-        _ = progress(itemIDs.count, itemIDs.count, "")
+        _ = progress(images.count, images.count, "")
         return (analyzed, errors)
     }
 
