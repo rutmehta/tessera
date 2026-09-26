@@ -43,10 +43,8 @@ Compositor bit-exact GPU maths and L0 < 100 ms (92 ms; 4K viewport 38 ms, full r
 
 ## Known gaps / next
 - Adobe undocumented XMP structures (PointColors strings, brush dabs, Look tables) need **real Lightroom-exported sidecars** to finish (M2-02b).
-- Export must install `MaskHooks` to render AI masks; local adjustments are not yet on the fast GPU path (M2-14 notes).
-- Lens: downloadable lensfun data pack, DNG opcode execution in-stage, independent manual CA (M2-09b).
-- Adobe PV6 compatibility renderer for imported edits + in-app Lightroom import with ΔE fidelity report (M2-18, M2-13b).
-- Milestone 3 remainder: tool API/MCP server, scripting console, tethering. Milestone 4 agentic editing. Milestone 5 layered editor.
+- Layered editor: HDR Toning adjustment; GPU path for positive-radius Shadows/Highlights; Camera Raw smart filter (M5-25 in flight); neural filters wiring into the compositor (after M3-21); generative/cloud features (spec 02 §10) are deferred to the paid cloud tier.
+- Machine B's layered-editor UI (wp/B5-ui, B5-01..B5-05) is being merged.
 - Release: needs your Developer ID certificate + notarization profile and a Sparkle EdDSA key (see apps/mac/Support/release/README.md).
 
 ## Coordination across machines (2026-09-26)
