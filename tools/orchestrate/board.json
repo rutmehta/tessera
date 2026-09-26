@@ -923,9 +923,9 @@
     "id": "M5-21",
     "owner": "astra",
     "title": "`transform` crate: free transform, warp mesh, perspective warp, puppet warp, content-aware scale",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
-    "notes": ""
+    "notes": "gate green; CPU 36MP bicubic 260ms, GPU 16ms cached; kernel reuse waived (lens has none); automatic resident routing -> M5-23"
   },
   {
     "id": "M5-22",
