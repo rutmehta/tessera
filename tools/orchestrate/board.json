@@ -814,5 +814,13 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M2-29",
+    "owner": "astra",
+    "title": "Develop JPEG/TIFF/PNG/HEIC",
+    "status": "todo",
+    "attempts": 0,
+    "notes": ""
   }
 ]
