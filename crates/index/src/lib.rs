@@ -2,10 +2,12 @@
 mod api;
 mod predicate;
 mod semantic;
+mod understanding;
 pub use api::{FaceRecord, ImageInfo, Index, PruneCounts, Scanner, Score};
 pub use predicate::{Comparison, Predicate};
 pub use semantic::SemanticSearch;
 use std::{path::Path, time::UNIX_EPOCH};
+pub use understanding::{KeywordSuggestion, OcrRegion, Understanding};
 
 use engine_api::{
     id::ImageId,
@@ -115,11 +117,11 @@ impl Core {
             COMMIT;")?;
         let version: u32 =
             conn.query_row("SELECT max(version) FROM migration", [], |r| r.get(0))?;
-        if version > 5 {
+        if version > 6 {
             return Err(engine_api::error::EngineError::SchemaVersion {
                 document: "index".into(),
                 found: version,
-                supported: 5,
+                supported: 6,
             }
             .into());
         }
@@ -151,6 +153,9 @@ impl Core {
         }
         if version < 5 {
             conn.execute_batch(include_str!("../migrations/005_faces.sql"))?;
+        }
+        if version < 6 {
+            conn.execute_batch(include_str!("../migrations/006_understanding.sql"))?;
         }
         Ok(Self { conn })
     }
@@ -261,6 +266,7 @@ impl Core {
                 )?;
             }
             tx.execute("DELETE FROM image_keyword WHERE image_id=?", [&id])?;
+            tx.execute("INSERT INTO image_keyword SELECT image_id,keyword_id FROM accepted_keyword WHERE image_id=?", [&id])?;
             for keyword in &side.keywords {
                 tx.execute("INSERT OR IGNORE INTO keyword(name) VALUES(?)", [keyword])?;
                 tx.execute("INSERT OR IGNORE INTO keyword_closure SELECT id,id,0 FROM keyword WHERE name=?", [keyword])?;
@@ -274,11 +280,7 @@ impl Core {
             } else {
                 tx.execute("DELETE FROM recipe_hash WHERE image_id=?", [&id])?;
             }
-            tx.execute(
-                "DELETE FROM fts WHERE rowid=(SELECT rowid FROM image WHERE id=?)",
-                [&id],
-            )?;
-            tx.execute("INSERT INTO fts(rowid,image_id,filename,keywords,caption,camera,lens) VALUES((SELECT rowid FROM image WHERE id=?1),?1,?2,?3,?4,?5,?6)", params![id,name,side.keywords.join(" "),side.caption.unwrap_or_default(),data.camera.unwrap_or_default(),data.lens.unwrap_or_default()])?;
+            understanding::refresh_fts(&tx, &id)?;
             tx.commit()?;
             changed += 1;
         }
@@ -846,7 +848,7 @@ mod tests {
             i.conn
                 .query_row("SELECT count(*) FROM migration", [], |r| r.get::<_, u32>(0))
                 .unwrap(),
-            5
+            6
         );
     }
     #[test]
@@ -889,7 +891,7 @@ mod tests {
             .conn
             .query_row("SELECT count(*) FROM migration", [], |r| r.get(0))
             .unwrap();
-        assert_eq!(tables, 5);
+        assert_eq!(tables, 6);
         let id = ImageId(7);
         i.conn
             .execute("INSERT INTO root(path) VALUES('root')", [])

@@ -10,6 +10,7 @@ mod export;
 mod import;
 mod media;
 mod models;
+mod understanding;
 
 #[derive(Parser)]
 #[command(name = "tessera", version, about = "Headless photo workflow")]
@@ -83,6 +84,9 @@ enum IndexCommand {
 enum Ml {
     Models,
     Check,
+    Keywords(understanding::KeywordOptions),
+    Caption(understanding::Options),
+    Ocr(understanding::Options),
 }
 #[derive(Subcommand)]
 enum Import {
@@ -231,7 +235,10 @@ fn run(cli: &Cli) -> Result<Value> {
         Command::Agent(command) => agent_edit::run(&app, &mut index, command),
         Command::Mcp => unreachable!("MCP replaces this process before opening the catalog"),
         Command::Export(options) => export::run(&index, &app, options),
-        Command::Ml(command) => models::run(&app, matches!(command, Ml::Check)),
+        Command::Ml(command) => match command {
+            Ml::Models | Ml::Check => models::run(&app, matches!(command, Ml::Check)),
+            _ => understanding::run(&app, &index, command),
+        },
         Command::Import(_) => unreachable!("import handled before opening index"),
         Command::Render {
             image,

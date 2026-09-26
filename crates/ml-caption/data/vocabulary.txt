@@ -1,0 +1,2099 @@
+# SPDX-License-Identifier: Apache-2.0
+# Original photographic concept enumeration authored for Tessera.
+# Created for this project; not copied from an external taxonomy.
+# landscapes and terrain
+mountain
+mountain range
+mountain peak
+foothill
+hill
+valley
+canyon
+gorge
+ravine
+cliff
+escarpment
+plateau
+mesa
+butte
+ridge
+summit
+scree
+talus
+boulder
+rock formation
+rock face
+outcrop
+cave
+cavern
+cave entrance
+stalactite
+stalagmite
+sinkhole
+karst
+limestone pavement
+arch rock
+sea stack
+natural bridge
+sand dune
+dune field
+desert
+salt flat
+salt pan
+badlands
+scrubland
+grassland
+prairie
+savanna
+steppe
+tundra
+moorland
+heathland
+meadow
+wildflower meadow
+pasture
+rolling hills
+volcano
+volcanic crater
+caldera
+lava field
+lava flow
+geyser
+hot spring
+fumarole
+geothermal pool
+mud pot
+obsidian
+pumice
+basalt columns
+granite
+sandstone
+slate
+marble
+quartz
+geode
+crystal cluster
+mineral deposit
+fossil
+petrified wood
+soil
+clay
+mud
+sand
+gravel
+pebble
+# water and coast
+sea
+ocean
+lake
+pond
+reservoir
+lagoon
+bay
+cove
+inlet
+fjord
+estuary
+strait
+channel
+river
+stream
+creek
+brook
+tributary
+river bend
+riverbank
+riverbed
+sandbar
+shoal
+rapids
+waterfall
+cascade
+waterfall pool
+spring
+wetland
+marsh
+swamp
+bog
+mangrove forest
+reed bed
+tidal flat
+mudflat
+salt marsh
+beach
+shoreline
+coastline
+rocky coast
+sandy beach
+pebble beach
+seashell
+shell fragment
+sea glass
+driftwood
+seaweed
+kelp forest
+coral reef
+coral
+atoll
+island
+islet
+peninsula
+headland
+cape
+breakwater
+jetty
+groyne
+pier
+boardwalk
+harbor
+marina
+dock
+quay
+boat ramp
+mooring
+buoy
+lighthouse
+lifeguard tower
+beach umbrella
+beach chair
+beach towel
+sandcastle
+footprints in sand
+tide pool
+sea foam
+surf
+breaking wave
+# sky weather and seasons
+sky
+cloud
+cloud bank
+cumulus cloud
+cirrus cloud
+stratus cloud
+cumulonimbus cloud
+lenticular cloud
+storm cloud
+contrail
+fog
+mist
+haze
+smog
+rain
+raindrop
+downpour
+drizzle
+rain streak
+puddle
+rainbow
+double rainbow
+lightning
+thunderstorm
+snow
+snowfall
+snowflake
+snowdrift
+snowbank
+snow cover
+snowy peak
+blizzard
+sleet
+hail
+frost
+hoarfrost
+rime ice
+frozen puddle
+thin ice
+windblown sand
+dust cloud
+sandstorm
+waterspout
+tornado
+sun
+sunrise
+sunset
+dawn
+dusk
+twilight
+blue hour
+golden hour
+sunbeam
+crepuscular rays
+sun halo
+sun glare
+moon
+full moon
+crescent moon
+moonrise
+moonlight
+lunar eclipse
+solar eclipse
+star
+star field
+milky way
+constellation
+meteor
+meteor shower
+comet
+aurora
+night sky
+light pollution
+spring blossom
+summer foliage
+autumn foliage
+fallen leaves
+bare branches
+spring thaw
+snowmelt
+morning dew
+dewdrop
+wet pavement
+frosted window
+windblown tree
+windsock
+weather vane
+thermometer
+rain gauge
+barometer
+# woodland and plant forms
+forest
+woodland
+rainforest
+cloud forest
+boreal forest
+deciduous forest
+conifer forest
+bamboo forest
+forest clearing
+forest canopy
+forest floor
+underbrush
+thicket
+hedgerow
+hedge
+tree
+tree trunk
+tree bark
+tree branch
+twig
+leaf
+leaf vein
+leaf bud
+leaf litter
+sapling
+seedling
+stump
+fallen tree
+hollow tree
+tree roots
+exposed roots
+root ball
+moss
+lichen
+fern
+frond
+mushroom
+toadstool
+shelf fungus
+puffball
+morel
+chanterelle
+fly agaric
+lichen-covered rock
+ivy
+vine
+creeper
+climbing plant
+shrub
+bush
+grass
+blade of grass
+sedge
+rush
+reed
+cattail
+bamboo
+cactus
+succulent
+rosette
+thorn
+spine
+seed
+seed pod
+seed head
+cone
+pine cone
+acorn
+catkin
+pollen
+flower
+blossom
+flower bud
+petal
+stamen
+pistil
+sepal
+flower stem
+bouquet
+floral wreath
+# trees and flowers
+oak
+maple
+birch
+beech
+ash tree
+elm
+willow
+weeping willow
+poplar
+aspen
+alder
+sycamore
+plane tree
+chestnut tree
+horse chestnut
+walnut tree
+hazel
+hickory
+cedar
+pine
+spruce
+fir
+hemlock tree
+larch
+cypress
+juniper
+yew
+redwood
+sequoia
+baobab
+eucalyptus
+acacia
+mimosa tree
+magnolia
+dogwood
+cherry tree
+apple tree
+pear tree
+plum tree
+peach tree
+fig tree
+olive tree
+lemon tree
+orange tree
+coconut palm
+date palm
+fan palm
+banana plant
+papaya tree
+mango tree
+breadfruit tree
+banyan
+rubber plant
+fiddle-leaf fig
+monstera
+philodendron
+pothos
+snake plant
+spider plant
+peace lily
+aloe
+agave
+jade plant
+echeveria
+prickly pear
+rose
+tulip
+daffodil
+narcissus
+hyacinth
+crocus
+snowdrop
+lily
+water lily
+lotus
+orchid
+iris
+peony
+dahlia
+chrysanthemum
+daisy
+sunflower
+marigold
+zinnia
+cosmos
+poppy
+anemone
+ranunculus
+carnation
+snapdragon
+foxglove
+hollyhock
+delphinium
+lupine
+lavender
+wisteria
+hydrangea
+rhododendron
+azalea
+camellia
+# mammals
+dog
+puppy
+cat
+kitten
+horse
+pony
+foal
+donkey
+mule
+cow
+calf
+bull
+ox
+water buffalo
+bison
+yak
+sheep
+lamb
+goat
+pig
+piglet
+llama
+alpaca
+camel
+dromedary
+rabbit
+hare
+pika
+squirrel
+chipmunk
+marmot
+groundhog
+prairie dog
+beaver
+porcupine
+hedgehog
+shrew
+mole
+mouse
+rat
+hamster
+gerbil
+guinea pig
+chinchilla
+capybara
+possum
+quokka
+platypus
+echidna
+bat
+flying fox
+fox
+arctic fox
+fennec fox
+wolf
+coyote
+jackal
+hyena
+raccoon
+coati
+red panda
+giant panda
+brown bear
+black bear
+polar bear
+sloth bear
+sloth
+anteater
+armadillo
+pangolin
+meerkat
+snow leopard
+jaguar
+cheetah
+cougar
+lynx
+bobcat
+caracal
+serval
+ocelot
+elephant
+rhinoceros
+hippopotamus
+giraffe
+zebra
+tapir
+okapi
+deer
+reindeer
+elk
+dolphin
+porpoise
+orca
+humpback whale
+blue whale
+sperm whale
+beluga whale
+narwhal
+manatee
+dugong
+# birds
+bird
+chick
+nestling
+bird nest
+bird egg
+feather
+wing
+beak
+talon
+sparrow
+finch
+goldfinch
+house finch
+chaffinch
+bullfinch
+canary
+bunting
+warbler
+robin
+blackbird
+thrush
+bluebird
+starling
+myna
+swallow
+swift
+martin
+wren
+chickadee
+titmouse
+flicker
+sapsucker
+kingfisher
+bee-eater
+roller
+hoopoe
+hornbill
+toucan
+parrot
+macaw
+cockatoo
+cockatiel
+parakeet
+budgerigar
+lovebird
+lorikeet
+hummingbird
+sunbird
+pigeon
+dove
+quail
+partridge
+pheasant
+auk
+guillemot
+razorbill
+gull
+tern
+skimmer
+albatross
+petrel
+shearwater
+gannet
+booby
+cormorant
+anhinga
+pelican
+frigatebird
+heron
+egret
+bittern
+stork
+merganser
+goose
+swan
+loon
+grebe
+eagle
+bald eagle
+golden eagle
+hawk
+buzzard
+kite bird
+harrier
+osprey
+falcon
+kestrel
+peregrine falcon
+vulture
+condor
+owl
+barn owl
+snowy owl
+burrowing owl
+secretary bird
+roadrunner
+cuckoo
+kookaburra
+lyrebird
+bird of paradise bird
+# reptiles amphibians fish and invertebrates
+snake
+python
+boa
+cobra
+rattlesnake
+viper
+garter snake
+sea snake
+lizard
+gecko
+iguana
+chameleon
+monitor lizard
+komodo dragon
+skink
+anole
+bearded dragon
+basilisk lizard
+crocodile
+alligator
+caiman
+gharial
+turtle
+sea turtle
+tortoise
+terrapin
+frog
+toad
+tree frog
+poison dart frog
+bullfrog
+tadpole
+salamander
+newt
+axolotl
+fish
+goldfish
+koi
+carp
+catfish
+trout
+salmon
+perch
+pike
+bass
+sunfish
+bluegill
+sturgeon
+eel
+moray eel
+seahorse
+pipefish
+clownfish
+angelfish
+butterflyfish
+parrotfish
+surgeonfish
+wrasse
+grouper
+snapper
+whale shark
+hammerhead shark
+reef shark
+manta ray
+stingray
+skate
+sawfish
+jellyfish
+sea anemone
+sponge
+starfish
+brittle star
+sea urchin
+sand dollar
+sea cucumber
+octopus
+squid
+cuttlefish
+nautilus
+snail
+slug
+nudibranch
+limpet
+chiton
+abalone
+clam
+mussel
+oyster
+scallop
+cockle
+conch
+whelk
+crab
+barnacle
+horseshoe crab
+krill
+butterfly
+moth
+caterpillar
+chrysalis
+cocoon
+bee
+bumblebee
+honeybee
+wasp
+hornet
+ant
+termite
+beetle
+ladybug
+stag beetle
+rhinoceros beetle
+dung beetle
+firefly
+weevil
+dragonfly
+damselfly
+mayfly
+caddisfly
+lacewing
+# fruit vegetables and ingredients
+apple
+pear
+peach
+nectarine
+plum
+apricot
+cherry
+strawberry
+raspberry
+blackberry
+blueberry
+cranberry
+gooseberry
+blackcurrant
+redcurrant
+mulberry
+boysenberry
+cloudberry
+elderberry
+grape
+raisin
+fig
+date
+prune
+orange
+mandarin
+tangerine
+clementine
+lemon
+lime
+grapefruit
+pomelo
+kumquat
+yuzu
+citron
+banana
+plantain
+pineapple
+mango
+papaya
+guava
+passion fruit
+kiwifruit
+dragon fruit
+star fruit
+lychee
+longan
+rambutan
+mangosteen
+durian
+jackfruit
+breadfruit
+soursop
+custard apple
+persimmon
+pomegranate
+quince
+loquat
+melon
+watermelon
+cantaloupe
+honeydew melon
+coconut
+avocado
+tomato
+cherry tomato
+tomatillo
+cucumber
+zucchini
+eggplant
+bell pepper
+chili pepper
+jalapeno
+okra
+pumpkin
+butternut squash
+acorn squash
+spaghetti squash
+bitter melon
+bottle gourd
+chayote
+potato
+sweet potato
+yam
+cassava
+taro
+carrot
+parsnip
+turnip
+rutabaga
+radish
+daikon
+beetroot
+celeriac
+onion
+red onion
+shallot
+scallion
+leek
+garlic
+romaine
+arugula
+watercress
+endive
+radicchio
+bok choy
+napa cabbage
+mustard greens
+pea
+snow pea
+sugar snap pea
+green bean
+broad bean
+edamame
+soybean
+chickpea
+lentil
+kidney bean
+black bean
+pinto bean
+brazil nut
+pine nut
+chestnut
+nutmeg
+cinnamon
+clove
+cardamom
+star anise
+peppercorn
+cumin
+coriander seed
+fennel seed
+mustard seed
+saffron
+paprika
+vanilla pod
+bay leaf
+basil
+mint
+parsley
+# prepared food and drink
+bread
+loaf
+baguette
+sourdough
+flatbread
+pita
+naan
+roti
+tortilla
+bagel
+pretzel
+bread roll
+brioche
+croissant
+pain au chocolat
+muffin
+scone
+biscuit
+cracker
+breadstick
+crouton
+toast
+french toast
+pancake
+waffle
+crepe
+fritter
+doughnut
+churro
+cake
+cupcake
+cheesecake
+brownie
+cookie
+macaron
+meringue
+eclair
+profiterole
+tart
+pie
+cotton candy
+popcorn
+potato chips
+tortilla chips
+trail mix
+granola
+cereal
+oatmeal
+porridge
+yogurt
+butter
+cream
+cheese
+cheddar
+mozzarella
+brie
+feta
+blue cheese
+parmesan
+cottage cheese
+cream cheese
+ricotta
+paneer
+tofu
+tempeh
+meatloaf
+pork chop
+ribs
+pulled pork
+lamb chop
+kebab
+skewer
+grilled fish
+smoked salmon
+fish and chips
+fish fillet
+sushi
+sashimi
+maki roll
+nigiri
+tempura
+dumpling
+gyoza
+wonton
+bao bun
+spring roll
+egg roll
+samosa
+empanada
+pierogi
+ravioli
+tortellini
+gnocchi
+pasta
+spaghetti
+penne
+macaroni
+lasagna
+noodles
+ramen
+udon
+soba
+rice noodles
+pho
+pad thai
+hash browns
+potato salad
+coleslaw
+green salad
+caesar salad
+greek salad
+fruit salad
+caprese salad
+sandwich
+sub sandwich
+club sandwich
+grilled cheese
+hamburger
+cheeseburger
+hot dog
+wrap
+taco
+burrito
+quesadilla
+enchilada
+nachos
+pizza
+calzone
+soup
+stew
+cappuccino
+latte
+iced coffee
+tea
+matcha
+herbal tea
+iced tea
+hot chocolate
+milk
+plant milk
+orange juice
+apple juice
+lemonade
+smoothie
+soda
+sparkling water
+mineral water
+beer
+wine
+champagne
+# buildings and places
+city
+cityscape
+skyline
+town
+village
+suburb
+neighborhood
+street
+avenue
+boulevard
+alley
+lane
+intersection
+crosswalk
+sidewalk
+pedestrian street
+plaza
+public square
+courtyard
+arcade
+promenade
+esplanade
+park
+urban garden
+botanical garden
+community garden
+playground
+skate park
+dog park
+picnic area
+campground
+trailhead
+scenic overlook
+viewpoint
+parking lot
+parking garage
+bus stop
+bus station
+train station
+railway platform
+subway station
+airport
+airport terminal
+runway
+control tower
+ferry terminal
+port
+shipyard
+warehouse
+factory
+workshop
+power station
+wind farm
+solar farm
+water tower
+water treatment plant
+dam
+canal
+lock gate
+aqueduct
+bridge
+suspension bridge
+arch bridge
+footbridge
+covered bridge
+drawbridge
+viaduct
+overpass
+underpass
+tunnel
+road
+highway
+country road
+dirt road
+gravel road
+chalet
+farmhouse
+barn
+stable
+silo
+shed
+garage
+carport
+apartment building
+skyscraper
+office building
+townhouse
+row houses
+mansion
+villa
+boathouse
+houseboat
+yurt
+igloo
+tent
+teepee
+ruin
+castle
+fortress
+city wall
+watchtower
+palace
+monument
+memorial
+statue
+headstone
+mausoleum
+library
+museum
+art gallery
+theater
+cinema
+concert hall
+opera house
+stadium
+arena
+sports field
+swimming pool
+water park
+amusement park
+fairground
+zoo
+aquarium
+observatory
+planetarium
+school
+classroom
+university campus
+laboratory
+hospital
+clinic
+pharmacy
+fire station
+police station
+post office
+courthouse
+city hall
+market
+farmers market
+supermarket
+shopping mall
+shopfront
+restaurant
+cafe
+coffee shop
+diner
+food court
+food stall
+food truck
+bar
+# architecture and home objects
+roof
+roof tile
+chimney
+gutter
+downspout
+dormer
+skylight
+window
+bay window
+stained glass
+window shutter
+window frame
+windowsill
+door
+doorway
+door handle
+door knocker
+doorbell
+keyhole
+threshold
+gate
+fence
+railing
+banister
+balustrade
+column
+pillar
+beam
+rafter
+truss
+vaulted ceiling
+dome
+spire
+steeple
+minaret
+facade
+brick wall
+stone wall
+retaining wall
+stucco
+siding
+paneling
+wallpaper
+molding
+baseboard
+floor
+wood flooring
+floor tile
+mosaic
+carpet
+loveseat
+bench
+stool
+chair
+rocking chair
+folding chair
+office chair
+wheelchair
+table
+dining table
+coffee table
+side table
+desk
+workbench
+bookshelf
+bookcase
+cabinet
+cupboard
+wardrobe
+dresser
+chest of drawers
+nightstand
+sideboard
+shelving
+bed
+bunk bed
+canopy bed
+crib
+mattress
+pillow
+cushion
+blanket
+quilt
+duvet
+bedsheet
+headboard
+hammock
+wineglass
+tumbler
+pitcher
+jug
+carafe
+teapot
+kettle
+coffee pot
+thermos
+water bottle
+jar
+canister
+bottle
+bottle cap
+cork
+basket
+tray
+serving board
+cutting board
+knife
+fork
+spoon
+chopsticks
+ladle
+spatula
+whisk
+tongs
+peeler
+grater
+colander
+sieve
+strainer
+rolling pin
+mortar and pestle
+measuring cup
+measuring spoon
+mixing bowl
+saucepan
+freezer
+dishwasher
+sink
+faucet
+drain
+dish rack
+sponge cloth
+scrub brush
+dish towel
+apron
+oven mitt
+pot holder
+placemat
+tablecloth
+napkin
+napkin ring
+salt shaker
+pepper mill
+corkscrew
+bottle opener
+can opener
+ice cube tray
+ice bucket
+trash can
+recycling bin
+# tools technology and transport
+hammer
+mallet
+screwdriver
+wrench
+socket wrench
+pliers
+wire cutters
+bolt cutters
+adjustable spanner
+hex key
+hand saw
+hacksaw
+circular saw
+jigsaw
+chainsaw
+axe
+hatchet
+chisel
+file tool
+rasp
+sandpaper
+sanding block
+power drill
+drill bit
+screw
+nail
+bolt
+nut fastener
+washer
+hinge
+bracket
+clamp
+vise
+level
+plumb bob
+tape measure
+ruler
+caliper
+protractor
+compass tool
+toolbox
+tool belt
+ladder
+stepladder
+scaffolding
+wheelbarrow
+shovel
+spade
+rake
+hoe
+pitchfork
+pruning shears
+hedge trimmer
+lawn mower
+leaf blower
+watering can
+garden hose
+hose reel
+trowel
+paintbrush
+smartphone
+telephone
+headphones
+earbuds
+speaker
+microphone
+webcam
+camera
+camera lens
+lens cap
+tripod
+monopod
+camera flash
+reflector
+light stand
+softbox
+camera bag
+memory card
+hard drive
+usb drive
+router
+printer
+scanner
+projector
+projection screen
+television
+remote control
+game controller
+arcade machine
+globe
+car
+sedan
+hatchback
+station wagon
+coupe
+convertible
+suv
+minivan
+van
+pickup truck
+box truck
+semi truck
+dump truck
+tow truck
+fire engine
+ambulance
+police car
+taxi
+bus
+school bus
+double-decker bus
+tram
+trolleybus
+train
+locomotive
+freight train
+passenger train
+high-speed train
+subway train
+monorail
+funicular
+cable car
+gondola lift
+taillight
+rearview mirror
+windshield
+windshield wiper
+license plate
+car seat
+seat belt
+traffic light
+traffic sign
+stop sign
+street sign
+parking meter
+bollard
+traffic cone
+road barrier
+guardrail
+railway track
+railway signal
+railroad crossing
+tractor
+combine harvester
+excavator
+bulldozer
+backhoe
+forklift
+crane machine
+sailboat
+yacht
+catamaran
+speedboat
+motorboat
+fishing boat
+trawler
+ferry
+cruise ship
+cargo ship
+container ship
+tanker
+tugboat
+barge
+raft
+paddleboard
+surfboard
+windsurf board
+jet ski
+submarine
+anchor
+rope
+chain
+sail
+mast
+rudder
+propeller
+oar
+paddle
+life jacket
+lifebuoy
+# clothing personal items and activities
+shirt
+t-shirt
+blouse
+sweater
+cardigan
+hoodie
+sweatshirt
+jacket
+coat
+raincoat
+poncho
+vest
+blazer
+trousers
+jeans
+shorts
+skirt
+dress
+jumpsuit
+overalls
+tracksuit
+swimsuit
+wetsuit
+bathrobe
+pajamas
+sock
+shoe
+sneaker
+boot
+sandal
+slipper
+clog
+high heel
+shoelace
+hat
+cap
+beanie
+sunhat
+helmet
+scarf
+shawl
+glove
+mitten
+belt
+suspender
+necktie
+bow tie
+sunglasses
+eyeglasses
+goggles
+umbrella
+backpack
+handbag
+tote bag
+duffel bag
+suitcase
+briefcase
+wallet
+purse
+key
+key ring
+necklace
+bracelet
+ring jewelry
+earring
+brooch
+pendant
+hair clip
+hair tie
+headband
+backpacking
+trail running
+climbing
+rock climbing
+bouldering
+mountaineering
+rappelling
+caving
+camping
+picnicking
+barbecuing
+gardening
+planting
+watering plants
+pruning
+harvesting
+raking leaves
+mowing
+fishing
+fly fishing
+rowing
+canoeing
+kayaking
+sailing
+boating
+swimming
+diving
+scuba diving
+snorkeling
+surfing
+windsurfing
+kitesurfing
+paddleboarding
+water skiing
+wakeboarding
+rafting
+cycling
+mountain biking
+skateboarding
+roller skating
+ice skating
+skiing
+cross-country skiing
+snowboarding
+sledding
+snowshoeing
+horseback riding
+jumping
+stretching
+weightlifting
+yoga
+pilates
+gymnastics
+dancing
+fencing
+boxing
+wrestling
+martial arts
+playing chess
+playing cards
+solving a puzzle
+reading
+writing
+drawing
+painting
+sketching
+sculpting
+pottery making
+woodworking
+carving
+knitting
+crocheting
+sewing
+weaving
+embroidery
+origami
+cooking
+baking
+chopping food
+kneading dough
+stirring
+pouring
+serving food
+washing dishes
+cleaning
+sweeping
+vacuuming
+ironing
+folding laundry
+repairing
+building
+welding
+soldering
+typing
+using a phone
+taking a photograph
+filming
+birdwatching
+stargazing
+playing guitar
+playing piano
+playing violin
+playing drums
+singing
+conducting
+performing on stage
+walking a dog
+feeding animals
+brushing a horse
+carrying a bag
+# sports arts and miscellaneous objects
+soccer ball
+basketball
+volleyball
+baseball
+softball
+tennis ball
+golf ball
+cricket ball
+rugby ball
+football
+hockey puck
+shuttlecock
+tennis racket
+badminton racket
+table tennis paddle
+baseball bat
+cricket bat
+golf club
+hockey stick
+lacrosse stick
+fishing rod
+fishing reel
+fishing net
+landing net
+boxing glove
+punching bag
+dumbbell
+barbell
+weight plate
+kettlebell
+exercise mat
+yoga block
+resistance band
+jump rope
+balance beam
+pommel horse
+trampoline
+treadmill
+exercise bike
+rowing machine
+pull-up bar
+soccer goal
+basketball hoop
+tennis net
+volleyball net
+electric guitar
+bass guitar
+ukulele
+banjo
+mandolin
+harp
+violin
+viola
+cello
+double bass
+piano
+grand piano
+upright piano
+keyboard instrument
+accordion
+concertina
+harmonica
+flute
+piccolo
+clarinet
+oboe
+bassoon
+saxophone
+trumpet
+trombone
+french horn
+tuba
+recorder
+bagpipe
+drum
+drum kit
+snare drum
+bass drum
+tambourine
+cymbal
+gong
+xylophone
+marimba
+vibraphone
+triangle instrument
+maraca
+castanet
+bongo
+conga
+djembe
+safety pin
+button
+zipper
+fabric
+felt
+lace
+ribbon spool
+scissors
+glue stick
+adhesive tape
+stapler
+paper clip
+binder clip
+rubber band
+pushpin
+notebook
+book
+magazine
+newspaper
+letter
+model airplane
+building blocks
+marble toy
+spinning top
+yo-yo
+kite
+pinwheel
+soap bubble
+rubber duck
+rattle
+rocking horse
+sandbox
+swing
+slide
+seesaw
+merry-go-round
+ferris wheel
+roller coaster
+carousel
+vending machine
+# photographic styles composition materials colors and shapes
+portrait
+self-portrait
+group portrait
+candid photograph
+environmental portrait
+studio photograph
+headshot
+full-length portrait
+close-up
+extreme close-up
+macro photography
+microphotography
+landscape photography
+seascape photography
+cityscape photography
+street photography
+architectural photography
+interior photography
+wildlife photography
+bird photography
+pet photography
+botanical photography
+food photography
+product photography
+still life
+sports photography
+action photography
+travel photography
+documentary photography
+aerial photography
+drone photography
+underwater photography
+astrophotography
+night photography
+long exposure
+short exposure
+motion blur
+panning shot
+light trails
+star trails
+light painting
+time-lapse
+multiple exposure
+double exposure
+panorama
+wide-angle photograph
+fisheye photograph
+telephoto photograph
+tilt-shift photograph
+infrared photograph
+thermal image
+x-ray image
+black and white
+monochrome
+sepia
+cyanotype
+film photography
+instant photograph
+contact sheet
+negative image
+high-key lighting
+low-key lighting
+rim lighting
+side lighting
+front lighting
+soft light
+diffused light
+spotlight
+neon lighting
+candlelight
+firelight
+bokeh
+shallow depth of field
+deep depth of field
+selective focus
+soft focus
+sharp focus
+focus stacking
+lens flare
+vignette
+film grain
+digital noise
+chromatic aberration
+lens distortion
+high contrast
+low contrast
+high saturation
+muted colors
+pastel colors
+warm tones
+cool tones
+complementary colors
+color gradient
+color splash
+negative space
+central composition
+symmetry
+transparency
+translucency
+opacity
+glossy surface
+matte surface
+polished surface
+rough surface
+smooth surface
+weathered surface
+rust
+patina
+peeling paint
+cracked paint
+scratches
+dents
+wood
+metal
+steel
+stainless steel
+iron metal
+copper
+brass
+bronze
+aluminum
+gold metal
+silver metal
+glass material
+ceramic
+porcelain
+terracotta
+plastic
+acrylic
+rubber
+silicone
+leather
+suede
+velvet
+silk
+satin
+cotton
+linen
+wool
+denim
+corduroy
+burlap
+canvas fabric
+fleece
+fur
+feathers
+wicker
+resin
+wax
+red
+orange color
+yellow
+green
+blue
+purple
+violet color
+pink
+magenta
+cyan
+teal
+turquoise
+indigo
+navy blue
+sky blue
+cobalt blue
+aquamarine
+mint green
+olive green
+lime green
+emerald green
+forest green
+chartreuse
+maroon
+burgundy
+crimson
+scarlet
+coral color
+salmon pink
+rose pink
+peach color
+apricot color
+amber
+mustard yellow
+lemon yellow
+gold color
+silver color
+bronze color
+copper color
+brown
+tan
+beige
+cream color
+ivory
+white
+black
+gray
+charcoal gray
+slate gray
+taupe
+chocolate brown
+umber
+ochre
+sienna
+khaki
+multicolored
+rainbow colors
+neon colors
+fluorescent color
+circle
+oval
+ellipse
+semicircle
+crescent
+ring shape
+spiral
+helix
+arc
+curve
+wave shape
+zigzag
+straight line
+diagonal line
+parallel lines
+crosshatch
+grid
+square
+rectangle
+triangle
+pentagon
+hexagon
+heptagon
+octagon
+polygon
+star shape
+heart shape
+diamond shape
+trapezoid
+parallelogram
+rhombus
+acrylic painting
+ink drawing
+pencil drawing
+woodcut
+linocut
+screen print
+lithograph
+etching
+relief sculpture
+kinetic sculpture
+installation art
