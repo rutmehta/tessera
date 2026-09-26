@@ -1,6 +1,32 @@
 # M2-29 implementation handoff
 
-Status: incomplete / FAIL because required changes cross the explicit path allowlist.
+Status: round 2 incomplete / FAIL. Decoder, FFI regression, and metadata-adapter changes are verified; PNG/HEIC/HEIF catalog admission requires an additional allow-list change.
+
+## Latest retry verification
+
+- Current attempt independently reproduced the exact HEIC Console regression with `RUST_TEST_THREADS=1 cargo test -p tessera-mcp --release --test console heic_console_describe_edit_and_export -- --exact`, then ran the full user-required chained gate. The chain exited 101 at the same HEIC admission failure; current evidence is `current-gate.log`. Clippy/fmt/Swift were not reached in this attempt. JPEG develop/edit persistence and the unchanged slider-starvation regression passed. Re-inspection confirmed the scanner predicate is still outside the explicit allowed paths. No implementation changes were made, and permission for `crates/index/**` is still required. The runtime has no task ID, so `kanban_show()` could not resolve a board task.
+- Re-read the scanner and Console admission path. `Core::scan` skips PNG/HEIC/HEIF at `crates/index/src/lib.rs:202`, because `is_image` at line 797 omits their extensions, before either metadata adapter can run. `Console::open_image` uses that scanner and fails at `crates/tessera-mcp/src/console.rs:67`. The current permitted paths still exclude `crates/index/**`.
+- Ran the exact requested full command again with the existing external `CARGO_TARGET_DIR`. It exited 101 at `heic_console_describe_edit_and_export` (`tests/console.rs:27`), with `Unsupported { what: "image format is not indexable" }`. See `latest-retry-gate.log`. Clippy, fmt and Swift stages were not reached by this retry's short-circuiting chain; their previous independent results below are historical, not new runs.
+- JPEG develop/render/edit persistence, PNG/HEIC metadata adapters, direct HEIC preview/export decoding, ICC/orientation parity, and resident RGB tone parity passed in this run. `export_batch_does_not_starve_slider_drag` also passed unchanged.
+- No source changes or test weakening in this retry. Permission to edit `crates/index/**` remains necessary to fix the scanner and add scanner regression coverage. No task ID was present for a kanban blocked transition.
+
+## Round 2 implementation and verification
+
+- Replaced only `jpeg_images_are_refused` in the FFI integration suite with `jpeg_opens_renders_nonblack_and_persists_edits`. It renders through attached surfaces, checks non-black histogram and exposure response, commits/flushes, checks `source_kind`, and reopens the engine/session to verify persistence. Other existing develop tests are unchanged.
+- MCP export source loading and the cached CPU preview path now decode through `image_core::RgbSource`. The shared extension predicate recognizes HEIC/HEIF. ICC and EXIF are consumed once before preview downsampling, linear histograms, critic metrics and export. Scores use cached source dimensions instead of the image crate's HEIC-incompatible header reader. MCP saves record source_kind while preserving other unknown recipe members.
+- Added synthetic AdobeRGB/EXIF JPEG parity tests for export-source pixels, display and scene-linear output. Added direct ImageIO HEIC preview/export-source tests. Added a public Console HEIC describe/edit/export regression, intentionally left enabled: it exposes the out-of-scope scanner blocker below.
+- FFI EmbeddedMetadata now classifies rendered formats with RgbSource::recognizes instead of routing PNG/HEIC through LibRaw. PNG and HEIC metadata tests failed with LibRaw error -2 before the change and pass afterward. Metadata remains header-only; it does not decode full pixels during scans.
+- **Remaining blocker:** `crates/index/src/lib.rs:797-816` (`is_image`) excludes PNG, HEIC and HEIF. `Core::scan` rejects them before metadata hooks run (`:202`). `Console::open_image` therefore returns `Unsupported { what: "image format is not indexable" }`; FFI indexing likewise cannot discover these originals. No public single-image admission API exists to use instead. Fix requires permission for `crates/index/**` and scanner regression tests there. No SQL bypass, renamed copy, ignored test, or out-of-scope edit was introduced.
+- The exact required gate was run twice with the exported `CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/M2-29`. First run stopped at the pre-existing 3-second preview callback timeout in `missing_jpeg_returns_pending_then_callback_and_cached_bytes`. That test passed alone and in the second full gate. Second gate passed image-core, pipeline-gpu, export and tessera-ffi tests, then failed on the new Console HEIC admission regression. Logs: `round2-gate.log`, `round2-gate-retry.log`, `round2-fallback-retry.log`.
+- `export_batch_does_not_starve_slider_drag` passed in both full gate runs. It was not modified, skipped or weakened.
+- MCP's full suite was also run with `--no-fail-fast`: only the HEIC Console admission regression fails; all other executed tests pass (`round2-mcp-full.log`). Direct HEIC decoding and AdobeRGB/orientation parity pass.
+- Required clippy command with `--all-targets -- -D warnings` passes after moving the catalog test module to the end of the file. `cargo fmt --check` passes. `(cd apps/mac && ./build-ffi.sh && swift build)` passes independently, because the failed test chain short-circuits before those stages. Logs: `round2-clippy.log`, `round2-fmt.log`, `round2-swift.log`. Generated bindings contained unrelated CFA-denoise API updates and were restored to keep this patch focused.
+- No manual GUI/screenshot acceptance was performed. Engine-api remains unchanged. The typed source_kind / relative-WB contract observations below still apply.
+- No commits or pushes. All retained changes are within the round-2 allowlist. No kanban task ID was provided by the runtime, so no board lifecycle transition was available.
+
+## Round 1 historical handoff
+
+The sections below describe round 1 and its then-applicable path restrictions; items 1-3 are superseded by the round-2 findings above.
 
 ## Implemented in this worktree
 

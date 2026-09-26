@@ -11,6 +11,40 @@ fn request(value: serde_json::Value) -> ToolRequest {
 }
 
 #[test]
+#[cfg(target_os = "macos")]
+fn heic_console_describe_edit_and_export() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("source.heic");
+    std::fs::copy(
+        concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../image-core/tests/fixtures/rgb.heic"
+        ),
+        &path,
+    )
+    .unwrap();
+    let mut console = Console::open(dir.path().join("app")).unwrap();
+    let id = console.open_image(&path).unwrap();
+    assert_eq!(console.describe_image(id).unwrap()["id"], json!(id));
+    let response = console.execute(request(json!({"tool":"set_tone","image":id,"exposure":-1})));
+    assert!(matches!(response, ToolResponse::Ok(_)), "{response:?}");
+    let doc = sidecar::Sidecar::read_recipe(sidecar::Sidecar::paths(&path).recipe).unwrap();
+    assert_eq!(doc.recipe.unknown["source_kind"], "rgb");
+    let out = dir.path().join("out");
+    let response = console.execute(request(json!({"tool":"export","images":[id],"settings":{"destination":out,"format":{"format":"png","bit_depth":8}}})));
+    assert!(
+        matches!(
+            response,
+            ToolResponse::Ok(ToolOutput::ExportQueued { images: 1, .. })
+        ),
+        "{response:?}"
+    );
+    let exported = image::open(out.join("source.png")).unwrap().to_rgb8();
+    assert_eq!(exported.dimensions(), (32, 24));
+    assert!(exported.pixels().any(|p| p[0] > 10));
+}
+
+#[test]
 fn previews_and_linear_histograms_are_bounded_pyramid_levels() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("large.jpg");
@@ -56,6 +90,7 @@ fn scene_linear_histogram_and_noop_history_are_explicit() {
         ));
     }
     let doc = sidecar::Sidecar::read_recipe(sidecar::Sidecar::paths(path).recipe).unwrap();
+    assert_eq!(doc.recipe.unknown["source_kind"], "rgb");
     assert_eq!(doc.recipe.history.entries.len(), 2);
     assert!(
         doc.recipe

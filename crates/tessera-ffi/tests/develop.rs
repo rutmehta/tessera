@@ -486,9 +486,9 @@ fn edited_previews_follow_the_recipe_hash() {
 }
 
 #[test]
-fn jpeg_images_are_refused() {
+fn jpeg_opens_renders_nonblack_and_persists_edits() {
     let dir = tempfile::tempdir().unwrap();
-    image::RgbImage::new(8, 8)
+    image::RgbImage::from_pixel(32, 24, image::Rgb([180, 90, 40]))
         .save(dir.path().join("a.jpg"))
         .unwrap();
     let engine = Engine::open(dir.path().join("s").to_string_lossy().into_owned()).unwrap();
@@ -498,8 +498,27 @@ fn jpeg_images_are_refused() {
     let id = engine.list_images(ImageQuery::default()).unwrap()[0]
         .id
         .clone();
-    let err = engine.clone().open_develop_session(id).err().unwrap();
-    assert!(err.to_string().contains("RAW"));
+    let mut open = Open::new(&engine, &id);
+    open.attach((32, 24), 2);
+    open.next_final();
+    let before = mean(&open.session.get_histogram().unwrap().luminance);
+    assert!(before > 30.0, "JPEG must not render black");
+    open.session
+        .set_settings(r#"{"tone":{"exposure":-1.0}}"#.into(), false)
+        .unwrap();
+    open.next_final();
+    assert!(mean(&open.session.get_histogram().unwrap().luminance) < before);
+    open.session.commit("Exposure".into()).unwrap();
+    open.session.flush().unwrap();
+    let saved: serde_json::Value =
+        serde_json::from_str(&engine.get_recipe(id.clone()).unwrap()).unwrap();
+    assert_eq!(saved["source_kind"], "rgb");
+    open.session.close().unwrap();
+    drop(open);
+    drop(engine);
+    let engine = Engine::open(dir.path().join("s").to_string_lossy().into_owned()).unwrap();
+    let reopened = Open::new(&engine, &id);
+    assert_eq!(exposure(&reopened.session), -1.0);
 }
 
 /// The M2 panels on a session: crop changes the displayed extent (and the

@@ -7,12 +7,7 @@ pub(crate) enum Source {
     Raw(Box<(raw_decode::CfaImage, raw_decode::RawMetadata)>),
 }
 pub(crate) fn is_rgb(path: &Path) -> bool {
-    path.extension().and_then(|s| s.to_str()).is_some_and(|s| {
-        matches!(
-            s.to_ascii_lowercase().as_str(),
-            "jpg" | "jpeg" | "png" | "tif" | "tiff"
-        )
-    })
+    image_core::RgbSource::recognizes(path)
 }
 impl Source {
     pub(crate) fn open(path: &Path) -> EngineResult<Self> {
@@ -21,33 +16,7 @@ impl Source {
             let cfa = raw.decode_cfa()?;
             return Ok(Self::Raw(Box::new((cfa, raw.metadata()))));
         }
-        let rgb = image::open(path)
-            .map_err(|e| EngineError::Decode {
-                format: "image".into(),
-                message: e.to_string(),
-            })?
-            .into_rgb32f();
-        let mut planes = vec![vec![0.; rgb.width() as usize * rgb.height() as usize]; 3];
-        for (i, pixel) in rgb.pixels().enumerate() {
-            let linear = pixel.0.map(|v| {
-                if v <= 0.04045 {
-                    v / 12.92
-                } else {
-                    ((v + 0.055) / 1.055).powf(2.4)
-                }
-            });
-            for (c, row) in [
-                [0.6274, 0.3293, 0.0433],
-                [0.0691, 0.9195, 0.0114],
-                [0.0164, 0.0880, 0.8956],
-            ]
-            .iter()
-            .enumerate()
-            {
-                planes[c][i] = row.iter().zip(linear).map(|(a, b)| a * b).sum();
-            }
-        }
-        Ok(Self::Rgb(Image::new(rgb.width(), rgb.height(), planes)?))
+        Ok(Self::Rgb(image_core::RgbSource::open(path)?.into_pixels()))
     }
     pub(crate) fn borrowed(&self) -> RenderSource<'_> {
         match self {

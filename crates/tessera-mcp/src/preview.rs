@@ -1,7 +1,7 @@
 //! Console-owned decoded sources and persistent stage caches. RAW uses the
-//! resident GPU renderer when available. RGB uses the CPU preview fallback:
-//! image-core currently accepts CFA sources only.
-use crate::pixels::{self, Source};
+//! resident GPU renderer when available. RGB retains the CPU preview path,
+//! with shared color-managed, already-upright RgbSource pixels.
+use crate::pixels;
 use engine_api::{EngineError, EngineResult, id::ImageId, recipe::Recipe, tile::TILE_SIZE};
 use image_core::{PixelRect, RawImage, RenderOutput, Renderer, RendererConfig, TileCache};
 use pipeline_cpu::{Image, RenderSource};
@@ -62,9 +62,7 @@ impl PreviewCache {
             return Ok(source.clone());
         }
         let source = Arc::new(if pixels::is_rgb(path) {
-            let Source::Rgb(full) = Source::open(path)? else {
-                unreachable!()
-            };
+            let full = image_core::RgbSource::open(path)?.into_pixels();
             let scale = 1 << level(full.width(), full.height(), 1024);
             let preview = full.downsample_crop([0, 0, full.width(), full.height()], scale)?;
             Decoded::Rgb { full, preview }
@@ -129,6 +127,16 @@ impl PreviewCache {
                 .to_rgb8());
         }
         Ok(rgb)
+    }
+    pub(crate) fn source_dimensions(&self, id: ImageId, path: &Path) -> EngineResult<(u32, u32)> {
+        let source = self.source(id, path)?;
+        Ok(match &*source {
+            Decoded::Rgb { full, .. } => (full.width(), full.height()),
+            Decoded::Raw(raw) => {
+                let e = raw.active_extent();
+                (e.width, e.height)
+            }
+        })
     }
     pub(crate) fn linear(&self, id: ImageId, path: &Path, recipe: &Recipe) -> EngineResult<Image> {
         let source = self.source(id, path)?;

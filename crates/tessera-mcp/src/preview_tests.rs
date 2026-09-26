@@ -1,7 +1,75 @@
 use super::*;
+use crate::pixels::Source;
 use engine_api::{color::ColorMatrix3, stage::StageId};
 use image_core::{CountingStageOp, CpuStageOp};
 use raw_decode::{CfaImage, CfaLayout, RawMetadata};
+
+#[test]
+fn rgb_icc_and_orientation_are_shared_by_export_preview_and_histogram() {
+    use image::ImageEncoder;
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("adobe.jpg");
+    let mut bytes = Vec::new();
+    let mut encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut bytes, 100);
+    let profile = color_mgmt::Registry::new()
+        .builtin(color_mgmt::Builtin::AdobeRgb)
+        .unwrap();
+    encoder
+        .set_icc_profile(profile.icc_bytes().to_vec())
+        .unwrap();
+    encoder
+        .set_exif_metadata(vec![
+            b'I', b'I', 42, 0, 8, 0, 0, 0, 1, 0, 0x12, 1, 3, 0, 1, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0,
+        ])
+        .unwrap();
+    encoder
+        .encode(
+            &[120, 80, 40].repeat(24 * 16),
+            24,
+            16,
+            image::ExtendedColorType::Rgb8,
+        )
+        .unwrap();
+    std::fs::write(&path, bytes).unwrap();
+    let expected = image_core::RgbSource::open(&path).unwrap().into_pixels();
+    let Source::Rgb(export) = Source::open(&path).unwrap() else {
+        panic!("RGB expected")
+    };
+    assert_eq!((export.width(), export.height()), (16, 24));
+    assert_eq!(export.planes(), expected.planes());
+    let cache = PreviewCache::default();
+    let recipe = Recipe::default();
+    let display = cache.display(ImageId(10), &path, &recipe, None).unwrap();
+    assert_eq!(
+        cache.source_dimensions(ImageId(10), &path).unwrap(),
+        (16, 24)
+    );
+    assert_eq!(
+        display,
+        pipeline_cpu::render(&recipe.settings, &RenderSource::Rgb(&expected)).unwrap()
+    );
+    let linear = cache.linear(ImageId(10), &path, &recipe).unwrap();
+    let expected =
+        pipeline_cpu::render_linear_scaled(&recipe.settings, &RenderSource::Rgb(&expected), 1)
+            .unwrap();
+    assert_eq!(linear.planes(), expected.planes());
+}
+
+#[test]
+#[cfg(target_os = "macos")]
+fn heic_is_accepted_by_export_and_preview() {
+    let path = Path::new(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../image-core/tests/fixtures/rgb.heic"
+    ));
+    assert!(pixels::is_rgb(path));
+    assert!(matches!(Source::open(path).unwrap(), Source::Rgb(_)));
+    let rgb = PreviewCache::default()
+        .display(ImageId(11), path, &Recipe::default(), None)
+        .unwrap();
+    assert_eq!(rgb.dimensions(), (32, 24));
+    assert!(rgb.pixels().any(|p| p[0] > 30));
+}
 
 #[test]
 fn nondefault_histogram_clipping_does_not_saturate_at_f32_integer_limit() {
