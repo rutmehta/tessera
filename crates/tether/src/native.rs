@@ -25,7 +25,8 @@ mod platform {
     use std::ptr::NonNull;
     use std::rc::Rc;
 
-    type DeviceVisitor = unsafe extern "C" fn(*mut c_void, *const c_char, *const c_char, c_int);
+    type DeviceVisitor =
+        unsafe extern "C" fn(*mut c_void, *const c_char, *const c_char, c_int, c_int);
     type PathVisitor = unsafe extern "C" fn(*mut c_void, *const c_char);
 
     unsafe extern "C" {
@@ -86,6 +87,7 @@ mod platform {
         id: *const c_char,
         name: *const c_char,
         can_capture: c_int,
+        battery: c_int,
     ) {
         // SAFETY: visitors are synchronous, called only within devices(), with
         // non-null borrowed strings and its exclusively borrowed Vec pointer.
@@ -96,6 +98,9 @@ mod platform {
                 .to_string_lossy()
                 .into_owned(),
             can_capture: can_capture != 0,
+            battery_percent: u8::try_from(battery).ok().filter(|b| *b <= 100),
+            // ImageCaptureCore does not report card capacity before a session.
+            shots_remaining: None,
         });
     }
 
@@ -199,12 +204,14 @@ mod platform {
                     id.as_ptr(),
                     name.as_ptr(),
                     1,
+                    -1,
                 )
             };
             assert_eq!(result.len(), 1);
             assert_eq!(result[0].id, "camera-id");
             assert_eq!(result[0].name, "Camera α");
             assert!(result[0].can_capture);
+            assert_eq!(result[0].battery_percent, None, "-1 means not reported");
         }
 
         #[test]

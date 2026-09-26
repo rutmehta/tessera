@@ -236,6 +236,15 @@ amount, a `ValueSlider` "Amount" (0–100 %) and per-step checkboxes with the ra
 secondary ink; the review queue and Auto Edit sheet use `SheetScaffold` and the confidence chip
 (warning below 40 %, secondary to 70 %, keep above).
 
+**Tether panel** (`TetherPanel`, File ▸ Tethered Capture…): docked under the filter bar on `panel`
+with a hairline below, not a sheet, so culling continues beside it. 32 pt header (title, `Test camera` outlined chip in
+warning ink for the test aid, connection dot + camera, battery / frames-left readouts), session and naming fields in
+`FieldContainer` (reject outline and an inline `StatusLine` when the template is invalid, a mono live example otherwise),
+one accent **Capture** (the panel's primary action) and neutral interval menus, then the **Incoming** strip at filmstrip
+height: 3:2 tiles at radius 4 with a HUD badge bar (sequence, focus dot keep / warning / reject, eyes glyph only when
+faces were found), a filled decision chip once decided, rejected tiles at 35 %, accent ring on the focused frame and
+`Downloading` placeholders for shutter requests on their way.
+
 **Scopes** (`HistogramView`, `CurveEditorView`, `DetailPreviewView`): `plotWell`, radius 4,
 channel colours composited additively.
 

@@ -863,3 +863,97 @@ record whether they were tried and the timing of a 12-photo caption job.
 | `ocr-detect` · `ocr-text` · `ocr-find` | Metadata ▸ Text in Image |
 | `understanding-progress` · `understanding-cancel` | Status strip: suggestion / caption / text job |
 | `ai-auto-suggest` · `ai-write-suggested-xmp` · `ai-caption-models` | Settings ▸ AI ▸ Keywords, captions and text |
+
+## T. Tethered capture (M3-12b)
+
+**File ▸ Tethered Capture…** docks a non-modal **Tethered Capture** panel under the filter bar: the camera (connect /
+disconnect, battery and frames left when the camera reports them), the session (name, folder, file-name template
+with a live example), **Capture** (⇧⌘T) and an interval timer, and an **Incoming** strip of the latest frames with focus
+and eyes badges. The engine downloads each frame into a private staging folder, renames it into the session folder,
+indexes it, extracts a preview and scores it before the frame appears; the app then files it into the session album
+and (with **Show newest in loupe**) opens it in the loupe so X / P / 1–3 decide it at once. The hidden
+`--fake-tether <folder>` aid replaces the camera with a **test camera** that "shoots" that folder's images in file-name
+order on Capture and every `--fake-tether-interval <s>` seconds (default 6; `0` = only on Capture), so no camera is
+needed. `--tether` opens the panel at launch; the test aid `--tether-connect` also connects once the folder has loaded.
+Put these value-less flags **last** on the command line: macOS treats a path left over after an unpaired flag as a
+document to open, and then the main window does not appear.
+
+119. Quit Tessera. Create a shoot and a test camera card, then launch:
+     ```sh
+     swift apps/mac/Support/make-sample-folder.swift "$SCR/studio" 6
+     swift apps/mac/Support/make-sample-folder.swift "$SCR/card" 8 --defects
+     open -n apps/mac/build/Tessera.app --args --app-dir "$SCR/appdir-tether" --folder "$SCR/studio" \
+       --fake-tether "$SCR/card" --fake-tether-interval 0
+     ```
+     Choose **File ▸ Tethered Capture…**. 📸 Expect the panel (`tether-panel`) at the top of the grid area: title
+     `Tethered Capture` with an outlined `Test camera` chip; a **Camera** row (`tether-device-list`) listing
+     `Test camera (card)` with `80 %` and `8 left` (`tether-device-readouts`) and **Connect** (`tether-connect`);
+     **Session** `Tether <today>` (`tether-session-name`) with the folder `…/studio/Tether <today>` (`tether-folder`) and
+     **Choose…**; **File names** `{sequence}_{original}.{ext}` (`tether-naming`) with the example
+     `DSC01234.ARW → 0001_DSC01234.ARW` (`tether-naming-example`) and a **+** token menu (`tether-naming-token`).
+120. **Naming.** Click into the template and change it to `{sequence}.tif`. Expect the field outline to turn red and the
+     example line to read `End the name with .{ext} so the file keeps its format`; **Connect** is disabled. Change it to
+     `studio_{sequence}.{ext}`: the example reads `DSC01234.ARW → studio_0001.ARW`. Open **+** ▸ `Original name
+     {original}`: the template becomes `studio_{sequence}_{original}.{ext}`.
+121. **Connect.** Click **Connect**. 📸 Expect: the header reads `● Connected: Test camera (card)  80 %  8 left` with
+     **Disconnect** (`tether-disconnect`); the session and naming fields are dimmed (fixed for the session); an **Albums**
+     column with `Tether <today> captures` (`tether-album`) and `Session` (`tether-smart-album`); a capture row with an
+     accent **Capture** button (`tether-capture`) and `⇧⌘T`, `Every 10 s`, `10 frames`, **Start Interval**, a checked
+     `Show newest in loupe` (`tether-auto-advance`) and `0 frames` (`tether-summary`); an **Incoming** strip
+     (`tether-incoming`) with the hint `Press Capture (⇧⌘T); the test camera also fires on its own timer.` The sidebar gains
+     a group `Tether <today>` with the album `Tether <today> captures` (selected, count 0) and a smart album `Session` with
+     the scope mark; the status bar reads `Tethered to Test camera (card) · saving to Tether <today> (test camera)`.
+122. **Capture.** Press **⇧⌘T** (or click **Capture**). Expect a `Downloading` placeholder tile (`tether-pending`) for a
+     moment, then tile `0001` (`tether-frame-1`) with the frame, a focus dot and no eye glyph (the samples have no faces;
+     without face models the tooltip says `faces not analysed: …`). The app switches to the **Loupe** on
+     `studio_0001_SAMPLE_0001.jpg`, the album count becomes 1, the header reads `7 left`, and the status bar message reads
+     `Tether: studio_0001_SAMPLE_0001.jpg · 1 frame`. `ls "$SCR/studio/Tether "*` lists exactly that file (nothing is
+     left in a staging folder; the card still has its 8 originals).
+123. **Cull as they arrive.** Press **⇧⌘T** twice more (about a second apart). Expect tiles `0003`, `0002`, `0001`
+     (newest left), the loupe on `studio_0003_SAMPLE_0003.jpg` (a blurred frame: its tile's dot is red, `Missed`), and
+     `3 frames`. Press **X**. 📸 Expect a filled `Reject` chip on tile `0003` and the tile dimmed; the status bar shows
+     `Reject 1`. Click tile `0001`: the loupe/grid focuses it (accent ring on the tile); press **P**: the tile shows `Keep`.
+     Double-click tile `0002`: it opens in the loupe.
+124. **Session smart album.** Click **Session** in the panel (or the sidebar). Expect the grid/loupe source
+     `Session · 2 images` (the rejected frame is excluded: the rule is `decision!=reject`, scoped to the session group).
+     Right-click **Session** in the sidebar ▸ **Edit Smart Album…**: the rule reads `decision!=reject` and `Only search albums in this
+     group` is on. Cancel, and click `Tether <today> captures` again (all 3 frames, arrival order).
+125. **Interval.** Choose `Every 2 s` and `5 frames` and click **Start Interval**. Expect one frame at once, then one
+     every 2 s; the button reads **Stop Interval** (`tether-interval-toggle`) with `4 left`, `3 left`… (`tether-interval-status`);
+     the pickers are disabled. After the fifth frame the interval stops by itself. The card then has no frames left:
+     press **⇧⌘T** and expect an inline error (`tether-error`) `Capture: the test camera has no frames left in its folder`.
+126. **Disconnect.** Click **Disconnect**. Expect `Tether session ended: 8 frames` in the status bar, the Camera row
+     back with **Connect**, and the incoming strip kept. Close the panel with ✕ (`tether-close`).
+127. **No camera.** Quit, then launch without the test camera:
+     `open -n apps/mac/build/Tessera.app --args --app-dir "$SCR/appdir-tether" --folder "$SCR/studio" --tether`. With no
+     camera attached, expect `Looking for cameras…` briefly, then the warning `No camera found. Connect it over USB, switch it
+     on and set it to PC / tether mode.` (`tether-no-camera`) and **Refresh** (`tether-refresh`); nothing else changes.
+     (With a real camera attached its name appears with **Connect**; record the model if you try it.)
+128. **Timer.** Quit and relaunch step 119's command with `--fake-tether-interval 3` and `--tether-connect` appended (last).
+     Expect the panel to connect by itself and a new frame every 3 s without pressing anything (as if the photographer
+     used the camera's own shutter button), each opening in the loupe. Uncheck **Show newest in loupe**: frames keep
+     arriving in the strip and the album while the loupe stays on the frame you are deciding.
+129. **Tests.**
+     ```sh
+     cargo test -p tether -p tessera-ffi --release --test tether --lib 2>&1 | grep "test result"
+     (cd apps/mac && swift test --filter "TetherNamingTests|IncomingStripTests|TetherBridgeTests|ThemeLintTests" 2>&1 | grep "Executed")
+     ```
+     Expect only `ok.` lines (the FFI `tether` suite: `2 passed`; the tether crate's fake camera: 3 tests) and
+     `Executed 10 tests, with 0 failures`.
+
+## Verdict (tethered capture)
+
+PASS when steps 119–129 meet their expectations. A physical camera needs hardware (ImageCaptureCore, one camera with
+remote capture); if one was available, record the model, whether Connect, Capture and the physical shutter worked, and
+the battery readout.
+
+## Appendix: accessibility identifiers (M3-12b)
+
+| Identifier | Element |
+| --- | --- |
+| `tether-panel` · `tether-close` · `tether-error` · `tether-notice` | Tethered Capture panel, its close button and inline messages |
+| `tether-device-list` · `tether-device-<n>` · `tether-device-readouts` · `tether-refresh` · `tether-no-camera` · `tether-connect` · `tether-connected` · `tether-disconnect` | Camera row |
+| `tether-session-name` · `tether-folder` · `tether-folder-choose` · `tether-naming` · `tether-naming-token` · `tether-naming-example` | Session and file names |
+| `tether-album` · `tether-smart-album` | Session album and scoped smart album |
+| `tether-capture` · `tether-interval-seconds` · `tether-interval-count` · `tether-interval-toggle` · `tether-interval-status` · `tether-auto-advance` · `tether-summary` | Capture row |
+| `tether-incoming` · `tether-frame-<sequence>` · `tether-pending` | Incoming strip |

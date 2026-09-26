@@ -3382,6 +3382,40 @@ public protocol EngineProtocol: AnyObject, Sendable {
      */
     func setScore(imageId: String, signal: String, value: Double, model: String) throws 
     
+    /**
+     * Whether this catalog has a tether session on this thread.
+     */
+    func tetherActive()  -> Bool
+    
+    func tetherCapture() throws 
+    
+    /**
+     * Connected cameras. During a session this asks the session's own backend
+     * (fresh battery / remaining-frame readouts) instead of opening another.
+     */
+    func tetherDevices() throws  -> [TetherDevice]
+    
+    func tetherLiveView() throws  -> Data
+    
+    /**
+     * Returns frames as well as notifying the optional listener. Callbacks run
+     * outside the session borrow, so UI code may safely reenter tether commands.
+     */
+    func tetherPoll() throws  -> [TetherFrame]
+    
+    func tetherSetListener(listener: TetherEventListener?) throws 
+    
+    func tetherStart(sessionFolder: String, naming: String) throws 
+    
+    func tetherStop() throws  -> [TetherFrame]
+    
+    /**
+     * Hidden test aid: `Some(folder)` makes the next sessions on this thread use a
+     * test camera that shoots that folder's images (on `tether_capture`, and every
+     * `interval_ms` when non-zero); `None` restores ImageCaptureCore.
+     */
+    func tetherUseFake(sourceFolder: String?, intervalMs: UInt64) throws 
+    
     func aiMetadataSettings() throws  -> AiMetadataSettings
     
     /**
@@ -3888,6 +3922,104 @@ open func setScore(imageId: String, signal: String, value: Double, model: String
         FfiConverterString.lower(signal),
         FfiConverterDouble.lower(value),
         FfiConverterString.lower(model),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Whether this catalog has a tether session on this thread.
+     */
+open func tetherActive() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_tether_active(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+open func tetherCapture()throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_tether_capture(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Connected cameras. During a session this asks the session's own backend
+     * (fresh battery / remaining-frame readouts) instead of opening another.
+     */
+open func tetherDevices()throws  -> [TetherDevice]  {
+    return try  FfiConverterSequenceTypeTetherDevice.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_tether_devices(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+open func tetherLiveView()throws  -> Data  {
+    return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_tether_live_view(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Returns frames as well as notifying the optional listener. Callbacks run
+     * outside the session borrow, so UI code may safely reenter tether commands.
+     */
+open func tetherPoll()throws  -> [TetherFrame]  {
+    return try  FfiConverterSequenceTypeTetherFrame.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_tether_poll(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+open func tetherSetListener(listener: TetherEventListener?)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_tether_set_listener(
+            self.uniffiCloneHandle(),
+        FfiConverterOptionTypeTetherEventListener.lower(listener),uniffiCallStatus
+    )
+}
+}
+    
+open func tetherStart(sessionFolder: String, naming: String)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_tether_start(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(sessionFolder),
+        FfiConverterString.lower(naming),uniffiCallStatus
+    )
+}
+}
+    
+open func tetherStop()throws  -> [TetherFrame]  {
+    return try  FfiConverterSequenceTypeTetherFrame.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_tether_stop(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Hidden test aid: `Some(folder)` makes the next sessions on this thread use a
+     * test camera that shoots that folder's images (on `tether_capture`, and every
+     * `interval_ms` when non-zero); `None` restores ImageCaptureCore.
+     */
+open func tetherUseFake(sourceFolder: String?, intervalMs: UInt64)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_tether_use_fake(
+            self.uniffiCloneHandle(),
+        FfiConverterOptionString.lower(sourceFolder),
+        FfiConverterUInt64.lower(intervalMs),uniffiCallStatus
     )
 }
 }
@@ -5713,6 +5845,204 @@ public func FfiConverterTypeMaskListener_lift(_ handle: UInt64) throws -> MaskLi
 #endif
 public func FfiConverterTypeMaskListener_lower(_ value: MaskListener) -> UInt64 {
     return FfiConverterTypeMaskListener.lower(value)
+}
+
+
+
+
+
+
+public protocol TetherEventListener: AnyObject, Sendable {
+    
+    func onFrame(frame: TetherFrame) 
+    
+}
+open class TetherEventListenerImpl: TetherEventListener, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_tessera_ffi_fn_clone_tethereventlistener(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_tessera_ffi_fn_free_tethereventlistener(handle, $0) }
+    }
+
+    
+
+    
+open func onFrame(frame: TetherFrame)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_tethereventlistener_on_frame(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeTetherFrame_lower(frame),uniffiCallStatus
+    )
+}
+}
+    
+
+    
+}
+
+
+
+// Put the implementation in a struct so we don't pollute the top-level namespace
+fileprivate struct UniffiCallbackInterfaceTetherEventListener {
+
+    // Create the VTable using a series of closures.
+    // Swift automatically converts these into C callback functions.
+    //
+    // Store the vtable directly.
+    static let vtable: UniffiVTableCallbackInterfaceTetherEventListener = UniffiVTableCallbackInterfaceTetherEventListener(
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            do {
+                try FfiConverterTypeTetherEventListener.handleMap.remove(handle: uniffiHandle)
+            } catch {
+                print("Uniffi callback interface TetherEventListener: handle missing in uniffiFree")
+            }
+        },
+        uniffiClone: { (uniffiHandle: UInt64) -> UInt64 in
+            do {
+                return try FfiConverterTypeTetherEventListener.handleMap.clone(handle: uniffiHandle)
+            } catch {
+                fatalError("Uniffi callback interface TetherEventListener: handle missing in uniffiClone")
+            }
+        },
+        onFrame: { (
+            uniffiHandle: UInt64,
+            frame: RustBuffer,
+            uniffiOutReturn: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> () in
+                guard let uniffiObj = try? FfiConverterTypeTetherEventListener.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.onFrame(
+                     frame: try FfiConverterTypeTetherFrame_lift(frame)
+                )
+            }
+
+            
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        }
+    )
+
+    // Rust stores this pointer for future callback invocations, so it must live
+    // for the process lifetime (not just for the init function call).
+    //
+    // `nonisolated(unsafe)` is needed under Swift 6 strict concurrency.
+    // This is safe because the pointee is initialized once during static init
+    // and never mutated by either side of the FFI.  Its fields are C function pointers.
+    nonisolated(unsafe) static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceTetherEventListener> = {
+        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceTetherEventListener>.allocate(capacity: 1)
+        ptr.initialize(to: vtable)
+        return UnsafePointer(ptr)
+    }()
+}
+
+private func uniffiCallbackInitTetherEventListener() {
+    uniffi_tessera_ffi_fn_init_callback_vtable_tethereventlistener(UniffiCallbackInterfaceTetherEventListener.vtablePtr)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTetherEventListener: FfiConverter {
+    fileprivate static let handleMap = UniffiHandleMap<TetherEventListener>()
+
+    typealias FfiType = UInt64
+    typealias SwiftType = TetherEventListener
+
+    public static func lift(_ handle: UInt64) throws -> TetherEventListener {
+        if ((handle & 1) == 0) {
+            // Rust-generated handle, construct a new class that uses the handle to implement the
+            // interface
+            return TetherEventListenerImpl(unsafeFromHandle: handle)
+        } else {
+            // Swift-generated handle, get the object from the handle map
+            return try handleMap.remove(handle: handle)
+        }
+    }
+
+    public static func lower(_ value: TetherEventListener) -> UInt64 {
+         if let rustImpl = value as? TetherEventListenerImpl {
+             // Rust-implemented object.  Clone the handle and return it
+            return rustImpl.uniffiCloneHandle()
+         } else {
+            // Swift object, generate a new vtable handle and return that.
+            return handleMap.insert(obj: value)
+         }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TetherEventListener {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: TetherEventListener, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTetherEventListener_lift(_ handle: UInt64) throws -> TetherEventListener {
+    return try FfiConverterTypeTetherEventListener.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTetherEventListener_lower(_ value: TetherEventListener) -> UInt64 {
+    return FfiConverterTypeTetherEventListener.lower(value)
 }
 
 
@@ -13294,6 +13624,198 @@ public func FfiConverterTypeSurfacePlan_lower(_ value: SurfacePlan) -> RustBuffe
 }
 
 
+public struct TetherDevice: Equatable, Hashable {
+    public var id: String
+    public var name: String
+    public var canCapture: Bool
+    /**
+     * Battery charge when the camera reports it.
+     */
+    public var batteryPercent: UInt8?
+    /**
+     * Frames left on the card when the backend knows it.
+     */
+    public var shotsRemaining: UInt32?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: String, name: String, canCapture: Bool, 
+        /**
+         * Battery charge when the camera reports it.
+         */batteryPercent: UInt8?, 
+        /**
+         * Frames left on the card when the backend knows it.
+         */shotsRemaining: UInt32?) {
+        self.id = id
+        self.name = name
+        self.canCapture = canCapture
+        self.batteryPercent = batteryPercent
+        self.shotsRemaining = shotsRemaining
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension TetherDevice: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTetherDevice: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TetherDevice {
+        return
+            try TetherDevice(
+                id: FfiConverterString.read(from: &buf), 
+                name: FfiConverterString.read(from: &buf), 
+                canCapture: FfiConverterBool.read(from: &buf), 
+                batteryPercent: FfiConverterOptionUInt8.read(from: &buf), 
+                shotsRemaining: FfiConverterOptionUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: TetherDevice, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterBool.write(value.canCapture, into: &buf)
+        FfiConverterOptionUInt8.write(value.batteryPercent, into: &buf)
+        FfiConverterOptionUInt32.write(value.shotsRemaining, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTetherDevice_lift(_ buf: RustBuffer) throws -> TetherDevice {
+    return try FfiConverterTypeTetherDevice.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTetherDevice_lower(_ value: TetherDevice) -> RustBuffer {
+    return FfiConverterTypeTetherDevice.lower(value)
+}
+
+
+/**
+ * A downloaded, indexed and scored frame. Scores are read back from the catalog
+ * when the frame is published, so the host can badge it without another call.
+ */
+public struct TetherFrame: Equatable, Hashable {
+    public var sequence: UInt64
+    public var path: String
+    public var imageId: String?
+    public var preview: String?
+    public var faceWarning: String?
+    public var error: String?
+    /**
+     * Whole-frame classical sharpness in [0, 1] (ml-quality).
+     */
+    public var sharpness: Double?
+    /**
+     * Faces found; `None` when face analysis did not run (see `face_warning`).
+     */
+    public var faces: UInt32?
+    /**
+     * Sharpness of the largest face (the likely subject), in [0, 1].
+     */
+    public var faceFocus: Double?
+    /**
+     * Lowest eyes-open proxy across faces (anyone blinking), in [0, 1].
+     */
+    public var eyesOpen: Double?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(sequence: UInt64, path: String, imageId: String?, preview: String?, faceWarning: String?, error: String?, 
+        /**
+         * Whole-frame classical sharpness in [0, 1] (ml-quality).
+         */sharpness: Double?, 
+        /**
+         * Faces found; `None` when face analysis did not run (see `face_warning`).
+         */faces: UInt32?, 
+        /**
+         * Sharpness of the largest face (the likely subject), in [0, 1].
+         */faceFocus: Double?, 
+        /**
+         * Lowest eyes-open proxy across faces (anyone blinking), in [0, 1].
+         */eyesOpen: Double?) {
+        self.sequence = sequence
+        self.path = path
+        self.imageId = imageId
+        self.preview = preview
+        self.faceWarning = faceWarning
+        self.error = error
+        self.sharpness = sharpness
+        self.faces = faces
+        self.faceFocus = faceFocus
+        self.eyesOpen = eyesOpen
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension TetherFrame: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTetherFrame: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TetherFrame {
+        return
+            try TetherFrame(
+                sequence: FfiConverterUInt64.read(from: &buf), 
+                path: FfiConverterString.read(from: &buf), 
+                imageId: FfiConverterOptionString.read(from: &buf), 
+                preview: FfiConverterOptionString.read(from: &buf), 
+                faceWarning: FfiConverterOptionString.read(from: &buf), 
+                error: FfiConverterOptionString.read(from: &buf), 
+                sharpness: FfiConverterOptionDouble.read(from: &buf), 
+                faces: FfiConverterOptionUInt32.read(from: &buf), 
+                faceFocus: FfiConverterOptionDouble.read(from: &buf), 
+                eyesOpen: FfiConverterOptionDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: TetherFrame, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.sequence, into: &buf)
+        FfiConverterString.write(value.path, into: &buf)
+        FfiConverterOptionString.write(value.imageId, into: &buf)
+        FfiConverterOptionString.write(value.preview, into: &buf)
+        FfiConverterOptionString.write(value.faceWarning, into: &buf)
+        FfiConverterOptionString.write(value.error, into: &buf)
+        FfiConverterOptionDouble.write(value.sharpness, into: &buf)
+        FfiConverterOptionUInt32.write(value.faces, into: &buf)
+        FfiConverterOptionDouble.write(value.faceFocus, into: &buf)
+        FfiConverterOptionDouble.write(value.eyesOpen, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTetherFrame_lift(_ buf: RustBuffer) throws -> TetherFrame {
+    return try FfiConverterTypeTetherFrame.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTetherFrame_lower(_ value: TetherFrame) -> RustBuffer {
+    return FfiConverterTypeTetherFrame.lower(value)
+}
+
+
 public struct UnderstandingJobInfo: Equatable, Hashable {
     public var id: UInt64
     public var tasks: [UnderstandingTask]
@@ -15864,6 +16386,30 @@ fileprivate struct FfiConverterOptionTypeMaskListener: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeTetherEventListener: FfiConverterRustBuffer {
+    typealias SwiftType = TetherEventListener?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeTetherEventListener.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeTetherEventListener.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeAgentProvenance: FfiConverterRustBuffer {
     typealias SwiftType = AgentProvenance?
 
@@ -17403,6 +17949,56 @@ fileprivate struct FfiConverterSequenceTypeSessionImage: FfiConverterRustBuffer 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeTetherDevice: FfiConverterRustBuffer {
+    typealias SwiftType = [TetherDevice]
+
+    public static func write(_ value: [TetherDevice], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeTetherDevice.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [TetherDevice] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [TetherDevice]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeTetherDevice.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeTetherFrame: FfiConverterRustBuffer {
+    typealias SwiftType = [TetherFrame]
+
+    public static func write(_ value: [TetherFrame], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeTetherFrame.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [TetherFrame] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [TetherFrame]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeTetherFrame.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeUnderstandingJobInfo: FfiConverterRustBuffer {
     typealias SwiftType = [UnderstandingJobInfo]
 
@@ -17624,6 +18220,33 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_engine_set_score() != 33095) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_tether_active() != 50297) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_tether_capture() != 33204) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_tether_devices() != 441) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_tether_live_view() != 35362) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_tether_poll() != 64019) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_tether_set_listener() != 42407) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_tether_start() != 44343) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_tether_stop() != 58079) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_tether_use_fake() != 49179) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_engine_ai_metadata_settings() != 4690) {
@@ -18100,6 +18723,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_cullsession_undo() != 7336) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tessera_ffi_checksum_method_tethereventlistener_on_frame() != 51774) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_tessera_ffi_checksum_constructor_engine_open() != 29039) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -18113,6 +18739,7 @@ private let initializationResult: InitializationResult = {
     uniffiCallbackInitExportProgressListener()
     uniffiCallbackInitLrcatProgressListener()
     uniffiCallbackInitMaskListener()
+    uniffiCallbackInitTetherEventListener()
     return InitializationResult.ok
 }()
 
