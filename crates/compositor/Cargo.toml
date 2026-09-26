@@ -3,6 +3,22 @@ name = "compositor"
 version = "0.1.0"
 edition = "2024"
 license = "Apache-2.0"
+description = "Layered document model and tiled compositor (spec 02 §1–2, spec 04 §4)"
 
 [lib]
 path = "src/lib.rs"
+
+[dependencies]
+engine-api = { path = "../engine-api" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+half = { workspace = true }
+blake3 = { workspace = true }
+bytemuck = { workspace = true }
+wgpu = { workspace = true }
+pollster = "0.4"
+rayon = "1.12"
+zstd = { version = "0.13", default-features = false }
+
+[dev-dependencies]
+tempfile = { workspace = true }
