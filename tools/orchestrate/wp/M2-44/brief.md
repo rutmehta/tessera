@@ -1,0 +1,7 @@
+# WP M2-44 — People view adopts the new FFI (medoid tiles, counts, members, undo)
+
+Read tools/orchestrate/wp/M2-42/REPORT.md (what the FFI now offers: PersonInfo.named/confirmed_count/face_count/medoid_face, PeopleJobResult.sample_size, person_members, undo_people_edit/redo_people_edit), apps/mac/Sources/TesseraCore/Assist/People.swift, apps/mac/Sources/Tessera/People/PeopleView.swift, apps/mac/Sources/Tessera/App/AppModel.swift (undo/redo plumbing used by culling edits), apps/mac/DESIGN.md.
+1. Tiles use `medoid_face` for the crop and the new counts; drop the per-image `person_assignments` scan; detail view loads `person_members` in one call. Footnote uses `sample_size`.
+2. Edit ▸ Undo / Redo cover people edits when the People view (or its detail) is frontmost, with the engine-provided description in the menu title ("Undo Merge People"); after undo/redo refresh from `people(refresh: false)`.
+3. Keep every existing People test green; add tests for the medoid path, one-call members, and undo/redo through the view model with the stubbed engine. Update ACCEPTANCE.md §U steps where behaviour changed and the Identifiers appendix if controls were added.
+Gate: `(cd apps/mac && ./build-ffi.sh && swift build && swift test -c release -Xswiftc -enable-testing)`. Allowed: apps/mac/** except the generated Sources/CTesseraFFI and Sources/TesseraFFI, tools/orchestrate/wp/M2-44/**. Commit on wp/M2-44; do not merge.

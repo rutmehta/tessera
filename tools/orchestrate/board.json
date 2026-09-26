@@ -1030,5 +1030,21 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M2-44",
+    "owner": "opus",
+    "title": "People view adopts new FFI + undo",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M5-27",
+    "owner": "astra",
+    "title": "Adaptive Wide Angle + Vanishing Point",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
