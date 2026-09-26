@@ -23,12 +23,16 @@
 //!   [`ResidentRenderer::present_iosurface`]); readback is explicit
 //!   ([`ResidentRenderer::read_level`], [`ResidentRenderer::read_tiles`]).
 //!
-//! Smart objects are the one CPU-assisted source: their resampled tiles
-//! are rendered by the CPU compositor and uploaded as f32 pages, once per
-//! child revision and tile.
+//! Smart-object children are rendered on the same device and resampled
+//! directly into GPU pages. The host computes f64 sampling footprints, not
+//! pixels, to preserve the CPU reference's affine-coordinate precision.
 
+mod output;
 mod pool;
 mod program;
+mod smart_gpu;
+mod specialize;
+pub use output::SourceColorPolicy;
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -42,7 +46,7 @@ use crate::edit::Document;
 use crate::geom::Rect;
 use crate::gpu::{GpuCompositor, internal, shader};
 use crate::raster::{Depth, Raster, buffer_addr};
-use crate::render::{Compositor, DocRef, MAX_LEVEL};
+use crate::render::MAX_LEVEL;
 use pool::{Pool, SLABS};
 pub use program::MAX_NESTING;
 use program::{Part, Program, TableRef};
@@ -58,6 +62,8 @@ pub(crate) struct Pipelines {
     doc: wgpu::ComputePipeline,
     mip: wgpu::ComputePipeline,
     present: wgpu::ComputePipeline,
+    output: output::OutputPresenter,
+    smart: smart_gpu::SmartGpu,
 }
 
 /// Storage bindings the document shader needs.
@@ -101,7 +107,13 @@ impl Pipelines {
         if let Some(e) = pollster::block_on(scope.pop()) {
             return Err(internal(e));
         }
-        Ok(Self { doc, mip, present })
+        Ok(Self {
+            doc,
+            mip,
+            present,
+            output: output::OutputPresenter::new(device)?,
+            smart: smart_gpu::SmartGpu::new(device)?,
+        })
     }
 }
 
@@ -172,6 +184,9 @@ struct SmartKey {
     doc: u64,
     layer: u64,
     stamp: u64,
+    child: u64,
+    child_rev: u64,
+    transform: [u64; 6],
     coord: TileCoord,
 }
 
@@ -278,6 +293,30 @@ struct LevelState {
     out: wgpu::Buffer,
     extent: Extent,
     last: Option<Rendered>,
+    valid: Vec<bool>,
+}
+
+impl LevelState {
+    fn require_valid(&self, rect: Rect) -> EngineResult<()> {
+        if rect.is_empty()
+            || rect.intersect(&Rect::of_extent(self.extent)) != rect
+            || self.last.is_none()
+        {
+            return Err(EngineError::invalid("src", "outside rendered level"));
+        }
+        let cols = self.extent.width.div_ceil(BLOCK);
+        for by in rect.y0 as u32 / BLOCK..(rect.y1 as u32).div_ceil(BLOCK) {
+            for bx in rect.x0 as u32 / BLOCK..(rect.x1 as u32).div_ceil(BLOCK) {
+                if !self.valid[(by * cols + bx) as usize] {
+                    return Err(EngineError::invalid(
+                        "src",
+                        "region has unrendered or dirty blocks",
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
 }
 
 /// What one [`ResidentRenderer::render`] call did.
@@ -295,7 +334,7 @@ pub struct FrameReport {
     pub uploaded_bytes: u64,
     /// Mip pages computed on the GPU.
     pub mip_pages: u32,
-    /// Smart-object pages rendered on the CPU and uploaded.
+    /// Smart-object pages resampled on the GPU.
     pub smart_pages: u32,
     /// Pages evicted to make room.
     pub evicted_pages: u32,
@@ -320,7 +359,7 @@ pub struct ResidentStats {
     pub uploaded_bytes: u64,
     /// Mip pages computed on the GPU.
     pub mip_pages: u64,
-    /// Smart-object pages uploaded.
+    /// Smart-object pages resampled on the GPU.
     pub smart_pages: u64,
     /// Pages evicted.
     pub evicted_pages: u64,
@@ -332,6 +371,7 @@ pub struct ResidentStats {
 
 /// GPU-resident renderer for one document (see the module docs).
 pub struct ResidentRenderer {
+    gpu: GpuCompositor,
     device: wgpu::Device,
     queue: wgpu::Queue,
     pipes: Arc<Pipelines>,
@@ -354,13 +394,15 @@ pub struct ResidentRenderer {
     blocks: Persistent,
     jobs: Persistent,
     dummies: Vec<wgpu::Buffer>,
-    cpu: Compositor,
+    children: HashMap<LayerId, (Arc<crate::document::DocState>, ResidentRenderer)>,
     budget: u64,
     stats: ResidentStats,
     pending_l0: Vec<(u64, Tile)>,
     pending_mips: Vec<u64>,
-    pending_smart: Vec<(u64, Tile)>,
+    pending_smart: Vec<(u64, smart_gpu::SmartPlan, wgpu::Buffer)>,
     report: FrameReport,
+    specialized: specialize::Cache,
+    specialization: bool,
 }
 
 fn page_bytes(depth: Depth) -> u64 {
@@ -400,13 +442,6 @@ fn page_bytes_of(t: &Tile) -> EngineResult<Vec<u8>> {
     Ok(v)
 }
 
-/// A planar tile's bytes (smart-object pages), padded to words.
-fn planar_bytes(t: &Tile) -> EngineResult<Vec<u8>> {
-    let mut v: Vec<u8> = bytemuck::cast_slice(t.samples::<f32>()?).to_vec();
-    v.resize(v.len().next_multiple_of(4), 0);
-    Ok(v)
-}
-
 impl ResidentRenderer {
     /// A renderer on `gpu`'s device with a 2 GiB page budget.
     pub fn new(gpu: &GpuCompositor) -> EngineResult<Self> {
@@ -430,6 +465,7 @@ impl ResidentRenderer {
             .collect();
         let storage = wgpu::BufferUsages::STORAGE;
         Ok(Self {
+            gpu: gpu.clone(),
             main: Pool::new(&device, page_bytes(Depth::U8), "resident pages", SLABS)?,
             smart: Pool::new(&device, F32_PAGE_WORDS * 4, "resident smart pages", 1)?,
             queue: gpu.queue.clone(),
@@ -452,14 +488,29 @@ impl ResidentRenderer {
             blocks: Persistent::new("resident blocks", storage),
             jobs: Persistent::new("resident mip jobs", storage),
             dummies,
-            cpu: Compositor::new(256 << 20),
+            children: HashMap::new(),
             budget,
             stats: ResidentStats::default(),
             pending_l0: Vec::new(),
             pending_mips: Vec::new(),
             pending_smart: Vec::new(),
             report: FrameReport::default(),
+            specialized: specialize::Cache::default(),
+            specialization: true,
         })
+    }
+
+    /// Enable structural specialization (disable for interpreter comparisons).
+    pub fn set_specialization(&mut self, enabled: bool) {
+        if self.specialization != enabled {
+            self.specialization = enabled;
+            self.invalidate();
+        }
+    }
+
+    /// Successful pipelines currently in the bounded structure cache.
+    pub fn specialized_pipeline_count(&self) -> usize {
+        self.specialized.len()
     }
 
     /// Cumulative counters.
@@ -481,6 +532,7 @@ impl ResidentRenderer {
         self.smarts.clear();
         self.layers.clear();
         self.levels.clear();
+        self.children.clear();
         self.depth = Some(depth);
         self.canvas = canvas;
         Ok(())
@@ -608,10 +660,6 @@ impl ResidentRenderer {
             return Err(EngineError::internal("smart table of a non-smart layer"));
         };
         let (cols, rows) = self.canvas.at_level(level).tile_grid(TILE_SIZE);
-        let dref = DocRef {
-            state: doc.state(),
-            key: doc.key(),
-        };
         let mut v = Vec::with_capacity((cols * rows) as usize);
         for ty in 0..rows {
             for tx in 0..cols {
@@ -619,7 +667,10 @@ impl ResidentRenderer {
                 let key = SmartKey {
                     doc: doc.key(),
                     layer: layer.id.0,
-                    stamp: so.state.rev.max(layer.content_rev),
+                    stamp: layer.content_rev,
+                    child: so.key,
+                    child_rev: so.state.rev,
+                    transform: so.transform.m.map(f64::to_bits),
                     coord,
                 };
                 let id = match self.smarts.get(&key) {
@@ -628,13 +679,40 @@ impl ResidentRenderer {
                         id
                     }
                     None => {
-                        let id = match self.cpu.smart_tile(dref, layer, so, coord)? {
-                            None => 0,
-                            Some(t) => {
-                                let id = self.id(NodeKey::Smart(key));
-                                self.pending_smart.push((id, t));
-                                id
+                        let bounds =
+                            Rect::of_tile(coord, self.canvas.at_level(level)).to_level0(level);
+                        let id = if !so.bounds().intersects(&bounds) {
+                            0
+                        } else {
+                            let plan = smart_gpu::SmartPlan::new(
+                                so.transform,
+                                so.state.canvas,
+                                self.canvas,
+                                coord,
+                            )?;
+                            if self
+                                .children
+                                .get(&layer.id)
+                                .is_none_or(|(state, _)| !Arc::ptr_eq(state, &so.state))
+                            {
+                                let child = smart_gpu::render_child(&self.gpu, so, &plan)?;
+                                self.children.insert(layer.id, (so.state.clone(), child));
                             }
+                            let (_, child) = self.children.get_mut(&layer.id).unwrap();
+                            if !child.levels.contains_key(&plan.child_level()) {
+                                child.render(
+                                    &Document::new((*so.state).clone()),
+                                    plan.child_level(),
+                                )?;
+                            }
+                            let source = child.levels[&plan.child_level()].out.clone();
+                            debug_assert_eq!(
+                                plan.output_extent().width as i64,
+                                Rect::of_tile(coord, self.canvas.at_level(level)).width()
+                            );
+                            let id = self.id(NodeKey::Smart(key));
+                            self.pending_smart.push((id, plan, source));
+                            id
                         };
                         self.smarts.insert(key, id);
                         id
@@ -855,6 +933,38 @@ impl ResidentRenderer {
     /// afterwards only the blocks whose inputs changed. Submits and returns
     /// without waiting ([`ResidentRenderer::wait`]).
     pub fn render(&mut self, doc: &Document, level: u8) -> EngineResult<FrameReport> {
+        self.render_region(doc, level, None)
+    }
+
+    /// Composite only visible blocks, including `margin` level pixels on each
+    /// side. Coordinates are at the requested level, clipped to the canvas.
+    /// Offscreen dirty blocks remain invalid until a later pan or full render.
+    pub fn render_viewport(
+        &mut self,
+        doc: &Document,
+        level: u8,
+        visible: Rect,
+        margin: u32,
+    ) -> EngineResult<FrameReport> {
+        let m = i64::from(margin);
+        if visible.is_empty() {
+            return Err(EngineError::invalid("viewport", "empty"));
+        }
+        let rect = Rect::new(
+            visible.x0.saturating_sub(m),
+            visible.y0.saturating_sub(m),
+            visible.x1.saturating_add(m),
+            visible.y1.saturating_add(m),
+        );
+        self.render_region(doc, level, Some(rect))
+    }
+
+    fn render_region(
+        &mut self,
+        doc: &Document,
+        level: u8,
+        viewport: Option<Rect>,
+    ) -> EngineResult<FrameReport> {
         let state = doc.state();
         if level >= MAX_LEVEL {
             return Err(EngineError::invalid(
@@ -871,6 +981,12 @@ impl ResidentRenderer {
         self.frame += 1;
         self.report = FrameReport::default();
         let le = state.canvas.at_level(level);
+        let visible = viewport
+            .unwrap_or(Rect::of_extent(le))
+            .intersect(&Rect::of_extent(le));
+        if visible.is_empty() {
+            return Err(EngineError::invalid("viewport", "outside level"));
+        }
         let (cols, rows) = le.tile_grid(TILE_SIZE);
         let grid = (cols * rows) as usize;
         let program = Program::compile(&state.root, grid)?;
@@ -888,6 +1004,7 @@ impl ResidentRenderer {
             return Err(e);
         }
         self.layers.retain(|_, e| e.seen == self.frame);
+        self.children.retain(|id, _| self.layers.contains_key(id));
 
         // Phase 2: pages for new nodes, uploads and mip jobs.
         let encoder = match self.materialize() {
@@ -904,11 +1021,13 @@ impl ResidentRenderer {
         let damage = self.damage(doc, level, &bytes, &nodes, grid, cols, le);
         let (bcols, brows) = (le.width.div_ceil(BLOCK), le.height.div_ceil(BLOCK));
         let total = bcols * brows;
-        let mut list: Vec<u32> = Vec::new();
-        let full = match &damage {
-            None => true,
+        let mut valid = self
+            .levels
+            .get(&level)
+            .map_or_else(|| vec![false; total as usize], |st| st.valid.clone());
+        match &damage {
+            None => valid.fill(false),
             Some(rects) => {
-                let mut mark = vec![false; (bcols * brows) as usize];
                 for r in rects {
                     let r = r.intersect(&level_rect);
                     if r.is_empty() {
@@ -916,31 +1035,48 @@ impl ResidentRenderer {
                     }
                     for by in (r.y0 as u32 / BLOCK)..(r.y1 as u32).div_ceil(BLOCK) {
                         for bx in (r.x0 as u32 / BLOCK)..(r.x1 as u32).div_ceil(BLOCK) {
-                            let i = (by * bcols + bx) as usize;
-                            if !mark[i] {
-                                mark[i] = true;
-                                list.push(bx | (by << 16));
-                            }
+                            valid[(by * bcols + bx) as usize] = false;
                         }
                     }
                 }
-                list.len() as u32 == total
             }
-        };
+        }
+        let mut list = Vec::new();
+        let mut dispatched = Vec::new();
+        for by in (visible.y0 as u32 / BLOCK)..(visible.y1 as u32).div_ceil(BLOCK) {
+            for bx in (visible.x0 as u32 / BLOCK)..(visible.x1 as u32).div_ceil(BLOCK) {
+                let i = (by * bcols + bx) as usize;
+                if !valid[i] {
+                    valid[i] = true;
+                    list.push(bx | (by << 16));
+                    dispatched.push(Rect::new(
+                        i64::from(bx * BLOCK),
+                        i64::from(by * BLOCK),
+                        i64::from(((bx + 1) * BLOCK).min(le.width)),
+                        i64::from(((by + 1) * BLOCK).min(le.height)),
+                    ));
+                }
+            }
+        }
+        let full = list.len() as u32 == total;
         self.report.full = full;
-        self.report.damage = match &damage {
-            None => vec![level_rect],
-            Some(r) => r
-                .iter()
-                .map(|r| r.intersect(&level_rect))
-                .filter(|r| !r.is_empty())
-                .collect(),
-        };
+        self.report.damage = if full { vec![level_rect] } else { dispatched };
         let nblocks = if full { total } else { list.len() as u32 };
         self.report.blocks = nblocks;
 
         let mut encoder = encoder;
         if nblocks > 0 {
+            let pipeline = if self.specialization {
+                self.specialized.pipeline(
+                    &self.device,
+                    self.pool_uniform().depth,
+                    self.main.slabs.len(),
+                    &program,
+                )
+            } else {
+                None
+            }
+            .unwrap_or_else(|| self.pipes.doc.clone());
             let pages: Vec<u32> = nodes.iter().map(|id| self.page(*id)).collect();
             let steps = bytemuck::cast_slice(&program.steps);
             let (device, queue) = (self.device.clone(), self.queue.clone());
@@ -966,6 +1102,7 @@ impl ResidentRenderer {
                 }),
                 extent: le,
                 last: None,
+                valid: Vec::new(),
             });
             let out = st.out.clone();
             let frame = FrameUniform {
@@ -1009,7 +1146,7 @@ impl ResidentRenderer {
             }
             let group = device.create_bind_group(&wgpu::BindGroupDescriptor {
                 label: Some("resident document"),
-                layout: &self.pipes.doc.get_bind_group_layout(0),
+                layout: &pipeline.get_bind_group_layout(0),
                 entries: &entries,
             });
             let (gx, gy) = split(nblocks);
@@ -1017,12 +1154,13 @@ impl ResidentRenderer {
                 label: Some("resident composite"),
                 timestamp_writes: None,
             });
-            pass.set_pipeline(&self.pipes.doc);
+            pass.set_pipeline(&pipeline);
             pass.set_bind_group(0, &group, &[]);
             pass.dispatch_workgroups(gx, gy, 1);
         }
         self.queue.submit([encoder.finish()]);
         if let Some(st) = self.levels.get_mut(&level) {
+            st.valid = valid;
             st.last = Some(Rendered {
                 key: doc.key(),
                 epoch: doc.epoch(),
@@ -1098,11 +1236,20 @@ impl ResidentRenderer {
                 self.report.uploaded_bytes += bytes.len() as u64;
             }
         }
-        for (id, tile) in std::mem::take(&mut self.pending_smart) {
+        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("resident frame"),
+        });
+        for (id, plan, source) in std::mem::take(&mut self.pending_smart) {
             let page = self.assign(id, true)?;
-            let bytes = planar_bytes(&tile)?;
             let (buf, off) = self.smart.locate(page);
-            queue.write_buffer(buf, off, &bytes);
+            self.pipes.smart.encode(
+                &device,
+                &mut encoder,
+                &source,
+                buf,
+                (off / 4) as u32,
+                &plan,
+            )?;
             self.report.smart_pages += 1;
         }
         // Mip jobs grouped by level, each group 256-byte aligned.
@@ -1134,9 +1281,6 @@ impl ResidentRenderer {
             ));
         }
         self.report.mip_pages = by_level.len() as u32;
-        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("resident frame"),
-        });
         if by_level.is_empty() {
             return Ok(encoder);
         }
@@ -1284,6 +1428,7 @@ impl ResidentRenderer {
         background: Option<[f32; 3]>,
     ) -> EngineResult<()> {
         let st = self.level(level)?;
+        st.require_valid(src)?;
         let e = st.extent;
         if src.is_empty() || !Rect::of_extent(e).intersect(&src).eq(&src) {
             return Err(EngineError::invalid("src", "outside the level"));
@@ -1352,6 +1497,53 @@ impl ResidentRenderer {
         Ok(())
     }
 
+    /// Present in explicitly selected source/output color spaces. RGBA16F
+    /// retains extended RGB. A color-mgmt LUT consumes straight RGB and must
+    /// output destination-encoded SDR or display-linear EDR values.
+    #[allow(clippy::too_many_arguments)]
+    pub fn present_managed(
+        &self,
+        level: u8,
+        target: &wgpu::Texture,
+        src: Rect,
+        dst: (u32, u32),
+        background: Option<[f32; 3]>,
+        policy: SourceColorPolicy,
+        lut: Option<&gpu_core::Lut3d>,
+    ) -> EngineResult<()> {
+        let st = self.level(level)?;
+        st.require_valid(src)?;
+        self.pipes.output.present(
+            &self.device,
+            &self.queue,
+            &st.out,
+            st.extent,
+            src,
+            target,
+            dst,
+            background,
+            policy,
+            lut,
+        )
+    }
+
+    /// Color-managed presentation into an RGBA8 or RGBA16F IOSurface.
+    /// Source color interpretation is explicit, as in `present_managed`.
+    #[allow(clippy::too_many_arguments)]
+    pub fn present_iosurface_managed(
+        &self,
+        level: u8,
+        surface: u32,
+        src: Rect,
+        dst: (u32, u32),
+        background: Option<[f32; 3]>,
+        policy: SourceColorPolicy,
+        lut: Option<&gpu_core::Lut3d>,
+    ) -> EngineResult<()> {
+        let (texture, _) = gpu_core::write_to_iosurface(&self.device, surface)?;
+        self.present_managed(level, &texture, src, dst, background, policy, lut)
+    }
+
     /// [`present`](Self::present) into a retained RGBA8 IOSurface (by id),
     /// imported on this renderer's device.
     pub fn present_iosurface(
@@ -1375,6 +1567,7 @@ impl ResidentRenderer {
     /// premultiplied or straight.
     pub fn read_level(&self, level: u8, premultiplied: bool) -> EngineResult<(Extent, Vec<f32>)> {
         let st = self.level(level)?;
+        st.require_valid(Rect::of_extent(st.extent))?;
         let bytes = gpu_core::read_buffer(&self.device, &self.queue, &st.out, 0, st.out.size())?;
         let mut v: Vec<f32> = bytemuck::cast_slice(&bytes).to_vec();
         if !premultiplied {
@@ -1388,7 +1581,7 @@ impl ResidentRenderer {
 
     /// Explicit readback of a rendered level as premultiplied planar f32
     /// tiles in raster order ([`Tile::premultiplied`] set), the layout of
-    /// [`Compositor::render_tile_premultiplied`].
+    /// [`crate::Compositor::render_tile_premultiplied`].
     pub fn read_tiles(&self, level: u8) -> EngineResult<Vec<Tile>> {
         let (e, v) = self.read_level(level, true)?;
         let (cols, rows) = e.tile_grid(TILE_SIZE);

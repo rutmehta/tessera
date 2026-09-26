@@ -58,6 +58,135 @@ fn bits(r: &ResidentRenderer, level: u8) -> Vec<u32> {
         .collect()
 }
 
+#[test]
+fn specialized_matches_interpreter_and_reuses_structure() {
+    let g = gpu().expect("Metal required");
+    let mut d = scene(Depth::F32, Extent::new(31, 19));
+    // Discontinuous modes deliberately use the interpreter. Exercise the
+    // specialized path with continuous modes but the same group/feature tree.
+    for id in d.state().layer_ids() {
+        if matches!(
+            d.state().find(id).unwrap().props.blend_mode,
+            BlendMode::Dissolve
+                | BlendMode::DarkerColor
+                | BlendMode::LighterColor
+                | BlendMode::HardMix
+        ) {
+            set_props(&mut d, id, |p| p.blend_mode = BlendMode::SoftLight);
+        }
+    }
+    let mut fast = ResidentRenderer::new(&g).unwrap();
+    let mut general = ResidentRenderer::new(&g).unwrap();
+    general.set_specialization(false);
+    assert!(worst(&mut fast, &d, 0) <= 2e-3);
+    general.render(&d, 0).unwrap();
+    let a = fast.read_level(0, true).unwrap().1;
+    let b = general.read_level(0, true).unwrap().1;
+    assert!(a.iter().zip(&b).all(|(a, b)| (a - b).abs() <= 2e-3));
+    assert_eq!(fast.specialized_pipeline_count(), 1);
+    let id = d.state().root[0].id;
+    set_props(&mut d, id, |p| p.opacity = 0.6);
+    fast.render(&d, 0).unwrap();
+    assert_eq!(fast.specialized_pipeline_count(), 1);
+    fast.invalidate();
+    fast.render(&d, 0).unwrap();
+    let before = bits(&fast, 0);
+    fast.invalidate();
+    fast.render(&d, 0).unwrap();
+    assert_eq!(before, bits(&fast, 0));
+    let second_device = gpu().expect("second Metal device");
+    let mut second = ResidentRenderer::new(&second_device).unwrap();
+    second.render(&d, 0).unwrap();
+    assert_eq!(before, bits(&second, 0));
+}
+
+#[test]
+fn viewport_pan_preserves_offscreen_damage() {
+    let g = gpu().expect("Metal required");
+    let e = Extent::new(97, 65);
+    let mut d = doc(e, Depth::F32);
+    let id = add(&mut d, None, layer_fn("pixels", e, Depth::F32, wave(3)));
+    let mut r = ResidentRenderer::new(&g).unwrap();
+    let a = Rect::new(1, 1, 15, 15);
+    assert_eq!(r.render_viewport(&d, 0, a, 0).unwrap().blocks, 1);
+    assert!(r.read_level(0, true).is_err());
+    assert_eq!(r.render_viewport(&d, 0, a, 0).unwrap().blocks, 0);
+    assert_eq!(r.render_viewport(&d, 0, a, 2).unwrap().blocks, 3);
+    let b = Rect::new(64, 32, 96, 64);
+    assert_eq!(r.render_viewport(&d, 0, b, 0).unwrap().blocks, 4);
+    let op = paint_op(d.state(), id, PaintTarget::Content, a, |_, _, p| p[0] = 0.9).unwrap();
+    d.apply(op).unwrap();
+    assert_eq!(r.render_viewport(&d, 0, b, 0).unwrap().blocks, 0);
+    assert_eq!(r.render_viewport(&d, 0, a, 0).unwrap().blocks, 1);
+    r.render(&d, 0).unwrap();
+    let mut cold = ResidentRenderer::new(&g).unwrap();
+    cold.render(&d, 0).unwrap();
+    assert_eq!(bits(&r, 0), bits(&cold, 0));
+    assert_eq!(
+        r.render_viewport(&d, 1, Rect::new(0, 0, 16, 16), 0)
+            .unwrap()
+            .blocks,
+        1
+    );
+    assert!(
+        r.render_viewport(&d, 0, Rect::new(200, 200, 300, 300), 0)
+            .is_err()
+    );
+}
+
+#[test]
+fn smart_transform_invalidates_even_with_newer_child_revision() {
+    let g = gpu().expect("Metal required");
+    let e = Extent::new(48, 32);
+    let mut child = doc(e, Depth::F32);
+    add(&mut child, None, layer_fn("child", e, Depth::F32, wave(4)));
+    let mut state = (**child.state()).clone();
+    state.rev = 10000;
+    let mut d = doc(e, Depth::F32);
+    let id = add(
+        &mut d,
+        None,
+        Layer::new(
+            "smart",
+            LayerKind::SmartObject(SmartObject::new(state, Affine::IDENTITY)),
+        ),
+    );
+    let mut r = ResidentRenderer::new(&g).unwrap();
+    assert!(worst(&mut r, &d, 0) < 1e-4);
+    d.apply(DocOp::SetSmartTransform {
+        id,
+        transform: Affine::scale_translate(0.8, 0.8, 2.5, 1.5),
+    })
+    .unwrap();
+    assert!(worst(&mut r, &d, 0) < 1e-4);
+    assert!(d.undo());
+    assert!(worst(&mut r, &d, 0) < 1e-4);
+    assert!(d.redo());
+    assert!(worst(&mut r, &d, 0) < 1e-4);
+}
+
+#[test]
+fn specialization_cache_is_bounded_and_large_programs_fall_back() {
+    let g = gpu().expect("Metal required");
+    let e = Extent::new(3, 2);
+    let mut d = doc(e, Depth::F32);
+    add(&mut d, None, layer_fn("base", e, Depth::F32, wave(1)));
+    let id = add(&mut d, None, layer_fn("top", e, Depth::F32, wave(2)));
+    let mut r = ResidentRenderer::new(&g).unwrap();
+    for mode in BlendMode::ALL.into_iter().take(10) {
+        set_props(&mut d, id, |p| p.blend_mode = mode);
+        assert!(worst(&mut r, &d, 0) <= 1e-4);
+        assert!(r.specialized_pipeline_count() <= 8);
+    }
+    assert_eq!(r.specialized_pipeline_count(), 8);
+    for _ in 0..130 {
+        d.apply(DocOp::DuplicateLayer { id }).unwrap();
+    }
+    let mut fallback = ResidentRenderer::new(&g).unwrap();
+    assert!(worst(&mut fallback, &d, 0) <= 2e-3);
+    assert_eq!(fallback.specialized_pipeline_count(), 0);
+}
+
 fn adjustments() -> Vec<Adjustment> {
     vec![
         Adjustment::Invert,
@@ -574,7 +703,7 @@ fn small_budget_evicts_history_pages_and_stays_correct() {
 }
 
 #[test]
-fn smart_objects_render_through_uploaded_pages() {
+fn smart_objects_render_through_gpu_resampled_pages() {
     let Some(gpu) = gpu() else { return };
     let ce = Extent::new(120, 90);
     let mut child = DocState::new(ce, Depth::F32);

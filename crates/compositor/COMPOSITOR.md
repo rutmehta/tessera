@@ -467,8 +467,9 @@ level composite between crates without readback.
 A `ResidentRenderer` mirrors one open document on the GPU. `render(doc,
 level)` brings the mirror to the document's current state and composites
 `level` into a resident premultiplied f32 buffer of the whole level, then
-returns without waiting. No CPU pixel work happens on the interactive path
-except for smart objects (below).
+returns without waiting for GPU completion. A new eligible structure currently
+compiles synchronously before submission. No CPU color sampling/compositing
+happens on this path; smart-object coordinate footprints use host f64 (below).
 
 - **Pages.** Pixels live in a page pool: fixed 256² pages (one tile at any
   level, stored in its own extent) in up to eight storage-buffer slabs sized
@@ -503,9 +504,29 @@ except for smart objects (below).
   (solid, linear and radial gradient, pattern) and **all adjustment layers**
   (Levels, Curves, Hue/Saturation and Colorize, Exposure, Invert, Posterize,
   Threshold, Channel Mixer) with mask, Blend If, mode and Dissolve.
-- **Smart objects** are the one CPU-assisted source: their resampled tiles
-  come from `Compositor::smart_tile` and are uploaded as f32 pages once per
-  (child revision, tile).
+- **Specialization (M5-08).** Up to eight LRU kernels per renderer, keyed by
+  BLAKE3 of the step kind/mode/flags/source/adjustment sequence, depth and live
+  slab count, with full-key comparison to protect against hash collisions.
+  The generated kernel unrolls the tree program and emits switch-free blend
+  functions from the shared WGSL formulas; opacity, masks, fill parameters,
+  seeds, page addresses and LUTs remain in buffers. Painting/opacity edits
+  reuse kernels unless the pool grows another slab. Programs over 128 steps,
+  empty programs, compilation validation failures and discontinuous structures
+  use the general shader. Discontinuous means Dissolve, Darker/Lighter Color,
+  Hard Mix, Threshold or Posterize: specializing these failed the large-chain
+  CPU gate, despite passing the smaller fixtures. See §12.5. Compile is
+  synchronous, not the background-compilation design proposed in §12.4.
+- **Smart objects (M5-08)** render their children on the same device, then
+  bilinearly sample premultiplied child buffers directly into straight planar
+  f32 smart pages, without CPU pixel readback/upload. The host computes f64
+  inverse-transform footprints and uploads indices/weights, preserving the
+  CPU's mip choice and large-coordinate precision. Child renderers are retained
+  per layer/child snapshot. Page keys separately include child namespace,
+  child revision, layer revision, transform bits and coordinate, so a newer
+  child revision cannot hide a subsequent parent transform edit. Children
+  currently render a whole selected level; smart footprints/pages are not
+  viewport-restricted. GPU stats describe this renderer's own pools/levels,
+  not the recursively retained child renderer memory.
 - **Eviction.** Pages not used by the current state (undo history) are kept
   until the pool would pass its budget (default 2 GiB), then evicted
   least-recently-used; eviction invalidates the cached tables. The live
@@ -522,6 +543,17 @@ level. Both are sound on their own (pages are immutable and content
 addressed; §7 is sound for every op), so the intersection is. Undo, redo and
 checkout take the page-table path. Unchanged state dispatches nothing.
 
+`render_viewport(doc, level, visible, margin)` takes **level-space** coordinates
+and margin pixels, clips to the level and rounds out to 16² blocks. Every level
+also remembers a validity bit per block. Damage invalidates blocks even off
+screen; only invalid visible blocks dispatch. Panning fills newly exposed
+blocks, and a later `render` completes the whole level. A full-sized output
+buffer and page tables are still retained: viewport restriction reduces
+composite work, not initial uploads/mips or allocation size. Readback/presentation
+reject unrendered or dirty regions instead of returning stale pixels. `read_level`
+and `read_tiles` require the entire level to be valid. `FrameReport.damage`
+reports dispatched block rectangles (one whole-level rect for a full frame).
+
 The result is bit-identical to a cold full render of the same state
 (`dirty_rect_frames_are_bit_exact_and_local`), and rendering is deterministic
 across renderers and devices (`rendering_is_deterministic`).
@@ -530,6 +562,20 @@ across renderers and devices (`rendering_is_deterministic`).
 over an opaque background or premultiplied), `present_iosurface` imports an
 IOSurface on the renderer's device through `gpu-core` for that, and
 `read_level` / `read_tiles` are the explicit readback for export.
+
+`present_managed` and `present_iosurface_managed` additionally accept RGBA16F
+and a `color_mgmt::Lut3d` (re-exported by `gpu_core`). Source interpretation is
+explicit: `DocumentEncoded` for unconverted RGBA8, `DisplayLinear` for unconverted
+RGBA16F, or `LutInput` with a 33³ color-mgmt LUT. The LUT operates on straight
+RGB, followed by premultiplication and optional destination-space background
+flattening. RGBA16F preserves negative RGB and headroom; no implicit transfer
+function or clamp is added. LUT interpolation matches pipeline-gpu's raw output
+LUT path: red-fastest trilinear, input domain [0,1], extended output allowed.
+The caller must supply a destination-encoded SDR or display-linear EDR LUT and
+configure the display surface accordingly. This does not duplicate the develop
+session's scene tone mapping or proof-profile selection. LUT data currently
+uploads per presentation call; pipelines are retained. Legacy `present` and
+`present_iosurface` retain their RGBA8/document-encoding behavior.
 
 ### 12.3 Gate (docs/11 §1.3)
 
@@ -580,3 +626,80 @@ cache a straight-line WGSL kernel per program *structure* (kinds, modes,
 flags, nesting), with parameters still read from the step buffer so opacity
 drags and painting never recompile, and keep the interpreter as the fallback
 while a new structure compiles in the background.
+
+### 12.5 M5-08 verification and remaining correctness/performance gaps
+
+The implementation includes specialization with conservative interpreter
+fallback, viewport dirty tracking, RGBA16F/LUT output and GPU smart resampling.
+**M5-08 is partial: the full-L0 CPU gate and performance targets are not met.**
+
+The unconstrained specialized shader measured roughly 88 ms at L0 and 36 ms for
+a full 3840×2160 L0 viewport, but the original benchmark's L2 CPU comparison
+failed at **0.08179048**, above 0.002. Those timings are NOT accepted results.
+The original benchmark now asserts its CPU gate unconditionally, independent
+of `TESSERA_BENCH_ASSERT`. Discontinuous structures stay on the interpreter.
+
+The retry added unconditional full-L0 CPU comparisons, including a fresh
+viewport allocation followed by completion of only invalid offscreen blocks.
+This initially exposed **0.017690986** error even with the interpreter. The
+follow-up traced tile `(5,3)`, sample `34646`, to three layers in the isolated
+group: Linear Light, Pin Light, Hard Mix. At pixel `(1366,903)`, Pin Light
+produced red `0.52891964` on CPU versus `0.5289197` on GPU; Hard Mix amplified
+the difference to `0.29830068`. Explicit `fma(x,y,0)` products in the plain
+blend accumulator preserve separate rounding and fix this case. The normal
+suite now includes its one-pixel regression, and all 100 prefixes at that
+original pixel pass (`prefix-trace-fixed.log`). No tie rules or tolerances changed.
+
+Full L0 still fails at **0.005570616**, tile `(4,8)`, sample `258` (CPU
+`0.0057057994`, GPU `0.00013518344`). The prefix trace shows nonseparable
+color operations producing tiny RGB differences around zero. At prefix 90,
+layer 50's Divide amplifies positive versus negative red to a `0.7764706`
+difference before later layers attenuate it. Fixing accumulator contraction
+alone is not enough. The interpreter fallback is not a correctness guarantee.
+
+Measured, NOT accepted, final timings on Apple M4 (wall time includes submit + wait;
+page uploads and compilation excluded from warm runs; concurrent machine load
+is uncontrolled):
+
+| Measurement | Interpreter before | Enabled specialization with fallback | Target |
+|---|---|---|---|
+| Full L0, original 100-layer 20 MP mixed-mode document | 204.86 ms median | 203.22 ms median, fallback | <100 ms, NOT met |
+| Full 3840×2160 L0 viewport, same document, zero margin | 85.75 ms median | 83.90 ms median, fallback | <8 ms, NOT met |
+| Full L0 max absolute CPU error | 0.005570616 | 0.005570616 | ≤2e-3, NOT met |
+| Original bench L0 after L2/mip/edit history | — | 210.9 ms median | <100 ms, NOT met |
+| Original bench L2 max absolute CPU error | — | 1.9848347e-5 | ≤2e-3, met |
+| Original bench 64² dab → L2 | — | 7.62 ms median | <16 ms, met |
+
+Diagnostic unrestricted specialization after the rounding change measured
+84.30 ms L0 and 38.21 ms viewport, but failed the full-L0 CPU gate at
+0.053452015 (`rounding-specialized.log`). That temporary bypass was removed;
+these are not accepted timings and no production environment override remains.
+
+`tests/gpu_resident.rs` additionally checks specialization cache reuse/bounds,
+large-program fallback, specialized determinism across devices, viewport pan /
+offscreen edit validity, and smart transform/undo/redo with newer child revisions.
+`gpu_smart_resample.rs` gates affine/mip sampling, planar offsets and large
+coordinates. `resident::output::tests` gates LUT interpolation, alpha,
+destination flattening, SDR quantization, EDR headroom and validation;
+`gpu_resident_output.rs` exercises viewport-to-EDR presentation end to end.
+
+Reproduce:
+
+```
+cargo test -p compositor -p gpu-core --release
+cargo clippy -p compositor -p gpu-core --all-targets -- -D warnings
+cargo fmt --check
+cargo test -p compositor --release --test bench resident_100 -- --ignored --nocapture
+TESSERA_BENCH_ASSERT=1 cargo test -p compositor --release --test bench m5_08 -- --ignored --nocapture
+```
+
+Keep `CARGO_TARGET_DIR` outside the worktree. Exact logs and the partial handoff
+are in `tools/orchestrate/wp/M5-08/`. The last command fails both CPU and timing
+gates; the standard suite passes because hardware benchmarks are ignored there.
+The standard command passed: 79 tests, zero failures, six ignored benchmarks /
+diagnostics. The next work must address color-operation rounding through Divide
+and the specialized path's remaining discontinuities. For a prefix trace use
+`cargo test -p compositor --release --test bench m5_08_l0_prefix_trace -- --ignored --nocapture`.
+The default pixel is the remaining Divide failure; set
+`TESSERA_TRACE_PIXEL=1366,903` for the fixed Hard Mix case. Even the rejected
+faster viewport result remains above 8 ms.

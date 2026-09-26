@@ -1520,6 +1520,7 @@ dependencies = [
 name = "gpu-core"
 version = "0.1.0"
 dependencies = [
+ "color-mgmt",
  "engine-api",
  "objc2-io-surface",
  "objc2-metal",

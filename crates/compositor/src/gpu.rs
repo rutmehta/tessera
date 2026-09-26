@@ -35,11 +35,12 @@ struct GpuOp {
 const NO_MASK: u32 = u32::MAX;
 
 /// A Metal device with the compositor pipeline.
+#[derive(Clone)]
 pub struct GpuCompositor {
     pub(crate) device: wgpu::Device,
     pub(crate) queue: wgpu::Queue,
     pipeline: wgpu::ComputePipeline,
-    resident: std::sync::Mutex<Option<std::sync::Arc<crate::resident::Pipelines>>>,
+    resident: std::sync::Arc<std::sync::Mutex<Option<std::sync::Arc<crate::resident::Pipelines>>>>,
     /// Adapter description.
     pub adapter: String,
 }
@@ -99,7 +100,7 @@ impl GpuCompositor {
             device,
             queue,
             pipeline,
-            resident: std::sync::Mutex::new(None),
+            resident: std::sync::Arc::new(std::sync::Mutex::new(None)),
             adapter,
         })
     }

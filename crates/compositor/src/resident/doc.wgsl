@@ -306,7 +306,14 @@ fn main(@builtin(workgroup_id) wg: vec3<u32>, @builtin(num_workgroups) nwg: vec3
                 let u = a * (1.0 - ab);
                 let v = a * ab;
                 let w = 1.0 - a;
-                cur = vec4<f32>(u * s.xyz + v * bl + w * cur.xyz, a + w * ab);
+                // Preserve separately rounded products from the CPU executor.
+                // Implicit contraction changes Pin Light by one ulp and can
+                // flip a subsequent Hard Mix (see the one-pixel regression).
+                // Do not change blend-mode tie rules or add an epsilon.
+                let us = fma(vec3<f32>(u), s.xyz, vec3<f32>(0.0));
+                let vb = fma(vec3<f32>(v), bl, vec3<f32>(0.0));
+                let wc = fma(vec3<f32>(w), cur.xyz, vec3<f32>(0.0));
+                cur = vec4<f32>(fma(vec3<f32>(1.0), us + vb, wc), a + fma(w, ab, 0.0));
             }
             continue;
         }

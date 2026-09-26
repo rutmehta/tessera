@@ -8,6 +8,7 @@
 //! in the raw stack. Cloning a [`GpuDevice`] clones handles, not the device.
 #![deny(unsafe_code)]
 
+pub use color_mgmt::Lut3d;
 mod iosurface;
 pub use iosurface::{SurfaceFormat, write_to_iosurface};
 
