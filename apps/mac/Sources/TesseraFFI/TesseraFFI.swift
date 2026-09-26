@@ -3230,6 +3230,1417 @@ public func FfiConverterTypeDevelopSession_lower(_ value: DevelopSession) -> UIn
 
 
 
+/**
+ * Callbacks run on the session's render thread, never while a session lock
+ * is held; each fires at most once per coalesced frame.
+ */
+public protocol DocumentListener: AnyObject, Sendable {
+    
+    func onFrame(frame: DocFrameInfo) 
+    
+    /**
+     * Rows that may have changed (re-read them with `layers()`).
+     */
+    func onLayersChanged(layerIds: [UInt64]) 
+    
+    func onHistoryChanged(head: UInt64) 
+    
+    func onRenderFailed(message: String) 
+    
+}
+/**
+ * Callbacks run on the session's render thread, never while a session lock
+ * is held; each fires at most once per coalesced frame.
+ */
+open class DocumentListenerImpl: DocumentListener, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_tessera_ffi_fn_clone_documentlistener(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_tessera_ffi_fn_free_documentlistener(handle, $0) }
+    }
+
+    
+
+    
+open func onFrame(frame: DocFrameInfo)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentlistener_on_frame(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeDocFrameInfo_lower(frame),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Rows that may have changed (re-read them with `layers()`).
+     */
+open func onLayersChanged(layerIds: [UInt64])  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentlistener_on_layers_changed(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceUInt64.lower(layerIds),uniffiCallStatus
+    )
+}
+}
+    
+open func onHistoryChanged(head: UInt64)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentlistener_on_history_changed(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(head),uniffiCallStatus
+    )
+}
+}
+    
+open func onRenderFailed(message: String)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentlistener_on_render_failed(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(message),uniffiCallStatus
+    )
+}
+}
+    
+
+    
+}
+
+
+
+// Put the implementation in a struct so we don't pollute the top-level namespace
+fileprivate struct UniffiCallbackInterfaceDocumentListener {
+
+    // Create the VTable using a series of closures.
+    // Swift automatically converts these into C callback functions.
+    //
+    // Store the vtable directly.
+    static let vtable: UniffiVTableCallbackInterfaceDocumentListener = UniffiVTableCallbackInterfaceDocumentListener(
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            do {
+                try FfiConverterTypeDocumentListener.handleMap.remove(handle: uniffiHandle)
+            } catch {
+                print("Uniffi callback interface DocumentListener: handle missing in uniffiFree")
+            }
+        },
+        uniffiClone: { (uniffiHandle: UInt64) -> UInt64 in
+            do {
+                return try FfiConverterTypeDocumentListener.handleMap.clone(handle: uniffiHandle)
+            } catch {
+                fatalError("Uniffi callback interface DocumentListener: handle missing in uniffiClone")
+            }
+        },
+        onFrame: { (
+            uniffiHandle: UInt64,
+            frame: RustBuffer,
+            uniffiOutReturn: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> () in
+                guard let uniffiObj = try? FfiConverterTypeDocumentListener.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.onFrame(
+                     frame: try FfiConverterTypeDocFrameInfo_lift(frame)
+                )
+            }
+
+            
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        onLayersChanged: { (
+            uniffiHandle: UInt64,
+            layerIds: RustBuffer,
+            uniffiOutReturn: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> () in
+                guard let uniffiObj = try? FfiConverterTypeDocumentListener.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.onLayersChanged(
+                     layerIds: try FfiConverterSequenceUInt64.lift(layerIds)
+                )
+            }
+
+            
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        onHistoryChanged: { (
+            uniffiHandle: UInt64,
+            head: UInt64,
+            uniffiOutReturn: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> () in
+                guard let uniffiObj = try? FfiConverterTypeDocumentListener.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.onHistoryChanged(
+                     head: try FfiConverterUInt64.lift(head)
+                )
+            }
+
+            
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        onRenderFailed: { (
+            uniffiHandle: UInt64,
+            message: RustBuffer,
+            uniffiOutReturn: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> () in
+                guard let uniffiObj = try? FfiConverterTypeDocumentListener.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.onRenderFailed(
+                     message: try FfiConverterString.lift(message)
+                )
+            }
+
+            
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        }
+    )
+
+    // Rust stores this pointer for future callback invocations, so it must live
+    // for the process lifetime (not just for the init function call).
+    //
+    // `nonisolated(unsafe)` is needed under Swift 6 strict concurrency.
+    // This is safe because the pointee is initialized once during static init
+    // and never mutated by either side of the FFI.  Its fields are C function pointers.
+    nonisolated(unsafe) static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceDocumentListener> = {
+        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceDocumentListener>.allocate(capacity: 1)
+        ptr.initialize(to: vtable)
+        return UnsafePointer(ptr)
+    }()
+}
+
+private func uniffiCallbackInitDocumentListener() {
+    uniffi_tessera_ffi_fn_init_callback_vtable_documentlistener(UniffiCallbackInterfaceDocumentListener.vtablePtr)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDocumentListener: FfiConverter {
+    fileprivate static let handleMap = UniffiHandleMap<DocumentListener>()
+
+    typealias FfiType = UInt64
+    typealias SwiftType = DocumentListener
+
+    public static func lift(_ handle: UInt64) throws -> DocumentListener {
+        if ((handle & 1) == 0) {
+            // Rust-generated handle, construct a new class that uses the handle to implement the
+            // interface
+            return DocumentListenerImpl(unsafeFromHandle: handle)
+        } else {
+            // Swift-generated handle, get the object from the handle map
+            return try handleMap.remove(handle: handle)
+        }
+    }
+
+    public static func lower(_ value: DocumentListener) -> UInt64 {
+         if let rustImpl = value as? DocumentListenerImpl {
+             // Rust-implemented object.  Clone the handle and return it
+            return rustImpl.uniffiCloneHandle()
+         } else {
+            // Swift object, generate a new vtable handle and return that.
+            return handleMap.insert(obj: value)
+         }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DocumentListener {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: DocumentListener, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDocumentListener_lift(_ handle: UInt64) throws -> DocumentListener {
+    return try FfiConverterTypeDocumentListener.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDocumentListener_lower(_ value: DocumentListener) -> UInt64 {
+    return FfiConverterTypeDocumentListener.lower(value)
+}
+
+
+
+
+
+
+public protocol DocumentSessionProtocol: AnyObject, Sendable {
+    
+    /**
+     * Adds a layer named `name` (empty: "Layer N", "Group N", …) at `index`
+     * of `parent` (`None`: the root; index `None`: on top).
+     */
+    func addLayer(kind: NewLayer, name: String, parent: UInt64?, index: UInt32?) throws  -> DocumentUpdate
+    
+    /**
+     * Adds a layer mask (replacing an existing one).
+     */
+    func addMask(id: UInt64, mask: MaskInit) throws  -> DocumentUpdate
+    
+    /**
+     * Adds an RGBA8 IOSurface (straight alpha, display-encoded sRGB) to the
+     * frame ring; attach two or three of one size so the host never samples
+     * the surface being written. A different size replaces the ring. The
+     * first surface of a ring renders a frame.
+     */
+    func attachSurface(iosurfaceId: UInt32, width: UInt32, height: UInt32) throws 
+    
+    /**
+     * Jumps to any retained history state.
+     */
+    func checkoutHistory(id: UInt64) throws  -> DocumentUpdate
+    
+    func clearSelection() throws  -> DocumentUpdate
+    
+    /**
+     * Stops rendering, releases the surfaces and forgets the session.
+     * Unsaved changes are discarded (the host asks first).
+     */
+    func close() 
+    
+    /**
+     * Records the pending interactive edits as one history node labelled
+     * `label` (empty: the op's own label). Without pending edits nothing is
+     * recorded.
+     */
+    func commit(label: String) throws  -> DocumentUpdate
+    
+    /**
+     * The whole composite, like `layer_thumbnail` (cached per document state).
+     */
+    func compositeThumbnail(maxPx: UInt32) throws  -> UInt32
+    
+    /**
+     * Releases every surface; nothing is rendered until one is attached.
+     */
+    func detachSurfaces() 
+    
+    /**
+     * Duplicates a layer (with its children) directly above it.
+     */
+    func duplicateLayer(id: UInt64) throws  -> DocumentUpdate
+    
+    /**
+     * Exports the flattened composite at full resolution: PNG/TIFF keep
+     * transparency (8-bit for 8-bit documents, else 16-bit), JPEG is
+     * flattened over white; `quality` is JPEG 1–100. Colours are converted
+     * from the document profile to `color` and the profile is embedded.
+     */
+    func exportFlat(path: String, format: ExportFormat, quality: UInt8, color: ExportColor) throws 
+    
+    /**
+     * Flattens every visible layer into one opaque Background layer (over
+     * white, as Photoshop does).
+     */
+    func flatten() throws  -> DocumentUpdate
+    
+    /**
+     * Puts sibling layers into a new group at the topmost one's position.
+     */
+    func groupLayers(ids: [UInt64], name: String) throws  -> DocumentUpdate
+    
+    /**
+     * Every retained history state in creation order.
+     */
+    func historyItems() throws  -> [DocHistoryItem]
+    
+    /**
+     * Bytes of distinct tile buffers held by the retained history.
+     */
+    func historyMemoryBytes() throws  -> UInt64
+    
+    func id()  -> String
+    
+    func info() throws  -> DocumentInfo
+    
+    func layer(id: UInt64) throws  -> LayerNode
+    
+    /**
+     * An RGBA8 IOSurface (straight alpha, sRGB-encoded) with the layer's own
+     * content — opacity, mode and mask ignored — at the coarsest pyramid
+     * level that fits in `max_px` (long edge; the surface is exactly that
+     * level's extent). Cached per layer revision and size: an unchanged
+     * layer returns the same surface. The session retains the surface until
+     * a newer thumbnail replaces it or the session closes; hosts that keep
+     * it longer retain it with `IOSurfaceLookup`.
+     */
+    func layerThumbnail(id: UInt64, maxPx: UInt32) throws  -> UInt32
+    
+    /**
+     * Every layer, flat in pre-order with siblings top-first (see
+     * [`LayerNode`]). Shows the live state while a drag is pending.
+     */
+    func layers() throws  -> [LayerNode]
+    
+    /**
+     * The layer mask as a grey RGBA8 IOSurface (white = revealed), cached
+     * like `layer_thumbnail`.
+     */
+    func maskThumbnail(id: UInt64, maxPx: UInt32) throws  -> UInt32
+    
+    /**
+     * Merges a layer into the one below it (same parent) as one history
+     * node: the pair is composited on its own (the lower layer's mask
+     * baked in, its opacity/fill applied later as before) into a pixel
+     * layer that keeps the lower layer's id, name and properties.
+     */
+    func mergeDown(id: UInt64) throws  -> DocumentUpdate
+    
+    /**
+     * Moves a layer to `index` (0 = bottom, after removal) of `parent`.
+     */
+    func moveLayer(id: UInt64, parent: UInt64?, index: UInt32) throws  -> DocumentUpdate
+    
+    /**
+     * Surface size for a fit-to-window viewport of `width × height` device
+     * pixels: the coarsest level whose extent covers it (level 0 when the
+     * canvas is smaller). Zoomed viewports allocate surfaces of their own
+     * size and name the region with `set_viewport`.
+     */
+    func planSurface(width: UInt32, height: UInt32) throws  -> DocSurfacePlan
+    
+    func redo() throws  -> DocumentUpdate
+    
+    /**
+     * Renders a frame of the current state (first paint, or after the host
+     * discarded surface contents).
+     */
+    func refresh() throws 
+    
+    func removeLayer(id: UInt64) throws  -> DocumentUpdate
+    
+    func removeMask(id: UInt64) throws  -> DocumentUpdate
+    
+    func renameLayer(id: UInt64, name: String) throws  -> DocumentUpdate
+    
+    func restoreSnapshot(name: String) throws  -> DocumentUpdate
+    
+    /**
+     * Writes the document to its path (committing a pending drag first).
+     */
+    func save() throws 
+    
+    /**
+     * Writes `.tessera-doc`, or PSD/PSB when the path ends in `.psd`/`.psb`
+     * (with the flattened composite for compatibility), and makes it the
+     * document's path.
+     */
+    func saveAs(path: String) throws 
+    
+    /**
+     * Replaces an adjustment layer's parameters (`compositor::Adjustment`
+     * JSON); `interactive` as for `set_opacity`.
+     */
+    func setAdjustmentJson(id: UInt64, json: String, interactive: Bool) throws  -> DocumentUpdate
+    
+    /**
+     * A [`LayerNode::blend_mode`] name (`pass_through` for groups).
+     */
+    func setBlendMode(id: UInt64, mode: String) throws  -> DocumentUpdate
+    
+    func setClipped(id: UInt64, clipped: Bool) throws  -> DocumentUpdate
+    
+    /**
+     * The EDR headroom of the display. Document frames are SDR RGBA8 for now
+     * (the compositor's RGBA16F presentation arrives with M5-08), so this is
+     * stored and has no effect yet.
+     */
+    func setDisplayHeadroom(headroom: Float) throws 
+    
+    /**
+     * Replaces a fill layer's content (`compositor::Fill` JSON);
+     * `interactive` as for `set_opacity` (colour-well drags).
+     */
+    func setFillJson(id: UInt64, json: String, interactive: Bool) throws  -> DocumentUpdate
+    
+    /**
+     * Fill opacity 0…1, like `set_opacity`.
+     */
+    func setFillOpacity(id: UInt64, value: Float, interactive: Bool) throws  -> DocumentUpdate
+    
+    func setGroupMode(id: UInt64, mode: DocGroupMode) throws  -> DocumentUpdate
+    
+    func setListener(listener: DocumentListener?) 
+    
+    func setLocks(id: UInt64, locks: LayerLocks) throws  -> DocumentUpdate
+    
+    /**
+     * Mask density 0…1 (Properties ▸ Masks).
+     */
+    func setMaskDensity(id: UInt64, density: Float) throws  -> DocumentUpdate
+    
+    func setMaskEnabled(id: UInt64, enabled: Bool) throws  -> DocumentUpdate
+    
+    /**
+     * The mask's link chain. Session state only (translation is not
+     * modelled by the compositor yet, so it has no effect on pixels and is
+     * not saved); records no history.
+     */
+    func setMaskLinked(id: UInt64, linked: Bool) throws 
+    
+    /**
+     * Caps retained history states (at least 2); the current state and
+     * snapshots are never pruned.
+     */
+    func setMaxStates(maxStates: UInt32) throws 
+    
+    /**
+     * Layer opacity 0…1. `interactive`: live only, no history node until
+     * `commit` (a slider drag).
+     */
+    func setOpacity(id: UInt64, value: Float, interactive: Bool) throws  -> DocumentUpdate
+    
+    /**
+     * Replaces the common properties. `pass_through` on a group switches it
+     * to pass-through; a real mode on a pass-through group isolates it.
+     */
+    func setProps(id: UInt64, props: LayerPropsRecord) throws  -> DocumentUpdate
+    
+    /**
+     * Selects layers in the Layers panel (reported by `info`).
+     */
+    func setSelectedLayers(ids: [UInt64]) throws 
+    
+    /**
+     * A rectangular marquee selection (level-0 pixels), its edges ramped
+     * over `feather` pixels (0: hard edges). Other selection tools arrive
+     * with M5-11.
+     */
+    func setSelectionRect(x: Int64, y: Int64, width: Int64, height: Int64, feather: Float) throws  -> DocumentUpdate
+    
+    /**
+     * Shows `width × height` pixels at `(x, y)` of pyramid `level` (0 = full
+     * resolution; each level halves) top-left in the surfaces, clipped to
+     * the level and the surface size. `zoom` (1 = 100 %) is echoed in
+     * frames. Until the first call the whole canvas is shown at the finest
+     * level that fits the surfaces.
+     */
+    func setViewport(level: UInt8, x: UInt32, y: UInt32, width: UInt32, height: UInt32, zoom: Double) throws 
+    
+    func setVisible(id: UInt64, visible: Bool) throws  -> DocumentUpdate
+    
+    /**
+     * Names the current state (after committing a pending drag).
+     */
+    func snapshot(name: String) throws 
+    
+    func snapshots() throws  -> [String]
+    
+    func undo() throws  -> DocumentUpdate
+    
+    /**
+     * Replaces a group by its children (the group's own properties go).
+     */
+    func ungroupLayer(id: UInt64) throws  -> DocumentUpdate
+    
+}
+open class DocumentSession: DocumentSessionProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_tessera_ffi_fn_clone_documentsession(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_tessera_ffi_fn_free_documentsession(handle, $0) }
+    }
+
+    
+
+    
+    /**
+     * Adds a layer named `name` (empty: "Layer N", "Group N", …) at `index`
+     * of `parent` (`None`: the root; index `None`: on top).
+     */
+open func addLayer(kind: NewLayer, name: String, parent: UInt64?, index: UInt32?)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_add_layer(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeNewLayer_lower(kind),
+        FfiConverterString.lower(name),
+        FfiConverterOptionUInt64.lower(parent),
+        FfiConverterOptionUInt32.lower(index),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Adds a layer mask (replacing an existing one).
+     */
+open func addMask(id: UInt64, mask: MaskInit)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_add_mask(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),
+        FfiConverterTypeMaskInit_lower(mask),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Adds an RGBA8 IOSurface (straight alpha, display-encoded sRGB) to the
+     * frame ring; attach two or three of one size so the host never samples
+     * the surface being written. A different size replaces the ring. The
+     * first surface of a ring renders a frame.
+     */
+open func attachSurface(iosurfaceId: UInt32, width: UInt32, height: UInt32)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_attach_surface(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(iosurfaceId),
+        FfiConverterUInt32.lower(width),
+        FfiConverterUInt32.lower(height),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Jumps to any retained history state.
+     */
+open func checkoutHistory(id: UInt64)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_checkout_history(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),uniffiCallStatus
+    )
+})
+}
+    
+open func clearSelection()throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_clear_selection(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Stops rendering, releases the surfaces and forgets the session.
+     * Unsaved changes are discarded (the host asks first).
+     */
+open func close()  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_close(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Records the pending interactive edits as one history node labelled
+     * `label` (empty: the op's own label). Without pending edits nothing is
+     * recorded.
+     */
+open func commit(label: String)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_commit(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(label),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * The whole composite, like `layer_thumbnail` (cached per document state).
+     */
+open func compositeThumbnail(maxPx: UInt32)throws  -> UInt32  {
+    return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_composite_thumbnail(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(maxPx),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Releases every surface; nothing is rendered until one is attached.
+     */
+open func detachSurfaces()  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_detach_surfaces(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Duplicates a layer (with its children) directly above it.
+     */
+open func duplicateLayer(id: UInt64)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_duplicate_layer(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Exports the flattened composite at full resolution: PNG/TIFF keep
+     * transparency (8-bit for 8-bit documents, else 16-bit), JPEG is
+     * flattened over white; `quality` is JPEG 1–100. Colours are converted
+     * from the document profile to `color` and the profile is embedded.
+     */
+open func exportFlat(path: String, format: ExportFormat, quality: UInt8, color: ExportColor)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_export_flat(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(path),
+        FfiConverterTypeExportFormat_lower(format),
+        FfiConverterUInt8.lower(quality),
+        FfiConverterTypeExportColor_lower(color),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Flattens every visible layer into one opaque Background layer (over
+     * white, as Photoshop does).
+     */
+open func flatten()throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_flatten(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Puts sibling layers into a new group at the topmost one's position.
+     */
+open func groupLayers(ids: [UInt64], name: String)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_group_layers(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceUInt64.lower(ids),
+        FfiConverterString.lower(name),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Every retained history state in creation order.
+     */
+open func historyItems()throws  -> [DocHistoryItem]  {
+    return try  FfiConverterSequenceTypeDocHistoryItem.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_history_items(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Bytes of distinct tile buffers held by the retained history.
+     */
+open func historyMemoryBytes()throws  -> UInt64  {
+    return try  FfiConverterUInt64.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_history_memory_bytes(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+open func id() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_id(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+open func info()throws  -> DocumentInfo  {
+    return try  FfiConverterTypeDocumentInfo_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_info(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+open func layer(id: UInt64)throws  -> LayerNode  {
+    return try  FfiConverterTypeLayerNode_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_layer(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * An RGBA8 IOSurface (straight alpha, sRGB-encoded) with the layer's own
+     * content — opacity, mode and mask ignored — at the coarsest pyramid
+     * level that fits in `max_px` (long edge; the surface is exactly that
+     * level's extent). Cached per layer revision and size: an unchanged
+     * layer returns the same surface. The session retains the surface until
+     * a newer thumbnail replaces it or the session closes; hosts that keep
+     * it longer retain it with `IOSurfaceLookup`.
+     */
+open func layerThumbnail(id: UInt64, maxPx: UInt32)throws  -> UInt32  {
+    return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_layer_thumbnail(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),
+        FfiConverterUInt32.lower(maxPx),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Every layer, flat in pre-order with siblings top-first (see
+     * [`LayerNode`]). Shows the live state while a drag is pending.
+     */
+open func layers()throws  -> [LayerNode]  {
+    return try  FfiConverterSequenceTypeLayerNode.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_layers(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * The layer mask as a grey RGBA8 IOSurface (white = revealed), cached
+     * like `layer_thumbnail`.
+     */
+open func maskThumbnail(id: UInt64, maxPx: UInt32)throws  -> UInt32  {
+    return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_mask_thumbnail(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),
+        FfiConverterUInt32.lower(maxPx),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Merges a layer into the one below it (same parent) as one history
+     * node: the pair is composited on its own (the lower layer's mask
+     * baked in, its opacity/fill applied later as before) into a pixel
+     * layer that keeps the lower layer's id, name and properties.
+     */
+open func mergeDown(id: UInt64)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_merge_down(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Moves a layer to `index` (0 = bottom, after removal) of `parent`.
+     */
+open func moveLayer(id: UInt64, parent: UInt64?, index: UInt32)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_move_layer(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),
+        FfiConverterOptionUInt64.lower(parent),
+        FfiConverterUInt32.lower(index),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Surface size for a fit-to-window viewport of `width × height` device
+     * pixels: the coarsest level whose extent covers it (level 0 when the
+     * canvas is smaller). Zoomed viewports allocate surfaces of their own
+     * size and name the region with `set_viewport`.
+     */
+open func planSurface(width: UInt32, height: UInt32)throws  -> DocSurfacePlan  {
+    return try  FfiConverterTypeDocSurfacePlan_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_plan_surface(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(width),
+        FfiConverterUInt32.lower(height),uniffiCallStatus
+    )
+})
+}
+    
+open func redo()throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_redo(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Renders a frame of the current state (first paint, or after the host
+     * discarded surface contents).
+     */
+open func refresh()throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_refresh(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+}
+}
+    
+open func removeLayer(id: UInt64)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_remove_layer(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),uniffiCallStatus
+    )
+})
+}
+    
+open func removeMask(id: UInt64)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_remove_mask(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),uniffiCallStatus
+    )
+})
+}
+    
+open func renameLayer(id: UInt64, name: String)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_rename_layer(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),
+        FfiConverterString.lower(name),uniffiCallStatus
+    )
+})
+}
+    
+open func restoreSnapshot(name: String)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_restore_snapshot(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(name),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Writes the document to its path (committing a pending drag first).
+     */
+open func save()throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_save(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Writes `.tessera-doc`, or PSD/PSB when the path ends in `.psd`/`.psb`
+     * (with the flattened composite for compatibility), and makes it the
+     * document's path.
+     */
+open func saveAs(path: String)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_save_as(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(path),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Replaces an adjustment layer's parameters (`compositor::Adjustment`
+     * JSON); `interactive` as for `set_opacity`.
+     */
+open func setAdjustmentJson(id: UInt64, json: String, interactive: Bool)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_set_adjustment_json(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),
+        FfiConverterString.lower(json),
+        FfiConverterBool.lower(interactive),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * A [`LayerNode::blend_mode`] name (`pass_through` for groups).
+     */
+open func setBlendMode(id: UInt64, mode: String)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_set_blend_mode(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),
+        FfiConverterString.lower(mode),uniffiCallStatus
+    )
+})
+}
+    
+open func setClipped(id: UInt64, clipped: Bool)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_set_clipped(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),
+        FfiConverterBool.lower(clipped),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * The EDR headroom of the display. Document frames are SDR RGBA8 for now
+     * (the compositor's RGBA16F presentation arrives with M5-08), so this is
+     * stored and has no effect yet.
+     */
+open func setDisplayHeadroom(headroom: Float)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_set_display_headroom(
+            self.uniffiCloneHandle(),
+        FfiConverterFloat.lower(headroom),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Replaces a fill layer's content (`compositor::Fill` JSON);
+     * `interactive` as for `set_opacity` (colour-well drags).
+     */
+open func setFillJson(id: UInt64, json: String, interactive: Bool)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_set_fill_json(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),
+        FfiConverterString.lower(json),
+        FfiConverterBool.lower(interactive),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Fill opacity 0…1, like `set_opacity`.
+     */
+open func setFillOpacity(id: UInt64, value: Float, interactive: Bool)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_set_fill_opacity(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),
+        FfiConverterFloat.lower(value),
+        FfiConverterBool.lower(interactive),uniffiCallStatus
+    )
+})
+}
+    
+open func setGroupMode(id: UInt64, mode: DocGroupMode)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_set_group_mode(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),
+        FfiConverterTypeDocGroupMode_lower(mode),uniffiCallStatus
+    )
+})
+}
+    
+open func setListener(listener: DocumentListener?)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_set_listener(
+            self.uniffiCloneHandle(),
+        FfiConverterOptionTypeDocumentListener.lower(listener),uniffiCallStatus
+    )
+}
+}
+    
+open func setLocks(id: UInt64, locks: LayerLocks)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_set_locks(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),
+        FfiConverterTypeLayerLocks_lower(locks),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Mask density 0…1 (Properties ▸ Masks).
+     */
+open func setMaskDensity(id: UInt64, density: Float)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_set_mask_density(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),
+        FfiConverterFloat.lower(density),uniffiCallStatus
+    )
+})
+}
+    
+open func setMaskEnabled(id: UInt64, enabled: Bool)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_set_mask_enabled(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),
+        FfiConverterBool.lower(enabled),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * The mask's link chain. Session state only (translation is not
+     * modelled by the compositor yet, so it has no effect on pixels and is
+     * not saved); records no history.
+     */
+open func setMaskLinked(id: UInt64, linked: Bool)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_set_mask_linked(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),
+        FfiConverterBool.lower(linked),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Caps retained history states (at least 2); the current state and
+     * snapshots are never pruned.
+     */
+open func setMaxStates(maxStates: UInt32)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_set_max_states(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(maxStates),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Layer opacity 0…1. `interactive`: live only, no history node until
+     * `commit` (a slider drag).
+     */
+open func setOpacity(id: UInt64, value: Float, interactive: Bool)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_set_opacity(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),
+        FfiConverterFloat.lower(value),
+        FfiConverterBool.lower(interactive),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Replaces the common properties. `pass_through` on a group switches it
+     * to pass-through; a real mode on a pass-through group isolates it.
+     */
+open func setProps(id: UInt64, props: LayerPropsRecord)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_set_props(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),
+        FfiConverterTypeLayerPropsRecord_lower(props),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Selects layers in the Layers panel (reported by `info`).
+     */
+open func setSelectedLayers(ids: [UInt64])throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_set_selected_layers(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceUInt64.lower(ids),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * A rectangular marquee selection (level-0 pixels), its edges ramped
+     * over `feather` pixels (0: hard edges). Other selection tools arrive
+     * with M5-11.
+     */
+open func setSelectionRect(x: Int64, y: Int64, width: Int64, height: Int64, feather: Float)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_set_selection_rect(
+            self.uniffiCloneHandle(),
+        FfiConverterInt64.lower(x),
+        FfiConverterInt64.lower(y),
+        FfiConverterInt64.lower(width),
+        FfiConverterInt64.lower(height),
+        FfiConverterFloat.lower(feather),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Shows `width × height` pixels at `(x, y)` of pyramid `level` (0 = full
+     * resolution; each level halves) top-left in the surfaces, clipped to
+     * the level and the surface size. `zoom` (1 = 100 %) is echoed in
+     * frames. Until the first call the whole canvas is shown at the finest
+     * level that fits the surfaces.
+     */
+open func setViewport(level: UInt8, x: UInt32, y: UInt32, width: UInt32, height: UInt32, zoom: Double)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_set_viewport(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt8.lower(level),
+        FfiConverterUInt32.lower(x),
+        FfiConverterUInt32.lower(y),
+        FfiConverterUInt32.lower(width),
+        FfiConverterUInt32.lower(height),
+        FfiConverterDouble.lower(zoom),uniffiCallStatus
+    )
+}
+}
+    
+open func setVisible(id: UInt64, visible: Bool)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_set_visible(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),
+        FfiConverterBool.lower(visible),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Names the current state (after committing a pending drag).
+     */
+open func snapshot(name: String)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_snapshot(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(name),uniffiCallStatus
+    )
+}
+}
+    
+open func snapshots()throws  -> [String]  {
+    return try  FfiConverterSequenceString.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_snapshots(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+open func undo()throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_undo(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Replaces a group by its children (the group's own properties go).
+     */
+open func ungroupLayer(id: UInt64)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_ungroup_layer(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),uniffiCallStatus
+    )
+})
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDocumentSession: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = DocumentSession
+
+    public static func lift(_ handle: UInt64) throws -> DocumentSession {
+        return DocumentSession(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: DocumentSession) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DocumentSession {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: DocumentSession, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDocumentSession_lift(_ handle: UInt64) throws -> DocumentSession {
+    return try FfiConverterTypeDocumentSession.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDocumentSession_lower(_ value: DocumentSession) -> UInt64 {
+    return FfiConverterTypeDocumentSession.lower(value)
+}
+
+
+
+
+
+
 public protocol EngineProtocol: AnyObject, Sendable {
     
     /**
@@ -3319,6 +4730,39 @@ public protocol EngineProtocol: AnyObject, Sendable {
      * raw): call off the main thread. One session per visible image.
      */
     func openDevelopSession(imageId: String) throws  -> DevelopSession
+    
+    /**
+     * Ids of the open document sessions, oldest first.
+     */
+    func documentIds()  -> [String]
+    
+    /**
+     * An open document session by id (`doc#N`).
+     */
+    func documentSession(id: String)  -> DocumentSession?
+    
+    /**
+     * A new document with one transparent pixel layer ("Layer 1").
+     * `profile`: `sRGB` (default), `Display P3`, `Adobe RGB`, `ProPhoto RGB`,
+     * `Rec. 2020`, or a path to an ICC profile.
+     */
+    func newDocument(width: UInt32, height: UInt32, depth: DocDepth, profile: String?) throws  -> DocumentSession
+    
+    /**
+     * Opens `.tessera-doc`, `.psd`/`.psb` (unknown PSD records are kept for
+     * save-back) or a flat JPEG/PNG/TIFF (one pixel layer named after the
+     * file). Blocking: call off the main thread. The same file opened twice
+     * returns the same session while it is open.
+     */
+    func openDocument(path: String) throws  -> DocumentSession
+    
+    /**
+     * A document with one pixel layer holding library image `image_id`
+     * rendered at full resolution through the export path (its develop
+     * recipe when `developed`, default settings otherwise), display
+     * orientation, 16-bit sRGB. Blocking (decodes and renders the RAW).
+     */
+    func openDocumentFromImage(imageId: String, developed: Bool) throws  -> DocumentSession
     
     func deleteExportPreset(name: String) throws 
     
@@ -3770,6 +5214,82 @@ open func openDevelopSession(imageId: String)throws  -> DevelopSession  {
     uniffi_tessera_ffi_fn_method_engine_open_develop_session(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(imageId),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Ids of the open document sessions, oldest first.
+     */
+open func documentIds() -> [String]  {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_document_ids(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * An open document session by id (`doc#N`).
+     */
+open func documentSession(id: String) -> DocumentSession?  {
+    return try!  FfiConverterOptionTypeDocumentSession.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_document_session(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * A new document with one transparent pixel layer ("Layer 1").
+     * `profile`: `sRGB` (default), `Display P3`, `Adobe RGB`, `ProPhoto RGB`,
+     * `Rec. 2020`, or a path to an ICC profile.
+     */
+open func newDocument(width: UInt32, height: UInt32, depth: DocDepth, profile: String?)throws  -> DocumentSession  {
+    return try  FfiConverterTypeDocumentSession_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_new_document(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(width),
+        FfiConverterUInt32.lower(height),
+        FfiConverterTypeDocDepth_lower(depth),
+        FfiConverterOptionString.lower(profile),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Opens `.tessera-doc`, `.psd`/`.psb` (unknown PSD records are kept for
+     * save-back) or a flat JPEG/PNG/TIFF (one pixel layer named after the
+     * file). Blocking: call off the main thread. The same file opened twice
+     * returns the same session while it is open.
+     */
+open func openDocument(path: String)throws  -> DocumentSession  {
+    return try  FfiConverterTypeDocumentSession_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_open_document(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(path),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * A document with one pixel layer holding library image `image_id`
+     * rendered at full resolution through the export path (its develop
+     * recipe when `developed`, default settings otherwise), display
+     * orientation, 16-bit sRGB. Blocking (decodes and renders the RAW).
+     */
+open func openDocumentFromImage(imageId: String, developed: Bool)throws  -> DocumentSession  {
+    return try  FfiConverterTypeDocumentSession_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_open_document_from_image(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(imageId),
+        FfiConverterBool.lower(developed),uniffiCallStatus
     )
 })
 }
@@ -7719,6 +9239,641 @@ public func FfiConverterTypeDevelopInfo_lower(_ value: DevelopInfo) -> RustBuffe
 }
 
 
+/**
+ * A presented frame.
+ */
+public struct DocFrameInfo: Equatable, Hashable {
+    /**
+     * Surface written (0 when none is attached).
+     */
+    public var surfaceId: UInt32
+    public var level: UInt8
+    /**
+     * Presented region in `level` coordinates; its pixels sit top-left in
+     * the surface, `width × height` texels.
+     */
+    public var x: UInt32
+    public var y: UInt32
+    public var width: UInt32
+    public var height: UInt32
+    /**
+     * The same region in level-0 canvas pixels (clipped to the canvas).
+     */
+    public var canvasRect: DocRect
+    /**
+     * Extent of the whole level.
+     */
+    public var levelWidth: UInt32
+    public var levelHeight: UInt32
+    /**
+     * Zoom from the last `set_viewport` (1 = 100 %), echoed back.
+     */
+    public var zoom: Double
+    /**
+     * Document epoch this frame shows.
+     */
+    public var epoch: UInt64
+    /**
+     * From the first change of this frame to the pixels being in the surface.
+     */
+    public var renderMs: Double
+    /**
+     * GPU-side work: the level was recomposited in full / blocks composited.
+     */
+    public var fullRecomposite: Bool
+    public var blocks: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Surface written (0 when none is attached).
+         */surfaceId: UInt32, level: UInt8, 
+        /**
+         * Presented region in `level` coordinates; its pixels sit top-left in
+         * the surface, `width × height` texels.
+         */x: UInt32, y: UInt32, width: UInt32, height: UInt32, 
+        /**
+         * The same region in level-0 canvas pixels (clipped to the canvas).
+         */canvasRect: DocRect, 
+        /**
+         * Extent of the whole level.
+         */levelWidth: UInt32, levelHeight: UInt32, 
+        /**
+         * Zoom from the last `set_viewport` (1 = 100 %), echoed back.
+         */zoom: Double, 
+        /**
+         * Document epoch this frame shows.
+         */epoch: UInt64, 
+        /**
+         * From the first change of this frame to the pixels being in the surface.
+         */renderMs: Double, 
+        /**
+         * GPU-side work: the level was recomposited in full / blocks composited.
+         */fullRecomposite: Bool, blocks: UInt32) {
+        self.surfaceId = surfaceId
+        self.level = level
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.canvasRect = canvasRect
+        self.levelWidth = levelWidth
+        self.levelHeight = levelHeight
+        self.zoom = zoom
+        self.epoch = epoch
+        self.renderMs = renderMs
+        self.fullRecomposite = fullRecomposite
+        self.blocks = blocks
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension DocFrameInfo: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDocFrameInfo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DocFrameInfo {
+        return
+            try DocFrameInfo(
+                surfaceId: FfiConverterUInt32.read(from: &buf), 
+                level: FfiConverterUInt8.read(from: &buf), 
+                x: FfiConverterUInt32.read(from: &buf), 
+                y: FfiConverterUInt32.read(from: &buf), 
+                width: FfiConverterUInt32.read(from: &buf), 
+                height: FfiConverterUInt32.read(from: &buf), 
+                canvasRect: FfiConverterTypeDocRect.read(from: &buf), 
+                levelWidth: FfiConverterUInt32.read(from: &buf), 
+                levelHeight: FfiConverterUInt32.read(from: &buf), 
+                zoom: FfiConverterDouble.read(from: &buf), 
+                epoch: FfiConverterUInt64.read(from: &buf), 
+                renderMs: FfiConverterDouble.read(from: &buf), 
+                fullRecomposite: FfiConverterBool.read(from: &buf), 
+                blocks: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: DocFrameInfo, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.surfaceId, into: &buf)
+        FfiConverterUInt8.write(value.level, into: &buf)
+        FfiConverterUInt32.write(value.x, into: &buf)
+        FfiConverterUInt32.write(value.y, into: &buf)
+        FfiConverterUInt32.write(value.width, into: &buf)
+        FfiConverterUInt32.write(value.height, into: &buf)
+        FfiConverterTypeDocRect.write(value.canvasRect, into: &buf)
+        FfiConverterUInt32.write(value.levelWidth, into: &buf)
+        FfiConverterUInt32.write(value.levelHeight, into: &buf)
+        FfiConverterDouble.write(value.zoom, into: &buf)
+        FfiConverterUInt64.write(value.epoch, into: &buf)
+        FfiConverterDouble.write(value.renderMs, into: &buf)
+        FfiConverterBool.write(value.fullRecomposite, into: &buf)
+        FfiConverterUInt32.write(value.blocks, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDocFrameInfo_lift(_ buf: RustBuffer) throws -> DocFrameInfo {
+    return try FfiConverterTypeDocFrameInfo.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDocFrameInfo_lower(_ value: DocFrameInfo) -> RustBuffer {
+    return FfiConverterTypeDocFrameInfo.lower(value)
+}
+
+
+/**
+ * One history state, as the History panel lists it.
+ */
+public struct DocHistoryItem: Equatable, Hashable {
+    public var id: UInt64
+    public var label: String
+    /**
+     * Parent state (`None` for the opened state or after pruning).
+     */
+    public var parent: UInt64?
+    public var isCurrent: Bool
+    /**
+     * "user" (agents and imports arrive with the MCP document tools).
+     */
+    public var author: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: UInt64, label: String, 
+        /**
+         * Parent state (`None` for the opened state or after pruning).
+         */parent: UInt64?, isCurrent: Bool, 
+        /**
+         * "user" (agents and imports arrive with the MCP document tools).
+         */author: String) {
+        self.id = id
+        self.label = label
+        self.parent = parent
+        self.isCurrent = isCurrent
+        self.author = author
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension DocHistoryItem: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDocHistoryItem: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DocHistoryItem {
+        return
+            try DocHistoryItem(
+                id: FfiConverterUInt64.read(from: &buf), 
+                label: FfiConverterString.read(from: &buf), 
+                parent: FfiConverterOptionUInt64.read(from: &buf), 
+                isCurrent: FfiConverterBool.read(from: &buf), 
+                author: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: DocHistoryItem, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.id, into: &buf)
+        FfiConverterString.write(value.label, into: &buf)
+        FfiConverterOptionUInt64.write(value.parent, into: &buf)
+        FfiConverterBool.write(value.isCurrent, into: &buf)
+        FfiConverterString.write(value.author, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDocHistoryItem_lift(_ buf: RustBuffer) throws -> DocHistoryItem {
+    return try FfiConverterTypeDocHistoryItem.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDocHistoryItem_lower(_ value: DocHistoryItem) -> RustBuffer {
+    return FfiConverterTypeDocHistoryItem.lower(value)
+}
+
+
+/**
+ * A pixel rectangle `x, y, width × height` (level 0 unless stated).
+ */
+public struct DocRect: Equatable, Hashable {
+    public var x: Int64
+    public var y: Int64
+    public var width: Int64
+    public var height: Int64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(x: Int64, y: Int64, width: Int64, height: Int64) {
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension DocRect: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDocRect: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DocRect {
+        return
+            try DocRect(
+                x: FfiConverterInt64.read(from: &buf), 
+                y: FfiConverterInt64.read(from: &buf), 
+                width: FfiConverterInt64.read(from: &buf), 
+                height: FfiConverterInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: DocRect, into buf: inout [UInt8]) {
+        FfiConverterInt64.write(value.x, into: &buf)
+        FfiConverterInt64.write(value.y, into: &buf)
+        FfiConverterInt64.write(value.width, into: &buf)
+        FfiConverterInt64.write(value.height, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDocRect_lift(_ buf: RustBuffer) throws -> DocRect {
+    return try FfiConverterTypeDocRect.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDocRect_lower(_ value: DocRect) -> RustBuffer {
+    return FfiConverterTypeDocRect.lower(value)
+}
+
+
+/**
+ * Surface size to allocate for a fit-to-window viewport of `width × height`
+ * device pixels: the extent of `level`, the coarsest level covering it.
+ */
+public struct DocSurfacePlan: Equatable, Hashable {
+    public var level: UInt8
+    public var width: UInt32
+    public var height: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(level: UInt8, width: UInt32, height: UInt32) {
+        self.level = level
+        self.width = width
+        self.height = height
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension DocSurfacePlan: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDocSurfacePlan: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DocSurfacePlan {
+        return
+            try DocSurfacePlan(
+                level: FfiConverterUInt8.read(from: &buf), 
+                width: FfiConverterUInt32.read(from: &buf), 
+                height: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: DocSurfacePlan, into buf: inout [UInt8]) {
+        FfiConverterUInt8.write(value.level, into: &buf)
+        FfiConverterUInt32.write(value.width, into: &buf)
+        FfiConverterUInt32.write(value.height, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDocSurfacePlan_lift(_ buf: RustBuffer) throws -> DocSurfacePlan {
+    return try FfiConverterTypeDocSurfacePlan.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDocSurfacePlan_lower(_ value: DocSurfacePlan) -> RustBuffer {
+    return FfiConverterTypeDocSurfacePlan.lower(value)
+}
+
+
+/**
+ * Document summary.
+ */
+public struct DocumentInfo: Equatable, Hashable {
+    /**
+     * `doc#N`: this session's document id.
+     */
+    public var id: String
+    /**
+     * Where `save` writes (`.tessera-doc`, `.psd` or `.psb`); `None` for
+     * new documents and flat images until `save_as`.
+     */
+    public var path: String?
+    public var title: String
+    public var width: UInt32
+    public var height: UInt32
+    public var depth: DocDepth
+    /**
+     * Profile description (`None`: untagged, treated as sRGB).
+     */
+    public var profileName: String?
+    public var dirty: Bool
+    public var historyHead: UInt64
+    public var canUndo: Bool
+    public var canRedo: Bool
+    /**
+     * Layers selected in the Layers panel (`set_selected_layers`).
+     */
+    public var selectedLayerIds: [UInt64]
+    /**
+     * Bounds of the selection (`None`: no selection, i.e. select all).
+     */
+    public var selectionBounds: DocRect?
+    /**
+     * Library image this document was made from (`open_document_from_image`).
+     */
+    public var sourceImageId: String?
+    public var layerCount: UInt32
+    public var epoch: UInt64
+    /**
+     * "Metal (<adapter>)" or "CPU".
+     */
+    public var backend: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * `doc#N`: this session's document id.
+         */id: String, 
+        /**
+         * Where `save` writes (`.tessera-doc`, `.psd` or `.psb`); `None` for
+         * new documents and flat images until `save_as`.
+         */path: String?, title: String, width: UInt32, height: UInt32, depth: DocDepth, 
+        /**
+         * Profile description (`None`: untagged, treated as sRGB).
+         */profileName: String?, dirty: Bool, historyHead: UInt64, canUndo: Bool, canRedo: Bool, 
+        /**
+         * Layers selected in the Layers panel (`set_selected_layers`).
+         */selectedLayerIds: [UInt64], 
+        /**
+         * Bounds of the selection (`None`: no selection, i.e. select all).
+         */selectionBounds: DocRect?, 
+        /**
+         * Library image this document was made from (`open_document_from_image`).
+         */sourceImageId: String?, layerCount: UInt32, epoch: UInt64, 
+        /**
+         * "Metal (<adapter>)" or "CPU".
+         */backend: String) {
+        self.id = id
+        self.path = path
+        self.title = title
+        self.width = width
+        self.height = height
+        self.depth = depth
+        self.profileName = profileName
+        self.dirty = dirty
+        self.historyHead = historyHead
+        self.canUndo = canUndo
+        self.canRedo = canRedo
+        self.selectedLayerIds = selectedLayerIds
+        self.selectionBounds = selectionBounds
+        self.sourceImageId = sourceImageId
+        self.layerCount = layerCount
+        self.epoch = epoch
+        self.backend = backend
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension DocumentInfo: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDocumentInfo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DocumentInfo {
+        return
+            try DocumentInfo(
+                id: FfiConverterString.read(from: &buf), 
+                path: FfiConverterOptionString.read(from: &buf), 
+                title: FfiConverterString.read(from: &buf), 
+                width: FfiConverterUInt32.read(from: &buf), 
+                height: FfiConverterUInt32.read(from: &buf), 
+                depth: FfiConverterTypeDocDepth.read(from: &buf), 
+                profileName: FfiConverterOptionString.read(from: &buf), 
+                dirty: FfiConverterBool.read(from: &buf), 
+                historyHead: FfiConverterUInt64.read(from: &buf), 
+                canUndo: FfiConverterBool.read(from: &buf), 
+                canRedo: FfiConverterBool.read(from: &buf), 
+                selectedLayerIds: FfiConverterSequenceUInt64.read(from: &buf), 
+                selectionBounds: FfiConverterOptionTypeDocRect.read(from: &buf), 
+                sourceImageId: FfiConverterOptionString.read(from: &buf), 
+                layerCount: FfiConverterUInt32.read(from: &buf), 
+                epoch: FfiConverterUInt64.read(from: &buf), 
+                backend: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: DocumentInfo, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterOptionString.write(value.path, into: &buf)
+        FfiConverterString.write(value.title, into: &buf)
+        FfiConverterUInt32.write(value.width, into: &buf)
+        FfiConverterUInt32.write(value.height, into: &buf)
+        FfiConverterTypeDocDepth.write(value.depth, into: &buf)
+        FfiConverterOptionString.write(value.profileName, into: &buf)
+        FfiConverterBool.write(value.dirty, into: &buf)
+        FfiConverterUInt64.write(value.historyHead, into: &buf)
+        FfiConverterBool.write(value.canUndo, into: &buf)
+        FfiConverterBool.write(value.canRedo, into: &buf)
+        FfiConverterSequenceUInt64.write(value.selectedLayerIds, into: &buf)
+        FfiConverterOptionTypeDocRect.write(value.selectionBounds, into: &buf)
+        FfiConverterOptionString.write(value.sourceImageId, into: &buf)
+        FfiConverterUInt32.write(value.layerCount, into: &buf)
+        FfiConverterUInt64.write(value.epoch, into: &buf)
+        FfiConverterString.write(value.backend, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDocumentInfo_lift(_ buf: RustBuffer) throws -> DocumentInfo {
+    return try FfiConverterTypeDocumentInfo.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDocumentInfo_lower(_ value: DocumentInfo) -> RustBuffer {
+    return FfiConverterTypeDocumentInfo.lower(value)
+}
+
+
+/**
+ * What one edit did.
+ */
+public struct DocumentUpdate: Equatable, Hashable {
+    /**
+     * Layers whose row may have changed: edited, added or removed layers
+     * and their ancestor groups.
+     */
+    public var layersChanged: [UInt64]
+    /**
+     * Layers the edit created (added, duplicated, merged).
+     */
+    public var created: [UInt64]
+    /**
+     * Current history node (unchanged by interactive edits).
+     */
+    public var historyHead: UInt64
+    /**
+     * Level-0 region whose composite may have changed (`None`: nothing).
+     */
+    public var dirtyRect: DocRect?
+    /**
+     * Document epoch after the edit (every mutation increments it).
+     */
+    public var epoch: UInt64
+    /**
+     * Unsaved changes.
+     */
+    public var dirty: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Layers whose row may have changed: edited, added or removed layers
+         * and their ancestor groups.
+         */layersChanged: [UInt64], 
+        /**
+         * Layers the edit created (added, duplicated, merged).
+         */created: [UInt64], 
+        /**
+         * Current history node (unchanged by interactive edits).
+         */historyHead: UInt64, 
+        /**
+         * Level-0 region whose composite may have changed (`None`: nothing).
+         */dirtyRect: DocRect?, 
+        /**
+         * Document epoch after the edit (every mutation increments it).
+         */epoch: UInt64, 
+        /**
+         * Unsaved changes.
+         */dirty: Bool) {
+        self.layersChanged = layersChanged
+        self.created = created
+        self.historyHead = historyHead
+        self.dirtyRect = dirtyRect
+        self.epoch = epoch
+        self.dirty = dirty
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension DocumentUpdate: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDocumentUpdate: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DocumentUpdate {
+        return
+            try DocumentUpdate(
+                layersChanged: FfiConverterSequenceUInt64.read(from: &buf), 
+                created: FfiConverterSequenceUInt64.read(from: &buf), 
+                historyHead: FfiConverterUInt64.read(from: &buf), 
+                dirtyRect: FfiConverterOptionTypeDocRect.read(from: &buf), 
+                epoch: FfiConverterUInt64.read(from: &buf), 
+                dirty: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: DocumentUpdate, into buf: inout [UInt8]) {
+        FfiConverterSequenceUInt64.write(value.layersChanged, into: &buf)
+        FfiConverterSequenceUInt64.write(value.created, into: &buf)
+        FfiConverterUInt64.write(value.historyHead, into: &buf)
+        FfiConverterOptionTypeDocRect.write(value.dirtyRect, into: &buf)
+        FfiConverterUInt64.write(value.epoch, into: &buf)
+        FfiConverterBool.write(value.dirty, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDocumentUpdate_lift(_ buf: RustBuffer) throws -> DocumentUpdate {
+    return try FfiConverterTypeDocumentUpdate.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDocumentUpdate_lower(_ value: DocumentUpdate) -> RustBuffer {
+    return FfiConverterTypeDocumentUpdate.lower(value)
+}
+
+
 public struct ExportItemResult: Equatable, Hashable {
     public var imageId: String
     /**
@@ -9927,6 +12082,408 @@ public func FfiConverterTypeKeywordSuggestionInfo_lift(_ buf: RustBuffer) throws
 #endif
 public func FfiConverterTypeKeywordSuggestionInfo_lower(_ value: KeywordSuggestionInfo) -> RustBuffer {
     return FfiConverterTypeKeywordSuggestionInfo.lower(value)
+}
+
+
+/**
+ * Layer lock flags (edit ops enforce them; the compositor ignores them).
+ */
+public struct LayerLocks: Equatable, Hashable {
+    public var transparency: Bool
+    public var pixels: Bool
+    public var position: Bool
+    public var all: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(transparency: Bool, pixels: Bool, position: Bool, all: Bool) {
+        self.transparency = transparency
+        self.pixels = pixels
+        self.position = position
+        self.all = all
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LayerLocks: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLayerLocks: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LayerLocks {
+        return
+            try LayerLocks(
+                transparency: FfiConverterBool.read(from: &buf), 
+                pixels: FfiConverterBool.read(from: &buf), 
+                position: FfiConverterBool.read(from: &buf), 
+                all: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LayerLocks, into buf: inout [UInt8]) {
+        FfiConverterBool.write(value.transparency, into: &buf)
+        FfiConverterBool.write(value.pixels, into: &buf)
+        FfiConverterBool.write(value.position, into: &buf)
+        FfiConverterBool.write(value.all, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLayerLocks_lift(_ buf: RustBuffer) throws -> LayerLocks {
+    return try FfiConverterTypeLayerLocks.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLayerLocks_lower(_ value: LayerLocks) -> RustBuffer {
+    return FfiConverterTypeLayerLocks.lower(value)
+}
+
+
+/**
+ * One row of the Layers panel. [`DocumentSession::layers`] lists the tree
+ * flat in pre-order with siblings **top-first** (the panel's order): a group
+ * row is followed by its children, topmost child first.
+ */
+public struct LayerNode: Equatable, Hashable {
+    public var id: UInt64
+    /**
+     * Enclosing group (`None` at the document root).
+     */
+    public var parent: UInt64?
+    /**
+     * Compositor child index within the parent: 0 = bottom.
+     */
+    public var index: UInt32
+    /**
+     * Nesting depth: 0 at the root.
+     */
+    public var depth: UInt32
+    public var kind: DocLayerKind
+    public var name: String
+    public var visible: Bool
+    public var opacity: Float
+    public var fillOpacity: Float
+    /**
+     * Stable snake_case blend mode name (`normal`, `dissolve`, `darken`,
+     * `multiply`, `color_burn`, `linear_burn`, `darker_color`, `lighten`,
+     * `screen`, `color_dodge`, `linear_dodge`, `lighter_color`, `overlay`,
+     * `soft_light`, `hard_light`, `vivid_light`, `linear_light`,
+     * `pin_light`, `hard_mix`, `difference`, `exclusion`, `subtract`,
+     * `divide`, `hue`, `saturation`, `color`, `luminosity`: COMPOSITOR.md
+     * §2 in Photoshop's menu order, see [`blend_mode_names`]), or
+     * `pass_through` for pass-through groups.
+     */
+    public var blendMode: String
+    /**
+     * Groups only.
+     */
+    public var groupMode: DocGroupMode?
+    public var clipped: Bool
+    public var locks: LayerLocks
+    /**
+     * `none`, `shallow` or `deep`.
+     */
+    public var knockout: String
+    /**
+     * The document Background layer.
+     */
+    public var background: Bool
+    public var hasMask: Bool
+    public var maskEnabled: Bool
+    /**
+     * Mask moves with the layer (the chain icon). Session state: the
+     * compositor does not model translation yet, so it is not saved.
+     */
+    public var maskLinked: Bool
+    public var maskDensity: Float
+    /**
+     * `compositor::Adjustment` JSON (adjustment layers only).
+     */
+    public var adjustmentJson: String?
+    /**
+     * `compositor::Fill` JSON (fill layers only).
+     */
+    public var fillJson: String?
+    /**
+     * Canvas region the layer can change, in whole stored tiles (256-px
+     * granular) for pixel and text layers and groups of them; `None` for
+     * layers that can change anywhere (adjustments, fills, smart objects)
+     * and for empty layers.
+     */
+    public var bounds: DocRect?
+    /**
+     * Increases whenever the layer's pixels, mask or properties change
+     * (the thumbnail cache key).
+     */
+    public var revision: UInt64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: UInt64, 
+        /**
+         * Enclosing group (`None` at the document root).
+         */parent: UInt64?, 
+        /**
+         * Compositor child index within the parent: 0 = bottom.
+         */index: UInt32, 
+        /**
+         * Nesting depth: 0 at the root.
+         */depth: UInt32, kind: DocLayerKind, name: String, visible: Bool, opacity: Float, fillOpacity: Float, 
+        /**
+         * Stable snake_case blend mode name (`normal`, `dissolve`, `darken`,
+         * `multiply`, `color_burn`, `linear_burn`, `darker_color`, `lighten`,
+         * `screen`, `color_dodge`, `linear_dodge`, `lighter_color`, `overlay`,
+         * `soft_light`, `hard_light`, `vivid_light`, `linear_light`,
+         * `pin_light`, `hard_mix`, `difference`, `exclusion`, `subtract`,
+         * `divide`, `hue`, `saturation`, `color`, `luminosity`: COMPOSITOR.md
+         * §2 in Photoshop's menu order, see [`blend_mode_names`]), or
+         * `pass_through` for pass-through groups.
+         */blendMode: String, 
+        /**
+         * Groups only.
+         */groupMode: DocGroupMode?, clipped: Bool, locks: LayerLocks, 
+        /**
+         * `none`, `shallow` or `deep`.
+         */knockout: String, 
+        /**
+         * The document Background layer.
+         */background: Bool, hasMask: Bool, maskEnabled: Bool, 
+        /**
+         * Mask moves with the layer (the chain icon). Session state: the
+         * compositor does not model translation yet, so it is not saved.
+         */maskLinked: Bool, maskDensity: Float, 
+        /**
+         * `compositor::Adjustment` JSON (adjustment layers only).
+         */adjustmentJson: String?, 
+        /**
+         * `compositor::Fill` JSON (fill layers only).
+         */fillJson: String?, 
+        /**
+         * Canvas region the layer can change, in whole stored tiles (256-px
+         * granular) for pixel and text layers and groups of them; `None` for
+         * layers that can change anywhere (adjustments, fills, smart objects)
+         * and for empty layers.
+         */bounds: DocRect?, 
+        /**
+         * Increases whenever the layer's pixels, mask or properties change
+         * (the thumbnail cache key).
+         */revision: UInt64) {
+        self.id = id
+        self.parent = parent
+        self.index = index
+        self.depth = depth
+        self.kind = kind
+        self.name = name
+        self.visible = visible
+        self.opacity = opacity
+        self.fillOpacity = fillOpacity
+        self.blendMode = blendMode
+        self.groupMode = groupMode
+        self.clipped = clipped
+        self.locks = locks
+        self.knockout = knockout
+        self.background = background
+        self.hasMask = hasMask
+        self.maskEnabled = maskEnabled
+        self.maskLinked = maskLinked
+        self.maskDensity = maskDensity
+        self.adjustmentJson = adjustmentJson
+        self.fillJson = fillJson
+        self.bounds = bounds
+        self.revision = revision
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LayerNode: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLayerNode: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LayerNode {
+        return
+            try LayerNode(
+                id: FfiConverterUInt64.read(from: &buf), 
+                parent: FfiConverterOptionUInt64.read(from: &buf), 
+                index: FfiConverterUInt32.read(from: &buf), 
+                depth: FfiConverterUInt32.read(from: &buf), 
+                kind: FfiConverterTypeDocLayerKind.read(from: &buf), 
+                name: FfiConverterString.read(from: &buf), 
+                visible: FfiConverterBool.read(from: &buf), 
+                opacity: FfiConverterFloat.read(from: &buf), 
+                fillOpacity: FfiConverterFloat.read(from: &buf), 
+                blendMode: FfiConverterString.read(from: &buf), 
+                groupMode: FfiConverterOptionTypeDocGroupMode.read(from: &buf), 
+                clipped: FfiConverterBool.read(from: &buf), 
+                locks: FfiConverterTypeLayerLocks.read(from: &buf), 
+                knockout: FfiConverterString.read(from: &buf), 
+                background: FfiConverterBool.read(from: &buf), 
+                hasMask: FfiConverterBool.read(from: &buf), 
+                maskEnabled: FfiConverterBool.read(from: &buf), 
+                maskLinked: FfiConverterBool.read(from: &buf), 
+                maskDensity: FfiConverterFloat.read(from: &buf), 
+                adjustmentJson: FfiConverterOptionString.read(from: &buf), 
+                fillJson: FfiConverterOptionString.read(from: &buf), 
+                bounds: FfiConverterOptionTypeDocRect.read(from: &buf), 
+                revision: FfiConverterUInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LayerNode, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.id, into: &buf)
+        FfiConverterOptionUInt64.write(value.parent, into: &buf)
+        FfiConverterUInt32.write(value.index, into: &buf)
+        FfiConverterUInt32.write(value.depth, into: &buf)
+        FfiConverterTypeDocLayerKind.write(value.kind, into: &buf)
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterBool.write(value.visible, into: &buf)
+        FfiConverterFloat.write(value.opacity, into: &buf)
+        FfiConverterFloat.write(value.fillOpacity, into: &buf)
+        FfiConverterString.write(value.blendMode, into: &buf)
+        FfiConverterOptionTypeDocGroupMode.write(value.groupMode, into: &buf)
+        FfiConverterBool.write(value.clipped, into: &buf)
+        FfiConverterTypeLayerLocks.write(value.locks, into: &buf)
+        FfiConverterString.write(value.knockout, into: &buf)
+        FfiConverterBool.write(value.background, into: &buf)
+        FfiConverterBool.write(value.hasMask, into: &buf)
+        FfiConverterBool.write(value.maskEnabled, into: &buf)
+        FfiConverterBool.write(value.maskLinked, into: &buf)
+        FfiConverterFloat.write(value.maskDensity, into: &buf)
+        FfiConverterOptionString.write(value.adjustmentJson, into: &buf)
+        FfiConverterOptionString.write(value.fillJson, into: &buf)
+        FfiConverterOptionTypeDocRect.write(value.bounds, into: &buf)
+        FfiConverterUInt64.write(value.revision, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLayerNode_lift(_ buf: RustBuffer) throws -> LayerNode {
+    return try FfiConverterTypeLayerNode.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLayerNode_lower(_ value: LayerNode) -> RustBuffer {
+    return FfiConverterTypeLayerNode.lower(value)
+}
+
+
+/**
+ * Common layer properties for [`DocumentSession::set_props`]. Blend If
+ * sliders and the Background flag are kept as they are.
+ */
+public struct LayerPropsRecord: Equatable, Hashable {
+    public var name: String
+    public var visible: Bool
+    public var opacity: Float
+    public var fillOpacity: Float
+    /**
+     * A [`LayerNode::blend_mode`] name; `pass_through` for groups only.
+     */
+    public var blendMode: String
+    public var clipped: Bool
+    public var locks: LayerLocks
+    /**
+     * `none`, `shallow` or `deep`.
+     */
+    public var knockout: String
+    public var colorTag: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(name: String, visible: Bool, opacity: Float, fillOpacity: Float, 
+        /**
+         * A [`LayerNode::blend_mode`] name; `pass_through` for groups only.
+         */blendMode: String, clipped: Bool, locks: LayerLocks, 
+        /**
+         * `none`, `shallow` or `deep`.
+         */knockout: String, colorTag: String?) {
+        self.name = name
+        self.visible = visible
+        self.opacity = opacity
+        self.fillOpacity = fillOpacity
+        self.blendMode = blendMode
+        self.clipped = clipped
+        self.locks = locks
+        self.knockout = knockout
+        self.colorTag = colorTag
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LayerPropsRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLayerPropsRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LayerPropsRecord {
+        return
+            try LayerPropsRecord(
+                name: FfiConverterString.read(from: &buf), 
+                visible: FfiConverterBool.read(from: &buf), 
+                opacity: FfiConverterFloat.read(from: &buf), 
+                fillOpacity: FfiConverterFloat.read(from: &buf), 
+                blendMode: FfiConverterString.read(from: &buf), 
+                clipped: FfiConverterBool.read(from: &buf), 
+                locks: FfiConverterTypeLayerLocks.read(from: &buf), 
+                knockout: FfiConverterString.read(from: &buf), 
+                colorTag: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LayerPropsRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterBool.write(value.visible, into: &buf)
+        FfiConverterFloat.write(value.opacity, into: &buf)
+        FfiConverterFloat.write(value.fillOpacity, into: &buf)
+        FfiConverterString.write(value.blendMode, into: &buf)
+        FfiConverterBool.write(value.clipped, into: &buf)
+        FfiConverterTypeLayerLocks.write(value.locks, into: &buf)
+        FfiConverterString.write(value.knockout, into: &buf)
+        FfiConverterOptionString.write(value.colorTag, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLayerPropsRecord_lift(_ buf: RustBuffer) throws -> LayerPropsRecord {
+    return try FfiConverterTypeLayerPropsRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLayerPropsRecord_lower(_ value: LayerPropsRecord) -> RustBuffer {
+    return FfiConverterTypeLayerPropsRecord.lower(value)
 }
 
 
@@ -14549,6 +17106,254 @@ public func FfiConverterTypeDecision_lower(_ value: Decision) -> RustBuffer {
 
 
 
+/**
+ * Bits per channel of a document.
+ */
+
+public enum DocDepth: Equatable, Hashable {
+    
+    case u8
+    case u16
+    case f32
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension DocDepth: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDocDepth: FfiConverterRustBuffer {
+    typealias SwiftType = DocDepth
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DocDepth {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .u8
+        
+        case 2: return .u16
+        
+        case 3: return .f32
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: DocDepth, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .u8:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .u16:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .f32:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDocDepth_lift(_ buf: RustBuffer) throws -> DocDepth {
+    return try FfiConverterTypeDocDepth.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDocDepth_lower(_ value: DocDepth) -> RustBuffer {
+    return FfiConverterTypeDocDepth.lower(value)
+}
+
+
+
+/**
+ * How a group composites its children.
+ */
+
+public enum DocGroupMode: Equatable, Hashable {
+    
+    /**
+     * Children blend straight into the backdrop (Photoshop "Pass Through").
+     */
+    case passThrough
+    /**
+     * Children composite into their own buffer, blended with the group's mode.
+     */
+    case isolated
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension DocGroupMode: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDocGroupMode: FfiConverterRustBuffer {
+    typealias SwiftType = DocGroupMode
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DocGroupMode {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .passThrough
+        
+        case 2: return .isolated
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: DocGroupMode, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .passThrough:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .isolated:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDocGroupMode_lift(_ buf: RustBuffer) throws -> DocGroupMode {
+    return try FfiConverterTypeDocGroupMode.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDocGroupMode_lower(_ value: DocGroupMode) -> RustBuffer {
+    return FfiConverterTypeDocGroupMode.lower(value)
+}
+
+
+
+/**
+ * What a layer is.
+ */
+
+public enum DocLayerKind: Equatable, Hashable {
+    
+    case pixel
+    case adjustment
+    case fill
+    case group
+    case smartObject
+    case text
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension DocLayerKind: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDocLayerKind: FfiConverterRustBuffer {
+    typealias SwiftType = DocLayerKind
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DocLayerKind {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .pixel
+        
+        case 2: return .adjustment
+        
+        case 3: return .fill
+        
+        case 4: return .group
+        
+        case 5: return .smartObject
+        
+        case 6: return .text
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: DocLayerKind, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .pixel:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .adjustment:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .fill:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .group:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .smartObject:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .text:
+            writeInt(&buf, Int32(6))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDocLayerKind_lift(_ buf: RustBuffer) throws -> DocLayerKind {
+    return try FfiConverterTypeDocLayerKind.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDocLayerKind_lower(_ value: DocLayerKind) -> RustBuffer {
+    return FfiConverterTypeDocLayerKind.lower(value)
+}
+
+
+
 
 public enum EngineEvent: Equatable, Hashable {
     
@@ -14620,6 +17425,182 @@ public func FfiConverterTypeEngineEvent_lift(_ buf: RustBuffer) throws -> Engine
 #endif
 public func FfiConverterTypeEngineEvent_lower(_ value: EngineEvent) -> RustBuffer {
     return FfiConverterTypeEngineEvent.lower(value)
+}
+
+
+
+/**
+ * Colour space of a flat export.
+ */
+
+public enum ExportColor: Equatable, Hashable {
+    
+    /**
+     * The document's own profile (no conversion).
+     */
+    case document
+    case srgb
+    case displayP3
+    case adobeRgb
+    case proPhoto
+    case rec2020
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension ExportColor: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeExportColor: FfiConverterRustBuffer {
+    typealias SwiftType = ExportColor
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ExportColor {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .document
+        
+        case 2: return .srgb
+        
+        case 3: return .displayP3
+        
+        case 4: return .adobeRgb
+        
+        case 5: return .proPhoto
+        
+        case 6: return .rec2020
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: ExportColor, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .document:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .srgb:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .displayP3:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .adobeRgb:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .proPhoto:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .rec2020:
+            writeInt(&buf, Int32(6))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeExportColor_lift(_ buf: RustBuffer) throws -> ExportColor {
+    return try FfiConverterTypeExportColor.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeExportColor_lower(_ value: ExportColor) -> RustBuffer {
+    return FfiConverterTypeExportColor.lower(value)
+}
+
+
+
+/**
+ * Flat export container.
+ */
+
+public enum ExportFormat: Equatable, Hashable {
+    
+    case png
+    case jpeg
+    case tiff
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension ExportFormat: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeExportFormat: FfiConverterRustBuffer {
+    typealias SwiftType = ExportFormat
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ExportFormat {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .png
+        
+        case 2: return .jpeg
+        
+        case 3: return .tiff
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: ExportFormat, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .png:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .jpeg:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .tiff:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeExportFormat_lift(_ buf: RustBuffer) throws -> ExportFormat {
+    return try FfiConverterTypeExportFormat.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeExportFormat_lower(_ value: ExportFormat) -> RustBuffer {
+    return FfiConverterTypeExportFormat.lower(value)
 }
 
 
@@ -15278,6 +18259,191 @@ public func FfiConverterTypeMaskComponentType_lift(_ buf: RustBuffer) throws -> 
 #endif
 public func FfiConverterTypeMaskComponentType_lower(_ value: MaskComponentType) -> RustBuffer {
     return FfiConverterTypeMaskComponentType.lower(value)
+}
+
+
+
+/**
+ * Initial content of a new layer mask.
+ */
+
+public enum MaskInit: Equatable, Hashable {
+    
+    case revealAll
+    case hideAll
+    /**
+     * The current selection (fails without one).
+     */
+    case fromSelection
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension MaskInit: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMaskInit: FfiConverterRustBuffer {
+    typealias SwiftType = MaskInit
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MaskInit {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .revealAll
+        
+        case 2: return .hideAll
+        
+        case 3: return .fromSelection
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: MaskInit, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .revealAll:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .hideAll:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .fromSelection:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMaskInit_lift(_ buf: RustBuffer) throws -> MaskInit {
+    return try FfiConverterTypeMaskInit.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMaskInit_lower(_ value: MaskInit) -> RustBuffer {
+    return FfiConverterTypeMaskInit.lower(value)
+}
+
+
+
+/**
+ * New layer content for [`DocumentSession::add_layer`].
+ */
+
+public enum NewLayer: Equatable, Hashable {
+    
+    /**
+     * A transparent pixel layer.
+     */
+    case pixel
+    /**
+     * An empty group.
+     */
+    case group(mode: DocGroupMode
+    )
+    /**
+     * An adjustment layer from `compositor::Adjustment` JSON, e.g.
+     * `{"kind":"exposure","exposure":1,"offset":0,"gamma":1}`.
+     */
+    case adjustment(json: String
+    )
+    /**
+     * A fill layer from `compositor::Fill` JSON, e.g.
+     * `{"kind":"solid","color":[1,0,0]}`.
+     */
+    case fill(json: String
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension NewLayer: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNewLayer: FfiConverterRustBuffer {
+    typealias SwiftType = NewLayer
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NewLayer {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .pixel
+        
+        case 2: return .group(mode: try FfiConverterTypeDocGroupMode.read(from: &buf)
+        )
+        
+        case 3: return .adjustment(json: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 4: return .fill(json: try FfiConverterString.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: NewLayer, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .pixel:
+            writeInt(&buf, Int32(1))
+        
+        
+        case let .group(mode):
+            writeInt(&buf, Int32(2))
+            FfiConverterTypeDocGroupMode.write(mode, into: &buf)
+            
+        
+        case let .adjustment(json):
+            writeInt(&buf, Int32(3))
+            FfiConverterString.write(json, into: &buf)
+            
+        
+        case let .fill(json):
+            writeInt(&buf, Int32(4))
+            FfiConverterString.write(json, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNewLayer_lift(_ buf: RustBuffer) throws -> NewLayer {
+    return try FfiConverterTypeNewLayer.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNewLayer_lower(_ value: NewLayer) -> RustBuffer {
+    return FfiConverterTypeNewLayer.lower(value)
 }
 
 
@@ -16290,6 +19456,54 @@ fileprivate struct FfiConverterOptionTypeDevelopListener: FfiConverterRustBuffer
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeDocumentListener: FfiConverterRustBuffer {
+    typealias SwiftType = DocumentListener?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeDocumentListener.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeDocumentListener.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeDocumentSession: FfiConverterRustBuffer {
+    typealias SwiftType = DocumentSession?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeDocumentSession.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeDocumentSession.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeEngineEventListener: FfiConverterRustBuffer {
     typealias SwiftType = EngineEventListener?
 
@@ -16458,6 +19672,30 @@ fileprivate struct FfiConverterOptionTypeCullUpdate: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeDocRect: FfiConverterRustBuffer {
+    typealias SwiftType = DocRect?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeDocRect.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeDocRect.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeMaskRect: FfiConverterRustBuffer {
     typealias SwiftType = MaskRect?
 
@@ -16618,6 +19856,30 @@ fileprivate struct FfiConverterOptionTypeDecision: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeDecision.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeDocGroupMode: FfiConverterRustBuffer {
+    typealias SwiftType = DocGroupMode?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeDocGroupMode.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeDocGroupMode.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -17024,6 +20286,31 @@ fileprivate struct FfiConverterSequenceTypeDefectThreshold: FfiConverterRustBuff
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeDocHistoryItem: FfiConverterRustBuffer {
+    typealias SwiftType = [DocHistoryItem]
+
+    public static func write(_ value: [DocHistoryItem], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeDocHistoryItem.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [DocHistoryItem] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [DocHistoryItem]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeDocHistoryItem.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeExportItemResult: FfiConverterRustBuffer {
     typealias SwiftType = [ExportItemResult]
 
@@ -17416,6 +20703,31 @@ fileprivate struct FfiConverterSequenceTypeKeywordSuggestionInfo: FfiConverterRu
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeKeywordSuggestionInfo.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeLayerNode: FfiConverterRustBuffer {
+    typealias SwiftType = [LayerNode]
+
+    public static func write(_ value: [LayerNode], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeLayerNode.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [LayerNode] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [LayerNode]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeLayerNode.read(from: &buf))
         }
         return seq
     }
@@ -18046,6 +21358,17 @@ fileprivate struct FfiConverterSequenceTypeUnderstandingTask: FfiConverterRustBu
     }
 }
 /**
+ * The 27 blend mode names in Photoshop's menu order (COMPOSITOR.md §2),
+ * as used by [`LayerNode::blend_mode`]. Groups add `pass_through`.
+ */
+public func blendModeNames() -> [String]  {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_func_blend_mode_names(uniffiCallStatus
+    )
+})
+}
+/**
  * Describes one profile file (for "Other…"); fails unless it is an output profile.
  */
 public func describePrinterProfile(path: String)throws  -> PrinterProfile  {
@@ -18120,6 +21443,9 @@ private let initializationResult: InitializationResult = {
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
     }
+    if (uniffi_tessera_ffi_checksum_func_blend_mode_names() != 47688) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_tessera_ffi_checksum_func_describe_printer_profile() != 56173) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -18187,6 +21513,21 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_engine_open_develop_session() != 22073) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_document_ids() != 48705) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_document_session() != 26598) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_new_document() != 23481) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_open_document() != 60123) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_open_document_from_image() != 20023) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_engine_delete_export_preset() != 3289) {
@@ -18552,6 +21893,183 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_masklistener_ai_progress() != 54199) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tessera_ffi_checksum_method_documentlistener_on_frame() != 51254) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentlistener_on_layers_changed() != 14238) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentlistener_on_history_changed() != 14459) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentlistener_on_render_failed() != 22093) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_add_layer() != 15989) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_add_mask() != 20013) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_attach_surface() != 28001) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_checkout_history() != 36125) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_clear_selection() != 50094) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_close() != 46471) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_commit() != 19922) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_composite_thumbnail() != 25656) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_detach_surfaces() != 37376) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_duplicate_layer() != 19574) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_export_flat() != 3899) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_flatten() != 4958) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_group_layers() != 15175) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_history_items() != 25096) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_history_memory_bytes() != 10922) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_id() != 5499) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_info() != 25854) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_layer() != 32904) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_layer_thumbnail() != 19412) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_layers() != 31207) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_mask_thumbnail() != 61169) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_merge_down() != 23779) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_move_layer() != 168) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_plan_surface() != 61399) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_redo() != 2645) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_refresh() != 54567) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_remove_layer() != 46598) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_remove_mask() != 26050) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_rename_layer() != 7916) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_restore_snapshot() != 42650) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_save() != 7826) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_save_as() != 45094) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_set_adjustment_json() != 34764) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_set_blend_mode() != 6249) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_set_clipped() != 62264) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_set_display_headroom() != 15298) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_set_fill_json() != 62196) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_set_fill_opacity() != 46652) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_set_group_mode() != 11380) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_set_listener() != 5825) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_set_locks() != 23538) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_set_mask_density() != 60984) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_set_mask_enabled() != 52340) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_set_mask_linked() != 41073) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_set_max_states() != 46388) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_set_opacity() != 58310) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_set_props() != 44097) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_set_selected_layers() != 6308) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_set_selection_rect() != 13342) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_set_viewport() != 51253) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_set_visible() != 1373) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_snapshot() != 14260) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_snapshots() != 18969) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_undo() != 44077) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_ungroup_layer() != 16163) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_tessera_ffi_checksum_method_cancelflag_cancel() != 15413) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -18735,6 +22253,7 @@ private let initializationResult: InitializationResult = {
 
     uniffiCallbackInitAgentRunListener()
     uniffiCallbackInitDevelopListener()
+    uniffiCallbackInitDocumentListener()
     uniffiCallbackInitEngineEventListener()
     uniffiCallbackInitExportProgressListener()
     uniffiCallbackInitLrcatProgressListener()
