@@ -49,6 +49,29 @@ Adobe `.lcp` files are user-supplied only; no Adobe profile assets are shipped o
 downloaded automatically. User-created JSON calibration profiles are stored
 separately from third-party packs and retain their source provenance obligations.
 
+## Neural-filter model table (M3-21)
+
+Neural-filter weights and ONNX exports must be Apache-2.0, MIT, BSD-2-Clause,
+or BSD-3-Clause, including inherited third-party terms. A repository's generic
+license badge is not sufficient. No weights are bundled in the repository.
+
+| Model | License / decision | Use |
+|---|---|---|
+| DDColor paper-tiny, `edgetools/ddcolor` export | Apache-2.0 upstream and export declaration; immutable revision and SHA-256 in `crates/ml-runtime/models.toml` | Colorize, explicitly CPU-only because this graph fails the strict CoreML partition guard |
+| DRUNet color, `cszn/KAIR` / `synthscript/drunet-color-onnx` | MIT upstream and export; existing pinned registry entry reused | JPEG Artifact Removal and whole-frame denoise-only restoration |
+| GFPGAN v1.4, TencentARC | **Excluded by the round-2 scope decision:** StyleGAN2/NVIDIA non-commercial terms in its lineage; reviewed ONNX declares `license: other` | Not registered, downloaded by the runtime, or executed; no face-restoration model ships |
+| CodeFormer / GPEN | Not acceptable under this package's permissive-only policy | Not used as substitutes |
+| Scratch reduction | No approved model selected | Not implemented; this is not a claim that no permissive model exists |
+
+Skin Smoothing is a deterministic algorithm and requires no model weights.
+`Photo Restoration (no face model)` retains only DRUNet denoising and is omitted
+from the three-entry shipped catalog. Enhance face and Scratch reduction reject
+nonzero values rather than silently doing nothing. See
+[`ml-filters/MODELS.md`](../crates/ml-filters/MODELS.md) for pinned upstream/export
+license evidence and hashes, including the GFPGAN third-party exceptions. A local
+re-export does not remove those restrictions. Keep applicable Apache/MIT notices
+with any future redistributed models.
+
 ## Why not GPL
 darktable and RawTherapee are GPL-3 and it works for them, but: GPL has blocked Mac App Store distribution in practice (VLC was pulled in 2011 and returned only after relicensing), selling a commercial licence later requires a CLA and removing every GPL dependency, and companies will not embed a GPL engine behind the MCP tool API. Moving Apache → GPL later is easy; the reverse is not.
 

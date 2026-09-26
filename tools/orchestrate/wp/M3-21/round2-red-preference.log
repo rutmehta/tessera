@@ -1,0 +1,71 @@
+   Compiling libc v0.2.189
+   Compiling cc v1.4.7
+   Compiling syn v3.0.6
+   Compiling num-traits v0.2.19
+   Compiling syn v2.0.119
+   Compiling hashbrown v0.17.1
+   Compiling memchr v2.8.3
+   Compiling smallvec v1.16.2
+   Compiling serde_json v1.0.151
+   Compiling indexmap v2.14.2
+   Compiling ring v0.17.14
+   Compiling blake3 v1.8.7
+   Compiling getrandom v0.2.17
+   Compiling errno v0.3.14
+   Compiling cpufeatures v0.2.17
+   Compiling rustix v1.1.5
+   Compiling getrandom v0.4.3
+   Compiling sha2 v0.10.9
+   Compiling num-integer v0.1.47
+   Compiling num-complex v0.4.6
+   Compiling ndarray v0.17.2
+   Compiling serde_derive v1.0.229
+   Compiling thiserror-impl v2.0.21
+   Compiling zerocopy-derive v0.8.58
+   Compiling tempfile v3.27.0
+   Compiling thiserror v2.0.21
+   Compiling zerocopy v0.8.58
+   Compiling serde v1.0.229
+   Compiling rustls v0.23.45
+   Compiling serde_spanned v0.6.9
+   Compiling toml_datetime v0.6.11
+   Compiling toml_edit v0.22.27
+   Compiling rustls-webpki v0.103.15
+   Compiling toml v0.8.23
+   Compiling half v2.7.1
+   Compiling ort v2.0.0-rc.13
+   Compiling engine-api v0.1.0 (/Users/rutmehta/Developer/tessera/.worktrees/M3-21/crates/engine-api)
+   Compiling ureq v3.4.2
+   Compiling ml-runtime v0.1.0 (/Users/rutmehta/Developer/tessera/.worktrees/M3-21/crates/ml-runtime)
+error[E0432]: unresolved import `ml_runtime::ExecutionPreference`
+ --> crates/ml-runtime/tests/execution_preference.rs:1:18
+  |
+1 | use ml_runtime::{ExecutionPreference, Session, SessionOptions, Tensor};
+  |                  ^^^^^^^^^^^^^^^^^^^ no `ExecutionPreference` in the root
+
+error[E0599]: no method named `with_execution_preference` found for struct `SessionOptions` in the current scope
+ --> crates/ml-runtime/tests/execution_preference.rs:9:6
+  |
+5 |       let options = SessionOptions {
+  |  ___________________-
+6 | |         coreml: true,
+7 | |         ..SessionOptions::default()
+8 | |     }
+9 | |     .with_execution_preference(ExecutionPreference::CpuOnly);
+  | |     -^^^^^^^^^^^^^^^^^^^^^^^^^ method not found in `SessionOptions`
+  | |_____|
+  |
+
+error[E0599]: no method named `with_execution_preference` found for struct `SessionOptions` in the current scope
+  --> crates/ml-runtime/tests/execution_preference.rs:22:10
+   |
+21 |       assert!(SessionOptions::cpu()
+   |  _____________-
+22 | |         .with_execution_preference(ExecutionPreference::PreferCoreMl)
+   | |         -^^^^^^^^^^^^^^^^^^^^^^^^^ method not found in `SessionOptions`
+   | |_________|
+   |
+
+Some errors have detailed explanations: E0432, E0599.
+For more information about an error, try `rustc --explain E0432`.
+error: could not compile `ml-runtime` (test "execution_preference") due to 3 previous errors

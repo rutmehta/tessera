@@ -5,6 +5,16 @@ use std::{collections::BTreeSet, path::Path};
 
 pub use ort::ep::coreml::{ComputeUnits, ModelFormat};
 
+/// Explicit provider selection. This never relaxes `require_coreml()`:
+/// CPU-only sessions still fail that guard when audited.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ExecutionPreference {
+    /// Register only ONNX Runtime's CPU provider, without attempting CoreML.
+    CpuOnly,
+    /// Retain the existing CoreML-first initialization/fallback behavior.
+    PreferCoreMl,
+}
+
 #[derive(Clone, Debug)]
 pub struct SessionOptions {
     pub coreml: bool,
@@ -21,6 +31,13 @@ impl Default for SessionOptions {
     }
 }
 impl SessionOptions {
+    /// Opt into a provider policy without adding a second source of truth to
+    /// the existing public `coreml` flag. Other options remain unchanged.
+    pub fn with_execution_preference(mut self, preference: ExecutionPreference) -> Self {
+        self.coreml = preference == ExecutionPreference::PreferCoreMl;
+        self
+    }
+
     pub fn cpu() -> Self {
         Self {
             coreml: false,
