@@ -1,3 +1,4 @@
+import AppKit
 import CoreGraphics
 import Foundation
 import ImageIO
@@ -5,6 +6,7 @@ import IOSurface
 import XCTest
 import TesseraFFI
 @testable import TesseraCore
+@testable import Tessera
 
 /// Develop session through the bridge on a real RAW (the Sony ARW fixture, copied to scratch).
 @MainActor
@@ -125,7 +127,62 @@ final class DevelopTests: XCTestCase {
         let controller = try await DevelopController.open(try XCTUnwrap(item.engineImage), itemID: item.id)
         XCTAssertEqual(controller.info.width, 8)
         XCTAssertEqual(controller.info.height, 8)
+        _ = try controller.attachSurfaces(viewWidth: 320, viewHeight: 320)
+        let mask = try XCTUnwrap(controller.addMask(LinearGradientShape(start: (0.5, 0.1), end: (0.5, 0.9)).json))
+        controller.setMaskParam(mask, "exposure", 1, interactive: false)
+        XCTAssertEqual(controller.maskGroups().first?.params.first { $0.name == "exposure" }?.value, 1)
+        XCTAssertNotNil(controller.addAIMask(group: nil, .subject, combine: .add),
+                        "AI mask requests are accepted on indexed RGB; model availability is reported asynchronously")
         await controller.close()
+    }
+
+    func testAppModelOpensRenderedJpegAndHeic() async throws {
+        _ = NSApplication.shared
+        let temp = root.appendingPathComponent("build/develop-app-rendered-\(UUID().uuidString)")
+        addTeardownBlock { try? FileManager.default.removeItem(at: temp) }
+        let folder = temp.appendingPathComponent("shoot")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let jpeg = folder.appendingPathComponent("photo.jpg")
+        let heic = folder.appendingPathComponent("photo.heic")
+        let png = folder.appendingPathComponent("photo.png")
+        let tiff = folder.appendingPathComponent("photo.tiff")
+        let ctx = CGContext(data: nil, width: 32, height: 32, bitsPerComponent: 8, bytesPerRow: 0,
+                            space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                            bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)!
+        ctx.setFillColor(CGColor(gray: 0.3, alpha: 1))
+        ctx.fill(CGRect(x: 0, y: 0, width: 32, height: 32))
+        for (url, type) in [(jpeg, "public.jpeg"), (png, "public.png"), (tiff, "public.tiff")] {
+            let destination = try XCTUnwrap(CGImageDestinationCreateWithURL(url as CFURL, type as CFString, 1, nil))
+            CGImageDestinationAddImage(destination, try XCTUnwrap(ctx.makeImage()), nil)
+            XCTAssertTrue(CGImageDestinationFinalize(destination))
+        }
+        let converter = Process()
+        converter.executableURL = URL(fileURLWithPath: "/usr/bin/sips")
+        converter.arguments = ["-s", "format", "heic", jpeg.path, "--out", heic.path]
+        try converter.run()
+        converter.waitUntilExit()
+        XCTAssertEqual(converter.terminationStatus, 0)
+
+        let library = try EngineLibrary.scan(folder: folder, appSupport: temp.appendingPathComponent("support"))
+        let model = AppModel()
+        model.install(library)
+        model.viewMode = .loupe
+        XCTAssertEqual(library.items.count, 4)
+        for (name, kind) in [("photo.jpg", PhotoKind.jpeg), ("photo.heic", .heif),
+                             ("photo.png", .png), ("photo.tiff", .tiff)] {
+            let item = try XCTUnwrap(library.items.first { $0.name == name })
+            XCTAssertEqual(item.kind, kind)
+            XCTAssertNotNil(item.engineImage)
+            model.select(id: item.id)
+            model.openDevelop(for: item)
+            let deadline = Date().addingTimeInterval(20)
+            while model.developStatus == .loading && Date() < deadline {
+                try await Task.sleep(for: .milliseconds(20))
+            }
+            XCTAssertEqual(model.developStatus, .ready, "\(name): \(model.developStatus)")
+            XCTAssertEqual(model.develop?.itemID, item.id)
+            model.closeDevelop()
+        }
     }
 
     private func mean(_ bins: [UInt32]) -> Double {

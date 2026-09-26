@@ -197,7 +197,7 @@ struct BasicPanel: View {
 
     private var statusText: String {
         switch model.developStatus {
-        case .none: "Open a RAW in the loupe (E)"
+        case .none: "Open a photo in the loupe (E)"
         case .loading: "Opening…"
         case .ready: model.developHistory.map { h in
             h.headLabel.map { "History: \($0)" } ?? "Unedited"

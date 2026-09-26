@@ -641,7 +641,7 @@ struct HistoryPanel: View {
         let grouped = Set(groups.flatMap(\.steps))
         VStack(alignment: .leading, spacing: 0) {
             if items.isEmpty {
-                Hint(ready ? "No edits yet" : "Open a RAW in the loupe")
+                Hint(ready ? "No edits yet" : "Open a photo in the loupe (E)")
             }
             // Agent groups first (docs/10 §2): amount, per-step toggles, rationale, redo.
             ForEach(groups.reversed(), id: \.groupId) { group in
