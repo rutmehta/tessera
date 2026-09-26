@@ -7,7 +7,7 @@ import TesseraFFI
 /// histogram. Both axes are the engine's log tone axis. AppKit-drawn: a drag calls straight into
 /// the develop session without SwiftUI (the same < 16 ms path as the sliders).
 @MainActor
-final class CurveEditorView: NSView, DevelopKeyHandling {
+final class CurveEditorView: NSView, KeyOwningControl {
     enum Mode { case parametric, point }
 
     var mode: Mode = .parametric { didSet { if mode != oldValue { selected = nil; needsDisplay = true } } }
@@ -37,6 +37,16 @@ final class CurveEditorView: NSView, DevelopKeyHandling {
     override var isFlipped: Bool { false }
     override var acceptsFirstResponder: Bool { isEnabled && mode == .point }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    override func becomeFirstResponder() -> Bool {
+        let accepted = super.becomeFirstResponder()
+        needsDisplay = true
+        return accepted
+    }
+    override func resignFirstResponder() -> Bool {
+        let accepted = super.resignFirstResponder()
+        needsDisplay = true
+        return accepted
+    }
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -74,6 +84,13 @@ final class CurveEditorView: NSView, DevelopKeyHandling {
     override func draw(_ dirtyRect: NSRect) {
         Theme.Palette.plotWell.setFill()
         NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: Theme.Radius.chip, yRadius: Theme.Radius.chip).fill()
+        if window?.firstResponder === self {
+            let focus = NSBezierPath(roundedRect: bounds.insetBy(dx: Theme.Space.hairline, dy: Theme.Space.hairline),
+                                     xRadius: Theme.Radius.chip, yRadius: Theme.Radius.chip)
+            focus.lineWidth = Theme.Space.hairline
+            Theme.Palette.accent.setStroke()
+            focus.stroke()
+        }
         let plot = self.plot
         drawHistogram(in: plot)
         // Quarter grid and the identity diagonal.
@@ -305,7 +322,11 @@ final class CurveEditorView: NSView, DevelopKeyHandling {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6, execute: work)
     }
 
-    func handleDevelopKey(_ event: NSEvent) -> Bool {
+    override func keyDown(with event: NSEvent) {
+        if !handleDevelopKey(event) { super.keyDown(with: event) }
+    }
+
+    private func handleDevelopKey(_ event: NSEvent) -> Bool {
         guard mode == .point, isEnabled else { return false }
         let step = event.modifierFlags.contains(.shift) ? 10.0 / 255 : 1.0 / 255
         switch event.keyCode {

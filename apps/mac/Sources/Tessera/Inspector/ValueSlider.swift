@@ -12,7 +12,7 @@ import QuartzCore
 /// aligned) on the first line; a 2 pt track with the fill running from the default to the value;
 /// a 12 pt round thumb with an accent ring while dragging.
 @MainActor
-final class ValueSlider: NSControl {
+final class ValueSlider: NSControl, KeyOwningControl {
     var title = "" { didSet { needsDisplay = true } }
     var minValue: Double = -100
     var maxValue: Double = 100
@@ -31,6 +31,7 @@ final class ValueSlider: NSControl {
     private var dragStartValue: Double = 0
     private var dragStartX: CGFloat = 0
     private(set) var isDragging = false
+    private var keyboardEditing = false
 
     override var isEnabled: Bool {
         didSet { alphaValue = isEnabled ? 1 : CGFloat(Theme.Opacity.disabled) }
@@ -57,8 +58,50 @@ final class ValueSlider: NSControl {
 
     override var intrinsicContentSize: NSSize { NSSize(width: NSView.noIntrinsicMetric, height: Theme.Height.slider) }
     override var isFlipped: Bool { true }
-    override var acceptsFirstResponder: Bool { false }   // culling keys stay global
+    override var acceptsFirstResponder: Bool { isEnabled }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func becomeFirstResponder() -> Bool {
+        let accepted = super.becomeFirstResponder()
+        needsDisplay = true
+        return accepted
+    }
+
+    override func resignFirstResponder() -> Bool {
+        commitKeyboardEdit()
+        let accepted = super.resignFirstResponder()
+        needsDisplay = true
+        return accepted
+    }
+
+    private func commitKeyboardEdit() {
+        guard keyboardEditing else { return }
+        keyboardEditing = false
+        setValue(value, final: true)
+    }
+
+    override func keyDown(with event: NSEvent) {
+        let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        guard isEnabled, !mods.contains(.command), !mods.contains(.control) else {
+            super.keyDown(with: event); return
+        }
+        let amount = step * (mods.contains(.option) ? 0.1 : mods.contains(.shift) ? 10 : 1)
+        let next: Double
+        switch event.keyCode {
+        case 123, 125: next = value - amount
+        case 124, 126: next = value + amount
+        case 115: next = minValue   // Home
+        case 119: next = maxValue   // End
+        case 36, 76, 53:
+            commitKeyboardEdit()
+            window?.makeFirstResponder(nil)
+            return
+        default: super.keyDown(with: event); return
+        }
+        let before = value
+        setValue(next, final: false)
+        if value != before { keyboardEditing = true }
+    }
 
     private static let thumb = Theme.Height.thumb
     /// Track: full width minus half a thumb each side, centred on the thumb row.
@@ -76,6 +119,13 @@ final class ValueSlider: NSControl {
     }
 
     override func draw(_ dirtyRect: NSRect) {
+        if window?.firstResponder === self {
+            let focus = NSBezierPath(roundedRect: bounds.insetBy(dx: Theme.Space.hairline, dy: Theme.Space.hairline),
+                                     xRadius: Theme.Radius.control, yRadius: Theme.Radius.control)
+            focus.lineWidth = Theme.Space.hairline
+            Theme.Palette.accent.setStroke()
+            focus.stroke()
+        }
         let changed = isDragging || value != defaultValue
         let titleAttrs: [NSAttributedString.Key: Any] = [.font: Theme.NSFonts.caption,
                                                          .foregroundColor: Theme.Palette.textSecondary]
@@ -126,6 +176,8 @@ final class ValueSlider: NSControl {
 
     override func mouseDown(with event: NSEvent) {
         guard isEnabled else { return }
+        window?.makeFirstResponder(self)
+        commitKeyboardEdit()
         if event.clickCount == 2 {
             setValue(defaultValue, final: true)
             return

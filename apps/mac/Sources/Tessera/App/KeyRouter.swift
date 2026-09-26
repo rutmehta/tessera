@@ -14,10 +14,9 @@ import TesseraCore
 ///   Compare: ← → pick side · Return choose this · Z fit/1:1 · Esc back
 ///   Masking (loupe): M on/off · O overlay (⇧ colour) · [ ] brush size (⇧ feather) · X invert · ⌫ delete
 ///   Develop (loupe): S soft proofing on/off · ⇧S gamut warning
-/// A develop control that handles keys itself while focused (the curve editor's point nudge).
-@MainActor protocol DevelopKeyHandling: AnyObject {
-    func handleDevelopKey(_ event: NSEvent) -> Bool
-}
+/// First responders that own their keyboard input. The local monitor must leave their events
+/// untouched even when they do not handle a particular key themselves.
+@MainActor protocol KeyOwningControl: AnyObject {}
 
 @MainActor
 final class KeyRouter {
@@ -39,15 +38,15 @@ final class KeyRouter {
     private func shouldIgnore(_ event: NSEvent) -> Bool {
         guard let window = event.window else { return true }
         if window is NSPanel || window.attachedSheet != nil || window.sheetParent != nil || NSApp.modalWindow != nil { return true }
-        if window.firstResponder is NSText { return true }   // field editor / text view is editing
+        if window.firstResponder is NSText || window.firstResponder is NSTextField ||
+            window.firstResponder is KeyOwningControl { return true }
         let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         return mods.contains(.command) || mods.contains(.control)
     }
 
     func handle(_ event: NSEvent) -> Bool {
         if shouldIgnore(event) { return false }
-        // Develop tools first: a focused curve editor takes arrows; the crop tool takes its keys.
-        if let target = event.window?.firstResponder as? DevelopKeyHandling, target.handleDevelopKey(event) { return true }
+        // Develop tools receive shortcuts only when a key-owning control is not focused.
         if MaskTools.shared.handleKey(event) { return true }
         if DevelopTools.shared.handleKey(event) { return true }
         let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
