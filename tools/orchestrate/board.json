@@ -779,9 +779,9 @@
     "id": "M3-16",
     "owner": "astra",
     "title": "Joint CFA denoise net (self-supervised)",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
-    "notes": ""
+    "notes": "trained CFA net works; GPU-resident handoff -> M3-16b"
   },
   {
     "id": "M3-11v",
