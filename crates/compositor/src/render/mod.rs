@@ -2,8 +2,11 @@
 //! level, per-layer tile caches, dirty-rect recompositing.
 
 mod cache;
+mod effects;
 pub(crate) mod exec;
 pub(crate) mod pixel;
+pub mod smart_filters;
+pub mod styles;
 
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -87,6 +90,7 @@ pub struct CompositorStats {
 /// Renders documents tile by tile with caching. Thread-safe; share one per
 /// process (or per window).
 pub struct Compositor {
+    filter_runtime: smart_filters::FilterRuntime,
     cache: RenderCache,
     pub(crate) stats: Counters,
     latest: Mutex<HashMap<(u64, TileCoord), (u64, u64)>>,
@@ -98,6 +102,7 @@ impl Compositor {
     /// A compositor with a cache budget in bytes.
     pub fn new(cache_budget: usize) -> Self {
         Self {
+            filter_runtime: smart_filters::FilterRuntime::new(cache_budget),
             cache: RenderCache::new(cache_budget),
             stats: Counters::default(),
             latest: Mutex::new(HashMap::new()),
@@ -155,6 +160,7 @@ impl Compositor {
 
     /// Drops everything.
     pub fn clear(&self) {
+        self.filter_runtime.clear();
         self.cache.retain(|_| false);
         self.latest
             .lock()
@@ -375,10 +381,17 @@ impl Compositor {
             .transform
             .inverse()
             .ok_or_else(|| EngineError::invalid("transform", "singular"))?;
-        let child = DocRef {
-            state: &so.state,
-            key: so.key,
-        };
+        let filtered = self.filtered_source(so)?;
+        let child = filtered.as_ref().map_or(
+            DocRef {
+                state: &so.state,
+                key: so.key,
+            },
+            |s| DocRef {
+                state: &s.state,
+                key: s.key,
+            },
+        );
         let ce0 = so.state.canvas;
         let scale = f64::from(1u32 << coord.level);
         let jac = scale * inv.det().abs().sqrt();
@@ -514,7 +527,11 @@ impl Compositor {
             doc: doc.key,
             node: 0,
             part: Part::Root,
-            stamp: doc.state.root_stamp(coord.level, coord.x, coord.y),
+            stamp: if effects::has_styles(doc.state) {
+                doc.state.rev
+            } else {
+                doc.state.root_stamp(coord.level, coord.x, coord.y)
+            },
             coord,
         };
         if let Some(t) = self.cache_get(&key) {
@@ -542,6 +559,9 @@ impl Compositor {
             state,
             key: doc.key(),
         };
+        if effects::has_styles(state) {
+            return self.composite_premult(dref, coord);
+        }
         let stamp = state.root_stamp(coord.level, coord.x, coord.y);
         let key = NodeKey {
             doc: doc.key(),

@@ -56,6 +56,8 @@ struct MChunk {
 
 #[derive(Serialize, Deserialize)]
 struct MDoc {
+    #[serde(default)]
+    global_light: crate::render::styles::GlobalLight,
     canvas: Extent,
     depth: Depth,
     ppi: f32,
@@ -105,6 +107,8 @@ enum MKind {
         document: Box<MDoc>,
         transform: Affine,
         filters: Vec<SmartFilter>,
+        #[serde(default)]
+        filter_mask: Option<MMask>,
     },
     Text {
         text: String,
@@ -253,6 +257,18 @@ impl<W: Write> Writer<W> {
                 document: Box::new(self.doc(&so.state)?),
                 transform: so.transform,
                 filters: so.filters.clone(),
+                filter_mask: so
+                    .filter_mask
+                    .as_ref()
+                    .map(|m| -> EngineResult<MMask> {
+                        Ok(MMask {
+                            raster: self.raster(&m.raster)?,
+                            density: m.density,
+                            feather: m.feather,
+                            enabled: m.enabled,
+                        })
+                    })
+                    .transpose()?,
             },
             LayerKind::Text(t) => MKind::Text {
                 text: t.text.clone(),
@@ -292,6 +308,7 @@ impl<W: Write> Writer<W> {
             None => None,
         };
         Ok(MDoc {
+            global_light: s.global_light,
             canvas: s.canvas,
             depth: s.depth,
             ppi: s.ppi,
@@ -451,10 +468,22 @@ impl Reader<'_> {
                 document,
                 transform,
                 filters,
+                filter_mask,
             } => LayerKind::SmartObject(SmartObject {
                 state: Arc::new(self.doc(document)?),
                 transform: *transform,
                 filters: filters.clone(),
+                filter_mask: filter_mask
+                    .as_ref()
+                    .map(|m| -> EngineResult<Mask> {
+                        Ok(Mask {
+                            raster: self.raster(&m.raster)?,
+                            density: m.density,
+                            feather: m.feather,
+                            enabled: m.enabled,
+                        })
+                    })
+                    .transpose()?,
                 key: next_doc_key(),
             }),
             MKind::Text {
@@ -505,6 +534,7 @@ impl Reader<'_> {
             None => None,
         };
         let state = DocState {
+            global_light: m.global_light,
             canvas: m.canvas,
             depth: m.depth,
             ppi: m.ppi,

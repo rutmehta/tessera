@@ -390,9 +390,9 @@ Re-serializing a loaded document reproduces the input bytes exactly
 ## 9. Not done / deviations
 
 - The fill-opacity behaviour of Photoshop's "special eight" modes (§2.4).
-- Layer styles (spec 02 §1.4), smart filters (stored only), mask feather
-  (stored only), vector-mask rasterization (payload stored only), and the
+- Mask feather (stored only), vector-mask rasterization (payload stored only), and the
   translation op and position lock semantics.
+- Layer-style approximation limits and CPU routing requirements are in §9.1.
 - "Blend RGB colours using gamma 1.0" and colour conversion between
   profiles. The profile is stored and resolved by `color-mgmt`, and the
   compositor does not need a CMM.
@@ -406,6 +406,113 @@ Re-serializing a loaded document reproduces the input bytes exactly
   and Hard Mix tie conventions are assumptions.
 - Brush engine and selections tools are out of scope. `paint_op` is the
   primitive a brush engine emits.
+
+## 9.1 CPU layer styles and smart filters (M5-14)
+
+`LayerProps::styles` stores a serde `LayerStyles` set. `DocState::global_light`
+is shared by effects opting into it; `DocOp::SetGlobalLight` changes all of
+them in one undoable edit. `DocOp::SetProps` edits a style set. Native document
+serialization preserves effects, scaling, global light, filter blending, and
+the shared filter mask, with defaults for older manifests.
+
+### Layer effects
+
+`render/styles.rs` derives full-canvas effect planes from masked source alpha.
+`render/effects.rs` integrates them with the CPU tile executor. The source is
+evaluated at level zero before effects and pyramid reduction, so neighbouring
+tiles do not manufacture transparent halos. Styles on pixel, fill, text-proxy,
+smart-object, and isolated-group layers are supported. Styles on adjustment or
+pass-through groups return `Unsupported`; isolate those groups first.
+
+The stack is back-to-front: drop shadows and outer glows (plus outer bevel
+coverage), fill, pattern/gradient/colour overlays, satin, inner glow, inner
+shadow, inner bevel, then strokes. Repeated effects of a type retain vector
+order. Inside/center/outside stroke coverage is generated separately. All
+effects use their own blend mode and opacity. Fill opacity affects the source
+only; whole-layer opacity fades the complete styled contribution once. Interior
+effects are evaluated at unit coverage then masked by the source shape once,
+avoiding alpha growth on antialiased edges. Exterior effects can remain visible
+at zero fill. Knockout applies to the source interior using the existing
+shallow/deep backdrop rules, never to a shadow/glow/stroke plane. Styles remain
+visible on knocked-out interiors. Clipped-layer effects obey source-atop.
+
+Shadow = offset of a spread/choked alpha field blurred with a truncated
+Gaussian. Glow uses the corresponding expanded/eroded blurred alpha; inner
+glow supports edge/center origins. Bevel shades gradients of blurred alpha,
+with independent highlight/shadow modes and global angle/elevation. Satin is
+the difference of opposed offset blurred alpha samples. Overlays reuse the
+document `Fill` sampler (solid, gradient, repeating pattern). Geometry sizes,
+spread, soften, and offsets scale together; overlay Fill coordinates stay in
+canvas units. Angle 90 lights from above; shadows travel away from the light.
+
+These are deterministic reference approximations, not an Adobe pixel-match:
+morphology has a square footprint, bevel uses a blurred-alpha rather than a
+distance-field height, and contour/jitter controls are preserved placeholders.
+Bevel texture is not evaluated. Scaled kernel support is limited to 256 pixels,
+offset to 16384, and padded working alpha to 16,777,216 samples. Invalid/nonfinite
+controls fail instead of silently clamping. Styles currently recompute their
+whole-source planes per uncached output tile, a correctness-first path rather
+than an interactive-performance claim. Styled documents use whole-document
+revision stamps, full damage, and no partial CPU updates, including nested
+styles. Unstyled documents retain the existing local-cache/dirty-rect path.
+
+### Smart-filter stack
+
+`SmartObject::filters` runs in vector order on the nested composite, before
+transform/resampling. `SmartFilter::blend` blends each result against that
+node's input. The shared child-space `filter_mask` fades the completed stack
+against the original child, not each intermediate node. Mask density is
+`1-d*(1-m)`; disabled masks are ignored. Mask feather currently returns
+`Unsupported`. Source rasters remain immutable. `DocOp::SetSmartFilters` edits
+the stack and mask and participates in undo/redo.
+
+The compositor owns the evaluation/cache interface because `filters` already
+depends on compositor. Install `filters::CompositorFilters` with
+`Compositor::set_filter_evaluator(Arc::new(filters::CompositorFilters))` for the
+full filter inventory and existing `Filter`/halo implementation. The standalone
+compositor provides invert and a small Gaussian fallback for native documents;
+unknown enabled filters fail explicitly, rather than disappearing. See the
+filters README for the strict JSON parameter schema. The optional
+`filters/camera-raw-filter` feature routes RGB raster tiles through
+`pipeline_cpu::tone`; this is the requested Camera Raw stub, not the entire
+develop pipeline or a demosaic pass.
+
+Unmasked filter results and source rasters are cached by child namespace,
+source revision, and BLAKE3 of serialized filter parameters/blend options.
+Mask-only edits reuse filter results. `filter_evaluations()` exposes exact
+execution counts. A separately bounded filter cache has the constructor's byte
+budget; oversized results are evaluated but not retained. `clear_composites`
+retains filter results, `clear` drops them, and replacing an evaluator clears
+both caches. Concurrent cold output tiles serialize evaluation/publication;
+nested source compositing never runs under the filter-cache lock.
+
+### GPU routing and PSD
+
+No resident, gpu.rs, or blend.rs files are modified by this work package.
+The per-tile GPU port returns `Unsupported` for styled source operations.
+Before selecting `ResidentRenderer`, hosts must call
+`DocState::check_resident_effects()` and route its `Unsupported` result to the
+CPU. This preflight rejects styles and enabled smart filters recursively.
+The resident backend itself has not been patched to call the preflight, because
+that integration belongs to the concurrently edited M5-08b files. Bypassing the
+preflight can still omit these effects on the resident path.
+
+PSD lfx2 basics map drop/inner shadows, outer/inner glows, solid colour overlays,
+and solid strokes, including scale, blend mode, opacity, and global light
+resources. The adapter reads native Action Descriptors and writes native lfx2,
+not a private JSON substitute. Unknown fields and untouched records are retained.
+Unsupported new PSD style exports (including repeated effects, non-solid fills,
+bevel/satin, or contour/jitter settings) fail explicitly. `SoLE` and other
+smart-object/filter-effect records remain opaque, byte-preserved records on the
+existing raster-proxy import path: the PSD parser exposes a generic placed-object
+descriptor but not an executable filter schema or unfiltered embedded source.
+Reapplying filters to that already-rendered proxy would double-apply them.
+
+Unit and integration tests cover each effect's small-shape reference, scaling,
+global-light edits/undo, zero fill and whole-layer opacity, soft alpha, tile-edge
+shadows and damage, filter result reuse/parameter/source invalidation, shared
+mask placement, native persistence, and actual PSD byte round trips. Existing
+golden files are unchanged.
 
 ## 10. CPU bench
 

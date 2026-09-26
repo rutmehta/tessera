@@ -3,6 +3,32 @@
 CPU reference and real WGSL/Metal implementations over the published
 `compositor::raster::Raster` API. No compositor or engine-api changes.
 
+## Compositor smart-filter adapter
+
+Install `Arc::new(filters::CompositorFilters)` with
+`Compositor::set_filter_evaluator`. The adapter uses the CPU halo-aware tiled
+path (whole-image operators retain their global barrier). Identifiers are the
+snake_case `Effect` names; distortions use their own names (`pinch`, `offset`,
+etc.), and `gaussian_blur` aliases `gaussian`. Unknown names are `Unsupported`.
+The compositor, not the adapter, handles enabled flags, filter blend options,
+and the shared filter mask.
+
+`SmartFilter.params` must be a JSON object of `FilterParams` fields. Unknown
+fields, malformed types, nonfinite/overflowing values, and invalid domains
+return errors. Omitted `amount` is **1** here, unlike standalone `FilterParams`.
+For example: `{"radius": 1.5}` or
+`{"adjust": {"exposure": {"stops": 1, "offset": 0, "gamma": 1}}}`.
+Adjustment variants are externally tagged snake_case; unit variants use a
+string, e.g. `{"adjust": "invert"}`. Distortion parameters are nested under
+`distort` and retain their documented standalone defaults.
+
+Optional feature `camera-raw-filter` enables `camera_raw`, a **tone-only raster
+stub**, not RAW decoding or demosaicing. Its flat parameter object accepts
+`exposure` (-10..10), `contrast`, `highlights`, `shadows`, `whites`, `blacks`
+(each -100..100), and `amount` (0..1, default 1). It invokes
+`pipeline_cpu::tone` with `ToneSettings` on RGB tile data and preserves alpha.
+Without the feature, `camera_raw` returns `Unsupported`.
+
 ## API and data contract
 
 `Filter::apply(&Raster, &FilterParams, &AtomicBool) -> EngineResult<Raster>`

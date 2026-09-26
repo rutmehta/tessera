@@ -34,7 +34,8 @@ pub enum Distortion {
     Offset,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Deserialize)]
+#[serde(default, deny_unknown_fields)]
 pub struct DistortParams {
     pub amount: f32,
     pub wavelength: f32,

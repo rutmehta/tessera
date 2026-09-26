@@ -1,4 +1,6 @@
 //! Raster filters; see README.md for contracts and approximation bounds.
+mod compositor_adapter;
+pub use compositor_adapter::CompositorFilters;
 pub mod adjust;
 mod cpu;
 pub mod distort;
@@ -91,7 +93,8 @@ impl Effect {
 }
 
 /// `amount` is the final effect opacity, in [0,1]; zero is an exact COW identity.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Deserialize)]
+#[serde(default, deny_unknown_fields)]
 pub struct FilterParams {
     /// Gaussian sigma (pixels); other neighbourhood filters use support radius.
     pub radius: f32,
