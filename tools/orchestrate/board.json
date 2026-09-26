@@ -854,5 +854,21 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M2-34",
+    "owner": "astra",
+    "title": "Performance benchmarks in CI",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-25v2",
+    "owner": "sol",
+    "title": "Regression pass on current app",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
