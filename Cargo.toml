@@ -40,6 +40,7 @@ members = [
     "crates/psd",
     "crates/brush",
     "crates/selection",
+    "crates/typography",
     "apps/tessera-cli",
 ]
 
