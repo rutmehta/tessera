@@ -702,5 +702,21 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M5-03",
+    "owner": "opus",
+    "title": "engine-api 1.2 layered contracts",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M5-04",
+    "owner": "astra",
+    "title": "PSD adapter + GPU-resident compositing",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
