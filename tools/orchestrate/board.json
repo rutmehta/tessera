@@ -718,5 +718,13 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M5-06",
+    "owner": "astra",
+    "title": "Filters for the layered editor",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
