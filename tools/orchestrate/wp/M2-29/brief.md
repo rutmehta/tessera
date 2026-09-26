@@ -11,3 +11,6 @@ The implementation from round 1 is committed in this worktree; read tools/orches
 3. Review crates/tessera-ffi/src/catalog.rs metadata reads for PNG/HEIC so index/import does not route them through RawSource; add a test if behaviour changes.
 4. If `export_batch_does_not_starve_slider_drag` is flaky under load, do not weaken it; note it in REPORT.md.
 Run the full gate and end with RESULT: PASS.
+
+## Round 3 (crates/index added to the allow-list)
+Rounds 1–2 are committed in this worktree. Remaining blocker: crates/index/src/lib.rs (~line 797) excludes PNG/HEIC/HEIF before metadata decoding. Admit png/heic/heif (and tif/tiff if missing) as indexable rendered formats, route their metadata through RgbSource/ImageIO rather than RawSource, add an index test, and make `heic_console_describe_edit_and_export` pass. Gate now includes `-p index`. End with RESULT: PASS.
