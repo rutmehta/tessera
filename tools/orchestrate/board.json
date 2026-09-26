@@ -867,9 +867,9 @@
     "id": "M2-25v2",
     "owner": "sol",
     "title": "Regression pass on current app",
-    "status": "running",
+    "status": "pass",
     "attempts": 0,
-    "notes": ""
+    "notes": "no visual defects; bugs: mask thumbnail tiny, tether incoming tile click/chip lag, interval stepper -> M2-35"
   },
   {
     "id": "M3-16c",
