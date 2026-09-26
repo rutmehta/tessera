@@ -29,7 +29,12 @@ pub fn run_tiled(
     tiling: Tiling,
     mut infer: impl FnMut(&Tensor) -> Result<Tensor>,
 ) -> Result<Tensor> {
-    super::validate_rgb(input)?;
+    let channels = input.shape()[1];
+    ensure!(matches!(channels, 3 | 4), "RGB or packed CFA required");
+    ensure!(
+        input.data().iter().all(|v| v.is_finite()),
+        "nonfinite input"
+    );
     let SpatialContract {
         scale,
         radius,
@@ -52,7 +57,7 @@ pub fn run_tiled(
     let ow = w.checked_mul(scale).context("output width overflow")?;
     let len = oh
         .checked_mul(ow)
-        .and_then(|v| v.checked_mul(3))
+        .and_then(|v| v.checked_mul(channels))
         .context("output size overflow")?;
     let mut result = Vec::new();
     result.try_reserve_exact(len)?;
@@ -69,26 +74,29 @@ pub fn run_tiled(
             let cw = x1 - x0;
             let patch_len = ch
                 .checked_mul(cw)
-                .and_then(|v| v.checked_mul(3))
+                .and_then(|v| v.checked_mul(channels))
                 .context("patch size overflow")?;
             let mut patch = Vec::new();
             patch.try_reserve_exact(patch_len)?;
-            for c in 0..3 {
+            for c in 0..channels {
                 for row in y0..y1 {
                     for col in x0..x1 {
                         patch.push(input.data()[c * h * w + row.min(h - 1) * w + col.min(w - 1)]);
                     }
                 }
             }
-            let output = infer(&Tensor::new(3, ch, cw, patch)?)?;
+            let output = infer(&Tensor::new(channels, ch, cw, patch)?)?;
             let sh = ch.checked_mul(scale).context("patch height overflow")?;
             let sw = cw.checked_mul(scale).context("patch width overflow")?;
             ensure!(
-                output.shape() == [1, 3, sh, sw],
+                output.shape() == [1, channels, sh, sw],
                 "model output shape does not match spatial contract"
             );
-            super::validate_rgb(&output)?;
-            for c in 0..3 {
+            ensure!(
+                output.data().iter().all(|v| v.is_finite()),
+                "nonfinite output"
+            );
+            for c in 0..channels {
                 for row in y * scale..end_y * scale {
                     let src = c * sh * sw + (row - y0 * scale) * sw + (x - x0) * scale;
                     let dst = c * oh * ow + row * ow + x * scale;
@@ -98,5 +106,5 @@ pub fn run_tiled(
             }
         }
     }
-    Tensor::new(3, oh, ow, result)
+    Tensor::new(channels, oh, ow, result)
 }

@@ -231,3 +231,27 @@ outputs = [
   { name = "last_hidden_state", shape = [1, 64, 768], dtype = "fp32" },
   { name = "pooler_output", shape = [1, 768], dtype = "fp32" },
 ]
+
+# BEGIN GENERATED CFA MODELS
+[[models]]
+id = "enhance/cfa-unet-fp32"
+version = "a138c59a65846c10967839e85817231ec6ea92b318a57814cb153e8ac8bb311b"
+task = "cfa-denoise"
+dtype = "fp32"
+source = "local"
+local_path = "../../tools/orchestrate/wp/M3-16/artifacts/cfa-fp32.onnx"
+sha256 = "a138c59a65846c10967839e85817231ec6ea92b318a57814cb153e8ac8bb311b"
+inputs = [{ name = "cfa_noise", shape = [1, 8, 64, 64], dtype = "fp32" }]
+outputs = [{ name = "denoised", shape = [1, 4, 64, 64], dtype = "fp32" }]
+
+[[models]]
+id = "enhance/cfa-unet-fp16"
+version = "b703fc9bf1a5d59a3db64838231e22c174e711ae7c0e9ecaeaf6e9661fab179e"
+task = "cfa-denoise"
+dtype = "fp16"
+source = "local"
+local_path = "../../tools/orchestrate/wp/M3-16/artifacts/cfa-fp16.onnx"
+sha256 = "b703fc9bf1a5d59a3db64838231e22c174e711ae7c0e9ecaeaf6e9661fab179e"
+inputs = [{ name = "cfa_noise", shape = [1, 8, 64, 64], dtype = "fp32" }]
+outputs = [{ name = "denoised", shape = [1, 4, 64, 64], dtype = "fp32" }]
+# END GENERATED CFA MODELS
