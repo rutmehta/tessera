@@ -43,6 +43,7 @@ members = [
     "crates/vector",
     "crates/typography",
     "apps/tessera-cli",
+    "tools/bench",
 ]
 
 [workspace.dependencies]

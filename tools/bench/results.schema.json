@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Tessera benchmark results v1",
+  "description": "All metrics are positive elapsed milliseconds, lower is better. Runner additionally rejects duplicate identities and incomplete suites.",
+  "type": "array",
+  "minItems": 1,
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["bench", "fixture", "metric", "value", "unit", "backend", "host"],
+    "properties": {
+      "bench": {"type": "string", "minLength": 1},
+      "fixture": {"type": "string", "minLength": 1},
+      "metric": {"type": "string", "minLength": 1},
+      "value": {"type": "number", "exclusiveMinimum": 0},
+      "unit": {"const": "ms"},
+      "backend": {"enum": ["cpu", "gpu"]},
+      "host": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"}
+    }
+  }
+}

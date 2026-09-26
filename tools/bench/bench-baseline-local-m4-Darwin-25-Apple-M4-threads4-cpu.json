@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-09-26T05-41-59.439763Z",
+  "tolerances": {
+    "median_ms": 0.15,
+    "p90_ms": 0.2,
+    "elapsed_ms": 0.15
+  },
+  "results": [
+    {
+      "backend": "cpu",
+      "bench": "index-search",
+      "fixture": "100k-fts-v1",
+      "host": "local-m4-Darwin-25-Apple-M4-threads4",
+      "metric": "median_ms",
+      "unit": "ms",
+      "value": 4.056
+    },
+    {
+      "backend": "cpu",
+      "bench": "sidecar-roundtrip",
+      "fixture": "recipe-xmp-fsync-v1",
+      "host": "local-m4-Darwin-25-Apple-M4-threads4",
+      "metric": "median_ms",
+      "unit": "ms",
+      "value": 7.959209
+    },
+    {
+      "backend": "cpu",
+      "bench": "preview-pyramid",
+      "fixture": "45mp-gradient-v1",
+      "host": "local-m4-Darwin-25-Apple-M4-threads4",
+      "metric": "median_ms",
+      "unit": "ms",
+      "value": 1009.286583
+    },
+    {
+      "backend": "cpu",
+      "bench": "pipeline-cpu-l3",
+      "fixture": "rgb-2048x1536-scale8-v1",
+      "host": "local-m4-Darwin-25-Apple-M4-threads4",
+      "metric": "median_ms",
+      "unit": "ms",
+      "value": 372.561667
+    },
+    {
+      "backend": "cpu",
+      "bench": "export-web",
+      "fixture": "rgb-2048x1536-web-q85-v1",
+      "host": "local-m4-Darwin-25-Apple-M4-threads4",
+      "metric": "median_ms",
+      "unit": "ms",
+      "value": 2544.06675
+    },
+    {
+      "backend": "cpu",
+      "bench": "compositor-20-layer",
+      "fixture": "rgba8-1024x768-l0-v1",
+      "host": "local-m4-Darwin-25-Apple-M4-threads4",
+      "metric": "median_ms",
+      "unit": "ms",
+      "value": 7.442375
+    }
+  ]
+}
