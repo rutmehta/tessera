@@ -1,312 +1,729 @@
-use compositor::BlendMode;
-use compositor::gpu::GpuCompositor;
-
-#[test]
-fn resident_revision_reuse_and_whole_level_blend() {
-    let gpu = GpuCompositor::new().expect("Metal required for resident gate");
-    let mut scene = gpu.resident(5, 3).unwrap();
-    let mut pixels = vec![0.25f32; 5 * 3 * 4];
-    pixels[45..].fill(1.0);
-    assert!(scene.upload(&gpu, 7, 1, &pixels).unwrap());
-    assert!(!scene.upload(&gpu, 7, 1, &pixels).unwrap());
-    scene
-        .composite(&gpu, 0, &[(7, BlendMode::Normal, 1.0)], None)
-        .unwrap();
-    let result = scene.readback(&gpu, 0).unwrap();
-    assert_eq!(result, pixels);
-    assert_eq!(scene.upload_count(), 1);
-}
-
-#[test]
-fn resident_mip_damage_is_local_and_survives_partial_level_requests() {
-    let gpu = GpuCompositor::new().unwrap();
-    let mut scene = gpu.resident(17, 13).unwrap();
-    let mut reference = gpu.resident(17, 13).unwrap();
-    let n = 17 * 13;
-    let mut samples = vec![0.2; n * 4];
-    samples[3 * n..].fill(1.0);
-    let steps = [(1, BlendMode::Normal, 1.0)];
-    scene.upload(&gpu, 1, 0, &samples).unwrap();
-    scene.composite(&gpu, 3, &steps, None).unwrap();
-    let cold_texels = scene.mip_texel_count();
-    assert_eq!(cold_texels, 9 * 7 + 5 * 4 + 3 * 2);
-    // Separate revisions before rendering must union their damage.
-    for (revision, x, y, pixel) in [
-        (1, 1usize, 1usize, [0.8, 0.4, 0.1, 0.5]),
-        (2, 2, 1, [0.1, 0.9, 0.7, 0.3]),
-    ] {
-        scene
-            .upload_region(&gpu, 1, revision, [x as u32, y as u32, 1, 1], &pixel)
-            .unwrap();
-        for c in 0..4 {
-            samples[c * n + y * 17 + x] = pixel[c];
-        }
-    }
-    scene.composite(&gpu, 1, &steps, None).unwrap();
-    assert_eq!(scene.mip_texel_count() - cold_texels, 2);
-    scene.composite(&gpu, 3, &steps, None).unwrap();
-    assert_eq!(scene.mip_texel_count() - cold_texels, 4);
-    // Odd bottom-right edge and nontrivial alpha must match cold mips.
-    let pixel = [0.9, 0.2, 0.6, 0.4];
-    scene
-        .upload_region(&gpu, 1, 3, [16, 12, 1, 1], &pixel)
-        .unwrap();
-    for c in 0..4 {
-        samples[c * n + 12 * 17 + 16] = pixel[c];
-    }
-    scene.composite(&gpu, 3, &steps, None).unwrap();
-    assert_eq!(scene.mip_texel_count() - cold_texels, 7);
-    reference.upload(&gpu, 1, 3, &samples).unwrap();
-    for level in 0..=3 {
-        scene.composite(&gpu, level, &steps, None).unwrap();
-        reference.composite(&gpu, level, &steps, None).unwrap();
-        assert_eq!(
-            scene.readback(&gpu, level).unwrap(),
-            reference.readback(&gpu, level).unwrap()
-        );
-    }
-    assert_eq!(scene.mip_texel_count() - cold_texels, 7);
-}
-
-#[test]
-fn resident_mips_preserve_odd_edge_and_revision_updates() {
-    let gpu = GpuCompositor::new().unwrap();
-    let mut scene = gpu.resident(5, 3).unwrap();
-    let mut pixels = vec![0.25f32; 60];
-    pixels[45..].fill(1.0);
-    scene.upload(&gpu, 1, 0, &pixels).unwrap();
-    scene
-        .composite(&gpu, 2, &[(1, BlendMode::Normal, 1.0)], None)
-        .unwrap();
-    assert_eq!(
-        scene.readback(&gpu, 2).unwrap(),
-        vec![0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 1.0, 1.0]
-    );
-    pixels[..15].fill(0.75);
-    scene.upload(&gpu, 1, 1, &pixels).unwrap();
-    scene
-        .composite(&gpu, 2, &[(1, BlendMode::Normal, 1.0)], None)
-        .unwrap();
-    assert_eq!(&scene.readback(&gpu, 2).unwrap()[..2], &[0.75, 0.75]);
-}
-
-#[test]
-fn resident_adjustment_preserves_alpha_and_dirty_exterior() {
-    let gpu = GpuCompositor::new().unwrap();
-    let mut scene = gpu.resident(5, 3).unwrap();
-    let mut pixels = vec![0.25f32; 60];
-    pixels[45..].fill(0.5);
-    scene.upload(&gpu, 1, 0, &pixels).unwrap();
-    scene
-        .composite(&gpu, 0, &[(1, BlendMode::Normal, 1.0)], None)
-        .unwrap();
-    scene
-        .adjust(
-            &gpu,
-            0,
-            &compositor::Adjustment::Invert,
-            1.0,
-            Some([1, 1, 2, 1]),
-        )
-        .unwrap();
-    let got = scene.readback(&gpu, 0).unwrap();
-    for c in 0..4 {
-        for i in 0..15 {
-            let expected = if c == 3 {
-                0.5
-            } else if i == 6 || i == 7 {
-                0.375
-            } else {
-                0.125
-            };
-            assert_eq!(got[c * 15 + i], expected);
-        }
-    }
-}
-
+//! The GPU-resident renderer against the CPU reference (docs/11 §1.3: per
+//! operator ≤ 1e-4, a full multi-layer chain ≤ 2e-3), plus dirty-rect
+//! exactness, determinism, page sharing, presentation and the premultiplied
+//! and level-count contracts.
 mod common;
-#[test]
-fn resident_adjustments_match_cpu() {
-    use compositor::*;
-    use engine_api::tile::{Extent, TileCoord};
-    let gpu = GpuCompositor::new().unwrap();
-    let e = Extent::new(17, 13);
-    let n = e.area() as usize;
-    let pixel = |x: u32, y: u32| [(x as f32) / 16.0, (y as f32) / 12.0, 0.3, 0.6];
-    let mut samples = vec![0.0; n * 4];
-    for y in 0..13 {
-        for x in 0..17 {
-            for c in 0..4 {
-                samples[c * n + (y * 17 + x) as usize] = pixel(x, y)[c];
-            }
+use common::*;
+use compositor::gpu::GpuCompositor;
+use compositor::resident::ResidentRenderer;
+use compositor::*;
+use engine_api::tile::{Extent, Pyramid, TileCoord};
+
+fn gpu() -> Option<GpuCompositor> {
+    match GpuCompositor::new() {
+        Ok(g) => Some(g),
+        Err(e) => {
+            eprintln!("skipping: no Metal adapter ({e})");
+            None
         }
     }
-    let mut scene = gpu.resident(17, 13).unwrap();
-    scene.upload(&gpu, 1, 1, &samples).unwrap();
-    for adj in [
+}
+
+fn wave(seed: u32) -> impl Fn(u32, u32) -> [f32; 4] {
+    move |x, y| {
+        let f =
+            |k: u32| (((x * (3 + k) + y * (5 + 2 * k) + seed * 37 + k * 11) % 97) as f32) / 96.0;
+        [f(0), f(1), f(2), 0.25 + 0.75 * f(3)]
+    }
+}
+
+/// max |resident − CPU| over every tile of `level` (premultiplied).
+fn worst(r: &mut ResidentRenderer, d: &Document, level: u8) -> f32 {
+    r.render(d, level).unwrap();
+    let got = r.read_tiles(level).unwrap();
+    let cpu = Compositor::new(256 << 20);
+    let mut worst = 0.0f32;
+    for g in &got {
+        assert!(g.premultiplied());
+        let want = cpu.render_tile_premultiplied(d, g.coord()).unwrap();
+        for (p, q) in want
+            .samples::<f32>()
+            .unwrap()
+            .iter()
+            .zip(g.samples::<f32>().unwrap())
+        {
+            assert!(q.is_finite());
+            worst = worst.max((p - q).abs());
+        }
+    }
+    worst
+}
+
+fn bits(r: &ResidentRenderer, level: u8) -> Vec<u32> {
+    r.read_level(level, true)
+        .unwrap()
+        .1
+        .iter()
+        .map(|v| v.to_bits())
+        .collect()
+}
+
+fn adjustments() -> Vec<Adjustment> {
+    vec![
         Adjustment::Invert,
         Adjustment::Exposure {
             exposure: 0.7,
-            offset: -0.1,
+            offset: -0.02,
             gamma: 1.3,
         },
         Adjustment::Threshold { level: 0.45 },
-        Adjustment::Posterize { levels: 7 },
+        Adjustment::Posterize { levels: 5 },
         Adjustment::Levels {
             master: LevelsChannel {
-                gamma: 0.7,
-                ..Default::default()
+                in_black: 0.05,
+                in_white: 0.9,
+                gamma: 1.4,
+                out_black: 0.02,
+                out_white: 0.97,
             },
-            rgb: [LevelsChannel::default(); 3],
+            rgb: [
+                LevelsChannel::default(),
+                LevelsChannel {
+                    gamma: 0.8,
+                    ..Default::default()
+                },
+                LevelsChannel::default(),
+            ],
         },
         Adjustment::Curves {
-            master: Curve(vec![[0.0, 0.1], [0.4, 0.6], [1.0, 0.9]]),
-            rgb: std::array::from_fn(|_| Curve::default()),
-        },
-        Adjustment::ChannelMixer {
-            matrix: [[0.8, 0.2, 0.0], [0.1, 0.7, 0.2], [0.0, 0.3, 0.7]],
-            constant: [0.1, 0.0, -0.1],
-            monochrome: false,
+            master: Curve(vec![[0.0, 0.0], [0.3, 0.2], [0.7, 0.85], [1.0, 1.0]]),
+            rgb: [
+                Curve::default(),
+                Curve(vec![[0.0, 0.1], [1.0, 0.9]]),
+                Curve::default(),
+            ],
         },
         Adjustment::HueSaturation {
-            hue: -70.0,
-            saturation: 30.0,
-            lightness: -20.0,
+            hue: 40.0,
+            saturation: -30.0,
+            lightness: 10.0,
             colorize: false,
         },
         Adjustment::HueSaturation {
-            hue: 80.0,
-            saturation: 50.0,
-            lightness: 20.0,
+            hue: -120.0,
+            saturation: 60.0,
+            lightness: -20.0,
             colorize: true,
         },
-    ] {
-        let mut doc = common::doc(e, Depth::F32);
-        common::add(
-            &mut doc,
+        Adjustment::ChannelMixer {
+            matrix: [[0.8, 0.3, -0.1], [0.1, 0.7, 0.2], [0.0, -0.2, 1.1]],
+            constant: [0.02, 0.0, -0.03],
+            monochrome: false,
+        },
+        Adjustment::ChannelMixer {
+            matrix: [[0.3, 0.59, 0.11], [0.0; 3], [0.0; 3]],
+            constant: [0.0; 3],
+            monochrome: true,
+        },
+    ]
+}
+
+/// The per-tile GPU gate's 39-node chain plus adjustment layers, fills,
+/// masks and a clip group, in `depth`, with an odd canvas.
+fn scene(depth: Depth, e: Extent) -> Document {
+    let mut d = doc(e, depth);
+    let (w, h) = (e.width as f32, e.height as f32);
+    let bg = add(
+        &mut d,
+        None,
+        layer_fn("bg", e, depth, move |x, y| {
+            opaque([x as f32 / w, y as f32 / h, 0.4])
+        }),
+    );
+    set_props(&mut d, bg, |p| p.background = true);
+    for (i, m) in BlendMode::ALL.into_iter().enumerate() {
+        let id = add(
+            &mut d,
             None,
-            common::layer_fn("base", e, Depth::F32, pixel),
+            layer_fn("m", e, depth, wave(i as u32)).with_mode(m),
         );
-        common::add(
-            &mut doc,
-            None,
-            Layer::new("adjust", LayerKind::Adjustment(adj.clone())).with_opacity(0.7),
-        );
-        let want = Compositor::new(1 << 20)
-            .render_tile_premultiplied(&doc, TileCoord::new(0, 0, 0))
-            .unwrap();
-        scene
-            .composite(&gpu, 0, &[(1, BlendMode::Normal, 1.0)], None)
-            .unwrap();
-        scene.adjust(&gpu, 0, &adj, 0.7, None).unwrap();
-        let got = scene.readback(&gpu, 0).unwrap();
-        let worst = got
-            .iter()
-            .zip(want.samples::<f32>().unwrap())
-            .map(|(a, b)| (a - b).abs())
-            .fold(0.0f32, f32::max);
-        assert!(worst <= 1e-4, "{adj:?}: {worst}");
+        set_props(&mut d, id, |p| {
+            p.opacity = 0.4 + 0.02 * i as f32;
+            p.fill_opacity = 1.0 - 0.01 * i as f32;
+        });
+    }
+    let pt = add(
+        &mut d,
+        None,
+        Layer::group("pt", GroupMode::PassThrough).with_opacity(0.8),
+    );
+    add(
+        &mut d,
+        Some(pt),
+        layer_fn("a", e, depth, wave(40)).with_mode(BlendMode::Overlay),
+    );
+    let ko = add(&mut d, Some(pt), layer_fn("ko", e, depth, wave(41)));
+    set_props(&mut d, ko, |p| {
+        p.knockout = Knockout::Shallow;
+        p.fill_opacity = 0.3;
+    });
+    // An adjustment inside the pass-through group reaches the backdrop.
+    let adj = add(
+        &mut d,
+        Some(pt),
+        Layer::new("curves", LayerKind::Adjustment(adjustments()[5].clone())),
+    );
+    set_props(&mut d, adj, |p| p.opacity = 0.7);
+    let iso = add(
+        &mut d,
+        None,
+        Layer::group("iso", GroupMode::Isolated).with_mode(BlendMode::SoftLight),
+    );
+    let mut m = Mask::reveal_all(e, depth);
+    m.raster
+        .edit_region(
+            Rect::new(0, 0, e.width as i64 / 2, e.height as i64),
+            1,
+            move |x, _, p| p[0] = x as f32 / (w / 2.0),
+        )
+        .unwrap();
+    d.apply(DocOp::SetMask {
+        id: iso,
+        mask: Some(m),
+    })
+    .unwrap();
+    add(
+        &mut d,
+        Some(iso),
+        layer_fn("b", e, depth, wave(50)).with_mode(BlendMode::Hue),
+    );
+    let bi = add(&mut d, Some(iso), layer_fn("bi", e, depth, wave(51)));
+    set_props(&mut d, bi, |p| {
+        p.blend_if.gray.underlying = [0.1, 0.3, 0.7, 0.9];
+        p.blend_if.rgb[1].this_layer = [0.0, 0.2, 0.8, 1.0];
+    });
+    let deep = add(&mut d, Some(iso), layer_fn("deep", e, depth, wave(52)));
+    set_props(&mut d, deep, |p| {
+        p.knockout = Knockout::Deep;
+        p.fill_opacity = 0.5;
+        p.opacity = 0.7;
+    });
+    add(
+        &mut d,
+        None,
+        layer_fn("base", e, depth, wave(60)).with_mode(BlendMode::Multiply),
+    );
+    let c1 = add(
+        &mut d,
+        None,
+        layer_fn("c1", e, depth, wave(61)).with_mode(BlendMode::ColorDodge),
+    );
+    set_props(&mut d, c1, |p| p.clipped = true);
+    let c2 = add(
+        &mut d,
+        None,
+        layer_fn("c2", e, depth, wave(62))
+            .with_mode(BlendMode::Dissolve)
+            .with_opacity(0.6),
+    );
+    set_props(&mut d, c2, |p| p.clipped = true);
+    add(
+        &mut d,
+        None,
+        Layer::new(
+            "grad",
+            LayerKind::Fill(Fill::Gradient {
+                gradient: GradientKind::Radial,
+                start: [w / 2.0, h / 2.0],
+                end: [w, h / 2.0],
+                stops: vec![
+                    GradientStop {
+                        position: 0.0,
+                        color: [1.0, 0.8, 0.2, 0.6],
+                    },
+                    GradientStop {
+                        position: 1.0,
+                        color: [0.1, 0.2, 0.9, 0.0],
+                    },
+                ],
+            }),
+        )
+        .with_mode(BlendMode::LinearLight),
+    );
+    // Masked hue/saturation adjustment with Blend If at the top.
+    let hs = add(
+        &mut d,
+        None,
+        Layer::new("hs", LayerKind::Adjustment(adjustments()[6].clone())),
+    );
+    let mut m = Mask::hide_all(e, depth);
+    m.raster
+        .edit_region(
+            Rect::new(10, 10, e.width as i64 - 30, e.height as i64 - 20),
+            1,
+            |x, y, p| p[0] = ((x + y) % 50) as f32 / 49.0,
+        )
+        .unwrap();
+    d.apply(DocOp::SetMask {
+        id: hs,
+        mask: Some(m),
+    })
+    .unwrap();
+    set_props(&mut d, hs, |p| {
+        p.blend_if.gray.this_layer = [0.0, 0.1, 0.9, 1.0];
+        p.blend_mode = BlendMode::Color;
+    });
+    add(
+        &mut d,
+        None,
+        Layer::new(
+            "pattern",
+            LayerKind::Fill(Fill::Pattern {
+                width: 3,
+                height: 2,
+                rgba: (0..24).map(|i| (i % 7) as f32 / 6.0).collect(),
+                origin: [1.5, -0.5],
+            }),
+        )
+        .with_mode(BlendMode::Screen)
+        .with_opacity(0.3),
+    );
+    d
+}
+
+#[test]
+fn resident_chain_matches_cpu_at_every_depth_and_level() {
+    let Some(gpu) = gpu() else { return };
+    for depth in [Depth::F32, Depth::U16, Depth::U8] {
+        let d = scene(depth, Extent::new(301, 290));
+        let mut r = ResidentRenderer::new(&gpu).unwrap();
+        for level in [0u8, 1, 2, 4, 9] {
+            let w = worst(&mut r, &d, level);
+            eprintln!("{depth:?} L{level}: chain max |gpu − cpu| = {w:e}");
+            assert!(w <= 2e-3, "{depth:?} L{level}: {w:e}");
+        }
     }
 }
 
 #[test]
-fn resident_blends_and_mips_match_cpu() {
-    use compositor::*;
-    use engine_api::tile::{Extent, TileCoord};
-    let gpu = GpuCompositor::new().unwrap();
-    let e = Extent::new(17, 13);
-    let n = e.area() as usize;
-    for mode in BlendMode::ALL {
-        let mut doc = common::doc(e, Depth::F32);
-        let mut scene = gpu.resident(17, 13).unwrap();
-        let mut steps = Vec::new();
-        for j in 0..2 {
-            let pixel = |x: u32, y: u32| {
-                [
-                    ((x * 7 + y * 13 + j * 11) % 37) as f32 / 36.0,
-                    ((x * 3 + y * 7 + j * 5) % 31) as f32 / 30.0,
-                    0.3 + j as f32 * 0.4,
-                    0.2 + ((x + y + j) % 7) as f32 / 10.0,
-                ]
-            };
-            let m = if j == 0 { BlendMode::Normal } else { mode };
-            let id = common::add(
-                &mut doc,
+fn every_mode_and_adjustment_within_operator_tolerance() {
+    let Some(gpu) = gpu() else { return };
+    let e = Extent::new(260, 140);
+    let base = |d: &mut Document| {
+        add(
+            d,
+            None,
+            layer_fn("bg", e, Depth::F32, |x, y| {
+                opaque([x as f32 / 300.0, y as f32 / 140.0, 0.4])
+            }),
+        );
+        for j in 0..3 {
+            add(
+                d,
                 None,
-                common::layer_fn("layer", e, Depth::F32, pixel)
-                    .with_mode(m)
-                    .with_opacity(0.7),
+                layer_fn("m", e, Depth::F32, wave(j + 30)).with_opacity(0.7),
             );
-            let mut samples = vec![0.0; n * 4];
-            for y in 0..13 {
-                for x in 0..17 {
-                    for c in 0..4 {
-                        samples[c * n + (y * 17 + x) as usize] = pixel(x, y)[c];
-                    }
-                }
-            }
-            scene.upload(&gpu, id.0, 1, &samples).unwrap();
-            steps.push((id.0, m, 0.7));
         }
-        for level in 0..3 {
-            scene.composite(&gpu, level, &steps, None).unwrap();
-            let got = scene.readback(&gpu, level).unwrap();
-            let want = Compositor::new(1 << 20)
-                .render_tile_premultiplied(&doc, TileCoord::new(level, 0, 0))
-                .unwrap();
-            let worst = got
-                .iter()
-                .zip(want.samples::<f32>().unwrap())
-                .map(|(a, b)| (a - b).abs())
-                .fold(0.0f32, f32::max);
-            assert!(worst <= 1e-4, "{mode:?} L{level}: {worst}");
+    };
+    let mut r = ResidentRenderer::new(&gpu).unwrap();
+    for (i, m) in BlendMode::ALL.into_iter().enumerate() {
+        let mut d = doc(e, Depth::F32);
+        base(&mut d);
+        let id = add(
+            &mut d,
+            None,
+            layer_fn("m", e, Depth::F32, wave(i as u32)).with_mode(m),
+        );
+        set_props(&mut d, id, |p| {
+            p.opacity = 0.4 + 0.02 * i as f32;
+            p.fill_opacity = 1.0 - 0.01 * i as f32;
+        });
+        let w = worst(&mut r, &d, 0);
+        eprintln!("{m:?}: {w:e}");
+        assert!(w <= 1e-4, "{m:?}: {w:e}");
+    }
+    for (i, a) in adjustments().into_iter().enumerate() {
+        for depth in [Depth::F32, Depth::U8] {
+            let mut d = doc(e, depth);
+            add(
+                &mut d,
+                None,
+                layer_fn("bg", e, depth, |x, y| {
+                    [
+                        x as f32 / 260.0,
+                        y as f32 / 140.0,
+                        0.4,
+                        0.3 + 0.7 * (x % 5) as f32 / 4.0,
+                    ]
+                }),
+            );
+            let id = add(
+                &mut d,
+                None,
+                Layer::new("adj", LayerKind::Adjustment(a.clone())),
+            );
+            set_props(&mut d, id, |p| {
+                p.opacity = 0.9;
+                p.fill_opacity = 0.8;
+                if i % 2 == 1 {
+                    p.blend_mode = BlendMode::Overlay;
+                }
+            });
+            let w = worst(&mut r, &d, 0);
+            eprintln!("{a:?} {depth:?}: {w:e}");
+            // Threshold and Posterize are step functions: a 1-ulp
+            // difference at a step flips a whole code value.
+            let steps = matches!(
+                a,
+                Adjustment::Threshold { .. } | Adjustment::Posterize { .. }
+            );
+            assert!(w <= if steps { 2e-3 } else { 1e-4 }, "{a:?}: {w:e}");
         }
     }
 }
 
 #[test]
-fn resident_dab_updates_only_dirty_rectangle() {
-    let gpu = GpuCompositor::new().unwrap();
-    let mut scene = gpu.resident(17, 13).unwrap();
-    let n = 17 * 13;
-    let mut samples = vec![0.2; n * 4];
-    samples[3 * n..].fill(1.0);
-    scene.upload(&gpu, 1, 0, &samples).unwrap();
-    scene
-        .composite(&gpu, 0, &[(1, BlendMode::Normal, 1.0)], None)
-        .unwrap();
-    let patch = [0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 1.0, 1.0];
-    assert!(
-        scene
-            .upload_region(&gpu, 1, 1, [3, 4, 2, 1], &patch)
-            .unwrap()
-    );
-    assert!(
-        !scene
-            .upload_region(&gpu, 1, 1, [3, 4, 2, 1], &patch)
-            .unwrap()
-    );
-    scene
-        .composite(&gpu, 0, &[(1, BlendMode::Normal, 1.0)], Some([3, 4, 2, 1]))
-        .unwrap();
-    let partial = scene.readback(&gpu, 0).unwrap();
-    for c in 0..4 {
-        for i in 0..n {
-            let want = if i == 71 || i == 72 {
-                patch[c * 2 + i - 71]
-            } else {
-                samples[c * n + i]
-            };
-            assert!((partial[c * n + i] - want).abs() < 1e-6);
+fn integer_mips_are_exact() {
+    let Some(gpu) = gpu() else { return };
+    // Odd extents at every level; mask with reveal default; semi-transparent
+    // content so the alpha-weighted mean is exercised.
+    for depth in [Depth::U8, Depth::U16] {
+        let e = Extent::new(1037, 555);
+        let mut d = doc(e, depth);
+        let id = add(
+            &mut d,
+            None,
+            layer_fn("a", e, depth, |x, y| {
+                [
+                    ((x * 7 + y * 3) % 256) as f32 / 255.0,
+                    ((x ^ y) % 256) as f32 / 255.0,
+                    (y % 256) as f32 / 255.0,
+                    ((x * 13 + y * 5) % 256) as f32 / 255.0,
+                ]
+            }),
+        );
+        let mut m = Mask::reveal_all(e, depth);
+        m.raster
+            .edit_region(Rect::new(100, 50, 700, 400), 1, |x, y, p| {
+                p[0] = ((x * y) % 256) as f32 / 255.0
+            })
+            .unwrap();
+        d.apply(DocOp::SetMask { id, mask: Some(m) }).unwrap();
+        let mut r = ResidentRenderer::new(&gpu).unwrap();
+        for level in 0..=11u8 {
+            // Identical mips; only the blend arithmetic's rounding remains.
+            let w = worst(&mut r, &d, level);
+            assert!(w <= 1e-6, "{depth:?} L{level}: {w:e}");
         }
     }
-    scene
-        .composite(&gpu, 0, &[(1, BlendMode::Normal, 1.0)], None)
-        .unwrap();
-    assert_eq!(partial, scene.readback(&gpu, 0).unwrap());
 }
+
 #[test]
-fn resident_accepts_twenty_megapixel_extent() {
-    let gpu = GpuCompositor::new().unwrap();
-    assert!(gpu.resident(5000, 4000).is_ok());
+fn dirty_rect_frames_are_bit_exact_and_local() {
+    let Some(gpu) = gpu() else { return };
+    let e = Extent::new(700, 520);
+    let mut d = scene(Depth::U8, e);
+    let target = d.state().layer_ids()[5];
+    let mut r = ResidentRenderer::new(&gpu).unwrap();
+    for level in [0u8, 2] {
+        let f = r.render(&d, level).unwrap();
+        assert!(f.full);
+    }
+    // Nothing changed: no dispatch.
+    let f = r.render(&d, 2).unwrap();
+    assert_eq!(f.blocks, 0);
+    assert!(f.damage.is_empty());
+
+    let dab = Rect::new(300, 200, 364, 264);
+    let op = paint_op(d.state(), target, PaintTarget::Content, dab, |x, y, p| {
+        let dx = x as f32 - 332.0;
+        let dy = y as f32 - 232.0;
+        let a = (1.0 - (dx * dx + dy * dy).sqrt() / 32.0).clamp(0.0, 1.0);
+        p[0] += (1.0 - p[0]) * a;
+        p[3] = p[3].max(a);
+    })
+    .unwrap();
+    d.apply(op).unwrap();
+    for level in [2u8, 0] {
+        let f = r.render(&d, level).unwrap();
+        assert!(!f.full, "L{level} {f:?}");
+        assert!(f.uploaded_pages <= 4, "{f:?}");
+        let dab_l = dab.to_level(level);
+        let blocks = (dab_l.width() as u32).div_ceil(16) + 1;
+        assert!(f.blocks <= blocks * blocks, "L{level}: {f:?}");
+        let mut fresh = ResidentRenderer::new(&gpu).unwrap();
+        fresh.render(&d, level).unwrap();
+        assert!(
+            bits(&r, level) == bits(&fresh, level),
+            "L{level} partial ≠ cold"
+        );
+    }
+    // A property change, an adjustment edit, undo (new epoch) and redo.
+    let id = d.state().layer_ids()[12];
+    set_props(&mut d, id, |p| p.opacity = 0.25);
+    let adj = d
+        .state()
+        .layer_ids()
+        .into_iter()
+        .find(|id| {
+            matches!(
+                d.state().find(*id).unwrap().kind,
+                LayerKind::Adjustment(Adjustment::Curves { .. })
+            )
+        })
+        .unwrap();
+    d.apply(DocOp::SetAdjustment {
+        id: adj,
+        adjustment: Adjustment::Invert,
+    })
+    .unwrap();
+    for step in 0..4 {
+        match step {
+            1 => assert!(d.undo()),
+            2 => assert!(d.undo()),
+            3 => assert!(d.redo()),
+            _ => {}
+        }
+        for level in [2u8, 0] {
+            r.render(&d, level).unwrap();
+            let mut fresh = ResidentRenderer::new(&gpu).unwrap();
+            fresh.render(&d, level).unwrap();
+            assert!(
+                bits(&r, level) == bits(&fresh, level),
+                "step {step} L{level}"
+            );
+            assert!(worst(&mut fresh, &d, level) <= 2e-3);
+        }
+    }
+}
+
+#[test]
+fn rendering_is_deterministic() {
+    let Some(gpu) = gpu() else { return };
+    let d = scene(Depth::U16, Extent::new(517, 300));
+    let mut a = ResidentRenderer::new(&gpu).unwrap();
+    let mut b = ResidentRenderer::new(&gpu).unwrap();
+    for level in [0u8, 1, 3] {
+        a.render(&d, level).unwrap();
+        b.render(&d, 0).unwrap();
+        b.render(&d, level).unwrap();
+        let first = bits(&a, level);
+        assert!(first == bits(&b, level), "L{level}");
+        // Re-running the same program over the same pages is idempotent.
+        for _ in 0..3 {
+            a.render(&d, level).unwrap();
+            assert!(first == bits(&a, level));
+        }
+    }
+    // A second device agrees bit for bit.
+    let gpu2 = GpuCompositor::new().unwrap();
+    let mut c = ResidentRenderer::new(&gpu2).unwrap();
+    c.render(&d, 1).unwrap();
+    assert!(bits(&a, 1) == bits(&c, 1));
+}
+
+#[test]
+fn copy_on_write_duplicates_share_pages() {
+    let Some(gpu) = gpu() else { return };
+    let e = Extent::new(600, 520); // 3×3 tiles
+    let mut d = doc(e, Depth::U8);
+    let a = add(&mut d, None, layer_fn("a", e, Depth::U8, wave(3)));
+    let mut r = ResidentRenderer::new(&gpu).unwrap();
+    let f = r.render(&d, 2).unwrap();
+    assert_eq!(f.uploaded_pages, 9);
+    assert_eq!(f.mip_pages, 4 + 1);
+    for _ in 0..5 {
+        d.apply(DocOp::DuplicateLayer { id: a }).unwrap();
+    }
+    let f = r.render(&d, 2).unwrap();
+    assert_eq!((f.uploaded_pages, f.mip_pages), (0, 0), "{f:?}");
+    let dup = *d.state().layer_ids().last().unwrap();
+    let op = paint_op(
+        d.state(),
+        dup,
+        PaintTarget::Content,
+        Rect::new(10, 10, 20, 20),
+        |_, _, p| p[1] = 1.0,
+    )
+    .unwrap();
+    d.apply(op).unwrap();
+    let f = r.render(&d, 2).unwrap();
+    // One replaced tile, one new mip page per level above it.
+    assert_eq!((f.uploaded_pages, f.mip_pages), (1, 2), "{f:?}");
+    assert!(!f.full);
+    assert!(worst(&mut r, &d, 2) <= 1e-4);
+    assert!(worst(&mut r, &d, 0) <= 1e-4);
+}
+
+#[test]
+fn small_budget_evicts_history_pages_and_stays_correct() {
+    let Some(gpu) = gpu() else { return };
+    let e = Extent::new(700, 700);
+    let mut d = doc(e, Depth::U8);
+    let id = add(&mut d, None, layer_fn("a", e, Depth::U8, wave(9)));
+    // A budget of about one slab: repainting everything forces eviction of
+    // the previous state's pages.
+    let mut r = ResidentRenderer::with_budget(&gpu, 32 * 256 * 1024).unwrap();
+    for k in 0..4u32 {
+        let op = paint_op(
+            d.state(),
+            id,
+            PaintTarget::Content,
+            Rect::of_extent(e),
+            move |x, _, p| p[0] = ((x + k * 40) % 256) as f32 / 255.0,
+        )
+        .unwrap();
+        d.apply(op).unwrap();
+        r.render(&d, 0).unwrap();
+        r.render(&d, 1).unwrap();
+    }
+    assert!(r.stats().evicted_pages > 0, "{:?}", r.stats());
+    assert!(d.undo());
+    assert!(worst(&mut r, &d, 0) <= 1e-4);
+    assert!(worst(&mut r, &d, 1) <= 1e-4);
+}
+
+#[test]
+fn smart_objects_render_through_uploaded_pages() {
+    let Some(gpu) = gpu() else { return };
+    let ce = Extent::new(120, 90);
+    let mut child = DocState::new(ce, Depth::F32);
+    let mut l = layer_fn("c", ce, Depth::F32, wave(7));
+    l.id = LayerId(1);
+    child.root.push(std::sync::Arc::new(l));
+    child.next_id = 2;
+    let e = Extent::new(300, 260);
+    let mut d = doc(e, Depth::F32);
+    add(&mut d, None, layer_fn("bg", e, Depth::F32, wave(2)));
+    add(
+        &mut d,
+        None,
+        Layer::new(
+            "so",
+            LayerKind::SmartObject(SmartObject::new(
+                child,
+                Affine::scale_translate(1.5, 1.25, 40.0, 30.0),
+            )),
+        )
+        .with_mode(BlendMode::Multiply),
+    );
+    let mut r = ResidentRenderer::new(&gpu).unwrap();
+    for level in [0u8, 1, 2] {
+        assert!(worst(&mut r, &d, level) <= 1e-4);
+    }
+    assert!(r.stats().smart_pages > 0);
+}
+
+#[test]
+fn present_flattens_into_an_rgba8_storage_texture() {
+    let Some(gpu) = gpu() else { return };
+    let e = Extent::new(90, 70);
+    let d = scene(Depth::U8, e);
+    let mut r = ResidentRenderer::new(&gpu).unwrap();
+    r.render(&d, 0).unwrap();
+    let (device, queue) = gpu.handles();
+    let tex = device.create_texture(&wgpu::TextureDescriptor {
+        label: None,
+        size: wgpu::Extent3d {
+            width: 128,
+            height: 80,
+            depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Rgba8Unorm,
+        usage: wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::COPY_SRC,
+        view_formats: &[],
+    });
+    let src = Rect::new(10, 5, 70, 65);
+    r.present(0, &tex, src, (3, 4), Some([1.0, 1.0, 1.0]))
+        .unwrap();
+    let buf = device.create_buffer(&wgpu::BufferDescriptor {
+        label: None,
+        size: 512 * 80,
+        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+        mapped_at_creation: false,
+    });
+    let mut enc = device.create_command_encoder(&Default::default());
+    enc.copy_texture_to_buffer(
+        tex.as_image_copy(),
+        wgpu::TexelCopyBufferInfo {
+            buffer: &buf,
+            layout: wgpu::TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(512),
+                rows_per_image: None,
+            },
+        },
+        wgpu::Extent3d {
+            width: 128,
+            height: 80,
+            depth_or_array_layers: 1,
+        },
+    );
+    queue.submit([enc.finish()]);
+    buf.slice(..).map_async(wgpu::MapMode::Read, |_| {});
+    device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
+    let px = buf.slice(..).get_mapped_range().unwrap().to_vec();
+    let (_, pm) = r.read_level(0, true).unwrap();
+    for y in 0..60u32 {
+        for x in 0..60u32 {
+            let s = (((5 + y) * 90 + 10 + x) * 4) as usize;
+            let o = ((4 + y) * 512 + (3 + x) * 4) as usize;
+            for c in 0..3 {
+                let want = (pm[s + c] + (1.0 - pm[s + 3])).clamp(0.0, 1.0) * 255.0;
+                assert!(
+                    (f32::from(px[o + c]) - want).abs() <= 0.51,
+                    "({x},{y}) c{c}: {} vs {want}",
+                    px[o + c]
+                );
+            }
+            assert_eq!(px[o + 3], 255);
+        }
+    }
+}
+
+#[test]
+fn one_shared_device_serves_the_compositor() {
+    let shared = match gpu_core::GpuDevice::new() {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("skipping: no Metal adapter ({e})");
+            return;
+        }
+    };
+    eprintln!("shared device: {shared:?}");
+    let gpu = GpuCompositor::from_shared(&shared).unwrap();
+    let d = scene(Depth::U8, Extent::new(64, 48));
+    let mut r = ResidentRenderer::new(&gpu).unwrap();
+    assert!(worst(&mut r, &d, 0) <= 2e-3);
+    r.drop_level(0);
+    assert!(r.read_level(0, true).is_err());
+    // A device with default limits (8 storage buffers) is refused clearly.
+    let adapter = pollster::block_on(
+        wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle())
+            .request_adapter(&Default::default()),
+    )
+    .unwrap();
+    let (device, queue) = pollster::block_on(adapter.request_device(&Default::default())).unwrap();
+    let small = GpuCompositor::from_device(device, queue, "defaults".into()).unwrap();
+    assert!(matches!(
+        ResidentRenderer::new(&small),
+        Err(engine_api::EngineError::Unsupported { .. })
+    ));
+}
+
+#[test]
+fn cached_composites_are_flagged_premultiplied_and_levels_go_to_one_pixel() {
+    let e = Extent::new(1000, 600);
+    let mut d = doc(e, Depth::U8);
+    let g = add(&mut d, None, Layer::group("g", GroupMode::Isolated));
+    add(&mut d, Some(g), layer_fn("a", e, Depth::U8, wave(1)));
+    let c = Compositor::new(64 << 20);
+    let coord = TileCoord::new(1, 0, 0);
+    assert!(
+        c.render_tile_premultiplied(&d, coord)
+            .unwrap()
+            .premultiplied()
+    );
+    assert!(!c.render_tile(&d, coord).unwrap().premultiplied());
+    let p = c.pyramid(&d);
+    assert!(!p.premultiplied());
+    assert_eq!(p.level_count(), e.full_level_count());
+    assert_eq!(p.level_extent(p.level_count() - 1), Extent::new(1, 1));
+    let deepest = TileCoord::new(p.level_count() - 1, 0, 0);
+    assert!(p.contains(deepest));
+    let t = p.tile(deepest).unwrap();
+    assert_eq!(t.layout().extent, Extent::new(1, 1));
 }

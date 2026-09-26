@@ -214,6 +214,68 @@ impl Compositor {
         let kids = coord
             .children()
             .ok_or_else(|| EngineError::internal("level 0 children"))?;
+        let depth = raster.depth();
+        let exact = depth != crate::raster::Depth::F32 && (def == 0.0 || def == 1.0);
+        let tile = if exact {
+            let mut data: [Option<Tile>; 4] = Default::default();
+            let mut layouts = [(0usize, 0usize); 4];
+            for (k, c) in kids.iter().enumerate() {
+                if c.x < ccols && c.y < crows {
+                    data[k] = self.raster_level(doc, node, part, raster, *c)?;
+                    if let Some(t) = &data[k] {
+                        layouts[k] = (t.layout().stride(), t.layout().plane_len());
+                    }
+                }
+            }
+            let layout = TileLayout {
+                extent: Extent::new(w as u32, h as u32),
+                halo: 0,
+                channels: ch as u8,
+            };
+            let dims = (ce.width as usize, ce.height as usize);
+            let at = (coord.x as usize, coord.y as usize);
+            if depth == crate::raster::Depth::U8 {
+                let mut kids8: [Option<&[u8]>; 4] = [None; 4];
+                for (k, t) in data.iter().enumerate() {
+                    kids8[k] = t.as_ref().map(|t| t.samples::<u8>()).transpose()?;
+                }
+                let def = if def == 1.0 { u8::MAX } else { 0 };
+                let res = mip_exact(&kids8, &layouts, (w, h), dims, at, ch, def);
+                Tile::from_samples(coord, layout, res)?
+            } else {
+                let mut kids16: [Option<&[u16]>; 4] = [None; 4];
+                for (k, t) in data.iter().enumerate() {
+                    kids16[k] = t.as_ref().map(|t| t.samples::<u16>()).transpose()?;
+                }
+                let def = if def == 1.0 { u16::MAX } else { 0 };
+                let res = mip_exact(&kids16, &layouts, (w, h), dims, at, ch, def);
+                Tile::from_samples(coord, layout, res)?
+            }
+        } else {
+            self.mip_float(doc, node, part, raster, coord, (w, h), ce, &kids)?
+        };
+        self.stats.mips.fetch_add(1, Ordering::Relaxed);
+        self.cache_put(key, tile.clone());
+        Ok(Some(tile))
+    }
+
+    /// The f32 mip of one tile (float rasters, and 8/16-bit rasters with a
+    /// default other than 0 or 1), quantized back to the raster depth.
+    #[allow(clippy::too_many_arguments)]
+    fn mip_float(
+        &self,
+        doc: u64,
+        node: u64,
+        part: Part,
+        raster: &Raster,
+        coord: TileCoord,
+        (w, h): (usize, usize),
+        ce: Extent,
+        kids: &[TileCoord; 4],
+    ) -> EngineResult<Tile> {
+        let ch = raster.channels() as usize;
+        let def = raster.default_value();
+        let (ccols, crows) = ce.tile_grid(TILE_SIZE);
         let mut data: [Option<(Vec<f32>, usize, usize)>; 4] = Default::default();
         for (k, c) in kids.iter().enumerate() {
             if c.x < ccols
@@ -281,10 +343,7 @@ impl Compositor {
             halo: 0,
             channels: ch as u8,
         };
-        let tile = tile_from_normalized(coord, layout, raster.depth(), &res)?;
-        self.stats.mips.fetch_add(1, Ordering::Relaxed);
-        self.cache_put(key, tile.clone());
-        Ok(Some(tile))
+        tile_from_normalized(coord, layout, raster.depth(), &res)
     }
 
     /// A smart object resampled into the parent at `coord` (straight f32
@@ -465,7 +524,7 @@ impl Compositor {
         let ops = job.compile()?;
         let acc = job.run(&ops)?;
         self.stats.root_full.fetch_add(1, Ordering::Relaxed);
-        let t = Tile::from_samples(coord, job.layout(), acc)?;
+        let t = Tile::from_samples(coord, job.layout(), acc)?.with_premultiplied(true)?;
         self.cache_put(key, t.clone());
         Ok(t)
     }
@@ -597,6 +656,79 @@ impl Compositor {
     }
 }
 
+/// The 2×2 mip of 8/16-bit code values in exact integer arithmetic:
+/// `C = round(ΣAᵢCᵢ / ΣAᵢ)`, `A = round(ΣAᵢ / n)` for RGBA and
+/// `v = round(Σvᵢ / n)` for one channel, rounding halves up. This is the
+/// COMPOSITOR.md §5 definition evaluated exactly, so the GPU mip shader
+/// reproduces it bit for bit. `default` is the code of absent children.
+pub(crate) fn mip_exact<T: Copy + Into<u64> + TryFrom<u64>>(
+    kids: &[Option<&[T]>; 4],
+    kid_layouts: &[(usize, usize); 4],
+    (w, h): (usize, usize),
+    (cw, chh): (usize, usize),
+    (tx, ty): (usize, usize),
+    ch: usize,
+    default: T,
+) -> Vec<T> {
+    let ts = TILE_SIZE as usize;
+    let n = w * h;
+    let mut res = vec![default; ch * n];
+    let (bx, by) = (2 * tx * ts, 2 * ty * ts);
+    let q = |v: u64| T::try_from(v).unwrap_or(default);
+    for y in 0..h {
+        for x in 0..w {
+            let (mut num, mut den, mut sum, mut cnt) = ([0u64; 3], 0u64, 0u64, 0u64);
+            for dy in 0..2 {
+                let cy = by + 2 * y + dy;
+                if cy >= chh {
+                    continue;
+                }
+                for dx in 0..2 {
+                    let cx = bx + 2 * x + dx;
+                    if cx >= cw {
+                        continue;
+                    }
+                    let (lx, ly) = (cx - bx, cy - by);
+                    let k = (ly / ts) * 2 + lx / ts;
+                    let (px, py) = (lx % ts, ly % ts);
+                    let (stride, plane) = kid_layouts[k];
+                    let get = |c: usize| -> u64 {
+                        match kids[k] {
+                            Some(v) => v[c * plane + py * stride + px].into(),
+                            None => default.into(),
+                        }
+                    };
+                    cnt += 1;
+                    if ch == 4 {
+                        let a = get(3);
+                        for (c, s) in num.iter_mut().enumerate() {
+                            *s += a * get(c);
+                        }
+                        den += a;
+                    } else {
+                        sum += get(0);
+                    }
+                }
+            }
+            let i = y * w + x;
+            let cnt = cnt.max(1);
+            if ch == 4 {
+                for c in 0..3 {
+                    res[c * n + i] = q(if den > 0 {
+                        (2 * num[c] + den) / (2 * den)
+                    } else {
+                        0
+                    });
+                }
+                res[3 * n + i] = q((2 * den + cnt) / (2 * cnt));
+            } else {
+                res[i] = q((2 * sum + cnt) / (2 * cnt));
+            }
+        }
+    }
+    res
+}
+
 /// Planar tiles of a level → interleaved RGBA.
 pub fn interleave(e: Extent, tiles: &[Tile]) -> EngineResult<Vec<f32>> {
     let mut out = vec![0.0f32; e.width as usize * e.height as usize * 4];
@@ -617,7 +749,8 @@ pub fn interleave(e: Extent, tiles: &[Tile]) -> EngineResult<Vec<f32>> {
     Ok(out)
 }
 
-/// Premultiplied f32 RGBA tile → straight.
+/// Premultiplied f32 RGBA tile → straight (the result's
+/// [`Tile::premultiplied`] flag is false).
 pub fn unpremultiply(t: &Tile) -> EngineResult<Tile> {
     let s = t.samples::<f32>()?;
     let n = t.layout().plane_len();
@@ -649,6 +782,11 @@ impl Pyramid for CompositePyramid<'_> {
     }
     fn halo(&self) -> u16 {
         0
+    }
+    /// Every level down to 1×1 (thumbnails and far zoom-outs), capped at
+    /// [`MAX_LEVEL`].
+    fn level_count(&self) -> u8 {
+        self.extent().full_level_count().min(MAX_LEVEL)
     }
     fn tile(&self, coord: TileCoord) -> EngineResult<Tile> {
         self.comp.render_tile(self.doc, coord)

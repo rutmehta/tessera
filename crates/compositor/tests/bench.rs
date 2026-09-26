@@ -266,3 +266,247 @@ fn composite_100_layers_20mp_at_level_2() {
         );
     }
 }
+
+fn median(mut v: Vec<f64>) -> (f64, f64, f64) {
+    v.sort_by(f64::total_cmp);
+    (v[0], v[v.len() / 2], v[v.len() - 1])
+}
+
+/// The same document on the GPU-resident path (COMPOSITOR.md §10.2).
+///
+/// `cargo test -p compositor --release --test bench -- --ignored --nocapture resident`
+/// Set `TESSERA_BENCH_ASSERT=1` to fail when a target is missed.
+#[test]
+#[ignore = "bench: run with --ignored --nocapture"]
+fn resident_100_layers_20mp() {
+    use compositor::gpu::GpuCompositor;
+    use compositor::resident::ResidentRenderer;
+    let e = Extent::new(5472, 3648);
+    let (mut d, ids) = build(e);
+    let t = Instant::now();
+    let gpu = match GpuCompositor::new() {
+        Ok(g) => g,
+        Err(err) => {
+            println!("skipping: no Metal adapter ({err})");
+            return;
+        }
+    };
+    println!("device + pipelines: {:.0} ms ({})", ms(t), gpu.adapter);
+
+    // Cold open: nothing resident; every tile uploaded once, L1/L2 mips on
+    // the GPU, first level-2 frame complete.
+    let t = Instant::now();
+    let mut r = ResidentRenderer::new(&gpu).unwrap();
+    let f = r.render(&d, 2).unwrap();
+    r.wait().unwrap();
+    let open = ms(t);
+    println!(
+        "cold open → first L2 frame: {open:.0} ms  [{} pages / {:.0} MB uploaded, {} mip pages, {} blocks]",
+        f.uploaded_pages,
+        f.uploaded_bytes as f64 / 1e6,
+        f.mip_pages,
+        f.blocks
+    );
+
+    let mut runs = Vec::new();
+    for _ in 0..9 {
+        r.invalidate();
+        let t = Instant::now();
+        r.render(&d, 2).unwrap();
+        r.wait().unwrap();
+        runs.push(ms(t));
+    }
+    let (lo, med, _) = median(runs);
+    println!("L2 full recomposite (100 layers, 1368×912): min {lo:.2} ms, median {med:.2} ms");
+
+    // Brush dabs on a layer inside the isolated group, walking across a
+    // tile boundary.
+    let target = ids[75];
+    let mut dab_runs = Vec::new();
+    let mut apply_runs = Vec::new();
+    let mut last = None;
+    for k in 0..16i64 {
+        let (cx, cy) = (2000 + 24 * k, 1500 + 9 * k);
+        let dab = Rect::new(cx - 32, cy - 32, cx + 32, cy + 32);
+        let op = paint_op(d.state(), target, PaintTarget::Content, dab, |x, y, p| {
+            let dx = x as f32 - cx as f32;
+            let dy = y as f32 - cy as f32;
+            let a = (1.0 - (dx * dx + dy * dy).sqrt() / 32.0).clamp(0.0, 1.0);
+            p[0] += (1.0 - p[0]) * a;
+            p[3] = p[3].max(a);
+        })
+        .unwrap();
+        let t = Instant::now();
+        d.apply(op).unwrap();
+        apply_runs.push(ms(t));
+        let t = Instant::now();
+        let f = r.render(&d, 2).unwrap();
+        r.wait().unwrap();
+        dab_runs.push(ms(t));
+        last = Some(f);
+    }
+    let (lo, med, hi) = median(dab_runs.clone());
+    let f = last.unwrap();
+    println!(
+        "64² dab → L2 recomposite: min {lo:.2} ms, median {med:.2} ms, max {hi:.2} ms  [last: {} blocks, {} uploads, {} mips; Document::apply median {:.2} ms]",
+        f.blocks,
+        f.uploaded_pages,
+        f.mip_pages,
+        median(apply_runs).1
+    );
+    let dab_med = med;
+
+    // Full level 0 (20 MP × 100 layers).
+    let t = Instant::now();
+    let f = r.render(&d, 0).unwrap();
+    r.wait().unwrap();
+    println!(
+        "first L0 frame: {:.1} ms  [{} blocks, {} uploads]",
+        ms(t),
+        f.blocks,
+        f.uploaded_pages
+    );
+    let mut runs = Vec::new();
+    for _ in 0..5 {
+        r.invalidate();
+        let t = Instant::now();
+        r.render(&d, 0).unwrap();
+        r.wait().unwrap();
+        runs.push(ms(t));
+    }
+    let (lo, l0_med, _) = median(runs);
+    println!("L0 full composite (20 MP × 100 layers): min {lo:.1} ms, median {l0_med:.1} ms");
+
+    let dab = Rect::new(2600, 1700, 2664, 1764);
+    let op = paint_op(d.state(), target, PaintTarget::Content, dab, |_, _, p| {
+        p[1] = 1.0;
+        p[3] = 1.0;
+    })
+    .unwrap();
+    d.apply(op).unwrap();
+    let t = Instant::now();
+    let f = r.render(&d, 0).unwrap();
+    r.wait().unwrap();
+    println!(
+        "64² dab → L0 dirty-rect update: {:.2} ms  [{} blocks]",
+        ms(t),
+        f.blocks
+    );
+
+    // Opacity drag on one layer: every pixel under it recomposites.
+    let mut runs = Vec::new();
+    for k in 0..5 {
+        let mut p = d.state().find(ids[30]).unwrap().props.clone();
+        p.opacity = 0.3 + 0.1 * k as f32;
+        d.apply(DocOp::SetProps {
+            id: ids[30],
+            props: p,
+        })
+        .unwrap();
+        let t = Instant::now();
+        r.render(&d, 2).unwrap();
+        r.wait().unwrap();
+        runs.push(ms(t));
+    }
+    println!("opacity change → L2 frame: median {:.2} ms", median(runs).1);
+
+    // Gate at scale: the resident L2 against the CPU reference.
+    r.render(&d, 2).unwrap();
+    let got = r.read_tiles(2).unwrap();
+    let cpu = Compositor::new(4 << 30);
+    let mut worst = 0.0f32;
+    for g in &got {
+        let want = cpu.render_tile_premultiplied(&d, g.coord()).unwrap();
+        for (p, q) in want
+            .samples::<f32>()
+            .unwrap()
+            .iter()
+            .zip(g.samples::<f32>().unwrap())
+        {
+            worst = worst.max((p - q).abs());
+        }
+    }
+    println!("L2 max |resident − CPU| over the bench document: {worst:e}");
+
+    // Adjustment layers on top (Curves and Hue/Saturation) run on the GPU.
+    for (name, adj) in [
+        (
+            "curves",
+            Adjustment::Curves {
+                master: Curve(vec![[0.0, 0.05], [0.5, 0.6], [1.0, 0.95]]),
+                rgb: Default::default(),
+            },
+        ),
+        (
+            "hue/sat",
+            Adjustment::HueSaturation {
+                hue: 20.0,
+                saturation: 15.0,
+                lightness: 0.0,
+                colorize: false,
+            },
+        ),
+    ] {
+        d.apply(DocOp::AddLayer {
+            parent: None,
+            index: usize::MAX,
+            layer: Layer::new(name, LayerKind::Adjustment(adj)),
+        })
+        .unwrap();
+    }
+    let mut runs = Vec::new();
+    for _ in 0..5 {
+        r.invalidate();
+        let t = Instant::now();
+        r.render(&d, 2).unwrap();
+        let cpu = ms(t);
+        r.wait().unwrap();
+        runs.push((cpu, ms(t)));
+    }
+    println!("L2 full recomposite with 2 adjustment layers (cpu, total): {runs:.2?} ms");
+    let s = r.stats();
+    println!(
+        "resident: {:.0} MB GPU ({} live pages), {:?}",
+        s.resident_bytes as f64 / 1e6,
+        s.live_pages,
+        s
+    );
+
+    // Before: the CPU compositor's full level 0, and the per-tile GPU port
+    // (CPU-resolved sources uploaded per tile) at level 2.
+    let c = Compositor::new(4 << 30);
+    let t = Instant::now();
+    c.render_level(&d, 0, &Default::default()).unwrap();
+    println!(
+        "before: CPU L0 full composite (10 threads): {:.0} ms",
+        ms(t)
+    );
+    c.render_level(&d, 1, &Default::default()).ok();
+    let t = Instant::now();
+    let (cols, rows) = e.at_level(2).tile_grid(256);
+    let mut ok = true;
+    for y in 0..rows {
+        for x in 0..cols {
+            ok &= gpu
+                .render_tile_premultiplied(&c, &d, TileCoord::new(2, x, y))
+                .is_ok();
+        }
+    }
+    println!(
+        "before: per-tile GPU port, L2 ({} tiles, sources uploaded per tile): {:.0} ms{}",
+        cols * rows,
+        ms(t),
+        if ok {
+            ""
+        } else {
+            " (adjustments unsupported there)"
+        }
+    );
+
+    if std::env::var_os("TESSERA_BENCH_ASSERT").is_some() {
+        assert!(dab_med < 16.0, "dab → L2 median {dab_med:.2} ms");
+        assert!(l0_med < 100.0, "L0 median {l0_med:.1} ms");
+        assert!(open < 1500.0, "cold open {open:.0} ms");
+        assert!(worst <= 2e-3, "{worst:e}");
+    }
+}

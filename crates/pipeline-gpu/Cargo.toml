@@ -13,14 +13,11 @@ wgpu.workspace = true
 bytemuck.workspace = true
 pollster = "0.4"
 engine-api = { path = "../engine-api" }
+gpu-core = { path = "../gpu-core" }
 image-core = { path = "../image-core" }
 color-mgmt = { path = "../color-mgmt" }
 pipeline-cpu = { path = "../pipeline-cpu" }
 raw-decode = { path = "../raw-decode" }
-
-[target.'cfg(target_os = "macos")'.dependencies]
-objc2-metal = { version = "0.3.2", features = ["objc2-io-surface"] }
-objc2-io-surface = "0.3.2"
 
 [dev-dependencies]
 lens = { path = "../lens" }
@@ -31,3 +28,4 @@ half.workspace = true
 
 [target.'cfg(target_os = "macos")'.dev-dependencies]
 objc2-core-foundation = "0.3.2"
+objc2-io-surface = "0.3.2"

@@ -1,7 +1,10 @@
-//! WGSL port of the tile program (blend modes, Blend If, groups, clipping,
-//! knockout). Adjustment layers are not ported: programs containing them
-//! return [`EngineError::Unsupported`] and callers use the CPU reference.
-//! Gated against the CPU reference at ≤ 1e-4 (docs/11 §1.3).
+//! The GPU compositor device and the per-tile WGSL port of the tile program
+//! (blend modes, Blend If, groups, clipping, knockout). The per-tile port
+//! uploads CPU-resolved sources for every tile and does not run adjustment
+//! layers (it returns [`EngineError::Unsupported`]); it is a correctness
+//! port. The interactive path is [`crate::resident::ResidentRenderer`],
+//! which keeps layers, mips and composites on the GPU and runs adjustments.
+//! Both are gated against the CPU reference (docs/11 §1.3).
 
 use engine_api::tile::{Tile, TileCoord};
 use engine_api::{EngineError, EngineResult};
@@ -31,47 +34,43 @@ struct GpuOp {
 
 const NO_MASK: u32 = u32::MAX;
 
-#[path = "gpu_resident.rs"]
-mod resident;
-pub use resident::ResidentComposite;
-
 /// A Metal device with the compositor pipeline.
 pub struct GpuCompositor {
-    device: wgpu::Device,
-    queue: wgpu::Queue,
+    pub(crate) device: wgpu::Device,
+    pub(crate) queue: wgpu::Queue,
     pipeline: wgpu::ComputePipeline,
+    resident: std::sync::Mutex<Option<std::sync::Arc<crate::resident::Pipelines>>>,
     /// Adapter description.
     pub adapter: String,
 }
 
-fn internal(e: impl std::fmt::Display) -> EngineError {
+/// The shared blend maths followed by `body` (one WGSL module).
+pub(crate) fn shader(body: &str) -> String {
+    format!("{}\n{}", include_str!("blend.wgsl"), body)
+}
+
+pub(crate) fn internal(e: impl std::fmt::Display) -> EngineError {
     EngineError::Gpu {
         message: e.to_string(),
     }
 }
 
 impl GpuCompositor {
-    /// Creates the device and compiles the shader. Fails without Metal.
+    /// Opens its own [`gpu_core::GpuDevice`] and compiles the shader.
+    /// Fails without Metal. Prefer [`GpuCompositor::from_shared`] with the
+    /// app's device so there is one GPU context.
     pub fn new() -> EngineResult<Self> {
-        let mut desc = wgpu::InstanceDescriptor::new_without_display_handle();
-        desc.backends = wgpu::Backends::METAL;
-        let instance = wgpu::Instance::new(desc);
-        let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
-            power_preference: wgpu::PowerPreference::HighPerformance,
-            ..Default::default()
-        }))
-        .map_err(internal)?;
-        let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
-            label: Some("tessera compositor"),
-            required_limits: wgpu::Limits {
-                max_storage_buffer_binding_size: adapter.limits().max_storage_buffer_binding_size,
-                max_buffer_size: adapter.limits().max_buffer_size,
-                ..Default::default()
-            },
-            ..Default::default()
-        }))
-        .map_err(internal)?;
-        Self::from_device(device, queue, adapter.get_info().name)
+        Self::from_shared(&gpu_core::GpuDevice::new()?)
+    }
+
+    /// Compiles on the process's shared device (for example
+    /// `pipeline_gpu::GpuContext::shared()`).
+    pub fn from_shared(shared: &gpu_core::GpuDevice) -> EngineResult<Self> {
+        Self::from_device(
+            shared.device.clone(),
+            shared.queue.clone(),
+            shared.adapter_info.name.clone(),
+        )
     }
 
     /// Compile on a caller-owned shared device/queue pair.
@@ -83,7 +82,7 @@ impl GpuCompositor {
         let scope = device.push_error_scope(wgpu::ErrorFilter::Validation);
         let module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("composite"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("composite.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(shader(include_str!("composite.wgsl")).into()),
         });
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some("composite"),
@@ -100,8 +99,27 @@ impl GpuCompositor {
             device,
             queue,
             pipeline,
+            resident: std::sync::Mutex::new(None),
             adapter,
         })
+    }
+
+    /// The device and queue (for creating presentation targets).
+    pub fn handles(&self) -> (&wgpu::Device, &wgpu::Queue) {
+        (&self.device, &self.queue)
+    }
+
+    /// The resident path's pipelines, compiled on first use.
+    pub(crate) fn resident_pipelines(
+        &self,
+    ) -> EngineResult<std::sync::Arc<crate::resident::Pipelines>> {
+        let mut p = self.resident.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(p) = &*p {
+            return Ok(p.clone());
+        }
+        let made = std::sync::Arc::new(crate::resident::Pipelines::new(&self.device)?);
+        *p = Some(made.clone());
+        Ok(made)
     }
 
     /// The composite at `coord` (premultiplied f32 RGBA), computed on the
@@ -243,7 +261,7 @@ impl GpuCompositor {
             0,
         ];
         let out = self.dispatch(&header, &gops, &srcs, 4 * n)?;
-        Tile::from_samples(coord, job.layout(), out)
+        Tile::from_samples(coord, job.layout(), out)?.with_premultiplied(true)
     }
 
     /// Straight-alpha variant of [`render_tile_premultiplied`](Self::render_tile_premultiplied).
