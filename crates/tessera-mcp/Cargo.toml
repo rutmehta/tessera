@@ -10,6 +10,8 @@ index = { path = "../index" }
 library = { path = "../library" }
 sidecar = { path = "../sidecar" }
 pipeline-cpu = { path = "../pipeline-cpu" }
+image-core = { path = "../image-core" }
+pipeline-gpu = { path = "../pipeline-gpu" }
 raw-decode = { path = "../raw-decode" }
 previews = { path = "../previews" }
 ml-quality = { path = "../ml-quality" }

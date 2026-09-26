@@ -1,12 +1,13 @@
 use crate::{
     Console,
     console::{meta, record_empty},
-    pixels::Source,
+    preview::PreviewCache,
     unsupported,
 };
 use engine_api::{
     EngineError, EngineResult,
-    recipe::{DevelopSettings, mask::LocalAdjustment},
+    id::ImageId,
+    recipe::{Recipe, mask::LocalAdjustment},
     tools::*,
 };
 use serde_json::Value;
@@ -40,7 +41,7 @@ impl Console {
                     params: params.clone(),
                     ..Default::default()
                 };
-                let coverage = mask_coverage(&path, &next, &group)?;
+                let coverage = mask_coverage(&self.previews, image, &path, &doc.recipe, &group)?;
                 next.locals.adjustments.push(group);
                 created = Some((mask, coverage));
             }
@@ -73,7 +74,7 @@ impl Console {
                     group.enabled = *v;
                 }
                 let group = group.clone();
-                mask_coverage(&path, &next, &group)?;
+                mask_coverage(&self.previews, image, &path, &doc.recipe, &group)?;
             }
             ToolCall::Crop { rect, angle, .. } => {
                 if !rect.is_valid() || !angle.is_finite() || !(-45. ..=45.).contains(angle) {
@@ -119,10 +120,12 @@ impl Console {
             }
             _ => unreachable!(),
         }
-        // Validate by running the same reference engine that will render the edit.
+        // Validate through the same cached preview renderer used by the loop.
         // Unsupported fields/masks cannot become successful but invisible edits.
-        let source = Source::open(&path)?;
-        pipeline_cpu::render_scaled(&next, &source.borrowed(), 16)?;
+        let mut candidate = doc.recipe.clone();
+        candidate.settings = next.clone();
+        self.previews
+            .display(image, &path, &candidate, Some(1024))?;
         let edit_meta = meta(request);
         let entry = doc
             .recipe
@@ -192,8 +195,10 @@ impl Console {
     }
 }
 fn mask_coverage(
+    previews: &PreviewCache,
+    image: ImageId,
     path: &std::path::Path,
-    settings: &DevelopSettings,
+    recipe: &Recipe,
     group: &LocalAdjustment,
 ) -> EngineResult<f32> {
     if group.components.iter().any(|c| c.kind.is_ai()) {
@@ -204,11 +209,10 @@ fn mask_coverage(
     if !group.amount.is_finite() || !(0. ..=200.).contains(&group.amount) {
         return Err(EngineError::invalid("amount", "must be 0..=200"));
     }
-    let source = Source::open(path)?;
-    let mut base = settings.clone();
-    base.locals.adjustments.clear();
-    base.geometry = Default::default();
-    let linear = pipeline_cpu::render_linear_scaled(&base, &source.borrowed(), 8)?;
+    let mut base = recipe.clone();
+    base.settings.locals.adjustments.clear();
+    base.settings.geometry = Default::default();
+    let linear = previews.linear(image, path, &base)?;
     let mask = pipeline_cpu::masks::rasterize(&linear, group, Default::default())?;
     Ok(mask.iter().sum::<f32>() / mask.len().max(1) as f32)
 }

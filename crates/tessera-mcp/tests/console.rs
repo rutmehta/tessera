@@ -11,6 +11,26 @@ fn request(value: serde_json::Value) -> ToolRequest {
 }
 
 #[test]
+fn previews_and_linear_histograms_are_bounded_pyramid_levels() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("large.jpg");
+    image::RgbImage::from_pixel(2050, 1000, image::Rgb([64; 3]))
+        .save(&path)
+        .unwrap();
+    let mut console = Console::open(dir.path().join("app")).unwrap();
+    let id = console.open_image(&path).unwrap();
+    let rgb = console.render_preview(id, 4096).unwrap();
+    assert_eq!(rgb.dimensions(), (513, 250));
+    let response = console.execute(request(
+        json!({"tool":"get_histogram","image":id,"space":"scene_linear"}),
+    ));
+    let ToolResponse::Ok(ToolOutput::Histogram { histogram, .. }) = response else {
+        panic!("{response:?}")
+    };
+    assert_eq!(histogram.red.iter().sum::<u32>(), 513 * 250);
+}
+
+#[test]
 fn scene_linear_histogram_and_noop_history_are_explicit() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("source.jpg");
@@ -102,6 +122,10 @@ fn masks_crop_style_and_selection_record_one_entry_each() {
     std::fs::create_dir(app.join("styles")).unwrap();
     std::fs::write(app.join("styles/index.json"), r#"{"warm":"warm.json"}"#).unwrap();
     std::fs::write(app.join("styles/warm.json"), r#"{"tone":{"exposure":2.0}}"#).unwrap();
+    // Every edit-validation path must reuse the source decoded by the preview.
+    // Keep a writable file for sidecar checks, but make another decode fail.
+    console.render_preview(id, 1024).unwrap();
+    std::fs::write(&path, b"decode must not run again").unwrap();
     let mask=match console.execute(request(json!({"tool":"create_mask","image":id,"name":"Gradient","components":[{"kind":"linear","start":[0,0],"end":[1,1]}],"params":{"exposure":0.5},"rationale":"Lift foreground","group":3}))) {
         ToolResponse::Ok(ToolOutput::MaskCreated {mask,coverage,..})=> {assert!(coverage>0. && coverage<1.);mask},
         other=>panic!("{other:?}"),

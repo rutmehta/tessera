@@ -1,38 +1,15 @@
 use anyhow::Result;
-use engine_api::{recipe::DevelopSettings, tools::FaceScore};
+use engine_api::tools::FaceScore;
 use serde_json::Value;
-use std::path::Path;
+
 use style_profile::{Features, features::SceneStats};
 
-pub fn features(path: &Path, faces: &[FaceScore], description: &Value) -> Result<Features> {
-    let ext = path
-        .extension()
-        .and_then(|s| s.to_str())
-        .unwrap_or("")
-        .to_ascii_lowercase();
-    let (pixels, w, h) = if matches!(ext.as_str(), "jpg" | "jpeg" | "png" | "tif" | "tiff") {
-        let rgb = image::open(path)?
-            .resize(512, 512, image::imageops::FilterType::Triangle)
-            .to_rgb8();
-        (
-            rgb.pixels()
-                .map(|p| p.0.map(|v| crate::metrics::linear(v) as f32))
-                .collect::<Vec<_>>(),
-            rgb.width(),
-            rgb.height(),
-        )
-    } else {
-        let mut raw = raw_decode::RawSource::open(path)?;
-        let cfa = raw.decode_cfa()?;
-        let metadata = raw.metadata();
-        let linear = pipeline_cpu::render_linear_scaled(
-            &DevelopSettings::default(),
-            &pipeline_cpu::RenderSource::Cfa {
-                image: &cfa,
-                metadata: &metadata,
-            },
-            16,
-        )?;
+pub fn features(
+    linear: &pipeline_cpu::Image,
+    faces: &[FaceScore],
+    description: &Value,
+) -> Result<Features> {
+    let (pixels, w, h) = {
         let p = linear.planes();
         let pixels = (0..p[0].len())
             .map(|i| {
@@ -43,7 +20,7 @@ pub fn features(path: &Path, faces: &[FaceScore], description: &Value) -> Result
                     (-0.0182 * r - 0.1006 * g + 1.1187 * b).max(0.),
                 ]
             })
-            .collect();
+            .collect::<Vec<_>>();
         (pixels, linear.width(), linear.height())
     };
     let stats = SceneStats::from_linear_rgb(&pixels)?;

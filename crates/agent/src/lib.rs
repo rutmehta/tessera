@@ -167,7 +167,8 @@ impl Agent {
             _ => bail!("unexpected histogram response"),
         };
         // Style features are measured from the source, never the edited preview.
-        let mut features = crate::source::features(path, &quality.faces, &description)?;
+        let source = self.console.source_preview(image)?;
+        let mut features = crate::source::features(&source, &quality.faces, &description)?;
         if let Some((model, embedding)) = hints.embedding {
             features.embedding_model = model;
             features.embedding = embedding;

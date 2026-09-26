@@ -19,6 +19,7 @@ use std::{
 pub struct Console {
     pub(crate) index: Index,
     pub(crate) app: PathBuf,
+    pub(crate) previews: crate::preview::PreviewCache,
 }
 impl Console {
     pub fn open(app_dir: impl AsRef<Path>) -> EngineResult<Self> {
@@ -27,6 +28,7 @@ impl Console {
         Ok(Self {
             index: Index::open(app.join("index.sqlite"))?,
             app,
+            previews: crate::preview::PreviewCache::default(),
         })
     }
     pub fn execute(&mut self, request: ToolRequest) -> ToolResponse {
@@ -62,7 +64,21 @@ impl Console {
     }
     pub fn render_preview(&self, id: ImageId, max_px: u32) -> EngineResult<image::RgbImage> {
         let (path, doc) = self.document(id)?;
-        pixels::render(&path, &doc.recipe.settings, max_px)
+        if !(1..=4096).contains(&max_px) {
+            return Err(EngineError::invalid("max_px", "must be 1..=4096"));
+        }
+        self.previews
+            .display(id, &path, &doc.recipe, Some(max_px.min(1024)))
+    }
+    /// Explicit full-resolution render, for a caller's final acceptance only.
+    pub fn render_final(&self, id: ImageId) -> EngineResult<image::RgbImage> {
+        let (path, doc) = self.document(id)?;
+        self.previews.display(id, &path, &doc.recipe, None)
+    }
+    /// Unedited scene-linear preview for style features; shares the decoded source.
+    pub fn source_preview(&self, id: ImageId) -> EngineResult<pipeline_cpu::Image> {
+        let (path, _) = self.document(id)?;
+        self.previews.linear(id, &path, &Default::default())
     }
     fn run(&mut self, request: &ToolRequest) -> EngineResult<ToolOutput> {
         match &request.call {
@@ -93,7 +109,8 @@ impl Console {
                     }
                     HistogramSpace::SceneLinear => {
                         let (path, doc) = self.document(*image)?;
-                        pixels::linear_histogram(&path, &doc.recipe.settings, *bins)?
+                        let linear = self.previews.linear(*image, &path, &doc.recipe)?;
+                        pixels::linear_histogram(&linear, *bins)?
                     }
                 };
                 Ok(ToolOutput::Histogram {
