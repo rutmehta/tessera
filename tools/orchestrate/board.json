@@ -1054,5 +1054,13 @@
     "status": "pass",
     "attempts": 0,
     "notes": "9/13 on screen; misses are verifier modifier-click limits (merge/undo unverified by hand); no defects"
+  },
+  {
+    "id": "M3-21",
+    "owner": "astra",
+    "title": "Neural filters batch 1",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
