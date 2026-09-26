@@ -1,4 +1,4 @@
-# Tessera — macOS app and engine bridge (WP M1-12, culling UX M1-09, develop UI M1-10)
+# Tessera — macOS app and engine bridge
 
 AppKit where performance matters, SwiftUI elsewhere (docs/11 §1.5). Folder opens now use
 `EngineLibrary` and the Rust index through UniFFI 0.32. Decisions, grades and named marks are
@@ -87,8 +87,8 @@ shared scheduler; tone-only changes rerun only Tone and Output on memoized White
 Commits are saved on a 400 ms debounce through `sidecar` (recipe JSON + XMP with `crs:` values), the
 index is refreshed, and the edited preview is stored under the new recipe hash, so
 `embeddedPreview` serves edited thumbnails (edited RAWs without a stored preview are rendered from
-the recipe on the preview worker). The CPU operators are the default renderer; set
-`TESSERA_RENDER_BACKEND=gpu` for the Metal operators (slower on the M4, see `Engine::develop_renderer`).
+the recipe on the preview worker). The renderer calibrates CPU and Metal for each opened RAW;
+`TESSERA_RENDER_BACKEND=cpu` or `gpu` overrides that selection (Metal unavailability falls back to CPU).
 `ImageQuery` accepts folder, FTS text, decision, limit (0 = all), and offset. Folder paths are
 canonical paths returned by `indexFolder`; filtering includes descendants. RAW capture times
 are Unix seconds as strings; JPEG EXIF capture times are local ISO date-times. Recipe JSON is
@@ -105,7 +105,7 @@ Sufficient embedded JPEGs stay on the camera-rendered fast path. Missing JPEGs o
 than one eighth along either sensor axis use the CPU pipeline with bilinear demosaic and default
 settings, downsampled in linear light. RAW work runs through `jobs` at `Priority::Preview`.
 Both paths apply EXIF orientation and store a JPEG pyramid keyed by source bytes, requested size,
-orientation and the default recipe hash. Applying edited recipes is a later feature.
+orientation and the recipe hash. Edited RAWs without a cached preview can be rendered from the recipe.
 
 Rust tests exercise persistence, incremental scanning, filtering/pagination, recipe validation,
 unknown-field preservation, JPEG dimensions and callbacks. Swift's bridge test copies the real
@@ -237,7 +237,8 @@ keywords with hierarchy). Albums, groups, smart albums, keywords and people are 
 copies, stacks, faces, history and snapshots stay in `<library>/.tessera-import/<catalog>-<hash>/
 import-plan.json`; `state.json` there makes a cancelled or interrupted import resumable. Photos that
 share an edit-sidecar stem (RAW+JPEG pairs) are skipped and reported, as the sidecar format keys edits
-by stem. The fidelity preview uses the native pipeline until `crates/pipeline-adobe` exists.
+by stem. The fidelity path can use `crates/pipeline-adobe`; accurate comparison still requires
+user-supplied Lightroom reference exports and has documented unsupported fields.
 `TESSERA_LRCAT_IMPORT_DELAY_MS` (test aid) slows the per-photo loop so Cancel can be exercised.
 
 ## Layout
