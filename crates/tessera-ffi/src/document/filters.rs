@@ -259,6 +259,10 @@ impl Node {
             params["mask_png"] = serde_json::Value::String(m.clone());
         }
         SmartFilter {
+            blend: compositor::render::smart_filters::FilterBlend {
+                mode: self.blend,
+                opacity: self.opacity.clamp(0.0, 1.0),
+            },
             name: self.spec.id.clone(),
             enabled: self.enabled,
             params,
