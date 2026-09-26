@@ -67,18 +67,21 @@ final class AssistController {
         cancelAnalysis = false
         let ids = Array(lib.items.indices)
         progress = (0, ids.count, "", title)
-        Task.detached(priority: .utility) { [weak self] in
+        // A Sendable weak box, not a `[weak self]` capture: Swift 6.3 treats a weak capture as a
+        // task-isolated variable and rejects sending it to the main actor.
+        let box = WeakAssist(self)
+        Task.detached(priority: .utility) {
             let result = lib.analyze(ids, faces: faces, force: force) { done, total, name in
                 let keepGoing = DispatchQueue.main.sync {
                     MainActor.assumeIsolated { () -> Bool in
-                        guard let self, generation == self.analysisGeneration, !self.cancelAnalysis else { return false }
-                        self.progress = (done, total, name, title)
+                        guard let owner = box.value, generation == owner.analysisGeneration, !owner.cancelAnalysis else { return false }
+                        owner.progress = (done, total, name, title)
                         return true
                     }
                 }
                 return keepGoing
             }
-            await MainActor.run { self?.analysisDidFinish(result, faces: faces, generation: generation, announce: announce) }
+            await MainActor.run { box.value?.analysisDidFinish(result, faces: faces, generation: generation, announce: announce) }
         }
     }
 
@@ -239,4 +242,10 @@ final class AssistController {
     var personFilterTitle: String? {
         personFilter.map { "\($0.person.name)\($0.eyesClosed ? " · eyes closed" : "")" }
     }
+}
+
+/// Main-actor object held weakly across a detached task (see `AssistController.analyze`).
+private final class WeakAssist: Sendable {
+    nonisolated(unsafe) weak var value: AssistController?
+    init(_ value: AssistController) { self.value = value }
 }
