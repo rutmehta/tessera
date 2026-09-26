@@ -2,6 +2,7 @@ import Foundation
 import TesseraFFI
 
 /// One listener per engine, shared by every item and both preview tiers. It never owns the engine.
+/// It also forwards `LibraryChanged` (the catalog change feed) to the library's owner.
 final class PreviewEvents: EngineEventListener, @unchecked Sendable {
     struct Subscription: Sendable {
         let stream: AsyncStream<Void>
@@ -14,6 +15,12 @@ final class PreviewEvents: EngineEventListener, @unchecked Sendable {
     }
     private let lock = NSLock()
     private var observers: [UUID: Observer] = [:]
+    private var libraryHandler: (@Sendable (UInt64) -> Void)?
+
+    /// Called on an engine thread with the catalog's new change sequence.
+    func onLibraryChanged(_ handler: (@Sendable (UInt64) -> Void)?) {
+        lock.withLock { libraryHandler = handler }
+    }
 
     func subscribe(imageID: String, maxPx: UInt32) -> Subscription {
         let id = UUID()
@@ -29,6 +36,10 @@ final class PreviewEvents: EngineEventListener, @unchecked Sendable {
     private func remove(_ id: UUID) { _ = lock.withLock { observers.removeValue(forKey: id) } }
 
     func onEvent(event: EngineEvent) {
+        if case let .libraryChanged(sequence) = event {
+            lock.withLock { libraryHandler }?(sequence)
+            return
+        }
         guard case let .previewReady(imageId, maxPx) = event else { return }
         let matches = lock.withLock {
             observers.values.filter { $0.imageID == imageId && $0.maxPx == maxPx }.map(\.continuation)

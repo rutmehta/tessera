@@ -83,6 +83,7 @@ fn rich_doc() -> Document {
         Affine::scale_translate(2.0, 2.0, 50.0, 60.0),
     );
     so.filters.push(SmartFilter {
+        blend: Default::default(),
         name: "gaussian_blur".into(),
         enabled: true,
         params: serde_json::json!({"radius": 2.5}),

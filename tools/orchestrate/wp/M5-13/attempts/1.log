@@ -1,0 +1,13 @@
+Implemented M5-13 in crates/vector: cubic paths, live shapes, boolean operations, configurable strokes, fills, coverage/RGBA rendering, transforms, editing helpers, and PSD/SVG interop.
+
+Verification passed:
+  18 release tests
+  Clippy with warnings denied
+  Workspace formatting check
+  git diff --check
+
+Only allowed paths changed. engine-api and compositor remain untouched. Integration needs and approximation limits are documented in crates/vector/NEEDS.md and README.md. Verification output is saved in tools/orchestrate/wp/M5-13/verification.txt.
+
+CARGO_TARGET_DIR remained outside the repository. No commits made.
+
+RESULT: PASS

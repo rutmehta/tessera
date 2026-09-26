@@ -122,10 +122,12 @@ pub fn tools() -> Vec<Value> {
         serde_json::to_value(schemars::schema_for!(ActionsStop)).unwrap(),
         serde_json::to_value(schemars::schema_for!(ActionsPlay)).unwrap(),
     ]);
+    schemas.extend(crate::documents::local_tools::schemas());
     engine_api::tools::ToolCall::NAMES
         .into_iter()
         .chain(engine_api::tools::DocumentToolCall::NAMES)
         .chain(EXTRA)
+        .chain(crate::documents::local_tools::NAMES)
         .zip(schemas)
         .map(|(name, schema)| {
             json!({"name":name,"description":description(name),"inputSchema":schema})
@@ -236,6 +238,9 @@ fn known_keys(schema: &Value, input: &Value) -> Result<(), String> {
 /// Validate with the same serde declarations used by the schema derives, then
 /// let the original engine deserializer validate custom IDs and invariants.
 pub(crate) fn validate(name: &str, input: &Value) -> Result<(), String> {
+    if crate::documents::local_tools::NAMES.contains(&name) {
+        return crate::documents::local_tools::validate(name, input);
+    }
     if let Some(index) = engine_api::tools::ToolCall::NAMES
         .iter()
         .position(|n| *n == name)

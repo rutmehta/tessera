@@ -8,6 +8,231 @@ use std::time::Instant;
 use compositor::*;
 use engine_api::tile::{Extent, TILE_SIZE, Tile, TileCoord};
 
+#[test]
+#[ignore = "20 MP / 100 layers, hardware timing"]
+fn m5_08_structure_and_viewport() {
+    use compositor::{gpu::GpuCompositor, resident::ResidentRenderer};
+    let g = GpuCompositor::new().expect("Metal required");
+    println!("M5-08 adapter: {}", g.adapter);
+    let (d, _) = build(Extent::new(5472, 3648));
+    let cpu = Compositor::new(4 << 30);
+    let mut failures = Vec::new();
+    for specialized in [false, true] {
+        let mut r = ResidentRenderer::new(&g).unwrap();
+        r.set_specialization(specialized);
+        let cold = Instant::now();
+        let f = r.render(&d, 0).unwrap();
+        r.wait().unwrap();
+        let first = ms(cold);
+        println!("cold full L0: {} pages uploaded", f.uploaded_pages);
+        r.wait_for_specializations();
+        println!(
+            "requested_specialization={specialized}: first L0 {first:.2} ms (uploads; interpreter while the kernel compiles), kernel ready after {:.2} ms, compiled_pipelines={}",
+            ms(cold),
+            r.specialized_pipeline_count()
+        );
+        for viewport in [false, true] {
+            // Start the viewport case with a fresh output allocation, not a
+            // correct full-frame buffer that could hide missed viewport writes.
+            if viewport {
+                r = ResidentRenderer::new(&g).unwrap();
+                r.set_specialization(specialized);
+                let cold = Instant::now();
+                let f = r
+                    .render_viewport(&d, 0, Rect::new(512, 512, 4352, 2672), 0)
+                    .unwrap();
+                r.wait().unwrap();
+                println!(
+                    "cold 3840x2160 L0 viewport: {:.2} ms, {} pages uploaded, {} blocks",
+                    ms(cold),
+                    f.uploaded_pages,
+                    f.blocks
+                );
+                r.wait_for_specializations();
+            }
+            let mut runs = Vec::new();
+            let mut blocks = 0;
+            for _ in 0..9 {
+                r.invalidate();
+                let t = Instant::now();
+                let f = if viewport {
+                    r.render_viewport(&d, 0, Rect::new(512, 512, 4352, 2672), 0)
+                } else {
+                    r.render(&d, 0)
+                }
+                .unwrap();
+                r.wait().unwrap();
+                blocks = f.blocks;
+                runs.push(ms(t));
+            }
+            let (lo, med, hi) = median(runs);
+            println!(
+                "specialized={specialized} viewport_3840x2160={viewport}: min={lo:.3} median={med:.3} max={hi:.3} ms, blocks={blocks}"
+            );
+            // Complete only invalid blocks before explicit readback. The
+            // already-valid viewport must survive untouched. Keep this outside
+            // the timing loop and always gate correctness, not just when the
+            // optional hardware performance assertion is enabled.
+            if viewport {
+                assert!(r.read_level(0, true).is_err());
+                let completed = r.render(&d, 0).unwrap().blocks;
+                let e = d.state().canvas;
+                assert_eq!(
+                    completed + blocks,
+                    e.width.div_ceil(16) * e.height.div_ceil(16)
+                );
+            }
+            let mut worst = 0.0f32;
+            let mut worst_at = None;
+            for got in r.read_tiles(0).unwrap() {
+                let want = cpu.render_tile_premultiplied(&d, got.coord()).unwrap();
+                for (i, (p, q)) in want
+                    .samples::<f32>()
+                    .unwrap()
+                    .iter()
+                    .zip(got.samples::<f32>().unwrap())
+                    .enumerate()
+                {
+                    assert!(p.is_finite() && q.is_finite());
+                    let error = (p - q).abs();
+                    if error > worst {
+                        worst = error;
+                        worst_at = Some((got.coord(), i, *p, *q));
+                    }
+                }
+            }
+            println!(
+                "L0 CPU gate specialized={specialized} viewport={viewport}: {worst:e}, worst (tile, planar sample, CPU, GPU)={worst_at:?}"
+            );
+            if worst > 2e-3 {
+                failures.push(format!(
+                    "L0 CPU gate specialized={specialized} viewport={viewport}: {worst:e}"
+                ));
+            }
+            if specialized
+                && std::env::var_os("TESSERA_BENCH_ASSERT").is_some()
+                && med >= if viewport { 8.0 } else { 100.0 }
+            {
+                failures.push(format!("performance viewport={viewport}: {med} ms"));
+            }
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+/// Minimal L0 regression from tile (5,3), sample 34646: Pin Light differed
+/// by one ulp, then Hard Mix amplified it to 0.2983. Always runs, unlike benches.
+#[test]
+fn m5_08_hard_mix_boundary() {
+    use compositor::{gpu::GpuCompositor, resident::ResidentRenderer};
+    let g = GpuCompositor::new().expect("Metal required");
+    let e = Extent::new(1, 1);
+    let mut d = Document::new(DocState::new(e, Depth::U8));
+    let mut r = ResidentRenderer::new(&g).unwrap();
+    r.set_specialization(false);
+    let cpu = Compositor::new(1 << 20);
+    for (mode, opacity, rgba) in [
+        (BlendMode::LinearLight, 0.5, [211u8, 175, 208, 170]),
+        (BlendMode::PinLight, 0.6, [211, 239, 144, 195]),
+        (BlendMode::HardMix, 0.7, [44, 140, 119, 170]),
+    ] {
+        let mut layer = Layer::pixel("boundary", e, Depth::U8);
+        layer.props.blend_mode = mode;
+        layer.props.opacity = opacity;
+        let raster = layer.raster_mut().unwrap();
+        let tile = Tile::from_samples(TileCoord::new(0, 0, 0), raster.layout(0, 0), rgba.to_vec())
+            .unwrap();
+        raster.set_slot(0, 0, Some(tile), 1).unwrap();
+        d.apply(DocOp::AddLayer {
+            parent: None,
+            index: usize::MAX,
+            layer,
+        })
+        .unwrap();
+        r.render(&d, 0).unwrap();
+        let (_, q) = r.read_level(0, true).unwrap();
+        let p = cpu
+            .render_tile_premultiplied(&d, TileCoord::new(0, 0, 0))
+            .unwrap();
+        for (a, b) in p.samples::<f32>().unwrap().iter().zip(q) {
+            assert!(
+                b.is_finite() && (a - b).abs() <= 2e-3,
+                "{mode:?}: CPU={a}, GPU={b}"
+            );
+        }
+    }
+    let want = cpu
+        .render_tile_premultiplied(&d, TileCoord::new(0, 0, 0))
+        .unwrap();
+    // Check a cold renderer with default specialization/fallback policy too.
+    let mut r = ResidentRenderer::new(&g).unwrap();
+    r.render(&d, 0).unwrap();
+    let (_, got) = r.read_level(0, true).unwrap();
+    for (p, q) in want.samples::<f32>().unwrap().iter().zip(got) {
+        assert!(q.is_finite() && (p - q).abs() <= 2e-3);
+    }
+}
+
+/// Trace the remaining L0 failure through document-order layer prefixes.
+/// This deliberately preserves layer IDs and global coordinates (Dissolve).
+/// TESSERA_TRACE_PIXEL=x,y selects a pixel; default is the residual Divide
+/// boundary at (1026,2049). The original Hard Mix case is (1366,903).
+#[test]
+#[ignore = "diagnostic: original 20 MP L0 failure, layer-prefix trace"]
+fn m5_08_l0_prefix_trace() {
+    use compositor::{gpu::GpuCompositor, resident::ResidentRenderer};
+    let g = GpuCompositor::new().expect("Metal required");
+    let (mut d, _) = build(Extent::new(5472, 3648));
+    let ids: Vec<_> = d
+        .state()
+        .layer_ids()
+        .into_iter()
+        .filter(|id| d.state().find(*id).unwrap().raster().is_some())
+        .collect();
+    for id in &ids {
+        let mut props = d.state().find(*id).unwrap().props.clone();
+        props.visible = false;
+        d.apply(DocOp::SetProps { id: *id, props }).unwrap();
+    }
+    let mut r = ResidentRenderer::new(&g).unwrap();
+    r.set_specialization(false);
+    let cpu = Compositor::new(1 << 28);
+    let pixel = std::env::var("TESSERA_TRACE_PIXEL").unwrap_or_else(|_| "1026,2049".into());
+    let (x, y) = pixel.split_once(',').expect("TESSERA_TRACE_PIXEL=x,y");
+    let (x, y): (usize, usize) = (x.parse().unwrap(), y.parse().unwrap());
+    assert!(x < 5472 && y < 3648);
+    let coord = TileCoord::new(0, (x / 256) as u32, (y / 256) as u32);
+    let width = (5472 - x / 256 * 256).min(256);
+    let height = (3648 - y / 256 * 256).min(256);
+    let sample = (y % 256) * width + x % 256;
+    println!("trace pixel ({x},{y}), tile={coord:?}, sample={sample}");
+    let mut worst = 0.0f32;
+    for (prefix, id) in ids.iter().enumerate() {
+        let mut props = d.state().find(*id).unwrap().props.clone();
+        props.visible = true;
+        let mode = props.blend_mode;
+        d.apply(DocOp::SetProps { id: *id, props }).unwrap();
+        r.render(&d, 0).unwrap();
+        let (_, got) = r.read_level(0, true).unwrap();
+        let want = cpu.render_tile_premultiplied(&d, coord).unwrap();
+        let p: Vec<_> = (0..4)
+            .map(|c| want.samples::<f32>().unwrap()[c * width * height + sample])
+            .collect();
+        let q = &got[(y * 5472 + x) * 4..(y * 5472 + x) * 4 + 4];
+        let error = p
+            .iter()
+            .zip(q)
+            .map(|(a, b)| (a - b).abs())
+            .fold(0.0f32, f32::max);
+        worst = worst.max(error);
+        println!(
+            "prefix={} id={id:?} mode={mode:?} CPU={p:?} GPU={q:?} error={error:e}",
+            prefix + 1
+        );
+    }
+    assert!(worst <= 2e-3, "prefix CPU gate: {worst:e}");
+}
+
 fn content(seed: u32, tx: u32, ty: u32, raster: &Raster) -> Tile {
     let l = raster.layout(tx, ty);
     let (w, h) = (l.extent.width, l.extent.height);
@@ -427,6 +652,28 @@ fn resident_100_layers_20mp() {
         }
     }
     println!("L2 max |resident − CPU| over the bench document: {worst:e}");
+    r.set_specialization(false);
+    r.render(&d, 2).unwrap();
+    let general = r.read_tiles(2).unwrap();
+    let mut general_worst = 0.0f32;
+    let mut drift = 0.0f32;
+    for (g, fast) in general.iter().zip(&got) {
+        let want = cpu.render_tile_premultiplied(&d, g.coord()).unwrap();
+        for ((p, q), f) in want
+            .samples::<f32>()
+            .unwrap()
+            .iter()
+            .zip(g.samples::<f32>().unwrap())
+            .zip(fast.samples::<f32>().unwrap())
+        {
+            general_worst = general_worst.max((p - q).abs());
+            drift = drift.max((q - f).abs());
+        }
+    }
+    println!("L2 general CPU error {general_worst:e}, specialized/general drift {drift:e}");
+    assert!(worst <= 2e-3, "resident CPU gate: {worst:e}");
+    assert!(general_worst <= 2e-3, "general CPU gate: {general_worst:e}");
+    r.set_specialization(true);
 
     // Adjustment layers on top (Curves and Hue/Saturation) run on the GPU.
     for (name, adj) in [

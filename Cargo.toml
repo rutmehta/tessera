@@ -40,7 +40,10 @@ members = [
     "crates/psd",
     "crates/brush",
     "crates/selection",
+    "crates/vector",
+    "crates/typography",
     "apps/tessera-cli",
+    "tools/bench",
 ]
 
 [workspace.dependencies]

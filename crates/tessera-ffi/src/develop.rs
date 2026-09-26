@@ -284,6 +284,8 @@ impl Frame {
 struct State {
     recipe: Recipe,
     live: DevelopSettings,
+    /// Calibration/model backend installed for this session, never persisted as a recipe edit.
+    cfa_configured: bool,
     /// Renderable settings of the last submitted render.
     rendered: Option<DevelopSettings>,
     rendered_level: Option<u8>,
@@ -410,7 +412,7 @@ impl DragLevel {
 impl State {
     /// Settings the viewport draws for the live state.
     fn drawn(&self) -> DevelopSettings {
-        renderable_with(&self.live, !self.crop_editing)
+        session_renderable(&self.live, !self.crop_editing, self.cfa_configured)
     }
 
     /// Whether the attached ring is the EDR (RGBA16F) contract.
@@ -487,6 +489,7 @@ pub(crate) struct Shared {
     path: PathBuf,
     image: RawImage,
     renderer: Arc<Renderer>,
+    cfa_denoiser: Mutex<Option<Arc<image_core::MlCfaDenoise>>>,
     backend: String,
     state: Mutex<State>,
     // Held through GPU completion and publication: cancelled jobs cannot
@@ -511,6 +514,20 @@ pub struct DevelopSession {
 }
 
 // ─────────────────────────── settings helpers ───────────────────────────
+
+fn session_renderable(
+    s: &DevelopSettings,
+    geometry: bool,
+    denoiser_configured: bool,
+) -> DevelopSettings {
+    let mut drawn = renderable_with(s, geometry);
+    // A saved recipe does not contain measured noise or runtime policy. Keep
+    // the prior unconfigured-session preview fallback until explicitly installed.
+    if denoiser_configured && pipeline_cpu::validate_denoise(&s.denoise).is_ok() {
+        drawn.denoise = s.denoise.clone();
+    }
+    drawn
+}
 
 /// The controls this pipeline renders: Basic, Detail, tone curves, HSL,
 /// grading, post-crop effects and crop/straighten. Values are sanitized to
@@ -775,9 +792,11 @@ impl Engine {
             path,
             image,
             renderer,
+            cfa_denoiser: Mutex::new(None),
             backend,
             state: Mutex::new(State {
                 live: recipe.settings.clone(),
+                cfa_configured: false,
                 recipe,
                 rendered: None,
                 rendered_level: None,
@@ -861,6 +880,19 @@ fn default_level(image: &RawImage) -> u8 {
 // ─────────────────────────────── session ───────────────────────────────
 
 impl Shared {
+    fn renderer_snapshot(&self) -> Renderer {
+        let renderer = (*self.renderer).clone();
+        match self
+            .cfa_denoiser
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .as_ref()
+        {
+            Some(adapter) => renderer.with_cfa_denoise(adapter.clone()),
+            None => renderer,
+        }
+    }
+
     fn lock(&self) -> Result<MutexGuard<'_, State>> {
         self.state.lock().map_err(failure)
     }
@@ -914,7 +946,7 @@ impl Shared {
             return;
         }
         let settings = st.drawn();
-        let renderer = Arc::new(self.renderer.for_recipe(&st.recipe));
+        let renderer = Arc::new(self.renderer_snapshot().for_recipe(&st.recipe));
         masks::ensure_ai_jobs(self, &settings);
         let dirty = match &st.rendered {
             Some(prev) => prev.first_dirty_stage(&settings),
@@ -1100,7 +1132,7 @@ impl Shared {
         let mut rgb = image::RgbImage::new(e.width, e.height);
         // Pixel consumers render the immutable recipe, never a mutable surface ring.
         let tiles = frame.pixels(|settings, level| {
-            self.renderer
+            self.renderer_snapshot()
                 .for_process_version(recipe.process_version)
                 .render_region(&self.image, settings, level, PixelRect::full(e))
         })?;
@@ -1541,8 +1573,87 @@ impl Drop for DevelopSession {
     }
 }
 
+/// Explicit caller-owned calibration in normalized linear sensor units. The
+/// four noise coefficients are canonical RGGB sites; ISO alone is insufficient.
+#[derive(Clone, Debug, uniffi::Record)]
+pub struct CfaDenoiseConfig {
+    pub manifest_path: String,
+    pub cache_path: String,
+    pub model_id: String,
+    pub model_digest: String,
+    pub shot: Vec<f32>,
+    pub read: Vec<f32>,
+    /// Optional full-sensor raster, one independent coverage per Bayer site.
+    pub mask: Option<Vec<f32>>,
+}
+
 #[uniffi::export]
 impl DevelopSession {
+    /// Installs a lazy, pinned CFA backend for this develop session. Does not
+    /// invent a noise calibration, download weights, or enable denoise in the
+    /// recipe. Subsequent Amount/tone edits share inference and resident caches.
+    pub fn configure_cfa_denoise(&self, config: CfaDenoiseConfig) -> Result<()> {
+        let shot: [f32; 4] = config
+            .shot
+            .try_into()
+            .map_err(|_| failure("CFA shot requires four sites"))?;
+        let read: [f32; 4] = config
+            .read
+            .try_into()
+            .map_err(|_| failure("CFA read requires four sites"))?;
+        if shot.iter().chain(&read).any(|v| !v.is_finite() || *v < 0.0) {
+            return Err(failure("CFA noise must be finite and nonnegative"));
+        }
+        let model = engine_api::id::ModelRef {
+            id: config.model_id.as_str().into(),
+            version: config.model_digest,
+        };
+        let settings = engine_api::recipe::settings::DenoiseSettings {
+            method: engine_api::recipe::settings::DenoiseMethod::Neural {
+                model: model.clone(),
+                joint_demosaic: false,
+            },
+            ..Default::default()
+        };
+        pipeline_cpu::validate_denoise(&settings)?;
+        if !pipeline_cpu::cfa_denoise_selected(&settings) {
+            return Err(failure("CFA configuration requires a pinned CFA model"));
+        }
+        let registry = Arc::new(
+            ml_runtime::ModelRegistry::open(config.manifest_path, config.cache_path)
+                .map_err(failure)?,
+        );
+        if !registry.models().iter().any(|s| {
+            s.id == model.id.as_str()
+                && s.version == model.version
+                && s.sha256 == model.version
+                && s.task == "cfa-denoise"
+        }) {
+            return Err(failure("CFA model/digest missing from manifest"));
+        }
+        let mut adapter = image_core::MlCfaDenoise::new(
+            registry,
+            Default::default(),
+            model,
+            ml_enhance::CfaNoise { shot, read },
+        );
+        if let Some(mask) = config.mask {
+            let frame = self.shared.image.sensor_extent();
+            adapter = adapter.with_mask(frame.width, frame.height, mask)?;
+        }
+        let mut st = self.shared.lock()?;
+        *self
+            .shared
+            .cfa_denoiser
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(Arc::new(adapter));
+        st.cfa_configured = true;
+        st.rendered = None;
+        st.frame = None;
+        self.shared.render(&mut st, false);
+        Ok(())
+    }
+
     pub fn info(&self) -> DevelopInfo {
         let s = &self.shared;
         let e = s.image.active_extent();
@@ -1758,7 +1869,12 @@ impl DevelopSession {
 
     /// Settings kept in the recipe but not rendered by this pipeline version.
     pub fn ignored_settings(&self) -> Result<Vec<String>> {
-        Ok(ignored_settings(&self.shared.lock()?.live))
+        let st = self.shared.lock()?;
+        let mut ignored = ignored_settings(&st.live);
+        if st.cfa_configured && pipeline_cpu::validate_denoise(&st.live.denoise).is_ok() {
+            ignored.retain(|path| !path.starts_with("/denoise"));
+        }
+        Ok(ignored)
     }
 
     /// Histogram of the last completed frame (empty before the first one).
@@ -1991,7 +2107,7 @@ impl DevelopSession {
     /// orientation, into an RGBA8 IOSurface of `width × height`. Blocking:
     /// call off the main thread. Crop and post-crop effects are not applied
     /// (the crop shows sensor pixels); global dehaze statistics come from the
-    /// window.
+    /// window (the full sensor when learned denoise is active).
     pub fn render_detail_preview(
         &self,
         iosurface_id: u32,
@@ -2024,15 +2140,18 @@ impl DevelopSession {
         let wy = y.saturating_sub(DETAIL_MARGIN);
         let ww = (x + w + DETAIL_MARGIN).min(e.width) - wx;
         let wh = (y + h + DETAIL_MARGIN).min(e.height) - wy;
-        let window = window_image(&s.image, wx, wy, ww, wh)?;
-        settings.locals = masks::window_locals(&settings.locals, e, (wx, wy, ww, wh));
-        let tiles = s.renderer.for_process_version(version).render_region(
-            &window,
-            &settings,
-            0,
-            PixelRect::new(x - wx, y - wy, w, h),
-        )?;
-        let (ox, oy) = (x - wx, y - wy);
+        // Learned CFA padding and masks belong to the complete sensor. Keep
+        // its identity for detail crops so they share the viewport inference.
+        let (window, ox, oy) = if pipeline_cpu::denoise_active(&settings.denoise) {
+            (s.image.clone(), x, y)
+        } else {
+            settings.locals = masks::window_locals(&settings.locals, e, (wx, wy, ww, wh));
+            (window_image(&s.image, wx, wy, ww, wh)?, x - wx, y - wy)
+        };
+        let tiles = s
+            .renderer_snapshot()
+            .for_process_version(version)
+            .render_region(&window, &settings, 0, PixelRect::new(ox, oy, w, h))?;
         surface
             .with_pixels(|px, stride| {
                 for t in &tiles {
@@ -2133,7 +2252,7 @@ impl MaskSource {
         cancel: &engine_api::jobs::CancellationToken,
     ) -> engine_api::EngineResult<Self> {
         let e = shared.image.level_extent(level);
-        let tiles = shared.renderer.render_region_as(
+        let tiles = shared.renderer_snapshot().render_region_as(
             &shared.image,
             upstream,
             level,
@@ -2720,6 +2839,61 @@ impl DevelopSession {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn unconfigured_session_falls_back_without_discarding_saved_denoise() {
+        let mut settings = DevelopSettings::default();
+        settings.denoise.method = engine_api::recipe::settings::DenoiseMethod::Neural {
+            model: engine_api::id::ModelRef {
+                id: "enhance/cfa-unet-fp32".into(),
+                version: "a".repeat(64),
+            },
+            joint_demosaic: false,
+        };
+        assert!(!pipeline_cpu::denoise_active(
+            &session_renderable(&settings, true, false).denoise
+        ));
+        assert_eq!(
+            session_renderable(&settings, true, true).denoise,
+            settings.denoise
+        );
+        assert!(pipeline_cpu::denoise_active(&settings.denoise));
+        // Shared helpers such as mask guidance use an uninjected base renderer.
+        assert!(!pipeline_cpu::denoise_active(
+            &renderable(&settings).denoise
+        ));
+    }
+
+    #[test]
+    fn renderable_preserves_pinned_cfa_amount_for_configured_session() {
+        use engine_api::{id::ModelRef, recipe::settings::DenoiseMethod};
+        let mut settings = DevelopSettings::default();
+        settings.denoise.method = DenoiseMethod::Neural {
+            model: ModelRef {
+                id: "enhance/cfa-unet-fp32".into(),
+                version: "a".repeat(64),
+            },
+            joint_demosaic: false,
+        };
+        settings.denoise.amount = 37.0;
+        assert_eq!(
+            session_renderable(&settings, true, true).denoise,
+            settings.denoise
+        );
+        settings.denoise.amount = f32::NAN;
+        assert_eq!(
+            session_renderable(&settings, true, true).denoise.method,
+            DenoiseMethod::Off
+        );
+        settings.denoise.amount = 100.0;
+        if let DenoiseMethod::Neural { joint_demosaic, .. } = &mut settings.denoise.method {
+            *joint_demosaic = true;
+        }
+        assert_eq!(
+            session_renderable(&settings, true, true).denoise.method,
+            DenoiseMethod::Off
+        );
+    }
 
     #[test]
     fn surface_frame_materializes_the_captured_recipe_only_on_demand() {

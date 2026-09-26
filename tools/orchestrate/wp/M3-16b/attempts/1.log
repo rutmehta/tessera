@@ -1,0 +1,13 @@
+Implemented the resident CFA handoff, GPU Amount blending, inference caching across tone/Amount edits, tile and band rendering support, and explicit develop-session CFA configuration. Changes stayed within allowed paths. engine-api is unchanged. No commits.
+
+Verification:
+  New Metal CFA tests: 5 passed.
+  Clippy, fmt, and diff checks: passed.
+  Full release suite: 263 passed, 2 failed, 17 ignored.
+
+The required command fails on missing M3-16 training setup. The no-fail-fast run also found a thumbnail callback exceeding its 3-second deadline. The ignored benchmark is present, but missing model/calibration assets prevent verifying the <12 ms target. Transfers use staging, not CoreML shared-memory interoperability.
+
+Report and logs:
+  /Users/rutmehta/Developer/tessera/.worktrees/M3-16b/tools/orchestrate/wp/M3-16b/report.md
+
+RESULT: FAIL missing training prerequisites, thumbnail timeout, and unverified denoise-on latency

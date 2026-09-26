@@ -9,8 +9,10 @@ import TesseraFFI
 /// The engine owns the camera session (`Engine.tether*`, main thread only): downloads land in a
 /// private staging folder, are renamed into the session folder, indexed, previewed and scored
 /// before a frame is published. This controller polls it on a 100 ms main-thread timer, keeps
-/// the incoming strip, files each frame into the session's album, and reloads the library so
-/// the frame can be culled with the usual keys (auto-advance opens the newest in the loupe).
+/// the incoming strip and files each frame into the session's album. Frames join the open
+/// library in place through the engine's change feed (`AppModel.syncLibrary`), so the undo
+/// history, filters and selection survive every frame; they can be culled with the usual keys
+/// at once (auto-advance opens the newest in the loupe).
 ///
 /// Hidden test aid: `--fake-tether <folder>` swaps the camera for a test camera that shoots that
 /// folder's images on Capture and every `--fake-tether-interval <s>` seconds (default 6; 0 = only
@@ -54,11 +56,10 @@ final class TetherController {
     @ObservationIgnored private var intervalTimer: Timer?
     @ObservationIgnored private var pollFailures = 0
     @ObservationIgnored private var sessionAlbumID: Int64?
-    @ObservationIgnored private var reloadStarted: Date?
-    @ObservationIgnored private var reloadPending = false
-    @ObservationIgnored private var pendingFocus: URL?
-    /// Resolved file path → library item id, rebuilt after each reload.
-    @ObservationIgnored private(set) var itemOfPath: [String: Int] = [:]
+    /// Newest frame (engine image id) to open once it is in the library (auto-advance).
+    @ObservationIgnored private var pendingFocus: String?
+    /// Filed frames not yet shown by the current source (they reach the library first).
+    @ObservationIgnored private var pendingAdmit: Set<String> = []
 
     static let smartAlbumName = "Session"
     static let smartAlbumRule = "decision!=reject"
@@ -92,6 +93,19 @@ final class TetherController {
 
     /// The live example under the naming field.
     var namingExample: Result<String, TetherNaming.Problem> { TetherNaming.example(template) }
+
+    /// The + menu. The naming field may still be editing, its field editor holding the text: end
+    /// editing first (committing it into `template`), or the field would write its stale text
+    /// back over the token when it later loses focus (on Connect).
+    func insertToken(_ token: String) {
+        NSApp.keyWindow?.makeFirstResponder(nil)
+        template = TetherNaming.inserting(token, into: template)
+    }
+
+    func resetTemplate() {
+        NSApp.keyWindow?.makeFirstResponder(nil)
+        template = TetherNaming.defaultTemplate
+    }
 
     /// Whether the session folder is inside the open library (frames join it; otherwise the
     /// session folder is opened as the library when the session starts).
@@ -157,13 +171,19 @@ final class TetherController {
                     }
                 } catch {
                     self.devices = []
-                    self.error = Self.explain(error.localizedDescription)
+                    self.error = Self.explain(Self.message(error))
                 }
             }
         }
     }
 
     /// Adds a next step to permission failures (colour is never the only signal; neither is jargon).
+    /// An engine failure's own words (the generated `localizedDescription` spells out the type).
+    static func message(_ error: Error) -> String {
+        if case BridgeError.Failure(let message) = error { return message }
+        return error.localizedDescription
+    }
+
     static func explain(_ message: String) -> String {
         let m = message.lowercased()
         if m.contains("denied") || m.contains("not authorized") || m.contains("permission") || m.contains("not permitted") {
@@ -188,7 +208,7 @@ final class TetherController {
         do {
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         } catch {
-            self.error = Self.explain("Could not create the session folder: \(error.localizedDescription)")
+            self.error = Self.explain("Could not create the session folder: \(Self.message(error))")
             return
         }
         error = nil
@@ -228,7 +248,7 @@ final class TetherController {
             try configureBackend(engine)
             try engine.tetherStart(sessionFolder: folder.path, naming: template)
         } catch {
-            self.error = Self.explain(error.localizedDescription)
+            self.error = Self.explain(Self.message(error))
             return
         }
         self.engine = engine
@@ -238,7 +258,8 @@ final class TetherController {
         strip.reset()
         thumbnails = [:]
         pollFailures = 0
-        rebuildItemMap()
+        pendingFocus = nil
+        pendingAdmit = []
         setUpCollections()
         let timer = Timer(timeInterval: 0.1, repeats: true) { _ in
             MainActor.assumeIsolated { [weak self] in self?.poll() }
@@ -274,7 +295,7 @@ final class TetherController {
             app.libraryDidChange()
             app.setSource(.album(albumName))
         } catch {
-            notice = "Could not create the session albums: \(error.localizedDescription)"
+            notice = "Could not create the session albums: \(Self.message(error))"
         }
     }
 
@@ -287,7 +308,7 @@ final class TetherController {
             let tail = try engine.tetherStop()
             receive(tail)
         } catch {
-            self.error = "Camera closed with an error: \(error.localizedDescription)"
+            self.error = "Camera closed with an error: \(Self.message(error))"
         }
         connected = false
         self.engine = nil
@@ -304,11 +325,11 @@ final class TetherController {
             receive(frames)
         } catch {
             pollFailures += 1
-            self.error = Self.explain("Camera: \(error.localizedDescription)")
+            self.error = Self.explain("Camera: \(Self.message(error))")
             // A second of consecutive failures (unplugged, switched off) ends the session.
             if pollFailures >= 10 {
                 disconnect()
-                self.error = Self.explain("Camera disconnected: \(error.localizedDescription)")
+                self.error = Self.explain("Camera disconnected: \(Self.message(error))")
             }
         }
     }
@@ -326,7 +347,7 @@ final class TetherController {
             strip.captureRequested()
             error = nil
         } catch {
-            self.error = Self.explain("Capture: \(error.localizedDescription)")
+            self.error = Self.explain("Capture: \(Self.message(error))")
             stopInterval()
         }
     }
@@ -372,12 +393,14 @@ final class TetherController {
         let ids = frames.compactMap(\.imageID)
         if let album = sessionAlbumID, !ids.isEmpty, let catalog = app?.collections.catalog {
             do { try catalog.store.addToAlbum(id: album, imageIds: ids) } catch {
-                notice = "Could not add frames to \(sessionAlbum ?? "the session album"): \(error.localizedDescription)"
+                notice = "Could not add frames to \(sessionAlbum ?? "the session album"): \(Self.message(error))"
             }
         }
         if isFake, connected { refreshFakeDevice() }
-        if autoAdvance, let target { pendingFocus = target.url }
-        requestReload()
+        if autoAdvance, let id = target?.imageID { pendingFocus = id }
+        if let latest = strip.latest { app?.statusMessage = "Tether: \(latest.name) · \(strip.summary)" }
+        pendingAdmit.formUnion(ids)
+        refreshLibrary()
     }
 
     /// The test camera's "shots remaining" is cheap to read; a real camera is not polled here.
@@ -413,61 +436,39 @@ final class TetherController {
 
     // MARK: Library
 
-    /// Re-reads the library so new frames become items (coalesced: one reload at a time).
-    private func requestReload() {
-        guard let app, let folder = app.library.folder, let session = sessionFolder, isInsideLibrary(session) else {
-            if sessionFolder != nil, app?.library.folder != nil, !isInsideLibrary(sessionFolder!) {
-                notice = "The open folder is not the session's; frames are saved to \(sessionFolder!.lastPathComponent)."
+    /// New frames reach the open library through the change feed, in place. Frames already
+    /// applied are filed into view now; the rest when the pull lands (`libraryDidUpdate`).
+    private func refreshLibrary() {
+        guard let app, let session = sessionFolder, isInsideLibrary(session) else {
+            if let session = sessionFolder, app?.library.folder != nil, !isInsideLibrary(session) {
+                notice = "The open folder is not the session's; frames are saved to \(session.lastPathComponent)."
             }
             return
         }
-        if let started = reloadStarted, Date().timeIntervalSince(started) < 20 {
-            reloadPending = true
-            return
-        }
-        reloadStarted = Date()
-        reloadPending = false
-        let focus = pendingFocus
-        pendingFocus = nil
-        let keep = app.focusedItem?.url
-        let source = app.source
-        let mode = app.viewMode
-        let latest = strip.latest?.name ?? ""
-        app.openFolder(folder, message: "Tether: \(latest) · \(strip.summary)") { [weak self] app, loaded in
-            guard let self else { return }
-            self.reloadStarted = nil
-            if loaded { self.restore(app, source: source, mode: mode, focus: focus, keep: keep) }
-            if self.reloadPending || self.pendingFocus != nil { self.requestReload() }
-        }
+        libraryDidUpdate()
+        app.syncLibrary { [weak self] in self?.libraryDidUpdate() }
     }
 
-    private func restore(_ app: AppModel, source: LibrarySource, mode: ViewMode, focus: URL?, keep: URL?) {
-        rebuildItemMap()
-        let nodes = app.collections.flatNodes
-        let valid: Bool = switch source {
-        case .album(let name): nodes.contains { $0.kind == .album && $0.handle == name }
-        case .smartAlbum(let id, _), .group(let id, _): nodes.contains { $0.id == id }
-        default: true
+    /// The library changed in place (a pull landed): show filed frames the source takes, and
+    /// open the newest in the loupe when auto-advance asked for it.
+    func libraryDidUpdate() {
+        guard let app, let lib = app.engineLibrary else { return }
+        let known = pendingAdmit.filter { lib.itemOfImage[$0] != nil }
+        if !known.isEmpty {
+            pendingAdmit.subtract(known)
+            app.admit(known.compactMap { lib.itemOfImage[$0] })
         }
-        if valid, source != .all { app.setSource(source) }
-        if let url = focus ?? keep, let id = itemOfPath[Self.resolved(url)] {
+        if let key = pendingFocus, let id = lib.itemOfImage[key] {
+            pendingFocus = nil
             app.select(id: id)
-        }
-        if focus != nil {
-            app.viewMode = .loupe
-        } else if mode != .compare, app.viewMode != mode {
-            app.viewMode = mode
+            if app.focusedItem?.id == id, app.viewMode != .compare { app.viewMode = .loupe }
         }
     }
 
-    private func rebuildItemMap() {
-        guard let items = app?.library.items else { itemOfPath = [:]; return }
-        var map = [String: Int](minimumCapacity: items.count)
-        for item in items { if let url = item.url { map[Self.resolved(url)] = item.id } }
-        itemOfPath = map
+    func item(for frame: IncomingFrame) -> Int? {
+        guard let lib = app?.engineLibrary, let id = frame.imageID else { return nil }
+        return lib.itemOfImage[id]
     }
-
-    func item(for frame: IncomingFrame) -> Int? { itemOfPath[Self.resolved(frame.url)] }
 
     /// Click on an incoming tile: focus that frame (the usual keys then decide it).
     func reveal(_ frame: IncomingFrame, loupe: Bool) {

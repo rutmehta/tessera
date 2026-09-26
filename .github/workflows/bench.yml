@@ -1,0 +1,60 @@
+name: Performance benchmarks
+on:
+  schedule:
+    - cron: '23 6 * * *'
+  workflow_dispatch:
+    inputs:
+      record_baseline:
+        description: 'Measure a candidate baseline (download artifact, review and commit manually)'
+        type: boolean
+        required: true
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: performance-benchmarks
+  cancel-in-progress: false
+jobs:
+  cpu:
+    # Set TESSERA_BENCH_RUNNER to a dedicated macOS runner label for fixed hardware.
+    # Hosted macOS is a smoke/regression signal, not a fixed-hardware target claim.
+    runs-on: ${{ vars.TESSERA_BENCH_RUNNER || 'macos-15' }}
+    timeout-minutes: 20
+    env:
+      BENCH_HOST: ${{ vars.TESSERA_BENCH_HOST || 'github-macos-15' }}
+      RECORD_BASELINE: ${{ inputs.record_baseline || false }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Keep Cargo artifacts outside checkout
+        run: printf 'CARGO_TARGET_DIR=%s/tessera-bench-target\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: perf-${{ runner.os }}-${{ runner.arch }}
+      - name: Build and test runner
+        run: |
+          unset DYLD_FALLBACK_LIBRARY_PATH
+          cargo test --locked -p tessera-bench --release
+          cargo build --locked -p tessera-bench --release
+      - name: CPU benchmark and regression gate
+        timeout-minutes: 10
+        run: |
+          unset DYLD_FALLBACK_LIBRARY_PATH
+          if [[ "$RECORD_BASELINE" == "true" ]]; then
+            BENCH_GATE=0 "$CARGO_TARGET_DIR/release/tessera-bench" --suite cpu --record-baseline
+          else
+            BENCH_GATE=1 "$CARGO_TARGET_DIR/release/tessera-bench" --suite cpu
+          fi
+      - name: Upload measurements, tables and candidate baselines
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-${{ runner.os }}-${{ runner.arch }}-${{ github.run_id }}
+          path: |
+            bench-results/
+            tools/bench/bench-baseline*.json
+          if-no-files-found: warn
+          retention-days: 30

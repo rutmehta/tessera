@@ -1,4 +1,4 @@
-# compositor: maths and invariants (M5-01, M5-04b)
+# compositor: maths and invariants (M5-01, M5-04b, M5-08b)
 
 The layered document model and tiled compositor of spec 02 §1–2 and spec 04
 §4. This file is the reference for the blend and compositing maths, the
@@ -84,6 +84,15 @@ Soft Light uses Photoshop's formula, not the W3C/Illustrator one (the W3C
 D(b) variant differs by up to about 0.02). The 0/0 convention for Divide and
 the ≥ at the Hard Mix threshold are our choices; no Photoshop reference was
 available to check them against.
+
+Divide, Hard Mix, Darker/Lighter Colour and Dissolve are discontinuous: a
+one-ulp difference in the backdrop can flip the result between 0 and 1
+(Divide at `b ≈ 0, s = 0`, where upstream non-separable modes produce tiny
+positive or negative channels). The formulas are **not** smoothed (no
+denominator epsilon). Instead every GPU port evaluates them, and everything
+upstream, in the CPU's exact operation order with IEEE-rounded f32
+arithmetic (§12.1, "Kernels"), so the GPU and CPU agree bit for bit and
+there is no drift to amplify.
 
 ### 2.3 Non-separable modes (PDF 1.7 §11.3.5.3)
 
@@ -328,11 +337,12 @@ Gate, as in docs/11 §1.3:
   except Saturation at 2.3e-6.
 - A 39-node chain with every mode, pass-through and isolated groups,
   shallow and deep knockout, masks, Blend If, a clip group with Dissolve and
-  a radial gradient fill, at levels 0 and 1: 3.6e-4, which is under the 2e-3
-  chain bound.
+  a radial gradient fill, at levels 0 and 1: 9.9e-5 (3.6e-4 before the port
+  was compiled with IEEE maths in M5-08b), under the 2e-3 chain bound.
 
-The chain error comes from threshold modes (Hard Mix, Darker/Lighter Colour)
-amplifying 1-ulp upstream differences.
+The remaining chain error comes from the port's own operation order differing
+from the CPU executor's in places, amplified by threshold modes. The resident
+renderer (§12) is bit-exact.
 
 ## 7. Dirty-rect compositing
 
@@ -390,14 +400,15 @@ Re-serializing a loaded document reproduces the input bytes exactly
 ## 9. Not done / deviations
 
 - The fill-opacity behaviour of Photoshop's "special eight" modes (§2.4).
-- Layer styles (spec 02 §1.4), smart filters (stored only), mask feather
-  (stored only), vector-mask rasterization (payload stored only), and the
+- Mask feather (stored only), vector-mask rasterization (payload stored only), and the
   translation op and position lock semantics.
+- Layer-style approximation limits and CPU routing requirements are in §9.1.
 - "Blend RGB colours using gamma 1.0" and colour conversion between
   profiles. The profile is stored and resolved by `color-mgmt`, and the
   compositor does not need a CMM.
-- The resident renderer's full level-0 composite of the 100-layer 20 MP
-  bench is about 2× over its 100 ms target (§12.4).
+- A full recomposite of a 3840×2160 level-0 viewport of the 100-layer
+  bench takes about 38 ms against an 8 ms target (§12.4, §12.5); the full
+  level-0 composite meets its 100 ms target.
 - Band-parallel CPU rendering for levels with few tiles. At level 2 of 20 MP
   there are only 24 tiles across 10 threads (the resident GPU path replaces
   the CPU for interactive frames).
@@ -406,6 +417,113 @@ Re-serializing a loaded document reproduces the input bytes exactly
   and Hard Mix tie conventions are assumptions.
 - Brush engine and selections tools are out of scope. `paint_op` is the
   primitive a brush engine emits.
+
+## 9.1 CPU layer styles and smart filters (M5-14)
+
+`LayerProps::styles` stores a serde `LayerStyles` set. `DocState::global_light`
+is shared by effects opting into it; `DocOp::SetGlobalLight` changes all of
+them in one undoable edit. `DocOp::SetProps` edits a style set. Native document
+serialization preserves effects, scaling, global light, filter blending, and
+the shared filter mask, with defaults for older manifests.
+
+### Layer effects
+
+`render/styles.rs` derives full-canvas effect planes from masked source alpha.
+`render/effects.rs` integrates them with the CPU tile executor. The source is
+evaluated at level zero before effects and pyramid reduction, so neighbouring
+tiles do not manufacture transparent halos. Styles on pixel, fill, text-proxy,
+smart-object, and isolated-group layers are supported. Styles on adjustment or
+pass-through groups return `Unsupported`; isolate those groups first.
+
+The stack is back-to-front: drop shadows and outer glows (plus outer bevel
+coverage), fill, pattern/gradient/colour overlays, satin, inner glow, inner
+shadow, inner bevel, then strokes. Repeated effects of a type retain vector
+order. Inside/center/outside stroke coverage is generated separately. All
+effects use their own blend mode and opacity. Fill opacity affects the source
+only; whole-layer opacity fades the complete styled contribution once. Interior
+effects are evaluated at unit coverage then masked by the source shape once,
+avoiding alpha growth on antialiased edges. Exterior effects can remain visible
+at zero fill. Knockout applies to the source interior using the existing
+shallow/deep backdrop rules, never to a shadow/glow/stroke plane. Styles remain
+visible on knocked-out interiors. Clipped-layer effects obey source-atop.
+
+Shadow = offset of a spread/choked alpha field blurred with a truncated
+Gaussian. Glow uses the corresponding expanded/eroded blurred alpha; inner
+glow supports edge/center origins. Bevel shades gradients of blurred alpha,
+with independent highlight/shadow modes and global angle/elevation. Satin is
+the difference of opposed offset blurred alpha samples. Overlays reuse the
+document `Fill` sampler (solid, gradient, repeating pattern). Geometry sizes,
+spread, soften, and offsets scale together; overlay Fill coordinates stay in
+canvas units. Angle 90 lights from above; shadows travel away from the light.
+
+These are deterministic reference approximations, not an Adobe pixel-match:
+morphology has a square footprint, bevel uses a blurred-alpha rather than a
+distance-field height, and contour/jitter controls are preserved placeholders.
+Bevel texture is not evaluated. Scaled kernel support is limited to 256 pixels,
+offset to 16384, and padded working alpha to 16,777,216 samples. Invalid/nonfinite
+controls fail instead of silently clamping. Styles currently recompute their
+whole-source planes per uncached output tile, a correctness-first path rather
+than an interactive-performance claim. Styled documents use whole-document
+revision stamps, full damage, and no partial CPU updates, including nested
+styles. Unstyled documents retain the existing local-cache/dirty-rect path.
+
+### Smart-filter stack
+
+`SmartObject::filters` runs in vector order on the nested composite, before
+transform/resampling. `SmartFilter::blend` blends each result against that
+node's input. The shared child-space `filter_mask` fades the completed stack
+against the original child, not each intermediate node. Mask density is
+`1-d*(1-m)`; disabled masks are ignored. Mask feather currently returns
+`Unsupported`. Source rasters remain immutable. `DocOp::SetSmartFilters` edits
+the stack and mask and participates in undo/redo.
+
+The compositor owns the evaluation/cache interface because `filters` already
+depends on compositor. Install `filters::CompositorFilters` with
+`Compositor::set_filter_evaluator(Arc::new(filters::CompositorFilters))` for the
+full filter inventory and existing `Filter`/halo implementation. The standalone
+compositor provides invert and a small Gaussian fallback for native documents;
+unknown enabled filters fail explicitly, rather than disappearing. See the
+filters README for the strict JSON parameter schema. The optional
+`filters/camera-raw-filter` feature routes RGB raster tiles through
+`pipeline_cpu::tone`; this is the requested Camera Raw stub, not the entire
+develop pipeline or a demosaic pass.
+
+Unmasked filter results and source rasters are cached by child namespace,
+source revision, and BLAKE3 of serialized filter parameters/blend options.
+Mask-only edits reuse filter results. `filter_evaluations()` exposes exact
+execution counts. A separately bounded filter cache has the constructor's byte
+budget; oversized results are evaluated but not retained. `clear_composites`
+retains filter results, `clear` drops them, and replacing an evaluator clears
+both caches. Concurrent cold output tiles serialize evaluation/publication;
+nested source compositing never runs under the filter-cache lock.
+
+### GPU routing and PSD
+
+No resident, gpu.rs, or blend.rs files are modified by this work package.
+The per-tile GPU port returns `Unsupported` for styled source operations.
+Before selecting `ResidentRenderer`, hosts must call
+`DocState::check_resident_effects()` and route its `Unsupported` result to the
+CPU. This preflight rejects styles and enabled smart filters recursively.
+The resident backend itself has not been patched to call the preflight, because
+that integration belongs to the concurrently edited M5-08b files. Bypassing the
+preflight can still omit these effects on the resident path.
+
+PSD lfx2 basics map drop/inner shadows, outer/inner glows, solid colour overlays,
+and solid strokes, including scale, blend mode, opacity, and global light
+resources. The adapter reads native Action Descriptors and writes native lfx2,
+not a private JSON substitute. Unknown fields and untouched records are retained.
+Unsupported new PSD style exports (including repeated effects, non-solid fills,
+bevel/satin, or contour/jitter settings) fail explicitly. `SoLE` and other
+smart-object/filter-effect records remain opaque, byte-preserved records on the
+existing raster-proxy import path: the PSD parser exposes a generic placed-object
+descriptor but not an executable filter schema or unfiltered embedded source.
+Reapplying filters to that already-rendered proxy would double-apply them.
+
+Unit and integration tests cover each effect's small-shape reference, scaling,
+global-light edits/undo, zero fill and whole-layer opacity, soft alpha, tile-edge
+shadows and damage, filter result reuse/parameter/source invalidation, shared
+mask placement, native persistence, and actual PSD byte round trips. Existing
+golden files are unchanged.
 
 ## 10. CPU bench
 
@@ -467,12 +585,18 @@ level composite between crates without readback.
 A `ResidentRenderer` mirrors one open document on the GPU. `render(doc,
 level)` brings the mirror to the document's current state and composites
 `level` into a resident premultiplied f32 buffer of the whole level, then
-returns without waiting. No CPU pixel work happens on the interactive path
-except for smart objects (below).
+returns without waiting for GPU completion. A new structure's specialized
+kernel compiles on a worker thread while the interpreter renders. No CPU
+color sampling/compositing happens on this path; smart-object coordinate
+footprints use host f64 (below).
 
 - **Pages.** Pixels live in a page pool: fixed 256² pages (one tile at any
-  level, stored in its own extent) in up to eight storage-buffer slabs sized
-  from demand and capped by the binding limit. RGBA pages are interleaved per
+  level, stored in its own extent) in storage-buffer slabs. The first slab
+  grows by reallocation (a GPU copy, page numbers unchanged) up to the
+  binding limit (2 GiB, the default budget); only past it are more slabs
+  added, up to eight. Kernels therefore normally address one slab with no
+  per-texel slab switch (an 8-way switch cost about 20% of a frame), and
+  growth never changes a specialized kernel's structure key. RGBA pages are interleaved per
   texel (8-bit: one word, 16-bit: two, float: four); one-channel mask pages
   are planar as stored. Pages are in the document depth, exactly the tile
   samples, so the GPU normalizes them with the CPU's own tables (8-bit LUT,
@@ -485,7 +609,9 @@ except for smart objects (below).
   needs it. A 64² brush dab therefore costs one upload and one new page per
   level above it, whatever the layer count. A whole-layer duplicate costs
   nothing. Page tables per raster and level are resolved on the CPU from the
-  document tree and cached per layer while its `Arc` is unchanged.
+  document tree and cached per layer while its `Arc` is unchanged. They are
+  resolved per tile on first need: a viewport frame interns, uploads and
+  mips only the tiles under the viewport (and their mip children).
 - **Program.** The layer tree is flattened once per state into GPU steps
   (`resident::program`, the tile-independent twin of `TileJob::compile`):
   blend (raster, fill, smart), adjustment, push isolated/clip, push
@@ -503,9 +629,53 @@ except for smart objects (below).
   (solid, linear and radial gradient, pattern) and **all adjustment layers**
   (Levels, Curves, Hue/Saturation and Colorize, Exposure, Invert, Posterize,
   Threshold, Channel Mixer) with mask, Blend If, mode and Dissolve.
-- **Smart objects** are the one CPU-assisted source: their resampled tiles
-  come from `Compositor::smart_tile` and are uploaded as f32 pages once per
-  (child revision, tile).
+- **Kernels (M5-08b).** Metal compiles WGSL with fast math: approximate
+  division and reciprocal, reassociation and `a·b + c` contraction. Over a
+  100-layer chain, those one-ulp drifts reach Divide/Hard Mix thresholds and
+  flip pixels (0.0056 max error with the interpreter, 0.05–0.08 with
+  specialized kernels, on the bench document). Every resident kernel (and
+  the per-tile port) is therefore built by `gpu_core::precise_compute_pipeline`:
+  naga translates the WGSL to MSL (no runtime bounds checks, no loop-bounding
+  counters, no workgroup zeroing), `#pragma METAL fp math_mode(safe)` and
+  `#pragma METAL fp contract(off)` make products and sums round separately,
+  sqrt becomes `precise::sqrt`, and every run-time f32 division is written
+  `pdiv`/`pdiv3` (blend.wgsl) and compiled to a correctly rounded division
+  from the fast reciprocal (one Newton step, two exact-FMA residual
+  corrections; `precise::divide` costs about 60% more frame time). The module
+  goes through wgpu's MSL passthrough (`Features::PASSTHROUGH_SHADERS`,
+  requested by `gpu_core::GpuDevice`), with buffer indices assigned the way
+  wgpu-hal assigns them for the explicit layout and threadgroup memory
+  declared inside the kernel. The 8-bit normalization table is staged in
+  workgroup memory. Result: resident output equals the CPU reference bit for
+  bit on every gate below, including the 20 MP / 100-layer bench document at
+  levels 0 and 2.
+- **Specialization (M5-08, M5-08b).** Up to eight LRU kernels per renderer,
+  keyed by BLAKE3 of the step kind/mode/flags/source/adjustment sequence,
+  depth and slab count, with full-key comparison against hash collisions.
+  The generated kernel unrolls the tree program and emits switch-free blend
+  functions from the shared WGSL formulas, so blend modes, group nesting and
+  feature flags are resolved at code generation; opacity, masks, fill
+  parameters, seeds, page addresses and LUTs stay in buffers, so painting,
+  opacity drags and mask edits never compile. Every structure is eligible
+  (the M5-08 exclusion of discontinuous modes is gone: with IEEE maths the
+  specialized kernel and the interpreter are bit-identical). A new structure
+  compiles on a worker thread (at most two at a time; about 0.4–1.5 s for
+  100 steps, 5.7 s for 250) while the interpreter renders; the next frame
+  after completion uses the kernel, and since both produce identical pixels
+  nothing is re-rendered. Programs over 256 steps and failed compilations
+  stay on the interpreter. `wait_for_specializations` blocks for tests and
+  benchmarks.
+- **Smart objects (M5-08)** render their children on the same device, then
+  bilinearly sample premultiplied child buffers directly into straight planar
+  f32 smart pages, without CPU pixel readback/upload. The host computes f64
+  inverse-transform footprints and uploads indices/weights, preserving the
+  CPU's mip choice and large-coordinate precision. Child renderers are retained
+  per layer/child snapshot. Page keys separately include child namespace,
+  child revision, layer revision, transform bits and coordinate, so a newer
+  child revision cannot hide a subsequent parent transform edit. Smart pages
+  are resolved per visible tile like raster pages; the child still renders a
+  whole selected level. GPU stats describe this renderer's own pools/levels,
+  not the recursively retained child renderer memory.
 - **Eviction.** Pages not used by the current state (undo history) are kept
   until the pool would pass its budget (default 2 GiB), then evicted
   least-recently-used; eviction invalidates the cached tables. The live
@@ -522,6 +692,22 @@ level. Both are sound on their own (pages are immutable and content
 addressed; §7 is sound for every op), so the intersection is. Undo, redo and
 checkout take the page-table path. Unchanged state dispatches nothing.
 
+`render_viewport(doc, level, visible, margin)` takes **level-space** coordinates
+and margin pixels, clips to the level and rounds out to 16² blocks. Every level
+also remembers a validity bit per block. Damage invalidates blocks even off
+screen; only invalid visible blocks dispatch. Panning fills newly exposed
+blocks, and a later `render` completes the whole level. Only the tiles under
+the viewport are resolved, uploaded and mipped (a cold 3840×2160 L0 viewport
+of the bench uploads 1390 of 3390 pages). Table entries a frame did not
+resolve keep their last known node; since an unresolved offscreen tile cannot
+be compared, it counts as changed, so its valid blocks survive only through
+the damage log (sound on its own), and a history jump (no log) invalidates
+them. The level's output buffer is still allocated at full size (untouched
+outside the viewport). Readback/presentation
+reject unrendered or dirty regions instead of returning stale pixels. `read_level`
+and `read_tiles` require the entire level to be valid. `FrameReport.damage`
+reports dispatched block rectangles (one whole-level rect for a full frame).
+
 The result is bit-identical to a cold full render of the same state
 (`dirty_rect_frames_are_bit_exact_and_local`), and rendering is deterministic
 across renderers and devices (`rendering_is_deterministic`).
@@ -531,52 +717,113 @@ over an opaque background or premultiplied), `present_iosurface` imports an
 IOSurface on the renderer's device through `gpu-core` for that, and
 `read_level` / `read_tiles` are the explicit readback for export.
 
+`present_managed` and `present_iosurface_managed` additionally accept RGBA16F
+and a `color_mgmt::Lut3d` (re-exported by `gpu_core`). Source interpretation is
+explicit: `DocumentEncoded` for unconverted RGBA8, `DisplayLinear` for unconverted
+RGBA16F, or `LutInput` with a 33³ color-mgmt LUT. The LUT operates on straight
+RGB, followed by premultiplication and optional destination-space background
+flattening. RGBA16F preserves negative RGB and headroom; no implicit transfer
+function or clamp is added. LUT interpolation matches pipeline-gpu's raw output
+LUT path: red-fastest trilinear, input domain [0,1], extended output allowed.
+The caller must supply a destination-encoded SDR or display-linear EDR LUT and
+configure the display surface accordingly. This does not duplicate the develop
+session's scene tone mapping or proof-profile selection. LUT data currently
+uploads per presentation call; pipelines are retained. Legacy `present` and
+`present_iosurface` retain their RGBA8/document-encoding behavior.
+
 ### 12.3 Gate (docs/11 §1.3)
 
-`tests/gpu_resident.rs`, against `Compositor::render_tile_premultiplied`:
+`tests/gpu_resident.rs`, against `Compositor::render_tile_premultiplied`
+(M5-08b, IEEE kernels):
 
 | Case | Max abs error |
 |---|---|
-| Each of 27 modes over a 4-layer stack | ≤ 2.4e-7 (Saturation 2.3e-6) |
-| Each adjustment (10 variants) at float and 8-bit, with opacity, fill and a mode | ≤ 3.6e-7 |
+| Each of 27 modes over a 4-layer stack | **0** (bit-exact) |
+| Each adjustment (10 variants) at float and 8-bit, with opacity, fill and a mode | 0, except Exposure 1.2e-7 (`pow` is not correctly rounded on either side) |
 | 8/16-bit mips, levels 0–11, odd extent, masked | ≤ 1e-6 (mips bit-identical) |
-| 50-node chain (all modes, both group kinds, both knockouts, masks, Blend If, clip group with Dissolve, radial gradient, pattern, masked Hue/Saturation with Blend If, Curves in a pass-through group), float/16/8-bit at levels 0, 1, 2, 4, 9 | ≤ 1.4e-3 (bound 2e-3) |
-| Bench document at level 2 | 2.0e-5 |
+| 50-node chain (all modes, both group kinds, both knockouts, masks, Blend If, clip group with Dissolve, radial gradient, pattern, masked Hue/Saturation with Blend If, Curves in a pass-through group), float/16/8-bit at levels 0, 1, 2, 4, 9 | **0**, asserted exactly (bound 2e-3; float mips are now exact too) |
+| Viewport-only resolution, offscreen paint, undo while only a viewport is rendered | completing the level equals a cold render bit for bit; 0 vs CPU |
+| Bench document (20 MP, 100 layers) at level 0, interpreter and specialized, full and viewport-then-complete | **0** (was 5.6e-3; unrestricted fast-math specialization 0.053) |
+| Bench document at level 2, interpreter and specialized | **0** (was 2.0e-5) |
 
-As in §6, the chain error comes from threshold modes amplifying 1-ulp
-differences. Threshold and Posterize are step functions; they are allowed
-the chain bound in the per-operator test, though they measured 6e-8.
+Specialized kernels and the interpreter are compared bit for bit, across
+two devices, in `specialized_matches_interpreter_and_reuses_structure`.
+`gpu-core/tests/precise.rs` checks that the translated division, reciprocal
+product, uncontracted product sum and sqrt equal Rust's f32 results for
+every pair of 8-bit values and two million random pairs over ±20 binary
+orders of magnitude.
 
 ### 12.4 Bench
 
 ```
 cargo test -p compositor --release --test bench -- --ignored --nocapture resident
+TESSERA_BENCH_ASSERT=1 cargo test -p compositor --release --test bench m5_08 -- --ignored --nocapture
 ```
 
-The §10 document (100 layers, 20 MP, 8-bit), M4 (10-core GPU), measured
-while other builds were loading the machine (load average 12–17):
+The §10 document (100 layers, 20 MP, 8-bit), M4 (10-core GPU). M5-08b
+numbers are 9-run medians (5 for `resident_100` L0) on a machine shared with
+other builds (load average 14–42); timings excluding compilation, which runs
+in the background:
 
-| Measurement | Before (CPU compositor / per-tile GPU port) | After (resident) | Target |
-|---|---|---|---|
-| Cold open → first level-2 frame (all 3390 tiles uploaded once, 1300 mip pages on the GPU) | 1322–2613 ms (CPU mips + composite) | **537–1044 ms**, typically ~860 | < 1.5 s ✔ |
-| 64² brush dab → level-2 recomposite | 3.8–7.1 ms (CPU partial tiles) | **median 1.6 ms**, max 3.1 (1 upload, 2 mip pages, 4 blocks) | < 16 ms ✔ |
-| Full level-2 recomposite (1368×912 × 100 layers) | 74–107 ms (CPU, 10 threads); 2.3–3.9 s (per-tile GPU port) | **13.6 ms** | — |
-| Full level-0 composite (20 MP × 100 layers) | 1311 ms (CPU, 10 threads) | **198 ms** | < 100 ms ✘ |
-| 64² dab → level-0 dirty-rect update | 0.7 ms (CPU, 2 partial tiles) | **1.2 ms** (25 blocks) | — |
-| Opacity change → level-2 frame | full CPU recomposite | 13.7 ms | — |
-| Two adjustment layers added, level-2 recomposite | not supported on the GPU | 14.6–17.5 ms | — |
-| GPU memory | — | 2.49 GB (4772 pages + level buffers) | — |
+| Measurement | Before (CPU / M5-04b resident) | M5-08 (fast math) | **M5-08b** | Target |
+|---|---|---|---|---|
+| Full level-0 composite (20 MP × 100 layers), `m5_08` bench | 1311 ms CPU | 201.7 ms (interpreter; specialization excluded) | **92.1 ms** specialized, 202.6 ms interpreter | < 100 ms ✔ |
+| Full level-0 composite, `resident_100` (after L2, dabs) | 198 ms | 210.9 ms | **92.1 ms** (96.9 at load 28–42) | < 100 ms ✔ |
+| Full recomposite of a 3840×2160 L0 viewport (zero margin) | — | 84.0 ms | **37.8 ms** specialized, 84.3 interpreter | < 8 ms ✘ |
+| Cold 3840×2160 L0 viewport (fresh renderer) | whole-level uploads | whole-level uploads | **188 ms**, 1390 of 3390 pages uploaded | — |
+| Cold full L0 (fresh renderer, uploads) | — | — | 421 ms, 3390 pages | — |
+| Max abs error vs CPU, full L0 | — | 5.6e-3 | **0** | ≤ 2e-3 ✔ |
+| Cold open → first level-2 frame | 537–1044 ms | — | **407–504 ms** | < 1.5 s ✔ |
+| 64² brush dab → level-2 recomposite | 1.6 ms | 7.62 ms | **1.56 ms** (3.8 at load 28–42) | < 16 ms ✔ |
+| Full level-2 recomposite (1368×912 × 100 layers) | 13.6 ms | — | **6.4 ms** | — |
+| 64² dab → level-0 dirty-rect update | 1.2 ms | — | 1.2 ms | — |
+| Opacity change → level-2 frame | 13.7 ms | — | 6.4 ms | — |
+| Two adjustment layers added, level-2 recomposite | 14.6–17.5 ms | — | 14.3 ms (the first frames after a structure change use the interpreter while the kernel compiles) | — |
+| GPU memory | 2.49 GB | — | 1.88 GB (4772 pages in one slab + level buffers) | — |
 
-Ranges are the spread over runs at different load.
+Why the full 4K viewport recomposite misses 8 ms: it is 8.3 MP × 100
+layers = 8.3·10⁸ layer-pixel blends, so 8 ms needs 0.0096 ns per
+layer-pixel. The specialized kernel runs at 0.045 ns (≈ 55 f32 operations
+per layer-pixel at the M4's ≈ 1.9·10¹² lane-operations/s), and
+`bench_micro::gpu_calibration`'s minimal fast-math Multiply loop with no
+page tables, masks or exact rounding runs at 0.029–0.033 ns, which is
+already 25 ms for this viewport. The target is not reachable by
+recompositing every layer of every visible pixel on this GPU; interactive
+4K frames stay under it because they are incremental (a 64² dab touches 25
+blocks, a pan only the exposed strip, and an unchanged frame dispatches
+nothing).
 
-`tests/bench_micro.rs` (ignored) has the per-layer-pixel costs of the
-shader and a calibration kernel. A minimal hand-written normal-blend loop
-runs at about 0.03 ns per layer-pixel on this GPU; the interpreter's plain
-path is about 0.06 (Normal) to 0.11 (non-separable), and the mixed-mode bench
-averages 0.1. The level-0 target needs 0.05: the remaining cost is the
-per-step mode `switch` (0.03 ns on its own for non-Normal modes) and the
-generic step loop. The next step is structural specialization: generate and
-cache a straight-line WGSL kernel per program *structure* (kinds, modes,
-flags, nesting), with parameters still read from the step buffer so opacity
-drags and painting never recompile, and keep the interpreter as the fallback
-while a new structure compiles in the background.
+`tests/bench_micro.rs` (ignored) has per-mode costs of the specialized
+kernel (`resident_per_mode`: 0.044–0.09 ns per layer-pixel over 40 layers
+of one mode), the older mixed micro-benchmark and the calibration kernel.
+Measured but rejected in M5-08b: a branch skipping the reciprocal for opaque
+backdrops (+5%), exact arithmetic 8-bit decoding instead of the staged table
+(+8%) and `precise::divide` (+60%). Dropping the reciprocal's Newton step
+was exact on the tests too but is not adopted: it leaves no proven rounding
+margin for a few percent at most.
+
+### 12.5 M5-08b: status
+
+Done: IEEE kernels (bit-exact GPU = CPU, which is the Divide fix: Divide
+is evaluated in the CPU's exact order and rounding, not smoothed),
+specialization of every structure with background compilation and a
+bounded LRU cache, one-slab page pool, viewport-limited resolution,
+uploads, mips and dispatch, and the full-L0 target. RGBA16F /
+colour-managed presentation and GPU smart-object resampling are as
+delivered by M5-08 (§12.1–12.2).
+
+Not done:
+
+- **4K viewport full recomposite < 8 ms** (37.8 ms; see §12.4 for why).
+  `m5_08_structure_and_viewport` still fails its viewport timing assertion
+  under `TESSERA_BENCH_ASSERT=1`; every correctness assertion passes, and
+  `resident_100_layers_20mp` passes all of its assertions.
+- The level output buffer is allocated at full size even for viewport-only
+  rendering; smart-object children render whole levels.
+- Presentation LUTs are uploaded per call.
+- Non-Metal devices (no MSL passthrough) fall back to backend-default WGSL
+  compilation (`gpu_core::Precision::Relaxed`), where results are no longer
+  bit-exact and the §2.2 threshold amplification can return.
+- Compilation is on a worker thread per structure; large programs (250
+  steps) take several seconds to specialize, rendering on the interpreter
+  (about 2× slower) meanwhile.

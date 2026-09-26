@@ -173,6 +173,7 @@ final class AgentController {
         progress = AgentRunProgress(done: 0, total: UInt32(itemIDs.count), current: "", phase: "Preparing")
         let relay = AgentRelay { [weak self] p in Task { @MainActor in if self?.progress != nil { self?.progress = p } } }
         let ids = Set(itemIDs)
+        let images = itemIDs.filter(lib.imageIDs.indices.contains).map { lib.imageIDs[$0] }
         Task {
             // Pending develop saves of these photos land before the agent reads their recipes.
             await app.releaseDevelop(for: ids)
@@ -188,11 +189,18 @@ final class AgentController {
                 app.statusMessage = "Auto edit failed: \(e.localizedDescription)"
                 app.showToast("Auto edit failed: \(e.localizedDescription)", undoable: false)
             }
-            app.agentDidEdit(Array(ids))
+            // Item ids may have moved while the run was going (frames arriving, an import).
+            app.agentDidEdit(images.compactMap { lib.itemOfImage[$0] })
         }
     }
 
     func cancel() { cancelFlag?.cancel() }
+
+    /// The library changed in place: review rows follow their photos.
+    func libraryDidUpdate(_ lib: EngineLibrary) {
+        guard !queue.isEmpty else { return }
+        queue.relink { lib.itemOfImage[$0] }
+    }
 
     private func didFinish(_ report: AgentRunReport, library lib: EngineLibrary, redo: Bool) {
         let entries = report.items.map { AgentReviewEntry($0, itemID: lib.itemOfImage[$0.imageId]) }
@@ -249,7 +257,7 @@ final class AgentController {
                 app.statusMessage = "Reverted the agent's edit of \(entry.name) (one step in its history)"
             case .failure(let e): app.statusMessage = "Revert failed: \(e.localizedDescription)"
             }
-            if let item { app.agentDidEdit([item]) }
+            if let item = lib.itemOfImage[imageID] { app.agentDidEdit([item]) }
         }
     }
 

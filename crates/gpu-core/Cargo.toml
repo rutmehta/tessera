@@ -10,6 +10,7 @@ path = "src/lib.rs"
 
 [dependencies]
 engine-api = { path = "../engine-api" }
+color-mgmt = { path = "../color-mgmt" }
 wgpu.workspace = true
 pollster = "0.4"
 

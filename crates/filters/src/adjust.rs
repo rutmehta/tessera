@@ -4,7 +4,8 @@ use engine_api::EngineResult;
 /// CPU-reference image adjustments. Values are normalized unless documented
 /// otherwise; alpha is metadata, never premultiplied into the colour math.
 /// Identity parameter sets preserve out-of-range scene-linear values exactly.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub enum Adjustment {
     /// Per-channel levels; non-neutral normalized input is clamped to [0,1].
     Levels {

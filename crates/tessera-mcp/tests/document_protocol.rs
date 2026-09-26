@@ -122,6 +122,62 @@ async fn document_tools_history_conflicts_schemas_and_actions_over_mcp() {
     let (opened, _) = c.ok("open_document", json!({"path": a_path})).await;
     let doc = opened["ok"]["document"].as_u64().unwrap();
     assert_eq!(opened["ok"]["canvas"], json!({"width":80,"height":60}));
+    assert_eq!(opened["warnings"], json!([]));
+    let (extra, _) = c.ok("open_document", json!({"path": b_path})).await;
+    let advanced_doc = extra["ok"]["document"].as_u64().unwrap();
+    for operation in [
+        json!({"kind":"wand","seed":[1,1],"tolerance":20}),
+        json!({"kind":"quick","stroke":[[2,2],[4,4]],"radius":2}),
+    ] {
+        let (selected, _) = c
+            .ok(
+                "select_advanced",
+                json!({"document":advanced_doc,"operation":operation}),
+            )
+            .await;
+        assert!(selected["ok"]["entry"].is_u64());
+        c.ok("undo", json!({"document":advanced_doc})).await;
+        c.ok("redo", json!({"document":advanced_doc})).await;
+        c.ok("undo", json!({"document":advanced_doc})).await;
+    }
+    let (brushes, _) = c.ok("list_brushes", json!({})).await;
+    let (saved, _) = c
+        .ok(
+            "set_pixel_selection",
+            json!({"document":advanced_doc,"shape":"all","save_as":"all"}),
+        )
+        .await;
+    c.ok(
+        "refine_edge",
+        json!({"document":advanced_doc,"radius":1,"smooth":1}),
+    )
+    .await;
+    c.ok("selection_boolean", json!({"document":advanced_doc,"selection":saved["ok"]["selection"],"operation":"subtract"})).await;
+    let (missing_model, _, _) = c
+        .call(
+            "select_advanced",
+            json!({"document":advanced_doc,"operation":{"kind":"subject"}}),
+        )
+        .await;
+    assert!(missing_model);
+    c.ok(
+        "set_pixel_selection",
+        json!({"document":advanced_doc,"shape":"none"}),
+    )
+    .await;
+    assert_eq!(brushes["ok"]["presets"], json!([]));
+    let tip = brush::tip::SampledTip::new("tip", 2, 2, vec![1.0; 4]).unwrap();
+    let abr = dir.path().join("tips.abr");
+    std::fs::write(&abr, brush::abr::write_v6(&[tip], 6, 2, true).unwrap()).unwrap();
+    let (imported, _) = c.ok("import_brushes", json!({"path":abr})).await;
+    assert_eq!(imported["ok"]["presets"].as_array().unwrap().len(), 1);
+    let (listed, _) = c.ok("list_brushes", json!({})).await;
+    let preset_id = listed["ok"]["presets"][0]["id"].clone();
+    c.ok(
+        "paint_preset",
+        json!({"document":advanced_doc,"layer":1,"preset_id":preset_id,"points":[{"x":4,"y":4}]}),
+    )
+    .await;
     c.ok("actions_record", json!({"name":"Look"})).await;
     let (adj, content) = c
         .ok(

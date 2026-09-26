@@ -1,0 +1,11 @@
+M3-16c is complete and verified.
+
+Training prerequisites and driver live in crates/ml-enhance/training/, with updated documentation and venv setup. Verified clear skips for unset/missing Python and CI, and hard failure for an existing broken interpreter.
+
+Full training achieved 6.03866 dB fp32 and 6.03867 dB fp16 PSNR gain, with zero tiling error. Full integration took 4.665 seconds.
+
+The required release tests, clippy with -D warnings, and fmt check passed. Cargo.lock was restored; all remaining changes are within allowed paths.
+
+Evidence: tools/orchestrate/wp/M3-16c/RESULTS.md and full-training.log.
+
+RESULT: PASS

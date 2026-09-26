@@ -60,3 +60,29 @@ fn four_channel_tiling_preserves_samples() -> anyhow::Result<()> {
     assert_eq!(input.data(), out.data());
     Ok(())
 }
+
+#[test]
+fn full_strength_handoff_moves_runtime_output_without_reblending_copy() -> anyhow::Result<()> {
+    let input = Tensor::new(4, 2, 2, vec![0.1; 16])?;
+    let mut runtime_pointer = std::ptr::null();
+    let output = denoise_cfa_with(
+        &input,
+        CfaNoise {
+            shot: [0.003; 4],
+            read: [0.0008; 4],
+        },
+        100.0,
+        None,
+        |_| {
+            let result = Tensor::new(4, 2, 2, vec![0.25; 16])?;
+            runtime_pointer = result.data().as_ptr();
+            Ok(result)
+        },
+    )?;
+    assert_eq!(
+        output.data().as_ptr(),
+        runtime_pointer,
+        "full strength must retain the runtime output allocation"
+    );
+    Ok(())
+}

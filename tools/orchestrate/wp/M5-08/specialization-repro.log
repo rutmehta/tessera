@@ -1,0 +1,29 @@
+   Compiling compositor v0.1.0 (/Users/rutmehta/Developer/tessera/.worktrees/M5-08/crates/compositor)
+    Finished `release` profile [optimized] target(s) in 5.92s
+     Running tests/bench.rs (/Volumes/betterSSD/tessera-cache/target/M5-08/release/deps/bench-7d69129e3441e55c)
+
+running 1 test
+device + pipelines: 16 ms (Apple M4)
+cold open → first L2 frame: 844 ms  [3390 pages / 821 MB uploaded, 1300 mip pages, 4902 blocks]
+L2 full recomposite (100 layers, 1368×912): min 5.92 ms, median 6.02 ms
+64² dab → L2 recomposite: min 1.32 ms, median 1.69 ms, max 3.06 ms  [last: 4 blocks, 1 uploads, 2 mips; Document::apply median 0.01 ms]
+first L0 frame: 97.7 ms  [77976 blocks, 0 uploads]
+L0 full composite (20 MP × 100 layers): min 85.7 ms, median 86.2 ms
+64² dab → L0 dirty-rect update: 1.60 ms  [25 blocks]
+opacity change → L2 frame: median 6.28 ms
+L2 max |resident − CPU| over the bench document: 8.179048e-2
+L2 general CPU error 1.9907951e-5, specialized/general drift 8.179054e-2
+
+thread 'resident_100_layers_20mp' (77986386) panicked at crates/compositor/tests/bench.rs:497:5:
+resident CPU gate: 8.179048e-2
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test resident_100_layers_20mp ... FAILED
+
+failures:
+
+failures:
+    resident_100_layers_20mp
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 9.33s
+
+error: test failed, to rerun pass `-p compositor --test bench`

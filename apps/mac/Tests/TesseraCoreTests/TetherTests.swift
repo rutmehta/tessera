@@ -17,6 +17,12 @@ final class TetherNamingTests: XCTestCase {
         XCTAssertEqual(try TetherNaming.example("{sequence}.{ext}").get(), "0001.ARW")
     }
 
+    func testTokenMenuInsertsBeforeTheExtension() {
+        XCTAssertEqual(TetherNaming.inserting("{original}", into: "studio_{sequence}.{ext}"), "studio_{sequence}_{original}.{ext}")
+        XCTAssertEqual(TetherNaming.inserting("{ext}", into: "studio_{sequence}."), "studio_{sequence}.{ext}")
+        XCTAssertEqual(TetherNaming.inserting("{sequence}", into: "shoot"), "shoot{sequence}")
+    }
+
     func testRejectsWhatTheEngineRejects() {
         func problem(_ t: String) -> TetherNaming.Problem? {
             if case .failure(let p) = TetherNaming.example(t) { return p }

@@ -52,6 +52,8 @@ pub struct Locks {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct LayerProps {
+    /// Non-destructive CPU layer effects; independent of fill opacity.
+    pub styles: crate::render::styles::LayerStyles,
     /// Display name.
     pub name: String,
     /// Hidden layers (and layers clipped to them) do not render.
@@ -79,6 +81,7 @@ pub struct LayerProps {
 impl Default for LayerProps {
     fn default() -> Self {
         Self {
+            styles: Default::default(),
             name: String::new(),
             visible: true,
             opacity: 1.0,
@@ -272,10 +275,12 @@ fn gradient_at(stops: &[GradientStop], t: f32) -> [f32; 4] {
     stops[stops.len() - 1].color
 }
 
-/// A smart filter placeholder (stored, not rendered).
+/// One non-destructive filter, evaluated in vector order in child coordinates.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct SmartFilter {
+    /// Filter-result blend mode and opacity.
+    pub blend: crate::render::smart_filters::FilterBlend,
     /// Filter identifier.
     pub name: String,
     /// Enabled flag.
@@ -292,8 +297,10 @@ pub struct SmartObject {
     pub state: Arc<DocState>,
     /// Maps child level-0 pixel coordinates to parent level-0 coordinates.
     pub transform: Affine,
-    /// Smart filters (placeholders).
+    /// Smart filters, bottom/input first.
     pub filters: Vec<SmartFilter>,
+    /// Shared mask, in child coordinates; fades the completed stack.
+    pub filter_mask: Option<Mask>,
     /// Runtime cache namespace of the child (not serialized).
     pub(crate) key: u64,
 }
@@ -305,6 +312,7 @@ impl SmartObject {
             state: Arc::new(state),
             transform,
             filters: Vec::new(),
+            filter_mask: None,
             key: next_doc_key(),
         }
     }
@@ -479,6 +487,9 @@ impl Layer {
     /// Canvas region this layer can change when composited, or `None` for
     /// "anywhere" (procedural layers, adjustments, smart objects).
     pub fn affected_bounds(&self) -> Option<Rect> {
+        if !self.props.styles.effects.is_empty() {
+            return None;
+        }
         match &self.kind {
             LayerKind::Pixel(r) => Some(r.bounds().unwrap_or_default()),
             LayerKind::Text(t) => Some(t.proxy.bounds().unwrap_or_default()),
@@ -529,6 +540,8 @@ impl ColorProfile {
 /// An immutable snapshot of a whole document.
 #[derive(Debug, Clone)]
 pub struct DocState {
+    /// Shared direction for effects using global light.
+    pub global_light: crate::render::styles::GlobalLight,
     /// Canvas size in pixels.
     pub canvas: Extent,
     /// Bits per channel.
@@ -551,9 +564,42 @@ pub struct DocState {
 }
 
 impl DocState {
+    /// Whether this tree (including nested smart objects) contains styles.
+    /// Such documents conservatively invalidate the whole CPU composite.
+    pub fn has_layer_styles(&self) -> bool {
+        fn styled(layer: &Layer) -> bool {
+            !layer.props.styles.effects.is_empty()
+                || layer
+                    .children()
+                    .is_some_and(|c| c.iter().any(|l| styled(l)))
+                || matches!(&layer.kind, LayerKind::SmartObject(so) if so.state.has_layer_styles())
+        }
+        self.root.iter().any(|l| styled(l))
+    }
+
+    /// Host-side preflight for the resident backend, which does not evaluate
+    /// CPU layer effects. Call before selecting the resident renderer; the
+    /// per-tile GPU port independently rejects its styled source operations.
+    pub fn check_resident_effects(&self) -> EngineResult<()> {
+        fn filtered(layer: &Layer) -> bool {
+            layer
+                .children()
+                .is_some_and(|c| c.iter().any(|l| filtered(l)))
+                || matches!(&layer.kind, LayerKind::SmartObject(so) if so.filters.iter().any(|f| f.enabled) || so.state.check_resident_effects().is_err())
+        }
+        if self.has_layer_styles() || self.root.iter().any(|l| filtered(l)) {
+            Err(EngineError::Unsupported {
+                what: "layer styles and smart filters require CPU rendering".into(),
+            })
+        } else {
+            Ok(())
+        }
+    }
+
     /// An empty RGB document.
     pub fn new(canvas: Extent, depth: Depth) -> Self {
         Self {
+            global_light: Default::default(),
             canvas,
             depth,
             ppi: 72.0,

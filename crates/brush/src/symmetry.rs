@@ -45,7 +45,7 @@ impl Iso {
 }
 
 /// Symmetry mode (spec 02 §4 "Paint Symmetry").
-#[derive(Debug, Clone, Copy, PartialEq, Default)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Default)]
 pub enum Symmetry {
     /// Off.
     #[default]

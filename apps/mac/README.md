@@ -1,4 +1,4 @@
-# Tessera — macOS app and engine bridge (WP M1-12, culling UX M1-09, develop UI M1-10)
+# Tessera — macOS app and engine bridge
 
 AppKit where performance matters, SwiftUI elsewhere (docs/11 §1.5). Folder opens now use
 `EngineLibrary` and the Rust index through UniFFI 0.32. Decisions, grades and named marks are
@@ -68,6 +68,13 @@ runs on MainActor; reuse, cancellation, and library resets suppress stale delive
 cache writes. Subscriptions are removed on completion/cancellation. A failed background job also
 signals completion via `PreviewReady`; the retry surfaces its error and ends the wait.
 No full-RAW fallback is performed in Swift.
+Catalog changes arrive in place (M2-28): every catalog write appends to the index's change feed
+(SQLite triggers, any connection), and the engine announces it as `EngineEvent.libraryChanged`
+(its own writes at once, tethered frames on each poll, other writers within 250 ms). `AppModel`
+then pulls `CullSession.syncChanges()` off the main actor and `EngineLibrary.apply` renumbers the
+dense item ids around the same session: new frames join their burst (only the affected groups are
+recomputed), removed ones leave, the undo history, filters and selection stay, and the grid inserts
+or removes just those cells. A `reset` delta (log trimmed) falls back to a full reload.
 `openDevelopSession(imageId:)` (RAW only; decodes, so call it off-main) returns a `DevelopSession`
 (crates/tessera-ffi/src/develop.rs): `planSurface`/`attachSurface` (an RGBA8 IOSurface ring at the
 planned level's size), `setSettings(jsonPatch:interactive:)` (RFC 7386 merge patch of the engine's
@@ -80,8 +87,8 @@ shared scheduler; tone-only changes rerun only Tone and Output on memoized White
 Commits are saved on a 400 ms debounce through `sidecar` (recipe JSON + XMP with `crs:` values), the
 index is refreshed, and the edited preview is stored under the new recipe hash, so
 `embeddedPreview` serves edited thumbnails (edited RAWs without a stored preview are rendered from
-the recipe on the preview worker). The CPU operators are the default renderer; set
-`TESSERA_RENDER_BACKEND=gpu` for the Metal operators (slower on the M4, see `Engine::develop_renderer`).
+the recipe on the preview worker). The renderer calibrates CPU and Metal for each opened RAW;
+`TESSERA_RENDER_BACKEND=cpu` or `gpu` overrides that selection (Metal unavailability falls back to CPU).
 Layered documents (crates/tessera-ffi/src/document.rs, WP B5-01): `newDocument(width:height:depth:profile:)`,
 `openDocument(path:)` (`.tessera-doc`, `.psd`/`.psb` with unknown PSD records kept for save-back, flat
 JPEG/PNG/TIFF as one pixel layer), `openDocumentFromImage(imageId:developed:)` (the library image rendered at
@@ -153,7 +160,7 @@ Sufficient embedded JPEGs stay on the camera-rendered fast path. Missing JPEGs o
 than one eighth along either sensor axis use the CPU pipeline with bilinear demosaic and default
 settings, downsampled in linear light. RAW work runs through `jobs` at `Priority::Preview`.
 Both paths apply EXIF orientation and store a JPEG pyramid keyed by source bytes, requested size,
-orientation and the default recipe hash. Applying edited recipes is a later feature.
+orientation and the recipe hash. Edited RAWs without a cached preview can be rendered from the recipe.
 
 Rust tests exercise persistence, incremental scanning, filtering/pagination, recipe validation,
 unknown-field preservation, JPEG dimensions and callbacks. Swift's bridge test copies the real
@@ -289,7 +296,8 @@ keywords with hierarchy). Albums, groups, smart albums, keywords and people are 
 copies, stacks, faces, history and snapshots stay in `<library>/.tessera-import/<catalog>-<hash>/
 import-plan.json`; `state.json` there makes a cancelled or interrupted import resumable. Photos that
 share an edit-sidecar stem (RAW+JPEG pairs) are skipped and reported, as the sidecar format keys edits
-by stem. The fidelity preview uses the native pipeline until `crates/pipeline-adobe` exists.
+by stem. The fidelity path can use `crates/pipeline-adobe`; accurate comparison still requires
+user-supplied Lightroom reference exports and has documented unsupported fields.
 `TESSERA_LRCAT_IMPORT_DELAY_MS` (test aid) slows the per-photo loop so Cancel can be exercised.
 
 ## Layout
@@ -297,7 +305,7 @@ by stem. The fidelity preview uses the native pipeline until `crates/pipeline-ad
 ```
 Package.swift                 targets: TesseraCore (library), Tessera (app), TesseraCoreTests
 Sources/TesseraCore/      UI-free and unit-tested
-  EngineLibrary.swift         index + CullSession open, group-by-group display order, PhotoLibrary
+  EngineLibrary.swift         index + CullSession open, group-by-group display order, in-place updates, PhotoLibrary
   LightroomImport.swift       import mapping tables, fidelity grid model, import-report.md renderer
   CullController.swift        the app's culling model: Rust session (folders) or CullStore (stub)
   DevelopController.swift     one DevelopSession: IOSurface ring, per-frame patch coalescing, history

@@ -24,6 +24,12 @@ struct Job {
 }
 
 @group(0) @binding(8) var<storage, read> jobs: array<Job>;
+
+// Correctly rounded division under gpu_core::precise_compute_pipeline
+// (as in blend.wgsl), matching Compositor::mip_float.
+fn pdiv(a: f32, b: f32) -> f32 {
+    return a / b;
+}
 @group(0) @binding(9) var<uniform> pool: Pool;
 
 fn kid(j: Job, k: u32) -> u32 {
@@ -151,14 +157,14 @@ fn mip_sample(j: Job, c: u32, ox: u32, oy: u32) -> u32 {
     var v: f32;
     if (j.chans == 4u) {
         if (c == 3u) {
-            v = acca / max(fcnt, 1.0);
+            v = pdiv(acca, max(fcnt, 1.0));
         } else {
             var inv = 0.0;
-            if (acca > 0.0) { inv = 1.0 / acca; }
+            if (acca > 0.0) { inv = pdiv(1.0, acca); }
             v = acc * inv;
         }
     } else {
-        v = acc / max(fcnt, 1.0);
+        v = pdiv(acc, max(fcnt, 1.0));
     }
     if (pool.depth == 1u) { return u32(clamp(v, 0.0, 1.0) * 65535.0 + 0.5); }
     return bitcast<u32>(v);

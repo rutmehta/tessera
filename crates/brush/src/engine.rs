@@ -19,16 +19,17 @@ use crate::tip::{DualBrush, Pose, Texture, Tip, wet_edges};
 
 /// Where clone/heal paint comes from: the pixel painted at `p` is sampled
 /// at `p + offset` ("aligned" clone source).
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct CloneSource {
     /// Source offset, pixels.
     pub offset: [f32; 2],
     /// Source raster; `None` samples the target's stroke-start snapshot.
+    #[serde(with = "crate::serde_raster")]
     pub source: Option<Raster>,
 }
 
 /// What a stroke does to the target.
-#[derive(Debug, Clone, Default)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Default)]
 pub enum PaintMode {
     /// Deposit `color` with the brush blend mode.
     #[default]
@@ -43,7 +44,7 @@ pub enum PaintMode {
 }
 
 /// Complete brush preset.
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct Brush {
     /// Tip.
     pub tip: Tip,
@@ -146,6 +147,7 @@ impl Brush {
                 "invalid size or scatter",
             ));
         }
+        validate_preset_fields(self)?;
         Ok(())
     }
 
@@ -197,6 +199,94 @@ impl Brush {
         }
         c
     }
+}
+
+// Serde can construct settings without going through sampled-tip constructors.
+// Validate every stored setting before planners or samplers can index/allocate.
+fn validate_preset_fields(b: &Brush) -> EngineResult<()> {
+    let unit = |v: f32| v.is_finite() && (0.0..=1.0).contains(&v);
+    let positive = |v: f32| v.is_finite() && v > 0.0;
+    let nonnegative = |v: f32| v.is_finite() && v >= 0.0;
+    let sample = |s: &crate::SampledTip| {
+        s.width > 0
+            && s.height > 0
+            && s.width <= crate::abr::MAX_SIDE
+            && s.height <= crate::abr::MAX_SIDE
+            && u64::from(s.width) * u64::from(s.height) == s.data.len() as u64
+            && s.data.iter().all(|&v| unit(v))
+    };
+    let tip = |t: &Tip| {
+        t.angle.is_finite()
+            && (0.01..=1.0).contains(&t.roundness)
+            && match &t.shape {
+                crate::TipShape::Round { hardness } => unit(*hardness),
+                crate::TipShape::Sampled(s) => sample(s),
+            }
+    };
+    if !tip(&b.tip) {
+        return Err(EngineError::invalid(
+            "brush.tip",
+            "invalid tip geometry or sample data",
+        ));
+    }
+    if let Some(d) = &b.dual
+        && (!tip(&d.tip) || !nonnegative(d.scatter) || !(1..=1024).contains(&d.count))
+    {
+        return Err(EngineError::invalid(
+            "brush.dual",
+            "invalid tip, scatter or count (1..=1024)",
+        ));
+    }
+    if let Some(t) = &b.texture
+        && (!sample(&t.pattern) || !positive(t.scale) || !unit(t.depth))
+    {
+        return Err(EngineError::invalid(
+            "brush.texture",
+            "invalid pattern, scale or depth",
+        ));
+    }
+    let d = &b.dynamics;
+    if [d.size, d.roundness, d.flow, d.opacity]
+        .iter()
+        .any(|j| !unit(j.jitter) || !unit(j.minimum))
+        || !unit(d.angle_jitter)
+        || !unit(d.count_jitter)
+        || !nonnegative(d.scatter)
+        || !(1..=1024).contains(&d.count)
+    {
+        return Err(EngineError::invalid(
+            "brush.dynamics",
+            "invalid jitter, scatter or count (1..=1024)",
+        ));
+    }
+    if !nonnegative(b.smoothing.string_length) {
+        return Err(EngineError::invalid(
+            "brush.smoothing",
+            "string length must be finite and nonnegative",
+        ));
+    }
+    let symmetry_ok = match b.symmetry {
+        Symmetry::None => true,
+        Symmetry::Vertical { x } => x.is_finite(),
+        Symmetry::Horizontal { y } => y.is_finite(),
+        Symmetry::Dual { x, y } => x.is_finite() && y.is_finite(),
+        Symmetry::Diagonal { cx, cy } => cx.is_finite() && cy.is_finite(),
+        Symmetry::Radial { cx, cy, count } | Symmetry::Mandala { cx, cy, count } => {
+            cx.is_finite() && cy.is_finite() && (1..=1024).contains(&count)
+        }
+    };
+    if !symmetry_ok {
+        return Err(EngineError::invalid(
+            "brush.symmetry",
+            "invalid axis or count (1..=1024)",
+        ));
+    }
+    if let PaintMode::Clone(s) | PaintMode::Heal(s) = &b.mode
+        && !s.offset.iter().all(|v| v.is_finite())
+    {
+        return Err(EngineError::invalid("brush.source", "non-finite offset"));
+    }
+    Ok(())
 }
 
 /// Accumulates one dab coverage into a stroke-buffer value ("alpha darken":

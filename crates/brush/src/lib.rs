@@ -31,6 +31,7 @@ pub mod heal;
 pub mod pixels;
 pub mod planner;
 pub mod rng;
+mod serde_raster;
 pub mod sparse;
 pub mod stroke;
 pub mod symmetry;

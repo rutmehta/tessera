@@ -21,7 +21,7 @@ pub struct Sensors {
 }
 
 /// What drives a dynamic parameter.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Control {
     /// Constant 1.
     #[default]
@@ -56,7 +56,7 @@ impl Control {
 }
 
 /// A controlled, jittered multiplier in `[minimum, 1]`.
-#[derive(Debug, Clone, Copy, PartialEq, Default)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Default)]
 pub struct Jitter {
     /// Random reduction `0..=1`.
     pub jitter: f32,
@@ -82,7 +82,7 @@ impl Jitter {
 }
 
 /// What sets the dab angle in addition to the tip angle.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum AngleControl {
     /// Tip angle only.
     #[default]
@@ -98,7 +98,7 @@ pub enum AngleControl {
 }
 
 /// Shape dynamics, scattering and transfer (spec 02 §4).
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq)]
 pub struct Dynamics {
     /// Size multiplier.
     pub size: Jitter,

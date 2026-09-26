@@ -1,0 +1,11 @@
+Implemented M3-16c within the allowed paths.
+
+Restored pinned training dependencies and the calibration/training/export driver under crates/ml-enhance/training/, added setup instructions, and updated references. The Rust test now clearly skips without a configured interpreter, with a missing venv, or under CI. Existing environments still enforce the full test.
+
+Local verification: both ONNX variants gained 6.04 dB PSNR with zero tiling error. Full integration took 12.19 seconds initially and 4.64 seconds on the final explicit run.
+
+The requested release tests, clippy with -D warnings, and fmt check all passed. CARGO_TARGET_DIR remained external. No commits made.
+
+Evidence: tools/orchestrate/wp/M3-16c/RESULTS.md
+
+RESULT: PASS

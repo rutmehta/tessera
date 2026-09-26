@@ -19,6 +19,7 @@ use std::{
 };
 #[derive(Default)]
 struct Model {
+    disable_cfa: bool,
     cache: Mutex<HashMap<MemoKey, Tile>>,
     matrix_pixels: std::sync::atomic::AtomicU64,
     detail_pixels: std::sync::atomic::AtomicU64,
@@ -61,6 +62,80 @@ impl StageOp for Model {
     }
 }
 impl ResidentBatch for Batch<'_> {
+    fn supports_cfa(&self) -> bool {
+        !self.owner.disable_cfa
+    }
+    fn upload_cfa(
+        &mut self,
+        full: &crate::cfa::PackedCfa,
+        coord: TileCoord,
+        layout: engine_api::tile::TileLayout,
+        origin: (u32, u32),
+    ) -> EngineResult<ResidentTile> {
+        let e = full.packed_extent();
+        let n = e.area() as usize;
+        let mut output = vec![0.0; layout.plane_len() * 2];
+        for y in 0..layout.rows() {
+            for x in 0..layout.stride() {
+                let sx = crate::resample::clamp_phase(
+                    origin.0 as i64 + x as i64 - i64::from(layout.halo),
+                    full.frame().width,
+                    2,
+                );
+                let sy = crate::resample::clamp_phase(
+                    origin.1 as i64 + y as i64 - i64::from(layout.halo),
+                    full.frame().height,
+                    2,
+                );
+                let (rx, ry) = full.rotated_site(sx, sy);
+                let from =
+                    ((ry % 2) * 2 + rx % 2) as usize * n + (ry / 2 * e.width + rx / 2) as usize;
+                let to = y * layout.stride() + x;
+                output[to] = full.samples()[from];
+                output[layout.plane_len() + to] = full.mask().map_or(1.0, |m| m[from]);
+            }
+        }
+        Ok(resident(Tile::from_samples(
+            coord,
+            engine_api::tile::TileLayout {
+                channels: 2,
+                ..layout
+            },
+            output,
+        )?))
+    }
+    fn blend_cfa(
+        &mut self,
+        original: &ResidentTile,
+        full: &ResidentTile,
+        amount: f32,
+    ) -> EngineResult<ResidentTile> {
+        let a = cpu(original);
+        let b = cpu(full);
+        let b = b.samples::<f32>()?;
+        let n = original.layout.plane_len();
+        let output = a
+            .samples::<f32>()?
+            .iter()
+            .enumerate()
+            .map(|(i, &a)| {
+                let alpha = amount * b[n + i];
+                if alpha == 0.0 {
+                    a
+                } else if alpha == 1.0 {
+                    b[i]
+                } else {
+                    a * (1.0 - alpha) + b[i] * alpha
+                }
+            })
+            .collect::<Vec<_>>();
+        Ok(resident(Tile::from_samples(
+            original.coord,
+            original.layout,
+            output,
+        )?))
+    }
+
     fn cached(&mut self, key: &MemoKey) -> EngineResult<Option<ResidentTile>> {
         if let Some(t) = self.pending.get(key) {
             return to_f32(t).map(resident).map(Some);
@@ -343,4 +418,92 @@ fn disabled_detail_still_validates_controls() {
         r.render_region(&image, &settings, 2, PixelRect::full(image.level_extent(2)))
             .is_err()
     );
+}
+
+#[cfg(feature = "ml-denoise")]
+#[path = "../tests/common/cfa.rs"]
+mod cfa_inference;
+
+#[test]
+#[cfg(feature = "ml-denoise")]
+fn cfa_resident_scheduler_matches_cpu_and_reuses_fullstrength() {
+    use std::sync::atomic::Ordering;
+    let model = Arc::new(Model::default());
+    let infer = Arc::new(cfa_inference::Inference::default());
+    let renderer = Renderer::with_ops(
+        model.clone(),
+        Arc::new(TileCache::new(64 << 20)),
+        RendererConfig::default(),
+    )
+    .with_cfa_denoise(infer.clone());
+    let cpu_renderer = Renderer::new(RendererConfig::default())
+        .with_cfa_denoise(Arc::new(cfa_inference::Inference::default()));
+    let image = common::synthetic(456, 263, 259, common::RGGB, [3, 5, 257, 253]);
+    let rect = PixelRect::full(image.level_extent(0));
+    let mut s = cfa_inference::settings();
+    assert!(renderer.can_render_resident(&image, &s).unwrap());
+    for amount in [100.0, 30.0, 0.0, 50.0] {
+        s.denoise.amount = amount;
+        let a = renderer.render_region(&image, &s, 0, rect).unwrap();
+        let b = cpu_renderer.render_region(&image, &s, 0, rect).unwrap();
+        let a = common::assemble_u8(image.level_extent(0), &a);
+        let b = common::assemble_u8(image.level_extent(0), &b);
+        assert!(a.iter().zip(&b).all(|(a, b)| a.abs_diff(*b) <= 1));
+        assert_eq!(infer.calls.load(Ordering::SeqCst), 1);
+    }
+    s.tone.exposure = 0.3;
+    renderer.render_region(&image, &s, 0, rect).unwrap();
+    assert_eq!(infer.calls.load(Ordering::SeqCst), 1);
+    // Managed export bands replace their backend while retaining the
+    // caller-owned calibration and the full-sensor inference memo.
+    let rebound = renderer.for_backend(Arc::new(Model::default()));
+    rebound.render_region(&image, &s, 0, rect).unwrap();
+    assert_eq!(infer.calls.load(Ordering::SeqCst), 1);
+    let xtrans = common::synthetic(457, 36, 36, common::xtrans(), [0, 0, 36, 36]);
+    assert!(!renderer.can_render_resident(&xtrans, &s).unwrap());
+    let unsupported = Renderer::with_ops(
+        Arc::new(Model {
+            disable_cfa: true,
+            ..Default::default()
+        }),
+        Arc::new(TileCache::new(0)),
+        RendererConfig::default(),
+    )
+    .with_cfa_denoise(infer.clone());
+    assert!(!unsupported.can_render_resident(&image, &s).unwrap());
+    let mut rgb = s.clone();
+    rgb.denoise.method = engine_api::recipe::settings::DenoiseMethod::Neural {
+        model: engine_api::id::ModelRef {
+            id: pipeline_cpu::POST_DENOISE_MODEL_ID.into(),
+            version: pipeline_cpu::POST_DENOISE_VERSION.into(),
+        },
+        joint_demosaic: false,
+    };
+    assert!(!renderer.can_render_resident(&image, &rgb).unwrap());
+    if let engine_api::recipe::settings::DenoiseMethod::Neural { joint_demosaic, .. } =
+        &mut rgb.denoise.method
+    {
+        *joint_demosaic = true;
+    }
+    assert!(renderer.can_render_resident(&image, &rgb).is_err());
+    // Cancellation during inference must publish neither a host memo nor GPU pages.
+    let cancel = CancellationToken::new();
+    let cancelling = Arc::new(cfa_inference::Inference {
+        cancel: Some(cancel.clone()),
+        revision: "cancel".into(),
+        ..Default::default()
+    });
+    let cancelled = renderer.clone().with_cfa_denoise(cancelling.clone());
+    let before = model.cache.lock().unwrap().len();
+    assert!(
+        cancelled
+            .render_resident_region(&image, &s, 0, rect, &cancel)
+            .is_err()
+    );
+    assert_eq!(model.cache.lock().unwrap().len(), before);
+    let resumed = renderer.with_cfa_denoise(Arc::new(cfa_inference::Inference {
+        revision: "cancel".into(),
+        ..Default::default()
+    }));
+    resumed.render_region(&image, &s, 0, rect).unwrap();
 }

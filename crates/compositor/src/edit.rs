@@ -43,6 +43,17 @@ pub struct TileDelta {
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone)]
 pub enum DocOp {
+    /// Changes the shared light direction and invalidates all styled layers.
+    SetGlobalLight(crate::render::styles::GlobalLight),
+    /// Replaces the non-destructive filter stack and shared child-space mask.
+    SetSmartFilters {
+        /// Smart-object layer.
+        id: LayerId,
+        /// Input-to-output evaluation order.
+        filters: Vec<crate::document::SmartFilter>,
+        /// Shared filter mask, applied after the entire stack.
+        mask: Option<Mask>,
+    },
     /// Inserts `layer` (ids assigned when zero) at `index` of `parent`.
     AddLayer {
         /// Group to insert into (`None` = root).
@@ -146,6 +157,8 @@ impl DocOp {
     /// Short label for the history panel.
     pub fn label(&self) -> String {
         match self {
+            DocOp::SetGlobalLight(_) => "Global Light".into(),
+            DocOp::SetSmartFilters { .. } => "Smart Filters".into(),
             DocOp::AddLayer { layer, .. } => format!("New Layer {}", layer.props.name),
             DocOp::RemoveLayer { .. } => "Delete Layer".into(),
             DocOp::MoveLayer { .. } => "Move Layer".into(),
@@ -197,7 +210,8 @@ fn apply_op(
     created: &mut Vec<LayerId>,
 ) -> EngineResult<Rect> {
     let full = Rect::of_extent(s.canvas);
-    match op {
+    let styled_before = s.has_layer_styles();
+    let damage: EngineResult<Rect> = match op {
         DocOp::AddLayer {
             parent,
             index,
@@ -333,6 +347,32 @@ fn apply_op(
             .ok_or_else(|| not_found(id))??;
             Ok(damage)
         }
+        DocOp::SetGlobalLight(light) => {
+            light.validate()?;
+            s.global_light = light;
+            s.root_rev = rev;
+            Ok(full)
+        }
+        DocOp::SetSmartFilters {
+            id,
+            filters,
+            mut mask,
+        } => {
+            if let Some(mask) = &mut mask {
+                restamp(&mut mask.raster, rev);
+            }
+            s.layer_mut(id, |l| match &mut l.kind {
+                LayerKind::SmartObject(so) => {
+                    so.filters = filters;
+                    so.filter_mask = mask;
+                    l.content_rev = rev;
+                    Ok(())
+                }
+                _ => Err(EngineError::invalid("layer", "not a smart object")),
+            })
+            .ok_or_else(|| not_found(id))??;
+            Ok(full)
+        }
         DocOp::SetSmartTransform { id, transform } => {
             if transform.inverse().is_none() {
                 return Err(EngineError::invalid("transform", "singular"));
@@ -418,7 +458,13 @@ fn apply_op(
             }
             Ok(d)
         }
-    }
+    };
+    let damage = damage?;
+    Ok(if styled_before || s.has_layer_styles() {
+        full
+    } else {
+        damage
+    })
 }
 
 fn retag(t: Tile, tx: u32, ty: u32) -> EngineResult<Tile> {

@@ -66,5 +66,9 @@ fn cfa_denoise_is_cached_before_demosaic() {
     );
     settings.denoise.amount = 20.0;
     renderer.render_region(&image, &settings, 0, rect).unwrap();
-    assert_eq!(backend.0.load(Ordering::SeqCst), 2);
+    assert_eq!(
+        backend.0.load(Ordering::SeqCst),
+        1,
+        "Amount edits reuse full-strength inference"
+    );
 }

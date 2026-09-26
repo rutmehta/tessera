@@ -1,0 +1,10 @@
+{
+  "wp": "M2-34",
+  "status": "pass",
+  "attempts": 2,
+  "last_test_exit": 0,
+  "violations": [
+    "bench-baseline-local-m4-Darwin-25-Apple-M4-threads4-cpu.json",
+    "bench-baseline-local-m4-Darwin-25-Apple-M4-threads4-gpu.json"
+  ]
+}

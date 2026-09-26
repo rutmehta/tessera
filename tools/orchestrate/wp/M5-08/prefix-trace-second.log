@@ -1,0 +1,119 @@
+   Compiling compositor v0.1.0 (/Users/rutmehta/Developer/tessera/.worktrees/M5-08/crates/compositor)
+    Finished `release` profile [optimized] target(s) in 1.18s
+     Running tests/bench.rs (/Volumes/betterSSD/tessera-cache/target/M5-08/release/deps/bench-7d69129e3441e55c)
+
+running 1 test
+prefix=1 id=LayerId(1) mode=Normal CPU=[0.0, 0.43529412, 0.93333334, 1.0] GPU=[0.0, 0.43529412, 0.93333334, 1.0] error=0e0
+prefix=2 id=LayerId(2) mode=Dissolve CPU=[0.0, 0.43529412, 0.93333334, 1.0] GPU=[0.0, 0.43529412, 0.93333334, 1.0] error=0e0
+prefix=3 id=LayerId(100) mode=HardMix CPU=[0.0, 0.25093427, 0.53803927, 1.0] GPU=[0.0, 0.25093427, 0.53803927, 1.0] error=0e0
+prefix=4 id=LayerId(91) mode=ColorDodge CPU=[0.0, 0.31044257, 0.54374653, 1.0] GPU=[0.0, 0.31044257, 0.54374653, 1.0] error=0e0
+prefix=5 id=LayerId(82) mode=Normal CPU=[0.0, 0.3645183, 0.40239805, 1.0] GPU=[0.0, 0.3645183, 0.40239805, 1.0] error=0e0
+prefix=6 id=LayerId(64) mode=ColorDodge CPU=[0.0, 0.5028293, 0.40922758, 1.0] GPU=[0.0, 0.5028294, 0.40922758, 1.0] error=5.9604645e-8
+prefix=7 id=LayerId(55) mode=Normal CPU=[0.0, 0.5024615, 0.25417757, 1.0] GPU=[0.0, 0.50246155, 0.25417757, 1.0] error=5.9604645e-8
+prefix=8 id=LayerId(37) mode=ColorDodge CPU=[0.0, 0.64294297, 0.257413, 1.0] GPU=[0.0, 0.642943, 0.257413, 1.0] error=5.9604645e-8
+prefix=9 id=LayerId(28) mode=Normal CPU=[0.0, 0.5965018, 0.18682806, 1.0] GPU=[0.0, 0.5965018, 0.18682806, 1.0] error=0e0
+prefix=10 id=LayerId(19) mode=HardMix CPU=[0.0, 0.748407, 0.11649279, 1.0] GPU=[0.0, 0.748407, 0.11649279, 1.0] error=0e0
+prefix=11 id=LayerId(3) mode=Darken CPU=[0.0, 0.65811646, 0.11649279, 1.0] GPU=[0.0, 0.65811646, 0.11649279, 1.0] error=0e0
+prefix=12 id=LayerId(92) mode=LinearDodge CPU=[0.0, 0.77475905, 0.18071425, 1.0] GPU=[0.0, 0.77475905, 0.18071425, 1.0] error=0e0
+prefix=13 id=LayerId(83) mode=Dissolve CPU=[0.0, 0.77475905, 0.18071425, 1.0] GPU=[0.0, 0.77475905, 0.18071425, 1.0] error=0e0
+prefix=14 id=LayerId(65) mode=LinearDodge CPU=[0.0, 0.89002943, 0.27704644, 1.0] GPU=[0.0, 0.89002943, 0.27704644, 1.0] error=0e0
+prefix=15 id=LayerId(56) mode=Dissolve CPU=[0.0, 0.52156866, 0.1882353, 1.0] GPU=[0.0, 0.52156866, 0.1882353, 1.0] error=0e0
+prefix=16 id=LayerId(38) mode=LinearDodge CPU=[0.0, 0.7120031, 0.26316032, 1.0] GPU=[0.0, 0.7120031, 0.26316032, 1.0] error=0e0
+prefix=17 id=LayerId(29) mode=Dissolve CPU=[0.0, 0.7120031, 0.26316032, 1.0] GPU=[0.0, 0.7120031, 0.26316032, 1.0] error=0e0
+prefix=18 id=LayerId(20) mode=Difference CPU=[0.0, 0.44508266, 0.16682814, 1.0] GPU=[0.0, 0.44508266, 0.16682814, 1.0] error=0e0
+prefix=19 id=LayerId(11) mode=LinearDodge CPU=[0.0, 0.5933718, 0.22034602, 1.0] GPU=[0.0, 0.5933718, 0.22034602, 1.0] error=0e0
+prefix=20 id=LayerId(4) mode=Multiply CPU=[0.0, 0.44817024, 0.14384419, 1.0] GPU=[0.0, 0.44817024, 0.14384419, 1.0] error=0e0
+prefix=21 id=LayerId(93) mode=LighterColor CPU=[0.0, 0.49157315, 0.2395927, 1.0] GPU=[0.0, 0.49157315, 0.2395927, 1.0] error=0e0
+prefix=22 id=LayerId(84) mode=Darken CPU=[0.0, 0.49157315, 0.2395927, 1.0] GPU=[0.0, 0.49157315, 0.2395927, 1.0] error=0e0
+prefix=23 id=LayerId(66) mode=LighterColor CPU=[0.0, 0.5081076, 0.27606833, 1.0] GPU=[0.0, 0.5081076, 0.27606833, 1.0] error=0e0
+prefix=24 id=LayerId(57) mode=Darken CPU=[0.0, 0.5081076, 0.27606833, 1.0] GPU=[0.0, 0.5081076, 0.27606833, 1.0] error=0e0
+prefix=25 id=LayerId(39) mode=LighterColor CPU=[0.0, 0.5257443, 0.31497568, 1.0] GPU=[0.0, 0.5257443, 0.31497568, 1.0] error=0e0
+prefix=26 id=LayerId(30) mode=Darken CPU=[0.0, 0.5257443, 0.31497568, 1.0] GPU=[0.0, 0.5257443, 0.31497568, 1.0] error=0e0
+prefix=27 id=LayerId(21) mode=Exclusion CPU=[0.0, 0.5164561, 0.35802707, 1.0] GPU=[0.0, 0.5164561, 0.35802707, 1.0] error=0e0
+prefix=28 id=LayerId(12) mode=LighterColor CPU=[0.0, 0.5263443, 0.3544241, 1.0] GPU=[0.0, 0.5263443, 0.3544241, 1.0] error=0e0
+prefix=29 id=LayerId(5) mode=ColorBurn CPU=[0.0, 0.27102616, 0.11049692, 1.0] GPU=[0.0, 0.27102616, 0.11049692, 1.0] error=0e0
+prefix=30 id=LayerId(94) mode=Overlay CPU=[0.0, 0.29118276, 0.08425295, 1.0] GPU=[0.0, 0.29118276, 0.08425295, 1.0] error=0e0
+prefix=31 id=LayerId(85) mode=Multiply CPU=[0.0, 0.20316294, 0.04400395, 1.0] GPU=[0.0, 0.20316294, 0.04400395, 1.0] error=0e0
+prefix=32 id=LayerId(67) mode=Overlay CPU=[0.0, 0.21449508, 0.03616546, 1.0] GPU=[0.0, 0.21449508, 0.03616546, 1.0] error=0e0
+prefix=33 id=LayerId(58) mode=Multiply CPU=[0.0, 0.16406524, 0.022727929, 1.0] GPU=[0.0, 0.16406524, 0.022727929, 1.0] error=0e0
+prefix=34 id=LayerId(40) mode=Overlay CPU=[0.0, 0.17779222, 0.01665509, 1.0] GPU=[0.0, 0.17779222, 0.01665509, 1.0] error=0e0
+prefix=35 id=LayerId(31) mode=Multiply CPU=[0.0, 0.14793462, 0.012234864, 1.0] GPU=[0.0, 0.14793462, 0.012234864, 1.0] error=0e0
+prefix=36 id=LayerId(22) mode=Subtract CPU=[0.0, 0.08005873, 0.00662122, 1.0] GPU=[0.0, 0.08005873, 0.00662122, 1.0] error=0e0
+prefix=37 id=LayerId(13) mode=Overlay CPU=[0.0, 0.08526856, 0.0052451976, 1.0] GPU=[0.0, 0.08526856, 0.0052451976, 1.0] error=0e0
+prefix=38 id=LayerId(6) mode=LinearBurn CPU=[0.0, 0.048486043, 0.0029825636, 1.0] GPU=[0.0, 0.048486043, 0.0029825636, 1.0] error=0e0
+prefix=39 id=LayerId(95) mode=SoftLight CPU=[0.0, 0.069923, 0.0028286325, 1.0] GPU=[0.0, 0.06992299, 0.0028286325, 1.0] error=7.450581e-9
+prefix=40 id=LayerId(86) mode=ColorBurn CPU=[0.0, 0.069923, 0.0028286325, 1.0] GPU=[0.0, 0.06992299, 0.0028286325, 1.0] error=7.450581e-9
+prefix=41 id=LayerId(68) mode=SoftLight CPU=[0.0, 0.08880981, 0.0027150698, 1.0] GPU=[0.0, 0.0888098, 0.0027150698, 1.0] error=7.450581e-9
+prefix=42 id=LayerId(59) mode=ColorBurn CPU=[0.0, 0.027513625, 0.00084113923, 1.0] GPU=[0.0, 0.027513623, 0.00084113923, 1.0] error=1.8626451e-9
+prefix=43 id=LayerId(32) mode=ColorBurn CPU=[0.0, 0.013271277, 0.00040572596, 1.0] GPU=[0.0, 0.013271276, 0.00040572596, 1.0] error=9.313226e-10
+prefix=44 id=LayerId(23) mode=Divide CPU=[0.0, 0.019065768, 0.00068575644, 1.0] GPU=[0.0, 0.019065766, 0.00068575644, 1.0] error=1.8626451e-9
+prefix=45 id=LayerId(14) mode=SoftLight CPU=[0.0, 0.032272972, 0.0006542243, 1.0] GPU=[0.0, 0.032272972, 0.0006542243, 1.0] error=0e0
+prefix=46 id=LayerId(7) mode=DarkerColor CPU=[0.0, 0.032272972, 0.0006542243, 1.0] GPU=[0.0, 0.032272972, 0.0006542243, 1.0] error=0e0
+prefix=47 id=LayerId(96) mode=HardLight CPU=[0.0, 0.058838032, 0.031314667, 1.0] GPU=[0.0, 0.058838032, 0.031314667, 1.0] error=0e0
+prefix=48 id=LayerId(87) mode=LinearBurn CPU=[0.0, 0.049147062, 0.026156958, 1.0] GPU=[0.0, 0.049147062, 0.026156958, 1.0] error=0e0
+prefix=49 id=LayerId(69) mode=HardLight CPU=[0.0, 0.049147062, 0.026156958, 1.0] GPU=[0.0, 0.049147062, 0.026156958, 1.0] error=0e0
+prefix=50 id=LayerId(60) mode=LinearBurn CPU=[0.0, 0.037004847, 0.01969465, 1.0] GPU=[0.0, 0.037004847, 0.01969465, 1.0] error=0e0
+prefix=51 id=LayerId(51) mode=Hue CPU=[-2.556572e-10, 0.036617033, 0.021774733, 1.0] GPU=[-2.556572e-10, 0.036617033, 0.021774733, 1.0] error=0e0
+prefix=52 id=LayerId(33) mode=LinearBurn CPU=[-2.065309e-10, 0.029580818, 0.01759057, 1.0] GPU=[-2.065309e-10, 0.029580818, 0.01759057, 1.0] error=0e0
+prefix=53 id=LayerId(24) mode=Hue CPU=[-1.611751e-10, 0.029148353, 0.019910155, 1.0] GPU=[-5.7022664e-10, 0.029148355, 0.019910155, 1.0] error=1.8626451e-9
+prefix=54 id=LayerId(15) mode=HardLight CPU=[-1.2135537e-10, 0.07711986, 0.07403554, 1.0] GPU=[-4.2934714e-10, 0.07711986, 0.07403554, 1.0] error=3.0799177e-10
+prefix=55 id=LayerId(8) mode=Lighten CPU=[-8.970779e-11, 0.21859223, 0.19074517, 1.0] GPU=[-3.1738012e-10, 0.21859223, 0.19074517, 1.0] error=2.2767233e-10
+prefix=56 id=LayerId(97) mode=VividLight CPU=[-6.9655455e-11, 0.23395598, 0.19266734, 1.0] GPU=[-2.4643632e-10, 0.23395598, 0.19266734, 1.0] error=1.7678087e-10
+prefix=57 id=LayerId(88) mode=DarkerColor CPU=[-6.9655455e-11, 0.23395598, 0.19266734, 1.0] GPU=[-2.4643632e-10, 0.23395598, 0.19266734, 1.0] error=1.7678087e-10
+prefix=58 id=LayerId(70) mode=VividLight CPU=[-4.630039e-11, 0.2586214, 0.19557965, 1.0] GPU=[-1.6380766e-10, 0.2586214, 0.19557965, 1.0] error=1.1750727e-10
+prefix=59 id=LayerId(61) mode=DarkerColor CPU=[-4.630039e-11, 0.2586214, 0.19557965, 1.0] GPU=[-1.6380766e-10, 0.2586214, 0.19557965, 1.0] error=1.1750727e-10
+prefix=60 id=LayerId(52) mode=Saturation CPU=[2.7179918e-9, 0.2586214, 0.19557965, 1.0] GPU=[-1.3351407e-10, 0.2586214, 0.19557965, 1.0] error=2.851506e-9
+prefix=61 id=LayerId(34) mode=DarkerColor CPU=[2.717992e-9, 0.2586214, 0.19557965, 1.0] GPU=[-1.3351409e-10, 0.2586214, 0.19557965, 1.0] error=2.8515061e-9
+prefix=62 id=LayerId(25) mode=Saturation CPU=[6.802937e-9, 0.2586214, 0.19557965, 1.0] GPU=[-8.87476e-11, 0.2586214, 0.19557965, 1.0] error=6.8916846e-9
+prefix=63 id=LayerId(16) mode=VividLight CPU=[5.535723e-9, 0.27376908, 0.19722205, 1.0] GPU=[-7.2216184e-11, 0.27376908, 0.19722205, 1.0] error=5.607939e-9
+prefix=64 id=LayerId(9) mode=Screen CPU=[5.535723e-9, 0.4485336, 0.39870358, 1.0] GPU=[-7.221619e-11, 0.4485336, 0.39870358, 1.0] error=5.607939e-9
+prefix=65 id=LayerId(98) mode=LinearLight CPU=[3.7121908e-9, 0.5402522, 0.5085075, 1.0] GPU=[-4.8427328e-11, 0.5402522, 0.5085075, 1.0] error=3.760618e-9
+prefix=66 id=LayerId(89) mode=Lighten CPU=[3.712191e-9, 0.57750905, 0.5680498, 1.0] GPU=[-3.0195863e-11, 0.57750905, 0.5680498, 1.0] error=3.742387e-9
+prefix=67 id=LayerId(62) mode=Lighten CPU=[3.712191e-9, 0.5949321, 0.5958946, 1.0] GPU=[-2.1669973e-11, 0.5949321, 0.5958946, 1.0] error=3.7338608e-9
+prefix=68 id=LayerId(53) mode=Color CPU=[-7.327884e-9, 0.59366786, 0.6026753, 1.0] GPU=[-9.831767e-9, 0.59366786, 0.6026753, 1.0] error=2.5038833e-9
+prefix=69 id=LayerId(35) mode=Lighten CPU=[-4.22431e-9, 0.6129587, 0.62977755, 1.0] GPU=[-5.667725e-9, 0.6129587, 0.62977755, 1.0] error=1.4434152e-9
+prefix=70 id=LayerId(26) mode=Color CPU=[-3.2303547e-9, 0.6126097, 0.63164985, 1.0] GPU=[-1.1346454e-8, 0.6126097, 0.63164985, 1.0] error=8.1161e-9
+prefix=71 id=LayerId(17) mode=LinearLight CPU=[-2.3182545e-9, 0.69122565, 0.7257675, 1.0] GPU=[-8.14275e-9, 0.69122565, 0.7257675, 1.0] error=5.824495e-9
+prefix=72 id=LayerId(10) mode=ColorDodge CPU=[-1.1318536e-9, 0.8492454, 0.86610997, 1.0] GPU=[-3.9755776e-9, 0.8492454, 0.86610997, 1.0] error=2.843724e-9
+prefix=73 id=LayerId(99) mode=PinLight CPU=[-1.1318536e-9, 0.8492454, 0.86610997, 1.0] GPU=[-3.9755776e-9, 0.8492454, 0.86610997, 1.0] error=2.843724e-9
+prefix=74 id=LayerId(90) mode=Screen CPU=[-1.1318536e-9, 0.90007424, 0.9228071, 1.0] GPU=[-3.9755776e-9, 0.90007424, 0.9228071, 1.0] error=2.843724e-9
+prefix=75 id=LayerId(81) mode=Luminosity CPU=[7.663157e-9, 0.838247, 0.85941833, 1.0] GPU=[5.6279434e-9, 0.838247, 0.85941833, 1.0] error=2.0352138e-9
+prefix=76 id=LayerId(63) mode=Screen CPU=[7.663157e-9, 0.8806647, 0.90572006, 1.0] GPU=[5.6279434e-9, 0.8806647, 0.90572006, 1.0] error=2.0352138e-9
+prefix=77 id=LayerId(54) mode=Luminosity CPU=[4.177172e-9, 0.7904154, 0.8129031, 1.0] GPU=[-1.0489355e-8, 0.7904154, 0.8129031, 1.0] error=1.46665275e-8
+prefix=78 id=LayerId(36) mode=Screen CPU=[4.177172e-9, 0.8296733, 0.85691875, 1.0] GPU=[-1.0489355e-8, 0.8296733, 0.85691875, 1.0] error=1.46665275e-8
+prefix=79 id=LayerId(27) mode=Luminosity CPU=[1.2919871e-8, 0.7792237, 0.80481243, 1.0] GPU=[-6.9106334e-9, 0.77922374, 0.80481243, 1.0] error=5.9604645e-8
+prefix=80 id=LayerId(18) mode=PinLight CPU=[7.777256e-9, 0.7792237, 0.80481243, 1.0] GPU=[-6.9106334e-9, 0.77922374, 0.80481243, 1.0] error=5.9604645e-8
+prefix=81 id=LayerId(41) mode=SoftLight CPU=[4.4223616e-9, 0.7864032, 0.8002949, 1.0] GPU=[-3.929576e-9, 0.7864032, 0.8002949, 1.0] error=8.351938e-9
+prefix=82 id=LayerId(42) mode=HardLight CPU=[3.6939727e-9, 0.7934393, 0.80764735, 1.0] GPU=[-3.282352e-9, 0.7934393, 0.80764735, 1.0] error=6.9763244e-9
+prefix=83 id=LayerId(43) mode=VividLight CPU=[2.7306424e-9, 0.8473071, 0.8171426, 1.0] GPU=[-2.4263662e-9, 0.8473071, 0.8171426, 1.0] error=5.1570086e-9
+prefix=84 id=LayerId(44) mode=LinearLight CPU=[1.7026363e-9, 0.9047915, 0.8859831, 1.0] GPU=[-1.5129107e-9, 0.9047915, 0.8859831, 1.0] error=3.215547e-9
+prefix=85 id=LayerId(45) mode=PinLight CPU=[8.3128704e-10, 0.9047915, 0.8859831, 1.0] GPU=[-1.5129107e-9, 0.9047915, 0.8859831, 1.0] error=2.3441977e-9
+prefix=86 id=LayerId(46) mode=HardMix CPU=[6.3569017e-10, 0.92719346, 0.6775165, 1.0] GPU=[-1.1569319e-9, 0.92719346, 0.6775165, 1.0] error=1.792622e-9
+prefix=87 id=LayerId(47) mode=Difference CPU=[6.3569017e-10, 0.7492465, 0.6132951, 1.0] GPU=[-3.674958e-10, 0.7492465, 0.6132951, 1.0] error=1.003186e-9
+prefix=88 id=LayerId(48) mode=Exclusion CPU=[6.3569017e-10, 0.6233525, 0.576389, 1.0] GPU=[-3.674958e-10, 0.6233525, 0.576389, 1.0] error=1.003186e-9
+prefix=89 id=LayerId(49) mode=Subtract CPU=[6.3569017e-10, 0.28028443, 0.38926098, 1.0] GPU=[-1.4267476e-10, 0.28028443, 0.38926098, 1.0] error=7.7836493e-10
+prefix=90 id=LayerId(50) mode=Divide CPU=[0.7764706, 0.43762693, 0.7346892, 1.0] GPU=[-3.1891823e-11, 0.4376269, 0.7346892, 1.0] error=7.764706e-1
+prefix=91 id=LayerId(71) mode=LinearLight CPU=[0.59377164, 0.48505956, 0.7186839, 1.0] GPU=[-2.4387865e-11, 0.4850596, 0.7186839, 1.0] error=5.9377164e-1
+prefix=92 id=LayerId(72) mode=PinLight CPU=[0.39119074, 0.54276973, 0.7428855, 1.0] GPU=[-1.6067299e-11, 0.5427697, 0.7428854, 1.0] error=3.9119074e-1
+prefix=93 id=LayerId(73) mode=HardMix CPU=[0.26232788, 0.6107323, 0.50532925, 1.0] GPU=[-1.0774541e-11, 0.6107323, 0.50532925, 1.0] error=2.6232788e-1
+prefix=94 id=LayerId(74) mode=Difference CPU=[0.1429944, 0.4665288, 0.3646471, 1.0] GPU=[-5.873181e-12, 0.4665288, 0.3646471, 1.0] error=1.429944e-1
+prefix=95 id=LayerId(75) mode=Exclusion CPU=[0.057197753, 0.49224767, 0.3968229, 1.0] GPU=[-2.3492718e-12, 0.49224764, 0.3968229, 1.0] error=5.7197753e-2
+prefix=96 id=LayerId(76) mode=Subtract CPU=[0.03532801, 0.3198301, 0.2764056, 1.0] GPU=[-1.4510203e-12, 0.3198301, 0.2764056, 1.0] error=3.532801e-2
+prefix=97 id=LayerId(77) mode=Divide CPU=[0.017040573, 0.43543556, 0.41383845, 1.0] GPU=[-6.9990406e-13, 0.43543556, 0.41383848, 1.0] error=1.7040573e-2
+prefix=98 id=LayerId(78) mode=Hue CPU=[0.014100241, 0.43488085, 0.41905698, 1.0] GPU=[0.00033411014, 0.43488085, 0.41905698, 1.0] error=1.376613e-2
+prefix=99 id=LayerId(79) mode=Saturation CPU=[0.0098977825, 0.43588623, 0.41796753, 1.0] GPU=[0.00023452351, 0.4358862, 0.41796756, 1.0] error=9.663259e-3
+prefix=100 id=LayerId(80) mode=Color CPU=[0.0057057994, 0.4343401, 0.43187213, 1.0] GPU=[0.00013518344, 0.43434003, 0.43187213, 1.0] error=5.570616e-3
+
+thread 'm5_08_l0_prefix_trace' (78093806) panicked at crates/compositor/tests/bench.rs:211:5:
+prefix CPU gate: 7.764706e-1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test m5_08_l0_prefix_trace ... FAILED
+
+failures:
+
+failures:
+    m5_08_l0_prefix_trace
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 16.39s
+
+error: test failed, to rerun pass `-p compositor --test bench`

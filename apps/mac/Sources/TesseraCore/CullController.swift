@@ -76,9 +76,9 @@ public enum CullError: LocalizedError {
 /// the synthetic stub library uses the in-memory `CullStore` with the same semantics.
 /// Not thread-safe: use it from the main actor. Engine calls write sidecars synchronously.
 public final class CullController {
-    public let groups: [Range<Int>]
+    public private(set) var groups: [Range<Int>]
     /// Suggested best item id per group (engine scorer; stub: first frame).
-    public let bestOfGroup: [Int]
+    public private(set) var bestOfGroup: [Int]
     public private(set) var states: [CullState]
     public private(set) var statuses: [ItemStatus]
     public private(set) var counts = CullStore.Counts()
@@ -306,6 +306,45 @@ public final class CullController {
             let update = try lib.session.removeFromAlbum(album: name, imageIds: ids.map { lib.imageIDs[$0] })
             return absorb(update, library: lib)
         }
+    }
+
+    /// The engine library was updated in place (`EngineLibrary.apply`): carries states and
+    /// statuses over to the new item ids, takes new images' states from their session rows,
+    /// refreshes changed ones, and re-reads albums. The session (and its undo history) is the
+    /// same, so nothing else resets.
+    public func libraryDidUpdate(_ update: LibraryUpdate) {
+        guard case .engine(let lib) = backend else { return }
+        let count = lib.items.count
+        var newStates = Array(repeating: CullState(), count: count)
+        var newStatuses = Array(repeating: ItemStatus(), count: count)
+        for (old, new) in update.remap.enumerated() {
+            guard let new, states.indices.contains(old) else { continue }
+            newStates[new] = states[old]
+            newStatuses[new] = statuses[old]
+        }
+        var refresh = update.inserted
+        for id in update.inserted {
+            if let row = lib.row(for: lib.imageIDs[id]) {
+                newStates[id] = Self.state(from: row.selection, inBasket: row.inBasket)
+            }
+        }
+        for (id, fields) in update.updated {
+            if fields.selection || fields.file, let row = lib.row(for: lib.imageIDs[id]) {
+                newStates[id] = Self.state(from: row.selection, inBasket: newStates[id].inBasket)
+            }
+            if fields.recipe || fields.file { refresh.append(id) }
+        }
+        states = newStates
+        statuses = newStatuses
+        groups = lib.groups
+        bestOfGroup = lib.bestOfGroup
+        refreshAlbums()
+        let members = Set(albums.first { $0.name == basketTarget }?.members ?? [])
+        for id in states.indices where states[id].inBasket != members.contains(id) {
+            states[id].inBasket.toggle()
+        }
+        recount()
+        refreshStatuses(refresh)
     }
 
     /// Re-reads library.json after album changes made outside the session (sidebar edits, add

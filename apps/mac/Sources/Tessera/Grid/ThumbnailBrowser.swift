@@ -105,13 +105,7 @@ final class BrowserController: NSObject, NSCollectionViewDataSource, NSCollectio
 
     func collectionView(_ collectionView: NSCollectionView, itemForRepresentedObjectAt indexPath: IndexPath) -> NSCollectionViewItem {
         let cell = collectionView.makeItem(withIdentifier: ThumbnailCell.identifier, for: indexPath) as! ThumbnailCell
-        let p = indexPath.item
-        let item = model.item(at: p)
-        cell.configure(item: item, state: model.state(at: p), status: model.status(at: p),
-                       basketTarget: model.basketTarget, suggestedBest: model.isSuggestedBest(item),
-                       groupIndex: model.indexInGroup(of: item), groupSize: model.groupSize(of: item),
-                       focused: p == model.focus, style: style, loader: model.loader,
-                       suggestion: model.suggestion(at: p))
+        configure(cell, at: indexPath.item)
         return cell
     }
 
@@ -125,7 +119,12 @@ final class BrowserController: NSObject, NSCollectionViewDataSource, NSCollectio
         syncSelectionFromView(clicked: nil)
     }
 
+    /// Set while cells are inserted/removed for an in-place update; the view's own selection
+    /// callbacks during the batch are not user input.
+    private var applyingUpdate = false
+
     private func syncSelectionFromView(clicked: Int?) {
+        guard !applyingUpdate else { return }
         var set = IndexSet()
         for ip in collectionView.selectionIndexPaths { set.insert(ip.item) }
         model.setSelectionFromUI(set, clicked: clicked)
@@ -140,6 +139,57 @@ final class BrowserController: NSObject, NSCollectionViewDataSource, NSCollectio
         focusedCellPosition = nil
         scrollView.contentView.scroll(to: .zero)
         scrollView.reflectScrolledClipView(scrollView.contentView)
+    }
+
+    /// Frames arrived or left in place: insert and remove just those cells (no reload, no
+    /// scroll reset), then rebind the visible cells, whose item ids or groups may have moved.
+    func libraryDidUpdate(_ change: VisibleChange) {
+        let difference = change.newKeys.difference(from: change.oldKeys)
+        applyingUpdate = true
+        defer { applyingUpdate = false }
+        if difference.count > 2_000 || collectionView.numberOfSections == 0 {
+            // A large import: one reload is cheaper than thousands of animated moves.
+            collectionView.reloadData()
+        } else if !difference.isEmpty {
+            var removed = Set<IndexPath>(), inserted = Set<IndexPath>()
+            for step in difference {
+                switch step {
+                case .remove(let offset, _, _): removed.insert(IndexPath(item: offset, section: 0))
+                case .insert(let offset, _, _): inserted.insert(IndexPath(item: offset, section: 0))
+                }
+            }
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0
+                collectionView.performBatchUpdates {
+                    if !removed.isEmpty { collectionView.deleteItems(at: removed) }
+                    if !inserted.isEmpty { collectionView.insertItems(at: inserted) }
+                }
+            }
+        }
+        collectionView.layoutSubtreeIfNeeded()
+        syncDocumentSize()
+        for ip in collectionView.indexPathsForVisibleItems() where ip.item < model.visibleCount {
+            guard let cell = collectionView.item(at: ip) as? ThumbnailCell else { continue }
+            let p = ip.item, item = model.item(at: p)
+            if cell.itemID != item.id || change.changed.contains(p) || difference.count > 0 {
+                configure(cell, at: p)
+            }
+            if change.thumbnails.contains(p) { cell.refreshThumbnail(loader: model.loader) }
+        }
+        focusedCellPosition = nil
+        for ip in collectionView.indexPathsForVisibleItems() {
+            (collectionView.item(at: ip) as? ThumbnailCell)?.setFocused(ip.item == model.focus)
+        }
+        focusedCellPosition = model.focus
+    }
+
+    private func configure(_ cell: ThumbnailCell, at p: Int) {
+        let item = model.item(at: p)
+        cell.configure(item: item, state: model.state(at: p), status: model.status(at: p),
+                       basketTarget: model.basketTarget, suggestedBest: model.isSuggestedBest(item),
+                       groupIndex: model.indexInGroup(of: item), groupSize: model.groupSize(of: item),
+                       focused: p == model.focus, style: style, loader: model.loader,
+                       suggestion: model.suggestion(at: p))
     }
 
     func itemsDidChange(_ positions: IndexSet) {

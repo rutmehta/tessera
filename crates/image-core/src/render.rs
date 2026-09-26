@@ -61,6 +61,8 @@
 //! Halo gathering, memo storage and resampling end a chain. The cancellation token is
 //! polled before every tile of every step, and before each delivered tile.
 
+#[path = "cfa_render.rs"]
+mod cfa_render;
 #[path = "denoise_render.rs"]
 mod denoise_render;
 #[path = "resident_render.rs"]
@@ -205,7 +207,9 @@ impl Viewport {
 /// Renderer configuration.
 #[derive(Debug, Clone)]
 pub struct RendererConfig {
-    /// Payload budget of the memo cache created by [`Renderer::new`].
+    /// Payload budget of the memo cache created by [`Renderer::new`]. Also
+    /// caps a separate single-entry packed CFA inference memo; request-local
+    /// inference remains shared even when too large for persistent retention.
     pub cache_budget_bytes: usize,
     /// Worker threads per request (1 renders on the calling thread).
     pub threads: usize,
@@ -241,6 +245,8 @@ pub struct Renderer {
     dcp: Option<(Arc<pipeline_adobe::dcp::DcpProfile>, ParamHash)>,
     dcp_resolved: bool,
     denoiser: Option<Arc<dyn pipeline_cpu::PostDemosaicDenoise>>,
+    cfa_denoiser: Option<Arc<dyn crate::cfa::CfaDenoise>>,
+    cfa_memo: Arc<Mutex<crate::cfa::InferenceMemo>>,
     cache: Arc<TileCache>,
     mask_cache: Arc<crate::MaskRasterCache>,
     config: RendererConfig,
@@ -249,6 +255,7 @@ pub struct Renderer {
 /// Per-request parameters resolved once from the settings and metadata.
 struct Resolved<'a> {
     allow_resident: bool,
+    cfa_full: std::sync::OnceLock<Arc<crate::cfa::PackedCfa>>,
     image: &'a RawImage,
     settings: &'a DevelopSettings,
     chain: [(StageId, ParamHash); StageId::COUNT],
@@ -274,7 +281,8 @@ impl Renderer {
     }
 
     /// A renderer on any backend and (possibly shared) cache. The cache's own
-    /// budget applies; `config.cache_budget_bytes` is ignored.
+    /// budget applies to tiles; `config.cache_budget_bytes` caps the separate
+    /// packed CFA inference memo.
     pub fn with_ops(ops: Arc<dyn StageOp>, cache: Arc<TileCache>, config: RendererConfig) -> Self {
         let mask_cache = Arc::new(crate::MaskRasterCache::new(cache.budget()));
         let native_ops = ops.clone();
@@ -289,6 +297,8 @@ impl Renderer {
             dcp: None,
             dcp_resolved: false,
             denoiser: None,
+            cfa_denoiser: None,
+            cfa_memo: Arc::new(std::sync::Mutex::new(None)),
             cache,
             mask_cache,
             config,
@@ -311,6 +321,15 @@ impl Renderer {
             self.native_ops.clone()
         };
         next
+    }
+
+    /// Snapshot on another backend with the same stage semantics. Retains
+    /// caller-owned inference, its full-sensor memo, and CPU caches. Export band
+    /// backends can own separate GPU transactions without rebuilding the net.
+    pub fn for_backend(&self, ops: Arc<dyn StageOp>) -> Self {
+        let mut next = self.clone();
+        next.native_ops = ops;
+        next.for_process_version(self.config.process_version)
     }
 
     /// Supply explicit DCP bytes. The content digest participates in profile keys.
@@ -376,6 +395,14 @@ impl Renderer {
         denoiser: Arc<dyn pipeline_cpu::PostDemosaicDenoise>,
     ) -> Self {
         self.denoiser = Some(denoiser);
+        self.cfa_denoiser = None;
+        self
+    }
+
+    /// Install both the packed resident capability and the legacy CPU fallback.
+    pub fn with_cfa_denoise(mut self, denoiser: Arc<dyn crate::cfa::CfaDenoise>) -> Self {
+        self.denoiser = Some(denoiser.clone());
+        self.cfa_denoiser = Some(denoiser);
         self
     }
 
@@ -739,7 +766,9 @@ impl Renderer {
         };
         let highlights = settings.linearize.highlight_reconstruction;
         Ok(Resolved {
-            allow_resident: !pipeline_cpu::denoise_active(&settings.denoise),
+            cfa_full: std::sync::OnceLock::new(),
+            allow_resident: !pipeline_cpu::denoise_active(&settings.denoise)
+                || self.cfa_supported(m.cfa_layout, settings),
             image,
             settings,
             chain: self.stage_chain(settings),

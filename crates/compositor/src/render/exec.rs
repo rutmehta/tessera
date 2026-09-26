@@ -16,6 +16,8 @@ use crate::raster::{load_normalized, load_normalized_region};
 
 /// Where a blended layer's straight RGBA comes from.
 pub(crate) enum Src<'a> {
+    /// CPU neighbourhood-effects program; the GPU port rejects this source.
+    Styled(super::effects::StyledTile),
     Raster(&'a Layer),
     Fill(&'a Fill),
     Smart(&'a Layer, &'a SmartObject),
@@ -142,6 +144,9 @@ impl<'a> TileJob<'a> {
     }
 
     fn emit(&self, layer: &'a Layer, atop: bool, ops: &mut Vec<Op<'a>>) -> EngineResult<()> {
+        if !layer.props.styles.effects.is_empty() {
+            return self.emit_styles(layer, Params::of(layer, atop), ops);
+        }
         if let LayerKind::Group {
             mode: GroupMode::PassThrough,
             children,
@@ -178,6 +183,9 @@ impl<'a> TileJob<'a> {
         mask: bool,
         ops: &mut Vec<Op<'a>>,
     ) -> EngineResult<()> {
+        if !layer.props.styles.effects.is_empty() {
+            return self.emit_styles(layer, params, ops);
+        }
         let src = match &layer.kind {
             LayerKind::Pixel(_) | LayerKind::Text(_) => Src::Raster(layer),
             LayerKind::Fill(f) => Src::Fill(f),
@@ -189,7 +197,11 @@ impl<'a> TileJob<'a> {
                     doc: self.doc.key,
                     node: layer.id.0,
                     part: Part::Group,
-                    stamp: layer.stamp(l, x, y),
+                    stamp: if super::effects::has_styles(self.doc.state) {
+                        self.doc.state.rev
+                    } else {
+                        layer.stamp(l, x, y)
+                    },
                     coord: self.coord,
                 };
                 if let Some(t) = self.comp.cache_get(&key) {
@@ -224,6 +236,9 @@ impl<'a> TileJob<'a> {
     pub fn load_src(&self, src: &Src<'_>, out: &mut [f32]) -> EngineResult<bool> {
         let (n, w, r) = (self.n, self.w, self.region);
         match src {
+            Src::Styled(_) => Err(EngineError::Unsupported {
+                what: "layer styles require CPU compositing".into(),
+            }),
             Src::Raster(layer) => {
                 let raster = layer
                     .raster()
@@ -346,6 +361,10 @@ impl<'a> TileJob<'a> {
                     params,
                     mask: use_mask,
                 } => {
+                    if let Src::Styled(styled) = s {
+                        self.run_styles(&mut frames, deep.as_deref(), styled, params)?;
+                        continue;
+                    }
                     if !self.load_src(s, &mut src)? {
                         continue;
                     }
@@ -428,7 +447,7 @@ impl<'a> TileJob<'a> {
         }
     }
 
-    fn blend_top(
+    pub(super) fn blend_top(
         &self,
         frames: &mut [(FrameKind, Vec<f32>)],
         deep: Option<&[f32]>,

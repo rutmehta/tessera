@@ -731,7 +731,7 @@
     "id": "M2-28",
     "owner": "opus",
     "title": "Incremental library updates",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
@@ -771,7 +771,7 @@
     "id": "M5-08",
     "owner": "astra",
     "title": "Compositor specialised shaders + viewport",
-    "status": "escalate",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
@@ -795,7 +795,7 @@
     "id": "M5-10",
     "owner": "astra",
     "title": "Wire brush/selection into executor",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
@@ -803,7 +803,7 @@
     "id": "M3-16b",
     "owner": "astra",
     "title": "GPU-resident CFA denoise handoff",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
@@ -811,15 +811,95 @@
     "id": "M5-08b",
     "owner": "opus",
     "title": "Compositor L0/viewport targets",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
-    "notes": ""
+    "notes": "L0 92ms, bit-exact GPU; 4K viewport 38ms (8ms infeasible on M4 for full recomposite)"
   },
   {
     "id": "M2-29",
     "owner": "astra",
     "title": "Develop JPEG/TIFF/PNG/HEIC",
-    "status": "todo",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M5-12",
+    "owner": "astra",
+    "title": "Text layers (typography)",
+    "status": "merged",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M5-13",
+    "owner": "astra",
+    "title": "Vector paths and shapes",
+    "status": "merged",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-33",
+    "owner": "sol",
+    "title": "README, CONTRIBUTING (DCO), ARCHITECTURE",
+    "status": "merged",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M5-14",
+    "owner": "astra",
+    "title": "Layer styles + smart filters",
+    "status": "merged",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-34",
+    "owner": "astra",
+    "title": "Performance benchmarks in CI",
+    "status": "merged",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-25v2",
+    "owner": "sol",
+    "title": "Regression pass on current app",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M3-16c",
+    "owner": "astra",
+    "title": "Restore CFA training prerequisites",
+    "status": "merged",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M3-19",
+    "owner": "astra",
+    "title": "People clustering + naming propagation",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M5-16",
+    "owner": "astra",
+    "title": "Compositor EDR present + GPU smart objects",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M5-15",
+    "owner": "astra",
+    "title": "Alpha/spot channels + PSD",
+    "status": "running",
     "attempts": 0,
     "notes": ""
   },

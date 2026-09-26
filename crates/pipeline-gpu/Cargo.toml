@@ -20,6 +20,8 @@ pipeline-cpu = { path = "../pipeline-cpu" }
 raw-decode = { path = "../raw-decode" }
 
 [dev-dependencies]
+ml-enhance = { path = "../ml-enhance" }
+ml-runtime = { path = "../ml-runtime" }
 lens = { path = "../lens" }
 log = "0.4"
 lcms2.workspace = true

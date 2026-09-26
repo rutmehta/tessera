@@ -3,6 +3,7 @@ mod agent_runs;
 mod assist;
 mod backend;
 mod catalog;
+mod changes;
 mod collections;
 mod develop;
 mod document;
@@ -18,6 +19,7 @@ pub mod surface;
 mod understanding;
 pub use agent_runs::*;
 pub use assist::*;
+pub use changes::*;
 pub mod tether;
 pub use collections::*;
 pub use develop::*;
@@ -34,7 +36,10 @@ pub use session::*;
 use sidecar::Sidecar;
 use std::{
     path::Path,
-    sync::{Arc, Mutex, MutexGuard},
+    sync::{
+        Arc, Mutex, MutexGuard,
+        atomic::{AtomicBool, AtomicU64},
+    },
 };
 pub use understanding::*;
 
@@ -158,6 +163,11 @@ pub enum EngineEvent {
         image_id: String,
         max_px: u32,
     },
+    /// The catalog changed up to `sequence`: pull `changes_since` (or
+    /// `CullSession::sync_changes`) from the last sequence you applied.
+    LibraryChanged {
+        sequence: u64,
+    },
 }
 
 /// Called on the command's worker thread, never while holding a catalog lock.
@@ -191,6 +201,14 @@ pub struct Engine {
     /// Layered-document sessions (`document.rs`) and the compositor's GPU
     /// pipelines on the shared device.
     documents: document::Registry,
+    /// Highest change sequence announced with `LibraryChanged`.
+    notified: AtomicU64,
+    /// Reads the change head without the catalog lock (tether polls must never wait on a scan).
+    heads: Mutex<Connection>,
+    /// The change watcher thread was started (see `changes`).
+    watching: AtomicBool,
+    /// This engine, for background work that must not keep it alive.
+    this: std::sync::Weak<Engine>,
 }
 impl Engine {
     fn emit(&self, event: EngineEvent) {
@@ -274,14 +292,18 @@ impl Engine {
         let db = Path::new(&app_support_dir).join("index.sqlite");
         let index = index::Index::open(&db)?;
         let reader = Connection::open_with_flags(&db, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
-        Ok(Arc::new(Self {
+        let notified = AtomicU64::new(index.change_head()?);
+        let heads = Mutex::new(Connection::open_with_flags(
+            &db,
+            OpenFlags::SQLITE_OPEN_READ_ONLY,
+        )?);
+        let previews =
+            previews::PreviewStore::new(Path::new(&app_support_dir).join("previews"), 512 << 20)
+                .map_err(failure)?;
+        Ok(Arc::new_cyclic(|this| Self {
             db,
             catalog: Mutex::new(Catalog { index, reader }),
-            previews: previews::PreviewStore::new(
-                Path::new(&app_support_dir).join("previews"),
-                512 << 20,
-            )
-            .map_err(failure)?,
+            previews,
             jobs: jobs::ThreadPoolScheduler::new(3),
             renderer: std::sync::OnceLock::new(),
             segmenter: Default::default(),
@@ -291,10 +313,20 @@ impl Engine {
             understanding: Default::default(),
             gpu: std::sync::OnceLock::new(),
             documents: Default::default(),
+            notified,
+            heads,
+            watching: AtomicBool::new(false),
+            this: this.clone(),
         }))
     }
+    /// Setting a listener also starts watching the catalog for writes made
+    /// elsewhere (reported as `LibraryChanged`).
     pub fn set_event_listener(&self, listener: Option<Arc<dyn EngineEventListener>>) {
+        let watch = listener.is_some();
         *self.listener.lock().unwrap_or_else(|e| e.into_inner()) = listener;
+        if watch {
+            self.watch_changes();
+        }
     }
     pub fn index_folder(&self, path: String) -> Result<FolderHandle> {
         let path = Path::new(&path).canonicalize()?;
@@ -312,6 +344,7 @@ impl Engine {
             updated: updated as u64,
             finished: true,
         });
+        self.notify_changes();
         Ok(FolderHandle {
             path: path.to_string_lossy().into_owned(),
             updated: updated as u64,
@@ -356,7 +389,10 @@ impl Engine {
         let mut doc = catalog::document(Path::new(&path), parse_id(&image_id)?)?;
         doc.recipe.selection = selection;
         doc.record_write("tessera-mac", now_ms())?;
-        Self::persist(&mut c, Path::new(&path), &doc)
+        Self::persist(&mut c, Path::new(&path), &doc)?;
+        drop(c);
+        self.notify_changes();
+        Ok(())
     }
     pub fn get_recipe(&self, image_id: String) -> Result<String> {
         let c = self.lock()?;
@@ -397,7 +433,10 @@ impl Engine {
         recipe.ids.next_retouch = recipe.ids.next_retouch.max(doc.recipe.ids.next_retouch);
         doc.recipe = recipe;
         doc.record_write("tessera-mac", now_ms())?;
-        Self::persist(&mut c, Path::new(&path), &doc)
+        Self::persist(&mut c, Path::new(&path), &doc)?;
+        drop(c);
+        self.notify_changes();
+        Ok(())
     }
     /// RAW cache misses return pending immediately; PreviewReady signals completion.
     pub fn embedded_preview(

@@ -52,7 +52,7 @@ struct Step {
 // the CPU's 8-bit LUT).
 fn norm(page: u32, k: u32) -> f32 {
     let c = page_code(page, k);
-    if (pool.depth == 0u) { return aux[c]; }
+    if (pool.depth == 0u) { return sh_lut[c]; }
     if (pool.depth == 1u) { return f32(c) * pool.inv16; }
     return bitcast<f32>(c);
 }
@@ -84,7 +84,7 @@ fn adjustment(k: u32, c: vec3<f32>) -> vec3<f32> {
         case 1u: { return pow(max(c * a.x + vec3<f32>(a.y), vec3<f32>(0.0)), vec3<f32>(a.z)); }
         case 2u: { return vec3<f32>(select(0.0, 1.0, y601(c) >= a.x)); }
         case 3u: {
-            return min(floor(clamp(c, vec3<f32>(0.0), vec3<f32>(1.0)) * a.x), vec3<f32>(a.x - 1.0)) / (a.x - 1.0);
+            return pdiv3(min(floor(clamp(c, vec3<f32>(0.0), vec3<f32>(1.0)) * a.x), vec3<f32>(a.x - 1.0)), vec3<f32>(a.x - 1.0));
         }
         case 4u: {
             let o = steps[k].t.w;
@@ -105,11 +105,11 @@ fn adjustment(k: u32, c: vec3<f32>) -> vec3<f32> {
             var h = 0.0; var s = 0.0; var l = (mx + mn) / 2.0;
             if (mx != mn) {
                 let d = mx - mn;
-                if (l > 0.5) { s = d / (2.0 - mx - mn); } else { s = d / (mx + mn); }
-                if (mx == c.x) { h = (c.y - c.z) / d + select(0.0, 6.0, c.y < c.z); }
-                else if (mx == c.y) { h = (c.z - c.x) / d + 2.0; }
-                else { h = (c.x - c.y) / d + 4.0; }
-                h = h / 6.0;
+                if (l > 0.5) { s = pdiv(d, 2.0 - mx - mn); } else { s = pdiv(d, mx + mn); }
+                if (mx == c.x) { h = pdiv(c.y - c.z, d) + select(0.0, 6.0, c.y < c.z); }
+                else if (mx == c.y) { h = pdiv(c.z - c.x, d) + 2.0; }
+                else { h = pdiv(c.x - c.y, d) + 4.0; }
+                h = pdiv(h, 6.0);
             }
             if (a.w != 0.0) {
                 let t = a.x;
@@ -156,11 +156,11 @@ fn fill_sample(k: u32, fx: f32, fy: f32) -> vec4<f32> {
     var t = 0.0;
     if (len2 > 0.0) {
         if (src == 2u) {
-            t = ((fx - p.x) * dx + (fy - p.y) * dy) / len2;
+            t = pdiv((fx - p.x) * dx + (fy - p.y) * dy, len2);
         } else {
             let ex = fx - p.x;
             let ey = fy - p.y;
-            t = sqrt(ex * ex + ey * ey) / sqrt(len2);
+            t = pdiv(sqrt(ex * ex + ey * ey), sqrt(len2));
         }
     }
     t = clamp(t, 0.0, 1.0);
@@ -174,7 +174,7 @@ fn fill_sample(k: u32, fx: f32, fy: f32) -> vec4<f32> {
         if (t <= aux[b]) {
             let span = aux[b] - aux[a];
             var f = 1.0;
-            if (span > 0.0) { f = (t - aux[a]) / span; }
+            if (span > 0.0) { f = pdiv(t - aux[a], span); }
             let c0 = vec4<f32>(aux[a + 1u], aux[a + 2u], aux[a + 3u], aux[a + 4u]);
             let c1 = vec4<f32>(aux[b + 1u], aux[b + 2u], aux[b + 3u], aux[b + 4u]);
             return c0 + (c1 - c0) * f;
@@ -204,7 +204,7 @@ fn texel(page: u32, i: u32) -> vec4<f32> {
     switch pool.depth {
         case 0u: {
             let w = page_load(page, i);
-            return vec4<f32>(aux[w & 255u], aux[(w >> 8u) & 255u], aux[(w >> 16u) & 255u], aux[w >> 24u]);
+            return vec4<f32>(sh_lut[w & 255u], sh_lut[(w >> 8u) & 255u], sh_lut[(w >> 16u) & 255u], sh_lut[w >> 24u]);
         }
         case 1u: {
             let a = page_load(page, 2u * i);
@@ -234,10 +234,13 @@ var<workgroup> sh_h: array<vec4<u32>, 64>;
 var<workgroup> sh_f: array<vec4<f32>, 64>;
 var<workgroup> sh_pg: array<vec3<u32>, 64>; // content page, mask page, seed
 var<workgroup> sh_q: array<vec4<u32>, 64>;  // content page, mode, flags, opacity·fill
+// The CPU's 8-bit normalization table (aux[0..256]), one entry per thread.
+var<workgroup> sh_lut: array<f32, 256>;
 
 @compute @workgroup_size(16, 16)
 fn main(@builtin(workgroup_id) wg: vec3<u32>, @builtin(num_workgroups) nwg: vec3<u32>,
         @builtin(local_invocation_id) li: vec3<u32>, @builtin(local_invocation_index) lix: u32) {
+    sh_lut[lix] = aux[lix];
     let bi = wg.x + wg.y * nwg.x;
     var bx = 0u;
     var by = 0u;
@@ -306,6 +309,10 @@ fn main(@builtin(workgroup_id) wg: vec3<u32>, @builtin(num_workgroups) nwg: vec3
                 let u = a * (1.0 - ab);
                 let v = a * ab;
                 let w = 1.0 - a;
+                // Same operation order as the CPU executor's row loop. The
+                // pipeline is compiled without contraction or fast math
+                // (gpu_core::precise_compute_pipeline), so this rounds like
+                // the CPU: Hard Mix and Divide never see a drifted input.
                 cur = vec4<f32>(u * s.xyz + v * bl + w * cur.xyz, a + w * ab);
             }
             continue;

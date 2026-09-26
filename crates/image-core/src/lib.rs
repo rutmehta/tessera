@@ -19,6 +19,7 @@
 
 mod adobe;
 pub mod cache;
+pub mod cfa;
 pub use adobe::AdobeStageOp;
 pub use pipeline_adobe;
 pub mod graph;

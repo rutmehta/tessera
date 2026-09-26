@@ -204,3 +204,43 @@ fn main(@builtin(global_invocation_id) g: vec3<u32>) {{
         }
     }
 }
+
+/// Specialized-kernel cost per blend mode: 40 layers of one mode over a
+/// 2048² 8-bit canvas (content varies per pixel so every branch is live).
+#[test]
+#[ignore = "bench"]
+fn resident_per_mode() {
+    let gpu = GpuCompositor::new().unwrap();
+    let e = Extent::new(2048, 2048);
+    let mut r = ResidentRenderer::new(&gpu).unwrap();
+    let px = e.area() as f64;
+    for mode in BlendMode::ALL {
+        let mut d = doc(e, Depth::U8);
+        let base = add(
+            &mut d,
+            None,
+            layer_fn("l", e, Depth::U8, |x, y| {
+                [
+                    (x % 256) as f32 / 255.0,
+                    (y % 256) as f32 / 255.0,
+                    ((x ^ y) % 256) as f32 / 255.0,
+                    0.3 + ((x / 7 + y / 5) % 7) as f32 * 0.1,
+                ]
+            }),
+        );
+        for _ in 1..40 {
+            d.apply(DocOp::DuplicateLayer { id: base }).unwrap();
+        }
+        for id in d.state().layer_ids() {
+            let mut p = d.state().find(id).unwrap().props.clone();
+            p.blend_mode = mode;
+            p.opacity = 0.7;
+            d.apply(DocOp::SetProps { id, props: p }).unwrap();
+        }
+        let t = time(&mut r, &d);
+        println!(
+            "40 layers {mode:?}: {t:.2} ms ({:.4} ns / layer-px)",
+            t * 1e6 / (px * 40.0)
+        );
+    }
+}

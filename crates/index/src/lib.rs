@@ -1,9 +1,11 @@
 //! SQLite photo catalog and search index.
 mod api;
+mod changes;
 mod predicate;
 mod semantic;
 mod understanding;
 pub use api::{FaceRecord, ImageInfo, Index, PruneCounts, Scanner, Score};
+pub use changes::{ChangeBatch, ChangeFields, ChangeKind, ImageChange};
 pub use predicate::{Comparison, Predicate};
 pub use semantic::SemanticSearch;
 use std::{path::Path, time::UNIX_EPOCH};
@@ -58,26 +60,7 @@ impl Core {
         let tx = self.conn.transaction()?;
         let mut images = 0;
         for (file_id, _) in &missing {
-            let image: Option<(i64, String)> = tx
-                .query_row(
-                    "SELECT rowid,id FROM image WHERE file_id=?",
-                    [file_id],
-                    |row| Ok((row.get(0)?, row.get(1)?)),
-                )
-                .optional()?;
-            if let Some((rowid, id)) = image {
-                images += 1;
-                if !dry_run {
-                    tx.execute("DELETE FROM fts WHERE rowid=?", [rowid])?;
-                    for table in ["image_keyword", "selection", "recipe_hash"] {
-                        tx.execute(&format!("DELETE FROM {table} WHERE image_id=?"), [&id])?;
-                    }
-                    tx.execute("DELETE FROM image WHERE id=?", [&id])?;
-                }
-            }
-            if !dry_run {
-                tx.execute("DELETE FROM file WHERE id=?", [file_id])?;
-            }
+            images += usize::from(delete_file_rows(&tx, *file_id, dry_run)?);
         }
         if !dry_run {
             tx.commit()?;
@@ -86,6 +69,28 @@ impl Core {
             images,
             files: missing.len(),
         })
+    }
+
+    /// `prune_missing` limited to `ids` (the host just deleted those files).
+    fn forget_missing(&mut self, ids: &[ImageId]) -> Result<usize> {
+        let tx = self.conn.transaction()?;
+        let mut removed = 0;
+        for id in ids {
+            let file: Option<(i64, String)> = tx
+                .query_row(
+                    "SELECT f.id,f.path FROM image i JOIN file f ON f.id=i.file_id WHERE i.id=?",
+                    [id.to_string()],
+                    |r| Ok((r.get(0)?, r.get(1)?)),
+                )
+                .optional()?;
+            if let Some((file_id, path)) = file
+                && !Path::new(&path).try_exists()?
+            {
+                removed += usize::from(delete_file_rows(&tx, file_id, false)?);
+            }
+        }
+        tx.commit()?;
+        Ok(removed)
     }
 
     /// Opens an index and applies all known schema migrations.
@@ -117,14 +122,22 @@ impl Core {
             COMMIT;")?;
         let version: u32 =
             conn.query_row("SELECT max(version) FROM migration", [], |r| r.get(0))?;
-        if version > 6 {
+        if version > 7 {
             return Err(engine_api::error::EngineError::SchemaVersion {
                 document: "index".into(),
                 found: version,
-                supported: 6,
+                supported: 7,
             }
             .into());
         }
+        // Each later migration is applied when its own row is missing.
+        let missing = |v: u32| -> rusqlite::Result<bool> {
+            conn.query_row(
+                "SELECT NOT EXISTS(SELECT 1 FROM migration WHERE version=?)",
+                [v],
+                |r| r.get(0),
+            )
+        };
         if version < 2 {
             conn.execute_batch("BEGIN IMMEDIATE;
                 ALTER TABLE file ADD COLUMN sidecar_stamp TEXT NOT NULL DEFAULT '';
@@ -148,14 +161,17 @@ impl Core {
                 SELECT i.rowid,i.id,f.name,(SELECT group_concat(k.name,' ') FROM keyword k JOIN image_keyword ik ON k.id=ik.keyword_id WHERE ik.image_id=i.id),i.caption,i.camera,i.lens FROM image i JOIN file f ON f.id=i.file_id;
                 INSERT INTO migration(version) VALUES(3); COMMIT;")?;
         }
-        if version < 4 {
+        if missing(4)? {
             conn.execute_batch(include_str!("../migrations/004_culling.sql"))?;
         }
-        if version < 5 {
+        if missing(5)? {
             conn.execute_batch(include_str!("../migrations/005_faces.sql"))?;
         }
-        if version < 6 {
+        if missing(6)? {
             conn.execute_batch(include_str!("../migrations/006_understanding.sql"))?;
+        }
+        if missing(7)? {
+            conn.execute_batch(include_str!("../migrations/007_changes.sql"))?;
         }
         Ok(Self { conn })
     }
@@ -283,6 +299,9 @@ impl Core {
             understanding::refresh_fts(&tx, &id)?;
             tx.commit()?;
             changed += 1;
+        }
+        if changed > 0 {
+            self.trim_changes()?;
         }
         Ok(changed)
     }
@@ -488,6 +507,29 @@ impl Core {
             .map(|r| parse_id(&r?))
             .collect()
     }
+}
+
+/// Deletes a file row and its image's rows; returns whether it had an image.
+fn delete_file_rows(tx: &rusqlite::Transaction, file_id: i64, dry_run: bool) -> Result<bool> {
+    let image: Option<(i64, String)> = tx
+        .query_row(
+            "SELECT rowid,id FROM image WHERE file_id=?",
+            [file_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()?;
+    if dry_run {
+        return Ok(image.is_some());
+    }
+    if let Some((rowid, id)) = &image {
+        tx.execute("DELETE FROM fts WHERE rowid=?", [rowid])?;
+        for table in ["image_keyword", "selection", "recipe_hash"] {
+            tx.execute(&format!("DELETE FROM {table} WHERE image_id=?"), [id])?;
+        }
+        tx.execute("DELETE FROM image WHERE id=?", [id])?;
+    }
+    tx.execute("DELETE FROM file WHERE id=?", [file_id])?;
+    Ok(image.is_some())
 }
 
 /// Source for sidecar metadata. Implemented by the sidecar crate later.
@@ -848,7 +890,7 @@ mod tests {
             i.conn
                 .query_row("SELECT count(*) FROM migration", [], |r| r.get::<_, u32>(0))
                 .unwrap(),
-            6
+            7
         );
     }
     #[test]
@@ -891,7 +933,7 @@ mod tests {
             .conn
             .query_row("SELECT count(*) FROM migration", [], |r| r.get(0))
             .unwrap();
-        assert_eq!(tables, 6);
+        assert_eq!(tables, 7);
         let id = ImageId(7);
         i.conn
             .execute("INSERT INTO root(path) VALUES('root')", [])
