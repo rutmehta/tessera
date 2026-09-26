@@ -10,8 +10,8 @@ mod export;
 mod import;
 mod media;
 mod models;
-mod understanding;
 mod tether;
+mod understanding;
 
 #[derive(Parser)]
 #[command(name = "tessera", version, about = "Headless photo workflow")]
