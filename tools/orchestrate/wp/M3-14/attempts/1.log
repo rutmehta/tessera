@@ -1,0 +1,15 @@
+Implemented the RAW GPU preview path with cached decoding, persistent renderer memoization, shared histogram/compare rendering, and opt-in full-resolution rendering. Changes are confined to allowed paths; nothing committed.
+
+On the M4, Nikon NEF measured 271 ms for the warm three-step FakePlanner run, about 90 ms per step.
+
+Not ready to pass:
+- DNG shadow clipping differs by 8.97 percentage points between preview and full resolution, exceeding the 2% bound.
+- RGB remains on the cached CPU preview path, without GPU stage memoization.
+- Skin ΔE fixture parity remains unverified.
+- The required release suite repeatedly times out at tessera-ffi/tests/fallback.rs:56.
+
+Agent tests and all 11 tessera-mcp tests passed. Clippy with -D warnings, formatting, and diff checks passed.
+
+Measurements and remaining gaps: tools/orchestrate/wp/M3-14/results.md
+
+RESULT: FAIL metric parity exceeds tolerance, RGB GPU memoization and skin parity are incomplete, and the FFI fallback test times out.

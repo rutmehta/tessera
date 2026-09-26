@@ -1,0 +1,18 @@
+Implemented M3-13 within the allowed paths.
+
+Added SigLIP keyword suggestions with 2,080 photographic concepts, pinned Florence-2 caption/alt-text/OCR inference, synonym-aware tree mapping, bulk acceptance, opt-in XMP writes, batched Priority::Score jobs, index/FTS persistence, and all three CLI commands. engine-api is unchanged. No commits or model weights added to git.
+
+Verification:
+  Required release tests → clippy -D warnings → fmt check: exit 0.
+  87 tests passed, 0 failed, 1 existing benchmark ignored.
+  Real cached models recovered “HELLO WORLD” and ranked “circle” and “red” first and second.
+  CLI OCR storage/search and explicit XMP writes verified; original image bytes remained unchanged.
+
+CoreML uses mixed acceleration and CPU fallback, so the CLI defaults to CPU. Confidence defaults remain heuristic temperature scaling, not empirically validated probabilities.
+
+Reports:
+  tools/orchestrate/wp/M3-13/RESULTS.md
+  tools/orchestrate/wp/M3-13/COREML.md
+  crates/ml-caption/README.md
+
+RESULT: PASS

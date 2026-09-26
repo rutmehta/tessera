@@ -1,0 +1,14 @@
+Fixed an additional cache bypass: crop, style, and mask validation now reuse Console’s cached preview renderer. The regression test failed before the fix and passes afterward.
+
+Ran the exact required release-test, clippy, and fmt chain successfully. The previous FFI timeout did not recur. All changes stay within allowed paths, with CARGO_TARGET_DIR preserved.
+
+Acceptance gaps remain:
+- DNG shadow clipping differs by 8.97 percentage points, exceeding the 2% bound.
+- RGB still bypasses Renderer stage caching. Renderer currently accepts only CFA sources, and image-core is outside the allowed write scope.
+- Skin ΔE fixture parity remains unverified.
+
+The repeated NEF benchmark measured 199 ms for the warm three-step FakePlanner run.
+
+Evidence: tools/orchestrate/wp/M3-14/results.md, verification-retry.log, and bench-retry.log.
+
+RESULT: FAIL DNG metric parity exceeds tolerance; RGB Renderer integration and skin metric parity remain incomplete.
