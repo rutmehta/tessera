@@ -108,6 +108,12 @@ private struct FaceChipButton: View {
     @State private var hovering = false
     private let size: CGFloat = Theme.Height.filmstrip - Theme.Space.l - Theme.Space.xs
 
+    /// The person's name when known (People view), otherwise "Unnamed person" / "Face n".
+    private var label: String {
+        if let tile = model.people.person(face.personID) { return tile.isNamed ? tile.displayName : "Unnamed person" }
+        return "Face \(face.ordinal + 1)"
+    }
+
     var body: some View {
         let person = model.assist.person(face.personID)
         Button { zoomed = true } label: {
@@ -135,9 +141,22 @@ private struct FaceChipButton: View {
         }
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
-        .help("\(person?.name ?? "Face \(face.ordinal + 1)"): \(face.focusLevel.focusWord), \(face.eyesLevel.eyesWord). Click to zoom.")
-        .accessibilityLabel("\(person?.name ?? "Face \(face.ordinal + 1)"), \(face.focusLevel.focusWord), \(face.eyesLevel.eyesWord)")
+        .help("\(label): \(face.focusLevel.focusWord), \(face.eyesLevel.eyesWord). Click to zoom"
+              + (model.people.person(face.personID) != nil ? "; right-click to name." : "."))
+        .accessibilityLabel("\(label), \(face.focusLevel.focusWord), \(face.eyesLevel.eyesWord)")
         .accessibilityIdentifier("face-chip-\(face.ordinal)")
+        .contextMenu {
+            if let tile = model.people.person(face.personID) {
+                Button(tile.isNamed ? "Rename \(tile.displayName)…" : "Name…") { promptPersonName(model: model, person: tile) }
+                    .accessibilityIdentifier("face-name-person")
+                Button("Show in People") {
+                    model.setSource(.people)
+                    model.people.openDetail(tile.id)
+                }
+            } else {
+                Text("Not grouped into a person yet (Cull ▸ Analyze Faces)")
+            }
+        }
         .popover(isPresented: $zoomed, arrowEdge: .top) {
             FaceZoom(model: model, face: face, person: person) { zoomed = false }
         }
@@ -172,7 +191,8 @@ private struct FaceZoom: View {
                 .frame(width: 240, height: 240)
                 .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card))
             HStack(spacing: Theme.Space.xs) {
-                Text(person?.name ?? "Face \(face.ordinal + 1)").font(Theme.Fonts.labelSemibold).foregroundStyle(Theme.textPrimary)
+                Text(model.people.person(face.personID).map { $0.isNamed ? $0.displayName : "Unnamed person" } ?? person?.name ?? "Face \(face.ordinal + 1)")
+                    .font(Theme.Fonts.labelSemibold).foregroundStyle(Theme.textPrimary)
                 if let person { Text("in \(person.items.count) frame\(person.items.count == 1 ? "" : "s")").font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary) }
             }
             HStack(spacing: Theme.Space.xs) {

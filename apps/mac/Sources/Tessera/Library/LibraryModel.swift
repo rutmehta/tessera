@@ -98,7 +98,7 @@ final class LibraryModel {
     private func scope(for source: LibrarySource) -> (SearchScope, needed: Bool) {
         switch source {
         case .all: return (.all, false)
-        case .decision, .mark: return (.all, false)
+        case .decision, .mark, .people: return (.all, false)
         case .notInAlbum: return (.all, true)
         case .album(let name):
             if let id = node(handle: name)?.id { return (.album(id: id), false) }

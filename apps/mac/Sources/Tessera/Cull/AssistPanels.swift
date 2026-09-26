@@ -101,7 +101,7 @@ struct PeoplePanel: View {
             }
             ForEach(assist.people) { person in
                 HStack(spacing: Theme.Space.s) {
-                    Text(person.name).font(Theme.Fonts.caption).foregroundStyle(Theme.textPrimary)
+                    Text(model.people.person(person.id)?.displayName ?? person.name).font(Theme.Fonts.caption).foregroundStyle(Theme.textPrimary)
                     Text("\(person.items.count) frame\(person.items.count == 1 ? "" : "s")")
                         .font(Theme.Fonts.captionNumeric).foregroundStyle(Theme.textTertiary)
                     Spacer()

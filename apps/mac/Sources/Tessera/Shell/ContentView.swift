@@ -12,7 +12,7 @@ struct ContentView: View {
                                                 max: Theme.Width.sidebarMax)
         } detail: {
             VStack(spacing: 0) {
-                if model.isEngineBacked {
+                if model.isEngineBacked, model.source != .people {
                     FilterBar(library: model.collections, model: model)
                 }
                 if model.tether.showPanel {
@@ -33,7 +33,9 @@ struct ContentView: View {
                     if model.viewMode == .compare, model.compare != nil {
                         CompareView(model: model)
                     }
-                    if model.library.items.isEmpty {
+                    if model.source == .people {
+                        PeopleView(model: model)
+                    } else if model.library.items.isEmpty {
                         EmptyStateView(model: model)
                     }
                     VStack {
@@ -46,7 +48,7 @@ struct ContentView: View {
                     }
                     .animation(Theme.Motion.appear, value: model.toast)
                 }
-                if model.viewMode == .loupe, !model.assist.faces.isEmpty {
+                if model.viewMode == .loupe, model.source != .people, !model.assist.faces.isEmpty {
                     FaceStrip(model: model)
                 }
                 AssistProgressBar(assist: model.assist)
@@ -167,6 +169,18 @@ struct ContentView: View {
                     .help("Assist mode and sort")
                     .accessibilityIdentifier("toolbar-assist-menu")
                 }
+            }
+        }
+        .flatToolbarItem()
+        ToolbarItem(id: "peopleMerge", placement: .primaryAction) {
+            if model.source == .people {
+                Button { model.people.mergeSelection(); model.peopleDidChange() } label: {
+                    Label("Merge", systemImage: "person.2.badge.plus")
+                }
+                .buttonStyle(ToolbarButtonStyle())
+                .disabled(!model.people.canMerge || model.people.detailID != nil)
+                .help("Merge the selected people into one (a named person's name wins). Select tiles with ⌘-click.")
+                .accessibilityIdentifier("toolbar-people-merge")
             }
         }
         .flatToolbarItem()

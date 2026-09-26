@@ -27,6 +27,8 @@ struct TesseraApp: App {
             TabView {
                 AISettingsView(agent: model.agent, model: model)
                     .tabItem { Label("AI", systemImage: "sparkles") }
+                LibrarySettingsView(people: model.people)
+                    .tabItem { Label("Library", systemImage: "books.vertical") }
             }
         }
     }

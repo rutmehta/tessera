@@ -133,10 +133,13 @@ struct AppCommands: Commands {
                 .keyboardShortcut("n", modifiers: [.command, .option, .shift])
             Divider()
             Button("Save Filter as Smart Album…") { model.collections.saveFilterAsSmartAlbum() }
-            Button("Clear Filter") { model.collections.clearFilter() }
+            Button("Clear Filter") { model.collections.clearFilter(); model.setPersonFacet([]) }
                 .keyboardShortcut("l", modifiers: [.command, .option])
             Divider()
             Button("Show Photos Not in Any Album") { model.setSource(.notInAlbum) }
+            Button("Show People") { model.setSource(.people) }
+                .keyboardShortcut("p", modifiers: [.command, .option])
+                .disabled(!model.isEngineBacked)
             Divider()
             Button("Suggest Keywords for Selection") { model.collections.understanding.suggestForSelection() }
                 .keyboardShortcut("k", modifiers: [.command, .option])
