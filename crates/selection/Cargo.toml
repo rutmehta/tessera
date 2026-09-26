@@ -1,0 +1,21 @@
+[package]
+name = "selection"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+description = "Pixel selection tools, Select and Mask refinement and contour extraction (spec 02 §3)"
+publish = false
+
+[features]
+default = []
+# Wires `ml_segment::Segmenter` into the object/subject/sky selection trait.
+ml = ["dep:ml-segment", "dep:image"]
+
+[dependencies]
+compositor = { path = "../compositor" }
+engine-api = { path = "../engine-api" }
+ml-segment = { path = "../ml-segment", optional = true }
+image = { workspace = true, optional = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }

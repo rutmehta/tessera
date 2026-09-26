@@ -37,6 +37,8 @@ members = [
     "crates/compositor",
     "crates/filters",
     "crates/psd",
+    "crates/brush",
+    "crates/selection",
     "apps/tessera-cli",
 ]
 

@@ -1,0 +1,14 @@
+[package]
+name = "brush"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+description = "Stamp-based brush engine, ABR import and healing (spec 02 §4–5)"
+publish = false
+
+[dependencies]
+compositor = { path = "../compositor" }
+engine-api = { path = "../engine-api" }
+wgpu = { workspace = true }
+bytemuck = { workspace = true }
+pollster = "0.4"
