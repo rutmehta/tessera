@@ -1103,6 +1103,28 @@ fn crop_plane(
     (ow, oh, out)
 }
 
+/// Pure AI groups can be composed at thumbnail resolution independently of
+/// the renderer's current (possibly much coarser) display level.
+fn thumbnail_raster(
+    masks: &MaskShared,
+    group: &LocalAdjustment,
+    width: u32,
+    height: u32,
+) -> Option<Vec<f32>> {
+    if group.components.is_empty() || !group.components.iter().all(|c| c.kind.is_ai()) {
+        return None;
+    }
+    let image =
+        pipeline_cpu::Image::new(width, height, vec![vec![0.0; (width * height) as usize]; 3])
+            .ok()?;
+    mask_backend::compose(&image, &renderable_group(group), |kind, w, h| {
+        let key = ai_key(kind)
+            .ok_or_else(|| engine_api::EngineError::invalid("mask", "unsupported AI kind"))?;
+        Ok(masks.ai_plane(&key, w, h))
+    })
+    .ok()
+}
+
 // ─────────────────────────────── helpers ───────────────────────────────
 
 /// OkLab of scene-linear Rec.2020 (the colour-range operator's space).
@@ -1754,12 +1776,34 @@ impl DevelopSession {
     /// The group's mask as last rendered, fitted into `max_px` (display
     /// orientation, uncropped); `None` before it has been rendered.
     pub fn mask_thumbnail(&self, group_id: u32, max_px: u32) -> Result<Option<MaskThumbnail>> {
-        let (raster, w, h) = {
+        let group = {
+            let st = self.shared.lock()?;
+            st.live
+                .locals
+                .adjustments
+                .iter()
+                .find(|g| g.id.0 == group_id)
+                .cloned()
+        };
+        let (observed, ow, oh) = {
             let observed = self.shared.masks.observed.lock().map_err(failure)?;
             match observed.get(&group_id) {
                 Some(o) => (o.raster.clone(), o.width, o.height),
                 None => return Ok(None),
             }
+        };
+        let (full_w, full_h) = self.shared.masks.extents[0];
+        let scale = (max_px.max(1) as f32 / full_w.max(full_h) as f32).min(1.0);
+        let (small_w, small_h) = (
+            (full_w as f32 * scale).round().max(1.0) as u32,
+            (full_h as f32 * scale).round().max(1.0) as u32,
+        );
+        let native = group
+            .as_ref()
+            .and_then(|g| thumbnail_raster(&self.shared.masks, g, small_w, small_h));
+        let (raster, w, h): (Arc<[f32]>, _, _) = match native {
+            Some(p) => (p.into(), small_w, small_h),
+            None => (observed, ow, oh),
         };
         let o = self.shared.image.metadata().orientation;
         let (dw, dh) = if o >= 5 { (h, w) } else { (w, h) };
@@ -1841,6 +1885,39 @@ pub(crate) struct MaskState {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn ai_thumbnail_uses_its_own_scale_instead_of_the_observed_level() {
+        let shared = MaskShared::with_extents(vec![(8, 8), (2, 2)]);
+        let kind = MaskKind::Subject { model: None };
+        shared.set_ai(
+            &ai_key(&kind).unwrap(),
+            AiEntry::Ready(Arc::new(AlphaPlane {
+                width: 8,
+                height: 8,
+                data: (0..64)
+                    .map(|i| {
+                        if (2..6).contains(&(i % 8)) && (2..6).contains(&(i / 8)) {
+                            1.0
+                        } else {
+                            0.0
+                        }
+                    })
+                    .collect(),
+            })),
+        );
+        let group = LocalAdjustment {
+            components: vec![MaskComponent::new(kind)],
+            ..Default::default()
+        };
+        // A stale small observed raster must not determine the AI thumbnail's coverage.
+        let raster = thumbnail_raster(&shared, &group, 4, 4).unwrap();
+        assert!(
+            raster[5] > 0.9 && raster[6] > 0.9 && raster[9] > 0.9 && raster[10] > 0.9,
+            "{raster:?}"
+        );
+        assert!(raster[0] < 0.1);
+    }
 
     #[test]
     fn orientation_maps_round_trip() {

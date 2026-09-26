@@ -529,6 +529,7 @@ final class AppModel {
         }
         guard !update.isEmpty else { return }
         cull.libraryDidUpdate(update)
+        if !update.updated.isEmpty { tether.decisionsDidChange() }
         // A decision rewrites the recipe (its selection) and so its hash: only other recipe or
         // file changes mean new pixels. Develop and agent saves refresh their own thumbnails.
         var stale: [Int] = []
@@ -865,6 +866,7 @@ final class AppModel {
 
     private func didChange(_ change: CullChange) {
         undoDomain = .cull
+        tether.decisionsDidChange()
         assist.itemsDecided(change.ids)
         collections.cullDidChange(albums: change.albumsChanged)
         var positions = IndexSet()

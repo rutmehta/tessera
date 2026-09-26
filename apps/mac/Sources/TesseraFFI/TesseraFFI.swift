@@ -2181,6 +2181,13 @@ public protocol DevelopSessionProtocol: AnyObject, Sendable {
     func commitGroupAmount(groupId: UInt32, amount: Double) throws  -> Bool
     
     /**
+     * Installs a lazy, pinned CFA backend for this develop session. Does not
+     * invent a noise calibration, download weights, or enable denoise in the
+     * recipe. Subsequent Amount/tone edits share inference and resident caches.
+     */
+    func configureCfaDenoise(config: CfaDenoiseConfig) throws 
+    
+    /**
      * Releases every surface. Renders continue (histogram only) until a new
      * surface is attached.
      */
@@ -2250,7 +2257,7 @@ public protocol DevelopSessionProtocol: AnyObject, Sendable {
      * orientation, into an RGBA8 IOSurface of `width × height`. Blocking:
      * call off the main thread. Crop and post-crop effects are not applied
      * (the crop shows sensor pixels); global dehaze statistics come from the
-     * window.
+     * window (the full sensor when learned denoise is active).
      */
     func renderDetailPreview(iosurfaceId: UInt32, width: UInt32, height: UInt32, centerX: Float, centerY: Float) throws  -> DetailPreview
     
@@ -2571,6 +2578,20 @@ open func commitGroupAmount(groupId: UInt32, amount: Double)throws  -> Bool  {
 }
     
     /**
+     * Installs a lazy, pinned CFA backend for this develop session. Does not
+     * invent a noise calibration, download weights, or enable denoise in the
+     * recipe. Subsequent Amount/tone edits share inference and resident caches.
+     */
+open func configureCfaDenoise(config: CfaDenoiseConfig)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_configure_cfa_denoise(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeCfaDenoiseConfig_lower(config),uniffiCallStatus
+    )
+}
+}
+    
+    /**
      * Releases every surface. Renders continue (histogram only) until a new
      * surface is attached.
      */
@@ -2737,7 +2758,7 @@ open func refresh()throws   {try rustCallWithError(FfiConverterTypeBridgeError_l
      * orientation, into an RGBA8 IOSurface of `width × height`. Blocking:
      * call off the main thread. Crop and post-crop effects are not applied
      * (the crop shows sensor pixels); global dehaze statistics come from the
-     * window.
+     * window (the full sensor when learned denoise is active).
      */
 open func renderDetailPreview(iosurfaceId: UInt32, width: UInt32, height: UInt32, centerX: Float, centerY: Float)throws  -> DetailPreview  {
     return try  FfiConverterTypeDetailPreview_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
@@ -7351,6 +7372,90 @@ public func FfiConverterTypeBrushSettings_lift(_ buf: RustBuffer) throws -> Brus
 #endif
 public func FfiConverterTypeBrushSettings_lower(_ value: BrushSettings) -> RustBuffer {
     return FfiConverterTypeBrushSettings.lower(value)
+}
+
+
+/**
+ * Explicit caller-owned calibration in normalized linear sensor units. The
+ * four noise coefficients are canonical RGGB sites; ISO alone is insufficient.
+ */
+public struct CfaDenoiseConfig: Equatable, Hashable {
+    public var manifestPath: String
+    public var cachePath: String
+    public var modelId: String
+    public var modelDigest: String
+    public var shot: [Float]
+    public var read: [Float]
+    /**
+     * Optional full-sensor raster, one independent coverage per Bayer site.
+     */
+    public var mask: [Float]?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(manifestPath: String, cachePath: String, modelId: String, modelDigest: String, shot: [Float], read: [Float], 
+        /**
+         * Optional full-sensor raster, one independent coverage per Bayer site.
+         */mask: [Float]?) {
+        self.manifestPath = manifestPath
+        self.cachePath = cachePath
+        self.modelId = modelId
+        self.modelDigest = modelDigest
+        self.shot = shot
+        self.read = read
+        self.mask = mask
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension CfaDenoiseConfig: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCfaDenoiseConfig: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CfaDenoiseConfig {
+        return
+            try CfaDenoiseConfig(
+                manifestPath: FfiConverterString.read(from: &buf), 
+                cachePath: FfiConverterString.read(from: &buf), 
+                modelId: FfiConverterString.read(from: &buf), 
+                modelDigest: FfiConverterString.read(from: &buf), 
+                shot: FfiConverterSequenceFloat.read(from: &buf), 
+                read: FfiConverterSequenceFloat.read(from: &buf), 
+                mask: FfiConverterOptionSequenceFloat.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CfaDenoiseConfig, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.manifestPath, into: &buf)
+        FfiConverterString.write(value.cachePath, into: &buf)
+        FfiConverterString.write(value.modelId, into: &buf)
+        FfiConverterString.write(value.modelDigest, into: &buf)
+        FfiConverterSequenceFloat.write(value.shot, into: &buf)
+        FfiConverterSequenceFloat.write(value.read, into: &buf)
+        FfiConverterOptionSequenceFloat.write(value.mask, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCfaDenoiseConfig_lift(_ buf: RustBuffer) throws -> CfaDenoiseConfig {
+    return try FfiConverterTypeCfaDenoiseConfig.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCfaDenoiseConfig_lower(_ value: CfaDenoiseConfig) -> RustBuffer {
+    return FfiConverterTypeCfaDenoiseConfig.lower(value)
 }
 
 
@@ -19094,6 +19199,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_developsession_commit_group_amount() != 57151) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tessera_ffi_checksum_method_developsession_configure_cfa_denoise() != 26853) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_tessera_ffi_checksum_method_developsession_detach_surfaces() != 32727) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -19136,7 +19244,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_developsession_refresh() != 50490) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_developsession_render_detail_preview() != 52080) {
+    if (uniffi_tessera_ffi_checksum_method_developsession_render_detail_preview() != 3279) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_developsession_reset() != 11852) {

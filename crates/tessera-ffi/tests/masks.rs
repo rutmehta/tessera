@@ -458,6 +458,13 @@ fn ai_masks_segment_in_a_job_and_render_through_the_mask_cache() {
     let disc = o.overlay(subject).coverage;
     // π·0.3² of the short side squared over the frame area.
     assert!((0.12..0.30).contains(&disc), "disc coverage {disc}");
+    let thumbnail = o.session.mask_thumbnail(subject, 64).unwrap().unwrap();
+    let thumb_coverage =
+        thumbnail.alpha.iter().filter(|&&a| a > 128).count() as f32 / thumbnail.alpha.len() as f32;
+    assert!(
+        (thumb_coverage - disc).abs() < 0.04,
+        "thumbnail coverage {thumb_coverage} vs overlay {disc}"
+    );
 
     // Subtracting a background mask of the same image leaves the disc.
     o.session
@@ -582,6 +589,14 @@ fn subject_mask_on_the_canon_fixture_with_cached_models() {
     let c = o.overlay(subject).coverage;
     println!("subject coverage on the CR3: {c}");
     assert!((0.02..0.95).contains(&c));
+    let thumbnail = o.session.mask_thumbnail(subject, 64).unwrap().unwrap();
+    let thumb_coverage =
+        thumbnail.alpha.iter().filter(|&&a| a > 128).count() as f32 / thumbnail.alpha.len() as f32;
+    println!("subject thumbnail coverage on the CR3: {thumb_coverage}");
+    assert!(
+        (thumb_coverage - c).abs() < 0.04,
+        "thumbnail coverage {thumb_coverage} vs overlay {c}"
+    );
 }
 
 /// Interactive latency of mask edits on the 36 MP NEF at a quarter-size

@@ -114,6 +114,29 @@ final class IncomingStripTests: XCTestCase {
         for _ in 0..<50 { XCTAssertTrue(open.shoot()) }
         XCTAssertNil(open.remaining)
     }
+
+    @MainActor func testFrameCountFieldCommitsTypedValueAndClamps() {
+        let tether = TetherController(arguments: ["Tessera"])
+        tether.commitIntervalCount("5")
+        XCTAssertEqual(tether.intervalCount, 5)
+        tether.commitIntervalCount("2000")
+        XCTAssertEqual(tether.intervalCount, 999)
+        tether.commitIntervalCount("-3")
+        XCTAssertEqual(tether.intervalCount, 0)
+        tether.commitIntervalCount("oops")
+        XCTAssertEqual(tether.intervalCount, 0)
+    }
+
+    @MainActor func testIncomingDecisionRevisionTracksLocalCullAndFeed() {
+        let tether = TetherController(arguments: ["Tessera"])
+        let app = AppModel()
+        tether.app = app
+        XCTAssertEqual(tether.decisionRevision, 0)
+        tether.decisionsDidChange()
+        XCTAssertEqual(tether.decisionRevision, 1)
+        tether.decisionsDidChange()
+        XCTAssertEqual(tether.decisionRevision, 2)
+    }
 }
 
 /// The engine's tether session with the test camera, from Swift (what `--fake-tether` drives).

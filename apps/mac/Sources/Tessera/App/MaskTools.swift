@@ -221,6 +221,9 @@ final class MaskTools: LibraryObserver {
         revision += 1
         if u.done {
             refresh()
+            // The final render can precede the job callback. In that ordering
+            // the dirty thumbnail otherwise waits for an unrelated edit.
+            refreshThumbnails()
             if let e = u.error {
                 model.statusMessage = "\(u.title) mask failed: \(e)"
             } else {

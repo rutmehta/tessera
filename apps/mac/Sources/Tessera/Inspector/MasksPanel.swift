@@ -134,7 +134,7 @@ struct MasksPanel: View {
                     .font(Theme.Fonts.icon).foregroundStyle(Theme.textTertiary)
             }
         }
-        .frame(width: 36, height: 28)
+        .frame(width: 56, height: 42)
         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.chip))
         .opacity(g.enabled ? 1 : Theme.Opacity.hidden)
     }
