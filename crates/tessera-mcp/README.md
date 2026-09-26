@@ -62,10 +62,21 @@ mean, population standard deviation (contrast), and fractions clipped in any
 RGB channel. DeltaE2000 compares matched normalized coordinates at a common
 preview size; RecipeDiff counts engine parameter patches; Scores compares focus.
 
-Display histograms sample a preview bounded at 1024 pixels; scene-linear
-histograms use the current scene-linear Rec.2020 output before display mapping.
-Both support 2–4096 bins (default 256); linear values outside 0–1 fall into end
-bins and contribute to clipping. No AI measurements change selection state.
+Display histograms count the full-resolution SDR sRGB output. The default 256-bin
+path uses a resident GPU reduction, with CPU merging of integer band counts.
+Other bin counts use a full-resolution CPU measurement, not a preview. For 256
+bins, display luma is floor((2126 R + 7152 G + 722 B) * 256 / 2550000), capped
+at 255. Clipping counts pixels with any encoded channel at 0 or 255. Scene-linear
+histograms still use the <=1024px scene-linear Rec.2020 preview before display
+mapping; they are not used by the objective critic. Both support 2–4096 bins
+(default 256). No AI measurements change selection state.
+
+In-process `Console::output_metrics` returns native-resolution clipping counts,
+RGB/display-luma and linear-luma histograms, and an exact linear-sRGB mean from
+the RGB marginal counts. `render_face_crop` returns native-resolution pixels for
+an oriented normalized region; `render_noise_patch` returns a small central native
+patch. CPU-only/RGB/unsupported recipes fall back at full resolution. The VLM
+preview remains independent, and engine-api/tool schemas are unchanged.
 
 ## Preset lookup
 

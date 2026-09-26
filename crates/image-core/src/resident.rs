@@ -19,11 +19,16 @@ pub struct ResidentTile {
 /// Display histogram: R, G, B and integer Rec.709 luma, 256 bins each.
 pub type DisplayHistogram = [[u32; 256]; 4];
 
+#[path = "output_metrics.rs"]
+mod output_metrics;
+pub use output_metrics::{OutputMetrics, srgb_linear};
+
 /// Completed render. Surface targets never return pixel tiles.
 #[derive(Default)]
 pub struct ResidentOutput {
     pub tiles: Vec<Tile>,
     pub histogram: Option<DisplayHistogram>,
+    pub metrics: Option<OutputMetrics>,
 }
 
 /// A surface target; only the small histogram may be read back.
@@ -48,6 +53,13 @@ pub struct LocalToneOptions {
 /// A render transaction. Dropping it before `finish` must discard pending work
 /// and must not publish uninitialized cache entries. Cache hits may outlive LRU eviction.
 pub trait ResidentBatch {
+    /// Request only full-resolution output statistics, not pixel readback.
+    fn enable_metrics(&mut self) -> bool {
+        false
+    }
+    fn metrics_enabled(&self) -> bool {
+        false
+    }
     /// A sensor dependency chunk has retired. Export backends may submit
     /// pending work and release scratch without materializing any pixels.
     fn checkpoint(&mut self, cancel: &CancellationToken) -> EngineResult<()> {
@@ -82,6 +94,11 @@ pub trait ResidentBatch {
     /// as one tile ([`ResidentBatch::gather_level`], [`ResidentBatch::crop`]).
     fn supports_level(&self, _frame: Extent, _halo: u16) -> bool {
         false
+    }
+    /// Gathering already-encoded output uses integer indexing and can support
+    /// frames larger than the point operators' exact-f32 parameter limit.
+    fn supports_output_level(&self, frame: Extent) -> bool {
+        self.supports_level(frame, 0)
     }
     /// Assembles all of `frame` (the level of `coord`) padded by `halo` from
     /// halo-free pyramid tiles into one tile at `coord`; edges replicate.

@@ -4,6 +4,14 @@ use image_core::{CountingStageOp, CpuStageOp};
 use raw_decode::{CfaImage, CfaLayout, RawMetadata};
 
 #[test]
+fn nondefault_histogram_clipping_does_not_saturate_at_f32_integer_limit() {
+    let full = image::RgbImage::from_pixel(4097, 4097, image::Rgb([0, 255, 128]));
+    let histogram = pixels::histogram(&full, 64).unwrap();
+    assert_eq!(histogram.clipped_shadows, 1.);
+    assert_eq!(histogram.clipped_highlights, 1.);
+}
+
+#[test]
 fn raw_steps_reuse_upstream_operator_results() {
     let id = ImageId(1);
     let metadata = RawMetadata {
@@ -98,4 +106,39 @@ fn rgb_decode_is_shared_by_preview_histogram_and_final() {
         2050
     );
     assert_eq!(cache.sources.lock().unwrap().len(), 1);
+}
+
+#[test]
+fn metrics_count_full_resolution_and_face_crop_uses_native_pixels() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("sparse.png");
+    image::RgbImage::from_fn(2050, 12, |x, _| {
+        image::Rgb(if x % 4 == 0 { [255, 0, 0] } else { [64; 3] })
+    })
+    .save(&path)
+    .unwrap();
+    let cache = PreviewCache::default();
+    let id = ImageId(3);
+    let recipe = Recipe::default();
+    let full = cache.display(id, &path, &recipe, None).unwrap();
+    let preview = cache.display(id, &path, &recipe, Some(512)).unwrap();
+    let reduced = cache.metrics(id, &path, &recipe).unwrap();
+    let mut cpu = image_core::resident::OutputMetrics::default();
+    for p in full.pixels() {
+        cpu.add_pixel(p.0);
+    }
+    assert_eq!(reduced, cpu);
+    assert!(reduced.highlight_fraction() > 0.2);
+    assert!(preview.pixels().all(|p| !p.0.contains(&255)));
+    let region = engine_api::recipe::settings::NormalizedRect {
+        left: 0.1,
+        top: 0.25,
+        right: 0.2,
+        bottom: 0.75,
+    };
+    let crop = cache.crop(id, &path, &recipe, region).unwrap();
+    assert_eq!(
+        crop,
+        image::imageops::crop_imm(&full, 205, 3, 205, 6).to_image()
+    );
 }

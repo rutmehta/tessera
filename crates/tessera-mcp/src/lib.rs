@@ -9,6 +9,7 @@ mod reads;
 pub mod schema;
 mod server;
 pub use console::Console;
+pub use image_core::resident::OutputMetrics;
 mod preview;
 pub use reads::{Comparison, Metrics};
 pub use server::Server;
