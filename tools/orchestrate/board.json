@@ -678,5 +678,21 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M5-01",
+    "owner": "opus",
+    "title": "Layer compositor core",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M5-02",
+    "owner": "astra",
+    "title": "PSD/PSB read/write",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
