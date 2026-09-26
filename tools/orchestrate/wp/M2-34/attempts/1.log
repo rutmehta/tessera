@@ -1,0 +1,16 @@
+Implemented M2-34 within the allowed paths.
+
+Added the CPU/GPU benchmark runner, JSON schema, host-specific baselines, per-metric regression gates, baseline recording, nightly/manual workflow, artifact uploads, and documentation.
+
+Verified:
+- Required test, Clippy, formatting, and actionlint command passed.
+- All 10 runner contract tests passed.
+- Fresh six-benchmark CPU run passed the baseline gate in 27.1 seconds.
+- Full local GPU suite completed successfully.
+- Changed-file scope and git diff checks passed.
+
+Measurements and limitations: tools/orchestrate/wp/M2-34/RESULTS.md
+
+CI needs one manual baseline-recording run on its actual host before nightly gates can pass. Local M4 CPU/GPU baselines are included. No commit or push was made.
+
+RESULT: PASS

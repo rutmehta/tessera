@@ -1,0 +1,7 @@
+M2-34 is implemented and verified. Moved the measured baselines under tools/bench to resolve the reported scope violations, and updated lookup, tests, CI artifacts, and documentation.
+
+Required test/Clippy/fmt/actionlint command passed. All 10 runner contract tests passed. Explicit CPU smoke passed in 30.65 seconds. Changes remain within allowed paths, with CARGO_TARGET_DIR preserved.
+
+The fresh performance comparison flagged five regressions and correctly failed the gate. Baselines and tolerances were not changed. Results are recorded in tools/orchestrate/wp/M2-34/RESULTS.md. CI still requires a baseline measured on its actual runner.
+
+RESULT: PASS
