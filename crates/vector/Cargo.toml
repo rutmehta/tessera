@@ -1,0 +1,15 @@
+[package]
+name = "vector"
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+kurbo = "0.11"
+lyon = "1"
+i_overlay = "4"
+thiserror.workspace = true
+quick-xml.workspace = true
+
+[dev-dependencies]
+psd = { path = "../psd" }

@@ -1,0 +1,72 @@
+Command: cargo test -p vector --release && cargo clippy -p vector --all-targets -- -D warnings && cargo fmt --check
+CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/M5-13
+
+Finished `release` profile [optimized] target(s) in 0.09s
+     Running unittests src/lib.rs (/Volumes/betterSSD/tessera-cache/target/M5-13/release/deps/vector-22deb000e4b04f9a)
+
+running 1 test
+test tests::rectangle_boolean_areas ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/interop.rs (/Volumes/betterSSD/tessera-cache/target/M5-13/release/deps/interop-c4b5f144d6be88ea)
+
+running 2 tests
+test psd_records_roundtrip_and_topology ... ok
+test svg_roundtrip ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/regressions.rs (/Volumes/betterSSD/tessera-cache/target/M5-13/release/deps/regressions-5b56af3f9e711540)
+
+running 3 tests
+test malformed_svg_is_rejected ... ok
+test svg_continuation_after_close ... ok
+test psd_crate_accepts_records_and_flags_render ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/render.rs (/Volumes/betterSSD/tessera-cache/target/M5-13/release/deps/render-e47f5419a784ca18)
+
+running 2 tests
+test gradient_endpoints_and_pattern ... ok
+test unit_circle_coverage_and_level ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/robustness.rs (/Volumes/betterSSD/tessera-cache/target/M5-13/release/deps/robustness-184314875bb30b3f)
+
+running 7 tests
+test all_gradient_kinds ... ok
+test nonfinite_primitives_rejected ... ok
+test zero_stroke_and_bad_inputs ... ok
+test fractional_rectangle_coverage ... ok
+test fill_rules_holes_touching_and_empty ... ok
+test caps_joins_odd_dashes ... ok
+test live_properties_and_layer ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/stroke.rs (/Volumes/betterSSD/tessera-cache/target/M5-13/release/deps/stroke-374a7754450618a6)
+
+running 1 test
+test alignment_bounds_and_dashes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/transform.rs (/Volumes/betterSSD/tessera-cache/target/M5-13/release/deps/transform-0e114ade1ec6b37b)
+
+running 2 tests
+test anchor_editing_and_curvature ... ok
+test perspective_corners_and_mesh_handles ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests vector
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.09s
+Exit code: 0
