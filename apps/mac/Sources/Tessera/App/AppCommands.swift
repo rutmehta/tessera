@@ -40,11 +40,12 @@ struct AppCommands: Commands {
         // Always enabled: SwiftUI can leave a stale disabled state on menu items, which would
         // swallow ⌘Z. The engine's session is the source of truth and reports "Nothing to undo".
         // ⌘Z follows the last kind of change: develop edits go to the develop session's history,
-        // culling to the cull session's.
+        // culling to the cull session's. In the People view it replays people edits, titled with
+        // the engine's description ("Undo Merge People").
         CommandGroup(replacing: .undoRedo) {
-            Button("Undo") { model.undo() }
+            Button(model.undoMenuTitle) { model.undo() }
                 .keyboardShortcut("z", modifiers: .command)
-            Button("Redo") { model.redo() }
+            Button(model.redoMenuTitle) { model.redo() }
                 .keyboardShortcut("z", modifiers: [.command, .shift])
         }
         CommandGroup(after: .pasteboard) {

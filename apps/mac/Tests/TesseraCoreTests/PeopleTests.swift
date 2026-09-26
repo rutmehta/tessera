@@ -6,12 +6,22 @@ import XCTest
 import TesseraFFI
 @testable import TesseraCore
 
-/// In-memory stand-in for the engine's people calls (WP M2-40), with the FFI's semantics:
-/// merge keeps the target's name, split and moves reset confirmation, suggestions are read-only.
+/// In-memory stand-in for the engine's people calls (WP M2-40, M2-44), with the FFI's semantics:
+/// merge keeps the target's name, split and moves reset confirmation, suggestions are read-only,
+/// every changing edit is one step of a bounded undo history with the engine's descriptions.
 final class StubPeopleEngine: PeopleEngine {
-    struct Face { var person: String; var confirmed: Bool }
+    struct Face: Equatable { var person: String; var confirmed: Bool }
     var faces: [PersonFaceRef: Face] = [:]
     var names: [String: String] = [:]
+    /// `PersonInfo.medoid_face` per person (nil: invalidated / not indexed).
+    var medoids: [String: PersonFaceRef] = [:]
+    /// Fail the next undo / redo like an engine conflict (history is kept).
+    var failReplay: String?
+    private struct State: Equatable { var faces: [PersonFaceRef: Face]; var names: [String: String] }
+    private struct Edit { var description: String; var before: State; var after: State }
+    private var undoStack: [Edit] = []
+    private var redoStack: [Edit] = []
+    private var state: State { State(faces: faces, names: names) }
     var candidates: [PeopleNameCandidate] = []
     var refreshResult = PeopleRefresh(assigned: 0, reclustered: false, approximate: false)
     var failNext: String?
@@ -28,6 +38,39 @@ final class StubPeopleEngine: PeopleEngine {
     private func check(_ call: String) throws {
         calls.append(call)
         if let f = failNext { failNext = nil; throw Failure(text: f) }
+    }
+
+    /// Records a changing edit (no-ops leave the history alone; new edits clear redo).
+    private func record(_ description: String, _ body: () throws -> Void) rethrows {
+        let before = state
+        try body()
+        guard before != state else { return }
+        redoStack = []
+        undoStack.append(Edit(description: description, before: before, after: state))
+        if undoStack.count > 32 { undoStack.removeFirst() }
+    }
+
+    func undoPeopleEdit() throws -> String? {
+        try check("undo")
+        if let f = failReplay { failReplay = nil; throw Failure(text: f) }
+        guard let edit = undoStack.popLast() else { return nil }
+        faces = edit.before.faces; names = edit.before.names
+        redoStack.append(edit)
+        return edit.description
+    }
+
+    func redoPeopleEdit() throws -> String? {
+        try check("redo")
+        if let f = failReplay { failReplay = nil; throw Failure(text: f) }
+        guard let edit = redoStack.popLast() else { return nil }
+        faces = edit.after.faces; names = edit.after.names
+        undoStack.append(edit)
+        return edit.description
+    }
+
+    func personMembers(_ person: String) throws -> [PersonFaceRef] {
+        try check("members(\(person))")
+        return faces.filter { $0.value.person == person }.map(\.key).sorted { ($0.ordinal, $0.item) > ($1.ordinal, $1.item) }
     }
 
     func add(_ person: String, _ faces: [(Int, UInt32)], confirmed: Bool = false) {
@@ -55,12 +98,14 @@ final class StubPeopleEngine: PeopleEngine {
             let items = Array(Set(members.map(\.key.item))).sorted()
             let cover = members.map(\.key).min()!
             return PersonSummary(id: id, name: names[id] ?? "Person \(id)", items: items, faces: members.count,
-                                 coverItem: cover.item, coverOrdinal: cover.ordinal)
+                                 coverItem: cover.item, coverOrdinal: cover.ordinal, named: names[id] != nil,
+                                 confirmedCount: members.filter(\.value.confirmed).count, medoid: medoids[id])
         }.sorted { $0.items.count > $1.items.count }
     }
 
     func personAssignments(_ item: Int) throws -> [PersonAssignment] {
-        faces.filter { $0.key.item == item }.sorted { $0.key < $1.key }.map {
+        calls.append("assignments(\(item))")
+        return faces.filter { $0.key.item == item }.sorted { $0.key < $1.key }.map {
             PersonAssignment(face: $0.key, personID: $0.value.person, name: names[$0.value.person], confirmed: $0.value.confirmed)
         }
     }
@@ -77,29 +122,33 @@ final class StubPeopleEngine: PeopleEngine {
     func namePerson(_ id: String, name: String?, options: PeopleNamingOptions) throws {
         try check("name(\(id),\(name ?? "nil"))")
         nameOptions.append(options.ffi)
-        names[id] = name
+        record("Name person") { names[id] = name }
     }
 
     func mergePeople(target: String, source: String) throws {
         try check("merge(\(target),\(source))")
-        for (k, v) in faces where v.person == source { faces[k]?.person = target }
-        if names[target] == nil { names[target] = names[source] }
-        names[source] = nil
+        record("Merge people") {
+            for (k, v) in faces where v.person == source { faces[k]?.person = target }
+            if names[target] == nil { names[target] = names[source] }
+            names[source] = nil
+        }
     }
 
     func splitPerson(_ source: String, newID: String, faces moved: [PersonFaceRef]) throws {
         try check("split(\(source),\(moved.count))")
-        for f in moved where faces[f]?.person == source { faces[f] = Face(person: newID, confirmed: false) }
+        record("Split person") {
+            for f in moved where faces[f]?.person == source { faces[f] = Face(person: newID, confirmed: false) }
+        }
     }
 
     func assignFace(_ face: PersonFaceRef, to person: String) throws {
         try check("assign(\(face.item):\(face.ordinal),\(person))")
-        faces[face] = Face(person: person, confirmed: false)
+        record("Assign face") { faces[face] = Face(person: person, confirmed: false) }
     }
 
     func confirmFace(_ face: PersonFaceRef, confirmed: Bool) throws {
         try check("confirm(\(face.item):\(face.ordinal),\(confirmed))")
-        faces[face]?.confirmed = confirmed
+        record(confirmed ? "Confirm face" : "Unconfirm face") { faces[face]?.confirmed = confirmed }
     }
 
     func items(withPerson person: String, eyesClosedBelow: Double?) throws -> [Int] {
@@ -131,7 +180,7 @@ final class PeopleModelTests: XCTestCase {
         return (engine, model)
     }
 
-    func testTilesNamedFirstThenByFramesWithNamesMembersAndBadges() {
+    func testTilesNamedFirstThenByFramesWithNamesMembersAndBadges() throws {
         let (_, model) = fixture()
         XCTAssertEqual(model.tiles.map(\.id), ["alice", "p1", "p2"], "named first although p1 has more frames")
         let alice = model.tiles[0], p1 = model.tiles[1], p2 = model.tiles[2]
@@ -139,8 +188,8 @@ final class PeopleModelTests: XCTestCase {
         XCTAssertEqual(p1.displayName, "Unnamed", "the engine's “Person <id>” placeholder is not a name")
         XCTAssertNil(p1.name)
         XCTAssertEqual(p1.items, [0, 3, 4, 5])
-        XCTAssertEqual(p1.members.map(\.face), [PersonFaceRef(item: 0, ordinal: 1), PersonFaceRef(item: 3, ordinal: 0),
-                                                PersonFaceRef(item: 4, ordinal: 0), PersonFaceRef(item: 5, ordinal: 0)])
+        XCTAssertEqual(try model.members("p1").map(\.face), [PersonFaceRef(item: 0, ordinal: 1), PersonFaceRef(item: 3, ordinal: 0),
+                                                            PersonFaceRef(item: 4, ordinal: 0), PersonFaceRef(item: 5, ordinal: 0)])
         XCTAssertTrue(p2.isConfirmed)
         XCTAssertFalse(p1.isConfirmed)
         XCTAssertEqual(alice.cover, PersonFaceRef(item: 0, ordinal: 0))
@@ -260,7 +309,7 @@ final class PeopleModelTests: XCTestCase {
         XCTAssertEqual(model.message, "Split 2 faces into a new person")
     }
 
-    func testReassignAndConfirmGoThroughTheEngine() {
+    func testReassignAndConfirmGoThroughTheEngine() throws {
         let (engine, model) = fixture()
         let face = PersonFaceRef(item: 3, ordinal: 0)
         XCTAssertFalse(model.reassign(face, to: "p1"), "already there")
@@ -270,7 +319,7 @@ final class PeopleModelTests: XCTestCase {
         XCTAssertTrue(model.reassign(face, to: "alice"))
         XCTAssertEqual(engine.calls.suffix(2), ["assign(3:0,alice)", "people(true)"])
         XCTAssertEqual(model.person("alice")?.items, [0, 1, 2, 3])
-        XCTAssertEqual(model.person("alice")?.members.first { $0.face == face }?.confirmed, false, "moves reset confirmation")
+        XCTAssertEqual(try model.members("alice").first { $0.face == face }?.confirmed, false, "moves reset confirmation")
         model.openDetail("alice")
         XCTAssertTrue(model.confirmAll())
         XCTAssertTrue(model.detail!.isConfirmed)
@@ -372,6 +421,121 @@ final class PeopleModelTests: XCTestCase {
         XCTAssertNil(model.detailID)
         XCTAssertTrue(model.facet.isEmpty)
     }
+
+    // MARK: M2-44: medoid tiles, engine counts, one-call members, undo / redo
+
+    func testTilesUseTheMedoidAndEngineCountsWithoutScanningAssignments() {
+        let (engine, model) = fixture()
+        XCTAssertFalse(engine.calls.contains { $0.hasPrefix("assignments") || $0.hasPrefix("members") },
+                       "the grid reads people() only: no per-image assignment scan, no members")
+        XCTAssertTrue(model.tiles.allSatisfy(\.members.isEmpty))
+        XCTAssertEqual(model.person("p1")?.faces, 4)
+        XCTAssertEqual(model.person("p2")?.confirmedCount, 1)
+        XCTAssertEqual(model.person("p1")?.cover, PersonFaceRef(item: 0, ordinal: 1), "no medoid: the sharpest cover")
+
+        engine.medoids["p1"] = PersonFaceRef(item: 4, ordinal: 0)
+        model.reload()
+        let p1 = model.person("p1")!
+        XCTAssertEqual(p1.medoid, PersonFaceRef(item: 4, ordinal: 0))
+        XCTAssertEqual(p1.cover, PersonFaceRef(item: 4, ordinal: 0), "the tile crops the medoid face")
+        XCTAssertEqual(p1.coverItem, 0, "the sharpest cover is kept as the fallback")
+        XCTAssertEqual(model.faceRect(p1.cover!)?.minX ?? -1, 0, accuracy: 1e-9)
+
+        // The medoid follows in-place renumbering and drops with its photo.
+        model.libraryDidUpdate { $0 == 4 ? nil : $0 + 1 }
+        XCTAssertNil(model.person("p1")?.medoid)
+        XCTAssertEqual(model.person("p1")?.cover, PersonFaceRef(item: 1, ordinal: 1))
+    }
+
+    func testDetailLoadsMembersInOneCall() throws {
+        let (engine, model) = fixture()
+        model.openDetail("p1")
+        XCTAssertEqual(engine.calls.filter { $0.hasPrefix("members") }, ["members(p1)"])
+        XCTAssertFalse(engine.calls.contains { $0.hasPrefix("assignments") }, "nothing confirmed: no assignment reads")
+        XCTAssertEqual(model.detail?.members.map(\.face), [PersonFaceRef(item: 0, ordinal: 1), PersonFaceRef(item: 3, ordinal: 0),
+                                                         PersonFaceRef(item: 4, ordinal: 0), PersonFaceRef(item: 5, ordinal: 0)],
+                       "item order, whatever the engine's image-id order")
+        XCTAssertTrue(model.tiles.filter { $0.id != "p1" }.allSatisfy(\.members.isEmpty), "only the detail person")
+
+        model.openDetail("p2")
+        XCTAssertEqual(model.detail?.members.map(\.confirmed), [true], "fully confirmed from the counts")
+        XCTAssertTrue(model.person("p1")?.members.isEmpty == true, "the previous detail person drops its members")
+        XCTAssertFalse(engine.calls.contains { $0.hasPrefix("assignments") })
+
+        // Partly confirmed: the member photos' assignments give each face's state.
+        model.openDetail("p1")
+        XCTAssertTrue(model.setConfirmed(PersonFaceRef(item: 3, ordinal: 0), true))
+        XCTAssertEqual(model.detail?.members.map(\.confirmed), [false, true, false, false])
+        XCTAssertEqual(model.detail?.confirmedCount, 1)
+        model.closeDetail()
+        XCTAssertTrue(model.tiles.allSatisfy(\.members.isEmpty))
+    }
+
+    func testFootnoteReportsTheJobsSampleSize() async {
+        let (engine, model) = fixture()
+        engine.refreshResult = PeopleRefresh(assigned: 900, reclustered: true, approximate: true, sampleSize: 1_000)
+        await model.refresh()
+        XCTAssertEqual(model.approximateNote, "Clustered from a sample of 1,000 faces")
+        engine.refreshResult = PeopleRefresh(assigned: 3, reclustered: false, approximate: false, sampleSize: 3)
+        await model.refresh()
+        XCTAssertEqual(model.approximateNote, "Clustered from a sample of 1,000 faces", "an incremental pass keeps the note")
+    }
+
+    func testUndoRedoReplayEngineHistoryWithItsDescriptions() {
+        let (engine, model) = fixture()
+        var changes = 0
+        model.onPeopleChange = { changes += 1 }
+        XCTAssertEqual(model.undoTitle, "Undo")
+        XCTAssertFalse(model.undo(), "empty history")
+        XCTAssertEqual(model.message, "Nothing to undo")
+
+        model.selection = ["alice", "p1"]
+        XCTAssertTrue(model.mergeSelection())
+        XCTAssertEqual(model.undoTitle, "Undo Merge People")
+        XCTAssertEqual(model.redoTitle, "Redo")
+        changes = 0
+        XCTAssertTrue(model.undo())
+        XCTAssertEqual(engine.calls.suffix(2), ["undo", "people(false)"], "reloads from people(refresh: false)")
+        XCTAssertEqual(model.tiles.map(\.id), ["alice", "p1", "p2"])
+        XCTAssertEqual(model.person("alice")?.items, [0, 1, 2])
+        XCTAssertEqual(model.message, "Undo Merge People")
+        XCTAssertEqual(model.undoTitle, "Undo")
+        XCTAssertEqual(model.redoTitle, "Redo Merge People")
+        XCTAssertEqual(changes, 1, "the face strip and filters follow")
+
+        XCTAssertTrue(model.redo())
+        XCTAssertEqual(engine.calls.suffix(2), ["redo", "people(false)"])
+        XCTAssertNil(model.person("p1"))
+        XCTAssertEqual(model.message, "Redo Merge People")
+        XCTAssertEqual(model.undoTitle, "Undo Merge People")
+
+        // Several steps: undo walks back one engine step at a time; a new edit clears redo.
+        XCTAssertTrue(model.name("p2", as: "Cy"))
+        model.openDetail("alice")
+        XCTAssertTrue(model.setConfirmed(PersonFaceRef(item: 1, ordinal: 0), true))
+        XCTAssertEqual(model.undoHistory, ["Merge people", "Name person", "Confirm face"])
+        XCTAssertTrue(model.undo())
+        XCTAssertEqual(model.detail?.members.first { $0.face.item == 1 }?.confirmed, false, "the detail view reloads its members")
+        XCTAssertEqual(model.undoTitle, "Undo Name Person")
+        XCTAssertTrue(model.undo())
+        XCTAssertNil(model.person("p2")?.name)
+        XCTAssertEqual(model.redoHistory, ["Confirm face", "Name person"])
+        XCTAssertTrue(model.setConfirmed(PersonFaceRef(item: 2, ordinal: 0), true))
+        XCTAssertEqual(model.redoTitle, "Redo", "a new edit clears redo")
+        XCTAssertFalse(model.redo())
+        XCTAssertEqual(model.message, "Nothing to redo")
+
+        // An engine conflict keeps both histories and reports the error.
+        engine.failReplay = "people undo file changed since edit"
+        XCTAssertFalse(model.undo())
+        XCTAssertEqual(model.message, "Undo failed: people undo file changed since edit")
+        XCTAssertEqual(model.undoTitle, "Undo Confirm Face")
+
+        // A new library forgets the mirror.
+        model.install(engine)
+        XCTAssertEqual(model.undoTitle, "Undo")
+        XCTAssertEqual(PeopleModel.menuTitle("Split person"), "Split Person")
+    }
 }
 
 /// The same calls through a real engine session (`CullController`), on the `--seed-faces` people.
@@ -422,7 +586,14 @@ final class PeopleBridgeTests: XCTestCase {
         XCTAssertEqual(summary.confirmedCount, 0)
         XCTAssertNotNil(summary.medoidFace)
         let members = try library.session.personMembers(personId: a.id)
-        XCTAssertEqual(members.count, a.members.count)
+        XCTAssertEqual(members.count, try model.members(a.id).count)
+        XCTAssertTrue(a.members.isEmpty, "grid tiles carry counts, not members")
+        XCTAssertEqual(a.faces, members.count)
+        if let medoid = summary.medoidFace {
+            XCTAssertEqual(a.medoid, PersonFaceRef(item: try XCTUnwrap(library.itemOfImage[medoid.imageId]), ordinal: medoid.ordinal),
+                           "the tile's crop is the engine's medoid")
+            XCTAssertEqual(a.cover, a.medoid)
+        }
         XCTAssertNil(try library.session.undoPeopleEdit())
         let member = try XCTUnwrap(members.first)
         try library.session.confirmPersonFace(face: member, confirmed: true)
@@ -437,7 +608,7 @@ final class PeopleBridgeTests: XCTestCase {
         XCTAssertNil(legacy.medoidFace)
         XCTAssertEqual(PeopleJobResult(assigned: 0, reclustered: false, approximate: false).sampleSize, 0)
         XCTAssertNil(a.name)
-        XCTAssertEqual(a.members.count, library.items.count)
+        XCTAssertEqual(try model.members(a.id).count, library.items.count)
         XCTAssertNotNil(model.faceRect(try XCTUnwrap(a.cover)))
 
         XCTAssertTrue(model.name(a.id, as: "Ada"), model.message ?? "")
@@ -452,7 +623,7 @@ final class PeopleBridgeTests: XCTestCase {
         let faces = model.detail!.members.map(\.face)
         model.toggleFace(faces[0]); model.toggleFace(faces[1])
         let split = try XCTUnwrap(model.splitSelection(newID: "person-split-test"), model.message ?? "")
-        XCTAssertEqual(model.person(split)?.members.map(\.face), [faces[0], faces[1]])
+        XCTAssertEqual(try model.members(split).map(\.face), [faces[0], faces[1]])
         XCTAssertNil(model.person(split)?.name)
         XCTAssertEqual(model.person(a.id)?.members.count, library.items.count - 2)
         XCTAssertTrue(model.setConfirmed(faces[0], true), model.message ?? "")
@@ -463,6 +634,15 @@ final class PeopleBridgeTests: XCTestCase {
         XCTAssertTrue(model.mergeSelection(), model.message ?? "")
         XCTAssertNil(model.person(split))
         XCTAssertEqual(model.person(a.id)?.name, "Ada", "the named target's name wins")
+        XCTAssertEqual(model.person(a.id)?.members.count, library.items.count)
+        // Edit ▸ Undo / Redo through the real session's people history (M2-44).
+        XCTAssertEqual(model.undoTitle, "Undo Merge People")
+        XCTAssertTrue(model.undo(), model.message ?? "")
+        XCTAssertEqual(model.message, "Undo Merge People")
+        XCTAssertEqual(try model.members(split).count, 1, "the merge source comes back with its id")
+        XCTAssertEqual(model.person(a.id)?.members.count, library.items.count - 1)
+        XCTAssertTrue(model.redo(), model.message ?? "")
+        XCTAssertNil(model.person(split))
         XCTAssertEqual(model.person(a.id)?.members.count, library.items.count)
 
         // Person facet: frames_with_person.

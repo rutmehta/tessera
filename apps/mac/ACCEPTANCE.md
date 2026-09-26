@@ -973,10 +973,13 @@ the battery readout.
 ## U. People view: naming, merge / split, Person facet (M2-40)
 
 **Library ▸ People** in the sidebar (or Library ▸ Show People, ⌥⌘P) replaces the grid with a grid of person tiles:
-the representative face (the sharpest member), the name, or an inline name field for unnamed clusters, the photo count
-and an outlined `Confirmed` chip when every face is confirmed. Named people come first, then by photo count. Opening the
-view runs the incremental clustering job (`refresh_people(force: false)`) off the main thread; Analyze Faces runs it
-again. Every edit goes through the engine's people calls and the tiles reload from `people(refresh: true)`.
+the representative face (the engine's medoid, the most central member; the sharpest member when there is none), the
+name, or an inline name field for unnamed clusters, the photo count and an outlined `Confirmed` chip when every face is
+confirmed. Named people come first, then by photo count. Opening the view runs the incremental clustering job
+(`refresh_people(force: false)`) off the main thread; Analyze Faces runs it again. Tiles come from `people()` alone
+(names, face and confirmed counts, medoid); the detail view reads its faces with one `person_members` call. Every edit
+goes through the engine's people calls and the tiles reload from `people(refresh: true)`. While the People view (or a
+person's detail) is showing, Edit ▸ Undo / Redo replay the engine's people history (M2-44).
 
 **Fixture.** The sample folder has no faces, so these steps use the hidden `--seed-faces` aid: *generated* descriptors
 for two synthetic people (person A in all 40 frames, person B in the 19 frames of odd groups), not real detections.
@@ -1032,21 +1035,29 @@ so the approximation footnote (step 139) needs a larger real library.
      Earlier keywords are not removed.
 140. **Merge.** In People click **Ada L.**, ⌘-click **Ben K.** (both tinted, `2 selected` in the header) and click
      **Merge** in the toolbar. Expect `Merged 2 people into Ada L.` (a named person first, then the most photos, wins
-     and keeps its name) and one tile, `Ada L. · 40 photos`. People edits are not on the ⌘Z history: split to undo a
-     merge. The approximation footnote (`people-approximate-note`, `Clustered from a sample of 1,024 faces`) appears
-     under the grid only after a clustering job over more than 1,024 eligible faces; record whether a large library
-     was tried.
+     and keeps its name) and one tile, `Ada L. · 40 photos`. The approximation footnote (`people-approximate-note`,
+     `Clustered from a sample of N faces`, N the job's reported sample size, at most 1,024) appears under the grid only
+     after a clustering job over more than 1,024 eligible faces; record whether a large library was tried.
+140a. **Undo / Redo (M2-44).** Still in People, open the **Edit** menu 📸: it reads **Undo Merge People** (the engine's
+     description of the last people edit). Press **⌘Z**: status `Undo Merge People`, the grid is back to two tiles,
+     `Ada L.` (40 photos) and `Ben K.` (19 photos), and Edit now offers **Redo Merge People**. Press **⇧⌘Z**: one tile
+     again, status `Redo Merge People`. Double-click the tile, click one face's seal (confirm), then **⌘Z** in the
+     detail view: the seal empties again and the Edit menu reads **Undo Merge People**. Undo also restores names (and,
+     with the XMP opt-in, the sidecar bytes). Click **All Photos**: Edit reads plain **Undo** and ⌘Z addresses culling,
+     not people edits. The people history is per session (up to 32 edits); a new edit clears Redo.
 141. **Tests.**
      ```sh
-     (cd apps/mac && swift test --filter "PeopleModelTests|PeopleBridgeTests|ThemeLintTests" 2>&1 | grep "Executed")
+     (cd apps/mac && swift test --filter "PeopleModelTests|PeopleBridgeTests|PeopleUndoMenuTests|ThemeLintTests" 2>&1 | grep "Executed")
      ```
-     Expect `Executed 12 tests, with 0 failures`: the view model against a stubbed engine (naming and opt-ins,
+     Expect `Executed 17 tests, with 0 failures`: the view model against a stubbed engine (naming and opt-ins,
      suggestions, merge, split, reassign / confirm, the Person facet's intersection, the off-main refresh and the
-     approximation note, errors, in-place library updates) and the same calls through a real engine session.
+     approximation note with the job's sample size, errors, in-place library updates, medoid tiles without an
+     assignment scan, one-call detail members, undo / redo with the engine's descriptions), Edit ▸ Undo / Redo routing
+     in the People view, and the same calls through a real engine session.
 
 ## Verdict (People view)
 
-PASS when steps 130–141 meet their expectations. Record whether real faces (Analyze Faces) and a library with more than
+PASS when steps 130–141 (with 140a) meet their expectations. Record whether real faces (Analyze Faces) and a library with more than
 1,024 faces were tried.
 
 ## Appendix: accessibility identifiers (M2-40)

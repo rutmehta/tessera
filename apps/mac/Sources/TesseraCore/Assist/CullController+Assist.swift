@@ -33,6 +33,12 @@ public struct PersonSummary: Sendable, Equatable, Identifiable {
     public var faces: Int
     public var coverItem: Int?
     public var coverOrdinal: UInt32
+    /// The engine has a name for this person (`name` is otherwise a "Person <id>" placeholder).
+    public var named: Bool = false
+    /// Confirmed faces, same scope as `faces`.
+    public var confirmedCount: Int = 0
+    /// The indexed medoid member, when it is in this library.
+    public var medoid: PersonFaceRef? = nil
 }
 
 public struct FaceChip: Sendable, Equatable, Identifiable {
@@ -109,7 +115,11 @@ extension CullController {
         guard case .engine(let lib) = backend else { return [] }
         return try lib.session.people(refresh: refresh).map {
             PersonSummary(id: $0.id, name: $0.name, items: $0.images.compactMap { lib.itemOfImage[$0] },
-                          faces: Int($0.faces), coverItem: lib.itemOfImage[$0.coverImage], coverOrdinal: $0.coverOrdinal)
+                          faces: Int($0.faces), coverItem: lib.itemOfImage[$0.coverImage], coverOrdinal: $0.coverOrdinal,
+                          named: $0.named, confirmedCount: Int($0.confirmedCount),
+                          medoid: $0.medoidFace.flatMap { f in
+                              lib.itemOfImage[f.imageId].map { PersonFaceRef(item: $0, ordinal: f.ordinal) }
+                          })
         }
     }
 

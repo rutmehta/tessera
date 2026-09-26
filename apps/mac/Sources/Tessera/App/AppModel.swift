@@ -900,7 +900,17 @@ final class AppModel {
         }
     }
 
+    /// Edit ▸ Undo / Redo titles: the People view names the engine's people edit.
+    var undoMenuTitle: String { source == .people ? people.undoTitle : "Undo" }
+    var redoMenuTitle: String { source == .people ? people.redoTitle : "Redo" }
+
     func undo() {
+        // The People view (grid or detail) is frontmost: ⌘Z replays the engine's people history.
+        if source == .people {
+            people.undo()
+            reportPeople()
+            return
+        }
         if let d = develop, d.history.canUndo, undoDomain == .develop || !cull.canUndo {
             developHistoryMove("Undo", label: d.history.headLabel) { try d.undo() }
             return
@@ -920,6 +930,11 @@ final class AppModel {
     }
 
     func redo() {
+        if source == .people {
+            people.redo()
+            reportPeople()
+            return
+        }
         if let d = develop, d.history.canRedo, undoDomain == .develop || !cull.canRedo {
             developHistoryMove("Redo", label: nil) { try d.redo() }
             return

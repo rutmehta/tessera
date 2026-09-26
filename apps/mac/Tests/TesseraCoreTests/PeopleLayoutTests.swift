@@ -39,3 +39,44 @@ final class PeopleLayoutTests: XCTestCase {
         window.orderOut(nil)
     }
 }
+
+/// Edit ▸ Undo / Redo follow the People view (WP M2-44).
+@MainActor
+final class PeopleUndoMenuTests: XCTestCase {
+    func testUndoRedoCoverPeopleEditsWhileThePeopleViewIsFrontmost() {
+        let model = AppModel()
+        model.install(StubLibrary.synthetic(count: 8))
+        let engine = StubPeopleEngine()
+        engine.add("ada", [(0, 0), (1, 0)])
+        engine.add("ben", [(2, 0)])
+        engine.names["ada"] = "Ada"
+        model.people.install(engine)
+        model.people.reload()
+        model.people.selection = ["ada", "ben"]
+        XCTAssertTrue(model.people.mergeSelection())
+
+        XCTAssertEqual(model.undoMenuTitle, "Undo", "outside the People view ⌘Z addresses culling")
+        model.setSource(.people)
+        XCTAssertEqual(model.undoMenuTitle, "Undo Merge People")
+        XCTAssertEqual(model.redoMenuTitle, "Redo")
+        model.undo()
+        XCTAssertTrue(engine.calls.contains("undo"))
+        XCTAssertEqual(model.statusMessage, "Undo Merge People")
+        XCTAssertEqual(model.people.tiles.map(\.id), ["ada", "ben"])
+        XCTAssertEqual(model.redoMenuTitle, "Redo Merge People")
+
+        // In the detail view too.
+        model.people.openDetail("ada")
+        model.redo()
+        XCTAssertTrue(engine.calls.contains("redo"))
+        XCTAssertEqual(model.statusMessage, "Redo Merge People")
+        XCTAssertNil(model.people.person("ben"))
+        XCTAssertEqual(model.people.detail?.members.count, 3)
+
+        model.setSource(.all)
+        XCTAssertEqual(model.undoMenuTitle, "Undo")
+        let before = engine.calls.filter { $0 == "undo" }.count
+        model.undo()
+        XCTAssertEqual(engine.calls.filter { $0 == "undo" }.count, before, "culling undo leaves people history alone")
+    }
+}
