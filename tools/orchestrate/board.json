@@ -1150,5 +1150,13 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M2-48",
+    "owner": "opus",
+    "title": "Develop panels: AI Denoise, Upright, Lens Blur",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
