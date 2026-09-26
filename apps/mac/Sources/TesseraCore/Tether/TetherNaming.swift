@@ -57,6 +57,14 @@ public enum TetherNaming {
         return name
     }
 
+    /// The + menu: tokens go before the extension so the name keeps its format.
+    public static func inserting(_ token: String, into template: String) -> String {
+        if token != "{ext}", let r = template.range(of: ".{ext}", options: .backwards) {
+            return template.replacingCharacters(in: r, with: "_\(token).{ext}")
+        }
+        return template + token
+    }
+
     /// The live example under the field, or the problem.
     public static func example(_ template: String, sequence: UInt64 = 1) -> Result<String, Problem> {
         Result { () throws(Problem) -> String in try render(template, original: exampleOriginal, sequence: sequence) }

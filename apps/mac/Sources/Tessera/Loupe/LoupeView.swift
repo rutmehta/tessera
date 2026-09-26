@@ -54,6 +54,13 @@ final class LoupeController: LibraryObserver {
         selectionDidChange(scrollToFocus: false)
     }
 
+    /// In place: the shown photo keeps its frame (and develop session) under its new id.
+    func libraryDidUpdate(_ change: VisibleChange) {
+        shownID = shownID.flatMap(change.remap)
+        if shownID == nil { engineShown = false }
+        selectionDidChange(scrollToFocus: false)
+    }
+
     func itemsDidChange(_ positions: IndexSet) {}
 
     func selectionDidChange(scrollToFocus: Bool) {

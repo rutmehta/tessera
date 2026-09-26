@@ -66,7 +66,8 @@ public struct DevelopParameter: Hashable, Sendable {
 /// - Engine callbacks arrive on worker threads and are forwarded to the main actor.
 @MainActor
 public final class DevelopController {
-    public let itemID: Int
+    /// The library item it develops; follows in-place library updates (`relink`).
+    public private(set) var itemID: Int
     public let imageID: String
     public let session: DevelopSession
     public let info: DevelopInfo
@@ -121,6 +122,9 @@ public final class DevelopController {
     public static let floatSurfacePixelFormat: UInt32 = 0x5247_6841
 
     /// Opens the session off the main actor (the RAW is decoded there).
+    /// The library renumbered its items in place; the session is unchanged.
+    public func relink(itemID: Int) { self.itemID = itemID }
+
     public static func open(_ ref: EngineImageReference, itemID: Int) async throws -> DevelopController {
         let session = try await Task.detached(priority: .userInitiated) {
             try ref.engine.openDevelopSession(imageId: ref.imageID)

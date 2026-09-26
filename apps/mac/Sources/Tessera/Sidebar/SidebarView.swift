@@ -34,6 +34,8 @@ struct SidebarSnapshot: Equatable {
     var source: LibrarySource
 
     @MainActor init(model: AppModel) {
+        // The library object updates in place (M2-28): observe its revision for the counts.
+        _ = model.libraryRevision
         engineBacked = model.isEngineBacked
         allCount = model.library.items.count
         let filed = Set(model.albums.flatMap(\.members))

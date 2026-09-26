@@ -1088,6 +1088,11 @@ public protocol CullSessionProtocol: AnyObject, Sendable {
     
     func canUndo() throws  -> Bool
     
+    /**
+     * Latest catalog change sequence the queue reflects.
+     */
+    func changeSequence() throws  -> UInt64
+    
     func current() throws  -> String?
     
     func currentGroup() throws  -> UInt32?
@@ -1121,6 +1126,9 @@ public protocol CullSessionProtocol: AnyObject, Sendable {
     
     func gradeImages(imageIds: [String], grade: UInt8) throws  -> CullUpdate
     
+    /**
+     * Scores may have changed since the last call: every best is picked afresh.
+     */
     func groups() throws  -> [CullGroup]
     
     func images() throws  -> [SessionImage]
@@ -1178,6 +1186,15 @@ public protocol CullSessionProtocol: AnyObject, Sendable {
     func setLibrary(path: String) throws 
     
     func setPosition(position: UInt32) throws 
+    
+    /**
+     * Applies catalog changes committed since the last sync (or open) to the
+     * queue in place: new images join at their queue position and burst,
+     * removed ones leave, and only the affected groups are recomputed. The
+     * cursor and the undo/redo history are kept (steps of removed images are
+     * dropped). Call it on `EngineEvent::LibraryChanged`.
+     */
+    func syncChanges() throws  -> QueueDelta
     
     func toggleBasket() throws  -> CullUpdate
     
@@ -1422,6 +1439,18 @@ open func canUndo()throws  -> Bool  {
 })
 }
     
+    /**
+     * Latest catalog change sequence the queue reflects.
+     */
+open func changeSequence()throws  -> UInt64  {
+    return try  FfiConverterUInt64.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_cullsession_change_sequence(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
 open func current()throws  -> String?  {
     return try  FfiConverterOptionString.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
         uniffiCallStatus in
@@ -1527,6 +1556,9 @@ open func gradeImages(imageIds: [String], grade: UInt8)throws  -> CullUpdate  {
 })
 }
     
+    /**
+     * Scores may have changed since the last call: every best is picked afresh.
+     */
 open func groups()throws  -> [CullGroup]  {
     return try  FfiConverterSequenceTypeCullGroup.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
         uniffiCallStatus in
@@ -1739,6 +1771,22 @@ open func setPosition(position: UInt32)throws   {try rustCallWithError(FfiConver
         FfiConverterUInt32.lower(position),uniffiCallStatus
     )
 }
+}
+    
+    /**
+     * Applies catalog changes committed since the last sync (or open) to the
+     * queue in place: new images join at their queue position and burst,
+     * removed ones leave, and only the affected groups are recomputed. The
+     * cursor and the undo/redo history are kept (steps of removed images are
+     * dropped). Call it on `EngineEvent::LibraryChanged`.
+     */
+open func syncChanges()throws  -> QueueDelta  {
+    return try  FfiConverterTypeQueueDelta_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_cullsession_sync_changes(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
 }
     
 open func toggleBasket()throws  -> CullUpdate  {
@@ -3243,6 +3291,10 @@ public protocol EngineProtocol: AnyObject, Sendable {
     
     func listImages(query: ImageQuery) throws  -> [ImageSummary]
     
+    /**
+     * Setting a listener also starts watching the catalog for writes made
+     * elsewhere (reported as `LibraryChanged`).
+     */
     func setEventListener(listener: EngineEventListener?) 
     
     func setRecipeJson(imageId: String, json: String) throws 
@@ -3307,6 +3359,23 @@ public protocol EngineProtocol: AnyObject, Sendable {
      * canonically inside each box. Producers are the face analysis above.
      */
     func setFaces(imageId: String, faces: [FaceInput], width: UInt32, height: UInt32) throws 
+    
+    /**
+     * Latest change sequence of the catalog (0 when nothing was ever written).
+     */
+    func changeSequence() throws  -> UInt64
+    
+    /**
+     * Net changes after `sequence` (see `LibraryChanges`).
+     */
+    func changesSince(sequence: UInt64) throws  -> LibraryChanges
+    
+    /**
+     * Drops the catalog rows of images whose files are gone (after "Delete
+     * from Disk"); images whose files still exist are kept. Open sessions see
+     * them leave through `sync_changes`. Returns the number removed.
+     */
+    func forgetMissing(imageIds: [String]) throws  -> UInt32
     
     /**
      * Opens (without creating) the library document at `path`, conventionally
@@ -3400,6 +3469,9 @@ public protocol EngineProtocol: AnyObject, Sendable {
     /**
      * Returns frames as well as notifying the optional listener. Callbacks run
      * outside the session borrow, so UI code may safely reenter tether commands.
+     * The ingest worker writes the catalog on its own connection; each poll
+     * announces those writes as `EngineEvent::LibraryChanged` (frames join the
+     * library through the change feed, not a reload).
      */
     func tetherPoll() throws  -> [TetherFrame]
     
@@ -3577,6 +3649,10 @@ open func listImages(query: ImageQuery)throws  -> [ImageSummary]  {
 })
 }
     
+    /**
+     * Setting a listener also starts watching the catalog for writes made
+     * elsewhere (reported as `LibraryChanged`).
+     */
 open func setEventListener(listener: EngineEventListener?)  {try! rustCall() {
         uniffiCallStatus in
     uniffi_tessera_ffi_fn_method_engine_set_event_listener(
@@ -3744,6 +3820,46 @@ open func setFaces(imageId: String, faces: [FaceInput], width: UInt32, height: U
         FfiConverterUInt32.lower(height),uniffiCallStatus
     )
 }
+}
+    
+    /**
+     * Latest change sequence of the catalog (0 when nothing was ever written).
+     */
+open func changeSequence()throws  -> UInt64  {
+    return try  FfiConverterUInt64.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_change_sequence(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Net changes after `sequence` (see `LibraryChanges`).
+     */
+open func changesSince(sequence: UInt64)throws  -> LibraryChanges  {
+    return try  FfiConverterTypeLibraryChanges_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_changes_since(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(sequence),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Drops the catalog rows of images whose files are gone (after "Delete
+     * from Disk"); images whose files still exist are kept. Open sessions see
+     * them leave through `sync_changes`. Returns the number removed.
+     */
+open func forgetMissing(imageIds: [String])throws  -> UInt32  {
+    return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_forget_missing(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceString.lower(imageIds),uniffiCallStatus
+    )
+})
 }
     
     /**
@@ -3971,6 +4087,9 @@ open func tetherLiveView()throws  -> Data  {
     /**
      * Returns frames as well as notifying the optional listener. Callbacks run
      * outside the session borrow, so UI code may safely reenter tether commands.
+     * The ingest worker writes the catalog on its own connection; each poll
+     * announces those writes as `EngineEvent::LibraryChanged` (frames join the
+     * library through the change feed, not a reload).
      */
 open func tetherPoll()throws  -> [TetherFrame]  {
     return try  FfiConverterSequenceTypeTetherFrame.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
@@ -7236,6 +7355,107 @@ public func FfiConverterTypeBrushSettings_lower(_ value: BrushSettings) -> RustB
 
 
 /**
+ * What changed about an image (all false for adds and removes).
+ */
+public struct ChangedFields: Equatable, Hashable {
+    /**
+     * File path, size or modification time: new pixels or a move.
+     */
+    public var file: Bool
+    public var captureTime: Bool
+    /**
+     * Camera, lens, caption, GPS or orientation.
+     */
+    public var metadata: Bool
+    public var selection: Bool
+    /**
+     * A develop edit was saved (thumbnails and derived status change).
+     */
+    public var recipe: Bool
+    public var keywords: Bool
+    /**
+     * AI signals (focus, faces, quality); a group's suggested best may change.
+     */
+    public var scores: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * File path, size or modification time: new pixels or a move.
+         */file: Bool, captureTime: Bool, 
+        /**
+         * Camera, lens, caption, GPS or orientation.
+         */metadata: Bool, selection: Bool, 
+        /**
+         * A develop edit was saved (thumbnails and derived status change).
+         */recipe: Bool, keywords: Bool, 
+        /**
+         * AI signals (focus, faces, quality); a group's suggested best may change.
+         */scores: Bool) {
+        self.file = file
+        self.captureTime = captureTime
+        self.metadata = metadata
+        self.selection = selection
+        self.recipe = recipe
+        self.keywords = keywords
+        self.scores = scores
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ChangedFields: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeChangedFields: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ChangedFields {
+        return
+            try ChangedFields(
+                file: FfiConverterBool.read(from: &buf), 
+                captureTime: FfiConverterBool.read(from: &buf), 
+                metadata: FfiConverterBool.read(from: &buf), 
+                selection: FfiConverterBool.read(from: &buf), 
+                recipe: FfiConverterBool.read(from: &buf), 
+                keywords: FfiConverterBool.read(from: &buf), 
+                scores: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ChangedFields, into buf: inout [UInt8]) {
+        FfiConverterBool.write(value.file, into: &buf)
+        FfiConverterBool.write(value.captureTime, into: &buf)
+        FfiConverterBool.write(value.metadata, into: &buf)
+        FfiConverterBool.write(value.selection, into: &buf)
+        FfiConverterBool.write(value.recipe, into: &buf)
+        FfiConverterBool.write(value.keywords, into: &buf)
+        FfiConverterBool.write(value.scores, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeChangedFields_lift(_ buf: RustBuffer) throws -> ChangedFields {
+    return try FfiConverterTypeChangedFields.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeChangedFields_lower(_ value: ChangedFields) -> RustBuffer {
+    return FfiConverterTypeChangedFields.lower(value)
+}
+
+
+/**
  * Burst / near-duplicate group. Members follow queue order.
  */
 public struct CullGroup: Equatable, Hashable {
@@ -9927,6 +10147,144 @@ public func FfiConverterTypeKeywordSuggestionInfo_lift(_ buf: RustBuffer) throws
 #endif
 public func FfiConverterTypeKeywordSuggestionInfo_lower(_ value: KeywordSuggestionInfo) -> RustBuffer {
     return FfiConverterTypeKeywordSuggestionInfo.lower(value)
+}
+
+
+/**
+ * Net change of one image since the pull's starting sequence.
+ */
+public struct LibraryChange: Equatable, Hashable {
+    /**
+     * Sequence of the image's latest contributing write.
+     */
+    public var sequence: UInt64
+    public var imageId: String
+    public var kind: LibraryChangeKind
+    public var fields: ChangedFields
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Sequence of the image's latest contributing write.
+         */sequence: UInt64, imageId: String, kind: LibraryChangeKind, fields: ChangedFields) {
+        self.sequence = sequence
+        self.imageId = imageId
+        self.kind = kind
+        self.fields = fields
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LibraryChange: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLibraryChange: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LibraryChange {
+        return
+            try LibraryChange(
+                sequence: FfiConverterUInt64.read(from: &buf), 
+                imageId: FfiConverterString.read(from: &buf), 
+                kind: FfiConverterTypeLibraryChangeKind.read(from: &buf), 
+                fields: FfiConverterTypeChangedFields.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LibraryChange, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.sequence, into: &buf)
+        FfiConverterString.write(value.imageId, into: &buf)
+        FfiConverterTypeLibraryChangeKind.write(value.kind, into: &buf)
+        FfiConverterTypeChangedFields.write(value.fields, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLibraryChange_lift(_ buf: RustBuffer) throws -> LibraryChange {
+    return try FfiConverterTypeLibraryChange.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLibraryChange_lower(_ value: LibraryChange) -> RustBuffer {
+    return FfiConverterTypeLibraryChange.lower(value)
+}
+
+
+/**
+ * Changes after `from` up to `sequence`, one entry per image in write order.
+ * `reset`: the range is no longer available (trimmed, or another catalog);
+ * reload instead of applying.
+ */
+public struct LibraryChanges: Equatable, Hashable {
+    public var from: UInt64
+    public var sequence: UInt64
+    public var reset: Bool
+    public var changes: [LibraryChange]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(from: UInt64, sequence: UInt64, reset: Bool, changes: [LibraryChange]) {
+        self.from = from
+        self.sequence = sequence
+        self.reset = reset
+        self.changes = changes
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LibraryChanges: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLibraryChanges: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LibraryChanges {
+        return
+            try LibraryChanges(
+                from: FfiConverterUInt64.read(from: &buf), 
+                sequence: FfiConverterUInt64.read(from: &buf), 
+                reset: FfiConverterBool.read(from: &buf), 
+                changes: FfiConverterSequenceTypeLibraryChange.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LibraryChanges, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.from, into: &buf)
+        FfiConverterUInt64.write(value.sequence, into: &buf)
+        FfiConverterBool.write(value.reset, into: &buf)
+        FfiConverterSequenceTypeLibraryChange.write(value.changes, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLibraryChanges_lift(_ buf: RustBuffer) throws -> LibraryChanges {
+    return try FfiConverterTypeLibraryChanges.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLibraryChanges_lower(_ value: LibraryChanges) -> RustBuffer {
+    return FfiConverterTypeLibraryChanges.lower(value)
 }
 
 
@@ -12660,6 +13018,122 @@ public func FfiConverterTypePrinterProfile_lower(_ value: PrinterProfile) -> Rus
 }
 
 
+/**
+ * Catalog changes applied to the open queue in place (`sync_changes`). The
+ * cursor, undo/redo history and unaffected groups are kept.
+ */
+public struct QueueDelta: Equatable, Hashable {
+    /**
+     * Catalog change sequence now reflected by the queue.
+     */
+    public var sequence: UInt64
+    /**
+     * The changes could not be applied incrementally: reopen the session.
+     */
+    public var reset: Bool
+    /**
+     * New members in queue order (`group` indexes the new `groups`).
+     */
+    public var added: [SessionImage]
+    /**
+     * Image ids that left the queue.
+     */
+    public var removed: [String]
+    /**
+     * Remaining members whose rows changed.
+     */
+    public var updated: [UpdatedImage]
+    /**
+     * The complete group layout when membership, order or a suggested best
+     * changed (only affected groups are recomputed); `None` when unchanged.
+     */
+    public var groups: [CullGroup]?
+    public var current: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Catalog change sequence now reflected by the queue.
+         */sequence: UInt64, 
+        /**
+         * The changes could not be applied incrementally: reopen the session.
+         */reset: Bool, 
+        /**
+         * New members in queue order (`group` indexes the new `groups`).
+         */added: [SessionImage], 
+        /**
+         * Image ids that left the queue.
+         */removed: [String], 
+        /**
+         * Remaining members whose rows changed.
+         */updated: [UpdatedImage], 
+        /**
+         * The complete group layout when membership, order or a suggested best
+         * changed (only affected groups are recomputed); `None` when unchanged.
+         */groups: [CullGroup]?, current: String?) {
+        self.sequence = sequence
+        self.reset = reset
+        self.added = added
+        self.removed = removed
+        self.updated = updated
+        self.groups = groups
+        self.current = current
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension QueueDelta: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeQueueDelta: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> QueueDelta {
+        return
+            try QueueDelta(
+                sequence: FfiConverterUInt64.read(from: &buf), 
+                reset: FfiConverterBool.read(from: &buf), 
+                added: FfiConverterSequenceTypeSessionImage.read(from: &buf), 
+                removed: FfiConverterSequenceString.read(from: &buf), 
+                updated: FfiConverterSequenceTypeUpdatedImage.read(from: &buf), 
+                groups: FfiConverterOptionSequenceTypeCullGroup.read(from: &buf), 
+                current: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: QueueDelta, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.sequence, into: &buf)
+        FfiConverterBool.write(value.reset, into: &buf)
+        FfiConverterSequenceTypeSessionImage.write(value.added, into: &buf)
+        FfiConverterSequenceString.write(value.removed, into: &buf)
+        FfiConverterSequenceTypeUpdatedImage.write(value.updated, into: &buf)
+        FfiConverterOptionSequenceTypeCullGroup.write(value.groups, into: &buf)
+        FfiConverterOptionString.write(value.current, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeQueueDelta_lift(_ buf: RustBuffer) throws -> QueueDelta {
+    return try FfiConverterTypeQueueDelta.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeQueueDelta_lower(_ value: QueueDelta) -> RustBuffer {
+    return FfiConverterTypeQueueDelta.lower(value)
+}
+
+
 public struct RuleCheck: Equatable, Hashable {
     /**
      * Text for the rule: normalized when it came from items, else the input.
@@ -14001,6 +14475,63 @@ public func FfiConverterTypeUnderstandingModelStatus_lower(_ value: Understandin
 
 
 /**
+ * A queue member whose catalog row changed, with what changed.
+ */
+public struct UpdatedImage: Equatable, Hashable {
+    public var image: SessionImage
+    public var fields: ChangedFields
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(image: SessionImage, fields: ChangedFields) {
+        self.image = image
+        self.fields = fields
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension UpdatedImage: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeUpdatedImage: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UpdatedImage {
+        return
+            try UpdatedImage(
+                image: FfiConverterTypeSessionImage.read(from: &buf), 
+                fields: FfiConverterTypeChangedFields.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: UpdatedImage, into buf: inout [UInt8]) {
+        FfiConverterTypeSessionImage.write(value.image, into: &buf)
+        FfiConverterTypeChangedFields.write(value.fields, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeUpdatedImage_lift(_ buf: RustBuffer) throws -> UpdatedImage {
+    return try FfiConverterTypeUpdatedImage.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeUpdatedImage_lower(_ value: UpdatedImage) -> RustBuffer {
+    return FfiConverterTypeUpdatedImage.lower(value)
+}
+
+
+/**
  * Who plans the base edit. Keys are passed per run (the host keeps them in
  * the Keychain); they are never stored, logged or included in errors.
  */
@@ -14556,6 +15087,12 @@ public enum EngineEvent: Equatable, Hashable {
     )
     case previewReady(imageId: String, maxPx: UInt32
     )
+    /**
+     * The catalog changed up to `sequence`: pull `changes_since` (or
+     * `CullSession::sync_changes`) from the last sequence you applied.
+     */
+    case libraryChanged(sequence: UInt64
+    )
 
 
 
@@ -14583,6 +15120,9 @@ public struct FfiConverterTypeEngineEvent: FfiConverterRustBuffer {
         case 2: return .previewReady(imageId: try FfiConverterString.read(from: &buf), maxPx: try FfiConverterUInt32.read(from: &buf)
         )
         
+        case 3: return .libraryChanged(sequence: try FfiConverterUInt64.read(from: &buf)
+        )
+        
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
@@ -14602,6 +15142,11 @@ public struct FfiConverterTypeEngineEvent: FfiConverterRustBuffer {
             writeInt(&buf, Int32(2))
             FfiConverterString.write(imageId, into: &buf)
             FfiConverterUInt32.write(maxPx, into: &buf)
+            
+        
+        case let .libraryChanged(sequence):
+            writeInt(&buf, Int32(3))
+            FfiConverterUInt64.write(sequence, into: &buf)
             
         }
     }
@@ -14823,6 +15368,79 @@ public func FfiConverterTypeFacetField_lift(_ buf: RustBuffer) throws -> FacetFi
 #endif
 public func FfiConverterTypeFacetField_lower(_ value: FacetField) -> RustBuffer {
     return FfiConverterTypeFacetField.lower(value)
+}
+
+
+
+
+public enum LibraryChangeKind: Equatable, Hashable {
+    
+    case added
+    case removed
+    case updated
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension LibraryChangeKind: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLibraryChangeKind: FfiConverterRustBuffer {
+    typealias SwiftType = LibraryChangeKind
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LibraryChangeKind {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .added
+        
+        case 2: return .removed
+        
+        case 3: return .updated
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: LibraryChangeKind, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .added:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .removed:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .updated:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLibraryChangeKind_lift(_ buf: RustBuffer) throws -> LibraryChangeKind {
+    return try FfiConverterTypeLibraryChangeKind.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLibraryChangeKind_lower(_ value: LibraryChangeKind) -> RustBuffer {
+    return FfiConverterTypeLibraryChangeKind.lower(value)
 }
 
 
@@ -16674,6 +17292,30 @@ fileprivate struct FfiConverterOptionSequenceString: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionSequenceTypeCullGroup: FfiConverterRustBuffer {
+    typealias SwiftType = [CullGroup]?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterSequenceTypeCullGroup.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterSequenceTypeCullGroup.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceUInt16: FfiConverterRustBuffer {
     typealias SwiftType = [UInt16]
 
@@ -17424,6 +18066,31 @@ fileprivate struct FfiConverterSequenceTypeKeywordSuggestionInfo: FfiConverterRu
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeLibraryChange: FfiConverterRustBuffer {
+    typealias SwiftType = [LibraryChange]
+
+    public static func write(_ value: [LibraryChange], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeLibraryChange.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [LibraryChange] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [LibraryChange]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeLibraryChange.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeLibraryNode: FfiConverterRustBuffer {
     typealias SwiftType = [LibraryNode]
 
@@ -18024,6 +18691,31 @@ fileprivate struct FfiConverterSequenceTypeUnderstandingJobInfo: FfiConverterRus
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeUpdatedImage: FfiConverterRustBuffer {
+    typealias SwiftType = [UpdatedImage]
+
+    public static func write(_ value: [UpdatedImage], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeUpdatedImage.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [UpdatedImage] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [UpdatedImage]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeUpdatedImage.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeUnderstandingTask: FfiConverterRustBuffer {
     typealias SwiftType = [UnderstandingTask]
 
@@ -18147,7 +18839,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_engine_list_images() != 16781) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_engine_set_event_listener() != 35077) {
+    if (uniffi_tessera_ffi_checksum_method_engine_set_event_listener() != 57764) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_engine_set_recipe_json() != 19443) {
@@ -18181,6 +18873,15 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_engine_set_faces() != 11903) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_change_sequence() != 48533) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_changes_since() != 28039) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_forget_missing() != 32169) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_engine_open_library() != 50227) {
@@ -18234,7 +18935,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_engine_tether_live_view() != 35362) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_engine_tether_poll() != 64019) {
+    if (uniffi_tessera_ffi_checksum_method_engine_tether_poll() != 62001) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_engine_tether_set_listener() != 42407) {
@@ -18627,6 +19328,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_cullsession_can_undo() != 12554) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tessera_ffi_checksum_method_cullsession_change_sequence() != 19424) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_tessera_ffi_checksum_method_cullsession_current() != 45342) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -18654,7 +19358,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_cullsession_grade_images() != 37492) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_cullsession_groups() != 7383) {
+    if (uniffi_tessera_ffi_checksum_method_cullsession_groups() != 59908) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_cullsession_images() != 25101) {
@@ -18715,6 +19419,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_cullsession_set_position() != 42755) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_cullsession_sync_changes() != 62763) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_cullsession_toggle_basket() != 33060) {

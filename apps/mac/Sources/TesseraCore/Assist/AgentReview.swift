@@ -76,6 +76,11 @@ public struct AgentReviewEntry: Sendable, Equatable, Identifiable {
 /// rows do not jump while the photographer works through them.
 public struct AgentReviewQueue: Sendable, Equatable {
     public private(set) var entries: [AgentReviewEntry]
+
+    /// Re-resolves each entry's library item from its image id (the library changed in place).
+    public mutating func relink(_ item: (String) -> Int?) {
+        for i in entries.indices { entries[i].itemID = item(entries[i].imageID) }
+    }
     /// Provider that produced the queue ("scripted planner", "Anthropic claude-…").
     public var provider: String
 

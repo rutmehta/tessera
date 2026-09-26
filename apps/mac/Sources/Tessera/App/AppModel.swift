@@ -2,6 +2,7 @@ import AppKit
 import Observation
 import TesseraCore
 import struct TesseraFFI.HistoryState
+import struct TesseraFFI.QueueDelta
 
 enum ViewMode: String, CaseIterable, Identifiable {
     case grid = "Grid"
@@ -59,6 +60,10 @@ struct Toast: Identifiable, Equatable {
 /// observation, so per-item changes on 20k items never invalidate SwiftUI view bodies.
 @MainActor protocol LibraryObserver: AnyObject {
     func libraryDidReload()
+    /// The library changed in place (catalog change feed: tethered frames, imports, rescans):
+    /// `visible` moved from `change.oldKeys` to `change.newKeys`; item ids moved per `change.remap`.
+    /// Selection, filters and history are kept; views update without a reload.
+    func libraryDidUpdate(_ change: VisibleChange)
     /// `positions` index into `AppModel.visible`.
     func itemsDidChange(_ positions: IndexSet)
     func selectionDidChange(scrollToFocus: Bool)
@@ -71,7 +76,21 @@ struct Toast: Identifiable, Equatable {
     func developDidRender(_ frame: DevelopFrame, controller: DevelopController)
 }
 
+/// See `LibraryObserver.libraryDidUpdate`.
+struct VisibleChange {
+    /// Engine image ids of `AppModel.visible`, before and after.
+    let oldKeys: [String]
+    let newKeys: [String]
+    /// New positions whose cells show changed state (decision, badges, group).
+    let changed: IndexSet
+    /// New positions whose thumbnails must be requested again (recipe or file changed).
+    let thumbnails: IndexSet
+    /// Old item id → new item id (nil: the photo left the library).
+    let remap: (Int) -> Int?
+}
+
 extension LibraryObserver {
+    func libraryDidUpdate(_ change: VisibleChange) {}
     func thumbnailSizeDidChange() {}
     func thumbnailsDidChange(_ positions: IndexSet) {}
     func developDidChange() {}
@@ -114,7 +133,7 @@ final class AppModel {
     private(set) var isEngineBacked = false
     private(set) var compare: ComparePair? {
         // The inspector and status bar follow the active side.
-        didSet { if let id = compare?.activeID, id != oldValue?.activeID { select(id: id) } }
+        didSet { if !relinking, let id = compare?.activeID, id != oldValue?.activeID { select(id: id) } }
     }
     var toast: Toast?
     var showDefectSweep = false
@@ -196,6 +215,14 @@ final class AppModel {
     @ObservationIgnored private var readoutTask: Task<Void, Never>?
     @ObservationIgnored private var loadGeneration = 0
     @ObservationIgnored private var modeBeforeCompare: ViewMode = .grid
+    /// In-place library updates (M2-28): one catalog pull at a time, coalesced.
+    @ObservationIgnored private var syncInFlight = false
+    @ObservationIgnored private var syncRequested = false
+    @ObservationIgnored private var syncWaiters: [@MainActor @Sendable () -> Void] = []
+    /// Item ids are being renumbered: property observers must not treat it as navigation.
+    @ObservationIgnored private var relinking = false
+    /// Bumped by every in-place library update (views holding item ids refresh).
+    private(set) var libraryRevision = 0
 
     private struct WeakObserver { weak var value: (any LibraryObserver)? }
 
@@ -270,6 +297,13 @@ final class AppModel {
 
     /// `then` runs after the load (success or failure; the tether session restores its view on reloads).
     func openFolder(_ url: URL, message: String? = nil, then: (@MainActor (AppModel, _ loaded: Bool) -> Void)? = nil) {
+        // The open folder again (a catalog import into it, reopening it): rescan in the
+        // background and apply the changes in place, keeping history, filters and selection.
+        if let lib = engineLibrary, let folder = lib.folder, !isLoading,
+           Self.sameFolder(folder, url) {
+            rescan(lib, message: message, then: then)
+            return
+        }
         loadGeneration += 1
         let generation = loadGeneration
         let useStub = ProcessInfo.processInfo.arguments.contains("--stub-library")
@@ -320,8 +354,11 @@ final class AppModel {
         UserDefaults.standard.set(recentFolders.map(\.path), forKey: Self.recentFoldersKey)
     }
 
-    private func install(_ lib: any PhotoLibrary) {
+    func install(_ lib: any PhotoLibrary) {
         loader.removeAll()
+        (library as? EngineLibrary)?.onCatalogChange(nil)
+        syncWaiters.removeAll()
+        syncRequested = false
         library = lib
         cull = lib.makeCullController()
         isEngineBacked = cull.isEngineBacked
@@ -337,27 +374,51 @@ final class AppModel {
         refreshSummary()
         liveObservers.forEach { $0.libraryDidReload() }
         notifySelection(scroll: true)
+        if let engine = lib as? EngineLibrary {
+            engine.onCatalogChange { [weak self] _ in
+                Task { @MainActor in self?.syncLibrary() }
+            }
+            // Changes committed between the scan and now (a tether frame in flight).
+            syncLibrary()
+        }
     }
 
-    private func rebuildVisible() {
+    /// `keeping`: an in-place update. Those items stay whatever the filters say now (filters
+    /// apply when chosen, not live), and only `admitting` items are checked against them.
+    private func rebuildVisible(keeping: Set<Int>? = nil, admitting: Set<Int> = []) {
         let items = library.items
         // Engine search result for the source's scope + the filter bar (nil: not needed).
         let matches = collections.matches
         let matched = matches.map(Set.init)
+        let base: [Int]
+        let passes: (Int) -> Bool
         switch source {
         case .all, .notInAlbum, .smartAlbum, .group:
-            visible = matched.map { m in items.indices.filter { m.contains($0) } } ?? Array(items.indices)
+            base = Array(items.indices)
+            passes = { matched?.contains($0) != false }
         case .album(let name):
             // Manual album order (docs/06 §4.2); the search keeps it too.
-            visible = matches ?? cull.members(ofAlbum: name)
+            if keeping == nil {
+                base = matches ?? cull.members(ofAlbum: name)
+                passes = { _ in true }
+            } else {
+                base = cull.members(ofAlbum: name)
+                passes = { matched?.contains($0) != false }
+            }
         case .decision(let d):
-            visible = items.indices.filter { cull[$0].decision == d && matched?.contains($0) != false }
+            base = Array(items.indices)
+            passes = { self.cull[$0].decision == d && matched?.contains($0) != false }
         case .mark(let m):
-            visible = items.indices.filter { cull[$0].mark == m && matched?.contains($0) != false }
+            base = Array(items.indices)
+            passes = { self.cull[$0].mark == m && matched?.contains($0) != false }
         }
         // Assisted culling: the per-person filter, then the confidence order (docs/06 §3).
-        if let person = assist.personFilter {
-            visible = visible.filter { person.items.contains($0) }
+        let person = assist.personFilter
+        let shown: (Int) -> Bool = { id in passes(id) && person?.items.contains(id) != false }
+        if let keeping {
+            visible = base.filter { keeping.contains($0) || (admitting.contains($0) && shown($0)) }
+        } else {
+            visible = base.filter(shown)
         }
         if assist.enabled, assist.sortByConfidence, !assist.order.isEmpty {
             var rank = [Int: Int](minimumCapacity: assist.order.count)
@@ -394,6 +455,179 @@ final class AppModel {
         refreshFocusSummary()
         liveObservers.forEach { $0.libraryDidReload() }
         notifySelection(scroll: true)
+    }
+
+    // MARK: In-place library updates (M2-28)
+
+    static func sameFolder(_ a: URL, _ b: URL) -> Bool {
+        a.standardizedFileURL.resolvingSymlinksInPath() == b.standardizedFileURL.resolvingSymlinksInPath()
+    }
+
+    /// Pulls catalog changes into the open library in place: tethered frames, imports, rescans
+    /// and other writers. One pull at a time; calls during a pull are coalesced into one more.
+    /// `then` runs after a pull that started after this call.
+    func syncLibrary(then: (@MainActor @Sendable () -> Void)? = nil) {
+        guard let lib = engineLibrary else { then?(); return }
+        if let then { syncWaiters.append(then) }
+        guard !syncInFlight else { syncRequested = true; return }
+        syncInFlight = true
+        syncRequested = false
+        let waiters = syncWaiters
+        syncWaiters = []
+        Task.detached(priority: .userInitiated) {
+            // Blocking: grouping a new frame reads its preview for near-duplicates.
+            let result = Result { try lib.session.syncChanges() }
+            await MainActor.run {
+                self.syncInFlight = false
+                if self.engineLibrary === lib {
+                    switch result {
+                    case .success(let delta): self.apply(delta, to: lib)
+                    case .failure(let error): self.statusMessage = "Library update failed: \(error.localizedDescription)"
+                    }
+                }
+                waiters.forEach { $0() }
+                if self.syncRequested || !self.syncWaiters.isEmpty { self.syncLibrary() }
+            }
+        }
+    }
+
+    /// Re-indexes the open folder in the background, then applies what changed in place.
+    private func rescan(_ lib: EngineLibrary, message: String?, then: (@MainActor (AppModel, _ loaded: Bool) -> Void)?) {
+        guard let folder = lib.folder else { return }
+        statusMessage = "Updating \(folder.lastPathComponent)…"
+        Task.detached(priority: .userInitiated) {
+            let result = Result { try lib.engine.indexFolder(path: folder.path) }
+            await MainActor.run {
+                guard self.engineLibrary === lib else { then?(self, false); return }
+                switch result {
+                case .success(let handle):
+                    self.syncLibrary {
+                        self.statusMessage = message ?? "Updated \(lib.title): \(handle.updated) changed, \(lib.items.count.formatted()) images"
+                        then?(self, true)
+                    }
+                case .failure(let error):
+                    self.statusMessage = error.localizedDescription
+                    then?(self, false)
+                }
+            }
+        }
+    }
+
+    private func apply(_ delta: QueueDelta, to lib: EngineLibrary) {
+        if delta.reset {
+            // The change log no longer covers this session: a full reload is the fallback.
+            if let folder = lib.folder { reopen(folder) }
+            return
+        }
+        let oldKeys = visible.map { lib.imageIDs[$0] }
+        let selected = Set(selection.compactMap { oldKeys.indices.contains($0) ? oldKeys[$0] : nil })
+        let focusKey = focus.flatMap { oldKeys.indices.contains($0) ? oldKeys[$0] : nil }
+        let anchorKey = anchor.flatMap { oldKeys.indices.contains($0) ? oldKeys[$0] : nil }
+        guard let update = lib.apply(delta) else {
+            if let folder = lib.folder { reopen(folder) }
+            return
+        }
+        guard !update.isEmpty else { return }
+        cull.libraryDidUpdate(update)
+        // A decision rewrites the recipe (its selection) and so its hash: only other recipe or
+        // file changes mean new pixels. Develop and agent saves refresh their own thumbnails.
+        var stale: [Int] = []
+        for (id, fields) in update.updated where fields.file || (fields.recipe && !fields.selection) {
+            loader.invalidate(lib.items[id])
+            stale.append(id)
+        }
+        if update.inserted.isEmpty, update.removed.isEmpty, !update.groupsChanged, !update.idsMoved {
+            // Rows changed in place (decisions from another writer, scores, edits): redraw cells.
+            refreshSummary()
+            collections.cullDidChange(albums: false)
+            let positions = { (ids: [Int]) in
+                IndexSet(ids.compactMap { self.positionOfID.indices.contains($0) && self.positionOfID[$0] >= 0 ? self.positionOfID[$0] : nil })
+            }
+            let changed = positions(update.updated.map { $0.id })
+            let thumbnails = positions(stale)
+            liveObservers.forEach { $0.thumbnailsDidChange(thumbnails); $0.itemsDidChange(changed) }
+            return
+        }
+        collections.catalog?.libraryDidUpdate(lib)
+        let remap: (Int) -> Int? = { update.newID($0) }
+        relinking = true
+        assist.libraryDidUpdate(remap)
+        agent.libraryDidUpdate(lib)
+        if let d = develop {
+            if let id = remap(d.itemID) { d.relink(itemID: id) } else { closeDevelop() }
+        }
+        if var pair = compare {
+            let ids = pair.ids.compactMap(remap)
+            if ids.count == 2 {
+                pair.ids = ids
+                compare = pair
+            } else {
+                compare = nil
+                if viewMode == .compare { viewMode = modeBeforeCompare }
+            }
+        }
+        relinking = false
+        collections.refreshMatches()
+        let keeping = Set(oldKeys.compactMap { lib.itemOfImage[$0] })
+        reflow(lib: lib, oldKeys: oldKeys, selected: selected, focusKey: focusKey, anchorKey: anchorKey,
+               keeping: keeping, admitting: Set(update.inserted), updated: update.updated.map { $0.id }, stale: stale,
+               remap: remap)
+        tether.libraryDidUpdate()
+    }
+
+    /// Shows items that joined an album or passed the source after the fact (a tethered frame
+    /// filed into the session album), without re-filtering what is already visible.
+    func admit(_ ids: [Int]) {
+        guard let lib = engineLibrary else { return }
+        cull.reloadLibrary()
+        let fresh = ids.filter { lib.items.indices.contains($0) && !(positionOfID.indices.contains($0) && positionOfID[$0] >= 0) }
+        let oldKeys = visible.map { lib.imageIDs[$0] }
+        collections.refreshMatches()
+        reflow(lib: lib, oldKeys: oldKeys,
+               selected: Set(selection.compactMap { oldKeys.indices.contains($0) ? oldKeys[$0] : nil }),
+               focusKey: focus.flatMap { oldKeys.indices.contains($0) ? oldKeys[$0] : nil },
+               anchorKey: anchor.flatMap { oldKeys.indices.contains($0) ? oldKeys[$0] : nil },
+               keeping: Set(visible), admitting: Set(fresh), updated: ids, stale: [], remap: { $0 })
+    }
+
+    /// Rebuilds `visible` in place and tells the views what moved (no reload, no scroll reset).
+    private func reflow(lib: EngineLibrary, oldKeys: [String], selected: Set<String>, focusKey: String?,
+                        anchorKey: String?, keeping: Set<Int>, admitting: Set<Int>, updated: [Int], stale: [Int],
+                        remap: @escaping (Int) -> Int?) {
+        let oldFocus = focus
+        rebuildVisible(keeping: keeping, admitting: admitting)
+        let newKeys = visible.map { lib.imageIDs[$0] }
+        var position = [String: Int](minimumCapacity: newKeys.count)
+        for (p, key) in newKeys.enumerated() { position[key] = p }
+        selection = IndexSet(selected.compactMap { position[$0] })
+        focus = focusKey.flatMap { position[$0] } ?? (visible.isEmpty ? nil : min(oldFocus ?? 0, visible.count - 1))
+        if selection.isEmpty, let focus { selection = [focus] }
+        anchor = anchorKey.flatMap { position[$0] } ?? focus
+        func positions(_ ids: [Int]) -> IndexSet {
+            IndexSet(ids.compactMap { positionOfID.indices.contains($0) && positionOfID[$0] >= 0 ? positionOfID[$0] : nil })
+        }
+        let change = VisibleChange(oldKeys: oldKeys, newKeys: newKeys, changed: positions(updated),
+                                   thumbnails: positions(stale), remap: remap)
+        libraryRevision += 1
+        refreshSummary()
+        liveObservers.forEach { $0.libraryDidUpdate(change) }
+        notifySelection(scroll: false)
+    }
+
+    /// Full reload of `folder`, keeping the source (fallback when changes cannot be applied).
+    private func reopen(_ folder: URL) {
+        loadGeneration += 1
+        let generation = loadGeneration
+        let target = basketTarget
+        Task.detached(priority: .userInitiated) {
+            let result = Result { try EngineLibrary.scan(folder: folder, basketTarget: target) }
+            await MainActor.run {
+                guard generation == self.loadGeneration, case .success(let lib) = result else { return }
+                let source = self.source
+                self.install(lib)
+                if source != .all { self.setSource(source) }
+            }
+        }
     }
 
     // MARK: Accessors for AppKit views
@@ -654,10 +888,14 @@ final class AppModel {
     private func refreshFocusSummary() {
         if let f = focus, f < visible.count {
             let it = item(at: f)
-            if focusedItem?.id != it.id {
+            if focusedItem != it {
+                // Renumbered by an in-place update: same photo, no reload of its panels.
+                let samePhoto = it.engineImage != nil && focusedItem?.engineImage == it.engineImage
                 focusedItem = it
-                collections.focusDidChange()
-                assist.refreshFaces()
+                if !samePhoto {
+                    collections.focusDidChange()
+                    assist.refreshFaces()
+                }
             }
             if focusedPosition != f { focusedPosition = f }
             let s = cull[it.id]
@@ -794,16 +1032,21 @@ final class AppModel {
         }
     }
 
+    /// The trashed photos leave the catalog and the open library in place (the rest of the
+    /// library, its filters and the undo history stay).
     private func deleteFromDisk(_ ids: [Int]) {
-        guard let folder = library.folder else { return }
+        guard let lib = engineLibrary else { return }
+        let imageIDs = ids.filter(lib.imageIDs.indices.contains).map { lib.imageIDs[$0] }
         do {
             let trashed = try cull.moveToTrash(ids)
             let msg = "Moved \(trashed.count) photo\(trashed.count == 1 ? "" : "s") to the Trash"
             showToast(msg, undoable: false)
-            openFolder(folder, message: msg)
+            _ = try lib.engine.forgetMissing(imageIds: imageIDs)
+            syncLibrary { self.statusMessage = msg }
         } catch {
             statusMessage = "Delete from disk failed: \(error.localizedDescription)"
-            openFolder(folder)
+            _ = try? lib.engine.forgetMissing(imageIds: imageIDs)
+            syncLibrary()
         }
     }
 
@@ -922,8 +1165,10 @@ final class AppModel {
             guard let self, let controller else { return }
             self.developDidRender(frame, controller)
         }
-        let itemID = controller.itemID
-        controller.onSaved = { [weak self] _ in self?.developDidSave(itemID: itemID) }
+        // The item id can change while the session is open (in-place library updates).
+        controller.onSaved = { [weak self, weak controller] _ in
+            if let controller { self?.developDidSave(itemID: controller.itemID) }
+        }
         controller.onFailure = { [weak self] message in self?.statusMessage = "Develop: \(message)" }
         if ProcessInfo.processInfo.arguments.contains("--develop-selftest"), !developSelfTestRan {
             developSelfTestRan = true

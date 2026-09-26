@@ -235,8 +235,10 @@ public final class LibraryCatalog: @unchecked Sendable {
     public let store: LibraryStore
     /// Canonical folder of the open library (search scope).
     public let folder: String
-    let itemOfImage: [String: Int]
-    let imageIDs: [String]
+    /// Item ↔ image id maps of the library's current layout (see `libraryDidUpdate`).
+    private let lock = NSLock()
+    private var itemOfImage: [String: Int]
+    private var imageIDs: [String]
 
     public init(library: EngineLibrary) throws {
         let path = try library.session.libraryPath()
@@ -247,9 +249,17 @@ public final class LibraryCatalog: @unchecked Sendable {
         imageIDs = library.imageIDs
     }
 
-    public func imageIDs(for items: [Int]) -> [String] { items.compactMap { imageIDs.indices.contains($0) ? imageIDs[$0] : nil } }
-    public func items(for ids: [String]) -> [Int] { ids.compactMap { itemOfImage[$0] } }
-    public func imageID(of item: Int) -> String? { imageIDs.indices.contains(item) ? imageIDs[item] : nil }
+    /// The library was updated in place: item ids now follow its new layout.
+    public func libraryDidUpdate(_ library: EngineLibrary) {
+        let (map, ids) = (library.itemOfImage, library.imageIDs)
+        lock.withLock { itemOfImage = map; imageIDs = ids }
+    }
+
+    public func imageIDs(for items: [Int]) -> [String] {
+        lock.withLock { items.compactMap { imageIDs.indices.contains($0) ? imageIDs[$0] : nil } }
+    }
+    public func items(for ids: [String]) -> [Int] { lock.withLock { ids.compactMap { itemOfImage[$0] } } }
+    public func imageID(of item: Int) -> String? { lock.withLock { imageIDs.indices.contains(item) ? imageIDs[item] : nil } }
 
     public func nodes() throws -> [CollectionNode] { CollectionNode.tree(try store.nodes()) }
 

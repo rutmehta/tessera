@@ -1,6 +1,7 @@
 //! Sidecar-backed, keyboard-oriented culling. No AI signal applies a decision.
 mod defects;
 mod grouping;
+mod incremental;
 pub mod learning;
 mod library;
 mod persistence;
@@ -13,9 +14,11 @@ pub use engine_api::{
 pub use grouping::{
     Group, GroupingOptions, GroupingStrategy, LargestFile, Scorer, dhash, dhash_jpeg,
 };
-use index::{Index, Query};
+pub use incremental::QueueChange;
+use index::{ImageInfo, Index, Query};
 pub use library::{Album, DerivedStatus, Library, Status};
 use std::{
+    collections::HashMap,
     ops::Deref,
     path::{Path, PathBuf},
 };
@@ -97,6 +100,19 @@ pub struct CullSession<I> {
     grouping_strategy: Option<Box<dyn GroupingStrategy>>,
     library: Option<PathBuf>,
     basket_target: Option<String>,
+    /// The source, kept so incremental inserts apply the same membership rules.
+    folder: Option<PathBuf>,
+    query: Query,
+    /// Options of the last `regroup`; incremental regrouping reuses them.
+    options: GroupingOptions,
+    /// Grouping inputs per queue image (incremental regrouping compares against them).
+    infos: HashMap<ImageId, ImageInfo>,
+    /// dHash of the embedded preview; absent when unreadable or near-duplicates are off.
+    hashes: HashMap<ImageId, Option<u64>>,
+    /// Queue sort keys (capture time as stored, id), filled on first insert.
+    keys: HashMap<ImageId, (Option<String>, String)>,
+    /// Catalog change sequence applied so far (see `sync_catalog`).
+    change_seq: u64,
 }
 /// Session that owns its own index connection.
 pub type OwnedCullSession = CullSession<Box<Index>>;
@@ -115,6 +131,8 @@ impl OwnedCullSession {
 }
 impl<I: Deref<Target = Index>> CullSession<I> {
     fn open_with(index: I, source: Source) -> EngineResult<Self> {
+        // Read first: changes committed while the queue is built are re-applied (idempotently).
+        let change_seq = index.change_head()?;
         let (query, folder) = match source {
             Source::Query(q) => (q, None),
             Source::Folder(p) => (
@@ -135,41 +153,12 @@ impl<I: Deref<Target = Index>> CullSession<I> {
             offset: 0,
             ..query.clone()
         };
-        // Folder matching uses Path components rather than SQLite glob metacharacters.
-        let mut images = Vec::new();
-        for id in index.search(&candidates)? {
-            let info = index.image_info(id)?;
-            if folder.as_ref().is_some_and(|p| !info.path.starts_with(p)) {
-                continue;
-            }
-            // Deleted or moved since indexing: not reviewable, never recreated.
-            if !info.path.exists() {
-                continue;
-            }
-            let selection = persistence::load(&index, id)?.recipe.selection;
-            index.set_selection(id, &selection)?;
-            if query.decision.is_some_and(|d| d != selection.decision)
-                || query.grade.is_some_and(|g| Some(g) != selection.grade)
-                || query
-                    .mark
-                    .as_ref()
-                    .is_some_and(|m| selection.mark.as_ref().map(|mark| &mark.0) != Some(m))
-            {
-                continue;
-            }
-            images.push(id);
-        }
-        if query.predicate.is_some() {
-            let matching: std::collections::HashSet<_> = index
-                .search(&Query {
-                    predicate: query.predicate.clone(),
-                    limit: i64::MAX as usize,
-                    ..Default::default()
-                })?
-                .into_iter()
-                .collect();
-            images.retain(|id| matching.contains(id));
-        }
+        let images = admit(
+            &index,
+            &query,
+            folder.as_deref(),
+            index.search(&candidates)?,
+        )?;
         let images = images
             .into_iter()
             .skip(query.offset)
@@ -190,8 +179,15 @@ impl<I: Deref<Target = Index>> CullSession<I> {
             preview_errors: Vec::new(),
             scorer: None,
             grouping_strategy: None,
-            library: folder.map(|p| p.join("library.json")),
+            library: folder.as_ref().map(|p| p.join("library.json")),
             basket_target: None,
+            folder,
+            query,
+            options: GroupingOptions::default(),
+            infos: HashMap::new(),
+            hashes: HashMap::new(),
+            keys: HashMap::new(),
+            change_seq,
         };
         session.regroup(GroupingOptions::default())?;
         Ok(session)
@@ -375,6 +371,52 @@ impl<I: Deref<Target = Index>> CullSession<I> {
         self.undo.push(action);
         Ok(true)
     }
+}
+
+/// The reviewable subset of `ids` for a source, in the given order. Reconciles
+/// each candidate's selection from its sidecars before applying selection filters.
+fn admit(
+    index: &Index,
+    query: &Query,
+    folder: Option<&Path>,
+    ids: Vec<ImageId>,
+) -> EngineResult<Vec<ImageId>> {
+    // Folder matching uses Path components rather than SQLite glob metacharacters.
+    let mut images = Vec::new();
+    for id in ids {
+        let info = index.image_info(id)?;
+        if folder.is_some_and(|p| !info.path.starts_with(p)) {
+            continue;
+        }
+        // Deleted or moved since indexing: not reviewable, never recreated.
+        if !info.path.exists() {
+            continue;
+        }
+        let selection = persistence::load(index, id)?.recipe.selection;
+        index.set_selection(id, &selection)?;
+        if query.decision.is_some_and(|d| d != selection.decision)
+            || query.grade.is_some_and(|g| Some(g) != selection.grade)
+            || query
+                .mark
+                .as_ref()
+                .is_some_and(|m| selection.mark.as_ref().map(|mark| &mark.0) != Some(m))
+        {
+            continue;
+        }
+        images.push(id);
+    }
+    if query.predicate.is_some() {
+        let matching: std::collections::HashSet<_> = index
+            .search(&Query {
+                predicate: query.predicate.clone(),
+                limit: i64::MAX as usize,
+                ..Default::default()
+            })?
+            .into_iter()
+            .collect();
+        images.retain(|id| matching.contains(id));
+    }
+    Ok(images)
 }
 
 fn mark_from(name: String) -> Option<Mark> {

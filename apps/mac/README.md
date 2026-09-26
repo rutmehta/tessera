@@ -68,6 +68,13 @@ runs on MainActor; reuse, cancellation, and library resets suppress stale delive
 cache writes. Subscriptions are removed on completion/cancellation. A failed background job also
 signals completion via `PreviewReady`; the retry surfaces its error and ends the wait.
 No full-RAW fallback is performed in Swift.
+Catalog changes arrive in place (M2-28): every catalog write appends to the index's change feed
+(SQLite triggers, any connection), and the engine announces it as `EngineEvent.libraryChanged`
+(its own writes at once, tethered frames on each poll, other writers within 250 ms). `AppModel`
+then pulls `CullSession.syncChanges()` off the main actor and `EngineLibrary.apply` renumbers the
+dense item ids around the same session: new frames join their burst (only the affected groups are
+recomputed), removed ones leave, the undo history, filters and selection stay, and the grid inserts
+or removes just those cells. A `reset` delta (log trimmed) falls back to a full reload.
 `openDevelopSession(imageId:)` (RAW only; decodes, so call it off-main) returns a `DevelopSession`
 (crates/tessera-ffi/src/develop.rs): `planSurface`/`attachSurface` (an RGBA8 IOSurface ring at the
 planned level's size), `setSettings(jsonPatch:interactive:)` (RFC 7386 merge patch of the engine's
@@ -238,7 +245,7 @@ by stem. The fidelity preview uses the native pipeline until `crates/pipeline-ad
 ```
 Package.swift                 targets: TesseraCore (library), Tessera (app), TesseraCoreTests
 Sources/TesseraCore/      UI-free and unit-tested
-  EngineLibrary.swift         index + CullSession open, group-by-group display order, PhotoLibrary
+  EngineLibrary.swift         index + CullSession open, group-by-group display order, in-place updates, PhotoLibrary
   LightroomImport.swift       import mapping tables, fidelity grid model, import-report.md renderer
   CullController.swift        the app's culling model: Rust session (folders) or CullStore (stub)
   DevelopController.swift     one DevelopSession: IOSurface ring, per-frame patch coalescing, history

@@ -1,10 +1,12 @@
 //! `CullSession` over UniFFI: a fixed review queue with groups, a single global
 //! undo stack, the basket and a review-only defect sweep. Only ids, selections
 //! and small records cross the bridge; pixels never do.
-use crate::{Decision, Engine, ImageQuery, Result, Selection, failure, parse_id};
+use crate::{ChangedFields, Decision, Engine, ImageQuery, Result, Selection, failure, parse_id};
 use cull::{ImageId, Library, OwnedCullSession as Core};
+use index::ChangeFields;
 use rusqlite::{Connection, OpenFlags};
 use std::{
+    collections::{HashMap, HashSet},
     path::Path,
     sync::{Arc, Mutex, MutexGuard},
 };
@@ -29,6 +31,33 @@ pub struct CullGroup {
     pub images: Vec<String>,
     /// Suggested best frame (scorer's pick). Suggestion only; never applied implicitly.
     pub best: String,
+}
+
+/// A queue member whose catalog row changed, with what changed.
+#[derive(Clone, Debug, uniffi::Record)]
+pub struct UpdatedImage {
+    pub image: SessionImage,
+    pub fields: ChangedFields,
+}
+
+/// Catalog changes applied to the open queue in place (`sync_changes`). The
+/// cursor, undo/redo history and unaffected groups are kept.
+#[derive(Clone, Debug, uniffi::Record)]
+pub struct QueueDelta {
+    /// Catalog change sequence now reflected by the queue.
+    pub sequence: u64,
+    /// The changes could not be applied incrementally: reopen the session.
+    pub reset: bool,
+    /// New members in queue order (`group` indexes the new `groups`).
+    pub added: Vec<SessionImage>,
+    /// Image ids that left the queue.
+    pub removed: Vec<String>,
+    /// Remaining members whose rows changed.
+    pub updated: Vec<UpdatedImage>,
+    /// The complete group layout when membership, order or a suggested best
+    /// changed (only affected groups are recomputed); `None` when unchanged.
+    pub groups: Option<Vec<CullGroup>>,
+    pub current: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, uniffi::Record)]
@@ -117,6 +146,9 @@ pub(crate) struct Inner {
     pub(crate) core: Core,
     reader: Connection,
     pub(crate) assist: crate::assist::AssistState,
+    /// Suggested best per group membership, reused by `sync_changes` for groups
+    /// whose members and scores did not change.
+    bests: HashMap<Vec<ImageId>, ImageId>,
 }
 
 /// Owns its own index connection (WAL) so the engine's catalog lock is never
@@ -151,6 +183,7 @@ impl Engine {
                 core,
                 reader,
                 assist,
+                bests: HashMap::new(),
             }),
         }))
     }
@@ -254,24 +287,20 @@ impl Inner {
     fn current(&self) -> Option<String> {
         self.core.current().map(|id| id.to_string())
     }
-}
-
-#[uniffi::export]
-impl CullSession {
-    pub fn images(&self) -> Result<Vec<SessionImage>> {
-        let s = self.lock()?;
-        let basket = s.basket_members()?;
-        let mut group_of = std::collections::HashMap::new();
-        for (n, group) in s.core.groups().iter().enumerate() {
+    /// Rows for `ids` (queue members), with their current group index.
+    fn session_images(&self, ids: &[ImageId]) -> Result<Vec<SessionImage>> {
+        let basket = self.basket_members()?;
+        let mut group_of = HashMap::new();
+        for (n, group) in self.core.groups().iter().enumerate() {
             for id in &group.images {
                 group_of.insert(*id, n as u32);
             }
         }
-        let mut stmt = s.reader.prepare_cached(
+        let mut stmt = self.reader.prepare_cached(
             "SELECT f.path,i.capture_time,COALESCE((SELECT value FROM metadata WHERE image_id=i.id AND key='orientation'),'1') FROM image i JOIN file f ON f.id=i.file_id WHERE i.id=?",
         )?;
-        let mut out = Vec::with_capacity(s.core.images().len());
-        for id in s.core.images() {
+        let mut out = Vec::with_capacity(ids.len());
+        for id in ids {
             let key = id.to_string();
             let (path, capture_time, orientation) = stmt.query_row([&key], |r| {
                 Ok((
@@ -285,28 +314,120 @@ impl CullSession {
                 path,
                 capture_time,
                 orientation: orientation.parse().unwrap_or(1),
-                // Reconciled from sidecars when the session opened.
-                selection: s.core.index().selection(*id)?.unwrap_or_default().into(),
+                // Reconciled from sidecars when the session opened (or the image joined).
+                selection: self.core.index().selection(*id)?.unwrap_or_default().into(),
                 in_basket: basket.contains(id),
                 group: group_of.get(id).copied().unwrap_or(0),
             });
         }
         Ok(out)
     }
-    pub fn groups(&self) -> Result<Vec<CullGroup>> {
+    /// All groups with their suggested best; `stale` images force a fresh pick
+    /// for their group, other groups reuse the cached pick for the same members.
+    fn group_records(&mut self, stale: &HashSet<ImageId>) -> Result<Vec<CullGroup>> {
+        let mut bests = HashMap::with_capacity(self.core.groups().len());
+        let mut out = Vec::with_capacity(self.core.groups().len());
+        for (n, group) in self.core.groups().iter().enumerate() {
+            let cached = self
+                .bests
+                .get(&group.images)
+                .filter(|_| !group.images.iter().any(|id| stale.contains(id)))
+                .copied();
+            let best = match cached {
+                Some(best) => best,
+                None => self.core.best_in_group(n)?,
+            };
+            bests.insert(group.images.clone(), best);
+            out.push(CullGroup {
+                images: group.images.iter().map(ToString::to_string).collect(),
+                best: best.to_string(),
+            });
+        }
+        self.bests = bests;
+        Ok(out)
+    }
+}
+
+#[uniffi::export]
+impl CullSession {
+    pub fn images(&self) -> Result<Vec<SessionImage>> {
         let s = self.lock()?;
-        (0..s.core.groups().len())
-            .map(|n| {
-                Ok(CullGroup {
-                    images: s.core.groups()[n]
-                        .images
-                        .iter()
-                        .map(ToString::to_string)
-                        .collect(),
-                    best: s.core.best_in_group(n)?.to_string(),
-                })
+        let ids = s.core.images().to_vec();
+        s.session_images(&ids)
+    }
+    /// Scores may have changed since the last call: every best is picked afresh.
+    pub fn groups(&self) -> Result<Vec<CullGroup>> {
+        let mut s = self.lock()?;
+        s.bests.clear();
+        s.group_records(&HashSet::new())
+    }
+    /// Latest catalog change sequence the queue reflects.
+    pub fn change_sequence(&self) -> Result<u64> {
+        Ok(self.lock()?.core.change_sequence())
+    }
+    /// Applies catalog changes committed since the last sync (or open) to the
+    /// queue in place: new images join at their queue position and burst,
+    /// removed ones leave, and only the affected groups are recomputed. The
+    /// cursor and the undo/redo history are kept (steps of removed images are
+    /// dropped). Call it on `EngineEvent::LibraryChanged`.
+    pub fn sync_changes(&self) -> Result<QueueDelta> {
+        let mut s = self.lock()?;
+        let change = s.core.sync_catalog()?;
+        if change.reset {
+            return Ok(QueueDelta {
+                sequence: change.sequence,
+                reset: true,
+                added: Vec::new(),
+                removed: Vec::new(),
+                updated: Vec::new(),
+                groups: None,
+                current: s.current(),
+            });
+        }
+        if !change.inserted.is_empty() || !change.removed.is_empty() {
+            s.assist.invalidate();
+        }
+        // A best can change with scores or file size, or when members change.
+        let stale: HashSet<ImageId> = change
+            .updated
+            .iter()
+            .filter(|(_, f)| f.intersects(ChangeFields::SCORES | ChangeFields::FILE))
+            .map(|(id, _)| *id)
+            .chain(change.inserted.iter().copied())
+            .collect();
+        let groups = if change.regrouped || !stale.is_empty() {
+            let previous = s.bests.clone();
+            let records = s.group_records(&stale)?;
+            let same = !change.regrouped
+                && s.core.groups().iter().zip(&records).all(|(group, record)| {
+                    previous
+                        .get(&group.images)
+                        .is_some_and(|best| best.to_string() == record.best)
+                });
+            (!same).then_some(records)
+        } else {
+            None
+        };
+        let added = s.session_images(&change.inserted)?;
+        let updated_ids: Vec<ImageId> = change.updated.iter().map(|(id, _)| *id).collect();
+        let updated = s
+            .session_images(&updated_ids)?
+            .into_iter()
+            .zip(&change.updated)
+            .map(|(image, (_, fields))| UpdatedImage {
+                image,
+                fields: (*fields).into(),
             })
-            .collect()
+            .collect();
+        Ok(QueueDelta {
+            sequence: change.sequence,
+            reset: false,
+            added,
+            removed: change.removed.iter().map(ToString::to_string).collect(),
+            updated,
+            groups,
+            current: s.current(),
+        })
     }
     /// Images whose embedded preview could not be read for near-duplicate
     /// grouping, with the reason. They remain reviewable.

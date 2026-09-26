@@ -92,13 +92,9 @@ impl Ingest {
         let mut index = index::Index::open(&self.db)?;
         index::Scanner::new(&Sidecars, &index::NoopMetadataProvider)
             .scan(&mut index, &self.folder)?;
+        // Direct lookup: a whole-catalog search per frame grows with the library.
         let id = index
-            .search(&index::Query {
-                limit: i64::MAX as usize,
-                ..Default::default()
-            })?
-            .into_iter()
-            .find(|id| index.image_info(*id).is_ok_and(|i| i.path == destination))
+            .image_at(&destination.canonicalize()?)?
             .ok_or_else(|| Error::Message("downloaded file format is not indexed".into()))?;
         event.image_id = Some(id);
         ctx.check_cancelled()?;
