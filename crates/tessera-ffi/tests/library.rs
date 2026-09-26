@@ -385,6 +385,7 @@ fn keywords_and_iptc_persist_to_xmp_and_search() {
             copyright: Some("© 2026 R. Mehta".into()),
             creator: Some("R. Mehta; Assistant".into()),
             keywords: None,
+            alt_text: None,
         },
     )
     .unwrap();

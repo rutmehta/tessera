@@ -18,6 +18,7 @@ fn metadata_edit_preserves_raw_foreign_xml_and_resolves_namespaces() {
     metadata.creators = vec!["Photographer".into(), "Second author".into()];
     metadata.copyright = "© author".into();
     metadata.hierarchical_keywords = vec!["Places|NYC".into()];
+    metadata.alt_text = "A dog & a ball on grass".into();
     let updated = packet
         .with_metadata(&Selection::default(), &metadata, &MarkPreset::lightroom())
         .unwrap();
@@ -25,6 +26,17 @@ fn metadata_edit_preserves_raw_foreign_xml_and_resolves_namespaces() {
     assert!(updated.serialize().contains("f:Rating=\"99\""));
     assert_eq!(updated.selection().unwrap(), Selection::default());
     assert_eq!(updated.metadata().unwrap(), metadata);
+    assert!(
+        updated
+            .serialize()
+            .contains("<Iptc4xmpCore:AltTextAccessibility><rdf:Alt><rdf:li xml:lang=\"x-default\">A dog &amp; a ball on grass</rdf:li>")
+    );
+    // Clearing the alt text removes the property instead of writing an empty one.
+    metadata.alt_text.clear();
+    let cleared = updated
+        .with_metadata(&Selection::default(), &metadata, &MarkPreset::lightroom())
+        .unwrap();
+    assert!(!cleared.serialize().contains("AltTextAccessibility"));
     assert!(XmpPacket::parse("<x>").is_err());
     assert!(XmpPacket::parse("<a/><b/>").is_err());
 }

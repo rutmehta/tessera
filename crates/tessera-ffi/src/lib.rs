@@ -14,6 +14,7 @@ mod proof;
 mod session;
 #[doc(hidden)]
 pub mod surface;
+mod understanding;
 pub use agent_runs::*;
 pub use assist::*;
 pub use collections::*;
@@ -32,6 +33,7 @@ use std::{
     path::Path,
     sync::{Arc, Mutex, MutexGuard},
 };
+pub use understanding::*;
 
 uniffi::setup_scaffolding!();
 
@@ -178,6 +180,8 @@ pub struct Engine {
     faces: Mutex<Option<ml_faces::FaceModels>>,
     preview_states: Mutex<std::collections::HashMap<preview::RequestKey, preview::State>>,
     listener: Mutex<Option<Arc<dyn EngineEventListener>>>,
+    /// Keyword suggestions, captions and OCR: models and background jobs.
+    understanding: understanding::UnderstandingState,
 }
 impl Engine {
     fn emit(&self, event: EngineEvent) {
@@ -261,6 +265,7 @@ impl Engine {
             faces: Mutex::new(None),
             preview_states: Mutex::new(std::collections::HashMap::new()),
             listener: Mutex::new(None),
+            understanding: Default::default(),
         }))
     }
     pub fn set_event_listener(&self, listener: Option<Arc<dyn EngineEventListener>>) {

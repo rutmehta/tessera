@@ -40,6 +40,8 @@ pub struct ImageMetadata {
     pub keywords: Vec<String>,
     /// lr:hierarchicalSubject paths ("Places|France|Paris").
     pub hierarchical_keywords: Vec<String>,
+    /// IPTC alt text (Iptc4xmpCore:AltTextAccessibility).
+    pub alt_text: String,
     /// Read-only facts: file, camera and EXIF, in display order.
     pub fields: Vec<MetadataField>,
 }
@@ -54,6 +56,7 @@ pub struct IptcEdit {
     pub creator: Option<String>,
     /// Replaces the keyword list (hierarchy paths come from the library tree).
     pub keywords: Option<Vec<String>>,
+    pub alt_text: Option<String>,
 }
 
 /// EXIF tags shown first, in this order; the rest follow alphabetically.
@@ -86,7 +89,7 @@ fn clean(s: &str) -> String {
 impl LibraryStore {
     /// Applies `edit` to each image's XMP metadata and rescans the touched
     /// folders so search and facets see the change.
-    fn edit_xmp(
+    pub(crate) fn edit_xmp(
         &self,
         image_ids: &[String],
         mut edit: impl FnMut(&mut sidecar::Metadata) -> Result<()>,
@@ -130,6 +133,19 @@ impl LibraryStore {
             .keyword_path(name)
             .map(|p| p.join("|"))
             .unwrap_or_else(|| name.to_owned())
+    }
+
+    /// Drops catalog-only acceptances (see `accept_suggestions`).
+    fn forget_accepted(&self, image_ids: &[String], names: &[String]) -> Result<()> {
+        let ids: Vec<ImageId> = image_ids
+            .iter()
+            .map(|id| parse_id(id))
+            .collect::<Result<_>>()?;
+        self.engine
+            .lock()?
+            .index
+            .forget_accepted_keyword_names(&ids, names)
+            .map_err(|e| failure(format!("{e:#}")))
     }
 
     fn sync_keywords(&self, library: &library::Library) -> Result<()> {
@@ -250,6 +266,9 @@ impl LibraryStore {
             self.read()?
         };
         let paths: Vec<String> = names.iter().map(|n| Self::path_of(&library, n)).collect();
+        if !add {
+            self.forget_accepted(&image_ids, &names)?;
+        }
         self.edit_xmp(&image_ids, |meta| {
             for (name, path) in names.iter().zip(&paths) {
                 if add {
@@ -287,6 +306,17 @@ impl LibraryStore {
             out.creator = meta.creators.join("; ");
             out.keywords = meta.keywords;
             out.hierarchical_keywords = meta.hierarchical_keywords;
+            out.alt_text = meta.alt_text;
+        }
+        // Accepted suggestions kept in the catalog only (XMP opt-in off).
+        for name in c
+            .index
+            .accepted_keyword_names(id)
+            .map_err(|e| failure(format!("{e:#}")))?
+        {
+            if !out.keywords.contains(&name) {
+                out.keywords.push(name);
+            }
         }
         let mut push = |group: &str, name: &str, value: String| {
             if !value.trim().is_empty() {
@@ -381,6 +411,28 @@ impl LibraryStore {
             let paths: Vec<String> = names.iter().map(|n| Self::path_of(&library, n)).collect();
             (names, paths)
         });
+        if let Some((names, _)) = &keyword_paths {
+            // Local acceptances missing from the new list are removed too.
+            let mut dropped = BTreeSet::new();
+            {
+                let c = self.engine.lock()?;
+                for key in &image_ids {
+                    for name in c
+                        .index
+                        .accepted_keyword_names(parse_id(key)?)
+                        .map_err(|e| failure(format!("{e:#}")))?
+                    {
+                        if !names.contains(&name) {
+                            dropped.insert(name);
+                        }
+                    }
+                }
+            }
+            let dropped: Vec<String> = dropped.into_iter().collect();
+            if !dropped.is_empty() {
+                self.forget_accepted(&image_ids, &dropped)?;
+            }
+        }
         self.edit_xmp(&image_ids, |meta| {
             if let Some(v) = &edit.title {
                 meta.title = clean(v);
@@ -390,6 +442,9 @@ impl LibraryStore {
             }
             if let Some(v) = &edit.copyright {
                 meta.copyright = clean(v);
+            }
+            if let Some(v) = &edit.alt_text {
+                meta.alt_text = v.trim().to_owned();
             }
             if let Some(v) = &edit.creator {
                 meta.creators = v.split(';').map(clean).filter(|s| !s.is_empty()).collect();

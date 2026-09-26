@@ -14,6 +14,9 @@ pub struct Metadata {
     pub copyright: String,
     pub keywords: Vec<String>,
     pub hierarchical_keywords: Vec<String>,
+    /// IPTC `Iptc4xmpCore:AltTextAccessibility` (x-default): a short
+    /// description for screen readers, distinct from the caption.
+    pub alt_text: String,
 }
 const METADATA: &[(&str, &str)] = &[
     (XMP, "Rating"),
@@ -26,6 +29,7 @@ const METADATA: &[(&str, &str)] = &[
     (DC, "rights"),
     (DC, "subject"),
     (LR, "hierarchicalSubject"),
+    (IPTC_CORE, "AltTextAccessibility"),
     (PRIVATE, "Mark"),
     (PRIVATE, "MarkLabel"),
 ];
@@ -39,6 +43,9 @@ impl XmpPacket {
             creators: t.list(DC, "creator"),
             keywords: t.list(DC, "subject"),
             hierarchical_keywords: t.list(LR, "hierarchicalSubject"),
+            alt_text: t
+                .value(IPTC_CORE, "AltTextAccessibility")
+                .unwrap_or_default(),
         })
     }
     /// Replace owned metadata only. Foreign attributes and elements stay byte-for-byte intact.
@@ -120,6 +127,7 @@ pub(crate) fn metadata_body(
         ("dc:title", &metadata.title),
         ("dc:description", &metadata.description),
         ("dc:rights", &metadata.copyright),
+        ("Iptc4xmpCore:AltTextAccessibility", &metadata.alt_text),
     ] {
         if !value.is_empty() {
             body += &container(key, "Alt", std::slice::from_ref(value));

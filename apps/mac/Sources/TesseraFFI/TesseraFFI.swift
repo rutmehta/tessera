@@ -3382,6 +3382,60 @@ public protocol EngineProtocol: AnyObject, Sendable {
      */
     func setScore(imageId: String, signal: String, value: Double, model: String) throws 
     
+    func aiMetadataSettings() throws  -> AiMetadataSettings
+    
+    /**
+     * Any combination of tasks; `force` recomputes cached results.
+     */
+    func analyzeUnderstanding(imageIds: [String], tasks: [UnderstandingTask], force: Bool) throws  -> UInt64
+    
+    /**
+     * When "auto-suggest on import" is on, starts a keyword job for the
+     * photos (only uncached ones do work). None when the setting is off.
+     */
+    func autoSuggest(imageIds: [String]) throws  -> UInt64?
+    
+    /**
+     * Cancels a queued or running job (results already stored stay).
+     */
+    func cancelUnderstandingJob(id: UInt64) throws 
+    
+    /**
+     * Generates a caption and alt text for the photos in the background.
+     */
+    func caption(imageIds: [String]) throws  -> UInt64
+    
+    /**
+     * Cached caption, alt text and OCR of one photo.
+     */
+    func imageUnderstanding(imageId: String) throws  -> ImageUnderstandingInfo
+    
+    /**
+     * Reads text in the photos in the background (searchable afterwards).
+     */
+    func ocr(imageIds: [String]) throws  -> UInt64
+    
+    func setAiMetadataSettings(settings: AiMetadataSettings) throws 
+    
+    /**
+     * Suggests keywords for the photos in the background (cached results for
+     * the current model are reused). Returns the job id.
+     */
+    func suggestKeywords(imageIds: [String]) throws  -> UInt64
+    
+    /**
+     * Active jobs and the most recently finished ones, oldest first.
+     */
+    func understandingJobs() throws  -> [UnderstandingJobInfo]
+    
+    func understandingModelStatus() throws  -> UnderstandingModelStatus
+    
+    /**
+     * Hidden test aid (`--fake-captioner`): deterministic models that name
+     * the dominant colour. Replaces any loaded model.
+     */
+    func useTestUnderstanding() throws 
+    
 }
 open class Engine: EngineProtocol, @unchecked Sendable {
     fileprivate let handle: UInt64
@@ -3834,6 +3888,151 @@ open func setScore(imageId: String, signal: String, value: Double, model: String
         FfiConverterString.lower(signal),
         FfiConverterDouble.lower(value),
         FfiConverterString.lower(model),uniffiCallStatus
+    )
+}
+}
+    
+open func aiMetadataSettings()throws  -> AiMetadataSettings  {
+    return try  FfiConverterTypeAiMetadataSettings_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_ai_metadata_settings(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Any combination of tasks; `force` recomputes cached results.
+     */
+open func analyzeUnderstanding(imageIds: [String], tasks: [UnderstandingTask], force: Bool)throws  -> UInt64  {
+    return try  FfiConverterUInt64.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_analyze_understanding(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceString.lower(imageIds),
+        FfiConverterSequenceTypeUnderstandingTask.lower(tasks),
+        FfiConverterBool.lower(force),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * When "auto-suggest on import" is on, starts a keyword job for the
+     * photos (only uncached ones do work). None when the setting is off.
+     */
+open func autoSuggest(imageIds: [String])throws  -> UInt64?  {
+    return try  FfiConverterOptionUInt64.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_auto_suggest(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceString.lower(imageIds),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Cancels a queued or running job (results already stored stay).
+     */
+open func cancelUnderstandingJob(id: UInt64)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_cancel_understanding_job(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Generates a caption and alt text for the photos in the background.
+     */
+open func caption(imageIds: [String])throws  -> UInt64  {
+    return try  FfiConverterUInt64.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_caption(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceString.lower(imageIds),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Cached caption, alt text and OCR of one photo.
+     */
+open func imageUnderstanding(imageId: String)throws  -> ImageUnderstandingInfo  {
+    return try  FfiConverterTypeImageUnderstandingInfo_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_image_understanding(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(imageId),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Reads text in the photos in the background (searchable afterwards).
+     */
+open func ocr(imageIds: [String])throws  -> UInt64  {
+    return try  FfiConverterUInt64.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_ocr(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceString.lower(imageIds),uniffiCallStatus
+    )
+})
+}
+    
+open func setAiMetadataSettings(settings: AiMetadataSettings)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_set_ai_metadata_settings(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeAiMetadataSettings_lower(settings),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Suggests keywords for the photos in the background (cached results for
+     * the current model are reused). Returns the job id.
+     */
+open func suggestKeywords(imageIds: [String])throws  -> UInt64  {
+    return try  FfiConverterUInt64.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_suggest_keywords(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceString.lower(imageIds),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Active jobs and the most recently finished ones, oldest first.
+     */
+open func understandingJobs()throws  -> [UnderstandingJobInfo]  {
+    return try  FfiConverterSequenceTypeUnderstandingJobInfo.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_understanding_jobs(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+open func understandingModelStatus()throws  -> UnderstandingModelStatus  {
+    return try  FfiConverterTypeUnderstandingModelStatus_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_understanding_model_status(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Hidden test aid (`--fake-captioner`): deterministic models that name
+     * the dominant colour. Replaces any loaded model.
+     */
+open func useTestUnderstanding()throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_use_test_understanding(
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 }
 }
@@ -4397,6 +4596,27 @@ public protocol LibraryStoreProtocol: AnyObject, Sendable {
      */
     func setIptc(imageIds: [String], edit: IptcEdit) throws 
     
+    /**
+     * Accepts suggestions: each keyword is applied to those of `image_ids`
+     * it was suggested for, under its mapped tree path (created under
+     * "Suggested" when new). Writes XMP only with the XMP setting on. Returns
+     * the tree paths applied ("Places|Beach").
+     */
+    func acceptSuggestions(imageIds: [String], keywords: [String]) throws  -> [String]
+    
+    /**
+     * Rejects suggestions for the photos: they are removed from the cached
+     * suggestions (until the photo is analysed again with a new model or
+     * `force`).
+     */
+    func rejectSuggestions(imageIds: [String], keywords: [String]) throws 
+    
+    /**
+     * Suggested keywords over the photos, merged by name, excluding keywords
+     * a photo already has; highest confidence first.
+     */
+    func suggestions(imageIds: [String]) throws  -> [KeywordSuggestionInfo]
+    
 }
 /**
  * library.json plus the engine's catalog. Create with `Engine::open_library`.
@@ -4736,6 +4956,52 @@ open func setIptc(imageIds: [String], edit: IptcEdit)throws   {try rustCallWithE
         FfiConverterTypeIptcEdit_lower(edit),uniffiCallStatus
     )
 }
+}
+    
+    /**
+     * Accepts suggestions: each keyword is applied to those of `image_ids`
+     * it was suggested for, under its mapped tree path (created under
+     * "Suggested" when new). Writes XMP only with the XMP setting on. Returns
+     * the tree paths applied ("Places|Beach").
+     */
+open func acceptSuggestions(imageIds: [String], keywords: [String])throws  -> [String]  {
+    return try  FfiConverterSequenceString.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_librarystore_accept_suggestions(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceString.lower(imageIds),
+        FfiConverterSequenceString.lower(keywords),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Rejects suggestions for the photos: they are removed from the cached
+     * suggestions (until the photo is analysed again with a new model or
+     * `force`).
+     */
+open func rejectSuggestions(imageIds: [String], keywords: [String])throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_librarystore_reject_suggestions(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceString.lower(imageIds),
+        FfiConverterSequenceString.lower(keywords),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Suggested keywords over the photos, merged by name, excluding keywords
+     * a photo already has; highest confidence first.
+     */
+open func suggestions(imageIds: [String])throws  -> [KeywordSuggestionInfo]  {
+    return try  FfiConverterSequenceTypeKeywordSuggestionInfo.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_librarystore_suggestions(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceString.lower(imageIds),uniffiCallStatus
+    )
+})
 }
     
 
@@ -6152,6 +6418,77 @@ public func FfiConverterTypeAgentStep_lift(_ buf: RustBuffer) throws -> AgentSte
 #endif
 public func FfiConverterTypeAgentStep_lower(_ value: AgentStep) -> RustBuffer {
     return FfiConverterTypeAgentStep.lower(value)
+}
+
+
+/**
+ * Settings ▸ AI ▸ Keywords and captions. Stored in the app support folder.
+ */
+public struct AiMetadataSettings: Equatable, Hashable {
+    /**
+     * Suggest keywords for newly opened photos in the background.
+     */
+    public var autoSuggestOnImport: Bool
+    /**
+     * Accepted suggestions are also written to XMP sidecars (dc:subject and
+     * lr:hierarchicalSubject); off keeps them in Tessera's catalog only.
+     */
+    public var writeSuggestedKeywordsToXmp: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Suggest keywords for newly opened photos in the background.
+         */autoSuggestOnImport: Bool, 
+        /**
+         * Accepted suggestions are also written to XMP sidecars (dc:subject and
+         * lr:hierarchicalSubject); off keeps them in Tessera's catalog only.
+         */writeSuggestedKeywordsToXmp: Bool) {
+        self.autoSuggestOnImport = autoSuggestOnImport
+        self.writeSuggestedKeywordsToXmp = writeSuggestedKeywordsToXmp
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension AiMetadataSettings: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAiMetadataSettings: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AiMetadataSettings {
+        return
+            try AiMetadataSettings(
+                autoSuggestOnImport: FfiConverterBool.read(from: &buf), 
+                writeSuggestedKeywordsToXmp: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: AiMetadataSettings, into buf: inout [UInt8]) {
+        FfiConverterBool.write(value.autoSuggestOnImport, into: &buf)
+        FfiConverterBool.write(value.writeSuggestedKeywordsToXmp, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAiMetadataSettings_lift(_ buf: RustBuffer) throws -> AiMetadataSettings {
+    return try FfiConverterTypeAiMetadataSettings.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAiMetadataSettings_lower(_ value: AiMetadataSettings) -> RustBuffer {
+    return FfiConverterTypeAiMetadataSettings.lower(value)
 }
 
 
@@ -8391,6 +8728,10 @@ public struct ImageMetadata: Equatable, Hashable {
      */
     public var hierarchicalKeywords: [String]
     /**
+     * IPTC alt text (Iptc4xmpCore:AltTextAccessibility).
+     */
+    public var altText: String
+    /**
      * Read-only facts: file, camera and EXIF, in display order.
      */
     public var fields: [MetadataField]
@@ -8408,6 +8749,9 @@ public struct ImageMetadata: Equatable, Hashable {
          * lr:hierarchicalSubject paths ("Places|France|Paris").
          */hierarchicalKeywords: [String], 
         /**
+         * IPTC alt text (Iptc4xmpCore:AltTextAccessibility).
+         */altText: String, 
+        /**
          * Read-only facts: file, camera and EXIF, in display order.
          */fields: [MetadataField]) {
         self.imageId = imageId
@@ -8417,6 +8761,7 @@ public struct ImageMetadata: Equatable, Hashable {
         self.creator = creator
         self.keywords = keywords
         self.hierarchicalKeywords = hierarchicalKeywords
+        self.altText = altText
         self.fields = fields
     }
 
@@ -8443,6 +8788,7 @@ public struct FfiConverterTypeImageMetadata: FfiConverterRustBuffer {
                 creator: FfiConverterString.read(from: &buf), 
                 keywords: FfiConverterSequenceString.read(from: &buf), 
                 hierarchicalKeywords: FfiConverterSequenceString.read(from: &buf), 
+                altText: FfiConverterString.read(from: &buf), 
                 fields: FfiConverterSequenceTypeMetadataField.read(from: &buf)
         )
     }
@@ -8455,6 +8801,7 @@ public struct FfiConverterTypeImageMetadata: FfiConverterRustBuffer {
         FfiConverterString.write(value.creator, into: &buf)
         FfiConverterSequenceString.write(value.keywords, into: &buf)
         FfiConverterSequenceString.write(value.hierarchicalKeywords, into: &buf)
+        FfiConverterString.write(value.altText, into: &buf)
         FfiConverterSequenceTypeMetadataField.write(value.fields, into: &buf)
     }
 }
@@ -8746,6 +9093,94 @@ public func FfiConverterTypeImageSummary_lower(_ value: ImageSummary) -> RustBuf
 
 
 /**
+ * Cached model output for one photo. Empty strings / lists: not generated
+ * yet (see the `has_*` flags) or nothing found.
+ */
+public struct ImageUnderstandingInfo: Equatable, Hashable {
+    public var imageId: String
+    public var caption: String
+    public var altText: String
+    public var ocr: [OcrRegionInfo]
+    /**
+     * OCR regions joined in reading order, one per line.
+     */
+    public var ocrText: String
+    public var hasKeywords: Bool
+    public var hasCaption: Bool
+    public var hasOcr: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(imageId: String, caption: String, altText: String, ocr: [OcrRegionInfo], 
+        /**
+         * OCR regions joined in reading order, one per line.
+         */ocrText: String, hasKeywords: Bool, hasCaption: Bool, hasOcr: Bool) {
+        self.imageId = imageId
+        self.caption = caption
+        self.altText = altText
+        self.ocr = ocr
+        self.ocrText = ocrText
+        self.hasKeywords = hasKeywords
+        self.hasCaption = hasCaption
+        self.hasOcr = hasOcr
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ImageUnderstandingInfo: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeImageUnderstandingInfo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ImageUnderstandingInfo {
+        return
+            try ImageUnderstandingInfo(
+                imageId: FfiConverterString.read(from: &buf), 
+                caption: FfiConverterString.read(from: &buf), 
+                altText: FfiConverterString.read(from: &buf), 
+                ocr: FfiConverterSequenceTypeOcrRegionInfo.read(from: &buf), 
+                ocrText: FfiConverterString.read(from: &buf), 
+                hasKeywords: FfiConverterBool.read(from: &buf), 
+                hasCaption: FfiConverterBool.read(from: &buf), 
+                hasOcr: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ImageUnderstandingInfo, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.imageId, into: &buf)
+        FfiConverterString.write(value.caption, into: &buf)
+        FfiConverterString.write(value.altText, into: &buf)
+        FfiConverterSequenceTypeOcrRegionInfo.write(value.ocr, into: &buf)
+        FfiConverterString.write(value.ocrText, into: &buf)
+        FfiConverterBool.write(value.hasKeywords, into: &buf)
+        FfiConverterBool.write(value.hasCaption, into: &buf)
+        FfiConverterBool.write(value.hasOcr, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeImageUnderstandingInfo_lift(_ buf: RustBuffer) throws -> ImageUnderstandingInfo {
+    return try FfiConverterTypeImageUnderstandingInfo.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeImageUnderstandingInfo_lower(_ value: ImageUnderstandingInfo) -> RustBuffer {
+    return FfiConverterTypeImageUnderstandingInfo.lower(value)
+}
+
+
+/**
  * None leaves a field unchanged (mixed values in a multi-selection).
  */
 public struct IptcEdit: Equatable, Hashable {
@@ -8760,6 +9195,7 @@ public struct IptcEdit: Equatable, Hashable {
      * Replaces the keyword list (hierarchy paths come from the library tree).
      */
     public var keywords: [String]?
+    public var altText: String?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -8769,12 +9205,13 @@ public struct IptcEdit: Equatable, Hashable {
          */creator: String?, 
         /**
          * Replaces the keyword list (hierarchy paths come from the library tree).
-         */keywords: [String]?) {
+         */keywords: [String]?, altText: String?) {
         self.title = title
         self.caption = caption
         self.copyright = copyright
         self.creator = creator
         self.keywords = keywords
+        self.altText = altText
     }
 
     
@@ -8797,7 +9234,8 @@ public struct FfiConverterTypeIptcEdit: FfiConverterRustBuffer {
                 caption: FfiConverterOptionString.read(from: &buf), 
                 copyright: FfiConverterOptionString.read(from: &buf), 
                 creator: FfiConverterOptionString.read(from: &buf), 
-                keywords: FfiConverterOptionSequenceString.read(from: &buf)
+                keywords: FfiConverterOptionSequenceString.read(from: &buf), 
+                altText: FfiConverterOptionString.read(from: &buf)
         )
     }
 
@@ -8807,6 +9245,7 @@ public struct FfiConverterTypeIptcEdit: FfiConverterRustBuffer {
         FfiConverterOptionString.write(value.copyright, into: &buf)
         FfiConverterOptionString.write(value.creator, into: &buf)
         FfiConverterOptionSequenceString.write(value.keywords, into: &buf)
+        FfiConverterOptionString.write(value.altText, into: &buf)
     }
 }
 
@@ -9049,6 +9488,115 @@ public func FfiConverterTypeKeywordInfo_lift(_ buf: RustBuffer) throws -> Keywor
 #endif
 public func FfiConverterTypeKeywordInfo_lower(_ value: KeywordInfo) -> RustBuffer {
     return FfiConverterTypeKeywordInfo.lower(value)
+}
+
+
+/**
+ * One suggested keyword, merged over the requested photos.
+ */
+public struct KeywordSuggestionInfo: Equatable, Hashable {
+    public var keyword: String
+    /**
+     * Highest confidence among the photos it was suggested for (0...1;
+     * independent sigmoid scores, not probabilities of exclusive labels).
+     */
+    public var confidence: Float
+    /**
+     * Photos (of those requested) it is suggested for and not yet applied to.
+     */
+    public var images: UInt32
+    /**
+     * Where accepting puts it in the keyword tree ("Places", "Beach").
+     */
+    public var path: [String]
+    /**
+     * The keyword (or a synonym of it) already exists in the tree at `path`;
+     * false: accepting creates it under "Suggested".
+     */
+    public var existing: Bool
+    /**
+     * More than one tree keyword matches by name or synonym: accepting fails
+     * until the tree is disambiguated.
+     */
+    public var ambiguous: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(keyword: String, 
+        /**
+         * Highest confidence among the photos it was suggested for (0...1;
+         * independent sigmoid scores, not probabilities of exclusive labels).
+         */confidence: Float, 
+        /**
+         * Photos (of those requested) it is suggested for and not yet applied to.
+         */images: UInt32, 
+        /**
+         * Where accepting puts it in the keyword tree ("Places", "Beach").
+         */path: [String], 
+        /**
+         * The keyword (or a synonym of it) already exists in the tree at `path`;
+         * false: accepting creates it under "Suggested".
+         */existing: Bool, 
+        /**
+         * More than one tree keyword matches by name or synonym: accepting fails
+         * until the tree is disambiguated.
+         */ambiguous: Bool) {
+        self.keyword = keyword
+        self.confidence = confidence
+        self.images = images
+        self.path = path
+        self.existing = existing
+        self.ambiguous = ambiguous
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension KeywordSuggestionInfo: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeKeywordSuggestionInfo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> KeywordSuggestionInfo {
+        return
+            try KeywordSuggestionInfo(
+                keyword: FfiConverterString.read(from: &buf), 
+                confidence: FfiConverterFloat.read(from: &buf), 
+                images: FfiConverterUInt32.read(from: &buf), 
+                path: FfiConverterSequenceString.read(from: &buf), 
+                existing: FfiConverterBool.read(from: &buf), 
+                ambiguous: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: KeywordSuggestionInfo, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.keyword, into: &buf)
+        FfiConverterFloat.write(value.confidence, into: &buf)
+        FfiConverterUInt32.write(value.images, into: &buf)
+        FfiConverterSequenceString.write(value.path, into: &buf)
+        FfiConverterBool.write(value.existing, into: &buf)
+        FfiConverterBool.write(value.ambiguous, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeKeywordSuggestionInfo_lift(_ buf: RustBuffer) throws -> KeywordSuggestionInfo {
+    return try FfiConverterTypeKeywordSuggestionInfo.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeKeywordSuggestionInfo_lower(_ value: KeywordSuggestionInfo) -> RustBuffer {
+    return FfiConverterTypeKeywordSuggestionInfo.lower(value)
 }
 
 
@@ -11284,6 +11832,88 @@ public func FfiConverterTypeMetadataField_lower(_ value: MetadataField) -> RustB
 }
 
 
+public struct OcrRegionInfo: Equatable, Hashable {
+    public var text: String
+    /**
+     * Normalized displayed-image box.
+     */
+    public var x0: Float
+    public var y0: Float
+    public var x1: Float
+    public var y1: Float
+    /**
+     * Sequence-level decoder confidence shared by the regions of one image.
+     */
+    public var confidence: Float
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(text: String, 
+        /**
+         * Normalized displayed-image box.
+         */x0: Float, y0: Float, x1: Float, y1: Float, 
+        /**
+         * Sequence-level decoder confidence shared by the regions of one image.
+         */confidence: Float) {
+        self.text = text
+        self.x0 = x0
+        self.y0 = y0
+        self.x1 = x1
+        self.y1 = y1
+        self.confidence = confidence
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension OcrRegionInfo: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeOcrRegionInfo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> OcrRegionInfo {
+        return
+            try OcrRegionInfo(
+                text: FfiConverterString.read(from: &buf), 
+                x0: FfiConverterFloat.read(from: &buf), 
+                y0: FfiConverterFloat.read(from: &buf), 
+                x1: FfiConverterFloat.read(from: &buf), 
+                y1: FfiConverterFloat.read(from: &buf), 
+                confidence: FfiConverterFloat.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: OcrRegionInfo, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.text, into: &buf)
+        FfiConverterFloat.write(value.x0, into: &buf)
+        FfiConverterFloat.write(value.y0, into: &buf)
+        FfiConverterFloat.write(value.x1, into: &buf)
+        FfiConverterFloat.write(value.y1, into: &buf)
+        FfiConverterFloat.write(value.confidence, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOcrRegionInfo_lift(_ buf: RustBuffer) throws -> OcrRegionInfo {
+    return try FfiConverterTypeOcrRegionInfo.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOcrRegionInfo_lower(_ value: OcrRegionInfo) -> RustBuffer {
+    return FfiConverterTypeOcrRegionInfo.lower(value)
+}
+
+
 public struct PersonInfo: Equatable, Hashable {
     public var id: String
     public var name: String
@@ -12661,6 +13291,190 @@ public func FfiConverterTypeSurfacePlan_lift(_ buf: RustBuffer) throws -> Surfac
 #endif
 public func FfiConverterTypeSurfacePlan_lower(_ value: SurfacePlan) -> RustBuffer {
     return FfiConverterTypeSurfacePlan.lower(value)
+}
+
+
+public struct UnderstandingJobInfo: Equatable, Hashable {
+    public var id: UInt64
+    public var tasks: [UnderstandingTask]
+    public var state: UnderstandingJobState
+    /**
+     * Photos finished (or failed) of `total`. Photos whose results were
+     * already cached for the current models are not counted.
+     */
+    public var done: UInt32
+    public var total: UInt32
+    public var failed: UInt32
+    /**
+     * File name being analysed.
+     */
+    public var current: String
+    /**
+     * Why the job failed, or the first per-photo error.
+     */
+    public var error: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: UInt64, tasks: [UnderstandingTask], state: UnderstandingJobState, 
+        /**
+         * Photos finished (or failed) of `total`. Photos whose results were
+         * already cached for the current models are not counted.
+         */done: UInt32, total: UInt32, failed: UInt32, 
+        /**
+         * File name being analysed.
+         */current: String, 
+        /**
+         * Why the job failed, or the first per-photo error.
+         */error: String?) {
+        self.id = id
+        self.tasks = tasks
+        self.state = state
+        self.done = done
+        self.total = total
+        self.failed = failed
+        self.current = current
+        self.error = error
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension UnderstandingJobInfo: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeUnderstandingJobInfo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UnderstandingJobInfo {
+        return
+            try UnderstandingJobInfo(
+                id: FfiConverterUInt64.read(from: &buf), 
+                tasks: FfiConverterSequenceTypeUnderstandingTask.read(from: &buf), 
+                state: FfiConverterTypeUnderstandingJobState.read(from: &buf), 
+                done: FfiConverterUInt32.read(from: &buf), 
+                total: FfiConverterUInt32.read(from: &buf), 
+                failed: FfiConverterUInt32.read(from: &buf), 
+                current: FfiConverterString.read(from: &buf), 
+                error: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: UnderstandingJobInfo, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.id, into: &buf)
+        FfiConverterSequenceTypeUnderstandingTask.write(value.tasks, into: &buf)
+        FfiConverterTypeUnderstandingJobState.write(value.state, into: &buf)
+        FfiConverterUInt32.write(value.done, into: &buf)
+        FfiConverterUInt32.write(value.total, into: &buf)
+        FfiConverterUInt32.write(value.failed, into: &buf)
+        FfiConverterString.write(value.current, into: &buf)
+        FfiConverterOptionString.write(value.error, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeUnderstandingJobInfo_lift(_ buf: RustBuffer) throws -> UnderstandingJobInfo {
+    return try FfiConverterTypeUnderstandingJobInfo.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeUnderstandingJobInfo_lower(_ value: UnderstandingJobInfo) -> RustBuffer {
+    return FfiConverterTypeUnderstandingJobInfo.lower(value)
+}
+
+
+public struct UnderstandingModelStatus: Equatable, Hashable {
+    /**
+     * Using the deterministic test models (`--fake-captioner`).
+     */
+    public var testModels: Bool
+    /**
+     * SigLIP tokenizer present (weights download on first use if missing).
+     */
+    public var keywordsInstalled: Bool
+    /**
+     * Florence tokenizer present (weights download on first use if missing).
+     */
+    public var captionsInstalled: Bool
+    /**
+     * Where tokenizers / weights are expected.
+     */
+    public var cache: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Using the deterministic test models (`--fake-captioner`).
+         */testModels: Bool, 
+        /**
+         * SigLIP tokenizer present (weights download on first use if missing).
+         */keywordsInstalled: Bool, 
+        /**
+         * Florence tokenizer present (weights download on first use if missing).
+         */captionsInstalled: Bool, 
+        /**
+         * Where tokenizers / weights are expected.
+         */cache: String) {
+        self.testModels = testModels
+        self.keywordsInstalled = keywordsInstalled
+        self.captionsInstalled = captionsInstalled
+        self.cache = cache
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension UnderstandingModelStatus: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeUnderstandingModelStatus: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UnderstandingModelStatus {
+        return
+            try UnderstandingModelStatus(
+                testModels: FfiConverterBool.read(from: &buf), 
+                keywordsInstalled: FfiConverterBool.read(from: &buf), 
+                captionsInstalled: FfiConverterBool.read(from: &buf), 
+                cache: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: UnderstandingModelStatus, into buf: inout [UInt8]) {
+        FfiConverterBool.write(value.testModels, into: &buf)
+        FfiConverterBool.write(value.keywordsInstalled, into: &buf)
+        FfiConverterBool.write(value.captionsInstalled, into: &buf)
+        FfiConverterString.write(value.cache, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeUnderstandingModelStatus_lift(_ buf: RustBuffer) throws -> UnderstandingModelStatus {
+    return try FfiConverterTypeUnderstandingModelStatus.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeUnderstandingModelStatus_lower(_ value: UnderstandingModelStatus) -> RustBuffer {
+    return FfiConverterTypeUnderstandingModelStatus.lower(value)
 }
 
 
@@ -14494,6 +15308,175 @@ public func FfiConverterTypeThresholdDirection_lower(_ value: ThresholdDirection
 }
 
 
+
+
+public enum UnderstandingJobState: Equatable, Hashable {
+    
+    case queued
+    case running
+    case succeeded
+    case failed
+    case cancelled
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension UnderstandingJobState: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeUnderstandingJobState: FfiConverterRustBuffer {
+    typealias SwiftType = UnderstandingJobState
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UnderstandingJobState {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .queued
+        
+        case 2: return .running
+        
+        case 3: return .succeeded
+        
+        case 4: return .failed
+        
+        case 5: return .cancelled
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: UnderstandingJobState, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .queued:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .running:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .succeeded:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .failed:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .cancelled:
+            writeInt(&buf, Int32(5))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeUnderstandingJobState_lift(_ buf: RustBuffer) throws -> UnderstandingJobState {
+    return try FfiConverterTypeUnderstandingJobState.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeUnderstandingJobState_lower(_ value: UnderstandingJobState) -> RustBuffer {
+    return FfiConverterTypeUnderstandingJobState.lower(value)
+}
+
+
+
+
+public enum UnderstandingTask: Equatable, Hashable {
+    
+    /**
+     * SigLIP keyword suggestions with confidence.
+     */
+    case keywords
+    /**
+     * A one-sentence caption and a longer alt text (Florence-2).
+     */
+    case caption
+    /**
+     * Text in the image (Florence-2 OCR with regions).
+     */
+    case ocr
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension UnderstandingTask: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeUnderstandingTask: FfiConverterRustBuffer {
+    typealias SwiftType = UnderstandingTask
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UnderstandingTask {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .keywords
+        
+        case 2: return .caption
+        
+        case 3: return .ocr
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: UnderstandingTask, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .keywords:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .caption:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .ocr:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeUnderstandingTask_lift(_ buf: RustBuffer) throws -> UnderstandingTask {
+    return try FfiConverterTypeUnderstandingTask.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeUnderstandingTask_lower(_ value: UnderstandingTask) -> RustBuffer {
+    return FfiConverterTypeUnderstandingTask.lower(value)
+}
+
+
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
@@ -15870,6 +16853,31 @@ fileprivate struct FfiConverterSequenceTypeKeywordInfo: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeKeywordSuggestionInfo: FfiConverterRustBuffer {
+    typealias SwiftType = [KeywordSuggestionInfo]
+
+    public static func write(_ value: [KeywordSuggestionInfo], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeKeywordSuggestionInfo.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [KeywordSuggestionInfo] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [KeywordSuggestionInfo]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeKeywordSuggestionInfo.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeLibraryNode: FfiConverterRustBuffer {
     typealias SwiftType = [LibraryNode]
 
@@ -16270,6 +17278,31 @@ fileprivate struct FfiConverterSequenceTypeMetadataField: FfiConverterRustBuffer
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeOcrRegionInfo: FfiConverterRustBuffer {
+    typealias SwiftType = [OcrRegionInfo]
+
+    public static func write(_ value: [OcrRegionInfo], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeOcrRegionInfo.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [OcrRegionInfo] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [OcrRegionInfo]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeOcrRegionInfo.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypePersonInfo: FfiConverterRustBuffer {
     typealias SwiftType = [PersonInfo]
 
@@ -16362,6 +17395,56 @@ fileprivate struct FfiConverterSequenceTypeSessionImage: FfiConverterRustBuffer 
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeSessionImage.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeUnderstandingJobInfo: FfiConverterRustBuffer {
+    typealias SwiftType = [UnderstandingJobInfo]
+
+    public static func write(_ value: [UnderstandingJobInfo], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeUnderstandingJobInfo.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [UnderstandingJobInfo] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [UnderstandingJobInfo]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeUnderstandingJobInfo.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeUnderstandingTask: FfiConverterRustBuffer {
+    typealias SwiftType = [UnderstandingTask]
+
+    public static func write(_ value: [UnderstandingTask], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeUnderstandingTask.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [UnderstandingTask] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [UnderstandingTask]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeUnderstandingTask.read(from: &buf))
         }
         return seq
     }
@@ -16543,6 +17626,42 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_engine_set_score() != 33095) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tessera_ffi_checksum_method_engine_ai_metadata_settings() != 4690) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_analyze_understanding() != 58563) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_auto_suggest() != 30483) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_cancel_understanding_job() != 32132) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_caption() != 64977) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_image_understanding() != 15524) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_ocr() != 34543) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_set_ai_metadata_settings() != 19688) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_suggest_keywords() != 59252) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_understanding_jobs() != 51862) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_understanding_model_status() != 27547) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_use_test_understanding() != 36779) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_tessera_ffi_checksum_method_engineeventlistener_on_event() != 36402) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -16616,6 +17735,15 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_librarystore_set_iptc() != 15555) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_librarystore_accept_suggestions() != 27919) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_librarystore_reject_suggestions() != 46119) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_librarystore_suggestions() != 25950) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_developlistener_frame_ready() != 10022) {

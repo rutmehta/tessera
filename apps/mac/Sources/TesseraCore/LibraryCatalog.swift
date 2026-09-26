@@ -198,7 +198,7 @@ public struct RuleField: Sendable, Identifiable {
 
     public static let all: [RuleField] = [
         RuleField(key: "keyword", title: "Keyword", ops: equality, placeholder: "beach (includes child keywords)"),
-        RuleField(key: "text", title: "Any text", ops: [(":", "contains")], placeholder: "words in name, caption, keywords"),
+        RuleField(key: "text", title: "Any text", ops: [(":", "contains")], placeholder: "words in name, caption, keywords, text in image"),
         RuleField(key: "rating", title: "Grade", ops: numeric, placeholder: "0–3"),
         RuleField(key: "decision", title: "Decision", ops: equality, placeholder: "keep / reject / undecided"),
         RuleField(key: "mark", title: "Mark", ops: equality, placeholder: "Needs Retouch"),

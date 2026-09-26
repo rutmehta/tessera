@@ -54,6 +54,24 @@ pub fn rank_keywords(
     Ok(ranked)
 }
 
+/// Provenance of suggestions from a vocabulary and calibration, computable
+/// without loading the model (so cached results can be reused cheaply).
+pub fn keyword_model_version(labels: &[String], calibration: Calibration) -> String {
+    use sha2::{Digest, Sha256};
+    let mut hash = Sha256::new();
+    for label in labels {
+        hash.update(label.as_bytes());
+        hash.update([0]);
+    }
+    format!(
+        "{}/photo-prompt-v1/{:x}/t{}/m{}",
+        ml_embed::MODEL_VERSION,
+        hash.finalize(),
+        calibration.temperature,
+        calibration.midpoint
+    )
+}
+
 pub struct KeywordModel {
     model: Siglip,
     labels: Vec<String>,
@@ -62,19 +80,7 @@ pub struct KeywordModel {
 }
 impl KeywordModel {
     pub fn model_version(&self) -> String {
-        use sha2::{Digest, Sha256};
-        let mut hash = Sha256::new();
-        for label in &self.labels {
-            hash.update(label.as_bytes());
-            hash.update([0]);
-        }
-        format!(
-            "{}/photo-prompt-v1/{:x}/t{}/m{}",
-            ml_embed::MODEL_VERSION,
-            hash.finalize(),
-            self.calibration.temperature,
-            self.calibration.midpoint
-        )
+        keyword_model_version(&self.labels, self.calibration)
     }
     /// Encode the vocabulary once and reuse it for every bounded image batch.
     pub fn new(mut model: Siglip, labels: Vec<String>, calibration: Calibration) -> Result<Self> {
