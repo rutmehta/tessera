@@ -116,7 +116,7 @@ fn actual_onnx_adapter_pads_and_crops_named_tensors() {
     std::fs::remove_file(path).unwrap();
 }
 #[test]
-fn uninstalled_onnx_slot_is_cleanly_unavailable_without_downloads() {
+fn uncached_pinned_model_is_cleanly_unavailable_without_downloads() {
     use filters::remove::{OnnxInpainter, REMOVE_MODEL_ID, REMOVE_VERSION};
     use ml_runtime::{ModelRegistry, ModelSource, SessionOptions};
     let cache = std::path::PathBuf::from(std::env::var_os("CARGO_TARGET_DIR").unwrap())
@@ -129,10 +129,14 @@ fn uninstalled_onnx_slot_is_cleanly_unavailable_without_downloads() {
         .iter()
         .find(|m| m.id == REMOVE_MODEL_ID && m.version == REMOVE_VERSION)
         .unwrap();
-    assert_eq!(slot.source, ModelSource::Local);
-    assert!(slot.download_url.is_empty());
+    assert_eq!(slot.source, ModelSource::Url);
+    assert!(slot.download_url.contains(REMOVE_VERSION));
+    assert_eq!(
+        slot.sha256,
+        "1faef5301d78db7dda502fe59966957ec4b79dd64e16f03ed96913c7a4eb68d6"
+    );
     let error = match OnnxInpainter::load_local(&registry, SessionOptions::cpu()) {
-        Ok(_) => panic!("unverified placeholder must not load"),
+        Ok(_) => panic!("uncached model must not load"),
         Err(e) => e,
     };
     assert!(
@@ -142,7 +146,7 @@ fn uninstalled_onnx_slot_is_cleanly_unavailable_without_downloads() {
     assert_eq!(
         std::fs::read_dir(&cache).unwrap().count(),
         0,
-        "must not download or cache placeholder weights"
+        "must not download during automatic/cache-only loading"
     );
     std::fs::remove_dir_all(cache).unwrap();
 }
@@ -202,7 +206,9 @@ fn model_hook_receives_dilated_mask_and_display_rgb_then_blends_linear() {
     assert!(model.called);
     assert_eq!(out.backend, BackendUsed::Onnx);
     assert!(out.fallback_reason.is_none());
-    assert!((out.result.composite.pixel(7, 7)[0] - 0.375).abs() < 1e-5);
+    // Constant model gradient + constant exterior: Poisson boundary matching
+    // removes the luminance offset instead of introducing a square seam.
+    assert!((out.result.composite.pixel(7, 7)[0] - 0.25).abs() < 1e-5);
     assert_eq!(out.result.composite.pixel(7, 7)[3], 0.7);
     assert_eq!(out.result.composite.pixel(0, 0), input.pixel(0, 0));
 }

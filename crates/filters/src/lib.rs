@@ -5,6 +5,7 @@ pub mod adjust;
 pub mod caf;
 mod cpu;
 pub mod distort;
+pub mod distraction;
 mod evaluation;
 pub mod gpu;
 mod large;

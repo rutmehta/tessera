@@ -74,6 +74,20 @@ impl Session {
         options: SessionOptions,
         dimensions: &[(&str, i64)],
     ) -> Result<Self> {
+        Self::load_with_dimensions_and_threads(path, options, dimensions, 1)
+    }
+    /// Explicit bounded intra-op CPU budget for models with substantial CPU
+    /// fallback partitions. Existing loaders retain their one-thread policy.
+    pub fn load_with_dimensions_and_threads(
+        path: impl AsRef<Path>,
+        options: SessionOptions,
+        dimensions: &[(&str, i64)],
+        threads: usize,
+    ) -> Result<Self> {
+        ensure!(
+            threads > 0 && threads <= 64,
+            "CPU thread budget must be 1..64"
+        );
         ensure!(
             dimensions.iter().all(|(_, size)| *size > 0),
             "dimension overrides must be positive"
@@ -83,7 +97,11 @@ impl Session {
             let mut builder = ort::session::Session::builder()?
                 .with_optimization_level(GraphOptimizationLevel::Level1)
                 .map_err(ort::Error::<()>::from)?
-                .with_intra_threads(1)
+                .with_intra_threads(threads)
+                .map_err(ort::Error::<()>::from)?
+                // Sleeping CPU workers must not compete with CoreML between
+                // fallback partitions or burn cores in an idle reusable model.
+                .with_intra_op_spinning(false)
                 .map_err(ort::Error::<()>::from)?
                 .with_profiling(dir.path().join(if coreml { "coreml" } else { "cpu" }))
                 .map_err(ort::Error::<()>::from)?;

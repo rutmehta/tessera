@@ -16,6 +16,7 @@ compositor = { path = "../compositor" }
 engine-api = { path = "../engine-api" }
 pipeline-cpu = { path = "../pipeline-cpu" }
 ml-runtime = { path = "../ml-runtime" }
+ml-faces = { path = "../ml-faces" }
 wgpu.workspace = true
 bytemuck.workspace = true
 pollster = "0.4"
