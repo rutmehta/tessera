@@ -18,35 +18,38 @@ struct ContentView: View {
                 if model.tether.showPanel {
                     TetherPanel(model: model, tether: model.tether)
                 }
-                ZStack {
-                    // Both stay alive so grid scroll position and loupe texture survive mode switches.
-                    ThumbnailBrowser(model: model, style: .grid)
-                        .opacity(model.viewMode == .grid ? 1 : 0)
-                        .allowsHitTesting(model.viewMode == .grid)
-                    LoupeView(model: model)
-                        .opacity(model.viewMode == .loupe ? 1 : 0)
-                        .allowsHitTesting(model.viewMode == .loupe)
-                    if model.viewMode == .loupe {
-                        LoupeOverlay(model: model)
-                        MaskToolbar(model: model, masks: .shared)
-                    }
-                    if model.viewMode == .compare, model.compare != nil {
-                        CompareView(model: model)
-                    }
-                    if model.source == .people {
-                        PeopleView(model: model)
-                    } else if model.library.items.isEmpty {
-                        EmptyStateView(model: model)
-                    }
-                    VStack {
-                        Spacer()
-                        if let toast = model.toast {
-                            ToastView(model: model, toast: toast)
-                                .padding(.bottom, Theme.Space.l)
-                                .transition(Theme.Motion.transition(from: .bottom))
+                GeometryReader { area in
+                    ZStack {
+                        // Both stay alive so grid scroll position and loupe texture survive mode switches.
+                        ThumbnailBrowser(model: model, style: .grid)
+                            .opacity(model.viewMode == .grid ? 1 : 0)
+                            .allowsHitTesting(model.viewMode == .grid)
+                        LoupeView(model: model)
+                            .opacity(model.viewMode == .loupe ? 1 : 0)
+                            .allowsHitTesting(model.viewMode == .loupe)
+                        if model.viewMode == .loupe {
+                            LoupeOverlay(model: model)
+                            MaskToolbar(model: model, masks: .shared)
                         }
+                        if model.viewMode == .compare, model.compare != nil {
+                            CompareView(model: model)
+                        }
+                        if model.source == .people {
+                            PeopleView(model: model)
+                        } else if model.library.items.isEmpty {
+                            EmptyStateView(model: model)
+                        }
+                        VStack {
+                            Spacer()
+                            if let toast = model.toast {
+                                ToastView(model: model, toast: toast)
+                                    .padding(.bottom, Theme.Space.l)
+                                    .transition(Theme.Motion.transition(from: .bottom))
+                            }
+                        }
+                        .animation(Theme.Motion.appear, value: model.toast)
                     }
-                    .animation(Theme.Motion.appear, value: model.toast)
+                    .frame(width: area.size.width, height: area.size.height)
                 }
                 if model.viewMode == .loupe, model.source != .people, !model.assist.faces.isEmpty {
                     FaceStrip(model: model)
