@@ -743,7 +743,7 @@ fn changed_layers(a: &DocState, b: &DocState) -> Vec<u64> {
 /// its mask and, for groups, every child with its properties. The layer's
 /// own properties (opacity, blend mode, visibility, name, …) are left out:
 /// thumbnails ignore them, so an opacity drag does not re-render the
-/// thumbnail on every step (WP M5-10b).
+/// thumbnail on every step (WP M5-13b).
 fn layer_revision(l: &Layer) -> u64 {
     let mut r = l.content_rev;
     if let Some(m) = &l.mask {

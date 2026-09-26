@@ -13,7 +13,7 @@ struct AppCommands: Commands {
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
-            // Layered documents (WP M5-10).
+            // Layered documents (WP M5-13).
             Group {
                 Button("New Document…") { docs.showNewDocument = true }
                     .keyboardShortcut("n", modifiers: .command)
@@ -216,7 +216,7 @@ struct AppCommands: Commands {
         }
     }
 
-    /// Save items, Layer and Select (document mode, WP M5-10).
+    /// Save items, Layer and Select (document mode, WP M5-13).
     @CommandsBuilder private var documentMenus: some Commands {
         // Close / Save / Save As / Export Flat: ⌘W closes the current document in document mode
         // (asking to save), the window otherwise.
@@ -249,7 +249,7 @@ struct AppCommands: Commands {
     }
 }
 
-/// Layer menu (document mode, WP M5-10). The Layers panel's context menu mirrors it.
+/// Layer menu (document mode, WP M5-13). The Layers panel's context menu mirrors it.
 struct LayerMenu: View {
     let doc: DocumentController?
 

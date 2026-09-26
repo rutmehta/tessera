@@ -1,11 +1,11 @@
 import Foundation
 import IOSurface
 
-// The layered-document backend the mac app's document mode codes against (WP M5-10).
+// The layered-document backend the mac app's document mode codes against (WP M5-13).
 //
 // This mirrors the `DocumentSession` UniFFI object of WP M5-09 (crates/tessera-ffi/src/document.rs)
 // one to one: every record below is the Swift shape of an M5-09 record, every requirement is one
-// session call (snake_case in Rust, camelCase here), so M5-10b wires the real session by writing a
+// session call (snake_case in Rust, camelCase here), so M5-13b wires the real session by writing a
 // thin adapter (`extension DocumentSession: DocumentBackend`) that converts records field by field.
 // Until then `StubDocumentBackend` implements it in Swift so the UI runs and tests pass without the
 // engine. Conventions from apps/mac/README.md hold: ids and small records cross the bridge, pixels

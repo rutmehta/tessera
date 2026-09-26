@@ -174,7 +174,7 @@ public enum FillModel: Equatable, Sendable {
     case solid(color: [Double])
     /// `radial` false = linear. Points in canvas pixels.
     case gradient(radial: Bool, start: [Double], end: [Double], stops: [Stop])
-    /// Pattern contents are not editable in M5-10 (placeholder); the JSON is kept as is.
+    /// Pattern contents are not editable in M5-13 (placeholder); the JSON is kept as is.
     case pattern(width: Int, height: Int, json: String)
 
     public enum Kind: String, CaseIterable, Sendable, Identifiable {

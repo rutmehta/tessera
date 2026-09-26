@@ -1,6 +1,6 @@
 import Foundation
 
-/// Document tools (spec 02 §4; M5-10 has Move and Rectangular Marquee only).
+/// Document tools (spec 02 §4; M5-13 has Move and Rectangular Marquee only).
 public enum DocumentTool: String, CaseIterable, Sendable {
     case move, marquee
     public var title: String { self == .move ? "Move" : "Rectangular Marquee" }

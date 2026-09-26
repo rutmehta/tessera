@@ -496,7 +496,7 @@ fn convert(source: &[u8], target: &[u8], rgba: &mut [f32]) -> Result<()> {
 
 /// Pixel-exact bounds of a selection raster: the pixels with any
 /// selection (`None`: nothing selected). The marching ants and the status
-/// bar show them, so stored-tile granularity is not enough (WP M5-10b).
+/// bar show them, so stored-tile granularity is not enough (WP M5-13b).
 /// Scans the stored tiles; `info` caches the result per selection.
 pub(crate) fn selection_bounds(r: &Raster) -> Option<Rect> {
     if r.default_value() > 0.0 {

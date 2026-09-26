@@ -5,11 +5,11 @@ import TesseraCore
 import TesseraFFI
 import UniformTypeIdentifiers
 
-/// Document mode's open documents (WP M5-10): the tab switcher, New / Open / Edit in Layers,
+/// Document mode's open documents (WP M5-13): the tab switcher, New / Open / Edit in Layers,
 /// Save / Save As / Export Flat, close with a save prompt, panels (Tab) and screen modes (F).
 @MainActor @Observable
 final class DocumentWorkspace {
-    /// Where documents come from when no engine-backed library is open (WP M5-10b).
+    /// Where documents come from when no engine-backed library is open (WP M5-13b).
     enum BackendPolicy: Equatable {
         /// The stub backend (`--stub-library`, unit tests).
         case stub

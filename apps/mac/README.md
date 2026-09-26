@@ -115,7 +115,7 @@ the compositor's GPU-resident renderer on the engine's single Metal device (shar
 revision. Output: `save()`, `saveAs(path:)` (`.tessera-doc`, `.psd`, `.psb` with the flattened composite),
 `exportFlat(path:format:quality:color:)` (`ExportFormat` PNG/JPEG/TIFF, `ExportColor` document profile or a
 built-in space, ICC embedded), `close()`.
-Document mode uses them through `EngineDocumentBackend` (TesseraCore/Document, WP M5-10b): `EngineDocumentEngine.for(engine)`
+Document mode uses them through `EngineDocumentBackend` (TesseraCore/Document, WP M5-13b): `EngineDocumentEngine.for(engine)`
 opens sessions (one backend object per session, so the same file or image is the same tab) and each call converts
 records field by field to the UI's `DocumentBackend` types. The engine's base history node is the History panel's
 `Opened` row (id 0). The listener adapter hops to the main queue and coalesces callbacks (newest frame, union of changed

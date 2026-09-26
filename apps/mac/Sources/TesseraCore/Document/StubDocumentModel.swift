@@ -2,7 +2,7 @@ import CoreGraphics
 import Foundation
 import ImageIO
 
-// The stub document's data and its CPU compositor (WP M5-10). Everything is a pure per-pixel
+// The stub document's data and its CPU compositor (WP M5-13). Everything is a pure per-pixel
 // function of the layer tree, so the stub renders any viewport rectangle at any level without
 // storing rasters. Pixel content is procedural (the sample document), a decoded image file, or a
 // "merged" snapshot of other layers (merge down, flatten). Formulas follow COMPOSITOR.md §2–4

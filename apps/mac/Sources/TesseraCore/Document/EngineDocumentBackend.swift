@@ -1,11 +1,11 @@
 import Foundation
 import TesseraFFI
 
-// The engine's layered documents behind document mode (WP M5-10b).
+// The engine's layered documents behind document mode (WP M5-13b).
 //
 // `EngineDocumentEngine` opens documents through `Engine` (M5-09, crates/tessera-ffi/src/document.rs)
 // and `EngineDocumentBackend` adapts one `DocumentSession` to `DocumentBackend`, converting every
-// record field by field (the name table in tools/orchestrate/wp/M5-10/IMPLEMENTATION-STATUS.md).
+// record field by field (the name table in tools/orchestrate/wp/M5-13/IMPLEMENTATION-STATUS.md).
 // The listener adapter hops engine render-thread callbacks to the main queue and coalesces them:
 // however many frames arrive while the main thread is busy, the UI sees the newest frame, the union
 // of changed layer ids and the latest history head, once.

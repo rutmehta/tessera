@@ -2,7 +2,7 @@ import AppKit
 import ImageIO
 import TesseraCore
 
-/// `--document-selftest <dir>` (test aid, WP M5-10b): ACCEPTANCE §U part 2 through the same controller
+/// `--document-selftest <dir>` (test aid, WP M5-13b): ACCEPTANCE §U part 2 through the same controller
 /// calls the UI makes. After the library loads it focuses `sample.dng` (or the first RAW), runs Edit in
 /// Layers, adds an Exposure adjustment layer and drags it, drags the photo layer's Opacity 100 → 40 % at
 /// display rate (61 interactive steps, then the release), undoes, saves `<dir>/SelfTest.tessera-doc`,

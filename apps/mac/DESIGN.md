@@ -291,7 +291,7 @@ group's suggested best; the filmstrip at 72 pt; a one-line status bar in three g
 * The toolbar opts out of macOS 26's per-item glass with `sharedBackgroundVisibility(.hidden)`
   (`flatToolbarItem()`); macOS 15 ignores it.
 
-## 10. Document mode (WP M5-10)
+## 10. Document mode (WP M5-13)
 
 Layered documents reuse the system above; nothing here adds a colour, size or font.
 

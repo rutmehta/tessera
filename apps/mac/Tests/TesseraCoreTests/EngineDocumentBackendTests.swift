@@ -5,7 +5,7 @@ import TesseraFFI
 @testable import Tessera
 @testable import TesseraCore
 
-/// The engine adapter of document mode (WP M5-10b): record conversion both ways for every enum value,
+/// The engine adapter of document mode (WP M5-13b): record conversion both ways for every enum value,
 /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
 /// workspace's engine-vs-stub choice.
 final class EngineDocumentBackendTests: XCTestCase {

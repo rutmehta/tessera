@@ -14,7 +14,7 @@ import TesseraCore
 ///   Compare: ← → pick side · Return choose this · Z fit/1:1 · Esc back
 ///   Masking (loupe): M on/off · O overlay (⇧ colour) · [ ] brush size (⇧ feather) · X invert · ⌫ delete
 ///   Develop (loupe): S soft proofing on/off · ⇧S gamut warning
-///   Document mode (M5-10, `DocumentKeyMap`): V move · M marquee · Space-drag pan · Tab panels ·
+///   Document mode (M5-13, `DocumentKeyMap`): V move · M marquee · Space-drag pan · Tab panels ·
 ///   F screen modes · ⌫ delete layer; no culling key fires. ⌘ shortcuts are Layer / Select / View menu items.
 /// First responders that own their keyboard input. The local monitor must leave their events
 /// untouched even when they do not handle a particular key themselves.

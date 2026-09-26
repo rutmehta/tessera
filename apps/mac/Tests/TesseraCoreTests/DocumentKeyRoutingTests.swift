@@ -3,7 +3,7 @@ import XCTest
 @testable import Tessera
 @testable import TesseraCore
 
-/// Keyboard routing by mode (WP M5-10): in document mode the document key map runs and the
+/// Keyboard routing by mode (WP M5-13): in document mode the document key map runs and the
 /// culling single-key shortcuts never fire; outside it, V / M / Tab mean nothing new.
 @MainActor
 final class DocumentKeyRoutingTests: XCTestCase {

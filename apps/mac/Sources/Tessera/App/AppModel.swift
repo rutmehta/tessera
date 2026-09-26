@@ -7,7 +7,7 @@ enum ViewMode: String, CaseIterable, Identifiable {
     case grid = "Grid"
     case loupe = "Loupe"
     case compare = "Compare"
-    /// Layered documents (WP M5-10): viewport, Layers, Properties and History.
+    /// Layered documents (WP M5-13): viewport, Layers, Properties and History.
     case document = "Document"
     var id: String { rawValue }
 }
@@ -137,7 +137,7 @@ final class AppModel {
     var showAutoEdit = false
     /// File ▸ Tethered Capture… (WP M3-12b): the docked Tether panel and its session.
     let tether = TetherController()
-    /// Layered documents (WP M5-10): open documents, tabs, New / Open / Save.
+    /// Layered documents (WP M5-13): open documents, tabs, New / Open / Save.
     let documents = DocumentWorkspace()
     var viewMode: ViewMode = .grid {
         didSet {

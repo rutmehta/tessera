@@ -958,10 +958,10 @@ the battery readout.
 | `tether-capture` · `tether-interval-seconds` · `tether-interval-count` · `tether-interval-toggle` · `tether-interval-status` · `tether-auto-advance` · `tether-summary` | Capture row |
 | `tether-incoming` · `tether-frame-<sequence>` · `tether-pending` | Incoming strip |
 
-## U. Document mode: layered documents (M5-10)
+## U. Document mode: layered documents (M5-13)
 
 **Layers** (the fourth view-mode segment) is Tessera's layered editor: a viewport, and Properties, Layers and History
-panels in the inspector. Since M5-10b documents run on the engine's `DocumentSession` (`EngineDocumentBackend`): the
+panels in the inspector. Since M5-13b documents run on the engine's `DocumentSession` (`EngineDocumentBackend`): the
 engine of the open folder, or a standalone engine in the app-support directory when no folder is open. With
 `--stub-library` they run on the **stub backend** (`StubDocumentBackend`): a new document opens with six sample layers
 (Paper, Landscape with a soft elliptical mask, Vignette clipped to it, and a Grade group holding Curves 1 and
@@ -1029,7 +1029,7 @@ Hue/Saturation 1), rendered on the CPU. Part 1 runs on the stub; part 2 repeats 
      gains `Snapshot “Snapshot 1”` (undoable). The memory line reads `<n> states · <size>`.
 140. **Save, reopen, close.** ⌘S on the new document opens Save As; save `Poster.tessera-doc` into `$SCR`. The tab title
      becomes `Poster.tessera-doc`, the dirty dot goes. Choose **Save As…** with a `.psd` name: the status bar reads
-     `Save As: Saving as PSD / PSB needs the engine (M5-10b); save as .tessera-doc`. **File ▸ Export Flat…** (⇧⌘E): format
+     `Save As: Saving as PSD / PSB needs the engine (M5-13b); save as .tessera-doc`. **File ▸ Export Flat…** (⇧⌘E): format
      PNG / JPEG / TIFF, quality for JPEG, colour space; export `Poster.png` into `$SCR` and check it opens in Preview with
      transparent margins (JPEG: white). Make one edit and press ⌘W: `Do you want to save the changes made to
      “Poster.tessera-doc”?` with Save…, Cancel, Don’t Save; choose Don’t Save: the tab closes and the viewport shows the
@@ -1044,9 +1044,9 @@ Hue/Saturation 1), rendered on the CPU. Part 1 runs on the stub; part 2 repeats 
      ```sh
      (cd apps/mac && swift test --filter "Document|ThemeLint" 2>&1 | grep "Executed")
      ```
-     Expect `Executed 41 tests, with 0 failures` (32 from M5-10, 9 engine-adapter tests from M5-10b).
+     Expect `Executed 41 tests, with 0 failures` (32 from M5-13, 9 engine-adapter tests from M5-13b).
 
-### Part 2: over the real engine (M5-10b)
+### Part 2: over the real engine (M5-13b)
 
 Work on a copy of the fixture: `mkdir -p "$SCR/shoot" && cp fixtures/raw/sample.dng "$SCR/shoot/"` (the app writes
 sidecars next to photos; never point it at `fixtures/raw`). Turn on **Debug ▸ Show Render Timing** for the readout.
@@ -1089,7 +1089,7 @@ PASS when steps 130–142 (stub) and 143–150 (engine) meet their expectations.
 large window (drag Opacity on `Landscape` at 100 %) as an observation; the stub renders on the CPU and is not held to the
 engine's budget.
 
-## Appendix: accessibility identifiers (M5-10)
+## Appendix: accessibility identifiers (M5-13)
 
 | Identifier | Element |
 | --- | --- |

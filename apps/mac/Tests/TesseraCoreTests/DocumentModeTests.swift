@@ -4,7 +4,7 @@ import IOSurface
 import XCTest
 @testable import TesseraCore
 
-/// Document mode (WP M5-10): outline flattening and diffing, the blend-mode table, viewport
+/// Document mode (WP M5-13): outline flattening and diffing, the blend-mode table, viewport
 /// maths, the document key map and the stub backend's history and output.
 final class DocumentOutlineTests: XCTestCase {
     private func node(_ id: DocLayerID, _ parent: DocLayerID?, _ index: UInt32, group: Bool = false) -> LayerRecord {

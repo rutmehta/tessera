@@ -4,7 +4,7 @@ import ImageIO
 import IOSurface
 import UniformTypeIdentifiers
 
-/// `DocumentEngine` without the engine: documents are `StubDocumentBackend`s (WP M5-10).
+/// `DocumentEngine` without the engine: documents are `StubDocumentBackend`s (WP M5-13).
 public final class StubDocumentEngine: DocumentEngine, @unchecked Sendable {
     public static let shared = StubDocumentEngine()
 
@@ -913,7 +913,7 @@ public final class StubDocumentBackend: DocumentBackend, @unchecked Sendable {
         let url = URL(fileURLWithPath: newPath).standardizedFileURL
         switch url.pathExtension.lowercased() {
         case "tessera-doc": break
-        case "psd", "psb": throw DocumentError.unsupported("Saving as PSD / PSB needs the engine (M5-10b); save as .tessera-doc")
+        case "psd", "psb": throw DocumentError.unsupported("Saving as PSD / PSB needs the engine (M5-13b); save as .tessera-doc")
         default: throw DocumentError.invalid("Documents save as .tessera-doc")
         }
         lock.lock()
