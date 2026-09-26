@@ -1003,9 +1003,9 @@
     "id": "M5-25",
     "owner": "astra",
     "title": "Camera Raw smart filter (full develop chain on RGB layers)",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
-    "notes": ""
+    "notes": "gate 388 tests; follow-ups: GPU lens/CA inside the filter, Develop stage memoisation (needs in-memory RgbSource)"
   },
   {
     "id": "M2-29v",
