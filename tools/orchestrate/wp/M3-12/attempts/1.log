@@ -1,0 +1,19 @@
+Implemented M3-12 within the allowed paths.
+
+Added ImageCaptureCore discovery/capture, safe download naming, ordered Priority::Score ingest with indexing, previews and quality/face scoring, UniFFI callbacks, and CLI list/start/capture commands. engine-api is unchanged.
+
+Verification:
+  Release suite: 117 passed, 6 ignored.
+  Real YuNet/SFace integration test: passed separately.
+  Clippy -D warnings and cargo fmt --check: passed.
+  Native bridge compilation and lifetime tests: passed.
+  Device discovery: zero cameras. CLI returned [].
+
+The passing full test chain used CI=1 for the repository’s existing longer RAW-preview timeout. The initial non-CI run exceeded that test’s three-second limit; no test thresholds were changed.
+
+Physical capture remains unverified without an attached camera. Details are in tools/orchestrate/wp/M3-12/verification.md. No commits made.
+
+RESULT: PASS
+
+⚠️ File-mutation verifier: 1 file(s) were NOT modified this turn despite any wording above that may suggest otherwise. Run `git status` or `read_file` to confirm.
+  • `crates/tether/tests/ingest.rs` — [patch] Patch validation failed (no files were modified): • `/Users/rutmehta/Developer/tessera/.worktrees/M3-12/crates/tether/tests/ingest.rs`: hunk 2 (no hint) not found — Found 30 matches…

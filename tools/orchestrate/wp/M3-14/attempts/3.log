@@ -1,0 +1,12 @@
+M3-14 remains incomplete. I preserved the existing implementation and reran verification with the external CARGO_TARGET_DIR.
+
+- Required test chain failed at crates/tessera-ffi/tests/develop.rs:1179, export_batch_does_not_starve_slider_drag. Isolated rerun also failed.
+- Clippy, fmt, agent tests, and standalone tessera-mcp tests passed.
+- Five-fixture benchmark failed DNG clipping parity: 0.028406 preview versus 0.118098 full resolution.
+- NEF warm three-step plan measured 144 ms, approximately 48 ms per step.
+- RGB-through-Renderer requires an image-core API extension outside the allowed paths. Skin ΔE parity remains unverified.
+
+No production code changed during this retry. Evidence and blockers are recorded at:
+/Users/rutmehta/Developer/tessera/.worktrees/M3-14/tools/orchestrate/wp/M3-14/results.md
+
+RESULT: FAIL clipping parity and RGB Renderer requirements remain unmet; required FFI regression test fails.
