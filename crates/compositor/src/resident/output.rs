@@ -2,7 +2,12 @@
 
 use crate::geom::Rect;
 use engine_api::{EngineError, EngineResult, tile::Extent};
-use gpu_core::Lut3d;
+use gpu_core::{
+    Lut3d,
+    color_mgmt::{Builtin, Profile, Registry, Transform, TransformOptions},
+};
+use std::sync::Arc;
+use std::{collections::HashMap, sync::Mutex};
 use wgpu::util::DeviceExt;
 
 /// Interpretation of straight RGB obtained by unpremultiplying the composite.
@@ -18,9 +23,103 @@ pub enum SourceColorPolicy {
     LutInput,
 }
 
-/// Reusable pipelines for presentation. Source and target must belong to the
-/// supplied device, and the queue must be that device's queue.
+/// Source contract for profiled presentation. This is explicit because a bounded
+/// ICC LUT cannot preserve arbitrary scene-linear HDR input.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SourceDomain {
+    /// Straight RGB is document-encoded in [0,1]. Not an HDR source path.
+    EncodedUnit,
+    /// Samples are already linear in the document profile's primaries/white;
+    /// its TRCs are intentionally ignored. Matrix RGB profiles only, relative
+    /// colorimetric intent, float destination. No LUT input clamping.
+    LinearExtended,
+}
+#[derive(Clone)]
+/// Destination encoding and storage format.
+pub enum DisplayDestination {
+    /// ICC-encoded RGBA8; host must tag the surface with this profile.
+    Encoded(Arc<Profile>),
+    /// Linear extended sRGB RGBA16F (no OETF).
+    LinearSrgb,
+    /// Linear extended Display P3 RGBA16F (no OETF).
+    LinearDisplayP3,
+}
+/// Output range, not an exposure gain or a scene tone mapper.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Headroom {
+    /// Enable extended output range.
+    pub hdr: bool,
+    /// Requested headroom stops, sanitized to 0..16.
+    pub stops: f32,
+    /// Display headroom as a linear multiple of SDR white.
+    pub display: f32,
+}
+impl Headroom {
+    /// min(2^stops, display) for HDR; 1 for SDR. Limited to finite f16 range.
+    pub fn effective(self) -> f32 {
+        let stops = if self.stops.is_finite() {
+            self.stops.clamp(0.0, 16.0)
+        } else {
+            0.0
+        };
+        let display = if self.display.is_finite() {
+            self.display.max(1.0)
+        } else {
+            1.0
+        };
+        if self.hdr {
+            stops.exp2().min(display).min(65504.0)
+        } else {
+            1.0
+        }
+    }
+}
+/// Immutable device-resident transform. Retaining this avoids even CPU LUT
+/// hashing on redraws. It must be used on the presenter's device.
+#[derive(Clone)]
+pub struct PreparedOutput {
+    nodes: wgpu::Buffer,
+    float: bool,
+    headroom: f32,
+    extended: bool,
+}
+#[derive(PartialEq, Eq, Hash)]
+struct ProfileKey {
+    source: [u8; 32],
+    destination: [u8; 32],
+    domain: SourceDomain,
+    intent: u32,
+    bpc: bool,
+    paper: bool,
+    threshold: u32,
+}
+#[derive(Default)]
+struct Profiles {
+    registry: Registry,
+    buffers: HashMap<ProfileKey, wgpu::Buffer>,
+}
+/// Counters are shared by renderers using the same pipeline instance.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct OutputCacheStats {
+    /// GPU LUT buffer allocations/uploads.
+    pub uploads: u64,
+    /// Distinct ICC/profile/options preparations.
+    pub preparations: u64,
+    /// Raw content-cache hits (profile-cache hits do not hash content).
+    pub hits: u64,
+    /// GPU LUT bytes retained for the pipeline lifetime.
+    pub resident_bytes: u64,
+}
+#[derive(Default)]
+struct LutCache {
+    buffers: HashMap<blake3::Hash, wgpu::Buffer>,
+    stats: OutputCacheStats,
+}
+
 pub struct OutputPresenter {
+    profiles: Mutex<Profiles>,
+    cache: Mutex<LutCache>,
+    dummy: wgpu::Buffer,
     sdr: wgpu::ComputePipeline,
     edr: wgpu::ComputePipeline,
 }
@@ -46,6 +145,13 @@ impl OutputPresenter {
             })
         };
         let result = Self {
+            profiles: Mutex::new(Profiles::default()),
+            cache: Mutex::new(LutCache::default()),
+            dummy: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("output dummy LUT"),
+                contents: &[0; 12],
+                usage: wgpu::BufferUsages::STORAGE,
+            }),
             sdr: build("rgba8unorm"),
             edr: build("rgba16float"),
         };
@@ -53,6 +159,134 @@ impl OutputPresenter {
             return Err(EngineError::internal(e.to_string()));
         }
         Ok(result)
+    }
+
+    /// None is untagged sRGB. Handle-only profiles are deliberately rejected:
+    /// no guessed interpretation of an unresolved document profile.
+    #[allow(clippy::too_many_arguments)]
+    pub fn prepare(
+        &self,
+        device: &wgpu::Device,
+        profile: Option<&crate::document::ColorProfile>,
+        domain: SourceDomain,
+        destination: DisplayDestination,
+        options: TransformOptions,
+        headroom: Headroom,
+    ) -> EngineResult<PreparedOutput> {
+        let error = |e: gpu_core::color_mgmt::Error| EngineError::invalid("profile", e.to_string());
+        let mut profiles = self.profiles.lock().unwrap_or_else(|e| e.into_inner());
+        let registry = &mut profiles.registry;
+        let source = match profile {
+            None => registry.builtin(Builtin::Srgb).map_err(error)?,
+            Some(p) => registry
+                .load_bytes(p.icc.as_deref().ok_or_else(|| {
+                    EngineError::invalid("profile", "embedded ICC bytes required")
+                })?)
+                .map_err(error)?,
+        };
+        let extended = domain == SourceDomain::LinearExtended;
+        if extended
+            && (matches!(destination, DisplayDestination::Encoded(_))
+                || options.intent != gpu_core::color_mgmt::Intent::RelativeColorimetric)
+        {
+            return Err(EngineError::invalid(
+                "source domain",
+                "linear extended requires linear destination and relative colorimetric intent",
+            ));
+        }
+        let source = if extended {
+            registry
+                .linearized_rgb(&source)
+                .map_err(error)?
+                .ok_or_else(|| {
+                    EngineError::invalid(
+                        "source domain",
+                        "linear extended requires matrix RGB profile",
+                    )
+                })?
+        } else {
+            source
+        };
+        let float = !matches!(destination, DisplayDestination::Encoded(_));
+        let destination = match destination {
+            DisplayDestination::Encoded(p) => p,
+            destination => {
+                let p = registry
+                    .builtin(if matches!(destination, DisplayDestination::LinearSrgb) {
+                        Builtin::Srgb
+                    } else {
+                        Builtin::DisplayP3
+                    })
+                    .map_err(error)?;
+                registry
+                    .linearized_rgb(&p)
+                    .map_err(error)?
+                    .ok_or_else(|| EngineError::invalid("display", "matrix RGB profile required"))?
+            }
+        };
+        if !options.gamut_threshold.is_finite() || options.gamut_threshold < 0.0 {
+            return Err(EngineError::invalid(
+                "options",
+                "finite nonnegative gamut threshold required",
+            ));
+        }
+        let key = ProfileKey {
+            source: source.digest(),
+            destination: destination.digest(),
+            domain,
+            intent: options.intent as u32,
+            bpc: options.black_point_compensation,
+            paper: options.simulate_paper,
+            threshold: options.gamut_threshold.to_bits(),
+        };
+        let nodes = if let Some(nodes) = profiles.buffers.get(&key) {
+            nodes.clone()
+        } else {
+            let lut = Transform::new(&source, &destination, options)
+                .map_err(error)?
+                .lut33();
+            let nodes = self.nodes(device, Some(&lut));
+            self.cache
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .stats
+                .preparations += 1;
+            profiles.buffers.insert(key, nodes.clone());
+            nodes
+        };
+        Ok(PreparedOutput {
+            nodes,
+            float,
+            headroom: headroom.effective(),
+            extended,
+        })
+    }
+
+    pub fn cache_stats(&self) -> OutputCacheStats {
+        self.cache.lock().unwrap_or_else(|e| e.into_inner()).stats
+    }
+
+    fn nodes(&self, device: &wgpu::Device, lut: Option<&Lut3d>) -> wgpu::Buffer {
+        let Some(lut) = lut else {
+            return self.dummy.clone();
+        };
+        // Content identity, not address: the public Lut3d is mutable.
+        let bytes = bytemuck::cast_slice(lut.values.as_slice());
+        let key = blake3::hash(bytes);
+        let mut cache = self.cache.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(buffer) = cache.buffers.get(&key).cloned() {
+            cache.stats.hits += 1;
+            return buffer;
+        }
+        let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("resident output LUT"),
+            contents: bytes,
+            usage: wgpu::BufferUsages::STORAGE,
+        });
+        cache.stats.uploads += 1;
+        cache.stats.resident_bytes += bytes.len() as u64;
+        cache.buffers.insert(key, buffer.clone());
+        buffer
     }
 
     /// Presents tightly packed interleaved premultiplied f32 RGBA, with no
@@ -75,6 +309,54 @@ impl OutputPresenter {
         background: Option<[f32; 3]>,
         policy: SourceColorPolicy,
         lut: Option<&Lut3d>,
+    ) -> EngineResult<()> {
+        self.dispatch(
+            device, queue, source, extent, src, target, dst, background, policy, lut, None,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn present_prepared(
+        &self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        source: &wgpu::Buffer,
+        extent: Extent,
+        src: Rect,
+        target: &wgpu::Texture,
+        dst: (u32, u32),
+        background: Option<[f32; 3]>,
+        prepared: &PreparedOutput,
+    ) -> EngineResult<()> {
+        self.dispatch(
+            device,
+            queue,
+            source,
+            extent,
+            src,
+            target,
+            dst,
+            background,
+            SourceColorPolicy::LutInput,
+            None,
+            Some(prepared),
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn dispatch(
+        &self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        source: &wgpu::Buffer,
+        extent: Extent,
+        src: Rect,
+        target: &wgpu::Texture,
+        dst: (u32, u32),
+        background: Option<[f32; 3]>,
+        policy: SourceColorPolicy,
+        lut: Option<&Lut3d>,
+        prepared: Option<&PreparedOutput>,
     ) -> EngineResult<()> {
         let bad = |field, message| EngineError::invalid(field, message);
         if src.is_empty()
@@ -126,7 +408,13 @@ impl OutputPresenter {
         if background.is_some_and(|bg| bg.iter().any(|v| !v.is_finite())) {
             return Err(bad("background", "finite destination RGB required"));
         }
-        match (policy, lut.is_some(), float) {
+        if prepared.is_some_and(|p| p.float != float) {
+            return Err(bad(
+                "target",
+                "prepared transform does not match texture format",
+            ));
+        }
+        match (policy, lut.is_some() || prepared.is_some(), float) {
             (SourceColorPolicy::DocumentEncoded, false, false)
             | (SourceColorPolicy::DisplayLinear, false, true)
             | (SourceColorPolicy::LutInput, true, _) => {}
@@ -152,7 +440,14 @@ impl OutputPresenter {
             bg[0].to_bits(),
             bg[1].to_bits(),
             bg[2].to_bits(),
-            u32::from(lut.is_some()),
+            u32::from(lut.is_some() || prepared.is_some()),
+            prepared
+                .filter(|p| p.float)
+                .map_or(0.0, |p| p.headroom)
+                .to_bits(),
+            u32::from(prepared.is_some_and(|p| p.extended)),
+            0,
+            0,
         ];
         let scope = device.push_error_scope(wgpu::ErrorFilter::Validation);
         let ub = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -160,11 +455,7 @@ impl OutputPresenter {
             contents: bytemuck::cast_slice(&params),
             usage: wgpu::BufferUsages::UNIFORM,
         });
-        let nodes = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("output LUT"),
-            contents: bytemuck::cast_slice(lut.map_or(&[[0.0; 3]][..], |l| l.values.as_slice())),
-            usage: wgpu::BufferUsages::STORAGE,
-        });
+        let nodes = prepared.map_or_else(|| self.nodes(device, lut), |p| p.nodes.clone());
         let view = target.create_view(&Default::default());
         let pipeline = if float { &self.edr } else { &self.sdr };
         let group = device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -332,6 +623,413 @@ mod tests {
                 assert!((pixels[4][3] - if bg.is_some() { 1.0 } else { 0.5 }).abs() < 0.005);
             }
         }
+    }
+
+    #[test]
+    fn profiled_output_matches_cpu_and_caches_preparation() {
+        use gpu_core::color_mgmt::{Builtin, Registry, Transform, TransformOptions};
+        let g = gpu();
+        let out = OutputPresenter::new(&g.device).unwrap();
+        let mut registry = Registry::new();
+        let source_profile = registry.builtin(Builtin::DisplayP3).unwrap();
+        let dest = registry.builtin(Builtin::Srgb).unwrap();
+        let options = TransformOptions::default();
+        let cpu = Transform::new(&source_profile, &dest, options).unwrap();
+        let profile =
+            crate::document::ColorProfile::from_icc("P3", source_profile.icc_bytes().to_vec());
+        let rgb = [0.47, 0.61, 0.33];
+        let src = source(
+            &g.device,
+            &[[rgb[0] * 0.5, rgb[1] * 0.5, rgb[2] * 0.5, 0.5]],
+        );
+        let target = texture(&g.device, wgpu::TextureFormat::Rgba8Unorm);
+        for _ in 0..3 {
+            let prepared = out
+                .prepare(
+                    &g.device,
+                    Some(&profile),
+                    SourceDomain::EncodedUnit,
+                    DisplayDestination::Encoded(dest.clone()),
+                    options,
+                    Headroom::default(),
+                )
+                .unwrap();
+            out.present_prepared(
+                &g.device,
+                &g.queue,
+                &src,
+                Extent::new(1, 1),
+                Rect::new(0, 0, 1, 1),
+                &target,
+                (1, 1),
+                None,
+                &prepared,
+            )
+            .unwrap();
+            let actual = read(&g, &target)[4];
+            for (c, value) in actual.iter().take(3).enumerate() {
+                assert!((*value - cpu.apply(rgb)[c] * 0.5).abs() < 0.005);
+            }
+        }
+        assert_eq!(out.cache_stats().uploads, 1);
+        assert_eq!(out.cache_stats().preparations, 1);
+    }
+
+    #[test]
+    fn linear_profiled_hdr_preserves_highlights_and_caps_headroom() {
+        let g = gpu();
+        let out = OutputPresenter::new(&g.device).unwrap();
+        let mut registry = Registry::new();
+        let sp = registry.builtin(Builtin::Rec2020).unwrap();
+        let profile = crate::document::ColorProfile::from_icc("2020", sp.icc_bytes().to_vec());
+        let linear = registry.linearized_rgb(&sp).unwrap().unwrap();
+        let rgb = [3.2, 1.8, 0.7];
+        let src = source(
+            &g.device,
+            &[
+                [rgb[0] * 0.5, rgb[1] * 0.5, rgb[2] * 0.5, 0.5],
+                [4.0, 3.0, 2.0, 0.0],
+            ],
+        );
+        let t = texture(&g.device, wgpu::TextureFormat::Rgba16Float);
+        for (destination, builtin) in [
+            (DisplayDestination::LinearSrgb, Builtin::Srgb),
+            (DisplayDestination::LinearDisplayP3, Builtin::DisplayP3),
+        ] {
+            let dp = registry.builtin(builtin).unwrap();
+            let dp = registry.linearized_rgb(&dp).unwrap().unwrap();
+            let cpu = Transform::new(&linear, &dp, TransformOptions::default()).unwrap();
+            for hdr in [false, true] {
+                let h = Headroom {
+                    hdr,
+                    stops: 2.0,
+                    display: 2.5,
+                };
+                let prepared = out
+                    .prepare(
+                        &g.device,
+                        Some(&profile),
+                        SourceDomain::LinearExtended,
+                        destination.clone(),
+                        TransformOptions::default(),
+                        h,
+                    )
+                    .unwrap();
+                for bg in [None, Some([0.25, 0.5, 0.75])] {
+                    out.present_prepared(
+                        &g.device,
+                        &g.queue,
+                        &src,
+                        Extent::new(2, 1),
+                        Rect::new(0, 0, 2, 1),
+                        &t,
+                        (1, 1),
+                        bg,
+                        &prepared,
+                    )
+                    .unwrap();
+                    let px = read(&g, &t);
+                    for c in 0..3 {
+                        let expected = cpu.apply(rgb)[c].clamp(0.0, h.effective()) * 0.5
+                            + bg.map_or(0.0, |b| b[c] * 0.5);
+                        assert!(
+                            (px[4][c] - expected).abs() < 0.003,
+                            "{builtin:?} {hdr} {c}: {} != {expected}",
+                            px[4][c]
+                        );
+                        assert!((px[5][c] - bg.map_or(0.0, |b| b[c])).abs() < 0.001);
+                    }
+                }
+            }
+        }
+        assert_eq!(out.cache_stats().preparations, 2);
+        assert_eq!(
+            Headroom {
+                hdr: true,
+                stops: f32::NAN,
+                display: f32::INFINITY
+            }
+            .effective(),
+            1.0
+        );
+    }
+
+    #[test]
+    fn profiles_reject_unresolved_invalid_and_unsupported_contracts() {
+        let g = gpu();
+        let out = OutputPresenter::new(&g.device).unwrap();
+        let mut r = Registry::new();
+        let srgb = r.builtin(Builtin::Srgb).unwrap();
+        let mut profile =
+            crate::document::ColorProfile::from_icc("sRGB", srgb.icc_bytes().to_vec());
+        profile.icc = None;
+        assert!(
+            out.prepare(
+                &g.device,
+                Some(&profile),
+                SourceDomain::EncodedUnit,
+                DisplayDestination::LinearSrgb,
+                TransformOptions::default(),
+                Headroom::default()
+            )
+            .is_err()
+        );
+        profile.icc = Some(Arc::new(vec![1, 2, 3]));
+        assert!(
+            out.prepare(
+                &g.device,
+                Some(&profile),
+                SourceDomain::EncodedUnit,
+                DisplayDestination::LinearSrgb,
+                TransformOptions::default(),
+                Headroom::default()
+            )
+            .is_err()
+        );
+        assert!(
+            out.prepare(
+                &g.device,
+                None,
+                SourceDomain::LinearExtended,
+                DisplayDestination::Encoded(srgb),
+                TransformOptions::default(),
+                Headroom::default()
+            )
+            .is_err()
+        );
+        let options = TransformOptions {
+            intent: gpu_core::color_mgmt::Intent::Perceptual,
+            ..Default::default()
+        };
+        assert!(
+            out.prepare(
+                &g.device,
+                None,
+                SourceDomain::LinearExtended,
+                DisplayDestination::LinearSrgb,
+                options,
+                Headroom::default()
+            )
+            .is_err()
+        );
+        let prepared = out
+            .prepare(
+                &g.device,
+                None,
+                SourceDomain::EncodedUnit,
+                DisplayDestination::LinearSrgb,
+                TransformOptions::default(),
+                Headroom::default(),
+            )
+            .unwrap();
+        let src = source(&g.device, &[[0.5, 0.5, 0.5, 1.0]]);
+        let target = texture(&g.device, wgpu::TextureFormat::Rgba8Unorm);
+        assert!(
+            out.present_prepared(
+                &g.device,
+                &g.queue,
+                &src,
+                Extent::new(1, 1),
+                Rect::new(0, 0, 1, 1),
+                &target,
+                (0, 0),
+                None,
+                &prepared
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn encoded_profiles_to_linear_displays_match_lcms_grid() {
+        let g = gpu();
+        let out = OutputPresenter::new(&g.device).unwrap();
+        let mut registry = Registry::new();
+        let target = texture(&g.device, wgpu::TextureFormat::Rgba16Float);
+        for builtin in [
+            Builtin::Srgb,
+            Builtin::DisplayP3,
+            Builtin::AdobeRgb,
+            Builtin::ProPhoto,
+        ] {
+            let source_profile = registry.builtin(builtin).unwrap();
+            let profile = crate::document::ColorProfile::from_icc(
+                "test",
+                source_profile.icc_bytes().to_vec(),
+            );
+            for (destination, db) in [
+                (DisplayDestination::LinearSrgb, Builtin::Srgb),
+                (DisplayDestination::LinearDisplayP3, Builtin::DisplayP3),
+            ] {
+                let dest = registry.builtin(db).unwrap();
+                let dest = registry.linearized_rgb(&dest).unwrap().unwrap();
+                let cpu =
+                    Transform::new(&source_profile, &dest, TransformOptions::default()).unwrap();
+                let prepared = out
+                    .prepare(
+                        &g.device,
+                        Some(&profile),
+                        SourceDomain::EncodedUnit,
+                        destination,
+                        TransformOptions::default(),
+                        Headroom {
+                            hdr: true,
+                            stops: 2.0,
+                            display: 3.0,
+                        },
+                    )
+                    .unwrap();
+                for rgb in [
+                    [0.0, 0.0, 0.0],
+                    [1.0, 1.0, 1.0],
+                    [1.0, 0.0, 0.0],
+                    [0.13, 0.47, 0.79],
+                    [0.031, 0.042, 0.052],
+                ] {
+                    let src = source(&g.device, &[[rgb[0], rgb[1], rgb[2], 1.0]]);
+                    out.present_prepared(
+                        &g.device,
+                        &g.queue,
+                        &src,
+                        Extent::new(1, 1),
+                        Rect::new(0, 0, 1, 1),
+                        &target,
+                        (0, 0),
+                        None,
+                        &prepared,
+                    )
+                    .unwrap();
+                    let actual = read(&g, &target)[0];
+                    for c in 0..3 {
+                        assert!(
+                            (actual[c] - cpu.apply(rgb)[c].clamp(0.0, 3.0)).abs() < 0.004,
+                            "{builtin:?}->{db:?} {rgb:?}: {actual:?} != {:?}",
+                            cpu.apply(rgb)
+                        );
+                    }
+                }
+            }
+        }
+        let count = out.cache_stats().preparations;
+        let opts = TransformOptions {
+            intent: gpu_core::color_mgmt::Intent::Perceptual,
+            ..Default::default()
+        };
+        out.prepare(
+            &g.device,
+            None,
+            SourceDomain::EncodedUnit,
+            DisplayDestination::LinearSrgb,
+            opts,
+            Headroom::default(),
+        )
+        .unwrap();
+        assert_eq!(out.cache_stats().preparations, count + 1);
+    }
+
+    #[test]
+    #[ignore = "printing before/after resident presentation benchmark; run explicitly on Metal"]
+    fn benchmark_present_before_after_resident_lut() {
+        let g = gpu();
+        let out = OutputPresenter::new(&g.device).unwrap();
+        let mut registry = Registry::new();
+        let source_profile = registry.builtin(Builtin::Srgb).unwrap();
+        let destination = registry.builtin(Builtin::DisplayP3).unwrap();
+        let lut = Transform::new(&source_profile, &destination, TransformOptions::default())
+            .unwrap()
+            .lut33();
+        let extent = Extent::new(1920, 1080);
+        let rect = Rect::of_extent(extent);
+        let src = source(&g.device, &vec![[0.25, 0.3, 0.4, 0.5]; 1920 * 1080]);
+        let t = g.device.create_texture(&wgpu::TextureDescriptor {
+            label: None,
+            size: wgpu::Extent3d {
+                width: 1920,
+                height: 1080,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8Unorm,
+            usage: wgpu::TextureUsages::STORAGE_BINDING,
+            view_formats: &[],
+        });
+        let n = 60;
+        // Same pipeline/dispatch: force the old upload-every-call behavior,
+        // excluding shader compilation, LUT generation and pixel uploads.
+        out.present(
+            &g.device,
+            &g.queue,
+            &src,
+            extent,
+            rect,
+            &t,
+            (0, 0),
+            None,
+            SourceColorPolicy::LutInput,
+            Some(&lut),
+        )
+        .unwrap();
+        g.wait().unwrap();
+        let before = std::time::Instant::now();
+        for _ in 0..n {
+            let mut cache = out.cache.lock().unwrap();
+            cache.buffers.clear();
+            cache.stats.resident_bytes = 0;
+            drop(cache);
+            out.present(
+                &g.device,
+                &g.queue,
+                &src,
+                extent,
+                rect,
+                &t,
+                (0, 0),
+                None,
+                SourceColorPolicy::LutInput,
+                Some(&lut),
+            )
+            .unwrap();
+            g.wait().unwrap();
+        }
+        let before = before.elapsed();
+        let prepared = out
+            .prepare(
+                &g.device,
+                None,
+                SourceDomain::EncodedUnit,
+                DisplayDestination::Encoded(destination),
+                TransformOptions::default(),
+                Headroom::default(),
+            )
+            .unwrap();
+        let uploads = out.cache_stats().uploads;
+        let after = std::time::Instant::now();
+        for _ in 0..n {
+            out.present_prepared(
+                &g.device,
+                &g.queue,
+                &src,
+                extent,
+                rect,
+                &t,
+                (0, 0),
+                None,
+                &prepared,
+            )
+            .unwrap();
+            g.wait().unwrap();
+        }
+        let after = after.elapsed();
+        assert_eq!(out.cache_stats().uploads, uploads);
+        println!(
+            "M5-16 {:?}: 1920x1080, {n} presents, wait/frame, before upload-every-frame {:.3} ms/frame; after resident {:.3} ms/frame; redraw LUT uploads=0, cache={:?}",
+            g.adapter_info.name,
+            before.as_secs_f64() * 1000.0 / n as f64,
+            after.as_secs_f64() * 1000.0 / n as f64,
+            out.cache_stats()
+        );
     }
 
     #[test]
@@ -518,6 +1216,41 @@ mod tests {
         )
         .unwrap();
         assert_eq!(read(&g, &t)[0], [4.0, -0.5, 0.5, 1.0]);
+        assert_eq!(out.cache_stats().uploads, 1);
+        for _ in 0..2 {
+            out.present(
+                &g.device,
+                &g.queue,
+                &src,
+                Extent::new(1, 1),
+                Rect::new(0, 0, 1, 1),
+                &t,
+                (0, 0),
+                None,
+                SourceColorPolicy::LutInput,
+                Some(&lut),
+            )
+            .unwrap();
+        }
+        assert_eq!(out.cache_stats().uploads, 1);
+        for node in &mut lut.values {
+            node[0] = 2.0;
+        }
+        out.present(
+            &g.device,
+            &g.queue,
+            &src,
+            Extent::new(1, 1),
+            Rect::new(0, 0, 1, 1),
+            &t,
+            (0, 0),
+            None,
+            SourceColorPolicy::LutInput,
+            Some(&lut),
+        )
+        .unwrap();
+        assert_eq!(out.cache_stats().uploads, 2);
+        assert_eq!(read(&g, &t)[0], [2.0, -0.5, 0.5, 1.0]);
     }
 
     #[test]

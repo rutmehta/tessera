@@ -13,9 +13,9 @@ struct Frame {
     brows: u32,
     clamp: u32,       // 1: clamp adjustment outputs to [0, 1]
     level: u32,
-    _p0: u32,
-    _p1: u32,
-    _p2: u32,
+    ox: u32,
+    oy: u32,
+    stride: u32,
 }
 
 // Grouped into 16-byte words so the hot fields are one load each.
@@ -430,5 +430,5 @@ fn main(@builtin(workgroup_id) wg: vec3<u32>, @builtin(num_workgroups) nwg: vec3
         }
     }
     }
-    if (inside) { outp[y * frame.lw + x] = cur; }
+    if (inside) { outp[(y - frame.oy) * frame.stride + x - frame.ox] = cur; }
 }

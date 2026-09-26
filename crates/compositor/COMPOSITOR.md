@@ -673,9 +673,19 @@ footprints use host f64 (below).
   per layer/child snapshot. Page keys separately include child namespace,
   child revision, layer revision, transform bits and coordinate, so a newer
   child revision cannot hide a subsequent parent transform edit. Smart pages
-  are resolved per visible tile like raster pages; the child still renders a
-  whole selected level. GPU stats describe this renderer's own pools/levels,
+  are resolved per visible tile like raster pages. M5-16 renders only the
+  bounding window of required child taps, including kernel support, and rebases
+  the taps to its compact buffer. Pending parent tiles retain their own child
+  buffer handles across pans. GPU stats describe this renderer's own pools/levels,
   not the recursively retained child renderer memory.
+  `set_smart_quality(SmartQuality::Lanczos3)` opts into normalized separable
+  6×6 Lanczos-3 at output level zero and bilinear at higher levels. The default
+  `LegacyBilinear` retains the CPU-compatible/pinned RGBA8 result. Filtering is
+  premultiplied with transparent zero extension and preserves negative lobes;
+  no intermediate clamp is added. Changing quality invalidates smart pages,
+  children and output validity, while retaining raster/mip pages. Independent
+  CPU-reference, halo-tile, nested-cache and repeatability gates are in
+  `tests/gpu_smart_resample.rs`.
 - **Eviction.** Pages not used by the current state (undo history) are kept
   until the pool would pass its budget (default 2 GiB), then evicted
   least-recently-used; eviction invalidates the cached tables. The live
@@ -702,8 +712,12 @@ of the bench uploads 1390 of 3390 pages). Table entries a frame did not
 resolve keep their last known node; since an unresolved offscreen tile cannot
 be compared, it counts as changed, so its valid blocks survive only through
 the damage log (sound on its own), and a history jump (no log) invalidates
-them. The level's output buffer is still allocated at full size (untouched
-outside the viewport). Readback/presentation
+them. M5-16 allocates output only for the block-aligned viewport plus margin.
+Pans copy overlapping rows on the GPU and preserve only overlapping valid
+blocks; discarded regions are rendered again when needed. Unsupported output
+sizes are rejected before page materialization, so retrying a compact viewport
+cannot reuse uncomputed mip pages from a failed whole-level render.
+Readback/presentation
 reject unrendered or dirty regions instead of returning stale pixels. `read_level`
 and `read_tiles` require the entire level to be valid. `FrameReport.damage`
 reports dispatched block rectangles (one whole-level rect for a full frame).
@@ -727,9 +741,68 @@ function or clamp is added. LUT interpolation matches pipeline-gpu's raw output
 LUT path: red-fastest trilinear, input domain [0,1], extended output allowed.
 The caller must supply a destination-encoded SDR or display-linear EDR LUT and
 configure the display surface accordingly. This does not duplicate the develop
-session's scene tone mapping or proof-profile selection. LUT data currently
-uploads per presentation call; pipelines are retained. Legacy `present` and
-`present_iosurface` retain their RGBA8/document-encoding behavior.
+session's scene tone mapping or proof-profile selection. Raw mutable LUTs are
+validated and content-hashed (never keyed by their allocation address), then
+uploaded once per distinct content to the pipeline's device-local cache. Thus
+mutating a LUT at the same address cannot reuse stale GPU content. The no-LUT
+path binds one persistent dummy buffer. Legacy `present` and `present_iosurface`
+retain their bit-exact RGBA8/document-encoding behavior.
+
+`present_profiled` / `present_iosurface_profiled` resolve `Document::state().profile`
+through a pipeline-owned ICC registry. Untagged means sRGB; a handle without
+embedded ICC bytes is an error, not an sRGB fallback. They check the rendered
+level's document key, epoch and exact revision before using its profile, so
+presenting a changed/foreign/undone document requires rendering it first. The
+compact viewport extent and source-origin rebasing are preserved.
+
+Select the source contract explicitly:
+- `SourceDomain::EncodedUnit`: straight document-encoded RGB in **[0,1]**. A
+  cached 33³ LUT converts to the selected display encoding. It is not a path
+  for unbounded encoded HDR; such input is outside this contract (and clamps).
+- `SourceDomain::LinearExtended`: composite RGB is **already linear** in the
+  document profile's primaries/white. The profile's TRCs are intentionally
+  replaced by linear TRCs. Only matrix-shaper RGB ICC profiles, relative
+  colorimetric intent, and a linear float destination are supported; CLUT
+  profiles/encoded destinations/other intents error. A matrix basis from the
+  linear ICC transform evaluates RGB without LUT-domain clamping, preserving
+  highlights greater than one before the explicit output range limit. Do not
+  use this contract for gamma-encoded composite samples.
+
+`DisplayDestination::Encoded(profile)` writes ICC-encoded RGBA8.
+`LinearSrgb` / `LinearDisplayP3` write RGBA16F in linear extended sRGB/P3,
+without an OETF. `Headroom` limits straight transformed RGB to `[0,H]`, with
+`H = min(2^stops, display)` for HDR on and `H = 1` for HDR off; invalid values
+fall back to SDR, stops sanitize to 0..16, and H is capped at the finite f16
+maximum 65504. This is a range limit, **not** exposure gain, scene tone mapping,
+or the develop tone curve. Transform, range limit, premultiplication, then
+background flattening occur in that order. Background is straight destination
+RGB supplied by the host (which must keep it within the intended output range).
+Zero alpha suppresses hidden RGB. The host must label its IOSurface/layer with
+the selected color space and enable EDR as appropriate; these APIs do not set
+CoreAnimation metadata.
+
+Prepared profile transforms are cached by ICC content digests, source domain
+and every transform option; headroom changes only uniforms. Redraws do not
+regenerate or re-upload LUTs. Raw/profile caches share immutable GPU buffers
+when content matches. `output_cache_stats` reports uploads, preparation count,
+raw content-cache hits and resident LUT bytes across renderers sharing the
+pipeline. Caches live until that pipeline is dropped, with no automatic
+memory-budget eviction (431244 bytes per unique 33³ LUT, excluding CPU copies).
+No composite-pixel readback or re-upload occurs during any presentation path.
+
+Metal CPU-reference coverage lives in `resident::output::tests` and
+`tests/gpu_profiled_output.rs`: ICC SDR conversion, four document RGB profiles
+into both linear displays, extended-linear highlights and capped headroom,
+alpha/flattening/offsets, mutable raw LUT invalidation, profile/options cache
+reuse, invalid contracts, compact viewport parity and stale-document rejection.
+An ignored printing benchmark, `benchmark_present_before_after_resident_lut`,
+compares forced upload-every-frame cache misses with retained prepared output
+on the same pipeline, excluding LUT generation/source upload and waiting each
+frame. Apple M4 release, 1920×1080, 60 frames: **1.261 ms before / 0.805 ms after**,
+zero redraw LUT uploads. The forced-miss baseline includes content hashing;
+this is a controlled comparison, not a historical binary benchmark or a GPU
+kernel-only timing. Debug timings are dominated by CPU validation and are not
+representative of release performance.
 
 ### 12.3 Gate (docs/11 §1.3)
 
@@ -818,9 +891,9 @@ Not done:
   `m5_08_structure_and_viewport` still fails its viewport timing assertion
   under `TESSERA_BENCH_ASSERT=1`; every correctness assertion passes, and
   `resident_100_layers_20mp` passes all of its assertions.
-- The level output buffer is allocated at full size even for viewport-only
-  rendering; smart-object children render whole levels.
-- Presentation LUTs are uploaded per call.
+- Resolved by M5-16: viewport-sized output, viewport-limited smart-object
+  children, optional Lanczos-3 reconstruction, and resident presentation LUTs
+  with document-profile/display conversion (§12.1–12.2).
 - Non-Metal devices (no MSL passthrough) fall back to backend-default WGSL
   compilation (`gpu_core::Precision::Relaxed`), where results are no longer
   bit-exact and the §2.2 threshold amplification can return.

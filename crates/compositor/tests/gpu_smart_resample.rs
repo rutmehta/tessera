@@ -231,6 +231,227 @@ fn plan_rejects_invalid_geometry_and_selects_determinant_mip() {
     assert_eq!(plan.child_level(), 2);
 }
 
+/// Independent f64 pixel reference: zero extension, normalized six-tap axes,
+/// filtering premultiplied RGBA before returning straight planar samples.
+fn lanczos_reference(
+    input: &[[f32; 4]],
+    ce: Extent,
+    pe: Extent,
+    t: Affine,
+    coord: TileCoord,
+) -> Vec<f32> {
+    let rect = geom::Rect::of_tile(coord, pe.at_level(coord.level));
+    let n = (rect.width() * rect.height()) as usize;
+    let mut out = vec![0.0; n * 4];
+    let inv = t.inverse().unwrap();
+    let kernel = |x: f64| {
+        if x.abs() < 1e-12 {
+            1.0
+        } else if x.abs() >= 3.0 {
+            0.0
+        } else {
+            let p = std::f64::consts::PI * x;
+            p.sin() * (p / 3.0).sin() / (p * p / 3.0)
+        }
+    };
+    for y in rect.y0..rect.y1 {
+        for x in rect.x0..rect.x1 {
+            let (qx, qy) = inv.apply(x as f64 + 0.5, y as f64 + 0.5);
+            let (fx, fy) = (qx - 0.5, qy - 0.5);
+            let xs: Vec<_> = (-2..=3).map(|k| fx.floor() as i64 + k).collect();
+            let ys: Vec<_> = (-2..=3).map(|k| fy.floor() as i64 + k).collect();
+            let normx: f64 = xs.iter().map(|&i| kernel(fx - i as f64)).sum();
+            let normy: f64 = ys.iter().map(|&i| kernel(fy - i as f64)).sum();
+            let mut v = [0.0f64; 4];
+            for &iy in &ys {
+                for &ix in &xs {
+                    if ix >= 0 && iy >= 0 && ix < ce.width as i64 && iy < ce.height as i64 {
+                        let w = kernel(fx - ix as f64) * kernel(fy - iy as f64) / (normx * normy);
+                        for c in 0..4 {
+                            v[c] += input[(iy * ce.width as i64 + ix) as usize][c] as f64 * w;
+                        }
+                    }
+                }
+            }
+            let i = ((y - rect.y0) * rect.width() + x - rect.x0) as usize;
+            for c in 0..3 {
+                out[c * n + i] = if v[3] > 0.0 {
+                    (v[c] / v[3]) as f32
+                } else {
+                    0.0
+                };
+            }
+            out[3 * n + i] = v[3] as f32;
+        }
+    }
+    out
+}
+
+#[test]
+fn lanczos_level_zero_matches_independent_reference_and_is_deterministic() {
+    if std::env::var_os("CI").is_some() {
+        return;
+    }
+    let gpu = gpu::GpuCompositor::new().expect("Metal GPU required");
+    let (device, queue) = gpu.handles();
+    let pipe = smart_gpu::SmartGpu::new(device).unwrap();
+    let ce = Extent::new(19, 13);
+    let pe = Extent::new(9, 7);
+    let input: Vec<[f32; 4]> = (0..ce.width * ce.height)
+        .map(|i| {
+            let a = if i % 5 == 0 { 0.0 } else { 0.7 };
+            [
+                ((i * 17) % 23) as f32 / 23.0 * a,
+                ((i * 7) % 11) as f32 / 11.0 * a,
+                0.3 * a,
+                a,
+            ]
+        })
+        .collect();
+    for t in [
+        Affine::scale_translate(1.0, 1.0, 0.37, -0.21),
+        Affine {
+            m: [0.91, -0.2, -3.0, 0.13, 1.1, -2.0],
+        },
+    ] {
+        let coord = TileCoord::new(0, 0, 0);
+        let mut plan =
+            smart_gpu::SmartPlan::with_quality(t, ce, pe, coord, smart_gpu::SmartQuality::Lanczos3)
+                .unwrap();
+        let region = plan.child_region();
+        let compact: Vec<[f32; 4]> = (region.y0..region.y1)
+            .flat_map(|y| {
+                let input = &input;
+                (region.x0..region.x1).map(move |x| input[(y * ce.width as i64 + x) as usize])
+            })
+            .collect();
+        plan.rebase(region);
+        let src = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: None,
+            contents: bytemuck::cast_slice(&compact),
+            usage: wgpu::BufferUsages::STORAGE,
+        });
+        let out = device.create_buffer(&wgpu::BufferDescriptor {
+            label: None,
+            size: u64::from(pe.width * pe.height) * 16,
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
+            mapped_at_creation: false,
+        });
+        let mut runs = Vec::new();
+        for _ in 0..2 {
+            let mut enc = device.create_command_encoder(&Default::default());
+            pipe.encode(device, &mut enc, &src, &out, 0, &plan).unwrap();
+            queue.submit([enc.finish()]);
+            runs.push(read(device, queue, &out));
+        }
+        assert_eq!(runs[0], runs[1]);
+        let want = lanczos_reference(&input, ce, pe, t, coord);
+        for (i, (&a, &b)) in runs[0].iter().zip(&want).enumerate() {
+            assert!(
+                (a - b).abs() < 2e-5,
+                "Lanczos sample {i}: GPU {a}, independent reference {b}"
+            );
+        }
+    }
+}
+
+#[test]
+fn resident_quality_switch_invalidates_nested_caches_and_higher_levels_stay_bilinear() {
+    use compositor::{Depth, DocState, Document, Fill, Layer, LayerKind, SmartObject};
+    use resident::{ResidentRenderer, SmartQuality};
+    if std::env::var_os("CI").is_some() {
+        return;
+    }
+    let gpu = gpu::GpuCompositor::new().unwrap();
+    let e = Extent::new(17, 11);
+    let mut child = DocState::new(e, Depth::F32);
+    child.root.push(std::sync::Arc::new(Layer::new(
+        "fill",
+        LayerKind::Fill(Fill::Solid {
+            color: [0.7, 0.2, 0.4],
+        }),
+    )));
+    let mut middle = DocState::new(e, Depth::F32);
+    middle.root.push(std::sync::Arc::new(Layer::new(
+        "inner",
+        LayerKind::SmartObject(SmartObject::new(
+            child,
+            Affine::scale_translate(1.0, 1.0, 0.37, 0.21),
+        )),
+    )));
+    let mut parent = DocState::new(e, Depth::F32);
+    parent.root.push(std::sync::Arc::new(Layer::new(
+        "outer",
+        LayerKind::SmartObject(SmartObject::new(middle, Affine::IDENTITY)),
+    )));
+    let doc = Document::new(parent);
+    let mut renderer = ResidentRenderer::new(&gpu).unwrap();
+    renderer.render(&doc, 0).unwrap();
+    let legacy = renderer.read_level(0, true).unwrap().1;
+    renderer.render(&doc, 1).unwrap();
+    let higher = renderer.read_level(1, true).unwrap().1;
+    renderer.set_smart_quality(SmartQuality::Lanczos3).unwrap();
+    assert!(renderer.read_level(0, true).is_err());
+    assert!(renderer.render(&doc, 0).unwrap().smart_pages > 0);
+    let quality = renderer.read_level(0, true).unwrap().1;
+    assert_ne!(
+        legacy, quality,
+        "quality must propagate to cached nested children"
+    );
+    renderer.set_smart_quality(SmartQuality::Lanczos3).unwrap();
+    assert_eq!(renderer.render(&doc, 0).unwrap().smart_pages, 0);
+    assert_eq!(quality, renderer.read_level(0, true).unwrap().1);
+    renderer.render(&doc, 1).unwrap();
+    assert_eq!(higher, renderer.read_level(1, true).unwrap().1);
+    renderer
+        .set_smart_quality(SmartQuality::LegacyBilinear)
+        .unwrap();
+    assert!(renderer.render(&doc, 0).unwrap().smart_pages > 0);
+    assert_eq!(legacy, renderer.read_level(0, true).unwrap().1);
+}
+
+#[test]
+fn lanczos_support_reaches_beyond_object_bounds_into_adjacent_tile() {
+    use compositor::{Depth, DocState, Document, Fill, Layer, LayerKind, SmartObject};
+    use resident::{ResidentRenderer, SmartQuality};
+    if std::env::var_os("CI").is_some() {
+        return;
+    }
+    let gpu = gpu::GpuCompositor::new().unwrap();
+    let ce = Extent::new(254, 8);
+    let pe = Extent::new(260, 8);
+    let mut child = DocState::new(ce, Depth::F32);
+    child.root.push(std::sync::Arc::new(Layer::new(
+        "fill",
+        LayerKind::Fill(Fill::Solid {
+            color: [0.7, 0.2, 0.4],
+        }),
+    )));
+    let t = Affine::scale_translate(1.0, 1.0, 0.37, 0.0);
+    let mut parent = DocState::new(pe, Depth::F32);
+    parent.root.push(std::sync::Arc::new(Layer::new(
+        "smart",
+        LayerKind::SmartObject(SmartObject::new(child, t)),
+    )));
+    let mut renderer = ResidentRenderer::new(&gpu).unwrap();
+    renderer.set_smart_quality(SmartQuality::Lanczos3).unwrap();
+    renderer.render(&Document::new(parent), 0).unwrap();
+    let got = renderer.read_level(0, true).unwrap().1;
+    let reference = lanczos_reference(
+        &vec![[0.7, 0.2, 0.4, 1.0]; (ce.width * ce.height) as usize],
+        ce,
+        pe,
+        t,
+        TileCoord::new(0, 1, 0),
+    );
+    let expected_alpha = reference[3 * 4 * 8 + 3 * 4];
+    assert!(expected_alpha > 0.0);
+    assert!(
+        (got[(3 * 260 + 256) * 4 + 3] - expected_alpha).abs() < 2e-5,
+        "Lanczos halo lost at object/tile boundary"
+    );
+}
+
 fn read(device: &wgpu::Device, queue: &wgpu::Queue, buffer: &wgpu::Buffer) -> Vec<f32> {
     let staging = device.create_buffer(&wgpu::BufferDescriptor {
         label: None,

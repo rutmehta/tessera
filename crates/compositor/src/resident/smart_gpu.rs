@@ -18,6 +18,43 @@ use crate::render::MAX_LEVEL;
 
 const MISSING: u32 = u32::MAX;
 
+/// Smart-object reconstruction policy. Existing RGBA8 output remains unchanged
+/// unless the caller explicitly selects the quality path.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum SmartQuality {
+    /// CPU-compatible bilinear reconstruction at every output level.
+    #[default]
+    LegacyBilinear,
+    /// Normalized Lanczos-3 at output level zero; bilinear at higher levels.
+    /// Filters premultiplied RGBA with transparent zero extension. Negative
+    /// lobes are preserved (including alpha); no intermediate clamping.
+    Lanczos3,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+struct LanczosFootprint {
+    indices: [[u32; 6]; 6],
+    wx: [f32; 6],
+    wy: [f32; 6],
+}
+
+fn lanczos_axis(fraction: f64) -> [f32; 6] {
+    let weights: [f64; 6] = std::array::from_fn(|k| {
+        let x = fraction + 2.0 - k as f64;
+        if x == 0.0 {
+            1.0
+        } else if x.abs() >= 3.0 {
+            0.0
+        } else {
+            let p = std::f64::consts::PI * x;
+            (p.sin() / p) * ((p / 3.0).sin() / (p / 3.0))
+        }
+    });
+    let sum: f64 = weights.iter().sum();
+    weights.map(|w| (w / sum) as f32)
+}
+
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 struct Footprint {
@@ -29,19 +66,38 @@ struct Footprint {
 pub(crate) struct SmartPlan {
     child_level: u8,
     child_extent: Extent,
+    child_region: Rect,
     output_extent: Extent,
     samples: Vec<Footprint>,
+    lanczos: Vec<LanczosFootprint>,
 }
 
 impl SmartPlan {
     /// Builds the same inverse map, determinant-based mip selection and
     /// half-pixel bilinear footprint as the CPU smart-object renderer.
     /// Bounds intersection/transparent-page elision remains the caller's job.
+    #[allow(dead_code)] // Also used by standalone legacy reference tests.
     pub(crate) fn new(
         transform: Affine,
         child_canvas: Extent,
         parent_canvas: Extent,
         coord: TileCoord,
+    ) -> EngineResult<Self> {
+        Self::with_quality(
+            transform,
+            child_canvas,
+            parent_canvas,
+            coord,
+            SmartQuality::default(),
+        )
+    }
+
+    pub(crate) fn with_quality(
+        transform: Affine,
+        child_canvas: Extent,
+        parent_canvas: Extent,
+        coord: TileCoord,
+        quality: SmartQuality,
     ) -> EngineResult<Self> {
         if coord.level >= MAX_LEVEL {
             return Err(EngineError::invalid("level", "outside smart pyramid"));
@@ -72,7 +128,10 @@ impl SmartPlan {
         let cscale = f64::from(1u32 << child_level);
         let rect = Rect::of_tile(coord, parent);
         let output_extent = Extent::new(rect.width() as u32, rect.height() as u32);
-        let mut samples = Vec::with_capacity((output_extent.width * output_extent.height) as usize);
+        let use_lanczos = quality == SmartQuality::Lanczos3 && coord.level == 0;
+        let n = (output_extent.width * output_extent.height) as usize;
+        let mut samples = Vec::with_capacity(if use_lanczos { 0 } else { n });
+        let mut lanczos = Vec::with_capacity(if use_lanczos { n } else { 0 });
         let index = |x: i64, y: i64| {
             if x < 0
                 || y < 0
@@ -92,6 +151,21 @@ impl SmartPlan {
                 let (fx, fy) = (qx / cscale - 0.5, qy / cscale - 0.5);
                 let (x0, y0) = (fx.floor(), fy.floor());
                 let (ix, iy) = (x0 as i64, y0 as i64);
+                if use_lanczos {
+                    lanczos.push(LanczosFootprint {
+                        indices: std::array::from_fn(|y| {
+                            std::array::from_fn(|x| {
+                                index(
+                                    ix.saturating_add(x as i64 - 2),
+                                    iy.saturating_add(y as i64 - 2),
+                                )
+                            })
+                        }),
+                        wx: lanczos_axis(fx - x0),
+                        wy: lanczos_axis(fy - y0),
+                    });
+                    continue;
+                }
                 samples.push(Footprint {
                     indices: [
                         index(ix, iy),
@@ -103,12 +177,68 @@ impl SmartPlan {
                 });
             }
         }
+        let mut child_region = Rect::new(
+            i64::from(child_extent.width),
+            i64::from(child_extent.height),
+            0,
+            0,
+        );
+        for indices in samples
+            .iter()
+            .map(|s| s.indices.as_slice())
+            .chain(lanczos.iter().map(|s| s.indices.as_flattened()))
+        {
+            for &i in indices {
+                if i != MISSING {
+                    let x = i64::from(i % child_extent.width);
+                    let y = i64::from(i / child_extent.width);
+                    child_region.x0 = child_region.x0.min(x);
+                    child_region.y0 = child_region.y0.min(y);
+                    child_region.x1 = child_region.x1.max(x + 1);
+                    child_region.y1 = child_region.y1.max(y + 1);
+                }
+            }
+        }
         Ok(Self {
+            child_region,
             child_level,
             child_extent,
             output_extent,
             samples,
+            lanczos,
         })
+    }
+
+    /// Exact union of nontransparent sampling taps in child-level coordinates.
+    #[allow(dead_code)] // Standalone shader tests do not render compact windows.
+    pub(crate) fn child_region(&self) -> Rect {
+        self.child_region
+    }
+
+    /// Rebase absolute tap indices to the compact resident child buffer.
+    // Standalone shader tests include this module without the resident caller.
+    #[allow(dead_code)]
+    pub(crate) fn rebase(&mut self, region: Rect) {
+        let width = self.child_extent.width;
+        for indices in self
+            .samples
+            .iter_mut()
+            .map(|s| s.indices.as_mut_slice())
+            .chain(
+                self.lanczos
+                    .iter_mut()
+                    .map(|s| s.indices.as_flattened_mut()),
+            )
+        {
+            for i in indices {
+                if *i != MISSING {
+                    let x = i64::from(*i % width) - region.x0;
+                    let y = i64::from(*i / width) - region.y0;
+                    *i = (y * region.width() + x) as u32;
+                }
+            }
+        }
+        self.child_extent = Extent::new(region.width() as u32, region.height() as u32);
     }
 
     /// Child pyramid level to render before sampling.
@@ -127,6 +257,8 @@ impl SmartPlan {
 /// constructing one per parent tile defeats residency. Nested smart objects
 /// follow whatever path the enclosing ResidentRenderer currently implements.
 /// The parent resident module can directly borrow `renderer.levels[&level].out`.
+// Full-level reference helper used by standalone GPU sampling tests.
+#[allow(dead_code)]
 pub(crate) fn render_child(
     gpu: &crate::gpu::GpuCompositor,
     so: &crate::document::SmartObject,
@@ -179,7 +311,7 @@ impl SmartGpu {
         page_word: u32,
         plan: &SmartPlan,
     ) -> EngineResult<()> {
-        let n = plan.samples.len() as u32;
+        let n = plan.output_extent.width * plan.output_extent.height;
         let child_bytes =
             u64::from(plan.child_extent.width) * u64::from(plan.child_extent.height) * 16;
         let end = u64::from(page_word) + u64::from(n) * 4;
@@ -205,12 +337,16 @@ impl SmartGpu {
         }
         let footprints = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("smart exact footprints"),
-            contents: bytemuck::cast_slice(&plan.samples),
+            contents: if plan.lanczos.is_empty() {
+                bytemuck::cast_slice(&plan.samples)
+            } else {
+                bytemuck::cast_slice(&plan.lanczos)
+            },
             usage: wgpu::BufferUsages::STORAGE,
         });
         let params = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("smart page destination"),
-            contents: bytemuck::cast_slice(&[n, page_word, 0, 0]),
+            contents: bytemuck::cast_slice(&[n, page_word, u32::from(!plan.lanczos.is_empty()), 0]),
             usage: wgpu::BufferUsages::UNIFORM,
         });
         let group = device.create_bind_group(&wgpu::BindGroupDescriptor {
