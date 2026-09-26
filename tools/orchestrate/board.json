@@ -963,7 +963,7 @@
     "id": "M3-20",
     "owner": "astra",
     "title": "Remove tool: real inpainting model (LaMa, Apache-2.0) + distraction detection hook",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
