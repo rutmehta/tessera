@@ -1,0 +1,7 @@
+Blocked by the allowed-path scope. The existing queue, groups, and undo cursors are private in crates/cull. Its public API cannot insert/remove images or incrementally regroup while preserving history. Please allow crates/cull/** so these operations can be implemented in the existing engine.
+
+No implementation changes made. Findings saved in tools/orchestrate/wp/M2-28/blocker.md.
+
+Ran the required validation command with the external CARGO_TARGET_DIR preserved. It failed in the existing fallback test at crates/tessera-ffi/tests/fallback.rs:56 with Err(Timeout). Chained clippy, fmt, and Swift checks were not reached.
+
+RESULT: FAIL requires crates/cull/** scope permission; implementation incomplete and baseline validation failed.

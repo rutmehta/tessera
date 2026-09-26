@@ -1,0 +1,13 @@
+Implemented M5-06 in crates/filters with CPU filters, WGSL/Metal implementations, tiled halo evaluation, masked Smart Filters, and an injected Camera Raw interface.
+
+Verification passed:
+  49 release tests, including real Metal parity checks
+  clippy --all-targets with -D warnings
+  cargo fmt --check
+  Both ignored benchmarks explicitly executed successfully
+
+Oil paint and lens flare remain explicit placeholders as requested. Engine-api and compositor are unchanged. Only allowed paths were touched; no commits made.
+
+Evidence: tools/orchestrate/wp/M5-06/acceptance.md
+
+RESULT: PASS
