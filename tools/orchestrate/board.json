@@ -1158,5 +1158,13 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M5-31",
+    "owner": "astra",
+    "title": "GPU-resident layer styles",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
