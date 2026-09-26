@@ -239,7 +239,8 @@ impl Renderer {
         self.validate_settings(settings)?;
         let mut r = self.resolve(image, settings)?;
         r.lens = lens.filter(|l| !l.is_identity());
-        if level > MAX_LEVEL
+        if image.rgb().is_some()
+            || level > MAX_LEVEL
             || has_presence(&settings.tone)
             || !self.supports_resident(&r, Some(level))
             || self.is_adobe()
@@ -437,8 +438,8 @@ impl Renderer {
     /// backend whole-level barrier that fits that level (any level when None).
     pub(super) fn supports_resident(&self, r: &Resolved<'_>, level: Option<u8>) -> bool {
         let s = r.settings;
-        if (pipeline_cpu::denoise_active(&s.denoise) && !self.cfa_supported(r.cfa, s))
-            || !matches!(r.cfa, CfaLayout::Bayer(_) | CfaLayout::XTrans(_))
+        if (r.image.rgb().is_none() && pipeline_cpu::denoise_active(&s.denoise) && !self.cfa_supported(r.cfa, s))
+            || (r.image.rgb().is_none() && !matches!(r.cfa, CfaLayout::Bayer(_) | CfaLayout::XTrans(_)))
             // Local adjustment operators/rasterization use the whole-image
             // nonresident path until all local kernels are resident-capable.
             || !s.locals.adjustments.is_empty()
@@ -451,7 +452,10 @@ impl Renderer {
         let Some(batch) = self.ops.begin_resident() else {
             return false;
         };
-        if pipeline_cpu::denoise_active(&s.denoise) && !batch.supports_cfa() {
+        if r.image.rgb().is_none()
+            && pipeline_cpu::denoise_active(&s.denoise)
+            && !batch.supports_cfa()
+        {
             return false;
         }
         if !has_presence(&s.tone) {
@@ -621,6 +625,10 @@ impl Renderer {
                             if cache_dem
                                 && let Some(t) = batch.cached(&key(StageId::Demosaic, d))?
                             {
+                                dem.insert(d, t);
+                            } else if let Some(rgb) = r.image.rgb() {
+                                let t = batch.upload(&rgb.pixels().tile(d, 0, 1)?)?;
+                                let t = batch.cache_exact(key(StageId::Demosaic, d), &t)?;
                                 dem.insert(d, t);
                             } else {
                                 missing.push(d);

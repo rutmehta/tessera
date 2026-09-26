@@ -696,47 +696,13 @@ enum Source {
     Raw(Box<(raw_decode::CfaImage, raw_decode::RawMetadata)>),
 }
 impl Source {
-    fn open(path: &Path, orientation: u16) -> Result<Self> {
-        let rgb_file = path.extension().and_then(|s| s.to_str()).is_some_and(|s| {
-            matches!(
-                s.to_ascii_lowercase().as_str(),
-                "jpg" | "jpeg" | "png" | "tif" | "tiff"
-            )
-        });
-        if !rgb_file {
+    fn open(path: &Path, _orientation: u16) -> Result<Self> {
+        if !image_core::RgbSource::recognizes(path) {
             let mut raw = raw_decode::RawSource::open(path)?;
             let cfa = raw.decode_cfa()?;
             return Ok(Self::Raw(Box::new((cfa, raw.metadata()))));
         }
-        let rgb = image::open(path).map_err(failure)?.into_rgb32f();
-        // RGB sources carry no RAW metadata; apply the indexed EXIF orientation here.
-        let rgb = orient(rgb, orientation);
-        let mut planes = vec![vec![0.; rgb.width() as usize * rgb.height() as usize]; 3];
-        for (i, pixel) in rgb.pixels().enumerate() {
-            let linear = pixel.0.map(|v| {
-                if v <= 0.04045 {
-                    v / 12.92
-                } else {
-                    ((v + 0.055) / 1.055).powf(2.4)
-                }
-            });
-            // Linear sRGB → linear Rec.2020 (the pipeline's working space).
-            for (c, row) in [
-                [0.6274, 0.3293, 0.0433],
-                [0.0691, 0.9195, 0.0114],
-                [0.0164, 0.0880, 0.8956],
-            ]
-            .iter()
-            .enumerate()
-            {
-                planes[c][i] = row.iter().zip(linear).map(|(a, b)| a * b).sum();
-            }
-        }
-        Ok(Self::Rgb(pipeline_cpu::Image::new(
-            rgb.width(),
-            rgb.height(),
-            planes,
-        )?))
+        Ok(Self::Rgb(image_core::RgbSource::open(path)?.into_pixels()))
     }
     fn render_source(&self) -> pipeline_cpu::RenderSource<'_> {
         match self {
@@ -760,20 +726,6 @@ impl Source {
                 }
             }
         }
-    }
-}
-
-fn orient(rgb: image::Rgb32FImage, orientation: u16) -> image::Rgb32FImage {
-    use image::imageops::*;
-    match orientation {
-        2 => flip_horizontal(&rgb),
-        3 => rotate180(&rgb),
-        4 => flip_vertical(&rgb),
-        5 => rotate90(&flip_vertical(&rgb)),
-        6 => rotate90(&rgb),
-        7 => rotate90(&flip_horizontal(&rgb)),
-        8 => rotate270(&rgb),
-        _ => rgb,
     }
 }
 

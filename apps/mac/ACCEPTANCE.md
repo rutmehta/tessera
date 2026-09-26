@@ -50,6 +50,20 @@ Notes:
    - the sidebar ALBUMS section lists **Selects** with a small blue `B` tag and count 0
    - the status bar right side reads `Keep 0  Reject 0   Basket → Selects 0   Auto-advance on`.
 
+## M2-29. Develop a rendered JPEG in the loupe
+
+On a scratch copy from `$SCR/shoot`, open a JPEG in the loupe and enter Develop. 📸
+Expect a non-black image, not a RAW-only error. Drag Exposure, Contrast and Tint,
+then commit: both the drag preview and refined frame must update. Reset must
+restore the original rendering. Close/reopen, verify the edit persists and that
+the recipe JSON contains `"source_kind": "rgb"`. Export JPEG and 16-bit TIFF and
+open both: colour, orientation and edits must agree with the loupe.
+
+Repeat with an embedded AdobeRGB JPEG and an EXIF-rotated JPEG. Neither may be
+treated as untagged sRGB or rotated twice. Decode-level tests cover 16-bit and
+float TIFF. macOS HEIC decoding requires the default `imageio` Cargo feature.
+This is a manual acceptance script, not a claim that visual QA has been run.
+
 ## B. Group navigation
 
 5. Click cell 1. Press **⌥→**. Expect: focus (amber border) moves to cell 3, status `G2 · 1/1`.

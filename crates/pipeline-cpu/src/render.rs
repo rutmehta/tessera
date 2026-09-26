@@ -164,12 +164,8 @@ fn render_linear_impl(
             if image.planes().len() != 3 {
                 return Err(EngineError::invalid("RGB", "three planes required"));
             }
-            if crate::denoise_active(&settings.denoise) {
-                return Err(EngineError::invalid(
-                    "denoise",
-                    "post-demosaic denoise requires a CFA source",
-                ));
-            }
+            // Rendered files enter after raw denoise and demosaic. Preserve
+            // copied recipe settings, but never invoke a raw model on RGB.
             let crop = [0, 0, image.width(), image.height()];
             let correction = match resolved {
                 Some(r) => r.clone(),

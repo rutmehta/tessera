@@ -8,7 +8,8 @@ license = "Apache-2.0"
 path = "src/lib.rs"
 
 [features]
-default = ["ml-denoise"]
+default = ["ml-denoise", "imageio"]
+imageio = ["color-mgmt/imageio"]
 ml-denoise = ["dep:ml-enhance", "dep:ml-runtime"]
 
 [dependencies]
@@ -19,6 +20,10 @@ pipeline-cpu = { path = "../pipeline-cpu" }
 pipeline-adobe = { path = "../pipeline-adobe" }
 raw-decode = { path = "../raw-decode" }
 half = { workspace = true }
+image = { workspace = true, features = ["png", "tiff"] }
+color-mgmt = { path = "../color-mgmt" }
+tiff = "0.11"
 
 [dev-dependencies]
 jobs = { path = "../jobs" }
+tempfile = { workspace = true }

@@ -20,6 +20,8 @@ pipeline-cpu = { path = "../pipeline-cpu" }
 raw-decode = { path = "../raw-decode" }
 
 [dev-dependencies]
+image.workspace = true
+tempfile.workspace = true
 ml-enhance = { path = "../ml-enhance" }
 ml-runtime = { path = "../ml-runtime" }
 lens = { path = "../lens" }

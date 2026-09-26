@@ -4,6 +4,9 @@ name = "color-mgmt"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+imageio = []
+
 [dependencies]
 lcms2.workspace = true
 blake3.workspace = true

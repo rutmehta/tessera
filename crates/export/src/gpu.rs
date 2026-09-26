@@ -980,7 +980,14 @@ mod tests {
             "{report:?}"
         );
         assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 2);
-        let bytes = std::fs::read(report.results[0].as_ref().unwrap()).unwrap();
+        // Parallel completion order is not input order: cancellation may
+        // leave item zero cancelled while another item was committed first.
+        let committed = report
+            .results
+            .iter()
+            .find_map(|result| result.as_ref().ok())
+            .unwrap();
+        let bytes = std::fs::read(committed).unwrap();
         for marker in [
             b"ICC_PROFILE".as_slice(),
             b"http://ns.adobe.com/xap/1.0/".as_slice(),

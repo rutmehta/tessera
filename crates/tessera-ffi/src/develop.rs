@@ -758,8 +758,8 @@ fn stage_name(stage: StageId) -> String {
 
 #[uniffi::export]
 impl Engine {
-    /// Opens a develop session on an indexed RAW image. Blocking (decodes the
-    /// raw): call off the main thread. One session per visible image.
+    /// Opens a develop session on an indexed RAW or rendered RGB image.
+    /// Blocking decode: call off the main thread. One session per visible image.
     pub fn open_develop_session(self: Arc<Self>, image_id: String) -> Result<Arc<DevelopSession>> {
         let id = parse_id(&image_id)?;
         let path = {
@@ -767,19 +767,12 @@ impl Engine {
             Self::path(&c, &image_id)?
         };
         let path = PathBuf::from(path);
-        let ext = path
-            .extension()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .to_lowercase();
-        if matches!(
-            ext.as_str(),
-            "jpg" | "jpeg" | "tif" | "tiff" | "png" | "heic"
-        ) {
-            return Err(failure("develop needs a RAW file"));
-        }
-        let recipe = catalog::document(&path, id)?.recipe;
+        let mut recipe = catalog::document(&path, id)?.recipe;
         let image = RawImage::open(id, &path)?;
+        recipe.unknown.insert(
+            "source_kind".into(),
+            Value::String(image.source_kind().into()),
+        );
         let (renderer, backend) = self.develop_renderer(&image);
         let masks = masks::MaskShared::new(&image);
         renderer
@@ -851,6 +844,20 @@ impl Engine {
         doc.recipe.process_version = recipe.process_version;
         doc.recipe.settings = recipe.settings.clone();
         doc.recipe.history = recipe.history.clone();
+        // This one extension is owned by develop; preserve all other unknown
+        // members from concurrent writers. Promote to a typed schema field
+        // when engine-api's source-kind contract is available.
+        doc.recipe.unknown.insert(
+            "source_kind".into(),
+            Value::String(
+                if image_core::RgbSource::recognizes(path) {
+                    "rgb"
+                } else {
+                    "raw"
+                }
+                .into(),
+            ),
+        );
         doc.recipe.ids.next_mask = doc.recipe.ids.next_mask.max(recipe.ids.next_mask);
         doc.recipe.ids.next_retouch = doc.recipe.ids.next_retouch.max(recipe.ids.next_retouch);
         doc.record_write("tessera-mac", now_ms())?;
@@ -2839,6 +2846,46 @@ impl DevelopSession {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn jpeg_develop_session_renders_nonblack() {
+        let dir = tempfile::tempdir().unwrap();
+        image::RgbImage::from_pixel(32, 24, image::Rgb([180, 90, 40]))
+            .save(dir.path().join("one.jpg"))
+            .unwrap();
+        let engine = Engine::open(dir.path().join("db").to_string_lossy().into_owned()).unwrap();
+        engine
+            .index_folder(dir.path().to_string_lossy().into_owned())
+            .unwrap();
+        let row = engine
+            .list_images(crate::ImageQuery::default())
+            .unwrap()
+            .remove(0);
+        let session = engine.clone().open_develop_session(row.id.clone()).unwrap();
+        let source = &session.shared.image;
+        let tiles = session
+            .shared
+            .renderer
+            .render_region(
+                source,
+                &DevelopSettings::default(),
+                0,
+                PixelRect::full(source.active_extent()),
+            )
+            .unwrap();
+        assert!(
+            tiles
+                .iter()
+                .any(|t| t.samples::<u8>().unwrap().iter().any(|v| *v > 30))
+        );
+        session
+            .set_settings(r#"{"tone":{"exposure":0.7}}"#.into(), false)
+            .unwrap();
+        session.flush().unwrap();
+        let saved: Recipe = serde_json::from_str(&engine.get_recipe(row.id).unwrap()).unwrap();
+        assert_eq!(saved.unknown["source_kind"], "rgb");
+        assert_eq!(saved.settings.tone.exposure, 0.7);
+    }
 
     #[test]
     fn unconfigured_session_falls_back_without_discarding_saved_denoise() {

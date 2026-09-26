@@ -32,9 +32,11 @@ pub mod render;
 mod resample;
 /// Opaque backend handles and whole-render transactions.
 pub mod resident;
+mod rgb;
 mod source;
 #[cfg(feature = "ml-denoise")]
 pub use ml_denoise::MlPostDemosaicDenoise;
+pub use rgb::RgbSource;
 #[cfg(feature = "ml-denoise")]
 mod ml_cfa;
 #[cfg(feature = "ml-denoise")]
