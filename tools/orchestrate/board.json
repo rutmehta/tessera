@@ -803,7 +803,7 @@
     "id": "M3-16b",
     "owner": "astra",
     "title": "GPU-resident CFA denoise handoff",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },

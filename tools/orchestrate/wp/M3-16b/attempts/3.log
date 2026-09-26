@@ -1,0 +1,14 @@
+The existing implementation remains in place. No production code changed in this retry, and no tests were skipped or weakened.
+
+I ran the exact required command with CARGO_TARGET_DIR preserved. It failed at cfa_model: the Python environment and M3-16 requirements.txt/test_training.py are missing. Those support files are outside the allowed write scope.
+
+Independent verification:
+  GPU/FFI release tests: 197 passed, 0 failed, 15 ignored.
+  Required clippy and fmt checks: passed.
+  Scope check: no out-of-scope changes.
+  Benchmark: NO TIMINGS because fixture calibration is missing. The <12 ms requirement remains unverified.
+
+Updated report and logs:
+  /Users/rutmehta/Developer/tessera/.worktrees/M3-16b/tools/orchestrate/wp/M3-16b/report.md
+
+RESULT: FAIL missing training prerequisites; real-model slider latency remains unverified.
