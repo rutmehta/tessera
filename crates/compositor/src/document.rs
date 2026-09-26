@@ -540,6 +540,10 @@ impl ColorProfile {
 /// An immutable snapshot of a whole document.
 #[derive(Debug, Clone)]
 pub struct DocState {
+    /// Named alpha masks and spot inks, in panel/PSD order.
+    pub channels: Vec<crate::channels::DocumentChannel>,
+    /// Next channel identity (separate from layer IDs).
+    pub next_channel_id: u64,
     /// Shared direction for effects using global light.
     pub global_light: crate::render::styles::GlobalLight,
     /// Canvas size in pixels.
@@ -609,6 +613,8 @@ impl DocState {
             rev: 0,
             next_id: 1,
             selection: None,
+            channels: Vec::new(),
+            next_channel_id: 1,
         }
     }
 

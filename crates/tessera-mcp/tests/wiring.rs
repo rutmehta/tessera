@@ -93,10 +93,44 @@ fn saved_selection_follows_undo_redo() {
         c.documents()
             .session(id)
             .unwrap()
+            .document()
+            .state()
+            .channels
+            .is_empty()
+    );
+    assert!(
+        c.documents()
+            .session(id)
+            .unwrap()
             .saved_selections()
             .is_empty()
     );
     c.documents_mut().redo(id).unwrap();
+    let state = c.documents().session(id).unwrap().document().state();
+    assert_eq!(state.channels.len(), 1);
+    let loaded =
+        compositor::format::from_bytes(&compositor::format::to_bytes(state).unwrap()).unwrap();
+    assert_eq!(loaded.channels[0].name, "all");
+    let saved_path = dir.path().join("saved.tessera-doc");
+    compositor::format::save(c.documents().session(id).unwrap().document(), &saved_path).unwrap();
+    let reopened = c.open_document(saved_path).unwrap();
+    let saved = c.documents().session(reopened).unwrap().saved_selections();
+    assert_eq!(saved.len(), 1);
+    assert_eq!(saved[0].name, "all");
+    let load_request: DocumentToolRequest = serde_json::from_value(serde_json::json!({"tool":"set_pixel_selection","document":reopened,"shape":"saved","selection":saved[0].id})).unwrap();
+    assert!(matches!(
+        c.execute_document(load_request),
+        DocumentToolResponse::Ok(_)
+    ));
+    c.documents_mut().undo(reopened).unwrap();
+    assert_eq!(
+        c.documents()
+            .session(reopened)
+            .unwrap()
+            .saved_selections()
+            .len(),
+        1
+    );
     assert_eq!(
         c.documents().session(id).unwrap().saved_selections().len(),
         1

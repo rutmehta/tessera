@@ -218,7 +218,7 @@ impl Documents {
                 "recent": recent,
             },
             "selection": {"active": state.selection.is_some(), "bounds": selection_bounds},
-            "saved_selections": session.saved.iter().map(|s| json!({"id": s.id, "name": s.name})).collect::<Vec<_>>(),
+            "saved_selections": session.saved_selections().iter().map(|s| json!({"id": s.id, "name": s.name})).collect::<Vec<_>>(),
             "preview": {"level": level, "width": composite.width(), "height": composite.height()},
             "engines": {"brush": brush, "selection": selection},
             "renderer": if session.renderer.is_some() { "resident-gpu" } else { "cpu" },

@@ -57,6 +57,10 @@ struct MChunk {
 #[derive(Serialize, Deserialize)]
 struct MDoc {
     #[serde(default)]
+    channels: Vec<MChannel>,
+    #[serde(default = "first_channel_id")]
+    next_channel_id: u64,
+    #[serde(default)]
     global_light: crate::render::styles::GlobalLight,
     canvas: Extent,
     depth: Depth,
@@ -67,6 +71,18 @@ struct MDoc {
     next_id: u64,
     selection: Option<MRaster>,
     layers: Vec<MLayer>,
+}
+
+fn first_channel_id() -> u64 {
+    1
+}
+
+#[derive(Serialize, Deserialize)]
+struct MChannel {
+    id: crate::channels::ChannelId,
+    name: String,
+    kind: crate::channels::ChannelKind,
+    raster: MRaster,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -316,6 +332,20 @@ impl<W: Write> Writer<W> {
             root_rev: s.root_rev,
             rev: s.rev,
             next_id: s.next_id,
+            next_channel_id: s.next_channel_id,
+            channels: s
+                .channels
+                .iter()
+                .map(|c| {
+                    c.validate(s)?;
+                    Ok(MChannel {
+                        id: c.id,
+                        name: c.name.clone(),
+                        kind: c.kind.clone(),
+                        raster: self.raster(&c.raster)?,
+                    })
+                })
+                .collect::<EngineResult<_>>()?,
             selection: s.selection.as_ref().map(|r| self.raster(r)).transpose()?,
             layers: s
                 .root
@@ -534,6 +564,19 @@ impl Reader<'_> {
             None => None,
         };
         let state = DocState {
+            channels: m
+                .channels
+                .iter()
+                .map(|c| {
+                    Ok(crate::channels::DocumentChannel {
+                        id: c.id,
+                        name: c.name.clone(),
+                        kind: c.kind.clone(),
+                        raster: self.raster(&c.raster)?,
+                    })
+                })
+                .collect::<EngineResult<_>>()?,
+            next_channel_id: m.next_channel_id,
             global_light: m.global_light,
             canvas: m.canvas,
             depth: m.depth,
@@ -554,6 +597,16 @@ impl Reader<'_> {
                 .transpose()?,
         };
         let ids = state.layer_ids();
+        let mut channel_ids = std::collections::HashSet::new();
+        for channel in &state.channels {
+            channel.validate(&state)?;
+            if channel.id.0 == 0
+                || channel.id.0 >= state.next_channel_id
+                || !channel_ids.insert(channel.id.0)
+            {
+                return Err(dec("invalid channel ids or next channel id"));
+            }
+        }
         let mut uniq = ids.clone();
         uniq.sort();
         uniq.dedup();

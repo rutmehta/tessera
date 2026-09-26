@@ -43,6 +43,28 @@ pub struct TileDelta {
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone)]
 pub enum DocOp {
+    /// Insert a channel. Zero ID requests allocation.
+    AddChannel {
+        /// Channel to insert.
+        channel: crate::channels::DocumentChannel,
+    },
+    /// Delete a named plane.
+    DeleteChannel {
+        /// Channel identity.
+        id: crate::channels::ChannelId,
+    },
+    /// Change a channel's name.
+    RenameChannel {
+        /// Channel identity.
+        id: crate::channels::ChannelId,
+        /// New display name.
+        name: String,
+    },
+    /// Replace samples and metadata, retaining identity and order.
+    EditChannel {
+        /// Replacement channel with an existing identity.
+        channel: crate::channels::DocumentChannel,
+    },
     /// Changes the shared light direction and invalidates all styled layers.
     SetGlobalLight(crate::render::styles::GlobalLight),
     /// Replaces the non-destructive filter stack and shared child-space mask.
@@ -157,6 +179,10 @@ impl DocOp {
     /// Short label for the history panel.
     pub fn label(&self) -> String {
         match self {
+            DocOp::AddChannel { .. } => "Add Channel".into(),
+            DocOp::DeleteChannel { .. } => "Delete Channel".into(),
+            DocOp::RenameChannel { .. } => "Rename Channel".into(),
+            DocOp::EditChannel { .. } => "Edit Channel".into(),
             DocOp::SetGlobalLight(_) => "Global Light".into(),
             DocOp::SetSmartFilters { .. } => "Smart Filters".into(),
             DocOp::AddLayer { layer, .. } => format!("New Layer {}", layer.props.name),
@@ -212,6 +238,61 @@ fn apply_op(
     let full = Rect::of_extent(s.canvas);
     let styled_before = s.has_layer_styles();
     let damage: EngineResult<Rect> = match op {
+        DocOp::AddChannel { mut channel } => {
+            channel.validate(s)?;
+            let largest = s.channels.iter().map(|c| c.id.0).max().unwrap_or(0);
+            let next = s
+                .next_channel_id
+                .max(
+                    largest
+                        .checked_add(1)
+                        .ok_or_else(|| EngineError::invalid("channel", "id exhausted"))?,
+                )
+                .max(1);
+            if channel.id.0 == 0 {
+                channel.id = crate::channels::ChannelId(next);
+            }
+            if s.channels.iter().any(|c| c.id == channel.id) {
+                return Err(EngineError::invalid("channel", "duplicate id"));
+            }
+            s.next_channel_id = next.max(
+                channel
+                    .id
+                    .0
+                    .checked_add(1)
+                    .ok_or_else(|| EngineError::invalid("channel", "id exhausted"))?,
+            );
+            s.channels.push(channel);
+            Ok(Rect::default())
+        }
+        DocOp::DeleteChannel { id } => {
+            let i = s
+                .channels
+                .iter()
+                .position(|c| c.id == id)
+                .ok_or_else(|| EngineError::not_found("channel", id.0))?;
+            s.channels.remove(i);
+            Ok(Rect::default())
+        }
+        DocOp::RenameChannel { id, name } => {
+            let c = s
+                .channels
+                .iter_mut()
+                .find(|c| c.id == id)
+                .ok_or_else(|| EngineError::not_found("channel", id.0))?;
+            c.name = name;
+            Ok(Rect::default())
+        }
+        DocOp::EditChannel { channel } => {
+            channel.validate(s)?;
+            let c = s
+                .channels
+                .iter_mut()
+                .find(|c| c.id == channel.id)
+                .ok_or_else(|| EngineError::not_found("channel", channel.id.0))?;
+            *c = channel;
+            Ok(Rect::default())
+        }
         DocOp::AddLayer {
             parent,
             index,
@@ -814,6 +895,9 @@ impl Document {
 }
 
 fn visit_rasters(s: &DocState, f: &mut impl FnMut(&Raster)) {
+    for channel in &s.channels {
+        f(&channel.raster);
+    }
     if let Some(sel) = &s.selection {
         f(sel);
     }

@@ -3,7 +3,7 @@
 //! Selections are soft single-channel masks. Algorithms run on the dense
 //! [`Mask`]/[`Image`] types; [`Mask::to_raster`]/[`Mask::from_raster`]
 //! convert to the compositor's F32 single-channel [`Raster`] selections
-//! (`DocState::selection`) and [`channels::AlphaChannels`] persists them as
+//! (`DocState::selection`) and [`channels::save`] persists them as
 //! named alpha channels.
 //!
 //! | Tool | Module |
