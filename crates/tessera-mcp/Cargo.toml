@@ -5,6 +5,9 @@ edition = "2024"
 license = "Apache-2.0"
 
 [dependencies]
+brush = { path = "../brush" }
+selection = { path = "../selection" }
+color-mgmt = { path = "../color-mgmt" }
 engine-api = { path = "../engine-api" }
 index = { path = "../index" }
 library = { path = "../library" }

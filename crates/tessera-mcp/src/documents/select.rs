@@ -1,6 +1,6 @@
 //! Pixel selections: the pluggable [`SelectionEngine`] that rasterizes
 //! marquee and lasso geometry and feathers masks, and the built-in
-//! [`BasicSelection`] used until the selection crate is linked.
+//! [`RealSelection`] adapter and the lightweight [`BasicSelection`] fallback.
 //!
 //! Selections are single-channel f32 canvas rasters (the compositor's
 //! representation). Combination (replace/add/subtract/intersect), inverse,
@@ -32,6 +32,57 @@ pub trait SelectionEngine: Send + Sync {
     fn rasterize(&self, geometry: &SelectionGeometry, canvas: Extent) -> EngineResult<Raster>;
     /// `mask` blurred by a feather radius in pixels.
     fn feather(&self, mask: &Raster, radius: f32) -> EngineResult<Raster>;
+}
+
+/// Production adapter to the selection crate's antialiased geometry and
+/// Gaussian feather algorithms.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct RealSelection;
+
+impl SelectionEngine for RealSelection {
+    fn name(&self) -> &str {
+        "selection"
+    }
+
+    fn rasterize(&self, geometry: &SelectionGeometry, canvas: Extent) -> EngineResult<Raster> {
+        let (w, h) = (canvas.width, canvas.height);
+        let box4 = |r: &CanvasRect| [r.x0 as f32, r.y0 as f32, r.x1 as f32, r.y1 as f32];
+        let mask = match geometry {
+            SelectionGeometry::Rect(r) | SelectionGeometry::Ellipse(r)
+                if r.x1 <= r.x0 || r.y1 <= r.y0 =>
+            {
+                return Err(EngineError::invalid(
+                    "rect",
+                    "must have positive width and height",
+                ));
+            }
+            SelectionGeometry::Rect(r) => selection::marquee::rect(w, h, box4(r), true),
+            SelectionGeometry::Ellipse(r) => selection::marquee::ellipse(w, h, box4(r), true),
+            SelectionGeometry::Polygon(points) => {
+                if points.len() < 3 || points.iter().flatten().any(|v| !v.is_finite()) {
+                    return Err(EngineError::invalid(
+                        "points",
+                        "a polygon needs at least three finite vertices",
+                    ));
+                }
+                selection::marquee::polygon(w, h, points, true)
+            }
+        };
+        mask.to_raster(Depth::F32)
+    }
+
+    fn feather(&self, mask: &Raster, radius: f32) -> EngineResult<Raster> {
+        if !radius.is_finite() || !(0.0..=4096.0).contains(&radius) {
+            return Err(EngineError::invalid(
+                "feather",
+                "must be finite and in 0..=4096 pixels",
+            ));
+        }
+        if mask.channels() != 1 {
+            return Err(EngineError::invalid("mask", "must be single-channel"));
+        }
+        selection::ops::feather(&selection::Mask::from_raster(mask)?, radius).to_raster(Depth::F32)
+    }
 }
 
 /// Marquee (rectangle, ellipse) and polygon lasso with 4×4 supersampled
@@ -198,6 +249,27 @@ fn polygon(points: &[[f32; 2]], full: Rect) -> EngineResult<Dense> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn real_selection_uses_selection_crate_and_validates_inputs() {
+        let engine = RealSelection;
+        let e = Extent::new(12, 12);
+        let mask = engine
+            .rasterize(&SelectionGeometry::Ellipse(r(2, 2, 10, 10)), e)
+            .unwrap();
+        let expected = selection::marquee::ellipse(12, 12, [2.0, 2.0, 10.0, 10.0], true);
+        assert_eq!(selection::Mask::from_raster(&mask).unwrap(), expected);
+        assert_eq!(
+            selection::Mask::from_raster(&engine.feather(&mask, 2.0).unwrap()).unwrap(),
+            selection::ops::feather(&expected, 2.0)
+        );
+        assert!(engine.feather(&mask, f32::NAN).is_err());
+        assert!(
+            engine
+                .rasterize(&SelectionGeometry::Polygon(vec![[0.0, 0.0]; 2]), e)
+                .is_err()
+        );
+    }
 
     fn r(x0: i64, y0: i64, x1: i64, y1: i64) -> CanvasRect {
         CanvasRect { x0, y0, x1, y1 }
