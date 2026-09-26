@@ -1062,5 +1062,13 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M2-45",
+    "owner": "astra",
+    "title": "Export completeness (AVIF/JXL/DNG/watermark/HDR)",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
