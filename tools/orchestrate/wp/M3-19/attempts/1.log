@@ -1,0 +1,15 @@
+Implemented persistent people identities, quality gating, medoid assignment, periodic refits, naming propagation, opt-in MWG XMP regions, merge/split, confirmation, suggestions, and indexed FFI filters.
+
+Verification:
+  Required release tests, strict clippy, and fmt checks pass.
+  100k-face benchmark: 781 ms, ARI 1.0.
+  Full 100k-result person search: 13–14 ms. One contention-related 79 ms failure is retained in the logs.
+  Cached YuNet/SFace integration ran successfully.
+  Only allowed paths changed. engine-api unchanged. No commits.
+
+One substantive limitation prevents full acceptance: above 1,024 eligible faces, clustering uses sampled HDBSCAN plus medoid assignment, not a full-catalog HDBSCAN hierarchy. Rare unsampled identities can be missed.
+
+Handoff and logs:
+  /Users/rutmehta/Developer/tessera/.worktrees/M3-19/tools/orchestrate/wp/M3-19/implementation.md
+
+RESULT: FAIL full-catalog HDBSCAN remains a sampled approximation
