@@ -20,7 +20,8 @@
 @group(0) @binding(7) var<storage, read_write> dst: array<f32>;
 // 0 width, 1 height, 2 mode, 3..6 radii (6: slot roles in the fused kernels),
 // 7 ox, 8 oy, 9 rect width, 10 rect height, 12 texture, 13 clarity,
-// 14..16 airlight, 17 strength, 18 dehaze amount, 19 low width, 20 low height,
+// 17 strength (before confidence), 18 dehaze amount, 19 low width, 20 low height,
+// Dehaze kernels bind (airlight.rgb, confidence) in low[0].
 // 21 low factor, 22 flags, 23 output plane length.
 @group(0) @binding(8) var<storage, read> p: array<u32>;
 
@@ -65,7 +66,7 @@ fn load_h(mode: u32, i: u32) -> array<vec4<f32>, 2> {
         let v = rgb_at(i);
         r[0] = vec4<f32>(max(min(v.x, min(v.y, v.z)), 0.0), 0.0, 0.0, 0.0);
     } else {
-        let v = rgb_at(i) / vec3<f32>(pf(14u), pf(15u), pf(16u));
+        let v = rgb_at(i) / low[0].xyz;
         r[0] = vec4<f32>(max(min(v.x, min(v.y, v.z)), 0.0), 0.0, 0.0, 0.0);
     }
     return r;
@@ -135,9 +136,10 @@ fn vertical_out(x: u32, y: u32, i: u32, mode: u32, ma: vec4<f32>, mb: vec4<f32>)
         outa[i] = vec4<f32>(a, ma.y - a * ma.x, 0.0, 0.0);
     } else {
         var v = rgb_at(i);
+        if low[0].w == 0.0 { write_out(x, y, v); return; }
         let g = encode(max(luma(v), 0.0));
         let t = clamp(ma.x * g + ma.y, 0.15, 1.0);
-        let air = vec3<f32>(pf(14u), pf(15u), pf(16u));
+        let air = low[0].xyz;
         let amount = pf(18u);
         for (var c = 0u; c < 3u; c++) {
             if v[c] >= 0.0 {
@@ -208,7 +210,7 @@ fn box_v(@builtin(global_invocation_id) id: vec3<u32>) {
         if mode == V_DARK {
             outa[i] = vec4<f32>(lum, m, 0.0, 0.0);
         } else {
-            let t = clamp(1.0 - 0.85 * pf(17u) * clamp(m, 0.0, 1.0), 0.15, 1.0);
+            let t = clamp(1.0 - 0.85 * (pf(17u) * low[0].w) * clamp(m, 0.0, 1.0), 0.15, 1.0);
             let g = encode(lum);
             outa[i] = vec4<f32>(g, t, g * g, g * t);
         }

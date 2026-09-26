@@ -7,7 +7,7 @@
 //! - The preview approximation (levels above zero) is bounded against the
 //!   exact resident path: at most 4/255 display codes on synthetic scenes and
 //!   on every real RAW fixture present.
-//! - Dehaze statistics are cached exactly; renders are deterministic.
+//! - Dehaze statistics stay on-device; renders are deterministic.
 #[path = "../../image-core/tests/common/mod.rs"]
 mod common;
 
@@ -88,9 +88,20 @@ fn resident(
     for &c in &coords {
         tiles.insert(c, batch.upload(&image.tile(c, 0, 1).unwrap()).unwrap());
     }
+    let before = gpu.stats();
     let mut out = batch
         .local_tone(s, frame, &tiles, &coords, options)
         .unwrap();
+    assert_eq!(
+        gpu.stats().readbacks,
+        before.readbacks,
+        "local tone readback"
+    );
+    assert_eq!(
+        gpu.stats().submissions,
+        before.submissions,
+        "local tone submission"
+    );
     let ordered: Vec<_> = coords.iter().map(|c| out.remove(c).unwrap()).collect();
     let result = batch
         .finish(ordered, false, None, &CancellationToken::new())
@@ -147,7 +158,7 @@ fn exact_resident_local_tone_matches_cpu_per_operator() {
         let err = max_abs(&actual, &expected);
         eprintln!("{name}: max abs {err:e}");
         assert!(err <= 1e-4, "{name}: {err}");
-        // Deterministic per backend, including a statistics-cache hit.
+        // Deterministic per backend, including repeated input identities.
         let again = resident(&gpu, &image, &s, &options);
         assert_eq!(
             actual.planes(),
@@ -158,7 +169,7 @@ fn exact_resident_local_tone_matches_cpu_per_operator() {
 }
 
 #[test]
-fn dehaze_statistics_are_reused_only_for_the_same_input() {
+fn dehaze_statistics_stay_resident_for_cold_and_repeated_inputs() {
     let gpu = gpu();
     let image = scene(300, 200, 2);
     let mut s = ToneSettings {
@@ -171,18 +182,120 @@ fn dehaze_statistics_are_reused_only_for_the_same_input() {
     };
     let before = gpu.stats().submissions;
     resident(&gpu, &image, &s, &options);
-    // Miss: one statistics submission plus the final submission.
-    assert_eq!(gpu.stats().submissions - before, 2);
+    // Cold statistics must stay on-device in the final submission.
+    assert_eq!(gpu.stats().submissions - before, 1);
     s.dehaze = -70.0;
     let before = gpu.stats().submissions;
     let cached = resident(&gpu, &image, &s, &options);
     assert_eq!(
         gpu.stats().submissions - before,
         1,
-        "dehaze edit reuses statistics"
+        "dehaze edit stays in one submission"
     );
     let expected = pipeline_cpu::tone_extra_image(&image, &s).unwrap();
     assert!(max_abs(&cached, &expected) <= 1e-4);
+}
+
+#[test]
+fn dehaze_exact_statistics_edge_cases() {
+    let gpu = gpu();
+    let mut images = vec![
+        Image::new(1, 1, vec![vec![0.0], vec![0.0], vec![0.0]]).unwrap(),
+        Image::new(19, 7, vec![vec![0.4; 133]; 3]).unwrap(),
+        Image::new(2, 1, vec![vec![-0.1, 0.8], vec![0.0, 0.6], vec![0.0, 0.4]]).unwrap(),
+        scene(1, 137, 12),
+        scene(139, 1, 13),
+        scene(37, 23, 14),
+    ];
+    // Repeated dark-channel values, even candidate populations (upper median),
+    // independent RGB medians, and an isolated HDR lamp excluded by p99.
+    let mut planes = vec![vec![0.0; 35 * 17]; 3];
+    for (plane, (period, scale)) in planes.iter_mut().zip([(3, 0.013), (5, 0.017), (7, 0.011)]) {
+        for (i, sample) in plane.iter_mut().enumerate() {
+            let v = if i % 35 < 18 { 0.2 } else { 0.6 };
+            *sample = v + (i % period) as f32 * scale;
+        }
+    }
+    for plane in &mut planes {
+        plane[301] = 32.0;
+    }
+    images.push(Image::new(35, 17, planes).unwrap());
+    // Exercise the smooth confidence ramp (rather than only zero/one), and
+    // the near-black airlight early return with nonzero scene contrast.
+    for (base, range) in [(0.4, 0.045), (1e-10, 2e-10)] {
+        let planes = (0..3)
+            .map(|c| {
+                (0..127)
+                    .map(|i| base + range * ((i * (c + 3)) % 127) as f32 / 126.0)
+                    .collect()
+            })
+            .collect();
+        images.push(Image::new(127, 1, planes).unwrap());
+    }
+    for (i, image) in images.iter().enumerate() {
+        for amount in [-100.0, 100.0] {
+            let s = ToneSettings {
+                dehaze: amount,
+                ..Default::default()
+            };
+            let expected = pipeline_cpu::tone_extra_image(image, &s).unwrap();
+            let options = LocalToneOptions {
+                preview: false,
+                statistics_key: key(9000 + i as u64),
+            };
+            let actual = resident(&gpu, image, &s, &options);
+            let error = max_abs(&actual, &expected);
+            assert!(error <= 1e-4, "case {i}, amount {amount}: {error}");
+            if i < 2 {
+                assert_eq!(
+                    actual.planes(),
+                    image.planes(),
+                    "neutral statistics must be exact identity"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn abandoned_dehaze_batch_does_not_publish_statistics() {
+    let gpu = gpu();
+    let image = scene(37, 23, 18);
+    let frame = Extent::new(image.width(), image.height());
+    let coords: Vec<_> = image.coords().collect();
+    let options = LocalToneOptions {
+        preview: false,
+        statistics_key: key(444),
+    };
+    let s = ToneSettings {
+        dehaze: 80.0,
+        ..Default::default()
+    };
+    let before = gpu.stats();
+    {
+        let mut batch = gpu.begin_resident().unwrap();
+        let mut tiles = HashMap::new();
+        for &coord in &coords {
+            tiles.insert(
+                coord,
+                batch.upload(&image.tile(coord, 0, 1).unwrap()).unwrap(),
+            );
+        }
+        let _ = batch
+            .local_tone(&s, frame, &tiles, &coords, &options)
+            .unwrap();
+        // Drop without submitting (e.g. a superseded preview).
+    }
+    assert_eq!(gpu.stats().readbacks, before.readbacks);
+    assert_eq!(gpu.stats().submissions, before.submissions);
+    let expected = pipeline_cpu::tone_extra_image(&image, &s).unwrap();
+    let actual = resident(&gpu, &image, &s, &options);
+    assert!(max_abs(&actual, &expected) <= 1e-4);
+    // A reused memo key cannot leak another buffer's statistics either.
+    let changed = scene(37, 23, 19);
+    let expected = pipeline_cpu::tone_extra_image(&changed, &s).unwrap();
+    let actual = resident(&gpu, &changed, &s, &options);
+    assert!(max_abs(&actual, &expected) <= 1e-4);
 }
 
 fn fixtures() -> Vec<PathBuf> {
@@ -324,8 +437,8 @@ fn level_zero_resident_presence_matches_cpu_renderer() {
                 gpu.clear_cache();
                 let before = gpu.stats().readbacks;
                 let a = r.render_region_as(&image, &s, 0, rect, output).unwrap();
-                // One final readback, plus the Dehaze statistics on a miss.
-                assert!(gpu.stats().readbacks - before <= 2);
+                // Only the final output may be read back.
+                assert_eq!(gpu.stats().readbacks - before, 1);
                 let b = cpu.render_region_as(&image, &s, 0, rect, output).unwrap();
                 assert_eq!(a.len(), b.len());
                 if output == RenderOutput::Display {

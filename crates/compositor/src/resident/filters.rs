@@ -2,7 +2,7 @@
 //! final mip keys (premultiplied). Prefix hashes preserve earlier stages on edits.
 use super::ResidentRenderer;
 use crate::document::{Layer, LayerKind};
-use crate::render::smart_filters::ResidentFilterEvaluator;
+use crate::render::smart_filters::{FilterContext, ResidentFilterEvaluator};
 use crate::{Compositor, Document};
 use engine_api::{EngineError, EngineResult, tile::Extent};
 use std::collections::HashMap;
@@ -227,10 +227,11 @@ impl ResidentRenderer {
             unreachable!()
         };
         let e = so.state.canvas;
+        // Resident stacks, like the CPU route, evaluate before mip generation.
+        let context = FilterContext::native(&so.state);
         let mut key = hash([0; 32], &so.key.to_le_bytes());
         key = hash(key, &so.state.rev.to_le_bytes());
-        key = hash(key, &e.width.to_le_bytes());
-        key = hash(key, &e.height.to_le_bytes());
+        key = hash(key, &context.cache_digest());
         let base_key = key;
         let mut stage_keys = Vec::new();
         let mut supported = !so.state.has_layer_styles();
@@ -341,7 +342,14 @@ impl ResidentRenderer {
                 self.queue.submit([encoder.finish()]);
                 self.convert(&output, e, 5)?
             } else if let Some(adapter) = &self.stack.evaluator {
-                adapter.evaluate_resident(&self.device, &self.queue, &current, e, filter)?
+                adapter.evaluate_resident(
+                    &self.device,
+                    &self.queue,
+                    &current,
+                    e,
+                    filter,
+                    &context,
+                )?
             } else {
                 self.convert(&current, e, 2)?
             };

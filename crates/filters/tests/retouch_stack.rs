@@ -55,7 +55,9 @@ fn retouch_variants_replay_through_native_serialization() {
         };
         let serialized = serde_json::to_vec(&node).unwrap();
         let roundtrip: SmartFilter = serde_json::from_slice(&serialized).unwrap();
-        let result = CompositorFilters.evaluate(&input, &roundtrip).unwrap();
+        let result = CompositorFilters
+            .evaluate(&input, &roundtrip, &context(input.extent()))
+            .unwrap();
         for c in 0..4 {
             assert!((result.pixel(12, 12)[c] - fill.pixel(12, 12)[c]).abs() < 1e-5);
         }
@@ -82,7 +84,9 @@ fn liquify_native_stack_roundtrip_and_psd_proxy() {
     let expected = mesh
         .render(&input, Interpolation::Bilinear, &AtomicBool::new(false))
         .unwrap();
-    let actual = CompositorFilters.evaluate(&input, &filter).unwrap();
+    let actual = CompositorFilters
+        .evaluate(&input, &filter, &context(input.extent()))
+        .unwrap();
     assert_eq!(actual.pixel(5, 5), expected.pixel(5, 5));
     let mut child = DocState::new(e, Depth::F32);
     child
@@ -112,5 +116,13 @@ fn liquify_native_stack_roundtrip_and_psd_proxy() {
     let want = expected.pixel(5, 5);
     for c in 0..4 {
         assert!((px[(5 * 16 + 5) * 4 + c] - want[c]).abs() < 0.01);
+    }
+}
+
+fn context(canvas: Extent) -> compositor::render::smart_filters::FilterContext {
+    compositor::render::smart_filters::FilterContext {
+        profile: None,
+        level: 0,
+        canvas,
     }
 }

@@ -1233,14 +1233,19 @@ name = "filters"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
+ "color-mgmt",
  "compositor",
  "engine-api",
+ "image",
+ "image-core",
  "ml-runtime",
  "naga",
  "pipeline-cpu",
+ "pipeline-gpu",
  "pollster",
  "serde",
  "serde_json",
+ "tempfile",
  "wgpu",
 ]
 

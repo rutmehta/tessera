@@ -6,8 +6,8 @@ license = "Apache-2.0"
 description = "Non-destructive raster filters and direct image adjustments"
 
 [features]
-default = []
-camera-raw-filter = []
+default = ["camera-raw-filter"]
+camera-raw-filter = ["dep:image-core", "dep:color-mgmt", "dep:pipeline-gpu"]
 
 [dependencies]
 serde = { workspace = true }
@@ -15,10 +15,15 @@ serde_json = { workspace = true }
 compositor = { path = "../compositor" }
 engine-api = { path = "../engine-api" }
 pipeline-cpu = { path = "../pipeline-cpu" }
+image-core = { path = "../image-core", default-features = false, optional = true }
+color-mgmt = { path = "../color-mgmt", optional = true }
+pipeline-gpu = { path = "../pipeline-gpu", optional = true }
 ml-runtime = { path = "../ml-runtime" }
 wgpu.workspace = true
 bytemuck.workspace = true
 pollster = "0.4"
 
 [dev-dependencies]
+image = { workspace = true, features = ["png"] }
+tempfile.workspace = true
 naga = { version = "30", features = ["wgsl-in"] }

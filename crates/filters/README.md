@@ -1,7 +1,8 @@
 # Layered-editor filters (M5-06)
 
 CPU reference and real WGSL/Metal implementations over the published
-`compositor::raster::Raster` API. No compositor or engine-api changes.
+`compositor::raster::Raster` API. Smart-filter evaluation carries explicit
+document colour context through the compositor.
 
 ## Compositor smart-filter adapter
 
@@ -22,12 +23,68 @@ Adjustment variants are externally tagged snake_case; unit variants use a
 string, e.g. `{"adjust": "invert"}`. Distortion parameters are nested under
 `distort` and retain their documented standalone defaults.
 
-Optional feature `camera-raw-filter` enables `camera_raw`, a **tone-only raster
-stub**, not RAW decoding or demosaicing. Its flat parameter object accepts
-`exposure` (-10..10), `contrast`, `highlights`, `shadows`, `whites`, `blacks`
-(each -100..100), and `amount` (0..1, default 1). It invokes
-`pipeline_cpu::tone` with `ToneSettings` on RGB tile data and preserves alpha.
-Without the feature, `camera_raw` returns `Unsupported`.
+### Camera Raw (M5-25, partial resident coverage)
+
+Default feature `camera-raw-filter` enables `camera_raw`. Parameters are
+`{"settings": <engine_api::recipe::DevelopSettings JSON>, "amount": 1.0}`.
+The old flat tone-only object is no longer accepted. Amount defaults to 1 and
+must be finite in [0,1]. Settings are deserialized with the engine schema,
+checked against engine CRS slider domains, and validated by the shared CPU
+renderer. Unsupported engine controls fail explicitly. AI masks are rejected
+even when amount is zero; this adapter never loads models. Without the feature,
+the identifier returns `Unsupported`.
+
+The boundary is nonempty F32 **straight RGBA in document-linear working space**.
+Do not unpremultiply it. `FilterContext` supplies profile, native level and
+canvas. Embedded RGB matrix-shaper ICC profiles are authoritative. color-mgmt
+linearizes their TRCs and resolves the working-space conversion to/from linear
+Rec.2020. Untagged documents mean linear sRGB. Unresolved profiles and ICC CLUT
+profiles error instead of falling back to sRGB. Alpha is preserved, including
+transparent pixels with nonzero RGB. Amount interpolates developed RGB against
+the original in the document space. Zero amount is an exact CPU COW identity.
+
+CPU evaluation uses `pipeline_cpu::render_linear_scaled(RenderSource::Rgb)`:
+no CFA stage or display transform, with shared WB/CAT, detail, tone/presence,
+curves, HSL/grading, procedural locals, lens, effects and geometry operators.
+The RGB source starts after demosaic. Geometry output is placed at the canvas
+origin, clipped/padded black to retain input extent; alpha stays unchanged.
+CPU tests compare the same decoded PNG developed by image-core, in sRGB and
+Display P3. This adapter has no internal image-core stage memo cache; compositor
+stack caches include context identity and cache filter outputs.
+
+The resident evaluator uses the same device/queue and pipeline-gpu resident
+operators, never a CPU readback/re-upload. It supports WB, detail, tone,
+Texture/Clarity/Dehaze, curves, colour, procedural locals, vignette/grain,
+manual lens distortion/vignetting, crop/straighten/manual transforms and amount.
+GPU-side layout conversion bridges interleaved RGBA and planar RGB. Dehaze
+airlight and confidence use exact GPU order statistics, recomputed within each
+transaction rather than caching buffers from potentially abandoned batches.
+Local linear/radial/brush/luminance/color masks use immutable pre-local RGB,
+the engine's group composition rules and slider-strength semantics. Local
+point/detail operators are row-tiled with real halos, including 24MP frames.
+As in the CPU engine, local moire is a validated no-op and local defringe/color
+overlay are errors. AI/depth inputs are not fabricated.
+
+The evaluator still declines automatic lens/CA analysis (including the default
+Auto settings), defringe, Upright/orientation/constrain-crop and lens blur.
+Select `lens.profile="none"` and `lens.remove_chromatic_aberration=false`
+for supported resident recipes. The compositor's established fallback policy
+then determines CPU evaluation; the GPU entry point itself errors on unsupported
+settings. This is **not yet the full resident Develop chain required by M5-25**.
+Whole-frame buffers must fit device storage limits; the manual optics bridge
+additionally retains the existing less-than-2^24-pixel operator limit. It is not
+a constant-memory streaming implementation.
+
+Parity tests cover tile boundaries, Display P3, signed/HDR colour, amount
+endpoints and alpha. The 24MP ignored benchmark covers the supported subset,
+not the missing full GPU chain:
+
+    cargo test -p filters --release --test camera_raw_gpu bench_24mp_cpu_gpu -- --ignored --nocapture
+
+One local Metal run with Dehaze and a procedural exposure/saturation adjustment
+measured CPU 33.406 s and GPU 3.203 s (cold pipelines included, upload/readback
+excluded). The benchmark excludes the unsupported automatic lens stages and
+manual optics. These are measurements, not latency gates.
 
 ## API and data contract
 
