@@ -17,9 +17,12 @@ Masks and local adjustments + masking UI (verified on screen with the real subje
 ## Since the previous update (all merged)
 Design system + visual overhaul (Theme tokens, light/dark, lint test), HDR/EDR presentation (float surfaces, SDR bit-identical), GPU export without viewport starvation (36 MP full-size export 51 s → ~4 s; GPU lens/geometry), accessibility identifiers on every control, brush-erase modifier fix and two-pass SAM mask selection, importer rating→grade mapping, app-dir isolation + `tessera index prune`, Adobe compat op set wired into the renderer, agent planner/critic (Anthropic/OpenAI/Ollama providers), style-profile auto-edit.
 
+## Latest (merged)
+Export throughput (36 MP full-size 1.2 s; 100 Web JPEGs 26 s render+encode; app exports develop at full resolution for exactness), lens follow-ups (lensfun data pack download with attribution, DNG opcodes in-stage, independent manual CA, GPU CA batching), assisted culling + agent review UI (face strip, Keep?/Reject? suggestions with confirm, Auto Edit sheet, review queue, "Agent base edit" history group with amount fader and per-step toggles, Settings ▸ AI with Keychain keys).
+
 ## In progress / next
-- Export throughput targets (docs/08: 45 MP JPEG < 1.5 s, 100 Web JPEGs < 40 s): next step is whole-band sensor dispatches and two bands in flight (M2-21c).
-- GPT-6 (Codex) path is currently failing auth on this machine (Hermes 401, Codex CLI reconnect loop); Opus carries work until `codex login` / `hermes auth login openai-codex` is re-run.
+- M3-12 tethered capture (ImageCaptureCore), M3-13 keywords/captions/OCR, M3-14 agent runs on the GPU renderer at preview resolution (currently ~40 s per NEF), M2-13v2 on-screen verification of the Develop panels.
+- Milestone 4 UI is in place at phase-1/3 level; Milestone 5 (layered editor) not started.
 
 ## Known gaps / next
 - Adobe undocumented XMP structures (PointColors strings, brush dabs, Look tables) need **real Lightroom-exported sidecars** to finish (M2-02b).
