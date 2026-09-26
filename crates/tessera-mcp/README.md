@@ -80,10 +80,11 @@ preview remains independent, and engine-api/tool schemas are unchanged.
 
 ## Layered documents (spec 02) and Actions
 
-The ten `DocumentToolCall` tools (`open_document`, `add_layer`,
+The fifteen `DocumentToolCall` tools (`open_document`, `add_layer`,
 `set_layer_props`, `paint_stroke`, `set_pixel_selection`,
 `apply_adjustment_layer`, `transform_layer`, `merge_down`, `export_document`,
-`list_layers`) are listed with schemas derived by `build.rs` from engine-api's
+`list_layers`, `add_channel`, `delete_channel`, `rename_channel`, `edit_channel`,
+`load_channel_as_selection`) are listed with schemas derived by `build.rs` from engine-api's
 serde declarations plus the `DocumentToolRequest` envelope (`rationale`,
 `group`, `expect_head`). Extra tools: `describe_document`,
 `render_document_preview`, `actions_record`, `actions_stop`, `actions_play`
@@ -121,7 +122,7 @@ Actions: `actions_record {name}` records every successful non-query call;
 `actions_stop {path?}` returns (and writes) the `.tessera-action` JSON;
 `actions_play {path | action, documents}` replays it. Documents, created
 layers and saved selections are stored as `{"$input": i}`, `{"$doc": k}`,
-`{"$layer": k}`, `{"$selection": k}` references, so an action replays on
+`{"$layer": k}`, `{"$selection": k}`, `{"$channel": k}` references, so an action replays on
 documents with different layer ids and sizes; see `src/actions.rs` for the
 format. `tessera actions play <file> <inputs…> --out-dir DIR [--format …]`
 batches it from the CLI; `tessera actions show <file>` validates.
@@ -150,8 +151,70 @@ requests; engine-api is unchanged.
 
 Known gaps: `merge_down` needs a pixel layer below and keeps the lower layer's mask and
 properties; `transform_layer` handles pixel layers (content and mask) and
-smart objects only. Saved selections are session-local, not persisted as alpha
-channels in the document container.
+smart objects only. Saved selections are persistent alpha channels; their
+SelectionId is the alpha ChannelId's numeric value.
+
+### Channel staging (engine-api 1.3)
+
+`describe_document.summary.channels` and open-document summaries expose ordered
+alpha/spot metadata independently of active selection. Channel edits retain the
+normal concurrency/history envelope; IDs are not reused after undo or deletion
+within a session. Spots are masks with preview metadata, not spectral RGB inks.
+
+`stage_channel_raster {document, channel?}` snapshots the active selection, or
+the supplied alpha/spot channel, into a host-owned immutable raster store. It
+returns `{ok: {digest, depth, extent}}` for the `raster` argument of `add_channel`
+or `edit_channel`. It does not edit history. A client can first construct a mask
+with `set_pixel_selection`, stage it, then create an alpha or spot channel. A
+missing selection/channel fails rather than silently staging an empty mask.
+In-process hosts can also use `Documents::stage_channel_raster(Raster)`.
+
+The digest is domain-separated BLAKE3 over extent, depth, and normalized f32
+samples in row-major order (negative zero canonicalized). Staging checks one
+plane, positive dimensions, finite samples in [0,1], at most 16,777,216 pixels
+per raster and 67,108,864 retained pixels per Documents instance. Equal content
+deduplicates. Add/edit validate the full reference against the staged data and
+canvas. Handles survive undo and document close, but not process exit. Action
+replay in a new process requires restaging identical content; action files do
+not embed pixels. The store is released with Documents, not evicted mid-replay.
+
+### People tools (engine-api 1.3)
+
+`assign_person`, `confirm_person`, `merge_people`, `split_person`, and
+`name_person` accept the LibraryToolRequest fields, including optional rationale.
+`Console::run_library` returns a JSON result with the surviving/allocated
+`person_id` and operation details. Calls are recorded and played as library
+Actions, not recipe or document history entries. Faces must be nonempty, unique,
+current `(image_id, ordinal)` references. Confirm and split validate membership
+before edits; merge preserves target name and confirmation flags; split creates
+an unnamed identity with reset confirmations. Manual assignment does not require
+an embedding or quality eligibility. No automatic clustering job is launched.
+
+`tessera://people` (or `Console::people`) exposes PersonSummary rows. The index's
+opaque identities, including those produced by ml_faces, are adapted through
+`<app-dir>/people-ids.json`. Existing canonical numeric IDs are retained when
+available; other IDs receive monotonically allocated numeric bindings. Retired
+IDs survive merges, and recreated model keys receive fresh bindings. Keep this
+file with the catalog. Hosts must serialize access to the app directory and
+perform identity deletion through this adapter (an externally deleted/recreated
+key without an observed absence cannot be distinguished by the current index).
+The index does not persist clustering approximation provenance: nonempty
+membership is conservatively reported approximate, regardless of confirmation.
+
+`writes.write_sidecars` and `writes.person_keywords` default false. Sidecar
+export uses `cull::people::name_person`, normalized MWG face geometry and indexed
+analysis-preview dimensions. Person keywords are additive accepted catalog tags;
+XMP keyword writes require both flags. Clearing/renaming never removes old tags.
+No sidecar reads, probes or writes occur with write_sidecars=false.
+
+References and required analysis dimensions are checked before membership edits.
+Merge/split use index transactions; assign/confirm apply per-face transactions.
+Metadata synchronization follows membership changes and is not an atomic
+transaction with them. Errors explicitly say when the catalog edit/name already
+applied; earlier faces can remain applied on a database I/O failure. Naming uses
+cull's preflight and ordinary-failure compensation for its name/library/XMP
+changes, but catalog keyword acceptance is a subsequent operation. Do not retry
+a failed split blindly. Only successful calls enter an Action recording.
 
 ## Preset lookup
 
@@ -179,6 +242,7 @@ symlink resolution. Style IDs are lookup keys, never paths supplied by clients.
 
 - `tessera://images`: catalog image JSON.
 - `tessera://albums`: the library document's manual albums.
+- `tessera://people`: persistent numeric identity summaries (reserves new ID mappings).
 - `tessera://albums/<numeric-id>`: one album and its members.
 - `tessera://images/<32-hex-id>/render`: low-resolution PNG blob.
 - `tessera://images/<32-hex-id>/histogram`: 256-column RGB histogram PNG blob.

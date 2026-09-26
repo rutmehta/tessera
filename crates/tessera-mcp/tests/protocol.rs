@@ -68,7 +68,7 @@ async fn memory_initialize_list_call_bad_schema_compare_and_resources() {
     .await;
     let list = receive(&mut reader).await;
     let tools = list["result"]["tools"].as_array().unwrap();
-    assert_eq!(tools.len(), 40);
+    assert_eq!(tools.len(), tessera_mcp::schema::tools().len());
     for name in engine_api::tools::ToolCall::NAMES {
         assert!(tools.iter().any(|t| t["name"] == name));
     }
@@ -143,7 +143,7 @@ async fn spawned_stdio_lists_tools_without_stdout_noise() {
             .as_array()
             .unwrap()
             .len(),
-        40
+        tessera_mcp::schema::tools().len()
     );
     drop(writer);
     assert!(

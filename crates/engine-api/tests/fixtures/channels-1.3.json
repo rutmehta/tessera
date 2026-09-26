@@ -1,0 +1,13 @@
+{
+  "summary": {"canvas":{"width":640,"height":480},"depth":"u16","layers":3,"channels":[
+    {"id":7,"name":"Mask","kind":{"kind":"alpha"},"depth":"f32","extent":{"width":640,"height":480}},
+    {"id":2,"name":"Mask","kind":{"kind":"spot","display_rgb":[0.25,0.5,1.0],"solidity":0.5},"depth":"u16","extent":{"width":640,"height":480}}
+  ]},
+  "calls": [
+    {"tool":"add_channel","document":1,"name":"Mask","kind":{"kind":"alpha"},"raster":{"digest":"0000000000000000000000000000000000000000000000000000000000000000","depth":"f32","extent":{"width":640,"height":480}}},
+    {"tool":"delete_channel","document":1,"channel":7},
+    {"tool":"rename_channel","document":1,"channel":7,"name":"Subject"},
+    {"tool":"edit_channel","document":1,"channel":2,"kind":{"kind":"spot","display_rgb":[1.0,0.0,0.0],"solidity":0.75},"raster":null},
+    {"tool":"load_channel_as_selection","document":1,"channel":2,"mode":"replace"}
+  ]
+}

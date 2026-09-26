@@ -15,6 +15,7 @@
 //! anything else.
 pub mod advanced;
 pub mod brush_presets;
+mod channels;
 mod dense;
 mod io;
 pub(crate) mod local_tools;
@@ -77,6 +78,8 @@ pub struct DocumentSession {
     nodes: Vec<u64>,
     /// Compositor state as opened.
     root_node: u64,
+    /// Allocation floor lives outside undoable compositor snapshots.
+    next_channel_id: u64,
 
     renderer: Option<ResidentRenderer>,
     /// Import warnings (features preserved but not rendered).
@@ -87,12 +90,21 @@ impl DocumentSession {
     fn new(path: PathBuf, mut doc: Document, warnings: Vec<String>) -> Self {
         doc.set_max_states(MAX_STATES);
         let root_node = doc.history().current();
+        let next_channel_id = doc.state().next_channel_id.max(1).max(
+            doc.state()
+                .channels
+                .iter()
+                .map(|c| c.id.0.saturating_add(1))
+                .max()
+                .unwrap_or(1),
+        );
         Self {
             path,
             doc,
             history: DocumentHistory::default(),
             nodes: Vec::new(),
             root_node,
+            next_channel_id,
 
             renderer: None,
             warnings,
@@ -150,7 +162,7 @@ impl DocumentSession {
     /// Applies `op` and records the entry for `request`.
     fn commit(
         &mut self,
-        op: DocOp,
+        mut op: DocOp,
         request: &DocumentToolRequest,
     ) -> EngineResult<(HistoryEntryId, compositor::Applied)> {
         let action = Action::from_document_tool(&request.call)?;
@@ -158,7 +170,27 @@ impl DocumentSession {
         if self.doc.history().current() != expected {
             self.doc.checkout(expected)?;
         }
+        fn allocate(op: &mut DocOp, next: &mut u64) -> EngineResult<()> {
+            match op {
+                DocOp::AddChannel { channel } => {
+                    channel.id = compositor::channels::ChannelId(*next);
+                    *next = next
+                        .checked_add(1)
+                        .ok_or_else(|| EngineError::invalid("channel", "ID space exhausted"))?;
+                }
+                DocOp::Batch(ops) => {
+                    for op in ops {
+                        allocate(op, next)?;
+                    }
+                }
+                _ => {}
+            }
+            Ok(())
+        }
+        let mut next = self.next_channel_id;
+        allocate(&mut op, &mut next)?;
         let applied = self.doc.apply(op)?;
+        self.next_channel_id = next;
         let entry = self.history.record(action, meta(request));
         self.nodes.push(applied.node);
 
@@ -217,6 +249,7 @@ fn unit(name: &str, v: f32) -> EngineResult<()> {
 /// Open layered documents and the tools that edit them.
 pub struct Documents {
     sessions: BTreeMap<DocumentId, DocumentSession>,
+    staged_channels: BTreeMap<engine_api::id::Digest, Raster>,
     next: u64,
     brush: Box<dyn BrushEngine>,
     selection: Box<dyn SelectionEngine>,
@@ -234,6 +267,7 @@ impl Documents {
     pub fn new() -> Self {
         Self {
             sessions: BTreeMap::new(),
+            staged_channels: BTreeMap::new(),
             next: 1,
             brush: Box::new(paint::RealBrush),
             selection: Box::new(select::RealSelection),
@@ -368,7 +402,7 @@ impl Documents {
                 };
                 let (entry, applied) = session.commit(op, request)?;
                 let layer = layer.or_else(|| applied.created.first().copied());
-                let selection = save.map(|_| {
+                let mut selection = save.map(|_| {
                     SelectionId(
                         session
                             .state()
@@ -379,11 +413,26 @@ impl Documents {
                             .0,
                     )
                 });
+                let channel = match call {
+                    DocumentToolCall::AddChannel { .. } => {
+                        let c = session.state().channels.last().expect("inserted channel");
+                        if matches!(c.kind, compositor::channels::ChannelKind::Alpha) {
+                            selection = Some(SelectionId(c.id.0));
+                        }
+                        Some(engine_api::id::ChannelId(c.id.0))
+                    }
+                    DocumentToolCall::DeleteChannel { channel, .. }
+                    | DocumentToolCall::RenameChannel { channel, .. }
+                    | DocumentToolCall::EditChannel { channel, .. }
+                    | DocumentToolCall::LoadChannelAsSelection { channel, .. } => Some(*channel),
+                    _ => selection.map(|s| engine_api::id::ChannelId(s.0)),
+                };
                 Ok(DocumentToolOutput::DocumentEdited {
                     document: id,
                     entry: Some(entry),
                     layer,
                     selection,
+                    channel,
                 })
             }
         }
@@ -400,6 +449,13 @@ impl Documents {
     ) -> EngineResult<(DocOp, Option<LayerId>, Option<(String, Arc<Raster>)>)> {
         let state = session.state();
         Ok(match call {
+            DocumentToolCall::AddChannel { .. }
+            | DocumentToolCall::DeleteChannel { .. }
+            | DocumentToolCall::RenameChannel { .. }
+            | DocumentToolCall::EditChannel { .. }
+            | DocumentToolCall::LoadChannelAsSelection { .. } => {
+                (self.channel_op(state, call)?, None, None)
+            }
             DocumentToolCall::AddLayer {
                 layer,
                 name,
@@ -1141,5 +1197,6 @@ pub(crate) fn summary(state: &DocState) -> EngineResult<DocumentSummary> {
         canvas: state.canvas,
         depth: convert("depth", &state.depth)?,
         layers: state.layer_ids().len() as u32,
+        channels: channels::summaries(state)?,
     })
 }

@@ -21,16 +21,19 @@
 
 use serde::{Deserialize, Serialize};
 
+mod library;
+pub use library::{LibraryToolCall, LibraryToolRequest};
+
 use crate::color::IccProfileHandle;
 use crate::document::{
-    AdjustmentSpec, AffineTransform, BrushParams, DocumentExportSettings, DocumentSummary,
-    Interpolation, LayerInfo, LayerPropsUpdate, NewLayer, SelectionMode, SelectionShape,
-    StrokePoint, StrokeTarget,
+    AdjustmentSpec, AffineTransform, BrushParams, ChannelKind, ChannelRasterRef,
+    DocumentExportSettings, DocumentSummary, Interpolation, LayerInfo, LayerPropsUpdate, NewLayer,
+    SelectionMode, SelectionShape, StrokePoint, StrokeTarget,
 };
 use crate::error::EngineError;
 use crate::id::{
-    DocumentId, HistoryEntryId, HistoryGroupId, ImageId, JobId, LayerId, MaskId, PersonId,
-    SelectionId, SimilarityGroupId, StyleId,
+    ChannelId, DocumentId, HistoryEntryId, HistoryGroupId, ImageId, JobId, LayerId, MaskId,
+    PersonId, SelectionId, SimilarityGroupId, StyleId,
 };
 use crate::recipe::mask::{LocalParams, MaskComponent};
 use crate::recipe::selection::{Decision, Grade, Mark};
@@ -705,11 +708,63 @@ pub enum DocumentToolCall {
         /// Document.
         document: DocumentId,
     },
+    /// Append a persistent channel with a newly allocated ID.
+    AddChannel {
+        /// Document.
+        document: DocumentId,
+        /// Display name (duplicates allowed).
+        name: String,
+        /// Channel interpretation.
+        #[serde(default)]
+        kind: ChannelKind,
+        /// Host-staged single-channel raster, covering the canvas.
+        raster: ChannelRasterRef,
+    },
+    /// Delete a persistent channel without reusing its ID.
+    DeleteChannel {
+        /// Document.
+        document: DocumentId,
+        /// Channel.
+        channel: ChannelId,
+    },
+    /// Rename a persistent channel.
+    RenameChannel {
+        /// Document.
+        document: DocumentId,
+        /// Channel.
+        channel: ChannelId,
+        /// New display name.
+        name: String,
+    },
+    /// Atomically replace channel metadata and/or raster, retaining its ID.
+    EditChannel {
+        /// Document.
+        document: DocumentId,
+        /// Channel.
+        channel: ChannelId,
+        /// Replacement interpretation; absent leaves it unchanged.
+        #[serde(default)]
+        kind: Option<ChannelKind>,
+        /// Replacement host-staged raster; absent leaves it unchanged.
+        #[serde(default)]
+        raster: Option<ChannelRasterRef>,
+    },
+    /// Load an alpha OR spot mask into the active selection without changing
+    /// the persistent channel. Records normal document history.
+    LoadChannelAsSelection {
+        /// Document.
+        document: DocumentId,
+        /// Channel (including spot channels).
+        channel: ChannelId,
+        /// How to combine with the active selection.
+        #[serde(default)]
+        mode: SelectionMode,
+    },
 }
 
 impl DocumentToolCall {
     /// Every tool name, in declaration order.
-    pub const NAMES: [&'static str; 10] = [
+    pub const NAMES: [&'static str; 15] = [
         "open_document",
         "add_layer",
         "set_layer_props",
@@ -720,6 +775,11 @@ impl DocumentToolCall {
         "merge_down",
         "export_document",
         "list_layers",
+        "add_channel",
+        "delete_channel",
+        "rename_channel",
+        "edit_channel",
+        "load_channel_as_selection",
     ];
 
     /// The tool (MCP) name.
@@ -735,6 +795,11 @@ impl DocumentToolCall {
             Self::MergeDown { .. } => "merge_down",
             Self::ExportDocument { .. } => "export_document",
             Self::ListLayers { .. } => "list_layers",
+            Self::AddChannel { .. } => "add_channel",
+            Self::DeleteChannel { .. } => "delete_channel",
+            Self::RenameChannel { .. } => "rename_channel",
+            Self::EditChannel { .. } => "edit_channel",
+            Self::LoadChannelAsSelection { .. } => "load_channel_as_selection",
         }
     }
 
@@ -750,7 +815,12 @@ impl DocumentToolCall {
             | Self::TransformLayer { document, .. }
             | Self::MergeDown { document, .. }
             | Self::ExportDocument { document, .. }
-            | Self::ListLayers { document } => Some(*document),
+            | Self::ListLayers { document }
+            | Self::AddChannel { document, .. }
+            | Self::DeleteChannel { document, .. }
+            | Self::RenameChannel { document, .. }
+            | Self::EditChannel { document, .. }
+            | Self::LoadChannelAsSelection { document, .. } => Some(*document),
         }
     }
 
@@ -824,6 +894,10 @@ pub enum DocumentToolOutput {
         /// Selection saved by `save_as`, if any.
         #[serde(default)]
         selection: Option<SelectionId>,
+        /// Channel created or affected, including spots. AddChannel must
+        /// return its allocated ID here; deletion returns the deleted ID.
+        #[serde(default)]
+        channel: Option<ChannelId>,
     },
     /// The layer tree, bottom to top, every group before its children.
     LayerList {
@@ -971,6 +1045,36 @@ pub(crate) mod tests {
                 },
             },
             DocumentToolCall::ListLayers { document: doc },
+            DocumentToolCall::AddChannel {
+                document: doc,
+                name: "Mask".into(),
+                kind: ChannelKind::Alpha,
+                raster: ChannelRasterRef {
+                    digest: crate::id::Digest::default(),
+                    depth: DocumentDepth::F32,
+                    extent: Extent::new(640, 480),
+                },
+            },
+            DocumentToolCall::DeleteChannel {
+                document: doc,
+                channel: ChannelId(1),
+            },
+            DocumentToolCall::RenameChannel {
+                document: doc,
+                channel: ChannelId(1),
+                name: "Subject".into(),
+            },
+            DocumentToolCall::EditChannel {
+                document: doc,
+                channel: ChannelId(1),
+                kind: Some(ChannelKind::Alpha),
+                raster: None,
+            },
+            DocumentToolCall::LoadChannelAsSelection {
+                document: doc,
+                channel: ChannelId(1),
+                mode: SelectionMode::Replace,
+            },
         ]
     }
 
@@ -1190,6 +1294,7 @@ pub(crate) mod tests {
                     canvas: Extent::new(640, 480),
                     depth: DocumentDepth::U16,
                     layers: 3,
+                    channels: vec![],
                 },
             },
             DocumentToolOutput::DocumentEdited {
@@ -1197,6 +1302,7 @@ pub(crate) mod tests {
                 entry: Some(HistoryEntryId(1)),
                 layer: Some(LayerId(4)),
                 selection: None,
+                channel: None,
             },
             DocumentToolOutput::LayerList {
                 document: DocumentId(1),

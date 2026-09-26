@@ -7,6 +7,8 @@ pub mod documents;
 mod documents_console;
 mod exports;
 mod mutations;
+mod people;
+mod people_ids;
 mod pixels;
 mod reads;
 pub mod schema;

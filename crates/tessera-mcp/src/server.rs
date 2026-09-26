@@ -4,8 +4,8 @@ use engine_api::{
     EngineError,
     id::DocumentId,
     tools::{
-        DocumentToolCall, DocumentToolOutput, DocumentToolRequest, DocumentToolResponse, ToolCall,
-        ToolRequest, ToolResponse,
+        DocumentToolCall, DocumentToolOutput, DocumentToolRequest, DocumentToolResponse,
+        LibraryToolCall, LibraryToolRequest, ToolCall, ToolRequest, ToolResponse,
     },
 };
 use rmcp::{ErrorData, RoleServer, ServerHandler, model::*, service::RequestContext};
@@ -81,6 +81,7 @@ impl ServerHandler for Server {
                 let id=image["id"].as_str().ok_or_else(||ErrorData::internal_error("missing catalog ID",None))?;
                 for kind in ["render","histogram"] {resources.push(json!({"uri":format!("tessera://images/{id}/{kind}"),"name":format!("{id} {kind}"),"mimeType":"image/png"}));}
             }
+            resources.push(json!({"uri":"tessera://people","name":"People","mimeType":"application/json"}));
             let library=library::Library::read(console.app.join("library.json")).map_err(resource_error)?;
             for album in library.albums.values() {resources.push(json!({"uri":format!("tessera://albums/{}",album.id),"name":album.name,"mimeType":"application/json"}));}
             model(json!({"resources":resources}))
@@ -97,6 +98,8 @@ impl ServerHandler for Server {
     }
 }
 enum Input {
+    StageChannel(schema::StageChannelRaster),
+    Library(Box<LibraryToolRequest>),
     Local(String, Value),
     Engine(Box<ToolRequest>),
     Document(Box<DocumentToolRequest>),
@@ -113,6 +116,7 @@ enum Input {
 impl Input {
     fn parse(name: &str, mut args: Value) -> Result<Self, ErrorData> {
         Ok(match name {
+            "stage_channel_raster" => Self::StageChannel(arguments(args)?),
             _ if crate::documents::local_tools::NAMES.contains(&name) => {
                 Self::Local(name.into(), args)
             }
@@ -125,6 +129,10 @@ impl Input {
             "actions_record" => Self::Record(arguments(args)?),
             "actions_stop" => Self::Stop(arguments(args)?),
             "actions_play" => Self::Play(arguments(args)?),
+            _ if LibraryToolCall::NAMES.contains(&name) => {
+                args["tool"] = json!(name);
+                Self::Library(Box::new(arguments(args)?))
+            }
             _ if DocumentToolCall::NAMES.contains(&name) => {
                 args["tool"] = json!(name);
                 Self::Document(Box::new(arguments(args)?))
@@ -141,6 +149,12 @@ const EDIT_PREVIEW_PX: u32 = 512;
 
 fn dispatch(console: &mut Console, input: Input) -> Result<CallToolResult, ErrorData> {
     let result: Result<Vec<Value>, EngineError> = (|| match input {
+        Input::StageChannel(args) => Ok(vec![text(
+            json!({"ok":console.documents_mut().stage_document_channel(
+            DocumentId(args.document), args.channel.map(engine_api::id::ChannelId)
+        )?}),
+        )]),
+        Input::Library(request) => Ok(vec![text(json!({"ok":console.run_library(*request)?}))]),
         Input::Local(name, args) => Ok(vec![text(
             json!({"ok":crate::documents::local_tools::execute(console, &name, args)?}),
         )]),
@@ -295,6 +309,7 @@ fn resource_error(error: EngineError) -> ErrorData {
 }
 fn read_resource(console: &Console, uri: &str) -> Result<ReadResourceResult, ErrorData> {
     let data = match uri {
+        "tessera://people" => Some(json!(console.people().map_err(resource_error)?)),
         "tessera://images" => Some(json!(console.list_images(None).map_err(resource_error)?)),
         "tessera://albums" => Some(json!(
             library::Library::read(console.app.join("library.json"))
@@ -363,4 +378,34 @@ fn histogram_image(rgb: &image::RgbImage) -> Result<image::RgbImage, EngineError
         }
     }
     Ok(chart)
+}
+
+#[cfg(test)]
+mod people_tests {
+    use super::*;
+
+    #[test]
+    fn library_request_dispatches_to_catalog_and_reports_missing_person() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut console = Console::open(dir.path()).unwrap();
+        console.index.create_person("1", None, None).unwrap();
+        let args = json!({"person_id":1,"name":"Ada"});
+        schema::validate("name_person", &args).unwrap();
+        let result = dispatch(&mut console, Input::parse("name_person", args).unwrap()).unwrap();
+        assert_eq!(result.is_error, Some(false));
+        assert_eq!(
+            console.index.people().unwrap()[0].name.as_deref(),
+            Some("Ada")
+        );
+        let result = dispatch(
+            &mut console,
+            Input::parse("name_person", json!({"person_id":99,"name":"Missing"})).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(result.is_error, Some(true));
+        assert_eq!(
+            console.index.people().unwrap()[0].name.as_deref(),
+            Some("Ada")
+        );
+    }
 }

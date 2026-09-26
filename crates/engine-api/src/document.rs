@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use crate::action::Action;
 use crate::color::IccProfileHandle;
 use crate::error::{EngineError, EngineResult};
-use crate::id::{HistoryEntryId, HistoryGroupId, LayerId, SelectionId};
+use crate::id::{ChannelId, Digest, HistoryEntryId, HistoryGroupId, LayerId, SelectionId};
 use crate::recipe::history::{EditMeta, HistoryGroup, Snapshot};
 use crate::tile::Extent;
 use crate::tools::{ExportFormat, FieldUpdate, Resize};
@@ -725,8 +725,54 @@ impl DocumentHistory {
     }
 }
 
-/// Canvas size and depth reported by `open_document`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+/// Persistent channel interpretation. Spot metadata is display-only, not a
+/// spectral ink model, and currently does not change RGB compositing.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum ChannelKind {
+    /// Saved selection mask.
+    #[default]
+    Alpha,
+    /// Spot ink mask.
+    Spot {
+        /// Finite normalized RGB display colour.
+        display_rgb: [f32; 3],
+        /// Finite normalized ink solidity.
+        solidity: f32,
+    },
+}
+
+/// One document-owned channel. Duplicate names are allowed; address by ID.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ChannelSummary {
+    /// Stable ID within this document.
+    pub id: ChannelId,
+    /// Display name.
+    pub name: String,
+    /// Alpha or spot interpretation.
+    pub kind: ChannelKind,
+    /// Stored raster depth, independent of document depth.
+    pub depth: DocumentDepth,
+    /// Single-channel raster extent (must match the canvas).
+    pub extent: Extent,
+}
+
+/// Immutable single-channel raster staged by the host, not an inline pixel
+/// buffer or URL. The host resolves the content digest and validates depth,
+/// extent and finite normalized samples before applying the atomic edit.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ChannelRasterRef {
+    /// BLAKE3 content identity in the host's raster store; retained for replay.
+    pub digest: Digest,
+    /// Stored depth.
+    pub depth: DocumentDepth,
+    /// Canvas-sized raster extent.
+    pub extent: Extent,
+}
+
+/// Canvas size, depth and ordered persistent channels reported on open.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct DocumentSummary {
     /// Canvas size.
     pub canvas: Extent,
@@ -734,6 +780,10 @@ pub struct DocumentSummary {
     pub depth: DocumentDepth,
     /// Number of layers (all depths).
     pub layers: u32,
+    /// Persistent channels in document order, independent of active selection.
+    /// Missing in 1.2 documents means no reported channels.
+    #[serde(default)]
+    pub channels: Vec<ChannelSummary>,
 }
 
 fn one() -> f32 {

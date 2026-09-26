@@ -34,6 +34,7 @@
 //! - `{"$layer": k}`: the layer created by step `k` (`add_layer`,
 //!   `apply_adjustment_layer`);
 //! - `{"$selection": k}`: the selection saved by step `k` (`save_as`).
+//! - `{"$channel": k}`: the channel created by step `k` (`add_channel` or `save_as`).
 //!
 //! References only point at earlier steps. Layer ids that existed before
 //! recording started are recorded literally (for example `1`, the
@@ -44,10 +45,10 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use engine_api::action::{Action, ActionCall, CommandEffect};
-use engine_api::id::{DocumentId, LayerId, SelectionId};
+use engine_api::id::{ChannelId, DocumentId, LayerId, SelectionId};
 use engine_api::tools::{
-    DocumentToolCall, DocumentToolOutput, DocumentToolRequest, DocumentToolResponse, ToolRequest,
-    ToolResponse,
+    DocumentToolCall, DocumentToolOutput, DocumentToolRequest, DocumentToolResponse,
+    LibraryToolRequest, ToolRequest, ToolResponse,
 };
 use engine_api::{EngineError, EngineResult};
 use serde::{Deserialize, Serialize};
@@ -94,7 +95,7 @@ pub struct ActionFile {
     pub steps: Vec<ActionStep>,
 }
 
-const REFS: [&str; 4] = ["$input", "$doc", "$layer", "$selection"];
+const REFS: [&str; 5] = ["$input", "$doc", "$layer", "$selection", "$channel"];
 
 /// A symbolic reference, if `v` is one.
 fn reference(v: &Value) -> Option<(&str, u64)> {
@@ -182,7 +183,8 @@ impl ActionFile {
                     }
                     "$doc" => producer(&["open_document"])?,
                     "$layer" => producer(&["add_layer", "apply_adjustment_layer"])?,
-                    _ => producer(&["set_pixel_selection"])?,
+                    "$channel" => producer(&["add_channel", "set_pixel_selection"])?,
+                    _ => producer(&["set_pixel_selection", "add_channel"])?,
                 }
             }
         }
@@ -223,6 +225,7 @@ pub struct Recorder {
     opened: BTreeMap<DocumentId, u64>,
     layers: BTreeMap<(DocumentId, LayerId), u64>,
     selections: BTreeMap<(DocumentId, SelectionId), u64>,
+    channels: BTreeMap<(DocumentId, ChannelId), u64>,
 }
 
 impl Recorder {
@@ -234,6 +237,7 @@ impl Recorder {
             opened: BTreeMap::new(),
             layers: BTreeMap::new(),
             selections: BTreeMap::new(),
+            channels: BTreeMap::new(),
         }
     }
 
@@ -282,6 +286,13 @@ impl Recorder {
                     action.params.insert(key.into(), json!({"$layer": k}));
                 }
             }
+            if let Some(id) = action.params.get("channel").and_then(Value::as_u64)
+                && let Some(k) = self.channels.get(&(doc, ChannelId(id)))
+            {
+                action
+                    .params
+                    .insert("channel".into(), json!({"$channel": k}));
+            }
             if let Some(id) = action.params.get("selection").and_then(Value::as_u64)
                 && let Some(k) = self.selections.get(&(doc, SelectionId(id)))
             {
@@ -298,6 +309,7 @@ impl Recorder {
                 document,
                 layer,
                 selection,
+                channel,
                 ..
             } => {
                 if matches!(
@@ -311,6 +323,17 @@ impl Recorder {
                 if let Some(s) = selection {
                     self.selections.insert((*document, *s), step);
                 }
+                if matches!(
+                    request.call,
+                    DocumentToolCall::AddChannel { .. }
+                        | DocumentToolCall::SetPixelSelection {
+                            save_as: Some(_),
+                            ..
+                        }
+                ) && let Some(c) = channel
+                {
+                    self.channels.insert((*document, *c), step);
+                }
             }
             _ => {}
         }
@@ -319,6 +342,17 @@ impl Recorder {
             rationale: request.rationale.clone(),
             enabled: true,
         });
+    }
+
+    /// Records a successful catalog people call (literal references).
+    pub fn record_library(&mut self, request: &LibraryToolRequest) {
+        if let Ok(action) = Action::from_library_tool(&request.call) {
+            self.file.steps.push(ActionStep {
+                action,
+                rationale: request.rationale.clone(),
+                enabled: true,
+            });
+        }
     }
 
     /// Records a successful recipe/library call (literal parameters).
@@ -358,6 +392,8 @@ pub struct StepOutput {
     layer: Option<LayerId>,
     #[serde(skip)]
     selection: Option<SelectionId>,
+    #[serde(skip)]
+    channel: Option<ChannelId>,
 }
 
 /// Result of playing an action: every step that ran, and the failure that
@@ -407,6 +443,12 @@ pub trait ActionTarget {
     fn run_document(&mut self, request: DocumentToolRequest) -> DocumentToolResponse;
     /// Runs a recipe/library request.
     fn run_tool(&mut self, request: ToolRequest) -> ToolResponse;
+    /// Runs a catalog people request. Legacy targets explicitly reject these calls.
+    fn run_library(&mut self, _request: LibraryToolRequest) -> EngineResult<Value> {
+        Err(crate::unsupported(
+            "catalog people calls are unavailable on this target",
+        ))
+    }
 }
 
 fn substitute(
@@ -435,6 +477,7 @@ fn substitute(
             "$input" => json!(inputs.get(n as usize).ok_or_else(missing)?),
             "$doc" => json!(producer()?.document.ok_or_else(missing)?),
             "$layer" => json!(producer()?.layer.ok_or_else(missing)?),
+            "$channel" => json!(producer()?.channel.ok_or_else(missing)?),
             _ => json!(producer()?.selection.ok_or_else(missing)?),
         };
     }
@@ -500,11 +543,13 @@ pub fn play(
                                     document,
                                     layer,
                                     selection,
+                                    channel,
                                     ..
                                 } => {
                                     out.document = Some(*document);
                                     out.layer = *layer;
                                     out.selection = *selection;
+                                    out.channel = *channel;
                                 }
                                 _ => {}
                             }
@@ -512,6 +557,9 @@ pub fn play(
                         }
                         DocumentToolResponse::Error(e) => Err(e),
                     }
+                }
+                ActionCall::Library(call) => {
+                    target.run_library(LibraryToolRequest { call, rationale })
                 }
                 ActionCall::Recipe(call) => match target.run_tool(ToolRequest {
                     call,

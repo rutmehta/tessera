@@ -95,8 +95,18 @@ pub(crate) struct ActionsPlay {
     pub documents: Vec<u64>,
 }
 
+/// Stage a snapshot of the active selection or a named channel for channel edits.
+#[derive(Deserialize, Serialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct StageChannelRaster {
+    pub document: u64,
+    /// Absent = active selection; otherwise a persistent alpha or spot channel.
+    #[serde(default)]
+    pub channel: Option<u64>,
+}
+
 /// Extra (non-engine) tools, in list order.
-pub(crate) const EXTRA: [&str; 9] = [
+pub(crate) const EXTRA: [&str; 10] = [
     "open_image",
     "render_preview",
     "list_images",
@@ -106,11 +116,13 @@ pub(crate) const EXTRA: [&str; 9] = [
     "actions_record",
     "actions_stop",
     "actions_play",
+    "stage_channel_raster",
 ];
 
 pub fn tools() -> Vec<Value> {
     let mut schemas = wire::engine_schemas();
     schemas.extend(wire::document_schemas());
+    schemas.extend(wire::library_schemas());
     schemas.extend([
         serde_json::to_value(schemars::schema_for!(OpenImage)).unwrap(),
         serde_json::to_value(schemars::schema_for!(RenderPreview)).unwrap(),
@@ -121,11 +133,13 @@ pub fn tools() -> Vec<Value> {
         serde_json::to_value(schemars::schema_for!(ActionsRecord)).unwrap(),
         serde_json::to_value(schemars::schema_for!(ActionsStop)).unwrap(),
         serde_json::to_value(schemars::schema_for!(ActionsPlay)).unwrap(),
+        serde_json::to_value(schemars::schema_for!(StageChannelRaster)).unwrap(),
     ]);
     schemas.extend(crate::documents::local_tools::schemas());
     engine_api::tools::ToolCall::NAMES
         .into_iter()
         .chain(engine_api::tools::DocumentToolCall::NAMES)
+        .chain(engine_api::tools::LibraryToolCall::NAMES)
         .chain(EXTRA)
         .chain(crate::documents::local_tools::NAMES)
         .zip(schemas)
@@ -136,6 +150,24 @@ pub fn tools() -> Vec<Value> {
 }
 fn description(name: &str) -> &str {
     match name {
+        "stage_channel_raster" => {
+            "Stage an immutable snapshot of an active selection or channel; returns the raster reference for add_channel/edit_channel. No history edit."
+        }
+        "assign_person" => {
+            "Assign current faces to an existing numeric catalog identity; validates every reference first. Catalog-only by default."
+        }
+        "confirm_person" => {
+            "Confirm/unconfirm faces only if every assignment matches the expected identity. Metadata writes are opt-in."
+        }
+        "merge_people" => {
+            "Merge source into target, retaining target ID/name and confirmation flags. Metadata writes are opt-in."
+        }
+        "split_person" => {
+            "Split current members into a new unnamed numeric identity; moved confirmations reset. Metadata writes are opt-in."
+        }
+        "name_person" => {
+            "Name or explicitly clear a numeric catalog identity. Catalog keywords and sidecar writes are independently opt-in; XMP keywords require both."
+        }
         "remove_object" => {
             "Unsupported until non-generative inpainting exists; never generates pixels."
         }
@@ -238,6 +270,31 @@ fn known_keys(schema: &Value, input: &Value) -> Result<(), String> {
 /// Validate with the same serde declarations used by the schema derives, then
 /// let the original engine deserializer validate custom IDs and invariants.
 pub(crate) fn validate(name: &str, input: &Value) -> Result<(), String> {
+    if let Some(index) = engine_api::tools::LibraryToolCall::NAMES
+        .iter()
+        .position(|n| *n == name)
+    {
+        wire::validate_library(index, input.clone()).map_err(|e| e.to_string())?;
+        // The engine's nested contracts intentionally accept unknown members;
+        // the MCP boundary must not silently accept misspelled write opt-ins.
+        if let Some(writes) = input.get("writes").and_then(Value::as_object) {
+            for key in writes.keys() {
+                if !["write_sidecars", "person_keywords"].contains(&key.as_str()) {
+                    return Err(format!("unknown writes field `{key}`"));
+                }
+            }
+        }
+        if let Some(faces) = input.get("faces").and_then(Value::as_array) {
+            for face in faces {
+                for key in face.as_object().into_iter().flat_map(|f| f.keys()) {
+                    if !["image_id", "ordinal"].contains(&key.as_str()) {
+                        return Err(format!("unknown face field `{key}`"));
+                    }
+                }
+            }
+        }
+        return known_keys(&wire::library_schemas()[index], input);
+    }
     if crate::documents::local_tools::NAMES.contains(&name) {
         return crate::documents::local_tools::validate(name, input);
     }
@@ -260,6 +317,7 @@ pub(crate) fn validate(name: &str, input: &Value) -> Result<(), String> {
             .map_err(|e| e.to_string())
     }
     match name {
+        "stage_channel_raster" => parse::<StageChannelRaster>(input),
         "open_image" => parse::<OpenImage>(input),
         "render_preview" => parse::<RenderPreview>(input),
         "list_images" => parse::<ListImages>(input),
@@ -276,6 +334,27 @@ pub(crate) fn validate(name: &str, input: &Value) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn people_wire_requires_explicit_name_and_confirmation() {
+        assert!(validate("name_person", &json!({"person_id":1,"name":null})).is_ok());
+        assert!(validate("name_person", &json!({"person_id":1})).is_err());
+        assert!(validate("confirm_person", &json!({"person_id":1,"faces":[]})).is_err());
+        assert!(
+            validate(
+                "name_person",
+                &json!({"person_id":1,"name":"Ada","typo":true})
+            )
+            .is_err()
+        );
+        assert!(
+            validate(
+                "name_person",
+                &json!({"person_id":1,"name":"Ada","writes":{"write_sidecar":true}})
+            )
+            .is_err()
+        );
+    }
 
     #[test]
     fn document_wire_types_accept_envelope_flatten_and_reject_typos() {
