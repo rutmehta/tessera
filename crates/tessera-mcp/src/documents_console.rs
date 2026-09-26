@@ -111,6 +111,12 @@ impl Console {
 }
 
 impl ActionTarget for Console {
+    fn run_library(
+        &mut self,
+        request: engine_api::tools::LibraryToolRequest,
+    ) -> EngineResult<serde_json::Value> {
+        Console::run_library(self, request)
+    }
     fn run_document(&mut self, request: DocumentToolRequest) -> DocumentToolResponse {
         self.execute_document(request)
     }

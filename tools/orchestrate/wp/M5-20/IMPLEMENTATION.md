@@ -1,5 +1,56 @@
 # M5-20 implementation and verification
 
+## Round 2 completed: caller integration
+
+The previous out-of-allowlist blocker below is resolved under the widened
+allowlist. The complete round-2 gate passes; historical round-1 failures are
+retained below for context.
+
+- MCP schema generation now mirrors the channel and people value types and all
+  five LibraryToolCalls with their real serde envelopes/defaults.
+- All five channel document calls dispatch to compositor operations and
+  selection::channels::load. DocumentSummary exposes ordered channels. A
+  session-wide ID floor prevents reuse across undo branches, including save_as.
+- Host-owned content-addressed raster staging is available both in Rust and via
+  stage_channel_raster. The README documents sample/shape validation, bounded
+  retention, replay lifetime, and a selection-to-channel workflow with no inline
+  pixel buffers. Channel Actions bind newly created IDs symbolically.
+- All five people calls dispatch to index/cull APIs through MCP, Console and
+  ActionCall::Library. Persistent numeric ID adaptation covers existing opaque
+  ml_faces identities, retiring deleted bindings rather than resurrecting them.
+  tessera://people exposes the bindings and summaries. Defaults do no sidecar I/O;
+  opt-ins support MWG export and additive catalog/XMP keywords.
+- Library metadata writes are not crash-atomic with membership mutations. Errors
+  state when catalog effects already applied. Per-face assignment/confirmation
+  transaction limits, serialized-host requirements, approximation provenance
+  limits and ID-map retention are documented in crates/tessera-mcp/README.md.
+- No FFI/CLI source changes were necessary. Round-1 engine-api contracts and
+  legacy compatibility fixtures remain intact. Only the cull dependency was
+  added to MCP and Cargo.lock.
+
+Verification executed after review corrections:
+
+    cargo test -p engine-api -p tessera-mcp --release && cargo clippy -p engine-api -p tessera-mcp --all-targets -- -D warnings && cargo fmt --check && cargo check --workspace
+
+Exit 0. 135 tests passed, zero failures, zero ignored. Strict Clippy, workspace
+formatting and workspace checking passed. Existing vendored LibRaw C++ warnings
+remain. Full output: round2-validation.log. Cargo commands retained
+CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/M5-20.
+
+Tests cover channel add/summary/load/edit/rename/delete/undo, malformed raster
+references and samples, channel ID non-reuse, channel Action rebinding, actual
+MCP staging and spot-channel dispatch, all people mutations, invalid references,
+name clear, default write opt-outs, explicit MWG and keyword opt-ins, opaque ID
+mapping across reopen and post-merge key recreation. Regression tests were
+observed failing before their fixes (review-*-red.log and staging-red.log).
+A read-only review identified channel undo-ID reuse and people key resurrection;
+both now have passing regressions. This was not an Opus review.
+
+git diff --check passed. Changed/untracked paths were checked against the widened
+allowlist. No commits and no repository target/ files.
+
+RESULT: PASS
+
 ## Delivered within allowlist
 
 - Contract version 1.3.0; recipe schema 3.

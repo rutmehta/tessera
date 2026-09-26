@@ -5,6 +5,7 @@ edition = "2024"
 license = "Apache-2.0"
 
 [dependencies]
+cull = { path = "../cull" }
 brush = { path = "../brush" }
 selection = { path = "../selection" }
 color-mgmt = { path = "../color-mgmt" }

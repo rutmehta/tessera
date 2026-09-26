@@ -147,6 +147,28 @@ async fn document_tools_history_conflicts_schemas_and_actions_over_mcp() {
             json!({"document":advanced_doc,"shape":"all","save_as":"all"}),
         )
         .await;
+    let (staged, _) = c
+        .ok("stage_channel_raster", json!({"document":advanced_doc}))
+        .await;
+    let (added, _) = c.ok("add_channel", json!({"document":advanced_doc,"name":"Ink","kind":{"kind":"spot","display_rgb":[1,0,0],"solidity":0.75},"raster":staged["ok"]})).await;
+    let channel = added["ok"]["channel"].clone();
+    assert!(channel.is_u64());
+    c.ok(
+        "load_channel_as_selection",
+        json!({"document":advanced_doc,"channel":channel}),
+    )
+    .await;
+    let (summary, _) = c
+        .ok(
+            "describe_document",
+            json!({"document":advanced_doc,"thumbnail_px":null}),
+        )
+        .await;
+    assert_eq!(summary["summary"]["channels"][1]["id"], channel);
+    assert_eq!(
+        summary["summary"]["channels"][1]["kind"]["display_rgb"],
+        json!([1.0, 0.0, 0.0])
+    );
     c.ok(
         "refine_edge",
         json!({"document":advanced_doc,"radius":1,"smooth":1}),

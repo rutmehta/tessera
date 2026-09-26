@@ -34,6 +34,7 @@ fn main() {
         type MaskId=u64; type PersonId=u64; type HistoryGroupId=u64;
         type StyleId=String; type ModelId=String; type Grade=u8; type Mark=String;
         type DocumentId=u64; type LayerId=u64; type SelectionId=u64; type HistoryEntryId=u64;
+        type ChannelId=u64; type Digest=String;
     };
     let tools_path = root.join("tools.rs");
     let tools_items = syn::parse_file(&fs::read_to_string(&tools_path).unwrap())
@@ -41,6 +42,11 @@ fn main() {
         .items;
     let recipe_envelope = envelope(&tools_items, "ToolRequest");
     let document_envelope = envelope(&tools_items, "DocumentToolRequest");
+    let library_items =
+        syn::parse_file(&fs::read_to_string(root.join("tools/library.rs")).unwrap())
+            .unwrap()
+            .items;
+    let library_envelope = envelope(&library_items, "LibraryToolRequest");
     let sources = [
         (
             "tools.rs",
@@ -75,6 +81,10 @@ fn main() {
                 "AffineTransform",
                 "DocumentFormat",
                 "DocumentExportSettings",
+                "DocumentDepth",
+                "ChannelKind",
+                "ChannelRasterRef",
+                "ChannelSummary",
             ],
         ),
         (
@@ -92,9 +102,25 @@ fn main() {
         ("recipe/settings.rs", vec!["NormalizedRect"]),
         ("recipe/selection.rs", vec!["Decision"]),
         ("id.rs", vec!["ModelRef"]),
+        ("tile.rs", vec!["Extent"]),
+        (
+            "people.rs",
+            vec![
+                "FaceRef",
+                "PersonSummary",
+                "FaceRegion",
+                "NameSuggestion",
+                "QualityGate",
+                "ClusterOptions",
+                "PeopleJobResult",
+                "PeopleWriteOptions",
+            ],
+        ),
+        ("tools/library.rs", vec![]),
     ];
     let mut tool_structs = Vec::new();
     let mut document_structs = Vec::new();
+    let mut library_structs = Vec::new();
     // serde rejects every key of a flattened *enum* under
     // `deny_unknown_fields`, so those mirrors omit it; `schema::validate`
     // then checks keys against the derived schema instead.
@@ -121,6 +147,11 @@ fn main() {
         for item in parsed.items {
             match item {
                 Item::Struct(mut s) if names.iter().any(|name| s.ident == name) => {
+                    // ImageId is Copy in engine-api but a String in schema mirrors.
+                    if s.ident == "FaceRef" {
+                        s.attrs.retain(|a| !a.path().is_ident("derive"));
+                        s.attrs.push(parse_quote!(#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]));
+                    }
                     s.attrs.push(parse_quote!(#[derive(schemars::JsonSchema)]));
                     output.extend(s.into_token_stream());
                 }
@@ -128,10 +159,17 @@ fn main() {
                     e.attrs.push(parse_quote!(#[derive(schemars::JsonSchema)]));
                     output.extend(e.into_token_stream());
                 }
-                Item::Enum(e) if e.ident == "ToolCall" || e.ident == "DocumentToolCall" => {
+                Item::Enum(e)
+                    if e.ident == "ToolCall"
+                        || e.ident == "DocumentToolCall"
+                        || e.ident == "LibraryToolCall" =>
+                {
                     let document = e.ident == "DocumentToolCall";
+                    let library = e.ident == "LibraryToolCall";
                     let envelope = if document {
                         &document_envelope
+                    } else if library {
+                        &library_envelope
                     } else {
                         &recipe_envelope
                     };
@@ -152,6 +190,8 @@ fn main() {
                         });
                         if document {
                             document_structs.push(name);
+                        } else if library {
+                            library_structs.push(name);
                         } else {
                             tool_structs.push(name);
                         }
@@ -167,7 +207,7 @@ fn main() {
                     output.extend(i.into_token_stream())
                 }
                 Item::Impl(i)
-                    if file == "document.rs"
+                    if (file == "document.rs" || file == "people.rs")
                         && names
                             .iter()
                             .any(|name| i.self_ty.to_token_stream().to_string() == *name) =>
@@ -210,6 +250,14 @@ fn main() {
         }
         pub fn document_schemas()->Vec<serde_json::Value> {
             vec![#(serde_json::to_value(schemars::schema_for!(#document_structs)).expect("serializable schema")),*]
+        }
+        pub fn library_schemas()->Vec<serde_json::Value> {
+            vec![#(serde_json::to_value(schemars::schema_for!(#library_structs)).expect("serializable schema")),*]
+        }
+        pub fn validate_library(index:usize,value:serde_json::Value)->Result<(),serde_json::Error> {
+            type Parser=fn(serde_json::Value)->Result<(),serde_json::Error>;
+            let parsers:&[Parser]=&[#(|v|serde_json::from_value::<#library_structs>(v).map(|_|())),*];
+            parsers[index](value)
         }
         pub fn validate_document(index:usize,value:serde_json::Value)->Result<(),serde_json::Error> {
             type Parser=fn(serde_json::Value)->Result<(),serde_json::Error>;
