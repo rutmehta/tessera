@@ -22,6 +22,7 @@ members = [
     "crates/style-profile",
     "crates/ml-runtime",
     "crates/ml-embed",
+    "crates/ml-caption",
     "crates/ml-enhance",
     "crates/ml-faces",
     "crates/ml-quality",

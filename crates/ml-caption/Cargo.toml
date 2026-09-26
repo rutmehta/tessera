@@ -1,0 +1,25 @@
+[package]
+name = "ml-caption"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+
+[dependencies]
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+image = { workspace = true, features = ["png"] }
+ml-embed = { path = "../ml-embed" }
+ml-runtime = { path = "../ml-runtime" }
+engine-api = { path = "../engine-api" }
+index = { path = "../index" }
+library = { path = "../library" }
+sidecar = { path = "../sidecar" }
+previews = { path = "../previews" }
+jobs = { path = "../jobs" }
+sha2 = "0.10"
+tokenizers = { version = "0.22", default-features = false, features = ["fancy-regex"] }
+
+[dev-dependencies]
+tempfile.workspace = true
+fontdue = "0.9"

@@ -168,7 +168,7 @@ fn upgrade_v4_preserves_scores_and_face_rows_cascade_on_image_delete() {
     drop(index);
     let db = dir.path().join("index.sqlite");
     let conn = rusqlite::Connection::open(&db).unwrap();
-    conn.execute_batch("DROP TABLE face; DELETE FROM migration WHERE version=5;")
+    conn.execute_batch("DROP TABLE face; DROP TABLE accepted_keyword; DROP TABLE understanding; DROP TRIGGER image_fts_delete; DELETE FROM migration WHERE version>=5;")
         .unwrap();
     drop(conn);
     let index = Index::open(&db).unwrap();

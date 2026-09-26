@@ -20,6 +20,9 @@ raw-decode = { path = "../../crates/raw-decode" }
 previews = { path = "../../crates/previews" }
 import-lrcat = { path = "../../crates/import-lrcat", features = ["fixture"] }
 ml-runtime = { path = "../../crates/ml-runtime" }
+ml-caption = { path = "../../crates/ml-caption" }
+ml-embed = { path = "../../crates/ml-embed" }
+library = { path = "../../crates/library" }
 ml-enhance = { path = "../../crates/ml-enhance" }
 export = { path = "../../crates/export" }
 pipeline-cpu = { path = "../../crates/pipeline-cpu" }

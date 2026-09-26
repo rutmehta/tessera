@@ -1,3 +1,51 @@
+# Florence-2-base-ft MIT weights/export. See crates/ml-caption/README.md.
+[[models]]
+id = "caption/florence-vision"
+version = "e88a44eaf3791a35eae0c5a47b3dbcd36e67eb6f"
+task = "caption-vision"
+dtype = "fp16"
+sha256 = "a7abcd77199c5d0089cf985ede4dd8089acd84f30fb3fb1462d5930345c688b3"
+download_url = "https://huggingface.co/onnx-community/Florence-2-base-ft/resolve/e88a44eaf3791a35eae0c5a47b3dbcd36e67eb6f/onnx/vision_encoder_fp16.onnx"
+inputs = [{ name = "pixel_values", shape = [1, 3, 768, 768], dtype = "fp32" }]
+outputs = [{ name = "image_features", shape = [1, 577, 768], dtype = "fp32" }]
+
+[[models]]
+id = "caption/florence-embed"
+version = "e88a44eaf3791a35eae0c5a47b3dbcd36e67eb6f"
+task = "caption-token-embedding"
+dtype = "fp16"
+sha256 = "da2607930eea5e21e4a2bd5fd069de550f1acc30316a4e8f824551a95232ba39"
+download_url = "https://huggingface.co/onnx-community/Florence-2-base-ft/resolve/e88a44eaf3791a35eae0c5a47b3dbcd36e67eb6f/onnx/embed_tokens_fp16.onnx"
+inputs = [{ name = "input_ids", shape = [1, 8], dtype = "int64" }]
+outputs = [{ name = "inputs_embeds", shape = [1, 8, 768], dtype = "fp32" }]
+
+[[models]]
+id = "caption/florence-encoder"
+version = "e88a44eaf3791a35eae0c5a47b3dbcd36e67eb6f"
+task = "caption-encoder"
+dtype = "fp16"
+sha256 = "0d1d929f282963e983b8ac5ac4957f19a8fa48233eab41166951b769e5cf2fd2"
+download_url = "https://huggingface.co/onnx-community/Florence-2-base-ft/resolve/e88a44eaf3791a35eae0c5a47b3dbcd36e67eb6f/onnx/encoder_model_fp16.onnx"
+inputs = [
+  { name = "attention_mask", shape = [1, 585], dtype = "int64" },
+  { name = "inputs_embeds", shape = [1, 585, 768], dtype = "fp32" },
+]
+outputs = [{ name = "last_hidden_state", shape = [1, 585, 768], dtype = "fp32" }]
+
+[[models]]
+id = "caption/florence-decoder"
+version = "e88a44eaf3791a35eae0c5a47b3dbcd36e67eb6f"
+task = "caption-ocr-decoder"
+dtype = "fp16"
+sha256 = "ce583853b630f230eaa1ef201e35001cdda968c84749d67c18ce3707171cfa0c"
+download_url = "https://huggingface.co/onnx-community/Florence-2-base-ft/resolve/e88a44eaf3791a35eae0c5a47b3dbcd36e67eb6f/onnx/decoder_model_fp16.onnx"
+inputs = [
+  { name = "encoder_attention_mask", shape = [1, 585], dtype = "int64" },
+  { name = "encoder_hidden_states", shape = [1, 585, 768], dtype = "fp32" },
+  { name = "inputs_embeds", shape = [1, 2, 768], dtype = "fp32" },
+]
+outputs = [{ name = "logits", shape = [1, 2, 51289], dtype = "fp32" }]
+
 # DRUNet color: MIT export and upstream cszn/KAIR MIT weights.
 # https://huggingface.co/synthscript/drunet-color-onnx
 # https://github.com/cszn/KAIR/blob/master/LICENSE
