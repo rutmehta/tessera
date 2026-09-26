@@ -742,5 +742,13 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M5-04b",
+    "owner": "opus",
+    "title": "GPU-resident document rendering",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
