@@ -332,3 +332,15 @@ Layered documents reuse the system above; nothing here adds a colour, size or fo
   `OnImage.shadow`, hardness ring and symmetry guides in `OnImage.guideFaint`, square transform handles in
   `OnImage.text` with `OnImage.ink`, and the HUD readout as a scrim chip. Select and Mask previews tint outside the
   selection with `OnImage.reject` at 50 % (Overlay), `OnImage.ink` (On Black) or `OnImage.text` (On White).
+* **Filter dialogs** (WP M5-12) are `SheetScaffold` sheets: the filter name as title, the layer as
+  subtitle; content is a 180 pt 1:1 detail pane on `plotWell` (radius 4, a `1:1` chip in the
+  on-image pair) left of the controls generated from the filter's schema: `ValueSlider` rows for
+  numbers (unit in the value), a 28 pt angle dial (`well`, hairline, `textPrimary` needle) beside
+  the slider for angles, `SegmentedPicker` for up to three choices and a `ThemeMenuStyle` pop-up
+  beyond, a `well` point pad with a hairline cross for centres, checkboxes for toggles. Footer:
+  Preview checkbox left; Reset, Cancel, OK (primary) right. Errors are an inline `StatusLine`.
+  Image ▸ Adjustments sheets host the Properties editors unchanged. No new colours or sizes.
+* **Smart filter rows** sit under their smart object in the Layers outline (last applied on top):
+  eye (tertiary when off, name tertiary too), a 20 pt mask thumbnail on the checkerboard, 11 pt
+  name (with mode and opacity when not Normal 100 %), and a blending-options glyph; double-click
+  re-opens the filter dialog. They are not selectable as layers.

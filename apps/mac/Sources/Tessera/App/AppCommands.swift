@@ -234,6 +234,9 @@ struct AppCommands: Commands {
                 .disabled(doc == nil)
         }
         CommandMenu("Layer") { LayerMenu(doc: doc) }
+        // Image ▸ Adjustments and Filter (WP M5-12).
+        CommandMenu("Image") { ImageMenu(doc: doc, filters: docs.filters) }
+        CommandMenu("Filter") { FilterMenu(doc: doc, filters: docs.filters) }
         CommandMenu("Select") {
             // WP M5-11: selection commands and tools (Tools/ToolsMenus.swift).
             SelectMenuItems(doc: doc, docMode: docMode)

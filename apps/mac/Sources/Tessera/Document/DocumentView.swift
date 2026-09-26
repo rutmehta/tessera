@@ -39,6 +39,7 @@ struct DocumentView: View {
         // WP M5-11: the tools serve this workspace; their sheets hang off the document view.
         .onAppear { DocumentTools.shared.attach(workspace) }
         .modifier(ToolSheetsModifier(tools: DocumentTools.shared))
+        .modifier(DocumentFilterSheets(filters: workspace.filters))   // WP M5-12
     }
 }
 

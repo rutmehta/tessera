@@ -55,6 +55,8 @@ thiserror.workspace = true
 image = { workspace = true, features = ["png"] }
 kamadak-exif.workspace = true
 half.workspace = true
+# Filters and smart filters in document mode (WP M5-12).
+filters = { path = "../filters" }
 
 [dev-dependencies]
 import-lrcat = { path = "../import-lrcat", features = ["fixture"] }

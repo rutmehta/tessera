@@ -3817,191 +3817,93 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
     func ungroupLayer(id: UInt64) throws  -> DocumentUpdate
     
     /**
-     * Starts a stroke of `tool` on `layer`'s pixels or mask with `brush` and
-     * `color` (the foreground colour; a mask takes its luminance). Commits a
-     * pending drag first; a stroke already open is committed. The selection
-     * limits the paint; a transparency-locked layer keeps its alpha.
+     * Image ▸ Adjustments: `adjustment_json` (`compositor::Adjustment`, the
+     * JSON of the adjustment layer of the same kind) applied to a pixel
+     * layer's pixels inside the selection, as one history node.
      */
-    func beginStroke(layer: UInt64, target: StrokeTarget, tool: StrokeTool, brush: PaintBrush, color: PaintColor) throws 
+    func applyAdjustment(layer: UInt64, adjustmentJson: String) throws  -> DocumentUpdate
     
     /**
-     * Free Transform of pixel `layers` (with their linked masks). Commits a
-     * pending drag or stroke first.
+     * Applies `filter_json` to `layer` as one history node (labelled with
+     * the filter's name). Pixel layers are filtered at full resolution
+     * inside the selection (all of it without one); smart objects get the
+     * filter appended to their smart filters, masked by the selection.
+     * Blocking (seconds on large layers): call off the main thread;
+     * `cancel_filter` stops it.
      */
-    func beginTransform(layers: [UInt64]) throws  -> TransformInfo
+    func applyFilter(layer: UInt64, filterJson: String) throws  -> DocumentUpdate
     
     /**
-     * Ends an interactive Refine Edge without changing the selection.
+     * Cancels a running `apply_filter` / `apply_adjustment` and the preview.
      */
-    func cancelRefineEdge() throws  -> DocumentUpdate
+    func cancelFilter() 
     
     /**
-     * Drops the open stroke without recording anything.
+     * Ends a filter or adjustment preview (the viewport shows the document).
      */
-    func cancelStroke() throws  -> DocumentUpdate
+    func clearPreview() throws 
     
     /**
-     * Drops the transform preview.
+     * Filter ▸ Convert for Smart Filters: the layer becomes a smart object
+     * holding it (same id, name, opacity, blend mode and mask; the contents
+     * keep their pixels at identity transform). One history node.
      */
-    func cancelTransform() throws  -> DocumentUpdate
+    func convertForSmartFilters(layer: UInt64) throws  -> DocumentUpdate
     
     /**
-     * Applies the transform set last as one "Free Transform" node.
+     * `filter_json` on the layer's own pixels (on a smart object: after its
+     * smart filters) over `width × height` level-0 pixels at `(x, y)`,
+     * written into an RGBA8 IOSurface (straight alpha) the session retains
+     * until the next call: the filter dialog's 1:1 detail pane. Blocking.
      */
-    func commitTransform() throws  -> DocumentUpdate
+    func filterDetail(layer: UInt64, filterJson: String, x: Int64, y: Int64, width: UInt32, height: UInt32) throws  -> FilterDetail
     
     /**
-     * Edit ▸ Clear / ⌫: erases the selection on pixel layer `layer` to
-     * transparency; a Background layer (or an opaque 3-channel one) is
-     * filled with `background` instead.
+     * The last preview or smart filter render error (cleared by a good one).
      */
-    func deleteSelection(layer: UInt64, background: PaintColor) throws  -> DocumentUpdate
+    func filterError()  -> String?
     
     /**
-     * Ends the open stroke: one history node ("Brush Tool", "Eraser",
-     * "Clone Stamp", "Healing Brush"). A stroke that placed no dab records
-     * nothing.
+     * Shows an Image ▸ Adjustments result (`compositor::Adjustment` JSON)
+     * on a pixel layer, live on the GPU (the adjustment clipped to the
+     * layer). No history node.
      */
-    func endStroke() throws  -> DocumentUpdate
+    func previewAdjustment(layer: UInt64, adjustmentJson: String) throws 
     
     /**
-     * Edit ▸ Fill the selection (everything without one) of pixel layer
-     * `layer` at `opacity` (one history node).
+     * Shows `filter_json` applied to `layer` in the viewport, rendered on
+     * the viewport's pyramid level over `region` (level-0 canvas pixels;
+     * `None`: the whole canvas) on a worker thread. No history node. A newer
+     * preview cancels this one; the frame arrives through the listener.
+     * On a smart object the filter is previewed on top of its smart filters.
      */
-    func fillSelection(layer: UInt64, fill: SelectionFill, opacity: Float) throws  -> DocumentUpdate
+    func previewFilter(layer: UInt64, filterJson: String, region: DocRect?) throws 
     
     /**
-     * Select ▸ Load Selection from channel `name`, combined by `op`.
+     * Like `preview_filter`, re-editing smart filter `index` of a smart object.
      */
-    func loadSelection(name: String, op: SelectionOp) throws  -> DocumentUpdate
+    func previewSmartFilter(layer: UInt64, index: UInt32, filterJson: String, region: DocRect?) throws 
     
     /**
-     * The live-wire path a magnetic lasso would take from `from` to `to`
-     * (level 0), for drawing while the pointer moves.
+     * Deletes smart filter `index` (one history node).
      */
-    func magneticPath(from: ToolPoint, to: ToolPoint) throws  -> [ToolPoint]
+    func removeSmartFilter(layer: UInt64, index: UInt32) throws  -> DocumentUpdate
     
     /**
-     * Select ▸ Modify ▸ Border / Smooth / Expand / Contract / Feather by
-     * `px` pixels.
+     * Edits smart filter `index` of a smart object (one history node).
      */
-    func modifySelection(kind: SelectionModify, px: Float) throws  -> DocumentUpdate
+    func setSmartFilter(layer: UInt64, index: UInt32, edit: SmartFilterEdit) throws  -> DocumentUpdate
     
     /**
-     * Select and Mask: refines the selection edge against the composite.
-     * `interactive`: shown live (no history) until a non-interactive call
-     * records one "Refine Edge" node or `cancel_refine_edge` restores it;
-     * every interactive call refines the selection as it was before the
-     * first one.
+     * The mask of smart filter `index` as a grey RGBA8 IOSurface (white =
+     * filtered; all white without a mask), cached per mask.
      */
-    func refineEdge(params: RefineEdgeParams, interactive: Bool) throws  -> DocumentUpdate
+    func smartFilterMaskThumbnail(layer: UInt64, index: UInt32, maxPx: UInt32) throws  -> UInt32
     
     /**
-     * The eyedropper: the mean colour of a `(2·radius + 1)²` square at
-     * `(x, y)` of the composite (`sample_all`) or of `layer`.
+     * The smart filters of a smart object, first applied first.
      */
-    func sampleColor(x: Float, y: Float, sampleAll: Bool, layer: UInt64?, radius: UInt32) throws  -> PaintColor
-    
-    /**
-     * Select ▸ Save Selection as channel `name` (replacing one of that
-     * name). Session state: channels are not written to files yet.
-     */
-    func saveSelection(name: String) throws 
-    
-    /**
-     * Select ▸ All.
-     */
-    func selectAll() throws  -> DocumentUpdate
-    
-    /**
-     * Select ▸ Color Range: pixels near `color` in Lab, softened by
-     * `fuzziness` (0–200), from the composite.
-     */
-    func selectColorRange(color: PaintColor, fuzziness: Float, op: SelectionOp) throws  -> DocumentUpdate
-    
-    /**
-     * Select ▸ Inverse.
-     */
-    func selectInverse() throws  -> DocumentUpdate
-    
-    /**
-     * A lasso selection through `points` (level 0): freehand path, polygon
-     * vertices, or magnetic anchors (snapped to edges between anchors).
-     */
-    func selectLasso(points: [ToolPoint], kind: LassoKind, feather: Float, antialias: Bool, op: SelectionOp) throws  -> DocumentUpdate
-    
-    /**
-     * A marquee selection of `x, y, width × height` (level 0), feathered
-     * by `feather` pixels, anti-aliased when `antialias` (ellipses).
-     */
-    func selectMarquee(shape: MarqueeShape, x: Double, y: Double, width: Double, height: Double, feather: Float, antialias: Bool, op: SelectionOp) throws  -> DocumentUpdate
-    
-    /**
-     * Select ▸ Deselect (`clear_selection`).
-     */
-    func selectNone() throws  -> DocumentUpdate
-    
-    /**
-     * Object Selection: the object under `(x, y)` (level 0).
-     */
-    func selectObject(x: Float, y: Float, op: SelectionOp) throws  -> DocumentUpdate
-    
-    /**
-     * Quick Selection: grows a region from a brush stroke of `radius`
-     * pixels through similar colour and texture; `op` is `Add` (default
-     * in Photoshop), `Subtract` or `Replace`.
-     */
-    func selectQuick(stroke: [ToolPoint], radius: Float, sampleAll: Bool, op: SelectionOp) throws  -> DocumentUpdate
-    
-    /**
-     * Select ▸ Sky.
-     */
-    func selectSky(op: SelectionOp) throws  -> DocumentUpdate
-    
-    /**
-     * Select ▸ Subject (on-device segmentation of the composite).
-     */
-    func selectSubject(op: SelectionOp) throws  -> DocumentUpdate
-    
-    /**
-     * Magic wand at `(x, y)`: pixels within `tolerance` (0–255 levels per
-     * channel) of the clicked colour, connected to it when `contiguous`,
-     * from the composite when `sample_all`, else the selected layer.
-     */
-    func selectWand(x: Float, y: Float, tolerance: Float, contiguous: Bool, sampleAll: Bool, antialias: Bool, op: SelectionOp) throws  -> DocumentUpdate
-    
-    /**
-     * Saved selection channels, by name.
-     */
-    func selectionChannels() throws  -> [String]
-    
-    /**
-     * Marching ants: the 0.5 iso-contours of the (live) selection traced at
-     * pyramid `level` (coarser is faster; the host passes its viewport
-     * level), in level-0 canvas pixels. Empty without a selection. Cached
-     * per selection and level.
-     */
-    func selectionOutline(level: UInt8) throws  -> [OutlinePolyline]
-    
-    /**
-     * Where the clone stamp and healing brush sample: the pixel painted at
-     * `p` comes from `p + (dx, dy)` of `layer` (the painted layer when it is
-     * the same). Session state; strokes keep the offset (aligned).
-     */
-    func setCloneSource(layer: UInt64, dx: Float, dy: Float) throws 
-    
-    /**
-     * Shows the layers under `matrix` (current → new canvas pixels), live
-     * and without history (bilinear preview; `interpolation` is used by
-     * `commit_transform`).
-     */
-    func setTransform(matrix: TransformMatrix, interpolation: TransformInterpolation) throws  -> DocumentUpdate
-    
-    /**
-     * Adds the pointer samples of one display frame to the open stroke and
-     * shows the result (one frame). Returns the pixels that changed.
-     */
-    func strokePoints(points: [StrokeSample]) throws  -> StrokeFrame
+    func smartFilters(layer: UInt64) throws  -> [SmartFilterRecord]
     
 }
 open class DocumentSession: DocumentSessionProtocol, @unchecked Sendable {
@@ -4779,466 +4681,212 @@ open func ungroupLayer(id: UInt64)throws  -> DocumentUpdate  {
 }
     
     /**
-     * Starts a stroke of `tool` on `layer`'s pixels or mask with `brush` and
-     * `color` (the foreground colour; a mask takes its luminance). Commits a
-     * pending drag first; a stroke already open is committed. The selection
-     * limits the paint; a transparency-locked layer keeps its alpha.
+     * Image ▸ Adjustments: `adjustment_json` (`compositor::Adjustment`, the
+     * JSON of the adjustment layer of the same kind) applied to a pixel
+     * layer's pixels inside the selection, as one history node.
      */
-open func beginStroke(layer: UInt64, target: StrokeTarget, tool: StrokeTool, brush: PaintBrush, color: PaintColor)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+open func applyAdjustment(layer: UInt64, adjustmentJson: String)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
         uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_begin_stroke(
+    uniffi_tessera_ffi_fn_method_documentsession_apply_adjustment(
             self.uniffiCloneHandle(),
         FfiConverterUInt64.lower(layer),
-        FfiConverterTypeStrokeTarget_lower(target),
-        FfiConverterTypeStrokeTool_lower(tool),
-        FfiConverterTypePaintBrush_lower(brush),
-        FfiConverterTypePaintColor_lower(color),uniffiCallStatus
-    )
-}
-}
-    
-    /**
-     * Free Transform of pixel `layers` (with their linked masks). Commits a
-     * pending drag or stroke first.
-     */
-open func beginTransform(layers: [UInt64])throws  -> TransformInfo  {
-    return try  FfiConverterTypeTransformInfo_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_begin_transform(
-            self.uniffiCloneHandle(),
-        FfiConverterSequenceUInt64.lower(layers),uniffiCallStatus
+        FfiConverterString.lower(adjustmentJson),uniffiCallStatus
     )
 })
 }
     
     /**
-     * Ends an interactive Refine Edge without changing the selection.
+     * Applies `filter_json` to `layer` as one history node (labelled with
+     * the filter's name). Pixel layers are filtered at full resolution
+     * inside the selection (all of it without one); smart objects get the
+     * filter appended to their smart filters, masked by the selection.
+     * Blocking (seconds on large layers): call off the main thread;
+     * `cancel_filter` stops it.
      */
-open func cancelRefineEdge()throws  -> DocumentUpdate  {
+open func applyFilter(layer: UInt64, filterJson: String)throws  -> DocumentUpdate  {
     return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
         uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_cancel_refine_edge(
-            self.uniffiCloneHandle(),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * Drops the open stroke without recording anything.
-     */
-open func cancelStroke()throws  -> DocumentUpdate  {
-    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_cancel_stroke(
-            self.uniffiCloneHandle(),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * Drops the transform preview.
-     */
-open func cancelTransform()throws  -> DocumentUpdate  {
-    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_cancel_transform(
-            self.uniffiCloneHandle(),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * Applies the transform set last as one "Free Transform" node.
-     */
-open func commitTransform()throws  -> DocumentUpdate  {
-    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_commit_transform(
-            self.uniffiCloneHandle(),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * Edit ▸ Clear / ⌫: erases the selection on pixel layer `layer` to
-     * transparency; a Background layer (or an opaque 3-channel one) is
-     * filled with `background` instead.
-     */
-open func deleteSelection(layer: UInt64, background: PaintColor)throws  -> DocumentUpdate  {
-    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_delete_selection(
+    uniffi_tessera_ffi_fn_method_documentsession_apply_filter(
             self.uniffiCloneHandle(),
         FfiConverterUInt64.lower(layer),
-        FfiConverterTypePaintColor_lower(background),uniffiCallStatus
+        FfiConverterString.lower(filterJson),uniffiCallStatus
     )
 })
 }
     
     /**
-     * Ends the open stroke: one history node ("Brush Tool", "Eraser",
-     * "Clone Stamp", "Healing Brush"). A stroke that placed no dab records
-     * nothing.
+     * Cancels a running `apply_filter` / `apply_adjustment` and the preview.
      */
-open func endStroke()throws  -> DocumentUpdate  {
-    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+open func cancelFilter()  {try! rustCall() {
         uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_end_stroke(
+    uniffi_tessera_ffi_fn_method_documentsession_cancel_filter(
             self.uniffiCloneHandle(),uniffiCallStatus
     )
+}
+}
+    
+    /**
+     * Ends a filter or adjustment preview (the viewport shows the document).
+     */
+open func clearPreview()throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_clear_preview(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Filter ▸ Convert for Smart Filters: the layer becomes a smart object
+     * holding it (same id, name, opacity, blend mode and mask; the contents
+     * keep their pixels at identity transform). One history node.
+     */
+open func convertForSmartFilters(layer: UInt64)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_convert_for_smart_filters(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),uniffiCallStatus
+    )
 })
 }
     
     /**
-     * Edit ▸ Fill the selection (everything without one) of pixel layer
-     * `layer` at `opacity` (one history node).
+     * `filter_json` on the layer's own pixels (on a smart object: after its
+     * smart filters) over `width × height` level-0 pixels at `(x, y)`,
+     * written into an RGBA8 IOSurface (straight alpha) the session retains
+     * until the next call: the filter dialog's 1:1 detail pane. Blocking.
      */
-open func fillSelection(layer: UInt64, fill: SelectionFill, opacity: Float)throws  -> DocumentUpdate  {
-    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+open func filterDetail(layer: UInt64, filterJson: String, x: Int64, y: Int64, width: UInt32, height: UInt32)throws  -> FilterDetail  {
+    return try  FfiConverterTypeFilterDetail_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
         uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_fill_selection(
+    uniffi_tessera_ffi_fn_method_documentsession_filter_detail(
             self.uniffiCloneHandle(),
         FfiConverterUInt64.lower(layer),
-        FfiConverterTypeSelectionFill_lower(fill),
-        FfiConverterFloat.lower(opacity),uniffiCallStatus
+        FfiConverterString.lower(filterJson),
+        FfiConverterInt64.lower(x),
+        FfiConverterInt64.lower(y),
+        FfiConverterUInt32.lower(width),
+        FfiConverterUInt32.lower(height),uniffiCallStatus
     )
 })
 }
     
     /**
-     * Select ▸ Load Selection from channel `name`, combined by `op`.
+     * The last preview or smart filter render error (cleared by a good one).
      */
-open func loadSelection(name: String, op: SelectionOp)throws  -> DocumentUpdate  {
-    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+open func filterError() -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
         uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_load_selection(
-            self.uniffiCloneHandle(),
-        FfiConverterString.lower(name),
-        FfiConverterTypeSelectionOp_lower(op),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * The live-wire path a magnetic lasso would take from `from` to `to`
-     * (level 0), for drawing while the pointer moves.
-     */
-open func magneticPath(from: ToolPoint, to: ToolPoint)throws  -> [ToolPoint]  {
-    return try  FfiConverterSequenceTypeToolPoint.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_magnetic_path(
-            self.uniffiCloneHandle(),
-        FfiConverterTypeToolPoint_lower(from),
-        FfiConverterTypeToolPoint_lower(to),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * Select ▸ Modify ▸ Border / Smooth / Expand / Contract / Feather by
-     * `px` pixels.
-     */
-open func modifySelection(kind: SelectionModify, px: Float)throws  -> DocumentUpdate  {
-    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_modify_selection(
-            self.uniffiCloneHandle(),
-        FfiConverterTypeSelectionModify_lower(kind),
-        FfiConverterFloat.lower(px),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * Select and Mask: refines the selection edge against the composite.
-     * `interactive`: shown live (no history) until a non-interactive call
-     * records one "Refine Edge" node or `cancel_refine_edge` restores it;
-     * every interactive call refines the selection as it was before the
-     * first one.
-     */
-open func refineEdge(params: RefineEdgeParams, interactive: Bool)throws  -> DocumentUpdate  {
-    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_refine_edge(
-            self.uniffiCloneHandle(),
-        FfiConverterTypeRefineEdgeParams_lower(params),
-        FfiConverterBool.lower(interactive),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * The eyedropper: the mean colour of a `(2·radius + 1)²` square at
-     * `(x, y)` of the composite (`sample_all`) or of `layer`.
-     */
-open func sampleColor(x: Float, y: Float, sampleAll: Bool, layer: UInt64?, radius: UInt32)throws  -> PaintColor  {
-    return try  FfiConverterTypePaintColor_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_sample_color(
-            self.uniffiCloneHandle(),
-        FfiConverterFloat.lower(x),
-        FfiConverterFloat.lower(y),
-        FfiConverterBool.lower(sampleAll),
-        FfiConverterOptionUInt64.lower(layer),
-        FfiConverterUInt32.lower(radius),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * Select ▸ Save Selection as channel `name` (replacing one of that
-     * name). Session state: channels are not written to files yet.
-     */
-open func saveSelection(name: String)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_save_selection(
-            self.uniffiCloneHandle(),
-        FfiConverterString.lower(name),uniffiCallStatus
-    )
-}
-}
-    
-    /**
-     * Select ▸ All.
-     */
-open func selectAll()throws  -> DocumentUpdate  {
-    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_select_all(
+    uniffi_tessera_ffi_fn_method_documentsession_filter_error(
             self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
     
     /**
-     * Select ▸ Color Range: pixels near `color` in Lab, softened by
-     * `fuzziness` (0–200), from the composite.
+     * Shows an Image ▸ Adjustments result (`compositor::Adjustment` JSON)
+     * on a pixel layer, live on the GPU (the adjustment clipped to the
+     * layer). No history node.
      */
-open func selectColorRange(color: PaintColor, fuzziness: Float, op: SelectionOp)throws  -> DocumentUpdate  {
-    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+open func previewAdjustment(layer: UInt64, adjustmentJson: String)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
         uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_select_color_range(
-            self.uniffiCloneHandle(),
-        FfiConverterTypePaintColor_lower(color),
-        FfiConverterFloat.lower(fuzziness),
-        FfiConverterTypeSelectionOp_lower(op),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * Select ▸ Inverse.
-     */
-open func selectInverse()throws  -> DocumentUpdate  {
-    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_select_inverse(
-            self.uniffiCloneHandle(),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * A lasso selection through `points` (level 0): freehand path, polygon
-     * vertices, or magnetic anchors (snapped to edges between anchors).
-     */
-open func selectLasso(points: [ToolPoint], kind: LassoKind, feather: Float, antialias: Bool, op: SelectionOp)throws  -> DocumentUpdate  {
-    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_select_lasso(
-            self.uniffiCloneHandle(),
-        FfiConverterSequenceTypeToolPoint.lower(points),
-        FfiConverterTypeLassoKind_lower(kind),
-        FfiConverterFloat.lower(feather),
-        FfiConverterBool.lower(antialias),
-        FfiConverterTypeSelectionOp_lower(op),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * A marquee selection of `x, y, width × height` (level 0), feathered
-     * by `feather` pixels, anti-aliased when `antialias` (ellipses).
-     */
-open func selectMarquee(shape: MarqueeShape, x: Double, y: Double, width: Double, height: Double, feather: Float, antialias: Bool, op: SelectionOp)throws  -> DocumentUpdate  {
-    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_select_marquee(
-            self.uniffiCloneHandle(),
-        FfiConverterTypeMarqueeShape_lower(shape),
-        FfiConverterDouble.lower(x),
-        FfiConverterDouble.lower(y),
-        FfiConverterDouble.lower(width),
-        FfiConverterDouble.lower(height),
-        FfiConverterFloat.lower(feather),
-        FfiConverterBool.lower(antialias),
-        FfiConverterTypeSelectionOp_lower(op),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * Select ▸ Deselect (`clear_selection`).
-     */
-open func selectNone()throws  -> DocumentUpdate  {
-    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_select_none(
-            self.uniffiCloneHandle(),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * Object Selection: the object under `(x, y)` (level 0).
-     */
-open func selectObject(x: Float, y: Float, op: SelectionOp)throws  -> DocumentUpdate  {
-    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_select_object(
-            self.uniffiCloneHandle(),
-        FfiConverterFloat.lower(x),
-        FfiConverterFloat.lower(y),
-        FfiConverterTypeSelectionOp_lower(op),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * Quick Selection: grows a region from a brush stroke of `radius`
-     * pixels through similar colour and texture; `op` is `Add` (default
-     * in Photoshop), `Subtract` or `Replace`.
-     */
-open func selectQuick(stroke: [ToolPoint], radius: Float, sampleAll: Bool, op: SelectionOp)throws  -> DocumentUpdate  {
-    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_select_quick(
-            self.uniffiCloneHandle(),
-        FfiConverterSequenceTypeToolPoint.lower(stroke),
-        FfiConverterFloat.lower(radius),
-        FfiConverterBool.lower(sampleAll),
-        FfiConverterTypeSelectionOp_lower(op),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * Select ▸ Sky.
-     */
-open func selectSky(op: SelectionOp)throws  -> DocumentUpdate  {
-    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_select_sky(
-            self.uniffiCloneHandle(),
-        FfiConverterTypeSelectionOp_lower(op),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * Select ▸ Subject (on-device segmentation of the composite).
-     */
-open func selectSubject(op: SelectionOp)throws  -> DocumentUpdate  {
-    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_select_subject(
-            self.uniffiCloneHandle(),
-        FfiConverterTypeSelectionOp_lower(op),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * Magic wand at `(x, y)`: pixels within `tolerance` (0–255 levels per
-     * channel) of the clicked colour, connected to it when `contiguous`,
-     * from the composite when `sample_all`, else the selected layer.
-     */
-open func selectWand(x: Float, y: Float, tolerance: Float, contiguous: Bool, sampleAll: Bool, antialias: Bool, op: SelectionOp)throws  -> DocumentUpdate  {
-    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_select_wand(
-            self.uniffiCloneHandle(),
-        FfiConverterFloat.lower(x),
-        FfiConverterFloat.lower(y),
-        FfiConverterFloat.lower(tolerance),
-        FfiConverterBool.lower(contiguous),
-        FfiConverterBool.lower(sampleAll),
-        FfiConverterBool.lower(antialias),
-        FfiConverterTypeSelectionOp_lower(op),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * Saved selection channels, by name.
-     */
-open func selectionChannels()throws  -> [String]  {
-    return try  FfiConverterSequenceString.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_selection_channels(
-            self.uniffiCloneHandle(),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * Marching ants: the 0.5 iso-contours of the (live) selection traced at
-     * pyramid `level` (coarser is faster; the host passes its viewport
-     * level), in level-0 canvas pixels. Empty without a selection. Cached
-     * per selection and level.
-     */
-open func selectionOutline(level: UInt8)throws  -> [OutlinePolyline]  {
-    return try  FfiConverterSequenceTypeOutlinePolyline.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_selection_outline(
-            self.uniffiCloneHandle(),
-        FfiConverterUInt8.lower(level),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * Where the clone stamp and healing brush sample: the pixel painted at
-     * `p` comes from `p + (dx, dy)` of `layer` (the painted layer when it is
-     * the same). Session state; strokes keep the offset (aligned).
-     */
-open func setCloneSource(layer: UInt64, dx: Float, dy: Float)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_set_clone_source(
+    uniffi_tessera_ffi_fn_method_documentsession_preview_adjustment(
             self.uniffiCloneHandle(),
         FfiConverterUInt64.lower(layer),
-        FfiConverterFloat.lower(dx),
-        FfiConverterFloat.lower(dy),uniffiCallStatus
+        FfiConverterString.lower(adjustmentJson),uniffiCallStatus
     )
 }
 }
     
     /**
-     * Shows the layers under `matrix` (current → new canvas pixels), live
-     * and without history (bilinear preview; `interpolation` is used by
-     * `commit_transform`).
+     * Shows `filter_json` applied to `layer` in the viewport, rendered on
+     * the viewport's pyramid level over `region` (level-0 canvas pixels;
+     * `None`: the whole canvas) on a worker thread. No history node. A newer
+     * preview cancels this one; the frame arrives through the listener.
+     * On a smart object the filter is previewed on top of its smart filters.
      */
-open func setTransform(matrix: TransformMatrix, interpolation: TransformInterpolation)throws  -> DocumentUpdate  {
+open func previewFilter(layer: UInt64, filterJson: String, region: DocRect?)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_preview_filter(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),
+        FfiConverterString.lower(filterJson),
+        FfiConverterOptionTypeDocRect.lower(region),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Like `preview_filter`, re-editing smart filter `index` of a smart object.
+     */
+open func previewSmartFilter(layer: UInt64, index: UInt32, filterJson: String, region: DocRect?)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_preview_smart_filter(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),
+        FfiConverterUInt32.lower(index),
+        FfiConverterString.lower(filterJson),
+        FfiConverterOptionTypeDocRect.lower(region),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Deletes smart filter `index` (one history node).
+     */
+open func removeSmartFilter(layer: UInt64, index: UInt32)throws  -> DocumentUpdate  {
     return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
         uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_set_transform(
+    uniffi_tessera_ffi_fn_method_documentsession_remove_smart_filter(
             self.uniffiCloneHandle(),
-        FfiConverterTypeTransformMatrix_lower(matrix),
-        FfiConverterTypeTransformInterpolation_lower(interpolation),uniffiCallStatus
+        FfiConverterUInt64.lower(layer),
+        FfiConverterUInt32.lower(index),uniffiCallStatus
     )
 })
 }
     
     /**
-     * Adds the pointer samples of one display frame to the open stroke and
-     * shows the result (one frame). Returns the pixels that changed.
+     * Edits smart filter `index` of a smart object (one history node).
      */
-open func strokePoints(points: [StrokeSample])throws  -> StrokeFrame  {
-    return try  FfiConverterTypeStrokeFrame_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+open func setSmartFilter(layer: UInt64, index: UInt32, edit: SmartFilterEdit)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
         uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_stroke_points(
+    uniffi_tessera_ffi_fn_method_documentsession_set_smart_filter(
             self.uniffiCloneHandle(),
-        FfiConverterSequenceTypeStrokeSample.lower(points),uniffiCallStatus
+        FfiConverterUInt64.lower(layer),
+        FfiConverterUInt32.lower(index),
+        FfiConverterTypeSmartFilterEdit_lower(edit),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * The mask of smart filter `index` as a grey RGBA8 IOSurface (white =
+     * filtered; all white without a mask), cached per mask.
+     */
+open func smartFilterMaskThumbnail(layer: UInt64, index: UInt32, maxPx: UInt32)throws  -> UInt32  {
+    return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_smart_filter_mask_thumbnail(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),
+        FfiConverterUInt32.lower(index),
+        FfiConverterUInt32.lower(maxPx),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * The smart filters of a smart object, first applied first.
+     */
+open func smartFilters(layer: UInt64)throws  -> [SmartFilterRecord]  {
+    return try  FfiConverterSequenceTypeSmartFilterRecord.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_smart_filters(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),uniffiCallStatus
     )
 })
 }
@@ -9408,162 +9056,6 @@ public func FfiConverterTypeBrushSettings_lower(_ value: BrushSettings) -> RustB
 
 
 /**
- * A grey tip preview (`0` = no paint, `255` = full paint), row-major.
- */
-public struct BrushTipImage: Equatable, Hashable {
-    public var width: UInt32
-    public var height: UInt32
-    public var pixels: Data
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(width: UInt32, height: UInt32, pixels: Data) {
-        self.width = width
-        self.height = height
-        self.pixels = pixels
-    }
-
-    
-
-    
-}
-
-#if compiler(>=6)
-extension BrushTipImage: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeBrushTipImage: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BrushTipImage {
-        return
-            try BrushTipImage(
-                width: FfiConverterUInt32.read(from: &buf), 
-                height: FfiConverterUInt32.read(from: &buf), 
-                pixels: FfiConverterData.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: BrushTipImage, into buf: inout [UInt8]) {
-        FfiConverterUInt32.write(value.width, into: &buf)
-        FfiConverterUInt32.write(value.height, into: &buf)
-        FfiConverterData.write(value.pixels, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeBrushTipImage_lift(_ buf: RustBuffer) throws -> BrushTipImage {
-    return try FfiConverterTypeBrushTipImage.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeBrushTipImage_lower(_ value: BrushTipImage) -> RustBuffer {
-    return FfiConverterTypeBrushTipImage.lower(value)
-}
-
-
-/**
- * A brush tip in the tip library (built-in or imported from `.abr`).
- */
-public struct BrushTipInfo: Equatable, Hashable {
-    public var id: String
-    public var name: String
-    /**
-     * Sample size (1 × 1 for computed tips).
-     */
-    public var width: UInt32
-    public var height: UInt32
-    /**
-     * Natural diameter, pixels.
-     */
-    public var diameter: Float
-    /**
-     * Spacing the file suggests (fraction of the diameter).
-     */
-    public var spacing: Float?
-    public var sampled: Bool
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(id: String, name: String, 
-        /**
-         * Sample size (1 × 1 for computed tips).
-         */width: UInt32, height: UInt32, 
-        /**
-         * Natural diameter, pixels.
-         */diameter: Float, 
-        /**
-         * Spacing the file suggests (fraction of the diameter).
-         */spacing: Float?, sampled: Bool) {
-        self.id = id
-        self.name = name
-        self.width = width
-        self.height = height
-        self.diameter = diameter
-        self.spacing = spacing
-        self.sampled = sampled
-    }
-
-    
-
-    
-}
-
-#if compiler(>=6)
-extension BrushTipInfo: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeBrushTipInfo: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BrushTipInfo {
-        return
-            try BrushTipInfo(
-                id: FfiConverterString.read(from: &buf), 
-                name: FfiConverterString.read(from: &buf), 
-                width: FfiConverterUInt32.read(from: &buf), 
-                height: FfiConverterUInt32.read(from: &buf), 
-                diameter: FfiConverterFloat.read(from: &buf), 
-                spacing: FfiConverterOptionFloat.read(from: &buf), 
-                sampled: FfiConverterBool.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: BrushTipInfo, into buf: inout [UInt8]) {
-        FfiConverterString.write(value.id, into: &buf)
-        FfiConverterString.write(value.name, into: &buf)
-        FfiConverterUInt32.write(value.width, into: &buf)
-        FfiConverterUInt32.write(value.height, into: &buf)
-        FfiConverterFloat.write(value.diameter, into: &buf)
-        FfiConverterOptionFloat.write(value.spacing, into: &buf)
-        FfiConverterBool.write(value.sampled, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeBrushTipInfo_lift(_ buf: RustBuffer) throws -> BrushTipInfo {
-    return try FfiConverterTypeBrushTipInfo.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeBrushTipInfo_lower(_ value: BrushTipInfo) -> RustBuffer {
-    return FfiConverterTypeBrushTipInfo.lower(value)
-}
-
-
-/**
  * Burst / near-duplicate group. Members follow queue order.
  */
 public struct CullGroup: Equatable, Hashable {
@@ -11267,6 +10759,174 @@ public func FfiConverterTypeFacetFilter_lift(_ buf: RustBuffer) throws -> FacetF
 #endif
 public func FfiConverterTypeFacetFilter_lower(_ value: FacetFilter) -> RustBuffer {
     return FfiConverterTypeFacetFilter.lower(value)
+}
+
+
+/**
+ * A 1:1 filter detail crop written into an RGBA8 IOSurface.
+ */
+public struct FilterDetail: Equatable, Hashable {
+    public var surfaceId: UInt32
+    public var width: UInt32
+    public var height: UInt32
+    /**
+     * Pyramid level the crop was filtered at: 0 (true 1:1) except for
+     * whole-image filters on large layers, which are filtered on a coarser
+     * level and enlarged.
+     */
+    public var level: UInt8
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(surfaceId: UInt32, width: UInt32, height: UInt32, 
+        /**
+         * Pyramid level the crop was filtered at: 0 (true 1:1) except for
+         * whole-image filters on large layers, which are filtered on a coarser
+         * level and enlarged.
+         */level: UInt8) {
+        self.surfaceId = surfaceId
+        self.width = width
+        self.height = height
+        self.level = level
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension FilterDetail: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFilterDetail: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FilterDetail {
+        return
+            try FilterDetail(
+                surfaceId: FfiConverterUInt32.read(from: &buf), 
+                width: FfiConverterUInt32.read(from: &buf), 
+                height: FfiConverterUInt32.read(from: &buf), 
+                level: FfiConverterUInt8.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: FilterDetail, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.surfaceId, into: &buf)
+        FfiConverterUInt32.write(value.width, into: &buf)
+        FfiConverterUInt32.write(value.height, into: &buf)
+        FfiConverterUInt8.write(value.level, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFilterDetail_lift(_ buf: RustBuffer) throws -> FilterDetail {
+    return try FfiConverterTypeFilterDetail.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFilterDetail_lower(_ value: FilterDetail) -> RustBuffer {
+    return FfiConverterTypeFilterDetail.lower(value)
+}
+
+
+/**
+ * One Filter menu entry (`filters::registry`).
+ */
+public struct FilterInfo: Equatable, Hashable {
+    /**
+     * Stable id used in filter JSON (`gaussian_blur`).
+     */
+    public var id: String
+    /**
+     * `Blur`, `Sharpen`, `Noise`, `Distort`, `Stylize`, `Render` or `Other`.
+     */
+    public var group: String
+    /**
+     * Menu title (`Gaussian Blur`).
+     */
+    public var name: String
+    /**
+     * `{"params":[…]}`: controls with kind (`slider`, `angle`, `choice`,
+     * `point`, `toggle`), label, range, default, step, unit (see
+     * `filters::registry::FilterInfo::schema_json`).
+     */
+    public var paramsSchemaJson: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Stable id used in filter JSON (`gaussian_blur`).
+         */id: String, 
+        /**
+         * `Blur`, `Sharpen`, `Noise`, `Distort`, `Stylize`, `Render` or `Other`.
+         */group: String, 
+        /**
+         * Menu title (`Gaussian Blur`).
+         */name: String, 
+        /**
+         * `{"params":[…]}`: controls with kind (`slider`, `angle`, `choice`,
+         * `point`, `toggle`), label, range, default, step, unit (see
+         * `filters::registry::FilterInfo::schema_json`).
+         */paramsSchemaJson: String) {
+        self.id = id
+        self.group = group
+        self.name = name
+        self.paramsSchemaJson = paramsSchemaJson
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension FilterInfo: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFilterInfo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FilterInfo {
+        return
+            try FilterInfo(
+                id: FfiConverterString.read(from: &buf), 
+                group: FfiConverterString.read(from: &buf), 
+                name: FfiConverterString.read(from: &buf), 
+                paramsSchemaJson: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: FilterInfo, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.group, into: &buf)
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterString.write(value.paramsSchemaJson, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFilterInfo_lift(_ buf: RustBuffer) throws -> FilterInfo {
+    return try FfiConverterTypeFilterInfo.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFilterInfo_lower(_ value: FilterInfo) -> RustBuffer {
+    return FfiConverterTypeFilterInfo.lower(value)
 }
 
 
@@ -15613,329 +15273,6 @@ public func FfiConverterTypeOcrRegionInfo_lower(_ value: OcrRegionInfo) -> RustB
 }
 
 
-/**
- * One marching-ants outline, level-0 canvas pixels.
- */
-public struct OutlinePolyline: Equatable, Hashable {
-    public var points: [ToolPoint]
-    public var closed: Bool
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(points: [ToolPoint], closed: Bool) {
-        self.points = points
-        self.closed = closed
-    }
-
-    
-
-    
-}
-
-#if compiler(>=6)
-extension OutlinePolyline: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeOutlinePolyline: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> OutlinePolyline {
-        return
-            try OutlinePolyline(
-                points: FfiConverterSequenceTypeToolPoint.read(from: &buf), 
-                closed: FfiConverterBool.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: OutlinePolyline, into buf: inout [UInt8]) {
-        FfiConverterSequenceTypeToolPoint.write(value.points, into: &buf)
-        FfiConverterBool.write(value.closed, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeOutlinePolyline_lift(_ buf: RustBuffer) throws -> OutlinePolyline {
-    return try FfiConverterTypeOutlinePolyline.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeOutlinePolyline_lower(_ value: OutlinePolyline) -> RustBuffer {
-    return FfiConverterTypeOutlinePolyline.lower(value)
-}
-
-
-/**
- * Brush options (the options bar and the Brushes panel).
- */
-public struct PaintBrush: Equatable, Hashable {
-    /**
-     * Diameter, pixels (0.1…10000).
-     */
-    public var size: Float
-    /**
-     * 0 soft … 1 hard (computed round tips).
-     */
-    public var hardness: Float
-    /**
-     * Stroke opacity cap 0…1.
-     */
-    public var opacity: Float
-    /**
-     * Per-dab flow 0…1.
-     */
-    public var flow: Float
-    /**
-     * Dab spacing as a fraction of the diameter (0.01…10).
-     */
-    public var spacing: Float
-    /**
-     * Tip angle, degrees.
-     */
-    public var angle: Float
-    /**
-     * Tip roundness 0.01…1.
-     */
-    public var roundness: Float
-    /**
-     * A blend mode name (`normal`, `multiply`, … as in `LayerNode`).
-     */
-    public var blendMode: String
-    /**
-     * Pen pressure controls the size / opacity / flow.
-     */
-    public var pressureSize: Bool
-    public var pressureOpacity: Bool
-    public var pressureFlow: Bool
-    /**
-     * Pulled-string smoothing length, pixels (0 = off).
-     */
-    public var smoothing: Float
-    public var symmetry: PaintSymmetry
-    /**
-     * Symmetry axis / centre, canvas pixels.
-     */
-    public var symmetryX: Float
-    public var symmetryY: Float
-    /**
-     * Radial / mandala segments.
-     */
-    public var symmetryCount: UInt32
-    /**
-     * A sampled or imported tip (`brush_tips`); `None` = computed round.
-     */
-    public var tipId: String?
-    /**
-     * Clone / heal sample the visible composite instead of one layer.
-     */
-    public var sampleAllLayers: Bool
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(
-        /**
-         * Diameter, pixels (0.1…10000).
-         */size: Float, 
-        /**
-         * 0 soft … 1 hard (computed round tips).
-         */hardness: Float, 
-        /**
-         * Stroke opacity cap 0…1.
-         */opacity: Float, 
-        /**
-         * Per-dab flow 0…1.
-         */flow: Float, 
-        /**
-         * Dab spacing as a fraction of the diameter (0.01…10).
-         */spacing: Float, 
-        /**
-         * Tip angle, degrees.
-         */angle: Float, 
-        /**
-         * Tip roundness 0.01…1.
-         */roundness: Float, 
-        /**
-         * A blend mode name (`normal`, `multiply`, … as in `LayerNode`).
-         */blendMode: String, 
-        /**
-         * Pen pressure controls the size / opacity / flow.
-         */pressureSize: Bool, pressureOpacity: Bool, pressureFlow: Bool, 
-        /**
-         * Pulled-string smoothing length, pixels (0 = off).
-         */smoothing: Float, symmetry: PaintSymmetry, 
-        /**
-         * Symmetry axis / centre, canvas pixels.
-         */symmetryX: Float, symmetryY: Float, 
-        /**
-         * Radial / mandala segments.
-         */symmetryCount: UInt32, 
-        /**
-         * A sampled or imported tip (`brush_tips`); `None` = computed round.
-         */tipId: String?, 
-        /**
-         * Clone / heal sample the visible composite instead of one layer.
-         */sampleAllLayers: Bool) {
-        self.size = size
-        self.hardness = hardness
-        self.opacity = opacity
-        self.flow = flow
-        self.spacing = spacing
-        self.angle = angle
-        self.roundness = roundness
-        self.blendMode = blendMode
-        self.pressureSize = pressureSize
-        self.pressureOpacity = pressureOpacity
-        self.pressureFlow = pressureFlow
-        self.smoothing = smoothing
-        self.symmetry = symmetry
-        self.symmetryX = symmetryX
-        self.symmetryY = symmetryY
-        self.symmetryCount = symmetryCount
-        self.tipId = tipId
-        self.sampleAllLayers = sampleAllLayers
-    }
-
-    
-
-    
-}
-
-#if compiler(>=6)
-extension PaintBrush: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypePaintBrush: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PaintBrush {
-        return
-            try PaintBrush(
-                size: FfiConverterFloat.read(from: &buf), 
-                hardness: FfiConverterFloat.read(from: &buf), 
-                opacity: FfiConverterFloat.read(from: &buf), 
-                flow: FfiConverterFloat.read(from: &buf), 
-                spacing: FfiConverterFloat.read(from: &buf), 
-                angle: FfiConverterFloat.read(from: &buf), 
-                roundness: FfiConverterFloat.read(from: &buf), 
-                blendMode: FfiConverterString.read(from: &buf), 
-                pressureSize: FfiConverterBool.read(from: &buf), 
-                pressureOpacity: FfiConverterBool.read(from: &buf), 
-                pressureFlow: FfiConverterBool.read(from: &buf), 
-                smoothing: FfiConverterFloat.read(from: &buf), 
-                symmetry: FfiConverterTypePaintSymmetry.read(from: &buf), 
-                symmetryX: FfiConverterFloat.read(from: &buf), 
-                symmetryY: FfiConverterFloat.read(from: &buf), 
-                symmetryCount: FfiConverterUInt32.read(from: &buf), 
-                tipId: FfiConverterOptionString.read(from: &buf), 
-                sampleAllLayers: FfiConverterBool.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: PaintBrush, into buf: inout [UInt8]) {
-        FfiConverterFloat.write(value.size, into: &buf)
-        FfiConverterFloat.write(value.hardness, into: &buf)
-        FfiConverterFloat.write(value.opacity, into: &buf)
-        FfiConverterFloat.write(value.flow, into: &buf)
-        FfiConverterFloat.write(value.spacing, into: &buf)
-        FfiConverterFloat.write(value.angle, into: &buf)
-        FfiConverterFloat.write(value.roundness, into: &buf)
-        FfiConverterString.write(value.blendMode, into: &buf)
-        FfiConverterBool.write(value.pressureSize, into: &buf)
-        FfiConverterBool.write(value.pressureOpacity, into: &buf)
-        FfiConverterBool.write(value.pressureFlow, into: &buf)
-        FfiConverterFloat.write(value.smoothing, into: &buf)
-        FfiConverterTypePaintSymmetry.write(value.symmetry, into: &buf)
-        FfiConverterFloat.write(value.symmetryX, into: &buf)
-        FfiConverterFloat.write(value.symmetryY, into: &buf)
-        FfiConverterUInt32.write(value.symmetryCount, into: &buf)
-        FfiConverterOptionString.write(value.tipId, into: &buf)
-        FfiConverterBool.write(value.sampleAllLayers, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypePaintBrush_lift(_ buf: RustBuffer) throws -> PaintBrush {
-    return try FfiConverterTypePaintBrush.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypePaintBrush_lower(_ value: PaintBrush) -> RustBuffer {
-    return FfiConverterTypePaintBrush.lower(value)
-}
-
-
-/**
- * A straight, display-encoded RGB colour, each channel `0…1`.
- */
-public struct PaintColor: Equatable, Hashable {
-    public var r: Float
-    public var g: Float
-    public var b: Float
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(r: Float, g: Float, b: Float) {
-        self.r = r
-        self.g = g
-        self.b = b
-    }
-
-    
-
-    
-}
-
-#if compiler(>=6)
-extension PaintColor: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypePaintColor: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PaintColor {
-        return
-            try PaintColor(
-                r: FfiConverterFloat.read(from: &buf), 
-                g: FfiConverterFloat.read(from: &buf), 
-                b: FfiConverterFloat.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: PaintColor, into buf: inout [UInt8]) {
-        FfiConverterFloat.write(value.r, into: &buf)
-        FfiConverterFloat.write(value.g, into: &buf)
-        FfiConverterFloat.write(value.b, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypePaintColor_lift(_ buf: RustBuffer) throws -> PaintColor {
-    return try FfiConverterTypePaintColor.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypePaintColor_lower(_ value: PaintColor) -> RustBuffer {
-    return FfiConverterTypePaintColor.lower(value)
-}
-
-
 public struct PersonInfo: Equatable, Hashable {
     public var id: String
     public var name: String
@@ -16349,109 +15686,6 @@ public func FfiConverterTypePrinterProfile_lift(_ buf: RustBuffer) throws -> Pri
 #endif
 public func FfiConverterTypePrinterProfile_lower(_ value: PrinterProfile) -> RustBuffer {
     return FfiConverterTypePrinterProfile.lower(value)
-}
-
-
-/**
- * Select and Mask global refinements (pixels at level 0).
- */
-public struct RefineEdgeParams: Equatable, Hashable {
-    /**
-     * Edge detection radius.
-     */
-    public var radius: Float
-    public var smartRadius: Bool
-    /**
-     * Outline smoothing σ.
-     */
-    public var smooth: Float
-    /**
-     * Feather σ.
-     */
-    public var feather: Float
-    /**
-     * 0…1 (1 = hard edge).
-     */
-    public var contrast: Float
-    /**
-     * Positive grows.
-     */
-    public var shiftEdge: Float
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(
-        /**
-         * Edge detection radius.
-         */radius: Float, smartRadius: Bool, 
-        /**
-         * Outline smoothing σ.
-         */smooth: Float, 
-        /**
-         * Feather σ.
-         */feather: Float, 
-        /**
-         * 0…1 (1 = hard edge).
-         */contrast: Float, 
-        /**
-         * Positive grows.
-         */shiftEdge: Float) {
-        self.radius = radius
-        self.smartRadius = smartRadius
-        self.smooth = smooth
-        self.feather = feather
-        self.contrast = contrast
-        self.shiftEdge = shiftEdge
-    }
-
-    
-
-    
-}
-
-#if compiler(>=6)
-extension RefineEdgeParams: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeRefineEdgeParams: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RefineEdgeParams {
-        return
-            try RefineEdgeParams(
-                radius: FfiConverterFloat.read(from: &buf), 
-                smartRadius: FfiConverterBool.read(from: &buf), 
-                smooth: FfiConverterFloat.read(from: &buf), 
-                feather: FfiConverterFloat.read(from: &buf), 
-                contrast: FfiConverterFloat.read(from: &buf), 
-                shiftEdge: FfiConverterFloat.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: RefineEdgeParams, into buf: inout [UInt8]) {
-        FfiConverterFloat.write(value.radius, into: &buf)
-        FfiConverterBool.write(value.smartRadius, into: &buf)
-        FfiConverterFloat.write(value.smooth, into: &buf)
-        FfiConverterFloat.write(value.feather, into: &buf)
-        FfiConverterFloat.write(value.contrast, into: &buf)
-        FfiConverterFloat.write(value.shiftEdge, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeRefineEdgeParams_lift(_ buf: RustBuffer) throws -> RefineEdgeParams {
-    return try FfiConverterTypeRefineEdgeParams.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeRefineEdgeParams_lower(_ value: RefineEdgeParams) -> RustBuffer {
-    return FfiConverterTypeRefineEdgeParams.lower(value)
 }
 
 
@@ -17053,6 +16287,111 @@ public func FfiConverterTypeSessionImage_lower(_ value: SessionImage) -> RustBuf
 
 
 /**
+ * One smart filter of a smart object, bottom (first applied) first.
+ */
+public struct SmartFilterRecord: Equatable, Hashable {
+    public var index: UInt32
+    public var filterId: String
+    /**
+     * Menu title of the filter.
+     */
+    public var name: String
+    public var enabled: Bool
+    /**
+     * `{"id":…,"params":{…}}` (the JSON `apply_filter` took).
+     */
+    public var filterJson: String
+    /**
+     * Blending options: opacity 0…1 and a blend mode name.
+     */
+    public var opacity: Float
+    public var blendMode: String
+    /**
+     * A filter mask (from the selection when the filter was applied).
+     */
+    public var hasMask: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(index: UInt32, filterId: String, 
+        /**
+         * Menu title of the filter.
+         */name: String, enabled: Bool, 
+        /**
+         * `{"id":…,"params":{…}}` (the JSON `apply_filter` took).
+         */filterJson: String, 
+        /**
+         * Blending options: opacity 0…1 and a blend mode name.
+         */opacity: Float, blendMode: String, 
+        /**
+         * A filter mask (from the selection when the filter was applied).
+         */hasMask: Bool) {
+        self.index = index
+        self.filterId = filterId
+        self.name = name
+        self.enabled = enabled
+        self.filterJson = filterJson
+        self.opacity = opacity
+        self.blendMode = blendMode
+        self.hasMask = hasMask
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SmartFilterRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSmartFilterRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SmartFilterRecord {
+        return
+            try SmartFilterRecord(
+                index: FfiConverterUInt32.read(from: &buf), 
+                filterId: FfiConverterString.read(from: &buf), 
+                name: FfiConverterString.read(from: &buf), 
+                enabled: FfiConverterBool.read(from: &buf), 
+                filterJson: FfiConverterString.read(from: &buf), 
+                opacity: FfiConverterFloat.read(from: &buf), 
+                blendMode: FfiConverterString.read(from: &buf), 
+                hasMask: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SmartFilterRecord, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.index, into: &buf)
+        FfiConverterString.write(value.filterId, into: &buf)
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterBool.write(value.enabled, into: &buf)
+        FfiConverterString.write(value.filterJson, into: &buf)
+        FfiConverterFloat.write(value.opacity, into: &buf)
+        FfiConverterString.write(value.blendMode, into: &buf)
+        FfiConverterBool.write(value.hasMask, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSmartFilterRecord_lift(_ buf: RustBuffer) throws -> SmartFilterRecord {
+    return try FfiConverterTypeSmartFilterRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSmartFilterRecord_lower(_ value: SmartFilterRecord) -> RustBuffer {
+    return FfiConverterTypeSmartFilterRecord.lower(value)
+}
+
+
+/**
  * `size`³ nodes, red fastest, then green, then blue. Each node is RGBA
  * 16-bit unorm: the proofed colour in display-encoded sRGB, and alpha 65535
  * where the printer cannot reproduce the colour (ΔE76 > 2 after a clipped
@@ -17203,202 +16542,6 @@ public func FfiConverterTypeSoftProofOptions_lift(_ buf: RustBuffer) throws -> S
 #endif
 public func FfiConverterTypeSoftProofOptions_lower(_ value: SoftProofOptions) -> RustBuffer {
     return FfiConverterTypeSoftProofOptions.lower(value)
-}
-
-
-/**
- * What one `stroke_points` call did.
- */
-public struct StrokeFrame: Equatable, Hashable {
-    /**
-     * Level-0 pixels that changed (`None`: no new dabs, e.g. under smoothing).
-     */
-    public var dirtyRect: DocRect?
-    /**
-     * Dabs placed by this call.
-     */
-    public var dabs: UInt32
-    /**
-     * Dabs so far in the stroke.
-     */
-    public var totalDabs: UInt32
-    /**
-     * Engine time of this call (dab rasterization and tile composite), ms.
-     */
-    public var rasterMs: Double
-    /**
-     * Document epoch after the call (its frame carries it).
-     */
-    public var epoch: UInt64
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(
-        /**
-         * Level-0 pixels that changed (`None`: no new dabs, e.g. under smoothing).
-         */dirtyRect: DocRect?, 
-        /**
-         * Dabs placed by this call.
-         */dabs: UInt32, 
-        /**
-         * Dabs so far in the stroke.
-         */totalDabs: UInt32, 
-        /**
-         * Engine time of this call (dab rasterization and tile composite), ms.
-         */rasterMs: Double, 
-        /**
-         * Document epoch after the call (its frame carries it).
-         */epoch: UInt64) {
-        self.dirtyRect = dirtyRect
-        self.dabs = dabs
-        self.totalDabs = totalDabs
-        self.rasterMs = rasterMs
-        self.epoch = epoch
-    }
-
-    
-
-    
-}
-
-#if compiler(>=6)
-extension StrokeFrame: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeStrokeFrame: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> StrokeFrame {
-        return
-            try StrokeFrame(
-                dirtyRect: FfiConverterOptionTypeDocRect.read(from: &buf), 
-                dabs: FfiConverterUInt32.read(from: &buf), 
-                totalDabs: FfiConverterUInt32.read(from: &buf), 
-                rasterMs: FfiConverterDouble.read(from: &buf), 
-                epoch: FfiConverterUInt64.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: StrokeFrame, into buf: inout [UInt8]) {
-        FfiConverterOptionTypeDocRect.write(value.dirtyRect, into: &buf)
-        FfiConverterUInt32.write(value.dabs, into: &buf)
-        FfiConverterUInt32.write(value.totalDabs, into: &buf)
-        FfiConverterDouble.write(value.rasterMs, into: &buf)
-        FfiConverterUInt64.write(value.epoch, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeStrokeFrame_lift(_ buf: RustBuffer) throws -> StrokeFrame {
-    return try FfiConverterTypeStrokeFrame.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeStrokeFrame_lower(_ value: StrokeFrame) -> RustBuffer {
-    return FfiConverterTypeStrokeFrame.lower(value)
-}
-
-
-/**
- * One pointer sample.
- */
-public struct StrokeSample: Equatable, Hashable {
-    /**
-     * Level-0 canvas pixels.
-     */
-    public var x: Float
-    public var y: Float
-    /**
-     * 0…1 (1 without a tablet), after the host's pressure curve.
-     */
-    public var pressure: Float
-    /**
-     * Pen tilt, each −1…1.
-     */
-    public var tiltX: Float
-    public var tiltY: Float
-    /**
-     * Seconds (any epoch; used for velocity and airbrush).
-     */
-    public var timestamp: Double
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(
-        /**
-         * Level-0 canvas pixels.
-         */x: Float, y: Float, 
-        /**
-         * 0…1 (1 without a tablet), after the host's pressure curve.
-         */pressure: Float, 
-        /**
-         * Pen tilt, each −1…1.
-         */tiltX: Float, tiltY: Float, 
-        /**
-         * Seconds (any epoch; used for velocity and airbrush).
-         */timestamp: Double) {
-        self.x = x
-        self.y = y
-        self.pressure = pressure
-        self.tiltX = tiltX
-        self.tiltY = tiltY
-        self.timestamp = timestamp
-    }
-
-    
-
-    
-}
-
-#if compiler(>=6)
-extension StrokeSample: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeStrokeSample: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> StrokeSample {
-        return
-            try StrokeSample(
-                x: FfiConverterFloat.read(from: &buf), 
-                y: FfiConverterFloat.read(from: &buf), 
-                pressure: FfiConverterFloat.read(from: &buf), 
-                tiltX: FfiConverterFloat.read(from: &buf), 
-                tiltY: FfiConverterFloat.read(from: &buf), 
-                timestamp: FfiConverterDouble.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: StrokeSample, into buf: inout [UInt8]) {
-        FfiConverterFloat.write(value.x, into: &buf)
-        FfiConverterFloat.write(value.y, into: &buf)
-        FfiConverterFloat.write(value.pressure, into: &buf)
-        FfiConverterFloat.write(value.tiltX, into: &buf)
-        FfiConverterFloat.write(value.tiltY, into: &buf)
-        FfiConverterDouble.write(value.timestamp, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeStrokeSample_lift(_ buf: RustBuffer) throws -> StrokeSample {
-    return try FfiConverterTypeStrokeSample.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeStrokeSample_lower(_ value: StrokeSample) -> RustBuffer {
-    return FfiConverterTypeStrokeSample.lower(value)
 }
 
 
@@ -17804,199 +16947,6 @@ public func FfiConverterTypeTetherFrame_lift(_ buf: RustBuffer) throws -> Tether
 #endif
 public func FfiConverterTypeTetherFrame_lower(_ value: TetherFrame) -> RustBuffer {
     return FfiConverterTypeTetherFrame.lower(value)
-}
-
-
-/**
- * A point in level-0 canvas pixels.
- */
-public struct ToolPoint: Equatable, Hashable {
-    public var x: Float
-    public var y: Float
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(x: Float, y: Float) {
-        self.x = x
-        self.y = y
-    }
-
-    
-
-    
-}
-
-#if compiler(>=6)
-extension ToolPoint: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeToolPoint: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ToolPoint {
-        return
-            try ToolPoint(
-                x: FfiConverterFloat.read(from: &buf), 
-                y: FfiConverterFloat.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: ToolPoint, into buf: inout [UInt8]) {
-        FfiConverterFloat.write(value.x, into: &buf)
-        FfiConverterFloat.write(value.y, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeToolPoint_lift(_ buf: RustBuffer) throws -> ToolPoint {
-    return try FfiConverterTypeToolPoint.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeToolPoint_lower(_ value: ToolPoint) -> RustBuffer {
-    return FfiConverterTypeToolPoint.lower(value)
-}
-
-
-/**
- * What `begin_transform` captured.
- */
-public struct TransformInfo: Equatable, Hashable {
-    public var layers: [UInt64]
-    /**
-     * Pixel-exact bounds of the layers' content (`None`: empty layers).
-     */
-    public var bounds: DocRect?
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(layers: [UInt64], 
-        /**
-         * Pixel-exact bounds of the layers' content (`None`: empty layers).
-         */bounds: DocRect?) {
-        self.layers = layers
-        self.bounds = bounds
-    }
-
-    
-
-    
-}
-
-#if compiler(>=6)
-extension TransformInfo: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeTransformInfo: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TransformInfo {
-        return
-            try TransformInfo(
-                layers: FfiConverterSequenceUInt64.read(from: &buf), 
-                bounds: FfiConverterOptionTypeDocRect.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: TransformInfo, into buf: inout [UInt8]) {
-        FfiConverterSequenceUInt64.write(value.layers, into: &buf)
-        FfiConverterOptionTypeDocRect.write(value.bounds, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeTransformInfo_lift(_ buf: RustBuffer) throws -> TransformInfo {
-    return try FfiConverterTypeTransformInfo.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeTransformInfo_lower(_ value: TransformInfo) -> RustBuffer {
-    return FfiConverterTypeTransformInfo.lower(value)
-}
-
-
-/**
- * A 2-D affine map `x' = a·x + b·y + c`, `y' = d·x + e·y + f` (canvas pixels).
- */
-public struct TransformMatrix: Equatable, Hashable {
-    public var a: Double
-    public var b: Double
-    public var c: Double
-    public var d: Double
-    public var e: Double
-    public var f: Double
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(a: Double, b: Double, c: Double, d: Double, e: Double, f: Double) {
-        self.a = a
-        self.b = b
-        self.c = c
-        self.d = d
-        self.e = e
-        self.f = f
-    }
-
-    
-
-    
-}
-
-#if compiler(>=6)
-extension TransformMatrix: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeTransformMatrix: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TransformMatrix {
-        return
-            try TransformMatrix(
-                a: FfiConverterDouble.read(from: &buf), 
-                b: FfiConverterDouble.read(from: &buf), 
-                c: FfiConverterDouble.read(from: &buf), 
-                d: FfiConverterDouble.read(from: &buf), 
-                e: FfiConverterDouble.read(from: &buf), 
-                f: FfiConverterDouble.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: TransformMatrix, into buf: inout [UInt8]) {
-        FfiConverterDouble.write(value.a, into: &buf)
-        FfiConverterDouble.write(value.b, into: &buf)
-        FfiConverterDouble.write(value.c, into: &buf)
-        FfiConverterDouble.write(value.d, into: &buf)
-        FfiConverterDouble.write(value.e, into: &buf)
-        FfiConverterDouble.write(value.f, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeTransformMatrix_lift(_ buf: RustBuffer) throws -> TransformMatrix {
-    return try FfiConverterTypeTransformMatrix.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeTransformMatrix_lower(_ value: TransformMatrix) -> RustBuffer {
-    return FfiConverterTypeTransformMatrix.lower(value)
 }
 
 
@@ -19435,85 +18385,6 @@ public func FfiConverterTypeFacetField_lower(_ value: FacetField) -> RustBuffer 
 
 
 
-/**
- * Lasso kinds.
- */
-
-public enum LassoKind: Equatable, Hashable {
-    
-    case free
-    case polygon
-    /**
-     * Live-wire between the anchor points (edge-snapping).
-     */
-    case magnetic
-
-
-
-
-
-}
-
-#if compiler(>=6)
-extension LassoKind: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeLassoKind: FfiConverterRustBuffer {
-    typealias SwiftType = LassoKind
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LassoKind {
-        let variant: Int32 = try readInt(&buf)
-        switch variant {
-        
-        case 1: return .free
-        
-        case 2: return .polygon
-        
-        case 3: return .magnetic
-        
-        default: throw UniffiInternalError.unexpectedEnumCase
-        }
-    }
-
-    public static func write(_ value: LassoKind, into buf: inout [UInt8]) {
-        switch value {
-        
-        
-        case .free:
-            writeInt(&buf, Int32(1))
-        
-        
-        case .polygon:
-            writeInt(&buf, Int32(2))
-        
-        
-        case .magnetic:
-            writeInt(&buf, Int32(3))
-        
-        }
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeLassoKind_lift(_ buf: RustBuffer) throws -> LassoKind {
-    return try FfiConverterTypeLassoKind.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeLassoKind_lower(_ value: LassoKind) -> RustBuffer {
-    return FfiConverterTypeLassoKind.lower(value)
-}
-
-
-
 
 public enum LibraryNodeKind: Equatable, Hashable {
     
@@ -19756,95 +18627,6 @@ public func FfiConverterTypeLrcatPhase_lift(_ buf: RustBuffer) throws -> LrcatPh
 #endif
 public func FfiConverterTypeLrcatPhase_lower(_ value: LrcatPhase) -> RustBuffer {
     return FfiConverterTypeLrcatPhase.lower(value)
-}
-
-
-
-/**
- * Marquee shapes.
- */
-
-public enum MarqueeShape: Equatable, Hashable {
-    
-    case rect
-    case ellipse
-    /**
-     * Single row at `y` (height ignored).
-     */
-    case row
-    /**
-     * Single column at `x` (width ignored).
-     */
-    case column
-
-
-
-
-
-}
-
-#if compiler(>=6)
-extension MarqueeShape: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeMarqueeShape: FfiConverterRustBuffer {
-    typealias SwiftType = MarqueeShape
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MarqueeShape {
-        let variant: Int32 = try readInt(&buf)
-        switch variant {
-        
-        case 1: return .rect
-        
-        case 2: return .ellipse
-        
-        case 3: return .row
-        
-        case 4: return .column
-        
-        default: throw UniffiInternalError.unexpectedEnumCase
-        }
-    }
-
-    public static func write(_ value: MarqueeShape, into buf: inout [UInt8]) {
-        switch value {
-        
-        
-        case .rect:
-            writeInt(&buf, Int32(1))
-        
-        
-        case .ellipse:
-            writeInt(&buf, Int32(2))
-        
-        
-        case .row:
-            writeInt(&buf, Int32(3))
-        
-        
-        case .column:
-            writeInt(&buf, Int32(4))
-        
-        }
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeMarqueeShape_lift(_ buf: RustBuffer) throws -> MarqueeShape {
-    return try FfiConverterTypeMarqueeShape.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeMarqueeShape_lower(_ value: MarqueeShape) -> RustBuffer {
-    return FfiConverterTypeMarqueeShape.lower(value)
 }
 
 
@@ -20239,128 +19021,6 @@ public func FfiConverterTypeNewLayer_lift(_ buf: RustBuffer) throws -> NewLayer 
 #endif
 public func FfiConverterTypeNewLayer_lower(_ value: NewLayer) -> RustBuffer {
     return FfiConverterTypeNewLayer.lower(value)
-}
-
-
-
-/**
- * Paint symmetry (spec 02 §4).
- */
-
-public enum PaintSymmetry: Equatable, Hashable {
-    
-    case none
-    /**
-     * Mirror across the vertical line `x = symmetry_x`.
-     */
-    case vertical
-    /**
-     * Mirror across the horizontal line `y = symmetry_y`.
-     */
-    case horizontal
-    /**
-     * Both axes (4 copies).
-     */
-    case dual
-    /**
-     * Mirror across the diagonal through the centre.
-     */
-    case diagonal
-    /**
-     * `symmetry_count` rotated copies about the centre.
-     */
-    case radial
-    /**
-     * Radial with a mirror in every segment.
-     */
-    case mandala
-
-
-
-
-
-}
-
-#if compiler(>=6)
-extension PaintSymmetry: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypePaintSymmetry: FfiConverterRustBuffer {
-    typealias SwiftType = PaintSymmetry
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PaintSymmetry {
-        let variant: Int32 = try readInt(&buf)
-        switch variant {
-        
-        case 1: return .none
-        
-        case 2: return .vertical
-        
-        case 3: return .horizontal
-        
-        case 4: return .dual
-        
-        case 5: return .diagonal
-        
-        case 6: return .radial
-        
-        case 7: return .mandala
-        
-        default: throw UniffiInternalError.unexpectedEnumCase
-        }
-    }
-
-    public static func write(_ value: PaintSymmetry, into buf: inout [UInt8]) {
-        switch value {
-        
-        
-        case .none:
-            writeInt(&buf, Int32(1))
-        
-        
-        case .vertical:
-            writeInt(&buf, Int32(2))
-        
-        
-        case .horizontal:
-            writeInt(&buf, Int32(3))
-        
-        
-        case .dual:
-            writeInt(&buf, Int32(4))
-        
-        
-        case .diagonal:
-            writeInt(&buf, Int32(5))
-        
-        
-        case .radial:
-            writeInt(&buf, Int32(6))
-        
-        
-        case .mandala:
-            writeInt(&buf, Int32(7))
-        
-        }
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypePaintSymmetry_lift(_ buf: RustBuffer) throws -> PaintSymmetry {
-    return try FfiConverterTypePaintSymmetry.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypePaintSymmetry_lower(_ value: PaintSymmetry) -> RustBuffer {
-    return FfiConverterTypePaintSymmetry.lower(value)
 }
 
 
@@ -20763,18 +19423,23 @@ public func FfiConverterTypeSearchScope_lower(_ value: SearchScope) -> RustBuffe
 
 
 /**
- * Edit ▸ Fill contents.
+ * What [`DocumentSession::set_smart_filter`] changes.
  */
 
-public enum SelectionFill: Equatable, Hashable {
+public enum SmartFilterEdit: Equatable, Hashable {
     
-    case color(color: PaintColor
+    case enabled(enabled: Bool
     )
     /**
-     * Placeholder for Content-Aware Fill: a smooth membrane (harmonic)
-     * interpolation of the selection's surroundings (≤ 0.5 MP).
+     * New filter JSON (the same filter id).
      */
-    case contentAware
+    case params(filterJson: String
+    )
+    /**
+     * Blending options (mode name as `LayerNode::blend_mode`, opacity 0…1).
+     */
+    case blending(mode: String, opacity: Float
+    )
 
 
 
@@ -20783,130 +19448,51 @@ public enum SelectionFill: Equatable, Hashable {
 }
 
 #if compiler(>=6)
-extension SelectionFill: Sendable {}
+extension SmartFilterEdit: Sendable {}
 #endif
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public struct FfiConverterTypeSelectionFill: FfiConverterRustBuffer {
-    typealias SwiftType = SelectionFill
+public struct FfiConverterTypeSmartFilterEdit: FfiConverterRustBuffer {
+    typealias SwiftType = SmartFilterEdit
 
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SelectionFill {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SmartFilterEdit {
         let variant: Int32 = try readInt(&buf)
         switch variant {
         
-        case 1: return .color(color: try FfiConverterTypePaintColor.read(from: &buf)
+        case 1: return .enabled(enabled: try FfiConverterBool.read(from: &buf)
         )
         
-        case 2: return .contentAware
+        case 2: return .params(filterJson: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 3: return .blending(mode: try FfiConverterString.read(from: &buf), opacity: try FfiConverterFloat.read(from: &buf)
+        )
         
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
 
-    public static func write(_ value: SelectionFill, into buf: inout [UInt8]) {
+    public static func write(_ value: SmartFilterEdit, into buf: inout [UInt8]) {
         switch value {
         
         
-        case let .color(color):
+        case let .enabled(enabled):
             writeInt(&buf, Int32(1))
-            FfiConverterTypePaintColor.write(color, into: &buf)
+            FfiConverterBool.write(enabled, into: &buf)
             
         
-        case .contentAware:
+        case let .params(filterJson):
             writeInt(&buf, Int32(2))
+            FfiConverterString.write(filterJson, into: &buf)
+            
         
-        }
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeSelectionFill_lift(_ buf: RustBuffer) throws -> SelectionFill {
-    return try FfiConverterTypeSelectionFill.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeSelectionFill_lower(_ value: SelectionFill) -> RustBuffer {
-    return FfiConverterTypeSelectionFill.lower(value)
-}
-
-
-
-/**
- * Select ▸ Modify.
- */
-
-public enum SelectionModify: Equatable, Hashable {
-    
-    case border
-    case smooth
-    case expand
-    case contract
-    case feather
-
-
-
-
-
-}
-
-#if compiler(>=6)
-extension SelectionModify: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeSelectionModify: FfiConverterRustBuffer {
-    typealias SwiftType = SelectionModify
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SelectionModify {
-        let variant: Int32 = try readInt(&buf)
-        switch variant {
-        
-        case 1: return .border
-        
-        case 2: return .smooth
-        
-        case 3: return .expand
-        
-        case 4: return .contract
-        
-        case 5: return .feather
-        
-        default: throw UniffiInternalError.unexpectedEnumCase
-        }
-    }
-
-    public static func write(_ value: SelectionModify, into buf: inout [UInt8]) {
-        switch value {
-        
-        
-        case .border:
-            writeInt(&buf, Int32(1))
-        
-        
-        case .smooth:
-            writeInt(&buf, Int32(2))
-        
-        
-        case .expand:
+        case let .blending(mode,opacity):
             writeInt(&buf, Int32(3))
-        
-        
-        case .contract:
-            writeInt(&buf, Int32(4))
-        
-        
-        case .feather:
-            writeInt(&buf, Int32(5))
-        
+            FfiConverterString.write(mode, into: &buf)
+            FfiConverterFloat.write(opacity, into: &buf)
+            
         }
     }
 }
@@ -20915,107 +19501,15 @@ public struct FfiConverterTypeSelectionModify: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeSelectionModify_lift(_ buf: RustBuffer) throws -> SelectionModify {
-    return try FfiConverterTypeSelectionModify.lift(buf)
+public func FfiConverterTypeSmartFilterEdit_lift(_ buf: RustBuffer) throws -> SmartFilterEdit {
+    return try FfiConverterTypeSmartFilterEdit.lift(buf)
 }
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeSelectionModify_lower(_ value: SelectionModify) -> RustBuffer {
-    return FfiConverterTypeSelectionModify.lower(value)
-}
-
-
-
-/**
- * How a new selection combines with the current one.
- */
-
-public enum SelectionOp: Equatable, Hashable {
-    
-    case replace
-    /**
-     * ⇧
-     */
-    case add
-    /**
-     * ⌥
-     */
-    case subtract
-    /**
-     * ⇧⌥
-     */
-    case intersect
-
-
-
-
-
-}
-
-#if compiler(>=6)
-extension SelectionOp: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeSelectionOp: FfiConverterRustBuffer {
-    typealias SwiftType = SelectionOp
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SelectionOp {
-        let variant: Int32 = try readInt(&buf)
-        switch variant {
-        
-        case 1: return .replace
-        
-        case 2: return .add
-        
-        case 3: return .subtract
-        
-        case 4: return .intersect
-        
-        default: throw UniffiInternalError.unexpectedEnumCase
-        }
-    }
-
-    public static func write(_ value: SelectionOp, into buf: inout [UInt8]) {
-        switch value {
-        
-        
-        case .replace:
-            writeInt(&buf, Int32(1))
-        
-        
-        case .add:
-            writeInt(&buf, Int32(2))
-        
-        
-        case .subtract:
-            writeInt(&buf, Int32(3))
-        
-        
-        case .intersect:
-            writeInt(&buf, Int32(4))
-        
-        }
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeSelectionOp_lift(_ buf: RustBuffer) throws -> SelectionOp {
-    return try FfiConverterTypeSelectionOp.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeSelectionOp_lower(_ value: SelectionOp) -> RustBuffer {
-    return FfiConverterTypeSelectionOp.lower(value)
+public func FfiConverterTypeSmartFilterEdit_lower(_ value: SmartFilterEdit) -> RustBuffer {
+    return FfiConverterTypeSmartFilterEdit.lower(value)
 }
 
 
@@ -21100,173 +19594,6 @@ public func FfiConverterTypeStatusPhase_lower(_ value: StatusPhase) -> RustBuffe
 
 
 
-/**
- * What a stroke paints.
- */
-
-public enum StrokeTarget: Equatable, Hashable {
-    
-    /**
-     * The layer's pixels (pixel layers).
-     */
-    case pixels
-    /**
-     * The layer mask (created revealing all when the layer has none).
-     */
-    case mask
-
-
-
-
-
-}
-
-#if compiler(>=6)
-extension StrokeTarget: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeStrokeTarget: FfiConverterRustBuffer {
-    typealias SwiftType = StrokeTarget
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> StrokeTarget {
-        let variant: Int32 = try readInt(&buf)
-        switch variant {
-        
-        case 1: return .pixels
-        
-        case 2: return .mask
-        
-        default: throw UniffiInternalError.unexpectedEnumCase
-        }
-    }
-
-    public static func write(_ value: StrokeTarget, into buf: inout [UInt8]) {
-        switch value {
-        
-        
-        case .pixels:
-            writeInt(&buf, Int32(1))
-        
-        
-        case .mask:
-            writeInt(&buf, Int32(2))
-        
-        }
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeStrokeTarget_lift(_ buf: RustBuffer) throws -> StrokeTarget {
-    return try FfiConverterTypeStrokeTarget.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeStrokeTarget_lower(_ value: StrokeTarget) -> RustBuffer {
-    return FfiConverterTypeStrokeTarget.lower(value)
-}
-
-
-
-/**
- * The painting tool.
- */
-
-public enum StrokeTool: Equatable, Hashable {
-    
-    case brush
-    /**
-     * Removes alpha (on a mask: paints black, hiding).
-     */
-    case eraser
-    /**
-     * Clone Stamp from the clone source (`set_clone_source`).
-     */
-    case clone
-    /**
-     * Healing Brush: clone, then Poisson-blend each dab into its surroundings.
-     */
-    case heal
-
-
-
-
-
-}
-
-#if compiler(>=6)
-extension StrokeTool: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeStrokeTool: FfiConverterRustBuffer {
-    typealias SwiftType = StrokeTool
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> StrokeTool {
-        let variant: Int32 = try readInt(&buf)
-        switch variant {
-        
-        case 1: return .brush
-        
-        case 2: return .eraser
-        
-        case 3: return .clone
-        
-        case 4: return .heal
-        
-        default: throw UniffiInternalError.unexpectedEnumCase
-        }
-    }
-
-    public static func write(_ value: StrokeTool, into buf: inout [UInt8]) {
-        switch value {
-        
-        
-        case .brush:
-            writeInt(&buf, Int32(1))
-        
-        
-        case .eraser:
-            writeInt(&buf, Int32(2))
-        
-        
-        case .clone:
-            writeInt(&buf, Int32(3))
-        
-        
-        case .heal:
-            writeInt(&buf, Int32(4))
-        
-        }
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeStrokeTool_lift(_ buf: RustBuffer) throws -> StrokeTool {
-    return try FfiConverterTypeStrokeTool.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeStrokeTool_lower(_ value: StrokeTool) -> RustBuffer {
-    return FfiConverterTypeStrokeTool.lower(value)
-}
-
-
-
 
 public enum ThresholdDirection: Equatable, Hashable {
     
@@ -21335,82 +19662,6 @@ public func FfiConverterTypeThresholdDirection_lift(_ buf: RustBuffer) throws ->
 #endif
 public func FfiConverterTypeThresholdDirection_lower(_ value: ThresholdDirection) -> RustBuffer {
     return FfiConverterTypeThresholdDirection.lower(value)
-}
-
-
-
-/**
- * Resampling of a transform.
- */
-
-public enum TransformInterpolation: Equatable, Hashable {
-    
-    case nearest
-    case bilinear
-    case bicubic
-
-
-
-
-
-}
-
-#if compiler(>=6)
-extension TransformInterpolation: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeTransformInterpolation: FfiConverterRustBuffer {
-    typealias SwiftType = TransformInterpolation
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TransformInterpolation {
-        let variant: Int32 = try readInt(&buf)
-        switch variant {
-        
-        case 1: return .nearest
-        
-        case 2: return .bilinear
-        
-        case 3: return .bicubic
-        
-        default: throw UniffiInternalError.unexpectedEnumCase
-        }
-    }
-
-    public static func write(_ value: TransformInterpolation, into buf: inout [UInt8]) {
-        switch value {
-        
-        
-        case .nearest:
-            writeInt(&buf, Int32(1))
-        
-        
-        case .bilinear:
-            writeInt(&buf, Int32(2))
-        
-        
-        case .bicubic:
-            writeInt(&buf, Int32(3))
-        
-        }
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeTransformInterpolation_lift(_ buf: RustBuffer) throws -> TransformInterpolation {
-    return try FfiConverterTypeTransformInterpolation.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeTransformInterpolation_lower(_ value: TransformInterpolation) -> RustBuffer {
-    return FfiConverterTypeTransformInterpolation.lower(value)
 }
 
 
@@ -22604,31 +20855,6 @@ fileprivate struct FfiConverterSequenceTypeBrushPoint: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-fileprivate struct FfiConverterSequenceTypeBrushTipInfo: FfiConverterRustBuffer {
-    typealias SwiftType = [BrushTipInfo]
-
-    public static func write(_ value: [BrushTipInfo], into buf: inout [UInt8]) {
-        let len = Int32(value.count)
-        writeInt(&buf, len)
-        for item in value {
-            FfiConverterTypeBrushTipInfo.write(item, into: &buf)
-        }
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [BrushTipInfo] {
-        let len: Int32 = try readInt(&buf)
-        var seq = [BrushTipInfo]()
-        seq.reserveCapacity(Int(len))
-        for _ in 0 ..< len {
-            seq.append(try FfiConverterTypeBrushTipInfo.read(from: &buf))
-        }
-        return seq
-    }
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
 fileprivate struct FfiConverterSequenceTypeCullGroup: FfiConverterRustBuffer {
     typealias SwiftType = [CullGroup]
 
@@ -22896,6 +21122,31 @@ fileprivate struct FfiConverterSequenceTypeFacetFilter: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeFacetFilter.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeFilterInfo: FfiConverterRustBuffer {
+    typealias SwiftType = [FilterInfo]
+
+    public static func write(_ value: [FilterInfo], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeFilterInfo.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [FilterInfo] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [FilterInfo]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeFilterInfo.read(from: &buf))
         }
         return seq
     }
@@ -23604,31 +21855,6 @@ fileprivate struct FfiConverterSequenceTypeOcrRegionInfo: FfiConverterRustBuffer
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-fileprivate struct FfiConverterSequenceTypeOutlinePolyline: FfiConverterRustBuffer {
-    typealias SwiftType = [OutlinePolyline]
-
-    public static func write(_ value: [OutlinePolyline], into buf: inout [UInt8]) {
-        let len = Int32(value.count)
-        writeInt(&buf, len)
-        for item in value {
-            FfiConverterTypeOutlinePolyline.write(item, into: &buf)
-        }
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [OutlinePolyline] {
-        let len: Int32 = try readInt(&buf)
-        var seq = [OutlinePolyline]()
-        seq.reserveCapacity(Int(len))
-        for _ in 0 ..< len {
-            seq.append(try FfiConverterTypeOutlinePolyline.read(from: &buf))
-        }
-        return seq
-    }
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
 fileprivate struct FfiConverterSequenceTypePersonInfo: FfiConverterRustBuffer {
     typealias SwiftType = [PersonInfo]
 
@@ -23729,23 +21955,23 @@ fileprivate struct FfiConverterSequenceTypeSessionImage: FfiConverterRustBuffer 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-fileprivate struct FfiConverterSequenceTypeStrokeSample: FfiConverterRustBuffer {
-    typealias SwiftType = [StrokeSample]
+fileprivate struct FfiConverterSequenceTypeSmartFilterRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [SmartFilterRecord]
 
-    public static func write(_ value: [StrokeSample], into buf: inout [UInt8]) {
+    public static func write(_ value: [SmartFilterRecord], into buf: inout [UInt8]) {
         let len = Int32(value.count)
         writeInt(&buf, len)
         for item in value {
-            FfiConverterTypeStrokeSample.write(item, into: &buf)
+            FfiConverterTypeSmartFilterRecord.write(item, into: &buf)
         }
     }
 
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [StrokeSample] {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [SmartFilterRecord] {
         let len: Int32 = try readInt(&buf)
-        var seq = [StrokeSample]()
+        var seq = [SmartFilterRecord]()
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
-            seq.append(try FfiConverterTypeStrokeSample.read(from: &buf))
+            seq.append(try FfiConverterTypeSmartFilterRecord.read(from: &buf))
         }
         return seq
     }
@@ -23796,31 +22022,6 @@ fileprivate struct FfiConverterSequenceTypeTetherFrame: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeTetherFrame.read(from: &buf))
-        }
-        return seq
-    }
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-fileprivate struct FfiConverterSequenceTypeToolPoint: FfiConverterRustBuffer {
-    typealias SwiftType = [ToolPoint]
-
-    public static func write(_ value: [ToolPoint], into buf: inout [UInt8]) {
-        let len = Int32(value.count)
-        writeInt(&buf, len)
-        for item in value {
-            FfiConverterTypeToolPoint.write(item, into: &buf)
-        }
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ToolPoint] {
-        let len: Int32 = try readInt(&buf)
-        var seq = [ToolPoint]()
-        seq.reserveCapacity(Int(len))
-        for _ in 0 ..< len {
-            seq.append(try FfiConverterTypeToolPoint.read(from: &buf))
         }
         return seq
     }
@@ -23887,37 +22088,12 @@ public func blendModeNames() -> [String]  {
 })
 }
 /**
- * A preview of tip `id` (or the computed round tip of `hardness` for
- * `round:<hardness>`) at most `max_px` on the long edge.
+ * Every filter of the Filter menu, in menu order.
  */
-public func brushTipPreview(id: String, maxPx: UInt32)throws  -> BrushTipImage  {
-    return try  FfiConverterTypeBrushTipImage_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+public func listFilters() -> [FilterInfo]  {
+    return try!  FfiConverterSequenceTypeFilterInfo.lift(try! rustCall() {
         uniffiCallStatus in
-    uniffi_tessera_ffi_fn_func_brush_tip_preview(
-        FfiConverterString.lower(id),
-        FfiConverterUInt32.lower(maxPx),uniffiCallStatus
-    )
-})
-}
-/**
- * Every tip in the library (built-ins first, then imports in order).
- */
-public func brushTips() -> [BrushTipInfo]  {
-    return try!  FfiConverterSequenceTypeBrushTipInfo.lift(try! rustCall() {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_func_brush_tips(uniffiCallStatus
-    )
-})
-}
-/**
- * Imports a Photoshop `.abr` file into the tip library (for this run);
- * returns the tips it added. Damaged records are skipped.
- */
-public func importAbr(path: String)throws  -> [BrushTipInfo]  {
-    return try  FfiConverterSequenceTypeBrushTipInfo.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_func_import_abr(
-        FfiConverterString.lower(path),uniffiCallStatus
+    uniffi_tessera_ffi_fn_func_list_filters(uniffiCallStatus
     )
 })
 }
@@ -23999,13 +22175,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_func_blend_mode_names() != 47688) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_func_brush_tip_preview() != 21691) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_func_brush_tips() != 33656) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_func_import_abr() != 46665) {
+    if (uniffi_tessera_ffi_checksum_func_list_filters() != 15632) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_func_describe_printer_profile() != 56173) {
@@ -24632,97 +22802,46 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_documentsession_ungroup_layer() != 16163) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_begin_stroke() != 7153) {
+    if (uniffi_tessera_ffi_checksum_method_documentsession_apply_adjustment() != 62065) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_begin_transform() != 57058) {
+    if (uniffi_tessera_ffi_checksum_method_documentsession_apply_filter() != 26962) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_cancel_refine_edge() != 8946) {
+    if (uniffi_tessera_ffi_checksum_method_documentsession_cancel_filter() != 59874) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_cancel_stroke() != 24901) {
+    if (uniffi_tessera_ffi_checksum_method_documentsession_clear_preview() != 6621) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_cancel_transform() != 11442) {
+    if (uniffi_tessera_ffi_checksum_method_documentsession_convert_for_smart_filters() != 47318) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_commit_transform() != 25288) {
+    if (uniffi_tessera_ffi_checksum_method_documentsession_filter_detail() != 61247) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_delete_selection() != 34235) {
+    if (uniffi_tessera_ffi_checksum_method_documentsession_filter_error() != 38602) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_end_stroke() != 55365) {
+    if (uniffi_tessera_ffi_checksum_method_documentsession_preview_adjustment() != 1682) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_fill_selection() != 4888) {
+    if (uniffi_tessera_ffi_checksum_method_documentsession_preview_filter() != 18047) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_load_selection() != 11776) {
+    if (uniffi_tessera_ffi_checksum_method_documentsession_preview_smart_filter() != 63495) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_magnetic_path() != 59164) {
+    if (uniffi_tessera_ffi_checksum_method_documentsession_remove_smart_filter() != 18175) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_modify_selection() != 36147) {
+    if (uniffi_tessera_ffi_checksum_method_documentsession_set_smart_filter() != 22273) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_refine_edge() != 39182) {
+    if (uniffi_tessera_ffi_checksum_method_documentsession_smart_filter_mask_thumbnail() != 1951) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_sample_color() != 13847) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_save_selection() != 20804) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_select_all() != 13304) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_select_color_range() != 731) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_select_inverse() != 53964) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_select_lasso() != 32355) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_select_marquee() != 13531) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_select_none() != 58694) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_select_object() != 11657) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_select_quick() != 8827) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_select_sky() != 35476) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_select_subject() != 44393) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_select_wand() != 8868) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_selection_channels() != 23976) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_selection_outline() != 17836) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_set_clone_source() != 24770) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_set_transform() != 55239) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_stroke_points() != 28255) {
+    if (uniffi_tessera_ffi_checksum_method_documentsession_smart_filters() != 21975) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_cancelflag_cancel() != 15413) {

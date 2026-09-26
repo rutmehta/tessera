@@ -418,7 +418,7 @@ pub(crate) fn worker_loop(shared: Arc<Shared>) {
 
 /// Renders and presents one frame of the live state into the next surface
 /// of the ring. `None` without a surface.
-fn present_frame(shared: &Shared, since: Instant) -> Result<Option<DocFrameInfo>> {
+fn present_frame(shared: &Arc<Shared>, since: Instant) -> Result<Option<DocFrameInfo>> {
     let r = &shared.render;
     let st = shared.lock()?;
     if st.closed || st.view.surfaces.is_empty() {
@@ -433,17 +433,20 @@ fn present_frame(shared: &Shared, since: Instant) -> Result<Option<DocFrameInfo>
     let le = canvas.at_level(level);
     let mut report = compositor::resident::FrameReport::default();
     if !src.is_empty() {
+        // Smart filters baked and a filter preview shown (WP M5-12).
+        let overlay = super::filtering::presented(shared, st.live(), level, src);
+        let doc: &Document = overlay.as_deref().unwrap_or(st.live());
         let mut backend = r.backend.lock().map_err(failure)?;
         match &mut *backend {
             Backend::Gpu(g) => {
                 g.targets.retain(|id, _| attached.contains(id));
-                report = g.resident.render(st.live(), level)?;
+                report = g.resident.render(doc, level)?;
                 drop(st);
                 g.present(level, src, &surface)?;
                 g.resident.wait()?;
             }
             Backend::Cpu(c) => {
-                cpu_present(c, st.live(), level, src, &surface)?;
+                cpu_present(c, doc, level, src, &surface)?;
                 report.full = true;
                 drop(st);
             }

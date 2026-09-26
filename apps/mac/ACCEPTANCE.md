@@ -1083,9 +1083,49 @@ sidecars next to photos; never point it at `fixtures/raw`). Turn on **Debug ▸ 
      Expect every `check … ok`, `opacity drag: frames 61, render median <16 ms`, and `done, 0 failure(s)`.
      `TESSERA_DOC_FRAME_LOG=1` prints every frame (`doc-frame: epoch … L1 … render … ms`) during manual drags.
 
+### Part 3: filters, Image ▸ Adjustments and smart filters (M5-12)
+
+Same scratch copy as part 2 (`$SCR/shoot/sample.dng`). In the grid select `sample.dng`, ⌘E (Edit in Layers).
+
+151. **Filter menu.** The menu bar has **Image** and **Filter** in document mode. Filter lists **Last Filter** (⌃F,
+     disabled until a filter was applied), **Convert for Smart Filters**, then Blur, Sharpen, Noise, Distort, Stylize,
+     Render and Other, built from the engine's `list_filters()` (Gaussian Blur…, Box Blur…, Motion Blur…, Radial Blur…,
+     Surface Blur…, Unsharp Mask…, Smart Sharpen…, Add Noise…, Reduce Noise…, Median…, Dust & Scratches…, Pinch…,
+     Spherize…, Twirl…, Wave…, Ripple…, Polar Coordinates…, Emboss…, Find Edges, Solarize…, Clouds…, Difference
+     Clouds…, High Pass…, Offset…). With an adjustment layer selected the groups are disabled.
+152. **Gaussian Blur preview.** Filter ▸ Blur ▸ **Gaussian Blur…**: a dialog `Gaussian Blur`, `Layer “sample”`, a 1:1
+     detail pane (drag it to move) and **Radius**. Drag Radius: the canvas blurs live at the viewport level and the
+     detail pane follows; History does not change and the document stays as it was. Untick **Preview**: the canvas shows
+     the original, the pane still shows the filter. **Reset** returns Radius to 2.0 px
+     (📸 `tools/orchestrate/wp/M5-12/evidence/filters-01-gaussian-dialog.png`).
+153. **Apply and undo.** Radius 12, **OK**: the status bar reads `Applying Gaussian Blur…`, then
+     `Gaussian Blur applied (<s> s)`; History gains one row `Gaussian Blur` (📸 `filters-02-gaussian-applied.png`).
+     ⌘Z restores the sharp photo (📸 `filters-03-gaussian-undone.png`). ⌃F applies Gaussian Blur 12 px again without a
+     dialog; ⌘Z. With a marquee selection only the selection is filtered.
+154. **Levels via Image ▸ Adjustments.** Image ▸ Adjustments ▸ **Levels…** (⌘L): the Levels editor of the Properties
+     panel in a sheet; moving Input black / Gamma previews live on the canvas (📸 `filters-04-levels-dialog.png`).
+     **OK**: one History row `Levels`, the pixels of `sample` change, no adjustment layer is added
+     (📸 `filters-05-levels-applied.png`). Invert (⌘I) applies at once.
+155. **Smart filter.** Filter ▸ **Convert for Smart Filters**: `sample` becomes a smart object (Properties `Smart
+     Object`, History `Convert to Smart Object`). Filter ▸ Blur ▸ Gaussian Blur…, Radius 10, OK: History `Gaussian Blur`,
+     and a row **Gaussian Blur** appears under `sample` with an eye, a white mask thumbnail and a blending-options button
+     (📸 `filters-06-smart-filter-on.png`). Click its eye: the photo is sharp again, History `Disable Smart Filter`
+     (📸 `filters-07-smart-filter-off.png`); click again: blurred, `Enable Smart Filter`
+     (📸 `filters-08-smart-filter-on-again.png`). Double-click the row: the dialog reopens with Radius 10 and previews the
+     re-edit; OK records `Edit Smart Filter`. The blending-options button sets mode and opacity (`Smart Filter Blending
+     Options`). Save As `.tessera-doc`, close, reopen: the smart filter row and the blurred look come back; Export Flat
+     bakes the smart filter at full resolution.
+156. **Scripted run.**
+     ```sh
+     apps/mac/build/Tessera.app/Contents/MacOS/Tessera --folder "$SCR/shoot" --app-dir "$SCR/appdir-filters" \
+       --filter-selftest "$SCR/filter-out" 2>&1 | grep filter-selftest
+     ```
+     Expect every `check … ok`, `gaussian preview latency (value → frame, viewport 5212 × 3468 at L1): n 12, median …`
+     and `done, 0 failure(s)`.
+
 ## Verdict (document mode)
 
-PASS when steps 130–142 (stub) and 143–150 (engine) meet their expectations. Record the stub render time on a
+PASS when steps 130–142 (stub), 143–150 (engine) and 151–156 (filters) meet their expectations. Record the stub render time on a
 large window (drag Opacity on `Landscape` at 100 %) as an observation; the stub renders on the CPU and is not held to the
 engine's budget.
 
@@ -1152,3 +1192,6 @@ PASS when steps 151–160 meet their expectations and the brush frames' median r
 | `document.history` · `document.history.row.<index>` (0 = Opened) · `document.history.snapshot.<n>` · `document.history.snapshot.<n>.restore` · `document.history.newSnapshot` · `document.history.memory` | History panel |
 | `document.new.*` · `document.export.*` · `document.empty.new` · `document.empty.open` · `document.status.*` | Sheets, empty state, status bar |
 | `document.tools` · `document.tool.<tool>` · `document.colors` · `document.optionsBar` · `document.option.*` · `document.transform.commit` · `document.colorPanel` · `document.color.{foreground,background}` · `document.brushes` · `document.brushes.import` · `document.brush.*` · `document.status.stroke` | Tools palette, options bar, Color and Brushes (M5-11) |
+| `document.filter.<id>.<key>` (e.g. `document.filter.gaussian_blur.radius`, `.dial` for angles) · `document.filter.<id>.detail` · `.preview` · `.reset` · `.cancel` · `.ok` | Filter dialogs (M5-12) |
+| `document.adjustment.<kind>` · `.preview` · `.reset` · `.cancel` · `.ok` | Image ▸ Adjustments sheets (the editor inside keeps its `document.properties.*` identifiers) |
+| `document.layers.smartFilter.<layer>.<index>` · `.visibility` · `.mask` · `.name` · `.blending` · `document.smartFilter.blending.{mode,opacity,ok}` | Smart filter rows and their blending options |

@@ -5,6 +5,7 @@ pub mod distort;
 mod evaluation;
 pub mod gpu;
 mod large;
+pub mod registry;
 pub use evaluation::{CameraRawFilter, CameraRawProcessor, SmartFilter, SmartFilters};
 
 use compositor::{geom::Rect, raster::Raster};
