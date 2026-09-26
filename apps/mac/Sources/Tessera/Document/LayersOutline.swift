@@ -62,7 +62,9 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
         outline.indentationPerLevel = Theme.Space.m
         outline.allowsMultipleSelection = true
         outline.allowsEmptySelection = true
-        outline.columnAutoresizingStyle = .uniformColumnAutoresizingStyle
+        outline.columnAutoresizingStyle = .firstColumnOnlyAutoresizingStyle
+        // The outline column keeps the view's width (by default it shrinks to fit on expand / move).
+        outline.autoresizesOutlineColumn = false
         outline.selectionHighlightStyle = .regular
         outline.focusRingType = .none
         outline.dataSource = self
@@ -91,6 +93,7 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
         doc.onSelectionChange = { [weak self] in self?.syncSelectionFromModel() }
         outline.reloadData()
         outline.expandItem(nil, expandChildren: true)
+        outline.sizeLastColumnToFit()
         syncSelectionFromModel()
     }
 
@@ -130,6 +133,7 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
                 }
             }
             outline.endUpdates()
+            outline.sizeLastColumnToFit()
         }
         // New groups open; rows whose record changed are rebuilt (thumbnails follow `revision`).
         for id in new.flattened {

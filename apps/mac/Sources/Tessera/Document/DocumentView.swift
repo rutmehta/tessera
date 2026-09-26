@@ -89,7 +89,7 @@ struct DocumentInspector: View {
                     PanelSection("Properties") { PropertiesPanel(document: doc) }
                 }
                 .scrollIndicators(.never)
-                .frame(minHeight: Theme.Height.sectionHeader * 3, maxHeight: .infinity)
+                .frame(minHeight: Theme.Height.sectionHeader * 6, maxHeight: .infinity)
                 .layoutPriority(0)
                 .accessibilityIdentifier("document.properties")
                 VStack(alignment: .leading, spacing: 0) {

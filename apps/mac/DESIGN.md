@@ -290,3 +290,36 @@ group's suggested best; the filmstrip at 72 pt; a one-line status bar in three g
   overrides it for one run (screenshots).
 * The toolbar opts out of macOS 26's per-item glass with `sharedBackgroundVisibility(.hidden)`
   (`flatToolbarItem()`); macOS 15 ignores it.
+
+## 10. Document mode (WP M5-10)
+
+Layered documents reuse the system above; nothing here adds a colour, size or font.
+
+* **Toolbar**: a fourth segment, **Layers**, in the view-mode control. In document mode the
+  navigation area holds the **document tabs**: a `well` track with a hairline like
+  `SegmentedPicker`; the current tab is raised with the 1 pt shadow, 11 pt title (medium when
+  current), a 6 pt `textSecondary` dot for unsaved changes, and an `xmark` close glyph on the
+  current or hovered tab; a `+` opens New Document.
+* **Viewport**: the `canvas` surround; the transparency checkerboard alternates `checkerLight`
+  (`thumb`) and `checkerDark` (`plotText`), aliases of existing tokens, in 8 pt squares, light
+  in both appearances as in every image editor. The marquee's marching ants are the on-image
+  pair (`OnImage.text` under `OnImage.ink` dashes, 4 / 4, 30 fps). Tools (Move, Rectangular
+  Marquee) sit in a top-left HUD bar of 28 pt `IconButton`s; the zoom percentage appears in a
+  HUD chip at the bottom for 1.2 s after each zoom change.
+* **Inspector**: Properties (a `PanelSection` in its own scroll view), Layers (fixed 32 pt
+  header, then the panel), History (`PanelSection`). The Layers panel: blend mode as a 20 pt
+  `ThemeMenuStyle` pop-up (the 27 modes in Photoshop's six groups with dividers, Pass Through
+  first for groups), Opacity and Fill `ValueSlider`s side by side, 20 pt lock `IconButton`s
+  (on = accent glyph over `accentSubtle`), a dimmed filter field placeholder; the outline;
+  a 28 pt footer of icon buttons (add, mask, adjustment left; group, delete right).
+* **Layer rows** (`NSOutlineView`, 32 pt, 12 pt indentation per level): eye (secondary; slashed
+  and tertiary when hidden, the name tertiary too), the clipping glyph for clipped layers,
+  24 pt thumbnail on the checkerboard at radius 4 with a `hairlineStrong` outline (adjustment
+  layers show their SF Symbol instead), a link glyph and the mask thumbnail (a 2 pt `reject`
+  cross when the mask is off), 12 pt name, tertiary kind and lock glyphs. Selection is the
+  list-row fill: `accentSubtle` at radius 6.
+* **History rows** follow the develop History panel: 24 pt, current row `accentSubtle`, undone
+  states in tertiary ink; snapshots below with borderless Restore; the memory line in tertiary
+  tabular type.
+* **Status bar** in document mode: canvas size · depth · profile | zoom | tool | selection size,
+  then the message.

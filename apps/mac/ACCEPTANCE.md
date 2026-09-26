@@ -957,3 +957,120 @@ the battery readout.
 | `tether-album` · `tether-smart-album` | Session album and scoped smart album |
 | `tether-capture` · `tether-interval-seconds` · `tether-interval-count` · `tether-interval-toggle` · `tether-interval-status` · `tether-auto-advance` · `tether-summary` | Capture row |
 | `tether-incoming` · `tether-frame-<sequence>` · `tether-pending` | Incoming strip |
+
+## U. Document mode: layered documents (M5-10)
+
+**Layers** (the fourth view-mode segment) is Tessera's layered editor: a viewport, and Properties, Layers and History
+panels in the inspector. Until M5-10b wires the engine's `DocumentSession`, documents run on the **stub backend**
+(`StubDocumentBackend`): a new document opens with six sample layers (Paper, Landscape with a soft elliptical mask,
+Vignette clipped to it, and a Grade group holding Curves 1 and Hue/Saturation 1), rendered on the CPU. Part 1 runs on
+the stub; part 2 repeats the key steps on the real engine once M5-10b has landed (skip it before then and say so).
+`--new-document` (test aid) creates a document at launch; `--open-document <file>` opens one.
+
+### Part 1: over the stub backend
+
+130. Quit Tessera. Build and launch:
+     ```sh
+     (cd apps/mac && swift build && Support/make-app.sh)
+     open -n apps/mac/build/Tessera.app --args --app-dir "$SCR/appdir-doc" --stub 200
+     ```
+     Choose **File ▸ New Document…** (⌘N). 📸 Expect a sheet `New Document` with Preset, Width `2400`, Height `1600`,
+     Bit depth `8-bit | 16-bit | 32-bit float`, Colour profile `sRGB IEC61966-2.1`, the footer note `Stub backend: the
+     document opens with sample layers` and an accent **Create** (`document.new.create`). Click **Create**.
+131. 📸 Expect: the toolbar's view control on **Layers**, a tab `Untitled-1` (`document.tabs.0`) in the toolbar, the window
+     subtitle `6 layers`; the viewport (`document.viewport`) shows a dusk landscape inside an ellipse on warm paper, a
+     checkerboard in the transparent margin around the paper, and the canvas surround beyond it; the zoom chip
+     (`document.zoomHUD`) briefly shows the fit zoom. The inspector shows **Properties** (`Grade`, `Group · Pass
+     Through`), **Layers** and **History** (`Opened`, highlighted; `0 states · Zero KB`). The Layers outline lists, top to
+     bottom: `Grade` (folder glyph, expanded) with `Hue/Saturation 1` and `Curves 1` indented, `Vignette` with the clipping
+     glyph and a drop glyph, `Landscape` with a link glyph and a white ellipse mask thumbnail, `Paper` with a lock glyph.
+     The status bar reads `2400 × 1600 px · 8-bit · sRGB IEC61966-2.1 | <zoom> | Move (V)`.
+132. **Zoom and pan.** Press ⌘1: the chip reads `100 %` and the landscape fills the view at full size. ⌘= (View ▸ Zoom In) twice →
+     `300 %` (pixels turn crisp: nearest-neighbour from 200 %), ⌘− → `200 %`, ⌘0 → the fit zoom. Hold ⌥ and drag right in
+     the viewport: the zoom grows around the point you pressed (scrubby zoom). Pinch on a trackpad: zooms about the
+     pointer. Two-finger scroll pans; hold Space and drag: the cursor is a closed hand and the canvas follows.
+     Expect the image to stay sharp after each gesture settles and the status bar zoom to match the chip.
+133. **Layers and live sliders.** Click `Landscape`. Properties shows `Pixel`, Bounds `96, 96 · 2208 × 1408 px` and Mask
+     `On · linked`. Drag **Opacity** (`document.layers.opacity`) to about 40 %: the landscape fades live while dragging;
+     on release History gains one row `Opacity 40 %` (`document.history.row.1`) and the tab shows the dirty dot. Choose
+     **Multiply** from the blend pop-up (`document.layers.blendMode`: modes in six groups with dividers): History gains
+     `Blend Mode`. Press ⌘Z twice: opacity and mode return; ⇧⌘Z once re-applies the opacity. Click `Opened` in History:
+     the document returns to how it opened.
+134. **Adjustments.** Click `Curves 1`: Properties shows a channel control (RGB / Red / Green / Blue) and the curve editor
+     (`document.properties.curves.editor`) with an S-curve. Drag the upper point up: the picture brightens live, one
+     `Curves` history row on release. Click **Layers ▸ New ▸ Adjustment Layer ▸ Levels**: `Levels 1` appears above the
+     selected layer and is selected; drag **Gamma** (`document.properties.levels.gamma`) to 2.00: midtones lift live.
+     Switch the channel to **Blue** and drag Output white down: the image turns yellow. Add **Hue/Saturation** from the
+     footer's adjustment menu (`document.layers.addAdjustment`), tick **Colorize**: the image becomes monochrome in one hue.
+     Repeat quickly for Exposure, Posterize (4 levels = visible banding), Threshold (black and white), Channel Mixer
+     (Monochrome) and Invert (`Invert has no settings.`).
+135. **Fills.** **Layer ▸ New ▸ Fill Layer ▸ Gradient**: a black-to-white gradient covers the canvas; Properties shows
+     Linear / Radial, a gradient preview, two stops with colour wells and positions, **Add Stop** and **Reverse**. Click
+     **Reverse**: white-to-black. Set the layer's blend mode to **Soft Light**. **Layer ▸ New ▸ Fill Layer ▸ Solid Color**,
+     pick a colour in its well (`document.properties.fill.color`): the canvas takes that colour; one `Solid Color` history
+     row a moment after you stop picking. Delete it with ⌫ (the Layers outline focused) or the trash button.
+136. **Structure.** Select `Vignette` and `Landscape` (⌘-click) and press ⌘G: one history row `Group Layers`, a new
+     `Group 1` holds both. ⇧⌘G: they return. ⌘J on `Paper`: `Paper copy` above it. ⌘E (Merge Down) on `Paper copy`: it
+     merges into `Paper`. Drag `Curves 1` out of `Grade` to the top of the list: one `Move Layer` history row, the row
+     animates to its new place; drag it back into `Grade`. Double-click a layer name, type `Sky`, Return: renamed. Click an
+     eye: the layer hides (name dimmed); ⌥-click an eye: only that layer shows. Right-click a row: the menu mirrors the
+     Layer menu (Rename, Duplicate, Delete, Group, Ungroup, Merge Down, Flatten, clipping, mask items). Lock buttons
+     (`document.layers.lock.*`) toggle the lock glyph on the row.
+137. **Selection and masks.** Press **M**, drag a rectangle over the sun: marching ants run around it and the status bar
+     shows `Selection W × H`. Select `Vignette` and **Layer ▸ Layer Mask ▸ From Selection**: its mask thumbnail appears;
+     the vignette now shows only inside the rectangle. ⇧-click that mask thumbnail: a red cross, the mask is off. ⌘D:
+     the ants disappear. **V** returns to Move (clicking the canvas with Move explains that moving pixels arrives later).
+138. **Panels and screen modes.** Press **Tab**: sidebar and inspector hide; Tab again restores them. Press **F**: the
+     window goes full screen; F: panels hide too; F: back to standard. Culling keys do nothing here: press **X**, **P**,
+     **1**, **G**, **E** and the arrows — the document, the mode and the library selection stay as they are.
+139. **History and snapshots.** Click **New Snapshot…** (`document.history.newSnapshot`), keep `Snapshot 1`, Save: it is
+     listed under Snapshots. Make two edits, click **Restore** on the snapshot: the document returns to it and History
+     gains `Snapshot “Snapshot 1”` (undoable). The memory line reads `<n> states · <size>`.
+140. **Save, reopen, close.** ⌘S on the new document opens Save As; save `Poster.tessera-doc` into `$SCR`. The tab title
+     becomes `Poster.tessera-doc`, the dirty dot goes. Choose **Save As…** with a `.psd` name: the status bar reads
+     `Save As: Saving as PSD / PSB needs the engine (M5-10b); save as .tessera-doc`. **File ▸ Export Flat…** (⇧⌘E): format
+     PNG / JPEG / TIFF, quality for JPEG, colour space; export `Poster.png` into `$SCR` and check it opens in Preview with
+     transparent margins (JPEG: white). Make one edit and press ⌘W: `Do you want to save the changes made to
+     “Poster.tessera-doc”?` with Save…, Cancel, Don’t Save; choose Don’t Save: the tab closes and the viewport shows the
+     `No document` empty state with New Document… and Open Document…. **File ▸ Open Document…** (⇧⌘O) `Poster.tessera-doc`:
+     the saved layers come back. In Finder, choose Open With ▸ Tessera on `Poster.tessera-doc` (with the app running):
+     it becomes the current tab (a document already open is not opened twice).
+141. **Several documents and Edit in Layers.** **File ▸ Open Folder…** `$SCR/shoot` (step 2; stub items have no files to
+     edit), select a photo in the grid, press ⌘E (**Library ▸ Edit in Layers**): a new tab named after the photo with one pixel layer (on the stub, JPEGs open as decoded; RAW files use
+     macOS's own rendering). Switch between tabs: each keeps its zoom and position. Open `Poster.png` (Open Document…):
+     one pixel layer named `Poster`.
+142. **Tests.**
+     ```sh
+     (cd apps/mac && swift test --filter "Document|ThemeLint" 2>&1 | grep "Executed")
+     ```
+     Expect `Executed 32 tests, with 0 failures`.
+
+### Part 2: over the real engine (after M5-10b)
+
+143. Launch as in step 130 (M5-10b builds with the engine's `DocumentEngine`), create a document: expect a single blank
+     layer (no sample layers), the status bar message without `(stub backend: sample layers)`, and Properties `Kind Pixel`.
+144. Repeat steps 132–137 on a document opened with **File ▸ Open Document…** from a PSD in `fixtures/` (or one written by
+     the `psd` crate's tests): layer names, groups, blend modes, masks and clipping match Photoshop's Layers panel; opacity
+     and adjustment drags stay live (the brief's budget is < 16 ms per frame at the viewport level; turn on **Debug ▸ Show
+     Render Timing** if M5-10b wires it).
+145. Repeat step 140 with **Save As…** to `.psd`: the save succeeds and the PSD reopens in Tessera (and Photoshop, if
+     available) with the same layers. Repeat step 141 on a RAW: the new document has the photo's developed size.
+
+## Verdict (document mode)
+
+PASS when steps 130–142 meet their expectations (and 143–145 once M5-10b has landed). Record the stub render time on a
+large window (drag Opacity on `Landscape` at 100 %) as an observation; the stub renders on the CPU and is not held to the
+engine's budget.
+
+## Appendix: accessibility identifiers (M5-10)
+
+| Identifier | Element |
+| --- | --- |
+| `document.viewport` · `document.zoomHUD` · `document.tool.move` · `document.tool.marquee` | Viewport, zoom chip and tool bar |
+| `document.tabs` · `document.tabs.<n>` · `document.tabs.<n>.dirty` · `document.tabs.<n>.close` · `document.tabs.new` | Document tabs |
+| `document.layers` · `document.layers.outline` · `document.layers.row.<index>` · `document.layers.row.<index>.visibility` · `.name` · `.thumbnail` · `.mask` · `.maskLink` | Layers outline and rows (`<index>` = outline row, top = 0) |
+| `document.layers.blendMode` · `document.layers.opacity` · `document.layers.fill` · `document.layers.lock.{transparency,pixels,position,all}` · `document.layers.filter` | Layers header |
+| `document.layers.add` · `document.layers.addMask` · `document.layers.addAdjustment` · `document.layers.group` · `document.layers.delete` | Layers footer |
+| `document.properties` · `document.properties.name` · `.kind` · `.bounds` · `.groupMode` · `.channel` · `.levels.*` · `.curves.editor` · `.curves.reset` · `.hueSaturation.*` · `.exposure.*` · `.posterize.levels` · `.threshold.level` · `.channelMixer.*` · `.fill.*` · `.editContents` | Properties panel |
+| `document.history` · `document.history.row.<index>` (0 = Opened) · `document.history.snapshot.<n>` · `document.history.snapshot.<n>.restore` · `document.history.newSnapshot` · `document.history.memory` | History panel |
+| `document.new.*` · `document.export.*` · `document.empty.new` · `document.empty.open` · `document.status.*` | Sheets, empty state, status bar |
