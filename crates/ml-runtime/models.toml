@@ -255,3 +255,25 @@ sha256 = "b703fc9bf1a5d59a3db64838231e22c174e711ae7c0e9ecaeaf6e9661fab179e"
 inputs = [{ name = "cfa_noise", shape = [1, 8, 64, 64], dtype = "fp32" }]
 outputs = [{ name = "denoised", shape = [1, 4, 64, 64], dtype = "fp32" }]
 # END GENERATED CFA MODELS
+
+# Remove ONNX installation slot, deliberately unavailable in distributed builds.
+# Intended upstream: big-lama (Apache-2.0). No weights are bundled or downloaded.
+# TODO: select/license an actual LaMa-class export, validate its colour/shape
+# contract and replace the all-zero SENTINEL with the SHA-256 of verified bytes.
+# This is NOT a claimed model hash. filters::remove refuses to resolve it.
+# No download URL: model installation is an explicit local administrator action.
+# Adapter contract: display-sRGB NCHW [0,1], masked image pixels zero; mask 1=hole;
+# H/W dynamic multiples of 8; output NCHW display-sRGB. Input names are normative.
+[[models]]
+id = "remove/lama"
+version = "local-slot-v1"
+task = "object-removal-inpainting"
+dtype = "fp32"
+source = "local"
+local_path = "models/remove-lama.onnx"
+sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
+inputs = [
+  { name = "image", shape = [1, 3, 512, 512], dtype = "fp32" },
+  { name = "mask", shape = [1, 1, 512, 512], dtype = "fp32" },
+]
+outputs = [{ name = "output", shape = [1, 3, 512, 512], dtype = "fp32" }]

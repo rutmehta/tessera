@@ -1,0 +1,13 @@
+
+running 1 test
+CAF 6000x4000, 512x512 hole, default controls: 643.913 ms
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.71s
+
+
+running 1 test
+24MP Bilinear: cold prepare/upload 185.896 ms; first resident submit+wait 12.751 ms; resident render WALL min/median/max 8.892/9.862/11.320 ms (10 changed-mesh frames, target <25); download+Raster 151.263 ms; CPU end-to-end 184.682 ms (target <300); existing Raster GPU roundtrip 362.097 ms (NOT a <25 ms path); timestamp dispatch Some(12.101417) ms
+24MP Bicubic: cold prepare/upload 161.932 ms; first resident submit+wait 22.802 ms; resident render WALL min/median/max 12.547/12.742/16.248 ms (10 changed-mesh frames, target <25); download+Raster 131.484 ms; CPU end-to-end 222.294 ms (target <300); existing Raster GPU roundtrip 391.436 ms (NOT a <25 ms path); timestamp dispatch None ms
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 2.94s
+

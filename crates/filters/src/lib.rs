@@ -2,11 +2,15 @@
 mod compositor_adapter;
 pub use compositor_adapter::CompositorFilters;
 pub mod adjust;
+pub mod caf;
 mod cpu;
 pub mod distort;
 mod evaluation;
 pub mod gpu;
 mod large;
+pub mod liquify;
+pub mod liquify_gpu;
+pub mod remove;
 pub use evaluation::{CameraRawFilter, CameraRawProcessor, SmartFilter, SmartFilters};
 
 use compositor::{geom::Rect, raster::Raster};

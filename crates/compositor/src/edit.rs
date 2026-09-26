@@ -669,6 +669,30 @@ impl Clone for Document {
 }
 
 impl Document {
+    /// Explicit, lossy export proxy for formats without native smart filters.
+    /// Renders the complete document (including masks/blends/transforms) using
+    /// the caller's evaluator. The original editable document is not changed.
+    pub fn rasterized_for_export(
+        &self,
+        renderer: &mut crate::Compositor,
+    ) -> EngineResult<(Self, Vec<String>)> {
+        let (extent, pixels) = renderer.render_level_rgba(self, 0)?;
+        let mut raster = Raster::new(extent, 4, crate::raster::Depth::F32, 0.0);
+        raster.edit_region(Rect::of_extent(extent), 1, |x, y, p| {
+            let i = ((y * extent.width + x) * 4) as usize;
+            p.copy_from_slice(&pixels[i..i + 4]);
+        })?;
+        let mut state = DocState::new(extent, crate::raster::Depth::F32);
+        state.ppi = self.state().ppi;
+        state.profile = self.state().profile.clone();
+        let mut layer = Layer::new("Rasterized export", LayerKind::Pixel(raster));
+        state.assign_ids(&mut layer, false);
+        state.root.push(Arc::new(layer));
+        Ok((Self::new(state), vec![
+            "Document rasterized for PSD/export; smart filters and layers remain editable only in the native .tessera-doc original.".into(),
+        ]))
+    }
+
     /// Wraps an initial state as history node 0.
     pub fn new(mut state: DocState) -> Self {
         if state.rev == 0 {

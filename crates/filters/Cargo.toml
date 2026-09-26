@@ -15,6 +15,7 @@ serde_json = { workspace = true }
 compositor = { path = "../compositor" }
 engine-api = { path = "../engine-api" }
 pipeline-cpu = { path = "../pipeline-cpu" }
+ml-runtime = { path = "../ml-runtime" }
 wgpu.workspace = true
 bytemuck.workspace = true
 pollster = "0.4"
