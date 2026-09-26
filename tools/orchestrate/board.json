@@ -1006,5 +1006,13 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M2-29v",
+    "owner": "sol",
+    "title": "Verify JPEG develop on screen",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
