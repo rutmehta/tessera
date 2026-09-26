@@ -987,7 +987,7 @@
     "id": "M2-41",
     "owner": "sol",
     "title": "People view: detail overflow + launch layout glitch",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
