@@ -26,6 +26,7 @@ members = [
     "crates/ml-embed",
     "crates/ml-caption",
     "crates/ml-enhance",
+    "crates/ml-filters",
     "crates/ml-faces",
     "crates/ml-quality",
     "crates/ml-segment",

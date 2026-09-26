@@ -1,0 +1,17 @@
+[package]
+name = "ml-filters"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+
+[dependencies]
+anyhow.workspace = true
+compositor = { path = "../compositor" }
+engine-api = { path = "../engine-api" }
+ml-runtime = { path = "../ml-runtime" }
+ml-enhance = { path = "../ml-enhance" }
+ml-faces = { path = "../ml-faces" }
+
+[dev-dependencies]
+image.workspace = true
+tempfile.workspace = true

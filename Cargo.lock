@@ -2648,6 +2648,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "ml-filters"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "compositor",
+ "engine-api",
+ "image",
+ "ml-enhance",
+ "ml-faces",
+ "ml-runtime",
+ "tempfile",
+]
+
+[[package]]
 name = "ml-quality"
 version = "0.1.0"
 dependencies = [
