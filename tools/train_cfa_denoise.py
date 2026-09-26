@@ -1,5 +1,9 @@
 # SPDX-License-Identifier: MIT
-"""Small CFA training utilities. See crates/ml-enhance/TRAINING.md."""
+"""Small CFA training utilities. See crates/ml-enhance/TRAINING.md.
+
+Install prerequisites from crates/ml-enhance/training/requirements.txt;
+venv setup and the smoke driver live in crates/ml-enhance/training/README.md.
+"""
 import numpy as np
 import argparse
 import hashlib

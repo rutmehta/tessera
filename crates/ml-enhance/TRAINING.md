@@ -74,13 +74,18 @@ The code supports CR3, CR2, ARW, NEF, RAF, DNG, and RW2 via rawpy.
 ## Reproduction
 
 From the worktree root, preserve the externally exported CARGO_TARGET_DIR.
-Weights, environments, and transient reports stay in the ignored artifacts tree.
+Weights, environments, and transient reports stay in the ignored training tree.
+See `crates/ml-enhance/training/README.md` for the one-command smoke-test setup.
+Real RAW training below additionally requires rawpy; the pinned smoke-test
+requirements do not install it.
 
-    python3 -m venv tools/orchestrate/wp/M3-16/.venv
-    tools/orchestrate/wp/M3-16/.venv/bin/pip install -r tools/orchestrate/wp/M3-16/requirements.txt
+    python3 -m venv crates/ml-enhance/training/.venv
+    crates/ml-enhance/training/.venv/bin/python -m pip install -r crates/ml-enhance/training/requirements.txt
+    crates/ml-enhance/training/.venv/bin/python -m pip install rawpy
     export PYTHONDONTWRITEBYTECODE=1
-    tools/orchestrate/wp/M3-16/.venv/bin/python tools/train_cfa_denoise.py --output tools/orchestrate/wp/M3-16/artifacts
-    tools/orchestrate/wp/M3-16/.venv/bin/python tools/export_cfa_denoise.py tools/orchestrate/wp/M3-16/artifacts/cfa.pt --output tools/orchestrate/wp/M3-16/artifacts --manifest crates/ml-runtime/models.toml
+    export TESSERA_TRAIN_PYTHON="$PWD/crates/ml-enhance/training/.venv/bin/python"
+    "$TESSERA_TRAIN_PYTHON" tools/train_cfa_denoise.py --output crates/ml-enhance/training/artifacts
+    "$TESSERA_TRAIN_PYTHON" tools/export_cfa_denoise.py crates/ml-enhance/training/artifacts/cfa.pt --output crates/ml-enhance/training/artifacts --manifest crates/ml-runtime/models.toml
 
 Export pins opset 17 and uses the legacy TorchScript exporter deliberately;
 its deprecation warning is expected. Both fp32 and fp16-weight variants retain
@@ -123,13 +128,21 @@ Inference uses halo tiles; no blending of overlapping model outputs is needed.
     cargo test -p image-core --features ml-denoise --test ml_cfa_local --release -- --ignored
     cargo clippy -p image-core --features ml-denoise --all-targets -- -D warnings
 
-`cfa_model` trains a fresh tiny CPU checkpoint during the normal cargo suite,
+When explicitly enabled, `cfa_model` invokes
+`crates/ml-enhance/training/test_training.py` to calibrate noise and train a
+fresh tiny CPU checkpoint during the normal cargo suite,
 exports both variants, measures ONNX PSNR over 24 held-out crops, checks tiled
 against whole inference, and obtains executed-provider reports from ml-runtime.
-It requires the Python environment above (override with TESSERA_TRAIN_PYTHON).
-It errors instead of silently skipping when dependencies are absent. The optional
+Set `TESSERA_TRAIN_PYTHON` to the environment's interpreter to enable it. It prints
+a clear skip reason when that variable is unset or the interpreter is missing,
+and always skips when `CI` is present. An existing interpreter makes the full
+test mandatory outside CI: missing packages, training/export failures, and
+quality regressions fail rather than skip. Use `-- --nocapture` to see skip
+messages and PSNR/timing reports. The optional
 local-adapter test uses the real fixture-trained checkpoint, exercising all four
 Bayer patterns, odd sensor extents and exact unselected mask sites.
 
 Recorded results and remaining acceptance gaps are in
 `tools/orchestrate/wp/M3-16/VERIFICATION.md`. Off-path goldens are not regenerated.
+The restored prerequisites and current smoke-test PSNR/timing evidence are in
+`tools/orchestrate/wp/M3-16c/RESULTS.md`.

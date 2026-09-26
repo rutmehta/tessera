@@ -1,0 +1,7 @@
+# Direct smoke-training dependencies, Python 3.11-3.13.
+# PyTorch macOS wheels include MPS support; the smoke test uses CPU.
+torch==2.8.0                 # BSD-3-Clause
+numpy==2.2.6                 # BSD-3-Clause
+onnx==1.18.0                 # Apache-2.0
+onnxruntime==1.22.1          # MIT
+onnxconverter-common==1.16.0 # MIT; fp16 export

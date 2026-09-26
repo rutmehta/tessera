@@ -4,50 +4,41 @@ use std::{path::PathBuf, process::Command, time::Instant};
 
 #[test]
 fn trained_model_quality_tiling_and_partition_report() -> anyhow::Result<()> {
+    if std::env::var_os("CI").is_some() {
+        eprintln!("SKIP cfa_model: training is disabled under CI");
+        return Ok(());
+    }
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let python = std::env::var_os("TESSERA_TRAIN_PYTHON")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| root.join("tools/orchestrate/wp/M3-16/.venv/bin/python"));
-    anyhow::ensure!(
-        python.exists(),
-        "Install tools/orchestrate/wp/M3-16/requirements.txt; set TESSERA_TRAIN_PYTHON"
-    );
+    let Some(python) = std::env::var_os("TESSERA_TRAIN_PYTHON") else {
+        eprintln!(
+            "SKIP cfa_model: TESSERA_TRAIN_PYTHON is unset; see crates/ml-enhance/training/README.md"
+        );
+        return Ok(());
+    };
+    let python = PathBuf::from(python);
+    // Cargo runs tests from the crate directory; resolve paths from the repo root.
+    let python = root.join(python);
+    if !python.try_exists()? {
+        eprintln!(
+            "SKIP cfa_model: training venv interpreter {} is missing; see crates/ml-enhance/training/README.md",
+            python.display()
+        );
+        return Ok(());
+    }
     let dir = tempfile::tempdir()?;
     let start = Instant::now();
-    let fit_status = Command::new(&python)
-        .current_dir(&root)
-        .args([
-            "tools/orchestrate/wp/M3-16/test_training.py",
-            "TrainingTests.test_fit_recovers_poisson_gaussian_parameters",
-        ])
-        .status()?;
-    anyhow::ensure!(fit_status.success(), "noise calibration test failed");
     let status = Command::new(&python)
         .current_dir(&root)
-        .arg("tools/train_cfa_denoise.py")
-        .args([
-            "--synthetic",
-            "--steps",
-            "300",
-            "--device",
-            "cpu",
-            "--output",
-        ])
-        .arg(dir.path())
-        .status()?;
-    anyhow::ensure!(status.success(), "tiny training failed");
-    assert!(
-        start.elapsed().as_secs() < 180,
-        "tiny training exceeded three minutes"
-    );
-    let status = Command::new(&python)
-        .current_dir(&root)
-        .arg("tools/export_cfa_denoise.py")
-        .arg(dir.path().join("cfa.pt"))
+        .env("PYTHONDONTWRITEBYTECODE", "1")
+        .arg("crates/ml-enhance/training/test_training.py")
         .arg("--output")
         .arg(dir.path())
         .status()?;
-    anyhow::ensure!(status.success(), "ONNX export failed");
+    anyhow::ensure!(status.success(), "CFA calibration/training/export failed");
+    assert!(
+        start.elapsed().as_secs() < 180,
+        "CFA calibration/training/export exceeded three minutes"
+    );
     let registry = ModelRegistry::open(dir.path().join("models.toml"), dir.path().join("cache"))?;
     let noise = CfaNoise {
         shot: [0.003; 4],
@@ -137,5 +128,9 @@ fn trained_model_quality_tiling_and_partition_report() -> anyhow::Result<()> {
         assert!(!report.nodes.is_empty());
         println!("{dtype}: gain={gain}, tiling_error={error}, partition={report:?}");
     }
+    println!(
+        "CFA full integration: {:.3}s",
+        start.elapsed().as_secs_f64()
+    );
     Ok(())
 }

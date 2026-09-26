@@ -1,5 +1,9 @@
 # SPDX-License-Identifier: MIT
-"""Export owned CFA weights, pin opset 17, register hashes (never download)."""
+"""Export owned CFA weights, pin opset 17, register hashes (never download).
+
+Install prerequisites from crates/ml-enhance/training/requirements.txt;
+see crates/ml-enhance/training/README.md for the venv and smoke driver.
+"""
 import argparse
 import hashlib
 import json
