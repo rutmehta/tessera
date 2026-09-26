@@ -691,12 +691,12 @@ impl Engine {
 }
 
 /// Decoded pixels for the renderer (RAW CFA or linear Rec.2020 from RGB files).
-enum Source {
+pub(crate) enum Source {
     Rgb(pipeline_cpu::Image),
     Raw(Box<(raw_decode::CfaImage, raw_decode::RawMetadata)>),
 }
 impl Source {
-    fn open(path: &Path, _orientation: u16) -> Result<Self> {
+    pub(crate) fn open(path: &Path, _orientation: u16) -> Result<Self> {
         if !image_core::RgbSource::recognizes(path) {
             let mut raw = raw_decode::RawSource::open(path)?;
             let cfa = raw.decode_cfa()?;
@@ -704,7 +704,7 @@ impl Source {
         }
         Ok(Self::Rgb(image_core::RgbSource::open(path)?.into_pixels()))
     }
-    fn render_source(&self) -> pipeline_cpu::RenderSource<'_> {
+    pub(crate) fn render_source(&self) -> pipeline_cpu::RenderSource<'_> {
         match self {
             Self::Rgb(image) => pipeline_cpu::RenderSource::Rgb(image),
             Self::Raw(raw) => pipeline_cpu::RenderSource::Cfa {

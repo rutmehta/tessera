@@ -1,0 +1,34 @@
+2026-09-26 01:29:47.351 Tessera[23345:12391466] Sparkle updates not configured for this build
+document-selftest: edit in layers: 1.63 s to first frame
+document-selftest: check engine backend ok
+document-selftest: check one pixel layer ok
+document-selftest: check source image ok
+document-selftest: document 5212 × 3468 px, 16-bit, Metal (Apple M4 Max), title sample
+document-selftest: check first frame ok
+document-selftest: step 1 edit-in-layers window 308 235 1440 900
+document-selftest: check adjustment layer added ok
+document-selftest: exposure drag: frames 21, render median 3.42 ms, p90 4.49 ms, max 12.59 ms
+document-selftest: check exposure committed as one row ok
+document-selftest: step 2 adjustment window 308 235 1440 900
+document-selftest: opacity drag: frames 61, render median 3.57 ms, p90 4.43 ms, max 9.64 ms, levels [1], viewport L1 2606 × 1734
+document-selftest: opacity drag: main-thread call frames 61, median 0.89 ms, p90 0.99 ms, max 1.20 ms
+document-selftest: check opacity 40 % ok
+document-selftest: check one history row for the drag ok
+document-selftest: check opacity frame median < 16 ms ok
+document-selftest: step 3 opacity-drag window 308 235 1440 900
+document-selftest: check undo restores opacity ok
+document-selftest: step 4 undo window 308 235 1440 900
+document-selftest: check save .tessera-doc ok
+document-selftest: step 5 saved window 308 235 1440 900
+document-selftest: check reopen layers ok
+document-selftest: check reopen adjustment ok
+document-selftest: check reopen title ok
+document-selftest: step 6 reopened window 308 235 1440 900
+document-selftest: check export flat PNG ok
+document-selftest: step 7 exported window 308 235 1440 900
+document-selftest: check save as PSD ok
+document-selftest: check PSD layers ok
+document-selftest: check PSD adjustment kind ok
+document-selftest: step 8 psd-open window 308 235 1440 900
+document-selftest: call cost (ms, median of 10): setOpacity(interactive) 0.01, layers 0.02, info 0.01, historyItems 0.00, snapshots 0.00, historyMemoryBytes 0.01, layerThumbnail(after a property change) 0.01, reloadModel 0.05, reloadHistory 0.02
+document-selftest: done, 0 failure(s)

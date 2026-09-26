@@ -53,6 +53,12 @@ struct TesseraApp: App {
 ///   --import-lrcat <catalog.lrcat>  open File ▸ Import Lightroom Catalog… with this catalog chosen
 ///   --front           order the window front without activating (screenshots while another app is active)
 ///   --appearance dark|light|system  (test aid) use this appearance for this run only
+///   --new-document    (test aid) create a layered document (2400 × 1600; one blank layer on the engine, sample layers
+///                     on the stub) after launch. Documents use the engine unless --stub-library is given
+///   --document-selftest <dir>  (test aid) ACCEPTANCE §U part 2 on the engine (Edit in Layers on sample.dng, adjustment,
+///                     opacity drag timing, undo, save, reopen, export, PSD), step markers on stderr, then quit;
+///                     --document-selftest-hold <s> sets the pause per step (2.5)
+///   --open-document <file>  open a .tessera-doc / .psd / .psb / flat image in document mode after launch
 ///   --develop-selftest  once a develop session opens, drag Exposure 0 → +1.5 through the slider path
 ///                     (60 display-rate steps, then mouse-up) and print frame timings to stderr
 ///   --develop-panels-selftest  open the first photo in the loupe and drag one control of each develop
@@ -90,6 +96,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             AppearancePreference.current.apply()
         }
+        // Layered documents run on the engine (WP B5-03); `--stub-library` keeps the stub backend.
+        AppModel.shared.documents.policy = args.contains("--stub-library") ? .stub : .engine
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -140,6 +148,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     if args.contains("--tether-connect") { model.tether.connectWhenReady() }
                 }
             }
+        }
+        if args.contains("--new-document") || value(after: "--open-document") != nil {
+            let path = value(after: "--open-document").map { ($0 as NSString).expandingTildeInPath }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                MainActor.assumeIsolated {
+                    if let path { model.documents.open(URL(fileURLWithPath: path)) }
+                    else { model.documents.newDocument(model.documents.newSettings) }
+                }
+            }
+        }
+        if let dir = value(after: "--document-selftest") {
+            // Test aid (WP B5-03): ACCEPTANCE §U part 2 on the engine, step by step, then quit.
+            let hold = value(after: "--document-selftest-hold").flatMap(Double.init) ?? 2.5
+            let test = DocumentSelfTest(model: model, dir: URL(fileURLWithPath: (dir as NSString).expandingTildeInPath), hold: hold)
+            Task { @MainActor in await test.run() }
+        }
+        if let dir = value(after: "--tools-selftest") {
+            // Test aid (WP B5-04): ACCEPTANCE §V (layered editor tools) through the viewport's mouse path.
+            let hold = value(after: "--tools-selftest-hold").flatMap(Double.init) ?? 2
+            let test = ToolsSelfTest(model: model, dir: URL(fileURLWithPath: (dir as NSString).expandingTildeInPath), hold: hold)
+            Task { @MainActor in await test.run() }
         }
         if args.contains("--front") {   // test aid: show the window without activating the app
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
@@ -232,6 +261,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return true
         }
         return false
+    }
+
+    /// Finder ▸ Open With / double-click on a document type (Info.plist `CFBundleDocumentTypes`).
+    /// Folders and other paths (a leftover launch argument) are ignored.
+    func application(_ application: NSApplication, open urls: [URL]) {
+        let docs = urls.filter { DocumentWorkspace.documentExtensions.contains($0.pathExtension.lowercased()) }
+        guard !docs.isEmpty else { return }
+        DispatchQueue.main.async {
+            MainActor.assumeIsolated { for url in docs { AppModel.shared.documents.open(url) } }
+        }
     }
 
     /// Closes the camera session (finishing accepted downloads) before the process exits.

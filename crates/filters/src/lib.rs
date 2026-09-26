@@ -11,6 +11,7 @@ pub mod gpu;
 mod large;
 pub mod liquify;
 pub mod liquify_gpu;
+pub mod registry;
 pub mod remove;
 pub use evaluation::{CameraRawFilter, CameraRawProcessor, SmartFilter, SmartFilters};
 

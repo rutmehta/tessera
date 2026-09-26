@@ -1,0 +1,27 @@
+tools-selftest: document 5212 × 3468 px, 16-bit, Metal (Apple M4 Max)
+tools-selftest: step 1 edit-in-layers window 308 235 1440 900
+tools-selftest: brush stroke: 361 dabs; engine stroke_points n 181, median 0.84 ms, p90 1.54 ms, max 2.64 ms; frame render n 176, median 1.91 ms, p90 3.03 ms, max 272.52 ms
+tools-selftest: check brush stroke is one history row ok
+tools-selftest: check stroke visible ok
+tools-selftest: check dab frames under 16 ms (median) ok
+tools-selftest: step 2 brush-stroke window 308 235 1440 900
+tools-selftest: check undo removes the stroke ok
+tools-selftest: step 3 brush-undo window 308 235 1440 900
+tools-selftest: check eraser row ok
+tools-selftest: check erased to transparency ok
+tools-selftest: step 4 eraser window 308 235 1440 900
+tools-selftest: check wand selection ok
+tools-selftest: check wand outline ok
+tools-selftest: wand: selection 2240 × 1325, outline 1354 loops, 10722 points
+tools-selftest: step 5 wand window 308 235 1440 900
+tools-selftest: check subject selection ok
+tools-selftest: subject: Select Subject → 3884 × 3030 (16.77 s)
+tools-selftest: step 6 subject window 308 235 1440 900
+tools-selftest: check transform began ok
+tools-selftest: step 7 transform-preview window 308 235 1440 900
+tools-selftest: check transform committed ok
+tools-selftest: step 8 transform-commit window 308 235 1440 900
+tools-selftest: check save PSD ok
+tools-selftest: check PSD reopens with the layers ok
+tools-selftest: step 9 psd-reopen window 308 235 1440 900
+tools-selftest: done, 0 failure(s)

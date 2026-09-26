@@ -1054,5 +1054,45 @@
     "status": "pass",
     "attempts": 0,
     "notes": "9/13 on screen; misses are verifier modifier-click limits (merge/undo unverified by hand); no defects"
+  },
+  {
+    "id": "B5-01",
+    "owner": "opus",
+    "title": "FFI DocumentSession for layered documents",
+    "status": "pass",
+    "attempts": 1,
+    "notes": "machine B; in wp/B5-ui; Rust green; L2 opacity drag 3.8 ms"
+  },
+  {
+    "id": "B5-02",
+    "owner": "opus",
+    "title": "Document mode UI (viewport, Layers, Properties, History)",
+    "status": "pass",
+    "attempts": 1,
+    "notes": "machine B; in wp/B5-ui; 124 XCTest; Swift 6.2.4 AssistController fix"
+  },
+  {
+    "id": "B5-03",
+    "owner": "opus",
+    "title": "Wire engine DocumentSession into document mode",
+    "status": "pass",
+    "attempts": 1,
+    "notes": "machine B; in wp/B5-ui; engine-backed; opacity drag 3.6 ms median"
+  },
+  {
+    "id": "B5-04",
+    "owner": "opus",
+    "title": "Layered editor tools: painting, selections, transform",
+    "status": "pass",
+    "attempts": 1,
+    "notes": "machine B; in wp/B5-ui; 148 XCTest; 100 px dab 3.6 ms median"
+  },
+  {
+    "id": "B5-05",
+    "owner": "opus",
+    "title": "Filters and direct adjustments in the app",
+    "status": "pass",
+    "attempts": 1,
+    "notes": "machine B; in wp/B5-ui; 140 XCTest; blur preview 112 ms at L1 (upload-bound)"
   }
 ]

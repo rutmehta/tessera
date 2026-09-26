@@ -89,6 +89,61 @@ index is refreshed, and the edited preview is stored under the new recipe hash, 
 `embeddedPreview` serves edited thumbnails (edited RAWs without a stored preview are rendered from
 the recipe on the preview worker). The renderer calibrates CPU and Metal for each opened RAW;
 `TESSERA_RENDER_BACKEND=cpu` or `gpu` overrides that selection (Metal unavailability falls back to CPU).
+Layered documents (crates/tessera-ffi/src/document.rs, WP B5-01): `newDocument(width:height:depth:profile:)`,
+`openDocument(path:)` (`.tessera-doc`, `.psd`/`.psb` with unknown PSD records kept for save-back, flat
+JPEG/PNG/TIFF as one pixel layer), `openDocumentFromImage(imageId:developed:)` (the library image rendered at
+full resolution through the export path into one 16-bit sRGB pixel layer), `documentSession(id:)` and
+`documentIds()` return a `DocumentSession`; opening the same file or image twice returns the same session.
+Reads: `info()` (`DocumentInfo`: id `doc#N`, path, title, canvas, depth, profile, dirty, history head,
+undo/redo availability, selected layers, selection bounds, source image, epoch, backend), `layers()`
+(`LayerNode`s flat in pre-order, siblings top-first, `index` = compositor child index with 0 = bottom,
+blend modes as the stable snake_case names of `blendModeNames()` plus `pass_through`, adjustment/fill JSON,
+bounds, `revision` for thumbnail caches), `layer(id:)`, `setSelectedLayers(ids:)`. Edits, each one history
+node returning `DocumentUpdate` (changed/created layers, head, level-0 dirty rect, epoch, dirty):
+`addLayer(kind:name:parent:index:)` (`NewLayer`: pixel, group, adjustment JSON, fill JSON),
+`duplicateLayer`, `removeLayer`, `moveLayer`, `setProps` (`LayerPropsRecord`), `renameLayer`, `setVisible`,
+`setOpacity`/`setFillOpacity(id:value:interactive:)`, `setBlendMode`, `setGroupMode`, `setClipped`,
+`setLocks`, `setAdjustmentJson`/`setFillJson(id:json:interactive:)`, `addMask(id:mask:)` (`MaskInit`:
+reveal all, hide all, from selection), `removeMask`, `setMaskEnabled`, `setMaskDensity`, `setMaskLinked`
+(session state only), `mergeDown`, `flatten`, `groupLayers(ids:name:)`, `ungroupLayer`,
+`setSelectionRect(x:y:width:height:feather:)`, `clearSelection`. `interactive: true` edits are live only
+(the viewport and `layers()` show them) until `commit(label:)` records the whole drag as one node; any other
+edit, undo or save commits a pending drag first. History: `undo`, `redo`, `historyItems()`
+(`DocHistoryItem`), `checkoutHistory(id:)`, `snapshot(name:)`, `snapshots()`, `restoreSnapshot(name:)`,
+`setMaxStates`, `historyMemoryBytes()`. Presentation mirrors `DevelopSession`: `setListener` with a
+`DocumentListener` (`onFrame(DocFrameInfo)`, `onLayersChanged`, `onHistoryChanged`, `onRenderFailed`; once per
+coalesced frame, on the session's render thread), `planSurface` (fit-to-window level extent),
+`attachSurface` (a ring of RGBA8 IOSurfaces), `setViewport(level:x:y:width:height:zoom:)` (a region of a
+pyramid level, top-left in the surface; frames report it in level and level-0 coordinates),
+`setDisplayHeadroom` (stored; frames are SDR until M5-08), `refresh`, `detachSurfaces`. Frames are
+display-encoded sRGB with **straight alpha**: the host draws the transparency checkerboard. Rendering is
+the compositor's GPU-resident renderer on the engine's single Metal device (shared with develop).
+`layerThumbnail`, `maskThumbnail` and `compositeThumbnail(maxPx:)` return RGBA8 IOSurface ids cached per
+revision. Output: `save()`, `saveAs(path:)` (`.tessera-doc`, `.psd`, `.psb` with the flattened composite),
+`exportFlat(path:format:quality:color:)` (`ExportFormat` PNG/JPEG/TIFF, `ExportColor` document profile or a
+built-in space, ICC embedded), `close()`.
+Document mode uses them through `EngineDocumentBackend` (TesseraCore/Document, WP B5-03): `EngineDocumentEngine.for(engine)`
+opens sessions (one backend object per session, so the same file or image is the same tab) and each call converts
+records field by field to the UI's `DocumentBackend` types. The engine's base history node is the History panel's
+`Opened` row (id 0). The listener adapter hops to the main queue and coalesces callbacks (newest frame, union of changed
+layers, latest head). The workspace uses the open folder's engine, or a standalone engine when no folder is open, and
+the stub backend only with `--stub-library` (and in unit tests). Opening documents and Edit in Layers run off the main
+thread. `LayerNode.revision` changes only with what thumbnails show (content, mask, a group's children), so property
+drags never re-render thumbnails; thumbnails render off the main thread anyway. Selection bounds are pixel-exact.
+
+Layered-editor tools (crates/tessera-ffi/src/document/tools.rs, WP B5-04), on the same `DocumentSession`:
+painting `beginStroke(layer:target:tool:brush:color:)` (`StrokeTarget` pixels/mask, `StrokeTool` brush/eraser/clone/
+heal, `PaintBrush` size/hardness/opacity/flow/spacing/angle/roundness/blend/pressure toggles/smoothing/symmetry/tip),
+`strokePoints(points:)` (the `StrokeSample`s of one display frame → `StrokeFrame` dirty rect, dabs, engine ms),
+`endStroke()` (one history node), `cancelStroke()`, `setCloneSource(layer:dx:dy:)`; selections (one node each,
+`SelectionOp` replace/add/subtract/intersect) `selectMarquee`, `selectLasso` (free/polygon/magnetic), `magneticPath`,
+`selectWand`, `selectQuick`, `selectColorRange`, `selectSubject` / `selectSky` / `selectObject` (the engine's
+segmenter), `selectAll`, `selectNone`, `selectInverse`, `modifySelection`, `refineEdge(params:interactive:)` +
+`cancelRefineEdge`, `selectionOutline(level:)` (marching ants as polylines), `saveSelection` / `loadSelection` /
+`selectionChannels`; transform `beginTransform(layers:)`, `setTransform(matrix:interpolation:)` (live),
+`commitTransform`, `cancelTransform`; `fillSelection`, `deleteSelection`, `sampleColor`; free functions `brushTips()`,
+`importAbr(path:)`, `brushTipPreview(id:maxPx:)`. The app reaches them through `DocumentToolsBackend`
+(TesseraCore/Document/Tools) adopted by `EngineDocumentBackend` and (geometric subset) `StubDocumentBackend`.
 `ImageQuery` accepts folder, FTS text, decision, limit (0 = all), and offset. Folder paths are
 canonical paths returned by `indexFolder`; filtering includes descendants. RAW capture times
 are Unix seconds as strings; JPEG EXIF capture times are local ISO date-times. Recipe JSON is
@@ -134,13 +189,17 @@ produces a build warning and must be configured before publishing updates.
 | `--folder <path>` | Open this folder, overriding the remembered last folder |
 | `--app-dir <path>` | Store index and caches here; overrides `TESSERA_APP_DIR`, otherwise uses `~/Library/Application Support/Tessera` |
 | `--stub <n>` | Load `n` generated items (for example `20000`) instead of a folder |
-| `--stub-library` | Explicitly use the old ImageIO folder scanner and memory-only decisions |
+| `--stub-library` | Explicitly use the old ImageIO folder scanner and memory-only decisions, and the stub document backend |
 | `--benchmark` | Run the grid scroll benchmark 1.5 s after launch. The result appears in the status bar and on stderr |
 | `--keys "x p opt-right …"` | Self-test aid: after the library loads, feed one key every 0.3 s through the culling key map; `cmd-` tokens trigger the matching menu item (e.g. `cmd-z`, `cmd-shift-d`, `cmd-delete`) |
 | `--seed-faces` | Hidden test aid: write deterministic synthetic faces (two people) for the face strip, People and per-person filters (0-based item n: person A in every frame, eyes closed when n % 6 == 5, out of focus when n % 5 == 2, the frames `make-sample-folder.swift --defects` blurs; person B in odd groups) |
 | `--fake-planner` | Hidden test aid: Auto Edit offers and preselects the scripted planner (the engine's `FakePlanner` with a fixed three-step script), so agent runs need no API key or network |
 | `--front` | Bring the window to the front without activating the app (for screenshots) |
 | `--import-lrcat <catalog>` | Open File ▸ Import Lightroom Catalog… with this `.lrcat` already chosen (acceptance aid) |
+| `--new-document` · `--open-document <file>` | Create a layered document (engine: one blank layer; stub: sample layers) / open one after launch |
+| `--tools-selftest <dir>` | Self-test aid (WP B5-04): after the library loads, Edit in Layers on `sample.dng`, then through synthesized mouse events on the viewport: a brush stroke (checked, undo / redo), an eraser stroke to transparency, a magic wand click (outline), Select ▸ Subject, a Free Transform commit, PSD save and reopen in `<dir>`; prints `tools-selftest: step …`, `check …` and the stroke timing, then quits (`--tools-selftest-hold <s>`) |
+| `--document-selftest <dir>` | Self-test aid: after the library loads, Edit in Layers on `sample.dng` (or the first RAW), add an Exposure layer, drag Opacity 100 → 40 % at display rate, undo, save / reopen `.tessera-doc`, export PNG, save and open a PSD in `<dir>`; prints `document-selftest: step …`, `check …` and the listener's frame timing, then quits (`--document-selftest-hold <s>` pauses per step). `TESSERA_DOC_FRAME_LOG=1` logs every document frame |
+| `--filter-selftest <dir>` | Self-test aid (WP B5-05): Edit in Layers on `sample.dng`, Filter ▸ Gaussian Blur… with a 12-step Radius drag (prints the preview latency, value → frame), OK, undo, Image ▸ Adjustments ▸ Levels…, Convert for Smart Filters, Gaussian Blur as a smart filter toggled off and on, save in `<dir>`; prints `filter-selftest: step …` and `check …`, then quits (`--filter-selftest-hold <s>`) |
 | `--develop-selftest` | Self-test aid: once a develop session opens, drag Exposure 0 → +1.5 through the slider path (61 steps at display rate, then mouse-up) and print `develop-selftest: … render median … p90 …` to stderr |
 
 `--keys` also accepts `wait` (one idle 0.3 s step), e.g. `--keys "return wait wait cmd-z"`.
