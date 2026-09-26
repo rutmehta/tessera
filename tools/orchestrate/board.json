@@ -766,5 +766,13 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M5-08",
+    "owner": "astra",
+    "title": "Compositor specialised shaders + viewport",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
