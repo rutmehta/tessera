@@ -8,6 +8,7 @@ edition = "2024"
 crate-type = ["lib", "staticlib", "cdylib"]
 
 [dependencies]
+tether = { path = "../tether" }
 jobs = { path = "../jobs" }
 engine-api = { path = "../engine-api" }
 index = { path = "../index" }

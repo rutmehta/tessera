@@ -4101,6 +4101,7 @@ dependencies = [
  "sidecar",
  "style-profile",
  "tempfile",
+ "tether",
 ]
 
 [[package]]
@@ -4134,6 +4135,7 @@ dependencies = [
  "serde_json",
  "sidecar",
  "tempfile",
+ "tether",
  "thiserror 2.0.21",
  "uniffi",
 ]
@@ -4161,6 +4163,25 @@ dependencies = [
  "syn 2.0.119",
  "tempfile",
  "tokio",
+]
+
+[[package]]
+name = "tether"
+version = "0.1.0"
+dependencies = [
+ "cc",
+ "engine-api",
+ "image",
+ "index",
+ "jobs",
+ "ml-faces",
+ "ml-quality",
+ "ml-runtime",
+ "raw-decode",
+ "serde",
+ "sidecar",
+ "tempfile",
+ "thiserror 2.0.21",
 ]
 
 [[package]]

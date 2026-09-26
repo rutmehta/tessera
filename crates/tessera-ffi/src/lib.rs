@@ -12,6 +12,7 @@ mod proof;
 mod session;
 #[doc(hidden)]
 pub mod surface;
+pub mod tether;
 pub use collections::*;
 pub use develop::*;
 use engine_api::{id::ImageId, recipe as core};

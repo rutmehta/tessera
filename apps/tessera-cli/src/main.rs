@@ -10,6 +10,7 @@ mod export;
 mod import;
 mod media;
 mod models;
+mod tether;
 
 #[derive(Parser)]
 #[command(name = "tessera", version, about = "Headless photo workflow")]
@@ -23,6 +24,8 @@ struct Cli {
 }
 #[derive(Subcommand)]
 enum Command {
+    #[command(subcommand)]
+    Tether(tether::Command),
     #[command(subcommand)]
     Agent(agent_edit::Command),
     /// Serve engine tools through the tessera-mcp stdio executable.
@@ -225,9 +228,13 @@ fn run(cli: &Cli) -> Result<Value> {
         }
         return Ok(result);
     }
+    if let Command::Tether(command) = &cli.command {
+        return tether::run(&app, command);
+    }
     std::fs::create_dir_all(&app)?;
     let mut index = Index::open(app.join("index.sqlite"))?;
     match &cli.command {
+        Command::Tether(_) => unreachable!("tether handled before opening index"),
         Command::Agent(command) => agent_edit::run(&app, &mut index, command),
         Command::Mcp => unreachable!("MCP replaces this process before opening the catalog"),
         Command::Export(options) => export::run(&index, &app, options),
@@ -441,6 +448,17 @@ fn main() -> ExitCode {
 #[cfg(test)]
 mod cli_tests {
     use super::*;
+
+    #[test]
+    fn tether_commands_parse() {
+        for args in [
+            vec!["tessera", "tether", "list"],
+            vec!["tessera", "tether", "start", "shoot"],
+            vec!["tessera", "tether", "capture", "shoot"],
+        ] {
+            assert!(Cli::try_parse_from(args).is_ok());
+        }
+    }
 
     #[test]
     fn fidelity_flags_compose_with_inspect_or_apply() {
