@@ -1,0 +1,9 @@
+Implemented M5-15 within the allowed paths.
+
+Named alpha and spot channels now support history-tracked add/delete/rename/edit, native persistence, PSD/PSB interchange, and document-backed selection save/load. MCP saved selections live in document history, so undo removes them and saved files retain them.
+
+The exact required verification command passed: 218 tests passed, 7 existing benchmarks ignored, clippy clean, formatting clean. No commits made.
+
+Spot channels preserve RGB colour and solidity without affecting the composite. Non-RGB PSD spot display colours currently return an explicit error. engine-api stayed unchanged; required fields and limitations are documented in tools/orchestrate/wp/M5-15/IMPLEMENTATION.md.
+
+RESULT: PASS

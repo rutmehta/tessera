@@ -10,6 +10,10 @@ use gpu_core::color_mgmt::{Builtin, Registry, TransformOptions};
 
 #[test]
 fn profiled_viewport_rebases_and_rejects_stale_or_foreign_document() {
+    if std::env::var_os("CI").is_some() {
+        eprintln!("skipping: CI runner without a Metal device");
+        return;
+    }
     let g = GpuCompositor::new().expect("Metal required");
     let e = Extent::new(97, 65);
     let mut d = doc(e, Depth::F32);

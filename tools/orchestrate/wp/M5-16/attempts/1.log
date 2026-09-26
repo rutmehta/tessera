@@ -1,0 +1,14 @@
+Implemented M5-16 within the allowed paths.
+
+- Added document-profile → display conversion, RGBA16F linear sRGB/P3, headroom controls, and resident LUT caching.
+- Added opt-in Lanczos-3 at level zero, bilinear above it, and viewport-limited smart-object children.
+- Output buffers now match the viewport. Legacy RGBA8 behavior remains unchanged.
+- Added CPU-reference, determinism, cache-invalidation, and viewport recovery tests.
+
+Ran your exact verification command: 136 passed, 0 failed, 8 ignored. Clippy, formatting, and diff checks passed.
+
+Explicit presentation benchmark on Apple M4: 1.176 ms/frame forced-upload baseline → 0.751 ms/frame resident, with zero redraw LUT uploads.
+
+Details and logs: tools/orchestrate/wp/M5-16/IMPLEMENTATION-STATUS.md and verification.log. No commits made.
+
+RESULT: PASS

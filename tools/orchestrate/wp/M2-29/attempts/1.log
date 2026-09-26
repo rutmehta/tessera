@@ -1,0 +1,10 @@
+Implemented the core RGB path: ICC-aware JPEG/PNG/TIFF decoding, 16-bit and float TIFF precision, EXIF orientation, feature-gated macOS HEIC, post-demosaic CPU/GPU rendering, JPEG develop sessions, shared FFI export decoding, and persisted source_kind.
+
+Verified the new decode/render tests, GPU tone parity, clippy, formatting, and the Rust/Swift build. The exact required test chain fails because crates/tessera-ffi/tests/develop.rs:489 still requires JPEGs to be rejected. That test is outside the allowlist, so I left it unchanged.
+
+Agent/MCP integration also needs changes outside the allowlist. Lightroom-style relative WB slider semantics remain unresolved under the unchanged API. All remaining modifications are within allowed paths. No commits made.
+
+Full handoff and validation details:
+ /Users/rutmehta/Developer/tessera/.worktrees/M2-29/tools/orchestrate/wp/M2-29/REPORT.md
+
+RESULT: FAIL obsolete JPEG-refusal test and required MCP integration are outside allowed paths; relative WB slider contract remains incomplete.
