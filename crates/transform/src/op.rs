@@ -1,6 +1,7 @@
 //! Serializable transform recipe and shared inverse-mapped CPU renderer.
 use crate::{
     Error, Image, Point, Result,
+    displacement::Displacement,
     free::FreeTransform,
     perspective::{PerspectiveWarp, PreparedPerspectiveWarp},
     puppet::{PreparedPuppetWarp, PuppetWarp},
@@ -13,6 +14,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Operation {
+    Displacement(Displacement),
     Free(FreeTransform),
     Warp(WarpMesh),
     Perspective(PerspectiveWarp),
@@ -59,6 +61,7 @@ impl TransformOp {
             return Err(invalid("unsupported transform version"));
         }
         match &self.operation {
+            Operation::Displacement(t) => t.validate(),
             Operation::Free(t) => t.validate(),
             Operation::Warp(t) => t.validate(),
             Operation::Perspective(t) => t.validate(),
@@ -139,6 +142,7 @@ impl TransformOp {
     }
     fn prepare(&self) -> Result<Prepared> {
         Ok(match &self.operation {
+            Operation::Displacement(t) => Prepared::Displacement(t.clone()),
             Operation::Free(t) => Prepared::Free(lens::Homography(t.inverse()?.matrix)),
             Operation::Warp(t) => Prepared::Warp(t.inverse_field(24)?, [t.width, t.height]),
             Operation::Perspective(t) => Prepared::Perspective(t.prepare()?),
@@ -152,6 +156,7 @@ impl TransformOp {
     }
 }
 enum Prepared {
+    Displacement(Displacement),
     Free(lens::Homography),
     Warp(WarpInverseField, Point),
     Perspective(PreparedPerspectiveWarp),
@@ -161,6 +166,7 @@ impl Prepared {
     #[inline]
     fn map(&self, p: Point) -> Option<Point> {
         match self {
+            Self::Displacement(t) => t.inverse(p),
             Self::Free(h) => h.map(p),
             Self::Warp(f, size) => f.inverse(p).map(|uv| [uv[0] * size[0], uv[1] * size[1]]),
             Self::Perspective(t) => t.inverse(p),

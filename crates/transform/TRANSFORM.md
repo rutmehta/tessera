@@ -11,7 +11,7 @@ images are revalidated on entry. Operations never mutate input pixels.
 `TransformOp { version: 1, operation: Operation, kernel: Kernel }` is serde
 serializable. Validate after deserialization; evaluation also validates and
 rejects unknown versions. `Operation` supports Free, Warp, Perspective, Puppet,
-and ContentAwareScale. Geometry uses level-zero pixel-edge coordinates; the
+ContentAwareScale, and Displacement. Geometry uses level-zero pixel-edge coordinates; the
 first pixel center is (0.5, 0.5). At level L, evaluate the inverse at
 `2^L * (x+0.5,y+0.5)`, then divide the source coordinate by `2^L`.
 
@@ -87,6 +87,111 @@ linearly in each cross-edge parameter (Coons-style bilinear boundary blending)
 so both sides agree on linear edge parameterization. The corrected map is
 inverted with damped Newton iterations. This guarantees shared positional
 continuity, not derivative continuity. Outside all quads is transparent.
+
+## Adaptive Wide Angle (M5-27)
+
+`adaptive::Adaptive` is a serde recipe with a manual `CameraModel` (rectilinear
+or equidistant fisheye), or an embedded interpolated `lens::Profile` sample.
+`CameraModel::from_profile` converts focal mm to pixels as
+`f_mm * image_width / active_sensor_width_mm`. Native Brown, odd radial terms,
+axis normalization and distortion scale are preserved. Current profile importers
+only support rectilinear lenses; a fisheye is explicitly manual, not silently
+interpreted as rectilinear. No new lens database or profile format is introduced.
+
+For centered radius r, sphere angle is `atan(r/f)` (rectilinear) or `r/f`
+(equidistant). Lift to `(sin(theta)*direction.x, sin(theta)*direction.y,
+cos(theta))`, then project to `f_out * scale * crop_factor * ray.xy/ray.z +
+source_size/2 - crop`. `crop` is a pixel offset into a fixed output canvas;
+`crop_factor` is an additional field-of-view multiplier, default 1. Do not
+double-count crop already included in the active sensor width or output focal.
+No automatic largest-inscribed crop is performed. Rays at/behind the horizon
+cannot be represented by the rectilinear output.
+
+`LineConstraint` stores observed source-space polylines, weight and Straight,
+Horizontal or Vertical orientation. Two endpoints mean a source-image chord;
+use additional points to trace curved observed edges. Segments are densified
+every 4 pixels (at most 64 pieces per segment). The camera-reprojected traces
+feed a bilinear control mesh `F(p)=p+B(p)d`. Straight lines use a TLS normal;
+horizontal/vertical use fixed axis normals, all through each trace's centroid.
+The coupled least-squares objective is
+
+`1000 sum_l w_l sum_p (n_l dot (F(p)-centroid_l))^2
+ + smoothness sum_edges |d_i-d_j|^2
+ + 4*smoothness sum_triples |d_i-2*d_j+d_k|^2
+ + regularization sum_i |d_i|^2`.
+
+Deterministic Jacobi-preconditioned CG verifies its true residual. The positive
+identity anchor removes nullspaces. Damped Newton inverts the solved mesh before
+inverse camera projection. Rejects nonconvergence, degenerate/conflicting lines,
+excessive residuals and folds. A conservative positive symmetric Jacobian bound
+of 0.05 at every cell corner guarantees injectivity but rejects large rotations.
+Default fitted-line tolerance is 0.25 pixels; this is not a bound on arbitrary
+unsampled photographic edges. Grid tests measure the final interpolated field
+at independent points, not just the fitted vertices.
+
+`solve()` returns `displacement::Displacement`. This repository's TransformOp
+is a struct, so wrap the field as `TransformOp { version: 1, operation:
+Operation::Displacement(field), kernel: Kernel::Bicubic }`, rather than an enum
+variant named TransformOp::Displacement. The serde field contains absolute
+source coordinates at integer destination vertices, `(width+1)*(height+1)`;
+None means uncovered. Bilinear field evaluation produces the existing CPU/GPU
+pixel-center lookup convention at any mip. Source-exterior cells are transparent;
+an entirely uncovered output is an error. The existing resident GPU renderer
+consumes this operation unchanged, with geometry prepared on the CPU.
+
+Limits: 16,777,216 field vertices, source axes <=1,000,000, 3..65 controls per
+axis (default 17), 256 lines, 16,384 input / 65,536 densified samples. The mesh
+domain is padded to [-width/2, 3*width/2] on each output axis. Large-image field
+preparation is not claimed interactive, and JSON fields can be large.
+
+## Vanishing Point (M5-27)
+
+`vanishing::VanishingPoint { planes, camera }` is the serde document-tool payload.
+Each `PlaneSpace` stores corresponding perimeter-ordered canvas and unfolded
+atlas quads. `from_quad(canvas_quad, size)` starts with a rectangular atlas.
+Prepare once for pixel loops. Forward is `H=H_canvas*inverse(H_atlas)`, inverse
+is `H^-1`, with homogeneous division and convex-quad coverage tests. Unlike
+PerspectiveWarp, these remain pure homographies without bilinear seam blending.
+Adjacent atlas and canvas edges must match in endpoints and projective midpoint,
+which fixes the whole edge parameterization. Overlaps, T-junctions, degeneracy,
+nonfinite coordinates and horizon crossings are errors.
+
+`tear_off(parent, edge, width, angle_degrees)` reconstructs a camera-space plane
+using `K^-1 H`, rotates its outward derivative around the shared 3D edge using
+Rodrigues' formula and projects through K. The rank-one update vanishes on the
+hinge, preserving every shared-edge point. Zero is coplanar and 90 perpendicular.
+Supplied pinhole intrinsics, not inferred camera calibration, determine the 3D
+interpretation. Occluding/edge-on/behind-camera folds are rejected atomically.
+Arbitrary initial quads define a projective, not necessarily metric, atlas.
+
+Clone source mapping is `H_source(H_destination^-1(canvas)+offset)` with offset
+in the common unfolded atlas. Source and destination can be on different planes;
+outside all planes is None. `paste` inverse-maps a premultiplied Image placed at
+atlas `origin` with positive atlas-units-per-texel `pixel_size`, using the shared
+nearest/bilinear/bicubic/Lanczos samplers. It returns a transparent overlay, not a
+background composite. `plane_stroke` samples an atlas polyline at uniform spacing
+with continuous phase across edges, up to one million dabs, explicitly marking
+gaps rather than joining disconnected planes. Seam continuity is positional,
+not derivative continuity. Severe minification still requires input mip choice.
+
+`brush::api::vanishing_point_stroke` connects clone/heal to the existing Stroke
+engine without changing its serialized CloneSource. It snapshots the plane-mapped
+source with alpha-correct premultiplied bilinear resampling and intersects valid
+plane coverage with selection. The ordinary canvas clone offset must be zero;
+the separate atlas offset supplies alignment. Returns a normal Stroke supporting
+pressure/dynamics, clone/heal, tile output and history integration. Preparation
+materializes a source and mask in O(canvas pixels), capped at 16 MP. Input stroke
+points and brush footprint sizes are still canvas pixels; the atlas stroke helper
+provides plane-space dab centers, not perspective-deformed tip footprints. The
+payload is exposed here, not registered as a new engine-api DocOp or UI tool.
+
+Verification: required transform/lens/brush release tests, strict Clippy and
+workspace fmt gate recorded in `../../tools/orchestrate/wp/M5-27/gate.log`.
+The inaccurate-focal synthetic fisheye grid improves from 1.984666 to 0.064760 px
+maximum axis deviation. Real Metal displacement parity covers all four kernels
+at levels 0 and 1, with error below 1e-4 (no device-skip or CPU fallback).
+Tests also cover checker paste pixels/corners, projective seam clone continuity,
+tear-off angles, atlas stroke spacing, serde, malformed inputs and determinism.
 
 ## Puppet warp
 
