@@ -20,9 +20,12 @@ Design system + visual overhaul (Theme tokens, light/dark, lint test), HDR/EDR p
 ## Latest (merged)
 Export throughput (36 MP full-size 1.2 s; 100 Web JPEGs 26 s render+encode; app exports develop at full resolution for exactness), lens follow-ups (lensfun data pack download with attribution, DNG opcodes in-stage, independent manual CA, GPU CA batching), assisted culling + agent review UI (face strip, Keep?/Reject? suggestions with confirm, Auto Edit sheet, review queue, "Agent base edit" history group with amount fader and per-step toggles, Settings ▸ AI with Keychain keys).
 
+## Also merged since
+Tethered capture + live ingest (ImageCaptureCore; no camera here to verify physically), keywords/captions/OCR engine (SigLIP zero-shot over 2,080 concepts, Florence-2 captions + OCR) and the app UI for them, agent runs on the GPU renderer (~50 ms/step vs 40 s/image), slider keyboard focus fix, Develop panels verified on screen.
+
 ## In progress / next
-- M3-12 tethered capture (ImageCaptureCore), M3-13 keywords/captions/OCR, M3-14 agent runs on the GPU renderer at preview resolution (currently ~40 s per NEF), M2-13v2 on-screen verification of the Develop panels.
-- Milestone 4 UI is in place at phase-1/3 level; Milestone 5 (layered editor) not started.
+- M3-14b critic metrics exact at full resolution via GPU reduction; M5-01 layer compositor core (Milestone 5 started); M5-02 PSD/PSB read/write.
+- Next app work: tethering UI, layered-editor UI once the compositor lands.
 
 ## Known gaps / next
 - Adobe undocumented XMP structures (PointColors strings, brush dabs, Look tables) need **real Lightroom-exported sidecars** to finish (M2-02b).
