@@ -627,9 +627,9 @@
     "id": "M2-13v2",
     "owner": "sol",
     "title": "Verify develop panels (identifiers)",
-    "status": "running",
+    "status": "pass",
     "attempts": 0,
-    "notes": ""
+    "notes": "panels persist; bug: arrow keys on a focused slider move loupe selection -> M2-27"
   },
   {
     "id": "M3-12",

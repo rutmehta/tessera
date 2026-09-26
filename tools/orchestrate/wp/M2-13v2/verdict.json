@@ -1,0 +1,87 @@
+{
+  "steps": [
+    {
+      "n": 1,
+      "pass": false,
+      "note": "Build and release app completed; Swift Testing reported 5 tests passed and cargo test-result lines were ok. XCTest reported 62 tests with 0 failures, not 64. Terminal capture: /Users/rutmehta/.hermes/cache/images/computer_use_2a7b119567704147a2921da7dcb171cd.png"
+    },
+    {
+      "n": 2,
+      "pass": true,
+      "note": "Fresh scratch folder /private/var/folders/_f/grgzfz9j7c1bq0m39nwqz9mm0000gn/T/tmp.UNmAzyZZpy; generator reported 40 JPEGs in 16 bursts and RAW copy listed 5 files. Screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_2a7b119567704147a2921da7dcb171cd.png"
+    },
+    {
+      "n": 3,
+      "pass": true,
+      "note": "Ran defaults delete dev.tessera.app; true. Screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_a3ce3cfd87044e8fae7f1277c41e9091.png"
+    },
+    {
+      "n": 4,
+      "pass": true,
+      "note": "Launched seeded shoot; 40-image grid, group labels, suggested marker, Selects basket and zero counts visible. Screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_f5e754baa495487580e1df8b78e47b9b.png"
+    },
+    {
+      "n": 42,
+      "pass": true,
+      "note": "Engine panel benchmark ran and displayed CPU and Metal panel blocks with adaptive levels and sub-16 ms medians. Terminal screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_7934ac1141324dbca2d2a5838aca4643.png"
+    },
+    {
+      "n": 43,
+      "pass": true,
+      "note": "Sony RAW opened; parametric curve and histogram appeared. Curve gesture produced History: Curve Lights +28. Screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_0c9c33df53bc48d28ea46885eb3b1ec3.png"
+    },
+    {
+      "n": 44,
+      "pass": false,
+      "note": "Point mode and Red channel opened; persistence later showed Point Curve (Red), but monotone drag, three-key nudge burst, removal and RGB Strong Contrast were not verified. Screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_537aa1949a9c45f7a510a0056b4dbca5.png"
+    },
+    {
+      "n": 45,
+      "pass": false,
+      "note": "HSL Saturation opened, but keyboard input did not change Blue to \u2212100 and shifted loupe selection instead. Screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_53ac0342011c4350aa36185b25869e55.png"
+    },
+    {
+      "n": 46,
+      "pass": false,
+      "note": "3-Way grading opened; a Shadows Grade 214\u00b0 / 62 history entry persisted, but highlights, balance, blending, reset and single-wheel tabs were not verified. Screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_47ef35a35d5f40acb6b1047816af2c87.png"
+    },
+    {
+      "n": 47,
+      "pass": false,
+      "note": "1:1 Detail preview appeared; pan, targeted preview, Amount 120, masking preview and Luminance 40 were not verified. Screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_36ebd3399c4d48058d7f5eb70ec0bacd.png"
+    },
+    {
+      "n": 48,
+      "pass": false,
+      "note": "Effects panel opened, but Vignette \u221260, style switching and Grain 40 were not verified. Screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_bdaa56e583624ae7bae2a0726628f82d.png"
+    },
+    {
+      "n": 49,
+      "pass": false,
+      "note": "Crop tool, thirds grid and handles appeared; corner crop was applied and persisted. Aspect 3:2, rotation +2.40\u00b0, overlays, portrait swap, leveling and undo were not verified. Screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_34b4e648fd7d4caebfbe63a5d0714049.png"
+    },
+    {
+      "n": 50,
+      "pass": false,
+      "note": "Save Preset popover opened, but Look was not saved or applied; no Look.json verification. Screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_1ac300423fe94cfdbe1bb01a252eb65b.png"
+    },
+    {
+      "n": 51,
+      "pass": false,
+      "note": "Graded snapshot saved and listed after relaunch; changing an edit and restoring from it was not verified. Screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_2ad1a56371e54aad9763cf99ab88140c.png"
+    },
+    {
+      "n": 52,
+      "pass": false,
+      "note": "History displayed newest-first through Original and allowed an older-step selection and return. Blue Saturation \u2212100 was never created, so its off/on toggle could not be checked. Screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_814773b2abef45ba9d057e9a9f228fcc.png"
+    },
+    {
+      "n": 53,
+      "pass": false,
+      "note": "After relaunch, Sony showed an Edited thumbnail and History entries for Crop, Shadows Grade, Point Curve (Red), and Curve Lights +28; HSL, Detail and Effects restoration was not established. Screenshot: /Users/rutmehta/.hermes/cache/images/computer_use_2ad1a56371e54aad9763cf99ab88140c.png"
+    }
+  ],
+  "overall": false,
+  "wp": "M2-13v2",
+  "status": "fail"
+}
