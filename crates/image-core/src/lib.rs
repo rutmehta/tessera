@@ -34,6 +34,10 @@ pub mod resident;
 mod source;
 #[cfg(feature = "ml-denoise")]
 pub use ml_denoise::MlPostDemosaicDenoise;
+#[cfg(feature = "ml-denoise")]
+mod ml_cfa;
+#[cfg(feature = "ml-denoise")]
+pub use ml_cfa::MlCfaDenoise;
 
 pub use cache::{CacheStats, TileCache};
 pub use graph::{PipelineGraph, StageNode};

@@ -1,4 +1,4 @@
-//! RGB denoise is the tail of Demosaic, never the reserved raw Denoise stage.
+//! CFA phase 2a runs before demosaic; RGB DRUNet remains the X-Trans fallback.
 use crate::Image;
 use engine_api::{
     EngineError, EngineResult,
@@ -17,6 +17,52 @@ pub trait PostDemosaicDenoise: Send + Sync {
     /// Must change whenever inference semantics change (part of cache identity).
     fn adapter_revision(&self) -> &str;
     fn denoise(&self, bounded_linear_srgb: &Image, amount: f32) -> EngineResult<Image>;
+    /// Optional phase-2a backend. Linear, single-plane full-sensor input/output.
+    /// The legacy trait name is retained for source compatibility.
+    fn denoise_raw(
+        &self,
+        _: &Image,
+        _: raw_decode::CfaLayout,
+        _: &DenoiseSettings,
+    ) -> EngineResult<Image> {
+        Err(EngineError::invalid(
+            "denoise",
+            "backend does not implement CFA inference",
+        ))
+    }
+}
+
+pub fn cfa_denoise_selected(s: &DenoiseSettings) -> bool {
+    matches!(&s.method, DenoiseMethod::Neural { model, joint_demosaic: false }
+        if matches!(model.id.as_str(), "enhance/cfa-unet-fp32" | "enhance/cfa-unet-fp16"))
+}
+
+pub fn raw_denoise(
+    input: Image,
+    cfa: raw_decode::CfaLayout,
+    s: &DenoiseSettings,
+    backend: Option<&dyn PostDemosaicDenoise>,
+) -> EngineResult<Image> {
+    validate_denoise(s)?;
+    if !denoise_active(s)
+        || !cfa_denoise_selected(s)
+        || !matches!(cfa, raw_decode::CfaLayout::Bayer(_))
+    {
+        return Ok(input);
+    }
+    let backend =
+        backend.ok_or_else(|| EngineError::invalid("denoise", "no CFA backend injected"))?;
+    let output = backend.denoise_raw(&input, cfa, s)?;
+    if output.width() != input.width()
+        || output.height() != input.height()
+        || output.planes().len() != 1
+    {
+        return Err(EngineError::invalid(
+            "denoise",
+            "CFA backend changed sensor layout",
+        ));
+    }
+    Ok(output)
 }
 
 pub fn validate_denoise(s: &DenoiseSettings) -> EngineResult<()> {
@@ -24,6 +70,21 @@ pub fn validate_denoise(s: &DenoiseSettings) -> EngineResult<()> {
         return Err(EngineError::invalid(
             "denoise",
             "amount must be 0..=100; chroma-only is unsupported",
+        ));
+    }
+    if cfa_denoise_selected(s) {
+        if let DenoiseMethod::Neural { model, .. } = &s.method
+            && model.version.len() == 64
+            && model
+                .version
+                .bytes()
+                .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+        {
+            return Ok(());
+        }
+        return Err(EngineError::invalid(
+            "denoise",
+            "CFA version must pin the SHA-256",
         ));
     }
     if let DenoiseMethod::Neural {

@@ -1,5 +1,37 @@
 use ml_runtime::ModelRegistry;
 
+#[test]
+fn local_source_is_hash_verified_without_network() -> anyhow::Result<()> {
+    let dir = tempfile::tempdir()?;
+    let path = dir.path().join("models.toml");
+    let local = source_manifest().replace(
+        &format!(
+            "download_url = \"file:{}/tests/data/conv.onnx\"",
+            env!("CARGO_MANIFEST_DIR")
+        ),
+        &format!(
+            "source = \"local\"\nlocal_path = \"{}/tests/data/conv.onnx\"",
+            env!("CARGO_MANIFEST_DIR")
+        ),
+    );
+    std::fs::write(&path, &local)?;
+    let registry = ModelRegistry::open(&path, dir.path().join("cache"))?;
+    assert!(registry.resolve("test/conv")?.path().exists());
+    std::fs::write(
+        &path,
+        local.replace(
+            "c64f58321fa5cfeca15daf11a4db55e9546e057d9d812acbf4f23e38f860d901",
+            &"0".repeat(64),
+        ),
+    )?;
+    assert!(
+        ModelRegistry::open(&path, dir.path().join("bad"))?
+            .resolve("test/conv")
+            .is_err()
+    );
+    Ok(())
+}
+
 fn source_manifest() -> String {
     // Version-mutation tests use only the local fixture, not production entries
     // whose revision strings are independent of the fixture's version counter.

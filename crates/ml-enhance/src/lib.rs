@@ -1,4 +1,8 @@
 //! On-device image enhancement.
+mod cfa;
+mod packing;
+pub use cfa::{CfaDenoiser, CfaNoise, denoise_cfa_with};
+pub use packing::BayerPacking;
 mod denoise;
 pub use denoise::{
     DENOISE_ADAPTER_VERSION, DENOISE_MODEL_ID, DENOISE_SHA256, DENOISE_SIGMA, DENOISE_VERSION,
@@ -21,8 +25,8 @@ pub struct NoiseModelHint {
     pub shot: [f32; 3],
 }
 
-/// Extension point for a trained packed-CFA joint denoise/demosaic model.
-/// TODO: train and calibrate per-CFA models; RGB SIDD weights are not raw weights.
+/// Packed RGGB denoise extension point. The three-colour hint shares G1/G2
+/// calibration; use CfaDenoiser::apply for independent green-site noise models.
 pub trait CfaDenoise {
     fn denoise_cfa(&mut self, packed_cfa: &Tensor, noise: NoiseModelHint) -> Result<Tensor>;
 }

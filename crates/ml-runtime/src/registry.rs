@@ -34,7 +34,20 @@ pub struct ModelSpec {
     pub inputs: Vec<TensorSpec>,
     pub outputs: Vec<TensorSpec>,
     pub sha256: String,
+    #[serde(default)]
     pub download_url: String,
+    #[serde(default)]
+    pub source: ModelSource,
+    #[serde(default)]
+    pub local_path: Option<PathBuf>,
+}
+
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ModelSource {
+    #[default]
+    Url,
+    Local,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -109,10 +122,21 @@ impl ModelRegistry {
                     );
                 }
             }
-            ensure!(
-                m.download_url.starts_with("https://") || m.download_url.starts_with("file:"),
-                "only https:// and file: model URLs allowed"
-            );
+            match m.source {
+                ModelSource::Local => ensure!(
+                    m.download_url.is_empty()
+                        && m.local_path
+                            .as_ref()
+                            .is_some_and(|p| !p.as_os_str().is_empty()),
+                    "local models need only local_path, not download_url"
+                ),
+                ModelSource::Url => ensure!(
+                    m.local_path.is_none()
+                        && (m.download_url.starts_with("https://")
+                            || m.download_url.starts_with("file:")),
+                    "URL models need https:// or file: and no local_path"
+                ),
+            }
         }
         fs::create_dir_all(cache.as_ref())?;
         Ok(Self {
@@ -146,7 +170,10 @@ impl ModelRegistry {
         let path = self.cache.join(format!("{}.onnx", spec.sha256));
         if !path.exists() {
             let mut tmp = tempfile::NamedTempFile::new_in(&self.cache)?;
-            if let Some(source) = spec.download_url.strip_prefix("file:") {
+            if spec.source == ModelSource::Local {
+                let source = spec.local_path.as_ref().context("missing local_path")?;
+                std::io::copy(&mut fs::File::open(self.base.join(source))?, &mut tmp)?;
+            } else if let Some(source) = spec.download_url.strip_prefix("file:") {
                 std::io::copy(&mut fs::File::open(self.base.join(source))?, &mut tmp)?;
             } else {
                 let mut response = ureq::get(&spec.download_url).call()?;

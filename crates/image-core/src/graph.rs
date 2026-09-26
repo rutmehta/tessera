@@ -20,7 +20,8 @@ pub enum Frame {
 pub struct StageNode {
     /// The stage.
     pub stage: StageId,
-    /// Outputs are memoized in the [`crate::TileCache`] as `F16Planar`.
+    /// Outputs are memoized in [`crate::TileCache`]. RGB checkpoints use
+    /// `F16Planar`; learned raw Denoise retains `F32Planar` sensor samples.
     pub cacheable: bool,
     /// The stage runs an operator in M1. Unimplemented stages are identity
     /// (their settings must be default; `pipeline_cpu::validate_settings`
@@ -62,6 +63,7 @@ impl PipelineGraph {
     pub fn m2() -> Self {
         let mut graph = Self::m1();
         for stage in [
+            StageId::Denoise,
             StageId::Detail,
             StageId::Color,
             StageId::Locals,
@@ -168,8 +170,8 @@ impl PipelineGraph {
             .collect()
     }
 
-    /// Renderer-local contract: raw Denoise remains reserved. RGB settings and
-    /// colour/model adapter revision belong to the Demosaic tail and successors.
+    /// CFA settings/calibration/mask revision enter at Denoise. Legacy RGB
+    /// settings and colour adapter revision enter at the Demosaic tail.
     /// `seed` identifies the process/operator set and enters at CameraProfile,
     /// allowing native/Adobe requests to share all preceding raw-stage keys.
     pub fn stage_chain(
@@ -178,12 +180,19 @@ impl PipelineGraph {
         adapter_revision: &str,
     ) -> [(StageId, ParamHash); StageId::COUNT] {
         let mut hashes = settings.stage_hashes();
-        hashes[StageId::Denoise.index()].1 =
-            DevelopSettings::default().stage_hashes()[StageId::Denoise.index()].1;
-        hashes[StageId::Demosaic.index()].1 = ParamHash::chain(
-            hashes[StageId::Demosaic.index()].1,
-            ParamHash::of(StageId::Demosaic, &(&settings.denoise, adapter_revision)),
-        );
+        if pipeline_cpu::cfa_denoise_selected(&settings.denoise) {
+            hashes[StageId::Denoise.index()].1 = ParamHash::chain(
+                hashes[StageId::Denoise.index()].1,
+                ParamHash::of(StageId::Denoise, &adapter_revision),
+            );
+        } else {
+            hashes[StageId::Denoise.index()].1 =
+                DevelopSettings::default().stage_hashes()[StageId::Denoise.index()].1;
+            hashes[StageId::Demosaic.index()].1 = ParamHash::chain(
+                hashes[StageId::Demosaic.index()].1,
+                ParamHash::of(StageId::Demosaic, &(&settings.denoise, adapter_revision)),
+            );
+        }
         let mut acc = ParamHash::default();
         hashes.map(|(stage, hash)| {
             if stage == StageId::CameraProfile {
