@@ -5,7 +5,7 @@ use std::sync::{Arc, OnceLock};
 
 use compositor::gpu::GpuCompositor;
 use compositor::resident::ResidentRenderer;
-use compositor::{Compositor, Depth, DocOp, DocState, Document, Layer, LayerKind, LayerProps};
+use compositor::{Depth, DocOp, DocState, Document, Layer, LayerKind, LayerProps};
 use engine_api::id::{DocumentId, LayerId};
 use engine_api::tile::Extent;
 use engine_api::{EngineError, EngineResult};
@@ -114,7 +114,9 @@ impl Documents {
                 return Ok(None);
             };
             if session.renderer.is_none() {
-                session.renderer = Some(ResidentRenderer::with_budget(gpu, RESIDENT_BUDGET)?);
+                let mut renderer = ResidentRenderer::with_budget(gpu, RESIDENT_BUDGET)?;
+                renderer.set_filter_evaluator(Arc::new(filters::CompositorFilters))?;
+                session.renderer = Some(renderer);
             }
             let r = session.renderer.as_mut().expect("just created");
             r.render(&session.doc, level)?;
@@ -132,7 +134,7 @@ impl Documents {
                     );
                 }
                 session.renderer = None;
-                Compositor::new(64 << 20).render_level_rgba(&session.doc, level)?
+                super::filters::compositor(64 << 20).render_level_rgba(&session.doc, level)?
             }
         };
         Ok((level, to_rgba8(e, &rgba, state.depth)?))
@@ -257,6 +259,6 @@ fn thumbnail(state: &DocState, layer: &Layer, px: u32) -> EngineResult<Option<im
         layer: alone,
     })?;
     let level = level_for(state.canvas, px);
-    let (e, rgba) = Compositor::new(16 << 20).render_level_rgba(&doc, level)?;
+    let (e, rgba) = super::filters::compositor(16 << 20).render_level_rgba(&doc, level)?;
     Ok(Some(to_rgba8(e, &rgba, state.depth)?))
 }

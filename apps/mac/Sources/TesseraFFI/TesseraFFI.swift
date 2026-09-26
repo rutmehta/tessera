@@ -4109,6 +4109,11 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
     func applyAdjustment(layer: UInt64, adjustmentJson: String) throws  -> DocumentUpdate
     
     /**
+     * Existing JSON API, also accepting all `RasterFilterOperation` adapter IDs.
+     */
+    func applyFilter(layer: UInt64, filterJson: String) throws  -> DocumentUpdate
+    
+    /**
      * Applies `filter_json` to `layer` as one history node (labelled with
      * the filter's name). Pixel layers are filtered at full resolution
      * inside the selection (all of it without one); smart objects get the
@@ -4116,7 +4121,7 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
      * Blocking (seconds on large layers): call off the main thread;
      * `cancel_filter` stops it.
      */
-    func applyFilter(layer: UInt64, filterJson: String) throws  -> DocumentUpdate
+    func applyRasterFilter(layer: UInt64, request: RasterFilterRequest) throws  -> DocumentUpdate
     
     /**
      * Cancels a running `apply_filter` / `apply_adjustment` and the preview.
@@ -4168,6 +4173,12 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
      * Like `preview_filter`, re-editing smart filter `index` of a smart object.
      */
     func previewSmartFilter(layer: UInt64, index: UInt32, filterJson: String, region: DocRect?) throws 
+    
+    /**
+     * Explicit removal of geometric suggestions, not semantic segmentation.
+     * Detected masks are frozen in smart nodes, never rerun during rendering.
+     */
+    func removeDistractions(layer: UInt64, paramsJson: String) throws  -> DistractionRemovalResult
     
     /**
      * Deletes smart filter `index` (one history node).
@@ -5169,12 +5180,7 @@ open func applyAdjustment(layer: UInt64, adjustmentJson: String)throws  -> Docum
 }
     
     /**
-     * Applies `filter_json` to `layer` as one history node (labelled with
-     * the filter's name). Pixel layers are filtered at full resolution
-     * inside the selection (all of it without one); smart objects get the
-     * filter appended to their smart filters, masked by the selection.
-     * Blocking (seconds on large layers): call off the main thread;
-     * `cancel_filter` stops it.
+     * Existing JSON API, also accepting all `RasterFilterOperation` adapter IDs.
      */
 open func applyFilter(layer: UInt64, filterJson: String)throws  -> DocumentUpdate  {
     return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
@@ -5183,6 +5189,25 @@ open func applyFilter(layer: UInt64, filterJson: String)throws  -> DocumentUpdat
             self.uniffiCloneHandle(),
         FfiConverterUInt64.lower(layer),
         FfiConverterString.lower(filterJson),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Applies `filter_json` to `layer` as one history node (labelled with
+     * the filter's name). Pixel layers are filtered at full resolution
+     * inside the selection (all of it without one); smart objects get the
+     * filter appended to their smart filters, masked by the selection.
+     * Blocking (seconds on large layers): call off the main thread;
+     * `cancel_filter` stops it.
+     */
+open func applyRasterFilter(layer: UInt64, request: RasterFilterRequest)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_apply_raster_filter(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),
+        FfiConverterTypeRasterFilterRequest_lower(request),uniffiCallStatus
     )
 })
 }
@@ -5303,6 +5328,21 @@ open func previewSmartFilter(layer: UInt64, index: UInt32, filterJson: String, r
         FfiConverterOptionTypeDocRect.lower(region),uniffiCallStatus
     )
 }
+}
+    
+    /**
+     * Explicit removal of geometric suggestions, not semantic segmentation.
+     * Detected masks are frozen in smart nodes, never rerun during rendering.
+     */
+open func removeDistractions(layer: UInt64, paramsJson: String)throws  -> DistractionRemovalResult  {
+    return try  FfiConverterTypeDistractionRemovalResult_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_remove_distractions(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),
+        FfiConverterString.lower(paramsJson),uniffiCallStatus
+    )
+})
 }
     
     /**
@@ -10885,6 +10925,63 @@ public func FfiConverterTypeDevelopInfo_lift(_ buf: RustBuffer) throws -> Develo
 #endif
 public func FfiConverterTypeDevelopInfo_lower(_ value: DevelopInfo) -> RustBuffer {
     return FfiConverterTypeDevelopInfo.lower(value)
+}
+
+
+/**
+ * Removal update plus detected coverage and detector limitations.
+ */
+public struct DistractionRemovalResult: Equatable, Hashable {
+    public var update: DocumentUpdate
+    public var reportJson: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(update: DocumentUpdate, reportJson: String) {
+        self.update = update
+        self.reportJson = reportJson
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension DistractionRemovalResult: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDistractionRemovalResult: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DistractionRemovalResult {
+        return
+            try DistractionRemovalResult(
+                update: FfiConverterTypeDocumentUpdate.read(from: &buf), 
+                reportJson: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: DistractionRemovalResult, into buf: inout [UInt8]) {
+        FfiConverterTypeDocumentUpdate.write(value.update, into: &buf)
+        FfiConverterString.write(value.reportJson, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDistractionRemovalResult_lift(_ buf: RustBuffer) throws -> DistractionRemovalResult {
+    return try FfiConverterTypeDistractionRemovalResult.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDistractionRemovalResult_lower(_ value: DistractionRemovalResult) -> RustBuffer {
+    return FfiConverterTypeDistractionRemovalResult.lower(value)
 }
 
 
@@ -17970,6 +18067,78 @@ public func FfiConverterTypeQueueDelta_lower(_ value: QueueDelta) -> RustBuffer 
 
 
 /**
+ * Retouch/neural request. Applied destructively to pixels or appended to an
+ * existing smart object; use `convert_for_smart_filters` to opt into smart edits.
+ */
+public struct RasterFilterRequest: Equatable, Hashable {
+    public var operation: RasterFilterOperation
+    /**
+     * Strict adapter parameters in full-resolution canvas coordinates:
+     * Remove {mask,remove}; fill {mask,fill}; move/extend {mask,offset,fill,seam};
+     * liquify {mesh,interpolation}; skin {faces:[[x,y,w,h]],blur,smoothness};
+     * colorize {saturation}; JPEG {strength}; camera_raw uses its recipe schema.
+     * Masks are row-major floats, one per canvas pixel. No weights are downloaded.
+     */
+    public var paramsJson: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(operation: RasterFilterOperation, 
+        /**
+         * Strict adapter parameters in full-resolution canvas coordinates:
+         * Remove {mask,remove}; fill {mask,fill}; move/extend {mask,offset,fill,seam};
+         * liquify {mesh,interpolation}; skin {faces:[[x,y,w,h]],blur,smoothness};
+         * colorize {saturation}; JPEG {strength}; camera_raw uses its recipe schema.
+         * Masks are row-major floats, one per canvas pixel. No weights are downloaded.
+         */paramsJson: String) {
+        self.operation = operation
+        self.paramsJson = paramsJson
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension RasterFilterRequest: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRasterFilterRequest: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RasterFilterRequest {
+        return
+            try RasterFilterRequest(
+                operation: FfiConverterTypeRasterFilterOperation.read(from: &buf), 
+                paramsJson: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: RasterFilterRequest, into buf: inout [UInt8]) {
+        FfiConverterTypeRasterFilterOperation.write(value.operation, into: &buf)
+        FfiConverterString.write(value.paramsJson, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRasterFilterRequest_lift(_ buf: RustBuffer) throws -> RasterFilterRequest {
+    return try FfiConverterTypeRasterFilterRequest.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRasterFilterRequest_lower(_ value: RasterFilterRequest) -> RustBuffer {
+    return FfiConverterTypeRasterFilterRequest.lower(value)
+}
+
+
+/**
  * Select and Mask global refinements (pixels at level 0).
  */
 public struct RefineEdgeParams: Equatable, Hashable {
@@ -22366,6 +22535,124 @@ public func FfiConverterTypeRangeKind_lift(_ buf: RustBuffer) throws -> RangeKin
 #endif
 public func FfiConverterTypeRangeKind_lower(_ value: RangeKind) -> RustBuffer {
     return FfiConverterTypeRangeKind.lower(value)
+}
+
+
+
+/**
+ * Full-resolution operations supplied by the compositor filter adapter.
+ */
+
+public enum RasterFilterOperation: Equatable, Hashable {
+    
+    case remove
+    case contentAwareFill
+    case contentAwareMove
+    case contentAwareExtend
+    case liquify
+    case cameraRaw
+    case skinSmoothing
+    case colorize
+    case jpegArtifactRemoval
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension RasterFilterOperation: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRasterFilterOperation: FfiConverterRustBuffer {
+    typealias SwiftType = RasterFilterOperation
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RasterFilterOperation {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .remove
+        
+        case 2: return .contentAwareFill
+        
+        case 3: return .contentAwareMove
+        
+        case 4: return .contentAwareExtend
+        
+        case 5: return .liquify
+        
+        case 6: return .cameraRaw
+        
+        case 7: return .skinSmoothing
+        
+        case 8: return .colorize
+        
+        case 9: return .jpegArtifactRemoval
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: RasterFilterOperation, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .remove:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .contentAwareFill:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .contentAwareMove:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .contentAwareExtend:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .liquify:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .cameraRaw:
+            writeInt(&buf, Int32(6))
+        
+        
+        case .skinSmoothing:
+            writeInt(&buf, Int32(7))
+        
+        
+        case .colorize:
+            writeInt(&buf, Int32(8))
+        
+        
+        case .jpegArtifactRemoval:
+            writeInt(&buf, Int32(9))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRasterFilterOperation_lift(_ buf: RustBuffer) throws -> RasterFilterOperation {
+    return try FfiConverterTypeRasterFilterOperation.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRasterFilterOperation_lower(_ value: RasterFilterOperation) -> RustBuffer {
+    return FfiConverterTypeRasterFilterOperation.lower(value)
 }
 
 
@@ -26841,7 +27128,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_documentsession_apply_adjustment() != 62065) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_apply_filter() != 26962) {
+    if (uniffi_tessera_ffi_checksum_method_documentsession_apply_filter() != 65499) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_apply_raster_filter() != 15176) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_cancel_filter() != 59874) {
@@ -26866,6 +27156,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_preview_smart_filter() != 63495) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_remove_distractions() != 46557) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_remove_smart_filter() != 18175) {

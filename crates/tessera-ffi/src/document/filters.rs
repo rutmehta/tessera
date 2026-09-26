@@ -59,6 +59,40 @@ use std::{
 
 // ─────────────────────────────── records ───────────────────────────────
 
+/// Full-resolution operations supplied by the compositor filter adapter.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, uniffi::Enum)]
+pub enum RasterFilterOperation {
+    Remove,
+    ContentAwareFill,
+    ContentAwareMove,
+    ContentAwareExtend,
+    Liquify,
+    CameraRaw,
+    SkinSmoothing,
+    Colorize,
+    JpegArtifactRemoval,
+}
+
+/// Retouch/neural request. Applied destructively to pixels or appended to an
+/// existing smart object; use `convert_for_smart_filters` to opt into smart edits.
+#[derive(Clone, Debug, uniffi::Record)]
+pub struct RasterFilterRequest {
+    pub operation: RasterFilterOperation,
+    /// Strict adapter parameters in full-resolution canvas coordinates:
+    /// Remove {mask,remove}; fill {mask,fill}; move/extend {mask,offset,fill,seam};
+    /// liquify {mesh,interpolation}; skin {faces:[[x,y,w,h]],blur,smoothness};
+    /// colorize {saturation}; JPEG {strength}; camera_raw uses its recipe schema.
+    /// Masks are row-major floats, one per canvas pixel. No weights are downloaded.
+    pub params_json: String,
+}
+
+/// Removal update plus detected coverage and detector limitations.
+#[derive(Clone, Debug, uniffi::Record)]
+pub struct DistractionRemovalResult {
+    pub update: DocumentUpdate,
+    pub report_json: String,
+}
+
 /// One Filter menu entry (`filters::registry`).
 #[derive(Clone, Debug, PartialEq, Eq, uniffi::Record)]
 pub struct FilterInfo {
@@ -145,7 +179,61 @@ pub(crate) struct Spec {
     json: String,
 }
 
+fn adapter_id(id: &str) -> bool {
+    matches!(
+        id,
+        "remove"
+            | "content_aware_fill"
+            | "content_aware_move"
+            | "content_aware_extend"
+            | "liquify"
+            | "camera_raw"
+            | "neural/skin_smoothing"
+            | "neural/colorize"
+            | "neural/jpeg_artifact_removal"
+    )
+}
+
 impl Spec {
+    fn run(
+        &self,
+        img: &Img,
+        context: &compositor::render::smart_filters::FilterContext,
+        cancel: &AtomicBool,
+    ) -> Result<Img> {
+        if !adapter_id(&self.id) {
+            let (effect, params) = self.at(context.level as u8)?;
+            return run_effect(effect, &params, img, cancel);
+        }
+        if context.level != 0 || img.rect != Rect::of_extent(context.canvas) {
+            return Err(failure(
+                "retouch filters require the complete level-0 canvas",
+            ));
+        }
+        if cancel.load(Ordering::Relaxed) {
+            return Err(failure("cancelled"));
+        }
+        let v: serde_json::Value = serde_json::from_str(&self.json).map_err(failure)?;
+        let input = raster_from_rgba(context.canvas, compositor::Depth::F32, &img.px, false)?;
+        use compositor::render::smart_filters::SmartFilterEvaluator;
+        let output = filters::CompositorFilters.evaluate(
+            &input,
+            &SmartFilter {
+                name: self.id.clone(),
+                params: v["params"].clone(),
+                ..Default::default()
+            },
+            context,
+        )?;
+        if cancel.load(Ordering::Relaxed) {
+            return Err(failure("cancelled"));
+        }
+        Ok(Img {
+            rect: img.rect,
+            px: raster_rgba(&output)?,
+        })
+    }
+
     fn parse(json: &str) -> Result<Self> {
         let v: serde_json::Value =
             serde_json::from_str(json).map_err(|e| failure(format!("filter JSON: {e}")))?;
@@ -163,6 +251,13 @@ impl Spec {
         let obj = params
             .as_object()
             .ok_or_else(|| failure("filter \"params\" must be an object"))?;
+        if adapter_id(&id) {
+            return Ok(Self {
+                id: id.clone(),
+                values,
+                json: serde_json::json!({"id":id,"params":params}).to_string(),
+            });
+        }
         for (k, p) in obj {
             let value = match p {
                 serde_json::Value::Number(n) => ParamValue::Number(n.as_f64().unwrap_or(f64::NAN)),
@@ -223,9 +318,18 @@ impl Node {
 
     fn of(sf: &SmartFilter) -> Result<Self> {
         let p = &sf.params;
+        if adapter_id(&sf.name) && p.get("filter").is_none() {
+            return Ok(Self {
+                spec: Spec::from_value(&serde_json::json!({"id":sf.name,"params":p}))?,
+                enabled: sf.enabled,
+                opacity: sf.blend.opacity,
+                blend: sf.blend.mode,
+                mask_png: None,
+            });
+        }
         let spec = Spec::from_value(
             p.get("filter")
-                .unwrap_or(&serde_json::json!({ "id": sf.name })),
+                .unwrap_or(&serde_json::json!({ "id": sf.name, "params": sf.params })),
         )?;
         Ok(Self {
             spec,
@@ -250,6 +354,17 @@ impl Node {
     fn store(&self) -> SmartFilter {
         let filter: serde_json::Value =
             serde_json::from_str(&self.spec.json).unwrap_or(serde_json::Value::Null);
+        if adapter_id(&self.spec.id) && self.mask_png.is_none() {
+            return SmartFilter {
+                name: self.spec.id.clone(),
+                enabled: self.enabled,
+                blend: compositor::render::smart_filters::FilterBlend {
+                    mode: self.blend,
+                    opacity: self.opacity,
+                },
+                params: filter["params"].clone(),
+            };
+        }
         let mut params = serde_json::json!({
             "filter": filter,
             "opacity": self.opacity,
@@ -285,6 +400,10 @@ impl Node {
             })
         )
     }
+}
+
+fn full_resolution(nodes: &[Node]) -> bool {
+    nodes.iter().any(|n| n.enabled && adapter_id(&n.spec.id))
 }
 
 fn nodes_of(so: &SmartObject) -> Result<Vec<Node>> {
@@ -601,6 +720,9 @@ fn run_effect(effect: Effect, p: &FilterParams, img: &Img, cancel: &AtomicBool) 
 fn stack_halo(nodes: &[Node], level: u8) -> Result<Option<i64>> {
     let mut sum = 0i64;
     for n in nodes.iter().filter(|n| n.enabled) {
+        if adapter_id(&n.spec.id) {
+            return Ok(None);
+        }
         let (e, p) = n.spec.at(level)?;
         match e.halo(&p) {
             Halo::WholeImage => return Ok(None),
@@ -652,12 +774,20 @@ fn eval_stack(
     nodes: &[Node],
     level: u8,
     canvas: Extent,
+    profile: Option<compositor::document::ColorProfile>,
     cancel: &AtomicBool,
 ) -> Result<Img> {
     let mut cur = src;
     for n in nodes.iter().filter(|n| n.enabled) {
-        let (e, p) = n.spec.at(level)?;
-        let f = run_effect(e, &p, &cur, cancel)?;
+        let f = n.spec.run(
+            &cur,
+            &compositor::render::smart_filters::FilterContext {
+                profile: profile.clone(),
+                level: u32::from(level),
+                canvas,
+            },
+            cancel,
+        )?;
         let mask = n
             .mask_png
             .as_deref()
@@ -1042,6 +1172,69 @@ fn source(
     Ok(img)
 }
 
+/// Bridge legacy menu JSON while letting the compositor own child coordinates,
+/// placement, shared filter masks and per-node blending for native stacks.
+struct NativeFilterEvaluator;
+impl compositor::render::smart_filters::SmartFilterEvaluator for NativeFilterEvaluator {
+    fn evaluate(
+        &self,
+        input: &Raster,
+        filter: &SmartFilter,
+        context: &compositor::render::smart_filters::FilterContext,
+    ) -> engine_api::EngineResult<Raster> {
+        if adapter_id(&filter.name) && filter.params.get("filter").is_none() {
+            return filters::CompositorFilters.evaluate(input, filter, context);
+        }
+        let convert =
+            |e: crate::BridgeError| engine_api::EngineError::invalid("smart filter", e.to_string());
+        let mut node = Node::of(filter).map_err(convert)?;
+        node.opacity = 1.0;
+        node.blend = BlendMode::Normal;
+        let img = Img {
+            rect: Rect::of_extent(input.extent()),
+            px: raster_rgba(input).map_err(convert)?,
+        };
+        let out = eval_stack(
+            img,
+            &[node],
+            context.level as u8,
+            context.canvas,
+            context.profile.clone(),
+            &AtomicBool::new(false),
+        )
+        .map_err(convert)?;
+        raster_from_rgba(input.extent(), compositor::Depth::F32, &out.px, false).map_err(convert)
+    }
+}
+
+fn native_filtered(base: &DocState, layer: &Layer, nodes: &[Node], unplaced: bool) -> Result<Img> {
+    let neutral = solo(base, layer);
+    let mut l = (*neutral.state().root[0]).clone();
+    l.kind = layer.kind.clone();
+    let LayerKind::SmartObject(so) = &mut l.kind else {
+        return Err(failure("native stack requires a smart object"));
+    };
+    so.filters = nodes.iter().map(Node::store).collect();
+    let (canvas, profile) = if unplaced {
+        so.transform = Affine::IDENTITY;
+        so.filter_mask = None;
+        (so.state.canvas, so.state.profile.clone())
+    } else {
+        (base.canvas, base.profile.clone())
+    };
+    let mut state = DocState::new(canvas, compositor::Depth::F32);
+    state.profile = profile;
+    state.next_id = base.next_id;
+    state.root.push(Arc::new(l));
+    let mut comp = Compositor::new(64 << 20);
+    comp.set_filter_evaluator(Arc::new(NativeFilterEvaluator));
+    let (_, px) = comp.render_level_rgba(&Document::new(state), 0)?;
+    Ok(Img {
+        rect: Rect::of_extent(canvas),
+        px,
+    })
+}
+
 /// Runs `nodes` over the layer's pixels for `region` (with the halo the
 /// stack needs), cropped to `region`. Stack prefixes are cached so a
 /// re-edited or appended filter does not recompute the filters below it.
@@ -1056,6 +1249,19 @@ fn filtered(
     region: Rect,
     cancel: &AtomicBool,
 ) -> Result<Img> {
+    if full_resolution(nodes) && matches!(layer.kind, LayerKind::SmartObject(_)) {
+        if level != 0 {
+            return Err(failure("native retouch stacks require level 0"));
+        }
+        if cancel.load(Ordering::Relaxed) {
+            return Err(failure("cancelled"));
+        }
+        let image = native_filtered(base, layer, nodes, false)?;
+        if cancel.load(Ordering::Relaxed) {
+            return Err(failure("cancelled"));
+        }
+        return Ok(image.crop(region));
+    }
     let full = Rect::of_extent(base.canvas.at_level(level));
     let region = region.intersect(&full);
     let need = match stack_halo(nodes, level)? {
@@ -1088,7 +1294,14 @@ fn filtered(
         None => (*source(q, comp, base, layer, level, need)?).clone(),
     };
     for k in start..nodes.len() {
-        cur = eval_stack(cur, &nodes[k..=k], level, base.canvas, cancel)?;
+        cur = eval_stack(
+            cur,
+            &nodes[k..=k],
+            level,
+            base.canvas,
+            base.profile.clone(),
+            cancel,
+        )?;
         // Cache the prefix below the top filter (what previews re-run on).
         if k + 2 == nodes.len() {
             store_img(q, prefix_key(k + 1), Arc::new(cur.clone()));
@@ -1352,13 +1565,25 @@ pub(crate) fn presented(
         });
         if !good {
             // A full bake at this level first; level 0 then refines the view.
-            let job_level = if level == 0 && fresh { 0 } else { level.max(1) };
+            let exact = match &l.kind {
+                LayerKind::SmartObject(so) => nodes_of(so).is_ok_and(|n| full_resolution(&n)),
+                _ => false,
+            };
+            let job_level = if exact || (level == 0 && fresh) {
+                0
+            } else {
+                level.max(1)
+            };
             let job = BakeJob {
                 key: bk.clone(),
                 base: state.clone(),
                 layer: id,
                 level: job_level,
-                region: (job_level == 0).then_some(wanted_region).flatten(),
+                region: if exact {
+                    None
+                } else {
+                    (job_level == 0).then_some(wanted_region).flatten()
+                },
             };
             let queued = i.bake_jobs.get(&id).is_some_and(|j| {
                 j.key == job.key && j.level == job.level && j.region == job.region
@@ -1545,8 +1770,12 @@ impl DocumentSession {
             st.open()?;
             let s = st.live().state().clone();
             let l = find(&s, layer)?;
-            edited_stack(l, &edit)?;
-            let (level, r) = preview_view(&st, region);
+            let nodes = edited_stack(l, &edit)?;
+            let (level, r) = if full_resolution(&nodes) {
+                (0, Rect::of_extent(s.canvas))
+            } else {
+                preview_view(&st, region)
+            };
             (s, level, r)
         };
         let fs = &self.shared.filters;
@@ -1693,6 +1922,16 @@ impl DocumentSession {
         label: &str,
         f: impl FnOnce(&mut Vec<Node>) -> Result<()>,
     ) -> Result<DocumentUpdate> {
+        self.set_nodes_checked(layer, label, None, f)
+    }
+
+    fn set_nodes_checked(
+        &self,
+        layer: u64,
+        label: &str,
+        expected_revision: Option<u64>,
+        f: impl FnOnce(&mut Vec<Node>) -> Result<()>,
+    ) -> Result<DocumentUpdate> {
         self.clear_preview_state();
         let mut st = self.shared.lock()?;
         st.open()?;
@@ -1700,11 +1939,30 @@ impl DocumentSession {
         self.commit_pending(&mut st, None)?;
         let s = st.doc.state().clone();
         let l = find(&s, layer)?;
+        if expected_revision.is_some_and(|r| r != super::layer_revision(l)) {
+            return Err(failure(
+                "the layer changed while the filter ran; apply it again",
+            ));
+        }
         let LayerKind::SmartObject(so) = &l.kind else {
             return Err(failure(format!("layer {layer} is not a smart object")));
         };
         let mut nodes = nodes_of(so)?;
         f(&mut nodes)?;
+        // Validate with actual pixels/context before changing history. In particular,
+        // unavailable neural weights must never leave an unrenderable smart node.
+        if full_resolution(&nodes) {
+            filtered(
+                &self.shared.filters.q,
+                &self.shared.filters.comp,
+                &s,
+                l,
+                &nodes,
+                0,
+                Rect::of_extent(s.canvas),
+                &AtomicBool::new(false),
+            )?;
+        }
         let mut nl = l.clone();
         if let LayerKind::SmartObject(so) = &mut nl.kind {
             so.filters = nodes.iter().map(Node::store).collect();
@@ -1834,7 +2092,7 @@ impl DocumentSession {
         let nodes = edited_stack(l, &StackEdit::Append(spec))?;
         let r0 = Rect::new(x, y, x + i64::from(width), y + i64::from(height));
         // Whole-image filters are filtered on a level of at most ~4 MP.
-        let level = if stack_halo(&nodes, 0)?.is_none() {
+        let level = if !full_resolution(&nodes) && stack_halo(&nodes, 0)?.is_none() {
             (0..super::render::MAX_VIEW_LEVEL)
                 .find(|&lv| base.canvas.at_level(lv).area() <= 4_000_000)
                 .unwrap_or(0)
@@ -1894,6 +2152,102 @@ impl DocumentSession {
     /// filter appended to their smart filters, masked by the selection.
     /// Blocking (seconds on large layers): call off the main thread;
     /// `cancel_filter` stops it.
+    pub fn apply_raster_filter(
+        &self,
+        layer: u64,
+        request: RasterFilterRequest,
+    ) -> Result<DocumentUpdate> {
+        let id = match request.operation {
+            RasterFilterOperation::Remove => "remove",
+            RasterFilterOperation::ContentAwareFill => "content_aware_fill",
+            RasterFilterOperation::ContentAwareMove => "content_aware_move",
+            RasterFilterOperation::ContentAwareExtend => "content_aware_extend",
+            RasterFilterOperation::Liquify => "liquify",
+            RasterFilterOperation::CameraRaw => "camera_raw",
+            RasterFilterOperation::SkinSmoothing => "neural/skin_smoothing",
+            RasterFilterOperation::Colorize => "neural/colorize",
+            RasterFilterOperation::JpegArtifactRemoval => "neural/jpeg_artifact_removal",
+        };
+        let params: serde_json::Value =
+            serde_json::from_str(&request.params_json).map_err(failure)?;
+        self.apply_filter(
+            layer,
+            serde_json::json!({"id":id,"params":params}).to_string(),
+        )
+    }
+
+    /// Explicit removal of geometric suggestions, not semantic segmentation.
+    /// Detected masks are frozen in smart nodes, never rerun during rendering.
+    pub fn remove_distractions(
+        &self,
+        layer: u64,
+        params_json: String,
+    ) -> Result<DistractionRemovalResult> {
+        let params: serde_json::Value = serde_json::from_str(&params_json).map_err(failure)?;
+        let (base, selection) = self.filter_target(layer)?;
+        let l = find(&base, layer)?;
+        if l.props.locks.pixels || l.props.locks.all {
+            return Err(failure("the layer's pixels are locked"));
+        }
+        if selection.is_some() {
+            return Err(failure(
+                "remove_distractions requires no active selection; use Remove for selected coverage",
+            ));
+        }
+        let full = Rect::of_extent(base.canvas);
+        let nodes = match &l.kind {
+            LayerKind::Pixel(_) => Vec::new(),
+            LayerKind::SmartObject(so) => nodes_of(so)?,
+            _ => return Err(failure("filters apply to pixel layers and smart objects")),
+        };
+        let cancel = AtomicBool::new(false);
+        let img = if matches!(l.kind, LayerKind::SmartObject(_)) {
+            native_filtered(&base, l, &nodes, true)?
+        } else {
+            filtered(
+                &self.shared.filters.q,
+                &self.shared.filters.comp,
+                &base,
+                l,
+                &nodes,
+                0,
+                full,
+                &cancel,
+            )?
+        };
+        let extent = Extent::new(img.rect.width() as u32, img.rect.height() as u32);
+        let input = raster_from_rgba(extent, compositor::Depth::F32, &img.px, false)?;
+        let (node, report) = filters::detect_distractions(&input, &params)?;
+        let spec = Spec::from_value(&serde_json::json!({"id":node.name,"params":node.params}))?;
+        let update = if matches!(l.kind, LayerKind::SmartObject(_)) {
+            self.set_nodes_checked(
+                layer,
+                "Remove Distractions",
+                Some(super::layer_revision(l)),
+                move |nodes| {
+                    nodes.push(Node::new(spec));
+                    Ok(())
+                },
+            )?
+        } else {
+            let output = spec.run(
+                &img,
+                &compositor::render::smart_filters::FilterContext {
+                    profile: base.profile.clone(),
+                    canvas: base.canvas,
+                    level: 0,
+                },
+                &cancel,
+            )?;
+            self.write_pixels(&base, layer, &output, "Remove Distractions")?
+        };
+        Ok(DistractionRemovalResult {
+            update,
+            report_json: report.to_string(),
+        })
+    }
+
+    /// Existing JSON API, also accepting all `RasterFilterOperation` adapter IDs.
     pub fn apply_filter(&self, layer: u64, filter_json: String) -> Result<DocumentUpdate> {
         let spec = Spec::parse(&filter_json)?;
         let (base, sel) = self.filter_target(layer)?;
@@ -1903,6 +2257,11 @@ impl DocumentSession {
         }
         let name = spec.name();
         if let LayerKind::SmartObject(_) = l.kind {
+            if adapter_id(&spec.id) && sel.is_some() {
+                return Err(failure(
+                    "retouch smart filters require no active selection; supply an explicit operation mask",
+                ));
+            }
             let mask = sel.as_deref().map(mask_from_selection).transpose()?;
             return self.set_nodes(layer, &name, move |nodes| {
                 let mut n = Node::new(spec);
@@ -1933,8 +2292,13 @@ impl DocumentSession {
         if region.is_empty() {
             return Err(failure("the selection is empty"));
         }
-        let (effect, params) = spec.at(0)?;
-        let need = match effect.halo(&params) {
+        let halo = if adapter_id(&spec.id) {
+            Halo::WholeImage
+        } else {
+            let (effect, params) = spec.at(0)?;
+            effect.halo(&params)
+        };
+        let need = match halo {
             Halo::WholeImage => full,
             Halo::Radius(h) => region.inflate(i64::from(h)).intersect(&full),
         };
@@ -1942,7 +2306,17 @@ impl DocumentSession {
             rect: need,
             px: read_raster(raster, need)?,
         };
-        let out = run_effect(effect, &params, &src, &cancel)?.crop(region);
+        let out = spec
+            .run(
+                &src,
+                &compositor::render::smart_filters::FilterContext {
+                    profile: base.profile.clone(),
+                    level: 0,
+                    canvas: base.canvas,
+                },
+                &cancel,
+            )?
+            .crop(region);
         self.write_pixels(&base, layer, &out, &name)
     }
 

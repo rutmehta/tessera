@@ -53,6 +53,176 @@ fn max_diff(a: &[f32], b: &[f32]) -> f32 {
         .fold(0.0, f32::max)
 }
 
+#[test]
+fn m5_distractions_reports_masks_and_records_one_edit() {
+    let (dir, engine) = engine();
+    let s = open(&engine, &opaque_png(dir.path(), "distractions.png", 24, 24));
+    let layer = s.layers().unwrap()[0].id;
+    let history = s.history_items().unwrap().len();
+    let result = s
+        .remove_distractions(
+            layer,
+            r#"{"faces":[[10,10,2,2]],"wires":false,"remove":{"backend":"cpu","dilation":0}}"#
+                .into(),
+        )
+        .unwrap();
+    let report: serde_json::Value = serde_json::from_str(&result.report_json).unwrap();
+    assert_eq!(report["mask"].as_array().unwrap().len(), 576);
+    assert!(
+        report["mask"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|v| v.as_f64() == Some(1.0))
+    );
+    assert_eq!(s.history_items().unwrap().len(), history + 1);
+    s.undo().unwrap();
+}
+
+#[test]
+fn m5_native_smart_coordinates_and_shared_mask_survive_ffi() {
+    use compositor::{DocState, Layer, LayerKind, Raster, Rect, SmartObject};
+    let (dir, engine) = engine();
+    let child_extent = Extent::new(12, 12);
+    let mut child = DocState::new(child_extent, Depth::F32);
+    let mut layer = Layer::pixel("child", child_extent, Depth::F32);
+    layer.id = engine_api::id::LayerId(1);
+    layer
+        .raster_mut()
+        .unwrap()
+        .edit_region(Rect::of_extent(child_extent), 1, |x, y, p| {
+            *p = [((x * 7 + y * 11) % 23) as f32 / 24.0, 0.3, 0.4, 1.0]
+        })
+        .unwrap();
+    child.root.push(Arc::new(layer));
+    child.next_id = 2;
+    let mut object = SmartObject::new(
+        child,
+        compositor::Affine {
+            m: [1.0, 0.0, 0.0, 1.0, 4.0, 4.0],
+        },
+    );
+    object.filter_mask = Some(compositor::Mask {
+        raster: Raster::new(child_extent, 1, Depth::F32, 0.0),
+        ..compositor::Mask::reveal_all(child_extent, Depth::F32)
+    });
+    let mut layer = Layer::new("smart", LayerKind::SmartObject(object));
+    layer.id = engine_api::id::LayerId(1);
+    let mut parent = DocState::new(Extent::new(24, 24), Depth::F32);
+    parent.root.push(Arc::new(layer));
+    parent.next_id = 2;
+    let path = dir.path().join("placed.tessera-doc");
+    compositor::format::save(&Document::new(parent), &path).unwrap();
+    let s = open(&engine, &path);
+    let before = s.read_presented_level(0).unwrap().2;
+    let mut mask = vec![0.0; 144];
+    mask[65] = 1.0;
+    s.apply_filter(1, serde_json::json!({"id":"remove","params":{"mask":mask,"remove":{"backend":"cpu","dilation":0,"fill":{"patch_radius":1}}}}).to_string()).unwrap();
+    let shown = s.read_presented_level(0).unwrap().2;
+    assert_eq!(s.filter_error(), None);
+    assert!(
+        max_diff(&before, &shown) < 1e-6,
+        "black shared mask must suppress the retouch"
+    );
+}
+
+#[test]
+fn m5_retouch_cpu_patchmatch_is_destructive_and_undoable() {
+    let (dir, engine) = engine();
+    let s = open(&engine, &opaque_png(dir.path(), "retouch.png", 24, 24));
+    let id = s.layers().unwrap()[0].id;
+    let before = live_level(&s, 0).1;
+    let history = s.history_items().unwrap().len();
+    let mut mask = vec![0.0; 24 * 24];
+    for y in 10..14 {
+        for x in 10..14 {
+            mask[y * 24 + x] = 1.0;
+        }
+    }
+    s.apply_filter(
+        id,
+        serde_json::json!({"id":"remove","params":{
+            "mask":mask,"remove":{"backend":"cpu","dilation":0}
+        }})
+        .to_string(),
+    )
+    .unwrap();
+    let after = live_level(&s, 0).1;
+    assert!(max_diff(&before, &after) > 0.01);
+    assert_eq!(&before[..4], &after[..4]);
+    assert_eq!(s.history_items().unwrap().len(), history + 1);
+    s.undo().unwrap();
+    assert_eq!(live_level(&s, 0).1, before);
+}
+
+#[test]
+fn m5_neural_missing_weights_never_commits_smart_filter() {
+    let (dir, engine) = engine();
+    let s = open(&engine, &opaque_png(dir.path(), "neural.png", 24, 24));
+    let id = s.layers().unwrap()[0].id;
+    s.convert_for_smart_filters(id).unwrap();
+    let history = s.history_items().unwrap().len();
+    for id_filter in ["neural/colorize", "neural/jpeg_artifact_removal"] {
+        let error = s
+            .apply_filter(
+                id,
+                serde_json::json!({"id":id_filter,"params":{}}).to_string(),
+            )
+            .unwrap_err()
+            .to_string();
+        assert!(error.to_lowercase().contains("unsupported"), "{error}");
+        assert!(s.smart_filters(id).unwrap().is_empty());
+        assert_eq!(s.history_items().unwrap().len(), history);
+    }
+}
+
+#[test]
+fn m5_smart_retouch_renders_at_zoomed_out_level() {
+    let (dir, engine) = engine();
+    let path = opaque_png(dir.path(), "smart-retouch.png", 24, 24);
+    let s = open(&engine, &path);
+    let id = s.layers().unwrap()[0].id;
+    s.convert_for_smart_filters(id).unwrap();
+    let mut mask = vec![0.0; 24 * 24];
+    for y in 10..14 {
+        for x in 10..14 {
+            mask[y * 24 + x] = 1.0;
+        }
+    }
+    let json = serde_json::json!({"id":"remove","params":{"mask":mask,"remove":{"backend":"cpu","dilation":0}}}).to_string();
+    s.apply_filter(id, json.clone()).unwrap();
+    let record = s.smart_filters(id).unwrap().remove(0);
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&record.filter_json).unwrap(),
+        serde_json::from_str::<serde_json::Value>(&json).unwrap()
+    );
+    s.read_presented_level(1).unwrap();
+    s.wait_filters_idle();
+    assert_eq!(s.filter_error(), None);
+    let shown = s.read_presented_level(1).unwrap().2;
+    assert!(max_diff(&shown, &live_level(&s, 1).1) > 0.005);
+}
+
+#[test]
+fn m5_record_request_rejects_invalid_mask_without_history() {
+    let (dir, engine) = engine();
+    let s = open(&engine, &opaque_png(dir.path(), "record.png", 24, 24));
+    let layer = s.layers().unwrap()[0].id;
+    let history = s.history_items().unwrap().len();
+    let error = s
+        .apply_raster_filter(
+            layer,
+            RasterFilterRequest {
+                operation: RasterFilterOperation::ContentAwareFill,
+                params_json: r#"{"mask":[1.0]}"#.into(),
+            },
+        )
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("mask"), "{error}");
+    assert_eq!(s.history_items().unwrap().len(), history);
+}
+
 fn gaussian(radius: f32) -> String {
     format!(r#"{{"id":"gaussian_blur","params":{{"radius":{radius}}}}}"#)
 }

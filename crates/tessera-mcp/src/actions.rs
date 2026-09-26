@@ -551,6 +551,12 @@ pub fn play(
                                     out.selection = *selection;
                                     out.channel = *channel;
                                 }
+                                DocumentToolOutput::DistractionsRemoved {
+                                    document, layer, ..
+                                } => {
+                                    out.document = Some(*document);
+                                    out.layer = Some(*layer);
+                                }
                                 _ => {}
                             }
                             Ok(serde_json::to_value(o)?)

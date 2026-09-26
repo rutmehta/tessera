@@ -115,6 +115,11 @@ enum Input {
 }
 impl Input {
     fn parse(name: &str, mut args: Value) -> Result<Self, ErrorData> {
+        let name = if name == "remove_object" && args.get("document").is_some() {
+            "document_remove_object"
+        } else {
+            name
+        };
         Ok(match name {
             "stage_channel_raster" => Self::StageChannel(arguments(args)?),
             _ if crate::documents::local_tools::NAMES.contains(&name) => {
@@ -165,7 +170,8 @@ fn dispatch(console: &mut Console, input: Input) -> Result<CallToolResult, Error
                     envelope["warnings"] = json!(console.documents().session(*document)?.warnings);
                 }
                 let mut content = vec![text(envelope)];
-                if let DocumentToolOutput::DocumentEdited { document, .. } = output
+                if let DocumentToolOutput::DocumentEdited { document, .. }
+                | DocumentToolOutput::DistractionsRemoved { document, .. } = output
                     && let Ok(preview) = console.render_document_preview(document, EDIT_PREVIEW_PX)
                 {
                     content.push(rgba_image(&preview)?);
@@ -383,6 +389,27 @@ fn histogram_image(rgb: &image::RgbImage) -> Result<image::RgbImage, EngineError
 #[cfg(test)]
 mod people_tests {
     use super::*;
+    #[test]
+    fn remove_object_document_alias_has_union_schema_and_canonical_dispatch() {
+        let recipe = json!({"image":"1".repeat(32),"mask":1});
+        let document = json!({"document":1,"layer":2,"params":{"mask":[]},"expect_head":null});
+        schema::validate("remove_object", &recipe).unwrap();
+        schema::validate("remove_object", &document).unwrap();
+        assert!(matches!(
+            Input::parse("remove_object", recipe).unwrap(),
+            Input::Engine(_)
+        ));
+        let Input::Document(req) = Input::parse("remove_object", document).unwrap() else {
+            panic!("recipe dispatch")
+        };
+        assert_eq!(req.call.name(), "document_remove_object");
+        assert_eq!(req.expect_head, Some(None));
+        let tool = schema::tools()
+            .into_iter()
+            .find(|v| v["name"] == "remove_object")
+            .unwrap();
+        assert_eq!(tool["inputSchema"]["oneOf"].as_array().unwrap().len(), 2);
+    }
 
     #[test]
     fn library_request_dispatches_to_catalog_and_reports_missing_person() {

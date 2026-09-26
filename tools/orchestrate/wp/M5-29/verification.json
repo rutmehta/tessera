@@ -1,0 +1,31 @@
+{
+  "result": "PASS",
+  "gate_exit": 0,
+  "tests": {
+    "passed": 398,
+    "failed": 0,
+    "ignored": 13
+  },
+  "gates": [
+    "cargo test -p filters -p tessera-mcp -p tessera-ffi -p engine-api --release",
+    "cargo clippy -p filters -p tessera-mcp -p tessera-ffi -p engine-api --all-targets -- -D warnings",
+    "cargo fmt --check",
+    "cargo check --workspace",
+    "cd apps/mac && ./build-ffi.sh && swift build"
+  ],
+  "target_dir": "/Volumes/betterSSD/tessera-cache/target/M5-29",
+  "weighted_inference_tested": false,
+  "generated_bindings_verified": [
+    "RasterFilterRequest",
+    "RasterFilterOperation",
+    "DistractionRemovalResult",
+    "applyRasterFilter",
+    "removeDistractions"
+  ],
+  "notes": [
+    "Model-backed neural missing-weights paths exercised without downloads.",
+    "Distraction detector is the existing geometric proxy, not semantic segmentation.",
+    "Native transformed smart-object and shared-mask regression passed.",
+    "Generated UniFFI output retains generator whitespace conventions."
+  ]
+}

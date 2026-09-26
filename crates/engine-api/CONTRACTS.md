@@ -1,4 +1,4 @@
-# engine-api contracts (v1.3.0)
+# engine-api contracts (v1.4.0)
 
 `engine-api` is the one crate every other engine crate links against. It holds types, traits and the small amount of logic that makes them trustworthy (canonical hashing, history replay, colour-matrix algebra), and depends on nothing in the workspace. Any change to a public type or a serialized form bumps `CONTRACT_VERSION` in `src/lib.rs`, gets an Opus review, and is noted at the bottom of this file.
 
@@ -138,6 +138,14 @@ Layered documents (spec 02) have a second call enum with the same conventions, `
 - **Units follow the user-facing controls.** Exposure is in EV, sliders run −100..100, geometry is normalised 0..1, and hues are in degrees. The one exception is the Adobe defringe hue range, which uses 0–100 units in XMP and is converted by the importer.
 
 ## Change log
+
+- 1.4.0 (M5-29), additive; no recipe schema or process revision change:
+  - Added nine document filter calls and Action descriptors: `document_remove_object`, `remove_distractions`, `content_aware_fill`, `content_aware_move`, `liquify`, `camera_raw_filter`, `neural_skin_smoothing`, `neural_colorize`, `neural_jpeg_artifact_removal`. Every call requires `document`, `layer`, and adapter `params` JSON; `smart` defaults to false. Existing `rationale`, `group`, and three-state `expect_head` apply. Evaluation errors leave pixels, smart stacks and history unchanged.
+  - `remove_object` remains the recipe-domain canonical name. MCP additionally accepts its document-shaped union branch and routes that branch to `document_remove_object`, preserving globally unique Action names.
+  - Added `DocumentToolOutput::DistractionsRemoved { document, entry, layer, report }`. Report includes row-major wire/people/union masks and an explicit geometric-not-semantic limitation. Smart removal freezes the detected union in a `remove` node; no implicit segmentation or model downloads.
+  - MCP destructive filters modify pixel layers. `smart=true` appends an enabled filter to an existing smart object, evaluates before commit, and retains its input and shared filter mask. Pixel-layer smart stacks are unsupported by the compositor and are explicitly rejected, as are smart requests with an active parent-space selection or transparency lock. Destructive smart-object calls are rejected instead of silently becoming smart calls.
+  - Colorize and JPEG artifact removal explicitly return Unsupported while weights are unavailable. Skin smoothing requires explicit face boxes. Camera Raw uses the shared Develop schema (`{settings, amount}`). Retouch masks are full-resolution row-major coverage arrays; liquify uses `{mesh, interpolation}`. This extends Rust enums, so exhaustive callers must handle the new variants.
+
 
 - 1.3.0 (M5-20), recipe schema 3:
   - `DocumentToolOutput::DocumentEdited.channel` returns the affected/allocated ID, including spot channels; older responses without it load as `None`.

@@ -62,7 +62,7 @@ const fn cmd(name: &'static str, domain: CommandDomain, effect: CommandEffect) -
 
 /// The command-name registry. Names are stable once shipped (invariant 11):
 /// rows are only ever appended, never renamed or removed.
-pub const COMMANDS: [CommandInfo; 33] = {
+pub const COMMANDS: [CommandInfo; 42] = {
     use CommandDomain::{Document as D, Library as L, Recipe as R};
     use CommandEffect::{Edit, Effect, Query};
     [
@@ -94,6 +94,15 @@ pub const COMMANDS: [CommandInfo; 33] = {
         cmd("rename_channel", D, Edit),
         cmd("edit_channel", D, Edit),
         cmd("load_channel_as_selection", D, Edit),
+        cmd("document_remove_object", D, Edit),
+        cmd("remove_distractions", D, Edit),
+        cmd("content_aware_fill", D, Edit),
+        cmd("content_aware_move", D, Edit),
+        cmd("liquify", D, Edit),
+        cmd("camera_raw_filter", D, Edit),
+        cmd("neural_skin_smoothing", D, Edit),
+        cmd("neural_colorize", D, Edit),
+        cmd("neural_jpeg_artifact_removal", D, Edit),
         cmd("assign_person", L, Effect),
         cmd("confirm_person", L, Effect),
         cmd("merge_people", L, Effect),
