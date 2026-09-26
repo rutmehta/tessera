@@ -1134,5 +1134,21 @@
     "status": "merged",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M5-30",
+    "owner": "astra",
+    "title": "Editable text + vector layers contract (engine-api 1.5)",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-47",
+    "owner": "astra",
+    "title": "FFI: Photo Merge + Enhance",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
