@@ -10,6 +10,10 @@ use engine_api::tile::Extent;
 
 #[test]
 fn resident_viewport_presents_edr_and_rejects_unrendered_regions() {
+    if std::env::var_os("CI").is_some() {
+        eprintln!("skipping: CI runner without a Metal device");
+        return;
+    }
     let g = GpuCompositor::new().expect("Metal required");
     let (device, queue) = g.handles();
     let e = Extent::new(32, 16);

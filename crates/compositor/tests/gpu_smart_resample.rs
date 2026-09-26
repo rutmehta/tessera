@@ -9,6 +9,10 @@ use wgpu::util::DeviceExt;
 
 #[test]
 fn identity_writes_straight_planar_at_page_offset() {
+    if std::env::var_os("CI").is_some() {
+        eprintln!("skipping: CI runner without a Metal device");
+        return;
+    }
     let gpu = gpu::GpuCompositor::new().expect("Metal GPU required");
     let (device, queue) = gpu.handles();
     let plan = smart_gpu::SmartPlan::new(
@@ -46,6 +50,10 @@ fn gpu_child_and_resampling_match_cpu_smart_tiles() {
         Compositor, Depth, DocState, Document, Layer, LayerKind, Raster, SmartObject,
     };
     use engine_api::tile::Tile;
+    if std::env::var_os("CI").is_some() {
+        eprintln!("skipping: CI runner without a Metal device");
+        return;
+    }
     let gpu = gpu::GpuCompositor::new().unwrap();
     let (device, queue) = gpu.handles();
     let pipe = smart_gpu::SmartGpu::new(device).unwrap();
@@ -143,6 +151,10 @@ fn gpu_child_and_resampling_match_cpu_smart_tiles() {
 #[test]
 fn large_parent_coordinates_keep_fractional_footprints() {
     use compositor::{Compositor, Depth, DocState, Document, Fill, Layer, LayerKind, SmartObject};
+    if std::env::var_os("CI").is_some() {
+        eprintln!("skipping: CI runner without a Metal device");
+        return;
+    }
     let gpu = gpu::GpuCompositor::new().unwrap();
     let (device, queue) = gpu.handles();
     let ce = Extent::new(2, 1);

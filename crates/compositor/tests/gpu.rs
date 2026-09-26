@@ -134,6 +134,10 @@ fn scene() -> Document {
 
 #[test]
 fn gpu_matches_cpu_reference() {
+    if std::env::var_os("CI").is_some() {
+        eprintln!("skipping: CI runner without a Metal device");
+        return;
+    }
     let gpu = match GpuCompositor::new() {
         Ok(g) => g,
         Err(e) => {
@@ -169,6 +173,10 @@ fn gpu_matches_cpu_reference() {
 
 #[test]
 fn every_mode_matches_on_the_gpu() {
+    if std::env::var_os("CI").is_some() {
+        eprintln!("skipping: CI runner without a Metal device");
+        return;
+    }
     let Ok(gpu) = GpuCompositor::new() else {
         return;
     };
@@ -219,6 +227,10 @@ fn every_mode_matches_on_the_gpu() {
 
 #[test]
 fn gpu_declines_adjustment_layers() {
+    if std::env::var_os("CI").is_some() {
+        eprintln!("skipping: CI runner without a Metal device");
+        return;
+    }
     let Ok(gpu) = GpuCompositor::new() else {
         return;
     };
