@@ -323,3 +323,12 @@ Layered documents reuse the system above; nothing here adds a colour, size or fo
   tabular type.
 * **Status bar** in document mode: canvas size · depth · profile | zoom | tool | selection size,
   then the message.
+* **Tools (WP M5-11)**: the tools palette is a vertical HUD column of 28 pt `IconButton`s at the canvas's top left, one
+  slot per tool group in Photoshop's order, then the foreground / background swatches (user colours, radius 4,
+  `hairlineStrong` outline) with swap and default. The options bar is a HUD bar beside it (scrolls sideways when
+  narrow): the tool's icon and name, then compact small native fields with 11 pt captions, checkboxes, the neutral
+  selection-mode `SegmentedPicker` (icons) and borderless actions. On-canvas feedback uses only the on-image set:
+  marching ants (`OnImage.text` under `OnImage.ink` 4 / 4 dashes), brush outline and guides in `OnImage.guide` over
+  `OnImage.shadow`, hardness ring and symmetry guides in `OnImage.guideFaint`, square transform handles in
+  `OnImage.text` with `OnImage.ink`, and the HUD readout as a scrim chip. Select and Mask previews tint outside the
+  selection with `OnImage.reject` at 50 % (Overlay), `OnImage.ink` (On Black) or `OnImage.text` (On White).

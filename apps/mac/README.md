@@ -123,6 +123,20 @@ layers, latest head). The workspace uses the open folder's engine, or a standalo
 the stub backend only with `--stub-library` (and in unit tests). Opening documents and Edit in Layers run off the main
 thread. `LayerNode.revision` changes only with what thumbnails show (content, mask, a group's children), so property
 drags never re-render thumbnails; thumbnails render off the main thread anyway. Selection bounds are pixel-exact.
+
+Layered-editor tools (crates/tessera-ffi/src/document/tools.rs, WP M5-11), on the same `DocumentSession`:
+painting `beginStroke(layer:target:tool:brush:color:)` (`StrokeTarget` pixels/mask, `StrokeTool` brush/eraser/clone/
+heal, `PaintBrush` size/hardness/opacity/flow/spacing/angle/roundness/blend/pressure toggles/smoothing/symmetry/tip),
+`strokePoints(points:)` (the `StrokeSample`s of one display frame → `StrokeFrame` dirty rect, dabs, engine ms),
+`endStroke()` (one history node), `cancelStroke()`, `setCloneSource(layer:dx:dy:)`; selections (one node each,
+`SelectionOp` replace/add/subtract/intersect) `selectMarquee`, `selectLasso` (free/polygon/magnetic), `magneticPath`,
+`selectWand`, `selectQuick`, `selectColorRange`, `selectSubject` / `selectSky` / `selectObject` (the engine's
+segmenter), `selectAll`, `selectNone`, `selectInverse`, `modifySelection`, `refineEdge(params:interactive:)` +
+`cancelRefineEdge`, `selectionOutline(level:)` (marching ants as polylines), `saveSelection` / `loadSelection` /
+`selectionChannels`; transform `beginTransform(layers:)`, `setTransform(matrix:interpolation:)` (live),
+`commitTransform`, `cancelTransform`; `fillSelection`, `deleteSelection`, `sampleColor`; free functions `brushTips()`,
+`importAbr(path:)`, `brushTipPreview(id:maxPx:)`. The app reaches them through `DocumentToolsBackend`
+(TesseraCore/Document/Tools) adopted by `EngineDocumentBackend` and (geometric subset) `StubDocumentBackend`.
 `ImageQuery` accepts folder, FTS text, decision, limit (0 = all), and offset. Folder paths are
 canonical paths returned by `indexFolder`; filtering includes descendants. RAW capture times
 are Unix seconds as strings; JPEG EXIF capture times are local ISO date-times. Recipe JSON is
@@ -176,6 +190,7 @@ produces a build warning and must be configured before publishing updates.
 | `--front` | Bring the window to the front without activating the app (for screenshots) |
 | `--import-lrcat <catalog>` | Open File ▸ Import Lightroom Catalog… with this `.lrcat` already chosen (acceptance aid) |
 | `--new-document` · `--open-document <file>` | Create a layered document (engine: one blank layer; stub: sample layers) / open one after launch |
+| `--tools-selftest <dir>` | Self-test aid (WP M5-11): after the library loads, Edit in Layers on `sample.dng`, then through synthesized mouse events on the viewport: a brush stroke (checked, undo / redo), an eraser stroke to transparency, a magic wand click (outline), Select ▸ Subject, a Free Transform commit, PSD save and reopen in `<dir>`; prints `tools-selftest: step …`, `check …` and the stroke timing, then quits (`--tools-selftest-hold <s>`) |
 | `--document-selftest <dir>` | Self-test aid: after the library loads, Edit in Layers on `sample.dng` (or the first RAW), add an Exposure layer, drag Opacity 100 → 40 % at display rate, undo, save / reopen `.tessera-doc`, export PNG, save and open a PSD in `<dir>`; prints `document-selftest: step …`, `check …` and the listener's frame timing, then quits (`--document-selftest-hold <s>` pauses per step). `TESSERA_DOC_FRAME_LOG=1` logs every document frame |
 | `--develop-selftest` | Self-test aid: once a develop session opens, drag Exposure 0 → +1.5 through the slider path (61 steps at display rate, then mouse-up) and print `develop-selftest: … render median … p90 …` to stderr |
 

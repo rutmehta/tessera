@@ -162,6 +162,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let test = DocumentSelfTest(model: model, dir: URL(fileURLWithPath: (dir as NSString).expandingTildeInPath), hold: hold)
             Task { @MainActor in await test.run() }
         }
+        if let dir = value(after: "--tools-selftest") {
+            // Test aid (WP M5-11): ACCEPTANCE §V (layered editor tools) through the viewport's mouse path.
+            let hold = value(after: "--tools-selftest-hold").flatMap(Double.init) ?? 2
+            let test = ToolsSelfTest(model: model, dir: URL(fileURLWithPath: (dir as NSString).expandingTildeInPath), hold: hold)
+            Task { @MainActor in await test.run() }
+        }
         if args.contains("--front") {   // test aid: show the window without activating the app
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 MainActor.assumeIsolated { NSApp.windows.first { !($0 is NSPanel) }?.orderFrontRegardless() }

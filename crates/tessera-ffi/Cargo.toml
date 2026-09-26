@@ -24,6 +24,9 @@ pipeline-cpu = { path = "../pipeline-cpu" }
 pipeline-gpu = { path = "../pipeline-gpu" }
 ml-runtime = { path = "../ml-runtime" }
 ml-segment = { path = "../ml-segment" }
+# Layered-editor tools (WP M5-11).
+brush = { path = "../brush" }
+selection = { path = "../selection" }
 export = { path = "../export" }
 ml-enhance = { path = "../ml-enhance" }
 ml-faces = { path = "../ml-faces" }

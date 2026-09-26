@@ -11,9 +11,11 @@ struct DocumentView: View {
             if let doc = workspace.current {
                 DocumentViewportRepresentable(workspace: workspace, document: doc)
                 VStack(spacing: 0) {
+                    // WP M5-11: tools palette (left) and the options bar (top).
                     HStack(alignment: .top, spacing: Theme.Space.s) {
-                        DocumentToolBar(document: doc)
-                        Spacer()
+                        ToolsPalette(document: doc, tools: DocumentTools.shared)
+                        ToolOptionsBar(document: doc, tools: DocumentTools.shared)
+                            .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
                     }
                     .padding(Theme.Space.m)
                     Spacer()
@@ -34,6 +36,9 @@ struct DocumentView: View {
                 .background(Theme.canvas)
             }
         }
+        // WP M5-11: the tools serve this workspace; their sheets hang off the document view.
+        .onAppear { DocumentTools.shared.attach(workspace) }
+        .modifier(ToolSheetsModifier(tools: DocumentTools.shared))
     }
 }
 
@@ -87,6 +92,8 @@ struct DocumentInspector: View {
             if let doc = workspace.current {
                 ScrollView {
                     PanelSection("Properties") { PropertiesPanel(document: doc) }
+                    // WP M5-11: Color and Brushes.
+                    ToolInspectorSections(tools: DocumentTools.shared, document: doc)
                 }
                 .scrollIndicators(.never)
                 .frame(minHeight: Theme.Height.sectionHeader * 6, maxHeight: .infinity)
@@ -214,6 +221,10 @@ struct DocumentStatusBar: View {
                         .accessibilityIdentifier("document.status.zoom")
                     separator
                     Text("\(doc.tool.title) (\(doc.tool.key))").fixedSize()
+                    if let r = DocumentTools.shared.strokeReadout, model.showRenderReadout {   // WP M5-11
+                        separator
+                        Text(r).lineLimit(1).truncationMode(.tail).accessibilityIdentifier("document.status.stroke")
+                    }
                     if let m = doc.marquee {
                         separator
                         Text("Selection \(m.width) × \(m.height)").fixedSize()

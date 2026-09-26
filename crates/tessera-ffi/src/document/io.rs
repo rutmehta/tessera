@@ -499,17 +499,33 @@ fn convert(source: &[u8], target: &[u8], rgba: &mut [f32]) -> Result<()> {
 /// bar show them, so stored-tile granularity is not enough (WP M5-13b).
 /// Scans the stored tiles; `info` caches the result per selection.
 pub(crate) fn selection_bounds(r: &Raster) -> Option<Rect> {
-    if r.default_value() > 0.0 {
-        return Some(Rect::of_extent(r.extent()));
-    }
     let mut out = Rect::default();
     let mut buf = Vec::new();
+    let tile = engine_api::tile::TILE_SIZE;
+    if r.default_value() > 0.0 {
+        // Absent tiles are selected (Select All, Inverse): every tile
+        // without stored samples counts whole (WP M5-11).
+        let (cols, rows) = r.grid();
+        for ty in 0..rows {
+            for tx in 0..cols {
+                if r.tile(tx, ty).is_none() {
+                    let l = r.layout(tx, ty);
+                    let (ox, oy) = (i64::from(tx * tile), i64::from(ty * tile));
+                    out = out.union(&Rect::new(
+                        ox,
+                        oy,
+                        ox + i64::from(l.extent.width),
+                        oy + i64::from(l.extent.height),
+                    ));
+                }
+            }
+        }
+    }
     for ((tx, ty), slot) in r.slots() {
         if slot.tile.is_none() {
             continue;
         }
         let l = r.layout(tx, ty);
-        let tile = engine_api::tile::TILE_SIZE;
         let (ox, oy) = (i64::from(tx * tile), i64::from(ty * tile));
         if r.read_tile(tx, ty, &mut buf).is_err() {
             // Unreadable tile: fall back to its whole extent.

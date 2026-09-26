@@ -31,7 +31,7 @@ struct AppCommands: Commands {
             .disabled(model.recentFolders.isEmpty)
             Divider()
             Button("Import Lightroom Catalog…") { model.presentLightroomImport() }
-                .keyboardShortcut("i", modifiers: [.command, .shift])
+                .shortcut(!docMode, "i", [.command, .shift])   // ⇧⌘I is Select ▸ Inverse in document mode (M5-11)
                 .disabled(model.lightroomImport.isRunning)
             Divider()
             Button(model.tether.showPanel ? "Hide Tethered Capture" : "Tethered Capture…") { model.tether.togglePanel() }
@@ -235,16 +235,17 @@ struct AppCommands: Commands {
         }
         CommandMenu("Layer") { LayerMenu(doc: doc) }
         CommandMenu("Select") {
-            Button("All") { doc?.selectAll() }
+            // WP M5-11: selection commands and tools (Tools/ToolsMenus.swift).
+            SelectMenuItems(doc: doc, docMode: docMode)
+            Button("Move    (V)") { DocumentTools.shared.select(.move) }
                 .disabled(doc == nil)
-            Button("Deselect") { doc?.deselect() }
-                .shortcut(docMode, "d", .command)
-                .disabled(doc?.marquee == nil)
-            Divider()
-            Button("Rectangular Marquee    (M)") { doc?.tool = .marquee; doc?.viewport?.cursorDidChange() }
-                .disabled(doc == nil)
-            Button("Move    (V)") { doc?.tool = .move; doc?.viewport?.cursorDidChange() }
-                .disabled(doc == nil)
+        }
+        // WP M5-11: Edit ▸ Fill…, Clear, Free Transform (⌘T), Transform ▸ (document mode).
+        CommandGroup(after: .pasteboard) {
+            if docMode {
+                Divider()
+                EditToolsMenuItems(doc: doc, docMode: docMode)
+            }
         }
     }
 }

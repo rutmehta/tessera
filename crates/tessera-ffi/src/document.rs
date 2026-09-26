@@ -41,6 +41,10 @@
 mod io;
 #[path = "document/render.rs"]
 mod render;
+// Layered-editor tools: painting, selections, transform (WP M5-11).
+#[path = "document/tools.rs"]
+mod tools;
+pub use tools::*;
 
 use crate::{Engine, Result, failure, surface::Surface};
 use compositor::{
@@ -654,6 +658,8 @@ pub(crate) struct State {
         std::sync::Weak<compositor::Raster>,
         Option<compositor::Rect>,
     )>,
+    /// Strokes, transforms, clone source, channels (WP M5-11).
+    tools: tools::ToolState,
     closed: bool,
     pub(crate) view: render::View,
 }
@@ -892,6 +898,7 @@ impl DocumentSession {
                 labels,
                 unlinked_masks: Default::default(),
                 selection_bounds: None,
+                tools: Default::default(),
                 closed: false,
                 view: Default::default(),
             }),

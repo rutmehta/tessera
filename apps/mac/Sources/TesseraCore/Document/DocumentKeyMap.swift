@@ -1,11 +1,13 @@
 import Foundation
 
-/// Document tools (spec 02 §4; M5-13 has Move and Rectangular Marquee only).
+/// Document tools (spec 02 §3–6). M5-13 had Move and Rectangular Marquee; WP M5-11 adds the
+/// selection, painting, retouching and navigation tools (titles, keys and groups in
+/// `Document/Tools/EditorTools.swift`).
 public enum DocumentTool: String, CaseIterable, Sendable {
     case move, marquee
-    public var title: String { self == .move ? "Move" : "Rectangular Marquee" }
-    public var key: String { self == .move ? "V" : "M" }
-    public var symbol: String { self == .move ? "arrow.up.and.down.and.arrow.left.and.right" : "rectangle.dashed" }
+    // WP M5-11
+    case ellipseMarquee, lasso, polygonLasso, magneticLasso, quickSelect, wand, objectSelect
+    case brush, eraser, cloneStamp, heal, gradient, crop, type, eyedropper, hand, zoom
 }
 
 /// What a key does in document mode. ⌘ shortcuts are menu items; they are listed here too so the

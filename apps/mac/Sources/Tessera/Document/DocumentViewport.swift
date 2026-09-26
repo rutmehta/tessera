@@ -151,6 +151,8 @@ final class DocumentViewportView: NSView {
         case pan(last: CGPoint)
         case scrubby(start: CGPoint, zoom: Double)
         case marquee(start: CGPoint)
+        /// A layered-editor tool gesture (WP M5-11, `DocumentTools`).
+        case tool
     }
 
     override init(frame: NSRect) {
@@ -164,6 +166,11 @@ final class DocumentViewportView: NSView {
         ants.frame = bounds
         ants.autoresizingMask = [.width, .height]
         addSubview(ants)
+        // WP M5-11: marching ants from the selection outline, brush cursor, guides, transform box.
+        toolOverlay.frame = bounds
+        toolOverlay.autoresizingMask = [.width, .height]
+        toolOverlay.viewport = self
+        addSubview(toolOverlay)
     }
 
     required init?(coder: NSCoder) { fatalError() }
@@ -342,6 +349,7 @@ final class DocumentViewportView: NSView {
     // MARK: Zoom commands
 
     private func changed(anchor: CGPoint? = nil) {
+        toolOverlay.needsDisplay = true
         controller?.zoomDidChange(math.zoom)
         controller?.viewState = math
         selectionDidChange()
@@ -389,6 +397,8 @@ final class DocumentViewportView: NSView {
         if workspace?.spaceHeld == true {
             drag = .pan(last: p)
             NSCursor.closedHand.set()
+        } else if DocumentTools.shared.mouseDown(event, in: self) {   // WP M5-11
+            drag = .tool
         } else if event.modifierFlags.contains(.option) {
             drag = .scrubby(start: p, zoom: math.zoom)
         } else if doc.tool == .marquee {
@@ -411,12 +421,15 @@ final class DocumentViewportView: NSView {
             changed()
         case .marquee(let start):
             ants.rect = marqueeRect(start, p).map(viewRect)
+        case .tool:
+            DocumentTools.shared.mouseDragged(event, in: self)
         case nil: break
         }
     }
 
     override func mouseUp(with event: NSEvent) {
         defer { drag = nil; window?.invalidateCursorRects(for: self) }
+        if case .tool = drag { DocumentTools.shared.mouseUp(event, in: self); return }
         guard case .marquee(let start) = drag, let doc = controller else { return }
         doc.setMarquee(marqueeRect(start, device(event)))
     }
@@ -438,13 +451,59 @@ final class DocumentViewportView: NSView {
     }
 
     func selectionDidChange() {
-        ants.rect = controller?.marquee.map(viewRect)
+        // WP M5-11: the marching ants follow the engine's selection outline (ToolOverlayView).
+        ants.rect = nil
+        DocumentTools.shared.selectionDidChange(in: self)
+        toolOverlay.needsDisplay = true
     }
 
     override func resetCursorRects() {
-        let cursor: NSCursor = workspace?.spaceHeld == true ? .openHand : controller?.tool == .marquee ? .crosshair : .arrow
+        let cursor: NSCursor = workspace?.spaceHeld == true ? .openHand : DocumentTools.shared.cursor(for: controller)
         addCursorRect(bounds, cursor: cursor)
     }
+
+    // MARK: Tools (WP M5-11)
+
+    let toolOverlay = ToolOverlayView()
+
+    /// Level-0 canvas pixel under an event.
+    func canvasPoint(_ event: NSEvent) -> CGPoint { math.canvasPoint(view: device(event)) }
+    /// A canvas point in view points (y down).
+    func viewPoint(canvas p: CGPoint) -> CGPoint {
+        let d = math.viewPoint(canvas: p)
+        return CGPoint(x: d.x / scale, y: d.y / scale)
+    }
+    /// View points per canvas pixel.
+    var pointsPerPixel: Double { math.zoom / Double(scale) }
+    /// The pyramid level the viewport shows.
+    var viewLevel: Int { math.level }
+    /// Pans by view points (Hand tool).
+    func panBy(dx: CGFloat, dy: CGFloat) {
+        math.pan(dx: Double(dx * scale), dy: Double(dy * scale))
+        changed()
+    }
+    /// Zoom tool: in or out about an event's location.
+    func zoomStep(in zoomIn: Bool, at event: NSEvent) {
+        let a = device(event)
+        zoomIn ? self.zoomIn(at: a) : zoomOut(at: a)
+    }
+
+    private var toolTracking: NSTrackingArea?
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let t = toolTracking { removeTrackingArea(t) }
+        let t = NSTrackingArea(rect: bounds, options: [.mouseMoved, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
+                               owner: self, userInfo: nil)
+        addTrackingArea(t)
+        toolTracking = t
+    }
+    override func mouseMoved(with event: NSEvent) { DocumentTools.shared.mouseMoved(event, in: self) }
+    override func mouseExited(with event: NSEvent) { DocumentTools.shared.mouseExited(in: self) }
+    override func rightMouseDown(with event: NSEvent) {
+        if !DocumentTools.shared.rightMouseDown(event, in: self) { super.rightMouseDown(with: event) }
+    }
+    override func rightMouseDragged(with event: NSEvent) { DocumentTools.shared.mouseDragged(event, in: self) }
+    override func rightMouseUp(with event: NSEvent) { DocumentTools.shared.mouseUp(event, in: self) }
 
     func cursorDidChange() { window?.invalidateCursorRects(for: self) }
 }

@@ -442,7 +442,7 @@ public final class EngineDocumentBackend: DocumentBackend, @unchecked Sendable {
 
     var isClosed: Bool { lock.lock(); defer { lock.unlock() }; return closed }
     private var map: DocumentHistoryIDMap { lock.lock(); defer { lock.unlock() }; return historyMap }
-    private func change(_ body: () throws -> DocumentUpdate) throws -> DocumentChange {
+    func change(_ body: () throws -> DocumentUpdate) throws -> DocumentChange {
         let u = try bridged(body)
         return DocumentChange(u, history: map)
     }

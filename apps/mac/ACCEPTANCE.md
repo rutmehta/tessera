@@ -1089,6 +1089,56 @@ PASS when steps 130–142 (stub) and 143–150 (engine) meet their expectations.
 large window (drag Opacity on `Landscape` at 100 %) as an observation; the stub renders on the CPU and is not held to the
 engine's budget.
 
+## V. Layered editor tools: painting, selections, transform (M5-11)
+
+Engine backend (not `--stub-library`), a scratch copy of `fixtures/raw/sample.dng` in `$SCR/shoot`, opened with
+Library ▸ Edit in Layers (⌘E). The tools palette sits on the left of the canvas, the options bar across the top.
+
+151. **Palette and keys.** V M L W B E S J G C T I H Z select Move, Rectangular Marquee, Lasso, Quick Selection, Brush,
+     Eraser, Clone Stamp, Healing Brush, Gradient (placeholder), Crop (placeholder), Type (placeholder), Eyedropper,
+     Hand, Zoom; ⇧M / ⇧L / ⇧W cycle Elliptical Marquee, Polygonal / Magnetic Lasso, Magic Wand / Object Selection;
+     right-click a palette slot lists its group. The options bar follows the tool. X swaps and D resets the swatches.
+152. **Brush stroke visible and undoable.** B, foreground red (click the foreground swatch), Size 80. Drag across the
+     photo: the stroke follows the pointer while dragging, the outline circle shows the brush size, and History gains
+     one `Brush Tool` row (📸 `tools-2-brush-stroke.png`). ⌘Z removes it (📸 `tools-3-brush-undo.png`), ⇧⌘Z restores
+     it. With Debug ▸ Show Render Timing the status bar shows `Brush Tool: N frames, median … ms` and the render readout.
+     [ ] resize the brush, ⇧[ ⇧] change hardness, 1–0 set opacity (4 then 5 = 45 %); ⌃-drag (or ⌥-right-drag) shows the
+     HUD: right = larger, up = harder. With a tablet, pressure narrows the stroke (Size pressure is on by default).
+     ⇧-click draws a straight line from the last stroke. Symmetry ▸ Vertical mirrors about the centre with a guide.
+153. **Eraser to transparency.** E, Size 200, drag over the photo: the checkerboard shows through; one `Eraser` row
+     (📸 `tools-4-eraser.png`).
+154. **Clone and heal.** S, ⌥-click a source, paint elsewhere: the source crosshair follows the brush and the pixels are
+     copied (aligned); one `Clone Stamp` row. J does the same, blended into the surroundings (`Healing Brush`).
+155. **Wand selection outline.** ⇧W until Magic Wand, Tolerance 24, click the wall: marching ants follow the region's
+     outline (not its bounding box) and the status bar shows `Selection W × H`; one `Magic Wand` row
+     (📸 `tools-5-wand.png`). ⇧-click adds, ⌥-click subtracts, ⇧⌥ intersects (also the four options-bar buttons).
+     Marquee, ellipse, lasso, polygonal (click points, double-click or Return closes, Esc cancels) and magnetic lasso
+     (edge-snapping path while moving) combine the same way; ⌫ clears the selected pixels of a pixel layer.
+156. **Subject selection.** Select ▸ Subject (first run loads the on-device model): the subject's outline appears; one
+     `Select Subject` row (📸 `tools-6-subject.png`). Select ▸ Sky, Color Range…, Inverse (⇧⌘I), Modify ▸ Expand… /
+     Contract… / Border… / Smooth… / Feather…, Select and Mask… (⌥⌘R: Overlay / On Black / On White preview, sliders
+     update live, OK records one `Refine Edge` row, Cancel restores), Save Selection… / Load Selection ▸ work.
+157. **Transform commit.** Select the photo layer, ⌘T: a box with eight handles and the reference point. Drag a corner
+     (⇧ keeps proportions, ⌥ scales about the centre), drag outside the box to rotate (⇧ snaps 15°), drag inside to move;
+     the options bar shows X, Y, W %, H %, angle and skew and accepts typed values (📸 `tools-7-transform-preview.png`).
+     Return commits one `Free Transform` row (📸 `tools-8-transform-commit.png`), Esc cancels. The Move tool (V) drag
+     moves the layer (one `Free Transform` row); Edit ▸ Transform ▸ Flip / Rotate apply directly.
+158. **PSD save and reopen.** File ▸ Save As… `ToolsSelfTest.psd`, close, File ▸ Open Document… the PSD: the same
+     layers, with the painted, erased and transformed pixels (📸 `tools-9-psd-reopen.png`).
+159. **Brushes and colour panels.** With a painting tool the inspector shows Color (foreground / background wells) and
+     Brushes (Hard / Medium / Soft Round, Chalk, Square and imported tips with previews, Import Brushes… for `.abr`,
+     size / hardness / spacing / angle / roundness). The options bar's brush button opens the same preset list.
+160. **Scripted run.**
+     ```sh
+     apps/mac/build/Tessera.app/Contents/MacOS/Tessera --folder "$SCR/shoot" --app-dir "$SCR/appdir" \
+       --tools-selftest "$SCR/out" 2>&1 | grep tools-selftest
+     ```
+     Expect every `check … ok`, `brush stroke: … frame render … median <16 ms`, and `done, 0 failure(s)`.
+
+## Verdict (layered editor tools)
+
+PASS when steps 151–160 meet their expectations and the brush frames' median render time is under 16 ms.
+
 ## Appendix: accessibility identifiers (M5-13)
 
 | Identifier | Element |
@@ -1101,3 +1151,4 @@ engine's budget.
 | `document.properties` · `document.properties.name` · `.kind` · `.bounds` · `.groupMode` · `.channel` · `.levels.*` · `.curves.editor` · `.curves.reset` · `.hueSaturation.*` · `.exposure.*` · `.posterize.levels` · `.threshold.level` · `.channelMixer.*` · `.fill.*` · `.editContents` | Properties panel |
 | `document.history` · `document.history.row.<index>` (0 = Opened) · `document.history.snapshot.<n>` · `document.history.snapshot.<n>.restore` · `document.history.newSnapshot` · `document.history.memory` | History panel |
 | `document.new.*` · `document.export.*` · `document.empty.new` · `document.empty.open` · `document.status.*` | Sheets, empty state, status bar |
+| `document.tools` · `document.tool.<tool>` · `document.colors` · `document.optionsBar` · `document.option.*` · `document.transform.commit` · `document.colorPanel` · `document.color.{foreground,background}` · `document.brushes` · `document.brushes.import` · `document.brush.*` · `document.status.stroke` | Tools palette, options bar, Color and Brushes (M5-11) |
