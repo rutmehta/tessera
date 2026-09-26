@@ -2011,6 +2011,20 @@ fn adjustment_title(a: &Adjustment) -> &'static str {
         Adjustment::Posterize { .. } => "Posterize",
         Adjustment::Threshold { .. } => "Threshold",
         Adjustment::ChannelMixer { .. } => "Channel Mixer",
+        Adjustment::BrightnessContrast { .. } => "Brightness/Contrast",
+        Adjustment::Vibrance { .. } => "Vibrance",
+        Adjustment::ColorBalance { .. } => "Color Balance",
+        Adjustment::BlackWhite { .. } => "Black & White",
+        Adjustment::PhotoFilter { .. } => "Photo Filter",
+        Adjustment::GradientMap { .. } => "Gradient Map",
+        Adjustment::SelectiveColor { .. } => "Selective Color",
+        Adjustment::ShadowsHighlights { .. } => "Shadows/Highlights",
+        Adjustment::ColorLookup { .. } => "Color Lookup",
+        Adjustment::Equalize { .. } => "Equalize",
+        Adjustment::Auto { .. } => "Auto",
+        Adjustment::MatchColor { .. } => "Match Color",
+        Adjustment::ReplaceColor { .. } => "Replace Color",
+        _ => "Adjustment",
     }
 }
 
