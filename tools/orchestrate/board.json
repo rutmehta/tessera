@@ -603,9 +603,9 @@
     "id": "M3-11",
     "owner": "opus",
     "title": "Assisted culling + agent review UI",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
-    "notes": ""
+    "notes": "agent runs slow (Console renders full-res on CPU): route Console through GPU renderer (M3-14)"
   },
   {
     "id": "M2-21c",
