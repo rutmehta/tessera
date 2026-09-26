@@ -9,6 +9,7 @@ description = "Layered document model and tiled compositor (spec 02 §1–2, spe
 path = "src/lib.rs"
 
 [dependencies]
+psd = { path = "../psd" }
 engine-api = { path = "../engine-api" }
 serde = { workspace = true }
 serde_json = { workspace = true }

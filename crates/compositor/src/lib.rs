@@ -23,6 +23,7 @@ pub mod edit;
 pub mod format;
 pub mod geom;
 pub mod gpu;
+pub mod psd;
 pub mod raster;
 pub mod render;
 

@@ -518,6 +518,7 @@ pub struct History {
 /// new cache namespace.
 #[derive(Debug)]
 pub struct Document {
+    pub(crate) psd_source: Option<Arc<crate::psd::ImportedPsd>>,
     key: u64,
     history: History,
     epoch: u64,
@@ -530,6 +531,7 @@ const DAMAGE_LOG: usize = 4096;
 impl Clone for Document {
     fn clone(&self) -> Self {
         Self {
+            psd_source: self.psd_source.clone(),
             key: next_doc_key(),
             history: self.history.clone(),
             epoch: self.epoch,
@@ -565,6 +567,7 @@ impl Document {
             epoch: 0,
             damage: VecDeque::new(),
             damage_floor: 0,
+            psd_source: None,
         }
     }
 
