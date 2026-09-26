@@ -6,7 +6,8 @@ usage(){ echo "Usage: run-luna.sh <wp-id> [--model MODEL] [--test CMD] [--max-at
 WP=$1; shift
 MODEL=gpt-6-luna; TEST_CMD=; MAX=3; PATHS='tools/orchestrate/wp/'"$WP"'/**'
 while [[ $# -gt 0 ]]; do case "$1" in --model) MODEL=$2; shift 2;; --test) TEST_CMD=$2; shift 2;; --max-attempts) MAX=$2; shift 2;; --paths) PATHS=$2; shift 2;; *) usage;; esac; done
-export CARGO_TARGET_DIR="$HOME/.cache/tessera-target/$WP"; mkdir -p "$CARGO_TARGET_DIR"
+TARGET_BASE="$HOME/.cache/tessera-target"; [[ -d /Volumes/betterSSD/tessera-cache ]] && TARGET_BASE="/Volumes/betterSSD/tessera-cache/target"
+export CARGO_TARGET_DIR="$TARGET_BASE/$WP"; mkdir -p "$CARGO_TARGET_DIR"
 BASE="$ROOT/tools/orchestrate/wp/$WP"; BRIEF="$BASE/brief.md"; WT="$ROOT/.worktrees/$WP"
 [[ -f $BRIEF ]] || { echo "Missing $BRIEF" >&2; exit 2; }
 mkdir -p "$BASE/attempts"
