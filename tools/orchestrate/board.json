@@ -947,9 +947,9 @@
     "id": "M2-40v",
     "owner": "sol",
     "title": "Verify People view on screen",
-    "status": "running",
+    "status": "fail",
     "attempts": 0,
-    "notes": ""
+    "notes": "2/13; verifier incomplete; shot-05 shows blank sidebar + grid under toolbar after People \u2014 re-verify (M2-40v2)"
   },
   {
     "id": "M5-23",
@@ -972,6 +972,14 @@
     "owner": "astra",
     "title": "Auto-Align Layers, Auto-Blend Layers (panorama seams + focus stack), Photomerge into the document",
     "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-40v2",
+    "owner": "sol",
+    "title": "People view focused re-verification",
+    "status": "todo",
     "attempts": 0,
     "notes": ""
   }
