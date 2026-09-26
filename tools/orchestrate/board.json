@@ -630,5 +630,21 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M3-12",
+    "owner": "astra",
+    "title": "Tethered capture + live ingest",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M3-13",
+    "owner": "astra",
+    "title": "Keywords, captions, OCR",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
