@@ -16,6 +16,7 @@ mod session;
 pub mod surface;
 pub use agent_runs::*;
 pub use assist::*;
+pub mod tether;
 pub use collections::*;
 pub use develop::*;
 use engine_api::{id::ImageId, recipe as core};
