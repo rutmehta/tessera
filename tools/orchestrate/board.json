@@ -747,9 +747,9 @@
     "id": "M5-04b",
     "owner": "opus",
     "title": "GPU-resident document rendering",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
-    "notes": ""
+    "notes": "dab 1.6ms, L2 13.6ms, L0 198ms (>100 target; specialised shaders next); app not yet on shared device"
   },
   {
     "id": "M5-05",
