@@ -1093,6 +1093,17 @@ public protocol CullSessionProtocol: AnyObject, Sendable {
     func personAssignments(imageId: String) throws  -> [PersonAssignmentInfo]
     
     /**
+     * All catalog members in stable image-ID/ordinal order. No clustering or
+     * queue filtering; unknown/empty identities return an empty list.
+     */
+    func personMembers(personId: String) throws  -> [PersonFace]
+    
+    /**
+     * Redo the last undone people edit. A new successful edit clears redo.
+     */
+    func redoPeopleEdit() throws  -> String?
+    
+    /**
      * Incremental ingestion with periodic refits, or an explicit forced refit.
      * Blocking: invoke on the host worker queue, never the UI thread.
      */
@@ -1122,6 +1133,12 @@ public protocol CullSessionProtocol: AnyObject, Sendable {
      * unique ID). Confirmations reset. Does not export sidecars.
      */
     func splitPerson(sourceId: String, newId: String, faces: [PersonFace]) throws 
+    
+    /**
+     * Undo the last session-local people edit and return its menu description.
+     * None means empty history; conflicts/errors leave history and state intact.
+     */
+    func undoPeopleEdit() throws  -> String?
     
     func albums() throws  -> [AlbumInfo]
     
@@ -1475,6 +1492,32 @@ open func personAssignments(imageId: String)throws  -> [PersonAssignmentInfo]  {
 }
     
     /**
+     * All catalog members in stable image-ID/ordinal order. No clustering or
+     * queue filtering; unknown/empty identities return an empty list.
+     */
+open func personMembers(personId: String)throws  -> [PersonFace]  {
+    return try  FfiConverterSequenceTypePersonFace.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_cullsession_person_members(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(personId),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Redo the last undone people edit. A new successful edit clears redo.
+     */
+open func redoPeopleEdit()throws  -> String?  {
+    return try  FfiConverterOptionString.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_cullsession_redo_people_edit(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * Incremental ingestion with periodic refits, or an explicit forced refit.
      * Blocking: invoke on the host worker queue, never the UI thread.
      */
@@ -1542,6 +1585,19 @@ open func splitPerson(sourceId: String, newId: String, faces: [PersonFace])throw
         FfiConverterSequenceTypePersonFace.lower(faces),uniffiCallStatus
     )
 }
+}
+    
+    /**
+     * Undo the last session-local people edit and return its menu description.
+     * None means empty history; conflicts/errors leave history and state intact.
+     */
+open func undoPeopleEdit()throws  -> String?  {
+    return try  FfiConverterOptionString.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_cullsession_undo_people_edit(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
 }
     
 open func albums()throws  -> [AlbumInfo]  {
@@ -12871,13 +12927,21 @@ public struct PeopleJobResult: Equatable, Hashable {
     public var assigned: UInt64
     public var reclustered: Bool
     public var approximate: Bool
+    /**
+     * Actual fitted sample size, zero if this job had no eligible pending faces.
+     */
+    public var sampleSize: UInt32
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(assigned: UInt64, reclustered: Bool, approximate: Bool) {
+    public init(assigned: UInt64, reclustered: Bool, approximate: Bool, 
+        /**
+         * Actual fitted sample size, zero if this job had no eligible pending faces.
+         */sampleSize: UInt32 = UInt32(0)) {
         self.assigned = assigned
         self.reclustered = reclustered
         self.approximate = approximate
+        self.sampleSize = sampleSize
     }
 
     
@@ -12898,7 +12962,8 @@ public struct FfiConverterTypePeopleJobResult: FfiConverterRustBuffer {
             try PeopleJobResult(
                 assigned: FfiConverterUInt64.read(from: &buf), 
                 reclustered: FfiConverterBool.read(from: &buf), 
-                approximate: FfiConverterBool.read(from: &buf)
+                approximate: FfiConverterBool.read(from: &buf), 
+                sampleSize: FfiConverterUInt32.read(from: &buf)
         )
     }
 
@@ -12906,6 +12971,7 @@ public struct FfiConverterTypePeopleJobResult: FfiConverterRustBuffer {
         FfiConverterUInt64.write(value.assigned, into: &buf)
         FfiConverterBool.write(value.reclustered, into: &buf)
         FfiConverterBool.write(value.approximate, into: &buf)
+        FfiConverterUInt32.write(value.sampleSize, into: &buf)
     }
 }
 
@@ -13188,6 +13254,20 @@ public struct PersonInfo: Equatable, Hashable {
      */
     public var coverImage: String
     public var coverOrdinal: UInt32
+    public var named: Bool
+    /**
+     * Confirmed faces in the active queue (same scope as `faces`).
+     */
+    public var confirmedCount: UInt32
+    /**
+     * Alias of `faces` retained for existing consumers.
+     */
+    public var faceCount: UInt32
+    /**
+     * Indexed medoid member, possibly outside the active queue. None when
+     * invalidated or no usable descriptor exists; never the sharpest fallback.
+     */
+    public var medoidFace: PersonFace?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -13197,13 +13277,27 @@ public struct PersonInfo: Equatable, Hashable {
          */images: [String], faces: UInt32, 
         /**
          * A representative face (the sharpest).
-         */coverImage: String, coverOrdinal: UInt32) {
+         */coverImage: String, coverOrdinal: UInt32, named: Bool = false, 
+        /**
+         * Confirmed faces in the active queue (same scope as `faces`).
+         */confirmedCount: UInt32 = UInt32(0), 
+        /**
+         * Alias of `faces` retained for existing consumers.
+         */faceCount: UInt32 = UInt32(0), 
+        /**
+         * Indexed medoid member, possibly outside the active queue. None when
+         * invalidated or no usable descriptor exists; never the sharpest fallback.
+         */medoidFace: PersonFace? = nil) {
         self.id = id
         self.name = name
         self.images = images
         self.faces = faces
         self.coverImage = coverImage
         self.coverOrdinal = coverOrdinal
+        self.named = named
+        self.confirmedCount = confirmedCount
+        self.faceCount = faceCount
+        self.medoidFace = medoidFace
     }
 
     
@@ -13227,7 +13321,11 @@ public struct FfiConverterTypePersonInfo: FfiConverterRustBuffer {
                 images: FfiConverterSequenceString.read(from: &buf), 
                 faces: FfiConverterUInt32.read(from: &buf), 
                 coverImage: FfiConverterString.read(from: &buf), 
-                coverOrdinal: FfiConverterUInt32.read(from: &buf)
+                coverOrdinal: FfiConverterUInt32.read(from: &buf), 
+                named: FfiConverterBool.read(from: &buf), 
+                confirmedCount: FfiConverterUInt32.read(from: &buf), 
+                faceCount: FfiConverterUInt32.read(from: &buf), 
+                medoidFace: FfiConverterOptionTypePersonFace.read(from: &buf)
         )
     }
 
@@ -13238,6 +13336,10 @@ public struct FfiConverterTypePersonInfo: FfiConverterRustBuffer {
         FfiConverterUInt32.write(value.faces, into: &buf)
         FfiConverterString.write(value.coverImage, into: &buf)
         FfiConverterUInt32.write(value.coverOrdinal, into: &buf)
+        FfiConverterBool.write(value.named, into: &buf)
+        FfiConverterUInt32.write(value.confirmedCount, into: &buf)
+        FfiConverterUInt32.write(value.faceCount, into: &buf)
+        FfiConverterOptionTypePersonFace.write(value.medoidFace, into: &buf)
     }
 }
 
@@ -17697,6 +17799,30 @@ fileprivate struct FfiConverterOptionTypeMaskThumbnail: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypePersonFace: FfiConverterRustBuffer {
+    typealias SwiftType = PersonFace?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypePersonFace.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypePersonFace.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypePrintProfile: FfiConverterRustBuffer {
     typealias SwiftType = PrintProfile?
 
@@ -19970,6 +20096,12 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_cullsession_person_assignments() != 28580) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tessera_ffi_checksum_method_cullsession_person_members() != 51942) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_cullsession_redo_people_edit() != 57825) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_tessera_ffi_checksum_method_cullsession_refresh_people() != 52987) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -19983,6 +20115,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_cullsession_split_person() != 21278) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_cullsession_undo_people_edit() != 64879) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_cullsession_albums() != 24789) {

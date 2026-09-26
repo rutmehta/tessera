@@ -141,6 +141,257 @@ fn embedding(axis: usize, jitter: f32) -> Vec<f32> {
 }
 
 #[test]
+fn people_summary_has_counts_and_the_indexed_medoid_not_the_cover() {
+    let (_dir, engine, folder, names) = shoot();
+    let a = id(&names, "a_sharp.jpg");
+    let faces = [(-0.2, 0.9), (0.0, 0.4), (0.2, 0.6)]
+        .into_iter()
+        .map(|(jitter, focus)| FaceInput {
+            x: 10.,
+            y: 20.,
+            width: 40.,
+            height: 50.,
+            focus,
+            eyes_open: None,
+            embedding: Some(embedding(0, jitter)),
+        })
+        .collect();
+    engine.set_faces(a.clone(), faces, 160, 120).unwrap();
+    let session = engine.open_cull_session(folder).unwrap();
+    let p = session.people(false).unwrap().remove(0);
+    assert!(!p.named);
+    assert_eq!(p.face_count, 3);
+    assert_eq!(p.face_count, p.faces);
+    assert_eq!(p.confirmed_count, 0);
+    assert_eq!(p.cover_ordinal, 0);
+    assert_eq!(p.medoid_face.unwrap().ordinal, 1);
+    assert_eq!(
+        session.person_members(p.id.clone()).unwrap(),
+        (0..3)
+            .map(|ordinal| PersonFace {
+                image_id: a.clone(),
+                ordinal
+            })
+            .collect::<Vec<_>>()
+    );
+    assert!(session.person_members("missing".into()).unwrap().is_empty());
+    session
+        .confirm_person_face(
+            PersonFace {
+                image_id: a,
+                ordinal: 1,
+            },
+            true,
+        )
+        .unwrap();
+    session
+        .name_person(p.id, Some("Ada".into()), PeopleNameOptions::default())
+        .unwrap();
+    let p = session.people(false).unwrap().remove(0);
+    assert!(p.named);
+    assert_eq!(p.confirmed_count, 1);
+}
+
+#[test]
+fn people_job_reports_actual_training_sample_not_assignment_count() {
+    let (_dir, engine, folder, names) = shoot();
+    let a = id(&names, "a_sharp.jpg");
+    let face = FaceInput {
+        x: 10.,
+        y: 20.,
+        width: 40.,
+        height: 50.,
+        focus: 0.8,
+        eyes_open: None,
+        embedding: Some(embedding(0, 0.05)),
+    };
+    engine
+        .set_faces(a.clone(), vec![face.clone(); 1025], 160, 120)
+        .unwrap();
+    let session = engine.open_cull_session(folder).unwrap();
+    let report = session.refresh_people(true).unwrap();
+    assert!(report.approximate);
+    assert_eq!(report.sample_size, 1024);
+    assert_eq!(report.assigned, 1025);
+    let report = session.refresh_people(false).unwrap();
+    assert!(!report.approximate);
+    assert_eq!(report.sample_size, 0, "incremental no-op does not train");
+    engine.set_faces(a, vec![face; 3], 160, 120).unwrap();
+    let report = session.refresh_people(true).unwrap();
+    assert!(!report.approximate);
+    assert_eq!(report.sample_size, 3);
+}
+
+#[test]
+fn indexed_medoid_resolution_does_not_choose_a_nearby_descriptor() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("a.jpg"), b"fixture").unwrap();
+    let mut index = index::Index::open(dir.path().join("index.sqlite")).unwrap();
+    index
+        .scan(
+            dir.path(),
+            &index::NoopSidecarReader,
+            &index::NoopMetadataProvider,
+        )
+        .unwrap();
+    let image = index.search(&index::Query::default()).unwrap()[0];
+    let mut medoid = vec![0.; 128];
+    medoid[0] = 1.;
+    let mut near = medoid.clone();
+    near[1] = 0.0000005;
+    let faces: Vec<_> = [near, medoid.clone()]
+        .into_iter()
+        .enumerate()
+        .map(|(n, embedding)| index::FaceRecord {
+            id: n as u32,
+            bbox: [0., 0., 50., 50.],
+            landmarks5: [[0.; 2]; 5],
+            confidence: 1.,
+            embedding: Some(embedding),
+            sharpness: 0.8,
+            eyes_open: None,
+        })
+        .collect();
+    index.replace_faces(image, &faces).unwrap();
+    index
+        .apply_people_plan(
+            &[index::Person {
+                id: "person".into(),
+                name: None,
+                medoid: Some(medoid.clone()),
+            }],
+            &[
+                (
+                    index::FaceKey {
+                        image_id: image,
+                        ordinal: 0,
+                    },
+                    "person".into(),
+                ),
+                (
+                    index::FaceKey {
+                        image_id: image,
+                        ordinal: 1,
+                    },
+                    "person".into(),
+                ),
+            ],
+        )
+        .unwrap();
+    assert_eq!(
+        ml_faces::people::medoid_face(&index, "person", &medoid)
+            .unwrap()
+            .unwrap()
+            .ordinal,
+        1
+    );
+}
+
+#[test]
+fn people_edits_undo_and_redo_restore_identity_members_confirmations_and_names() {
+    let (_dir, engine, folder, names) = shoot();
+    let a = id(&names, "a_sharp.jpg");
+    let face = FaceInput {
+        x: 10.,
+        y: 20.,
+        width: 40.,
+        height: 50.,
+        focus: 0.8,
+        eyes_open: None,
+        embedding: Some(embedding(0, 0.05)),
+    };
+    engine
+        .set_faces(a.clone(), vec![face; 3], 160, 120)
+        .unwrap();
+    let session = engine.open_cull_session(folder.clone()).unwrap();
+    let original = session.people(false).unwrap();
+    let pid = original[0].id.clone();
+    let key = PersonFace {
+        image_id: a.clone(),
+        ordinal: 0,
+    };
+    assert_eq!(session.undo_people_edit().unwrap(), None);
+    assert_eq!(session.redo_people_edit().unwrap(), None);
+    session
+        .name_person(
+            pid.clone(),
+            Some("Ada".into()),
+            PeopleNameOptions::default(),
+        )
+        .unwrap();
+    session.confirm_person_face(key.clone(), true).unwrap();
+    session
+        .split_person(pid.clone(), "split".into(), vec![key.clone()])
+        .unwrap();
+    session
+        .assign_person_face(key.clone(), pid.clone())
+        .unwrap();
+    session.undo_people_edit().unwrap();
+    assert_eq!(
+        session.person_members("split".into()).unwrap(),
+        vec![key.clone()]
+    );
+    session.redo_people_edit().unwrap();
+    assert!(session.person_members("split".into()).unwrap().is_empty());
+    session.undo_people_edit().unwrap();
+    session
+        .name_person(
+            "split".into(),
+            Some("Bob".into()),
+            PeopleNameOptions::default(),
+        )
+        .unwrap();
+    assert_eq!(
+        session.redo_people_edit().unwrap(),
+        None,
+        "a new edit clears redo"
+    );
+    session.confirm_person_face(key.clone(), true).unwrap();
+    session.merge_people(pid.clone(), "split".into()).unwrap();
+    assert_eq!(session.person_members(pid.clone()).unwrap().len(), 3);
+    assert_eq!(
+        session.undo_people_edit().unwrap().as_deref(),
+        Some("Merge people")
+    );
+    let restored = &session.person_assignments(a.clone()).unwrap()[0];
+    assert_eq!(restored.person_id, "split");
+    assert_eq!(restored.name.as_deref(), Some("Bob"));
+    assert!(restored.confirmed);
+    assert_eq!(
+        session.redo_people_edit().unwrap().as_deref(),
+        Some("Merge people")
+    );
+    session.undo_people_edit().unwrap();
+    for expected in [
+        "Confirm face",
+        "Name person",
+        "Split person",
+        "Confirm face",
+        "Name person",
+    ] {
+        assert_eq!(
+            session.undo_people_edit().unwrap().as_deref(),
+            Some(expected)
+        );
+    }
+    assert_eq!(session.undo_people_edit().unwrap(), None);
+    assert_eq!(session.people(false).unwrap(), original);
+    let other = engine.open_cull_session(folder).unwrap();
+    assert_eq!(
+        other.undo_people_edit().unwrap(),
+        None,
+        "history is per session"
+    );
+    assert!(session.merge_people(pid.clone(), "missing".into()).is_err());
+    assert_eq!(
+        session.redo_people_edit().unwrap().as_deref(),
+        Some("Name person"),
+        "failure preserves redo"
+    );
+    assert!(session.people(false).unwrap()[0].named);
+}
+
+#[test]
 fn face_strip_people_and_per_person_eyes_filter() {
     let (_dir, engine, folder, names) = shoot();
     let a = id(&names, "a_sharp.jpg");
@@ -202,6 +453,174 @@ fn face_strip_people_and_per_person_eyes_filter() {
     expected.sort();
     assert_eq!(all, expected);
     assert_eq!(session.frames_with_person(bride, Some(0.3)).unwrap(), [b]);
+}
+
+#[test]
+fn people_name_undo_restores_library_and_opted_in_sidecars_exactly() {
+    let (dir, engine, folder, names) = shoot();
+    let a = id(&names, "a_sharp.jpg");
+    engine
+        .set_faces(
+            a.clone(),
+            vec![FaceInput {
+                x: 10.,
+                y: 20.,
+                width: 40.,
+                height: 50.,
+                focus: 0.8,
+                eyes_open: None,
+                embedding: Some(embedding(0, 0.05)),
+            }],
+            160,
+            120,
+        )
+        .unwrap();
+    let session = engine.open_cull_session(folder.clone()).unwrap();
+    let pid = session.people(false).unwrap()[0].id.clone();
+    let image_path = dir.path().join("photos/a_sharp.jpg");
+    let xmp = sidecar::Sidecar::paths(&image_path).xmp;
+    // Naming default must not even probe this unreadable-as-a-file destination.
+    std::fs::create_dir(&xmp).unwrap();
+    session
+        .name_person(
+            pid.clone(),
+            Some("Ada".into()),
+            PeopleNameOptions::default(),
+        )
+        .unwrap();
+    session.undo_people_edit().unwrap();
+    assert!(!session.people(false).unwrap()[0].named);
+    std::fs::remove_dir(&xmp).unwrap();
+    let options = PeopleNameOptions {
+        write_sidecars: true,
+        person_keywords: true,
+    };
+    session
+        .name_person(pid.clone(), Some("Ada".into()), options)
+        .unwrap();
+    let ada_bytes = std::fs::read(&xmp).unwrap();
+    session
+        .name_person(pid.clone(), Some("Bob".into()), options)
+        .unwrap();
+    let bob_bytes = std::fs::read(&xmp).unwrap();
+    assert_ne!(ada_bytes, bob_bytes);
+    session.undo_people_edit().unwrap();
+    assert_eq!(
+        std::fs::read(&xmp).unwrap(),
+        ada_bytes,
+        "undo removes added keywords too"
+    );
+    assert_eq!(
+        session.person_assignments(a.clone()).unwrap()[0]
+            .name
+            .as_deref(),
+        Some("Ada")
+    );
+    session.undo_people_edit().unwrap();
+    assert!(!xmp.exists(), "new sidecar removed by inverse");
+    session.redo_people_edit().unwrap();
+    session.redo_people_edit().unwrap();
+    assert_eq!(std::fs::read(&xmp).unwrap(), bob_bytes);
+    let reopened = engine.open_cull_session(folder).unwrap();
+    assert_eq!(
+        reopened.person_assignments(a.clone()).unwrap()[0]
+            .name
+            .as_deref(),
+        Some("Bob")
+    );
+    // A failed replay must leave its stack entry and the name unchanged.
+    std::fs::write(&xmp, b"external edit").unwrap();
+    assert!(session.undo_people_edit().is_err());
+    assert_eq!(
+        session.person_assignments(a).unwrap()[0].name.as_deref(),
+        Some("Bob")
+    );
+    std::fs::write(&xmp, bob_bytes).unwrap();
+    session.undo_people_edit().unwrap();
+    assert_eq!(std::fs::read(&xmp).unwrap(), ada_bytes);
+}
+
+#[test]
+fn people_undo_handles_unassigned_faces_conflicts_and_bounded_history() {
+    let (_dir, engine, folder, names) = shoot();
+    let a = id(&names, "a_sharp.jpg");
+    let b = id(&names, "b_sharp.jpg");
+    let face = FaceInput {
+        x: 10.,
+        y: 20.,
+        width: 40.,
+        height: 50.,
+        focus: 0.8,
+        eyes_open: None,
+        embedding: None,
+    };
+    engine
+        .set_faces(a.clone(), vec![face.clone()], 160, 120)
+        .unwrap();
+    let session = engine.open_cull_session(folder.clone()).unwrap();
+    let p = session.people(false).unwrap().remove(0);
+    assert_eq!(p.medoid_face, None);
+    engine
+        .set_faces(b.clone(), vec![face.clone()], 160, 120)
+        .unwrap();
+    let key = PersonFace {
+        image_id: b.clone(),
+        ordinal: 0,
+    };
+    session
+        .assign_person_face(key.clone(), p.id.clone())
+        .unwrap();
+    session.undo_people_edit().unwrap();
+    assert!(session.person_assignments(b.clone()).unwrap().is_empty());
+    session.redo_people_edit().unwrap();
+    assert_eq!(session.person_members(p.id.clone()).unwrap().len(), 2);
+    // A no-op and a failed edit must not consume the assignment undo entry.
+    session
+        .assign_person_face(key.clone(), p.id.clone())
+        .unwrap();
+    assert!(
+        session
+            .confirm_person_face(
+                PersonFace {
+                    ordinal: 99,
+                    ..key.clone()
+                },
+                true
+            )
+            .is_err()
+    );
+    assert_eq!(
+        session.undo_people_edit().unwrap().as_deref(),
+        Some("Assign face")
+    );
+    session.redo_people_edit().unwrap();
+    let other = engine.open_cull_session(folder).unwrap();
+    other.confirm_person_face(key.clone(), true).unwrap();
+    assert!(
+        session.undo_people_edit().is_err(),
+        "never erase another session's edit"
+    );
+    other.undo_people_edit().unwrap();
+    session.undo_people_edit().unwrap();
+    session.redo_people_edit().unwrap();
+    for i in 0..40 {
+        session
+            .confirm_person_face(key.clone(), i % 2 == 0)
+            .unwrap();
+    }
+    for _ in 0..32 {
+        assert!(session.undo_people_edit().unwrap().is_some());
+    }
+    assert_eq!(session.undo_people_edit().unwrap(), None);
+    session.redo_people_edit().unwrap();
+    engine
+        .set_faces(b.clone(), vec![FaceInput { x: 15., ..face }], 160, 120)
+        .unwrap();
+    assert!(
+        session.undo_people_edit().is_err(),
+        "re-detection invalidates old face references"
+    );
+    assert!(session.person_assignments(b).unwrap().is_empty());
 }
 
 #[test]
