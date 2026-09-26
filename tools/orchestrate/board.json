@@ -950,5 +950,13 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M5-23",
+    "owner": "astra",
+    "title": "GPU-resident smart-filter stack + automatic transform routing",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
