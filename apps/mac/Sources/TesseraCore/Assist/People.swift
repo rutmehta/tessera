@@ -55,8 +55,11 @@ public struct PeopleRefresh: Sendable, Equatable {
     public var reclustered: Bool
     /// Clustered from a reservoir sample (more than `PeopleModel.clusteringSample` eligible faces).
     public var approximate: Bool
-    public init(assigned: UInt64, reclustered: Bool, approximate: Bool) {
+    /// Faces the job actually fitted on (`PeopleJobResult.sample_size`); 0 when nothing was pending.
+    public var sampleSize: Int
+    public init(assigned: UInt64, reclustered: Bool, approximate: Bool, sampleSize: Int = 0) {
         self.assigned = assigned; self.reclustered = reclustered; self.approximate = approximate
+        self.sampleSize = sampleSize
     }
 }
 
@@ -78,6 +81,8 @@ public protocol PeopleEngine: AnyObject {
     /// A clustering job to run off the main actor (`refresh_people`).
     func peopleRefreshJob(force: Bool) throws -> @Sendable () throws -> PeopleRefresh
     func people(refresh: Bool) throws -> [PersonSummary]
+    /// Every member face of one person in one call (`person_members`), in item ids.
+    func personMembers(_ person: String) throws -> [PersonFaceRef]
     func personAssignments(_ item: Int) throws -> [PersonAssignment]
     func faceStrip(_ item: Int) throws -> [FaceChip]
     func peopleNameSuggestions() throws -> [PeopleNameCandidate]
@@ -87,9 +92,14 @@ public protocol PeopleEngine: AnyObject {
     func assignFace(_ face: PersonFaceRef, to person: String) throws
     func confirmFace(_ face: PersonFaceRef, confirmed: Bool) throws
     func items(withPerson person: String, eyesClosedBelow: Double?) throws -> [Int]
+    /// Session-local people history (`undo_people_edit` / `redo_people_edit`): the applied
+    /// edit's description ("Merge people"), nil with an empty history.
+    func undoPeopleEdit() throws -> String?
+    func redoPeopleEdit() throws -> String?
 }
 
-/// A person tile: identity, name, frames and member faces.
+/// A person tile: identity, name, frames and counts. Member faces are loaded only for the
+/// person open in the detail view (`person_members`, one call).
 public struct PersonTile: Sendable, Equatable, Identifiable {
     public struct Member: Sendable, Equatable, Hashable, Identifiable {
         public var face: PersonFaceRef
@@ -103,24 +113,33 @@ public struct PersonTile: Sendable, Equatable, Identifiable {
     /// Frames (item ids) in queue order.
     public var items: [Int]
     public var faces: Int
-    /// The representative face (the sharpest member; the engine's cover).
+    /// The sharpest member (the engine's cover): the crop when there is no medoid.
     public var coverItem: Int?
     public var coverOrdinal: UInt32
+    /// Member faces: filled for the detail person only (empty on grid tiles).
     public var members: [Member]
+    /// Confirmed faces (`PersonInfo.confirmed_count`, same scope as `faces`).
+    public var confirmedCount: Int = 0
+    /// The most central member (`PersonInfo.medoid_face`); nil when invalidated or outside the queue.
+    public var medoid: PersonFaceRef? = nil
 
     public var displayName: String { name ?? "Unnamed" }
     public var isNamed: Bool { name != nil }
-    public var confirmedCount: Int { members.filter(\.confirmed).count }
     /// Every member face confirmed (protected from automatic refits).
-    public var isConfirmed: Bool { !members.isEmpty && confirmedCount == members.count }
-    public var cover: PersonFaceRef? { coverItem.map { PersonFaceRef(item: $0, ordinal: coverOrdinal) } }
+    public var isConfirmed: Bool { faces > 0 && confirmedCount >= faces }
+    /// The face shown for this person: the medoid, else the sharpest member.
+    public var cover: PersonFaceRef? {
+        medoid ?? coverItem.map { PersonFaceRef(item: $0, ordinal: coverOrdinal) }
+    }
 }
 
 @MainActor @Observable
 public final class PeopleModel {
-    /// Reservoir size of library-scale clustering (`ml_faces::clustering`, 1024 eligible faces);
-    /// the FFI reports only the `approximate` flag, not the sample size.
+    /// Reservoir size of library-scale clustering (`ml_faces::clustering`, 1024 eligible faces):
+    /// the footnote's fallback when a job did not report its `sample_size`.
     public static let clusteringSample = 1024
+    /// Engine bound on the session-local people history.
+    public static let historyLimit = 32
     static let writeRegionsKey = "People.WriteFaceRegions"
     static let personKeywordsKey = "People.PersonKeywords"
 
@@ -142,6 +161,12 @@ public final class PeopleModel {
     public private(set) var isRefreshing = false
     /// The last clustering job was approximate (sampled).
     public private(set) var approximate = false
+    /// Faces the last clustering job fitted on (0: not reported).
+    public private(set) var sampleSize = 0
+    /// Mirror of the engine's people history (descriptions, oldest first) for the Edit menu
+    /// titles; the engine stays the source of truth and reports what it actually replayed.
+    public private(set) var undoHistory: [String] = []
+    public private(set) var redoHistory: [String] = []
     /// Last result or error, for the status bar.
     public private(set) var message: String?
     public var naming: PeopleNamingOptions {
@@ -169,7 +194,8 @@ public final class PeopleModel {
         self.engine = engine
         refreshGeneration += 1
         tiles = []; selection = []; detailID = nil; faceSelection = []; suggestions = [:]
-        isRefreshing = false; approximate = false; message = nil
+        isRefreshing = false; approximate = false; sampleSize = 0; message = nil
+        undoHistory = []; redoHistory = []
         facet = []; facetItems = nil; faceRects = [:]
     }
 
@@ -181,6 +207,7 @@ public final class PeopleModel {
             var t = tile
             t.items = t.items.compactMap(remap)
             t.coverItem = t.coverItem.flatMap(remap)
+            t.medoid = t.medoid.flatMap(move)
             t.members = t.members.compactMap { m in move(m.face).map { PersonTile.Member(face: $0, confirmed: m.confirmed) } }
             return t
         }
@@ -221,7 +248,10 @@ public final class PeopleModel {
         isRefreshing = false
         switch result {
         case .success(let r):
-            if r.reclustered || r.approximate { approximate = r.approximate }
+            if r.reclustered || r.approximate {
+                approximate = r.approximate
+                sampleSize = r.sampleSize
+            }
             reload()
         case .failure(let error):
             fail("People", error)
@@ -229,32 +259,23 @@ public final class PeopleModel {
         }
     }
 
-    /// Re-reads identities, names, confirmations and suggestions. `refresh` also ingests new
-    /// faces (`people(refresh: true)`, the incremental job) — used after every edit.
+    /// Re-reads identities, names, counts and suggestions from `people()` alone (names, counts
+    /// and the medoid come with each person), then the detail person's members. `refresh` also
+    /// ingests new faces (`people(refresh: true)`, the incremental job) — used after every edit.
     public func reload(refresh: Bool = false) {
         guard let engine else { tiles = []; return }
         do {
             let people = try engine.people(refresh: refresh)
-            var byPerson: [String: [PersonTile.Member]] = [:]
-            var names: [String: String] = [:]
-            var seen = Set<Int>()
-            for person in people {
-                for item in person.items where seen.insert(item).inserted {
-                    for a in try engine.personAssignments(item) {
-                        byPerson[a.personID, default: []].append(.init(face: a.face, confirmed: a.confirmed))
-                        if let n = a.name?.trimmingCharacters(in: .whitespaces), !n.isEmpty { names[a.personID] = n }
-                    }
-                }
-            }
             tiles = Self.sorted(people.map { p in
-                PersonTile(id: p.id, name: names[p.id], items: p.items, faces: p.faces, coverItem: p.coverItem,
-                           coverOrdinal: p.coverOrdinal, members: (byPerson[p.id] ?? []).sorted { $0.face < $1.face })
+                let name = p.named ? p.name.trimmingCharacters(in: .whitespaces) : ""
+                return PersonTile(id: p.id, name: name.isEmpty ? nil : name, items: p.items, faces: p.faces,
+                                  coverItem: p.coverItem, coverOrdinal: p.coverOrdinal, members: [],
+                                  confirmedCount: p.confirmedCount, medoid: p.medoid)
             })
             let ids = Set(tiles.map(\.id))
             selection.formIntersection(ids)
             if let d = detailID, !ids.contains(d) { detailID = nil }
-            let members = Set(detail?.members.map(\.face) ?? [])
-            faceSelection.formIntersection(members)
+            try loadDetailMembers()
             faceRects = [:]
         } catch {
             fail("People", error)
@@ -271,9 +292,35 @@ public final class PeopleModel {
         refreshFacetItems()
     }
 
-    /// Footnote under the grid when the clustering was sampled.
+    /// Every member of one person (one `person_members` call), in item order. Confirmation comes
+    /// from the person's counts; only a partly confirmed person reads its members' assignments.
+    public func members(_ id: String) throws -> [PersonTile.Member] {
+        guard let engine else { return [] }
+        let faces = try engine.personMembers(id).sorted()
+        let confirmed = person(id)?.confirmedCount ?? 0
+        if confirmed == 0 { return faces.map { .init(face: $0, confirmed: false) } }
+        if confirmed >= faces.count { return faces.map { .init(face: $0, confirmed: true) } }
+        var state: [PersonFaceRef: Bool] = [:]
+        for item in Set(faces.map(\.item)).sorted() {
+            for a in try engine.personAssignments(item) where a.personID == id { state[a.face] = a.confirmed }
+        }
+        return faces.map { .init(face: $0, confirmed: state[$0] ?? false) }
+    }
+
+    /// Fills the detail person's members; the face selection keeps only its faces.
+    private func loadDetailMembers() throws {
+        guard let d = detailID, let i = tiles.firstIndex(where: { $0.id == d }) else {
+            faceSelection = []
+            return
+        }
+        tiles[i].members = try members(d)
+        faceSelection.formIntersection(tiles[i].members.map(\.face))
+    }
+
+    /// Footnote under the grid when the clustering was sampled (the job's reported sample size).
     public var approximateNote: String? {
-        approximate ? "Clustered from a sample of \(Self.clusteringSample.formatted()) faces" : nil
+        let n = sampleSize > 0 ? sampleSize : Self.clusteringSample
+        return approximate ? "Clustered from a sample of \(n.formatted()) faces" : nil
     }
 
     /// Normalized face rectangle (origin top-left) in the item's preview, from the face strip.
@@ -289,6 +336,14 @@ public final class PeopleModel {
 
     private func fail(_ verb: String, _ error: Error) {
         message = "\(verb) failed: \(error.localizedDescription)"
+    }
+
+    /// One engine edit = one step of the engine's people history (mirrored for the menu titles).
+    private func step(_ description: String, _ call: () throws -> Void) rethrows {
+        try call()
+        redoHistory = []
+        undoHistory.append(description)
+        if undoHistory.count > Self.historyLimit { undoHistory.removeFirst(undoHistory.count - Self.historyLimit) }
     }
 
     private func edit(_ verb: String, _ body: (any PeopleEngine) throws -> String) -> Bool {
@@ -313,7 +368,7 @@ public final class PeopleModel {
         guard trimmed != (old ?? "") else { return false }
         let options = naming
         return edit("Name") { engine in
-            try engine.namePerson(id, name: trimmed.isEmpty ? nil : trimmed, options: options)
+            try step("Name person") { try engine.namePerson(id, name: trimmed.isEmpty ? nil : trimmed, options: options) }
             let written = options.writeFaceRegions ? " · face regions written to XMP" : ""
             return trimmed.isEmpty ? "Cleared the name of \(old ?? "person")" : "Named \(trimmed)\(written)"
         }
@@ -323,7 +378,7 @@ public final class PeopleModel {
     @discardableResult
     public func accept(_ suggestion: PeopleNameCandidate) -> Bool {
         edit("Merge") { engine in
-            try engine.mergePeople(target: suggestion.namedID, source: suggestion.unnamedID)
+            try step("Merge people") { try engine.mergePeople(target: suggestion.namedID, source: suggestion.unnamedID) }
             return "Merged into \(suggestion.name)"
         }
     }
@@ -343,7 +398,7 @@ public final class PeopleModel {
         }
         let sources = people.filter { $0.id != target.id }
         let ok = edit("Merge") { engine in
-            for source in sources { try engine.mergePeople(target: target.id, source: source.id) }
+            for source in sources { try step("Merge people") { try engine.mergePeople(target: target.id, source: source.id) } }
             return "Merged \(sources.count + 1) people into \(target.displayName)"
         }
         if ok { selection = [target.id] }
@@ -361,7 +416,7 @@ public final class PeopleModel {
             return nil
         }
         let ok = edit("Split") { engine in
-            try engine.splitPerson(person.id, newID: newID, faces: faces)
+            try step("Split person") { try engine.splitPerson(person.id, newID: newID, faces: faces) }
             return "Split \(faces.count) face\(faces.count == 1 ? "" : "s") into a new person"
         }
         guard ok else { return nil }
@@ -373,10 +428,12 @@ public final class PeopleModel {
     @discardableResult
     public func reassign(_ face: PersonFaceRef, to target: String) -> Bool {
         guard person(target) != nil else { return false }
-        if let current = tiles.first(where: { $0.members.contains { $0.face == face } }), current.id == target { return false }
+        // The face's current owner, from its photo's assignments (tiles carry no members).
+        if let current = (try? engine?.personAssignments(face.item))?.first(where: { $0.face == face }),
+           current.personID == target { return false }
         let name = person(target)?.displayName ?? "person"
         let ok = edit("Move face") { engine in
-            try engine.assignFace(face, to: target)
+            try step("Assign face") { try engine.assignFace(face, to: target) }
             return "Moved the face to \(name) (unconfirmed)"
         }
         if ok { faceSelection.remove(face) }
@@ -387,7 +444,7 @@ public final class PeopleModel {
     @discardableResult
     public func setConfirmed(_ face: PersonFaceRef, _ confirmed: Bool) -> Bool {
         edit(confirmed ? "Confirm" : "Unconfirm") { engine in
-            try engine.confirmFace(face, confirmed: confirmed)
+            try step(confirmed ? "Confirm face" : "Unconfirm face") { try engine.confirmFace(face, confirmed: confirmed) }
             return confirmed ? "Confirmed the face" : "Unconfirmed the face"
         }
     }
@@ -399,9 +456,57 @@ public final class PeopleModel {
         let pending = person.members.filter { !$0.confirmed }
         guard !pending.isEmpty else { return false }
         return edit("Confirm") { engine in
-            for m in pending { try engine.confirmFace(m.face, confirmed: true) }
+            for m in pending { try step("Confirm face") { try engine.confirmFace(m.face, confirmed: true) } }
             return "Confirmed \(pending.count) face\(pending.count == 1 ? "" : "s") of \(person.displayName)"
         }
+    }
+
+    // MARK: Undo / Redo (Edit menu while the People view is frontmost)
+
+    /// "Merge people" → "Merge People" (menu title case).
+    public static func menuTitle(_ description: String) -> String {
+        description.split(separator: " ").map { $0.prefix(1).uppercased() + $0.dropFirst() }.joined(separator: " ")
+    }
+
+    /// Edit ▸ Undo's title: "Undo Merge People", or plain "Undo" with nothing recorded.
+    public var undoTitle: String { undoHistory.last.map { "Undo \(Self.menuTitle($0))" } ?? "Undo" }
+    public var redoTitle: String { redoHistory.last.map { "Redo \(Self.menuTitle($0))" } ?? "Redo" }
+
+    /// Undo the last people edit (`undo_people_edit`), then reload from `people(refresh: false)`.
+    @discardableResult
+    public func undo() -> Bool { replay(redo: false) }
+
+    /// Redo the last undone people edit (`redo_people_edit`), then reload from `people(refresh: false)`.
+    @discardableResult
+    public func redo() -> Bool { replay(redo: true) }
+
+    private func replay(redo: Bool) -> Bool {
+        let verb = redo ? "Redo" : "Undo"
+        guard let engine else { message = "Nothing to \(verb.lowercased())"; return false }
+        let applied: String?
+        do {
+            applied = redo ? try engine.redoPeopleEdit() : try engine.undoPeopleEdit()
+        } catch {
+            // The engine keeps its history on a conflict: so does the mirror.
+            fail(verb, error)
+            return false
+        }
+        guard let description = applied else {
+            if redo { redoHistory = [] } else { undoHistory = [] }
+            message = "Nothing to \(verb.lowercased())"
+            return false
+        }
+        if redo {
+            if !redoHistory.isEmpty { redoHistory.removeLast() }
+            undoHistory.append(description)
+        } else {
+            if !undoHistory.isEmpty { undoHistory.removeLast() }
+            redoHistory.append(description)
+        }
+        message = "\(verb) \(Self.menuTitle(description))"
+        reload(refresh: false)
+        onPeopleChange?()
+        return true
     }
 
     // MARK: Selection
@@ -423,14 +528,22 @@ public final class PeopleModel {
     }
 
     public func openDetail(_ id: String) {
+        clearDetailMembers()
         detailID = id
         faceSelection = []
         selection = [id]
+        do { try loadDetailMembers() } catch { fail("People", error) }
     }
 
     public func closeDetail() {
+        clearDetailMembers()
         detailID = nil
         faceSelection = []
+    }
+
+    private func clearDetailMembers() {
+        guard let d = detailID, let i = tiles.firstIndex(where: { $0.id == d }) else { return }
+        tiles[i].members = []
     }
 
     // MARK: Filter bar ▸ Person
@@ -501,9 +614,21 @@ extension CullController: PeopleEngine {
         let session = try peopleLibrary().session
         return {
             let r = try session.refreshPeople(force: force)
-            return PeopleRefresh(assigned: r.assigned, reclustered: r.reclustered, approximate: r.approximate)
+            return PeopleRefresh(assigned: r.assigned, reclustered: r.reclustered, approximate: r.approximate,
+                                 sampleSize: Int(r.sampleSize))
         }
     }
+
+    public func personMembers(_ person: String) throws -> [PersonFaceRef] {
+        let lib = try peopleLibrary()
+        return try lib.session.personMembers(personId: person).compactMap { f in
+            lib.itemOfImage[f.imageId].map { PersonFaceRef(item: $0, ordinal: f.ordinal) }
+        }
+    }
+
+    public func undoPeopleEdit() throws -> String? { try peopleLibrary().session.undoPeopleEdit() }
+
+    public func redoPeopleEdit() throws -> String? { try peopleLibrary().session.redoPeopleEdit() }
 
     public func personAssignments(_ item: Int) throws -> [PersonAssignment] {
         let lib = try peopleLibrary()

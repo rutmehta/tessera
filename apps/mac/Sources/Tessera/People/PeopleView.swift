@@ -2,11 +2,12 @@ import AppKit
 import SwiftUI
 import TesseraCore
 
-/// Sidebar ▸ People (docs/01 §1.4, WP M2-40): a grid of person tiles (the representative face,
-/// the name or an inline name field, counts and a confirmed badge), named people first. Click
+/// Sidebar ▸ People (docs/01 §1.4, WP M2-40, M2-44): a grid of person tiles (the medoid face, the
+/// name or an inline name field, counts and a confirmed badge), named people first. Click
 /// selects (⌘ / ⇧ extend) for the toolbar's Merge; double-click opens the person's faces, where
 /// faces are confirmed, split off, or dragged onto another person. Every edit goes through the
-/// engine (`CullSession` people calls) and the tiles reload from it.
+/// engine (`CullSession` people calls) and the tiles reload from it; Edit ▸ Undo / Redo replay the
+/// engine's people history while this view is frontmost.
 struct PeopleView: View {
     let model: AppModel
     private var people: PeopleModel { model.people }
@@ -70,7 +71,7 @@ private struct PeopleGrid: View {
                 .padding(.horizontal, Theme.Space.gutter)
                 .frame(height: Theme.Height.regular)
                 .background(Theme.panel)
-                .help("More than \(PeopleModel.clusteringSample.formatted()) faces: clusters were fitted on a sample and the rest matched to them. Rare people can stay unnamed singletons; Refit re-runs it.")
+                .help("Too many faces to cluster at once: clusters were fitted on a sample and the rest matched to them. Rare people can stay unnamed singletons; Refit re-runs it.")
                 .accessibilityIdentifier("people-approximate-note")
             }
         }
@@ -149,7 +150,7 @@ private struct PersonTileView: View {
                         .help("Every face is confirmed: automatic re-clustering will not move them")
                         .accessibilityIdentifier("person-confirmed-\(tile.id)")
                 } else if tile.confirmedCount > 0 {
-                    Text("\(tile.confirmedCount)/\(tile.members.count) confirmed")
+                    Text("\(tile.confirmedCount)/\(tile.faces) confirmed")
                         .font(Theme.Fonts.captionNumeric).foregroundStyle(Theme.textTertiary)
                 }
             }
@@ -313,7 +314,7 @@ private struct PersonDetailView: View {
                 .onSubmit { people.name(person.id, as: draft); model.peopleDidChange() }
                 .help("Type a name and press Return; clear it to remove the name")
                 .accessibilityIdentifier("person-detail-name")
-            Text("\(person.items.count.formatted()) photos · \(person.members.count.formatted()) faces · \(person.confirmedCount.formatted()) confirmed")
+            Text("\(person.items.count.formatted()) photos · \(person.faces.formatted()) faces · \(person.confirmedCount.formatted()) confirmed")
                 .font(Theme.Fonts.captionNumeric).foregroundStyle(Theme.textTertiary)
                 .accessibilityIdentifier("person-detail-counts")
             Spacer(minLength: Theme.Space.s)
