@@ -358,6 +358,13 @@ pub struct ManagedRenderer {
     ops: Arc<crate::GpuStageOp>,
 }
 impl ManagedRenderer {
+    /// Installs the packed CFA capability for managed preview and float export.
+    /// Export-band snapshots retain the same calibration and inference memo.
+    pub fn with_cfa_denoise(mut self, denoiser: Arc<dyn image_core::cfa::CfaDenoise>) -> Self {
+        self.renderer = self.renderer.with_cfa_denoise(denoiser);
+        self
+    }
+
     pub fn new(output: Arc<GpuManagedOutput>, config: image_core::RendererConfig) -> Self {
         Self::build(output, config, false)
     }
@@ -458,12 +465,7 @@ impl ManagedRenderer {
         ops.recycled = recycled;
         ops.resident_cache = crate::resident::cache(self.renderer.config().cache_budget_bytes);
         let ops = Arc::new(ops);
-        let config = self.renderer.config().clone();
-        let renderer = image_core::Renderer::with_ops(
-            ops.clone(),
-            Arc::new(image_core::TileCache::new(config.cache_budget_bytes)),
-            config,
-        );
+        let renderer = self.renderer.for_backend(ops.clone());
         Self {
             output: self.output.clone(),
             renderer,

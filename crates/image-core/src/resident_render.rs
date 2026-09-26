@@ -341,6 +341,7 @@ impl Renderer {
             &t,
             (0, linear.start),
         )?;
+        let t = self.resident_cfa(r, batch, &t, (0, linear.start), cancel)?;
         let t = batch.gather_rows(
             sensor,
             &t,
@@ -419,8 +420,10 @@ impl Renderer {
         }
     }
 
-    /// Whether this backend can develop this image/recipe without host pixel
-    /// barriers. This is a capability query, not a frame-time guarantee.
+    /// Whether this backend can keep demosaic and subsequent stages resident.
+    /// CFA inference initially consumes a host tensor and uploads its packed
+    /// result once; warm tone edits reuse the resident stages. This query does
+    /// not load a model and is not a frame-time guarantee.
     pub fn can_render_resident(
         &self,
         image: &RawImage,
@@ -434,7 +437,7 @@ impl Renderer {
     /// backend whole-level barrier that fits that level (any level when None).
     pub(super) fn supports_resident(&self, r: &Resolved<'_>, level: Option<u8>) -> bool {
         let s = r.settings;
-        if pipeline_cpu::denoise_active(&s.denoise)
+        if (pipeline_cpu::denoise_active(&s.denoise) && !self.cfa_supported(r.cfa, s))
             || !matches!(r.cfa, CfaLayout::Bayer(_) | CfaLayout::XTrans(_))
             // Local adjustment operators/rasterization use the whole-image
             // nonresident path until all local kernels are resident-capable.
@@ -448,6 +451,9 @@ impl Renderer {
         let Some(batch) = self.ops.begin_resident() else {
             return false;
         };
+        if pipeline_cpu::denoise_active(&s.denoise) && !batch.supports_cfa() {
+            return false;
+        }
         if !has_presence(&s.tone) {
             return true;
         }
@@ -652,6 +658,8 @@ impl Renderer {
                                 },
                                 &t,
                             )?;
+                            let t =
+                                self.resident_cfa(r, batch, &t, d.pixel_origin(TILE_SIZE), cancel)?;
                             linear.insert(d, t);
                         }
                         drop(raw);

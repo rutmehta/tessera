@@ -1,6 +1,8 @@
 use crate::{GpuStageOp, operator::parameters};
 #[path = "resident_band.rs"]
 mod band;
+#[path = "resident_cfa.rs"]
+mod cfa;
 #[path = "export_resize.rs"]
 pub(crate) mod export_resize;
 #[path = "lens.rs"]
@@ -996,6 +998,27 @@ impl Batch<'_> {
     }
 }
 impl ResidentBatch for Batch<'_> {
+    fn supports_cfa(&self) -> bool {
+        true
+    }
+    fn upload_cfa(
+        &mut self,
+        full: &image_core::cfa::PackedCfa,
+        coord: TileCoord,
+        layout: TileLayout,
+        origin: (u32, u32),
+    ) -> EngineResult<ResidentTile> {
+        self.upload_cfa_impl(full, coord, layout, origin)
+    }
+    fn blend_cfa(
+        &mut self,
+        original: &ResidentTile,
+        full: &ResidentTile,
+        amount: f32,
+    ) -> EngineResult<ResidentTile> {
+        self.blend_cfa_impl(original, full, amount)
+    }
+
     fn enable_metrics(&mut self) -> bool {
         // Metrics are encoded SDR sRGB, not a monitor/print proof transform.
         self.metrics_only = !self.gpu.export_float && self.gpu.managed_output.is_none();
@@ -1083,9 +1106,12 @@ impl ResidentBatch for Batch<'_> {
         // sensor tile across the demosaic halos of its neighbours instead of
         // uploading it once per dependent chunk. Publication at finish keeps
         // applying the cache budget.
-        if (self.gpu.export_float && key.stage == StageId::Decode)
-            || self.storage(tile)?.size() as usize <= self.gpu.resident_cache.lock().unwrap().budget
-        {
+        if retain_exact_page(
+            self.gpu.export_float,
+            key.stage,
+            self.storage(tile)?.size() as usize,
+            self.gpu.resident_cache.lock().unwrap().budget,
+        ) {
             self.access_tick += 1;
             self.pending.insert(key, (self.access_tick, tile.clone()));
         }
@@ -1822,6 +1848,13 @@ fn contribution_region(
     (dx, dy, end_x - dx, end_y - dy)
 }
 
+// Export owns uploaded source pages for its transaction even with no persistent
+// memo budget. Both raw Decode and unpacked full-strength CFA pages are reused
+// by overlapping demosaic dependency chunks. RGB intermediates remain scratch.
+fn retain_exact_page(export: bool, stage: StageId, bytes: usize, budget: usize) -> bool {
+    (export && matches!(stage, StageId::Decode | StageId::Denoise)) || bytes <= budget
+}
+
 fn cache_payload_bytes(key: &MemoKey, tile: &ResidentTile) -> usize {
     if let Some(storage) = tile.storage.downcast_ref::<Storage>() {
         return storage.buffer.size() as usize;
@@ -1863,6 +1896,16 @@ mod tests {
             storage: Arc::new(()),
         }
     }
+    #[test]
+    fn export_sensor_pages_survive_a_zero_memo_budget() {
+        for stage in [StageId::Decode, StageId::Denoise] {
+            assert!(retain_exact_page(true, stage, 4096, 0));
+        }
+        assert!(!retain_exact_page(true, StageId::Demosaic, 4096, 0));
+        assert!(!retain_exact_page(false, StageId::Denoise, 4096, 0));
+        assert!(retain_exact_page(false, StageId::Denoise, 4096, 4096));
+    }
+
     #[test]
     fn lru_packed_alignment_replacement_and_oversize() {
         let mut c = Cache::new(40);
@@ -1942,6 +1985,7 @@ mod tests {
     fn resident_shaders_validate_without_a_device() {
         for source in [
             include_str!("resident.wgsl"),
+            include_str!("cfa.wgsl"),
             include_str!("surface.wgsl"),
             include_str!("gather.wgsl"),
             include_str!("histogram.wgsl"),
