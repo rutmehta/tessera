@@ -27,6 +27,7 @@ pub mod document;
 pub mod error;
 pub mod id;
 pub mod jobs;
+pub mod people;
 pub mod recipe;
 pub mod stage;
 pub mod tile;
@@ -37,4 +38,4 @@ pub use error::{EngineError, EngineResult};
 /// Version of the contracts in this crate. Bumped on any breaking change to a
 /// public type or serialized schema; work packages record the version they
 /// were built against.
-pub const CONTRACT_VERSION: &str = "1.2.0";
+pub const CONTRACT_VERSION: &str = "1.3.0";

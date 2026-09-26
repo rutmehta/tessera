@@ -1,0 +1,11 @@
+{
+  "schema_version": 2,
+  "image_id": "0000000000000000000000000000002a",
+  "process_version": {"family": "native", "revision": 2},
+  "settings": {},
+  "selection": {"decision": "undecided", "grade": null, "mark": null},
+  "history": {},
+  "ids": {"next_mask": 0, "next_retouch": 0},
+  "provenance": {"properties": {}},
+  "future_extension": {"preserved": true}
+}

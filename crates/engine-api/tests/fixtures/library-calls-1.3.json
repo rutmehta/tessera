@@ -1,0 +1,7 @@
+[
+  {"tool":"assign_person","faces":[{"image_id":"0000000000000000000000000000002a","ordinal":3}],"person_id":42,"confirmed":false,"writes":{"write_sidecars":false,"person_keywords":false}},
+  {"tool":"confirm_person","faces":[{"image_id":"0000000000000000000000000000002a","ordinal":3}],"person_id":42,"confirmed":true,"writes":{"write_sidecars":false,"person_keywords":false}},
+  {"tool":"merge_people","source":41,"target":42,"writes":{"write_sidecars":false,"person_keywords":false}},
+  {"tool":"split_person","person_id":42,"faces":[{"image_id":"0000000000000000000000000000002a","ordinal":3}],"writes":{"write_sidecars":false,"person_keywords":false}},
+  {"tool":"name_person","person_id":42,"name":"Ada","writes":{"write_sidecars":true,"person_keywords":true}}
+]

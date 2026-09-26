@@ -1,0 +1,10 @@
+{
+  "person_id": 42,
+  "face": {"image_id":"0000000000000000000000000000002a","ordinal":3},
+  "person": {"id":42,"name":"Ada","confirmed_count":5,"approximate":true},
+  "region": {"center_x":0.5,"center_y":0.25,"width":0.125,"height":0.25,"coordinate_space":{"width":1200,"height":800}},
+  "suggestion": {"person_id":42,"name":"Ada","similarity":-0.5},
+  "options": {"cosine_threshold":0.5,"quality_gate":{"min_confidence":0.875,"min_size":32.0,"min_sharpness":0.125},"refit_interval":1000},
+  "result": {"assigned":12,"refit":true,"approximate":true},
+  "writes": {"write_sidecars":false,"person_keywords":false}
+}

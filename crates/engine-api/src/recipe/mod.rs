@@ -39,7 +39,27 @@ use crate::stage::{canonical_json, ParamHash, StageId};
 /// - 2: contracts 1.1. Camera and lens profile ids became structs
 ///   ([`CameraProfileRef`], [`LensProfileRef`]; schema-1 strings still load),
 ///   and [`Recipe::provenance`] was added.
-pub const RECIPE_SCHEMA_VERSION: u32 = 2;
+/// - 3: contracts 1.3. Typed source kind (legacy absence means raw).
+pub const RECIPE_SCHEMA_VERSION: u32 = 3;
+
+/// Source decoding route. Legacy recipes without this field are raw.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SourceKind {
+    /// Sensor data, using the raw pipeline.
+    #[default]
+    #[serde(alias = "Raw")]
+    Raw,
+    /// Already decoded RGB, entering after demosaicing.
+    #[serde(alias = "Rgb")]
+    Rgb,
+}
+
+impl SourceKind {
+    fn is_raw(&self) -> bool {
+        *self == Self::Raw
+    }
+}
 
 /// Which pipeline math a recipe is rendered with.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -211,6 +231,10 @@ pub struct Recipe {
     pub schema_version: u32,
     /// Image this recipe belongs to.
     pub image_id: Option<ImageId>,
+    /// Source route. The former top-level string extension is consumed here;
+    /// serialization always writes the canonical lowercase string.
+    #[serde(default)]
+    pub source_kind: SourceKind,
     /// Rendering semantics.
     pub process_version: ProcessVersion,
     /// Current settings. Invariant: equals `history.state_at(history.head)`.
@@ -233,6 +257,7 @@ impl Default for Recipe {
         Self {
             schema_version: RECIPE_SCHEMA_VERSION,
             image_id: None,
+            source_kind: SourceKind::default(),
             process_version: ProcessVersion::default(),
             settings: DevelopSettings::default(),
             selection: Selection::default(),
@@ -246,6 +271,9 @@ impl Default for Recipe {
 
 #[derive(Serialize)]
 struct HashedState<'a> {
+    // Omit raw to retain the historical raw cache keys.
+    #[serde(skip_serializing_if = "SourceKind::is_raw")]
+    source_kind: SourceKind,
     process_version: &'a ProcessVersion,
     settings: &'a DevelopSettings,
 }
@@ -259,11 +287,12 @@ impl Recipe {
         }
     }
 
-    /// Deterministic digest of the render-affecting state (process version +
-    /// settings). Excludes selection, history, ids and unknown members, and is
+    /// Deterministic digest of the render-affecting state (source kind,
+    /// process version and settings). Excludes selection, history, ids and unknown members, and is
     /// independent of field declaration order.
     pub fn recipe_hash(&self) -> RecipeHash {
         let state = HashedState {
+            source_kind: self.source_kind,
             process_version: &self.process_version,
             settings: &self.settings,
         };
@@ -275,7 +304,14 @@ impl Recipe {
 
     /// Cumulative per-stage hashes for [`crate::stage::MemoKey`]s.
     pub fn stage_chain(&self) -> [(StageId, ParamHash); StageId::COUNT] {
-        self.settings.stage_chain(self.process_version.chain_seed())
+        let seed = match self.source_kind {
+            SourceKind::Raw => self.process_version.chain_seed(),
+            SourceKind::Rgb => ParamHash(Digest::derive(
+                "engine-api 2026 rgb-source process-version v1",
+                &canonical_json(&self.process_version),
+            )),
+        };
+        self.settings.stage_chain(seed)
     }
 
     /// Applies an edit through `f`, recording it in history. Returns the new

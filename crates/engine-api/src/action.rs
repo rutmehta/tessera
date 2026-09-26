@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 use crate::error::{EngineError, EngineResult};
-use crate::tools::{DocumentToolCall, ToolCall};
+use crate::tools::{DocumentToolCall, LibraryToolCall, ToolCall};
 
 /// Which surface a command belongs to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -24,6 +24,8 @@ pub enum CommandDomain {
     Recipe,
     /// Layered-document commands ([`DocumentToolCall`]).
     Document,
+    /// Catalog-scoped identity commands ([`LibraryToolCall`]).
+    Library,
 }
 
 /// What running a command does.
@@ -60,8 +62,8 @@ const fn cmd(name: &'static str, domain: CommandDomain, effect: CommandEffect) -
 
 /// The command-name registry. Names are stable once shipped (invariant 11):
 /// rows are only ever appended, never renamed or removed.
-pub const COMMANDS: [CommandInfo; 23] = {
-    use CommandDomain::{Document as D, Recipe as R};
+pub const COMMANDS: [CommandInfo; 33] = {
+    use CommandDomain::{Document as D, Library as L, Recipe as R};
     use CommandEffect::{Edit, Effect, Query};
     [
         cmd("set_tone", R, Edit),
@@ -87,6 +89,16 @@ pub const COMMANDS: [CommandInfo; 23] = {
         cmd("merge_down", D, Edit),
         cmd("export_document", D, Effect),
         cmd("list_layers", D, Query),
+        cmd("add_channel", D, Edit),
+        cmd("delete_channel", D, Edit),
+        cmd("rename_channel", D, Edit),
+        cmd("edit_channel", D, Edit),
+        cmd("load_channel_as_selection", D, Edit),
+        cmd("assign_person", L, Effect),
+        cmd("confirm_person", L, Effect),
+        cmd("merge_people", L, Effect),
+        cmd("split_person", L, Effect),
+        cmd("name_person", L, Effect),
     ]
 };
 
@@ -102,6 +114,8 @@ pub enum ActionCall {
     Recipe(ToolCall),
     /// A layered-document tool call.
     Document(DocumentToolCall),
+    /// A catalog people tool call.
+    Library(LibraryToolCall),
 }
 
 /// A serializable command descriptor.
@@ -152,6 +166,11 @@ impl Action {
         Self::from_tagged(serde_json::to_value(call)?)
     }
 
+    /// The descriptor of a catalog people tool call.
+    pub fn from_library_tool(call: &LibraryToolCall) -> EngineResult<Self> {
+        Self::from_tagged(serde_json::to_value(call)?)
+    }
+
     /// Registry row, if the command is registered.
     pub fn info(&self) -> Option<&'static CommandInfo> {
         command(&self.command)
@@ -181,6 +200,9 @@ impl Action {
             CommandDomain::Document => {
                 ActionCall::Document(serde_json::from_value(self.tagged()).map_err(bad)?)
             }
+            CommandDomain::Library => {
+                ActionCall::Library(serde_json::from_value(self.tagged()).map_err(bad)?)
+            }
         })
     }
 }
@@ -199,6 +221,13 @@ impl TryFrom<&DocumentToolCall> for Action {
     }
 }
 
+impl TryFrom<&LibraryToolCall> for Action {
+    type Error = EngineError;
+    fn try_from(call: &LibraryToolCall) -> EngineResult<Self> {
+        Self::from_library_tool(call)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -210,6 +239,7 @@ mod tests {
         let expected: Vec<&str> = ToolCall::NAMES
             .iter()
             .chain(DocumentToolCall::NAMES.iter())
+            .chain(LibraryToolCall::NAMES.iter())
             .copied()
             .collect();
         assert_eq!(names, expected);
@@ -224,8 +254,12 @@ mod tests {
         for c in &COMMANDS[..ToolCall::NAMES.len()] {
             assert_eq!(c.domain, CommandDomain::Recipe);
         }
-        for c in &COMMANDS[ToolCall::NAMES.len()..] {
+        let library_start = ToolCall::NAMES.len() + DocumentToolCall::NAMES.len();
+        for c in &COMMANDS[ToolCall::NAMES.len()..library_start] {
             assert_eq!(c.domain, CommandDomain::Document);
+        }
+        for c in &COMMANDS[library_start..] {
+            assert_eq!(c.domain, CommandDomain::Library);
         }
     }
 

@@ -217,9 +217,24 @@ numeric_id!(
 );
 numeric_id!(
     /// A saved selection (alpha channel) within one layered document.
+    /// Its numeric value equals the alpha channel's [`ChannelId`]. Spot
+    /// channels have no SelectionId; use load-channel-as-selection instead.
     SelectionId(u64),
     "selection#"
 );
+
+numeric_id!(
+    /// A persistent alpha or spot channel within one document. Monotonic,
+    /// never reused, and independent of layer IDs. Zero is reserved.
+    ChannelId(u64),
+    "channel#"
+);
+
+impl From<SelectionId> for ChannelId {
+    fn from(value: SelectionId) -> Self {
+        Self(value.0)
+    }
+}
 
 impl LayerId {
     /// The document root. Real layers are numbered from 1.
