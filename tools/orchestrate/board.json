@@ -739,9 +739,9 @@
     "id": "M3-15v",
     "owner": "sol",
     "title": "Verify keywords + tethering UI",
-    "status": "running",
+    "status": "pass",
     "attempts": 0,
-    "notes": ""
+    "notes": "keywords + tether work on screen; bug: {original} naming token not applied in tether; interval picker selection not retained -> M3-12c after M2-28"
   },
   {
     "id": "M5-04b",
