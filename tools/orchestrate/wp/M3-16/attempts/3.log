@@ -1,0 +1,7 @@
+Ran the exact required test, clippy, and fmt chain with CARGO_TARGET_DIR preserved. Exit 0: 192 tests passed, 0 failed, 2 ignored. The trained-model test and raw fixture goldens passed. LibRaw’s warnings are not the failure.
+
+M3-16 remains incomplete: inference returns host tensors, and active denoise explicitly disables resident rendering. Completing the GPU-resident handoff requires integration with crates/pipeline-gpu, outside the allowed paths.
+
+Updated tools/orchestrate/wp/M3-16/VERIFICATION.md with fresh evidence. No implementation changes or commits made.
+
+RESULT: FAIL GPU-resident CFA output feeding demosaic remains unimplemented.

@@ -1,0 +1,20 @@
+Implemented the phase-2a CPU/reference path: trained CFA U-Net, fp32/fp16 ONNX exports, SHA-verified local registry entries, Bayer rotation/packing, tiled inference, Amount/mask blending, and raw-stage caching before unchanged MHC demosaic.
+
+Verified:
+  Required test → clippy → fmt command passed.
+  192 tests passed, 2 existing tests ignored.
+  ONNX held-out synthetic PSNR improved 6.04 dB.
+  Whole-image versus tiled inference difference was zero.
+  Existing raw goldens passed unchanged.
+  Feature-enabled adapter and sensor-mask tests passed.
+
+Full acceptance is still incomplete. Inference uses host tensors with mixed CoreML/CPU partitions, not a GPU-resident handoff to demosaic. The fixture experiment also does not establish a verified low-ISO, per-camera calibration corpus.
+
+Only allowed paths changed; engine-api is unchanged and weights remain local, excluded from source changes.
+
+Handoff: /Users/rutmehta/Developer/tessera/.worktrees/M3-16/tools/orchestrate/wp/M3-16/VERIFICATION.md
+
+RESULT: FAIL GPU-resident CFA-to-demosaic handoff and low-ISO corpus qualification remain incomplete.
+
+⚠️ File-mutation verifier: 1 file(s) were NOT modified this turn despite any wording above that may suggest otherwise. Run `git status` or `read_file` to confirm.
+  • `crates/image-core/tests/denoise.rs` — [patch] Patch validation failed (no files were modified): • `/Users/rutmehta/Developer/tessera/.worktrees/M3-16/crates/image-core/tests/denoise.rs`: hunk 3 (no hint) not found — Found 14 ma…

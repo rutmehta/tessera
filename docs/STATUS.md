@@ -37,3 +37,9 @@ Compositor core (27 blend modes exact, groups/knockout/Blend If, adjustments, sm
 - Adobe PV6 compatibility renderer for imported edits + in-app Lightroom import with ΔE fidelity report (M2-18, M2-13b).
 - Milestone 3 remainder: tool API/MCP server, scripting console, tethering. Milestone 4 agentic editing. Milestone 5 layered editor.
 - Release: needs your Developer ID certificate + notarization profile and a Sparkle EdDSA key (see apps/mac/Support/release/README.md).
+
+## Coordination across machines (2026-09-26)
+Two coordinator sessions run in parallel on two laptops sharing this repo. Ownership by package id prefix:
+- **Machine A (this Mac, engine + Astra-heavy):** M5-08 compositor perf, M5-07 document executor, M2-28 incremental updates, and subsequent engine crates (denoise/CFA net, PV6 fidelity with real samples, tethering backends, MCP/agent).
+- **Machine B (second laptop):** the **layered-editor UI** (`M5-09`: Document window over the resident compositor, layers panel, tools palette wired to brush/selection/filters, history, PSD open/save; Opus), and app polish packages (`M2-3x`). Use ids `M5-09`–`M5-19` and `M2-30`–`M2-39` to avoid collisions.
+Rules: each session creates `wp/<id>` branches in its own worktrees, keeps `CARGO_TARGET_DIR` outside the repo, never edits `engine-api` without a contract package, pushes `wp/*` branches, and **only Machine A merges to `main`** (Machine B opens its branches and notes them in `tools/orchestrate/board.json` under its own ids; Machine A merges and pushes). Rebase or merge `main` into a branch before requesting a merge.

@@ -1,0 +1,12 @@
+M5-08 remains partial. Preserved the four feature implementations and strengthened the benchmark with unconditional full-L0 and viewport CPU comparisons.
+
+Required verification passed: 78 tests, clippy -D warnings, and cargo fmt --check. CARGO_TARGET_DIR remained on the external SSD. All changed paths are allowed; engine-api and format.rs are untouched.
+
+Acceptance still fails:
+  Full L0: 198.073 ms, target <100 ms.
+  4K viewport: 82.684 ms, target <8 ms.
+  Full-L0 CPU error: 0.017690986, limit 0.002, including the general-shader fallback.
+
+The prior L2-only benchmark missed that correctness failure. The stronger ignored benchmark now reports it explicitly. Updated findings and execution logs are under tools/orchestrate/wp/M5-08/.
+
+RESULT: FAIL full-L0 CPU correctness gate and both performance targets remain unmet.

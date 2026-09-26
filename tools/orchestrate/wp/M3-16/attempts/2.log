@@ -1,0 +1,7 @@
+Reran your exact command with CARGO_TARGET_DIR preserved. It passed: 192 tests passed, 2 ignored, clippy and fmt clean. Fresh tiny training achieved +6.039 dB. Denoise-off goldens passed.
+
+M3-16 is still incomplete: inference returns host tensors, not GPU-resident output feeding demosaic. The LibRaw warnings are not what blocks acceptance.
+
+Preserved the existing implementation and recorded the retry evidence in tools/orchestrate/wp/M3-16/VERIFICATION.md. No engine-api changes.
+
+RESULT: FAIL GPU-resident CFA-to-demosaic handoff remains unimplemented.

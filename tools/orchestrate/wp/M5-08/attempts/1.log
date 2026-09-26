@@ -1,0 +1,12 @@
+Implemented viewport dirty tracking, cached structural shaders with fallback, RGBA16F/LUT presentation, and GPU smart-object resampling. Only allowed paths changed. No commits.
+
+Required verification passed: 78 tests, clippy -D warnings, and cargo fmt --check.
+
+Performance acceptance failed. Unrestricted specialization reached roughly 88 ms L0, but violated the large-document CPU tolerance. I retained interpreter fallback for discontinuous structures rather than shipping incorrect output. Final accepted medians:
+  Full L0: 199.7 ms, target <100 ms
+  Full 4K viewport: 86.4 ms, target <8 ms
+
+Details and execution logs:
+  /Users/rutmehta/Developer/tessera/.worktrees/M5-08/tools/orchestrate/wp/M5-08/IMPLEMENTATION-STATUS.md
+
+RESULT: FAIL L0 and 4K viewport performance targets remain unmet.

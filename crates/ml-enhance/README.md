@@ -97,13 +97,15 @@ blending in linear light, validates shape/finiteness/ranges, and bypasses the
 inference callback for amount zero or an all-zero mask. Zero-alpha pixels retain
 their bits, including signed zero. `NoiseModelHint` is advisory read/shot variance,
 not falsely advertised as calibrated sensor conditioning.
-`CfaDenoise` explicitly reserves future joint raw inference, which needs training.
+`CfaDenoise` now has the opt-in phase-2a `CfaDenoiser` implementation. See
+[TRAINING.md](TRAINING.md) for training, local digest registration, calibrated
+four-site conditioning, sensor masks and the remaining GPU-residency limitation.
 
 ## Pipeline integration (engine-api unchanged)
 
-Per the coordinator decision, only the pinned DRUNet ModelRef with
-`joint_demosaic=false` is accepted as phase-1 RGB denoise. The raw StageId::Denoise
-is reserved. The RGB result is the Demosaic tail, cached under the chained
+The pinned DRUNet ModelRef with `joint_demosaic=false` selects phase-1 RGB denoise.
+The two locally trained CFA model IDs select phase 2a and use raw StageId::Denoise.
+The RGB result is still the Demosaic tail, cached under the chained
 demosaic/denoise settings plus adapter revision. Tone and WB edits reuse it.
 Unknown versions, true joint CFA and chroma-only settings fail explicitly.
 

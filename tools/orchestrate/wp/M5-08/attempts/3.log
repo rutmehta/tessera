@@ -1,0 +1,12 @@
+M5-08 remains partial. Fixed the Pin Light → Hard Mix rounding failure and added a non-ignored one-pixel regression. Full-L0 maximum CPU error improved from 0.01769 to 0.00557, but still exceeds the 0.002 limit. The remaining trace identifies tiny RGB sign differences amplified by Divide.
+
+Ran the exact required command successfully: 79 tests passed, clippy clean, fmt clean. The ignored acceptance benchmark still fails:
+  Full L0: 203.217 ms, target <100 ms
+  4K viewport: 83.901 ms, target <8 ms
+
+Only allowed paths changed. engine-api and format.rs are untouched. CARGO_TARGET_DIR remained on the external SSD.
+
+Details and execution logs:
+  /Users/rutmehta/Developer/tessera/.worktrees/M5-08/tools/orchestrate/wp/M5-08/IMPLEMENTATION-STATUS.md
+
+RESULT: FAIL full-L0 CPU error 0.005570616 exceeds 0.002; L0 and 4K viewport performance targets remain unmet.
