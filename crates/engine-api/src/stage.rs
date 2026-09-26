@@ -4,13 +4,16 @@
 //! owns one parameter struct in the recipe; its [`ParamHash`] is chained with
 //! the hashes of every upstream stage so that a stage's cache key changes
 //! whenever anything that feeds it changes, and never otherwise.
+//!
+//! Layered documents are not a fixed pipeline; their cached tiles are keyed
+//! by [`NodeMemoKey`] instead (document, node, part, revision, tile).
 
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::id::{Digest, ImageId};
+use crate::id::{Digest, DocumentId, ImageId, LayerId};
 use crate::tile::TileCoord;
 
 /// Pipeline stages in execution order. The discriminant is the position.
@@ -195,6 +198,88 @@ impl MemoKey {
     }
 }
 
+/// What a [`NodeMemoKey`] caches for its node. The discriminant is part of
+/// [`NodeMemoKey::digest`] and must never change.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[repr(u8)]
+pub enum NodePart {
+    /// A layer's own pixels (a pixel/text raster mip), document depth,
+    /// straight.
+    Content = 0,
+    /// A layer mask, one channel.
+    Mask = 1,
+    /// An isolated group's composite, f32, premultiplied.
+    Group = 2,
+    /// The whole document's composite (node [`LayerId::ROOT`]), f32,
+    /// premultiplied.
+    Root = 3,
+    /// A smart object's child composite resampled into the parent's tile
+    /// grid, f32, straight.
+    Smart = 4,
+}
+
+impl NodePart {
+    /// Every part, in discriminant order.
+    pub const ALL: [NodePart; 5] = [
+        Self::Content,
+        Self::Mask,
+        Self::Group,
+        Self::Root,
+        Self::Smart,
+    ];
+
+    /// Whether tiles cached under this part are premultiplied
+    /// ([`crate::tile::Tile::premultiplied`]).
+    pub const fn premultiplied(self) -> bool {
+        matches!(self, Self::Group | Self::Root)
+    }
+}
+
+/// Key for a memoized tile of a layered-document node:
+/// `(document, node, part, revision, tile)`, the non-pipeline counterpart of
+/// [`MemoKey`]. The pyramid level is part of [`TileCoord`].
+///
+/// `revision` is the node's *stamp* for that tile: the maximum revision of
+/// everything that feeds the tile. The contract is that, within one
+/// document lineage (one `doc`), equal `(node, part, revision, tile)` implies
+/// identical content, so stale entries are never served and nothing needs
+/// explicit invalidation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct NodeMemoKey {
+    /// Document lineage (cache namespace). A nested smart-object document
+    /// has its own.
+    pub doc: DocumentId,
+    /// Node within the document; [`LayerId::ROOT`] for the document itself.
+    pub node: LayerId,
+    /// What is cached for the node.
+    pub part: NodePart,
+    /// Maximum revision over the node's footprint in `tile`.
+    pub revision: u64,
+    /// Tile address, including pyramid level.
+    pub tile: TileCoord,
+}
+
+impl NodeMemoKey {
+    /// Pyramid level of the tile.
+    pub fn level(&self) -> u8 {
+        self.tile.level
+    }
+
+    /// Stable content digest of the key, for on-disk cache file names.
+    pub fn digest(&self) -> Digest {
+        let mut bytes = Vec::with_capacity(8 + 8 + 1 + 8 + 9);
+        bytes.extend_from_slice(&self.doc.0.to_le_bytes());
+        bytes.extend_from_slice(&self.node.0.to_le_bytes());
+        bytes.push(self.part as u8);
+        bytes.extend_from_slice(&self.revision.to_le_bytes());
+        bytes.push(self.tile.level);
+        bytes.extend_from_slice(&self.tile.x.to_le_bytes());
+        bytes.extend_from_slice(&self.tile.y.to_le_bytes());
+        Digest::derive("engine-api 2026 node-memo-key v1", &bytes)
+    }
+}
+
 /// Canonical JSON bytes: object keys sorted by byte order at every depth,
 /// negative zero folded to zero, no whitespace. Serialization failures (which
 /// only occur for types that cannot be JSON) hash as `null`.
@@ -293,5 +378,59 @@ mod tests {
         k2.tile = TileCoord::new(0, 2, 1);
         assert_ne!(k.digest(), k2.digest());
         assert_eq!(k.level(), 0);
+    }
+
+    #[test]
+    fn node_memo_key_digest_distinguishes_fields() {
+        let k = NodeMemoKey {
+            doc: DocumentId(1),
+            node: LayerId(2),
+            part: NodePart::Content,
+            revision: 9,
+            tile: TileCoord::new(1, 3, 4),
+        };
+        assert_eq!(k.level(), 1);
+        assert_eq!(k.digest(), k.digest());
+        let variants = [
+            NodeMemoKey {
+                doc: DocumentId(2),
+                ..k
+            },
+            NodeMemoKey {
+                node: LayerId::ROOT,
+                ..k
+            },
+            NodeMemoKey {
+                part: NodePart::Mask,
+                ..k
+            },
+            NodeMemoKey { revision: 10, ..k },
+            NodeMemoKey {
+                tile: TileCoord::new(2, 3, 4),
+                ..k
+            },
+        ];
+        for v in variants {
+            assert_ne!(v, k);
+            assert_ne!(v.digest(), k.digest());
+        }
+        let json = serde_json::to_value(k).unwrap();
+        assert_eq!(json["part"], "content");
+        assert_eq!(json["node"], 2);
+        assert_eq!(serde_json::from_value::<NodeMemoKey>(json).unwrap(), k);
+    }
+
+    #[test]
+    fn node_parts_are_stable() {
+        let names: Vec<_> = NodePart::ALL
+            .iter()
+            .map(|p| serde_json::to_value(p).unwrap())
+            .collect();
+        assert_eq!(names, ["content", "mask", "group", "root", "smart"]);
+        for (i, p) in NodePart::ALL.iter().enumerate() {
+            assert_eq!(*p as usize, i);
+        }
+        assert!(NodePart::Root.premultiplied() && NodePart::Group.premultiplied());
+        assert!(!NodePart::Content.premultiplied() && !NodePart::Smart.premultiplied());
     }
 }

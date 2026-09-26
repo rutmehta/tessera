@@ -15,12 +15,10 @@ use crate::geom::{Affine, Rect, next_doc_key};
 use crate::raster::{Depth, Raster};
 
 /// Layer identifier, unique within one document (nested smart-object
-/// documents have their own id space).
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Default,
-)]
-#[serde(transparent)]
-pub struct LayerId(pub u64);
+/// documents have their own id space). The engine-api contract type
+/// (serialized as a bare integer); `LayerId(0)` is `LayerId::ROOT`, the
+/// document itself, and real layers are numbered from 1.
+pub use engine_api::id::LayerId;
 
 /// Knockout (Layer Style ▸ Advanced Blending).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]

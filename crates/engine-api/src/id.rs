@@ -198,6 +198,39 @@ numeric_id!(
     "jobs#"
 );
 
+numeric_id!(
+    /// An open layered document (spec 02 §1). Session-scoped: allocated by
+    /// whoever opens or creates the document, never written into a file, and
+    /// a fresh id is issued whenever a document's lineage forks (a duplicate
+    /// or clone), so it doubles as the document namespace of a
+    /// [`crate::stage::NodeMemoKey`].
+    DocumentId(u64),
+    "doc#"
+);
+numeric_id!(
+    /// A layer within one layered document. Unique within its document and
+    /// never reused; nested (smart-object) documents have their own id
+    /// space. `LayerId(0)` is [`LayerId::ROOT`]: the document root, never a
+    /// real layer.
+    LayerId(u64),
+    "layer#"
+);
+numeric_id!(
+    /// A saved selection (alpha channel) within one layered document.
+    SelectionId(u64),
+    "selection#"
+);
+
+impl LayerId {
+    /// The document root. Real layers are numbered from 1.
+    pub const ROOT: LayerId = LayerId(0);
+
+    /// True for [`LayerId::ROOT`].
+    pub const fn is_root(self) -> bool {
+        self.0 == 0
+    }
+}
+
 macro_rules! string_id {
     ($(#[$meta:meta])* $name:ident) => {
         $(#[$meta])*
@@ -294,5 +327,20 @@ mod tests {
     fn numeric_ids_are_transparent() {
         assert_eq!(serde_json::to_string(&MaskId(3)).unwrap(), "3");
         assert_eq!(MaskId(3).to_string(), "mask#3");
+    }
+
+    #[test]
+    fn document_ids_are_transparent() {
+        assert_eq!(serde_json::to_string(&DocumentId(7)).unwrap(), "7");
+        assert_eq!(serde_json::to_string(&LayerId(12)).unwrap(), "12");
+        assert_eq!(
+            serde_json::from_str::<SelectionId>("3").unwrap(),
+            SelectionId(3)
+        );
+        assert_eq!(DocumentId(7).to_string(), "doc#7");
+        assert_eq!(LayerId(12).to_string(), "layer#12");
+        assert_eq!(SelectionId(3).to_string(), "selection#3");
+        assert!(LayerId::ROOT.is_root() && !LayerId(1).is_root());
+        assert_eq!(LayerId::default(), LayerId::ROOT);
     }
 }

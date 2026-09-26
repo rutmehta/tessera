@@ -1,27 +1,26 @@
 //! Byte-budgeted LRU of rendered tiles keyed by (document, node, part,
-//! stamp, tile).
+//! stamp, tile): engine-api's `NodeMemoKey`.
 
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Mutex;
 
+use engine_api::id::{DocumentId, LayerId};
+use engine_api::stage::NodeMemoKey;
 use engine_api::tile::{Tile, TileCoord};
 
-/// What a cached tile is.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) enum Part {
-    /// A layer's own pixels at a pyramid level (document depth, straight).
-    Content,
-    /// A layer mask at a pyramid level.
-    Mask,
-    /// An isolated group's composite (f32, premultiplied).
-    Group,
-    /// The document composite (f32, premultiplied).
-    Root,
-    /// A smart object resampled into the parent (f32, straight).
-    Smart,
-}
+/// What a cached tile is: engine-api's `NodePart`.
+///
+/// - `Content`: a layer's own pixels at a pyramid level (document depth, straight).
+/// - `Mask`: a layer mask at a pyramid level.
+/// - `Group`: an isolated group's composite (f32, premultiplied).
+/// - `Root`: the document composite (f32, premultiplied).
+/// - `Smart`: a smart object resampled into the parent (f32, straight).
+pub(crate) use engine_api::stage::NodePart as Part;
 
-/// Cache key. `stamp` is the maximum revision over the node's footprint.
+/// Cache key as the renderer builds it. `stamp` is the maximum revision over
+/// the node's footprint. `doc` is the runtime document key and `node` the
+/// layer id (0 for the root); both map one-to-one onto the typed
+/// [`NodeMemoKey`] the cache stores.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct NodeKey {
     pub doc: u64,
@@ -31,6 +30,30 @@ pub(crate) struct NodeKey {
     pub coord: TileCoord,
 }
 
+impl From<NodeKey> for NodeMemoKey {
+    fn from(k: NodeKey) -> Self {
+        NodeMemoKey {
+            doc: DocumentId(k.doc),
+            node: LayerId(k.node),
+            part: k.part,
+            revision: k.stamp,
+            tile: k.coord,
+        }
+    }
+}
+
+impl From<NodeMemoKey> for NodeKey {
+    fn from(k: NodeMemoKey) -> Self {
+        NodeKey {
+            doc: k.doc.0,
+            node: k.node.0,
+            part: k.part,
+            stamp: k.revision,
+            coord: k.tile,
+        }
+    }
+}
+
 struct Entry {
     tile: Tile,
     tick: u64,
@@ -38,8 +61,8 @@ struct Entry {
 
 #[derive(Default)]
 struct Lru {
-    map: HashMap<NodeKey, Entry>,
-    order: BTreeMap<u64, NodeKey>,
+    map: HashMap<NodeMemoKey, Entry>,
+    order: BTreeMap<u64, NodeMemoKey>,
     tick: u64,
     bytes: usize,
     evictions: u64,
@@ -59,18 +82,20 @@ impl RenderCache {
     }
 
     pub fn get(&self, key: &NodeKey) -> Option<Tile> {
+        let key = NodeMemoKey::from(*key);
         let mut l = self.lru.lock().unwrap_or_else(|e| e.into_inner());
         l.tick += 1;
         let tick = l.tick;
-        let e = l.map.get_mut(key)?;
+        let e = l.map.get_mut(&key)?;
         let old = std::mem::replace(&mut e.tick, tick);
         let tile = e.tile.clone();
         l.order.remove(&old);
-        l.order.insert(tick, *key);
+        l.order.insert(tick, key);
         Some(tile)
     }
 
     pub fn insert(&self, key: NodeKey, tile: Tile) {
+        let key = NodeMemoKey::from(key);
         let size = tile.byte_len();
         if size > self.budget {
             return;
@@ -110,7 +135,12 @@ impl RenderCache {
     /// Drops entries matching `pred`.
     pub fn retain(&self, pred: impl Fn(&NodeKey) -> bool) {
         let mut l = self.lru.lock().unwrap_or_else(|e| e.into_inner());
-        let dead: Vec<NodeKey> = l.map.keys().filter(|k| !pred(k)).copied().collect();
+        let dead: Vec<NodeMemoKey> = l
+            .map
+            .keys()
+            .filter(|k| !pred(&NodeKey::from(**k)))
+            .copied()
+            .collect();
         for k in dead {
             if let Some(e) = l.map.remove(&k) {
                 l.order.remove(&e.tick);
