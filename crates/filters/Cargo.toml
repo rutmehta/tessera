@@ -5,7 +5,13 @@ edition = "2024"
 license = "Apache-2.0"
 description = "Non-destructive raster filters and direct image adjustments"
 
+[features]
+default = []
+camera-raw-filter = []
+
 [dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
 compositor = { path = "../compositor" }
 engine-api = { path = "../engine-api" }
 pipeline-cpu = { path = "../pipeline-cpu" }

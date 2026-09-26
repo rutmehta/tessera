@@ -154,6 +154,19 @@ pub fn from_psd(source: &PsdDocument) -> EngineResult<ImportedPsd> {
     if let Some(resolution) = source.resolution().map_err(error)? {
         state.ppi = resolution.horizontal as f32 / 65536.0;
     }
+    for (id, target) in [
+        (1037, &mut state.global_light.angle),
+        (1049, &mut state.global_light.elevation),
+    ] {
+        if let Some(bytes) = source
+            .resources
+            .iter()
+            .find(|r| r.id == id)
+            .and_then(|r| r.data.get(..4))
+        {
+            *target = i32::from_be_bytes(bytes.try_into().unwrap()) as f32;
+        }
+    }
     state.profile = source
         .icc_profile()
         .map(|bytes| crate::ColorProfile::from_icc("Embedded PSD profile", bytes.to_vec()));
@@ -812,7 +825,10 @@ fn import_nodes(
         for block in &original.additional {
             let warning = match &block.key {
                 b"vmsk" | b"vsms" => Some("vector mask is retained but not rasterized"),
-                b"lfx2" | b"lrFX" => Some("layer styles are retained but not rendered"),
+                b"lfx2" => Some(
+                    "basic solid layer styles are rendered approximately; unsupported effect fields remain retained",
+                ),
+                b"lrFX" => Some("legacy layer styles are retained but not rendered"),
                 b"TySh" => {
                     Some("text is rendered from the stored raster proxy; descriptors are retained")
                 }
@@ -885,9 +901,465 @@ fn name(layer: &::psd::Layer) -> EngineResult<String> {
     }
     Ok(String::from_utf8_lossy(&layer.name).into_owned())
 }
+// Native Action Descriptor interop. Keep original bytes on no-op exports and
+// retain unrecognized descriptor fields when editing supported effects.
+mod style_interop {
+    use super::*;
+    use crate::render::styles::*;
+    use ::psd::metadata::{Descriptor as D, Value as V};
+
+    fn number(d: &D<'_>, key: &[u8], default: f32) -> f32 {
+        d.get(key)
+            .and_then(V::number)
+            .map(|n| n as f32)
+            .unwrap_or(default)
+    }
+    fn boolean(d: &D<'_>, key: &[u8], default: bool) -> bool {
+        match d.get(key) {
+            Some(V::Bool(v)) => *v,
+            _ => default,
+        }
+    }
+    fn enumeration<'a>(d: &D<'a>, key: &[u8]) -> Option<&'a [u8]> {
+        match d.get(key) {
+            Some(V::Enum { value, .. }) => Some(value),
+            _ => None,
+        }
+    }
+    // Action Descriptor blend IDs differ from layer-record blend keys.
+    const MODES: &[(crate::BlendMode, &[u8])] = &[
+        (crate::BlendMode::Normal, b"Nrml"),
+        (crate::BlendMode::Dissolve, b"Dslv"),
+        (crate::BlendMode::Darken, b"Drkn"),
+        (crate::BlendMode::Multiply, b"Mltp"),
+        (crate::BlendMode::ColorBurn, b"CBrn"),
+        (crate::BlendMode::LinearBurn, b"linearBurn"),
+        (crate::BlendMode::DarkerColor, b"darkerColor"),
+        (crate::BlendMode::Lighten, b"Lghn"),
+        (crate::BlendMode::Screen, b"Scrn"),
+        (crate::BlendMode::ColorDodge, b"CDdg"),
+        (crate::BlendMode::LinearDodge, b"linearDodge"),
+        (crate::BlendMode::LighterColor, b"lighterColor"),
+        (crate::BlendMode::Overlay, b"Ovrl"),
+        (crate::BlendMode::SoftLight, b"SftL"),
+        (crate::BlendMode::HardLight, b"HrdL"),
+        (crate::BlendMode::VividLight, b"vividLight"),
+        (crate::BlendMode::LinearLight, b"linearLight"),
+        (crate::BlendMode::PinLight, b"pinLight"),
+        (crate::BlendMode::HardMix, b"hardMix"),
+        (crate::BlendMode::Difference, b"Dfrn"),
+        (crate::BlendMode::Exclusion, b"Xclu"),
+        (crate::BlendMode::Subtract, b"blendSubtraction"),
+        (crate::BlendMode::Divide, b"blendDivide"),
+        (crate::BlendMode::Hue, b"H   "),
+        (crate::BlendMode::Saturation, b"Strt"),
+        (crate::BlendMode::Color, b"Clr "),
+        (crate::BlendMode::Luminosity, b"Lmns"),
+    ];
+    fn rgb(d: &D<'_>) -> Option<[f32; 4]> {
+        let c = d.get(b"Clr ")?.object()?;
+        if c.class_id != b"RGBC" {
+            return None;
+        }
+        Some([
+            number(c, b"Rd  ", 0.0) / 255.0,
+            number(c, b"Grn ", 0.0) / 255.0,
+            number(c, b"Bl  ", 0.0) / 255.0,
+            1.0,
+        ])
+    }
+    fn units_supported(d: &D<'_>) -> bool {
+        [
+            (b"Scl ", b"#Prc"),
+            (b"Opct", b"#Prc"),
+            (b"Ckmt", b"#Prc"),
+            (b"blur", b"#Pxl"),
+            (b"Sz  ", b"#Pxl"),
+            (b"Dstn", b"#Pxl"),
+            (b"lagl", b"#Ang"),
+        ]
+        .iter()
+        .all(|(key, expected)| match d.get(*key) {
+            Some(V::Unit { unit, .. }) => unit == *expected,
+            Some(V::Double(_) | V::Integer(_)) | None => true,
+            _ => false,
+        })
+    }
+    fn effect(key: &[u8], d: &D<'_>, master: bool) -> Option<StyleEffect> {
+        if !units_supported(d) {
+            return None;
+        }
+        let color = rgb(d)?;
+        let mode = MODES
+            .iter()
+            .find(|(_, id)| Some(*id) == enumeration(d, b"Md  "))?
+            .0;
+        let enabled = master && boolean(d, b"enab", true);
+        let opacity = number(d, b"Opct", 100.0) / 100.0;
+        let size = number(d, b"blur", 5.0);
+        let spread = number(d, b"Ckmt", 0.0) * size / 100.0;
+        Some(match key {
+            b"DrSh" | b"IrSh" => {
+                let s = Shadow {
+                    enabled,
+                    color,
+                    mode,
+                    opacity,
+                    size,
+                    spread,
+                    angle: number(d, b"lagl", 120.0),
+                    distance: number(d, b"Dstn", 5.0),
+                    use_global_light: boolean(d, b"uglg", true),
+                    ..Default::default()
+                };
+                if key == b"DrSh" {
+                    StyleEffect::DropShadow(s)
+                } else {
+                    StyleEffect::InnerShadow(s)
+                }
+            }
+            b"OrGl" | b"IrGl" => {
+                // Gradient glows cannot be represented by this solid-color subset.
+                if d.get(b"Grad").is_some() {
+                    return None;
+                }
+                let g = Glow {
+                    enabled,
+                    color,
+                    mode,
+                    opacity,
+                    size,
+                    spread,
+                    center: enumeration(d, b"glwS") == Some(b"SrcC"),
+                    ..Default::default()
+                };
+                if key == b"OrGl" {
+                    StyleEffect::OuterGlow(g)
+                } else {
+                    StyleEffect::InnerGlow(g)
+                }
+            }
+            b"SoFi" => StyleEffect::ColorOverlay(Overlay {
+                enabled,
+                mode,
+                opacity,
+                fill: crate::Fill::Solid {
+                    color: [color[0], color[1], color[2]],
+                },
+            }),
+            b"FrFX" => {
+                if enumeration(d, b"PntT").is_some_and(|v| v != b"SClr") {
+                    return None;
+                }
+                StyleEffect::Stroke(Stroke {
+                    enabled,
+                    mode,
+                    opacity,
+                    fill: crate::Fill::Solid {
+                        color: [color[0], color[1], color[2]],
+                    },
+                    size: number(d, b"Sz  ", 3.0),
+                    position: match enumeration(d, b"Styl") {
+                        Some(b"InsF") => StrokePosition::Inside,
+                        Some(b"CtrF") => StrokePosition::Center,
+                        _ => StrokePosition::Outside,
+                    },
+                })
+            }
+            _ => return None,
+        })
+    }
+    pub(super) fn import(layer: &::psd::Layer) -> LayerStyles {
+        let Some(s) = layer
+            .info(b"lfx2")
+            .and_then(|b| ::psd::metadata::parse_styles(&b.data).ok())
+        else {
+            return LayerStyles::default();
+        };
+        let master = boolean(&s.descriptor, b"masterFXSwitch", true);
+        let styles = LayerStyles {
+            scale: number(&s.descriptor, b"Scl ", 100.0) / 100.0,
+            effects: s
+                .descriptor
+                .items
+                .iter()
+                .filter_map(|(k, v)| effect(k, v.object()?, master))
+                .collect(),
+        };
+        // Malformed/unsupported descriptors remain opaque rather than poison rendering.
+        if styles.validate().is_ok() {
+            styles
+        } else {
+            LayerStyles::default()
+        }
+    }
+    fn object(class_id: &'static [u8]) -> D<'static> {
+        D {
+            name: String::new(),
+            class_id,
+            items: Vec::new(),
+        }
+    }
+    fn put<'a>(d: &mut D<'a>, key: &'a [u8], value: V<'a>) {
+        if let Some((_, v)) = d.items.iter_mut().find(|(k, _)| *k == key) {
+            *v = value;
+        } else {
+            d.items.push((key, value));
+        }
+    }
+    fn unit(unit: [u8; 4], value: f32) -> V<'static> {
+        V::Unit {
+            unit,
+            value: value as f64,
+        }
+    }
+    fn enum_value(type_id: &'static [u8], value: &'static [u8]) -> V<'static> {
+        V::Enum { type_id, value }
+    }
+    fn solid(fill: &crate::Fill) -> EngineResult<[f32; 4]> {
+        match fill {
+            crate::Fill::Solid { color } => Ok([color[0], color[1], color[2], 1.0]),
+            _ => Err(error("PSD styles currently require solid-color fills")),
+        }
+    }
+    fn encode_effect(e: &StyleEffect) -> EngineResult<(&'static [u8], D<'static>)> {
+        let (key, enabled, color, mode, opacity) = match e {
+            StyleEffect::DropShadow(s) => (b"DrSh" as &[u8], s.enabled, s.color, s.mode, s.opacity),
+            StyleEffect::InnerShadow(s) => {
+                (b"IrSh" as &[u8], s.enabled, s.color, s.mode, s.opacity)
+            }
+            StyleEffect::OuterGlow(g) => (b"OrGl" as &[u8], g.enabled, g.color, g.mode, g.opacity),
+            StyleEffect::InnerGlow(g) => (b"IrGl" as &[u8], g.enabled, g.color, g.mode, g.opacity),
+            StyleEffect::ColorOverlay(o) | StyleEffect::Overlay(o) => (
+                b"SoFi" as &[u8],
+                o.enabled,
+                solid(&o.fill)?,
+                o.mode,
+                o.opacity,
+            ),
+            StyleEffect::Stroke(s) => (
+                b"FrFX" as &[u8],
+                s.enabled,
+                solid(&s.fill)?,
+                s.mode,
+                s.opacity,
+            ),
+            _ => {
+                return Err(error(
+                    "PSD export supports shadow/glow/solid overlay/stroke styles only",
+                ));
+            }
+        };
+        if color[3] != 1.0 {
+            return Err(error(
+                "PSD effect color alpha must be one; use effect opacity",
+            ));
+        }
+        let mut d = object(key);
+        put(&mut d, b"enab", V::Bool(enabled));
+        put(&mut d, b"present", V::Bool(true));
+        put(&mut d, b"showInDialog", V::Bool(true));
+        put(
+            &mut d,
+            b"Md  ",
+            enum_value(b"BlnM", MODES.iter().find(|(m, _)| *m == mode).unwrap().1),
+        );
+        put(&mut d, b"Opct", unit(*b"#Prc", opacity * 100.0));
+        let mut c = object(b"RGBC");
+        for (key, value) in [b"Rd  ", b"Grn ", b"Bl  "].into_iter().zip(color) {
+            put(&mut c, key, V::Double(value as f64 * 255.0));
+        }
+        put(&mut d, b"Clr ", V::Object(c));
+        let geometry = match e {
+            StyleEffect::DropShadow(s) | StyleEffect::InnerShadow(s) => {
+                put(&mut d, b"uglg", V::Bool(s.use_global_light));
+                put(&mut d, b"lagl", unit(*b"#Ang", s.angle));
+                put(&mut d, b"Dstn", unit(*b"#Pxl", s.distance));
+                Some((s.size, s.spread, &s.shape))
+            }
+            StyleEffect::OuterGlow(g) | StyleEffect::InnerGlow(g) => {
+                put(&mut d, b"GlwT", enum_value(b"BETE", b"SfBL"));
+                if matches!(e, StyleEffect::InnerGlow(_)) {
+                    put(
+                        &mut d,
+                        b"glwS",
+                        enum_value(b"IGSr", if g.center { b"SrcC" } else { b"SrcE" }),
+                    );
+                }
+                Some((g.size, g.spread, &g.shape))
+            }
+            StyleEffect::Stroke(s) => {
+                put(&mut d, b"Sz  ", unit(*b"#Pxl", s.size));
+                put(&mut d, b"PntT", enum_value(b"FrFl", b"SClr"));
+                put(
+                    &mut d,
+                    b"Styl",
+                    enum_value(
+                        b"FStl",
+                        match s.position {
+                            StrokePosition::Inside => b"InsF",
+                            StrokePosition::Center => b"CtrF",
+                            StrokePosition::Outside => b"OutF",
+                        },
+                    ),
+                );
+                None
+            }
+            _ => None,
+        };
+        if let Some((size, spread, shape)) = geometry {
+            if !shape.contour.is_empty() || shape.jitter != 0.0 {
+                return Err(error("PSD contour/jitter export not supported"));
+            }
+            if spread > size {
+                return Err(error("PSD choke cannot exceed effect size"));
+            }
+            put(&mut d, b"blur", unit(*b"#Pxl", size));
+            put(
+                &mut d,
+                b"Ckmt",
+                unit(
+                    *b"#Prc",
+                    if size == 0.0 {
+                        0.0
+                    } else {
+                        spread / size * 100.0
+                    },
+                ),
+            );
+        }
+        Ok((key, d))
+    }
+    fn id(bytes: &[u8], out: &mut Vec<u8>) {
+        out.extend_from_slice(
+            &(if bytes.len() == 4 {
+                0
+            } else {
+                bytes.len() as u32
+            })
+            .to_be_bytes(),
+        );
+        out.extend_from_slice(bytes);
+    }
+    fn text(s: &str, out: &mut Vec<u8>) {
+        let units: Vec<_> = s.encode_utf16().collect();
+        out.extend_from_slice(&(units.len() as u32).to_be_bytes());
+        for u in units {
+            out.extend_from_slice(&u.to_be_bytes());
+        }
+    }
+    fn descriptor(d: &D<'_>, out: &mut Vec<u8>) {
+        text(&d.name, out);
+        id(d.class_id, out);
+        out.extend_from_slice(&(d.items.len() as u32).to_be_bytes());
+        for (k, v) in &d.items {
+            id(k, out);
+            value(v, out);
+        }
+    }
+    fn value(v: &V<'_>, out: &mut Vec<u8>) {
+        let ty = match v {
+            V::Object(_) => b"Objc",
+            V::List(_) => b"VlLs",
+            V::Double(_) => b"doub",
+            V::Unit { .. } => b"UntF",
+            V::Text(_) => b"TEXT",
+            V::Enum { .. } => b"enum",
+            V::Integer(_) => b"long",
+            V::LargeInteger(_) => b"comp",
+            V::Bool(_) => b"bool",
+            V::Class { .. } => b"type",
+            V::Alias(_) => b"alis",
+            V::Raw(_) => b"tdta",
+        };
+        out.extend_from_slice(ty);
+        match v {
+            V::Object(d) => descriptor(d, out),
+            V::List(vs) => {
+                out.extend_from_slice(&(vs.len() as u32).to_be_bytes());
+                for v in vs {
+                    value(v, out);
+                }
+            }
+            V::Double(v) => out.extend_from_slice(&v.to_be_bytes()),
+            V::Unit { unit, value } => {
+                out.extend_from_slice(unit);
+                out.extend_from_slice(&value.to_be_bytes());
+            }
+            V::Text(s) => text(s, out),
+            V::Enum { type_id, value } => {
+                id(type_id, out);
+                id(value, out);
+            }
+            V::Integer(v) => out.extend_from_slice(&v.to_be_bytes()),
+            V::LargeInteger(v) => out.extend_from_slice(&v.to_be_bytes()),
+            V::Bool(v) => out.push(u8::from(*v)),
+            V::Class { name, class_id } => {
+                text(name, out);
+                id(class_id, out);
+            }
+            V::Alias(b) | V::Raw(b) => {
+                out.extend_from_slice(&(b.len() as u32).to_be_bytes());
+                out.extend_from_slice(b);
+            }
+        }
+    }
+    pub(super) fn export(styles: &LayerStyles, layer: &mut ::psd::Layer) -> EngineResult<()> {
+        if *styles == import(layer) {
+            return Ok(());
+        }
+        styles.validate()?;
+        let old = layer.info(b"lfx2");
+        let mut d = match old {
+            Some(b) => {
+                ::psd::metadata::parse_styles(&b.data)
+                    .map_err(|_| error("cannot edit opaque lfx2 descriptor"))?
+                    .descriptor
+            }
+            None => object(b"Lefx"),
+        };
+        let mut encoded = Vec::new();
+        for e in &styles.effects {
+            let (k, v) = encode_effect(e)?;
+            if encoded.iter().any(|(key, _)| *key == k) {
+                return Err(error(
+                    "repeated effects are not supported by basic lfx2 export",
+                ));
+            }
+            encoded.push((k, v));
+        }
+        let master = boolean(&d, b"masterFXSwitch", true)
+            || encoded
+                .iter()
+                .any(|(_, effect)| boolean(effect, b"enab", false));
+        // Remove only supported effects, retaining unsupported kinds and fields.
+        d.items.retain(|(k, v)| {
+            v.object().and_then(|v| effect(k, v, true)).is_none()
+                || encoded.iter().any(|(key, _)| key == k)
+        });
+        for (k, v) in encoded {
+            let mut merged = d
+                .get(k)
+                .and_then(V::object)
+                .cloned()
+                .unwrap_or_else(|| object(k));
+            for (key, value) in v.items {
+                put(&mut merged, key, value);
+            }
+            put(&mut d, k, V::Object(merged));
+        }
+        put(&mut d, b"Scl ", unit(*b"#Prc", styles.scale * 100.0));
+        put(&mut d, b"masterFXSwitch", V::Bool(master));
+        let mut data = [0u32.to_be_bytes(), 16u32.to_be_bytes()].concat();
+        descriptor(&d, &mut data);
+        set_tag(layer, *b"lfx2", data);
+        Ok(())
+    }
+}
 fn props(layer: &::psd::Layer) -> EngineResult<crate::LayerProps> {
     let mut p = crate::LayerProps {
         name: name(layer)?,
+        styles: style_interop::import(layer),
         visible: layer.visible(),
         opacity: layer.opacity as f32 / 255.0,
         fill_opacity: layer
@@ -922,6 +1394,7 @@ fn set_tag(layer: &mut ::psd::Layer, key: [u8; 4], data: Vec<u8>) {
 }
 fn export_props(p: &crate::LayerProps, layer: &mut ::psd::Layer) -> EngineResult<()> {
     let before = props(layer)?;
+    style_interop::export(&p.styles, layer)?;
     if p.name != before.name {
         layer.name = p.name.bytes().take(255).collect();
         let units: Vec<u16> = p.name.encode_utf16().collect();
@@ -1019,6 +1492,27 @@ fn export_imported(imported: &ImportedPsd) -> EngineResult<PsdDocument> {
         return Err(error(
             "canvas/depth conversion requires explicit resampling before PSD export",
         ));
+    }
+    imported.global_light.validate()?;
+    for (id, value, default) in [
+        (1037, imported.global_light.angle, 120.0),
+        (1049, imported.global_light.elevation, 30.0),
+    ] {
+        let old = source.resources.iter_mut().find(|r| r.id == id);
+        if let Some(r) = old {
+            let before = r
+                .data
+                .get(..4)
+                .map(|b| i32::from_be_bytes(b.try_into().unwrap()) as f32);
+            if before != Some(value) {
+                r.data = (value.round() as i32).to_be_bytes().to_vec();
+            }
+        } else if value != default {
+            source.resources.push(::psd::ImageResource::new(
+                id,
+                (value.round() as i32).to_be_bytes().to_vec(),
+            ));
+        }
     }
     source.layer_section.layers = export_nodes(&imported.root, imported)?;
     let document = crate::Document::new(imported.state.clone());

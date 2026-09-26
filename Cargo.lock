@@ -1236,6 +1236,8 @@ dependencies = [
  "naga",
  "pipeline-cpu",
  "pollster",
+ "serde",
+ "serde_json",
  "wgpu",
 ]
 
