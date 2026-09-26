@@ -622,5 +622,13 @@
     "status": "merged",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M2-13v2",
+    "owner": "sol",
+    "title": "Verify develop panels (identifiers)",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
