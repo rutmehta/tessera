@@ -7,6 +7,8 @@ enum ViewMode: String, CaseIterable, Identifiable {
     case grid = "Grid"
     case loupe = "Loupe"
     case compare = "Compare"
+    /// Layered documents (WP M5-10): viewport, Layers, Properties and History.
+    case document = "Document"
     var id: String { rawValue }
 }
 
@@ -135,6 +137,8 @@ final class AppModel {
     var showAutoEdit = false
     /// File ▸ Tethered Capture… (WP M3-12b): the docked Tether panel and its session.
     let tether = TetherController()
+    /// Layered documents (WP M5-10): open documents, tabs, New / Open / Save.
+    let documents = DocumentWorkspace()
     var viewMode: ViewMode = .grid {
         didSet {
             guard viewMode != oldValue else { return }
@@ -146,8 +150,9 @@ final class AppModel {
             }
             if viewMode != .compare {
                 compare = nil
-                modeBeforeCompare = viewMode
+                modeBeforeCompare = viewMode == .document ? .grid : viewMode
             }
+            if oldValue == .document { documents.didLeaveDocumentMode() }
             notifySelection(scroll: true)
         }
     }
@@ -212,6 +217,7 @@ final class AppModel {
         assist.app = self
         agent.app = self
         tether.app = self
+        documents.app = self
         lightroomImport.presentSheet = { [weak self] in
             // Re-assert the binding on the next turn so a dismissal still in flight cannot swallow it.
             self?.showLightroomImport = false
@@ -439,6 +445,7 @@ final class AppModel {
     }
 
     func selectAll() {
+        if viewMode == .document { documents.current?.selectAll(); return }
         guard !visible.isEmpty else { return }
         selection = IndexSet(integersIn: 0..<visible.count)
         refreshFocusSummary()
@@ -595,6 +602,10 @@ final class AppModel {
     }
 
     func undo() {
+        if viewMode == .document {
+            if let doc = documents.current { doc.undo() } else { statusMessage = "Nothing to undo" }
+            return
+        }
         if let d = develop, d.history.canUndo, undoDomain == .develop || !cull.canUndo {
             developHistoryMove("Undo", label: d.history.headLabel) { try d.undo() }
             return
@@ -614,6 +625,10 @@ final class AppModel {
     }
 
     func redo() {
+        if viewMode == .document {
+            if let doc = documents.current { doc.redo() } else { statusMessage = "Nothing to redo" }
+            return
+        }
         if let d = develop, d.history.canRedo, undoDomain == .develop || !cull.canRedo {
             developHistoryMove("Redo", label: nil) { try d.redo() }
             return

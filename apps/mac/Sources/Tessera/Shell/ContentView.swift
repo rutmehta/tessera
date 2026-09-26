@@ -6,13 +6,14 @@ struct ContentView: View {
     @Bindable var model: AppModel
 
     var body: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: Binding(get: { model.documents.columnVisibility },
+                                                      set: { model.documents.columnVisibility = $0 })) {
             SidebarView(model: model)
                 .navigationSplitViewColumnWidth(min: Theme.Width.sidebarMin, ideal: Theme.Width.sidebarIdeal,
                                                 max: Theme.Width.sidebarMax)
         } detail: {
             VStack(spacing: 0) {
-                if model.isEngineBacked {
+                if model.isEngineBacked, model.viewMode != .document {
                     FilterBar(library: model.collections, model: model)
                 }
                 if model.tether.showPanel {
@@ -33,8 +34,11 @@ struct ContentView: View {
                     if model.viewMode == .compare, model.compare != nil {
                         CompareView(model: model)
                     }
-                    if model.library.items.isEmpty {
+                    if model.library.items.isEmpty, model.viewMode != .document {
                         EmptyStateView(model: model)
+                    }
+                    if model.viewMode == .document {
+                        DocumentView(workspace: model.documents)
                     }
                     VStack {
                         Spacer()
@@ -55,16 +59,27 @@ struct ContentView: View {
                 LightroomImportProgressBar(importer: model.lightroomImport)
                 ExportProgressBar(exporter: model.exporter)
                 PrintProgressBar(printing: model.printing)
-                StatusBar(model: model)
-                if model.showFilmstrip, !model.library.items.isEmpty {
+                if model.viewMode == .document {
+                    DocumentStatusBar(model: model, workspace: model.documents)
+                } else {
+                    StatusBar(model: model)
+                }
+                if model.showFilmstrip, !model.library.items.isEmpty, model.viewMode != .document {
                     Hairline()
                     ThumbnailBrowser(model: model, style: .filmstrip)
                         .frame(height: Theme.Height.filmstrip)
                 }
             }
             .background(Theme.canvas)
-            .navigationTitle(model.library.items.isEmpty ? "Tessera" : model.library.title)
+            .navigationTitle(model.viewMode == .document ? (model.documents.current?.title ?? "Tessera")
+                             : model.library.items.isEmpty ? "Tessera" : model.library.title)
             .navigationSubtitle(subtitle)
+        }
+        .sheet(isPresented: Binding(get: { model.documents.showNewDocument }, set: { model.documents.showNewDocument = $0 })) {
+            NewDocumentSheet(workspace: model.documents)
+        }
+        .sheet(isPresented: Binding(get: { model.documents.showExportFlat }, set: { model.documents.showExportFlat = $0 })) {
+            ExportFlatSheet(workspace: model.documents)
         }
         .sheet(isPresented: $model.showDefectSweep) {
             DefectSweepSheet(model: model)
@@ -89,7 +104,13 @@ struct ContentView: View {
             SmartAlbumSheet(library: model.collections)
         }
         .inspector(isPresented: $model.showInspector) {
-            InspectorView(model: model)
+            Group {
+                if model.viewMode == .document {
+                    DocumentInspector(workspace: model.documents)
+                } else {
+                    InspectorView(model: model)
+                }
+            }
                 .inspectorColumnWidth(min: Theme.Width.inspectorMin, ideal: Theme.Width.inspectorIdeal,
                                       max: Theme.Width.inspectorMax)
         }
@@ -99,6 +120,10 @@ struct ContentView: View {
     }
 
     private var subtitle: String {
+        if model.viewMode == .document {
+            guard let doc = model.documents.current else { return "" }
+            return (doc.isDirty ? "Edited · " : "") + "\(doc.layers.count) layers"
+        }
         let n = model.visibleCount
         guard n > 0 else { return "" }
         return model.source == .all ? "\(n.formatted()) images" : "\(model.source.title) · \(n.formatted()) images"
@@ -119,9 +144,17 @@ struct ContentView: View {
                 .init(value: ViewMode.grid, title: "Grid", symbol: "square.grid.2x2", help: "Grid (G)"),
                 .init(value: ViewMode.loupe, title: "Loupe", symbol: "photo", help: "Loupe (E or Return)"),
                 .init(value: ViewMode.compare, title: "Compare", symbol: "rectangle.split.2x1", help: "Compare (C)"),
+                .init(value: ViewMode.document, title: "Layers", symbol: "square.3.layers.3d",
+                      help: "Layered documents (⌘N new, ⌘E edits the photo in layers)"),
             ], fill: false)
             .fixedSize()
             .accessibilityLabel("View")
+        }
+        .flatToolbarItem()
+        ToolbarItem(id: "documents", placement: .navigation) {
+            if model.viewMode == .document, !model.documents.documents.isEmpty {
+                DocumentTabs(workspace: model.documents)
+            }
         }
         .flatToolbarItem()
         ToolbarItem(id: "size", placement: .primaryAction) {

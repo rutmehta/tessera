@@ -51,6 +51,8 @@ struct TesseraApp: App {
 ///   --import-lrcat <catalog.lrcat>  open File ▸ Import Lightroom Catalog… with this catalog chosen
 ///   --front           order the window front without activating (screenshots while another app is active)
 ///   --appearance dark|light|system  (test aid) use this appearance for this run only
+///   --new-document    (test aid) create a layered document (2400 × 1600, sample layers on the stub) after launch
+///   --open-document <file>  open a .tessera-doc / .psd / .psb / flat image in document mode after launch
 ///   --develop-selftest  once a develop session opens, drag Exposure 0 → +1.5 through the slider path
 ///                     (60 display-rate steps, then mouse-up) and print frame timings to stderr
 ///   --develop-panels-selftest  open the first photo in the loupe and drag one control of each develop
@@ -136,6 +138,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 MainActor.assumeIsolated {
                     if !model.tether.showPanel { model.tether.togglePanel() }
                     if args.contains("--tether-connect") { model.tether.connectWhenReady() }
+                }
+            }
+        }
+        if args.contains("--new-document") || value(after: "--open-document") != nil {
+            let path = value(after: "--open-document").map { ($0 as NSString).expandingTildeInPath }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                MainActor.assumeIsolated {
+                    if let path { model.documents.open(URL(fileURLWithPath: path)) }
+                    else { model.documents.newDocument(model.documents.newSettings) }
                 }
             }
         }
@@ -230,6 +241,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return true
         }
         return false
+    }
+
+    /// Finder ▸ Open With / double-click on a document type (Info.plist `CFBundleDocumentTypes`).
+    /// Folders and other paths (a leftover launch argument) are ignored.
+    func application(_ application: NSApplication, open urls: [URL]) {
+        let docs = urls.filter { DocumentWorkspace.documentExtensions.contains($0.pathExtension.lowercased()) }
+        guard !docs.isEmpty else { return }
+        DispatchQueue.main.async {
+            MainActor.assumeIsolated { for url in docs { AppModel.shared.documents.open(url) } }
+        }
     }
 
     /// Closes the camera session (finishing accepted downloads) before the process exits.

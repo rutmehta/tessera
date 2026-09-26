@@ -11,8 +11,8 @@ final class DocumentOutlineTests: XCTestCase {
         LayerRecord(id: id, parent: parent, index: index, depth: 0, kind: group ? .group : .pixel, name: "L\(id)")
     }
 
-    func testSampleDocumentFlattensTopFirst() {
-        let outline = DocumentOutline(StubDocumentBackend().layers())
+    func testSampleDocumentFlattensTopFirst() throws {
+        let outline = DocumentOutline(try StubDocumentBackend().layers())
         XCTAssertEqual(outline.flattened, [4, 6, 5, 3, 2, 1])
         XCTAssertEqual(outline.children(of: DocumentOutline.root), [4, 3, 2, 1])
         XCTAssertEqual(outline.children(of: 4), [6, 5])
@@ -73,8 +73,8 @@ final class DocumentOutlineTests: XCTestCase {
         }
     }
 
-    func testMinimalMovesForUnchangedTree() {
-        let t = DocumentOutline(StubDocumentBackend().layers())
+    func testMinimalMovesForUnchangedTree() throws {
+        let t = DocumentOutline(try StubDocumentBackend().layers())
         XCTAssertEqual(DocumentOutline.diff(from: t, to: t), [])
     }
 
@@ -124,8 +124,9 @@ final class DocumentBlendModeTests: XCTestCase {
     func testStubAcceptsEveryModeAndRejectsOthers() throws {
         let doc = StubDocumentBackend()
         for m in DocBlendMode.allCases { _ = try doc.setBlendMode(id: 2, mode: m.backendName) }
-        XCTAssertEqual(doc.layers().first { $0.id == 2 }?.blendMode, "luminosity")
-        XCTAssertThrowsError(try doc.setBlendMode(id: 2, mode: "pass_through"))
+        XCTAssertEqual(try doc.layer(id: 2).blendMode, "luminosity")
+        XCTAssertThrowsError(try doc.setBlendMode(id: 2, mode: "pass_through"), "pass through is for groups")
+        XCTAssertThrowsError(try doc.setBlendMode(id: 2, mode: "overlayy"))
     }
 }
 
@@ -173,6 +174,10 @@ final class DocumentViewportMathTests: XCTestCase {
     func testVisibleRectAndPan() {
         var m = DocumentViewportMath(canvasWidth: 4000, canvasHeight: 3000, viewWidth: 1000, viewHeight: 500, zoom: 1)
         XCTAssertEqual(m.visibleCanvasRect, CanvasRect(x: 1500, y: 1250, width: 1000, height: 500))
+        let r = DocumentViewportMath.levelRect(CanvasRect(x: 1501, y: 1250, width: 1000, height: 501), level: 1)
+        XCTAssertEqual(r.x, 750)
+        XCTAssertEqual(r.width, 501)
+        XCTAssertEqual(r.height, 251)
         m.pan(dx: 100, dy: -50)   // content follows the pointer: the view moves left / down over the canvas
         XCTAssertEqual(m.visibleCanvasRect, CanvasRect(x: 1400, y: 1300, width: 1000, height: 500))
         m.pan(dx: 1e6, dy: 0)
@@ -243,83 +248,110 @@ final class DocumentAdjustmentModelTests: XCTestCase {
 
 @MainActor
 final class StubDocumentBackendTests: XCTestCase {
+    private func node(_ doc: StubDocumentBackend, _ id: DocLayerID) throws -> LayerRecord { try doc.layer(id: id) }
+
     func testInteractiveEditsWaitForCommit() throws {
         let doc = StubDocumentBackend()
-        XCTAssertTrue(doc.historyItems().isEmpty)
-        XCTAssertFalse(doc.info().dirty)
+        XCTAssertTrue(try doc.historyItems().isEmpty)
+        XCTAssertFalse(try doc.info().dirty)
         for v: Float in [0.9, 0.7, 0.5, 0.4] { _ = try doc.setOpacity(id: 2, value: v, interactive: true) }
-        XCTAssertTrue(doc.historyItems().isEmpty, "no history node until commit")
-        XCTAssertTrue(doc.info().dirty)
-        try doc.commit(label: "Opacity 40 %")
-        XCTAssertEqual(doc.historyItems().map(\.label), ["Opacity 40 %"])
-        XCTAssertEqual(doc.layers().first { $0.id == 2 }!.opacity, 0.4, accuracy: 1e-5)
+        XCTAssertTrue(try doc.historyItems().isEmpty, "no history node until commit")
+        XCTAssertTrue(try doc.info().dirty)
+        let c = try doc.commit(label: "Opacity 40 %")
+        XCTAssertEqual(try doc.historyItems().map(\.label), ["Opacity 40 %"])
+        XCTAssertEqual(c.historyHead, 1)
+        XCTAssertEqual(try node(doc, 2).opacity, 0.4, accuracy: 1e-5)
+        XCTAssertNil(try doc.commit(label: "again").dirtyRect, "nothing pending: nothing recorded")
+        XCTAssertEqual(try doc.historyItems().count, 1)
     }
 
     func testUndoRedoCheckoutAndSnapshots() throws {
         let doc = StubDocumentBackend()
-        let original = doc.layers()
+        let original = try doc.layers()
         let added = try doc.addLayer(kind: .pixel, name: "", parent: nil, index: nil)
-        let newID = try XCTUnwrap(added.layersChanged.first)
-        XCTAssertEqual(doc.layers().first?.name, "Layer 1", "new layers go on top")
+        let newID = try XCTUnwrap(added.created.first)
+        XCTAssertEqual(try doc.layers().first?.name, "Layer 1", "new layers go on top")
         _ = try doc.setVisible(id: 3, visible: false)
         _ = try doc.moveLayer(id: newID, parent: 4, index: 0)
-        XCTAssertEqual(doc.historyItems().count, 3)
-        XCTAssertTrue(try doc.undo())
-        XCTAssertNil(doc.layers().first { $0.id == newID }?.parent)
-        XCTAssertTrue(try doc.undo())
-        XCTAssertTrue(try doc.undo())
-        XCTAssertEqual(doc.layers(), original)
-        XCTAssertFalse(try doc.undo())
-        XCTAssertFalse(doc.info().dirty)
-        XCTAssertTrue(try doc.redo())
-        XCTAssertTrue(try doc.redo())
-        XCTAssertEqual(doc.layers().first { $0.id == 3 }?.visible, false)
+        XCTAssertEqual(try doc.historyItems().count, 3)
+        XCTAssertTrue(try doc.info().canUndo)
+        XCTAssertEqual(try doc.undo().historyHead, 2)
+        XCTAssertNil(try node(doc, newID).parent)
+        _ = try doc.undo()
+        _ = try doc.undo()
+        XCTAssertEqual(try doc.layers(), original)
+        XCTAssertEqual(try doc.undo().historyHead, 0, "nothing left to undo")
+        XCTAssertFalse(try doc.info().dirty)
+        XCTAssertTrue(try doc.info().canRedo)
+        _ = try doc.redo()
+        XCTAssertEqual(try doc.redo().historyHead, 2)
+        XCTAssertEqual(try node(doc, 3).visible, false)
         try doc.snapshot(name: "Hidden vignette")
-        try doc.checkoutHistory(id: 1)
-        XCTAssertEqual(doc.layers().first { $0.id == 3 }?.visible, true)
-        XCTAssertEqual(doc.historyItems().first { $0.isCurrent }?.id, 1)
-        try doc.restoreSnapshot(name: "Hidden vignette")
-        XCTAssertEqual(doc.layers().first { $0.id == 3 }?.visible, false)
-        XCTAssertEqual(doc.historyItems().last?.label, "Snapshot “Hidden vignette”")
-        XCTAssertGreaterThan(doc.historyMemoryBytes(), 0)
-        doc.setMaxStates(2)
-        XCTAssertEqual(doc.historyItems().count, 2)
+        _ = try doc.checkoutHistory(id: 1)
+        XCTAssertEqual(try node(doc, 3).visible, true)
+        XCTAssertEqual(try doc.historyItems().first { $0.isCurrent }?.id, 1)
+        _ = try doc.checkoutHistory(id: 0)
+        XCTAssertEqual(try doc.layers(), original, "0 = as opened")
+        _ = try doc.restoreSnapshot(name: "Hidden vignette")
+        XCTAssertEqual(try node(doc, 3).visible, false)
+        XCTAssertEqual(try doc.historyItems().last?.label, "Snapshot “Hidden vignette”")
+        XCTAssertEqual(try doc.snapshots(), ["Hidden vignette"])
+        XCTAssertGreaterThan(try doc.historyMemoryBytes(), 0)
+        try doc.setMaxStates(maxStates: 2)
+        XCTAssertLessThanOrEqual(try doc.historyItems().count, 3, "the snapshotted state is kept")
     }
 
     func testStructuralEdits() throws {
         let doc = StubDocumentBackend()
         let dup = try doc.duplicateLayer(id: 2)
-        XCTAssertEqual(doc.layers().first { $0.id == dup.layersChanged[0] }?.name, "Landscape copy")
-        _ = try doc.mergeDown(id: dup.layersChanged[0])
-        XCTAssertEqual(doc.layers().count, 6)
+        let copy = try XCTUnwrap(dup.created.first)
+        XCTAssertEqual(try node(doc, copy).name, "Landscape copy")
+        _ = try doc.mergeDown(id: copy)
+        XCTAssertEqual(try doc.layers().count, 6)
         XCTAssertThrowsError(try doc.mergeDown(id: 1), "nothing below the bottom layer")
-        _ = try doc.addMask(id: 3, initial: .hideAll)
-        XCTAssertTrue(doc.layers().first { $0.id == 3 }!.hasMask)
+        _ = try doc.addMask(id: 3, mask: .hideAll)
+        XCTAssertTrue(try node(doc, 3).hasMask)
         _ = try doc.setMaskEnabled(id: 3, enabled: false)
-        XCTAssertFalse(doc.layers().first { $0.id == 3 }!.maskEnabled)
-        XCTAssertThrowsError(try doc.addMask(id: 2, initial: .fromSelection))
-        try doc.setSelectionRect(x: 10, y: 10, width: 100, height: 50, feather: 0)
-        _ = try doc.addMask(id: 2, initial: .fromSelection)
-        _ = try doc.setClipped(id: 3, clipped: true)
-        XCTAssertTrue(doc.layers().first { $0.id == 3 }!.clipped)
-        _ = try doc.setGroupMode(id: 4, mode: .isolated)
-        XCTAssertEqual(doc.layers().first { $0.id == 4 }?.groupMode, .isolated)
+        XCTAssertFalse(try node(doc, 3).maskEnabled)
+        try doc.setMaskLinked(id: 3, linked: false)
+        XCTAssertFalse(try node(doc, 3).maskLinked)
+        XCTAssertThrowsError(try doc.addMask(id: 1, mask: .fromSelection), "no selection yet")
+        _ = try doc.setSelectionRect(x: 10, y: 10, width: 100, height: 50, feather: 0)
+        XCTAssertEqual(try doc.info().selectionBounds, CanvasRect(x: 10, y: 10, width: 100, height: 50))
+        XCTAssertEqual(try doc.historyItems().last?.label, "Rectangular Marquee")
+        _ = try doc.renameLayer(id: 1, name: "Base")
+        _ = try doc.addMask(id: 1, mask: .fromSelection)
+        _ = try doc.setClipped(id: 3, clipped: false)
+        XCTAssertFalse(try node(doc, 3).clipped)
+        _ = try doc.setLocks(id: 2, locks: LayerLockFlags(all: true))
+        XCTAssertTrue(try node(doc, 2).locks.all)
+        XCTAssertEqual(try node(doc, 4).blendMode, "pass_through")
+        _ = try doc.setBlendMode(id: 4, mode: "screen")
+        XCTAssertEqual(try node(doc, 4).groupMode, .isolated)
+        _ = try doc.setBlendMode(id: 4, mode: "pass_through")
+        XCTAssertEqual(try node(doc, 4).groupMode, .passThrough)
         let curves = AdjustmentModel.curves(master: [[0, 0.1], [1, 0.9]], rgb: [[], [], []]).json
         _ = try doc.setAdjustmentJson(id: 5, json: curves, interactive: false)
-        XCTAssertEqual(AdjustmentModel(json: doc.layers().first { $0.id == 5 }?.adjustmentJson), AdjustmentModel(json: curves))
+        XCTAssertEqual(AdjustmentModel(json: try node(doc, 5).adjustmentJson), AdjustmentModel(json: curves))
+        let grouped = try doc.groupLayers(ids: [3, 2], name: "")
+        let g = try XCTUnwrap(grouped.created.first)
+        XCTAssertEqual(DocumentOutline(try doc.layers()).children(of: g), [3, 2])
+        _ = try doc.ungroupLayer(id: g)
+        XCTAssertEqual(DocumentOutline(try doc.layers()).children(of: DocumentOutline.root), [4, 3, 2, 1])
         _ = try doc.flatten()
-        XCTAssertEqual(doc.layers().map(\.name), ["Background"])
+        XCTAssertEqual(try doc.layers().map(\.name), ["Background"])
+        XCTAssertTrue(try doc.layers()[0].background)
     }
 
     func testDragPlanAppliesThroughMoveLayer() throws {
         let doc = StubDocumentBackend()
-        let outline = DocumentOutline(doc.layers())
+        let outline = DocumentOutline(try doc.layers())
         let target = try XCTUnwrap(outline.moving([3, 1], into: 4, at: 1))
         let moves = try XCTUnwrap(outline.backendMoves(to: target))
         XCTAssertEqual(moves.count, 2)
         for m in moves { _ = try doc.moveLayer(id: m.id, parent: m.parent, index: m.index) }
-        XCTAssertEqual(DocumentOutline(doc.layers()).structure, target.structure)
-        XCTAssertEqual(DocumentOutline(doc.layers()).children(of: 4), [6, 3, 1, 5])
+        XCTAssertEqual(DocumentOutline(try doc.layers()).structure, target.structure)
+        XCTAssertEqual(DocumentOutline(try doc.layers()).children(of: 4), [6, 3, 1, 5])
     }
 
     func testSaveOpenAndExport() throws {
@@ -328,24 +360,25 @@ final class StubDocumentBackendTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: dir) }
         let engine = StubDocumentEngine()
         let doc = try engine.newDocument(width: 400, height: 300, depth: .u16, profile: nil)
-        XCTAssertEqual(doc.info().title, "Untitled-1")
+        XCTAssertEqual(try doc.info().title, "Untitled-1")
+        XCTAssertTrue(doc.id().hasPrefix("doc#"))
         XCTAssertThrowsError(try doc.save(), "a new document needs Save As")
         _ = try doc.setOpacity(id: 3, value: 0.25, interactive: false)
-        XCTAssertTrue(doc.info().dirty)
+        XCTAssertTrue(try doc.info().dirty)
         XCTAssertThrowsError(try doc.saveAs(path: dir.appendingPathComponent("a.psd").path)) { e in
             guard case DocumentError.unsupported = e else { return XCTFail("\(e)") }
         }
         let path = dir.appendingPathComponent("Poster.tessera-doc").path
         try doc.saveAs(path: path)
-        XCTAssertFalse(doc.info().dirty)
-        XCTAssertEqual(doc.info().title, "Poster.tessera-doc")
+        XCTAssertFalse(try doc.info().dirty)
+        XCTAssertEqual(try doc.info().title, "Poster.tessera-doc")
         XCTAssertTrue(try engine.openDocument(path: path) === doc, "the same path opened twice is the same session")
         doc.close()
         let reopened = try engine.openDocument(path: path)
         XCTAssertFalse(reopened === doc)
-        XCTAssertEqual(reopened.layers().map(\.name), doc.layers().map(\.name))
-        XCTAssertEqual(reopened.layers().first { $0.id == 3 }!.opacity, 0.25, accuracy: 1e-6)
-        XCTAssertEqual(reopened.info().depth, .u16)
+        XCTAssertEqual(try reopened.layers().map(\.name), try doc.layers().map(\.name))
+        XCTAssertEqual(try reopened.layer(id: 3).opacity, 0.25, accuracy: 1e-6)
+        XCTAssertEqual(try reopened.info().depth, .u16)
 
         let png = dir.appendingPathComponent("flat.png").path
         try reopened.exportFlat(path: png, format: .png, quality: 90, color: .srgb)
@@ -359,8 +392,8 @@ final class StubDocumentBackendTests: XCTestCase {
 
         // A flat image opens as one pixel layer named after the file.
         let flat = try engine.openDocument(path: png)
-        XCTAssertEqual(flat.layers().map(\.name), ["flat"])
-        XCTAssertEqual(flat.info().width, 400)
+        XCTAssertEqual(try flat.layers().map(\.name), ["flat"])
+        XCTAssertEqual(try flat.info().width, 400)
     }
 
     func testCompositeHasTransparentMarginAndThumbnailsAreCached() throws {
@@ -387,24 +420,29 @@ final class StubDocumentBackendTests: XCTestCase {
             var frames: [DocFrame] = []
             let expectation: XCTestExpectation
             init(_ e: XCTestExpectation) { expectation = e }
-            func onFrame(_ frame: DocFrame) { frames.append(frame); expectation.fulfill() }
-            func onLayersChanged() {}
-            func onHistoryChanged() {}
+            func onFrame(frame: DocFrame) { frames.append(frame); expectation.fulfill() }
+            func onLayersChanged(layerIds: [DocLayerID]) {}
+            func onHistoryChanged(head: DocHistoryID) {}
+            func onRenderFailed(message: String) {}
         }
         let doc = StubDocumentBackend(sampleWidth: 800, height: 500)
         let listener = Listener(expectation(description: "frame"))
         listener.expectation.assertForOverFulfill = false
-        doc.setListener(listener)
-        let plan = doc.planSurface(width: 400, height: 250)
+        doc.setListener(listener: listener)
+        let plan = try doc.planSurface(width: 400, height: 250)
+        XCTAssertEqual(plan, DocViewportPlan(level: 1, width: 400, height: 250))
         let surface = try XCTUnwrap(DocumentSurfaces.make(width: Int(plan.width), height: Int(plan.height)))
         try doc.attachSurface(iosurfaceId: IOSurfaceGetID(surface), width: plan.width, height: plan.height)
-        doc.setViewport(level: 1, x: 0, y: 0, width: 800, height: 500, zoom: 0.5)
+        // The right half of the canvas at level 1: x 200…400 in level pixels.
+        try doc.setViewport(level: 1, x: 200, y: 0, width: 400, height: 250, zoom: 0.5)
         wait(for: [listener.expectation], timeout: 10)
         let f = try XCTUnwrap(listener.frames.first)
         XCTAssertEqual(f.surfaceId, IOSurfaceGetID(surface))
         XCTAssertEqual(f.level, 1)
-        XCTAssertEqual(f.width, 400)
-        XCTAssertEqual(f.rect, CanvasRect(x: 0, y: 0, width: 800, height: 500))
+        XCTAssertEqual(f.width, 200, "clipped to the level")
+        XCTAssertEqual(f.canvasRect, CanvasRect(x: 400, y: 0, width: 400, height: 500))
+        XCTAssertEqual(f.levelWidth, 400)
+        XCTAssertEqual(f.zoom, 0.5)
         withExtendedLifetime(surface) {}
     }
 }

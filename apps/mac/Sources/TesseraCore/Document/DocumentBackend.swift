@@ -29,36 +29,48 @@ public enum DocBitDepth: String, CaseIterable, Sendable, Identifiable, Codable {
     }
 }
 
-/// `info()`.
+/// `info()` (FFI `DocumentInfo`).
 public struct DocumentSummary: Equatable, Sendable {
-    /// `DocumentId` as a string (session scoped).
+    /// `doc#N` (session scoped).
     public var id: String
-    /// File the document was opened from or last saved to; nil for a new, unsaved document.
+    /// Where `save` writes (`.tessera-doc`, `.psd`, `.psb`); nil for new documents and flat images.
     public var path: String?
     /// File name, or "Untitled-N".
     public var title: String
     public var width: UInt32
     public var height: UInt32
     public var depth: DocBitDepth
-    public var profileName: String
-    /// Unsaved changes since open / the last save.
+    /// Profile description; nil = untagged (treated as sRGB).
+    public var profileName: String?
+    /// Unsaved changes.
     public var dirty: Bool
-    /// Current history entry, nil = as opened.
-    public var historyHead: DocHistoryID?
+    /// Current history node; 0 = the document as opened.
+    public var historyHead: DocHistoryID
+    public var canUndo: Bool
+    public var canRedo: Bool
     public var selectedLayerIds: [DocLayerID]
-    /// Library image the document was made from (`open_document_from_image`), if any.
+    /// Bounds of the marquee selection (nil: none).
+    public var selectionBounds: CanvasRect?
+    /// Library image the document was made from (`open_document_from_image`).
     public var sourceImageId: String?
+    public var layerCount: UInt32
+    /// Increments on every mutation.
+    public var epoch: UInt64
+    /// "Metal (<adapter>)", "CPU", or "Stub".
+    public var backend: String
 
     public init(id: String, path: String?, title: String, width: UInt32, height: UInt32, depth: DocBitDepth,
-                profileName: String, dirty: Bool, historyHead: DocHistoryID?, selectedLayerIds: [DocLayerID],
-                sourceImageId: String? = nil) {
-        self.id = id; self.path = path; self.title = title; self.width = width; self.height = height
-        self.depth = depth; self.profileName = profileName; self.dirty = dirty; self.historyHead = historyHead
-        self.selectedLayerIds = selectedLayerIds; self.sourceImageId = sourceImageId
+                profileName: String?, dirty: Bool, historyHead: DocHistoryID, canUndo: Bool, canRedo: Bool,
+                selectedLayerIds: [DocLayerID], selectionBounds: CanvasRect?, sourceImageId: String?, layerCount: UInt32,
+                epoch: UInt64, backend: String) {
+        self.id = id; self.path = path; self.title = title; self.width = width; self.height = height; self.depth = depth
+        self.profileName = profileName; self.dirty = dirty; self.historyHead = historyHead; self.canUndo = canUndo
+        self.canRedo = canRedo; self.selectedLayerIds = selectedLayerIds; self.selectionBounds = selectionBounds
+        self.sourceImageId = sourceImageId; self.layerCount = layerCount; self.epoch = epoch; self.backend = backend
     }
 }
 
-/// `LayerRecord.kind`.
+/// `LayerNode.kind` (FFI `DocLayerKind`).
 public enum LayerKindTag: String, CaseIterable, Sendable, Codable {
     case pixel, adjustment, fill, group
     case smartObject = "smart_object"
@@ -76,7 +88,7 @@ public enum LayerKindTag: String, CaseIterable, Sendable, Codable {
     }
 }
 
-/// `Locks` of compositor/document.rs.
+/// `LayerLocks` (compositor `Locks`).
 public struct LayerLockFlags: Equatable, Sendable, Codable {
     public var transparency = false
     public var pixels = false
@@ -88,26 +100,27 @@ public struct LayerLockFlags: Equatable, Sendable, Codable {
     public var any: Bool { transparency || pixels || position || all }
 }
 
-/// A rectangle in level-0 canvas pixels (`bounds`, dirty rects, viewport rects).
+/// `DocRect`: a rectangle in canvas pixels.
 public struct CanvasRect: Equatable, Sendable, Codable {
-    public var x: Int32
-    public var y: Int32
-    public var width: UInt32
-    public var height: UInt32
-    public init(x: Int32, y: Int32, width: UInt32, height: UInt32) {
+    public var x: Int64
+    public var y: Int64
+    public var width: Int64
+    public var height: Int64
+    public init(x: Int64, y: Int64, width: Int64, height: Int64) {
         self.x = x; self.y = y; self.width = width; self.height = height
     }
-    public var isEmpty: Bool { width == 0 || height == 0 }
+    public var isEmpty: Bool { width <= 0 || height <= 0 }
 }
 
-/// Group composition (`GroupMode`): stable strings `pass_through` / `isolated`.
+/// `DocGroupMode`. Groups report `pass_through` as their blend mode while in pass-through.
 public enum LayerGroupMode: String, CaseIterable, Sendable, Codable {
     case passThrough = "pass_through"
     case isolated
 }
 
-/// One row of `layers()`: a flat pre-order walk of the tree. Siblings are listed top first (the
-/// order of the Layers panel); `index` is the compositor's child index, 0 = bottom.
+/// One row of `layers()` (FFI `LayerNode`): a flat pre-order walk of the tree. Siblings are
+/// listed top first (the order of the Layers panel); `index` is the compositor's child index,
+/// 0 = bottom.
 public struct LayerRecord: Equatable, Sendable, Identifiable {
     public var id: DocLayerID
     /// nil = a child of the document root.
@@ -120,15 +133,21 @@ public struct LayerRecord: Equatable, Sendable, Identifiable {
     public var visible: Bool
     public var opacity: Float
     public var fillOpacity: Float
-    /// `BlendMode` serde name (COMPOSITOR.md §2), e.g. `normal`, `linear_dodge`.
+    /// `BlendMode` serde name (COMPOSITOR.md §2), e.g. `normal`, `linear_dodge`; `pass_through`
+    /// for groups in pass-through.
     public var blendMode: String
     /// Groups only.
     public var groupMode: LayerGroupMode?
     public var clipped: Bool
     public var locks: LayerLockFlags
+    /// `none`, `shallow` or `deep`.
+    public var knockout: String
+    /// The document's Background layer.
+    public var background: Bool
     public var hasMask: Bool
     public var maskEnabled: Bool
     public var maskLinked: Bool
+    public var maskDensity: Float
     /// `Adjustment` serde JSON (adjustment layers).
     public var adjustmentJson: String?
     /// `Fill` serde JSON (fill layers).
@@ -141,35 +160,37 @@ public struct LayerRecord: Equatable, Sendable, Identifiable {
     public init(id: DocLayerID, parent: DocLayerID?, index: UInt32, depth: UInt32, kind: LayerKindTag, name: String,
                 visible: Bool = true, opacity: Float = 1, fillOpacity: Float = 1, blendMode: String = "normal",
                 groupMode: LayerGroupMode? = nil, clipped: Bool = false, locks: LayerLockFlags = LayerLockFlags(),
-                hasMask: Bool = false, maskEnabled: Bool = true, maskLinked: Bool = true,
+                knockout: String = "none", background: Bool = false,
+                hasMask: Bool = false, maskEnabled: Bool = true, maskLinked: Bool = true, maskDensity: Float = 1,
                 adjustmentJson: String? = nil, fillJson: String? = nil, bounds: CanvasRect? = nil, revision: UInt64 = 0) {
         self.id = id; self.parent = parent; self.index = index; self.depth = depth; self.kind = kind
         self.name = name; self.visible = visible; self.opacity = opacity; self.fillOpacity = fillOpacity
         self.blendMode = blendMode; self.groupMode = groupMode; self.clipped = clipped; self.locks = locks
-        self.hasMask = hasMask; self.maskEnabled = maskEnabled; self.maskLinked = maskLinked
+        self.knockout = knockout; self.background = background
+        self.hasMask = hasMask; self.maskEnabled = maskEnabled; self.maskLinked = maskLinked; self.maskDensity = maskDensity
         self.adjustmentJson = adjustmentJson; self.fillJson = fillJson; self.bounds = bounds; self.revision = revision
     }
 }
 
-/// `add_layer(kind: NewLayerKind, …)`.
+/// `add_layer(kind: NewLayer, …)`.
 public enum NewLayerKind: Equatable, Sendable {
     /// A blank (transparent) pixel layer.
     case pixel
-    case group
+    case group(mode: LayerGroupMode)
     /// `Adjustment` serde JSON.
     case adjustment(json: String)
     /// `Fill` serde JSON.
     case fill(json: String)
 }
 
-/// `add_mask(id, LayerMaskInit)`.
+/// `add_mask(id, MaskInit)`.
 public enum LayerMaskInit: String, Sendable, CaseIterable {
     case revealAll = "reveal_all"
     case hideAll = "hide_all"
     case fromSelection = "from_selection"
 }
 
-/// `set_props(id, LayerProperties)`: the whole common property set in one history step.
+/// `set_props(id, LayerPropsRecord)`: the whole common property set in one history step.
 public struct LayerProperties: Equatable, Sendable {
     public var name: String
     public var visible: Bool
@@ -178,34 +199,43 @@ public struct LayerProperties: Equatable, Sendable {
     public var blendMode: String
     public var clipped: Bool
     public var locks: LayerLockFlags
+    public var knockout: String
     public var colorTag: String?
     public init(name: String, visible: Bool, opacity: Float, fillOpacity: Float, blendMode: String, clipped: Bool,
-                locks: LayerLockFlags, colorTag: String? = nil) {
+                locks: LayerLockFlags, knockout: String = "none", colorTag: String? = nil) {
         self.name = name; self.visible = visible; self.opacity = opacity; self.fillOpacity = fillOpacity
-        self.blendMode = blendMode; self.clipped = clipped; self.locks = locks; self.colorTag = colorTag
+        self.blendMode = blendMode; self.clipped = clipped; self.locks = locks; self.knockout = knockout; self.colorTag = colorTag
     }
     public init(_ node: LayerRecord) {
         self.init(name: node.name, visible: node.visible, opacity: node.opacity, fillOpacity: node.fillOpacity,
-                  blendMode: node.blendMode, clipped: node.clipped, locks: node.locks)
+                  blendMode: node.blendMode, clipped: node.clipped, locks: node.locks, knockout: node.knockout)
     }
 }
 
-/// What one edit changed (`DocumentChange`).
+/// What one edit did (FFI `DocumentUpdate`).
 public struct DocumentChange: Equatable, Sendable {
-    /// Layers whose rows need refreshing; for `add_layer` / `duplicate_layer` the new layer is first.
+    /// Rows that may have changed: edited, added or removed layers and their ancestor groups.
     public var layersChanged: [DocLayerID]
-    public var historyHead: DocHistoryID?
-    /// Level-0 canvas area to recomposite (nil: nothing visible changed).
+    /// Layers the edit created (added, duplicated, merged, grouped).
+    public var created: [DocLayerID]
+    /// Current history node (unchanged by interactive edits).
+    public var historyHead: DocHistoryID
+    /// Level-0 region whose composite may have changed (nil: nothing).
     public var dirtyRect: CanvasRect?
-    public init(layersChanged: [DocLayerID], historyHead: DocHistoryID?, dirtyRect: CanvasRect?) {
-        self.layersChanged = layersChanged; self.historyHead = historyHead; self.dirtyRect = dirtyRect
+    public var epoch: UInt64
+    public var dirty: Bool
+    public init(layersChanged: [DocLayerID], created: [DocLayerID], historyHead: DocHistoryID, dirtyRect: CanvasRect?,
+                epoch: UInt64, dirty: Bool) {
+        self.layersChanged = layersChanged; self.created = created; self.historyHead = historyHead
+        self.dirtyRect = dirtyRect; self.epoch = epoch; self.dirty = dirty
     }
 }
 
-/// `history_items()`.
+/// `history_items()` (FFI `DocHistoryItem`).
 public struct DocHistoryEntry: Equatable, Sendable, Identifiable {
     public var id: DocHistoryID
     public var label: String
+    /// nil for the opened state (or after pruning).
     public var parent: DocHistoryID?
     public var isCurrent: Bool
     /// "user", "agent:<name>", …
@@ -215,17 +245,8 @@ public struct DocHistoryEntry: Equatable, Sendable, Identifiable {
     }
 }
 
-/// `snapshots()`.
-public struct DocSnapshot: Equatable, Sendable, Identifiable {
-    public var name: String
-    /// History entry the snapshot names (nil = as opened).
-    public var head: DocHistoryID?
-    public var id: String { name }
-    public init(name: String, head: DocHistoryID?) { self.name = name; self.head = head }
-}
-
-/// `plan_surface(width, height) -> SurfacePlan`: the surface size the backend wants for a viewport
-/// of that many level pixels (it may coarsen the level to bound the cost).
+/// `plan_surface(width, height)` (FFI `DocSurfacePlan`): the surface extent for a fit-to-window
+/// viewport of that many device pixels — the coarsest level covering it.
 public struct DocViewportPlan: Equatable, Sendable {
     public var level: UInt8
     public var width: UInt32
@@ -233,41 +254,51 @@ public struct DocViewportPlan: Equatable, Sendable {
     public init(level: UInt8, width: UInt32, height: UInt32) { self.level = level; self.width = width; self.height = height }
 }
 
-/// `DocumentBackendListener.on_frame(FrameInfo)`: one composite presented into an attached surface.
-/// Surfaces are RGBA8, sRGB-encoded, **straight (unpremultiplied) alpha**; transparent areas stay
-/// transparent and the app draws the checkerboard under them.
+/// A presented frame (FFI `DocFrameInfo`). Surfaces are RGBA8, sRGB-encoded, **straight
+/// (unpremultiplied) alpha**; transparent areas stay transparent and the app draws the checkerboard.
 public struct DocFrame: Equatable, Sendable {
+    /// Surface written (0 when none is attached).
     public var surfaceId: UInt32
-    /// Level rendered (the size of one texel is 2^level canvas pixels).
     public var level: UInt8
-    /// Level-0 canvas rectangle the valid region covers.
-    public var rect: CanvasRect
-    /// Valid region, anchored top-left in the surface, in texels.
+    /// The presented region in `level` coordinates; its `width × height` texels sit top-left in the surface.
+    public var x: UInt32
+    public var y: UInt32
     public var width: UInt32
     public var height: UInt32
+    /// The same region in level-0 canvas pixels (clipped to the canvas).
+    public var canvasRect: CanvasRect
+    /// Extent of the whole level.
+    public var levelWidth: UInt32
+    public var levelHeight: UInt32
+    /// Echo of the last `set_viewport` zoom.
+    public var zoom: Double
+    public var epoch: UInt64
     public var renderMs: Double
-    /// Increments per presented frame.
-    public var generation: UInt64
-    /// False for coarse frames of an interactive drag that a finer frame will replace.
-    public var isFinal: Bool
-    public init(surfaceId: UInt32, level: UInt8, rect: CanvasRect, width: UInt32, height: UInt32, renderMs: Double,
-                generation: UInt64, isFinal: Bool) {
-        self.surfaceId = surfaceId; self.level = level; self.rect = rect; self.width = width; self.height = height
-        self.renderMs = renderMs; self.generation = generation; self.isFinal = isFinal
+    public var fullRecomposite: Bool
+    public var blocks: UInt32
+    public init(surfaceId: UInt32, level: UInt8, x: UInt32, y: UInt32, width: UInt32, height: UInt32, canvasRect: CanvasRect,
+                levelWidth: UInt32, levelHeight: UInt32, zoom: Double, epoch: UInt64, renderMs: Double,
+                fullRecomposite: Bool, blocks: UInt32) {
+        self.surfaceId = surfaceId; self.level = level; self.x = x; self.y = y; self.width = width; self.height = height
+        self.canvasRect = canvasRect; self.levelWidth = levelWidth; self.levelHeight = levelHeight; self.zoom = zoom
+        self.epoch = epoch; self.renderMs = renderMs; self.fullRecomposite = fullRecomposite; self.blocks = blocks
     }
 }
 
 /// `export_flat(path, ExportFormat, quality, ExportColor)`.
 public enum DocExportFormat: String, CaseIterable, Sendable {
-    case jpeg, png, tiff
+    case png, jpeg, tiff
 }
 
-/// Colour space of a flat export (the export sheet's `ExportSettings.ColorSpace` strings).
+/// Colour space of a flat export (FFI `ExportColor`).
 public enum DocExportColor: String, CaseIterable, Sendable {
+    /// The document's own profile.
+    case document
     case srgb
     case displayP3 = "display_p3"
+    case adobeRgb = "adobe_rgb"
+    case proPhoto = "prophoto"
     case rec2020
-    case prophoto
 }
 
 /// `EngineError` variants a document call can raise.
@@ -287,11 +318,13 @@ public enum DocumentError: LocalizedError, Equatable {
     }
 }
 
-/// `DocumentBackendListener`: called at most once per coalesced frame, from any thread.
+/// `DocumentListener`: called from the render thread, at most once per coalesced frame.
 public protocol DocumentBackendListener: AnyObject, Sendable {
-    func onFrame(_ frame: DocFrame)
-    func onLayersChanged()
-    func onHistoryChanged()
+    func onFrame(frame: DocFrame)
+    /// Rows that may have changed (re-read them with `layers()`).
+    func onLayersChanged(layerIds: [DocLayerID])
+    func onHistoryChanged(head: DocHistoryID)
+    func onRenderFailed(message: String)
 }
 
 /// `Engine`'s document entry points (`new_document`, `open_document`, `open_document_from_image`).
@@ -304,16 +337,22 @@ public protocol DocumentEngine: AnyObject, Sendable {
     func openDocumentFromImage(imageId: String, developed: Bool) throws -> any DocumentBackend
 }
 
-/// `DocumentSession`. Every edit is one `DocOp` (one history entry) unless it says `interactive`:
-/// interactive calls re-render without a history entry until `commit(label)`.
+/// `DocumentSession`, call for call (M5-09 `crates/tessera-ffi/src/document.rs`). Every edit is one
+/// `DocOp` (one history node) unless it says `interactive`: interactive calls re-render without a
+/// history node until `commit(label)`.
 public protocol DocumentBackend: AnyObject, Sendable {
+    func id() -> String
+
     // Model reads
-    func info() -> DocumentSummary
-    func layers() -> [LayerRecord]
+    func info() throws -> DocumentSummary
+    func layers() throws -> [LayerRecord]
+    func layer(id: DocLayerID) throws -> LayerRecord
+    /// The Layers panel's selection, kept in the document (reported by `info().selectedLayerIds`).
+    func setSelectedLayers(ids: [DocLayerID]) throws
     /// Writes an RGBA8 IOSurface (straight alpha, at most `maxPx` on the long edge), cached per
     /// layer revision, and returns its `IOSurfaceID`. The backend keeps the surface alive.
     func layerThumbnail(id: DocLayerID, maxPx: UInt32) throws -> UInt32
-    /// The mask of `id` as an RGBA8 grey IOSurface (M5-10 addition; see IMPLEMENTATION-STATUS.md).
+    /// The layer mask as a grey RGBA8 IOSurface, cached per revision.
     func maskThumbnail(id: DocLayerID, maxPx: UInt32) throws -> UInt32
     func compositeThumbnail(maxPx: UInt32) throws -> UInt32
 
@@ -324,49 +363,57 @@ public protocol DocumentBackend: AnyObject, Sendable {
     /// Removes `id` from its parent, then inserts it at compositor `index` (0 = bottom) of `parent`.
     func moveLayer(id: DocLayerID, parent: DocLayerID?, index: UInt32) throws -> DocumentChange
     func setProps(id: DocLayerID, props: LayerProperties) throws -> DocumentChange
+    func renameLayer(id: DocLayerID, name: String) throws -> DocumentChange
     func setVisible(id: DocLayerID, visible: Bool) throws -> DocumentChange
     func setOpacity(id: DocLayerID, value: Float, interactive: Bool) throws -> DocumentChange
-    /// M5-10 addition (the Fill slider's live path); `set_props` covers the committed value.
     func setFillOpacity(id: DocLayerID, value: Float, interactive: Bool) throws -> DocumentChange
     func setBlendMode(id: DocLayerID, mode: String) throws -> DocumentChange
     func setGroupMode(id: DocLayerID, mode: LayerGroupMode) throws -> DocumentChange
+    func setLocks(id: DocLayerID, locks: LayerLockFlags) throws -> DocumentChange
     func setAdjustmentJson(id: DocLayerID, json: String, interactive: Bool) throws -> DocumentChange
-    func setFillJson(id: DocLayerID, json: String) throws -> DocumentChange
-    func setMaskEnabled(id: DocLayerID, enabled: Bool) throws -> DocumentChange
-    /// M5-10 addition (the link chain between thumbnail and mask).
-    func setMaskLinked(id: DocLayerID, linked: Bool) throws -> DocumentChange
+    func setFillJson(id: DocLayerID, json: String, interactive: Bool) throws -> DocumentChange
+    func addMask(id: DocLayerID, mask: LayerMaskInit) throws -> DocumentChange
     func removeMask(id: DocLayerID) throws -> DocumentChange
-    func addMask(id: DocLayerID, initial: LayerMaskInit) throws -> DocumentChange
+    func setMaskEnabled(id: DocLayerID, enabled: Bool) throws -> DocumentChange
+    func setMaskDensity(id: DocLayerID, density: Float) throws -> DocumentChange
+    /// Session state only (not a history node).
+    func setMaskLinked(id: DocLayerID, linked: Bool) throws
     func setClipped(id: DocLayerID, clipped: Bool) throws -> DocumentChange
     func mergeDown(id: DocLayerID) throws -> DocumentChange
+    /// Every visible layer into one opaque Background layer.
     func flatten() throws -> DocumentChange
-    func setSelectionRect(x: Int32, y: Int32, width: UInt32, height: UInt32, feather: Float) throws
-    func clearSelection() throws
-    /// Records the interactive changes since the last commit as one history entry.
-    func commit(label: String) throws
+    /// Sibling layers into a new group at the topmost one's position (one history node).
+    func groupLayers(ids: [DocLayerID], name: String) throws -> DocumentChange
+    /// Replaces a group by its children.
+    func ungroupLayer(id: DocLayerID) throws -> DocumentChange
+    /// The rectangular marquee in level-0 pixels (a history node, like Photoshop's).
+    func setSelectionRect(x: Int64, y: Int64, width: Int64, height: Int64, feather: Float) throws -> DocumentChange
+    func clearSelection() throws -> DocumentChange
+    /// Records the pending interactive edits as one history node (nothing without pending edits).
+    func commit(label: String) throws -> DocumentChange
 
     // History
-    func undo() throws -> Bool
-    func redo() throws -> Bool
-    func historyItems() -> [DocHistoryEntry]
-    /// `id` 0 checks out the document as opened (engine-api head `None`; M5-10 convention).
-    func checkoutHistory(id: DocHistoryID) throws
+    func undo() throws -> DocumentChange
+    func redo() throws -> DocumentChange
+    func historyItems() throws -> [DocHistoryEntry]
+    /// Any retained state; 0 = as opened.
+    func checkoutHistory(id: DocHistoryID) throws -> DocumentChange
     func snapshot(name: String) throws
-    func snapshots() -> [DocSnapshot]
-    func restoreSnapshot(name: String) throws
-    func setMaxStates(_ count: UInt32)
-    /// M5-10 addition: bytes held by history states (the History panel's memory line).
-    func historyMemoryBytes() -> UInt64
+    func snapshots() throws -> [String]
+    func restoreSnapshot(name: String) throws -> DocumentChange
+    func setMaxStates(maxStates: UInt32) throws
+    /// Bytes held by the retained history.
+    func historyMemoryBytes() throws -> UInt64
 
     // Presentation
-    func setListener(_ listener: (any DocumentBackendListener)?)
-    func planSurface(width: UInt32, height: UInt32) -> DocViewportPlan
+    func setListener(listener: (any DocumentBackendListener)?)
+    func planSurface(width: UInt32, height: UInt32) throws -> DocViewportPlan
     func attachSurface(iosurfaceId: UInt32, width: UInt32, height: UInt32) throws
-    /// Level-0 canvas rectangle `x, y, w, h` shown at `zoom` (screen pixels per canvas pixel),
-    /// rendered at `level`. Triggers a render.
-    func setViewport(level: UInt8, x: Int32, y: Int32, width: UInt32, height: UInt32, zoom: Float)
-    func setDisplayHeadroom(_ headroom: Float)
-    func refresh()
+    /// Shows `width × height` pixels at `(x, y)` of pyramid `level` (level coordinates) top-left in
+    /// the surfaces, clipped to the level and the surface size; `zoom` (1 = 100 %) is echoed in frames.
+    func setViewport(level: UInt8, x: UInt32, y: UInt32, width: UInt32, height: UInt32, zoom: Double) throws
+    func setDisplayHeadroom(headroom: Float) throws
+    func refresh() throws
     func detachSurfaces()
 
     // Output

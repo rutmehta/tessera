@@ -35,8 +35,12 @@ struct StubMask: Codable, Equatable, Sendable {
     var shape: Shape
     var enabled = true
     var linked = true
+    /// Effective mask `1 − d·(1 − m)`.
+    var density: Float = 1
 
-    func value(_ x: Float, _ y: Float) -> Float {
+    func value(_ x: Float, _ y: Float) -> Float { 1 - density * (1 - raw(x, y)) }
+
+    func raw(_ x: Float, _ y: Float) -> Float {
         switch shape {
         case .reveal: return 1
         case .hide: return 0
@@ -102,6 +106,8 @@ struct StubState: Codable, Equatable, Sendable {
     var root: [StubLayer]
     var nextID: DocLayerID
     var revision: UInt64 = 1
+    /// The marquee (part of the history, as in Photoshop).
+    var selection: CanvasRect?
 }
 
 // MARK: - Tree helpers
@@ -203,14 +209,17 @@ extension StubState {
         func walk(_ list: [StubLayer], parent: DocLayerID?, depth: UInt32) {
             for (i, l) in list.enumerated().reversed() {
                 var n = LayerRecord(id: l.id, parent: parent, index: UInt32(i), depth: depth, kind: l.kind.tag, name: l.props.name,
-                                  visible: l.props.visible, opacity: l.props.opacity, fillOpacity: l.props.fillOpacity,
-                                  blendMode: l.props.blendMode, clipped: l.props.clipped, locks: l.props.locks,
-                                  hasMask: l.mask != nil, maskEnabled: l.mask?.enabled ?? true, maskLinked: l.mask?.linked ?? true,
-                                  revision: maxRevision(l))
+                                    visible: l.props.visible, opacity: l.props.opacity, fillOpacity: l.props.fillOpacity,
+                                    blendMode: l.props.blendMode, clipped: l.props.clipped, locks: l.props.locks,
+                                    background: l.props.background,
+                                    hasMask: l.mask != nil, maskEnabled: l.mask?.enabled ?? true, maskLinked: l.mask?.linked ?? true,
+                                    maskDensity: l.mask?.density ?? 1, revision: maxRevision(l))
                 switch l.kind {
                 case .adjustment(let json): n.adjustmentJson = json
                 case .fill(let json): n.fillJson = json
-                case .group(let mode, _): n.groupMode = mode
+                case .group(let mode, _):
+                    n.groupMode = mode
+                    if mode == .passThrough { n.blendMode = "pass_through" }
                 case .pixel(let c): n.bounds = c.bounds(width: width, height: height)
                 case .text: break
                 }
@@ -230,13 +239,13 @@ extension StubContent {
         case .pattern(let name, _, _):
             if name == "paper" || name == "landscape" {
                 let m = StubPatterns.inset(width: Float(width), height: Float(height))
-                return CanvasRect(x: Int32(m.minX), y: Int32(m.minY), width: UInt32(m.width), height: UInt32(m.height))
+                return CanvasRect(x: Int64(m.minX), y: Int64(m.minY), width: Int64(m.width), height: Int64(m.height))
             }
-            return CanvasRect(x: 0, y: 0, width: width, height: height)
+            return CanvasRect(x: 0, y: 0, width: Int64(width), height: Int64(height))
         case .image(let path):
             guard let r = StubImageCache.shared.raster(path) else { return nil }
-            return CanvasRect(x: 0, y: 0, width: UInt32(r.width), height: UInt32(r.height))
-        case .merged: return CanvasRect(x: 0, y: 0, width: width, height: height)
+            return CanvasRect(x: 0, y: 0, width: Int64(r.width), height: Int64(r.height))
+        case .merged: return CanvasRect(x: 0, y: 0, width: Int64(width), height: Int64(height))
         }
     }
 }

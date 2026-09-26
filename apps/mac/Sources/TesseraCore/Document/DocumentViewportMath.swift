@@ -80,13 +80,21 @@ public struct DocumentViewportMath: Equatable, Sendable {
         let x0 = max(floor(a.x), 0), y0 = max(floor(a.y), 0)
         let x1 = min(ceil(b.x), canvasWidth), y1 = min(ceil(b.y), canvasHeight)
         guard x1 > x0, y1 > y0 else { return CanvasRect(x: 0, y: 0, width: 0, height: 0) }
-        return CanvasRect(x: Int32(x0), y: Int32(y0), width: UInt32(x1 - x0), height: UInt32(y1 - y0))
+        return CanvasRect(x: Int64(x0), y: Int64(y0), width: Int64(x1 - x0), height: Int64(y1 - y0))
     }
 
     /// Texels of `rect` at `level` (ceil of the halvings).
     public static func levelSize(_ rect: CanvasRect, level: Int) -> (width: UInt32, height: UInt32) {
-        let s = Double(1 << level)
-        return (UInt32(max(ceil(Double(rect.width) / s), 1)), UInt32(max(ceil(Double(rect.height) / s), 1)))
+        let r = levelRect(rect, level: level)
+        return (r.width, r.height)
+    }
+
+    /// `rect` in `level` coordinates (`set_viewport`): the texels covering it.
+    public static func levelRect(_ rect: CanvasRect, level: Int) -> (x: UInt32, y: UInt32, width: UInt32, height: UInt32) {
+        let s = Int64(1) << Int64(level)
+        let x0 = max(rect.x, 0) / s, y0 = max(rect.y, 0) / s
+        let x1 = (rect.x + rect.width + s - 1) / s, y1 = (rect.y + rect.height + s - 1) / s
+        return (UInt32(x0), UInt32(y0), UInt32(max(x1 - x0, 1)), UInt32(max(y1 - y0, 1)))
     }
 
     // MARK: Changes

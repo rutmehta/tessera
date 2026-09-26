@@ -7,8 +7,20 @@ struct AppCommands: Commands {
     let model: AppModel
     @AppStorage(AppearancePreference.defaultsKey) private var appearance = AppearancePreference.system.rawValue
 
+    private var docMode: Bool { model.viewMode == .document }
+    private var docs: DocumentWorkspace { model.documents }
+    private var doc: DocumentController? { docMode ? docs.current : nil }
+
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
+            // Layered documents (WP M5-10).
+            Group {
+                Button("New Document…") { docs.showNewDocument = true }
+                    .keyboardShortcut("n", modifiers: .command)
+                Button("Open Document…") { docs.presentOpen() }
+                    .keyboardShortcut("o", modifiers: [.command, .shift])
+            }
+            Divider()
             Button("Open Folder…") { model.presentOpenPanel() }
                 .keyboardShortcut("o", modifiers: .command)
             Menu("Open Recent") {
@@ -27,8 +39,8 @@ struct AppCommands: Commands {
                 .keyboardShortcut("t", modifiers: [.command, .shift])
             Divider()
             Button("Export…") { model.presentExport() }
-                .keyboardShortcut("e", modifiers: [.command, .shift])
-                .disabled(model.exporter.isRunning)
+                .shortcut(!docMode, "e", [.command, .shift])
+                .disabled(model.exporter.isRunning || docMode)
         }
         CommandGroup(replacing: .printItem) {
             Button("Page Setup…") { model.printing.pageSetup() }
@@ -48,13 +60,33 @@ struct AppCommands: Commands {
                 .keyboardShortcut("z", modifiers: [.command, .shift])
         }
         CommandGroup(after: .pasteboard) {
-            Button("Select All Images") { model.selectAll() }
+            Button(docMode ? "Select All" : "Select All Images") { model.selectAll() }
                 .keyboardShortcut("a", modifiers: .command)
         }
         CommandGroup(before: .sidebar) {
             Button("Grid    (G)") { model.viewMode = .grid }
             Button("Loupe    (E / Return)") { model.viewMode = .loupe }
             Button("Compare    (C)") { model.enterCompare() }
+            Button("Layered Documents") { model.viewMode = .document }
+            Divider()
+            Group {
+            Button("Zoom In") { doc?.viewport?.zoomIn() }
+                .shortcut(docMode, "=", .command)
+                .disabled(doc == nil)
+            Button("Zoom Out") { doc?.viewport?.zoomOut() }
+                .shortcut(docMode, "-", .command)
+                .disabled(doc == nil)
+            Button("Fit on Screen") { doc?.viewport?.zoomToFit() }
+                .shortcut(docMode, "0", .command)
+                .disabled(doc == nil)
+            Button("100 %") { doc?.viewport?.zoomActual() }
+                .shortcut(docMode, "1", .command)
+                .disabled(doc == nil)
+            Button(docs.panelsHidden ? "Show Panels    (Tab)" : "Hide Panels    (Tab)") { docs.togglePanels() }
+                .disabled(!docMode)
+            Button("Cycle Screen Mode    (F)") { docs.cycleScreenMode() }
+                .disabled(!docMode)
+            }
             Divider()
             Button(model.showInspector ? "Hide Inspector" : "Show Inspector") { model.showInspector.toggle() }
                 .keyboardShortcut("i", modifiers: [.command, .option])
@@ -125,7 +157,12 @@ struct AppCommands: Commands {
             Button("Delete from Disk…") { model.confirmDeleteFromDisk() }
                 .keyboardShortcut(.delete, modifiers: .command)
         }
+        documentMenus
         CommandMenu("Library") {
+            Button("Edit in Layers") { docs.editInLayers(model.focusedItem) }
+                .shortcut(!docMode, "e", .command)
+                .disabled(docMode || model.focusedItem == nil)
+            Divider()
             Button("New Album…") { model.collections.newAlbum() }
                 .keyboardShortcut("n", modifiers: [.command, .option])
             Button("New Album Group…") { model.collections.newGroup() }
@@ -154,7 +191,7 @@ struct AppCommands: Commands {
             Button("Reset All Settings") { model.resetDevelop() }
                 .keyboardShortcut("r", modifiers: [.command, .shift])
             Button("New Snapshot…") { model.promptSnapshot() }
-                .keyboardShortcut("s", modifiers: [.command, .shift])
+                .shortcut(!docMode, "s", [.command, .shift])
             Menu("Restore Snapshot") {
                 ForEach(model.developHistory?.snapshots ?? [], id: \.self) { name in
                     Button(name) { model.restoreSnapshot(name) }
@@ -173,9 +210,109 @@ struct AppCommands: Commands {
                 .keyboardShortcut("t", modifiers: [.command, .option])
             Divider()
             Button("Load 20,000 Stub Items") { model.loadStubItems(count: 20_000) }
-                .keyboardShortcut("n", modifiers: [.command, .shift])
+                .shortcut(!docMode, "n", [.command, .shift])
             Button("Run Grid Scroll Benchmark") { model.requestScrollBenchmark() }
                 .keyboardShortcut("b", modifiers: [.command, .shift])
         }
+    }
+
+    /// Save items, Layer and Select (document mode, WP M5-10).
+    @CommandsBuilder private var documentMenus: some Commands {
+        // Close / Save / Save As / Export Flat: ⌘W closes the current document in document mode
+        // (asking to save), the window otherwise.
+        CommandGroup(replacing: .saveItem) {
+            Button(docMode && docs.current != nil ? "Close Document" : "Close") { docs.closeCommand() }
+                .keyboardShortcut("w", modifiers: .command)
+            Button("Save") { docs.save() }
+                .keyboardShortcut("s", modifiers: .command)
+                .disabled(doc == nil)
+            Button("Save As…") { docs.saveAs() }
+                .shortcut(docMode, "s", [.command, .shift])
+                .disabled(doc == nil)
+            Button("Export Flat…") { docs.showExportFlat = true }
+                .shortcut(docMode, "e", [.command, .shift])
+                .disabled(doc == nil)
+        }
+        CommandMenu("Layer") { LayerMenu(doc: doc) }
+        CommandMenu("Select") {
+            Button("All") { doc?.selectAll() }
+                .disabled(doc == nil)
+            Button("Deselect") { doc?.deselect() }
+                .shortcut(docMode, "d", .command)
+                .disabled(doc?.marquee == nil)
+            Divider()
+            Button("Rectangular Marquee    (M)") { doc?.tool = .marquee; doc?.viewport?.cursorDidChange() }
+                .disabled(doc == nil)
+            Button("Move    (V)") { doc?.tool = .move; doc?.viewport?.cursorDidChange() }
+                .disabled(doc == nil)
+        }
+    }
+}
+
+/// Layer menu (document mode, WP M5-10). The Layers panel's context menu mirrors it.
+struct LayerMenu: View {
+    let doc: DocumentController?
+
+    var body: some View {
+        let primary = doc?.primary
+        let on = doc != nil
+        Menu("New") {
+            Button("Layer") { doc?.addLayer(.pixel) }
+                .keyboardShortcut("n", modifiers: [.command, .shift])
+            Button("Group") { doc?.addLayer(.group(mode: .passThrough)) }
+            Menu("Adjustment Layer") {
+                ForEach(AdjustmentModel.Kind.allCases) { k in Button(k.title) { doc?.addAdjustment(k) } }
+            }
+            Menu("Fill Layer") {
+                ForEach(FillModel.Kind.allCases) { k in Button(k.title) { doc?.addFill(k) } }
+            }
+        }
+        .disabled(!on)
+        Button("Duplicate Layer") { doc?.duplicateSelection() }
+            .keyboardShortcut("j", modifiers: .command)
+            .disabled(primary == nil)
+        Button("Delete Layer") { doc?.deleteSelection() }
+            .disabled(primary == nil)
+        Button("Rename Layer…") { doc?.report?("Double-click the layer name in the Layers panel to rename it") }
+            .disabled(primary == nil)
+        Divider()
+        Button("Group Layers") { doc?.groupSelection() }
+            .keyboardShortcut("g", modifiers: .command)
+            .disabled(!on)
+        Button("Ungroup Layers") { doc?.ungroupSelection() }
+            .keyboardShortcut("g", modifiers: [.command, .shift])
+            .disabled(primary?.kind != .group)
+        Button(primary?.clipped == true ? "Release Clipping Mask" : "Create Clipping Mask") { doc?.toggleClipping() }
+            .keyboardShortcut("g", modifiers: [.command, .option])
+            .disabled(primary == nil)
+        Divider()
+        Menu("Layer Mask") {
+            Button("Reveal All") { doc?.addMask(.revealAll) }
+                .disabled(primary == nil || primary?.hasMask == true)
+            Button("Hide All") { doc?.addMask(.hideAll) }
+                .disabled(primary == nil || primary?.hasMask == true)
+            Button("From Selection") { doc?.addMask(.fromSelection) }
+                .disabled(primary == nil || primary?.hasMask == true || doc?.marquee == nil)
+            Divider()
+            Button("Delete") { doc?.deleteMask() }
+                .disabled(primary?.hasMask != true)
+            Button(primary?.hasMask == true && primary?.maskEnabled == false ? "Enable" : "Disable") { doc?.toggleMaskEnabled() }
+                .disabled(primary?.hasMask != true)
+        }
+        .disabled(!on)
+        Divider()
+        Button("Merge Down") { doc?.mergeDown() }
+            .keyboardShortcut("e", modifiers: .command)
+            .disabled(primary == nil)
+        Button("Flatten Image") { doc?.flatten() }
+            .disabled(!on)
+    }
+}
+
+extension View {
+    /// A keyboard shortcut only while `enabled` (⌘E is Edit in Layers in the library and Merge
+    /// Down in document mode; ⇧⌘S is New Snapshot in develop and Save As in document mode).
+    func shortcut(_ enabled: Bool, _ key: KeyEquivalent, _ modifiers: EventModifiers) -> some View {
+        keyboardShortcut(enabled ? KeyboardShortcut(key, modifiers: modifiers) : nil)
     }
 }
