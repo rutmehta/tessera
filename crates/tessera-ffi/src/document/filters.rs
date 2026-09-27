@@ -1360,6 +1360,9 @@ fn worker_loop(q: Arc<Queue>, comp: Arc<Compositor>, shared: Weak<Shared>) {
             }
         };
         q.lock().busy = true;
+        // B5-14 (P17): previews and bakes count as interactive pressure, so
+        // photo export yields to them (bounded by its maximum yield).
+        let _pressure = super::render::Pressure::begin(super::render::PressureKind::Filters);
         match job {
             Job::Preview(p, cancel) => {
                 let result = find(&p.base, p.layer)

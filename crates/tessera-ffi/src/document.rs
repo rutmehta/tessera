@@ -93,6 +93,7 @@ use std::{
 };
 
 pub use io::{ExportColor, ExportFormat};
+pub use render::{DocRenderPath, DocRenderRecord}; // B5-14 (tests and benches)
 
 // ─────────────────────────────── records ───────────────────────────────
 
@@ -693,10 +694,46 @@ pub(crate) struct SourceOps {
 }
 // B5-10 end
 
+// B5-14 begin: copy-on-write live document.
+/// A document shared copy-on-write with the render thread (WP B5-14, P14).
+/// Reads deref to the document; the first mutation while a frame snapshot
+/// is alive clones it (`Arc::make_mut`), so an edit never waits for a frame
+/// and the frame never sees a half-applied edit. Cloning the wrapper shares
+/// the document (use `(*doc).clone()` for an independent copy).
+#[derive(Clone)]
+pub(crate) struct CowDoc(Arc<Document>);
+
+impl CowDoc {
+    /// The immutable snapshot the renderer and save work from.
+    pub(crate) fn share(&self) -> Arc<Document> {
+        self.0.clone()
+    }
+}
+
+impl From<Document> for CowDoc {
+    fn from(doc: Document) -> Self {
+        Self(Arc::new(doc))
+    }
+}
+
+impl std::ops::Deref for CowDoc {
+    type Target = Document;
+    fn deref(&self) -> &Document {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for CowDoc {
+    fn deref_mut(&mut self) -> &mut Document {
+        Arc::make_mut(&mut self.0)
+    }
+}
+// B5-14 end
+
 pub(crate) struct State {
-    doc: Document,
+    doc: CowDoc, // B5-14: shared with in-flight frames and saves
     /// The document plus the interactive edits since the last commit.
-    scratch: Option<Document>,
+    scratch: Option<CowDoc>, // B5-14
     pending: Vec<(Pending, DocOp)>,
     path: Option<PathBuf>,
     title: String,
@@ -723,7 +760,12 @@ pub(crate) struct State {
 impl State {
     /// What the viewport and `layers()` show: the scratch while dragging.
     fn live(&self) -> &Document {
-        self.scratch.as_ref().unwrap_or(&self.doc)
+        self.scratch.as_deref().unwrap_or(&self.doc)
+    }
+
+    /// B5-14: an immutable snapshot of what `live` shows (no pixel copy).
+    pub(crate) fn live_shared(&self) -> Arc<Document> {
+        self.scratch.as_ref().unwrap_or(&self.doc).share()
     }
 
     fn dirty(&self) -> bool {
@@ -747,6 +789,8 @@ pub(crate) struct Shared {
     listener: Mutex<Option<Arc<dyn DocumentListener>>>,
     /// Filter previews and smart filter bakes (WP B5-05).
     filters: filtering::FilterState,
+    /// B5-14: saves run in order, outside the live-state lock.
+    saving: Mutex<()>,
 }
 
 impl Shared {
@@ -946,7 +990,7 @@ impl DocumentSession {
             id,
             engine: Arc::downgrade(engine),
             state: Mutex::new(State {
-                doc: open.doc,
+                doc: open.doc.into(), // B5-14
                 scratch: None,
                 pending: Vec::new(),
                 path: open.path,
@@ -965,6 +1009,7 @@ impl DocumentSession {
             render: render::Renderer::new(gpu),
             listener: Mutex::new(None),
             filters: Default::default(),
+            saving: Mutex::new(()), // B5-14
         });
         let worker = {
             let shared = shared.clone();
@@ -1890,6 +1935,7 @@ impl DocumentSession {
         let mut st = self.shared.lock()?;
         st.open()?;
         let view = &mut st.view;
+        let before = view.surfaces.len();
         if view
             .surfaces
             .first()
@@ -1900,6 +1946,9 @@ impl DocumentSession {
         view.surfaces.retain(|s| s.id() != surface.id());
         if view.surfaces.len() >= 3 {
             view.surfaces.remove(0);
+        }
+        if view.surfaces.len() < before {
+            view.generation += 1; // B5-14: frames for the replaced ring are dropped
         }
         let first = view.surfaces.is_empty();
         view.surfaces.push(surface);
@@ -1976,6 +2025,7 @@ impl DocumentSession {
         if let Ok(mut st) = self.shared.lock() {
             st.view.surfaces.clear();
             st.view.next = 0;
+            st.view.generation += 1; // B5-14
         }
     }
 
@@ -2005,13 +2055,16 @@ impl DocumentSession {
 
     /// Writes the document to its path (committing a pending drag first).
     pub fn save(&self) -> Result<()> {
-        let mut st = self.shared.lock()?;
-        st.open()?;
-        let path = st
-            .path
-            .clone()
-            .ok_or_else(|| failure("the document has no file yet: use save_as"))?;
-        self.save_locked(&mut st, &path)
+        // B5-14: the file is written from a snapshot, outside the lock.
+        let _order = self.shared.saving.lock().map_err(failure)?;
+        let path = {
+            let st = self.shared.lock()?;
+            st.open()?;
+            st.path
+                .clone()
+                .ok_or_else(|| failure("the document has no file yet: use save_as"))?
+        };
+        self.save_snapshot(&path)
     }
 
     /// Writes `.tessera-doc`, or PSD/PSB when the path ends in `.psd`/`.psb`
@@ -2020,13 +2073,14 @@ impl DocumentSession {
     pub fn save_as(&self, path: String) -> Result<()> {
         let path = PathBuf::from(path);
         io::save_kind(&path)?;
-        let mut st = self.shared.lock()?;
-        st.open()?;
-        self.save_locked(&mut st, &path)?;
+        // B5-14: the file is written from a snapshot, outside the lock.
+        let _order = self.shared.saving.lock().map_err(failure)?;
+        self.save_snapshot(&path)?;
         let title = path
             .file_name()
             .map(|n| n.to_string_lossy().into_owned())
             .unwrap_or_default();
+        let mut st = self.shared.lock()?;
         st.title = title;
         st.path = Some(path.clone());
         drop(st);
@@ -2075,14 +2129,23 @@ impl DocumentSession {
 }
 
 impl DocumentSession {
-    fn save_locked(&self, st: &mut State, path: &std::path::Path) -> Result<()> {
-        if self.commit_pending(st, None)?.is_some() {
-            st.epoch += 1;
-            let epoch = st.epoch;
-            self.shared.render.request(Vec::new(), true, epoch);
-        }
-        io::save(&st.doc, path)?;
-        st.saved_node = Some(st.doc.history().current());
+    /// B5-14 (P14): commits a pending drag and snapshots the document under
+    /// the lock, writes the file without it (edits, frames and undo go on),
+    /// then records the saved node. Callers hold `Shared::saving`.
+    fn save_snapshot(&self, path: &std::path::Path) -> Result<()> {
+        let (doc, node) = {
+            let mut st = self.shared.lock()?;
+            st.open()?;
+            if self.commit_pending(&mut st, None)?.is_some() {
+                st.epoch += 1;
+                let epoch = st.epoch;
+                self.shared.render.request(Vec::new(), true, epoch);
+            }
+            (st.doc.share(), st.doc.history().current())
+        };
+        io::save(&doc, path)?;
+        drop(doc);
+        self.shared.lock()?.saved_node = Some(node);
         Ok(())
     }
 }
@@ -2094,8 +2157,28 @@ impl DocumentSession {
     /// the CPU compositor without Metal).
     #[doc(hidden)]
     pub fn read_level(&self, level: u8) -> Result<(u32, u32, Vec<f32>)> {
-        let st = self.shared.lock()?;
-        self.shared.render.read_level(st.live(), level)
+        let doc = self.shared.lock()?.live_shared(); // B5-14: not under the lock
+        self.shared.render.read_level(&doc, level)
+    }
+
+    /// B5-14: the renderer's per-frame records (path, regions, spans), oldest
+    /// first; at most the last 512.
+    #[doc(hidden)]
+    pub fn render_records(&self) -> Vec<DocRenderRecord> {
+        self.shared.render.records()
+    }
+
+    /// B5-14: `false` forces the full-level path (the parity reference).
+    #[doc(hidden)]
+    pub fn set_viewport_rendering(&self, enabled: bool) {
+        self.shared.render.set_viewport_rendering(enabled);
+    }
+
+    /// B5-14: one line of render resources (GPU pages and bytes, CPU cache,
+    /// pressure registrations, frames per path).
+    #[doc(hidden)]
+    pub fn render_resources(&self) -> String {
+        self.shared.render.resources()
     }
 
     /// The live document state (tests compare against the CPU compositor).

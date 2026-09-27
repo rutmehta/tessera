@@ -143,7 +143,13 @@ final class DocumentController: Identifiable {
         do {
             let c = try body()
             reloadModel()
-            reloadHistory()
+            // B5-14: a live drag tick records no history node: refresh the summary only (the rows, snapshots
+            // and history memory are unchanged; `onHistoryChanged` reloads them after any history change).
+            if c.historyHead == info.historyHead, !history.isEmpty {
+                if let i = try? backend.info() { info = i }
+            } else {
+                reloadHistory()
+            }
             return c
         } catch {
             report?("\(what): \(error.localizedDescription)")
