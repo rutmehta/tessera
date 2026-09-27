@@ -4,6 +4,19 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## Resource investigation publication — 2026-09-27 20:27 UTC
+
+Source findings and independent review are in resource-audit-20260927/.
+No resource regression has run yet. Plans distinguish observable attempted work
+from accepted-cache counters, and pre-evaluation alone from real memory admission.
+Existing PSD code already prewarms one tile: captured stacks alone do not count
+incident duplicates. No global resource cap or leak fix is claimed.
+
+Mailbox status2ff37936 published the ownership split and hold. SSH queue
+01a0e48a-fb90-7362-a4cd-fa0c719eb63c accepted its pointer; peer receipt pending.
+Sol prepares tiny counters/regressions in the separate render-resource-bounds
+worktree. Root's combined Swift suite is running; no concurrent test launch.
+
 ## Current checkpoint — 2026-09-27 20:24 UTC
 
 Fetched B131af17 and read RESOURCE-AUDIT.md. Accepted exact-target mailbox
