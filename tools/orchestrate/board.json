@@ -1318,5 +1318,13 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "B5-11",
+    "owner": "opus",
+    "title": "Live shapes, Pen/Direct Selection and vector masks",
+    "status": "pass",
+    "attempts": 0,
+    "notes": "machine B; wp/B5-11 includes wp/B5-10b + main 571630c; document/vector.rs; 311 XCTest; shape drag 541 ms median at 20 MP until M5-34 r2"
   }
 ]
