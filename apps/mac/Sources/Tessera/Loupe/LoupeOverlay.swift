@@ -108,6 +108,7 @@ struct LoupeOverlay: View {
                 .accessibilityIdentifier("loupe-display-info")
                 .popover(isPresented: $displayInfoPresented, arrowEdge: .top) {
                     displayInfoPopover
+                        .onExitCommand { dismissPresentedDisclosure() }
                 }
 
                 if model.isPhotoEditing, model.developStatus == .ready, !MaskTools.shared.active {
@@ -140,9 +141,43 @@ struct LoupeOverlay: View {
             .accessibilityIdentifier("loupe-shortcuts")
             .popover(isPresented: $shortcutsPresented, arrowEdge: .bottom) {
                 shortcutsPopover
+                    .onExitCommand { dismissPresentedDisclosure() }
             }
             .padding(.bottom, Theme.Space.s)
         }
+        .onChange(of: displayInfoPresented) { updateDisclosureKeyOwnership() }
+        .onChange(of: shortcutsPresented) { updateDisclosureKeyOwnership() }
+        .onDisappear {
+            model.loupeDisclosurePresented = false
+            model.dismissLoupeDisclosure = nil
+        }
+    }
+
+    private func updateDisclosureKeyOwnership() {
+        let presented = displayInfoPresented || shortcutsPresented
+        model.loupeDisclosurePresented = presented
+        if presented {
+            model.dismissLoupeDisclosure = Self.makeDismissAction(
+                displayInfo: $displayInfoPresented, shortcuts: $shortcutsPresented
+            )
+        } else {
+            model.dismissLoupeDisclosure = nil
+        }
+    }
+
+    @MainActor
+    static func makeDismissAction(displayInfo: Binding<Bool>, shortcuts: Binding<Bool>) -> @MainActor () -> Void {
+        {
+            displayInfo.wrappedValue = false
+            shortcuts.wrappedValue = false
+        }
+    }
+
+    func dismissPresentedDisclosure() {
+        displayInfoPresented = false
+        shortcutsPresented = false
+        model.loupeDisclosurePresented = false
+        model.dismissLoupeDisclosure = nil
     }
 
     private var displayInfoPopover: some View {
