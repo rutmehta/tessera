@@ -1,0 +1,20 @@
+{
+  "command": [
+    "swift",
+    "test",
+    "--package-path",
+    "apps/mac",
+    "--scratch-path",
+    "/Volumes/betterSSD/tessera-cache/swift/batch-settings-a988-green",
+    "-c",
+    "release",
+    "-Xswiftc",
+    "-enable-testing",
+    "--jobs",
+    "2",
+    "--filter",
+    "BatchSettingsDraftTests"
+  ],
+  "exit": 1,
+  "elapsed_seconds": 200.50469574984163
+}
