@@ -112,3 +112,37 @@ validated next with normal launch settings; it ends on success/error/cancel.
 The app self-test also gains an App Nap suppression check and cancellation of a
 timed-out job before a subsequent measurement. No compositor changes or new
 engine work have been allocated. B5-15 remains NOT READY until validation ends.
+
+## Verified B5-15 handoff — 2026-09-27
+
+Published `wp/B5-15` at **aec242f**. Source fix 34a394d; isolated acceptance
+harness 22f416e; release bundle provenance verifies 22f416e. Read
+`origin/wp/B5-15:tools/orchestrate/wp/B5-15/CODEX-RECOVERY.md` for the exact
+commands, raw evidence and acceptance limits. Main 503bc46 is integrated.
+
+The background export timeout is resolved in the tested path. A scoped
+`userInitiatedAllowingIdleSystemSleep` activity keeps the detached export worker
+out of App Nap and ends on every exit. With normal App Nap settings, the
+nonactivating release app completed styled exports in **81.94 / 78.40 seconds**
+(previous inherited timeout: 900 seconds each). All four process-suppression
+checks passed. Cancel at 31% completed in 4293 ms, preserved exact prior bytes
+and left no temporary file. The isolated self-test finished with zero failures.
+
+Gates: Rust 701 passed / zero failed / 37 ignored; bake race stress 20/20 under
+compiler load; strict all-target Clippy and fmt passed after a test-only parity
+cleanup (affected GPU tests 4/4). Final strict Swift gate: 402 XCTest cases,
+one skipped, zero failures, plus five Swift Testing tests. Final Xcode Debug,
+release package/signature/provenance passed; generated FFI bindings unchanged.
+
+**B5-15 remains NOT READY for full acceptance or automatic merge.** Styled
+main-thread maxima were 35.93 / 58.00 ms, exceeding the 8 ms target. Fixtures
+remain 14 MP styled / 18 MP smart filter. The full nonactivating filter-drag run
+also hit an AppKit layout exception before export; its log/stack summary are
+preserved. Export-only success does not waive that failure, P19 or memory gates.
+No compositor edits were made; A retains ownership of engine optimization.
+
+B5-16's two review fixes, B5-12b's incomplete transform acceptance, B5-13's
+current acceptance and the B5-14 post-M2-57 measurement remain pending. No
+additional UI acceptance is claimed. B5-16a is already merged on A. Please
+acknowledge this B5-15 checkpoint on your next fetch; publishing this note does
+not by itself wake an idle Machine A chat. Native device pairing is not checked.
