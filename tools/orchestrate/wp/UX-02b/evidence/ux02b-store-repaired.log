@@ -1,0 +1,187 @@
+Building for debugging...
+[0/7] Write sources
+[3/7] Write swift-version--58304C5D6DBC2206.txt
+[5/9] Compiling TesseraCore ReviewResumeStore.swift
+[6/9] Emitting module TesseraCore
+[7/10] Compiling TesseraCore ReviewNavigationState.swift
+[8/33] Emitting module Tessera
+[9/52] Compiling Tessera AISettingsView.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Agent/AgentController.swift:437:40: error: value of optional type 'ReviewResumeRecord?' not unwrapped; did you mean to use 'try!' or chain with '?'?
+435 |                                runImageIDs: images)
+436 |             case .failure(let e):
+437 |                 self.writeResumeRecord(try? intent.advanced(state: .failed,
+    |                                        `- error: value of optional type 'ReviewResumeRecord?' not unwrapped; did you mean to use 'try!' or chain with '?'?
+438 |                     targets: intent.targets.map { target in
+439 |                         var target = target
+[10/52] Compiling Tessera AgentController.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Agent/AgentController.swift:437:40: error: value of optional type 'ReviewResumeRecord?' not unwrapped; did you mean to use 'try!' or chain with '?'?
+435 |                                runImageIDs: images)
+436 |             case .failure(let e):
+437 |                 self.writeResumeRecord(try? intent.advanced(state: .failed,
+    |                                        `- error: value of optional type 'ReviewResumeRecord?' not unwrapped; did you mean to use 'try!' or chain with '?'?
+438 |                     targets: intent.targets.map { target in
+439 |                         var target = target
+[11/52] Compiling Tessera AgentPanels.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Agent/AgentController.swift:437:40: error: value of optional type 'ReviewResumeRecord?' not unwrapped; did you mean to use 'try!' or chain with '?'?
+435 |                                runImageIDs: images)
+436 |             case .failure(let e):
+437 |                 self.writeResumeRecord(try? intent.advanced(state: .failed,
+    |                                        `- error: value of optional type 'ReviewResumeRecord?' not unwrapped; did you mean to use 'try!' or chain with '?'?
+438 |                     targets: intent.targets.map { target in
+439 |                         var target = target
+[12/52] Compiling Tessera AgentReviewSheet.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Agent/AgentController.swift:437:40: error: value of optional type 'ReviewResumeRecord?' not unwrapped; did you mean to use 'try!' or chain with '?'?
+435 |                                runImageIDs: images)
+436 |             case .failure(let e):
+437 |                 self.writeResumeRecord(try? intent.advanced(state: .failed,
+    |                                        `- error: value of optional type 'ReviewResumeRecord?' not unwrapped; did you mean to use 'try!' or chain with '?'?
+438 |                     targets: intent.targets.map { target in
+439 |                         var target = target
+[13/52] Compiling Tessera AgentReviewWorkspace.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Agent/AgentController.swift:437:40: error: value of optional type 'ReviewResumeRecord?' not unwrapped; did you mean to use 'try!' or chain with '?'?
+435 |                                runImageIDs: images)
+436 |             case .failure(let e):
+437 |                 self.writeResumeRecord(try? intent.advanced(state: .failed,
+    |                                        `- error: value of optional type 'ReviewResumeRecord?' not unwrapped; did you mean to use 'try!' or chain with '?'?
+438 |                     targets: intent.targets.map { target in
+439 |                         var target = target
+[14/52] Compiling Tessera AppCommands.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Agent/AgentController.swift:437:40: error: value of optional type 'ReviewResumeRecord?' not unwrapped; did you mean to use 'try!' or chain with '?'?
+435 |                                runImageIDs: images)
+436 |             case .failure(let e):
+437 |                 self.writeResumeRecord(try? intent.advanced(state: .failed,
+    |                                        `- error: value of optional type 'ReviewResumeRecord?' not unwrapped; did you mean to use 'try!' or chain with '?'?
+438 |                     targets: intent.targets.map { target in
+439 |                         var target = target
+[15/52] Compiling Tessera AppModel+Output.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Agent/AgentController.swift:437:40: error: value of optional type 'ReviewResumeRecord?' not unwrapped; did you mean to use 'try!' or chain with '?'?
+435 |                                runImageIDs: images)
+436 |             case .failure(let e):
+437 |                 self.writeResumeRecord(try? intent.advanced(state: .failed,
+    |                                        `- error: value of optional type 'ReviewResumeRecord?' not unwrapped; did you mean to use 'try!' or chain with '?'?
+438 |                     targets: intent.targets.map { target in
+439 |                         var target = target
+[16/52] Compiling Tessera AppModel.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Agent/AgentController.swift:437:40: error: value of optional type 'ReviewResumeRecord?' not unwrapped; did you mean to use 'try!' or chain with '?'?
+435 |                                runImageIDs: images)
+436 |             case .failure(let e):
+437 |                 self.writeResumeRecord(try? intent.advanced(state: .failed,
+    |                                        `- error: value of optional type 'ReviewResumeRecord?' not unwrapped; did you mean to use 'try!' or chain with '?'?
+438 |                     targets: intent.targets.map { target in
+439 |                         var target = target
+[17/52] Compiling Tessera DevelopTools.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Agent/AgentController.swift:437:40: error: value of optional type 'ReviewResumeRecord?' not unwrapped; did you mean to use 'try!' or chain with '?'?
+435 |                                runImageIDs: images)
+436 |             case .failure(let e):
+437 |                 self.writeResumeRecord(try? intent.advanced(state: .failed,
+    |                                        `- error: value of optional type 'ReviewResumeRecord?' not unwrapped; did you mean to use 'try!' or chain with '?'?
+438 |                     targets: intent.targets.map { target in
+439 |                         var target = target
+[18/52] Compiling Tessera KeyRouter.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Agent/AgentController.swift:437:40: error: value of optional type 'ReviewResumeRecord?' not unwrapped; did you mean to use 'try!' or chain with '?'?
+435 |                                runImageIDs: images)
+436 |             case .failure(let e):
+437 |                 self.writeResumeRecord(try? intent.advanced(state: .failed,
+    |                                        `- error: value of optional type 'ReviewResumeRecord?' not unwrapped; did you mean to use 'try!' or chain with '?'?
+438 |                     targets: intent.targets.map { target in
+439 |                         var target = target
+[19/52] Compiling Tessera MaskTools.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Agent/AgentController.swift:437:40: error: value of optional type 'ReviewResumeRecord?' not unwrapped; did you mean to use 'try!' or chain with '?'?
+435 |                                runImageIDs: images)
+436 |             case .failure(let e):
+437 |                 self.writeResumeRecord(try? intent.advanced(state: .failed,
+    |                                        `- error: value of optional type 'ReviewResumeRecord?' not unwrapped; did you mean to use 'try!' or chain with '?'?
+438 |                     targets: intent.targets.map { target in
+439 |                         var target = target
+[20/52] Compiling Tessera TesseraApp.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Agent/AgentController.swift:437:40: error: value of optional type 'ReviewResumeRecord?' not unwrapped; did you mean to use 'try!' or chain with '?'?
+435 |                                runImageIDs: images)
+436 |             case .failure(let e):
+437 |                 self.writeResumeRecord(try? intent.advanced(state: .failed,
+    |                                        `- error: value of optional type 'ReviewResumeRecord?' not unwrapped; did you mean to use 'try!' or chain with '?'?
+438 |                     targets: intent.targets.map { target in
+439 |                         var target = target
+[21/52] Compiling Tessera TimingSelfTest.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Agent/AgentController.swift:437:40: error: value of optional type 'ReviewResumeRecord?' not unwrapped; did you mean to use 'try!' or chain with '?'?
+435 |                                runImageIDs: images)
+436 |             case .failure(let e):
+437 |                 self.writeResumeRecord(try? intent.advanced(state: .failed,
+    |                                        `- error: value of optional type 'ReviewResumeRecord?' not unwrapped; did you mean to use 'try!' or chain with '?'?
+438 |                     targets: intent.targets.map { target in
+439 |                         var target = target
+[22/52] Compiling Tessera CompareView.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Agent/AgentController.swift:437:40: error: value of optional type 'ReviewResumeRecord?' not unwrapped; did you mean to use 'try!' or chain with '?'?
+435 |                                runImageIDs: images)
+436 |             case .failure(let e):
+437 |                 self.writeResumeRecord(try? intent.advanced(state: .failed,
+    |                                        `- error: value of optional type 'ReviewResumeRecord?' not unwrapped; did you mean to use 'try!' or chain with '?'?
+438 |                     targets: intent.targets.map { target in
+439 |                         var target = target
+[23/52] Compiling Tessera AssistController.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Agent/AgentController.swift:437:40: error: value of optional type 'ReviewResumeRecord?' not unwrapped; did you mean to use 'try!' or chain with '?'?
+435 |                                runImageIDs: images)
+436 |             case .failure(let e):
+437 |                 self.writeResumeRecord(try? intent.advanced(state: .failed,
+    |                                        `- error: value of optional type 'ReviewResumeRecord?' not unwrapped; did you mean to use 'try!' or chain with '?'?
+438 |                     targets: intent.targets.map { target in
+439 |                         var target = target
+[24/52] Compiling Tessera AssistPanels.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Agent/AgentController.swift:437:40: error: value of optional type 'ReviewResumeRecord?' not unwrapped; did you mean to use 'try!' or chain with '?'?
+435 |                                runImageIDs: images)
+436 |             case .failure(let e):
+437 |                 self.writeResumeRecord(try? intent.advanced(state: .failed,
+    |                                        `- error: value of optional type 'ReviewResumeRecord?' not unwrapped; did you mean to use 'try!' or chain with '?'?
+438 |                     targets: intent.targets.map { target in
+439 |                         var target = target
+[25/52] Compiling Tessera DefectSweepSheet.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Agent/AgentController.swift:437:40: error: value of optional type 'ReviewResumeRecord?' not unwrapped; did you mean to use 'try!' or chain with '?'?
+435 |                                runImageIDs: images)
+436 |             case .failure(let e):
+437 |                 self.writeResumeRecord(try? intent.advanced(state: .failed,
+    |                                        `- error: value of optional type 'ReviewResumeRecord?' not unwrapped; did you mean to use 'try!' or chain with '?'?
+438 |                     targets: intent.targets.map { target in
+439 |                         var target = target
+[26/52] Compiling Tessera FaceStripView.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Agent/AgentController.swift:437:40: error: value of optional type 'ReviewResumeRecord?' not unwrapped; did you mean to use 'try!' or chain with '?'?
+435 |                                runImageIDs: images)
+436 |             case .failure(let e):
+437 |                 self.writeResumeRecord(try? intent.advanced(state: .failed,
+    |                                        `- error: value of optional type 'ReviewResumeRecord?' not unwrapped; did you mean to use 'try!' or chain with '?'?
+438 |                     targets: intent.targets.map { target in
+439 |                         var target = target
+[27/52] Compiling Tessera DocumentSelfTest.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Agent/AgentController.swift:437:40: error: value of optional type 'ReviewResumeRecord?' not unwrapped; did you mean to use 'try!' or chain with '?'?
+435 |                                runImageIDs: images)
+436 |             case .failure(let e):
+437 |                 self.writeResumeRecord(try? intent.advanced(state: .failed,
+    |                                        `- error: value of optional type 'ReviewResumeRecord?' not unwrapped; did you mean to use 'try!' or chain with '?'?
+438 |                     targets: intent.targets.map { target in
+439 |                         var target = target
+[28/52] Compiling Tessera FilterSelfTest.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Agent/AgentController.swift:437:40: error: value of optional type 'ReviewResumeRecord?' not unwrapped; did you mean to use 'try!' or chain with '?'?
+435 |                                runImageIDs: images)
+436 |             case .failure(let e):
+437 |                 self.writeResumeRecord(try? intent.advanced(state: .failed,
+    |                                        `- error: value of optional type 'ReviewResumeRecord?' not unwrapped; did you mean to use 'try!' or chain with '?'?
+438 |                     targets: intent.targets.map { target in
+439 |                         var target = target
+[29/52] Compiling Tessera RetouchSelfTest.swift
+[30/52] Compiling Tessera StylesSelfTest.swift
+[31/52] Compiling Tessera ToolsSelfTest.swift
+[32/52] Compiling Tessera VectorSelfTest.swift
+[33/52] Compiling Tessera ThumbnailBrowser.swift
+[34/52] Compiling Tessera HistogramView.swift
+[35/52] Compiling Tessera InspectorView.swift
+[36/52] Compiling Tessera PhotoEditInspectorView.swift
+[37/52] Compiling Tessera TransformPanel.swift
+[38/52] Compiling Tessera UnderstandingPanels.swift
+[39/52] Compiling Tessera FilterBar.swift
+[40/52] Compiling Tessera LoupeOverlay.swift
+[41/52] Compiling Tessera LoupeView.swift
+[42/52] Compiling Tessera PeopleView.swift
+[43/52] Compiling Tessera AppModel+Photo.swift
+[44/52] Compiling Tessera PhotoMenu.swift
+[45/52] Compiling Tessera ContentView.swift
+[46/52] Compiling Tessera SidebarView.swift
+[47/52] Compiling Tessera TetherController.swift
+error: fatalError

@@ -1,0 +1,28 @@
+[0/1] Planning build
+Building for debugging...
+[0/4] Write swift-version--58304C5D6DBC2206.txt
+Build complete! (0.68s)
+Test Suite 'Selected tests' started at 2026-09-27 17:43:07.921.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-27 17:43:07.922.
+Test Suite 'ReviewResumeStoreTests' started at 2026-09-27 17:43:07.922.
+Test Case '-[TesseraCoreTests.ReviewResumeStoreTests testDifferentCanonicalPathDoesNotAdoptAnotherLibraryQueue]' started.
+Test Case '-[TesseraCoreTests.ReviewResumeStoreTests testDifferentCanonicalPathDoesNotAdoptAnotherLibraryQueue]' passed (0.003 seconds).
+Test Case '-[TesseraCoreTests.ReviewResumeStoreTests testFutureSchemaIsPreservedAndReportedWithoutDecodingAsCurrent]' started.
+Test Case '-[TesseraCoreTests.ReviewResumeStoreTests testFutureSchemaIsPreservedAndReportedWithoutDecodingAsCurrent]' passed (0.002 seconds).
+Test Case '-[TesseraCoreTests.ReviewResumeStoreTests testRoundTripsOnlySafeQueueMembershipAndCursorForCanonicalLibraryPath]' started.
+Test Case '-[TesseraCoreTests.ReviewResumeStoreTests testRoundTripsOnlySafeQueueMembershipAndCursorForCanonicalLibraryPath]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.ReviewResumeStoreTests testRunningRecordCanBeMarkedInterruptedWithoutChangingTargetsOrReplaying]' started.
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/ReviewResumeStoreTests.swift:99: error: -[TesseraCoreTests.ReviewResumeStoreTests testRunningRecordCanBeMarkedInterruptedWithoutChangingTargetsOrReplaying] : XCTAssertEqual failed: ("running") is not equal to ("interrupted")
+Test Case '-[TesseraCoreTests.ReviewResumeStoreTests testRunningRecordCanBeMarkedInterruptedWithoutChangingTargetsOrReplaying]' failed (0.012 seconds).
+Test Case '-[TesseraCoreTests.ReviewResumeStoreTests testStaleRevisionCannotOverwriteNewerQueueRecord]' started.
+Test Case '-[TesseraCoreTests.ReviewResumeStoreTests testStaleRevisionCannotOverwriteNewerQueueRecord]' passed (0.002 seconds).
+Test Suite 'ReviewResumeStoreTests' failed at 2026-09-27 17:43:07.942.
+	 Executed 5 tests, with 1 failure (0 unexpected) in 0.020 (0.020) seconds
+Test Suite 'TesseraPackageTests.xctest' failed at 2026-09-27 17:43:07.942.
+	 Executed 5 tests, with 1 failure (0 unexpected) in 0.020 (0.020) seconds
+Test Suite 'Selected tests' failed at 2026-09-27 17:43:07.942.
+	 Executed 5 tests, with 1 failure (0 unexpected) in 0.020 (0.021) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

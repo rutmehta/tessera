@@ -80,7 +80,7 @@ private struct ReviewRow: View {
                     }
                     Text(entry.summary).font(Theme.Fonts.caption).foregroundStyle(entry.error == nil ? Theme.textSecondary : Theme.reject)
                         .lineLimit(2)
-                    if entry.error == nil {
+                    if entry.error == nil && entry.unavailableReason == nil {
                         Text(stepsLine).font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary).lineLimit(1)
                     }
                 }
@@ -133,15 +133,15 @@ private struct ReviewRow: View {
                 .disabled(!available)
             Button("Accept") { if let target { agent.accept(target) } }
                 .buttonStyle(.theme(.bordered, height: Theme.Height.small))
-                .disabled(!available || busy || entry.error != nil || entry.groupID == nil || entry.status == .accepted)
+                .disabled(!available || busy || entry.error != nil || entry.unavailableReason != nil || entry.groupID == nil || entry.status == .accepted)
                 .accessibilityIdentifier("agent-review-accept")
             Button("Redo…") { instruction = ""; redoing = entry.imageID }
                 .buttonStyle(.theme(.bordered, height: Theme.Height.small))
-                .disabled(!available || busy || entry.itemID == nil || agent.isRunning || !agent.busy.isEmpty)
+                .disabled(!available || busy || entry.unavailableReason != nil || entry.itemID == nil || agent.isRunning || !agent.busy.isEmpty)
                 .accessibilityIdentifier("agent-review-redo")
             Button("Revert") { if let target { agent.revert(target) } }
                 .buttonStyle(.theme(.destructive, height: Theme.Height.small))
-                .disabled(!available || busy || entry.groupID == nil || entry.status == .reverted)
+                .disabled(!available || busy || entry.unavailableReason != nil || entry.groupID == nil || entry.status == .reverted)
                 .accessibilityIdentifier("agent-review-revert")
         }
     }
