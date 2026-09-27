@@ -1,0 +1,40 @@
+   Compiling transform v0.1.0 (/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/crates/transform)
+error[E0599]: no method named `apply_checked` found for struct `op::TransformOp` in the current scope
+   --> crates/transform/src/op.rs:231:25
+    |
+ 26 | pub struct TransformOp {
+    | ---------------------- method `apply_checked` not found for this struct
+...
+231 |         let result = op.apply_checked(&image, WIDTH, 1, 0, &token, &|done| {
+    |                      ---^^^^^^^^^^^^^ method not found in `op::TransformOp`
+
+error[E0593]: closure is expected to take 0 arguments, but it takes 1 argument
+   --> crates/transform/src/seam.rs:470:22
+    |
+470 |           let result = apply_checked(&image, &params, &mut |phase| {
+    |                        ^                                   ------- takes 1 argument
+    |  ______________________|
+    | |
+471 | |             if phase == SeamCheckpoint::AfterWidth {
+472 | |                 reached_width_boundary = true;
+473 | |                 token.cancel();
+...   |
+478 | |             token.check().map_err(|_| Error::Cancelled)
+479 | |         });
+    | |__________^ expected closure that takes 0 arguments
+
+error[E0433]: cannot find type `SeamCheckpoint` in this scope
+   --> crates/transform/src/seam.rs:471:25
+    |
+471 |             if phase == SeamCheckpoint::AfterWidth {
+    |                         ^^^^^^^^^^^^^^ use of undeclared type `SeamCheckpoint`
+
+error[E0433]: cannot find type `SeamCheckpoint` in this scope
+   --> crates/transform/src/seam.rs:475:25
+    |
+475 |             if phase == SeamCheckpoint::BeforeHeight {
+    |                         ^^^^^^^^^^^^^^ use of undeclared type `SeamCheckpoint`
+
+Some errors have detailed explanations: E0433, E0593, E0599.
+For more information about an error, try `rustc --explain E0433`.
+error: could not compile `transform` (lib test) due to 4 previous errors

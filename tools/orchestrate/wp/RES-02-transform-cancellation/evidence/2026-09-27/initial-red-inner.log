@@ -1,0 +1,32 @@
+   Compiling transform v0.1.0 (/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/crates/transform)
+error[E0599]: no variant, associated function, or constant named `Cancelled` found for enum `Error` in the current scope
+   --> crates/transform/src/seam.rs:345:46
+    |
+345 |             token.check().map_err(|_| Error::Cancelled)
+    |                                              ^^^^^^^^^ variant, associated function, or constant not found in `Error`
+    |
+   ::: crates/transform/src/lib.rs:16:1
+    |
+ 16 | pub enum Error {
+    | -------------- variant, associated function, or constant `Cancelled` not found for this enum
+
+error[E0425]: cannot find function `find_seam_checked` in this scope
+   --> crates/transform/src/seam.rs:340:22
+    |
+340 |         let result = find_seam_checked(&image, &mask, &mut || {
+    |                      ^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0599]: no variant, associated function, or constant named `Cancelled` found for enum `Error` in the current scope
+   --> crates/transform/src/seam.rs:347:45
+    |
+347 |         assert!(matches!(result, Err(Error::Cancelled)));
+    |                                             ^^^^^^^^^ variant, associated function, or constant not found in `Error`
+    |
+   ::: crates/transform/src/lib.rs:16:1
+    |
+ 16 | pub enum Error {
+    | -------------- variant, associated function, or constant `Cancelled` not found for this enum
+
+Some errors have detailed explanations: E0425, E0599.
+For more information about an error, try `rustc --explain E0425`.
+error: could not compile `transform` (lib test) due to 3 previous errors
