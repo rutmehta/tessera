@@ -1,0 +1,21 @@
+{
+  "head": "dd44a467ea808f475477b1a8ec1a414bc4164ee9",
+  "branch": "codex/cpu-region-cancellation",
+  "files": [
+    {
+      "path": "Cargo.lock",
+      "sha256": "9ef23f19fd6cb3fb848ecbea8bc3fb6cabc9891f192bf4be63fc1ceab46f87fd",
+      "bytes": 157406
+    },
+    {
+      "path": "crates/compositor/src/render/mod.rs",
+      "sha256": "894119966ac4e2426abeda1476116f7daf2ece93160d3095b09c0c3b405801de",
+      "bytes": 35981
+    },
+    {
+      "path": "crates/compositor/tests/render_region.rs",
+      "sha256": "81b42831314d1095cbcaa821b5565be1441f7da0e0b944cf2d88d4a05825186c",
+      "bytes": 7187
+    }
+  ]
+}
