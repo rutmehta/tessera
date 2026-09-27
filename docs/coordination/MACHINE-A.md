@@ -35,8 +35,10 @@ Its active Document branches and original B5-16a branch reference remain intact.
 Core and host tests will retain every failure and require native ImageIO pixels,
 not just metadata. Gain-map JPEG remains unvalidated and unmerged.
 
-SSH read and command execution work. Sending to B’s existing desktop chat still
-fails with an active-writer conflict; no B chat receipt or heartbeat is claimed.
+SSH read and command execution work. Native send still fails with an active-writer conflict, but the installed
+existing-session `codex queue` command successfully delivered to B’s desktop
+chat. B replied and published an accepted bootstrap receipt at94dd36b. Its
+heartbeat setup is in progress; completion is not yet confirmed.
 A’s five-minute heartbeat is active and records the verified remote host/chat
 identity. Git mailbox and status notes remain durable coordination fallback.
 
