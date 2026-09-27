@@ -29,8 +29,9 @@ struct FilterMenu: View {
     }
 }
 
-/// Image menu (document mode): Adjustments ▸ every adjustment, applied to the pixels of the
-/// selected pixel layer (the adjustment layers' editors in a sheet).
+/// Image menu (document mode): Adjustments ▸ every adjustment in Photoshop's groups, applied to the pixels of
+/// the selected pixel layer (the adjustment layers' editors in a sheet; Invert, Desaturate and Equalize at once),
+/// then Auto Tone / Auto Contrast / Auto Color (WP B5-06).
 struct ImageMenu: View {
     let doc: DocumentController?
     let filters: DocumentFilters
@@ -38,16 +39,31 @@ struct ImageMenu: View {
     var body: some View {
         let pixel = doc?.primary?.kind == .pixel && filters.busy == nil
         Menu("Adjustments") {
-            ForEach(AdjustmentModel.Kind.allCases) { k in
-                let button = Button(k == .invert ? k.title : k.title + "…") { if let doc { filters.openAdjustment(k, doc) } }
-                switch k {
-                case .levels: button.keyboardShortcut("l", modifiers: .command)
-                case .hueSaturation: button.keyboardShortcut("u", modifiers: .command)
-                case .invert: button.keyboardShortcut("i", modifiers: .command)
-                default: button
+            ForEach(Array(AdjustmentModel.Kind.imageMenuSections.enumerated()), id: \.offset) { i, section in
+                if i > 0 { Divider() }
+                ForEach(section) { k in
+                    let button = Button(k.appliesDirectly ? k.title : k.title + "…") { if let doc { filters.openAdjustment(k, doc) } }
+                    switch k {
+                    case .levels: button.keyboardShortcut("l", modifiers: .command)
+                    case .hueSaturation: button.keyboardShortcut("u", modifiers: .command)
+                    case .colorBalance: button.keyboardShortcut("b", modifiers: .command)
+                    case .blackWhite: button.keyboardShortcut("b", modifiers: [.command, .option, .shift])
+                    case .invert: button.keyboardShortcut("i", modifiers: .command)
+                    case .desaturate: button.keyboardShortcut("u", modifiers: [.command, .shift])
+                    default: button
+                    }
                 }
             }
         }
         .disabled(!pixel)
+        Divider()
+        ForEach(AutoModeModel.allCases) { mode in
+            let button = Button(mode.title) { if let doc { filters.applyAuto(mode, doc) } }.disabled(!pixel)
+            switch mode {
+            case .tone: button.keyboardShortcut("l", modifiers: [.command, .shift])
+            case .contrast: button.keyboardShortcut("l", modifiers: [.command, .option, .shift])
+            case .color: button.keyboardShortcut("b", modifiers: [.command, .shift])
+            }
+        }
     }
 }

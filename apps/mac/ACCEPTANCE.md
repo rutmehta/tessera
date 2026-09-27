@@ -1144,7 +1144,10 @@ Hue/Saturation 1), rendered on the CPU. Part 1 runs on the stub; part 2 repeats 
 139. **History and snapshots.** Click **New Snapshot…** (`document.history.newSnapshot`), keep `Snapshot 1`, Save: it is
      listed under Snapshots. Make two edits, click **Restore** on the snapshot: the document returns to it and History
      gains `Snapshot “Snapshot 1”` (undoable). The memory line reads `<n> states · <size>`.
-140. **Save, reopen, close.** ⌘S on the new document opens Save As; save `Poster.tessera-doc` into `$SCR`. The tab title
+140. **Save, reopen, close.** ⌘S on the new document opens the **Save As** sheet (B5-06: Tessera's own sheet, so it can
+     be scripted): the name field (`document.saveAs.name`) already has the keyboard and reads `Untitled-1.tessera-doc`;
+     select all, type `Poster.tessera-doc`, click **Choose…** (`document.saveAs.choose`) and pick `$SCR`, then **Save**
+     (`document.saveAs.save`, or Return). The Format pop-up (`document.saveAs.format`) follows the name's extension. The tab title
      becomes `Poster.tessera-doc`, the dirty dot goes. Choose **Save As…** with a `.psd` name: the status bar reads
      `Save As: Saving as PSD / PSB needs the engine (B5-03); save as .tessera-doc`. **File ▸ Export Flat…** (⇧⌘E): format
      PNG / JPEG / TIFF, quality for JPEG, colour space; export `Poster.png` into `$SCR` and check it opens in Preview with
@@ -1159,9 +1162,14 @@ Hue/Saturation 1), rendered on the CPU. Part 1 runs on the stub; part 2 repeats 
      one pixel layer named `Poster`.
 142. **Tests.**
      ```sh
-     (cd apps/mac && swift test --filter "Document|ThemeLint" 2>&1 | grep "Executed")
+     (cd apps/mac && swift test --filter "Document|ThemeLint" 2>&1 | grep "Executed" | tail -1)
      ```
-     Expect `Executed 41 tests, with 0 failures` (32 from B5-02, 9 engine-adapter tests from B5-03).
+     Expect `Executed <n> tests, with 0 failures` (the count grows with every work package; do not compare it). The
+     filter runs the XCTest suites DocumentAdjustmentAnalysisTests, DocumentAdjustmentJSONTests,
+     DocumentAdjustmentModelTests, DocumentBlendModeTests, DocumentFiltersTests, DocumentKeyMapTests,
+     DocumentKeyRoutingTests, DocumentOutlineTests, DocumentToolsTests, DocumentViewportMathTests,
+     EngineDocumentBackendTests, StubDocumentBackendTests and ThemeLintTests (and any later `Document…` suite);
+     `grep "Test Suite '.*' failed"` prints nothing. At B5-06 the count was 101.
 
 ### Part 2: over the real engine (B5-03)
 
@@ -1172,7 +1180,8 @@ sidecars next to photos; never point it at `fixtures/raw`). Turn on **Debug ▸ 
      `open -n apps/mac/build/Tessera.app --args --app-dir "$SCR/appdir-doc" --folder "$SCR/shoot"`. ⌘N, **Create**: the
      sheet has no stub footer; one transparent pixel layer `Layer 1` (checkerboard over the whole canvas), selected,
      Properties `Pixel`, History `Opened` only, subtitle `1 layer`, status bar without `(stub backend: sample layers)`.
-144. **Edit in Layers.** In the grid select `sample.dng`, press ⌘E. The status bar reads `Edit sample.dng in Layers…`
+144. **Edit in Layers.** In the grid select `sample.dng`, press ⌘E (also right after step 143: click **Grid** in the
+     toolbar first; ⌘E is Edit in Layers outside document mode and Merge Down inside it). The status bar reads `Edit sample.dng in Layers…`
      while the engine develops it (about 1.5–3 s), then a tab `sample` with one pixel layer `sample`, Properties
      `Bounds 0, 0 · 5212 × 3468 px`, status bar `5,212 × 3,468 px · 16-bit · sRGB IEC61966-2.1` and
      `render: L1 <w> × <h>, <ms>` (📸 `evidence/engine-01-edit-in-layers.png`).
@@ -1240,9 +1249,51 @@ Same scratch copy as part 2 (`$SCR/shoot/sample.dng`). In the grid select `sampl
      Expect every `check … ok`, `gaussian preview latency (value → frame, viewport 5212 × 3468 at L1): n 12, median …`
      and `done, 0 failure(s)`.
 
+### Part 4: the M5-26 / M5-28 adjustment layers (B5-06)
+
+Same scratch copy (`$SCR/shoot/sample.dng`), engine backend. Select `sample.dng` in the grid, ⌘E. The Layer ▸ New ▸
+Adjustment Layer menu and the Layers footer's adjustment menu (`document.layers.addAdjustment`) list, in Photoshop's
+order and groups: Brightness/Contrast, Levels, Curves, Exposure | Vibrance, Hue/Saturation, Color Balance, Black & White,
+Photo Filter, Channel Mixer, Color Lookup | Invert, Posterize, Threshold, Gradient Map, Selective Color | then the kinds
+Photoshop offers only as Image ▸ Adjustments commands, here native adjustment layers: Shadows/Highlights, HDR Toning,
+Desaturate, Match Color, Replace Color, Equalize, Auto. Image ▸ Adjustments lists Photoshop's five groups (Desaturate
+⇧⌘U, Equalize and Invert apply at once), followed by Image ▸ Auto Tone (⇧⌘L), Auto Contrast (⌥⇧⌘L), Auto Color (⇧⌘B).
+
+161. **Color Balance.** Footer adjustment menu ▸ **Color Balance**: `Color Balance 1` above `sample`, History
+     `New Layer Color Balance 1`; Properties shows Shadows | Midtones | Highlights (`document.properties.colorBalance.tone`,
+     on Midtones), three sliders Cyan – Red, Magenta – Green, Yellow – Blue (`….colorBalance.red|green|blue`) and
+     **Preserve Luminosity** ticked. Drag Cyan – Red to +60: the photo warms live; one `Color Balance` row on release
+     (📸 `tools/orchestrate/wp/B5-06/evidence/adj-01-color-balance.png`). Switch to Highlights, drag Yellow – Blue to
+     +40: the highlights turn blue. ⌘Z twice: both return; ⇧⌘Z re-applies one.
+162. **Gradient Map.** Footer menu ▸ **Gradient Map**: the photo maps black → white (a monochrome image). Properties
+     shows the gradient preview, two stops with colour wells and positions (`document.properties.gradientMap.stop.<i>.*`),
+     **Add Stop**, Method Perceptual | Linear | Classic (`….gradientMap.method`), **Dither** and **Reverse**. Pick a dark
+     blue for stop 1 and an orange for stop 2: the picture turns duotone (📸 `adj-02-gradient-map.png`); tick Reverse: the
+     mapping inverts; drag stop 2's position to 60 %: live, one `Gradient Map` row on release. ⌘Z: the position returns.
+163. **Black & White.** Footer menu ▸ **Black & White**: the photo turns gray with Photoshop's default mix (Reds 40,
+     Yellows 60, Greens 40, Cyans 60, Blues 20, Magentas 80, `….blackWhite.reds` …). Drag **Yellows** to 150: the warm
+     wall brightens live; one `Black & White` row on release. **Auto** (`….blackWhite.auto`) sets a mix measured from the
+     image; tick **Tint** (`….blackWhite.tint`): a sepia tint with a colour well (📸 `adj-03-black-white.png`). ⌘Z: the tint
+     goes.
+164. **Save and reopen.** ⌘S → the Save As sheet, `Adjustments.tessera-doc` into `$SCR`, Save. ⌘W, **Open Document…** it:
+     `Black & White 1`, `Gradient Map 1` and `Color Balance 1` come back over `sample` with the same settings and the same
+     look (📸 `adj-04-reopened.png`). Saving as PSD keeps Color Balance, Gradient Map and Black & White as Photoshop
+     adjustment layers (`blnc`, `grdm`, `blwh`); Shadows/Highlights, HDR Toning, Desaturate, Equalize, Auto, Match Color and
+     Replace Color are native-only and need a `.tessera-doc` (the status bar shows the engine's message).
+165. **The other editors.** Each new layer's Properties editor drags live and records one row on release: Brightness /
+     Contrast (**Use Legacy**), Vibrance, Photo Filter (Filter pop-up with the 20 engine swatches, colour, Density,
+     Preserve Luminosity), Selective Color (Colors pop-up Reds … Blacks, Cyan / Magenta / Yellow / Black, Relative |
+     Absolute), Desaturate (no settings), Equalize and Auto (measured from the image below the layer when added; **Analyze
+     Again**; Auto's Tone | Contrast | Color and Clip %), Match Color (Source pop-up of pixel layers, Luminance, Color
+     Intensity, Fade, Neutralize), Replace Color (colour well, **Use Foreground** after picking with the Eyedropper,
+     Fuzziness, Hue / Saturation / Lightness), Color Lookup (**Load 3D LUT…** for `.cube` / `.3dl`; the file name shows
+     for the session, the samples are stored in the document), Shadows/Highlights (Amount / Tone / Radius for shadows and
+     highlights, Color, Midtone, Black / White Clip) and HDR Toning (Method pop-up; Local Adaptation: Radius, Strength,
+     Gamma, Exposure, Detail, Shadow, Highlight, Vibrance, Saturation and a toning curve).
+
 ## Verdict (document mode)
 
-PASS when steps 130–142 (stub), 143–150 (engine) and 151–156 (filters) meet their expectations. Record the stub render time on a
+PASS when steps 130–142 (stub), 143–150 (engine), 151–156 (filters) and 161–165 (new adjustment layers) meet their expectations. Record the stub render time on a
 large window (drag Opacity on `Landscape` at 100 %) as an observation; the stub renders on the CPU and is not held to the
 engine's budget.
 
@@ -1311,4 +1362,6 @@ PASS when steps 151–160 meet their expectations and the brush frames' median r
 | `document.tools` · `document.tool.<tool>` · `document.colors` · `document.optionsBar` · `document.option.*` · `document.transform.commit` · `document.colorPanel` · `document.color.{foreground,background}` · `document.brushes` · `document.brushes.import` · `document.brush.*` · `document.status.stroke` | Tools palette, options bar, Color and Brushes (B5-04) |
 | `document.filter.<id>.<key>` (e.g. `document.filter.gaussian_blur.radius`, `.dial` for angles) · `document.filter.<id>.detail` · `.preview` · `.reset` · `.cancel` · `.ok` | Filter dialogs (B5-05) |
 | `document.adjustment.<kind>` · `.preview` · `.reset` · `.cancel` · `.ok` | Image ▸ Adjustments sheets (the editor inside keeps its `document.properties.*` identifiers) |
+| `document.saveAs.name` (first responder when the sheet opens) · `document.saveAs.format` · `document.saveAs.folder` · `document.saveAs.choose` · `document.saveAs.save` · `document.saveAs.cancel` | File ▸ Save As… sheet (B5-06) |
+| `document.properties.<kind>.<control>`: `brightnessContrast.{brightness,contrast,legacy}` · `vibrance.{vibrance,saturation}` · `colorBalance.{tone,red,green,blue,preserveLuminosity}` · `blackWhite.{auto,default,reds,yellows,greens,cyans,blues,magentas,tint,tintColor}` · `photoFilter.{preset,color,density,preserveLuminosity}` · `gradientMap.{gradientPreview,stop.<i>.{color,position,remove},addStop,method,dither,reverse}` · `selectiveColor.{colors,cyan,magenta,yellow,black,method}` · `equalize.analyze` · `auto.{mode,clip,black,white,gamma,analyze}` · `matchColor.{source,luminance,colorIntensity,fade,neutralize}` · `replaceColor.{color,useForeground,fuzziness,hue,saturation,lightness}` · `colorLookup.{file,load,reset}` · `shadowsHighlights.{shadowsAmount,shadowsTone,shadowsRadius,highlightsAmount,highlightsTone,highlightsRadius,color,midtone,blackClip,whiteClip}` · `hdrToning.{method,radius,strength,gamma,exposure,detail,shadows,highlights,vibrance,saturation,curve,analyze}` | Properties editors of the M5-26 / M5-28 adjustments (B5-06) |
 | `document.layers.smartFilter.<layer>.<index>` · `.visibility` · `.mask` · `.name` · `.blending` · `document.smartFilter.blending.{mode,opacity,ok}` | Smart filter rows and their blending options |

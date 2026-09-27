@@ -209,25 +209,48 @@ final class DocumentWorkspace {
         }
     }
 
+    /// File ▸ Save As…: our own sheet (`SaveAsSheet`), so the name field is scriptable
+    /// (`document.saveAs.name`, B5-v step 140); the system save panel runs out of process.
     func saveAs(_ doc: DocumentController? = nil, then: (@MainActor () -> Void)? = nil) {
         guard let doc = doc ?? current else { return }
-        let panel = NSSavePanel()
-        panel.title = "Save As"
-        let native = Self.documentTypes[0]
-        let psd = UTType(filenameExtension: "psd") ?? .data
-        panel.allowedContentTypes = [native, psd, UTType(filenameExtension: "psb") ?? .data]
-        panel.allowsOtherFileTypes = false
-        let stem = (doc.title as NSString).deletingPathExtension
-        panel.nameFieldStringValue = stem + ".tessera-doc"
-        let handle: @MainActor (NSApplication.ModalResponse) -> Void = { [weak self] r in
-            guard r == .OK, let url = panel.url else { return }
-            if self?.write(doc, to: url) == true { then?() }
+        let request = SaveAsRequest(doc: doc, name: SaveAsRequest.defaultName(doc.title, path: doc.info.path),
+                                    folder: saveFolder(for: doc), then: then)
+        guard window != nil else {
+            // No window (unit tests): save straight into the default folder.
+            if write(doc, to: request.url) { then?() }
+            return
         }
-        if let window = self.window {
-            panel.beginSheetModal(for: window) { r in MainActor.assumeIsolated { handle(r) } }
-        } else {
-            handle(panel.runModal())
+        saveAsRequest = request
+    }
+
+    /// The Save As sheet on screen.
+    var saveAsRequest: SaveAsRequest?
+    /// The folder of the last Save As (the sheet's default for documents without a path).
+    @ObservationIgnored var lastSaveFolder: URL?
+
+    private func saveFolder(for doc: DocumentController) -> URL {
+        if let p = doc.info.path { return URL(fileURLWithPath: p).deletingLastPathComponent() }
+        if let f = lastSaveFolder ?? app?.recentFolders.first { return f }
+        return FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
+            ?? FileManager.default.homeDirectoryForCurrentUser
+    }
+
+    /// The sheet's Save: asks before replacing an existing file, then writes.
+    func finishSaveAs(_ request: SaveAsRequest) {
+        saveAsRequest = nil
+        let url = request.url
+        let go = { [weak self] in
+            guard let self else { return }
+            self.lastSaveFolder = request.folder
+            if self.write(request.doc, to: url) { request.then?() }
         }
+        guard FileManager.default.fileExists(atPath: url.path), let window = self.window else { go(); return }
+        let alert = NSAlert()
+        alert.messageText = "“\(url.lastPathComponent)” already exists. Do you want to replace it?"
+        alert.informativeText = "A file with the same name already exists in “\(request.folder.lastPathComponent)”. Replacing it will overwrite its current contents."
+        alert.addButton(withTitle: "Replace")
+        alert.addButton(withTitle: "Cancel")
+        alert.beginSheetModal(for: window) { r in MainActor.assumeIsolated { if r == .alertFirstButtonReturn { go() } } }
     }
 
     /// Save As to `url` (`.tessera-doc`, `.psd`, `.psb`); the document takes that path.
