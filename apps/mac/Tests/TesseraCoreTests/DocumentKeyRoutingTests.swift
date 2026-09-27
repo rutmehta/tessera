@@ -37,7 +37,7 @@ final class DocumentKeyRoutingTests: XCTestCase {
 
     /// B5-v step 144: ⌘E in the grid runs Library ▸ Edit in Layers on the focused photo, also after a
     /// round trip through document mode (where ⌘E is Merge Down and the router leaves it to the menu).
-    func testCommandEInGridRunsEditInLayers() throws {
+    func testCommandEInGridDisclosesRenderedCopyBeforeExistingHandoff() throws {
         let model = AppModel()
         model.loadStubItems(count: 5)
         model.documents.engine = StubDocumentEngine()
@@ -47,6 +47,9 @@ final class DocumentKeyRoutingTests: XCTestCase {
         model.viewMode = .grid
         XCTAssertNotNil(model.focusedItem)
         XCTAssertTrue(router.handle(cmdE), "⌘E is handled in the grid")
+        XCTAssertEqual(model.layeredCopyRequest?.item.id, model.focusedItem?.id)
+        XCTAssertTrue(model.documents.documents.isEmpty, "disclosure does not create a document")
+        model.createRequestedLayeredCopy()
         XCTAssertEqual(model.statusMessage, "Edit in Layers needs a photo file (stub items have none)",
                        "the route reached editInLayers with the grid's focused photo")
 
@@ -55,7 +58,9 @@ final class DocumentKeyRoutingTests: XCTestCase {
         XCTAssertFalse(router.handle(cmdE), "in document mode ⌘E is the menu's Merge Down")
         model.viewMode = .grid
         model.statusMessage = nil
-        XCTAssertTrue(router.handle(cmdE), "back in the grid ⌘E is Edit in Layers again")
+        XCTAssertTrue(router.handle(cmdE), "back in the grid ⌘E discloses the rendered-copy action again")
+        XCTAssertNotNil(model.layeredCopyRequest)
+        model.createRequestedLayeredCopy()
         XCTAssertEqual(model.statusMessage, "Edit in Layers needs a photo file (stub items have none)")
         model.viewMode = .loupe
         XCTAssertTrue(router.handle(cmdE), "the loupe too")

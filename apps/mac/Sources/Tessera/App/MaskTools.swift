@@ -235,6 +235,7 @@ final class MaskTools: LibraryObserver {
     // MARK: Brush
 
     private var strokeGroup: UInt32?
+    private var strokeErase = false
 
     /// Begins a stroke at mask-space `p`. ⌥ erases from the selected mask's brush.
     func beginStroke(at p: (x: Double, y: Double), pressure: Double, erase: Bool, radius: Double) {
@@ -251,6 +252,7 @@ final class MaskTools: LibraryObserver {
         guard let id = d.beginBrushStroke(group: group, radius: radius, feather: brushFeather, flow: brushFlow, erase: erase)
         else { return }
         strokeGroup = id
+        strokeErase = erase
         if group == nil { refresh() }
         list.select(id)
         updateOverlay()
@@ -432,6 +434,17 @@ final class MaskTools: LibraryObserver {
 
     // MARK: LibraryObserver
 
+    func workspaceWillLeavePhotoEdit() {
+        endStroke(erase: strokeErase)
+        if let pending = gradient {
+            gradient = nil
+            commit(pending.title)
+        }
+        tool = nil
+        target = nil
+        setActive(false)
+    }
+
     func libraryDidReload() {
         developDidChange()
         if ProcessInfo.processInfo.arguments.contains("--masks-selftest"), !selfTestRan { openLoupeForSelfTest() }
@@ -443,8 +456,9 @@ final class MaskTools: LibraryObserver {
             MainActor.assumeIsolated {
                 if self.model.isLoading || self.model.library.items.isEmpty {
                     if polls < 60 { self.openLoupeForSelfTest(polls: polls + 1) }
-                } else if self.model.viewMode != .loupe {
-                    self.model.viewMode = .loupe
+                } else if !self.model.isPhotoEditing {
+                    self.model.enterPhotoEdit()
+                    self.model.photoInspectorTab = .masks
                 }
             }
         }

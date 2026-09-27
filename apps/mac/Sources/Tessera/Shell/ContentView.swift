@@ -33,7 +33,8 @@ struct ContentView: View {
                                                 max: Theme.Width.sidebarMax)
         } detail: {
             VStack(spacing: 0) {
-                if model.isEngineBacked, model.source != .people, model.viewMode != .document {
+                if model.viewMode != .document { WorkspaceHeader(model: model) }
+                if model.isEngineBacked, model.source != .people, model.viewMode != .document, !model.isPhotoEditing {
                     FilterBar(library: model.collections, model: model)
                 }
                 if model.tether.showPanel {
@@ -51,7 +52,7 @@ struct ContentView: View {
                             .allowsHitTesting(model.viewMode == .loupe)
                         if model.viewMode == .loupe {
                             LoupeOverlay(model: model)
-                            MaskToolbar(model: model, masks: .shared)
+                            if model.isPhotoEditing { MaskToolbar(model: model, masks: .shared) }
                         }
                         if model.viewMode == .compare, model.compare != nil {
                             CompareView(model: model)
@@ -119,6 +120,9 @@ struct ContentView: View {
                              : model.library.items.isEmpty ? "Tessera" : model.library.title)
             .navigationSubtitle(subtitle)
         }
+        .sheet(item: $model.layeredCopyRequest) { request in
+            LayeredCopySheet(model: model, request: request)
+        }
         .sheet(isPresented: Binding(get: { model.documents.showNewDocument }, set: { model.documents.showNewDocument = $0 })) {
             NewDocumentSheet(workspace: model.documents)
         }
@@ -155,6 +159,8 @@ struct ContentView: View {
             Group {
                 if model.viewMode == .document {
                     DocumentInspector(workspace: model.documents)
+                } else if model.isPhotoEditing {
+                    PhotoEditInspectorView(model: model)
                 } else {
                     InspectorView(model: model)
                 }
@@ -186,7 +192,8 @@ struct ContentView: View {
     }
 
     private var columnVisibility: Binding<NavigationSplitViewVisibility> {
-        Binding(get: { model.documents.columnVisibility }, set: { value in
+        Binding(get: { model.isPhotoEditing ? .detailOnly : model.documents.columnVisibility }, set: { value in
+            guard !model.isPhotoEditing else { return }
             // The person's own choice; showing the sidebar in a narrow window keeps it shown.
             if value != .detailOnly { sidebarAutoCollapsed = nil }
             model.documents.columnVisibility = value
@@ -196,6 +203,7 @@ struct ContentView: View {
     /// Applies step 1 when the window crosses the threshold: collapse (remembering the choice),
     /// and restore that choice once the sidebar fits again.
     private func applySidebarBudget(fits: Bool) {
+        guard !model.isPhotoEditing else { return }
         var t = Transaction(); t.disablesAnimations = true
         withTransaction(t) {
             if !fits, sidebarAutoCollapsed == nil, model.documents.columnVisibility != .detailOnly {
@@ -242,15 +250,32 @@ struct ContentView: View {
         }
         .flatToolbarItem()
         ToolbarItem(id: "mode", placement: .principal) {
-            SegmentedPicker(selection: $model.viewMode, segments: [
-                .init(value: ViewMode.grid, title: "Grid", symbol: "square.grid.2x2", help: "Grid (G)"),
-                .init(value: ViewMode.loupe, title: "Loupe", symbol: "photo", help: "Loupe (E or Return)"),
-                .init(value: ViewMode.compare, title: "Compare", symbol: "rectangle.split.2x1", help: "Compare (C)"),
-                .init(value: ViewMode.document, title: "Layers", symbol: "square.3.layers.3d",
-                      help: "Layered documents (⌘N new, ⌘E edits the photo in layers)"),
-            ], fill: false)
-            .fixedSize()
-            .accessibilityLabel("View")
+            if model.viewMode == .document {
+                Button("Library") { model.viewMode = .grid }
+                    .buttonStyle(ToolbarButtonStyle())
+                    .help("Return to Library; open documents stay available")
+            } else {
+                SegmentedPicker(selection: Binding(get: { model.isPhotoEditing }, set: { edit in
+                    if edit { model.enterPhotoEdit() } else { model.returnToLibrary() }
+                }), segments: [
+                    .init(value: false, title: "Library", symbol: "square.grid.2x2"),
+                    .init(value: true, title: "Edit photo", symbol: "slider.horizontal.3"),
+                ], fill: false)
+                .accessibilityLabel("Workspace")
+                .disabled(!model.canEnterPhotoEdit && !model.isPhotoEditing)
+                .help(model.canEnterPhotoEdit ? "Library inspection or Photo Edit" : "Choose a photo to edit")
+            }
+        }
+        .flatToolbarItem()
+        ToolbarItem(id: "library-view", placement: .primaryAction) {
+            if !model.isPhotoEditing, model.viewMode != .document {
+                SegmentedPicker(selection: $model.viewMode, segments: [
+                    .init(value: ViewMode.grid, title: "Grid", symbol: "square.grid.2x2", help: "Grid (G)"),
+                    .init(value: ViewMode.loupe, title: "Loupe", symbol: "photo", help: "Loupe (E or Return)"),
+                    .init(value: ViewMode.compare, title: "Compare", symbol: "rectangle.split.2x1", help: "Compare (C)"),
+                ], fill: false)
+                .accessibilityLabel("Library view")
+            }
         }
         .flatToolbarItem()
         ToolbarItem(id: "documents", placement: .navigation) {
@@ -274,7 +299,21 @@ struct ContentView: View {
             }
         }
         .flatToolbarItem()
+        libraryActionToolbar
+        ToolbarItem(id: "inspector", placement: .primaryAction) {
+            Toggle(isOn: $model.showInspector) {
+                Label("Inspector", systemImage: "sidebar.right")
+            }
+            .toggleStyle(ToolbarToggleStyle())
+            .help("Show or hide the inspector (⌥⌘I)")
+        }
+        .flatToolbarItem()
+    }
+
+    @ToolbarContentBuilder
+    private var libraryActionToolbar: some ToolbarContent {
         ToolbarItem(id: "assist", placement: .primaryAction) {
+            if !model.isPhotoEditing, model.viewMode != .document {
             HStack(spacing: Theme.Space.xxs) {
                 Toggle(isOn: Binding(get: { model.assist.enabled }, set: { model.assist.setEnabled($0) })) {
                     Label("Assist", systemImage: "sparkles")
@@ -303,6 +342,7 @@ struct ContentView: View {
                     .accessibilityIdentifier("toolbar-assist-menu")
                 }
             }
+            }
         }
         .flatToolbarItem()
         ToolbarItem(id: "peopleMerge", placement: .primaryAction) {
@@ -318,6 +358,7 @@ struct ContentView: View {
         }
         .flatToolbarItem()
         ToolbarItem(id: "autoEdit", placement: .primaryAction) {
+            if !model.isPhotoEditing, model.viewMode != .document {
             Button { model.agent.present() } label: {
                 Label(model.agent.isRunning ? "Editing…" : "Auto Edit", systemImage: "wand.and.stars")
             }
@@ -325,9 +366,11 @@ struct ContentView: View {
             .disabled(!model.isEngineBacked || model.agent.isRunning)
             .help("Auto Edit: the agent makes a non-generative base edit (⇧⌘A)")
             .accessibilityIdentifier("toolbar-auto-edit")
+            }
         }
         .flatToolbarItem()
         ToolbarItem(id: "review", placement: .primaryAction) {
+            if !model.isPhotoEditing, model.viewMode != .document {
             if !model.agent.queue.isEmpty {
                 Button { model.agent.showReview = true } label: {
                     Label("Review \(model.agent.queue.pendingCount)", systemImage: "checklist")
@@ -336,24 +379,20 @@ struct ContentView: View {
                 .help("Agent review queue, least confident first")
                 .accessibilityIdentifier("toolbar-agent-review")
             }
+            }
         }
         .flatToolbarItem()
         ToolbarItem(id: "autoAdvance", placement: .primaryAction) {
+            if !model.isPhotoEditing, model.viewMode != .document {
             Toggle(isOn: $model.autoAdvance) {
                 Label("Auto-advance", systemImage: "arrow.right.to.line")
             }
             .toggleStyle(ToolbarToggleStyle())
             .help("Move to the next image after X / U / P / 1–3 (A)")
-        }
-        .flatToolbarItem()
-        ToolbarItem(id: "inspector", placement: .primaryAction) {
-            Toggle(isOn: $model.showInspector) {
-                Label("Inspector", systemImage: "sidebar.right")
             }
-            .toggleStyle(ToolbarToggleStyle())
-            .help("Show or hide the inspector (⌥⌘I)")
         }
         .flatToolbarItem()
+
     }
 }
 
@@ -549,11 +588,11 @@ struct LoupeOverlay: View {
                 if let item = model.focusedItem {
                     Text(item.name).font(Theme.Fonts.labelMedium).foregroundStyle(Theme.textPrimary)
                         .allowsHitTesting(false)
-                    if let badge = model.focusedState.badgeText {
+                    if !model.isPhotoEditing, let badge = model.focusedState.badgeText {
                         Chip(text: badge, color: Color(nsColor: model.focusedState.decision.color), style: .outlined,
                              height: Theme.Height.chip)
                     }
-                    if model.focusedIsBest {
+                    if !model.isPhotoEditing, model.focusedIsBest {
                         Chip(text: "Suggested best · K keeps it, rejects the rest", color: Theme.keep, style: .outlined,
                              height: Theme.Height.chip)
                     }
@@ -566,7 +605,7 @@ struct LoupeOverlay: View {
                 }
                 Text(model.loupeInfo).font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary).lineLimit(1)
                     .allowsHitTesting(false)
-                if model.developStatus == .ready, !MaskTools.shared.active {
+                if model.isPhotoEditing, model.developStatus == .ready, !MaskTools.shared.active {
                     Button { MaskTools.shared.setActive(true) } label: {
                         Label("Masks", systemImage: "circle.lefthalf.striped.horizontal")
                     }
@@ -578,7 +617,9 @@ struct LoupeOverlay: View {
             .frame(height: Theme.Height.sectionHeader)
             Spacer()
                 .allowsHitTesting(false)
-            Text("← → group  ·  ↑ ↓ frame in group  ·  X U P decide  ·  1 2 3 grade  ·  K keep best  ·  C compare  ·  Y N suggestions  ·  ⌘Z undo  ·  Esc grid")
+            Text(model.isPhotoEditing
+                 ? "← → previous / next photo  ·  D Develop  ·  M masks  ·  ⌘Z photo undo  ·  Esc tool / Back to Library"
+                 : "← → group  ·  ↑ ↓ frame in group  ·  X U P decide  ·  1 2 3 grade  ·  K keep best  ·  C compare  ·  Y N suggestions  ·  ⌘Z undo  ·  D Edit photo  ·  Esc grid")
                 .font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary)
                 .lineLimit(1)
                 .padding(.bottom, Theme.Space.s)

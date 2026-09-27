@@ -2,15 +2,13 @@ import AppKit
 import TesseraCore
 import SwiftUI
 
-/// Right inspector: SwiftUI panels. The develop sliders inside are AppKit `ValueSlider`s.
+/// Library properties are separate from the controls that edit one photo.
 struct InspectorView: View {
     let model: AppModel
-    private var tools: DevelopTools { .shared }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                PanelSection("Histogram") { HistogramPanel(model: model).frame(height: HistogramView.height) }
                 PanelSection("Image") { ImageInfoPanel(model: model) }
                 PanelSection("Selection") { SelectionPanel(model: model) }
                 if model.isEngineBacked {
@@ -20,27 +18,12 @@ struct InspectorView: View {
                     PanelSection("Keywords") { KeywordsPanel(model: model, library: model.collections) }
                     PanelSection("Metadata") { MetadataPanel(model: model, library: model.collections) }
                 }
-                PanelSection("Basic") { BasicPanel(model: model) }
-                PanelSection("Masks", expanded: false) { MasksPanel(model: model, masks: .shared) }
-                    .developContext(model, tools)
-                Group {
-                    PanelSection("Tone Curve", expanded: false) { ToneCurvePanel(model: model, tools: tools) }
-                    PanelSection("HSL / Color", expanded: false) { HSLPanel(model: model, tools: tools) }
-                    PanelSection("Color Grading", expanded: false) { ColorGradingPanel(model: model, tools: tools) }
-                    PanelSection("Detail", expanded: false) { DetailPanel(model: model, tools: tools) }
-                    PanelSection("Transform", expanded: false) {
-                        TransformPanel(model: model, tools: tools, guideTool: .shared)
-                    }
-                    PanelSection("Effects", expanded: false) { EffectsPanel(model: model, tools: tools) }
-                    PanelSection("Lens Blur", expanded: false) { LensBlurPanel(model: model, tools: tools) }
-                    PanelSection("Crop & Straighten", expanded: false) { CropPanel(model: model, tools: tools) }
-                    PanelSection("HDR", expanded: false) { HDRPanel(model: model, tools: tools) }
-                    PanelSection("Soft Proofing", expanded: false) { SoftProofPanel(proof: .shared) }
-                    PanelSection("Presets", expanded: false) { PresetsPanel(model: model, tools: tools) }
-                    PanelSection("Snapshots", expanded: false) { SnapshotsPanel(model: model) }
-                    PanelSection("History", expanded: false) { HistoryPanel(model: model, tools: tools) }
+                PanelSection("Photo Edit") {
+                    Button("Edit photo") { model.enterPhotoEdit() }
+                        .buttonStyle(.theme(.bordered, height: Theme.Height.small))
+                        .disabled(!model.canEnterPhotoEdit)
+                    Hint("Develop and masks edit the focused photo. Library selection actions show their own scope.")
                 }
-                .developContext(model, tools)
             }
         }
         .scrollIndicators(.never)
@@ -201,7 +184,7 @@ struct BasicPanel: View {
 
     private var statusText: String {
         switch model.developStatus {
-        case .none: "Open a photo in the loupe (E)"
+        case .none: model.photoEditAvailabilityHint
         case .loading: "Opening…"
         case .ready: model.developHistory.map { h in
             h.headLabel.map { "History: \($0)" } ?? "Unedited"

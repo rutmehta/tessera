@@ -44,16 +44,32 @@ final class ThumbnailCollectionView: NSCollectionView {
     override func doCommand(by selector: Selector) {}
 }
 
+/// Native layout may follow the SwiftUI workspace transition by another pass.
+final class WorkspaceBrowserScrollView: NSScrollView {
+    var onLayout: (() -> Void)?
+    var onUserScroll: (() -> Void)?
+    override func layout() { super.layout(); onLayout?() }
+    override func scrollWheel(with event: NSEvent) { onUserScroll?(); super.scrollWheel(with: event) }
+}
+
 /// Data source, delegate and model observer for one NSCollectionView.
 @MainActor
 final class BrowserController: NSObject, NSCollectionViewDataSource, NSCollectionViewDelegate, LibraryObserver, ScrollBenchmarkRunner {
     let model: AppModel
     let style: CellStyle
-    let scrollView = NSScrollView()
+    let scrollView = WorkspaceBrowserScrollView()
     let collectionView = ThumbnailCollectionView()
     let layout: UniformGridLayout
     private var focusedCellPosition: Int?
     private let viewportOwner = UUID()
+    private struct ReturnAnchor {
+        let identity: WorkspaceSelectionBookmark
+        let offset: CGPoint
+    }
+    private var returnAnchor: ReturnAnchor?
+    private var returnedAnchor: (position: Int, offset: CGPoint)?
+    private var restoredViewport: CGSize?
+    private var restoringAnchor = false
 
     private var loadingVisible: Bool {
         model.source != .people && (style == .filmstrip || model.viewMode == .grid)
@@ -146,6 +162,10 @@ final class BrowserController: NSObject, NSCollectionViewDataSource, NSCollectio
         scrollView.scrollerStyle = .overlay
         scrollView.setAccessibilityIdentifier(style == .grid ? "grid" : "filmstrip")
 
+        scrollView.onLayout = { [weak self] in self?.restoreReturnedAnchorAfterLayout() }
+        scrollView.onUserScroll = { [weak self] in self?.returnedAnchor = nil }
+        NotificationCenter.default.addObserver(self, selector: #selector(userDidBeginScrolling),
+                                               name: NSScrollView.willStartLiveScrollNotification, object: scrollView)
         layout.onViewportChange = { [weak self] in self?.updateViewportCapacity() }
         model.addObserver(self)
     }
@@ -178,6 +198,7 @@ final class BrowserController: NSObject, NSCollectionViewDataSource, NSCollectio
 
     private func syncSelectionFromView(clicked: Int?) {
         guard !applyingUpdate else { return }
+        returnedAnchor = nil
         var set = IndexSet()
         for ip in collectionView.selectionIndexPaths { set.insert(ip.item) }
         model.setSelectionFromUI(set, clicked: clicked)
@@ -186,6 +207,8 @@ final class BrowserController: NSObject, NSCollectionViewDataSource, NSCollectio
     // MARK: LibraryObserver
 
     func libraryDidReload() {
+        returnAnchor = nil
+        returnedAnchor = nil
         collectionView.reloadData()
         collectionView.layoutSubtreeIfNeeded()
         syncDocumentSize()
@@ -197,6 +220,7 @@ final class BrowserController: NSObject, NSCollectionViewDataSource, NSCollectio
     /// Frames arrived or left in place: insert and remove just those cells (no reload, no
     /// scroll reset), then rebind the visible cells, whose item ids or groups may have moved.
     func libraryDidUpdate(_ change: VisibleChange) {
+        if change.oldKeys != change.newKeys { returnedAnchor = nil }
         let difference = change.newKeys.difference(from: change.oldKeys)
         applyingUpdate = true
         defer { applyingUpdate = false }
@@ -274,13 +298,59 @@ final class BrowserController: NSObject, NSCollectionViewDataSource, NSCollectio
             }
             focusedCellPosition = model.focus
         }
-        if scrollToFocus, let f = model.focus, f < model.visibleCount {
+        if scrollToFocus, !(style == .grid && model.isPhotoEditing), let f = model.focus, f < model.visibleCount {
+            returnedAnchor = nil
             scrollToVisible(f)
         }
     }
 
+    func workspaceWillEnterPhotoEdit() {
+        returnedAnchor = nil
+        collectionView.layoutSubtreeIfNeeded()
+        guard let first = collectionView.indexPathsForVisibleItems().min(by: { $0.item < $1.item }),
+              first.item < model.visibleCount,
+              let frame = layout.layoutAttributesForItem(at: first)?.frame else { return }
+        let keys = model.visible.map { model.workspaceKey(for: model.item(id: $0)) }
+        let key = keys[first.item]
+        let origin = scrollView.contentView.bounds.origin
+        returnAnchor = ReturnAnchor(identity: WorkspaceSelectionBookmark(order: keys, selected: [key], focus: key, anchor: key),
+                                    offset: CGPoint(x: origin.x - frame.minX, y: origin.y - frame.minY))
+    }
+
+    func workspaceDidReturnToLibrary() {
+        guard let saved = returnAnchor else { return }
+        returnAnchor = nil
+        let keys = model.visible.map { model.workspaceKey(for: model.item(id: $0)) }
+        guard let position = saved.identity.resolve(in: keys).focus else { return }
+        returnedAnchor = (position, saved.offset)
+        restoredViewport = nil
+        restoreReturnedAnchorAfterLayout()
+    }
+
+    @objc private func userDidBeginScrolling() { returnedAnchor = nil }
+
+    /// Keep the resolved position through sidebar reflow. Only viewport changes reapply it;
+    /// scrolling or selecting starts a new navigation and cancels restoration.
+    private func restoreReturnedAnchorAfterLayout() {
+        guard !restoringAnchor, !model.isPhotoEditing, let saved = returnedAnchor,
+              restoredViewport != scrollView.contentView.bounds.size else { return }
+        restoringAnchor = true
+        defer { restoringAnchor = false }
+        collectionView.layoutSubtreeIfNeeded()
+        syncDocumentSize()
+        guard let frame = layout.layoutAttributesForItem(at: IndexPath(item: saved.position, section: 0))?.frame else { return }
+        let viewport = scrollView.contentView.bounds.size
+        let size = collectionView.bounds.size
+        let point = CGPoint(x: min(max(0, frame.minX + saved.offset.x), max(0, size.width - viewport.width)),
+                            y: min(max(0, frame.minY + saved.offset.y), max(0, size.height - viewport.height)))
+        restoredViewport = viewport
+        scrollView.contentView.scroll(to: point)
+        scrollView.reflectScrolledClipView(scrollView.contentView)
+    }
+
     func thumbnailSizeDidChange() {
         guard style == .grid else { return }
+        returnedAnchor = nil
         layout.targetWidth = model.thumbnailSize
         layout.invalidateLayout()
         if let f = model.focus {

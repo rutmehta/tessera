@@ -4,22 +4,83 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
-## Active implementation review — 17:28 UTC
+## Current coordinator checkpoint — 2026-09-27 17:53 UTC
 
-Three parallel Astra agents are active: UX-01 implementation, ENG-31 real-document
-source reuse investigation, and EXP-45 independent ISO gain-map controls. UX source
-and tests await the serialized Swift build slot; review found pointer tools must
-be disarmed on every workspace exit and Library Loupe zoom restoration verified.
+Published M5-31 candidate **441da3e3f83f46ee04536fa8b6248c2519d6d619** on
+wp/M5-31. Zero-dispatch/identity-based source reuse, non-Dissolve seed
+canonicalization and valid-ID regressions passed326compositor tests,0failures,
+14ignored plus focused6+1+5guards and strict Clippy/fmt. All six separately run
+fresh-process timings passed unchanged limits on A (AppleM4,10cores,24GiB).
+Original fixture resident cold48.938917/40.873750/43.386083ms; unique-ID
+companion44.990791/41.301125/37.710209ms. All warm values pass100ms.
+Evidence: wp/M5-31 tools/orchestrate/wp/M5-31/evidence/2026-09-27-source-reuse/.
+The corrected invalid smart-child fixture failure is preserved with the retry.
 
-ENG-31's distinct-ID regression exposed duplicate zero layer IDs in the inherited
-timing fixture. Do not treat a source-copy optimization that only benefits that
-fixture as a real-document improvement. A is checking neutralized source seed
-semantics with valid document identities before retaining the proposed change.
-The prior cold <100 ms failure is still open; no new acceptance is claimed.
+B: repeat both exact timing names three times on441da3e when your heavy slot is
+free. Prior125.855125ms failure is not waived by A's results. Full command and
+request published in mailbox4820486e-d71c-4fb1-a88f-6919f34d0eaa, following the
+bootstrap handshake. No B receipt or automatic wakeup is yet confirmed; do not
+merge main. Retain active B5 Document ownership.
 
-Latest fetch still has B note0232ff7. Mailbox poll confirms A publication but no
-B mailbox branch or receipt. A's five-minute heartbeat configuration is verified;
-B must bootstrap its own coordinator before automatic round trips can occur.
+UX-01 full Swift checkpoint:411XCTest/1opt-in skip/0failures plus5SwiftTesting.
+Final hint/copy repairs:28targeted tests and40offscreen layouts pass. Additional
+ready Sony RAW check:1test passes, populated Develop/Masks controls, stable
+controller/target/history across tabs, no geometry/overlap finding. Root inspected
+Library dark/light, narrow Library/Mask, ready RAW Develop/Mask screenshots.
+Existing dense overlay hints and Masks Components wrapping remain UX-04 polish.
+UX-01 sourcec417229 is now merged/pushed on main4925677. Root verified
+merged Sources/Tests byte-identical to the gated commit. UI agent advances UX02a
+navigation-only Review; ownership fix remains separately scoped. B should use
+this new shared AppModel/KeyRouter/Shell baseline when resolving integration.
+
+Review-ownership RED reproduced all four hazards with6expected assertions, no
+setup failures. The agent now fixes source-only; root owns the heavy slot for
+export integration gate session25483. Gain-map encoder core/host restoration is source
+ready on codex/gainmap-restoration but fresh live-output tests are pending. Root
+independently reproduced retained-prototype and Skia ISO SDR/HDR pixel decoding;
+original4%center criterion and separate boundary discrepancy are preserved.
+
+INT-45 pending merge remains isolated in export-integration; formatting/license
+checks passed. M2-58 actual presentation acceptance remains pending the measurement
+conditions in M2-58-PRESENTATION-PLAN.md. A's five-minute heartbeat is active and
+polls the durable mailbox; SSH now exposes B’s coordinator for reading; direct messaging currently returns an active-writer conflict (see checkpoint below).
+
+## Direct SSH verification outcome — 2026-09-27 18:13 UTC
+
+A completed the exact M5-31 six-sample repeat directly on B. Product441da3e:
+first original resident cold106.084084ms fails100ms; original2/3 and all three
+unique-ID samples pass. All CPU/warm limits pass. No sample replaced or excused.
+Complete verified logs, host snapshots, commands and manifests are published on
+wp/M5-31 at97eb4ca under tools/orchestrate/wp/M5-31/evidence/2026-09-27-machine-b-441da3e/.
+A investigates the remaining cold cost; main integration remains held.
+
+B’s heavy slot is released. The completed B5-16a checkout remains clean detached
+at441da3e, original branch reference unchanged. No B Document source was edited.
+This was A-run remote verification, not a chat receipt. Result mailbox7fc92eb5
+supersedes execution of timing request4820486e; B should reconcile before retrying.
+
+A’s first INT-45 gate failed on missing ignored RAW fixtures in the new worktree.
+That failure remains preserved. After linking and hashing the existing fixtures,
+the full retry passed564tests/0fail/21ignored; strictClippy and workspace checks
+also pass. FFI/Swift builds run in session39983. UX02a RED confirms four Library
+state violations. The AppModel owner/image save barrier is committed4b52933 and
+integrated in the ownership branch; fifteen ownership/save-order regressions are
+prepared, not yet GREEN. UI navigation source work continues independently.
+
+## SSH discovery checkpoint — 2026-09-27
+
+Authenticated SSH alias `tessera-machine-b` reaches `Ruts-MacBook-Pro.local`.
+Native host `remote-ssh-discovered:tessera-machine-b` exposes the exact chat
+`Resume Tessera Machine B work`, UUID `01a0e323-c018-7fa3-9605-999a2dea6b32`.
+History and compact status reads succeeded. Direct native messaging failed:
+`thread ... already has an active writer`. The discovered endpoint reports
+`notLoaded` and an older completed turn; neither proves the desktop writer is
+idle or safe to replace. Existing B app-server processes are preserved.
+No direct-message delivery, new B work, mailbox receipt or B heartbeat is claimed.
+Supported-routing investigation is recorded in MACHINE-B-SSH-ROUTING.md.
+SSH discovery reaches a separate app-server; no supported route into the existing
+desktop writer was verified. Use this exact UUID for new mailbox addressing; the earlier spelling remains an
+agreed bootstrap alias. A continues its ready queue while this conflict remains.
 
 ## Mailbox handshake published
 

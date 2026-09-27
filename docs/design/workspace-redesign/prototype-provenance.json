@@ -1,0 +1,38 @@
+{
+  "source": "/private/tmp/claude-501/-Users-rutmehta-Developer-tessera/1ef5c604-ef13-4903-b9c9-757556764307/scratchpad/mock/tessera-redesign.html",
+  "sha256": "48fa7db1c13b597fc6f8c21a988acbbd20188000e45c3684655a736feaddb5b7",
+  "classification": "recovered design exploration, not implemented capability or historical approval",
+  "provisional_direction": "Precision Graphite, selected by coordinator 2026-09-27",
+  "assets": {
+    "img/canon-cr3.jpg": "2691b274eec4dce2b233806502b3ce1d29fd5a621689232d25197ff770c1d6b1",
+    "img/f01.jpg": "0a9015f0ddba48e3799723bf38b5e3fe71361932db13d648e263aef18ccdecfb",
+    "img/f02.jpg": "6e5a07aaeefe0ce75bab388d570612539d05dc7254be44f979055e280174199c",
+    "img/f03.jpg": "e84e7b9e78cd8fffc8b6de91824bcda1efed7fd79f55174765012bbc9fc4239d",
+    "img/f04.jpg": "388859ec1533360b6bd7f22063fbab2211b54489783cddccea12a0b3aa21351d",
+    "img/f05.jpg": "f821c16c4ad2c560db74c61bb61b972e3bed5a1b357422a7d1811f0eaca6c0fb",
+    "img/f06.jpg": "b1a47c3f55761e7545d22efb14002c7c69f87594a0e0c77247dec84e52c6e5a9",
+    "img/f07.jpg": "fa3ea261f8ad590d17a086b3e4367af056d052fe315224b9a266d60a3fc4ff91",
+    "img/f08.jpg": "100924017c9abaa0cdaaed19bda4d70a1a15e545875a29c212c09d951474911f",
+    "img/f09.jpg": "a3f0be0d3655e00a6683ec32f00fed5cf14041aadedff5ad379444a2c37d7d92",
+    "img/f10.jpg": "203c9c6b15eebc382e692f7ce6ff58e0f3757d2cd4f86d8bc548890376331619",
+    "img/f11.jpg": "730c2b77275c1ecbde8b9bf08f7ac8c84097c5283c93c1bcbf4d0dcca0ebc8c1",
+    "img/f12.jpg": "989551277e356487d8cd41985767ae028c1bab1fbbba1818e3c075adf166ca42",
+    "img/f13.jpg": "621f4018ba69d688b9781a20ade7be85efd7d06a088c8f75c47563a2dd61a8b3",
+    "img/f14.jpg": "5f96b56732fd136e3a155d8c6b31cd7bc5249867e26e847de9794278c7e62c21",
+    "img/f15.jpg": "a02e9bad4ef9e40ea1ac250f303a8406c0d0f5535fd50263998b0acd13eb97dd",
+    "img/f16.jpg": "540552b40d8e69fea37ac3897ff9f585a3eb07a99a282c08a107892c47cece32",
+    "img/f17.jpg": "71266209afada2aa4cbf244a21a367c78f6e162c5ecdb36e93ca5425f918b95f",
+    "img/f18.jpg": "2cbc0152ca6b2c434f441100d52cee08bb00760c020eb8f4f5fdb74ceaed3a13",
+    "img/fuji-raf.jpg": "0f6eb123263c20102358c53c2054743c3747eb5b32e2d824d15ab92b5e99c0aa",
+    "img/hero-harbour.jpg": "1f12121d4cad4da555e2a0816e6c84f29b8901b65873e521eccb8f8e29741fc2",
+    "img/hero-trees.jpg": "b6842207739d6109bf2da275b84a10a6cc2d5d3c6a1cc0ebc6df703346c2d90c",
+    "img/nikon-nef.jpg": "55270f51eafb94d349d00ae5d1ea8c38cd30108d9dc8b0c9fa61c0018ed1f018",
+    "img/overflow-1280.jpg": "f35b63759ac4454b0f861bcc77c28a45369a3c3452319a75d6aa1a830a1e2586",
+    "img/sample.jpg": "18ed3e6bf8b861f0a85e795cce4ac4aa9dbdbf21ca268949765fbf06740340b4",
+    "img/sony-arw.jpg": "ee1082bc572222ab40dcaa24d0b438f333d35b889250750118373e863e77827e"
+  },
+  "external_dependencies": [
+    "Google Fonts CSS",
+    "lucide0.469.0 script from unpkg"
+  ]
+}

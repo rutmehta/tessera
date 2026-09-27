@@ -1,0 +1,222 @@
+{
+  "captures": [
+    {
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-final-20260927/document-1280x800-dark.png",
+      "bytes": 440872,
+      "sha256": "4558da7035161b785e328d52e38420b715968669a02e16a2ade219af1859278e"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-final-20260927/document-1280x800-light.png",
+      "bytes": 493334,
+      "sha256": "bba8a4fcd8c39dabc92774f1d95cb32b7455d9f22319504f023e256caf29b348"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-final-20260927/document-1440x900-dark.png",
+      "bytes": 566402,
+      "sha256": "a6884cfe9ce4ab1b7254ad6a01aa5f42825e1dfc9f5e31b9999064f4f12364af"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-final-20260927/document-1440x900-light.png",
+      "bytes": 608827,
+      "sha256": "fcd40aa96ccfdb0e395e0498b3ab4073a04968f52134cc2002424e3a793a3f7e"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-final-20260927/document-1728x1117-dark.png",
+      "bytes": 730910,
+      "sha256": "e5c19420f89c596b049a881f6e3df995f6fda379cbcb5407fd727738f61cfe60"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-final-20260927/document-1728x1117-light.png",
+      "bytes": 747223,
+      "sha256": "c5836a626f71981256e8aeab79a3fe160052b1d3c7ae8cbecb6d4f30c2df931f"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-final-20260927/document-960x600-dark.png",
+      "bytes": 683707,
+      "sha256": "4aabea77b8516dfab3d47ed700161082581ba33b225eb03cfb135b7d1791edee"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-final-20260927/document-960x600-light.png",
+      "bytes": 702579,
+      "sha256": "8bed05b644fd30fb7fc357438623bc31dce6f757b54cbb7507a8d0bffe21d30d"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-final-20260927/library-1280x800-dark.png",
+      "bytes": 602698,
+      "sha256": "6b0614271a19af1857e2f81b3e2bbd5dbc5b487672ede521abf0fcacd3399acc"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-final-20260927/library-1280x800-light.png",
+      "bytes": 607849,
+      "sha256": "1437b7c8c31652be150b0ef052f54de6870ea57822849ecc152263857f35c67a"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-final-20260927/library-1440x900-dark.png",
+      "bytes": 688481,
+      "sha256": "0b14b5fc174744b0243ea23027c041d00d9060ed721aa4a8788ac5dfb88fb041",
+      "committed_copy": "tools/orchestrate/wp/UX-01/screenshots/library-1440x900-dark.png"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-final-20260927/library-1440x900-light.png",
+      "bytes": 690624,
+      "sha256": "14e5d872464019bbd6778626be825f2a1110063f4c5b8806aa7996bcf8e9113b"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-final-20260927/library-1728x1117-dark.png",
+      "bytes": 657660,
+      "sha256": "1c6fadd9064f371f77db83ed5b0e9eee4b29769b8ecc563d7b0739fe4fd9bdb5"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-final-20260927/library-1728x1117-light.png",
+      "bytes": 660162,
+      "sha256": "69e3aa7781ebec61819b8a7d3fd53c53eb15e5f08c7f3252dae4e47e7ca72cd4"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-final-20260927/library-960x600-dark.png",
+      "bytes": 570379,
+      "sha256": "9192a58f0b7bb59930dfeda5ba8f7acc53e04bc190b21070b0c63314b82ba7eb"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-final-20260927/library-960x600-light.png",
+      "bytes": 575422,
+      "sha256": "37eb19e7b6008b8b080d4fbc7dfcc7b473caa89d1de43d9ba08af3d9672df1f7",
+      "committed_copy": "tools/orchestrate/wp/UX-01/screenshots/library-960x600-light.png"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-final-20260927/photoEditDevelop-1280x800-dark.png",
+      "bytes": 840758,
+      "sha256": "b7603c71e8e675ca9e9fc28988803cbf8d59c14641092c58760c366b6ff27997"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-final-20260927/photoEditDevelop-1280x800-light.png",
+      "bytes": 847127,
+      "sha256": "3f29c4787939f9c2f6cab51c3f610f6a95bd0ccd95c8c0e3f458b8869486a33d"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-final-20260927/photoEditDevelop-1440x900-dark.png",
+      "bytes": 948607,
+      "sha256": "433bd459013774ee778030d1ca26bf0d7dfb54b8dc5dd3a82a193c127aa8b133",
+      "committed_copy": "tools/orchestrate/wp/UX-01/screenshots/photoEditDevelop-1440x900-dark.png"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-final-20260927/photoEditDevelop-1440x900-light.png",
+      "bytes": 955016,
+      "sha256": "472d3e1ab27efb8b4b03dde16f791c12d669656d2a25780143e681cc1d0d4e52"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-final-20260927/photoEditDevelop-1728x1117-dark.png",
+      "bytes": 1077768,
+      "sha256": "b4a18e6bcbb935ea118e22e92be48e2264b7dbbcbd4c560df72bfe98ca309637"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-final-20260927/photoEditDevelop-1728x1117-light.png",
+      "bytes": 1094252,
+      "sha256": "35cbab2f7d4bd76c396967fb8e4caae190c98793854abe9728231e0df2a8f88e"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-final-20260927/photoEditDevelop-960x600-dark.png",
+      "bytes": 746591,
+      "sha256": "28fabf3e042455d3d5c61e93732476fc310a0a6c6ca3187c19f0e43331a39b8a"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-final-20260927/photoEditDevelop-960x600-light.png",
+      "bytes": 756252,
+      "sha256": "4f0f4ac287b6c56c0c3768f9a084646d8dc5f6ebdaeb20c23fa5e60ce0c02a08"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-final-20260927/photoEditMasks-1280x800-dark.png",
+      "bytes": 807699,
+      "sha256": "86c34dc0429ca78f1d8d591d9b060195853c957798ccfdc61286ec4a55784d3d"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-final-20260927/photoEditMasks-1280x800-light.png",
+      "bytes": 811016,
+      "sha256": "d17f5b8fb3dd60168e82449f224737507da60cac01b4fa0b1d5c9405d884a2ea"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-final-20260927/photoEditMasks-1440x900-dark.png",
+      "bytes": 905098,
+      "sha256": "d91860391b0fed8c8e205cecefacbcbfb68cf0c8ecdf1fa9d7538f7db7a2bd5f"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-final-20260927/photoEditMasks-1440x900-light.png",
+      "bytes": 909457,
+      "sha256": "b0d5bca34e06090f07b48d5723bccf284bd3351fcac4eee76c2d52b6e88e0e48"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-final-20260927/photoEditMasks-1728x1117-dark.png",
+      "bytes": 1028801,
+      "sha256": "9fd9ffe360d16517bccc76405d56b8e977f32e6c41faa9b9b47b46cc590ee136"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-final-20260927/photoEditMasks-1728x1117-light.png",
+      "bytes": 1043578,
+      "sha256": "330efae173888857e3c9f29764fac89e145ca0feb8f5583abb8f5aa881e6b5ac"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-final-20260927/photoEditMasks-960x600-dark.png",
+      "bytes": 711588,
+      "sha256": "9e606f929233daeeceffd3ffb3ab4286d924e24bf577ece58b1b29146ad4b7ee",
+      "committed_copy": "tools/orchestrate/wp/UX-01/screenshots/photoEditMasks-960x600-dark.png"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-final-20260927/photoEditMasks-960x600-light.png",
+      "bytes": 718582,
+      "sha256": "5a95e1038e1a660dd7d1421e5071caa0c1c6f058f5e0e29b6185516beea195a3"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-final-20260927/raw-1280x800-dark.png",
+      "bytes": 507909,
+      "sha256": "f4c105a516b956f5b4b9f2b8771517404051f58c1f87735590edf30efbf427a6"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-final-20260927/raw-1280x800-light.png",
+      "bytes": 512644,
+      "sha256": "15a6e53be6ccded0ba547ea496369363b7a1449d196b54f192bc83201a15c910"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-final-20260927/raw-1440x900-dark.png",
+      "bytes": 443809,
+      "sha256": "94c7e2e38b4515c2af1e24302945858bc3b54e846713dcc4eaf1dcb4ad6ce55f"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-final-20260927/raw-1440x900-light.png",
+      "bytes": 443463,
+      "sha256": "f475f25907da10571909dd5d1336f6bfb01fbc529c27bdf8bebb8665f5e9d6e8"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-final-20260927/raw-1728x1117-dark.png",
+      "bytes": 389977,
+      "sha256": "f30b486d3eefb148b2f7eafb7e4051d6cb7e9f7ebb31a0b9838011b81ffa7cee"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-final-20260927/raw-1728x1117-light.png",
+      "bytes": 391281,
+      "sha256": "d4daa9e5a2d8ab16804fe46788a85eaf85c235ad9563c392f07a966099099774"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-final-20260927/raw-960x600-dark.png",
+      "bytes": 711519,
+      "sha256": "2ff41e25f698e8fe012a834e324750298c91bad87024c7e561ba4ae58321c2c4"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-final-20260927/raw-960x600-light.png",
+      "bytes": 792542,
+      "sha256": "26c9d8408d18a7096b3325d8414c2882591ce70fde6752878f51c2db2618f926"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-ready-raw-20260927/photoEditReadyRAWDevelop-1440x900-dark.png",
+      "bytes": 1203539,
+      "sha256": "822f61037c368e090d1794b075b6584b6860cb99764188acfc477ad7a59d33dc",
+      "committed_copy": "tools/orchestrate/wp/UX-01/screenshots/photoEditReadyRAWDevelop-1440x900-dark.png"
+    },
+    {
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-ready-raw-20260927/photoEditReadyRAWMasks-1440x900-dark.png",
+      "bytes": 1200778,
+      "sha256": "ec7334c923025ee3c348718fbd0caa4e9ce79d3995b65fa15d828cca7b3fc336",
+      "committed_copy": "tools/orchestrate/wp/UX-01/screenshots/photoEditReadyRAWMasks-1440x900-dark.png"
+    }
+  ],
+  "count": 42,
+  "note": "Window-only capture with prohibited activation; final targeted40case matrix plus bounded readyRAW2tab capture. Original pre-copy-repair screenshots retained separately."
+}

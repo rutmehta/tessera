@@ -1,0 +1,42 @@
+[0/1] Planning build
+Building for production...
+[0/5] Write sources
+[1/5] Write swift-version--58304C5D6DBC2206.txt
+[3/5] Compiling TesseraCoreTests AssistTests.swift
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[4/6] Compiling TesseraPackageTests runner.swift
+[4/6] Write Objects.LinkFileList
+ld: warning: object file (/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/build/ffi/libtessera_ffi.a[2845](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[5/6] Linking TesseraPackageTests
+Build complete! (20.52s)
+Test Suite 'Selected tests' started at 2026-09-27 13:51:13.650.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-27 13:51:13.651.
+Test Suite 'WorkspaceReadyPhotoTests' started at 2026-09-27 13:51:13.651.
+Test Case '-[TesseraCoreTests.WorkspaceReadyPhotoTests testRealRAWDevelopAndMasksRemainReadyAcrossInspectorTabs]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [453.364125, 189.441791, 220.56104100000002]; GPU [271.87620899999996, 1.5585410000000002, 7.000583000000001]
+Test Case '-[TesseraCoreTests.WorkspaceReadyPhotoTests testRealRAWDevelopAndMasksRemainReadyAcrossInspectorTabs]' passed (5.477 seconds).
+Test Suite 'WorkspaceReadyPhotoTests' passed at 2026-09-27 13:51:19.128.
+	 Executed 1 test, with 0 failures (0 unexpected) in 5.477 (5.477) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-09-27 13:51:19.128.
+	 Executed 1 test, with 0 failures (0 unexpected) in 5.477 (5.477) seconds
+Test Suite 'Selected tests' passed at 2026-09-27 13:51:19.128.
+	 Executed 1 test, with 0 failures (0 unexpected) in 5.477 (5.478) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

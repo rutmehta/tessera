@@ -65,9 +65,16 @@ struct AppCommands: Commands {
                 .keyboardShortcut("a", modifiers: .command)
         }
         CommandGroup(before: .sidebar) {
-            Button("Grid    (G)") { model.viewMode = .grid }
-            Button("Loupe    (E / Return)") { model.viewMode = .loupe }
-            Button("Compare    (C)") { model.enterCompare() }
+            Button("Edit Photo    (D)") { model.enterPhotoEdit() }
+                .disabled(!model.canEnterPhotoEdit)
+            Button("Back to Library") { model.returnToLibrary() }
+                .disabled(!model.isPhotoEditing)
+            Divider()
+            Button("Grid    (G)") {
+                if model.isPhotoEditing { model.returnToLibrary(grid: true) } else { model.viewMode = .grid }
+            }
+            Button("Loupe    (E / Return)") { model.returnToLibrary(); model.viewMode = .loupe }
+            Button("Compare    (C)") { model.returnToLibrary(); model.enterCompare() }
             Button("Layered Documents") { model.viewMode = .document }
             Divider()
             Group {
@@ -102,6 +109,7 @@ struct AppCommands: Commands {
             Divider()
         }
         CommandMenu("Cull") {
+            Group {
             Button("Reject    (X)") { model.perform(.reject) }
             Button("Undecided    (U)") { model.perform(.undecided) }
             Button("Keep    (P)") { model.perform(.keep) }
@@ -136,7 +144,7 @@ struct AppCommands: Commands {
             }
             Toggle("Sort by Keep Confidence", isOn: Binding(get: { model.assist.sortByConfidence },
                                                              set: { model.assist.sortByConfidence = $0 }))
-            Button("Confirm Suggested Decisions    (Y)") { model.assist.confirmAll() }
+            Button("Confirm All Visible Suggestions (\(model.assist.suggestionCount))    (Y)") { model.assist.confirmAll() }
                 .disabled(!model.assist.enabled)
             Button("Dismiss Suggestion    (N)") { model.assist.dismiss(model.targetIDs) }
                 .disabled(!model.assist.enabled)
@@ -157,11 +165,13 @@ struct AppCommands: Commands {
             Button("Remove from Album    (⌫ in an album)") { model.deletePressed() }
             Button("Delete from Disk…") { model.confirmDeleteFromDisk() }
                 .keyboardShortcut(.delete, modifiers: .command)
+            }
+            .disabled(model.isPhotoEditing || docMode || model.source == .people)
         }
         documentMenus
         Group {   // M2-50: Library + Photo as one builder item (the builder takes at most 10)
         CommandMenu("Library") {
-            Button("Edit in Layers") { docs.editInLayers(model.focusedItem) }
+            Button("Open in Layers…") { model.requestLayeredCopy() }
                 .shortcut(!docMode, "e", .command)
                 .disabled(docMode || model.focusedItem == nil)
             Divider()

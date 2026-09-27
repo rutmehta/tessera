@@ -94,7 +94,7 @@ final class LoupeToolOverlay: NSView {
     }
     required init?(coder: NSCoder) { fatalError() }
 
-    private var armed: Bool { tools.cropActive || tools.hslPicker != nil || tools.detailPicking || masks.active || guidesArmed }
+    private var armed: Bool { tools.model.isPhotoEditing && (tools.cropActive || tools.hslPicker != nil || tools.detailPicking || masks.active || guidesArmed) }
     var guideTool: UprightGuideTool { .shared }
     /// Guided Upright owns the loupe (crop and masking take precedence).
     var guidesArmed: Bool { guideTool.active && !tools.cropActive && !masks.active }
@@ -107,10 +107,24 @@ final class LoupeToolOverlay: NSView {
 
     override func hitTest(_ point: NSPoint) -> NSView? { armed ? super.hitTest(point) : nil }
 
+    /// Tool owners settle their pending recipe gestures through the workspace exit hook.
+    /// Pointer-local drafts must not survive into Library or the next edit context.
+    func endWorkspaceInteraction() {
+        drag = nil; maskDrag = nil; guideDrag = nil
+        frozen = nil; startGeometry = nil; straightenLine = nil
+        pointer = nil
+        window?.invalidateCursorRects(for: self)
+        needsDisplay = true
+    }
+
     // MARK: State from the tools
 
     /// Tool state changed (crop begun/ended/edited, picker armed).
     func toolsChanged() {
+        if !tools.model.isPhotoEditing {
+            drag = nil; maskDrag = nil; guideDrag = nil
+            frozen = nil; startGeometry = nil; straightenLine = nil
+        }
         if guideTool.active, tools.cropActive || tools.hslPicker != nil || tools.detailPicking { guideTool.end() }
         if tools.cropActive, let g = tools.crop {
             loupe?.cropView = currentView(g)
@@ -313,6 +327,7 @@ final class LoupeToolOverlay: NSView {
     // MARK: Mouse
 
     override func mouseDown(with event: NSEvent) {
+        guard tools.model.isPhotoEditing else { return }
         let p = convert(event.locationInWindow, from: nil)
         dragStart = p
         if masks.active, !tools.cropActive { maskMouseDown(p, event); return }
@@ -359,6 +374,7 @@ final class LoupeToolOverlay: NSView {
     }
 
     override func mouseDragged(with event: NSEvent) {
+        guard tools.model.isPhotoEditing else { return }
         let p = convert(event.locationInWindow, from: nil)
         if maskDrag != nil { maskMouseDragged(p, event); return }
         if guideDrag != nil { guideMouseDragged(p); return }
@@ -399,6 +415,7 @@ final class LoupeToolOverlay: NSView {
     }
 
     override func mouseUp(with event: NSEvent) {
+        guard tools.model.isPhotoEditing else { return }
         let p = convert(event.locationInWindow, from: nil)
         if maskDrag != nil { maskMouseUp(p, event); return }
         if guideDrag != nil { guideMouseUp(p); updateCursor(p); return }
