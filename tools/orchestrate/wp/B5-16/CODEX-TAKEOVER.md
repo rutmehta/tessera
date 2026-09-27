@@ -369,3 +369,14 @@ Separate follow-up after d9974d7: same-non-nil early return keeps attach(nil)
 cleanup active after weak controller deallocation. New 1x1 injected-surface
 regression observes ring release and marquee/timer eligibility reset; UNRUN and
 uncompiled. A outline integration test file untouched. Resource hold remains.
+
+### CPU viewport frame token wiring — aa0a9692
+
+Validated/accepted bounded source request; integrated maina1d51f6 in B at04930f0.
+render.rs Signal now owns per-frame tokens, frame request/stop cancel without
+backend lock, layer-only notification does not. CPU fallback uses render_region
+and row cancellation checks; failed copy clears unpublished surface, final owner
+gate rejects obsolete frame/error callbacks. Five UNRUN tests; A compilation
+pending. CPU-FRAME-CANCELLATION.md records publication ordering and limits.
+Public readback/PSD/apply/engine-api and A outline test file remain untouched.
+B workload hold and paused heartbeat remain.
