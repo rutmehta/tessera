@@ -1,0 +1,26 @@
+{
+  "kind": "DEV-TEST UNIQUE EXECUTABLE ROUTING EXPERIMENT \u2014 NOT RELEASE ACCEPTANCE",
+  "created_utc": "2026-09-27T20:05:45.879258+00:00",
+  "original_manifest": "/Volumes/betterSSD/tessera-validation/ux02a/a54044f/manifest.json",
+  "source_head": "a54044fbefdbae56229f74053402d513c92674ef",
+  "source_digest": "432fff1dae551112cf435e2b24e8d72e9cf052f964e0e5a579bdb9d6f4ed9e15",
+  "ffi_archive_sha256": "417f990ad8a3e6ce9cacb484411341f16aca90199e15b8fa0a0f05becff5cab7",
+  "ffi_limit": "Older pre-export-integration archive from this checkpoint; future current-main combined validation must use its source-matched FFI. Standard make-app not run.",
+  "original_packaged_executable_sha256": "4433ba5150f448785a2be9d88a93054089df8e3275df622c9013b49dac746549",
+  "packaged_executable_sha256": "811c97040a38529c31a27b6b40ae3e5533d5778af7c3eed04e703d2509f5361b",
+  "bundle_identifier": "dev.tessera.validation.ux02a.uniqueexec",
+  "display_name": "Tessera UX02a UniqueExec",
+  "executable_name": "TesseraUX02a",
+  "app": "/Volumes/betterSSD/tessera-validation/ux02a/a54044f/Tessera-UX02a-UniqueExec.app",
+  "launch_arguments": [
+    "--folder",
+    "/Volumes/betterSSD/tessera-validation/ux02a/a54044f/fixtures",
+    "--app-dir",
+    "/Volumes/betterSSD/tessera-validation/ux02a/a54044f/app-support-unique",
+    "--fake-planner"
+  ],
+  "signing": "Ad-hoc bundle re-sign; unchanged previously verified framework; deep/strict verification passed",
+  "experiment": "Same product executable, renamed and re-signed under unique process and bundle identity. New independent support directory; original running candidate preserved.",
+  "launched": true,
+  "launch_utc": "2026-09-27T20:05:46.012568+00:00"
+}
