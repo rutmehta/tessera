@@ -39,6 +39,9 @@
 
 #[path = "document/io.rs"]
 mod io;
+#[path = "document/psd_copy.rs"]
+mod psd_copy;
+pub use psd_copy::{RasterizedPsdCopyOperation, RasterizedPsdCopyOutcome};
 #[path = "document/render.rs"]
 mod render;
 // Layered-editor tools: painting, selections, transform (WP B5-04).
@@ -823,6 +826,7 @@ pub(crate) struct Shared {
     filters: filtering::FilterState,
     /// B5-14: saves run in order, outside the live-state lock.
     saving: Mutex<()>,
+    copies: psd_copy::CopyRegistry,
 }
 
 impl Shared {
@@ -1042,6 +1046,7 @@ impl DocumentSession {
             listener: Mutex::new(None),
             filters: Default::default(),
             saving: Mutex::new(()), // B5-14
+            copies: Default::default(),
         });
         let worker = {
             let shared = shared.clone();
@@ -1057,6 +1062,8 @@ impl DocumentSession {
     }
 
     fn shutdown(&self) {
+        // Signal copies before waiting for the backend state/render worker.
+        self.shared.copies.close();
         if let Ok(mut st) = self.shared.state.lock() {
             st.closed = true;
             st.view.surfaces.clear();
@@ -2418,16 +2425,29 @@ pub(crate) fn raster_from_rgba(
     rgba: &[f32],
     skip_transparent: bool,
 ) -> Result<Raster> {
+    raster_from_rgba_checked(extent, depth, rgba, skip_transparent, || Ok(()))
+}
+
+pub(crate) fn raster_from_rgba_checked(
+    extent: Extent,
+    depth: compositor::Depth,
+    rgba: &[f32],
+    skip_transparent: bool,
+    check: impl Fn() -> Result<()>,
+) -> Result<Raster> {
+    check()?;
     let mut r = Raster::new(extent, 4, depth, 0.0);
     let (cols, rows) = extent.tile_grid(TILE_SIZE);
     for ty in 0..rows {
         for tx in 0..cols {
+            check()?;
             let layout = r.layout(tx, ty);
             let (w, h) = (layout.extent.width as usize, layout.extent.height as usize);
             let n = w * h;
             let mut planes = vec![0.0f32; 4 * n];
             let mut any = false;
             for y in 0..h {
+                check()?;
                 let row = (ty as usize * TILE_SIZE as usize + y) * extent.width as usize
                     + tx as usize * TILE_SIZE as usize;
                 for x in 0..w {

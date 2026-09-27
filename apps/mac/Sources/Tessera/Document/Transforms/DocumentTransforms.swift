@@ -73,7 +73,27 @@ final class DocumentTransforms {
     /// Called when a commit / cancel finished (self-test).
     @ObservationIgnored var onFinished: ((Result<DocumentChange?, Error>) -> Void)?
 
+    private struct CopyOwner {
+        weak var document: DocumentController?
+        let slot: RasterizedPSDCopySlot
+    }
+    private var copies: [ObjectIdentifier: CopyOwner] = [:]
     private init() {}
+
+    func isCopying(_ doc: DocumentController?) -> Bool {
+        guard let doc else { return false }
+        return copies[ObjectIdentifier(doc)]?.slot.id != nil
+    }
+
+    func cancelCopy(_ doc: DocumentController) {
+        guard let slot = copies[ObjectIdentifier(doc)]?.slot else { return }
+        if slot.cancel() { doc.report?("Cancelling rasterized copy…") }
+        else { doc.report?("Rasterized copy is finishing its file replacement") }
+    }
+
+    func closeCopies(for doc: DocumentController) {
+        copies.removeValue(forKey: ObjectIdentifier(doc))?.slot.close()
+    }
 
     func attach(_ workspace: DocumentWorkspace) {
         guard self.workspace !== workspace else { return }
@@ -95,7 +115,8 @@ final class DocumentTransforms {
     }
 
     private func enqueue<T: Sendable>(_ what: String, _ body: @escaping @Sendable () throws -> T,
-                                      done: (@MainActor (T) -> Void)? = nil, failed: (@MainActor (Error) -> Void)? = nil) {
+                                      done: (@MainActor (T) -> Void)? = nil, failed: (@MainActor (Error) -> Void)? = nil,
+                                      reportFailure: Bool = true) {
         busy += 1
         queue.async {
             let r = Result { try body() }
@@ -106,7 +127,7 @@ final class DocumentTransforms {
                     switch r {
                     case .success(let v): done?(v)
                     case .failure(let e):
-                        me.say("\(what): \(e.localizedDescription)")
+                        if reportFailure { me.say("\(what): \(e.localizedDescription)") }
                         failed?(e)
                     }
                 }
@@ -530,23 +551,54 @@ final class DocumentTransforms {
 
     /// File ▸ Save Rasterized PSD Copy…: PSD refuses native-only stacks; this writes a copy with them applied.
     func saveRasterizedPSD(_ doc: DocumentController) {
-        guard let t = backend(doc) else { return }
+        guard !doc.isClosed, !isCopying(doc), let t = backend(doc) else { return }
         let panel = NSSavePanel()
         panel.title = "Save Rasterized PSD Copy"
         panel.message = "Smart objects with transform stages or smart filters are rasterized in the copy; this document is unchanged."
         panel.allowedContentTypes = [.init(filenameExtension: "psd")].compactMap { $0 }
         panel.nameFieldStringValue = (doc.title as NSString).deletingPathExtension + " (rasterized).psd"
-        let handle: @MainActor (NSApplication.ModalResponse) -> Void = { r in
-            guard r == .OK, let url = panel.url else { return }
-            DocumentTransforms.shared.enqueue("Save Rasterized PSD Copy") {
-                try t.savePSDRasterizingTransforms(path: url.path)
-            } done: { _ in DocumentTransforms.shared.say("Saved a rasterized copy as \(url.lastPathComponent)") }
+        let handle: @MainActor (NSApplication.ModalResponse) -> Void = { [weak doc] r in
+            guard r == .OK, let url = panel.url, let doc, !doc.isClosed else { return }
+            let me = DocumentTransforms.shared
+            guard !me.isCopying(doc) else { return }
+            do {
+                // Retain a cancel handle on MainActor before enqueuing blocking Rust work.
+                let operation = try t.prepareRasterizedPSDCopy()
+                me.enqueueCopy(operation, for: doc, url: url)
+            } catch { doc.report?("Save Rasterized PSD Copy: \(error.localizedDescription)") }
         }
         if let window = doc.viewport?.window {
             panel.beginSheetModal(for: window) { r in MainActor.assumeIsolated { handle(r) } }
         } else {
             handle(panel.runModal())
         }
+    }
+
+    /// Separate from the save panel so ownership/cancellation can be tested with tiny fakes.
+    func enqueueCopy(_ operation: any RasterizedPSDCopyOperation, for doc: DocumentController, url: URL) {
+        guard !doc.isClosed, !isCopying(doc) else { _ = operation.cancel(); return }
+        let slot = RasterizedPSDCopySlot()
+        guard let id = slot.install(operation) else { return }
+        let owner = ObjectIdentifier(doc)
+        copies[owner] = CopyOwner(document: doc, slot: slot)
+        doc.report?("Saving rasterized copy… Use File > Cancel Rasterized PSD Copy to cancel.")
+        enqueue("Save Rasterized PSD Copy", {
+            try operation.run(path: url.path)
+        }, done: { [weak doc] outcome in
+            guard self.finishCopy(owner, id: id), let doc, !doc.isClosed else { return }
+            doc.report?(outcome == .saved
+                ? "Saved a rasterized copy as \(url.lastPathComponent)"
+                : "Rasterized copy cancelled")
+        }, failed: { [weak doc] error in
+            guard self.finishCopy(owner, id: id), let doc, !doc.isClosed else { return }
+            doc.report?("Save Rasterized PSD Copy: \(error.localizedDescription)")
+        }, reportFailure: false)
+    }
+
+    private func finishCopy(_ owner: ObjectIdentifier, id: UUID) -> Bool {
+        guard let copy = copies[owner], copy.slot.finish(id) else { return false }
+        copies.removeValue(forKey: owner)
+        return copy.document != nil
     }
 
     // MARK: Canvas
