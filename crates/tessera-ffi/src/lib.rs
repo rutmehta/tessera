@@ -16,6 +16,8 @@ mod metadata;
 mod models;
 mod preview;
 mod proof;
+#[cfg(test)]
+mod recipe_write_tests;
 mod session;
 #[doc(hidden)]
 pub mod surface;
