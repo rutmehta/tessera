@@ -44,5 +44,16 @@ public struct ShapeToolOptions: Equatable, Sendable {
         return ShapeSource(path: path, fill: fillEnabled ? .solid(fillColor) : nil, stroke: stroke, liveShape: nil)
     }
 
+    /// B5-11b: the colour a stroke enabled on an existing shape takes (never the fill colour, which
+    /// would hide dashes): the foreground colour when it differs from the fill, otherwise black or white
+    /// by the fill's luminance.
+    public static func newStrokeColor(fill: ShapePaint?, foreground: [Double]) -> [Double] {
+        let fg = Array(foreground.prefix(3)) + [1]
+        guard let f = fill?.representativeColor, f.count >= 3, fg.count == 4 else { return fg }
+        if zip(f.prefix(3), fg.prefix(3)).contains(where: { abs($0 - $1) > 1.5 / 255 }) { return fg }
+        let luma = 0.2126 * f[0] + 0.7152 * f[1] + 0.0722 * f[2]
+        return luma > 0.5 ? [0, 0, 0, 1] : [1, 1, 1, 1]
+    }
+
     public mutating func setSides(_ n: Int) { sides = min(max(n, Self.sidesRange.lowerBound), Self.sidesRange.upperBound) }
 }

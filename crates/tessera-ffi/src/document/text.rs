@@ -215,6 +215,43 @@ fn check_revision(id: u64, actual: u64, expected: Option<u64>) -> Result<()> {
     }
 }
 
+/// The name an unnamed text layer takes: its first line (at most 40
+/// characters, trimmed), or "Text" when that is empty.
+fn auto_name(model: &TextModel) -> String {
+    let text: String = model.runs.iter().map(|r| r.text.as_str()).collect();
+    let first = text.lines().next().unwrap_or("").trim();
+    let n: String = first.chars().take(40).collect();
+    if n.is_empty() { "Text".into() } else { n }
+}
+
+/// B5-11b: `op`, plus renaming layer `id` to the first line of `new` when
+/// the layer is auto-named (its name is still the first line of `old`, as
+/// Photoshop: the name follows the text until the user renames the layer)
+/// and that first line changes. One `Batch`, so the rename is part of the
+/// text edit's history node and undoes with it.
+fn with_auto_name(
+    base: &DocState,
+    id: u64,
+    old: &TextModel,
+    new: &TextModel,
+    op: DocOp,
+) -> Result<DocOp> {
+    let l = find(base, id)?;
+    let (was, now) = (auto_name(old), auto_name(new));
+    if l.props.name != was || was == now {
+        return Ok(op);
+    }
+    let mut props = l.props.clone();
+    props.name = now;
+    Ok(DocOp::Batch(vec![
+        op,
+        DocOp::SetProps {
+            id: LayerId(id),
+            props,
+        },
+    ]))
+}
+
 /// Fields other than the runs (paragraph, box, vertical, warp, path).
 fn same_frame(a: &TextModel, b: &TextModel) -> bool {
     a.paragraph == b.paragraph
@@ -274,6 +311,10 @@ fn edit_ops(
             model: model.clone(),
             transform,
         })
+    };
+    let commit = match commit {
+        Some(op) => Some(with_auto_name(base, id, old, &model, op)?),
+        None => None,
     };
     Ok(SourceOps {
         preview: DocOp::EditText {
@@ -536,13 +577,7 @@ impl DocumentSession {
         let model = parse_model(&model_json)?;
         let transform = affine_of(transform)?;
         let name = if name.trim().is_empty() {
-            let text: String = model.runs.iter().map(|r| r.text.as_str()).collect();
-            let first = text.lines().next().unwrap_or("").trim();
-            let mut n: String = first.chars().take(40).collect();
-            if n.is_empty() {
-                n = "Text".into();
-            }
-            n
+            auto_name(&model)
         } else {
             name
         };
@@ -597,7 +632,7 @@ impl DocumentSession {
         expected_revision: Option<u64>,
     ) -> Result<DocumentUpdate> {
         let runs = parse_runs(&runs_json)?;
-        {
+        let op = {
             let st = self.shared.lock()?;
             st.open()?;
             if st
@@ -622,14 +657,13 @@ impl DocumentSession {
                 .splice(start_run as usize..end_run as usize, runs.clone());
             next.validate()
                 .map_err(|e| failure(format!("text model: {e}")))?;
-        }
-        self.edit(
-            DocOp::EditTextRuns {
+            let op = DocOp::EditTextRuns {
                 id: LayerId(layer),
                 range: start_run as usize..end_run as usize,
                 runs,
-            },
-            None,
-        )
+            };
+            with_auto_name(st.doc.state(), layer, model, &next, op)?
+        };
+        self.edit(op, None)
     }
 }

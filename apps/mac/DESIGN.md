@@ -467,3 +467,7 @@ Layered documents reuse the system above; nothing here adds a colour, size or fo
   (Live <kind> or Custom Path, Fill, Stroke, Vector Mask, Interchange) of `DocSlider` rows, neutral `SegmentedPicker`s
   (paint kind, alignment, caps, fill rule), `ThemeMenuStyle` pop-ups (gradient style, corners), a dash field, `Hint`s
   for behaviour and warning `StatusLine`s for the engine's interchange and colour limitations.
+* **B5-11b** adds no colour, size or font. The Layers row gets a vector-mask thumbnail (the layer mask's checker tile
+  size; white inside the path, mid-grey outside, crossed when disabled). The status bar always shows the current
+  tool's idle hint (`DocumentTool.idleHint`) or its session hint (text session, Pen path), replacing the previous
+  tool's message on every tool change.

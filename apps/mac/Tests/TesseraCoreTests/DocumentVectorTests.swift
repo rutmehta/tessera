@@ -321,6 +321,12 @@ final class DocumentVectorTests: XCTestCase {
         XCTAssertEqual(ToolKeyMap.action(keyCode: 35, characters: "p", mods: [], current: .move), .tool(.pen))
         XCTAssertEqual(ToolKeyMap.action(keyCode: 0, characters: "a", mods: [], current: .move), .tool(.pathSelect))
         XCTAssertEqual(ToolKeyMap.action(keyCode: 0, characters: "a", mods: .shift, current: .pathSelect), .tool(.directSelect))
+        // B5-11b item 1: A again cycles Path ↔ Direct Selection (like ⇧A); other groups keep ⇧ for cycling.
+        XCTAssertEqual(ToolKeyMap.action(keyCode: 0, characters: "a", mods: [], current: .pathSelect), .tool(.directSelect))
+        XCTAssertEqual(ToolKeyMap.action(keyCode: 0, characters: "a", mods: [], current: .directSelect), .tool(.pathSelect))
+        XCTAssertEqual(ToolKeyMap.action(keyCode: 0, characters: "a", mods: .shift, current: .directSelect), .tool(.pathSelect))
+        XCTAssertEqual(ToolKeyMap.action(keyCode: 46, characters: "m", mods: [], current: .ellipseMarquee), .tool(.ellipseMarquee))
+        XCTAssertEqual(ToolKeyMap.action(keyCode: 32, characters: "u", mods: [], current: .ellipseShape), .tool(.ellipseShape))
         for t in DocumentTool.allCases where t.isVector {
             XCTAssertTrue(DocumentTool.paletteSlots.contains { $0.group.contains(t) }, "\(t) has a palette slot")
             XCTAssertFalse(t.isPlaceholder)

@@ -40,7 +40,13 @@ final class DocumentVector {
     @ObservationIgnored private(set) var gesture: Gesture?
     /// The shape being dragged out (document pixels).
     private(set) var draft: LiveShape?
-    private(set) var pen = PenDraft()
+    private(set) var pen = PenDraft() { didSet { if pen.isEmpty != oldValue.isEmpty { DocumentTools.shared.publishHint() } } }
+    /// B5-11b: the status hint while a Pen path is being drawn (nil idle: the tool's idle hint).
+    var penHint: String? {
+        pen.isEmpty ? nil : "Pen: click to add points, drag for curves (⌥ breaks handles); click the first point to close, Return finishes, Esc discards, ⌫ removes the last point"
+    }
+    /// B5-11b: Path Selection deselected this layer's path (a click on empty canvas): no box, no outline.
+    @ObservationIgnored private(set) var deselectedPath: DocLayerID?
     @ObservationIgnored private(set) var penHover: ShapePoint?
     /// The selected shape layer as last read, and the geometry being edited (overlays).
     private(set) var info: ShapeLayerInfo?
@@ -72,6 +78,23 @@ final class DocumentVector {
     @ObservationIgnored private(set) var previewCallMs: [Double] = []
     @ObservationIgnored private(set) var frameRenderMs: [Double] = []
     @ObservationIgnored var onFinished: ((String, Bool) -> Void)?
+    /// B5-11b: engine rejections of an edit (the inspector's colour wells rebuild from the model on each).
+    private(set) var rejections = 0
+    /// B5-11b: keyboard steps of an inspector slider record one node this long after the last step.
+    static let defaultKeyboardCommitDelay: TimeInterval = 0.6
+    @ObservationIgnored var keyboardCommitDelay = DocumentVector.defaultKeyboardCommitDelay
+    /// The inspector edit being stepped from the keyboard: its drafts are live, one node is recorded
+    /// `keyboardCommitDelay` after the last step (or at once when another edit starts).
+    private struct KeyboardEdit {
+        weak var doc: DocumentController?
+        let layer: DocLayerID
+        var label: String
+        var draft: @Sendable () throws -> DocumentChange
+        var maskBase: VectorMaskInfo?
+    }
+    @ObservationIgnored private var keyboardEdit: KeyboardEdit?
+    @ObservationIgnored private var keyboardTimer: Task<Void, Never>?
+    var hasPendingKeyboardEdit: Bool { keyboardEdit != nil }
 
     private init() {}
 
@@ -138,6 +161,8 @@ final class DocumentVector {
     private func send(_ doc: DocumentController, final: Bool, label: String, start: TimeInterval? = nil,
                       _ body: @escaping @Sendable () throws -> DocumentChange) {
         if final {
+            // B5-11b: a keyboard adjustment in progress is its own node, recorded first.
+            if keyboardEdit != nil { commitKeyboardEdit() }
             generation += 1
             waiting = nil
             busy += 1
@@ -191,6 +216,7 @@ final class DocumentVector {
             onFinished?(label, true)
         case .failure(let e):
             say("\(label): \(e.localizedDescription)")
+            rejections += 1   // B5-11b: the inspector's colour wells rebuild from the model
             onFinished?(label, false)
         }
         if gen == generation { livePath = nil }
@@ -200,6 +226,7 @@ final class DocumentVector {
     /// Esc: drop the draft, no history change.
     func cancelDraft() {
         guard let doc = document, let b = backend(doc) else { return }
+        commitKeyboardEdit()
         gesture = nil
         draft = nil
         affine = affine.map { FreeTransformModel(bounds: $0.bounds) }
@@ -212,16 +239,18 @@ final class DocumentVector {
     // MARK: Tool changes
 
     func toolSelected(_ tool: DocumentTool) {
+        commitKeyboardEdit()
         if tool != .pen, !pen.isEmpty { finishPen() }
         if tool != .pathSelect { affine = nil }
         if tool != .directSelect && tool != .pen { selectedAnchors.removeAll() }
-        if tool == .pathSelect, let i = selectedShape { beginAffine(i) }
+        if tool == .pathSelect, let i = selectedShape, i.layer != deselectedPath { beginAffine(i) }
         redraw()
     }
 
     /// ⌘T on a shape layer: its affine handles (Path Selection).
     func beginFreeTransform() -> Bool {
         guard let doc = document, let i = selectedShape else { return false }
+        deselectedPath = nil
         DocumentTools.shared.select(.pathSelect)
         beginAffine(i)
         doc.report?("Transform shape: drag handles (⇧ keeps proportions, ⌥ from the centre), inside to move, outside to rotate; each drag is one undo step, Esc cancels a drag")
@@ -253,6 +282,7 @@ final class DocumentVector {
             say("Shapes need the engine document backend")
             return
         }
+        commitKeyboardEdit()
         let p = v.canvasPoint(e)
         switch doc.tool {
         case .rectangleShape, .ellipseShape, .polygonShape, .lineShape:
@@ -346,6 +376,10 @@ final class DocumentVector {
             send(doc, final: true, label: "Move Direction Point") {
                 try b.editShapePath(id, commands: [.setHandle(r, h, to: to, mirror: m)], interactive: false)
             }
+        case .affineRotate where affine?.isIdentity ?? true:
+            // B5-11b: a click (no drag) on empty canvas deselects the path, as in Photoshop.
+            if let a = affine, a.isIdentity { send(doc, final: true, label: "Transform") { try b.cancelSourcePreview() } }
+            deselectPath(doc)
         case .affineHandle, .affineMove, .affineRotate:
             pushAffine(doc, final: true, start: nil)
         case nil: break
@@ -483,13 +517,27 @@ final class DocumentVector {
         }
         if let hit = hitLayer(doc, p, in: v) {
             if hit.layer != doc.primary?.id { doc.select(hit.layer) }
+            deselectedPath = nil
             if let i = info(for: doc, layer: hit.layer) { beginAffine(i) }
             gesture = .affineMove(last: p)
             return
         }
         if let t = affine, let id = affineLayer, id == doc.primary?.id, info(for: doc, layer: id) != nil {
+            // Outside the box: a drag rotates; a click without a drag deselects (mouse-up).
             gesture = .affineRotate(start: p, angle: t.angle)
+        } else {
+            deselectPath(doc)
         }
+    }
+
+    /// Path Selection: no path selected (the layer stays selected in Layers; clicking the shape selects
+    /// its path again).
+    private func deselectPath(_ doc: DocumentController) {
+        deselectedPath = doc.primary?.id
+        affine = nil
+        affineLayer = nil
+        selectedAnchors.removeAll()
+        redraw()
     }
 
     private func pushAffine(_ doc: DocumentController, final: Bool, start: TimeInterval?) {
@@ -512,28 +560,133 @@ final class DocumentVector {
     // MARK: Inspector edits
 
     /// A live-parameter / paint edit of the selected shape: drafts while dragging, one node on release.
-    func setSource(_ doc: DocumentController, layer: DocLayerID, _ source: ShapeSource, final: Bool) {
+    ///
+    /// B5-11b: steps from the keyboard (a focused slider's arrows; `keyboard` nil = no mouse button
+    /// down) stay drafts, and their final values too while more may follow: ONE node is recorded
+    /// `keyboardCommitDelay` after the last step, or at once when another edit starts.
+    func setSource(_ doc: DocumentController, layer: DocLayerID, _ source: ShapeSource, final: Bool, keyboard: Bool? = nil) {
         guard let b = backend(doc), let i = info(for: doc, layer: layer) else { return }
         if let problem = source.strokeAlignmentProblem { say(problem); return }
         let t = i.transform
-        send(doc, final: final, label: "Edit Shape") { try b.setShapeLayer(layer, source: source, transform: t, interactive: !final) }
-        if !final, var cached = info { cached.source = source; info = cached }
+        let deferred = defersToKeyboard(final: final, keyboard: keyboard)
+        if deferred {
+            keyboardStep(doc, layer: layer, label: "Edit Shape", maskBase: nil) {
+                try b.setShapeLayer(layer, source: source, transform: t, interactive: true)
+            }
+        } else {
+            settleKeyboardEdit(doc, layer: layer, mask: false)
+            send(doc, final: final, label: "Edit Shape") { try b.setShapeLayer(layer, source: source, transform: t, interactive: !final) }
+        }
+        if !final || deferred, var cached = info, cached.layer == layer { cached.source = source; info = cached }
+    }
+
+    /// B5-11b: the paint a stroke enabled from None takes: the foreground colour, or a colour that
+    /// contrasts with the fill when they are the same (never the fill colour, which hides dashes).
+    func newStrokePaint(for info: ShapeLayerInfo) -> ShapePaint {
+        let fg = DocumentTools.shared.colors.foreground
+        return .solid(ShapeToolOptions.newStrokeColor(fill: info.source.fill, foreground: [Double(fg.r), Double(fg.g), Double(fg.b), 1]))
+    }
+
+    /// B5-11b: the shape's document bounds as Properties reports them (stroke included), following a
+    /// Path Selection drag or a Direct Selection edit live.
+    func displayBounds(_ doc: DocumentController, layer: DocLayerID) -> CGRect? {
+        if doc.tool == .pathSelect, affineLayer == layer, let t = affine, !t.isIdentity {
+            return Self.boundingBox(t.corners)
+        }
+        guard let i = info(for: doc, layer: layer) else { return nil }
+        if gesture != nil, let p = livePath, let b = p.bounds {
+            return Self.boundingBox([CGPoint(x: b.minX, y: b.minY), CGPoint(x: b.maxX, y: b.minY), CGPoint(x: b.maxX, y: b.maxY),
+                                     CGPoint(x: b.minX, y: b.maxY)].map { i.transform.apply($0) })
+        }
+        return i.bounds
+    }
+
+    private static func boundingBox(_ c: [CGPoint]) -> CGRect? {
+        guard let x0 = c.map(\.x).min(), let x1 = c.map(\.x).max(), let y0 = c.map(\.y).min(), let y1 = c.map(\.y).max() else { return nil }
+        return CGRect(x: x0, y: y0, width: x1 - x0, height: y1 - y0)
+    }
+
+    // MARK: Keyboard-stepped inspector edits (B5-11b)
+
+    /// Whether an inspector edit joins / starts a keyboard adjustment instead of recording now.
+    private func defersToKeyboard(final: Bool, keyboard: Bool?) -> Bool {
+        let key = keyboard ?? (NSEvent.pressedMouseButtons & 1 == 0)
+        guard key else { return false }
+        return !final || keyboardEdit != nil
+    }
+
+    private func keyboardStep(_ doc: DocumentController, layer: DocLayerID, label: String, maskBase: VectorMaskInfo?,
+                              _ draft: @escaping @Sendable () throws -> DocumentChange) {
+        if let k = keyboardEdit, k.layer != layer || k.doc !== doc { commitKeyboardEdit() }
+        send(doc, final: false, label: label, draft)
+        keyboardEdit = KeyboardEdit(doc: doc, layer: layer, label: label, draft: draft, maskBase: keyboardEdit?.maskBase ?? maskBase)
+        keyboardTimer?.cancel()
+        let delay = keyboardCommitDelay
+        keyboardTimer = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(Int(delay * 1000)))
+            guard !Task.isCancelled else { return }
+            DocumentVector.shared.commitKeyboardEdit()
+        }
+    }
+
+    /// A mouse edit of the same control continues the keyboard adjustment (its final records the net
+    /// change as one node); any other edit records the adjustment first.
+    private func settleKeyboardEdit(_ doc: DocumentController, layer: DocLayerID, mask: Bool) {
+        guard let k = keyboardEdit else { return }
+        if k.doc === doc, k.layer == layer, (k.maskBase != nil || k.label.hasPrefix("Vector Mask")) == mask {
+            keyboardTimer?.cancel()
+            keyboardTimer = nil
+            keyboardEdit = nil
+        } else {
+            commitKeyboardEdit()
+        }
+    }
+
+    /// Records the keyboard adjustment in progress as one node (its newest value), if any.
+    func commitKeyboardEdit() {
+        keyboardTimer?.cancel()
+        keyboardTimer = nil
+        guard let k = keyboardEdit else { return }
+        keyboardEdit = nil
+        guard let doc = k.doc else { return }
+        // A coalesced draft still waiting is sent first (the final path drops it); `commit` records the
+        // pending draft, or nothing when another edit (an undo) already flushed it.
+        let base = doc.backend, label = k.label, newest = waiting != nil ? k.draft : nil
+        send(doc, final: true, label: label) {
+            if let newest { _ = try newest() }
+            return try base.commit(label: label)
+        }
     }
 
     func setTransform(_ doc: DocumentController, layer: DocLayerID, _ t: AffineTransform2D) {
         guard let b = backend(doc), let i = info(for: doc, layer: layer), t.isFiniteAndInvertible else { return }
+        commitKeyboardEdit()
         let source = i.source
         send(doc, final: true, label: "Transform Shape") { try b.setShapeLayer(layer, source: source, transform: t, interactive: false) }
     }
 
-    func setMask(_ doc: DocumentController, layer: DocLayerID, _ mask: VectorMaskInfo?, final: Bool) {
+    func setMask(_ doc: DocumentController, layer: DocLayerID, _ mask: VectorMaskInfo?, final: Bool, keyboard: Bool? = nil) {
         guard let b = backend(doc) else { return }
-        send(doc, final: final, label: "Vector Mask") { try b.setVectorMask(layer, mask: mask, interactive: !final) }
-        if !final, var cached = info, cached.layer == layer { cached.vectorMask = mask; info = cached }
+        let deferred = defersToKeyboard(final: final, keyboard: keyboard)
+        if deferred {
+            // The node's label compares with the mask before the adjustment (as the engine's own final call).
+            let base = keyboardEdit?.layer == layer ? keyboardEdit?.maskBase : info(for: doc, layer: layer)?.vectorMask
+            let label = switch (base, mask) {
+            case (let a?, let m?) where a.density != m.density: "Vector Mask Density"
+            case (let a?, let m?) where a.feather != m.feather: "Vector Mask Feather"
+            default: "Vector Mask"
+            }
+            keyboardStep(doc, layer: layer, label: label, maskBase: base) { try b.setVectorMask(layer, mask: mask, interactive: true) }
+        } else {
+            settleKeyboardEdit(doc, layer: layer, mask: true)
+            send(doc, final: final, label: "Vector Mask") { try b.setVectorMask(layer, mask: mask, interactive: !final) }
+        }
+        if !final || deferred, var cached = info, cached.layer == layer { cached.vectorMask = mask; info = cached }
     }
 
     func setFillRule(_ doc: DocumentController, layer: DocLayerID, _ rule: ShapeFillRule) {
         guard let b = backend(doc) else { return }
+        commitKeyboardEdit()
         send(doc, final: true, label: "Fill Rule") { try b.editShapePath(layer, commands: [.setFillRule(rule)], interactive: false) }
     }
 
@@ -547,12 +700,12 @@ final class DocumentVector {
             r = CGRect(x: 0, y: 0, width: Double(doc.info.width), height: Double(doc.info.height))
         }
         let path = ShapePrimitives.rectangle(ShapeRect(r), radii: [0, 0, 0, 0]).mergingCoincidentAnchors
-        setMask(doc, layer: p.id, VectorMaskInfo(path: path), final: true)
+        setMask(doc, layer: p.id, VectorMaskInfo(path: path), final: true, keyboard: false)
     }
 
     func deleteVectorMask() {
         guard let doc = document, let p = doc.primary else { return }
-        setMask(doc, layer: p.id, nil, final: true)
+        setMask(doc, layer: p.id, nil, final: true, keyboard: false)
     }
 
     /// Layer ▸ Combine Shapes: the bottom selected shape is the target, the others apply in stacking order.
@@ -606,21 +759,24 @@ final class DocumentVector {
 
     // MARK: Drawing
 
+    /// Path Selection's box follows the primary shape (rebuilt after a committed drag or a new selection).
+    func refreshAffine() {
+        guard let doc = document, doc.tool == .pathSelect, gesture == nil, busy == 0, !inFlight else { return }
+        if let i = selectedShape, i.layer != deselectedPath {
+            if affine == nil || affineLayer != i.layer { beginAffine(i) }
+        } else {
+            affine = nil
+        }
+    }
+
     func draw(in v: DocumentViewportView) {
         guard let doc = v.controller, doc === document else { return }
-        // Path Selection's box follows the primary shape (rebuilt after a committed drag or a new selection).
-        if doc.tool == .pathSelect, gesture == nil, busy == 0, !inFlight {
-            if let i = selectedShape {
-                if affine == nil || affineLayer != i.layer { beginAffine(i) }
-            } else {
-                affine = nil
-            }
-        }
+        refreshAffine()
         let tool = doc.tool
         // The shape being dragged out.
         if let d = draft { stroke(ShapePrimitives.path(d), .identity, in: v, width: 1) }
         // The selected shape's path, anchors and handles.
-        if tool.isVector, let i = selectedShape {
+        if tool.isVector, let i = selectedShape, !(tool == .pathSelect && i.layer == deselectedPath) {
             let path = editablePath(i)
             stroke(path, i.transform, in: v, width: 1)
             if let m = i.vectorMask { stroke(m.path, .identity, in: v, width: 1, faint: true) }
@@ -653,9 +809,10 @@ final class DocumentVector {
                 path.subpaths = [last]
             }
             stroke(path, .identity, in: v, width: 1)
+            let withHandles = Set(pen.handleAnchors)
             for (k, a) in pen.anchors.enumerated() {
                 let c = v.viewPoint(canvas: a.point.cgPoint)
-                if k == pen.anchors.count - 1 || (pen.closed && k == 0) {
+                if withHandles.contains(k) {
                     for q in [a.incoming, a.outgoing] where q != a.point {
                         let h = v.viewPoint(canvas: q.cgPoint)
                         let line = NSBezierPath()
