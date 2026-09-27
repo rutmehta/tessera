@@ -4,3 +4,5 @@
 
 - (merged) wp/B5-06 — B5-v fixes (⌘E from grid, Save As name field, §V test count) + Properties editors for all 23 adjustment types. Merged with main 923aad8; cargo tessera-ffi ok, clippy/fmt clean, swift test 224 + 5, xcodebuild ok.
 - (merged) wp/B5-08 — persistent alpha/spot Channels panel (document/channels.rs), Quick Mask, Save/Load Selection on persistent channels. Based on main 923aad8; cargo compositor/selection/psd/tessera-ffi ok, clippy/fmt clean, swift test 193, xcodebuild ok.
+
+- wp/B5-09 — Remove tool (stroke/selection, Auto/PatchMatch/LaMa), Content-Aware Fill, reviewed Remove Distractions, Neural Filters panel (document/retouch.rs builds masks engine-side). Merged with main 9a6f25f; cargo filters/ml-filters/tessera-ffi ok, clippy/fmt clean, swift test 240 + 5, xcodebuild ok. ACCEPTANCE §Z steps 320–333.
