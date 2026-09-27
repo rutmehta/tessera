@@ -68,6 +68,12 @@ final class ChannelsSelfTest {
     private func names() -> [String] { channels.records.map(\.name) }
 
     private func run() async {
+        // This environment-selected test owns the process. Dirty documents must
+        // not leave a successful run waiting indefinitely at a save prompt.
+        defer {
+            let code: Int32 = failures == 0 ? 0 : 1
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { exit(code) }
+        }
         log("waiting for a document")
         guard await wait(60, { workspace.current != nil && workspace.current?.viewport != nil }), let doc = workspace.current else {
             log("no document"); log("done, 1 failure(s)"); return

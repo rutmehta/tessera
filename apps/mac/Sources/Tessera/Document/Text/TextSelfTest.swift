@@ -205,6 +205,12 @@ final class TextSelfTest {
     // MARK: Run
 
     private func run() async {
+        // This environment-selected test owns the process. Terminate on every
+        // completion path, including diagnostic subsets and failed prerequisites.
+        defer {
+            let code: Int32 = failures == 0 ? 0 : 1
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { exit(code) }
+        }
         log("waiting for a document")
         guard await wait(90, { workspace.current?.viewport != nil }), let doc else {
             log("no document"); log("done, 1 failure(s)"); return

@@ -145,7 +145,7 @@ final class TransformSelfTest {
         t.begin(tag)
         let ok = await wait(20) { t.session != nil }
         await settle()
-        if !ok { log("\(tag.title) did not start: \(t.status ?? "-")") }
+        check("\(tag.title) started", ok, t.status ?? "-")
         return ok
     }
 
