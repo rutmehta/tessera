@@ -472,19 +472,140 @@ fn write_copy_atomic(
 
 // ─────────────────────────────── export ───────────────────────────────
 
+// B5-15 (P16) begin: export runs from an immutable snapshot on a caller
+// thread, reports progress and stops at cancellation checkpoints. Cancelling
+// never touches the destination: the file is encoded in memory and renamed
+// into place from a temporary file in the same folder only at the end.
+
+/// Progress and cancellation of one flat export.
+pub(crate) struct ExportCtl<'a> {
+    /// Set to stop at the next checkpoint (tile, phase boundary).
+    pub cancel: &'a std::sync::atomic::AtomicBool,
+    /// `(fraction 0…1, phase)`; called from the exporting threads.
+    pub progress: &'a (dyn Fn(f32, &str) + Sync),
+}
+
+impl ExportCtl<'_> {
+    fn check(&self) -> Result<()> {
+        if self.cancel.load(std::sync::atomic::Ordering::Relaxed) {
+            Err(failure("export cancelled"))
+        } else {
+            Ok(())
+        }
+    }
+}
+
+/// Checks what an export can reject before any work (JPEG quality).
+pub(crate) fn export_flat_check(format: ExportFormat, quality: u8) -> Result<()> {
+    if format == ExportFormat::Jpeg && !(1..=100).contains(&quality) {
+        return Err(failure("JPEG quality must be 1–100"));
+    }
+    Ok(())
+}
+
+/// Level 0 of `doc` as interleaved straight RGBA, exactly as
+/// `Compositor::render_level_rgba` (each tile is `render_tile`, which is
+/// `unpremultiply(render_tile_premultiplied)` as in `render_level`), rendered
+/// on worker threads with a cancellation check and progress per tile. Tiles
+/// are interleaved as they arrive, so the tile list and the image are never
+/// both resident.
+fn render_rgba(
+    comp: &compositor::Compositor,
+    doc: &Document,
+    ctl: &ExportCtl<'_>,
+    span: (f32, f32),
+) -> Result<(Extent, Vec<f32>)> {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    let e = doc.state().canvas;
+    let (cols, rows) = e.tile_grid(engine_api::tile::TILE_SIZE);
+    let coords: Vec<TileCoord> = (0..rows)
+        .flat_map(|y| (0..cols).map(move |x| TileCoord::new(0, x, y)))
+        .collect();
+    let mut out = vec![0.0f32; e.width as usize * e.height as usize * 4];
+    let threads = std::thread::available_parallelism()
+        .map_or(4, |n| n.get())
+        .min(coords.len().max(1));
+    let next = AtomicUsize::new(0);
+    let (tx, rx) = std::sync::mpsc::sync_channel::<Result<engine_api::tile::Tile>>(threads * 2);
+    std::thread::scope(|s| -> Result<()> {
+        for _ in 0..threads {
+            let (tx, next, coords) = (tx.clone(), &next, &coords);
+            s.spawn(move || {
+                loop {
+                    let i = next.fetch_add(1, Ordering::Relaxed);
+                    let Some(c) = coords.get(i) else { break };
+                    let r = ctl
+                        .check()
+                        .and_then(|()| comp.render_tile(doc, *c).map_err(Into::into));
+                    let failed = r.is_err();
+                    if tx.send(r).is_err() || failed {
+                        break;
+                    }
+                }
+            });
+        }
+        drop(tx);
+        let mut done = 0usize;
+        let mut first_err = None;
+        for r in rx.iter() {
+            match r {
+                Ok(t) => {
+                    interleave_tile(e, &t, &mut out)?;
+                    done += 1;
+                    (ctl.progress)(
+                        span.0 + (span.1 - span.0) * done as f32 / coords.len().max(1) as f32,
+                        "Compositing",
+                    );
+                }
+                Err(err) => {
+                    // Stop the other workers at their next tile.
+                    next.store(usize::MAX / 2, Ordering::Relaxed);
+                    first_err.get_or_insert(err);
+                }
+            }
+        }
+        first_err.map_or(Ok(()), Err)
+    })?;
+    Ok((e, out))
+}
+
+/// Copies one straight planar tile into interleaved `out` (`compositor::
+/// render::interleave` for a single tile).
+fn interleave_tile(e: Extent, t: &engine_api::tile::Tile, out: &mut [f32]) -> Result<()> {
+    let (ox, oy) = t.coord().pixel_origin(engine_api::tile::TILE_SIZE);
+    let l = t.layout();
+    let s = t.samples::<f32>()?;
+    let p = l.plane_len();
+    for y in 0..l.extent.height as usize {
+        for x in 0..l.extent.width as usize {
+            let o = ((oy as usize + y) * e.width as usize + ox as usize + x) * 4;
+            for c in 0..4 {
+                out[o + c] = s[c * p + y * l.stride() + x];
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Flat export of `doc` (smart filters already baked) to `path`.
 pub(crate) fn export_flat(
     doc: &Document,
     path: &Path,
     format: ExportFormat,
     quality: u8,
     color: ExportColor,
+    ctl: &ExportCtl<'_>,
+    span: (f32, f32),
 ) -> Result<()> {
-    if format == ExportFormat::Jpeg && !(1..=100).contains(&quality) {
-        return Err(failure("JPEG quality must be 1–100"));
-    }
+    export_flat_check(format, quality)?;
+    ctl.check()?;
     let state = doc.state();
-    let (e, mut rgba) = super::fonts::compositor(256 << 20).render_level_rgba(doc, 0)?; // B5-10b
-    // Colour: document profile (untagged = sRGB) → target.
+    let comp = super::fonts::compositor(256 << 20); // B5-10b
+    let (e, mut rgba) = render_rgba(&comp, doc, ctl, (span.0, span.0 + (span.1 - span.0) * 0.85))?;
+    drop(comp);
+    ctl.check()?;
+    (ctl.progress)(span.0 + (span.1 - span.0) * 0.85, "Converting colour");
+// B5-15 end
     let source = match &state.profile {
         Some(ColorProfile { icc: Some(b), .. }) => b.as_ref().clone(),
         _ => builtin(color_mgmt::Builtin::Srgb)?,
@@ -501,6 +622,8 @@ pub(crate) fn export_flat(
         convert(&source, &target, &mut rgba)?;
     }
     let (w, h) = (e.width, e.height);
+    ctl.check()?; // B5-15
+    (ctl.progress)(span.0 + (span.1 - span.0) * 0.9, "Encoding"); // B5-15
     let wide = state.depth != compositor::Depth::U8;
     let q8 = |v: f32| (v.clamp(0.0, 1.0) * 255.0 + 0.5) as u8;
     let q16 = |v: f32| (v.clamp(0.0, 1.0) * 65535.0 + 0.5) as u16;
@@ -568,7 +691,12 @@ pub(crate) fn export_flat(
             }
         }
     }
-    write_atomic(path, &out)
+    drop(rgba); // B5-15: the encoded file is all that is left
+    ctl.check()?; // B5-15: the last point where cancelling is possible
+    (ctl.progress)(span.0 + (span.1 - span.0) * 0.97, "Writing"); // B5-15
+    write_atomic(path, &out)?;
+    (ctl.progress)(span.1, "Done"); // B5-15
+    Ok(())
 }
 
 /// Converts straight RGB (alpha untouched) between two ICC profiles.

@@ -3592,6 +3592,387 @@ public func FfiConverterTypeDevelopSession_lower(_ value: DevelopSession) -> UIn
 
 
 /**
+ * Progress of a [`DocFlatExport`], called on the exporting thread.
+ */
+public protocol DocExportListener: AnyObject, Sendable {
+    
+    /**
+     * `fraction` 0…1 (monotonic) and the phase (`Baking smart filters`,
+     * `Compositing`, `Converting colour`, `Encoding`, `Writing`, `Done`).
+     */
+    func onProgress(fraction: Float, phase: String) 
+    
+}
+/**
+ * Progress of a [`DocFlatExport`], called on the exporting thread.
+ */
+open class DocExportListenerImpl: DocExportListener, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_tessera_ffi_fn_clone_docexportlistener(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_tessera_ffi_fn_free_docexportlistener(handle, $0) }
+    }
+
+    
+
+    
+    /**
+     * `fraction` 0…1 (monotonic) and the phase (`Baking smart filters`,
+     * `Compositing`, `Converting colour`, `Encoding`, `Writing`, `Done`).
+     */
+open func onProgress(fraction: Float, phase: String)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_docexportlistener_on_progress(
+            self.uniffiCloneHandle(),
+        FfiConverterFloat.lower(fraction),
+        FfiConverterString.lower(phase),uniffiCallStatus
+    )
+}
+}
+    
+
+    
+}
+
+
+
+// Put the implementation in a struct so we don't pollute the top-level namespace
+fileprivate struct UniffiCallbackInterfaceDocExportListener {
+
+    // Create the VTable using a series of closures.
+    // Swift automatically converts these into C callback functions.
+    //
+    // Store the vtable directly.
+    static let vtable: UniffiVTableCallbackInterfaceDocExportListener = UniffiVTableCallbackInterfaceDocExportListener(
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            do {
+                try FfiConverterTypeDocExportListener.handleMap.remove(handle: uniffiHandle)
+            } catch {
+                print("Uniffi callback interface DocExportListener: handle missing in uniffiFree")
+            }
+        },
+        uniffiClone: { (uniffiHandle: UInt64) -> UInt64 in
+            do {
+                return try FfiConverterTypeDocExportListener.handleMap.clone(handle: uniffiHandle)
+            } catch {
+                fatalError("Uniffi callback interface DocExportListener: handle missing in uniffiClone")
+            }
+        },
+        onProgress: { (
+            uniffiHandle: UInt64,
+            fraction: Float,
+            phase: RustBuffer,
+            uniffiOutReturn: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> () in
+                guard let uniffiObj = try? FfiConverterTypeDocExportListener.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.onProgress(
+                     fraction: try FfiConverterFloat.lift(fraction),
+                     phase: try FfiConverterString.lift(phase)
+                )
+            }
+
+            
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        }
+    )
+
+    // Rust stores this pointer for future callback invocations, so it must live
+    // for the process lifetime (not just for the init function call).
+    //
+    // `nonisolated(unsafe)` is needed under Swift 6 strict concurrency.
+    // This is safe because the pointee is initialized once during static init
+    // and never mutated by either side of the FFI.  Its fields are C function pointers.
+    nonisolated(unsafe) static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceDocExportListener> = {
+        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceDocExportListener>.allocate(capacity: 1)
+        ptr.initialize(to: vtable)
+        return UnsafePointer(ptr)
+    }()
+}
+
+private func uniffiCallbackInitDocExportListener() {
+    uniffi_tessera_ffi_fn_init_callback_vtable_docexportlistener(UniffiCallbackInterfaceDocExportListener.vtablePtr)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDocExportListener: FfiConverter {
+    fileprivate static let handleMap = UniffiHandleMap<DocExportListener>()
+
+    typealias FfiType = UInt64
+    typealias SwiftType = DocExportListener
+
+    public static func lift(_ handle: UInt64) throws -> DocExportListener {
+        if ((handle & 1) == 0) {
+            // Rust-generated handle, construct a new class that uses the handle to implement the
+            // interface
+            return DocExportListenerImpl(unsafeFromHandle: handle)
+        } else {
+            // Swift-generated handle, get the object from the handle map
+            return try handleMap.remove(handle: handle)
+        }
+    }
+
+    public static func lower(_ value: DocExportListener) -> UInt64 {
+         if let rustImpl = value as? DocExportListenerImpl {
+             // Rust-implemented object.  Clone the handle and return it
+            return rustImpl.uniffiCloneHandle()
+         } else {
+            // Swift object, generate a new vtable handle and return that.
+            return handleMap.insert(obj: value)
+         }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DocExportListener {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: DocExportListener, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDocExportListener_lift(_ handle: UInt64) throws -> DocExportListener {
+    return try FfiConverterTypeDocExportListener.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDocExportListener_lower(_ value: DocExportListener) -> UInt64 {
+    return FfiConverterTypeDocExportListener.lower(value)
+}
+
+
+
+
+
+
+/**
+ * One Export Flat of a document snapshot ([`DocumentSession::begin_export_flat`]).
+ * Holds the snapshot, not the session: closing the document does not stop it.
+ */
+public protocol DocFlatExportProtocol: AnyObject, Sendable {
+    
+    /**
+     * Stops the export at its next checkpoint (each 256² tile, each phase).
+     */
+    func cancel() 
+    
+    func isCancelled()  -> Bool
+    
+    /**
+     * Bakes smart filters, composites level 0, converts, encodes and writes
+     * the file (atomically: a temporary file in the destination folder
+     * renamed into place). Blocks; call it off the main thread, once.
+     * Fails with "export cancelled" after [`Self::cancel`], leaving any
+     * existing file at the destination untouched.
+     */
+    func run(listener: DocExportListener?) throws 
+    
+}
+/**
+ * One Export Flat of a document snapshot ([`DocumentSession::begin_export_flat`]).
+ * Holds the snapshot, not the session: closing the document does not stop it.
+ */
+open class DocFlatExport: DocFlatExportProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_tessera_ffi_fn_clone_docflatexport(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_tessera_ffi_fn_free_docflatexport(handle, $0) }
+    }
+
+    
+
+    
+    /**
+     * Stops the export at its next checkpoint (each 256² tile, each phase).
+     */
+open func cancel()  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_docflatexport_cancel(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+}
+}
+    
+open func isCancelled() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_docflatexport_is_cancelled(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Bakes smart filters, composites level 0, converts, encodes and writes
+     * the file (atomically: a temporary file in the destination folder
+     * renamed into place). Blocks; call it off the main thread, once.
+     * Fails with "export cancelled" after [`Self::cancel`], leaving any
+     * existing file at the destination untouched.
+     */
+open func run(listener: DocExportListener?)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_docflatexport_run(
+            self.uniffiCloneHandle(),
+        FfiConverterOptionTypeDocExportListener.lower(listener),uniffiCallStatus
+    )
+}
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDocFlatExport: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = DocFlatExport
+
+    public static func lift(_ handle: UInt64) throws -> DocFlatExport {
+        return DocFlatExport(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: DocFlatExport) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DocFlatExport {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: DocFlatExport, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDocFlatExport_lift(_ handle: UInt64) throws -> DocFlatExport {
+    return try FfiConverterTypeDocFlatExport.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDocFlatExport_lower(_ value: DocFlatExport) -> UInt64 {
+    return FfiConverterTypeDocFlatExport.lower(value)
+}
+
+
+
+
+
+
+/**
  * Callbacks run on the session's render thread, never while a session lock
  * is held; each fires at most once per coalesced frame.
  */
@@ -3930,6 +4311,16 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
     func attachSurface(iosurfaceId: UInt32, width: UInt32, height: UInt32) throws 
     
     /**
+     * B5-15 (P16): Export Flat in two steps. This call only validates the
+     * settings and takes an immutable snapshot of what the document shows
+     * (no pixel copy); [`DocFlatExport::run`] renders and writes it on the
+     * caller's (background) thread with progress, and
+     * [`DocFlatExport::cancel`] stops it without touching the destination.
+     * Edits, frames, closing the document and other exports go on meanwhile.
+     */
+    func beginExportFlat(path: String, format: ExportFormat, quality: UInt8, color: ExportColor) throws  -> DocFlatExport
+    
+    /**
      * Drops a pending live-source draft (a text draft, and with B5-11 a shape
      * draft) with no history change; the viewport returns to the committed
      * state. Pending drags of other controls, strokes, style and filter
@@ -3986,6 +4377,7 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
      * transparency (8-bit for 8-bit documents, else 16-bit), JPEG is
      * flattened over white; `quality` is JPEG 1–100. Colours are converted
      * from the document profile to `color` and the profile is embedded.
+     * Blocks until the file is written: hosts use [`Self::begin_export_flat`].
      */
     func exportFlat(path: String, format: ExportFormat, quality: UInt8, color: ExportColor) throws 
     
@@ -4963,6 +5355,27 @@ open func attachSurface(iosurfaceId: UInt32, width: UInt32, height: UInt32)throw
 }
     
     /**
+     * B5-15 (P16): Export Flat in two steps. This call only validates the
+     * settings and takes an immutable snapshot of what the document shows
+     * (no pixel copy); [`DocFlatExport::run`] renders and writes it on the
+     * caller's (background) thread with progress, and
+     * [`DocFlatExport::cancel`] stops it without touching the destination.
+     * Edits, frames, closing the document and other exports go on meanwhile.
+     */
+open func beginExportFlat(path: String, format: ExportFormat, quality: UInt8, color: ExportColor)throws  -> DocFlatExport  {
+    return try  FfiConverterTypeDocFlatExport_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_begin_export_flat(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(path),
+        FfiConverterTypeExportFormat_lower(format),
+        FfiConverterUInt8.lower(quality),
+        FfiConverterTypeExportColor_lower(color),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * Drops a pending live-source draft (a text draft, and with B5-11 a shape
      * draft) with no history change; the viewport returns to the committed
      * state. Pending drags of other controls, strokes, style and filter
@@ -5085,6 +5498,7 @@ open func duplicateLayer(id: UInt64)throws  -> DocumentUpdate  {
      * transparency (8-bit for 8-bit documents, else 16-bit), JPEG is
      * flattened over white; `quality` is JPEG 1–100. Colours are converted
      * from the document profile to `color` and the profile is embedded.
+     * Blocks until the file is written: hosts use [`Self::begin_export_flat`].
      */
 open func exportFlat(path: String, format: ExportFormat, quality: UInt8, color: ExportColor)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
         uniffiCallStatus in
@@ -30764,6 +31178,30 @@ fileprivate struct FfiConverterOptionTypeDevelopListener: FfiConverterRustBuffer
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeDocExportListener: FfiConverterRustBuffer {
+    typealias SwiftType = DocExportListener?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeDocExportListener.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeDocExportListener.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeDocumentListener: FfiConverterRustBuffer {
     typealias SwiftType = DocumentListener?
 
@@ -34346,6 +34784,18 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_masklistener_ai_progress() != 54199) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tessera_ffi_checksum_method_docexportlistener_on_progress() != 1077) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_docflatexport_cancel() != 16903) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_docflatexport_is_cancelled() != 13140) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_docflatexport_run() != 42040) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_tessera_ffi_checksum_method_documentlistener_on_frame() != 51254) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -34365,6 +34815,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_attach_surface() != 28001) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_begin_export_flat() != 7063) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_cancel_source_preview() != 7203) {
@@ -34394,7 +34847,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_documentsession_duplicate_layer() != 19574) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_export_flat() != 3899) {
+    if (uniffi_tessera_ffi_checksum_method_documentsession_export_flat() != 54141) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_flatten() != 4958) {
@@ -35093,6 +35546,7 @@ private let initializationResult: InitializationResult = {
 
     uniffiCallbackInitAgentRunListener()
     uniffiCallbackInitDevelopListener()
+    uniffiCallbackInitDocExportListener()
     uniffiCallbackInitDocumentListener()
     uniffiCallbackInitEngineEventListener()
     uniffiCallbackInitExportProgressListener()

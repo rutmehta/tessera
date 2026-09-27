@@ -565,6 +565,7 @@ impl Renderer {
                 // B5-10 begin: the shared font snapshot (Type tool layout = rendering).
                 {
                     super::fonts::install(&mut resident); // B5-10b
+                    super::filtering::install_resident(&mut resident); // B5-15 (P19)
                     gpu.name.clone()
                 },
                 // B5-10 end
@@ -629,9 +630,12 @@ impl Renderer {
                     let st = g.resident.stats();
                     let cpu = g.cpu.as_ref().map(|c| c.stats());
                     format!(
-                        "GPU {} live pages, {:.1} MiB resident; CPU fallback {}",
+                        "GPU {} live pages, {:.1} MiB resident; smart filters {} GPU stages, {} CPU fallbacks, {:.1} MiB stage cache; CPU fallback {}",
                         st.live_pages,
                         st.resident_bytes as f64 / (1 << 20) as f64,
+                        g.resident.filter_evaluations(), // B5-15 (P19)
+                        g.resident.filter_fallbacks(),
+                        g.resident.filter_cache_bytes() as f64 / (1 << 20) as f64,
                         cpu.map_or("unused".into(), |c| format!(
                             "{} cache hits / {} misses",
                             c.cache_hits, c.cache_misses
@@ -774,6 +778,20 @@ impl Renderer {
             Ok(_) => Ok(Some(g.resident.read_level(level, false)?)),
             Err(EngineError::Unsupported { .. }) => Ok(None),
             Err(e) => Err(e.into()),
+        }
+    }
+
+    /// B5-15 (P19): the resident renderer's smart-filter trace: GPU stages
+    /// executed, layer-local CPU fallbacks and stage-cache bytes (`None`
+    /// without Metal).
+    pub(crate) fn smart_filter_stats(&self) -> Option<(u64, u64, u64)> {
+        match &*self.backend.lock().ok()? {
+            Backend::Gpu(g) => Some((
+                g.resident.filter_evaluations(),
+                g.resident.filter_fallbacks(),
+                g.resident.filter_cache_bytes(),
+            )),
+            _ => None,
         }
     }
 

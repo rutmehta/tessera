@@ -1472,6 +1472,9 @@ enum PreviewShown {
     Replace(u64, Arc<Raster>),
     /// An adjustment clipped directly above the layer.
     ClippedAdjustment(u64, Adjustment),
+    /// B5-15 (P19): the smart object with the edited stack in engine form,
+    /// evaluated by the resident renderer on the GPU.
+    Stack(u64, Arc<Layer>),
 }
 
 struct BakeJob {
@@ -1528,6 +1531,24 @@ struct Inner {
     imgs: ImgCache,
     presented: Option<(String, Arc<Document>)>,
     last_error: Option<String>,
+    /// B5-15: CPU bakes and previews run by the worker (trace).
+    cpu_bakes: u64,
+    cpu_previews: u64,
+}
+
+/// B5-15: which route smart filters took (tests and benches).
+#[doc(hidden)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct SmartFilterTrace {
+    /// GPU stack stages the resident renderer executed.
+    pub gpu_stages: u64,
+    /// Stacks the resident renderer evaluated on the CPU instead.
+    pub cpu_fallbacks: u64,
+    /// Bytes of GPU stage results it keeps (bounded by its budget).
+    pub stage_cache_bytes: u64,
+    /// CPU bakes and previews run by the session's filter worker.
+    pub cpu_bakes: u64,
+    pub cpu_previews: u64,
 }
 
 impl Inner {
@@ -1589,6 +1610,11 @@ pub(crate) struct FilterState {
     detail: Mutex<Option<Arc<Surface>>>,
     mask_thumbs: Mutex<MaskThumbs>,
     apply_cancel: Mutex<Arc<AtomicBool>>,
+    /// B5-15 (P19): the session renders on the resident (GPU) renderer with
+    /// the filters crate installed, so eligible stacks take the GPU route.
+    gpu: AtomicBool,
+    /// B5-15: whether smart-object children are opaque, by child layer.
+    opaque: Mutex<Vec<(Weak<Layer>, u64, bool)>>,
 }
 
 impl Default for FilterState {
@@ -1603,6 +1629,8 @@ impl Default for FilterState {
             detail: Mutex::new(None),
             mask_thumbs: Mutex::new(HashMap::new()),
             apply_cancel: Mutex::new(Arc::new(AtomicBool::new(false))),
+            gpu: AtomicBool::new(false),                     // B5-15
+            opaque: Mutex::new(Vec::new()),                  // B5-15
         }
     }
 }
@@ -1967,6 +1995,10 @@ fn worker_loop(q: Arc<Queue>, comp: Arc<Compositor>, shared: Weak<Shared>) {
         // B5-14 (P17): previews and bakes count as interactive pressure, so
         // photo export yields to them (bounded by its maximum yield).
         let _pressure = super::render::Pressure::begin(super::render::PressureKind::Filters);
+        match &job {
+            Job::Preview(..) => q.lock().cpu_previews += 1, // B5-15
+            Job::Bake(_) => q.lock().cpu_bakes += 1,        // B5-15
+        }
         match job {
             Job::Preview(p, cancel) => {
                 let result = find(&p.base, p.layer)
@@ -2101,6 +2133,216 @@ fn bake(
     }
 }
 
+// ─────────────────────────── GPU smart filters (B5-15) ───────────────────────────
+//
+// Perf audit P19. The most common smart filter, Gaussian Blur, is evaluated by
+// the resident renderer (compositor M5-23: `ResidentRenderer::filtered_buffer`
+// with `filters::CompositorFilters` as its `ResidentFilterEvaluator`) instead
+// of being baked on the CPU by the worker above. The presented document then
+// keeps the smart object, with its stack in engine form; the resident renderer
+// caches the child composite and every stack prefix by content hash, so a
+// drag of one filter re-runs that filter (and those above it) only, on the GPU,
+// and nothing crosses to the CPU.
+//
+// Taken only where the two routes agree within the operator contract
+// (docs/11 §1.3), so the CPU bake stays the fallback and the export path:
+//
+// * every enabled filter is `gaussian_blur` with sigma ≤ `GPU_MAX_RADIUS`
+//   (larger sigmas use the area-reduction path, whose grid follows the CPU
+//   route's evaluation blocks), Normal blending, no per-filter mask;
+// * the smart object sits at identity over a child canvas of the document's
+//   size, without a shared filter mask or layer styles, and its child is one
+//   opaque pixel layer (the CPU route blurs premultiplied colour, the engine
+//   route straight colour: they agree where alpha is 1);
+// * the session renders on the resident renderer and the document has no
+//   layer styles (styled documents composite on the CPU, which bakes).
+
+/// Largest Gaussian sigma (px) the GPU route takes.
+const GPU_MAX_RADIUS: f32 = 32.0;
+
+/// Installs the filters crate as the resident renderer's smart-filter
+/// evaluator (GPU stages and the CPU fallback of unsupported stages).
+pub(crate) fn install_resident(resident: &mut compositor::resident::ResidentRenderer) {
+    if let Err(e) = resident.set_filter_evaluator(Arc::new(filters::CompositorFilters)) {
+        eprintln!("document: resident smart filters unavailable: {e}");
+    }
+}
+
+/// `nodes` in engine form when the GPU route applies to them.
+fn gpu_filters(nodes: &[Node]) -> Option<Vec<SmartFilter>> {
+    let enabled: Vec<&Node> = nodes.iter().filter(|n| n.enabled).collect();
+    if enabled.is_empty() {
+        return None;
+    }
+    enabled
+        .into_iter()
+        .map(|n| {
+            if n.spec.id != "gaussian_blur"
+                || n.mask_png.is_some()
+                || n.blend != BlendMode::Normal
+                || !(0.0..=1.0).contains(&n.opacity)
+            {
+                return None;
+            }
+            let (effect, p) = n.spec.at(0).ok()?;
+            if !matches!(effect, Effect::Gaussian)
+                || p.amount != 1.0
+                || !(p.radius > 0.0 && p.radius <= GPU_MAX_RADIUS)
+            {
+                return None;
+            }
+            Some(SmartFilter {
+                name: "gaussian_blur".into(),
+                enabled: true,
+                blend: compositor::render::smart_filters::FilterBlend {
+                    mode: BlendMode::Normal,
+                    opacity: n.opacity,
+                },
+                params: serde_json::json!({ "radius": p.radius }),
+            })
+        })
+        .collect()
+}
+
+/// Every alpha sample of `r` is 1 (straight RGBA, all tiles present).
+fn raster_opaque(r: &Raster) -> bool {
+    if r.channels() != 4 {
+        return false;
+    }
+    let (cols, rows) = r.grid();
+    let coords: Vec<(u32, u32)> = (0..rows)
+        .flat_map(|y| (0..cols).map(move |x| (x, y)))
+        .collect();
+    let next = std::sync::atomic::AtomicUsize::new(0);
+    let transparent = AtomicBool::new(false);
+    std::thread::scope(|s| {
+        for _ in 0..threads().min(coords.len()) {
+            s.spawn(|| {
+                while !transparent.load(Ordering::Relaxed) {
+                    let i = next.fetch_add(1, Ordering::Relaxed);
+                    let Some(&(tx, ty)) = coords.get(i) else { break };
+                    let opaque = match r.tile(tx, ty) {
+                        None => r.default_value() >= 1.0,
+                        Some(t) => {
+                            let l = t.layout();
+                            let (w, h, stride, n) = (
+                                l.extent.width as usize,
+                                l.extent.height as usize,
+                                l.stride(),
+                                l.plane_len(),
+                            );
+                            let rows = |f: &dyn Fn(usize) -> bool| {
+                                (0..h).all(|y| (0..w).all(|x| f(3 * n + y * stride + x)))
+                            };
+                            if let Ok(v) = t.samples::<u8>() {
+                                rows(&|i| v[i] == u8::MAX)
+                            } else if let Ok(v) = t.samples::<u16>() {
+                                rows(&|i| v[i] == u16::MAX)
+                            } else if let Ok(v) = t.samples::<f32>() {
+                                rows(&|i| v[i] >= 1.0)
+                            } else {
+                                false
+                            }
+                        }
+                    };
+                    if !opaque {
+                        transparent.store(true, Ordering::Relaxed);
+                    }
+                }
+            });
+        }
+    });
+    !transparent.load(Ordering::Relaxed)
+}
+
+/// The child of `so` composites to an opaque canvas: one plain, visible,
+/// full-opacity pixel layer whose every pixel is opaque (cached per child
+/// layer and revision).
+fn child_opaque(fs: &FilterState, so: &SmartObject) -> bool {
+    let [child] = so.state.root.as_slice() else {
+        return false;
+    };
+    let p = &child.props;
+    let LayerKind::Pixel(raster) = &child.kind else {
+        return false;
+    };
+    if !p.visible
+        || p.opacity < 1.0
+        || p.fill_opacity < 1.0
+        || p.blend_mode != BlendMode::Normal
+        || p.clipped
+        || child.mask.is_some()
+        || !p.styles.effects.is_empty()
+        || raster.extent() != so.state.canvas
+    {
+        return false;
+    }
+    let rev = super::layer_revision(child);
+    let mut cache = fs.opaque.lock().unwrap_or_else(|e| e.into_inner());
+    cache.retain(|(w, _, _)| w.strong_count() > 0);
+    if let Some((_, _, o)) = cache
+        .iter()
+        .find(|(w, r, _)| *r == rev && w.upgrade().is_some_and(|c| Arc::ptr_eq(&c, child)))
+    {
+        return *o;
+    }
+    drop(cache);
+    let opaque = raster_opaque(raster);
+    let mut cache = fs.opaque.lock().unwrap_or_else(|e| e.into_inner());
+    if cache.len() >= 32 {
+        cache.remove(0);
+    }
+    cache.push((Arc::downgrade(child), rev, opaque));
+    opaque
+}
+
+/// `layer` (a smart object of a document with `canvas`) with `nodes` in
+/// engine form, when the GPU route applies; `None` keeps the CPU bake.
+fn gpu_layer(
+    fs: &FilterState,
+    state: &DocState,
+    layer: &Layer,
+    nodes: &[Node],
+) -> Option<Layer> {
+    if !fs.gpu.load(Ordering::Relaxed) || state.has_layer_styles() {
+        return None;
+    }
+    let LayerKind::SmartObject(so) = &layer.kind else {
+        return None;
+    };
+    if so.transform != Affine::IDENTITY
+        || so.state.canvas != state.canvas
+        || so.filter_mask.is_some()
+        || so.state.has_layer_styles()
+    {
+        return None;
+    }
+    let filters = gpu_filters(nodes)?;
+    if !child_opaque(fs, so) {
+        return None;
+    }
+    let mut l = layer.clone();
+    if let LayerKind::SmartObject(so) = &mut l.kind {
+        so.filters = filters;
+    }
+    Some(l)
+}
+
+impl FilterState {
+    /// B5-15: enables the GPU route (the session renders on the resident
+    /// renderer, which has the filters installed); tests switch it off to
+    /// compare with the CPU bake.
+    pub(crate) fn set_gpu(&self, on: bool) {
+        self.gpu.store(on, Ordering::Relaxed);
+        self.q.lock().presented = None;
+    }
+}
+
+/// B5-15: whether `for_output` has smart filters to bake.
+pub(crate) fn has_filtered_smart_objects(state: &DocState) -> bool {
+    !filtered_smart_objects(state).is_empty()
+}
+
 /// Smart objects with at least one enabled smart filter, anywhere in the tree.
 fn filtered_smart_objects(state: &DocState) -> Vec<&Layer> {
     fn go<'a>(v: &'a [Arc<Layer>], out: &mut Vec<&'a Layer>) {
@@ -2207,6 +2449,21 @@ pub(crate) fn presented(
     let mut spawn = false;
     for l in &sos {
         let id = l.id.0;
+        // B5-15 (P19): the resident renderer evaluates the stack on the GPU.
+        if let LayerKind::SmartObject(so) = &l.kind
+            && let Ok(nodes) = nodes_of(so)
+            && let Some(nl) = gpu_layer(fs, state, l, &nodes)
+        {
+            i.bakes.remove(&id);
+            i.bake_jobs.remove(&id);
+            key.push_str(&format!(
+                "{id}:g:{:p}:{};",
+                Arc::as_ptr(&so_arc(l)),
+                bake_key(l)
+            ));
+            subs.push((id, nl));
+            continue;
+        }
         let bk = bake_key(l);
         let wanted_region = (level == 0).then(|| fine_region(view.to_level0(level), state.canvas));
         let entry = i.bakes.get(&id);
@@ -2285,6 +2542,13 @@ pub(crate) fn presented(
                     key.push_str(&format!("p{generation}:{:p}", Arc::as_ptr(so)));
                 }
             }
+            PreviewShown::Stack(id, nl) => {
+                if state.find(LayerId(*id)).is_some() {
+                    subs.retain(|(s, _)| s != id);
+                    subs.push((*id, (**nl).clone()));
+                    key.push_str(&format!("s{generation}"));
+                }
+            }
             PreviewShown::ClippedAdjustment(id, adj) => {
                 if state.find(LayerId(*id)).is_some() {
                     let mut l = Layer::new("preview", LayerKind::Adjustment(adj.clone()));
@@ -2351,6 +2615,16 @@ fn so_arc(l: &Layer) -> Arc<DocState> {
 
 /// `doc` with every smart filter baked at full resolution (export, flatten).
 pub(crate) fn for_output(doc: Document) -> Result<Document> {
+    for_output_with(doc, &AtomicBool::new(false), &|_| {})
+}
+
+/// B5-15 (P16): [`for_output`] that stops when `cancel` is set and reports
+/// the fraction of smart objects baked.
+pub(crate) fn for_output_with(
+    doc: Document,
+    cancel: &AtomicBool,
+    progress: &dyn Fn(f32),
+) -> Result<Document> {
     let state = doc.state().clone();
     let sos = filtered_smart_objects(&state);
     if sos.is_empty() {
@@ -2361,9 +2635,13 @@ pub(crate) fn for_output(doc: Document) -> Result<Document> {
         m: Mutex::new(Inner::default()),
         cv: Condvar::new(),
     };
-    let cancel = AtomicBool::new(false);
+    let total = sos.len();
     let mut subs = Vec::new();
-    for l in sos {
+    for (i, l) in sos.into_iter().enumerate() {
+        progress(i as f32 / total as f32);
+        if cancel.load(Ordering::Relaxed) {
+            return Err(failure("export cancelled"));
+        }
         let LayerKind::SmartObject(so) = &l.kind else {
             continue;
         };
@@ -2376,12 +2654,13 @@ pub(crate) fn for_output(doc: Document) -> Result<Document> {
             &nodes,
             0,
             Rect::of_extent(state.canvas),
-            &cancel,
+            cancel,
         )?;
         let mut nl = l.clone();
         nl.kind = LayerKind::Pixel(upsampled(&img, 0, state.canvas, state.depth, None)?);
         subs.push((l.id.0, nl));
     }
+    progress(1.0);
     let mut s = substitute(&state, &subs, None);
     s.rev = state.rev;
     Ok(Document::new(s))
@@ -2429,7 +2708,7 @@ impl DocumentSession {
     }
 
     fn submit_preview(&self, layer: u64, edit: StackEdit, region: Option<DocRect>) -> Result<()> {
-        let (base, level, region) = {
+        let (base, level, region, nodes) = {
             let st = self.shared.lock()?;
             st.open()?;
             let s = st.live().state().clone();
@@ -2440,9 +2719,27 @@ impl DocumentSession {
             } else {
                 preview_view(&st, region)
             };
-            (s, level, r)
+            (s, level, r, nodes)
         };
         let fs = &self.shared.filters;
+        // B5-15 (P19): shown by the resident renderer, on the render thread's
+        // next frame (no worker job, no CPU pixels).
+        if let Some(nl) = gpu_layer(fs, &base, find(&base, layer)?, &nodes) {
+            {
+                let mut i = fs.q.lock();
+                i.generation += 1;
+                i.preview_job = None;
+                if let Some(c) = &i.running {
+                    c.store(true, Ordering::Relaxed);
+                }
+                let g = i.generation;
+                i.preview = Some((g, PreviewShown::Stack(layer, Arc::new(nl))));
+                i.last_error = None;
+            }
+            let epoch = self.shared.lock()?.epoch;
+            self.shared.render.request(Vec::new(), false, epoch);
+            return Ok(());
+        }
         {
             let mut i = fs.q.lock();
             i.generation += 1;
@@ -3230,6 +3527,35 @@ fn max_id(l: &Layer) -> u64 {
 
 /// Test and bench support (not exported over UniFFI).
 impl DocumentSession {
+    /// B5-15: `false` bakes every smart filter on the CPU (the route before
+    /// P19), `true` restores the GPU route where it applies.
+    #[doc(hidden)]
+    pub fn set_gpu_smart_filters(&self, enabled: bool) {
+        self.shared
+            .filters
+            .set_gpu(enabled && self.shared.render.backend_name() != "CPU");
+        if let Ok(st) = self.shared.lock() {
+            self.shared.render.request(Vec::new(), false, st.epoch);
+        }
+    }
+
+    /// B5-15: `(GPU stages, CPU fallbacks, stage cache bytes)` of the
+    /// resident renderer's smart-filter runtime and the CPU bakes and
+    /// previews the filter worker ran; `None` without Metal.
+    #[doc(hidden)]
+    pub fn smart_filter_trace(&self) -> Option<SmartFilterTrace> {
+        let (gpu_stages, cpu_fallbacks, stage_cache_bytes) =
+            self.shared.render.smart_filter_stats()?;
+        let i = self.shared.filters.q.lock();
+        Some(SmartFilterTrace {
+            gpu_stages,
+            cpu_fallbacks,
+            stage_cache_bytes,
+            cpu_bakes: i.cpu_bakes,
+            cpu_previews: i.cpu_previews,
+        })
+    }
+
     /// Blocks until previews and smart filter bakes are done.
     #[doc(hidden)]
     pub fn wait_filters_idle(&self) {

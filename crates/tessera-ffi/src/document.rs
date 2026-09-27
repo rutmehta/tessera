@@ -70,7 +70,7 @@ pub use text::{
 mod fonts;
 pub use filtering::{
     DistractionRemovalResult, FilterDetail, FilterInfo, RasterFilterOperation, RasterFilterRequest,
-    SmartFilterEdit, SmartFilterRecord, list_filters,
+    SmartFilterEdit, SmartFilterRecord, SmartFilterTrace, list_filters,
 };
 // Remove tool, Content-Aware Fill and neural filters for the app (WP B5-09).
 #[path = "document/retouch.rs"]
@@ -1062,6 +1062,11 @@ impl DocumentSession {
             saving: Mutex::new(()), // B5-14
             copies: Default::default(),
         });
+        // B5-15 (P19): Gaussian Blur smart filters on the GPU where it applies.
+        shared.filters.set_gpu(
+            shared.render.backend_name() != "CPU"
+                && std::env::var_os("TESSERA_DOC_CPU_SMART_FILTERS").is_none(),
+        );
         let worker = {
             let shared = shared.clone();
             std::thread::Builder::new()
@@ -2147,6 +2152,7 @@ impl DocumentSession {
     /// transparency (8-bit for 8-bit documents, else 16-bit), JPEG is
     /// flattened over white; `quality` is JPEG 1–100. Colours are converted
     /// from the document profile to `color` and the profile is embedded.
+    /// Blocks until the file is written: hosts use [`Self::begin_export_flat`].
     pub fn export_flat(
         &self,
         path: String,
@@ -2154,13 +2160,37 @@ impl DocumentSession {
         quality: u8,
         color: ExportColor,
     ) -> Result<()> {
-        let doc = {
+        self.begin_export_flat(path, format, quality, color)?
+            .run(None)
+    }
+
+    /// B5-15 (P16): Export Flat in two steps. This call only validates the
+    /// settings and takes an immutable snapshot of what the document shows
+    /// (no pixel copy); [`DocFlatExport::run`] renders and writes it on the
+    /// caller's (background) thread with progress, and
+    /// [`DocFlatExport::cancel`] stops it without touching the destination.
+    /// Edits, frames, closing the document and other exports go on meanwhile.
+    pub fn begin_export_flat(
+        &self,
+        path: String,
+        format: ExportFormat,
+        quality: u8,
+        color: ExportColor,
+    ) -> Result<Arc<DocFlatExport>> {
+        io::export_flat_check(format, quality)?;
+        let state = {
             let st = self.shared.lock()?;
             st.open()?;
-            st.live().clone()
+            st.live().state().clone()
         };
-        let doc = filtering::for_output(doc)?;
-        io::export_flat(&doc, std::path::Path::new(&path), format, quality, color)
+        Ok(Arc::new(DocFlatExport {
+            state: Mutex::new(Some(state)),
+            path: PathBuf::from(path),
+            format,
+            quality,
+            color,
+            cancel: std::sync::atomic::AtomicBool::new(false),
+        }))
     }
 
     /// Stops rendering, releases the surfaces and forgets the session.
@@ -2172,6 +2202,89 @@ impl DocumentSession {
         self.shutdown();
     }
 }
+
+// B5-15 (P16) begin
+/// Progress of a [`DocFlatExport`], called on the exporting thread.
+#[uniffi::export(with_foreign)]
+pub trait DocExportListener: Send + Sync {
+    /// `fraction` 0…1 (monotonic) and the phase (`Baking smart filters`,
+    /// `Compositing`, `Converting colour`, `Encoding`, `Writing`, `Done`).
+    fn on_progress(&self, fraction: f32, phase: String);
+}
+
+/// One Export Flat of a document snapshot ([`DocumentSession::begin_export_flat`]).
+/// Holds the snapshot, not the session: closing the document does not stop it.
+#[derive(uniffi::Object)]
+pub struct DocFlatExport {
+    /// Taken by the first `run`.
+    state: Mutex<Option<Arc<DocState>>>,
+    path: PathBuf,
+    format: ExportFormat,
+    quality: u8,
+    color: ExportColor,
+    cancel: std::sync::atomic::AtomicBool,
+}
+
+#[uniffi::export]
+impl DocFlatExport {
+    /// Bakes smart filters, composites level 0, converts, encodes and writes
+    /// the file (atomically: a temporary file in the destination folder
+    /// renamed into place). Blocks; call it off the main thread, once.
+    /// Fails with "export cancelled" after [`Self::cancel`], leaving any
+    /// existing file at the destination untouched.
+    pub fn run(&self, listener: Option<Arc<dyn DocExportListener>>) -> Result<()> {
+        let state = self
+            .state
+            .lock()
+            .map_err(failure)?
+            .take()
+            .ok_or_else(|| failure("this export already ran"))?;
+        // Callbacks at most every 1 % or on a phase change.
+        let last = Mutex::new((-1.0f32, String::new()));
+        let progress = |f: f32, phase: &str| {
+            let Some(l) = &listener else { return };
+            let mut g = last.lock().unwrap_or_else(|e| e.into_inner());
+            if f < g.0 + 0.01 && g.1 == phase && f < 1.0 {
+                return;
+            }
+            let f = f.max(g.0).clamp(0.0, 1.0);
+            *g = (f, phase.to_owned());
+            drop(g);
+            l.on_progress(f, phase.to_owned());
+        };
+        let ctl = io::ExportCtl {
+            cancel: &self.cancel,
+            progress: &progress,
+        };
+        let baked = filtering::has_filtered_smart_objects(&state);
+        let doc = Document::new((*state).clone());
+        drop(state);
+        let bake_span = if baked { 0.3 } else { 0.0 };
+        let doc = filtering::for_output_with(doc, &self.cancel, &|f| {
+            progress(f * bake_span, "Baking smart filters")
+        })?;
+        io::export_flat(
+            &doc,
+            &self.path,
+            self.format,
+            self.quality,
+            self.color,
+            &ctl,
+            (bake_span, 1.0),
+        )
+    }
+
+    /// Stops the export at its next checkpoint (each 256² tile, each phase).
+    pub fn cancel(&self) {
+        self.cancel
+            .store(true, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    pub fn is_cancelled(&self) -> bool {
+        self.cancel.load(std::sync::atomic::Ordering::Relaxed)
+    }
+}
+// B5-15 end
 
 impl DocumentSession {
     fn save_as_with_mode(
