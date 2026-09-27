@@ -38,6 +38,17 @@ Machine A as sole main integrator. Do useful work while other tasks wait.
 
 ## Ready / next
 
+**Priority blocker: rendered export reimport.** One SonyRAW basic edit/save/reopen/
+fullsizeJPEG export and display passed, but source audit found baked JPEG keeps
+source CRS in embedded/adjacent XMP, then RGB Develop applies it again. Do not
+recommend editing exportedJPEGs in preview until fixed. Evidence is under
+editing-readiness-20260927; result2d807810 corrects B readiness, SSHqueue01a0e520
+accepted, peer receipt pending. Resource Sol now owns compiler for tiny exporter
+RED/GREEN. Engine Sol nativegate first compilefailed missing two legacy typederror
+conversions (no tests); sourcefixallowed, buildsheld until exporterfix. Luna GUI
+closed, heavy slot released. Initial RAW resource samples are observations only.
+
+
 1. **Luna — exclusive desktop/heavy slot:** exact16cb6ce5/currentFFI99ba preview
    passed tiny JPEG open/exposure+0.10/WB7007K/save-reopen/export-reopen. Evidence
    4cd53973 merged main87cce4c0; root verified persisted values and exported image.
