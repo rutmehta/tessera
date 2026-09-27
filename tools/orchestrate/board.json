@@ -1251,7 +1251,7 @@
     "id": "M5-32",
     "owner": "astra",
     "title": "Compositor/retouch follow-ups from Machine B",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
@@ -1267,15 +1267,15 @@
     "id": "M2-45c",
     "owner": "astra",
     "title": "Export part 3: metadata policy, DNG modes, HDR",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
-    "notes": ""
+    "notes": "merged partial: original+XMP mode; metadata policy, DNG 1.6/embed, HDR remain (follow-up)"
   },
   {
     "id": "M5-34",
     "owner": "astra",
     "title": "Interactive text/shape editing under 16 ms per keystroke",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
@@ -1283,23 +1283,23 @@
     "id": "M2-53",
     "owner": "astra",
     "title": "Perf: Performance foundations: timing spans, build provenance, no shader compile at launch",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
-    "notes": ""
+    "notes": "merged partial: provenance, lazy loupe, timing spans; causal input-to-present needs FFI (follow-up)"
   },
   {
     "id": "M2-54",
     "owner": "astra",
     "title": "Perf: Library responsiveness: nothing blocking on the main thread",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
-    "notes": ""
+    "notes": "merged partial: 20k install 0.45 ms, Select All 0.08 ms; face-strip SQL on focus remains (follow-up)"
   },
   {
     "id": "M2-55",
     "owner": "astra",
     "title": "Perf: Preview cache: hits do no decode, writes do no directory scans",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
@@ -1331,7 +1331,7 @@
     "id": "M2-56",
     "owner": "opus",
     "title": "Layout foundations: shell budget, safe area, shared width contracts",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
