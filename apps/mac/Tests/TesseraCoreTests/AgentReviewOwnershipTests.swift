@@ -618,6 +618,23 @@ final class AgentReviewOwnershipTests: XCTestCase {
         XCTAssertNil(try reopened.engine.agentProvenance(imageId: target.imageID))
     }
 
+    func testResumeSaveFailureKeepsInMemoryQueueAndExposesWarningState() async throws {
+        let f = try fixture(useModelAgent: true)
+        let folder = try XCTUnwrap(f.a.folder)
+        let store = ReviewResumeStore(directory: f.support)
+        let file = store.fileURL(for: folder)
+        try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let future = Data(#"{"schemaVersion":999,"keep":"untouched"}"#.utf8)
+        try future.write(to: file)
+
+        f.agent.start(itemIDs: [0], provider: .scripted)
+        try await settle { !f.agent.isRunning }
+
+        XCTAssertFalse(f.agent.queue.isEmpty, "a persistence error must not discard current in-memory results")
+        XCTAssertTrue(f.agent.resumeMessage?.contains("newer format") == true)
+        XCTAssertEqual(try Data(contentsOf: file), future, "unknown future history stays untouched")
+    }
+
     func testCursorUpdateDuringRedoIsMergedIntoCompletionRevision() async throws {
         let f = try fixture(photosPerFolder: 2, useModelAgent: true)
         f.agent.start(itemIDs: [0, 1], provider: .scripted)

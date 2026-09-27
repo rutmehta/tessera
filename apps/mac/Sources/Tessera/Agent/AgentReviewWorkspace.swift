@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 import TesseraCore
 
-/// Navigable, session-local review. All mutations go through the captured-owner controller API.
+/// Navigable review. All mutations go through the captured-owner controller API.
 struct AgentReviewWorkspace: View {
     @Bindable var model: AppModel
 
@@ -22,6 +22,15 @@ struct AgentReviewWorkspace: View {
                     Text(model.agent.queue.summary)
                         .font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
                         .padding(Theme.Space.m).fixedSize(horizontal: false, vertical: true)
+                    if let warning = model.agent.resumeMessage {
+                        Label(warning, systemImage: "exclamationmark.triangle.fill")
+                            .font(Theme.Fonts.caption)
+                            .foregroundStyle(Theme.reject)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.horizontal, Theme.Space.m)
+                            .padding(.bottom, Theme.Space.m)
+                            .accessibilityIdentifier("review-persistence-warning")
+                    }
                     Hairline()
                     ScrollView {
                         LazyVStack(spacing: Theme.Space.xxs) {
