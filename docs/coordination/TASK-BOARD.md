@@ -1,6 +1,6 @@
 # Tessera task board — Machine A coordinator
 
-Updated: 2026-09-27 21:03 UTC
+Updated: 2026-09-27 21:11 UTC
 
 User mandate: autonomously advance UI/UX redesign **and** the recovered engine
 queue, using parallel GPT-6 Astra/Luna agents; coordinate Machine B and keep
@@ -37,7 +37,7 @@ Machine A as sole main integrator. Do useful work while other tasks wait.
 
 ## Ready / next
 
-A compiler slot: Sol compositor bridge RED/implementation; Luna explicit popover dismissal focused14/0 passed and owns GUI retest. Resource final checks8focused/60library (Metal exercised,1ignored benchmark)/48integration/strict pass. Root merged/pushed RES01 atd2ac1226. No B builds or heartbeat restart.
+A compiler slot: Luna explicit Escape callback focused gate after native onExitCommand also failed GUI dismissal. Sol bridge REDs observed expected missing APIs, now source implementation. Resource RES03 RED waits; root B timer validation source frozen, unrun. Resource final checks8focused/60library (Metal exercised,1ignored benchmark)/48integration/strict pass. Root merged/pushed RES01 atd2ac1226. No B builds or heartbeat restart.
 
 Main fb7c604 now contains the verified export slice and Review ownership/save-order
 safety. Final combined source b82fe333 passed436XCTest cases (one existing skip),
@@ -104,6 +104,7 @@ B retains Document/frontend remediation. Main B5-16 integration stays held.
 | ID | Work | State / next action |
 | --- | --- | --- |
 | B5-16 | Tabbed Document inspector / persisted editors | Original six-pass/three-fail evidence retained; repaired Channels/Text pass. Transform interrupted under resource hold. No new B loads; main integration and interactive acceptance remain pending. |
+| RES-B-TIMERS | Two frontend overlay timer lifecycles | B source4797b2a received; A accepted result601e4825. Root reviewed slice and applied only four Swift source/test files to clean reused export-integration checkout, codex/document-timer-validation. Focused5 tests UNRUN; real visibility/occlusion delivery pending. No B workload. |
 | B5-15 | Export App Nap fix / performance | B published `aec242f`; export-only improvement does not clear main-thread maxima35.93/58.00ms vs8ms, AppKit layout exception, P19 or memory gates. B owns app fixes; A engine optimization only with explicit evidence/split. |
 | B5-12b | Transform acceptance | Interrupted for resource hold; not accepted. No rerun. |
 | B5-13 | Liquify / move / extend | B owns preserved work and current acceptance. |
