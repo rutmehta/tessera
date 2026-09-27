@@ -4,6 +4,23 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## Mask reuse integrated — 2026-09-27 21:41 UTC
+
+Main7d58ceff merges masked-pass reuse plus cancellation, byte-identical Rust/Cargo
+to420826ac. Combined predecessor passed48CPU/strict; final per-tile produced-byte
+counter fix passed15focused/strict. Behavioral RED compiled and failed0vs4096;
+exact final GREEN bytes restored after RED and hashes checked. Raw evidence logs
+and patches retain original whitespace; product diff-check passes. This is per-pass
+retained payload admission, not total memory/GPU protection or incident closure.
+
+A next engine lane: Sol prepares cancellable region API from reviewed plan4c6b3b72.
+Luna owns compiler for UX02b persistence. Resource Sol prepares separate blocked
+outline integration tests. B viewport63a06a2 has a weak-nil controller early-return
+cleanup blocker; request37c3461b queued01a0e4cf with source-only correction scope.
+B native preview/bake cancellation request1a0330c4 received accepted peer receipt;
+SSH queue01a0e4cc is confirmed delivery. B remains on source-only work/paused
+heartbeat. Timer merged and validated scope stays261a585f/1c5e16c1.
+
 ## Timer integrated; combined engine review — 2026-09-27 21:36 UTC
 
 Main261a585f integrates exact tested timer source079092e8 (B correction7a58b48).

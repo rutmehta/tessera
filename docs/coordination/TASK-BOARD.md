@@ -1,6 +1,6 @@
 # Tessera task board — Machine A coordinator
 
-Updated: 2026-09-27 21:36 UTC
+Updated: 2026-09-27 21:41 UTC
 
 User mandate: autonomously advance UI/UX redesign **and** the recovered engine
 queue, using parallel GPT-6 Astra/Luna agents; coordinate Machine B and keep
@@ -32,17 +32,17 @@ Machine A as sole main integrator. Do useful work while other tasks wait.
 | COM-01 | Establish usable authenticated Machine A ↔ B communication | A root + B coordinator | DONE verified SSH execution and existing-chat delivery via installed `codex queue`, peer reply, accepted/completed Git receipts. Exact B UUID01a0e323-c018-7fa3-9605-999a2dea6b32. B scheduled wakeup was verified at18:50:41Z (bd919fed); B has since paused its heartbeat for the resource audit. Preserve existing writers, use mailbox receipts and no duplicate enqueues. |
 | RES-01 | Repeated CPU smart-filter evaluation and pass retention | A root; main d2ac1226 | DONE bounded slice. Reviewed/tested e5bfbd5c merged with byte-identical crates/Cargo. 8focused,60library/1ignored (Metal exercised),48integration, strict pass. Full-mask work RES03, cancellation RES02 and global/GPU admission remain separate. B hold stays. |
 | RES-02 | Cancellation inside expensive transform kernels | A Sol implementation in codex/transform-cancellation; B retains Document/FFI integration | Primitive DONE main505c4c29:66tests/strict; caller compositor bridge DONE main0d627023:31CPU tests/strict. No end-to-end app cancellation claim. B source plan056daf87 reviewed next; no B run. |
-| RES-03 | Repeated full-image filter-mask blending | A resource Sol; B report0926ae38 accepted | RED9a50e5a0 preserved. Branch4f5f0f49 passed10focused+25regressions/strict. Combined55d1dea1 passed48CPU/strict; root found partial-cancellation produced-byte counter omission. Sol correcting and re-gating before merge; no acceptance from old green after edits. |
+| RES-03 | Repeated full-image filter-mask blending | A resource Sol; B report0926ae38 accepted | DONE bounded slice main7d58ceff, exact420826ac Rust/Cargo bytes. Combined predecessor48CPU/strict; final partial-counter fix15focused/strict and behavioralRED0vs4096. Per-pass masked admission/reuse; digest scans remain per lookup. Not a global memory cap. |
 | OPS-01 | Persistent autonomous coordinators | A root + B coordinator | A coordinator remains active. B paused its heartbeat and load tests following the user’s report of severe responsiveness/resource pressure; no B rebuild, benchmark, runner or heartbeat restart without B/user direction. B audits low-impact resource evidence. A local work stays separate. |
 
 ## Ready / next
 
-A compiler slot: Sol partial-mask cancellation accounting on codex/resource-integration.
-Luna implements reviewed UX02b latest-queue relaunch persistence, source/tests only until compiler release.
-Resource Sol reviews B outline2429de2 and viewport63a06a2 source, both UNRUN B.
+A compiler slot: Luna Review persistence RED/GREEN. Sol prepares cancellable CPU region API tests under reviewed plan4c6b3b72; no FFI edits.
+Luna implements reviewed UX02b latest-queue relaunch persistence; compiler granted after mask followup release.
+Resource Sol prepares blocked-outline integration tests on isolated B outline2429de2 candidate. Review found weak-controller-nil viewport teardown blocker; B source-only correction request37c3461b queued01a0e4cf, receipt pending.
 Timer correction7a58b48 integrated as main261a585f after19focused/0 and tiny GUI checks.
 GUI retained FFI19f predates Rust resource work; no combined-app performance claim.
-B cancellation plan request7e842a6c accepted receipt confirmed, plan056daf87 received.
+B cancellation plan056daf87 reviewed; native preview/bake source implementation request1a0330c4 peer accepted. Queue01a0e4cc verified via Git receipt. Region/frame/PSD handles remain separate.
 No B builds/tests/app launches or heartbeat restart.
 
 Main fb7c604 now contains the verified export slice and Review ownership/save-order
