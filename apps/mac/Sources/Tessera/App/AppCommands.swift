@@ -159,6 +159,7 @@ struct AppCommands: Commands {
                 .keyboardShortcut(.delete, modifiers: .command)
         }
         documentMenus
+        Group {   // M2-50: Library + Photo as one builder item (the builder takes at most 10)
         CommandMenu("Library") {
             Button("Edit in Layers") { docs.editInLayers(model.focusedItem) }
                 .shortcut(!docMode, "e", .command)
@@ -185,6 +186,10 @@ struct AppCommands: Commands {
             Button("Detect Text in Selection") { model.collections.understanding.detectText() }
                 .disabled(!model.collections.understanding.isAvailable)
         }
+        // M2-50 begin: Photo ▸ Photo Merge / Enhance
+        CommandMenu("Photo") { PhotoMenuItems(model: model) }
+        }
+        // M2-50 end
         CommandMenu("Develop") {
             Button("Auto Edit…") { model.agent.present() }
                 .keyboardShortcut("a", modifiers: [.command, .shift])

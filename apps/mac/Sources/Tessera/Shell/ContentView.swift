@@ -63,6 +63,7 @@ struct ContentView: View {
                 LightroomImportProgressBar(importer: model.lightroomImport)
                 ExportProgressBar(exporter: model.exporter)
                 PrintProgressBar(printing: model.printing)
+                PhotoJobProgressBar(jobs: model.photoJobs)   // M2-50
                 if model.viewMode == .document {
                     DocumentStatusBar(model: model, workspace: model.documents)
                 } else {
@@ -106,6 +107,7 @@ struct ContentView: View {
         .sheet(isPresented: $model.showPrint) {
             PrintSheet(printing: model.printing, model: model)
         }
+        .photoJobSheets(model)   // M2-50: Photo Merge / Enhance
         .sheet(isPresented: Binding(get: { model.collections.editor != nil },
                                     set: { if !$0 { model.collections.editor = nil } })) {
             SmartAlbumSheet(library: model.collections)
