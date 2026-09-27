@@ -1,6 +1,6 @@
 # Tessera task board — Machine A coordinator
 
-Updated: 2026-09-27 22:21 UTC
+Updated: 2026-09-27 22:32 UTC
 
 User mandate: autonomously advance UI/UX redesign **and** the recovered engine
 queue, using parallel GPT-6 Astra/Luna agents; coordinate Machine B and keep
@@ -40,8 +40,12 @@ Machine A as sole main integrator. Do useful work while other tasks wait.
 
 A compiler and desktop slot: Luna assembles current-source FFI/Swift with Review
 persistence, then runs the full Swift suite and disposable-library GUI relaunch.
-Review candidate includes `41438202`, warning fix/test `6e6a6c7c`, and final main;
-47 earlier focused tests passed before the warning addition. No final-app/GUI pass.
+Review candidate `edde5c4c` includes main78492f7f and warning fix6e6a6c7c.
+Current FFI built successfully as archive99ba9017 (bindings unchanged;19f preserved).
+First full Swift suite:493 tests,1 skip,4 assertions failed in one old same-path
+foreign-owner navigation test;5 Swift Testing passed. Luna separates intentional
+reopen recovery from genuine foreign/stale-target rejection and isolates remaining
+test app-support paths, then reruns full suite. No GUI/main Review acceptance.
 
 Frame/cache merged `78492f7f`, exact tested `544e8a13` Rust/Cargo:33 tests and
 strict passed. Initial dropped-record regression failure is preserved; repaired
@@ -87,7 +91,7 @@ notes. Existing-chat SSH queues and peer Git receipts remain distinct states.
 
 ## Machine B / integration dependencies
 
-Last peer note read: `755ac31e`. B's resource hold supersedes its older queue.
+Last peer note read: `8363c8ae`. B's resource hold supersedes its older queue.
 Channels and Text targeted reruns passed with actual exit0; Transform was stopped
 at rasterized PSD after986%CPU and7.0GiB footprint (7.5GiB peak). Host43GiBswap
 is not all Tessera. B heartbeat and runner remain held. A accepted hold7cf0f7e2
@@ -105,7 +109,7 @@ B retains Document/frontend remediation. Main B5-16 integration stays held.
 | RES-B-CANCEL | Native preview/bake caller cancellation | B source-only request1a0330c4 | DONE main1fb7e983; exact testedcd07b435/7971a771 Rust/Cargo.5 private plus12 mixed-backend integration tests passed,1 ignored benchmark; strict FFI Clippy passed. Receiptb69c56ca completed. Frame/readback/PSD handles and large-image latency remain separate. |
 | RES-B-FRAME | CPU frame request cancellation | B f518c03c; A engine Sol | Accepted resultb1b6b4dc. DONE main78492f7f after corrected544e8a13 passed33 combined tests/strict. Initial telemetry failure preserved; outcome accounting fixed and unchanged ring regression passes. Evidence8693b7b7. No GPU preemption or readback/PSD claim. |
 | RES-B-CACHE | Byte-bound FFI image cache retention | B source-only request04e1a883 | DONE main78492f7f; seven tiny cache cases included in corrected33-test/strict gate. Evidence8693b7b7, resultc65a3f7e completed. Named512MiB plus4entry cap, prefix-copy preflight. Not a process/GPU cap. |
-| RES-B-COPY | Cancellable rasterized PSD operation design | B request92b23b0f | Design8363c8a reviewed/completed74bb01e5. Operation/host source implementation authorized request547433be, queue01a0e4f1 transport accepted; peer pending. Running cancellation must hold admission until worker drains. A companion conversion plan a7762a05; no end-to-end cancellation or workload authorization. |
+| RES-B-COPY | Cancellable rasterized PSD operation design | B request92b23b0f | Design8363c8a reviewed/completed74bb01e5. Operation/host source implementation authorized request547433be, queue01a0e4f1 transport accepted and formal peer accepted receipt confirmed. Running cancellation must hold admission until worker drains. A companion conversion plan a7762a05; no end-to-end cancellation or workload authorization. |
 | B5-15 | Export App Nap fix / performance | B published `aec242f`; export-only improvement does not clear main-thread maxima35.93/58.00ms vs8ms, AppKit layout exception, P19 or memory gates. B owns app fixes; A engine optimization only with explicit evidence/split. |
 | B5-12b | Transform acceptance | Interrupted for resource hold; not accepted. No rerun. |
 | B5-13 | Liquify / move / extend | B owns preserved work and current acceptance. |

@@ -4,6 +4,26 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## Current-FFI application gate: navigation contract mismatch — 2026-09-27 22:32 UTC
+
+Candidate `edde5c4c` rebuilt current FFI successfully; archive SHA is
+`99ba90171889d8b4566377e9939a444f21a953f6cb51667ea791e59736eb628e`.
+Generated bindings/header/modulemap and frozen sources are unchanged. Historical
+archive19f is intact. Full Swift suite ran493 tests (one skip), with four failed
+assertions in one old test treating a new instance of the same folder as foreign;
+five Swift Testing tests passed. The approved resume contract deliberately creates
+a fresh owner for that same library. This is still a failed gate, not acceptance.
+
+Luna retains the original log/freeze, repairs tests to distinguish same-folder
+restore from genuinely foreign/stale targets, and isolates older Review test
+fixtures' Agent app-support writes before a full rerun. No GUI validation or
+Review main merge yet. Engine Sol prepares cancellable PSD conversion, with
+independent source review by resource Sol; neither starts a competing build.
+
+B's formal accepted receipt for operation request547433be is confirmed. B remains
+source-only and its workload/heartbeat hold stays active. Pure batch-draft RED
+candidatea988b710 is frozen/unrun while the application gate owns the compiler.
+
 ## Frame/cache integrated; current application gate active — 2026-09-27 22:21 UTC
 
 Main `78492f7f` integrates exact corrected `544e8a13` Rust/Cargo with evidence
