@@ -1262,5 +1262,13 @@
     "status": "merged",
     "attempts": 0,
     "notes": "machine B; wp/B5-07 merged with main c1f95e1; document/styles.rs + CPU style fallback in render.rs; 254 XCTest; styled frames slow/failing >=16 MP until M5-31"
+  },
+  {
+    "id": "B5-09b",
+    "owner": "opus",
+    "title": "Retouch model downloads, non-blocking cancel, CAF enablement",
+    "status": "pass",
+    "attempts": 0,
+    "notes": "machine B; wp/B5-09b merged with main 1cd02b3; 287 XCTest; real downloads (steps 334/335/337) left for Sol"
   }
 ]
