@@ -903,6 +903,7 @@ impl ResidentRenderer {
                                     state: doc.state(),
                                     key: doc.key(),
                                     pass: None,
+                                    cancel: None,
                                 },
                                 layer,
                                 coord,

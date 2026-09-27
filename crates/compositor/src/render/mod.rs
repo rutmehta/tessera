@@ -51,6 +51,7 @@ pub(crate) struct DocRef<'a> {
     pub state: &'a DocState,
     pub key: u64,
     pub pass: Option<&'a smart_filters::FilterPass>,
+    pub cancel: Option<&'a CancellationToken>,
 }
 
 #[derive(Default)]
@@ -430,17 +431,19 @@ impl Compositor {
             .transform
             .inverse()
             .ok_or_else(|| EngineError::invalid("transform", "singular"))?;
-        let filtered = self.filtered_source(so, doc.pass)?;
+        let filtered = self.filtered_source(so, doc.pass, doc.cancel)?;
         let child = filtered.as_ref().map_or(
             DocRef {
                 state: &so.state,
                 key: so.key,
                 pass: doc.pass,
+                cancel: doc.cancel,
             },
             |s| DocRef {
                 state: &s.state,
                 key: s.key,
                 pass: doc.pass,
+                cancel: doc.cancel,
             },
         );
         let ce0 = so.state.canvas;
@@ -605,7 +608,7 @@ impl Compositor {
         doc: &Document,
         coord: TileCoord,
     ) -> EngineResult<Tile> {
-        self.render_tile_premultiplied_in_pass(doc, coord, None)
+        self.render_tile_premultiplied_in_pass(doc, coord, None, None)
     }
 
     fn render_tile_premultiplied_in_pass<'a>(
@@ -613,18 +616,21 @@ impl Compositor {
         doc: &'a Document,
         coord: TileCoord,
         pass: Option<&'a smart_filters::FilterPass>,
+        cancel: Option<&'a CancellationToken>,
     ) -> EngineResult<Tile> {
+        smart_filters::check_render_cancel(cancel)?;
         let state = doc.state();
         let dref = DocRef {
             state,
             key: doc.key(),
             pass,
+            cancel,
         };
         if has_local_adjustments(state) {
             return self.composite_premult(dref, coord);
         }
         if live_damage::has_live(&state.root) {
-            return self.render_live_scene(doc, coord, pass);
+            return self.render_live_scene(doc, coord, pass, cancel);
         }
         if effects::has_styles(state) {
             return self.composite_premult(dref, coord);
@@ -738,7 +744,7 @@ impl Compositor {
         let pass = filtered.then(|| smart_filters::FilterPass::new(self.filter_pass_limits));
         let render = |c: &TileCoord| {
             cancel.check()?;
-            self.render_tile_premultiplied_in_pass(doc, *c, pass.as_ref())
+            self.render_tile_premultiplied_in_pass(doc, *c, pass.as_ref(), Some(cancel))
         };
         // Up to ~2MP of output: almost all tiles are completed cache hits after
         // a live edit, and geometry preparation is shared. Waking a worker for
@@ -765,18 +771,33 @@ impl Compositor {
 
     /// A whole level as interleaved straight RGBA (`width·height·4`).
     pub fn render_level_rgba(&self, doc: &Document, level: u8) -> EngineResult<(Extent, Vec<f32>)> {
+        self.render_level_rgba_with_cancel(doc, level, &CancellationToken::new())
+    }
+
+    /// A whole level as interleaved straight RGBA, using the caller's token
+    /// through tile rendering and final pixel assembly.
+    pub fn render_level_rgba_with_cancel(
+        &self,
+        doc: &Document,
+        level: u8,
+        cancel: &CancellationToken,
+    ) -> EngineResult<(Extent, Vec<f32>)> {
+        cancel.check()?;
         let e = doc.state().canvas.at_level(level);
-        let tiles = self.render_level_premultiplied(doc, level, &CancellationToken::new())?;
+        let tiles = self.render_level_premultiplied(doc, level, cancel)?;
+        cancel.check()?;
         // Fuse straight-alpha conversion and assembly. A warm viewport otherwise
         // allocates/copies a second entire frame just to interleave it immediately.
         let mut out = vec![0.; e.width as usize * e.height as usize * 4];
         for tile in &tiles {
+            cancel.check()?;
             let (ox, oy) = tile.coord().pixel_origin(TILE_SIZE);
             let layout = tile.layout();
             let s = tile.samples::<f32>()?;
             let n = layout.plane_len();
             let width = layout.extent.width as usize;
             for y in 0..layout.extent.height as usize {
+                cancel.check()?;
                 let start = y * layout.stride();
                 let r = &s[start..start + width];
                 let g = &s[n + start..n + start + width];
@@ -794,6 +815,7 @@ impl Compositor {
                 }
             }
         }
+        cancel.check()?;
         Ok((e, out))
     }
 

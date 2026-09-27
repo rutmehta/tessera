@@ -40,6 +40,7 @@ impl Compositor {
                 state: doc.state(),
                 key: doc.key(),
                 pass: None,
+                cancel: None,
             },
             coord,
         )?;

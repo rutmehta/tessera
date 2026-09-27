@@ -236,11 +236,13 @@ impl Compositor {
         doc: &Document,
         coord: TileCoord,
         pass: Option<&super::smart_filters::FilterPass>,
+        cancel: Option<&engine_api::jobs::CancellationToken>,
     ) -> EngineResult<Tile> {
         let dref = DocRef {
             state: doc.state(),
             key: doc.key(),
             pass,
+            cancel,
         };
         // Validate before level scaling or tile-origin arithmetic.
         let mut job = self.job(dref, coord)?;

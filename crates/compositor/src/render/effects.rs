@@ -37,11 +37,13 @@ impl Compositor {
         let (nx, ny) = e.tile_grid(TILE_SIZE);
         for y in 0..ny {
             for x in 0..nx {
+                super::smart_filters::check_render_cancel(doc.cancel)?;
                 let coord = TileCoord::new(0, x, y);
                 let tile = super::unpremultiply(&self.composite_premult(doc, coord)?)?;
                 raster.set_slot(x, y, Some(tile), doc.state.rev)?;
             }
         }
+        super::smart_filters::check_render_cancel(doc.cancel)?;
         Ok(raster)
     }
 
@@ -83,6 +85,7 @@ impl<'a> TileJob<'a> {
             state: &state,
             key: next_doc_key(),
             pass: self.doc.pass,
+            cancel: self.doc.cancel,
         })?;
         let planes = styles::render(&raster, &layer.props.styles, self.doc.state.global_light)?;
         let source = self.comp.effect_samples(&raster, self.coord)?;
