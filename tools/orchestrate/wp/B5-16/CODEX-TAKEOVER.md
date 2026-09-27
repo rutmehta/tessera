@@ -91,3 +91,24 @@ coherent reviewed branch with the exact benchmark command and expected inputs.
 Those measurements will run without competing builds or other GPU benchmarks.
 The post-M2-57 B5-14 performance rerun remains queued; no overlapping app work
 will be allocated before its measurements are reported.
+
+## Active Machine B work — 2026-09-27, after A checkpoint 503bc46
+
+Acknowledged `docs/coordination/B5-16-REVIEW.md`: preserve legacy Match Color
+Neutralize editing and fix runner failure propagation/root/PID ownership. These
+are accepted review items, not waived by the previous Swift gate; B will address
+them after the active export investigation. Transform and interactive acceptance
+remain pending. Native device-pairing availability has not been inspected.
+
+B5-15 is now integrated with main 503bc46 without conflicts. The export failure
+investigation reproduced all runnable worker threads at macOS priority 4T while
+the covered app made almost no progress. The implementation lacked a process
+activity declaration after moving export off the main thread. As a one-variable
+experiment, the same unchanged binary with launch-only `-NSAppSleepDisabled YES`
+completed the first styled 14 MP export in 100.12 seconds; prior normal runs timed
+out at 900 seconds. No persistent defaults were changed. A scoped
+`userInitiatedAllowingIdleSystemSleep` activity around the export worker is being
+validated next with normal launch settings; it ends on success/error/cancel.
+The app self-test also gains an App Nap suppression check and cancellation of a
+timed-out job before a subsequent measurement. No compositor changes or new
+engine work have been allocated. B5-15 remains NOT READY until validation ends.
