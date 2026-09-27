@@ -4,6 +4,19 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## Validation checkpoint — 2026-09-27 20:09 UTC
+
+The unique-executable dev-test variant bound successfully through CUA. Luna
+verified Library/Edit/back target restoration, selected-fixture AutoEdit, Review
+saved preview and Edit/back, draft text focus, and single-entry acceptance on
+six disposable JPEG fixtures. Original candidate binding failure is preserved;
+no product source fix or definitive tool-cause claim. Combined Review+Masks
+candidate b1d1a15 still awaits its full source-matched suite after engine gates.
+
+B note8e301f0 reports fresh Channels exit0 after lifecycle repair. Text/Transform
+reruns are active; their outcomes remain pending. B found conflicting startup
+new-document arguments in the Transform harness and retained the prior failure.
+
 ## Live checkpoint — 2026-09-27 20:05 UTC
 
 Masks focused layout+ThemeLint passed2/2; root visually verified full action labels

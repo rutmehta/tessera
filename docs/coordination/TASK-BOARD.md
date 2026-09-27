@@ -1,6 +1,6 @@
 # Tessera task board — Machine A coordinator
 
-Updated: 2026-09-27 20:05 UTC
+Updated: 2026-09-27 20:09 UTC
 
 User mandate: autonomously advance UI/UX redesign **and** the recovered engine
 queue, using parallel GPT-6 Astra/Luna agents; coordinate Machine B and keep
@@ -46,11 +46,12 @@ and its source digest matched the retained manifest. Root inspected real saved
 pixels at minimum width; 34 captures include ready states. Masks reproduced six real narrow-label failures plus one OCR punctuation mismatch.
 The two-row correction passed focused Masks+ThemeLint checks (2/2) and root visual
 inspection. Evidence checkpoint is being finalized; no main merge yet.
-Review integration candidate4188dd7 is prepared in the reused export-integration
+Review+Masks integration candidateb1d1a15 is prepared in the reused export-integration
 checkout, retaining main export source and ownership evidence; full gate pending. A Luna
 agent inspected the old baseline, then launched the isolated dev-test candidate.
-CUA could not bind its window (AppleEvent timeout); no hands-on candidate pass is
-claimed. Main thread sample is idle; package identity/routing investigation runs.
+Initial CUA binding failed; uniquely named executable variant bound successfully.
+Luna verified Library/Edit/back, selected-fixture AutoEdit, Review/Edit/back,
+draft text focus and single-entry acceptance. Full combined suite remains pending.
 The user authorizes multiple isolated builds on betterSSD and computer-use tests;
 keep catalogs separate and serialize UI control as well as heavy builds.
 
@@ -81,8 +82,8 @@ separate evidence; no threshold was weakened or failed sample replaced.
 
 ## Machine B / integration dependencies
 
-Last peer note read: `72d8756`; latest published A status acknowledged by B:
-`6e1e7b8` via mailbox bd919fed. B reports424XCTest/one skip/zero failures +5SwiftTesting, Xcode and package provenance passed. Runner reconciled: six packaged passes (Document/Tools/Filter/Retouch/Styles/Vector), three failures (Channels/Text timeout despite done0, Transform empty Puppet source). B fixes lifecycle and investigates Transform without waivers. No final acceptance inferred. A acknowledges B5-15 checkpoint `aec242f` and failed M5-31 timing.
+Last peer note read: `8e301f0`; latest published A status acknowledged by B:
+`6e1e7b8` via mailbox bd919fed. B reports424XCTest/one skip/zero failures +5SwiftTesting, Xcode and package provenance passed. Runner reconciled: six packaged passes (Document/Tools/Filter/Retouch/Styles/Vector), three failures (Channels/Text timeout despite done0, Transform empty Puppet source). Fresh Channels now passes with exit0; Text/Transform reruns remain active. B found competing new-document startup in Transform harness and retains original failure. No final acceptance inferred. A acknowledges B5-15 checkpoint `aec242f` and failed M5-31 timing.
 
 | ID | Work | State / next action |
 | --- | --- | --- |
