@@ -49,3 +49,24 @@ Confirmed red with `/tmp/tessera-keyword-override-red.rs` linked against the exi
 Prepared changes are confined to `crates/export/src/lib.rs`, `crates/export/src/native.rs`, and `crates/export/tests/native_metadata.rs`. Reconcile native source keywords before applying sidecar overrides; then retain native IPTC keywords only when present in final flat XMP. New sidecar keywords stay in XMP; this fix does not rewrite all native text encoding to add native duplicates. Tests explicitly expect original native values still present to retain their encoding/bytes.
 
 Chosen partial-property semantics follow the existing expanded-name contract: an explicit empty dc:subject clears flat XMP and native IPTC keywords, but absent lr:hierarchicalSubject retains source hierarchy; an explicit empty hierarchy remains empty while absent flat subject/native entries survive. Source-derived hierarchy is constructed before sidecar overrides, so it cannot recreate a cleared property afterward. Regression matrix has five cases across six formats and independent ExifTool native/XMP carrier readback, source-byte preservation, rights/contact preservation, and person removal disabled. Formatting and diff checks pass. Cargo tests and commit remain pending the parent-controlled build slot.
+
+### Validation progress after build slot grant
+
+Targeted command: `CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/M2-45d cargo test -p export --test native_metadata --test native_review_regressions --release`. First run failed because ExifTool reports an explicit empty Bag as JSON `""`; the reader now treats only that empty representation as zero values. All nonempty keyword lists are still compared exactly. Retry passed 12 native-metadata and 4 review-regression tests. Logs: `/tmp/tessera-keyword-export-tests.log`, `/tmp/tessera-keyword-export-tests-retry.log`.
+
+The broader command `CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/M2-45d cargo test -p export -p sidecar --release` then exposed `xmp_policies_and_privacy_read_back_in_every_export_format`: the sidecar-only AVIF/JXL reader could no longer find its existing XMP wrapper after an unnecessary merge with synthetic source context. Production was corrected to return the caller's sidecar directly when there is no embedded XMP or native keyword context. No existing assertion was weakened. Failure log remains `/tmp/tessera-keyword-export-suite.log`.
+
+The complete rerun passed **149 tests, 0 failures, 7 ignored**, including the existing wrapper test and the new 30-output keyword matrix. Log: `/tmp/tessera-keyword-export-suite-retry.log`. `cargo fmt --check` and `git diff --check` passed. Strict `cargo clippy -p export -p sidecar --all-targets -- -D warnings` is the final pending build check at this checkpoint.
+
+### Final narrow-fix outcome
+
+Committed as `69bcd3e` (`Fix explicit sidecar keyword overrides in native exports`) on `wp/M2-45d`. Only three export files changed; no host/FFI changes, source fixture downloads, gain-map changes, main merge, or push. Final tracked worktree is clean.
+
+Final validation all passed:
+
+- `CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/M2-45d cargo test -p export --test native_metadata --test native_review_regressions --release`: 16 passed, 0 failed (targeted retry before the sidecar-only compatibility fix; the final suite reran these).
+- `CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/M2-45d cargo test -p export -p sidecar --release`: **149 passed, 0 failed, 7 ignored** on final source.
+- `CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/M2-45d cargo clippy -p export -p sidecar --all-targets -- -D warnings`: exit 0, 20.39 seconds. Existing vendored LibRaw build-script warnings remain; no suppression added.
+- `cargo fmt --check` and `git diff --check`: exit 0 on final source before commit.
+
+Heavy-build slot released to parent immediately after the test/Clippy process exited. Full five-host/Swift WP gate was not rerun for this narrow internal export change and is not claimed. Gain-map interoperability and documented unsupported-container boundaries remain unresolved as above. Parent supplied two pinned upstream Apple gain-map control files separately under `/tmp/tessera-gainmap-reference-control`; this worker did not decode them or treat them as ISO proof.
