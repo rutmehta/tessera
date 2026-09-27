@@ -60,6 +60,8 @@ half.workspace = true
 filters = { path = "../filters" }
 # Editable text layers: layout for the Type tool's caret (WP B5-10).
 typography = { path = "../typography" }
+# Non-destructive warp / perspective / puppet / content-aware scale stages (WP B5-12).
+transform = { path = "../transform" }
 
 [dev-dependencies]
 import-lrcat = { path = "../import-lrcat", features = ["fixture"] }

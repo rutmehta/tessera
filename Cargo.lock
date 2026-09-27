@@ -5038,6 +5038,7 @@ dependencies = [
  "tether",
  "thiserror 2.0.21",
  "tiff 0.10.3",
+ "transform",
  "typography",
  "uniffi",
  "wgpu",
