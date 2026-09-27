@@ -1594,6 +1594,10 @@ final class AppModel {
 
     /// Opens the session for an indexed photo. Called by the loupe when it shows an image.
     func openDevelop(for item: PhotoItem) {
+        // The matching owner/photo's pending sessions were captured before the
+        // mutation began. Do not create a new stale session after that barrier.
+        if let owner = engineLibrary, let ref = item.engineImage,
+           agent.isMutating(imageID: ref.imageID, library: owner) { return }
         if develop?.itemID == item.id, developLibrary === engineLibrary {
             liveObservers.forEach { $0.developDidChange() }
             return

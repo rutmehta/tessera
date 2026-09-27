@@ -17,7 +17,7 @@ final class AgentReviewOwnershipTests: XCTestCase {
         let agent: AgentController
     }
 
-    private func fixture(photosPerFolder: Int = 1) throws -> Fixture {
+    private func fixture(photosPerFolder: Int = 1, useModelAgent: Bool = false) throws -> Fixture {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("review-owner-\(UUID().uuidString)")
         let support = root.appendingPathComponent("support")
         let folders = [root.appendingPathComponent("shoot-a"), root.appendingPathComponent("shoot-b")]
@@ -57,7 +57,8 @@ final class AgentReviewOwnershipTests: XCTestCase {
         XCTAssertNotEqual(a.imageIDs[0], b.imageIDs[0])
         let model = AppModel()
         model.install(a)
-        let agent = AgentController(arguments: ["--fake-planner"])
+        let agent = useModelAgent ? model.agent : AgentController(arguments: ["--fake-planner"])
+        agent.provider = .scripted
         agent.preferences = AIPreferences()
         agent.preferences.sceneConsistency = false
         agent.preferences.personConsistency = false
@@ -392,6 +393,108 @@ final class AgentReviewOwnershipTests: XCTestCase {
         try await settle { f.model.develop != nil }
         let controller = try XCTUnwrap(f.model.develop)
         XCTAssertEqual(controller.imageID, f.b.imageIDs[0])
+        f.model.closeDevelop()
+        await controller.close()
+    }
+
+    func testRunRejectsNewTargetDevelopOpenAndCompletionOpensFreshRecipe() async throws {
+        let f = try fixture(useModelAgent: true)
+        f.model.viewMode = .loupe
+        f.agent.start(itemIDs: [0], provider: .scripted)
+        XCTAssertTrue(f.agent.isRunning)
+        f.model.openDevelop(for: f.a.items[0])
+        XCTAssertNotEqual(f.model.developStatus, .loading, "A new session cannot open across an active agent write")
+        XCTAssertNil(f.model.develop)
+        try await settle { !f.agent.isRunning && f.model.develop != nil }
+        let controller = try XCTUnwrap(f.model.develop)
+        XCTAssertTrue(controller.history.canUndo, "Completion must reopen the agent's committed recipe")
+        XCTAssertNotNil(try f.a.engine.agentProvenance(imageId: f.a.imageIDs[0]))
+        f.model.closeDevelop()
+        await controller.close()
+    }
+
+    func testReviewMutationsRejectNewTargetDevelopOpenAndReleaseOnCompletion() async throws {
+        let f = try fixture(useModelAgent: true)
+        let entry = try await run(f)
+        let target = try XCTUnwrap(f.agent.queueTarget(entry))
+        f.model.viewMode = .loupe
+        f.agent.accept(target)
+        f.model.openDevelop(for: f.a.items[0])
+        XCTAssertNotEqual(f.model.developStatus, .loading)
+        XCTAssertNil(f.model.develop)
+        try await settle { f.agent.busy.isEmpty && f.model.develop != nil }
+        XCTAssertEqual(try f.a.engine.agentProvenance(imageId: entry.imageID)?.item.reviewStatus, "accepted")
+        f.agent.revert(target)
+        f.model.openDevelop(for: f.a.items[0])
+        XCTAssertNotEqual(f.model.developStatus, .loading)
+        XCTAssertNil(f.model.develop)
+        try await settle { f.agent.busy.isEmpty && f.model.develop != nil }
+        let controller = try XCTUnwrap(f.model.develop)
+        XCTAssertEqual(try controller.session.historyGroups().first { $0.groupId == entry.groupID }?.amount, 0,
+                       "Completion must reopen the recipe with the reverted group")
+        XCTAssertEqual(try f.a.engine.agentProvenance(imageId: entry.imageID)?.item.reviewStatus, "reverted")
+        f.model.closeDevelop()
+        await controller.close()
+    }
+
+    func testRunningOwnerDoesNotBlockAnotherLibraryDevelopOpen() async throws {
+        let f = try fixture(useModelAgent: true)
+        f.agent.start(itemIDs: [0], provider: .scripted)
+        f.model.install(f.b)
+        f.model.openDevelop(for: f.b.items[0])
+        XCTAssertEqual(f.model.developStatus, .loading)
+        try await settle { f.model.develop != nil && !f.agent.isRunning }
+        let controller = try XCTUnwrap(f.model.develop)
+        XCTAssertEqual(controller.imageID, f.b.imageIDs[0])
+        f.model.closeDevelop()
+        await controller.close()
+    }
+
+    func testReopenedOwnerAndFileAliasesCannotOpenAcrossCapturedMutation() async throws {
+        let f = try fixture(useModelAgent: true)
+        let folder = try XCTUnwrap(f.a.folder)
+        let root = folder.deletingLastPathComponent()
+        let support = root.appendingPathComponent("support")
+        let reopened = try EngineLibrary.scan(folder: folder, appSupport: support)
+        let symbolicFolder = root.appendingPathComponent("symbolic-shoot")
+        try FileManager.default.createSymbolicLink(at: symbolicFolder, withDestinationURL: folder)
+        let symbolic = try EngineLibrary.scan(folder: symbolicFolder, appSupport: support)
+        let hardFolder = root.appendingPathComponent("hard-linked-shoot")
+        try FileManager.default.createDirectory(at: hardFolder, withIntermediateDirectories: true)
+        try FileManager.default.linkItem(at: try XCTUnwrap(f.a.items[0].url),
+            to: hardFolder.appendingPathComponent("alias.jpg"))
+        let hardLinked = try EngineLibrary.scan(folder: hardFolder, appSupport: support)
+        f.agent.start(itemIDs: [0], provider: .scripted)
+        for other in [reopened, symbolic, hardLinked] {
+            let item = try XCTUnwrap(other.items.first)
+            let imageID = try XCTUnwrap(item.engineImage?.imageID)
+            f.model.install(other)
+            XCTAssertTrue(f.agent.isMutating(imageID: imageID, library: other))
+            f.model.openDevelop(for: item)
+            XCTAssertNotEqual(f.model.developStatus, .loading)
+            XCTAssertNil(f.model.develop)
+        }
+        try await settle { !f.agent.isRunning }
+        f.model.install(reopened)
+        XCTAssertFalse(f.agent.isMutating(imageID: reopened.imageIDs[0], library: reopened))
+        f.model.openDevelop(for: reopened.items[0])
+        try await settle { f.model.develop != nil }
+        let controller = try XCTUnwrap(f.model.develop)
+        XCTAssertTrue(controller.history.canUndo)
+        f.model.closeDevelop()
+        await controller.close()
+    }
+
+    func testCancelledRunReleasesMutationExclusion() async throws {
+        let f = try fixture(useModelAgent: true)
+        f.agent.start(itemIDs: [0], provider: .scripted)
+        XCTAssertTrue(f.agent.isMutating(imageID: f.a.imageIDs[0], library: f.a))
+        f.agent.cancel()
+        try await settle { !f.agent.isRunning }
+        XCTAssertFalse(f.agent.isMutating(imageID: f.a.imageIDs[0], library: f.a))
+        f.model.openDevelop(for: f.a.items[0])
+        try await settle { f.model.develop != nil }
+        let controller = try XCTUnwrap(f.model.develop)
         f.model.closeDevelop()
         await controller.close()
     }

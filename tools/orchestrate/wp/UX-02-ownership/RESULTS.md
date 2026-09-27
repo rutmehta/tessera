@@ -22,3 +22,12 @@ Existing warnings remain in untouched Document code/tests (Sendable captures, sw
 ## Limits
 
 This is an ownership/save-order prerequisite, not durable Review navigation or persistence. Owner matching deliberately uses the exact EngineLibrary instance: reopening a folder does not automatically reattach an older retained queue. Accept’s completion callback returns true only for an engine success whose owner/generation is still current; navigation integration can use that result without inferring success from a status string. Full-suite and interactive Review destination acceptance remain with the coordinator’s combined gate and UX-02a.
+
+
+## Follow-up checkpoint — mutation exclusion (validation pending)
+
+The prior focused GREEN above applies to `e886888` only. Subsequent source review found that a new Develop open could occur after the captured save barrier while an agent write was still running. This checkpoint adds observed mutation ownership to AgentController and a central initial guard in AppModel.openDevelop. The exclusion is installed before barrier capture and removed only after the engine operation returns, before the current photo is refreshed/reopened. Success, failure, cancellation and stale-owner exits release it.
+
+Queue actions still require exact owner identity. Session exclusion additionally recognizes a newly opened EngineLibrary or same-file alias: each registered mutation captures a canonical source/resource key (device/inode when available, canonical URL fallback). Availability queries cache source resolution only for the lifetime of active mutations, avoiding repeated filesystem work in SwiftUI rendering. This is within-process exclusion, not cross-process locking or compare-and-swap.
+
+Five additional real-engine regressions are prepared for run/accept/revert open refusal, fresh committed recipe reopening, unrelated-library allowance, same-folder/new-owner plus symbolic/hard-linked source aliases, and cancellation release (23 ownership tests total). They have **not compiled or run** at this checkpoint. `mutation-exclusion-pending-source.json` records source hashes; `git diff --check` passed. The coordinator will merge this checkpoint with the isolated INT45 candidate and its DNG contract correction, then run one combined full Swift gate. No independent follow-up build or GREEN claim is made here.

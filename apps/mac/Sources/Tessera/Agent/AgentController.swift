@@ -32,6 +32,18 @@ final class AgentController {
     private var queueOwner: EngineLibrary?
     private var queueGeneration = UUID()
     @ObservationIgnored private var runID: UUID?
+    private var runningLibrary: EngineLibrary?
+    private var runningImages: Set<String> = []
+    private var mutationOwners: [String: EngineLibrary] = [:]
+    private enum SourceKey: Hashable {
+        case resource(device: UInt64, inode: UInt64)
+        case path(URL)
+    }
+    private var runningSources: Set<SourceKey> = []
+    private var mutationSources: [String: SourceKey] = [:]
+    // Scoped to active mutations: SwiftUI availability queries reuse the first
+    // resolution, and later mutations do not inherit stale filesystem identities.
+    @ObservationIgnored private var sourceKeys: [URL: SourceKey] = [:]
     var showReview = false
     var reviewLibrary: EngineLibrary? { queueOwner }
     var reviewGeneration: UUID { queueGeneration }
@@ -72,6 +84,43 @@ final class AgentController {
     @ObservationIgnored private var cancelFlag: CancelFlag?
 
     var isRunning: Bool { progress != nil }
+
+    /// Session creation must not race an agent's recipe write. Other owners and
+    /// unrelated photos remain available while a captured run finishes offscreen.
+    func isMutating(imageID: String, library: EngineLibrary) -> Bool {
+        if (runningLibrary === library && runningImages.contains(imageID)) || mutationOwners[imageID] === library {
+            return true
+        }
+        guard !runningSources.isEmpty || !mutationSources.isEmpty,
+              let key = sourceKey(imageID: imageID, library: library) else { return false }
+        return runningSources.contains(key) || mutationSources.values.contains(key)
+    }
+
+    private func sourceKey(imageID: String, library: EngineLibrary) -> SourceKey? {
+        guard let item = library.itemOfImage[imageID], library.items.indices.contains(item),
+              let url = library.items[item].url else { return nil }
+        if let cached = sourceKeys[url] { return cached }
+        let canonical = url.standardizedFileURL.resolvingSymlinksInPath()
+        let attributes = try? FileManager.default.attributesOfItem(atPath: canonical.path)
+        let key: SourceKey
+        if let device = attributes?[.systemNumber] as? NSNumber,
+           let inode = attributes?[.systemFileNumber] as? NSNumber {
+            key = .resource(device: device.uint64Value, inode: inode.uint64Value)
+        } else { key = .path(canonical) }
+        sourceKeys[url] = key
+        return key
+    }
+
+    private func clearSourceKeysIfIdle() {
+        if runningImages.isEmpty && mutationOwners.isEmpty { sourceKeys.removeAll() }
+    }
+
+    private func finishMutation(_ imageID: String) {
+        mutationOwners.removeValue(forKey: imageID)
+        mutationSources.removeValue(forKey: imageID)
+        busy.remove(imageID)
+        clearSourceKeysIfIdle()
+    }
 
     init(arguments: [String] = ProcessInfo.processInfo.arguments) {
         store = AISettingsStore(directory: EngineLibrary.defaultSupportDirectory)
@@ -217,6 +266,9 @@ final class AgentController {
             Task { @MainActor in if self?.runID == job { self?.progress = p } }
         }
         let images = inputs.map(\.imageId)
+        runningLibrary = lib
+        runningImages = Set(images)
+        runningSources = Set(images.compactMap { sourceKey(imageID: $0, library: lib) })
         let closeBarrier = app.prepareForAgent(imageIDs: Set(images), library: lib)
         Task {
             // The captured owner can finish offscreen, but all of its prior
@@ -228,6 +280,10 @@ final class AgentController {
             self.progress = nil
             self.cancelFlag = nil
             self.runID = nil
+            self.runningLibrary = nil
+            self.runningImages.removeAll()
+            self.runningSources.removeAll()
+            self.clearSourceKeysIfIdle()
             switch result {
             case .success(let report): self.didFinish(report, library: lib, redo: instruction != nil)
             case .failure(let e):
@@ -282,19 +338,21 @@ final class AgentController {
               entry.error == nil, !isRunning, !busy.contains(entry.imageID) else { completion(false); return }
         let lib = target.library
         busy.insert(entry.imageID)
+        mutationOwners[entry.imageID] = lib
+        mutationSources[entry.imageID] = sourceKey(imageID: entry.imageID, library: lib)
         let imageID = entry.imageID
         let closeBarrier = app.prepareForAgent(imageIDs: [imageID], library: lib)
         Task {
             await closeBarrier.value
             guard self.currentItem(for: target) != nil else {
-                self.busy.remove(imageID)
+                self.finishMutation(imageID)
                 completion(false)
                 return
             }
             let result = await Task.detached(priority: .userInitiated) {
                 Result { try lib.engine.acceptAgentEdit(imageId: imageID, libraryFolder: folder.path) }
             }.value
-            self.busy.remove(imageID)
+            self.finishMutation(imageID)
             switch result {
             case .success(let r):
                 self.setStatus(.accepted, for: target)
@@ -318,13 +376,15 @@ final class AgentController {
               !isRunning, !busy.contains(entry.imageID) else { return }
         let lib = target.library
         busy.insert(entry.imageID)
+        mutationOwners[entry.imageID] = lib
+        mutationSources[entry.imageID] = sourceKey(imageID: entry.imageID, library: lib)
         let imageID = entry.imageID
         let closeBarrier = app.prepareForAgent(imageIDs: [imageID], library: lib)
         Task {
-            defer { self.busy.remove(imageID) }
             await closeBarrier.value
-            guard self.currentItem(for: target) != nil else { return }
+            guard self.currentItem(for: target) != nil else { self.finishMutation(imageID); return }
             let result = await Task.detached { Result { try lib.engine.revertAgentEdit(imageId: imageID, groupId: group) } }.value
+            self.finishMutation(imageID)
             switch result {
             case .success:
                 self.setStatus(.reverted, for: target)
