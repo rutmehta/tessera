@@ -28,11 +28,14 @@ ready Sony RAW check:1test passes, populated Develop/Masks controls, stable
 controller/target/history across tabs, no geometry/overlap finding. Root inspected
 Library dark/light, narrow Library/Mask, ready RAW Develop/Mask screenshots.
 Existing dense overlay hints and Masks Components wrapping remain UX-04 polish.
-Agent finalizing scoped commit; root alone integrates it.
+UX-01 sourcec417229 is now merged/pushed on main4925677. Root verified
+merged Sources/Tests byte-identical to the gated commit. UI agent advances UX02a
+navigation-only Review; ownership fix remains separately scoped. B should use
+this new shared AppModel/KeyRouter/Shell baseline when resolving integration.
 
-Review-ownership agent owns current heavy slot for four reproducing tests on
-codex/review-ownership. It will release before source-only fixes; root then gates
-the prepared export integration. Gain-map encoder core/host restoration is source
+Review-ownership RED reproduced all four hazards with6expected assertions, no
+setup failures. The agent now fixes source-only; root owns the heavy slot for
+export integration gate session25483. Gain-map encoder core/host restoration is source
 ready on codex/gainmap-restoration but fresh live-output tests are pending. Root
 independently reproduced retained-prototype and Skia ISO SDR/HDR pixel decoding;
 original4%center criterion and separate boundary discrepancy are preserved.

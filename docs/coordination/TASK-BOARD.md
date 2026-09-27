@@ -1,6 +1,6 @@
 # Tessera task board — Machine A coordinator
 
-Updated: 2026-09-27 17:53 UTC
+Updated: 2026-09-27 17:56 UTC
 
 User mandate: autonomously advance UI/UX redesign **and** the recovered engine
 queue, using parallel GPT-6 Astra/Luna agents; coordinate Machine B and keep
@@ -27,7 +27,7 @@ Machine A as sole main integrator. Do useful work while other tasks wait.
 
 | ID | Work | Owner / location | Next action and acceptance |
 | --- | --- | --- | --- |
-| UX-01 | Library / Photo Edit workspace and split inspector | A `develop_resume`; `codex/workspace-redesign` | Full Swift411+5 checkpoint, finaltargeted28/0,40offscreenlayouts,1readyRAW test pass. Root visually reviewed. Agent committing scoped slice; rootintegration next. Existing overlay density/Components wrapping trackedUX04. |
+| UX-01 | Library / Photo Edit workspace and split inspector | A root; main `4925677` | DONE first bounded workspace slice; sourcecommitc417229 merged/pushed. Full411+5 checkpoint, final28targeted/0,40layouts,1readyRAW passed; rootvisualreview accepted. Interactive/performance gates remain separate; existing overlay/wrapping polish goesUX04. |
 | ENG-31 | M5-31 source reuse and cold timing | A root; published wp/M5-31 `441da3e` | Local326pass/0fail/14ignored plus6fresh timing samples andstrictchecks pass. Await B repeat on exact candidate via mailbox4820486e-d71c-4fb1-a88f-6919f34d0eaa; prior B125.855125ms failure remains recorded. Main integration pending. |
 | COM-01 | Establish usable authenticated Machine A ↔ B communication | A `cross_machine_research` +root | Native UI inspection blocked; only local app host exposed. Bonjour MacBook SSH refused, B identity unverified. Mailbox integrated067261e,9tests pass; A heartbeat polls it. Handshake1c60b6fd-49d0-43e5-8f6d-81d0766f272f published on codex/coordination-a0c6479d; B receipt/heartbeat unconfirmed. Root polls/bootstrap; agent advancing EXP-45 while waiting. Avoid a second agent server owning active desktop chat. Implement durable deduped Git fallback where needed. No exposed unauthenticated listeners. |
 | OPS-01 | Persistent autonomous coordinator | Root; current chat | Heartbeat `tessera-machine-a-coordinator` ACTIVE every5minutes, created2026-09-27. Check running work before duplicate launches. Read/advance board; stay quiet unless meaningful outcome/blocker. Local execution requires awake host/app and available service limits. |
@@ -43,13 +43,14 @@ allowance warnings only); reproducible gated script is
 `/tmp/tessera-export-integration-gate.sh`, not yet executed.
 
 
-Latest validation checkpoint: UX-01 functional/visual checks completed as above;
-M5-31 candidate441da3e published with all local gates and six timing samples.
-Review-ownership RED tests now own the heavy slot (agent session16403); then root
-runs INT-45 gates while that agent fixes source. Gain-map source is prepared,
-awaiting its fresh output/host tests. No B receipt yet; local native chat discovery
-still exposes only A. The failed smart-child fixture log and source patches remain
-in M5-31's committed evidence directory, not silently discarded.
+Latest checkpoint: UX-01 merged/pushed main4925677. UI agent advances UX02a
+navigation while the ownership agent fixes four reproduced cross-library hazards.
+Ownership RED:4tests/6expected assertion failures, no setup/unexpected failures;
+old Accept trained the newly selected folder, old Revert changed the prior recipe,
+late Accept overwrote new-folder status, and old-run completion updated/presented
+foreign queue state. Root INT-45 build gate now owns heavy slot (session25483).
+Gain-map source is ready and waits for live-output/host validation. B mailbox
+still absent; A message head eed5afdb, benchmark repeat request4820486e published.
 Root prepared INT-45 in the managed worktree
 `/Users/rutmehta/.codex/worktrees/export-integration/tessera`, branch
 `codex/export-integration`: main d5366d7 plus a clean **uncommitted merge** of
@@ -71,7 +72,7 @@ a shipped feature.
 | DEV-58 | Complete remaining Develop performance acceptance | A; `wp/M2-58` `196005e` product `5ff2679` | P01 actual input-to-present and P11 detail settle<=200ms /drag p95 regression<=10% remain unverified. Read M2-58-PRESENTATION-PLAN.md: actual Loupe scanout requires a non-occluded surface and detail CALayer publication lacks a display-time oracle. Keep acceptance pending; do not substitute callbacks or transaction completion. Existing correctness/parity evidence preserved. |
 | EXP-45 | Gain-map JPEG reference interoperability and implementation | A `cross_machine_research`; `wp/M2-45d` `69bcd3e` | Establish independently valid ISO HDR reference and actual decoded pixel control before changing encoder; distinguish Apple gain-map fixtures from ISO. Finish only with required interoperable output evidence. |
 | INT-45 | Review/integrate validated DNG/PQ-HLG/native metadata slice | A root; `wp/M2-45d` | Current main merge-tree clean. Determine explicit partial-slice readiness, run resolved-tree gates; do not call absent gain-map complete. |
-| UX-02 | Durable review destination and explicit action scope | A; after UX-01 | Existing modal review queue/order safety must be retained. Implement navigable review with named target/count, reversible actions and keyboard-safe scope; avoid implying unbuilt persistence. |
+| UX-02 | Navigable Review and resume persistence | A `develop_resume` UX02a from main4925677; `b516_review` ownership prerequisite | Navigation-only implementation active; no relaunch persistence claim. Four ownership RED tests fail6expected assertions; source fix underway. APIs coordinated between agents. Resume-index phase follows captured-owner safety and navigation. |
 | UX-03 | Selective batch editing and source/target clarity | A; after UX-01/02 contract | Preserve source/target snapshots and settings selection; define undo/review semantics, verify no unseen batch action from a single-key shortcut. |
 | UX-04 | Visual/accessibility refinement | A+B agreed file split | Precision Graphite proposal: neutral evaluation surround, readable density, stable chrome, real light/dark and contrast/focus checks. Reuse recovered prototype; do not mistake mockups for app QA. |
 | UX-05 | True live-RAW/layer continuity | A engine+B document contract | Separate substantial dependency: current transition is rendered copy. Define graph/persistence/version contract and release scenario before making live-raw claims. |
