@@ -5,6 +5,30 @@ The layered document model and tiled compositor of spec 02 §1–2 and spec 04
 cache and revision invariants, and what the GPU paths match. Built against
 engine-api 1.2.0 (`CONTRACT_VERSION`), which this crate does not modify.
 
+## M5-35: smart-filter cache concurrency
+
+`Compositor::filtered_source` holds its cache mutex only for lookup and
+publication/eviction. Native source compositing, all filter/transform stages,
+blend validation, and the shared filter mask run outside that lock. A cold
+miss computes independently, then double-checks the key under the lock and
+reuses an already-published result. Errors never publish a partial stack.
+
+This deliberately permits duplicate deterministic cold computations rather
+than blocking Rayon workers on a per-key `OnceLock`/condition variable. A
+worker evaluating a stage may steal a tile that needs the same pending key;
+blocking that tile can deadlock the stage that would initialize it. Retained
+cache bytes remain budget-bounded, but concurrent temporary results are not
+covered by that budget. Pixel arithmetic, stage order, cache identity, and
+mask placement are unchanged. `filter_evaluations()` counts nonzero-opacity
+stages of accepted complete results (including uncached results), not discarded
+duplicate computations or failed stacks.
+
+`tests/smart_filter_deadlock.rs` runs in a killable subprocess with a 15-second
+deadline. It forces simultaneous same-key cold misses and exercises stage
+re-entry into parallel tile rendering on the same compositor with 1/2/4 Rayon
+workers and zero/nonzero cache budgets, checking exact pixels and warm reuse.
+See `../../tools/orchestrate/wp/M5-35/` for the cache-lock audit and verification.
+
 ## M5-24: layer merging
 
 `DocOp::AutoAlignLayers { ids, options }`, `AutoBlendLayers { ids, options,
