@@ -4,6 +4,21 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## Combined engine gate found a telemetry regression — 2026-09-27 22:16 UTC
+
+Frozen `bb020485` passed frame5, cache7, preview5, filters12 (one ignored) and
+small-ring1. The unchanged replaced-ring regression then failed: early request
+cancellation suppressed output correctly but skipped dropped-frame accounting.
+Original exit101/log/manifest remain in the external frame-cache evidence folder.
+A engine Sol repairs accounting with a deterministic regression; no merge or
+strict-pass claim yet. Unused import warning also needs correction.
+
+Review recovery now includes a visible persistence warning for nonempty queues;
+that change and its new test are untested until the final current-FFI full Swift
+gate. The isolated two-JPEG relaunch fixture is prepared, with no GUI run yet.
+B peer commentary confirms receipt of PSD design request `92b23b0f`; formal Git
+acceptance is not yet observed. Native notLoaded status does not negate that reply.
+
 ## Viewport integrated and final application gate queued — 2026-09-27 22:11 UTC
 
 Main `1c0f36b8` merges viewport ownership/weak-controller cleanup. All 16 focused
