@@ -1,0 +1,20 @@
+{
+  "cmd": [
+    "cargo",
+    "clippy",
+    "-p",
+    "compositor",
+    "--all-targets",
+    "--",
+    "-D",
+    "warnings"
+  ],
+  "exit_code": 0,
+  "timed_out": false,
+  "elapsed_s": 6.338,
+  "pid": 23820,
+  "source_manifest": "/tmp/tessera-cpu-region-20260927/green-manifest.json",
+  "CARGO_BUILD_JOBS": "2",
+  "RAYON_NUM_THREADS": "2",
+  "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/main"
+}

@@ -1,0 +1,18 @@
+{
+  "cmd": [
+    "cargo",
+    "test",
+    "-p",
+    "compositor",
+    "--lib",
+    "partial_mask_cancellation_counts_only_completed_tiles"
+  ],
+  "exit_code": 101,
+  "timed_out": false,
+  "elapsed_s": 7.355,
+  "pid": 77989,
+  "source_manifest": "/tmp/tessera-res03-cancel-integration/partial-counter-red-manifest.json",
+  "CARGO_BUILD_JOBS": "2",
+  "RAYON_NUM_THREADS": "2",
+  "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/main"
+}

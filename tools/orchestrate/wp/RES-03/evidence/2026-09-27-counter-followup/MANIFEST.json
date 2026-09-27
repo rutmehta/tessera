@@ -1,0 +1,114 @@
+{
+  "files": [
+    {
+      "path": "RESULTS.md",
+      "sha256": "894ea1a4047570431058163021fc574b786d93433c0aba7ac69f920dfea02bf6",
+      "bytes": 2910
+    },
+    {
+      "path": "partial-counter-behavior-red-manifest.json",
+      "sha256": "2b69086c0b7873db807dc1ed392303872976bdad0df26a3e58ed235e3a35c355",
+      "bytes": 402
+    },
+    {
+      "path": "partial-counter-behavior-red-source/Cargo.lock",
+      "sha256": "9ef23f19fd6cb3fb848ecbea8bc3fb6cabc9891f192bf4be63fc1ceab46f87fd",
+      "bytes": 157406
+    },
+    {
+      "path": "partial-counter-behavior-red-source/crates/compositor/src/render/smart_filters.rs",
+      "sha256": "a96153bff5d37176521900eb5dfb270ec2669595db0dd123ae8268a14456fe33",
+      "bytes": 39041
+    },
+    {
+      "path": "partial-counter-behavior-red.json",
+      "sha256": "2bd1d95ea21cc7033fd391d77acfc330d8022d3338ab3f983895387686e4b5da",
+      "bytes": 455
+    },
+    {
+      "path": "partial-counter-behavior-red.log",
+      "sha256": "90fb52b3e8617ae5b72f844ddb9364990f84c5734c9bc4a2eb07595d2673196d",
+      "bytes": 104769
+    },
+    {
+      "path": "partial-counter-cancellation.json",
+      "sha256": "1a3e0dec363852f9e8b26e350484d2cea76bb490586f6da1ff3ca6305ce6f74a",
+      "bytes": 416
+    },
+    {
+      "path": "partial-counter-cancellation.log",
+      "sha256": "f53d5c870c26b97e126dfefe41ff5a53289711657f96a2b5afbcae44ceaf355c",
+      "bytes": 104082
+    },
+    {
+      "path": "partial-counter-green-manifest.json",
+      "sha256": "5bffa8750d47bf6b7aa202169b015e00aef65b3e84ce88a0d5a466d6fc085828",
+      "bytes": 402
+    },
+    {
+      "path": "partial-counter-green-source/Cargo.lock",
+      "sha256": "9ef23f19fd6cb3fb848ecbea8bc3fb6cabc9891f192bf4be63fc1ceab46f87fd",
+      "bytes": 157406
+    },
+    {
+      "path": "partial-counter-green-source/crates/compositor/src/render/smart_filters.rs",
+      "sha256": "e3e05d6f2c0f506dd7312ff4c389c70ab158e3e3a85d965868db846511b36441",
+      "bytes": 38985
+    },
+    {
+      "path": "partial-counter-green.json",
+      "sha256": "eba930dffef5926f5487fb278a434487986a87aa5e930992440e430134fcc6dd",
+      "bytes": 446
+    },
+    {
+      "path": "partial-counter-green.log",
+      "sha256": "28de5d8f9dde71237003903c025b26cc9ec59cdce5a62369f6c3485fc2bd2273",
+      "bytes": 104125
+    },
+    {
+      "path": "partial-counter-masked-pass.json",
+      "sha256": "81593cf9609c20aaa722935a90b4c2dac504636680b66550f69802d5191ecc48",
+      "bytes": 415
+    },
+    {
+      "path": "partial-counter-masked-pass.log",
+      "sha256": "631d4485b822324b612faaf671ac2abf4e84887e35b30bf5d9cdf7ef2d230f9a",
+      "bytes": 104716
+    },
+    {
+      "path": "partial-counter-red-manifest.json",
+      "sha256": "5b7c838bac5aaf685d8fccba5ec1bf4a724766cb8e8aef4d8a3e5835d88ecbfd",
+      "bytes": 402
+    },
+    {
+      "path": "partial-counter-red-source/Cargo.lock",
+      "sha256": "9ef23f19fd6cb3fb848ecbea8bc3fb6cabc9891f192bf4be63fc1ceab46f87fd",
+      "bytes": 157406
+    },
+    {
+      "path": "partial-counter-red-source/crates/compositor/src/render/smart_filters.rs",
+      "sha256": "108d0467a32f73d022d5e1a1fbcf76e163f603876ff7f0a16ebb5c7dc27c74d7",
+      "bytes": 38995
+    },
+    {
+      "path": "partial-counter-red.json",
+      "sha256": "594e3f9d285199f4af5e90ef2c8825fe89bc6725512811b806402a81ab678442",
+      "bytes": 446
+    },
+    {
+      "path": "partial-counter-red.log",
+      "sha256": "7ade3a566d621fc31fe579c7f89b1e82d8e0f20f60d71304a86eda46070f8881",
+      "bytes": 104088
+    },
+    {
+      "path": "partial-counter-strict.json",
+      "sha256": "90aa6125c38d3c6c3a346f8f0badbabf47db7087b707932cc543e8b99566a438",
+      "bytes": 431
+    },
+    {
+      "path": "partial-counter-strict.log",
+      "sha256": "6dc8ff658daf36714390ed8780d1014353695eab118e3af70f1fc876dbf176bd",
+      "bytes": 103774
+    }
+  ]
+}

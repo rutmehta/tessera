@@ -1,0 +1,18 @@
+{
+  "cmd": [
+    "cargo",
+    "test",
+    "-p",
+    "compositor",
+    "--test",
+    "smart_filter_deadlock"
+  ],
+  "exit_code": 0,
+  "timed_out": false,
+  "elapsed_s": 1.275,
+  "pid": 23774,
+  "source_manifest": "/tmp/tessera-cpu-region-20260927/green-manifest.json",
+  "CARGO_BUILD_JOBS": "2",
+  "RAYON_NUM_THREADS": "2",
+  "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/main"
+}

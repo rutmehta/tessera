@@ -1,0 +1,32 @@
+{
+  "head": "1ef74c577e45d88e4801923475984bcf82dc8675",
+  "parents": "1ef74c577e45d88e4801923475984bcf82dc8675 0d62702381e2286b902de5d914f8a28ba554603b 4f5f0f496a4bc658d7abcf48fed4c79615a7f91b",
+  "branch": "codex/resource-integration",
+  "files": [
+    {
+      "path": "Cargo.lock",
+      "sha256": "9ef23f19fd6cb3fb848ecbea8bc3fb6cabc9891f192bf4be63fc1ceab46f87fd",
+      "bytes": 157406
+    },
+    {
+      "path": "crates/compositor/src/render/smart_filters.rs",
+      "sha256": "4463f0f1ace5a4ead3ba82fb97a7b8a07300b5a32561c4db812f13d72bac7a4f",
+      "bytes": 37898
+    },
+    {
+      "path": "crates/compositor/src/render/mod.rs",
+      "sha256": "894119966ac4e2426abeda1476116f7daf2ece93160d3095b09c0c3b405801de",
+      "bytes": 35981
+    },
+    {
+      "path": "crates/compositor/tests/smart_filter_deadlock.rs",
+      "sha256": "d56e883a2ca44046c658707e1fea1dd2ab22cb8f3f9fe8e4536e5dcd92ddaa6d",
+      "bytes": 19533
+    },
+    {
+      "path": "crates/compositor/tests/transform_cancellation.rs",
+      "sha256": "6cc361bf0c66f45afb355867aa8a74d06d3816a6f08eac679878c0d32ebb8808",
+      "bytes": 5873
+    }
+  ]
+}
