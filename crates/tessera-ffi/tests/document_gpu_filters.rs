@@ -20,8 +20,17 @@ fn png(dir: &Path, name: &str, w: u32, h: u32, sixteen: bool, holes: bool) -> Pa
     let f = |x: u32, y: u32| -> [f64; 4] {
         let checker = if (x / 7 + y / 5) % 2 == 0 { 0.8 } else { 0.15 };
         let n = ((x.wrapping_mul(73856093) ^ y.wrapping_mul(19349663)) % 97) as f64 / 97.0;
-        let a = if holes && x > w / 3 && x < w / 2 { 0.3 } else { 1.0 };
-        [x as f64 / w as f64, checker, 0.5 * n + 0.3 * (y as f64 / h as f64), a]
+        let a = if holes && x > w / 3 && x < w / 2 {
+            0.3
+        } else {
+            1.0
+        };
+        [
+            x as f64 / w as f64,
+            checker,
+            0.5 * n + 0.3 * (y as f64 / h as f64),
+            a,
+        ]
     };
     let path = dir.join(name);
     if sixteen {
@@ -92,10 +101,20 @@ fn trace(s: &DocumentSession) -> SmartFilterTrace {
 #[test]
 fn gpu_route_matches_the_cpu_bake_within_the_operator_contract() {
     let (dir, engine) = engine();
-    for (sixteen, radii) in [(true, &[0.8f32, 2.0, 8.0, 32.0][..]), (false, &[3.0, 20.0][..])] {
+    for (sixteen, radii) in [
+        (true, &[0.8f32, 2.0, 8.0, 32.0][..]),
+        (false, &[3.0, 20.0][..]),
+    ] {
         let s = open(
             &engine,
-            &png(dir.path(), &format!("gpu{sixteen}.png"), 640, 448, sixteen, false),
+            &png(
+                dir.path(),
+                &format!("gpu{sixteen}.png"),
+                640,
+                448,
+                sixteen,
+                false,
+            ),
         );
         let id = s.layers().unwrap()[0].id;
         s.convert_for_smart_filters(id).unwrap();
@@ -112,8 +131,15 @@ fn gpu_route_matches_the_cpu_bake_within_the_operator_contract() {
                 // the CPU bake of a coarser view filters that level with a
                 // scaled radius (an approximation of the level-0 result).
                 let (w0, _, cpu0) = s.read_presented_level(0).unwrap();
-                assert!(trace(&s).cpu_bakes > before.cpu_bakes, "CPU reference baked");
-                let cpu = if level == 0 { cpu0 } else { reduce(w0 as usize, &cpu0) };
+                assert!(
+                    trace(&s).cpu_bakes > before.cpu_bakes,
+                    "CPU reference baked"
+                );
+                let cpu = if level == 0 {
+                    cpu0
+                } else {
+                    reduce(w0 as usize, &cpu0)
+                };
                 s.set_gpu_smart_filters(true);
                 let before = trace(&s);
                 let (_, _, gpu) = s.read_presented_level(level).unwrap();
@@ -127,7 +153,9 @@ fn gpu_route_matches_the_cpu_bake_within_the_operator_contract() {
                 assert_eq!(after.cpu_bakes, before.cpu_bakes, "r {r}: no CPU bake");
                 assert_eq!(after.cpu_fallbacks, before.cpu_fallbacks);
                 let (d, c) = (max_diff(&gpu, &cpu), max_code_diff(&gpu, &cpu));
-                eprintln!("16-bit {sixteen} radius {r} level {level}: max |Δ| {d:.2e}, {c} code values");
+                eprintln!(
+                    "16-bit {sixteen} radius {r} level {level}: max |Δ| {d:.2e}, {c} code values"
+                );
                 if sixteen && level == 0 {
                     // One operator plus the 16-bit quantization of the CPU bake.
                     assert!(d <= 1e-4 + 1.0 / 65535.0, "r {r}: {d}");
@@ -147,7 +175,10 @@ fn gpu_route_matches_the_cpu_bake_within_the_operator_contract() {
 #[test]
 fn drag_of_the_top_filter_reruns_only_that_stage() {
     let (dir, engine) = engine();
-    let s = open(&engine, &png(dir.path(), "stack.png", 512, 384, true, false));
+    let s = open(
+        &engine,
+        &png(dir.path(), "stack.png", 512, 384, true, false),
+    );
     let id = s.layers().unwrap()[0].id;
     s.convert_for_smart_filters(id).unwrap();
     s.apply_filter(id, gaussian(3.0)).unwrap();
@@ -221,7 +252,11 @@ fn drag_of_the_top_filter_reruns_only_that_stage() {
 fn other_stacks_keep_the_cpu_bake() {
     let (dir, engine) = engine();
     let cases: [(&str, bool, String); 3] = [
-        ("other.png", false, r#"{"id":"box_blur","params":{"radius":3}}"#.into()),
+        (
+            "other.png",
+            false,
+            r#"{"id":"box_blur","params":{"radius":3}}"#.into(),
+        ),
         ("large.png", false, gaussian(40.0)),
         ("holes.png", true, gaussian(4.0)),
     ];

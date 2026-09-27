@@ -613,8 +613,11 @@ fn export_doc(engine: &Arc<Engine>, styled: bool) -> Arc<DocumentSession> {
     let s = engine.adopt_document(d, "styled 20 MP".into());
     let detail = s.layers().unwrap()[0].id;
     s.convert_for_smart_filters(detail).unwrap();
-    s.apply_filter(detail, r#"{"id":"gaussian_blur","params":{"radius":6}}"#.into())
-        .unwrap();
+    s.apply_filter(
+        detail,
+        r#"{"id":"gaussian_blur","params":{"radius":6}}"#.into(),
+    )
+    .unwrap();
     s.set_opacity(detail, 0.7, false).unwrap();
     let text = serde_json::json!({"runs": [{"text": "Tessera export", "family": "Noto Sans", "size": 220.0}]});
     let t = s
@@ -640,7 +643,8 @@ fn export_doc(engine: &Arc<Engine>, styled: bool) -> Arc<DocumentSession> {
             {"kind": "drop_shadow", "settings": {"distance": 30.0, "size": 40.0}},
             {"kind": "outer_glow", "settings": {"size": 30.0}},
         ], "scale": 1.0});
-        s.set_layer_styles_json(t, styles.to_string(), false).unwrap();
+        s.set_layer_styles_json(t, styles.to_string(), false)
+            .unwrap();
     }
     s
 }
@@ -666,7 +670,11 @@ fn bench_p16_export_flat_sync() {
             )
             .unwrap();
             v.push(t.elapsed().as_secs_f64() * 1000.0);
-            eprintln!("{label} export {i}: {:.0} ms, footprint {:.0} MiB", v[i], footprint_mib());
+            eprintln!(
+                "{label} export {i}: {:.0} ms, footprint {:.0} MiB",
+                v[i],
+                footprint_mib()
+            );
         }
         summary(&format!("p16 {label} Export Flat (sync call)"), &v);
         s.close();
@@ -730,7 +738,10 @@ fn bench_p19_smart_filter_drag_20mp() {
     let rec = Arc::new(Recorder::default());
     s.set_listener(Some(rec.clone()));
     let start_mib = footprint_mib();
-    for (label, level, w, h) in [("fit L2", 2u8, 1368u32, 912u32), ("100% 4K L0", 0, 3840, 2160)] {
+    for (label, level, w, h) in [
+        ("fit L2", 2u8, 1368u32, 912u32),
+        ("100% 4K L0", 0, 3840, 2160),
+    ] {
         let plan = s.plan_surface(w, h).unwrap();
         attach(&s, plan.width.max(w), plan.height.max(h));
         s.set_viewport(level, 512, 512, w, h, 1.0 / f64::from(1u32 << level))
@@ -758,7 +769,10 @@ fn bench_p19_smart_filter_drag_20mp() {
             std::thread::sleep(Duration::from_millis(16));
         }
         summary(&format!("p19 {label} preview call"), &calls);
-        summary(&format!("p19 {label} filter drag tick → completed frame"), &v);
+        summary(
+            &format!("p19 {label} filter drag tick → completed frame"),
+            &v,
+        );
         s.clear_preview().unwrap();
         s.wait_idle();
         eprintln!(
@@ -785,7 +799,11 @@ fn b515_bench_p16_background_export() {
 }
 
 fn background_export(styled: bool) {
-    let label = if styled { "styled 14 MP" } else { "20 MP smart filter" };
+    let label = if styled {
+        "styled 14 MP"
+    } else {
+        "20 MP smart filter"
+    };
     let (dir, engine) = engine();
     let s = export_doc(&engine, styled);
     let top = s.layers().unwrap()[1].id;
@@ -817,7 +835,10 @@ fn background_export(styled: bool) {
         runs.push(t.elapsed().as_secs_f64() * 1000.0);
         s.commit("Opacity".into()).unwrap();
     }
-    summary(&format!("p16 {label} begin_export_flat (main thread)"), &begins);
+    summary(
+        &format!("p16 {label} begin_export_flat (main thread)"),
+        &begins,
+    );
     summary(&format!("p16 {label} background run (worker)"), &runs);
     summary(&format!("p16 {label} edit calls during the export"), &edits);
     // Cancel latency at ~30 %.

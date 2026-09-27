@@ -605,7 +605,7 @@ pub(crate) fn export_flat(
     drop(comp);
     ctl.check()?;
     (ctl.progress)(span.0 + (span.1 - span.0) * 0.85, "Converting colour");
-// B5-15 end
+    // B5-15 end
     let source = match &state.profile {
         Some(ColorProfile { icc: Some(b), .. }) => b.as_ref().clone(),
         _ => builtin(color_mgmt::Builtin::Srgb)?,

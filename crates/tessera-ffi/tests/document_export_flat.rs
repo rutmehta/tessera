@@ -109,7 +109,10 @@ fn background_export_is_the_cpu_composite_with_monotonic_progress() {
     assert_eq!((w, h), (e.width, e.height));
     let q8 = |v: f32| (v.clamp(0.0, 1.0) * 255.0 + 0.5) as u8;
     let expected: Vec<u8> = rgba.iter().map(|v| q8(*v)).collect();
-    assert!(px == expected, "exported pixels differ from the CPU composite");
+    assert!(
+        px == expected,
+        "exported pixels differ from the CPU composite"
+    );
     let p = progress.0.lock().unwrap();
     assert!(p.windows(2).all(|w| w[0].0 <= w[1].0), "{p:?}");
     assert_eq!(p.last().unwrap(), &(1.0, "Done".to_owned()));
@@ -266,7 +269,8 @@ fn begin_is_cheap_and_edits_continue_during_run() {
     let mut worst = Duration::ZERO;
     for i in 0..40 {
         let t = Instant::now();
-        s.set_opacity(top, 0.2 + (i % 5) as f32 * 0.1, true).unwrap();
+        s.set_opacity(top, 0.2 + (i % 5) as f32 * 0.1, true)
+            .unwrap();
         worst = worst.max(t.elapsed());
         std::thread::sleep(Duration::from_millis(5));
     }

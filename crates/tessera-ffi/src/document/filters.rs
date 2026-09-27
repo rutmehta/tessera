@@ -1629,8 +1629,8 @@ impl Default for FilterState {
             detail: Mutex::new(None),
             mask_thumbs: Mutex::new(HashMap::new()),
             apply_cancel: Mutex::new(Arc::new(AtomicBool::new(false))),
-            gpu: AtomicBool::new(false),                     // B5-15
-            opaque: Mutex::new(Vec::new()),                  // B5-15
+            gpu: AtomicBool::new(false),    // B5-15
+            opaque: Mutex::new(Vec::new()), // B5-15
         }
     }
 }
@@ -2220,7 +2220,9 @@ fn raster_opaque(r: &Raster) -> bool {
             s.spawn(|| {
                 while !transparent.load(Ordering::Relaxed) {
                     let i = next.fetch_add(1, Ordering::Relaxed);
-                    let Some(&(tx, ty)) = coords.get(i) else { break };
+                    let Some(&(tx, ty)) = coords.get(i) else {
+                        break;
+                    };
                     let opaque = match r.tile(tx, ty) {
                         None => r.default_value() >= 1.0,
                         Some(t) => {
@@ -2298,12 +2300,7 @@ fn child_opaque(fs: &FilterState, so: &SmartObject) -> bool {
 
 /// `layer` (a smart object of a document with `canvas`) with `nodes` in
 /// engine form, when the GPU route applies; `None` keeps the CPU bake.
-fn gpu_layer(
-    fs: &FilterState,
-    state: &DocState,
-    layer: &Layer,
-    nodes: &[Node],
-) -> Option<Layer> {
+fn gpu_layer(fs: &FilterState, state: &DocState, layer: &Layer, nodes: &[Node]) -> Option<Layer> {
     if !fs.gpu.load(Ordering::Relaxed) || state.has_layer_styles() {
         return None;
     }
