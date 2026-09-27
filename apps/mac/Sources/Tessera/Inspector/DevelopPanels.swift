@@ -16,6 +16,8 @@ struct ControlSlider: NSViewRepresentable {
     var onDragEnded: (() -> Void)?
     @Environment(\.developReady) private var ready
     @Environment(\.developRevision) private var revision
+    /// `.disabled(_:)` from the panel (e.g. a control the engine cannot render yet).
+    @Environment(\.isEnabled) private var enabled
 
     @MainActor final class Coordinator {
         var ready = false
@@ -63,7 +65,7 @@ struct ControlSlider: NSViewRepresentable {
         // Ranges may follow the screen (the HDR headroom slider).
         s.minValue = control.range.lowerBound
         s.maxValue = control.range.upperBound
-        s.isEnabled = ready
+        s.isEnabled = ready && enabled
         s.trackColors = trackColors
         if !s.isDragging { s.doubleValue = ready ? DevelopTools.shared.value(control) : control.defaultValue }
         s.needsDisplay = true
@@ -355,6 +357,7 @@ struct DetailPanel: View {
                 .frame(height: Theme.Height.slider)
                 .help("Hold ⌥ while dragging to see the edge mask (white is sharpened)")
             SubHeader("Noise Reduction")
+            AIDenoiseSection(model: model, tools: tools)
             ForEach(DetailControls.luminanceNoise) { c in
                 ControlSlider(control: c).frame(height: Theme.Height.slider)
             }

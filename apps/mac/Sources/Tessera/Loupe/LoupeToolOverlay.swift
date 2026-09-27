@@ -94,7 +94,12 @@ final class LoupeToolOverlay: NSView {
     }
     required init?(coder: NSCoder) { fatalError() }
 
-    private var armed: Bool { tools.cropActive || tools.hslPicker != nil || tools.detailPicking || masks.active }
+    private var armed: Bool { tools.cropActive || tools.hslPicker != nil || tools.detailPicking || masks.active || guidesArmed }
+    var guideTool: UprightGuideTool { .shared }
+    /// Guided Upright owns the loupe (crop and masking take precedence).
+    var guidesArmed: Bool { guideTool.active && !tools.cropActive && !masks.active }
+    /// Guided Upright gesture in progress (see LoupeUprightGuides.swift).
+    var guideDrag: GuideDrag?
     var masks: MaskTools { .shared }
     /// Mask gesture in progress and the last pointer position (brush cursor).
     var maskDrag: MaskDrag?
@@ -106,6 +111,7 @@ final class LoupeToolOverlay: NSView {
 
     /// Tool state changed (crop begun/ended/edited, picker armed).
     func toolsChanged() {
+        if guideTool.active, tools.cropActive || tools.hslPicker != nil || tools.detailPicking { guideTool.end() }
         if tools.cropActive, let g = tools.crop {
             loupe?.cropView = currentView(g)
         } else if loupe?.cropView != nil {
@@ -141,6 +147,8 @@ final class LoupeToolOverlay: NSView {
             drawMasks()
         } else if tools.cropActive, let g = tools.crop, let view = loupe?.cropView {
             drawCrop(g, view)
+        } else if guidesArmed {
+            drawGuides()
         } else if let p = tools.hslPicker {
             hint("Drag up or down on a colour in the photo to adjust its \(p.title.lowercased()) · Esc to finish")
         } else if tools.detailPicking {
@@ -289,6 +297,7 @@ final class LoupeToolOverlay: NSView {
     func updateCursor(_ p: CGPoint) {
         guard armed else { return }
         if masks.active, !tools.cropActive { maskCursor(p); return }
+        if guidesArmed { guideCursor(p); return }
         if tools.hslPicker != nil || tools.detailPicking || tools.straightening { NSCursor.crosshair.set(); return }
         guard let g = tools.crop, let view = loupe?.cropView else { return }
         let box = view.box(g)
@@ -307,6 +316,7 @@ final class LoupeToolOverlay: NSView {
         let p = convert(event.locationInWindow, from: nil)
         dragStart = p
         if masks.active, !tools.cropActive { maskMouseDown(p, event); return }
+        if guidesArmed { guideMouseDown(p, event); return }
         if let _ = tools.hslPicker {
             guard let rgb = loupe?.sampleColor(at: p), let t = tools.beginTargetedHSL(sample: rgb) else {
                 tools.model.statusMessage = "No colour there to adjust (neutral or outside the photo)"
@@ -351,6 +361,7 @@ final class LoupeToolOverlay: NSView {
     override func mouseDragged(with event: NSEvent) {
         let p = convert(event.locationInWindow, from: nil)
         if maskDrag != nil { maskMouseDragged(p, event); return }
+        if guideDrag != nil { guideMouseDragged(p); return }
         let fine = event.modifierFlags.contains(.option) ? 0.25 : 1.0
         switch drag {
         case .targeted(let t, let start):
@@ -390,6 +401,7 @@ final class LoupeToolOverlay: NSView {
     override func mouseUp(with event: NSEvent) {
         let p = convert(event.locationInWindow, from: nil)
         if maskDrag != nil { maskMouseUp(p, event); return }
+        if guideDrag != nil { guideMouseUp(p); updateCursor(p); return }
         switch drag {
         case .targeted(let t, let start):
             tools.dragTargetedHSL(t, delta: ((start.y - p.y) * 0.5).rounded(), final: true)
@@ -417,6 +429,7 @@ extension DevelopTools {
     func handleKey(_ event: NSEvent) -> Bool {
         let loupe = model.viewMode == .loupe
         guard loupe, ready else { return false }
+        if !cropActive, UprightGuideTool.shared.active { return UprightGuideTool.shared.handleKey(event) }
         let ch = event.charactersIgnoringModifiers?.lowercased() ?? ""
         if cropActive {
             switch event.keyCode {
