@@ -1,0 +1,962 @@
+diff --git a/crates/compositor/src/gpu.rs b/crates/compositor/src/gpu.rs
+index 2e4515b..3906094 100644
+--- a/crates/compositor/src/gpu.rs
++++ b/crates/compositor/src/gpu.rs
+@@ -148,6 +148,7 @@ impl GpuCompositor {
+         let dref = DocRef {
+             state: doc.state(),
+             key: doc.key(),
++            pass: None,
+         };
+         let mut job = comp.job(dref, coord)?;
+         job.full = false; // never publish group caches from here
+diff --git a/crates/compositor/src/render/effects.rs b/crates/compositor/src/render/effects.rs
+index cb49c23..70bdc67 100644
+--- a/crates/compositor/src/render/effects.rs
++++ b/crates/compositor/src/render/effects.rs
+@@ -82,6 +82,7 @@ impl<'a> TileJob<'a> {
+         let raster = self.comp.source_raster(DocRef {
+             state: &state,
+             key: next_doc_key(),
++            pass: self.doc.pass,
+         })?;
+         let planes = styles::render(&raster, &layer.props.styles, self.doc.state.global_light)?;
+         let source = self.comp.effect_samples(&raster, self.coord)?;
+diff --git a/crates/compositor/src/render/exec.rs b/crates/compositor/src/render/exec.rs
+index 004f302..7cbce17 100644
+--- a/crates/compositor/src/render/exec.rs
++++ b/crates/compositor/src/render/exec.rs
+@@ -39,6 +39,7 @@ impl Compositor {
+             DocRef {
+                 state: doc.state(),
+                 key: doc.key(),
++                pass: None,
+             },
+             coord,
+         )?;
+diff --git a/crates/compositor/src/render/mod.rs b/crates/compositor/src/render/mod.rs
+index befdc13..ac14bbc 100644
+--- a/crates/compositor/src/render/mod.rs
++++ b/crates/compositor/src/render/mod.rs
+@@ -13,15 +13,15 @@ pub mod smart_filters;
+ pub mod styles;
+ 
+ use std::collections::HashMap;
+-use std::sync::Mutex;
+ use std::sync::atomic::{AtomicU64, Ordering};
++use std::sync::{Arc, Mutex};
+ 
+ use engine_api::jobs::CancellationToken;
+ use engine_api::tile::{Extent, Pyramid, TILE_SIZE, Tile, TileCoord, TileFormat, TileLayout};
+ use engine_api::{EngineError, EngineResult};
+ use rayon::prelude::*;
+ 
+-use crate::document::{DocState, Layer, SmartObject};
++use crate::document::{DocState, Layer, LayerKind, SmartObject};
+ use crate::edit::Document;
+ use crate::geom::Rect;
+ use crate::raster::{Raster, load_normalized, tile_from_normalized};
+@@ -33,11 +33,24 @@ use exec::{Region, TileJob};
+ /// minification); every level is at least 1×1.
+ pub const MAX_LEVEL: u8 = 24;
+ 
++// Scheduling only: actual tile traversal still decides visibility and reachability.
++fn has_enabled_smart_filters(layers: &[Arc<Layer>]) -> bool {
++    layers.iter().any(|layer| match &layer.kind {
++        LayerKind::SmartObject(so) => {
++            so.filters.iter().any(|filter| filter.enabled)
++                || has_enabled_smart_filters(&so.state.root)
++        }
++        LayerKind::Group { children, .. } => has_enabled_smart_filters(children),
++        _ => false,
++    })
++}
++
+ /// A document state plus its cache namespace.
+ #[derive(Clone, Copy)]
+ pub(crate) struct DocRef<'a> {
+     pub state: &'a DocState,
+     pub key: u64,
++    pub pass: Option<&'a smart_filters::FilterPass>,
+ }
+ 
+ #[derive(Default)]
+@@ -105,6 +118,7 @@ pub struct CompositorStats {
+ pub struct Compositor {
+     live: live::LiveRuntime,
+     filter_runtime: smart_filters::FilterRuntime,
++    filter_pass_limits: smart_filters::FilterPassLimits,
+     cache: RenderCache,
+     pub(crate) stats: Counters,
+     latest: Mutex<HashMap<(u64, TileCoord), (u64, u64)>>,
+@@ -118,6 +132,7 @@ impl Compositor {
+         Self {
+             live: live::LiveRuntime::new(cache_budget),
+             filter_runtime: smart_filters::FilterRuntime::new(cache_budget),
++            filter_pass_limits: smart_filters::FilterPassLimits::default(),
+             cache: RenderCache::new(cache_budget),
+             stats: Counters::default(),
+             latest: Mutex::new(HashMap::new()),
+@@ -125,6 +140,13 @@ impl Compositor {
+         }
+     }
+ 
++    /// Sets the per-full-level CPU filter result retention allowance.
++    /// This is separate from the persistent cache and does not cap transient
++    /// transform allocations or memory used by other compositor instances.
++    pub fn set_filter_pass_limits(&mut self, limits: smart_filters::FilterPassLimits) {
++        self.filter_pass_limits = limits;
++    }
++
+     /// Current counters.
+     pub fn stats(&self) -> CompositorStats {
+         let s = &self.stats;
+@@ -408,15 +430,17 @@ impl Compositor {
+             .transform
+             .inverse()
+             .ok_or_else(|| EngineError::invalid("transform", "singular"))?;
+-        let filtered = self.filtered_source(so)?;
++        let filtered = self.filtered_source(so, doc.pass)?;
+         let child = filtered.as_ref().map_or(
+             DocRef {
+                 state: &so.state,
+                 key: so.key,
++                pass: doc.pass,
+             },
+             |s| DocRef {
+                 state: &s.state,
+                 key: s.key,
++                pass: doc.pass,
+             },
+         );
+         let ce0 = so.state.canvas;
+@@ -580,17 +604,27 @@ impl Compositor {
+         &self,
+         doc: &Document,
+         coord: TileCoord,
++    ) -> EngineResult<Tile> {
++        self.render_tile_premultiplied_in_pass(doc, coord, None)
++    }
++
++    fn render_tile_premultiplied_in_pass<'a>(
++        &self,
++        doc: &'a Document,
++        coord: TileCoord,
++        pass: Option<&'a smart_filters::FilterPass>,
+     ) -> EngineResult<Tile> {
+         let state = doc.state();
+         let dref = DocRef {
+             state,
+             key: doc.key(),
++            pass,
+         };
+         if has_local_adjustments(state) {
+             return self.composite_premult(dref, coord);
+         }
+         if live_damage::has_live(&state.root) {
+-            return self.render_live_scene(doc, coord);
++            return self.render_live_scene(doc, coord, pass);
+         }
+         if effects::has_styles(state) {
+             return self.composite_premult(dref, coord);
+@@ -697,18 +731,24 @@ impl Compositor {
+         let coords: Vec<TileCoord> = (0..rows)
+             .flat_map(|y| (0..cols).map(move |x| TileCoord::new(level, x, y)))
+             .collect();
++        // A full-image smart stack must be touched by one top-level tile at a
++        // time. Its pass keeps the unmasked result even when the persistent
++        // cache is smaller than that result. Nested kernels may still use Rayon.
++        let filtered = has_enabled_smart_filters(&doc.state().root);
++        let pass = filtered.then(|| smart_filters::FilterPass::new(self.filter_pass_limits));
+         let render = |c: &TileCoord| {
+             cancel.check()?;
+-            self.render_tile_premultiplied(doc, *c)
++            self.render_tile_premultiplied_in_pass(doc, *c, pass.as_ref())
+         };
+         // Up to ~2MP of output: almost all tiles are completed cache hits after
+         // a live edit, and geometry preparation is shared. Waking a worker for
+         // every cached tile creates lock/scheduling tails larger than the work.
+         // Keep cold photo mip generation and larger export frames parallel.
+-        let tiles = if coords.len() <= 32
+-            && coords
+-                .first()
+-                .is_some_and(|c| self.warm_live_viewport(doc, *c))
++        let tiles = if filtered
++            || (coords.len() <= 32
++                && coords
++                    .first()
++                    .is_some_and(|c| self.warm_live_viewport(doc, *c)))
+         {
+             coords
+                 .iter()
+diff --git a/crates/compositor/src/render/smart_filters.rs b/crates/compositor/src/render/smart_filters.rs
+index 224cbb2..dbb5869 100644
+--- a/crates/compositor/src/render/smart_filters.rs
++++ b/crates/compositor/src/render/smart_filters.rs
+@@ -245,12 +245,188 @@ struct Cached {
+     result: Raster,
+     bytes: usize,
+ }
++
++/// Retained unmasked filter results allowed during one full-level CPU render.
++/// This excludes temporary rasters, evaluator allocations, tile caches and GPU memory.
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++pub struct FilterPassLimits {
++    /// Maximum combined `source + result` charge of live pass entries.
++    /// Zero rejects every filtered source reached by the frame.
++    pub retained_bytes: usize,
++    /// Maximum number of live pass entries, including in-progress reservations.
++    /// Zero rejects every filtered source reached by the frame.
++    pub entries: usize,
++}
++
++impl Default for FilterPassLimits {
++    fn default() -> Self {
++        Self {
++            retained_bytes: 1 << 30,
++            entries: 256,
++        }
++    }
++}
++
++#[derive(Default)]
++struct PassState {
++    entries: HashMap<CacheKey, Arc<Cached>>,
++    reserved_bytes: usize,
++    reserved_entries: usize,
++}
++
++/// One caller's full-level results; never shared with direct-tile or other frame calls.
++pub(crate) struct FilterPass {
++    limits: FilterPassLimits,
++    state: Mutex<PassState>,
++}
++
++struct PassReservation<'a> {
++    pass: &'a FilterPass,
++    bytes: usize,
++    active: bool,
++}
++
++impl FilterPass {
++    pub(super) fn new(limits: FilterPassLimits) -> Self {
++        Self {
++            limits,
++            state: Mutex::new(PassState::default()),
++        }
++    }
++
++    fn get(&self, key: &CacheKey) -> Option<Arc<Cached>> {
++        self.state
++            .lock()
++            .unwrap_or_else(|e| e.into_inner())
++            .entries
++            .get(key)
++            .cloned()
++    }
++
++    fn reserve(&self, bytes: usize) -> EngineResult<PassReservation<'_>> {
++        let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
++        let next_bytes = state.reserved_bytes.checked_add(bytes);
++        let next_entries = state.reserved_entries.checked_add(1);
++        if next_bytes.is_none_or(|n| n > self.limits.retained_bytes)
++            || next_entries.is_none_or(|n| n > self.limits.entries)
++        {
++            return Err(EngineError::ResourceExhausted {
++                resource: "CPU smart-filter pass retained results exceed configured limit".into(),
++            });
++        }
++        state.reserved_bytes = next_bytes.unwrap();
++        state.reserved_entries = next_entries.unwrap();
++        Ok(PassReservation {
++            pass: self,
++            bytes,
++            active: true,
++        })
++    }
++}
++
++impl PassReservation<'_> {
++    fn commit(mut self, key: CacheKey, entry: Arc<Cached>) -> Arc<Cached> {
++        let mut state = self.pass.state.lock().unwrap_or_else(|e| e.into_inner());
++        if let Some(existing) = state.entries.get(&key).cloned() {
++            state.reserved_bytes -= self.bytes;
++            state.reserved_entries -= 1;
++            self.active = false;
++            return existing;
++        }
++        state.entries.insert(key, entry.clone());
++        self.active = false;
++        entry
++    }
++}
++
++impl Drop for PassReservation<'_> {
++    fn drop(&mut self) {
++        if self.active {
++            let mut state = self.pass.state.lock().unwrap_or_else(|e| e.into_inner());
++            state.reserved_bytes -= self.bytes;
++            state.reserved_entries -= 1;
++        }
++    }
++}
++
++#[cfg(test)]
++mod pass_reservation_tests {
++    use super::{FilterPass, FilterPassLimits};
++
++    #[test]
++    fn failed_nested_admission_releases_outer_charge_in_same_pass() {
++        let pass = FilterPass::new(FilterPassLimits {
++            retained_bytes: 16,
++            entries: 1,
++        });
++        {
++            let outer = pass.reserve(16).unwrap();
++            assert!(pass.reserve(1).is_err());
++            drop(outer); // Models source/evaluator failure after a nested admission error.
++        }
++        let next = pass.reserve(16).unwrap();
++        let state = pass.state.lock().unwrap();
++        assert_eq!(state.reserved_bytes, 16);
++        assert_eq!(state.reserved_entries, 1);
++        drop(state);
++        drop(next);
++        let state = pass.state.lock().unwrap();
++        assert_eq!(state.reserved_bytes, 0);
++        assert_eq!(state.reserved_entries, 0);
++    }
++}
++
++fn entry_bytes(so: &SmartObject) -> EngineResult<usize> {
++    usize::try_from(so.state.canvas.area())
++        .ok()
++        .and_then(|area| area.checked_mul(32))
++        .ok_or_else(|| EngineError::ResourceExhausted {
++            resource: "CPU smart-filter source and result size overflow".into(),
++        })
++}
++
++/// Whole-image CPU filter work, including source work discarded after a cold race.
++/// Relaxed atomics give a non-transactional snapshot; active counts refer to
++/// stack attempts, not threads. These are not process-memory or GPU counters.
++#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
++pub struct FilterEvaluationStats {
++    /// Cold misses that began rendering the whole child source, including errors.
++    pub attempted_stacks: u64,
++    /// Calls to a transform or evaluator, including failed and discarded calls.
++    pub attempted_stages: u64,
++    /// Completed results discarded after another caller published the same
++    /// persistent-cache key. Oversized repeat work has attempts but no winner
++    /// retained in that cache, so it does not increment this field.
++    pub duplicate_stacks: u64,
++    /// Completed stacks whose source plus result exceeded the persistent budget.
++    pub oversized_stacks: u64,
++    /// Cold source/stack attempts currently running in this compositor.
++    pub active_stacks: u64,
++    /// Highest simultaneous cold source/stack attempt count observed.
++    pub peak_active_stacks: u64,
++}
++
+ pub(super) struct FilterRuntime {
+     pub(super) evaluator: Arc<dyn SmartFilterEvaluator>,
+     cache: Mutex<HashMap<CacheKey, Arc<Cached>>>,
+     budget: usize,
+     evaluations: AtomicU64,
++    attempted_stacks: AtomicU64,
++    attempted_stages: AtomicU64,
++    duplicate_stacks: AtomicU64,
++    oversized_stacks: AtomicU64,
++    active_stacks: AtomicU64,
++    peak_active_stacks: AtomicU64,
++}
++
++struct ActiveStack<'a>(&'a FilterRuntime);
++
++impl Drop for ActiveStack<'_> {
++    fn drop(&mut self) {
++        self.0.active_stacks.fetch_sub(1, Ordering::Relaxed);
++    }
+ }
++
+ impl FilterRuntime {
+     pub fn new(budget: usize) -> Self {
+         Self {
+@@ -258,6 +434,29 @@ impl FilterRuntime {
+             cache: Mutex::new(HashMap::new()),
+             budget,
+             evaluations: AtomicU64::new(0),
++            attempted_stacks: AtomicU64::new(0),
++            attempted_stages: AtomicU64::new(0),
++            duplicate_stacks: AtomicU64::new(0),
++            oversized_stacks: AtomicU64::new(0),
++            active_stacks: AtomicU64::new(0),
++            peak_active_stacks: AtomicU64::new(0),
++        }
++    }
++    fn begin_stack(&self) -> ActiveStack<'_> {
++        self.attempted_stacks.fetch_add(1, Ordering::Relaxed);
++        let active = self.active_stacks.fetch_add(1, Ordering::Relaxed) + 1;
++        self.peak_active_stacks.fetch_max(active, Ordering::Relaxed);
++        ActiveStack(self)
++    }
++    fn stats(&self) -> FilterEvaluationStats {
++        let get = |counter: &AtomicU64| counter.load(Ordering::Relaxed);
++        FilterEvaluationStats {
++            attempted_stacks: get(&self.attempted_stacks),
++            attempted_stages: get(&self.attempted_stages),
++            duplicate_stacks: get(&self.duplicate_stacks),
++            oversized_stacks: get(&self.oversized_stacks),
++            active_stacks: get(&self.active_stacks),
++            peak_active_stacks: get(&self.peak_active_stacks),
+         }
+     }
+     pub fn clear(&self) {
+@@ -285,7 +484,16 @@ impl Compositor {
+         self.filter_runtime.evaluations.load(Ordering::Relaxed)
+     }
+ 
+-    pub(crate) fn filtered_source(&self, so: &SmartObject) -> EngineResult<Option<FilteredSource>> {
++    /// Actual whole-image CPU filter attempts, including failed and duplicate work.
++    pub fn filter_evaluation_stats(&self) -> FilterEvaluationStats {
++        self.filter_runtime.stats()
++    }
++
++    pub(crate) fn filtered_source(
++        &self,
++        so: &SmartObject,
++        pass: Option<&FilterPass>,
++    ) -> EngineResult<Option<FilteredSource>> {
+         if !so.filters.iter().any(|f| f.enabled) {
+             return Ok(None);
+         }
+@@ -301,116 +509,147 @@ impl Compositor {
+             context.cache_digest(),
+         );
+         let rt = &self.filter_runtime;
+-        let cached = rt
+-            .cache
+-            .lock()
+-            .unwrap_or_else(|e| e.into_inner())
+-            .get(&key)
+-            .cloned();
+-        let cached = if let Some(cached) = cached {
++        let bytes = entry_bytes(so)?;
++        let pass_cached = pass.and_then(|p| p.get(&key));
++        let cached = if let Some(cached) = pass_cached {
+             cached
+         } else {
+-            // Nested smart objects can recurse into this runtime: never hold its
+-            // cache lock while compositing the input document.
+-            let source = self.source_raster(DocRef {
+-                state: &so.state,
+-                key: so.key,
+-            })?;
+-            let cached = rt
++            let persistent = rt
+                 .cache
+                 .lock()
+                 .unwrap_or_else(|e| e.into_inner())
+                 .get(&key)
+                 .cloned();
+-            if let Some(cached) = cached {
+-                cached
++            if let Some(cached) = persistent {
++                // Pin even a persistent hit for this pass: another stack may
++                // evict it before later tiles reach this smart object.
++                if let Some(pass) = pass {
++                    pass.reserve(bytes)?.commit(key, cached)
++                } else {
++                    cached
++                }
+             } else {
+-                // Evaluators and transforms can use Rayon or re-enter this cache.
+-                // Never hold the mutex (or wait for per-key initialization) here:
+-                // a worker may steal another tile that needs the same entry.
+-                // Duplicate cold work is safe because evaluators are deterministic.
+-                let mut result = source.clone();
+-                let mut evaluations = 0;
+-                for filter in so.filters.iter().filter(|f| f.enabled) {
+-                    if !filter.blend.opacity.is_finite()
+-                        || !(0.0..=1.0).contains(&filter.blend.opacity)
+-                    {
+-                        return Err(EngineError::invalid(
+-                            "filter opacity",
+-                            "expected finite [0,1]",
+-                        ));
+-                    }
+-                    if filter.blend.opacity == 0.0 {
+-                        continue;
+-                    }
+-                    let next = if let Some(op) = filter.transform_op()? {
+-                        evaluate_transform(&result, &op)?
+-                    } else {
+-                        rt.evaluator.evaluate(&result, filter, &context)?
+-                    };
+-                    if next.extent() != source.extent()
+-                        || next.channels() != 4
+-                        || next.depth() != Depth::F32
+-                    {
+-                        return Err(EngineError::invalid(
+-                            "smart filter",
+-                            "evaluator changed raster layout",
+-                        ));
+-                    }
+-                    let old = result.clone();
+-                    let mut finite = true;
+-                    result.edit_region(Rect::of_extent(source.extent()), 1, |x, y, p| {
+-                        let a = old.pixel(x, y);
+-                        let b = next.pixel(x, y);
+-                        finite &= b.iter().all(|v| v.is_finite());
+-                        let blend =
+-                            blend_pixel(filter.blend.mode, [a[0], a[1], a[2]], [b[0], b[1], b[2]]);
+-                        let mut t = filter.blend.opacity;
+-                        if filter.blend.mode == BlendMode::Dissolve {
+-                            t = if dissolve_threshold(x, y, 0) < t {
+-                                1.0
+-                            } else {
+-                                0.0
+-                            };
++                // Reserve before source_raster: nested smart objects need their own
++                // simultaneous charge, and errors release this one by RAII.
++                let reservation = pass.map(|p| p.reserve(bytes)).transpose()?;
++                // Nested smart objects can recurse into this runtime: never hold its
++                // cache lock while compositing the input document.
++                let _active = rt.begin_stack();
++                let source = self.source_raster(DocRef {
++                    state: &so.state,
++                    key: so.key,
++                    pass,
++                })?;
++                let cached = rt
++                    .cache
++                    .lock()
++                    .unwrap_or_else(|e| e.into_inner())
++                    .get(&key)
++                    .cloned();
++                let published = if let Some(cached) = cached {
++                    cached
++                } else {
++                    // Evaluators and transforms can use Rayon or re-enter this cache.
++                    // Never hold the mutex (or wait for per-key initialization) here:
++                    // a worker may steal another tile that needs the same entry.
++                    // Duplicate cold work is safe because evaluators are deterministic.
++                    let mut result = source.clone();
++                    let mut evaluations = 0;
++                    for filter in so.filters.iter().filter(|f| f.enabled) {
++                        if !filter.blend.opacity.is_finite()
++                            || !(0.0..=1.0).contains(&filter.blend.opacity)
++                        {
++                            return Err(EngineError::invalid(
++                                "filter opacity",
++                                "expected finite [0,1]",
++                            ));
+                         }
+-                        let alpha = a[3] + t * (b[3] - a[3]);
+-                        for c in 0..3 {
+-                            let v = a[c] * a[3] * (1.0 - t) + blend[c] * b[3] * t;
+-                            p[c] = if alpha > 0.0 { v / alpha } else { 0.0 };
++                        if filter.blend.opacity == 0.0 {
++                            continue;
+                         }
+-                        p[3] = alpha;
+-                    })?;
+-                    if !finite {
+-                        return Err(EngineError::invalid("smart filter", "nonfinite result"));
+-                    }
+-                    evaluations += 1;
+-                }
+-                let bytes = source.extent().area() as usize * 32;
+-                let entry = Arc::new(Cached {
+-                    source,
+-                    result,
+-                    bytes,
+-                });
+-                // Publish only complete, validated results. A concurrent miss
+-                // may have finished first; reuse it without charging bytes twice.
+-                let mut cache = rt.cache.lock().unwrap_or_else(|e| e.into_inner());
+-                if let Some(cached) = cache.get(&key) {
+-                    cached.clone()
+-                } else {
+-                    rt.evaluations.fetch_add(evaluations, Ordering::Relaxed);
+-                    if bytes <= rt.budget {
+-                        if cache
+-                            .values()
+-                            .map(|v| v.bytes)
+-                            .sum::<usize>()
+-                            .saturating_add(bytes)
+-                            > rt.budget
++                        let next = if let Some(op) = filter.transform_op()? {
++                            rt.attempted_stages.fetch_add(1, Ordering::Relaxed);
++                            evaluate_transform(&result, &op)?
++                        } else {
++                            rt.attempted_stages.fetch_add(1, Ordering::Relaxed);
++                            rt.evaluator.evaluate(&result, filter, &context)?
++                        };
++                        if next.extent() != source.extent()
++                            || next.channels() != 4
++                            || next.depth() != Depth::F32
+                         {
+-                            cache.clear();
++                            return Err(EngineError::invalid(
++                                "smart filter",
++                                "evaluator changed raster layout",
++                            ));
+                         }
+-                        cache.insert(key, entry.clone());
++                        let old = result.clone();
++                        let mut finite = true;
++                        result.edit_region(Rect::of_extent(source.extent()), 1, |x, y, p| {
++                            let a = old.pixel(x, y);
++                            let b = next.pixel(x, y);
++                            finite &= b.iter().all(|v| v.is_finite());
++                            let blend = blend_pixel(
++                                filter.blend.mode,
++                                [a[0], a[1], a[2]],
++                                [b[0], b[1], b[2]],
++                            );
++                            let mut t = filter.blend.opacity;
++                            if filter.blend.mode == BlendMode::Dissolve {
++                                t = if dissolve_threshold(x, y, 0) < t {
++                                    1.0
++                                } else {
++                                    0.0
++                                };
++                            }
++                            let alpha = a[3] + t * (b[3] - a[3]);
++                            for c in 0..3 {
++                                let v = a[c] * a[3] * (1.0 - t) + blend[c] * b[3] * t;
++                                p[c] = if alpha > 0.0 { v / alpha } else { 0.0 };
++                            }
++                            p[3] = alpha;
++                        })?;
++                        if !finite {
++                            return Err(EngineError::invalid("smart filter", "nonfinite result"));
++                        }
++                        evaluations += 1;
+                     }
+-                    entry
++                    let entry = Arc::new(Cached {
++                        source,
++                        result,
++                        bytes,
++                    });
++                    // Publish only complete, validated results. A concurrent miss
++                    // may have finished first; reuse it without charging bytes twice.
++                    {
++                        let mut cache = rt.cache.lock().unwrap_or_else(|e| e.into_inner());
++                        if let Some(cached) = cache.get(&key) {
++                            rt.duplicate_stacks.fetch_add(1, Ordering::Relaxed);
++                            cached.clone()
++                        } else {
++                            rt.evaluations.fetch_add(evaluations, Ordering::Relaxed);
++                            if bytes > rt.budget {
++                                rt.oversized_stacks.fetch_add(1, Ordering::Relaxed);
++                            }
++                            if bytes <= rt.budget {
++                                if cache
++                                    .values()
++                                    .fold(0usize, |sum, v| sum.saturating_add(v.bytes))
++                                    .saturating_add(bytes)
++                                    > rt.budget
++                                {
++                                    cache.clear();
++                                }
++                                cache.insert(key, entry.clone());
++                            }
++                            entry
++                        }
++                    }
++                };
++                if let Some(reservation) = reservation {
++                    reservation.commit(key, published)
++                } else {
++                    published
+                 }
+             }
+         };
+diff --git a/crates/compositor/src/resident/filters.rs b/crates/compositor/src/resident/filters.rs
+index f721f8d..3895734 100644
+--- a/crates/compositor/src/resident/filters.rs
++++ b/crates/compositor/src/resident/filters.rs
+@@ -276,7 +276,7 @@ impl ResidentRenderer {
+                     what: "CPU-only smart-filter stacks require bilinear smart quality".into(),
+                 });
+             }
+-            let filtered = self.stack.cpu.filtered_source(so)?;
++            let filtered = self.stack.cpu.filtered_source(so, None)?;
+             let doc = Document::new(filtered.map_or_else(|| (*so.state).clone(), |f| f.state));
+             let (extent, pixels) = self.stack.cpu.render_level_rgba(&doc, level)?;
+             let straight = self
+diff --git a/crates/compositor/src/resident/mod.rs b/crates/compositor/src/resident/mod.rs
+index 2738bc0..c1e5a6a 100644
+--- a/crates/compositor/src/resident/mod.rs
++++ b/crates/compositor/src/resident/mod.rs
+@@ -902,6 +902,7 @@ impl ResidentRenderer {
+                                 crate::render::DocRef {
+                                     state: doc.state(),
+                                     key: doc.key(),
++                                    pass: None,
+                                 },
+                                 layer,
+                                 coord,
+diff --git a/crates/compositor/src/text_vector/damage.rs b/crates/compositor/src/text_vector/damage.rs
+index 2026866..ee26225 100644
+--- a/crates/compositor/src/text_vector/damage.rs
++++ b/crates/compositor/src/text_vector/damage.rs
+@@ -231,10 +231,16 @@ impl Compositor {
+         Ok(())
+     }
+ 
+-    pub(super) fn render_live_scene(&self, doc: &Document, coord: TileCoord) -> EngineResult<Tile> {
++    pub(super) fn render_live_scene(
++        &self,
++        doc: &Document,
++        coord: TileCoord,
++        pass: Option<&super::smart_filters::FilterPass>,
++    ) -> EngineResult<Tile> {
+         let dref = DocRef {
+             state: doc.state(),
+             key: doc.key(),
++            pass,
+         };
+         // Validate before level scaling or tile-origin arithmetic.
+         let mut job = self.job(dref, coord)?;
+diff --git a/crates/compositor/tests/smart_filter_deadlock.rs b/crates/compositor/tests/smart_filter_deadlock.rs
+index 62bda4f..7eacb10 100644
+--- a/crates/compositor/tests/smart_filter_deadlock.rs
++++ b/crates/compositor/tests/smart_filter_deadlock.rs
+@@ -1,9 +1,9 @@
+ //! Run the deadlock probe in a child process so a regression cannot strand the
+ //! test runner (or leave blocked Rayon workers behind in other tests).
+ use compositor::document::{Fill, SmartFilter, SmartObject};
+-use compositor::render::smart_filters::{FilterContext, SmartFilterEvaluator};
++use compositor::render::smart_filters::{FilterContext, FilterPassLimits, SmartFilterEvaluator};
+ use compositor::{Affine, Compositor, Depth, DocState, Document, Layer, LayerKind, Raster};
+-use engine_api::{EngineResult, tile::Extent, tile::TileCoord};
++use engine_api::{EngineError, EngineResult, tile::Extent, tile::TileCoord};
+ use std::sync::atomic::{AtomicUsize, Ordering};
+ use std::sync::{Arc, Barrier, OnceLock, Weak};
+ use std::time::{Duration, Instant};
+@@ -106,10 +106,221 @@ fn same_key_cold_race() {
+     });
+     assert_eq!(evaluator.calls.load(Ordering::Relaxed), 2);
+     assert_eq!(compositor.filter_evaluations(), 1);
++    let stats = compositor.filter_evaluation_stats();
++    assert_eq!(stats.attempted_stacks, 2);
++    assert_eq!(stats.attempted_stages, 2);
++    assert_eq!(stats.duplicate_stacks, 1);
++    assert_eq!(stats.active_stacks, 0);
++    assert_eq!(stats.peak_active_stacks, 2);
+     compositor.clear_composites();
+     assert_pixels(&compositor.render_level_rgba(&doc, 0).unwrap().1);
+     assert_eq!(evaluator.calls.load(Ordering::Relaxed), 2);
+     assert_eq!(compositor.filter_evaluations(), 1);
++    assert_eq!(compositor.filter_evaluation_stats().attempted_stacks, 2);
++}
++
++/// Red regression: a result just above the persistent cache budget is currently
++/// recomputed for every tile. The persistent cache budget is not an admission
++/// limit: one successful frame must evaluate this whole-image stack once.
++#[test]
++fn oversized_filtered_source_is_evaluated_once_per_frame() {
++    struct Counting(AtomicUsize);
++    impl SmartFilterEvaluator for Counting {
++        fn evaluate(
++            &self,
++            input: &Raster,
++            _: &SmartFilter,
++            _: &FilterContext,
++        ) -> EngineResult<Raster> {
++            self.0.fetch_add(1, Ordering::Relaxed);
++            Ok(input.clone())
++        }
++    }
++    let evaluator = Arc::new(Counting(AtomicUsize::new(0)));
++    // 257 pixels × 32 bytes (source + result) = 8,224 bytes.
++    let mut compositor = Compositor::new(8_223);
++    compositor.set_filter_evaluator(evaluator.clone());
++    let doc = document("count");
++    let pool = rayon::ThreadPoolBuilder::new()
++        .num_threads(2)
++        .build()
++        .unwrap();
++    let rendered = pool.install(|| compositor.render_level_rgba(&doc, 0));
++    let stats = compositor.filter_evaluation_stats();
++    assert_eq!(stats.active_stacks, 0);
++    assert_pixels(&rendered.unwrap().1);
++    assert_eq!(stats.attempted_stacks, 1, "one whole-image stack per frame");
++    assert_eq!(stats.attempted_stages, 1);
++    assert_eq!(stats.oversized_stacks, 1);
++    assert_eq!(evaluator.0.load(Ordering::Relaxed), 1);
++}
++
++#[test]
++fn pass_limit_rejects_a_cold_result_before_source_work() {
++    let mut compositor = Compositor::new(8_223);
++    compositor.set_filter_pass_limits(FilterPassLimits {
++        retained_bytes: 8_223,
++        entries: 1,
++    });
++    assert!(matches!(
++        compositor.render_level_rgba(&document("invert"), 0),
++        Err(EngineError::ResourceExhausted { .. })
++    ));
++    let stats = compositor.filter_evaluation_stats();
++    assert_eq!(stats.attempted_stacks, 0);
++    assert_eq!(stats.attempted_stages, 0);
++}
++
++#[test]
++fn pass_limit_is_separate_from_persistent_cache_and_releases_nested_reservations() {
++    let mut inner = document("invert").state().as_ref().clone();
++    let inner_smart = inner.root.pop().unwrap();
++    let mut outer_child = DocState::new(Extent::new(257, 1), Depth::F32);
++    outer_child.root.push(inner_smart);
++    let mut outer = SmartObject::new(outer_child, Affine::IDENTITY);
++    outer.filters.push(SmartFilter {
++        name: "invert".into(),
++        enabled: true,
++        ..Default::default()
++    });
++    let mut state = DocState::new(Extent::new(257, 1), Depth::F32);
++    state
++        .root
++        .push(Arc::new(Layer::new("outer", LayerKind::SmartObject(outer))));
++    let doc = Document::new(state);
++    let mut compositor = Compositor::new(0);
++    compositor.set_filter_pass_limits(FilterPassLimits {
++        retained_bytes: 8_224,
++        entries: 2,
++    });
++    assert!(matches!(
++        compositor.render_level_rgba(&doc, 0),
++        Err(EngineError::ResourceExhausted { .. })
++    ));
++    let stats = compositor.filter_evaluation_stats();
++    assert_eq!(
++        stats.attempted_stacks, 1,
++        "inner admission must fail before source work"
++    );
++    assert_eq!(stats.attempted_stages, 0);
++    assert_eq!(stats.active_stacks, 0);
++    // The failed frame's outer reservation cannot consume the next frame's cap.
++    compositor.set_filter_pass_limits(FilterPassLimits {
++        retained_bytes: 16_448,
++        entries: 2,
++    });
++    let rendered = compositor.render_level_rgba(&doc, 0).unwrap().1;
++    assert_eq!(rendered.len(), 257 * 4);
++    let stats = compositor.filter_evaluation_stats();
++    assert_eq!(stats.attempted_stacks, 3);
++    assert_eq!(stats.attempted_stages, 2);
++    assert_eq!(stats.active_stacks, 0);
++}
++
++#[test]
++fn hidden_disabled_and_offscreen_filters_do_not_consume_pass_admission() {
++    let extent = Extent::new(257, 1);
++    let make_smart = |name: &str, enabled: bool, transform: Affine| {
++        let mut child = DocState::new(extent, Depth::F32);
++        child.root.push(Arc::new(Layer::new(
++            "source",
++            LayerKind::Fill(Fill::Solid {
++                color: [0.25, 0.5, 0.75],
++            }),
++        )));
++        let mut smart = SmartObject::new(child, transform);
++        smart.filters.push(SmartFilter {
++            name: name.into(),
++            enabled,
++            ..Default::default()
++        });
++        Layer::new(name, LayerKind::SmartObject(smart))
++    };
++    let mut hidden = make_smart("invalid", true, Affine::IDENTITY);
++    hidden.props.visible = false;
++    let disabled = make_smart("invalid", false, Affine::IDENTITY);
++    let offscreen = make_smart("invalid", true, Affine::scale_translate(1., 1., 1000., 0.));
++    let mut hidden_base = Layer::new(
++        "hidden base",
++        LayerKind::Fill(Fill::Solid {
++            color: [1., 0., 0.],
++        }),
++    );
++    hidden_base.props.visible = false;
++    let mut clipped = make_smart("invalid", true, Affine::IDENTITY);
++    clipped.props.clipped = true;
++    let mut state = DocState::new(extent, Depth::F32);
++    state
++        .root
++        .extend([hidden, disabled, offscreen, hidden_base, clipped].map(Arc::new));
++    let mut compositor = Compositor::new(0);
++    compositor.set_filter_pass_limits(FilterPassLimits {
++        retained_bytes: 0,
++        entries: 0,
++    });
++    assert_eq!(
++        compositor
++            .render_level_rgba(&Document::new(state), 0)
++            .unwrap()
++            .1
++            .len(),
++        257 * 4
++    );
++    assert_eq!(compositor.filter_evaluation_stats().attempted_stacks, 0);
++}
++
++#[test]
++fn live_scene_and_styled_smart_keep_full_level_pixels_and_one_evaluation() {
++    use compositor::render::styles::{Overlay, StyleEffect};
++    let extent = Extent::new(257, 1);
++    let path = vector::Shape::Rectangle {
++        rect: vector::Rect::new(0., 0., 2., 1.),
++        radii: [0.; 4],
++    }
++    .path()
++    .unwrap();
++    let shape = Layer::new(
++        "live shape",
++        LayerKind::Shape {
++            model: vector::ShapeModel {
++                path,
++                fill: Some(vector::Fill::Solid([0.8, 0.2, 0.1, 0.7])),
++                ..Default::default()
++            },
++            transform: Affine::IDENTITY,
++        },
++    );
++    let mut child = DocState::new(extent, Depth::F32);
++    child.root.push(Arc::new(Layer::new(
++        "source",
++        LayerKind::Fill(Fill::Solid {
++            color: [0.25, 0.5, 0.75],
++        }),
++    )));
++    let mut smart = SmartObject::new(child, Affine::IDENTITY);
++    smart.filters.push(SmartFilter {
++        name: "invert".into(),
++        enabled: true,
++        ..Default::default()
++    });
++    let mut styled = Layer::new("styled smart", LayerKind::SmartObject(smart));
++    styled
++        .props
++        .styles
++        .effects
++        .push(StyleEffect::ColorOverlay(Overlay::default()));
++    let mut state = DocState::new(extent, Depth::F32);
++    state.root.extend([Arc::new(shape), Arc::new(styled)]);
++    let doc = Document::new(state);
++    let direct = Compositor::new(8_223);
++    let tiles = [0, 1].map(|x| direct.render_tile(&doc, TileCoord::new(0, x, 0)).unwrap());
++    let expected = compositor::render::interleave(extent, &tiles).unwrap();
++    let compositor = Compositor::new(8_223);
++    let actual = compositor.render_level_rgba(&doc, 0).unwrap().1;
++    assert_eq!(actual, expected);
++    let stats = compositor.filter_evaluation_stats();
++    assert_eq!(stats.attempted_stacks, 1);
++    assert_eq!(stats.attempted_stages, 1);
+ }
+ 
+ #[test]
