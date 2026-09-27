@@ -43,14 +43,14 @@ Machine A as sole main integrator. Do useful work while other tasks wait.
    4cd53973 merged main87cce4c0; root verified persisted values and exported image.
    2048px preset upscaled fixture; displayed0.2s is not a benchmark. User editing
    assessment7be2fbaf completed with this narrow scope, result9e0b4c6a published,
-   SSH queue01a0e514 accepted; peer receipt not yet observed. Now one disposable
+   SSH queue01a0e514 accepted; native peer reply confirms B consumed the assessment. Now one disposable
    SonyRAW~16.2MP basic-edit smoke, no compiler overlap, PSD/AI/batch or user files.
    All available camera RAW fixtures exceeded initial6MP preflight; root approved
    this single next step after host check and exclusive-slot handoff.
-2. **Resource Sol — evidence:** UX03 pure draft final10focused+8adjacent pass;
-   missingmodelRED and firstGREEN malformed-test-JSON failure retained. Package
-   exact source/evidence and push for root merge. FFI19f retained, pureSwift scope;
-   batch writer/UI/undo are not implemented.
+2. **Resource Sol — independent review:** UX03 pure draft DONE main4f7813d2, final10focused+8adjacent pass;
+   missingmodelRED and firstGREEN malformed-test-JSON failure retained. Exact source/evidencede965255 merged; root verified eight manifestfiles. FFI19f retained, pureSwift scope;
+   batch writer/UI/undo are not implemented. Source-only backend contract plan is
+   BATCH-WRITE-CONTRACT-PLAN.md; next independent review covers combined PSD source.
 3. **Engine Sol — source only:** operation integration branch includes B7240948,
    typed error0df02c4, A same-token bridge and blocked-state close test, plus typed
    effects463922c. Native/bindings/Swift tests still pending. Wait for Luna RAW
