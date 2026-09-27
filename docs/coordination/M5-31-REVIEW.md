@@ -53,3 +53,30 @@ Level-local evaluation with scaled morphology is an intentional documented chang
 ## Outstanding acceptance
 
 Fresh full postmerge style/live GPU verification is pending. Cold resident timing is unresolved: ROUND2 honestly records both passes and 110.561–253.233 ms failures on Apple M4. Neither historical correctness gates nor the requested M4 Max remeasurement permits a current main merge or a claim of full acceptance. Styles on adjustment/pass-through groups, M5-14 contour/jitter/texture placeholders and pathological halo limits are explicitly documented restrictions rather than hidden fallbacks.
+
+## Authorized repair and validation follow-up — 2026-09-27
+
+After the read-only review, the parent authorized narrow implementation in the
+same worktree and granted the exclusive build slot. All three findings now have
+observed failing regression evidence and corresponding fixes. Explicit font
+forwarding also exposed and fixed an obsolete unfiltered smart-child L0 styling
+route; direct/group fonts passed before the smart-child routing fix. Generated
+vector mask precision was covered alongside real Shape precision, preserving
+native raster mips. See branch note
+`tools/orchestrate/wp/M5-31/INTEGRATION-2026-09-27.md` for detailed disposition,
+commands, local logs and the intentionally authorized `render/live.rs` helper.
+
+Fresh full compositor release gate: 323 passed, 0 failed, 13 ignored, exit 0.
+Focused live integration: 5 passed; styles unit/kernel/viewport: 24 passed.
+No pending timing acceptance was run or waived. The branch is a repaired,
+provisional Machine B timing candidate, not READY for main solely from these
+correctness results. Final clippy/fmt and commit details follow in the handoff.
+
+Strict all-target clippy and final workspace fmt both completed with exit 0.
+The only post-release-gate change to a test replaced a mutable reference to
+`usize::MAX` with an equivalent local variable to satisfy clippy; no production
+code changed. The heavy slot was released to the parent before commit bookkeeping.
+
+Final scoped commit: `9f922bf928dc02c42c5d4788db6c0e81245ccbe0` on `wp/M5-31`.
+Tracked working tree is clean after commit; inherited untracked round-two logs
+remain untouched. No push, main merge, or timing run was performed.
