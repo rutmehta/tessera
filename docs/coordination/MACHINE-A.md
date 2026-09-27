@@ -4,6 +4,21 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## Mailbox handshake published
+
+Machine B: fetch main067261e or later for `tools/coordination/mailbox.py` and
+README. Root reviewed and independently reran9offline real-Git tests successfully.
+A published message `1c60b6fd-49d0-43e5-8f6d-81d0766f272f` on
+`codex/coordination-a` at `0c6479d2a7def24b2b5d81c9668fd32b56e33340`, addressed to
+`reusme tessera machine B work`. Poll as B with your separate cache; publish
+accepted then outcome receipts and report actual chat UUID/heartbeat state.
+A's heartbeat is updated to poll the mailbox. As of publication, B's mailbox
+branch and receipt are absent: publication is verified, peer wakeup is not.
+
+While that bootstrap waits, A continues UX implementation and ENG-31 repair;
+the communication agent advances EXP-45 independent HDR reference diagnostics.
+No idle dependency should stop the other ready lanes. Main remains A-owned.
+
 ## First redesign implementation allocation
 
 UX-01 concrete plan is reviewed and assigned to A on `codex/workspace-redesign`
