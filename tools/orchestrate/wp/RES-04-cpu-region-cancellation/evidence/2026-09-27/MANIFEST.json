@@ -1,0 +1,101 @@
+{
+  "product_commit": "c7e4b6b525a4620a0898e65bad865e03fff70f29",
+  "base": "dd44a467ea808f475477b1a8ec1a414bc4164ee9",
+  "files": [
+    {
+      "path": "RESULTS.md",
+      "sha256": "c15c17fd4b9948438e7e4bfa54948a9b6116bfe25e098fbc6bd5a091e1fb7541",
+      "bytes": 2218
+    },
+    {
+      "path": "cancellation.json",
+      "sha256": "a7fde55e1292e2230e24e0c5cdeca8ddce0a3250f52a7814a5ea8192bb1e01ee",
+      "bytes": 395
+    },
+    {
+      "path": "cancellation.log",
+      "sha256": "f53d5c870c26b97e126dfefe41ff5a53289711657f96a2b5afbcae44ceaf355c",
+      "bytes": 104082
+    },
+    {
+      "path": "deadlock.json",
+      "sha256": "7964f6bdaf482d7dae7f68f2b85b7eeaa193155750065df95e8a90d417b160b2",
+      "bytes": 394
+    },
+    {
+      "path": "deadlock.log",
+      "sha256": "de2dd3f11f63ee20bcfd4ba504d3eff94d98b26341f4629bd1f2483f333fbd86",
+      "bytes": 104716
+    },
+    {
+      "path": "green-manifest.json",
+      "sha256": "1bf80a3666bbf3c6f2c2bec5a98b8f1d5b7c251d9cdea8482f769e2768f84a27",
+      "bytes": 612
+    },
+    {
+      "path": "green-source/Cargo.lock",
+      "sha256": "9ef23f19fd6cb3fb848ecbea8bc3fb6cabc9891f192bf4be63fc1ceab46f87fd",
+      "bytes": 157406
+    },
+    {
+      "path": "green-source/crates/compositor/src/render/mod.rs",
+      "sha256": "c7883a539bec172895b92d0a9eae184197ae5eb42373497b65c8d9e56158705b",
+      "bytes": 38181
+    },
+    {
+      "path": "green-source/crates/compositor/tests/render_region.rs",
+      "sha256": "81b42831314d1095cbcaa821b5565be1441f7da0e0b944cf2d88d4a05825186c",
+      "bytes": 7187
+    },
+    {
+      "path": "red-manifest.json",
+      "sha256": "bcef84d283bb79ec37d6b2834d9b1cb5842f194f631f1460b17ce3e5e2b8b02d",
+      "bytes": 612
+    },
+    {
+      "path": "red-public.json",
+      "sha256": "5c9cd604d1b6e6c512027d844b04e6672a51d556d91e44fe4a2bbeb483636972",
+      "bytes": 386
+    },
+    {
+      "path": "red-public.log",
+      "sha256": "4dddceceade1a1cbfb7d2644146431f99da419142ef088eca58197b7a855ddc3",
+      "bytes": 109482
+    },
+    {
+      "path": "red-source/Cargo.lock",
+      "sha256": "9ef23f19fd6cb3fb848ecbea8bc3fb6cabc9891f192bf4be63fc1ceab46f87fd",
+      "bytes": 157406
+    },
+    {
+      "path": "red-source/crates/compositor/src/render/mod.rs",
+      "sha256": "894119966ac4e2426abeda1476116f7daf2ece93160d3095b09c0c3b405801de",
+      "bytes": 35981
+    },
+    {
+      "path": "red-source/crates/compositor/tests/render_region.rs",
+      "sha256": "81b42831314d1095cbcaa821b5565be1441f7da0e0b944cf2d88d4a05825186c",
+      "bytes": 7187
+    },
+    {
+      "path": "region-green.json",
+      "sha256": "c75297225bd31123e8be5b90afbe50562de3e976acad8c8d55f9625883a54a51",
+      "bytes": 386
+    },
+    {
+      "path": "region-green.log",
+      "sha256": "2ee2fdb58a2af2d43b857626b0bde531f9eb39ea1b31a67963496356399b7dd1",
+      "bytes": 104378
+    },
+    {
+      "path": "strict.json",
+      "sha256": "632bc147917237d38989a7ded16a3ebd66bfc636d73b01ab0f37c325b0001bda",
+      "bytes": 410
+    },
+    {
+      "path": "strict.log",
+      "sha256": "cb261c63439aab045ad453038f0fe9007f84174947e582209af7c125695d4bf7",
+      "bytes": 103774
+    }
+  ]
+}
