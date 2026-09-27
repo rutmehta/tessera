@@ -298,7 +298,7 @@ struct ExtendedAdjustmentEditor: View {
                 document.report?("Match Color: “\(document.node(source)?.name ?? "the source")” has no visible pixels")
             }
         }
-        popUp("Source", current, sources.map { ($0.id, $0.name) }, "matchColor.source") { rematch($0, m.neutralize) }
+        popUp("Source", current, sources.map { ($0.id, $0.name) }, "matchColor.source") { rematch($0, m.neutralized) }
         if sources.isEmpty { Hint("Match Color takes its colours from a pixel layer; this document has none.") }
         slider("Luminance", m.luminance, 1...200, 100, "%.0f", 1, "matchColor.luminance") { v, f in
             var n = m
@@ -315,11 +315,12 @@ struct ExtendedAdjustmentEditor: View {
             n.fade = v
             set(.matchColor(n), f)
         }
-        // M5-32: a persisted field; the engine removes the transferred mean chroma (no re-analysis needed).
-        checkbox("Neutralize", m.neutralize, "matchColor.neutralize") { on in
-            var n = m
-            n.neutralize = on
-            set(.matchColor(n), true)
+        checkbox("Neutralize", m.neutralized, "matchColor.neutralize") { on in
+            if let n = document.matchColorSettingNeutralize(m, to: on, target: samples()) {
+                set(.matchColor(n), true)
+            } else {
+                document.report?("Match Color: the source has no visible pixels; Neutralize is unchanged")
+            }
         }
         .help("Remove the source's colour cast from the match")
     }
