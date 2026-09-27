@@ -451,6 +451,7 @@ pub struct ResidentStats {
 
 /// GPU-resident renderer for one document (see the module docs).
 pub struct ResidentRenderer {
+    live: crate::Compositor,
     gpu: GpuCompositor,
     device: wgpu::Device,
     queue: wgpu::Queue,
@@ -581,6 +582,7 @@ impl ResidentRenderer {
             specialization: true,
             smart_quality: SmartQuality::default(),
             stack: filters::StackRuntime::new(budget),
+            live: crate::Compositor::new((budget / 8) as usize),
         })
     }
 
@@ -606,6 +608,12 @@ impl ResidentRenderer {
         self.invalidate();
         self.smart_quality = quality;
         Ok(())
+    }
+
+    /// Install explicit fonts for live text and invalidate rendered output.
+    pub fn set_text_renderer(&mut self, renderer: typography::TextRenderer) {
+        self.live.set_text_renderer(renderer);
+        self.invalidate();
     }
 
     /// Enable structural specialization (disable for interpreter comparisons).
@@ -878,6 +886,31 @@ impl ResidentRenderer {
             };
             let (cols, rows) = self.canvas.at_level(level).tile_grid(TILE_SIZE);
             let levels = match t.part {
+                Part::Live | Part::VectorMask => {
+                    let mut pages = vec![UNRESOLVED; (cols * rows) as usize];
+                    for (tx, ty) in tiles() {
+                        let coord = TileCoord::new(level, tx, ty);
+                        let tile = if t.part == Part::Live {
+                            self.live.live_tile(
+                                layer,
+                                self.canvas,
+                                self.depth.unwrap_or_default(),
+                                coord,
+                            )?
+                        } else {
+                            self.live.effective_vector_mask(
+                                crate::render::DocRef {
+                                    state: doc.state(),
+                                    key: doc.key(),
+                                },
+                                layer,
+                                coord,
+                            )?
+                        };
+                        pages[(ty * cols + tx) as usize] = self.intern_l0(&tile);
+                    }
+                    return Ok(pages);
+                }
                 Part::Smart => {
                     let mut v = entry
                         .smart

@@ -700,6 +700,7 @@ dependencies = [
  "gpu-core",
  "half",
  "lcms2",
+ "lyon_path",
  "merge",
  "pollster",
  "psd",
@@ -708,6 +709,8 @@ dependencies = [
  "serde_json",
  "tempfile",
  "transform",
+ "typography",
+ "vector",
  "wgpu",
  "zstd",
 ]
@@ -1085,6 +1088,8 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.21",
+ "typography",
+ "vector",
 ]
 
 [[package]]
@@ -1151,6 +1156,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f1a05365e3b1c6d1650318537c7460c6923f1abdd272ad6842baa2b509957a06"
 dependencies = [
  "num-traits",
+ "serde",
 ]
 
 [[package]]
@@ -2261,6 +2267,7 @@ checksum = "c62026ae44756f8a599ba21140f350303d4f08dcdcc71b5ad9c9bb8128c13c62"
 dependencies = [
  "arrayvec",
  "euclid",
+ "serde",
  "smallvec",
 ]
 
@@ -2430,6 +2437,7 @@ dependencies = [
  "arrayvec",
  "euclid",
  "num-traits",
+ "serde",
 ]
 
 [[package]]
@@ -2440,6 +2448,7 @@ checksum = "5c463f9c428b7fc5ec885dcd39ce4aa61e29111d0e33483f6f98c74e89d8621e"
 dependencies = [
  "lyon_geom",
  "num-traits",
+ "serde",
 ]
 
 [[package]]
@@ -2451,6 +2460,7 @@ dependencies = [
  "float_next_after",
  "lyon_path",
  "num-traits",
+ "serde",
 ]
 
 [[package]]
@@ -4226,6 +4236,9 @@ name = "smallvec"
 version = "1.16.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f9395f0f0eee849a9b707b2f06bb92a6a422090e2123bb2ef8e87a0e61892a8e"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "smawk"
@@ -4557,6 +4570,7 @@ dependencies = [
  "pipeline-cpu",
  "pipeline-gpu",
  "previews",
+ "proc-macro2",
  "psd",
  "quote",
  "raw-decode",
@@ -5310,6 +5324,7 @@ dependencies = [
  "lyon",
  "psd",
  "quick-xml",
+ "serde",
  "thiserror 2.0.21",
 ]
 

@@ -46,3 +46,46 @@ mod tests {
         }
     }
 }
+
+/// Editable shape source. `path` is the authoritative geometry; `live_shape`
+/// retains optional construction parameters for host controls.
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct ShapeModel {
+    pub path: Path,
+    pub fill: Option<Fill>,
+    pub stroke: Option<(Stroke, Fill)>,
+    pub live_shape: Option<Shape>,
+}
+impl ShapeModel {
+    /// Build matching path and live construction parameters.
+    pub fn from_shape(
+        shape: Shape,
+        fill: Option<Fill>,
+        stroke: Option<(Stroke, Fill)>,
+    ) -> Result<Self> {
+        let model = Self {
+            path: shape.path()?,
+            fill,
+            stroke,
+            live_shape: Some(shape),
+        };
+        model.validate()?;
+        Ok(model)
+    }
+
+    /// Validate source geometry and paint without allocating a raster.
+    pub fn validate(&self) -> Result<()> {
+        self.path.validate()?;
+        if let Some(fill) = &self.fill {
+            fill.validate()?;
+        }
+        if let Some((stroke, fill)) = &self.stroke {
+            stroke.validate()?;
+            fill.validate()?;
+        }
+        if let Some(shape) = &self.live_shape {
+            shape.path()?.validate()?;
+        }
+        Ok(())
+    }
+}

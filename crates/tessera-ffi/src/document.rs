@@ -771,7 +771,7 @@ fn layer_revision(l: &Layer) -> u64 {
     }
     match &l.kind {
         LayerKind::Pixel(raster) => r.max(raster.max_rev()),
-        LayerKind::Text(t) => r.max(t.proxy.max_rev()),
+        LayerKind::Text { .. } | LayerKind::Shape { .. } => r,
         LayerKind::Group { children, .. } => children
             .iter()
             .fold(r, |a, c| a.max(c.props_rev).max(layer_revision(c))),
@@ -787,7 +787,9 @@ fn kind_of(l: &Layer) -> DocLayerKind {
         LayerKind::Fill(_) => DocLayerKind::Fill,
         LayerKind::Group { .. } => DocLayerKind::Group,
         LayerKind::SmartObject(_) => DocLayerKind::SmartObject,
-        LayerKind::Text(_) => DocLayerKind::Text,
+        LayerKind::Text { .. } => DocLayerKind::Text,
+        // Compatibility until Machine B introduces the shape-specific host ABI.
+        LayerKind::Shape { .. } => DocLayerKind::Fill,
     }
 }
 

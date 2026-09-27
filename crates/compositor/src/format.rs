@@ -28,7 +28,7 @@ use serde::{Deserialize, Serialize};
 use crate::adjust::Adjustment;
 use crate::document::{
     ColorProfile, DocState, Fill, GroupMode, Layer, LayerId, LayerKind, LayerProps, Mask,
-    SmartFilter, SmartObject, TextLayer, VectorMask,
+    SmartFilter, SmartObject, VectorMask,
 };
 use crate::edit::Document;
 use crate::geom::{Affine, next_doc_key, observe_rev};
@@ -127,11 +127,24 @@ enum MKind {
         filter_mask: Option<MMask>,
     },
     Text {
-        text: String,
-        font: String,
-        size: f32,
-        color: [f32; 3],
-        proxy: MRaster,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        model: Option<typography::TextModel>,
+        #[serde(default)]
+        transform: Affine,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        text: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        font: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        size: Option<f32>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        color: Option<[f32; 3]>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        proxy: Option<MRaster>,
+    },
+    Shape {
+        model: vector::ShapeModel,
+        transform: Affine,
     },
 }
 
@@ -254,6 +267,9 @@ impl<W: Write> Writer<W> {
     }
 
     fn layer(&mut self, l: &Layer) -> EngineResult<MLayer> {
+        if let Some(mask) = &l.vector_mask {
+            crate::text_vector::validate_mask(mask)?;
+        }
         let kind = match &l.kind {
             LayerKind::Pixel(r) => MKind::Pixel {
                 raster: self.raster(r)?,
@@ -286,13 +302,25 @@ impl<W: Write> Writer<W> {
                     })
                     .transpose()?,
             },
-            LayerKind::Text(t) => MKind::Text {
-                text: t.text.clone(),
-                font: t.font.clone(),
-                size: t.size,
-                color: t.color,
-                proxy: self.raster(&t.proxy)?,
-            },
+            LayerKind::Text { model, transform } => {
+                crate::text_vector::validate_text(model, *transform)?;
+                MKind::Text {
+                    model: Some(model.clone()),
+                    transform: *transform,
+                    text: None,
+                    font: None,
+                    size: None,
+                    color: None,
+                    proxy: None,
+                }
+            }
+            LayerKind::Shape { model, transform } => {
+                crate::text_vector::validate_shape(model, *transform)?;
+                MKind::Shape {
+                    model: model.clone(),
+                    transform: *transform,
+                }
+            }
         };
         let mask = match &l.mask {
             Some(m) => Some(MMask {
@@ -482,6 +510,9 @@ impl Reader<'_> {
     }
 
     fn layer(&mut self, m: &MLayer) -> EngineResult<Layer> {
+        if let Some(mask) = &m.vector_mask {
+            crate::text_vector::validate_mask(mask)?;
+        }
         self.max_rev = self.max_rev.max(m.props_rev).max(m.content_rev);
         let kind = match &m.kind {
             MKind::Pixel { raster } => LayerKind::Pixel(self.raster(raster)?),
@@ -523,18 +554,43 @@ impl Reader<'_> {
                 key: next_doc_key(),
             }),
             MKind::Text {
+                model,
+                transform,
                 text,
                 font,
                 size,
                 color,
-                proxy,
-            } => LayerKind::Text(TextLayer {
-                text: text.clone(),
-                font: font.clone(),
-                size: *size,
-                color: *color,
-                proxy: self.raster(proxy)?,
-            }),
+                proxy: _,
+            } => {
+                let model = model.clone().unwrap_or_else(|| {
+                    let mut model = typography::TextModel::point(
+                        text.clone().unwrap_or_default(),
+                        font.clone().unwrap_or_else(|| "sans-serif".into()),
+                        size.unwrap_or(24.0),
+                    );
+                    if let Some(color) = color {
+                        model.runs[0].color = [
+                            (color[0].clamp(0., 1.) * 255.).round() as u8,
+                            (color[1].clamp(0., 1.) * 255.).round() as u8,
+                            (color[2].clamp(0., 1.) * 255.).round() as u8,
+                            255,
+                        ];
+                    }
+                    model
+                });
+                crate::text_vector::validate_text(&model, *transform)?;
+                LayerKind::Text {
+                    model,
+                    transform: *transform,
+                }
+            }
+            MKind::Shape { model, transform } => {
+                crate::text_vector::validate_shape(model, *transform)?;
+                LayerKind::Shape {
+                    model: model.clone(),
+                    transform: *transform,
+                }
+            }
         };
         let mask = match &m.mask {
             Some(mm) => Some(Mask {

@@ -1,6 +1,6 @@
-# engine-api contracts (v1.4.0)
+# engine-api contracts (v1.5.0)
 
-`engine-api` is the one crate every other engine crate links against. It holds types, traits and the small amount of logic that makes them trustworthy (canonical hashing, history replay, colour-matrix algebra), and depends on nothing in the workspace. Any change to a public type or a serialized form bumps `CONTRACT_VERSION` in `src/lib.rs`, gets an Opus review, and is noted at the bottom of this file.
+`engine-api` is the shared contract crate. It holds types, traits and the small amount of logic that makes them trustworthy (canonical hashing, history replay, colour-matrix algebra). Since 1.5 it reuses the serializable source models from the standalone `typography` and `vector` crates rather than maintaining divergent wire copies. Those crates do not depend on engine-api; compositor remains downstream. Any change to a public type or a serialized form bumps `CONTRACT_VERSION` in `src/lib.rs`, gets an Opus review, and is noted at the bottom of this file.
 
 ## Modules
 
@@ -139,6 +139,10 @@ Layered documents (spec 02) have a second call enum with the same conventions, `
 
 ## Change log
 
+- 1.5.0 (M5-30), additive; no recipe schema or process revision change:
+  - Typed editable `TextModel`, `TextRun`, `ShapeModel`, and `VectorMask` contracts.
+  - Eight document commands: add/edit text, replace run ranges, add/edit shape, set/remove vector masks, and convert editable layers to pixels. Each command records one ordinary history entry and round-trips through Actions. Run ranges index runs, not characters. Transform defaults to identity.
+  - `LayerInfo`/`LayerSummary` adds optional text preview/font and shape-kind summaries, a shape kind tag and a default-false vector-mask flag. Older summaries still deserialize.
 - 1.4.0 (M5-29), additive; no recipe schema or process revision change:
   - Added nine document filter calls and Action descriptors: `document_remove_object`, `remove_distractions`, `content_aware_fill`, `content_aware_move`, `liquify`, `camera_raw_filter`, `neural_skin_smoothing`, `neural_colorize`, `neural_jpeg_artifact_removal`. Every call requires `document`, `layer`, and adapter `params` JSON; `smart` defaults to false. Existing `rationale`, `group`, and three-state `expect_head` apply. Evaluation errors leave pixels, smart stacks and history unchanged.
   - `remove_object` remains the recipe-domain canonical name. MCP additionally accepts its document-shaped union branch and routes that branch to `document_remove_object`, preserving globally unique Action names.
