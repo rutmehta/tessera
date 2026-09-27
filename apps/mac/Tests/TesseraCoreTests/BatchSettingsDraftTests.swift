@@ -79,6 +79,28 @@ final class BatchSettingsDraftTests: XCTestCase {
         XCTAssertNotNil(try patch(initial)["tone"])
     }
 
+    func testPatchLeavesExcludedAndUnselectedNestedTargetValuesIntact() throws {
+        let draft = try BatchSettingsDraft(libraryID: "lib-1", focusedImageID: "source",
+                                           selectedImageIDs: ["source", "target"],
+                                           sourceSettingsJSON: sourceSettings)
+        let target: [String: Any] = [
+            "tone": ["exposure": -0.2, "localOnly": 93] as [String: Any],
+            "color": ["vibrance": -5, "targetOnly": 41] as [String: Any],
+            "geometry": ["crop": ["left": 0.8], "rotate": 17] as [String: Any],
+            "masks": [["id": "target-person"]],
+            "detail": ["sharpening": 3],
+        ]
+        let merged = DevelopController.merge(target, try patch(draft), keepNulls: false)
+        XCTAssertEqual((merged["tone"] as? [String: Any])?["exposure"] as? Double, 0.4)
+        XCTAssertEqual((merged["tone"] as? [String: Any])?["localOnly"] as? Int, 93)
+        XCTAssertEqual((merged["color"] as? [String: Any])?["vibrance"] as? Int, 15)
+        XCTAssertEqual((merged["color"] as? [String: Any])?["targetOnly"] as? Int, 41)
+        XCTAssertEqual(((merged["geometry"] as? [String: Any])?["crop"] as? [String: Any])?["left"] as? Double, 0.8)
+        XCTAssertEqual((merged["geometry"] as? [String: Any])?["rotate"] as? Int, 17)
+        XCTAssertEqual((merged["masks"] as? [[String: String]])?.first?["id"], "target-person")
+        XCTAssertEqual((merged["detail"] as? [String: Any])?["sharpening"] as? Int, 3)
+    }
+
     func testCropAndEmptyFieldsAreRejected() throws {
         let draft = try BatchSettingsDraft(libraryID: "lib-1", focusedImageID: "source",
                                            selectedImageIDs: ["source", "target"],
