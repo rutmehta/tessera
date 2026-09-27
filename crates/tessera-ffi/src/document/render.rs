@@ -11,7 +11,7 @@ use compositor::{
 use engine_api::{
     EngineError, EngineResult,
     jobs::{CancellationToken, Job, JobContext, Priority, Scheduler},
-    tile::{Extent, TILE_SIZE, TileCoord},
+    tile::{Extent, TILE_SIZE, Tile, TileCoord},
 };
 use std::{
     collections::{BTreeSet, HashMap, VecDeque},
@@ -481,9 +481,47 @@ struct Signal {
     since: Option<Instant>,
     busy: bool,
     stop: bool,
+    active_frame: Option<Arc<CancellationToken>>,
 }
 
 impl Signal {
+    fn request_frame(&mut self) {
+        if let Some(cancel) = &self.active_frame {
+            cancel.cancel();
+        }
+        self.frame = true;
+        self.since.get_or_insert_with(Instant::now);
+    }
+
+    fn begin_frame(&mut self) -> Arc<CancellationToken> {
+        if let Some(previous) = &self.active_frame {
+            previous.cancel();
+        }
+        let cancel = Arc::new(CancellationToken::new());
+        self.active_frame = Some(cancel.clone());
+        cancel
+    }
+
+    /// Publication is accepted while holding Signal, before invoking callbacks.
+    /// Callbacks run unlocked because hosts may synchronously request another frame.
+    fn finish_frame(&mut self, cancel: &Arc<CancellationToken>) -> bool {
+        let owns = self
+            .active_frame
+            .as_ref()
+            .is_some_and(|c| Arc::ptr_eq(c, cancel));
+        if owns {
+            self.active_frame = None;
+        }
+        owns && !self.stop && !cancel.is_cancelled()
+    }
+
+    fn stop_frames(&mut self) {
+        self.stop = true;
+        if let Some(cancel) = &self.active_frame {
+            cancel.cancel();
+        }
+    }
+
     fn pending(&self) -> bool {
         self.frame || self.history || !self.layers.is_empty()
     }
@@ -690,10 +728,9 @@ impl Renderer {
     /// Wakes the render thread: a frame, changed rows and/or history.
     pub(crate) fn request(&self, layers: Vec<u64>, history: bool, _epoch: u64) {
         let mut s = self.signal();
-        s.frame = true;
+        s.request_frame();
         s.layers.extend(layers);
         s.history |= history;
-        s.since.get_or_insert_with(Instant::now);
         self.cv.notify_all();
     }
 
@@ -706,7 +743,7 @@ impl Renderer {
 
     pub(crate) fn stop(&self) {
         let mut s = self.signal();
-        s.stop = true;
+        s.stop_frames();
         self.cv.notify_all();
     }
 
@@ -766,7 +803,7 @@ impl Renderer {
 pub(crate) fn worker_loop(shared: Arc<Shared>) {
     let r = &shared.render;
     loop {
-        let (frame, layers, history, since) = {
+        let (layers, history, since, cancel) = {
             let mut s = r.signal();
             while !s.stop && !s.pending() {
                 s = r.cv.wait(s).unwrap_or_else(|e| e.into_inner());
@@ -776,23 +813,30 @@ pub(crate) fn worker_loop(shared: Arc<Shared>) {
             }
             s.busy = true;
             let since = if s.frame { s.since.take() } else { None };
+            let cancel = s.frame.then(|| s.begin_frame());
+            s.frame = false;
             (
-                std::mem::take(&mut s.frame),
                 std::mem::take(&mut s.layers),
                 std::mem::take(&mut s.history),
                 since,
+                cancel,
             )
         };
-        let result = if frame {
-            present_frame(&shared, since.unwrap_or_else(Instant::now))
+        let result = if let Some(cancel) = &cancel {
+            present_frame(&shared, since.unwrap_or_else(Instant::now), cancel)
         } else {
             Ok(None)
         };
+        let publish = cancel
+            .as_ref()
+            .is_some_and(|cancel| r.signal().finish_frame(cancel));
         if let Some(listener) = shared.listener() {
-            match result {
-                Ok(Some(info)) => listener.on_frame(info),
-                Ok(None) => {}
-                Err(e) => listener.on_render_failed(e.to_string()),
+            if publish {
+                match result {
+                    Ok(Some(info)) => listener.on_frame(info),
+                    Ok(None) => {}
+                    Err(e) => listener.on_render_failed(e.to_string()),
+                }
             }
             if !layers.is_empty() {
                 listener.on_layers_changed(layers.into_iter().collect());
@@ -840,7 +884,12 @@ fn union_of(rects: &[Rect]) -> Rect {
 /// composition (GPU or the CPU style fallback) and presentation run from
 /// the snapshot. The result is published only if its surface ring is still
 /// the session's. `None` without a surface, or when dropped.
-fn present_frame(shared: &Arc<Shared>, since: Instant) -> Result<Option<DocFrameInfo>> {
+fn present_frame(
+    shared: &Arc<Shared>,
+    since: Instant,
+    cancel: &CancellationToken,
+) -> Result<Option<DocFrameInfo>> {
+    cancel.check()?;
     let r = &shared.render;
     let started = Instant::now();
     let st = shared.lock()?;
@@ -884,7 +933,9 @@ fn present_frame(shared: &Arc<Shared>, since: Instant) -> Result<Option<DocFrame
         let doc: Arc<Document> =
             super::filtering::presented(shared, &snapshot, level, src).unwrap_or(snapshot);
         rec.prep_ms = ms(t.elapsed());
+        cancel.check()?;
         let mut backend = r.backend.lock().map_err(failure)?;
+        cancel.check()?;
         match &mut *backend {
             Backend::Gpu(g) => {
                 g.targets.retain(|id, _| attached.contains(id));
@@ -916,12 +967,14 @@ fn present_frame(shared: &Arc<Shared>, since: Instant) -> Result<Option<DocFrame
                         rec.blocks = fr.blocks;
                         report = fr;
                         let t = Instant::now();
+                        cancel.check()?;
                         g.present(level, src, &surface)?;
                         g.resident.wait()?;
+                        cancel.check()?;
                         rec.gpu_ms = ms(t.elapsed());
                     }
                     None => {
-                        cpu_present(g.cpu(), &doc, level, src, &surface)?;
+                        cpu_present(g.cpu(), &doc, level, src, &surface, cancel)?;
                         rec.composite_ms = ms(t.elapsed());
                         report.full = true;
                     }
@@ -929,16 +982,20 @@ fn present_frame(shared: &Arc<Shared>, since: Instant) -> Result<Option<DocFrame
             }
             Backend::Cpu(c) => {
                 let t = Instant::now();
-                cpu_present(c, &doc, level, src, &surface)?;
+                cpu_present(c, &doc, level, src, &surface, cancel)?;
                 rec.composite_ms = ms(t.elapsed());
                 report.full = true;
             }
             Backend::Stopped => return Ok(None),
         }
     }
+    // Cancelled partial CPU output is not published. Its ring slot is reused;
+    // cpu_present clears aborted copies and successful copies overwrite all src.
+    cancel.check()?;
     // Publish only into the ring this frame was rendered for.
     {
         let mut st = shared.lock()?;
+        cancel.check()?;
         if st.closed
             || st.view.generation != generation
             || !st.view.surfaces.iter().any(|s| s.id() == surface.id())
@@ -995,40 +1052,60 @@ fn cpu_present(
     level: u8,
     src: Rect,
     surface: &Surface,
+    cancel: &CancellationToken,
 ) -> Result<()> {
-    let ts = i64::from(TILE_SIZE);
-    let mut tiles = Vec::new();
-    for ty in (src.y0 / ts)..=((src.y1 - 1) / ts) {
-        for tx in (src.x0 / ts)..=((src.x1 - 1) / ts) {
-            tiles.push(c.render_tile(doc, TileCoord::new(level, tx as u32, ty as u32))?);
-        }
-    }
+    cancel.check()?;
+    let tiles = c.render_region(doc, level, src, cancel)?;
+    cancel.check()?;
+    copy_cpu_tiles(&tiles, src, surface, || cancel.check())
+}
+
+/// The check callback is a deterministic row-boundary seam for cancellation tests.
+/// Production always supplies the current frame token's check, never a snapshot.
+fn copy_cpu_tiles(
+    tiles: &[Tile],
+    src: Rect,
+    surface: &Surface,
+    mut check: impl FnMut() -> EngineResult<()>,
+) -> Result<()> {
     surface
         .with_pixels(|px, stride| -> EngineResult<()> {
-            for t in &tiles {
-                let (ox, oy) = t.coord().pixel_origin(TILE_SIZE);
-                let l = t.layout();
-                let n = l.plane_len();
-                let s = t.samples::<f32>()?;
-                for y in 0..l.extent.height as i64 {
-                    let gy = i64::from(oy) + y;
-                    if gy < src.y0 || gy >= src.y1 {
-                        continue;
-                    }
-                    for x in 0..l.extent.width as i64 {
-                        let gx = i64::from(ox) + x;
-                        if gx < src.x0 || gx >= src.x1 {
+            let copied = (|| -> EngineResult<()> {
+                check()?;
+                for t in tiles {
+                    check()?;
+                    let (ox, oy) = t.coord().pixel_origin(TILE_SIZE);
+                    let l = t.layout();
+                    let n = l.plane_len();
+                    let s = t.samples::<f32>()?;
+                    for y in 0..l.extent.height as i64 {
+                        check()?;
+                        let gy = i64::from(oy) + y;
+                        if gy < src.y0 || gy >= src.y1 {
                             continue;
                         }
-                        let i = y as usize * l.stride() + x as usize;
-                        let o = (gy - src.y0) as usize * stride + (gx - src.x0) as usize * 4;
-                        for ch in 0..4 {
-                            px[o + ch] = quantize(s[ch * n + i]);
+                        for x in 0..l.extent.width as i64 {
+                            let gx = i64::from(ox) + x;
+                            if gx < src.x0 || gx >= src.x1 {
+                                continue;
+                            }
+                            let i = y as usize * l.stride() + x as usize;
+                            let o = (gy - src.y0) as usize * stride + (gx - src.x0) as usize * 4;
+                            for ch in 0..4 {
+                                px[o + ch] = quantize(s[ch * n + i]);
+                            }
                         }
                     }
                 }
+                check()?;
+                Ok(())
+            })();
+            // Never leave an aborted partial copy to be mistaken for a complete
+            // frame when this unpublished ring slot is later recycled.
+            if copied.is_err() {
+                px.fill(0);
             }
-            Ok(())
+            copied
         })
         .map_err(failure)??;
     Ok(())
@@ -1223,4 +1300,141 @@ pub(crate) fn composite_raster(
         }
     }
     raster_from_rgba(e, doc.state().depth, &rgba, skip_transparent)
+}
+
+/// SOURCE-ONLY tests, UNRUN on B. No app/window/GPU setup or large fixtures.
+#[cfg(test)]
+mod frame_cancellation_tests {
+    use super::*;
+
+    #[test]
+    fn supersession_and_late_completion_preserve_fresh_frame_owner() {
+        let mut signal = Signal::default();
+        let first = signal.begin_frame();
+        signal.request_frame();
+        assert!(first.is_cancelled());
+        let next = signal.begin_frame();
+        assert!(!signal.finish_frame(&first));
+        assert!(Arc::ptr_eq(signal.active_frame.as_ref().unwrap(), &next));
+        assert!(!next.is_cancelled());
+        assert!(signal.finish_frame(&next));
+        assert!(signal.active_frame.is_none());
+        assert!(
+            !signal.finish_frame(&next),
+            "publication is accepted only once"
+        );
+    }
+
+    #[test]
+    fn layer_notification_preserves_frame_but_stop_cancels_it() {
+        let renderer = Renderer::new(None);
+        let current = renderer.signal().begin_frame();
+        renderer.notify_layers(vec![1], 0);
+        assert!(!current.is_cancelled());
+        assert!(!renderer.signal().frame);
+        renderer.stop();
+        assert!(current.is_cancelled());
+        assert!(!renderer.signal().finish_frame(&current));
+    }
+
+    #[test]
+    fn request_cancellation_does_not_wait_for_render_backend_lock() {
+        use std::sync::mpsc;
+        let renderer = Arc::new(Renderer::new(None));
+        let current = renderer.signal().begin_frame();
+        let backend = renderer.backend.lock().unwrap();
+        let (done_tx, done_rx) = mpsc::channel();
+        let other = renderer.clone();
+        let worker = std::thread::spawn(move || {
+            other.request(Vec::new(), false, 0);
+            done_tx.send(()).unwrap();
+        });
+        let completed = done_rx.recv_timeout(Duration::from_secs(5));
+        drop(backend); // release even on failure so the worker can exit
+        worker.join().unwrap();
+        completed.expect("cancellation must not wait on backend rendering");
+        assert!(current.is_cancelled());
+        assert!(!renderer.signal().finish_frame(&current));
+    }
+
+    #[cfg(target_os = "macos")]
+    fn tiny_document() -> Document {
+        let mut state = DocState::new(Extent::new(3, 2), compositor::Depth::F32);
+        state.root.push(Arc::new(Layer::new(
+            "red",
+            LayerKind::Fill(Fill::Solid {
+                color: [1.0, 0.0, 0.0],
+            }),
+        )));
+        Document::new(state)
+    }
+
+    #[test]
+    #[cfg(target_os = "macos")]
+    fn cancelled_cpu_region_never_reaches_surface_or_publication() {
+        let compositor = Compositor::new(1 << 20);
+        let document = tiny_document();
+        let surface = Surface::create_rgba8(2, 2).unwrap();
+        surface.with_pixels(|px, _| px.fill(0x5a)).unwrap();
+        let mut signal = Signal::default();
+        let cancel = signal.begin_frame();
+        signal.request_frame();
+        assert!(
+            cpu_present(
+                &compositor,
+                &document,
+                0,
+                Rect::new(1, 0, 3, 2),
+                &surface,
+                &cancel
+            )
+            .is_err()
+        );
+        surface
+            .with_pixels(|px, _| assert!(px.iter().all(|v| *v == 0x5a)))
+            .unwrap();
+        assert!(!signal.finish_frame(&cancel));
+    }
+
+    #[test]
+    #[cfg(target_os = "macos")]
+    fn aborted_row_copy_is_cleared_and_fresh_region_fully_overwrites_it() {
+        let compositor = Compositor::new(1 << 20);
+        let document = tiny_document();
+        let region = Rect::new(1, 0, 3, 2);
+        let surface = Surface::create_rgba8(2, 2).unwrap();
+        let mut signal = Signal::default();
+        let cancel = signal.begin_frame();
+        let tiles = compositor
+            .render_region(&document, 0, region, &cancel)
+            .unwrap();
+        let mut checks = 0;
+        let copied = copy_cpu_tiles(&tiles, region, &surface, || {
+            checks += 1;
+            if checks == 4 {
+                cancel.cancel();
+            } // after first row, before second
+            cancel.check()
+        });
+        assert!(copied.is_err());
+        assert!(!signal.finish_frame(&cancel));
+        surface
+            .with_pixels(|px, _| assert!(px.iter().all(|v| *v == 0)))
+            .unwrap();
+        let fresh = signal.begin_frame();
+        cpu_present(&compositor, &document, 0, region, &surface, &fresh).unwrap();
+        assert!(signal.finish_frame(&fresh));
+        surface
+            .with_pixels(|px, stride| {
+                for y in 0..2 {
+                    for x in 0..2 {
+                        assert_eq!(
+                            &px[y * stride + x * 4..y * stride + x * 4 + 4],
+                            &[255, 0, 0, 255]
+                        );
+                    }
+                }
+            })
+            .unwrap();
+    }
 }
