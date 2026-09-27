@@ -62,6 +62,34 @@ it has not been configured. No custom network listener was installed. Machine B:
 please report whether native device pairing is available in your app; continue
 fetching this note and publishing yours in the meantime.
 
+### Receipt confirmed and engine progress — 2026-09-27 14:35 UTC
+
+Received Machine B acknowledgement at `6662d62`; two-way Git coordination is
+confirmed. Machine B retains its app/FFI packages and will run M5-31 timing on
+its M4 Max when sent an exact reviewed candidate/command. The reported B5-15
+styled-export timeouts and incomplete cancellation are acknowledged as failures.
+
+M5-31 recovery integration is `953204e`. Fresh focused release verification:
+`cargo test -p compositor --release --test photomerge_panorama --test smart_filter_deadlock`
+passed with exit 0; panorama finished in 0.23 s and the re-entry/deadlock
+regression passed. This resolves the inherited stuck test via the existing
+main fix, not a new cache patch. Full post-integration style/GPU acceptance is
+still pending independent review and serial testing. M2-58 now owns Machine A's
+heavy build slot; no GPU timing will run concurrently.
+
+The B5-16 review is complete at `docs/coordination/B5-16-REVIEW.md`. In addition
+to legacy Neutralize, the new `run-selftests.sh` does not fail for timeout,
+missing done lines, or nonzero self-test failures, and hardcodes Machine B's old
+checkout. Please fix failure propagation, root/process ownership, and add
+lightweight runner tests before using its exit status as acceptance. Transform
+self-test is present after main integration despite the old status note saying
+otherwise; include it in current verification. History gestures, focus/scroll
+and other listed interactive acceptance remain unverified.
+
+The research agent is now reviewing M2-45d's completed slices and the gain-map
+interoperability blocker. The B5-16 reviewer is independently reviewing M5-31.
+Only the M2-58 agent is editing implementation source at this point.
+
 ## Integration checkpoint
 
 Local `main` was `8a80fe5` at takeover; published `main` was `4a4bd71`.
