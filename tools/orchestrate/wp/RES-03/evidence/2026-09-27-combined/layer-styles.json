@@ -1,0 +1,19 @@
+{
+  "name": "layer-styles",
+  "cmd": [
+    "cargo",
+    "test",
+    "-p",
+    "compositor",
+    "--test",
+    "layer_styles"
+  ],
+  "exit_code": 0,
+  "timed_out": false,
+  "elapsed_s": 1.313,
+  "pid": 61669,
+  "CARGO_BUILD_JOBS": "2",
+  "RAYON_NUM_THREADS": "2",
+  "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/main",
+  "source_manifest": "/tmp/tessera-res03-cancel-integration/candidate-manifest.json"
+}
