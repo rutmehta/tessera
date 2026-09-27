@@ -1,0 +1,7 @@
+UTC 2026-09-27T18:12:31.471787+00:00
+CWD /Users/rutmehta/Developer/lightroom/.worktrees/B5-16a
+COMMAND ['git', 'fetch', 'origin', 'wp/M5-31']
+ENV {"CARGO_TARGET_DIR": "/Users/rutmehta/.cache/tessera-target/B5-15", "CARGO_BUILD_JOBS": "2", "MACOSX_DEPLOYMENT_TARGET": "15.0"}
+From https://github.com/rutmehta/lightroom
+ * branch            wp/M5-31   -> FETCH_HEAD
+   9f922bf..441da3e  wp/M5-31   -> origin/wp/M5-31

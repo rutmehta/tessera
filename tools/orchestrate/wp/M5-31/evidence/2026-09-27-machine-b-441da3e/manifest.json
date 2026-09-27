@@ -1,0 +1,202 @@
+{
+  "root_chat_id": "01a0e327-1570-7d83-bc33-7ed882318eea",
+  "started_utc": "2026-09-27T18:12:31.471678+00:00",
+  "candidate": "441da3e3f83f46ee04536fa8b6248c2519d6d619",
+  "checkout": "/Users/rutmehta/Developer/lightroom/.worktrees/B5-16a",
+  "branch_before": "bcd0e792f248b3d5ce20ea4a121b9c20e61c7d6c",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/rutmehta/.cache/tessera-target/B5-15",
+    "CARGO_BUILD_JOBS": "2",
+    "MACOSX_DEPLOYMENT_TARGET": "15.0"
+  },
+  "runs": [
+    {
+      "name": "original-1",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "compositor",
+        "--release",
+        "--test",
+        "resident_styles_large",
+        "twenty_mp_five_styles_1368x912_l1_timing",
+        "--",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "start_utc": "2026-09-27T18:13:01.296357+00:00",
+      "end_utc": "2026-09-27T18:13:02.345440+00:00",
+      "exit_code": 101,
+      "seconds": 1.0490854580000004
+    },
+    {
+      "name": "original-2",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "compositor",
+        "--release",
+        "--test",
+        "resident_styles_large",
+        "twenty_mp_five_styles_1368x912_l1_timing",
+        "--",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "start_utc": "2026-09-27T18:13:02.716034+00:00",
+      "end_utc": "2026-09-27T18:13:03.127982+00:00",
+      "exit_code": 0,
+      "seconds": 0.411959791000001
+    },
+    {
+      "name": "original-3",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "compositor",
+        "--release",
+        "--test",
+        "resident_styles_large",
+        "twenty_mp_five_styles_1368x912_l1_timing",
+        "--",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "start_utc": "2026-09-27T18:13:03.490007+00:00",
+      "end_utc": "2026-09-27T18:13:03.874858+00:00",
+      "exit_code": 0,
+      "seconds": 0.3848605419999984
+    },
+    {
+      "name": "unique-1",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "compositor",
+        "--release",
+        "--test",
+        "resident_styles_large",
+        "twenty_mp_five_styles_1368x912_l1_unique_ids_timing",
+        "--",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "start_utc": "2026-09-27T18:13:04.237884+00:00",
+      "end_utc": "2026-09-27T18:13:04.659795+00:00",
+      "exit_code": 0,
+      "seconds": 0.42192154199999976
+    },
+    {
+      "name": "unique-2",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "compositor",
+        "--release",
+        "--test",
+        "resident_styles_large",
+        "twenty_mp_five_styles_1368x912_l1_unique_ids_timing",
+        "--",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "start_utc": "2026-09-27T18:13:05.017056+00:00",
+      "end_utc": "2026-09-27T18:13:05.411117+00:00",
+      "exit_code": 0,
+      "seconds": 0.39406824999999657
+    },
+    {
+      "name": "unique-3",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "compositor",
+        "--release",
+        "--test",
+        "resident_styles_large",
+        "twenty_mp_five_styles_1368x912_l1_unique_ids_timing",
+        "--",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "start_utc": "2026-09-27T18:13:05.770037+00:00",
+      "end_utc": "2026-09-27T18:13:06.197659+00:00",
+      "exit_code": 0,
+      "seconds": 0.4276575410000021
+    }
+  ],
+  "source": "Machine A direct authenticated SSH execution; not B chat receipt",
+  "fetch": {
+    "name": "fetch",
+    "command": [
+      "git",
+      "fetch",
+      "origin",
+      "wp/M5-31"
+    ],
+    "start_utc": "2026-09-27T18:12:31.471787+00:00",
+    "end_utc": "2026-09-27T18:12:31.989633+00:00",
+    "exit_code": 0,
+    "seconds": 0.5178789159999999
+  },
+  "checkout_result": {
+    "name": "checkout",
+    "command": [
+      "git",
+      "checkout",
+      "--detach",
+      "441da3e3f83f46ee04536fa8b6248c2519d6d619"
+    ],
+    "start_utc": "2026-09-27T18:12:31.998002+00:00",
+    "end_utc": "2026-09-27T18:12:32.021779+00:00",
+    "exit_code": 0,
+    "seconds": 0.023785166000000024
+  },
+  "compile": {
+    "name": "compile",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "compositor",
+      "--release",
+      "--test",
+      "resident_styles_large",
+      "--no-run"
+    ],
+    "start_utc": "2026-09-27T18:12:32.652939+00:00",
+    "end_utc": "2026-09-27T18:13:00.921958+00:00",
+    "exit_code": 0,
+    "seconds": 28.2689955
+  },
+  "final_head": "441da3e3f83f46ee04536fa8b6248c2519d6d619",
+  "branch_after": "bcd0e792f248b3d5ce20ea4a121b9c20e61c7d6c",
+  "final_status": "",
+  "completed_utc": "2026-09-27T18:13:06.255608+00:00",
+  "outcome": "timing failures retained"
+}

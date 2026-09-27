@@ -1,0 +1,14 @@
+{
+  "root_chat_id": "01a0e327-1570-7d83-bc33-7ed882318eea",
+  "start_utc": "2026-09-27T18:12:31.469466+00:00",
+  "pid": 48643,
+  "parent_pid": 48642,
+  "candidate": "441da3e3f83f46ee04536fa8b6248c2519d6d619",
+  "checkout": "/Users/rutmehta/Developer/lightroom/.worktrees/B5-16a",
+  "heavy_slot": "Machine B: one Cargo/build/GPU benchmark at a time",
+  "command": "compile resident_styles_large --no-run; three original + three unique-ID exact fresh processes",
+  "status": "completed: timing failures retained",
+  "target_cache": "/Users/rutmehta/.cache/tessera-target/B5-15",
+  "condition": "Existing background apps and CPU yes process left untouched; capture load and thermal, never waive a failed result.",
+  "updated_utc": "2026-09-27T18:13:06.255633+00:00"
+}

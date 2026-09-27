@@ -1,0 +1,6 @@
+UTC 2026-09-27T18:12:31.998002+00:00
+CWD /Users/rutmehta/Developer/lightroom/.worktrees/B5-16a
+COMMAND ['git', 'checkout', '--detach', '441da3e3f83f46ee04536fa8b6248c2519d6d619']
+ENV {"CARGO_TARGET_DIR": "/Users/rutmehta/.cache/tessera-target/B5-15", "CARGO_BUILD_JOBS": "2", "MACOSX_DEPLOYMENT_TARGET": "15.0"}
+Previous HEAD position was 9f922bf Fix live-content integration and allocation preflight for resident styles
+HEAD is now at 441da3e Reuse unchanged styled sources and preserve meaningful dissolve identity
