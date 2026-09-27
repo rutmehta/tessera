@@ -1,0 +1,6 @@
+CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/M5-34 cargo clippy -p compositor -p typography -p vector --all-targets -- -D warnings
+    Checking compositor v0.1.0 (/Users/rutmehta/Developer/tessera/.worktrees/M5-34/crates/compositor)
+    Checking ml-filters v0.1.0 (/Users/rutmehta/Developer/tessera/.worktrees/M5-34/crates/ml-filters)
+    Checking filters v0.1.0 (/Users/rutmehta/Developer/tessera/.worktrees/M5-34/crates/filters)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 31.27s
+Exit 0

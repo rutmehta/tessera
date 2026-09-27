@@ -1,5 +1,7 @@
 //! Validation shared by editable content operations and native-file loading.
 
+pub(crate) mod memo;
+
 use crate::{Affine, Layer, VectorMask};
 use engine_api::{EngineError, EngineResult};
 
