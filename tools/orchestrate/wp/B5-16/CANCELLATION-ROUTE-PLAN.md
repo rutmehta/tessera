@@ -98,3 +98,58 @@ cancellation limits wasted work after a request, not peak memory of a live one.
 All tests above are requirements, not implemented or executed evidence. Run on
 A in its available bounded slot, two workers, small fixtures and outer watchdog;
 retain original failures. B resource hold remains.
+
+## First native preview/bake source candidate — 1a0330c4
+
+Validated exact target/expiry and local hold, published accepted receipt before
+source work. Integrated origin/main1c5e16c into B branch at67dbd74 (clean source
+merge, no build). This supplies RES01 pass reuse and 0d627023 caller-token API
+before removing prewarm. No main merge was performed by B.
+
+Only product file changed: `crates/tessera-ffi/src/document/filters.rs`.
+- RequestCancellation owns one CancellationToken plus the existing effect
+  AtomicBool. Its cancel method updates both; migrated preview stores use it.
+- Preview calls filtered_with_cancel with the same request source. Native stack
+  and full-resolution native filter paths pass its token to
+  render_level_rgba_with_cancel; NativeFilterEvaluator uses its live effect flag
+  for legacy menu filters. The obsolete direct-tile prewarm is removed.
+- A separate ActiveBake records layer/key/level/region and cancellation source.
+  Superseded or removed bake keys cancel the active source; repeated identical
+  presentation requests do not queue duplicate active bakes. Stop cancels both
+  active channels and drops pending preview/bake inputs.
+- Completion checks request identity, generation/key and cancellation before
+  publishing either pixels or errors. Older completion cannot clear a newer
+  active owner. Worker busy registration happens under the same queue lock as
+  request selection, closing an idle-observation gap. No evaluation runs under
+  the queue lock.
+
+Five unit-test source cases under `request_cancellation_tests` are **UNRUN**:
+1. A 3x2 native stack with a channel-gated first stage; both supersession and
+   close cancel while inside the evaluator. Expect one stage only, failed render,
+   no preview/error publication, and unaffected replacement source. Five-second
+   channel watchdogs, no sleeps.
+2. Pre-cancelled native_stack/native_filtered fail; fresh requests succeed.
+3. Late preview cleanup cannot remove a replacement owner.
+4. Bake supersession preserves the new owner and rejects the old completion.
+5. Shutdown signals both native/effect channels for preview and bake and rejects
+   completion.
+
+The tests exercise the private native boundary and production completion helpers.
+They do not prove end-to-end host UI timing or all real worker-loop interleavings.
+A should run the scoped lib-test filter `request_cancellation_tests` with two
+build/Rayon workers and an outer watchdog, then existing filter preview/bake
+regressions and strict lint in its available slot. Preserve any compilation or
+test failure; none has been executed or waived on B.
+
+Source formatting used the existing local rustfmt binary (initial bare command
+was absent from PATH); git diff --check passed. Formatting is not compilation.
+
+Explicit limits: specialized CompositorFilters adapters still have only
+pre/post cancellation checks unless their own kernels support it; the legacy
+menu effect path now receives the live flag. Upsampling has a boundary check,
+not inner-loop interruption. Bake supersession is detected when the presentation
+scheduler observes the new requested key/region. Destructive apply's separate
+AtomicBool, readback/viewport request APIs, PSD operation handles and engine-api
+are unchanged. Compatibility callers use a fresh token with no new host handle.
+No bindings regeneration is needed because the UniFFI API did not change.
+B resource hold/paused heartbeat and all dirty snapshots remain preserved.

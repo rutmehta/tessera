@@ -352,3 +352,13 @@ is dropped before native_stack; bake/frame/copy routes lack externally owned
 request tokens. Plan covers shared live signal, removal of obsolete direct-tile
 prewarm on RES01 base, A cancellable region API, and a distinct copy-operation
 handle. No cancellation caller product edits until A reviews route.
+
+### Native preview/bake source slice — 1a0330c4
+
+Validated/accepted new bounded source request. Cleanly merged A main1c5e16c into
+B at67dbd74 to provide RES01+cancel bridge; no B main merge or workload. One FFI
+product file now owns live preview/bake cancellation pairs and identity-safe
+completion, cancels obsolete bakes, and removes uncancellable native prewarm.
+Five tiny deterministic Rust tests are UNRUN; source formatted/diff checked,
+compilation pending A. Exact requirements/limits in CANCELLATION-ROUTE-PLAN.md.
+No viewport/readback/PSD handle or engine-api implementation change.
