@@ -1326,5 +1326,13 @@
     "status": "pass",
     "attempts": 0,
     "notes": "machine B; wp/B5-11 includes wp/B5-10b + main 571630c; document/vector.rs; 311 XCTest; shape drag 541 ms median at 20 MP until M5-34 r2"
+  },
+  {
+    "id": "B5-10c",
+    "owner": "opus",
+    "title": "Type tool fixes from on-screen verification",
+    "status": "pass",
+    "attempts": 0,
+    "notes": "machine B; wp/B5-10c = wp/B5-11 + fixes; 319 XCTest; needs on-screen recheck of 347/hit margin/hint"
   }
 ]
