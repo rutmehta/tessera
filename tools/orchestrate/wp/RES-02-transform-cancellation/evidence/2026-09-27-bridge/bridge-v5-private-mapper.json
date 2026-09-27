@@ -1,0 +1,19 @@
+{
+  "name": "private-mapper",
+  "cmd": [
+    "cargo",
+    "test",
+    "-p",
+    "compositor",
+    "--lib",
+    "transform_cancelled_is_not_reported_as_invalid_input"
+  ],
+  "exit_code": 0,
+  "timed_out": false,
+  "elapsed_s": 7.885,
+  "pid": 95195,
+  "CARGO_BUILD_JOBS": "2",
+  "RAYON_NUM_THREADS": "2",
+  "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/main",
+  "source_manifest": "/tmp/tessera-transform-bridge-20260927/green-source-v5-manifest.json"
+}
