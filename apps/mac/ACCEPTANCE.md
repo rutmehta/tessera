@@ -1365,3 +1365,63 @@ PASS when steps 151–160 meet their expectations and the brush frames' median r
 | `document.saveAs.name` (first responder when the sheet opens) · `document.saveAs.format` · `document.saveAs.folder` · `document.saveAs.choose` · `document.saveAs.save` · `document.saveAs.cancel` | File ▸ Save As… sheet (B5-06) |
 | `document.properties.<kind>.<control>`: `brightnessContrast.{brightness,contrast,legacy}` · `vibrance.{vibrance,saturation}` · `colorBalance.{tone,red,green,blue,preserveLuminosity}` · `blackWhite.{auto,default,reds,yellows,greens,cyans,blues,magentas,tint,tintColor}` · `photoFilter.{preset,color,density,preserveLuminosity}` · `gradientMap.{gradientPreview,stop.<i>.{color,position,remove},addStop,method,dither,reverse}` · `selectiveColor.{colors,cyan,magenta,yellow,black,method}` · `equalize.analyze` · `auto.{mode,clip,black,white,gamma,analyze}` · `matchColor.{source,luminance,colorIntensity,fade,neutralize}` · `replaceColor.{color,useForeground,fuzziness,hue,saturation,lightness}` · `colorLookup.{file,load,reset}` · `shadowsHighlights.{shadowsAmount,shadowsTone,shadowsRadius,highlightsAmount,highlightsTone,highlightsRadius,color,midtone,blackClip,whiteClip}` · `hdrToning.{method,radius,strength,gamma,exposure,detail,shadows,highlights,vibrance,saturation,curve,analyze}` | Properties editors of the M5-26 / M5-28 adjustments (B5-06) |
 | `document.layers.smartFilter.<layer>.<index>` · `.visibility` · `.mask` · `.name` · `.blending` · `document.smartFilter.blending.{mode,opacity,ok}` | Smart filter rows and their blending options |
+
+## X. Develop: AI Denoise, Transform / Upright, Lens Blur (M2-48)
+
+Engine backend, a scratch copy of `fixtures/raw` in `$SCR/raw` (step 2). Select **sony-arw.ARW** and press **Return**
+(loupe). The three controls live in DETAIL (AI Denoise, top of Noise Reduction), TRANSFORM (between Detail and Effects)
+and LENS BLUR (after Effects). Known engine gaps (tools/orchestrate/wp/M2-48/REPORT.md): the develop viewport does not
+draw Upright/Transform (export does), and AI Denoise and Lens Blur cannot be rendered or exported by this engine build,
+so their controls are shown disabled with the reason. Screenshots of each panel: `tools/orchestrate/wp/M2-48/evidence/`.
+
+161. **Detail ▸ AI Denoise.** Open DETAIL. 📸 Expect under **Noise Reduction** an **AI Denoise** checkbox and an **Amount**
+     slider (both dimmed) with a warning line starting `AI Denoise needs an engine denoiser this build does not install`;
+     the classic Luminance / Detail / Contrast and Color / Color Detail / Smoothness sliders below are unchanged and still
+     work (Luminance 40 smooths the 1:1 preview; History `Luminance NR 40`). If the photo's recipe already has AI Denoise
+     (e.g. from another build) the checkbox is enabled and ticked, and unticking it records `AI Denoise Off`.
+162. **Upright buttons.** Open TRANSFORM. 📸 Expect an **Upright** sub-header with a borderless **Reset**, a six-segment bar
+     (Off · Auto · Guided · Level · Vertical · Full; the chosen one shows its name, the others their icon, help tags name
+     each), a one-line description of the chosen mode, then **Transform** with its own **Reset**, the sliders Vertical,
+     Horizontal, Rotate, Aspect, Scale (100%), Offset X, Offset Y and a **Constrain Crop** checkbox. Click **Auto**: History
+     lists `Upright: Auto` and a warning line reads `The loupe does not draw Upright or Transform yet (engine); they are
+     saved and applied on export.` Click **Vertical**, then **Off**: one history step each (`Upright: Vertical`, `Upright: Off`).
+163. **Manual transform.** Drag **Vertical** to +20 and release: exactly one History row `Transform Vertical +20` (not one
+     per drag frame). Drag **Rotate** (one decimal, `°`) and **Scale** (`%`, 50–150); double-click a slider to reset it.
+     Click the Transform **Reset**: all seven sliders return to neutral in one step `Reset Transform`; Upright is untouched.
+     Tick **Constrain Crop**: History `Constrain Crop On`. ⌘Z undoes each step.
+164. **Guided Upright.** Click **Guided** (the loupe must be showing the photo). Expect a hint at the bottom of the loupe
+     `Guided Upright · draw 2 more guides …`, the panel line `0 of 4 guides` with **Clear** and **Done**, and a crosshair
+     cursor over the photo. Drag along a vertical edge: a white guide with square ends appears (dashed while drawing).
+     Nothing is recorded yet. Draw a second guide: History lists `Upright: Guided (2 guides)` and the hint reads
+     `… 2 of 4 guides …`. 📸 Drag an end of the first guide (cursor ✋): on release one step `Upright: Guided (2 guides)`.
+     Click a guide's line: it turns amber (selected); press **⌫**: it disappears and, with one guide left, History records
+     `Upright: Off`. A fifth guide is refused with a status message. **Return** (or **Done**/**Esc**) leaves the tool;
+     culling keys do nothing while it is armed, ⌘Z still works. Reopening Guided shows the stored guides.
+165. **Lens Blur.** Open LENS BLUR. 📸 Expect the warning `Lens Blur needs a depth map the engine does not compute here yet…`,
+     a dimmed **Apply** checkbox, **Blur Amount** slider, **Bokeh** segmented control (Circle · Hexagon · Octagon), the
+     **Focal Range** strip (dark scope well, near → far ramp, `Near` / `Far` labels, the in-focus band with two handles),
+     the hint `No depth map from the engine yet: …`, dimmed **Visualize Depth** and **Subject-aware focus** checkboxes and
+     a **Refine** row with Focus / Blur brush buttons and a `Later` chip. Nothing in the panel is clickable, except Apply
+     when a recipe already carries a lens blur (unticking records `Lens Blur Off`).
+166. **Keyboard focus (M2-27 rules).** Tab to a Transform slider: amber focus outline, arrows nudge it without moving the
+     loupe selection, Return/Esc commit and blur (one history step per burst).
+167. **Export applies Upright.** With Upright **Auto** set, export the ARW (File ▸ Export…, PNG, long edge 640) and
+     compare with an export at **Off**: the Auto file's verticals are corrected (the Swift test
+     `TransformSessionTests.testUprightAutoChangesTheRenderedFrame` asserts the frames differ).
+
+## Verdict (AI Denoise, Transform, Lens Blur)
+
+PASS when steps 161–167 meet their expectations. Record the engine gaps listed in the M2-48 report as known limitations,
+not failures.
+
+## Appendix: accessibility identifiers (M2-48)
+
+| Identifier | Element |
+| --- | --- |
+| `detail-ai-denoise` · `detail-ai-denoise-amount` · `detail-ai-denoise-unavailable` · `detail-ai-denoise-ignored` | Detail ▸ Noise Reduction ▸ AI Denoise toggle, Amount, engine-gap line, "kept but not drawn" line |
+| `transform-upright` · `transform-upright-{off,auto,guided,level,vertical,full}` · `transform-upright-reset` | Transform ▸ Upright bar, its six buttons and group Reset |
+| `transform-guides-count` · `transform-guides-clear` · `transform-guides-done` | Guided Upright status row (while the loupe tool is armed) |
+| `transform-vertical` · `transform-horizontal` · `transform-rotate` · `transform-aspect` · `transform-scale` · `transform-offset-x` · `transform-offset-y` · `transform-reset` | Transform ▸ manual sliders and group Reset |
+| `transform-constrain-crop` · `transform-preview-note` | Constrain Crop checkbox; the "loupe does not draw Upright/Transform yet" warning |
+| `lensblur-unavailable` · `lensblur-apply` · `lensblur-amount` · `lensblur-bokeh` · `lensblur-focal-range` | Lens Blur ▸ engine-gap line, Apply, Blur Amount, Bokeh picker, Focal Range strip |
+| `lensblur-visualize-depth` · `lensblur-subject` · `lensblur-refine-focus` · `lensblur-refine-blur` | Visualize Depth, Subject-aware focus, Refine brushes (disabled: engine gaps) |

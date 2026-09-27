@@ -1134,5 +1134,45 @@
     "status": "merged",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M5-30",
+    "owner": "astra",
+    "title": "Editable text + vector layers contract (engine-api 1.5)",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-47",
+    "owner": "astra",
+    "title": "FFI: Photo Merge + Enhance",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-48",
+    "owner": "opus",
+    "title": "Develop panels: AI Denoise, Upright, Lens Blur",
+    "status": "merged",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M5-31",
+    "owner": "astra",
+    "title": "GPU-resident layer styles",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-49",
+    "owner": "astra",
+    "title": "Engine: Upright in loupe, AI Denoise + Lens Blur end to end",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]

@@ -254,7 +254,18 @@ square (keep ink when confirmed) and a `panel` **Move to** column of 28 pt drop-
 plain toolbar button. The sampled-clustering footnote is a 24 pt tertiary caption with an info glyph.
 
 **Scopes** (`HistogramView`, `CurveEditorView`, `DetailPreviewView`): `plotWell`, radius 4,
-channel colours composited additively.
+channel colours composited additively. The Lens Blur **focal range strip** (`FocalRangeStrip`) is a scope
+too: `plotWell`, a near → far ramp from `plotGuide` to `plotGrid`, the in-focus band in `accentSubtle`
+(it is a selection) between two 2 pt `plotLine` handles, `Near` / `Far` in 11 pt `plotText`.
+
+**Transform / Lens Blur panels** (M2-48): the Upright bar (`UprightModeBar`) is a 20 pt
+`SegmentedPicker`-look track with six icon segments; the chosen segment adds its name (the only way six
+modes fit the 288 pt inspector). Per-group resets are borderless 20 pt **Reset** buttons on the
+`SubHeader` line (`GroupHeader`). Controls the engine cannot render yet stay visible but disabled
+(40 %) with a `StatusLine` warning naming the gap. Guided Upright guides in the loupe use the on-image
+set: 1.5 pt `OnImage.guide` over a 3 pt `OnImage.shadow`, dashed (4 / 3) while drawing, the selected
+guide in the accent, 7 pt square ends in `OnImage.text` with an `OnImage.ink` outline, and the
+bottom scrim hint.
 
 ## 6. Motion
 
