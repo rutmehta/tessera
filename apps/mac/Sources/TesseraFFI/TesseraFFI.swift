@@ -4102,6 +4102,66 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
     func ungroupLayer(id: UInt64) throws  -> DocumentUpdate
     
     /**
+     * Channel `id` as a grey RGBA8 IOSurface (white = selected / full ink),
+     * at most `max_px` on the long edge (box-filtered). Cached per channel
+     * samples: the id stays valid until a newer thumbnail of the same
+     * channel and size replaces it or the session closes.
+     */
+    func channelThumbnail(id: UInt64, maxPx: UInt32) throws  -> UInt32
+    
+    func deleteDocumentChannel(id: UInt64) throws  -> DocumentUpdate
+    
+    /**
+     * Saved alpha and spot channels in panel / PSD order.
+     */
+    func documentChannels() throws  -> [ChannelRecord]
+    
+    /**
+     * A copy of channel `id` named "<name> copy", appended last.
+     */
+    func duplicateDocumentChannel(id: UInt64) throws  -> ChannelUpdate
+    
+    /**
+     * Select ▸ Load Selection: channel `id` (inverted when `invert`)
+     * combined with the current selection by `op`. One history node.
+     */
+    func loadSelectionChannel(id: UInt64, op: SelectionOp, invert: Bool) throws  -> DocumentUpdate
+    
+    /**
+     * A new empty alpha channel: all masked (black), or all selected
+     * (white) when `selected` (Quick Mask without a selection).
+     */
+    func newAlphaChannel(name: String, selected: Bool) throws  -> ChannelUpdate
+    
+    /**
+     * New Spot Channel: an ink plane from the selection (`from_selection`)
+     * or empty. Preview metadata only: the RGB composite is unchanged.
+     */
+    func newSpotChannel(name: String, color: PaintColor, solidity: Float, fromSelection: Bool) throws  -> ChannelUpdate
+    
+    func renameDocumentChannel(id: UInt64, name: String) throws  -> DocumentUpdate
+    
+    /**
+     * Select ▸ Save Selection: the selection as a new alpha channel `name`
+     * (`target` `None`; `op` is then ignored), or combined by `op` into
+     * existing channel `target` (Replace, Add, Subtract, Intersect). One
+     * history node; fails without a selection.
+     */
+    func saveSelectionChannel(name: String, target: UInt64?, op: SelectionOp) throws  -> ChannelUpdate
+    
+    /**
+     * Shows or hides channel `id` in the host's preview overlay (session
+     * state: not saved, not a history node).
+     */
+    func setChannelVisible(id: UInt64, visible: Bool) throws 
+    
+    /**
+     * Channel Options for a spot channel (an alpha channel becomes one):
+     * display colour and solidity, each within 0…1. Preview metadata only.
+     */
+    func setSpotChannel(id: UInt64, color: PaintColor, solidity: Float) throws  -> DocumentUpdate
+    
+    /**
      * Image ▸ Adjustments: `adjustment_json` (`compositor::Adjustment`, the
      * JSON of the adjustment layer of the same kind) applied to a pixel
      * layer's pixels inside the selection, as one history node.
@@ -4256,7 +4316,7 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
     func fillSelection(layer: UInt64, fill: SelectionFill, opacity: Float) throws  -> DocumentUpdate
     
     /**
-     * Select ▸ Load Selection from channel `name`, combined by `op`.
+     * Select ▸ Load Selection from the first channel named `name`, combined by `op`.
      */
     func loadSelection(name: String, op: SelectionOp) throws  -> DocumentUpdate
     
@@ -4288,8 +4348,8 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
     func sampleColor(x: Float, y: Float, sampleAll: Bool, layer: UInt64?, radius: UInt32) throws  -> PaintColor
     
     /**
-     * Select ▸ Save Selection as channel `name` (replacing one of that
-     * name). Session state: channels are not written to files yet.
+     * Select ▸ Save Selection as alpha channel `name` (replacing the first
+     * alpha channel of that name). Saved with the document.
      */
     func saveSelection(name: String) throws 
     
@@ -4356,7 +4416,7 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
     func selectWand(x: Float, y: Float, tolerance: Float, contiguous: Bool, sampleAll: Bool, antialias: Bool, op: SelectionOp) throws  -> DocumentUpdate
     
     /**
-     * Saved selection channels, by name.
+     * Saved channel names in panel order (see `document_channels` for ids).
      */
     func selectionChannels() throws  -> [String]
     
@@ -5164,6 +5224,165 @@ open func ungroupLayer(id: UInt64)throws  -> DocumentUpdate  {
 }
     
     /**
+     * Channel `id` as a grey RGBA8 IOSurface (white = selected / full ink),
+     * at most `max_px` on the long edge (box-filtered). Cached per channel
+     * samples: the id stays valid until a newer thumbnail of the same
+     * channel and size replaces it or the session closes.
+     */
+open func channelThumbnail(id: UInt64, maxPx: UInt32)throws  -> UInt32  {
+    return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_channel_thumbnail(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),
+        FfiConverterUInt32.lower(maxPx),uniffiCallStatus
+    )
+})
+}
+    
+open func deleteDocumentChannel(id: UInt64)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_delete_document_channel(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Saved alpha and spot channels in panel / PSD order.
+     */
+open func documentChannels()throws  -> [ChannelRecord]  {
+    return try  FfiConverterSequenceTypeChannelRecord.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_document_channels(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * A copy of channel `id` named "<name> copy", appended last.
+     */
+open func duplicateDocumentChannel(id: UInt64)throws  -> ChannelUpdate  {
+    return try  FfiConverterTypeChannelUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_duplicate_document_channel(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Select ▸ Load Selection: channel `id` (inverted when `invert`)
+     * combined with the current selection by `op`. One history node.
+     */
+open func loadSelectionChannel(id: UInt64, op: SelectionOp, invert: Bool)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_load_selection_channel(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),
+        FfiConverterTypeSelectionOp_lower(op),
+        FfiConverterBool.lower(invert),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * A new empty alpha channel: all masked (black), or all selected
+     * (white) when `selected` (Quick Mask without a selection).
+     */
+open func newAlphaChannel(name: String, selected: Bool)throws  -> ChannelUpdate  {
+    return try  FfiConverterTypeChannelUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_new_alpha_channel(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(name),
+        FfiConverterBool.lower(selected),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * New Spot Channel: an ink plane from the selection (`from_selection`)
+     * or empty. Preview metadata only: the RGB composite is unchanged.
+     */
+open func newSpotChannel(name: String, color: PaintColor, solidity: Float, fromSelection: Bool)throws  -> ChannelUpdate  {
+    return try  FfiConverterTypeChannelUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_new_spot_channel(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(name),
+        FfiConverterTypePaintColor_lower(color),
+        FfiConverterFloat.lower(solidity),
+        FfiConverterBool.lower(fromSelection),uniffiCallStatus
+    )
+})
+}
+    
+open func renameDocumentChannel(id: UInt64, name: String)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_rename_document_channel(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),
+        FfiConverterString.lower(name),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Select ▸ Save Selection: the selection as a new alpha channel `name`
+     * (`target` `None`; `op` is then ignored), or combined by `op` into
+     * existing channel `target` (Replace, Add, Subtract, Intersect). One
+     * history node; fails without a selection.
+     */
+open func saveSelectionChannel(name: String, target: UInt64?, op: SelectionOp)throws  -> ChannelUpdate  {
+    return try  FfiConverterTypeChannelUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_save_selection_channel(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(name),
+        FfiConverterOptionUInt64.lower(target),
+        FfiConverterTypeSelectionOp_lower(op),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Shows or hides channel `id` in the host's preview overlay (session
+     * state: not saved, not a history node).
+     */
+open func setChannelVisible(id: UInt64, visible: Bool)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_set_channel_visible(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),
+        FfiConverterBool.lower(visible),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Channel Options for a spot channel (an alpha channel becomes one):
+     * display colour and solidity, each within 0…1. Preview metadata only.
+     */
+open func setSpotChannel(id: UInt64, color: PaintColor, solidity: Float)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_set_spot_channel(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),
+        FfiConverterTypePaintColor_lower(color),
+        FfiConverterFloat.lower(solidity),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * Image ▸ Adjustments: `adjustment_json` (`compositor::Adjustment`, the
      * JSON of the adjustment layer of the same kind) applied to a pixel
      * layer's pixels inside the selection, as one history node.
@@ -5531,7 +5750,7 @@ open func fillSelection(layer: UInt64, fill: SelectionFill, opacity: Float)throw
 }
     
     /**
-     * Select ▸ Load Selection from channel `name`, combined by `op`.
+     * Select ▸ Load Selection from the first channel named `name`, combined by `op`.
      */
 open func loadSelection(name: String, op: SelectionOp)throws  -> DocumentUpdate  {
     return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
@@ -5611,8 +5830,8 @@ open func sampleColor(x: Float, y: Float, sampleAll: Bool, layer: UInt64?, radiu
 }
     
     /**
-     * Select ▸ Save Selection as channel `name` (replacing one of that
-     * name). Session state: channels are not written to files yet.
+     * Select ▸ Save Selection as alpha channel `name` (replacing the first
+     * alpha channel of that name). Saved with the document.
      */
 open func saveSelection(name: String)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
         uniffiCallStatus in
@@ -5795,7 +6014,7 @@ open func selectWand(x: Float, y: Float, tolerance: Float, contiguous: Bool, sam
 }
     
     /**
-     * Saved selection channels, by name.
+     * Saved channel names in panel order (see `document_channels` for ids).
      */
 open func selectionChannels()throws  -> [String]  {
     return try  FfiConverterSequenceString.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
@@ -10441,6 +10660,188 @@ public func FfiConverterTypeChangedFields_lift(_ buf: RustBuffer) throws -> Chan
 #endif
 public func FfiConverterTypeChangedFields_lower(_ value: ChangedFields) -> RustBuffer {
     return FfiConverterTypeChangedFields.lower(value)
+}
+
+
+/**
+ * One saved channel, as the Channels panel lists it.
+ */
+public struct ChannelRecord: Equatable, Hashable {
+    /**
+     * Stable within the document (and across save / reopen).
+     */
+    public var id: UInt64
+    public var kind: DocChannelKind
+    /**
+     * Display name; names may repeat (as in PSD).
+     */
+    public var name: String
+    /**
+     * Spot: the ink's display colour. Alpha: the default overlay colour
+     * (red), which PSD also records for alpha channels.
+     */
+    public var color: PaintColor
+    /**
+     * Spot: solidity. Alpha: the default overlay opacity (0.5).
+     */
+    public var opacity: Float
+    /**
+     * Shown by the host's preview overlay (session state, not saved).
+     */
+    public var visible: Bool
+    /**
+     * Position in the panel and in the PSD channel list (0 = first).
+     */
+    public var index: UInt32
+    /**
+     * Changes whenever the channel's samples change (thumbnail cache key).
+     */
+    public var revision: UInt64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Stable within the document (and across save / reopen).
+         */id: UInt64, kind: DocChannelKind, 
+        /**
+         * Display name; names may repeat (as in PSD).
+         */name: String, 
+        /**
+         * Spot: the ink's display colour. Alpha: the default overlay colour
+         * (red), which PSD also records for alpha channels.
+         */color: PaintColor, 
+        /**
+         * Spot: solidity. Alpha: the default overlay opacity (0.5).
+         */opacity: Float, 
+        /**
+         * Shown by the host's preview overlay (session state, not saved).
+         */visible: Bool, 
+        /**
+         * Position in the panel and in the PSD channel list (0 = first).
+         */index: UInt32, 
+        /**
+         * Changes whenever the channel's samples change (thumbnail cache key).
+         */revision: UInt64) {
+        self.id = id
+        self.kind = kind
+        self.name = name
+        self.color = color
+        self.opacity = opacity
+        self.visible = visible
+        self.index = index
+        self.revision = revision
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ChannelRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeChannelRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ChannelRecord {
+        return
+            try ChannelRecord(
+                id: FfiConverterUInt64.read(from: &buf), 
+                kind: FfiConverterTypeDocChannelKind.read(from: &buf), 
+                name: FfiConverterString.read(from: &buf), 
+                color: FfiConverterTypePaintColor.read(from: &buf), 
+                opacity: FfiConverterFloat.read(from: &buf), 
+                visible: FfiConverterBool.read(from: &buf), 
+                index: FfiConverterUInt32.read(from: &buf), 
+                revision: FfiConverterUInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ChannelRecord, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.id, into: &buf)
+        FfiConverterTypeDocChannelKind.write(value.kind, into: &buf)
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterTypePaintColor.write(value.color, into: &buf)
+        FfiConverterFloat.write(value.opacity, into: &buf)
+        FfiConverterBool.write(value.visible, into: &buf)
+        FfiConverterUInt32.write(value.index, into: &buf)
+        FfiConverterUInt64.write(value.revision, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeChannelRecord_lift(_ buf: RustBuffer) throws -> ChannelRecord {
+    return try FfiConverterTypeChannelRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeChannelRecord_lower(_ value: ChannelRecord) -> RustBuffer {
+    return FfiConverterTypeChannelRecord.lower(value)
+}
+
+
+/**
+ * A channel edit that names the channel it made or changed.
+ */
+public struct ChannelUpdate: Equatable, Hashable {
+    public var channelId: UInt64
+    public var update: DocumentUpdate
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(channelId: UInt64, update: DocumentUpdate) {
+        self.channelId = channelId
+        self.update = update
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ChannelUpdate: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeChannelUpdate: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ChannelUpdate {
+        return
+            try ChannelUpdate(
+                channelId: FfiConverterUInt64.read(from: &buf), 
+                update: FfiConverterTypeDocumentUpdate.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ChannelUpdate, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.channelId, into: &buf)
+        FfiConverterTypeDocumentUpdate.write(value.update, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeChannelUpdate_lift(_ buf: RustBuffer) throws -> ChannelUpdate {
+    return try FfiConverterTypeChannelUpdate.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeChannelUpdate_lower(_ value: ChannelUpdate) -> RustBuffer {
+    return FfiConverterTypeChannelUpdate.lower(value)
 }
 
 
@@ -20682,6 +21083,81 @@ public func FfiConverterTypeDecision_lower(_ value: Decision) -> RustBuffer {
 
 
 /**
+ * What a saved channel is.
+ */
+
+public enum DocChannelKind: Equatable, Hashable {
+    
+    /**
+     * A saved selection or general-purpose mask.
+     */
+    case alpha
+    /**
+     * A spot ink plane (preview metadata only: never in the RGB composite).
+     */
+    case spot
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension DocChannelKind: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDocChannelKind: FfiConverterRustBuffer {
+    typealias SwiftType = DocChannelKind
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DocChannelKind {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .alpha
+        
+        case 2: return .spot
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: DocChannelKind, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .alpha:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .spot:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDocChannelKind_lift(_ buf: RustBuffer) throws -> DocChannelKind {
+    return try FfiConverterTypeDocChannelKind.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDocChannelKind_lower(_ value: DocChannelKind) -> RustBuffer {
+    return FfiConverterTypeDocChannelKind.lower(value)
+}
+
+
+
+/**
  * Bits per channel of a document.
  */
 
@@ -24922,6 +25398,31 @@ fileprivate struct FfiConverterSequenceTypeBrushTipInfo: FfiConverterRustBuffer 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeChannelRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [ChannelRecord]
+
+    public static func write(_ value: [ChannelRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeChannelRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ChannelRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ChannelRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeChannelRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeCullGroup: FfiConverterRustBuffer {
     typealias SwiftType = [CullGroup]
 
@@ -27125,6 +27626,39 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_documentsession_ungroup_layer() != 16163) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_channel_thumbnail() != 33848) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_delete_document_channel() != 25172) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_document_channels() != 11113) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_duplicate_document_channel() != 42170) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_load_selection_channel() != 62039) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_new_alpha_channel() != 35156) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_new_spot_channel() != 26033) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_rename_document_channel() != 51295) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_save_selection_channel() != 16390) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_set_channel_visible() != 38870) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_set_spot_channel() != 59239) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_tessera_ffi_checksum_method_documentsession_apply_adjustment() != 62065) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -27200,7 +27734,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_documentsession_fill_selection() != 4888) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_load_selection() != 11776) {
+    if (uniffi_tessera_ffi_checksum_method_documentsession_load_selection() != 46299) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_magnetic_path() != 59164) {
@@ -27215,7 +27749,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_documentsession_sample_color() != 13847) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_save_selection() != 20804) {
+    if (uniffi_tessera_ffi_checksum_method_documentsession_save_selection() != 43148) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_select_all() != 13304) {
@@ -27251,7 +27785,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_documentsession_select_wand() != 8868) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_selection_channels() != 23976) {
+    if (uniffi_tessera_ffi_checksum_method_documentsession_selection_channels() != 40011) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_selection_outline() != 17836) {
