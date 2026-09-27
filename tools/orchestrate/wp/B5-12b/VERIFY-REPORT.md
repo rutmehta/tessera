@@ -1,0 +1,6 @@
+# B5-12 on-screen verification (Machine B verifier, 2026-09-27) — build wp/B5-12 @ 108ed76 (pre-M2-56)
+Core Warp / Perspective / Puppet / CAS flows work; no freeze observed.
+PASS: 380, 381 (note: during a pending preview, and after Cancel of the consent alert, Properties shows Kind Smart Object and Layers shows the filter row although nothing is committed), 382 (preview latency median 365–522 ms, p95 905 ms on 1200×800), 383, 385, 387 (⌥ blocked), 389 via typed size, 392, key handling (Esc discards, Return applies, ⌫ removes pin).
+PARTIAL: 386 — a corner drag across its plane is refused but NO "planes must stay convex" message appears. 388 — Expansion 80 silently reverts to 20 with no error (spec: refused with engine error); coarse-mesh warning shows; Puppet preview render 5,530–5,962 ms on 1200×800.
+BLOCKED: 384/388/394 — Warp preset pop-up, Bend and Puppet Mode sit under the window toolbar at 1440 pt (pre-M2-56 build); 390 marquee drag failed; canvas drags after a focus incident fail with windowNotFoundAtPosition (window covered by user windows).
+Other: Return with the Bend field focused does not apply; Esc does not cancel while the Amount field is focused (Cancel button works); status-bar hint stays stale after Apply/Cancel and tool changes.
