@@ -135,6 +135,6 @@ fn lazy_adapter_zero_never_creates_model_cache() {
     assert!(
         adapter
             .adapter_revision()
-            .contains(ml_enhance::DENOISE_ADAPTER_VERSION)
+            .contains(ml_enhance::DENOISE_AUTO_ADAPTER_VERSION)
     );
 }

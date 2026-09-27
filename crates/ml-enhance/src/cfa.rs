@@ -99,20 +99,36 @@ impl CfaNoise {
     /// represents the observed noise at that signal. This is an estimate, not
     /// a camera calibration, and may overestimate noise in textured scenes.
     pub fn estimate(packed: &Tensor) -> Result<Self> {
+        Self::estimate_planes(packed, 4)
+    }
+
+    /// Apply the M2-49 same-plane estimator to demosaiced linear RGB.
+    /// The returned coefficients are in RGB order and in the input's linear
+    /// units, not sensor calibration. Demosaic correlations can bias this
+    /// independent-noise estimate; no CFA site layout is assumed or invented.
+    pub fn estimate_rgb(rgb: &Tensor) -> Result<crate::NoiseModelHint> {
+        let noise = Self::estimate_planes(rgb, 3)?;
+        Ok(crate::NoiseModelHint {
+            shot: [noise.shot[0], noise.shot[1], noise.shot[2]],
+            read: [noise.read[0], noise.read[1], noise.read[2]],
+        })
+    }
+
+    fn estimate_planes(packed: &Tensor, expected_channels: usize) -> Result<Self> {
         let [_, channels, h, w] = packed.shape();
         ensure!(
-            channels == 4 && w >= 8 && h >= 8,
-            "noise estimate needs four 8x8 CFA planes"
+            channels == expected_channels && w >= 8 && h >= 8,
+            "noise estimate needs {expected_channels} planes of at least 8x8"
         );
         ensure!(
             packed.data().iter().all(|v| v.is_finite()),
-            "nonfinite CFA samples"
+            "nonfinite noise-estimation samples"
         );
         let mut result = Self {
             shot: [0.; 4],
             read: [0.; 4],
         };
-        for c in 0..4 {
+        for c in 0..channels {
             let plane = &packed.data()[c * w * h..(c + 1) * w * h];
             let mut patches = Vec::new();
             for y in (0..h - 7).step_by(8) {

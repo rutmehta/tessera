@@ -282,10 +282,14 @@ pub(crate) fn tone_map(rgb: Image) -> image::Rgb32FImage {
 mod cfa_test;
 
 #[cfg(test)]
+#[path = "denoise_tests.rs"]
+mod denoise_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use engine_api::recipe::settings::LensBlur;
-    fn raw_fixture() -> (raw_decode::CfaImage, raw_decode::RawMetadata) {
+    pub(super) fn raw_fixture() -> (raw_decode::CfaImage, raw_decode::RawMetadata) {
         let cfa = raw_decode::CfaImage::from_linear(64, 64, vec![0.18; 4096]).unwrap();
         let metadata = raw_decode::RawMetadata {
             make: "test".into(),
