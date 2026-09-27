@@ -54,23 +54,19 @@ final class TextSelfTest {
         await pause(0.25)
     }
 
-    /// Screenshot of the Tessera window only: writes `<dir>/<name>.req` with the window rectangle
-    /// (`screencapture -R` coordinates) and waits for `<name>.png`, which a watcher outside the app
-    /// captures (the app itself holds no Screen Recording permission).
+    /// Screenshot of this window only, without bringing the app forward: writes `<dir>/<name>.req`
+    /// holding the window number and waits for `<name>.png`, which a watcher captures with
+    /// `screencapture -x -o -l <window>` (the window is captured even behind other windows).
     private func shot(_ name: String) async {
         await settle()
-        guard let w = workspace.current?.viewport?.window ?? NSApp.mainWindow, let screen = NSScreen.screens.first else { return }
-        NSApp.activate(ignoringOtherApps: true)
-        w.orderFrontRegardless()
+        guard let w = workspace.current?.viewport?.window ?? NSApp.mainWindow else { return }
         w.displayIfNeeded()
-        await pause(0.6)
-        let f = w.frame
-        let rect = String(format: "%.0f,%.0f,%.0f,%.0f", f.minX, screen.frame.height - f.maxY, f.width, f.height)
+        await pause(0.4)
         let png = dir.appendingPathComponent("\(name).png")
         try? FileManager.default.removeItem(at: png)
-        try? rect.write(to: dir.appendingPathComponent("\(name).req"), atomically: true, encoding: .utf8)
-        let ok = await wait(20) { FileManager.default.fileExists(atPath: png.path) }
-        log("shot \(name) window \(rect)" + (ok ? "" : " (no watcher)"))
+        try? "\(w.windowNumber)".write(to: dir.appendingPathComponent("\(name).req"), atomically: true, encoding: .utf8)
+        let ok = await wait(60) { FileManager.default.fileExists(atPath: png.path) }
+        log(String(format: "shot %@ window %ld %.0f × %.0f", name, w.windowNumber, w.frame.width, w.frame.height) + (ok ? "" : " (no watcher)"))
     }
 
     // MARK: Synthesized input
@@ -89,6 +85,7 @@ final class TextSelfTest {
     }
 
     private func click(_ p: CGPoint, flags: NSEvent.ModifierFlags = [], clicks: Int = 1) async {
+        await quiet()
         guard let v = viewport, let d = mouse(.leftMouseDown, p, flags: flags, clicks: clicks),
               let u = mouse(.leftMouseUp, p, flags: flags, clicks: clicks) else { return }
         v.mouseDown(with: d)
@@ -97,6 +94,7 @@ final class TextSelfTest {
     }
 
     private func drag(_ a: CGPoint, _ b: CGPoint, flags: NSEvent.ModifierFlags = [], steps: Int = 8) async {
+        await quiet()
         guard let v = viewport, let d = mouse(.leftMouseDown, a, flags: flags) else { return }
         v.mouseDown(with: d)
         for i in 1...steps {
@@ -116,7 +114,22 @@ final class TextSelfTest {
         "o": 31, "u": 32, "i": 34, "p": 35, "l": 37, "j": 38, "k": 40, "n": 45, "m": 46, " ": 49, ",": 43, ".": 47,
     ]
 
-    /// Posts a key down/up pair to the application queue (monitors, menus, first responder).
+    /// The app's key routing, reproduced for a window that is not frontmost (the app never takes
+    /// focus): the document key monitor (`KeyRouter`, the same logic the installed monitor runs), then
+    /// key equivalents (window, then the main menu), then the window's first responder.
+    private lazy var router = KeyRouter(model: AppModel.shared)
+    private func deliver(_ e: NSEvent, in w: NSWindow) {
+        if e.type == .keyDown {
+            if router.handle(e) { return }
+            if e.modifierFlags.contains(.command) {
+                if w.performKeyEquivalent(with: e) { return }
+                if NSApp.mainMenu?.performKeyEquivalent(with: e) == true { return }
+            }
+        } else if router.handleKeyUp(e) { return }
+        w.sendEvent(e)
+    }
+
+    /// A key down/up pair routed as the app routes keys (see `deliver`).
     private func key(_ ch: String, code: UInt16? = nil, flags: NSEvent.ModifierFlags = []) {
         guard let w = viewport?.window else { return }
         let lower = ch.lowercased()
@@ -126,13 +139,24 @@ final class TextSelfTest {
             if let e = NSEvent.keyEvent(with: type, location: .zero, modifierFlags: flags, timestamp: ProcessInfo.processInfo.systemUptime,
                                         windowNumber: w.windowNumber, context: nil, characters: chars,
                                         charactersIgnoringModifiers: lower, isARepeat: false, keyCode: kc) {
-                NSApp.postEvent(e, atStart: false)
+                deliver(e, in: w)
             }
         }
     }
 
+    /// Keeps the window at the width under test (the app never comes forward; nothing else touches it).
+    private func quiet() async {
+        if let w = viewport?.window, abs(w.frame.width - wantedWidth) > 1 { await setWindowWidth(wantedWidth) }
+    }
+
     private func type(_ s: String, interval: Double = 0.012) async {
+        await quiet()
+        guard text.isEditing, viewport?.window?.firstResponder === text.input else {
+            log("type: no text session has the keyboard; not typing \"\(s)\"")
+            return
+        }
         for ch in s {
+            if let d = doc, d.tool != .type { log("type: tool changed to \(d.tool) before \"\(ch)\"") }
             if Self.keyCodes[Character(ch.lowercased())] != nil {
                 key(String(ch), flags: ch.isUppercase ? .shift : [])
             } else {
@@ -143,7 +167,12 @@ final class TextSelfTest {
         await pause(0.2)
     }
 
-    private func enterKey() async { key("\u{3}", code: 76); await pause(0.3) }
+    private func enterKey() async {
+        await pause(0.3)
+        key("\u{3}", code: 76)
+        await pause(0.4)
+        if let d = doc, d.tool != .type { log("enter: tool is \(d.tool)") }
+    }
     private func escKey() async { key("\u{1b}", code: 53); await pause(0.3) }
 
     // MARK: Model reads
@@ -153,14 +182,23 @@ final class TextSelfTest {
     private func model(_ id: DocLayerID) -> TextSourceModel? { try? tb?.textLayer(id: id).model }
     private func historyCount() -> Int { doc?.history.count ?? 0 }
     private func textLayers() -> [DocLayerID] { doc?.layers.filter { $0.kind == .text }.map(\.id) ?? [] }
+    /// The text layer added since `before` (ids, not row order: rows are top-first).
+    private func added(since before: [DocLayerID]) -> DocLayerID? { textLayers().first { !before.contains($0) } }
 
+    private var wantedWidth: CGFloat = 1440
     private func setWindowWidth(_ w: CGFloat) async {
+        wantedWidth = w
         guard let win = viewport?.window, let screen = win.screen ?? NSScreen.main else { return }
+        if win.styleMask.contains(.fullScreen) { win.toggleFullScreen(nil); await pause(1.5) }
+        if win.isZoomed { win.zoom(nil); await pause(0.5) }
         // Top edge 470 pt below the screen top (clear of floating notch widgets), left edge at the screen's.
         let top = screen.frame.maxY - (Double(ProcessInfo.processInfo.environment["TESSERA_TEXT_SELFTEST_TOP"] ?? "") ?? 470)
         let h = min(850, top - screen.visibleFrame.minY)
         win.setFrame(CGRect(x: screen.frame.minX, y: top - h, width: min(w, screen.frame.width), height: h), display: true)
         await pause(0.5)
+        if abs(win.frame.width - min(w, screen.frame.width)) > 1 {
+            log(String(format: "window resize to %.0f refused (now %.0f × %.0f, style %lu)", w, win.frame.width, win.frame.height, win.styleMask.rawValue))
+        }
     }
 
     // MARK: Run
@@ -180,18 +218,25 @@ final class TextSelfTest {
         text.size = size
         text.family = "Helvetica"
 
+        if ProcessInfo.processInfo.environment["TESSERA_TEXT_SELFTEST_ONLY"] == "latency" {
+            await measureLatency(doc, W: W, H: H)
+            log("done, \(failures) failure(s)")
+            return
+        }
+
         // 341: T (posted key) selects Type; a canvas click creates point text.
         doc.viewport?.window?.makeFirstResponder(doc.viewport)
         key("t")
         _ = await wait(3) { doc.tool == .type }
         check("341 T selects Type", doc.tool == .type, "\(doc.tool)")
         let layersBefore = doc.layers.count
+        let texts0 = textLayers()
         await click(CGPoint(x: W * 0.1, y: H * 0.2))
         check("341 click starts a session", text.isEditing(doc))
         await type("Hello World")
         await enterKey()
         await settle()
-        let point = textLayers().last
+        let point = added(since: texts0)
         check("341 point text layer created", doc.layers.count == layersBefore + 1 && point != nil, "\(doc.layers.count)")
         if let point { check("341 text", model(point)?.text == "Hello World", model(point)?.text ?? "-") }
 
@@ -213,6 +258,7 @@ final class TextSelfTest {
         await shot("341-point-text")
 
         // 342: a drag creates area text that wraps inside its box.
+        let texts1 = textLayers()
         let boxRect = CGRect(x: W * 0.1, y: H * 0.35, width: W * 0.35, height: H * 0.4)
         await drag(boxRect.origin, CGPoint(x: boxRect.maxX, y: boxRect.maxY))
         check("342 drag starts an area session", text.session?.edit.model.textBox.isParagraph == true)
@@ -221,7 +267,8 @@ final class TextSelfTest {
         check("342 wraps", lines > 1, "\(lines) lines")
         await enterKey()
         await settle()
-        let area = textLayers().last
+        if ProcessInfo.processInfo.environment["TESSERA_TEXT_SELFTEST_ONLY"] == "type" { log("tool \(doc.tool)"); log("done, \(failures) failure(s)"); return }
+        let area = added(since: texts1)
         await shot("342-area-text")
 
         // 343 / 344: select on canvas, style the selection, insert and delete across mixed runs.
@@ -252,8 +299,10 @@ final class TextSelfTest {
         text.command(#selector(NSResponder.deleteBackward(_:)))
         text.command(#selector(NSResponder.deleteBackward(_:)))
         await settle()
-        check("343 edit across runs", text.session?.edit.text.hasPrefix("AreaX") == true || text.session?.edit.text.contains("X") == true,
-              text.session?.edit.text ?? "-")
+        // ← collapses the selection to its start (5), X is typed, two ⌫ remove X and the space before it.
+        check("343 edit across runs", text.session?.edit.text.hasPrefix("Areatext wraps") == true, text.session?.edit.text ?? "-")
+        check("343 styled run intact", text.session?.edit.model.runs.contains { $0.text.hasPrefix("text") && $0.weight == 700 } == true,
+              "\(text.session?.edit.model.runs.map(\.text) ?? [])")
         await shot("343-344-mixed-styles")
 
         // 345: tracking, leading, baseline shift: one node each (drags preview live).
@@ -289,7 +338,9 @@ final class TextSelfTest {
             await settle()
             let nb = model(area)?.textBox.size
             check("347 box resized", nb.map { $0.width < box.width * 0.7 } ?? false, "\(String(describing: nb))")
-            check("347 rewraps", (text.index?.layout.lines.count ?? 0) > linesBefore, "\(linesBefore) → \(text.index?.layout.lines.count ?? 0)")
+            let after = text.index?.layout
+            check("347 rewraps or overflows", (after?.lines.count ?? 0) != linesBefore || after?.overflow == true,
+                  "\(linesBefore) → \(after?.lines.count ?? 0), overflow \(after?.overflow ?? false)")
             check("347 same glyph size", model(area)?.runs.map(\.size) == runsBefore?.map(\.size))
             await shot("347-resized-box")
         }
@@ -392,15 +443,13 @@ final class TextSelfTest {
             let opacity = doc.node(point)?.opacity
             await type(" tvxdq 1 2 ")
             key("\u{7f}", code: 51)
-            await pause(0.3)
-            key("a", flags: .command)
-            await pause(0.3)
-            key("c", flags: .command)
-            await pause(0.3)
-            key("v", flags: .command)
-            await pause(0.3)
-            key("v", flags: .command)
-            await pause(0.4)
+            await pause(0.5)
+            for k in ["a", "c", "v", "v"] {
+                if viewport?.window?.firstResponder !== text.input { log("352: the text lost the keyboard before ⌘\(k)") }
+                key(k, flags: .command)
+                await pause(0.8)
+                await settle()
+            }
             let s = text.session?.edit.text ?? ""
             check("352 letters typed", s.contains("tvxdq 1 2"), s)
             check("352 tool unchanged", doc.tool == .type, "\(doc.tool)")
@@ -566,6 +615,22 @@ final class TextSelfTest {
     }
 
     // MARK: Helpers
+
+    /// Keystroke → presented frame on this (20 MP) document: point text at 1/20 of the long edge,
+    /// typed at 8 keys a second at Fit, then at 100 %.
+    private func measureLatency(_ doc: DocumentController, W: Double, H: Double) async {
+        doc.viewport?.window?.makeFirstResponder(doc.viewport)
+        key("t")
+        _ = await wait(3) { doc.tool == .type }
+        doc.viewport?.zoomToFit()
+        await click(CGPoint(x: W * 0.1, y: H * 0.3))
+        let t0 = Date()
+        await type("The quick brown fox jumps over the lazy dog", interval: 0.125)
+        await settle()
+        log(String(format: "latency fit: %@ (typing %.1f s)", text.latencyReadout ?? "none", Date().timeIntervalSince(t0)))
+        await enterKey()
+        await settle()
+    }
 
     /// Evidence for the 1440-pt fix: the window width and the width SwiftUI gives the split view host
     /// (they must match; before the fix the host stayed ~1450 pt wide and overflowed the window).

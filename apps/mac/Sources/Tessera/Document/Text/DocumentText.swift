@@ -171,11 +171,11 @@ final class DocumentText {
 
     /// Records the draft as one history node labelled `label` (none when unchanged). With
     /// `end`, the session ends; otherwise it continues from the committed model.
-    private func commitDraft(_ label: String, end: Bool, selectCreated: Bool = true) {
+    private func commitDraft(_ label: String, end: Bool, selectCreated: Bool = true, force: Bool = false) {
         guard let s = session, let doc = document, doc.id == s.docID, let t = backend(doc) else { return }
         previewDirty = false
         let (model, transform, parent, index) = (s.edit.model, s.transform, s.parent, s.insertIndex)
-        let changed = s.edit.isChanged || s.previewed
+        let changed = force || s.edit.isChanged || s.previewed
         if end { endSession() } else { session?.edit.rebase(to: model); session?.previewed = false }
         guard changed else { return }
         let backendRef = doc.backend
@@ -197,6 +197,7 @@ final class DocumentText {
         } done: { [weak doc] c in
             guard let doc else { return }
             let me = DocumentText.shared
+            if c == nil, end == false { me.resync(doc) }
             if let id = c?.created.first {
                 if me.session?.docID == doc.id, me.session?.layer == nil { me.session?.layer = id }
                 if selectCreated { doc.selection = [id] }
@@ -204,7 +205,19 @@ final class DocumentText {
             doc.reloadModel()
             doc.reloadHistory()
             me.redraw()
+        } failed: { [weak doc] in
+            if let doc { DocumentText.shared.resync(doc) }
         }
+    }
+
+    /// After a rejected edit (a lock, a stale revision): the session shows the committed layer again.
+    private func resync(_ doc: DocumentController) {
+        guard let s = session, s.docID == doc.id, let id = s.layer, let t = backend(doc),
+              let src = try? t.textLayer(id: id) else { return }
+        session?.transform = src.transform
+        if !src.draftPending { session?.edit.setModel(src.model); session?.edit.rebase(to: src.model) }
+        session?.previewed = src.draftPending
+        relayout()
     }
 
     // MARK: Session lifecycle
@@ -583,6 +596,7 @@ final class DocumentText {
             }
             let inside = localFrame?.insetBy(dx: -4, dy: -4).contains(l) ?? false
             if cmd {
+                if s.caretEditable { focus(doc) }
                 if inside {
                     gesture = .move(last: p)
                 } else {
@@ -679,11 +693,11 @@ final class DocumentText {
                                                      width: abs(current.x - start.x), height: abs(current.y - start.y)))
             }
         case .move:
-            if session?.layer != nil { commitDraft("Move Type", end: false) }
+            if session?.layer != nil { commitDraft("Move Type", end: false, force: true) }
         case .rotate:
-            if session?.layer != nil { commitDraft("Rotate Type", end: false) }
+            if session?.layer != nil { commitDraft("Rotate Type", end: false, force: true) }
         case .resize:
-            if session?.layer != nil { commitDraft("Resize Text Box", end: false) }
+            if session?.layer != nil { commitDraft("Resize Text Box", end: false, force: true) }
         default: break
         }
         redraw()

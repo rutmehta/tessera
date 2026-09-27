@@ -374,3 +374,14 @@ Layered documents reuse the system above; nothing here adds a colour, size or fo
   channel pop-up and native radio groups for the operation; spot controls always carry the `Hint` that spot colour is
   preview-only. The canvas preview uses the user's channel colours (alpha default red 50 % over masked areas, spot
   ink at its solidity) and `OnImage.ink` behind a single visible channel when the colour components are hidden.
+* **Type tool and text (WP B5-10)**: on canvas only the on-image set: the text frame (point text: dashed layout bounds;
+  area text: the box, solid) in `OnImage.guide` over `OnImage.shadow`, eight square box handles like the transform
+  handles, the selection as the accent at 35 % over the glyph boxes (content selection), marked IME text underlined in
+  the accent, the caret a 1.5 pt accent line over a 3 pt `OnImage.shadow` line, blinking. The options bar holds the
+  new-text font pop-up, size field and the neutral alignment `SegmentedPicker` (icons), then borderless Cancel and
+  bordered Apply while editing. Properties ▸ Character / Paragraph / Text box are `SubHeader` groups: 72 pt label
+  column rows with `ThemeMenuStyle` pop-ups (font, style), `ValueSlider` rows (units in the value, `(mixed)` in the
+  title when a selection mixes values), the minimal colour well and a kerning checkbox; the alignment segments; the
+  box kind as `InfoRow`s with a borderless convert action. Limitations are `warning` triangle + secondary caption
+  lines at the top. Document mode's detail column has a 384 pt minimum so the sidebar and the inspector (288 pt
+  minimum, unchanged) always fit the window; the status bar's canvas label truncates in the middle.

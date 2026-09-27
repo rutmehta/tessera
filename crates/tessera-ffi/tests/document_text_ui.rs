@@ -1005,3 +1005,50 @@ fn text_layer_reports_caret_and_colour_limitations() {
     assert!(fonts.iter().all(|f| !f.family.starts_with('.')));
     assert!(fonts.windows(2).all(|w| w[0].family < w[1].family));
 }
+
+/// Typing preview cost on a 20 MP document (5472 × 3648): one keystroke = a full draft preview plus a
+/// frame. Ignored by default (timing); run with `--ignored --nocapture`.
+#[test]
+#[ignore]
+fn typing_preview_latency_20mp() {
+    let (_d, e) = engine();
+    let s = e
+        .clone()
+        .new_document(5472, 3648, DocDepth::U8, None)
+        .unwrap();
+    let mut m = point(vec![run("", SYSTEM, 274.0)]);
+    let id = add(&s, &point(vec![run("H", SYSTEM, 274.0)]), at(500.0, 500.0));
+    s.set_viewport(2, 0, 0, 1368, 912, 0.25).unwrap();
+    s.wait_idle();
+    let mut times = Vec::new();
+    for (i, ch) in "Hello typing latency".chars().enumerate() {
+        m.runs[0].text.push(ch);
+        let t0 = std::time::Instant::now();
+        s.set_text_layer(id, json(&m), at(500.0, 500.0), true, None)
+            .unwrap();
+        let t1 = t0.elapsed();
+        let (_, _, px) = s.read_level(2).unwrap();
+        let t2 = t0.elapsed();
+        assert!(!px.is_empty());
+        times.push((t1.as_secs_f64() * 1000.0, t2.as_secs_f64() * 1000.0));
+        if i == 0 {
+            println!(
+                "first key: preview {:.1} ms, preview+level-2 render {:.1} ms",
+                times[0].0, times[0].1
+            );
+        }
+    }
+    let mut total: Vec<f64> = times.iter().map(|t| t.1).collect();
+    total.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    println!(
+        "20 MP typing: preview median {:.1} ms; preview + level-2 frame median {:.1} ms, max {:.1} ms ({} keys)",
+        {
+            let mut p: Vec<f64> = times.iter().map(|t| t.0).collect();
+            p.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            p[p.len() / 2]
+        },
+        total[total.len() / 2],
+        total[total.len() - 1],
+        total.len()
+    );
+}
