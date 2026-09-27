@@ -1,0 +1,17 @@
+Test Suite 'Selected tests' started at 2026-09-27 07:20:51.552.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-27 07:20:51.553.
+Test Suite 'ThumbnailQueueTests' started at 2026-09-27 07:20:51.553.
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testTwentyThousandReversalDeliversOnlyFinalViewport]' started.
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testTwentyThousandReversalDeliversOnlyFinalViewport]' passed (0.649 seconds).
+Test Suite 'ThumbnailQueueTests' passed at 2026-09-27 07:20:52.202.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.649 (0.649) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-09-27 07:20:52.202.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.649 (0.650) seconds
+Test Suite 'Selected tests' passed at 2026-09-27 07:20:52.202.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.649 (0.650) seconds
+P08 20k forward/reverse: peak pending=24, active=4, subscribers=24, delivered=24, traceMs=648.3878334984183
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
+[0/1] Planning build

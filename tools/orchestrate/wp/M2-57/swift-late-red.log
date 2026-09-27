@@ -1,0 +1,115 @@
+Building for debugging...
+[0/6] Write sources
+[2/6] Write swift-version--58304C5D6DBC2206.txt
+[4/8] Emitting module TesseraCore
+[5/8] Compiling TesseraCore ThumbnailLoader.swift
+[6/44] Compiling Tessera ThumbnailCell.swift
+[7/44] Compiling Tessera HistogramView.swift
+[8/44] Compiling Tessera InspectorView.swift
+[9/44] Compiling Tessera TransformPanel.swift
+[10/44] Compiling Tessera AISettingsView.swift
+[11/44] Compiling Tessera AgentController.swift
+[12/44] Compiling Tessera AgentPanels.swift
+[13/44] Compiling Tessera AgentReviewSheet.swift
+[14/47] Compiling Tessera CompareView.swift
+[15/47] Compiling Tessera AssistController.swift
+[16/47] Compiling Tessera AssistPanels.swift
+[17/47] Compiling Tessera DefectSweepSheet.swift
+[18/47] Compiling Tessera FaceStripView.swift
+[19/47] Compiling Tessera DocumentSelfTest.swift
+[20/47] Compiling Tessera FilterSelfTest.swift
+[21/47] Compiling Tessera RetouchSelfTest.swift
+[22/47] Compiling Tessera KeyRouter.swift
+[23/47] Compiling Tessera MaskTools.swift
+[24/47] Compiling Tessera TesseraApp.swift
+[25/47] Compiling Tessera TimingSelfTest.swift
+[26/47] Compiling Tessera UnderstandingPanels.swift
+[27/47] Compiling Tessera FilterBar.swift
+[28/47] Compiling Tessera LoupeView.swift
+[29/47] Compiling Tessera PeopleView.swift
+[30/47] Compiling Tessera AppModel+Photo.swift
+[31/47] Compiling Tessera PhotoMenu.swift
+[32/47] Compiling Tessera PrintController.swift
+[33/47] Compiling Tessera AppCommands.swift
+[34/47] Compiling Tessera AppModel+Output.swift
+[35/47] Compiling Tessera AppModel.swift
+[36/47] Compiling Tessera DevelopTools.swift
+[37/47] Compiling Tessera StylesSelfTest.swift
+[38/47] Compiling Tessera ToolsSelfTest.swift
+[39/47] Compiling Tessera VectorSelfTest.swift
+[40/47] Compiling Tessera ThumbnailBrowser.swift
+[41/47] Emitting module Tessera
+[42/47] Compiling Tessera ContentView.swift
+[43/47] Compiling Tessera SidebarView.swift
+[44/47] Compiling Tessera TetherController.swift
+[44/49] Write Objects.LinkFileList
+ld: warning: object file (/Users/rutmehta/Developer/tessera/.worktrees/M2-57/apps/mac/build/ffi/libtessera_ffi.a[2845](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[45/49] Linking Tessera
+[46/49] Applying Tessera
+[48/63] Compiling TesseraCoreTests DocumentKeyRoutingTests.swift
+[49/63] Compiling TesseraCoreTests DocumentTextSessionTests.swift
+[50/63] Compiling TesseraCoreTests LibraryResponsivenessTests.swift
+[51/63] Compiling TesseraCoreTests LazyLoupeTests.swift
+[52/63] Compiling TesseraCoreTests TetherTests.swift
+[53/63] Compiling TesseraCoreTests PreviewEventsTests.swift
+[54/63] Compiling TesseraCoreTests PeopleLayoutTests.swift
+[55/64] Compiling TesseraCoreTests KeyFocusTests.swift
+[56/64] Compiling TesseraCoreTests LayoutContractTests.swift
+[57/64] Compiling TesseraCoreTests BridgeTests.swift
+[58/64] Compiling TesseraCoreTests DocumentInspectorLayoutTests.swift
+[59/64] Emitting module TesseraCoreTests
+[60/64] Compiling TesseraCoreTests EngineDocumentBackendTests.swift
+/Users/rutmehta/Developer/tessera/.worktrees/M2-57/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[61/64] Compiling TesseraCoreTests IncrementalLibraryTests.swift
+/Users/rutmehta/Developer/tessera/.worktrees/M2-57/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[62/64] Compiling TesseraCoreTests ThumbnailQueueTests.swift
+[62/64] Write Objects.LinkFileList
+ld: warning: object file (/Users/rutmehta/Developer/tessera/.worktrees/M2-57/apps/mac/build/ffi/libtessera_ffi.a[2845](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[63/64] Linking TesseraPackageTests
+Build complete! (35.73s)
+Test Suite 'Selected tests' started at 2026-09-27 06:56:14.654.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-27 06:56:14.655.
+Test Suite 'ThumbnailQueueTests' started at 2026-09-27 06:56:14.655.
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testLateSubscriberAfterCacheEvictionStillReceivesResult]' started.
+/Users/rutmehta/Developer/tessera/.worktrees/M2-57/apps/mac/Tests/TesseraCoreTests/ThumbnailQueueTests.swift:47: error: -[TesseraCoreTests.ThumbnailQueueTests testLateSubscriberAfterCacheEvictionStillReceivesResult] : XCTAssertTrue failed - joining a delivered but not yet cleaned-up flight must not lose completion
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testLateSubscriberAfterCacheEvictionStillReceivesResult]' failed (1.982 seconds).
+Test Suite 'ThumbnailQueueTests' failed at 2026-09-27 06:56:16.637.
+	 Executed 1 test, with 1 failure (0 unexpected) in 1.982 (1.982) seconds
+Test Suite 'TesseraPackageTests.xctest' failed at 2026-09-27 06:56:16.637.
+	 Executed 1 test, with 1 failure (0 unexpected) in 1.982 (1.982) seconds
+Test Suite 'Selected tests' failed at 2026-09-27 06:56:16.637.
+	 Executed 1 test, with 1 failure (0 unexpected) in 1.982 (1.983) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

@@ -1,0 +1,424 @@
+Building for debugging...
+[0/7] Write sources
+[3/7] Write swift-version--58304C5D6DBC2206.txt
+[5/9] Compiling TesseraCore ThumbnailLoader.swift
+[6/9] Emitting module TesseraCore
+[7/46] Compiling Tessera CompareView.swift
+[8/46] Compiling Tessera AssistController.swift
+[9/46] Compiling Tessera AssistPanels.swift
+[10/46] Compiling Tessera DefectSweepSheet.swift
+[11/49] Compiling Tessera AISettingsView.swift
+[12/49] Compiling Tessera AgentController.swift
+[13/49] Compiling Tessera AgentPanels.swift
+[14/49] Compiling Tessera AgentReviewSheet.swift
+[15/49] Compiling Tessera ThumbnailCell.swift
+[16/49] Compiling Tessera UniformGridLayout.swift
+[17/49] Compiling Tessera HistogramView.swift
+[18/49] Compiling Tessera InspectorView.swift
+[19/49] Compiling Tessera StylesSelfTest.swift
+[20/49] Compiling Tessera ToolsSelfTest.swift
+[21/49] Compiling Tessera VectorSelfTest.swift
+[22/49] Compiling Tessera ThumbnailBrowser.swift
+[23/49] Compiling Tessera AppCommands.swift
+[24/49] Compiling Tessera AppModel+Output.swift
+[25/49] Compiling Tessera AppModel.swift
+[26/49] Compiling Tessera DevelopTools.swift
+[27/49] Emitting module Tessera
+[28/49] Compiling Tessera TransformPanel.swift
+[29/49] Compiling Tessera UnderstandingPanels.swift
+[30/49] Compiling Tessera FilterBar.swift
+[31/49] Compiling Tessera LoupeView.swift
+[32/49] Compiling Tessera PeopleView.swift
+[33/49] Compiling Tessera AppModel+Photo.swift
+[34/49] Compiling Tessera PhotoMenu.swift
+[35/49] Compiling Tessera PrintController.swift
+[36/49] Compiling Tessera FaceStripView.swift
+[37/49] Compiling Tessera DocumentSelfTest.swift
+[38/49] Compiling Tessera FilterSelfTest.swift
+[39/49] Compiling Tessera RetouchSelfTest.swift
+[40/49] Compiling Tessera KeyRouter.swift
+[41/49] Compiling Tessera MaskTools.swift
+[42/49] Compiling Tessera TesseraApp.swift
+[43/49] Compiling Tessera TimingSelfTest.swift
+[44/49] Compiling Tessera ContentView.swift
+[45/49] Compiling Tessera SidebarView.swift
+[46/49] Compiling Tessera TetherController.swift
+[46/51] Write Objects.LinkFileList
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[376](10c536443055e2d2-bridge.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2163](44ff4c55aa9e5133-entropy_common.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2164](44ff4c55aa9e5133-error_private.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2165](44ff4c55aa9e5133-fse_decompress.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2168](44ff4c55aa9e5133-zstd_common.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2169](fb80479a5fb81f6a-fse_compress.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2170](fb80479a5fb81f6a-hist.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2171](fb80479a5fb81f6a-huf_compress.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2172](fb80479a5fb81f6a-zstd_compress.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2173](fb80479a5fb81f6a-zstd_compress_literals.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2174](fb80479a5fb81f6a-zstd_compress_sequences.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2175](fb80479a5fb81f6a-zstd_compress_superblock.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2176](fb80479a5fb81f6a-zstd_double_fast.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2177](fb80479a5fb81f6a-zstd_fast.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2178](fb80479a5fb81f6a-zstd_lazy.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2179](fb80479a5fb81f6a-zstd_ldm.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2180](fb80479a5fb81f6a-zstd_opt.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2181](fb80479a5fb81f6a-zstd_preSplit.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2183](88f362f13b0528ed-huf_decompress.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2184](88f362f13b0528ed-zstd_ddict.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2185](88f362f13b0528ed-zstd_decompress.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2186](88f362f13b0528ed-zstd_decompress_block.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2301](66464d1d7fadd31b-tiff_writer.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2302](66464d1d7fadd31b-file_write.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2304](ac24b7c6ece09172-cameralist.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2305](ac24b7c6ece09172-wblists.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2306](ac24b7c6ece09172-colordata.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2307](ac24b7c6ece09172-colorconst.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2308](4cf2c67a6ae3caea-losslessjpeg.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2309](36b68da9defe18e0-libraw_datastream.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2310](36b68da9defe18e0-libraw_c_api.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2315](11ad3c868cdfc836-open.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2316](11ad3c868cdfc836-utils_libraw.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2317](11ad3c868cdfc836-init_close_utils.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2318](11ad3c868cdfc836-utils_dcraw.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2319](11ad3c868cdfc836-decoder_info.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2320](11ad3c868cdfc836-thumb_utils.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2321](11ad3c868cdfc836-phaseone_processing.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2322](11ad3c868cdfc836-read_utils.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2323](11ad3c868cdfc836-curves.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2324](353acbe74b29c737-postprocessing_utils_dcrdefs.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2325](353acbe74b29c737-postprocessing_utils.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2326](353acbe74b29c737-postprocessing_aux.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2327](353acbe74b29c737-aspect_ratio.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2328](353acbe74b29c737-mem_image.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2329](353acbe74b29c737-dcraw_process.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2330](677822d833a4035b-misc_demosaic.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2331](677822d833a4035b-dcb_demosaic.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2332](677822d833a4035b-dht_demosaic.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2333](677822d833a4035b-xtrans_demosaic.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2334](677822d833a4035b-ahd_demosaic.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2335](677822d833a4035b-aahd_demosaic.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2336](50756e655322ee25-unpack_thumb.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2337](50756e655322ee25-sonycc.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2338](50756e655322ee25-decoders_libraw.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2339](50756e655322ee25-kodak_decoders.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2340](50756e655322ee25-decoders_libraw_dcrdefs.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2341](50756e655322ee25-generic.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2342](50756e655322ee25-olympus14.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2343](50756e655322ee25-unpack.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2344](50756e655322ee25-canon_600.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2345](50756e655322ee25-load_mfbacks.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2346](50756e655322ee25-fp_dng.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2347](50756e655322ee25-smal.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2348](50756e655322ee25-fuji_compressed.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2349](50756e655322ee25-dng.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2350](50756e655322ee25-crx.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2351](50756e655322ee25-decoders_dcraw.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2352](50756e655322ee25-pana8.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2353](8c22f2e0e7fc24e9-subtract_black.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2354](8c22f2e0e7fc24e9-ext_preprocess.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2356](8c22f2e0e7fc24e9-raw2image.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2357](761e66d639543465-identify.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2358](761e66d639543465-exif_gps.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2359](761e66d639543465-mediumformat.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2360](761e66d639543465-sony.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2361](761e66d639543465-ciff.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2362](761e66d639543465-p1.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2363](761e66d639543465-fuji.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2364](761e66d639543465-nikon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2365](761e66d639543465-cr3_parser.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2366](761e66d639543465-adobepano.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2367](761e66d639543465-pentax.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2368](761e66d639543465-normalize_model.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2369](761e66d639543465-canon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2370](761e66d639543465-identify_tools.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2371](761e66d639543465-tiff.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2372](761e66d639543465-kodak.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2373](761e66d639543465-olympus.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2374](761e66d639543465-samsung.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2375](761e66d639543465-minolta.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2376](761e66d639543465-misc_parsers.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2377](761e66d639543465-makernotes.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2378](761e66d639543465-leica.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2379](761e66d639543465-hasselblad_model.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2380](761e66d639543465-epson.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2418](49c72391db7e6a2b-cmsalpha.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2419](49c72391db7e6a2b-cmscam02.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2421](49c72391db7e6a2b-cmscnvrt.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2422](49c72391db7e6a2b-cmserr.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2423](49c72391db7e6a2b-cmsgamma.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2424](49c72391db7e6a2b-cmsgmt.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2425](49c72391db7e6a2b-cmshalf.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2426](49c72391db7e6a2b-cmsintrp.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2427](49c72391db7e6a2b-cmsio0.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2428](49c72391db7e6a2b-cmsio1.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2429](49c72391db7e6a2b-cmslut.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2431](49c72391db7e6a2b-cmsmtrx.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2432](49c72391db7e6a2b-cmsnamed.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2433](49c72391db7e6a2b-cmsopt.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2434](49c72391db7e6a2b-cmspack.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2435](49c72391db7e6a2b-cmspcs.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2436](49c72391db7e6a2b-cmsplugin.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2438](49c72391db7e6a2b-cmssamp.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2440](49c72391db7e6a2b-cmstypes.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2441](49c72391db7e6a2b-cmsvirt.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2442](49c72391db7e6a2b-cmswtpnt.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2443](49c72391db7e6a2b-cmsxform.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2545](25ac62e5b3c53843-curve25519.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2546](0bbbd18bda93c05b-aes_nohw.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2547](00c879ee3285a50d-montgomery.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2548](00c879ee3285a50d-montgomery_inv.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2549](a0330e891e733f4e-ecp_nistz.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2551](a0330e891e733f4e-gfp_p384.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2553](aaa1ba3e455ee2e1-limbs.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2554](a4019cc0736b0423-mem.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2555](d5a9841f3dc6e253-poly1305.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2556](a0330e891e733f4e-p256-nistz.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2557](c322a0bcc369f531-chacha-armv8-ios64.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2558](c322a0bcc369f531-chacha20_poly1305_armv8-ios64.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2559](c322a0bcc369f531-aesv8-armx-ios64.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2560](c322a0bcc369f531-aesv8-gcm-armv8-ios64.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2561](c322a0bcc369f531-ghash-neon-armv8-ios64.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2562](c322a0bcc369f531-ghashv8-armx-ios64.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2563](c322a0bcc369f531-vpaes-armv8-ios64.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2564](c322a0bcc369f531-armv8-mont-ios64.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2565](c322a0bcc369f531-p256-armv8-asm-ios64.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2566](c322a0bcc369f531-sha512-armv8-ios64.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2567](c322a0bcc369f531-sha256-armv8-ios64.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2808](c877a2978823c39d-sqlite3.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2846](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[47/51] Linking Tessera
+[48/65] Applying Tessera
+[50/65] Compiling TesseraCoreTests PeopleLayoutTests.swift
+[51/65] Emitting module TesseraCoreTests
+[52/65] Compiling TesseraCoreTests LibraryResponsivenessTests.swift
+[53/66] Compiling TesseraCoreTests ThumbnailQueueTests.swift
+[54/66] Compiling TesseraCoreTests TetherTests.swift
+[55/66] Compiling TesseraCoreTests PreviewEventsTests.swift
+[56/66] Compiling TesseraCoreTests LazyLoupeTests.swift
+[57/66] Compiling TesseraCoreTests KeyFocusTests.swift
+[58/66] Compiling TesseraCoreTests LayoutContractTests.swift
+[59/66] Compiling TesseraCoreTests BridgeTests.swift
+[60/66] Compiling TesseraCoreTests DocumentInspectorLayoutTests.swift
+[61/66] Compiling TesseraCoreTests DocumentKeyRoutingTests.swift
+[62/66] Compiling TesseraCoreTests DocumentTextSessionTests.swift
+[63/66] Compiling TesseraCoreTests EngineDocumentBackendTests.swift
+/Users/rutmehta/Developer/tessera/.worktrees/M2-57/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[64/66] Compiling TesseraCoreTests IncrementalLibraryTests.swift
+/Users/rutmehta/Developer/tessera/.worktrees/M2-57/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[64/66] Write Objects.LinkFileList
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[376](10c536443055e2d2-bridge.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2163](44ff4c55aa9e5133-entropy_common.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2164](44ff4c55aa9e5133-error_private.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2165](44ff4c55aa9e5133-fse_decompress.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2168](44ff4c55aa9e5133-zstd_common.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2169](fb80479a5fb81f6a-fse_compress.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2170](fb80479a5fb81f6a-hist.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2171](fb80479a5fb81f6a-huf_compress.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2172](fb80479a5fb81f6a-zstd_compress.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2173](fb80479a5fb81f6a-zstd_compress_literals.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2174](fb80479a5fb81f6a-zstd_compress_sequences.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2175](fb80479a5fb81f6a-zstd_compress_superblock.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2176](fb80479a5fb81f6a-zstd_double_fast.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2177](fb80479a5fb81f6a-zstd_fast.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2178](fb80479a5fb81f6a-zstd_lazy.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2179](fb80479a5fb81f6a-zstd_ldm.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2180](fb80479a5fb81f6a-zstd_opt.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2181](fb80479a5fb81f6a-zstd_preSplit.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2183](88f362f13b0528ed-huf_decompress.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2184](88f362f13b0528ed-zstd_ddict.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2185](88f362f13b0528ed-zstd_decompress.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2186](88f362f13b0528ed-zstd_decompress_block.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2301](66464d1d7fadd31b-tiff_writer.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2302](66464d1d7fadd31b-file_write.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2304](ac24b7c6ece09172-cameralist.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2305](ac24b7c6ece09172-wblists.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2306](ac24b7c6ece09172-colordata.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2307](ac24b7c6ece09172-colorconst.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2308](4cf2c67a6ae3caea-losslessjpeg.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2309](36b68da9defe18e0-libraw_datastream.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2310](36b68da9defe18e0-libraw_c_api.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2315](11ad3c868cdfc836-open.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2316](11ad3c868cdfc836-utils_libraw.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2317](11ad3c868cdfc836-init_close_utils.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2318](11ad3c868cdfc836-utils_dcraw.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2319](11ad3c868cdfc836-decoder_info.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2320](11ad3c868cdfc836-thumb_utils.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2321](11ad3c868cdfc836-phaseone_processing.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2322](11ad3c868cdfc836-read_utils.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2323](11ad3c868cdfc836-curves.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2324](353acbe74b29c737-postprocessing_utils_dcrdefs.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2325](353acbe74b29c737-postprocessing_utils.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2326](353acbe74b29c737-postprocessing_aux.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2327](353acbe74b29c737-aspect_ratio.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2328](353acbe74b29c737-mem_image.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2329](353acbe74b29c737-dcraw_process.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2330](677822d833a4035b-misc_demosaic.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2331](677822d833a4035b-dcb_demosaic.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2332](677822d833a4035b-dht_demosaic.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2333](677822d833a4035b-xtrans_demosaic.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2334](677822d833a4035b-ahd_demosaic.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2335](677822d833a4035b-aahd_demosaic.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2336](50756e655322ee25-unpack_thumb.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2337](50756e655322ee25-sonycc.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2338](50756e655322ee25-decoders_libraw.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2339](50756e655322ee25-kodak_decoders.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2340](50756e655322ee25-decoders_libraw_dcrdefs.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2341](50756e655322ee25-generic.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2342](50756e655322ee25-olympus14.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2343](50756e655322ee25-unpack.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2344](50756e655322ee25-canon_600.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2345](50756e655322ee25-load_mfbacks.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2346](50756e655322ee25-fp_dng.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2347](50756e655322ee25-smal.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2348](50756e655322ee25-fuji_compressed.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2349](50756e655322ee25-dng.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2350](50756e655322ee25-crx.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2351](50756e655322ee25-decoders_dcraw.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2352](50756e655322ee25-pana8.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2353](8c22f2e0e7fc24e9-subtract_black.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2354](8c22f2e0e7fc24e9-ext_preprocess.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2356](8c22f2e0e7fc24e9-raw2image.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2357](761e66d639543465-identify.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2358](761e66d639543465-exif_gps.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2359](761e66d639543465-mediumformat.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2360](761e66d639543465-sony.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2361](761e66d639543465-ciff.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2362](761e66d639543465-p1.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2363](761e66d639543465-fuji.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2364](761e66d639543465-nikon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2365](761e66d639543465-cr3_parser.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2366](761e66d639543465-adobepano.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2367](761e66d639543465-pentax.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2368](761e66d639543465-normalize_model.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2369](761e66d639543465-canon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2370](761e66d639543465-identify_tools.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2371](761e66d639543465-tiff.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2372](761e66d639543465-kodak.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2373](761e66d639543465-olympus.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2374](761e66d639543465-samsung.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2375](761e66d639543465-minolta.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2376](761e66d639543465-misc_parsers.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2377](761e66d639543465-makernotes.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2378](761e66d639543465-leica.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2379](761e66d639543465-hasselblad_model.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2380](761e66d639543465-epson.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2418](49c72391db7e6a2b-cmsalpha.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2419](49c72391db7e6a2b-cmscam02.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2421](49c72391db7e6a2b-cmscnvrt.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2422](49c72391db7e6a2b-cmserr.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2423](49c72391db7e6a2b-cmsgamma.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2424](49c72391db7e6a2b-cmsgmt.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2425](49c72391db7e6a2b-cmshalf.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2426](49c72391db7e6a2b-cmsintrp.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2427](49c72391db7e6a2b-cmsio0.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2428](49c72391db7e6a2b-cmsio1.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2429](49c72391db7e6a2b-cmslut.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2431](49c72391db7e6a2b-cmsmtrx.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2432](49c72391db7e6a2b-cmsnamed.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2433](49c72391db7e6a2b-cmsopt.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2434](49c72391db7e6a2b-cmspack.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2435](49c72391db7e6a2b-cmspcs.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2436](49c72391db7e6a2b-cmsplugin.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2438](49c72391db7e6a2b-cmssamp.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2440](49c72391db7e6a2b-cmstypes.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2441](49c72391db7e6a2b-cmsvirt.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2442](49c72391db7e6a2b-cmswtpnt.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2443](49c72391db7e6a2b-cmsxform.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2545](25ac62e5b3c53843-curve25519.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2546](0bbbd18bda93c05b-aes_nohw.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2547](00c879ee3285a50d-montgomery.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2548](00c879ee3285a50d-montgomery_inv.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2549](a0330e891e733f4e-ecp_nistz.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2551](a0330e891e733f4e-gfp_p384.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2553](aaa1ba3e455ee2e1-limbs.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2554](a4019cc0736b0423-mem.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2555](d5a9841f3dc6e253-poly1305.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2556](a0330e891e733f4e-p256-nistz.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2557](c322a0bcc369f531-chacha-armv8-ios64.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2558](c322a0bcc369f531-chacha20_poly1305_armv8-ios64.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2559](c322a0bcc369f531-aesv8-armx-ios64.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2560](c322a0bcc369f531-aesv8-gcm-armv8-ios64.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2561](c322a0bcc369f531-ghash-neon-armv8-ios64.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2562](c322a0bcc369f531-ghashv8-armx-ios64.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2563](c322a0bcc369f531-vpaes-armv8-ios64.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2564](c322a0bcc369f531-armv8-mont-ios64.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2565](c322a0bcc369f531-p256-armv8-asm-ios64.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2566](c322a0bcc369f531-sha512-armv8-ios64.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2567](c322a0bcc369f531-sha256-armv8-ios64.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2808](c877a2978823c39d-sqlite3.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+ld: warning: object file (/Volumes/betterSSD/tessera-cache/target/M2-57/release/deps/libtessera_ffi.a[2846](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[65/66] Linking TesseraPackageTests
+Build complete! (44.58s)
+Test Suite 'Selected tests' started at 2026-09-27 06:42:10.652.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-27 06:42:10.654.
+Test Suite 'PreviewEventsTests' started at 2026-09-27 06:42:10.654.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testCacheDoesNotAliasReusedDenseItemIDs]' started.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testCacheDoesNotAliasReusedDenseItemIDs]' passed (0.013 seconds).
+Test Case '-[TesseraCoreTests.PreviewEventsTests testCacheKeysRemainRetrievableAcrossManyRequests]' started.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testCacheKeysRemainRetrievableAcrossManyRequests]' passed (0.278 seconds).
+Test Case '-[TesseraCoreTests.PreviewEventsTests testCancelledTaskStopsWaitingWithoutAnEvent]' started.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testCancelledTaskStopsWaitingWithoutAnEvent]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.PreviewEventsTests testCancellingOneSubscriberDoesNotRemoveAnother]' started.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testCancellingOneSubscriberDoesNotRemoveAnother]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.PreviewEventsTests testConcurrentDeliveriesPublishBeforeCallbackAndEvictOlderImages]' started.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testConcurrentDeliveriesPublishBeforeCallbackAndEvictOlderImages]' passed (0.008 seconds).
+Test Case '-[TesseraCoreTests.PreviewEventsTests testInvalidationCancelsInFlightRequestsForBothTiersOnlyForThatItem]' started.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testInvalidationCancelsInFlightRequestsForBothTiersOnlyForThatItem]' passed (0.002 seconds).
+Test Case '-[TesseraCoreTests.PreviewEventsTests testOverBudgetImageIsCachedBeforeDelivery]' started.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testOverBudgetImageIsCachedBeforeDelivery]' passed (0.002 seconds).
+Test Case '-[TesseraCoreTests.PreviewEventsTests testReadyBeforeWaitIsBufferedAndFiltered]' started.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testReadyBeforeWaitIsBufferedAndFiltered]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.PreviewEventsTests testRemoveAllPreventsLateDeliveryAndCacheRepopulation]' started.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testRemoveAllPreventsLateDeliveryAndCacheRepopulation]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.PreviewEventsTests testUnrelatedEventsDoNotWakeSubscriber]' started.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testUnrelatedEventsDoNotWakeSubscriber]' passed (0.000 seconds).
+Test Suite 'PreviewEventsTests' passed at 2026-09-27 06:42:10.963.
+	 Executed 10 tests, with 0 failures (0 unexpected) in 0.307 (0.309) seconds
+Test Suite 'ThumbnailQueueTests' started at 2026-09-27 06:42:10.963.
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testCancelAndImmediatelyResubscribeDoesNotOverlapSameKey]' started.
+/Users/rutmehta/Developer/tessera/.worktrees/M2-57/apps/mac/Tests/TesseraCoreTests/ThumbnailQueueTests.swift:36: error: -[TesseraCoreTests.ThumbnailQueueTests testCancelAndImmediatelyResubscribeDoesNotOverlapSameKey] : XCTAssertEqual failed: ("2") is not equal to ("1") - cancelled decode still occupies the image/tier slot
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testCancelAndImmediatelyResubscribeDoesNotOverlapSameKey]' failed (2.747 seconds).
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testGridAndFilmstripShareOneDecodedImage]' started.
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testGridAndFilmstripShareOneDecodedImage]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testTwentyThousandRequestsKeepOnlyNewestBoundedBacklog]' started.
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testTwentyThousandRequestsKeepOnlyNewestBoundedBacklog]' passed (3.241 seconds).
+Test Suite 'ThumbnailQueueTests' failed at 2026-09-27 06:42:16.953.
+	 Executed 3 tests, with 1 failure (0 unexpected) in 5.990 (5.990) seconds
+Test Suite 'TesseraPackageTests.xctest' failed at 2026-09-27 06:42:16.953.
+	 Executed 13 tests, with 1 failure (0 unexpected) in 6.296 (6.299) seconds
+Test Suite 'Selected tests' failed at 2026-09-27 06:42:16.953.
+	 Executed 13 tests, with 1 failure (0 unexpected) in 6.296 (6.301) seconds
+P08 20k retained subscribers: 68
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
