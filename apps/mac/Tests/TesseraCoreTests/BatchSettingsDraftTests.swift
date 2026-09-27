@@ -127,7 +127,7 @@ final class BatchSettingsDraftTests: XCTestCase {
     }
 
     func testValidSourceWithoutSelectedPathsCannotClaimASettingsCopy() throws {
-        for json in ["{}", "{\"geometry\":{\"crop\":{\"left\":0.2}},\"masks\":[{\"id\":\"person\"}]"] {
+        for json in ["{}", "{\"geometry\":{\"crop\":{\"left\":0.2}},\"masks\":[{\"id\":\"person\"}]}"] {
             XCTAssertThrowsError(try BatchSettingsDraft(libraryID: "lib-1", focusedImageID: "source",
                                                         selectedImageIDs: ["source", "target"],
                                                         sourceSettingsJSON: json)) {
