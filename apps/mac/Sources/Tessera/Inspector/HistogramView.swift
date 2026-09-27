@@ -102,7 +102,7 @@ struct HistogramPanel: NSViewRepresentable {
             view.placeholder = switch model.developStatus {
             case .loading: "Rendering…"
             case .unavailable(let why): why
-            default: "Open a photo in the loupe (E)"
+            default: model.photoEditAvailabilityHint
             }
         }
         func developDidRender(_ frame: DevelopFrame, controller: DevelopController) {

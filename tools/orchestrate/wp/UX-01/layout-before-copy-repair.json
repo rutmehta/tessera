@@ -1,0 +1,166 @@
+{
+  "directory": "/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-20260927",
+  "status": "pre-copy-repair, geometry gate passed; visual review found misleading Edit cull hints and empty Masks message",
+  "files": {
+    "document-1280x800-dark.png": {
+      "bytes": 441411,
+      "sha256": "7e7ced58a815e73aa828d5781cb6c277c4c15ddebc97c6bff047e310fb2ff198"
+    },
+    "document-1280x800-light.png": {
+      "bytes": 493989,
+      "sha256": "ae37a2e859cd078d2a726c3b7f1cd2f6713534d78c059fd650db192fdde8c74c"
+    },
+    "document-1440x900-dark.png": {
+      "bytes": 566936,
+      "sha256": "e36507301cf14101b4219f496bcdc0bb8d2604cfd07e464a5b2b4ad3673562cf"
+    },
+    "document-1440x900-light.png": {
+      "bytes": 609227,
+      "sha256": "22424d4565c88f5c3399c5f2d063695e6f532e7143ef0e0b270ba629a158e3f4"
+    },
+    "document-1728x1117-dark.png": {
+      "bytes": 731376,
+      "sha256": "7862e4a54e7a5ba8378dac1a966f89b470645679a1523cfdfec8c81342e67189"
+    },
+    "document-1728x1117-light.png": {
+      "bytes": 747380,
+      "sha256": "9b76b68fbca2c6ea41b8cc25679926ba2b1896328b3ffe52a6953e23b618e651"
+    },
+    "document-960x600-dark.png": {
+      "bytes": 684907,
+      "sha256": "e568b41ee9c0c1f6c870f77984180292effe3ebd063243496513f035cabdbc7e"
+    },
+    "document-960x600-light.png": {
+      "bytes": 703319,
+      "sha256": "31df974816642588c2b0c6852b0c001d14fb05ae4c965844d47af348a02da032"
+    },
+    "library-1280x800-dark.png": {
+      "bytes": 592857,
+      "sha256": "ccd881ef756a7e1a7d362d0f7a228e78c84fc535392349212a02bf87bce1e6b8"
+    },
+    "library-1280x800-light.png": {
+      "bytes": 600135,
+      "sha256": "95ea2fb892da2f152f20f09555a42466e68cae79031633e62feaca23d954b987"
+    },
+    "library-1440x900-dark.png": {
+      "bytes": 676688,
+      "sha256": "e86772e7027650c7bf5f353ab5823aec7f9f0d7042d47faf9e1970911edc8ab9"
+    },
+    "library-1440x900-light.png": {
+      "bytes": 677713,
+      "sha256": "27392af28908e4e5c38bb9892cc419315f58bace8fa65f837ed4ca7fa6c7044e"
+    },
+    "library-1728x1117-dark.png": {
+      "bytes": 655800,
+      "sha256": "bacf9388b8347b3f5643e4bda86769d65a265e7181833f603fc4765225452bb2"
+    },
+    "library-1728x1117-light.png": {
+      "bytes": 658790,
+      "sha256": "f2822c134fa7b52f5c44cb3713c34d50aa9db620896e2d6da9b5566eb2d42605"
+    },
+    "library-960x600-dark.png": {
+      "bytes": 581989,
+      "sha256": "cb88bf072db11d0eb110f4098acf19786ef09b67b04f0f018eb6b6179d0f41a9"
+    },
+    "library-960x600-light.png": {
+      "bytes": 584770,
+      "sha256": "d84d90732c9308ce345881146f2b18af2269289c865783b1135962fd26759440"
+    },
+    "photoEditDevelop-1280x800-dark.png": {
+      "bytes": 846899,
+      "sha256": "c000b7cd113bc66bd5e4fedef829c7ff95633bda83fdb5ddacc914a2f12d9289"
+    },
+    "photoEditDevelop-1280x800-light.png": {
+      "bytes": 852627,
+      "sha256": "77004c0b828fe1b6841f2b8f20931a928d7d67856f49fe0b4e862602dd6546db"
+    },
+    "photoEditDevelop-1440x900-dark.png": {
+      "bytes": 953786,
+      "sha256": "6c28d655555d8ddc0b98c1e43965e76477fc0ec11808d00dfa4e122338450652"
+    },
+    "photoEditDevelop-1440x900-light.png": {
+      "bytes": 961453,
+      "sha256": "06ffff60994d84b0862d3a055c93daf6a8b9d6342d5fbb980385cd7a59bc3468"
+    },
+    "photoEditDevelop-1728x1117-dark.png": {
+      "bytes": 1083254,
+      "sha256": "6a5d5b843db863aec3a6ce03615ebe4f408db8c956a669467fda98807672f562"
+    },
+    "photoEditDevelop-1728x1117-light.png": {
+      "bytes": 1099429,
+      "sha256": "5482cb8104739209891ba7c3196fe27852c036ab06f092e1e900b01cfa204939"
+    },
+    "photoEditDevelop-960x600-dark.png": {
+      "bytes": 752399,
+      "sha256": "98d665e57ca9664afc46d7055e685f147135879e8994e392c5ffa69f1a0bcb8b"
+    },
+    "photoEditDevelop-960x600-light.png": {
+      "bytes": 761458,
+      "sha256": "9e1b6a1fb995df730bfba698b89477ab335f98cf4d89af1729492d6cb23bd1b2"
+    },
+    "photoEditMasks-1280x800-dark.png": {
+      "bytes": 812958,
+      "sha256": "cf867f5c6e4eb26c06d41af1c36211361dd5265e533b40cba1083d231141e48e"
+    },
+    "photoEditMasks-1280x800-light.png": {
+      "bytes": 816237,
+      "sha256": "06b0e8f5913dd2a6e5b5fe42e9f187101b1c7e37c53359c9064e0e264fb72fa6"
+    },
+    "photoEditMasks-1440x900-dark.png": {
+      "bytes": 910205,
+      "sha256": "07d1f974e57790c0ecec4eda99c93b057934837df8c267d93acb3b18eb42a364"
+    },
+    "photoEditMasks-1440x900-light.png": {
+      "bytes": 914046,
+      "sha256": "728117e9b3796c25503d74987b0c38e546a6c7ca5dea2ad24e727af0968e768e"
+    },
+    "photoEditMasks-1728x1117-dark.png": {
+      "bytes": 1034448,
+      "sha256": "7252bde38302406232b48301987b8474f0c58987366a8f40ca5e6dea59c3552d"
+    },
+    "photoEditMasks-1728x1117-light.png": {
+      "bytes": 1048332,
+      "sha256": "2be54431df6a01ef350b6743ebe08eb0428a5f116beaa633fd9d71e1c0933893"
+    },
+    "photoEditMasks-960x600-dark.png": {
+      "bytes": 716778,
+      "sha256": "15f89693acc153b620f70bbda82fa3eeb8776f4281acbdc831618a5c99682948"
+    },
+    "photoEditMasks-960x600-light.png": {
+      "bytes": 722476,
+      "sha256": "cbb6a3222b80c3043bc68e226f1848becf8324f10ab26c2cbee44175926faeae"
+    },
+    "raw-1280x800-dark.png": {
+      "bytes": 507909,
+      "sha256": "f4c105a516b956f5b4b9f2b8771517404051f58c1f87735590edf30efbf427a6"
+    },
+    "raw-1280x800-light.png": {
+      "bytes": 512644,
+      "sha256": "15a6e53be6ccded0ba547ea496369363b7a1449d196b54f192bc83201a15c910"
+    },
+    "raw-1440x900-dark.png": {
+      "bytes": 443809,
+      "sha256": "94c7e2e38b4515c2af1e24302945858bc3b54e846713dcc4eaf1dcb4ad6ce55f"
+    },
+    "raw-1440x900-light.png": {
+      "bytes": 443463,
+      "sha256": "f475f25907da10571909dd5d1336f6bfb01fbc529c27bdf8bebb8665f5e9d6e8"
+    },
+    "raw-1728x1117-dark.png": {
+      "bytes": 389977,
+      "sha256": "f30b486d3eefb148b2f7eafb7e4051d6cb7e9f7ebb31a0b9838011b81ffa7cee"
+    },
+    "raw-1728x1117-light.png": {
+      "bytes": 391281,
+      "sha256": "d4daa9e5a2d8ab16804fe46788a85eaf85c235ad9563c392f07a966099099774"
+    },
+    "raw-960x600-dark.png": {
+      "bytes": 711519,
+      "sha256": "2ff41e25f698e8fe012a834e324750298c91bad87024c7e561ba4ae58321c2c4"
+    },
+    "raw-960x600-light.png": {
+      "bytes": 792542,
+      "sha256": "26c9d8408d18a7096b3325d8414c2882591ce70fde6752878f51c2db2618f926"
+    }
+  }
+}

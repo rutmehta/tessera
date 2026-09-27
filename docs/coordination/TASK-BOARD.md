@@ -1,0 +1,117 @@
+# Tessera task board — Machine A coordinator
+
+Updated: 2026-09-27 18:30 UTC
+
+User mandate: autonomously advance UI/UX redesign **and** the recovered engine
+queue, using parallel GPT-6 Astra/Luna agents; coordinate Machine B and keep
+Machine A as sole main integrator. Do useful work while other tasks wait.
+
+## Operating rules
+
+- Read this board and fresh peer status at each continuation. Verify processes,
+  agent states, branches and dirty files before relaunching work.
+- Root owns this board and `main`; agents report results and use isolated source
+  areas. A owns Shell/shared/Library/Develop and engine work. B owns its active
+  Document UI/document FFI packages. Agree any overlapping work through Git.
+- One heavy build/GPU/performance slot on A. Parallel source analysis and edits
+  are encouraged. Keep failures, all timing samples, source SHA and test evidence.
+- Move a task to Done only when its actual acceptance is met. A green unit suite
+  does not satisfy missing UI, performance, interoperability or integration gates.
+- For each completion, choose the next ready task rather than ending at a summary.
+  If blocked, state the dependency and work on another ready lane.
+- Preserve existing worktrees/evidence. Never reset dirty work or force-push.
+- Root publishes this board and MACHINE-A.md on main. B writes its own note at
+  `origin/wp/B5-16:tools/orchestrate/wp/B5-16/CODEX-TAKEOVER.md`.
+
+## Active
+
+| ID | Work | Owner / location | Next action and acceptance |
+| --- | --- | --- | --- |
+| UX-01 | Library / Photo Edit workspace and split inspector | A root; main `4925677` | DONE first bounded workspace slice; sourcecommitc417229 merged/pushed. Full411+5 checkpoint, final28targeted/0,40layouts,1readyRAW passed; rootvisualreview accepted. Interactive/performance gates remain separate; existing overlay/wrapping polish goesUX04. |
+| ENG-31 | M5-31 source reuse and cold timing | A root; wp/M5-31 `97eb4ca`, product `441da3e` | A local326tests and6timings pass. Direct SSH six-sample repeat on B FAILED first original cold106.084084ms/100ms; remaining5pass. All evidence retained in branch; no main merge. `cross_machine_research` investigates residual cold cost, no threshold changes or replacement samples. B chat receipt still unconfirmed; result7fc92eb5 supersedes benchmark request execution. |
+| COM-01 | Establish usable authenticated Machine A ↔ B communication | A root | SSH authenticated and native remote chat discovered: `Resume Tessera Machine B work`, UUID `01a0e323-c018-7fa3-9605-999a2dea6b32`, host `remote-ssh-discovered:tessera-machine-b`. Reads succeed; native send rejects active writer. Preserve B desktop session; no duplicate writer. Git mailbox integrated, A heartbeat active, two requests published; B receipts/heartbeat still unconfirmed. Next: resolve routing to existing writer or receive B mailbox acknowledgement. |
+| OPS-01 | Persistent autonomous coordinator | Root; current chat | Heartbeat `tessera-machine-a-coordinator` ACTIVE every5minutes, created2026-09-27. Check running work before duplicate launches. Read/advance board; stay quiet unless meaningful outcome/blocker. Local execution requires awake host/app and available service limits. |
+
+## Ready / next
+
+UX-02 safety prerequisite is now assigned to `b516_review`: isolate review queue
+owner/engine/image identities across folder switches and asynchronous completions.
+Scope is AgentController and focused tests on a separate main-based worktree;
+new Review navigation/resume persistence remains planned in UX-02-PLAN.md.
+M5-31 candidate is validated locally and published; direct B repeat failed, retained at97eb4ca. INT-45 license check also passed (existing unused-license
+allowance warnings only); reproducible gated script is
+`/tmp/tessera-export-integration-gate.sh`; first run stopped on missing fixture,
+retry running after restoring and hashing the existing fixture set.
+
+
+Latest checkpoint: UX-01 merged/pushed main4925677. UI agent advances UX02a
+navigation while the ownership agent fixes four reproduced cross-library hazards.
+Independent review found additional concurrent queue-generation, inspector-refresh
+and pending Develop save-order gaps; source/test fixes are underway before GREEN.
+Ownership RED:4tests/6expected assertion failures, no setup/unexpected failures;
+old Accept trained the newly selected folder, old Revert changed the prior recipe,
+late Accept overwrote new-folder status, and old-run completion updated/presented
+foreign queue state. INT-45 first gate stopped at a missing ignored RAW fixture in its new worktree;
+source fixture symlink and SHA-256 manifest are now restored, failure retained.
+UX02a RED compiled and failed its four expected Library-preservation assertions.
+INT-45 retry passed564tests/0fail/21ignored, strictClippy/workspace/license checks,
+FFI generation and Swift build. Ownershipfix e886888 passed21focused Swift tests.
+Combined source26099ce now runs the full Swift release suite on A(session19525).
+Gain-map immutable snapshot is now allocated to B’s free checkout for live-output/host validation, in parallel with A’s Swift gate. B mailbox remains absent. Benchmark repeat request4820486e and exact-UUID SSH status70405bbf are published; receipt remains unconfirmed.
+Root prepared INT-45 in the managed worktree
+`/Users/rutmehta/.codex/worktrees/export-integration/tessera`, branch
+`codex/export-integration`: resolved export merge5e5593c, current-main merge
+d11c523 and ownership merge26099ce. Rust source matches the validated export
+tree; Swift source matches focused-tested ownershipe886888. Full combined Swift
+regressions pending; no main merge yet.
+
+EXP-45 diagnostic progress: independently sourced Skia ISO fixtures and the
+preserved Tessera prototype now yield actual SDR/HDR pixels in a small ImageIO
+probe. The agent is isolating decode options and verifying reconstruction before
+restoration in a separate managed branch. Root authorized narrow restoration with
+the original tolerance preserved; whole-frame edge error remains separately
+reported. This is diagnostic evidence, not completed export interoperability or
+a shipped feature.
+
+| ID | Work | Owner / branch | Entry condition / acceptance |
+| --- | --- | --- | --- |
+| DEV-58 | Complete remaining Develop performance acceptance | A; `wp/M2-58` `196005e` product `5ff2679` | P01 actual input-to-present and P11 detail settle<=200ms /drag p95 regression<=10% remain unverified. Read M2-58-PRESENTATION-PLAN.md: actual Loupe scanout requires a non-occluded surface and detail CALayer publication lacks a display-time oracle. Keep acceptance pending; do not substitute callbacks or transaction completion. Existing correctness/parity evidence preserved. |
+| EXP-45 | Gain-map JPEG reference interoperability and implementation | A `cross_machine_research`; `wp/M2-45d` `69bcd3e` | Establish independently valid ISO HDR reference and actual decoded pixel control before changing encoder; distinguish Apple gain-map fixtures from ISO. Finish only with required interoperable output evidence. |
+| INT-45 | Review/integrate validated DNG/PQ-HLG/native metadata slice | A root; `wp/M2-45d` | Current main merge-tree clean. Determine explicit partial-slice readiness, run resolved-tree gates; do not call absent gain-map complete. |
+| UX-02 | Navigable Review and resume persistence | A `develop_resume` UX02a from main4925677; `b516_review` ownership prerequisite | Navigation-only implementation active; no relaunch persistence claim. Four ownership RED tests fail6expected assertions; source fix underway. APIs coordinated between agents. Resume-index phase follows captured-owner safety and navigation. |
+| UX-03 | Selective batch editing and source/target clarity | A; after UX-01/02 contract | Preserve source/target snapshots and settings selection; define undo/review semantics, verify no unseen batch action from a single-key shortcut. |
+| UX-04 | Visual/accessibility refinement | A+B agreed file split | Precision Graphite proposal: neutral evaluation surround, readable density, stable chrome, real light/dark and contrast/focus checks. Reuse recovered prototype; do not mistake mockups for app QA. |
+| UX-05 | True live-RAW/layer continuity | A engine+B document contract | Separate substantial dependency: current transition is rendered copy. Define graph/persistence/version contract and release scenario before making live-raw claims. |
+
+## Machine B / integration dependencies
+
+Last peer note read: `0232ff7`; latest published A status acknowledged by B:
+`353aa97`. A acknowledges B5-15 checkpoint `aec242f` and failed M5-31 timing.
+
+| ID | Work | State / next action |
+| --- | --- | --- |
+| B5-16 | Tabbed Document inspector / persisted editors | B accepted A's legacy Neutralize and runner failure-accounting findings. Fixes and interactive acceptance pending; hold merge. Resolve documented conflicts preserving B5-16a. |
+| B5-15 | Export App Nap fix / performance | B published `aec242f`; export-only improvement does not clear main-thread maxima35.93/58.00ms vs8ms, AppKit layout exception, P19 or memory gates. B owns app fixes; A engine optimization only with explicit evidence/split. |
+| B5-12b | Transform acceptance | Incomplete early-exit/failure accounting; B continues. |
+| B5-13 | Liquify / move / extend | B owns preserved work and current acceptance. |
+| B5-14 | Post-M2-57 performance measurements | B queued; no inferred pass. |
+| UI-VERIFY | Uncovered-canvas drag checks | A verification responsibility; preserve nonactivating constraints and mark unexecuted checks as pending. |
+
+## Verified checkpoints (not whole-package acceptance)
+
+| Work | Evidence |
+| --- | --- |
+| B5-16a main integration | Published; Rust adjustment JSON3/3, Swift397tests one skip0fail +5Swift Testing. |
+| M2-58 correctness and bounded P10 | Branch196005e; Rust stages/strict checks pass, Swift409tests one skip0fail +5Swift Testing. Three setter runs meet2/8ms thresholds. Two Sony ARW Auto Upright A/B cases match16,117,920valid RGBA bytes each plus histograms/settings exactly. Baseline actual residency unavailable. |
+| M2-45d keyword correctness | Branch69bcd3e; export+sidecar149passed0failed7ignored; strict all-target Clippy/fmt pass. Gain-map incomplete. |
+| M5-31 correctness repair | Branch9f922bf; compositor323passed0failed13ignored; strict all-target Clippy/fmt pass. Fonts, live precision, smart-child level routing, allocation preflight fixed. Cold performance still fails. |
+| Git coordination | Two-way acknowledgements confirmed. Git push alone does not wake idle peer. |
+
+## Recovery references
+
+- Current status: `docs/coordination/MACHINE-A.md`.
+- Reviews: `B5-16-REVIEW.md`, `M5-31-REVIEW.md`, `M2-45D-REVIEW.md`.
+- Communication findings: `CROSS-MACHINE-RESEARCH.md`.
+- UX research: `tools/orchestrate/audits/ux/REPORT.md`; layout audit adjacent.
+- Recovered prototype: `/private/tmp/claude-501/-Users-rutmehta-Developer-tessera/1ef5c604-ef13-4903-b9c9-757556764307/scratchpad/mock/tessera-redesign.html`.
+  Preserve a durable source copy before depending on temporary storage.

@@ -200,6 +200,9 @@ public struct MatchColorModel: Equatable, Sendable {
          "source_std": sourceStd, "target_mean": targetMean, "target_std": targetStd, "luminance": luminance,
          "color_intensity": colorIntensity, "fade": fade, "neutralize": neutralize]
     }
+
+    /// Whether Neutralize is on: the persisted field, or a pre-M5-32 match whose source chroma was zeroed.
+    public var neutralized: Bool { neutralize || (sourceMean.count == 3 && sourceMean[1] == 0 && sourceMean[2] == 0) }
 }
 
 /// `adjust::shadows::ShadowsHighlights` (serde default: the identity).

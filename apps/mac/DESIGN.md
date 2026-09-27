@@ -537,3 +537,42 @@ Layered documents reuse the system above; nothing here adds a colour, size or fo
   size; white inside the path, mid-grey outside, crossed when disabled). The status bar always shows the current
   tool's idle hint (`DocumentTool.idleHint`) or its session hint (text session, Pen path), replacing the previous
   tool's message on every tool change.
+
+
+## 11. Library and Photo Edit workspace (first redesign slice)
+
+Precision Graphite is the provisional continuation of the existing graphite/amber
+identity. This slice changes navigation and target clarity, not the global palette
+or Document's editing model. The recovered exploration and approved implementation
+scope are preserved under `docs/design/workspace-redesign/` at the repository root.
+
+Library contains Grid, Loupe and Compare arrangements, library sources/filters and
+selection/metadata properties. E/Return remains Library Loupe inspection. **Edit
+photo** / D enters editing; the header names the focused photo and explicitly says
+**Editing 1 photo**. Selection-based Library actions show their actual affected
+count independently. Synthetic fixtures say **Preview only · STUB**.
+
+Photo Edit keeps the native loupe and uses fixed Develop/Masks inspector tabs with
+existing controls. Global parameters target **Whole photo**; mask parameters name
+the selected mask. The source sidebar and filter controls yield to the canvas.
+Back to Library restores the prior arrangement, stable photo selection/focus and
+browser anchor; G explicitly chooses Grid on return. A source/filter/folder change
+leaves editing rather than silently changing its return scope. Normal context
+switches do not rescan the library or create a document.
+
+Photo Edit Undo/Redo targets the current photo history exclusively. Text and
+numeric controls retain keyboard priority; bare culling decisions cannot act on
+an unseen Library selection while editing. Escape reaches active tool cancellation
+before returning to Library. Y in Library still confirms all **visible** suggestions,
+with that scope named; changing its shortcut meaning is a separate migration.
+
+Layered documents remain a distinct workspace with their existing tabs, tools,
+save/dirty state and history. The Library-side handoff is **Open in Layers…** and explains that adjustments become pixels while the RAW
+and its recipe remain separate. An already-open copy reopens unchanged, without
+refreshing from later photo edits. Cmd-E still invokes this Library action (with its
+disclosure) and remains Merge Down inside Document. No live-RAW/shared-graph promise
+is implied. Machine B owns Document internals.
+
+Use the existing M2-56 containment/yield rules at all four declared sizes and both
+appearances. The target header truncates long names with full help/accessibility
+labels and remains outside the photo pixels. No target label performs engine work.

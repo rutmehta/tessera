@@ -57,7 +57,15 @@ final class ShellLayoutTests: XCTestCase {
                     let all = ShellHarness.actionables(window.contentView?.superview ?? host, in: host)
                     let content = all.filter { $0.view.isDescendant(of: host) }
                     let toolbar = all.filter { !$0.view.isDescendant(of: host) && $0.frame.maxY <= top + 1 }
-                    if content.count < 2 { failures.append("\(tag) only \(content.count) content controls found") }
+                    // The empty, preview-only Masks tab has one native control: its fixed
+                    // inspector picker. SwiftUI text/buttons are not in this native traversal.
+                    let minimumNativeControls = state == .photoEditMasks ? 1 : 2
+                    if content.count < minimumNativeControls { failures.append("\(tag) only \(content.count) content controls found") }
+                    if state == .photoEditMasks {
+                        XCTAssertTrue(model.isPhotoEditing)
+                        XCTAssertEqual(model.photoInspectorTab, .masks)
+                        XCTAssertNotNil(model.editTarget)
+                    }
                     for e in content where !(e.view is NSTableView) && e.frame.minY < top - 1 && e.frame.maxY > 0 {
                         failures.append("\(tag) under the toolbar: \(e.role) '\(e.label)' \(NSStringFromRect(e.frame)) top=\(top)")
                     }
@@ -77,7 +85,7 @@ final class ShellLayoutTests: XCTestCase {
                 }
             }
         }
-        XCTAssertEqual(checked, 24)
+        XCTAssertEqual(checked, ShellHarness.State.allCases.count * 8)
         XCTAssert(failures.isEmpty, "\(failures.count) layout failures:\n" + failures.joined(separator: "\n"))
     }
 

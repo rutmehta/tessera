@@ -2186,3 +2186,42 @@ in `tools/orchestrate/wp/B5-16/evidence/`.
 ## Verdict (B5-16 document inspector layout)
 
 PASS when steps 420–439 meet their expectations at the four sizes.
+
+
+
+## Workspace redesign: Library / Photo Edit
+
+These are acceptance instructions, not evidence that the scenario has run.
+
+1. Open a RAW folder, choose an album/filter, select three photos, focus the middle
+   one, and scroll the grid away from its first row. The header distinguishes the
+   focused filename from “3 selected · decisions apply to 3 photos.”
+2. Choose Edit photo (D). The filename stays correct and scope reads “Editing 1
+   photo.” Develop/Masks occupy fixed inspector tabs; Library selection/metadata
+   panels are absent. Change exposure, visit Masks, then Develop. Only this photo
+   changes; switching tabs creates no document or history entry.
+3. Choose a filmstrip neighbor. Its filename and controls agree throughout loading.
+   Back to Library restores the original three-photo selection, focus, filter,
+   arrangement and scroll anchor. G from Edit explicitly returns to Grid.
+4. Repeat from Compare; Back restores the pair and active candidate. Escape in
+   Compare retains its existing parent arrangement. Insert/remove an image while
+   editing; return follows stable surviving photo identity, with a visible nearest
+   neighbor fallback if the original photo disappeared.
+5. Type X/Y/D in a search/text field and use arrows in a numeric field. Typing never
+   decides a photo. In Photo Edit, X/P/Y without an active tool do not cull hidden
+   selection; Undo without a photo edit to undo does not consume cull history.
+6. With Crop or a mask tool active, Escape cancels/leaves that tool before a later
+   Escape returns to Library. Existing Document tool keys still work independently.
+7. Invoke Open in Layers (Cmd-E outside Document). Read
+   the named source and baked-adjustment explanation. Cancel creates no document.
+   Confirm reaches the existing layered-copy flow; Document Save/dirty state,
+   tabs, tools and Cmd-E Merge Down retain their existing behavior.
+8. Check 960×600, 1280×800, 1440×900 and 1728×1117 in dark/light. Header/back/target
+   remain accessible, long names truncate with full help, no toolbar or inspector
+   control overlaps, and the native canvas retains the shell's containment rules.
+
+New identifiers: `workspace-back-to-library`, `workspace-photo-target`,
+`workspace-command-scope`, `workspace-edit-photo`, `photo-edit-inspector-tabs`,
+`photo-edit-target`, `workspace-create-layered-copy`.
+
+The first Layers open renders current adjustments; an already-open copy reopens unchanged. Change the photo recipe after creating a copy, invoke Open in Layers again, and confirm the disclosure promises no refresh and the existing document/pixels/layer edits are retained.

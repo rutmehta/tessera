@@ -123,6 +123,11 @@ final class UprightGuideTool: LibraryObserver {
 
     // MARK: LibraryObserver
 
+    func workspaceWillLeavePhotoEdit() {
+        if active, guides.isComplete { commitGuides() }
+        end()
+    }
+
     func libraryDidReload() {}
     func itemsDidChange(_ positions: IndexSet) {}
     func selectionDidChange(scrollToFocus: Bool) {
@@ -144,6 +149,7 @@ final class UprightGuideTool: LibraryObserver {
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                 MainActor.assumeIsolated {
                     guard self.develop === d else { return }
+                    self.model.enterPhotoEdit()
                     self.begin()
                     self.guides.add(UprightGuide(start: (0.22, 0.18), end: (0.25, 0.82)))
                     self.guides.add(UprightGuide(start: (0.80, 0.16), end: (0.76, 0.84)))

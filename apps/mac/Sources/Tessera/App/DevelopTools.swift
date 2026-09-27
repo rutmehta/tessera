@@ -395,13 +395,21 @@ final class DevelopTools: LibraryObserver {
 
     // MARK: LibraryObserver
 
+    func workspaceWillLeavePhotoEdit() {
+        if cropActive { commitCrop() }
+        if hslPicker != nil { model.commitDevelop(label: "Targeted color adjustment") }
+        hslPicker = nil
+        detailPicking = false
+        onLoupeToolChange?()
+    }
+
     func libraryDidReload() {
         developDidChange()
         // Self-test: open the first photo in the loupe once the folder has loaded.
         if ProcessInfo.processInfo.arguments.contains("--develop-panels-selftest"), !selfTestRan,
-           !model.library.items.isEmpty, model.viewMode != .loupe {
+           !model.library.items.isEmpty, !model.isPhotoEditing {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                MainActor.assumeIsolated { self.model.viewMode = .loupe }
+                MainActor.assumeIsolated { self.model.enterPhotoEdit() }
             }
         }
     }

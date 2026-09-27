@@ -66,7 +66,7 @@ final class KeyRouter {
               event.modifierFlags.intersection([.command, .shift, .option, .control]) == .command,
               event.charactersIgnoringModifiers?.lowercased() == "e" else { return false }
         guard model.documents.opening == nil else { return true }
-        model.documents.editInLayers(model.focusedItem)
+        model.requestLayeredCopy()
         return true
     }
 
@@ -91,8 +91,11 @@ final class KeyRouter {
         // The People view owns its keys (name fields, Esc); culling keys would act on a hidden photo.
         if model.source == .people { return false }
         // Develop tools receive shortcuts only when a key-owning control is not focused.
-        if MaskTools.shared.handleKey(event) { return true }
-        if DevelopTools.shared.handleKey(event) { return true }
+        if model.isPhotoEditing {
+            if MaskTools.shared.model === model, MaskTools.shared.handleKey(event) { return true }
+            if DevelopTools.shared.model === model, DevelopTools.shared.handleKey(event) { return true }
+            return handlePhotoEdit(event)
+        }
         let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         let shift = mods.contains(.shift)
         let option = mods.contains(.option)
@@ -139,8 +142,30 @@ final class KeyRouter {
                 SoftProof.shared.toggle()
                 model.statusMessage = "Soft proofing \(SoftProof.shared.enabled ? "on" : "off")"
             }
+        case "d": model.enterPhotoEdit()
         case "g": model.viewMode = .grid
         case "e": model.viewMode = .loupe
+        default: return false
+        }
+        return true
+    }
+
+    /// Photo Edit has one photo target. Library decision keys never leak into it.
+    private func handlePhotoEdit(_ event: NSEvent) -> Bool {
+        switch event.keyCode {
+        case 53: model.returnToLibrary(); return true
+        case 123, 126: model.navigate(.left, groupwise: false, extend: false); return true
+        case 124, 125: model.navigate(.right, groupwise: false, extend: false); return true
+        default: break
+        }
+        switch event.charactersIgnoringModifiers?.lowercased() {
+        case "d": model.photoInspectorTab = .develop
+        case "m": model.photoInspectorTab = .masks
+        case "g": model.returnToLibrary(grid: true)
+        case "s":
+            if event.modifierFlags.contains(.shift) { SoftProof.shared.gamutWarning.toggle() }
+            else { SoftProof.shared.toggle() }
+        case "x", "u", "p", "1", "2", "3", "6", "7", "8", "9", "b", "a", "k", "y", "n", "c": break
         default: return false
         }
         return true
