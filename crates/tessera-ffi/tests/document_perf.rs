@@ -588,12 +588,19 @@ fn photo_layer(name: &str, e: Extent) -> Layer {
     l
 }
 
-/// A 5472×3648 8-bit document: an opaque photo layer, a smart object of a
-/// second photo layer with a Gaussian Blur smart filter at 70 %, and a text
-/// layer with a drop shadow and an outer glow (a "styled" document: the
-/// CPU compositor renders it).
-fn styled_20mp(engine: &Arc<Engine>) -> Arc<DocumentSession> {
-    let e = Extent::new(5472, 3648);
+/// An 8-bit document: an opaque photo layer, a smart object of a second
+/// photo layer with a Gaussian Blur smart filter at 70 %, and a text layer,
+/// with a drop shadow and an outer glow when `styled` (a styled document:
+/// the CPU compositor renders it). The engine refuses layer styles on
+/// canvases above 16.7 MP including the style margin (`styles.rs`
+/// MAX_PIXELS), so styled benches use 4608×3072 (14 MP) and unstyled ones
+/// 5472×3648 (20 MP).
+fn export_doc(engine: &Arc<Engine>, styled: bool) -> Arc<DocumentSession> {
+    let e = if styled {
+        Extent::new(4608, 3072)
+    } else {
+        Extent::new(5472, 3648)
+    };
     let mut d = Document::new(DocState::new(e, Depth::U8));
     for name in ["photo", "detail"] {
         d.apply(DocOp::AddLayer {
@@ -622,44 +629,48 @@ fn styled_20mp(engine: &Arc<Engine>) -> Arc<DocumentSession> {
                 c: 600.0,
                 d: 0.0,
                 e: 1.0,
-                f: 2600.0,
+                f: 2400.0,
             },
             false,
         )
         .unwrap()
         .created[0];
-    let styles = serde_json::json!({"effects": [
-        {"kind": "drop_shadow", "settings": {"distance": 30.0, "size": 40.0}},
-        {"kind": "outer_glow", "settings": {"size": 30.0}},
-    ], "scale": 1.0});
-    s.set_layer_styles_json(t, styles.to_string(), false).unwrap();
+    if styled {
+        let styles = serde_json::json!({"effects": [
+            {"kind": "drop_shadow", "settings": {"distance": 30.0, "size": 40.0}},
+            {"kind": "outer_glow", "settings": {"size": 30.0}},
+        ], "scale": 1.0});
+        s.set_layer_styles_json(t, styles.to_string(), false).unwrap();
+    }
     s
 }
 
-/// P16 before/after: Export Flat of the styled 20 MP document through the
-/// synchronous call (what the app's main thread ran before B5-15: its
-/// duration is the main-thread span), PNG sRGB.
+/// P16 before/after: Export Flat of the styled 14 MP and the unstyled 20 MP
+/// documents through the synchronous call (what the app's main thread ran
+/// before B5-15: its duration is the main-thread span), PNG sRGB.
 #[test]
 #[ignore]
-fn bench_p16_export_flat_20mp_styled_sync() {
+fn bench_p16_export_flat_sync() {
     let (dir, engine) = engine();
-    let s = styled_20mp(&engine);
-    let mut v = Vec::new();
-    for i in 0..3 {
-        let out = dir.path().join(format!("flat{i}.png"));
-        let t = Instant::now();
-        s.export_flat(
-            out.to_string_lossy().into_owned(),
-            ExportFormat::Png,
-            90,
-            ExportColor::Srgb,
-        )
-        .unwrap();
-        v.push(t.elapsed().as_secs_f64() * 1000.0);
-        eprintln!("export {i}: {:.0} ms, footprint {:.0} MiB", v[i], footprint_mib());
+    for (styled, label) in [(true, "styled 14 MP"), (false, "20 MP smart filter")] {
+        let s = export_doc(&engine, styled);
+        let mut v = Vec::new();
+        for i in 0..3 {
+            let out = dir.path().join(format!("flat{i}.png"));
+            let t = Instant::now();
+            s.export_flat(
+                out.to_string_lossy().into_owned(),
+                ExportFormat::Png,
+                90,
+                ExportColor::Srgb,
+            )
+            .unwrap();
+            v.push(t.elapsed().as_secs_f64() * 1000.0);
+            eprintln!("{label} export {i}: {:.0} ms, footprint {:.0} MiB", v[i], footprint_mib());
+        }
+        summary(&format!("p16 {label} Export Flat (sync call)"), &v);
+        s.close();
     }
-    summary("p16 20 MP styled Export Flat (sync call)", &v);
-    s.close();
 }
 
 /// P16 parity: writes PNG / TIFF / JPEG exports of the styled document in
@@ -675,7 +686,7 @@ fn bench_p16_export_parity_files() {
     let out = std::path::PathBuf::from(out);
     std::fs::create_dir_all(&out).unwrap();
     let (_dir, engine) = engine();
-    let s = styled_20mp(&engine);
+    let s = export_doc(&engine, true);
     for (format, ext) in [
         (ExportFormat::Png, "png"),
         (ExportFormat::Tiff, "tif"),
@@ -762,14 +773,21 @@ fn bench_p19_smart_filter_drag_20mp() {
 }
 
 /// P16 after: the background export (`begin_export_flat` + `run` on a
-/// worker) of the styled 20 MP document while a "main thread" keeps making
+/// worker) of both export documents while a "main thread" keeps making
 /// edits: begin (the main-thread part), run, edit call spans, cancel
 /// latency. B5-15 builds only.
 #[test]
 #[ignore]
-fn b515_bench_p16_background_export_20mp_styled() {
+fn b515_bench_p16_background_export() {
+    for styled in [true, false] {
+        background_export(styled);
+    }
+}
+
+fn background_export(styled: bool) {
+    let label = if styled { "styled 14 MP" } else { "20 MP smart filter" };
     let (dir, engine) = engine();
-    let s = styled_20mp(&engine);
+    let s = export_doc(&engine, styled);
     let top = s.layers().unwrap()[1].id;
     let mut begins = Vec::new();
     let mut runs = Vec::new();
@@ -799,9 +817,9 @@ fn b515_bench_p16_background_export_20mp_styled() {
         runs.push(t.elapsed().as_secs_f64() * 1000.0);
         s.commit("Opacity".into()).unwrap();
     }
-    summary("p16 begin_export_flat (main thread)", &begins);
-    summary("p16 background run (worker)", &runs);
-    summary("p16 edit calls during the export", &edits);
+    summary(&format!("p16 {label} begin_export_flat (main thread)"), &begins);
+    summary(&format!("p16 {label} background run (worker)"), &runs);
+    summary(&format!("p16 {label} edit calls during the export"), &edits);
     // Cancel latency at ~30 %.
     struct At(Arc<DocFlatExport>, Mutex<Option<Instant>>);
     impl DocExportListener for At {
@@ -829,6 +847,6 @@ fn b515_bench_p16_background_export_20mp_styled() {
         lat.push(when.elapsed().as_secs_f64() * 1000.0);
         assert!(!out.exists());
     }
-    summary("p16 cancel → run returns", &lat);
+    summary(&format!("p16 {label} cancel at 30 % → run returns"), &lat);
     s.close();
 }

@@ -262,16 +262,16 @@ extension FilterSelfTest {
         await pause(3)
         guard let row = filters.smartFilters(doc, layer: photo).first else { plog("FAIL no smart filter"); return }
         plog(String(format: "smart filter applied, footprint %.0f MiB", footprintMiB()))
-        // A 3840 × 2160 device-pixel viewport for the 100 % pass (the window stays where it is, in the back).
-        if let w = model.mainWindow, let v = doc.viewport {
-            let scale = w.backingScaleFactor
-            let extraW = w.frame.width - v.bounds.width, extraH = w.frame.height - v.bounds.height
-            w.setFrame(NSRect(origin: w.frame.origin, size: NSSize(width: 3840 / scale + extraW, height: 2160 / scale + extraH)),
-                       display: true)
-            await pause(1)
-            plog(String(format: "viewport %.0f × %.0f pt @%.0fx", v.bounds.width, v.bounds.height, scale))
-        }
         for (label, actual) in [("fit", false), ("100% 4K", true)] {
+            if actual, let w = model.mainWindow, let v = doc.viewport {
+                // A 3840 × 2160 device-pixel viewport (the window stays where it is, in the back).
+                let scale = w.backingScaleFactor
+                let extraW = w.frame.width - v.bounds.width, extraH = w.frame.height - v.bounds.height
+                w.setFrame(NSRect(origin: w.frame.origin, size: NSSize(width: 3840 / scale + extraW, height: 2160 / scale + extraH)),
+                           display: true)
+                await pause(1)
+                plog(String(format: "viewport %.0f × %.0f pt @%.0fx", v.bounds.width, v.bounds.height, scale))
+            }
             if let view = doc.viewport { if actual { view.zoomActual() } else { view.zoomToFit() } }
             _ = await wait(20) { (doc.lastFrame?.level == 0) == actual }
             await pause(3)
@@ -299,23 +299,43 @@ extension FilterSelfTest {
         if let view = doc.viewport { view.zoomToFit() }
         await pause(2)
 
-        // P16: a styled layer (text with a drop shadow and an outer glow), then Export Flat.
-        if let text = doc.backend as? DocumentTextBackend,
-           let styles = doc.backend as? DocumentStylesBackend,
+        // P16 (a): Export Flat of this document (18 MP, the smart filter baked at full resolution).
+        let settings = ExportFlatSettings(format: .png, quality: 90, color: .srgb)
+        await measureExports(ws, doc, settings, "18 MP smart filter")
+        // P16 (b): a styled document. The engine refuses layer styles on canvases above 16.7 MP including the
+        // style margin (compositor styles.rs MAX_PIXELS), so it is 4608 × 3072 (14 MP): a gradient fill and a
+        // text layer with a drop shadow and an outer glow.
+        ws.newDocument(NewDocumentSettings(width: 4608, height: 3072, depth: .u8, profile: "sRGB IEC61966-2.1"))
+        guard let styled = ws.current, styled !== doc else { plog("FAIL no new document"); return }
+        _ = await wait(20) { styled.lastFrame != nil }
+        _ = try? styled.backend.addLayer(kind: .fill(json: #"{"kind":"linear_gradient","stops":[{"position":0,"color":[1,0.5,0],"opacity":1},{"position":1,"color":[0,0.3,1],"opacity":1}],"angle":30}"#),
+                                         name: "gradient", parent: nil, index: nil)
+        if let text = styled.backend as? DocumentTextBackend,
+           let styles = styled.backend as? DocumentStylesBackend,
            let textModel = try? JSONDecoder().decode(TextSourceModel.self,
-                                                 from: Data(#"{"runs":[{"text":"Tessera export","family":"Helvetica","size":220}]}"#.utf8)),
+                                                     from: Data(#"{"runs":[{"text":"Tessera export","family":"Helvetica","size":220}]}"#.utf8)),
            let c = try? text.addTextLayer(name: "caption", parent: nil, index: nil, model: textModel,
-                                          transform: .translation(600, 2600), interactive: false),
-           let id = c.created.first {
-            _ = try? styles.setLayerStylesJson(layer: id, json: #"{"effects":[{"kind":"drop_shadow","settings":{"distance":30,"size":40}},{"kind":"outer_glow","settings":{"size":30}}],"scale":1}"#,
-                                               interactive: false)
-            doc.reloadModel()
-            plog("styled text layer \(id) added")
+                                          transform: .translation(600, 2400), interactive: false),
+           let id = c.created.first,
+           (try? styles.setLayerStylesJson(layer: id, json: #"{"effects":[{"kind":"drop_shadow","settings":{"distance":30,"size":40}},{"kind":"outer_glow","settings":{"size":30}}],"scale":1}"#,
+                                           interactive: false)) != nil {
+            styled.reloadModel()
+            plog("styled document \(styled.info.width) × \(styled.info.height), layers \(styled.layers.map(\.name))")
         } else {
             plog("FAIL could not add the styled layer")
         }
+        _ = await wait(120) { styled.lastFrame != nil }
         await pause(3)
-        let settings = ExportFlatSettings(format: .png, quality: 90, color: .srgb)
+        await measureExports(ws, styled, settings, "styled 14 MP")
+        await cancelUnderTest(ws, styled, settings)
+        plog(String(format: "done, footprint %.0f MiB", footprintMiB()))
+    }
+}
+
+extension FilterSelfTest {
+    /// Two Export Flats of `doc` with every main-thread busy span recorded.
+    fileprivate func measureExports(_ ws: DocumentWorkspace, _ doc: DocumentController, _ settings: ExportFlatSettings,
+                                    _ label: String) async {
         let spans = MainThreadSpans()
         for i in 0..<2 {
             let url = dir.appendingPathComponent("perf-flat-\(i).png")
@@ -325,12 +345,15 @@ extension FilterSelfTest {
             let ok = await exportUnderTest(ws, doc, settings, url)
             let secs = Date().timeIntervalSince(t)
             let v = spans.stop()
-            plog(String(format: "export %d: %@ in %.2f s, %d main-thread spans", i, ok ? "ok" : "FAILED", secs, v.count))
-            report("p16 main-thread spans during Export Flat \(i)", v)
-            check("export \(i)", ok && FileManager.default.fileExists(atPath: url.path))
+            FileHandle.standardError.write(Data(String(format: "filter-perf: %@ export %d: %@ in %.2f s, %d main-thread spans (%@)\n",
+                                                       label, i, ok ? "ok" : "FAILED", secs, v.count,
+                                                       model.statusMessage ?? "").utf8))
+            let s = v.sorted()
+            let q = { (p: Double) in s.isEmpty ? .nan : s[min(s.count - 1, Int((Double(s.count - 1) * p).rounded()))] }
+            FileHandle.standardError.write(Data(String(format: "filter-perf: RESULT p16 %@ main-thread spans during Export Flat %d: n %d p50 %.2f ms p95 %.2f ms max %.2f ms; export %.2f s\n",
+                                                       label, i, s.count, q(0.5), q(0.95), s.last ?? .nan, secs).utf8))
+            check("\(label) export \(i)", ok && FileManager.default.fileExists(atPath: url.path))
         }
-        await cancelUnderTest(ws, doc, settings)
-        plog(String(format: "done, footprint %.0f MiB", footprintMiB()))
     }
 }
 
@@ -360,7 +383,7 @@ extension FilterSelfTest {
         ws.cancelExportFlat(task)
         _ = await wait(60) { outcome != nil }
         log(String(format: "cancel at %.0f %% → finished in %.0f ms", task.fraction * 100, Date().timeIntervalSince(t) * 1000))
-        check("cancelled", outcome == .cancelled, "\(String(describing: outcome))")
+        check("cancelled", outcome == .cancelled, "\(String(describing: outcome)) \(model.statusMessage ?? "")")
         check("destination kept", (try? Data(contentsOf: url)) == original)
         let left = (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
         check("no temporary file", left == ["kept.png"], "\(left)")

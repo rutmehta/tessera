@@ -2953,6 +2953,9 @@ impl DocumentSession {
         let mut u = self.update(&mut st, &before, Some(&applied), true);
         // The layer was replaced in place, not created.
         u.created.clear();
+        // B5-15: the replaced smart object is a new instance to the resident
+        // stage cache, whose entries for the old one are dead.
+        self.shared.render.trim_smart_filter_cache();
         Ok(u)
     }
 }
@@ -3017,6 +3020,7 @@ impl DocumentSession {
 
     /// Ends a filter or adjustment preview (the viewport shows the document).
     pub fn clear_preview(&self) -> Result<()> {
+        self.shared.render.trim_smart_filter_cache(); // B5-15
         if self.clear_preview_state() {
             let st = self.shared.lock()?;
             self.shared.render.request(Vec::new(), false, st.epoch);

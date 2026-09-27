@@ -113,6 +113,9 @@ pub struct DocRenderRecord {
     pub total_ms: f64,
 }
 
+/// B5-15: stage-cache bytes kept after a filter interaction ends.
+const FILTER_CACHE_KEEP: u64 = 512 << 20;
+
 /// Smart objects with filters (the compositor never evaluates them).
 fn has_smart_filters(state: &DocState) -> bool {
     fn go(v: &[Arc<Layer>]) -> bool {
@@ -556,6 +559,9 @@ pub(crate) struct Renderer {
     /// Composite thumbnails of the committed document (cache kept).
     thumb_comp: OnceLock<Compositor>,
     // B5-14 end
+    /// B5-15: drop the resident smart-filter stage cache at the next frame
+    /// (set when a filter interaction ends; its per-tick results are dead).
+    trim_filters: AtomicBool,
 }
 
 impl Renderer {
@@ -605,6 +611,7 @@ impl Renderer {
             last_resources: Mutex::new(None),
             thumb_comp: OnceLock::new(),
             // B5-14 end
+            trim_filters: AtomicBool::new(false), // B5-15
         }
     }
 
@@ -793,6 +800,14 @@ impl Renderer {
             )),
             _ => None,
         }
+    }
+
+    /// B5-15: asks the render thread to release the resident smart-filter
+    /// stage cache before its next frame when it holds more than
+    /// [`FILTER_CACHE_KEEP`] (a filter drag leaves one full-resolution result
+    /// per tick, up to the renderer's 2 GiB budget).
+    pub(crate) fn trim_smart_filter_cache(&self) {
+        self.trim_filters.store(true, Ordering::Relaxed);
     }
 
     pub(crate) fn thumbnail_renders(&self) -> u64 {
@@ -1003,6 +1018,12 @@ fn present_frame(
             match &mut *backend {
                 Backend::Gpu(g) => {
                     g.targets.retain(|id, _| attached.contains(id));
+                    // B5-15: stage results of a finished filter interaction.
+                    if r.trim_filters.swap(false, Ordering::Relaxed)
+                        && g.resident.filter_cache_bytes() > FILTER_CACHE_KEEP
+                    {
+                        super::filtering::install_resident(&mut g.resident);
+                    }
                     let viewport = r.viewport_rendering.load(Ordering::Relaxed)
                         && !needs_full_halo(doc.state());
                     rec.path = if viewport {
