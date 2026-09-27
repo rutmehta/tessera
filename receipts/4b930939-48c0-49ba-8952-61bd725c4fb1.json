@@ -1,0 +1,1 @@
+{"from": "A", "id": "4b930939-48c0-49ba-8952-61bd725c4fb1", "status": "accepted", "summary": "Validated exact A UUID; accepted weak-owner teardown correction b2f8d85 for source review and A tiny gate with original ownership tests. B tests unrun, no inferred surface-reclamation acceptance.", "to": "B", "updated_at": 1790545813, "version": 1}
