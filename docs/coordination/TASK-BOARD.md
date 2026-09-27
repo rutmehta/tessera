@@ -1,6 +1,6 @@
 # Tessera task board — Machine A coordinator
 
-Updated: 2026-09-27 20:34 UTC
+Updated: 2026-09-27 20:57 UTC
 
 User mandate: autonomously advance UI/UX redesign **and** the recovered engine
 queue, using parallel GPT-6 Astra/Luna agents; coordinate Machine B and keep
@@ -30,17 +30,13 @@ Machine A as sole main integrator. Do useful work while other tasks wait.
 | UX-01 | Library / Photo Edit workspace and split inspector | A root; main `4925677` | DONE first bounded workspace slice; sourcecommitc417229 merged/pushed. Full411+5 checkpoint, final28targeted/0,40layouts,1readyRAW passed; rootvisualreview accepted. Interactive/performance gates remain separate; existing overlay/wrapping polish goesUX04. |
 | ENG-31 | M5-31 source reuse and cold timing | A root; wp/M5-31 `97eb4ca`, product `441da3e` | A local326tests and6timings pass. Direct SSH six-sample repeat on B FAILED first original cold106.084084ms/100ms; remaining5pass. All evidence retained in branch; no main merge. Cold diagnostics did not reproduce the outlier or establish a cause; A root retains the unresolved gate. No threshold changes or replacement samples. B completed receipt confirmed; result7fc92eb5 supersedes benchmark request execution. |
 | COM-01 | Establish usable authenticated Machine A ↔ B communication | A root + B coordinator | DONE verified SSH execution and existing-chat delivery via installed `codex queue`, peer reply, accepted/completed Git receipts. Exact B UUID01a0e323-c018-7fa3-9605-999a2dea6b32. B scheduled wakeup was verified at18:50:41Z (bd919fed); B has since paused its heartbeat for the resource audit. Preserve existing writers, use mailbox receipts and no duplicate enqueues. |
-| RES-01 | Repeated CPU smart-filter evaluation and pass retention | A Sol implementation + independent Sol review; codex/render-resource-bounds | Tiny 257×1 regression reproduces two evaluations per frame; existing two-worker reentry check passes. Implement exact-key unmasked per-pass reuse with explicit retained-byte/entry reservations. Validate nested, mask, hidden/offscreen, style/live and error paths. B hold remains. |
-| RES-02 | Cancellation inside expensive transform kernels | A Sol source plan; B retains Document/FFI integration | Map existing cancellation primitives into seam row/stage loops and prepare tiny deterministic cancellation tests after RES-01. No large stress or B run. |
+| RES-01 | Repeated CPU smart-filter evaluation and pass retention | A Sol implementation + independent Sol review; codex/render-resource-bounds | Product0e58792d/evidencec10b4eea pushed on codex/render-resource-bounds: 6 integration +1 reservation pass. Independent source review found no scoped blocker. Two extra mask/concurrent-call tests and broader compositor/strict gates pending. Per-frame 1GiB/256-entry retained allowance is not global working-memory/GPU cap. RED source provenance gap explicitly retained. B hold remains. |
+| RES-02 | Cancellation inside expensive transform kernels | A Sol implementation in codex/transform-cancellation; B retains Document/FFI integration | First full transform gate64/0. Additional deterministic seam-stage/mapped-pixel RED2 and final GREEN now own A compiler slot. Primitive caller/compositor bridge remains pending; no end-to-end cancellation claim. No B run. |
 | OPS-01 | Persistent autonomous coordinators | A root + B coordinator | A coordinator remains active. B paused its heartbeat and load tests following the user’s report of severe responsiveness/resource pressure; no B rebuild, benchmark, runner or heartbeat restart without B/user direction. B audits low-impact resource evidence. A local work stays separate. |
 
 ## Ready / next
 
-RES-01: A Sol source/regression design for duplicate compositor cold evaluations.
-RES-02: Independent Sol cancellation/admission review. Both read-only while root
-Swift gate runs; next is a tiny two-worker regression and reviewed bounded fix,
-never a large stress rerun. B owns its frontend timer/lifecycle fix.
-
+A compiler slot: transform cancellation RED2/final GREEN, then resource extra and broad checks. Luna diagnoses fixed Loupe validation app startup and retests native popover keys; one desktop owner. No B builds or heartbeat restart.
 
 Main fb7c604 now contains the verified export slice and Review ownership/save-order
 safety. Final combined source b82fe333 passed436XCTest cases (one existing skip),
@@ -66,13 +62,14 @@ Gain-map CI supplemental and CLI/FFI/MCP targeted checks passed after preserved
 fixture repairs. Original ImageIO4pass/1fail remains unresolved. Evidence-only
 c716460 is pushed on codex/gainmap-restoration; dirty product source remains intact.
 
-Tiny compositor regression reproduced repeated work:257×1 pixels,8223-byte cache,
-two actual whole-image attempts vs required one (expected RED exit101). Existing
-two-worker child-process deadlock test passed exit0. Sol implements a bounded
-per-render retained-result mitigation from source; Luna now owns A's heavy slot
-for the separate Loupe focused gate. Separate Sol independently reviews
-counters and frame-scoped reuse/admission design. No B workloads. Request9a28ab84
-is accepted/in_progress; no resource fix or global memory cap claimed.
+RES-01 bounded investigation9a28ab84 completed with source/evidence above; this
+closes the requested investigation, not the resource incident. New result
+fbe21798 was published and SSH queue01a0e4a8-4970-7301-90c4-bd96dd3adb83 accepted;
+peer receipt is not yet verified. Low-impact B source review only.
+Loupe keyboard correction passed14 focused tests. New isolated package startup
+sample shows mkdirat blocked in AppDefaultsIsolation before UI, not a proven
+CUA-only problem. Failed launch and old GUI RED binary are preserved; Luna owns
+local disposable-path diagnosis/retest. No Loupe merge yet.
 
 B’s original coordinator received queued messages and completed the Git bootstrap.
 Its previously observed scheduled heartbeat is now paused by B. B paused its heartbeat and load tests for the user-requested resource audit;
