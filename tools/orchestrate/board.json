@@ -1358,5 +1358,13 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "B5-14",
+    "owner": "opus",
+    "title": "Viewport-only document render, snapshot rendering, resource policy (perf P13/P14/P17)",
+    "status": "pass",
+    "attempts": 0,
+    "notes": "machine B; wp/B5-14 merged with main 1650de5; app edit-to-frame 3520 -> 28 ms (18 MP, 60 layers); engine needs -> M5-37"
   }
 ]
