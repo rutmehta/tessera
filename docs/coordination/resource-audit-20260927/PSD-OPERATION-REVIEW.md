@@ -17,3 +17,18 @@ Swift ownership is tied to the originating `DocumentController`: panel callback 
 The smart-stack path receives the same `RequestCancellation` through `native_stack` and checked raster conversion (`document/filters.rs:655-666`), but `document/io.rs:379` still calls legacy `compositor::psd::to_psd(doc)`, which creates a fresh token. The B implementation document explicitly assigns this to A: use a narrow borrowed native-token accessor and call A's `to_psd_with_cancel(doc, same_native_token)`; do not replace it with a bool snapshot or new token. Until then, merged-composite conversion is boundary-cancellable only. `PsdDocument::write`, metadata clones and some raster copies remain opaque. UniFFI Swift bindings are also ungenerated, so the adapter's Sendable conformance and protocol mocks require A compilation. No end-to-end cancellation, bounded latency, peak-memory cap or passing-test claim is supported yet.
 
 The added Rust tests cover first-layer cancellation, pre-cancel identity/retry, drain admission and close/commit ordering; IO tests cover sentinel/temp cleanup; Swift fake tests cover origin completion and busy balance. They do not cover the error-masking race above, live token through PSD conversion, actual blocked backend-state close cancellation, or a real opaque encoder. The first of these is the source blocker; remaining points are explicit integration/verification gates rather than defects in B's scoped code.
+
+## Correction0df02c4 source follow-up
+
+Root reviewed0df02c424551e58342a025de092a4a180308e539 after exact-target
+resultb7294f0e was accepted. Typed CopyError preserves genuine failures through
+finalization and matches EngineError::Cancelled before bridge erasure. Tests add
+a gated error/cancel race. Legacy menu/effect cancellation already erased into
+BridgeError conservatively remains Failure; no string/flag inference is used.
+The original error-masking blocker is resolved at source level, not yet compiled.
+
+Two new nested IO test references use super::psd_copy::CopyError, which resolves
+from copy_transaction_tests to io::psd_copy rather than document::psd_copy. A
+integration must repair the module path (or import CopyError explicitly). This is
+a source finding, not an observed compiler result. Same-token conversion wiring,
+generated bindings, all actual gates and end-to-end acceptance remain pending.
