@@ -7,30 +7,22 @@ import TesseraCore
 /// source, the brush HUD readout, the Free Transform box, and Select and Mask preview modes. It never
 /// takes mouse events: the viewport forwards them to `DocumentTools`.
 @MainActor
-final class ToolOverlayView: NSView {
-    weak var viewport: DocumentViewportView?
+final class ToolOverlayView: DocumentAnimatedOverlayView {
+    weak var viewport: DocumentViewportView? { didSet { updateAnimation() } }
     private var phase: CGFloat = 0
-    private var timer: Timer?
 
     override var isFlipped: Bool { true }
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
 
-    /// Ants march at 30 fps while there is an outline.
-    private func updateTimer() {
-        let animate = !DocumentTools.shared.outline.isEmpty || DocumentTools.shared.gesture != nil
-        if animate, timer == nil {
-            timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30, repeats: true) { [weak self] _ in
-                MainActor.assumeIsolated {
-                    guard let self else { return }
-                    self.phase = (self.phase + 0.5).truncatingRemainder(dividingBy: 8)
-                    self.needsDisplay = true
-                    if DocumentTools.shared.outline.isEmpty && DocumentTools.shared.gesture == nil {
-                        self.timer?.invalidate()
-                        self.timer = nil
-                    }
-                }
-            }
-        }
+    override var wantsAnimation: Bool {
+        guard let viewport, let doc = viewport.controller, doc.viewport === viewport,
+              DocumentTools.shared.document === doc else { return false }
+        return !DocumentTools.shared.outline.isEmpty || DocumentTools.shared.gesture != nil
+    }
+
+    override func animationTick() {
+        phase = (phase + 0.5).truncatingRemainder(dividingBy: 8)
+        needsDisplay = true
     }
 
     private func path(_ pts: [CanvasPoint], closed: Bool, in v: DocumentViewportView) -> NSBezierPath? {
@@ -63,7 +55,7 @@ final class ToolOverlayView: NSView {
     }
 
     override func draw(_ dirtyRect: NSRect) {
-        updateTimer()
+        updateAnimation()
         guard let v = viewport, let doc = v.controller, DocumentTools.shared.document === doc else { return }
         let tools = DocumentTools.shared
         NSGraphicsContext.current?.cgContext.setShouldAntialias(true)

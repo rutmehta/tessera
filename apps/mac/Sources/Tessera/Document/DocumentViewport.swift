@@ -211,7 +211,7 @@ final class DocumentViewportView: NSView {
         ringSize = (0, 0)
         current = nil
         lastPushed = nil
-        guard let doc else { ants.rect = nil; render(); return }
+        guard let doc else { ants.rect = nil; toolOverlay.updateAnimation(); render(); return }
         doc.viewport = self
         doc.onFrame = { [weak self, weak doc] f in
             guard let self, let doc, doc === self.controller else { return }
@@ -454,6 +454,7 @@ final class DocumentViewportView: NSView {
         // WP B5-04: the marching ants follow the engine's selection outline (ToolOverlayView).
         ants.rect = nil
         DocumentTools.shared.selectionDidChange(in: self)
+        toolOverlay.updateAnimation()
         toolOverlay.needsDisplay = true
     }
 
@@ -510,27 +511,20 @@ final class DocumentViewportView: NSView {
 
 /// The marquee's marching ants: a two-tone dashed rectangle whose phase advances at 30 fps.
 @MainActor
-final class MarchingAntsView: NSView {
+final class MarchingAntsView: DocumentAnimatedOverlayView {
     var rect: CGRect? {
         didSet {
             guard rect != oldValue else { return }
             needsDisplay = true
-            if rect != nil, timer == nil {
-                timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30, repeats: true) { [weak self] _ in
-                    MainActor.assumeIsolated {
-                        guard let self else { return }
-                        self.phase = (self.phase + 0.5).truncatingRemainder(dividingBy: 8)
-                        self.needsDisplay = true
-                    }
-                }
-            } else if rect == nil {
-                timer?.invalidate()
-                timer = nil
-            }
+            updateAnimation()
         }
     }
     private var phase: CGFloat = 0
-    private var timer: Timer?
+    override var wantsAnimation: Bool { rect != nil }
+    override func animationTick() {
+        phase = (phase + 0.5).truncatingRemainder(dividingBy: 8)
+        needsDisplay = true
+    }
 
     override var isFlipped: Bool { true }
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
