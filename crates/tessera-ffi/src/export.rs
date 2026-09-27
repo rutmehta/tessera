@@ -153,6 +153,8 @@ pub struct ExportOptions {
     pub watermark: Option<export::Watermark>,
     /// AVIF 8/10/12, TIFF/JPEG XL 8/16, DNG 32-bit float (linear Rec.2020).
     pub bit_depth: u8,
+    /// PQ/HLG Rec.2020 output; null keeps SDR. PNG requires 16 bits, AVIF 10/12.
+    pub hdr: Option<export::HdrTransfer>,
     pub color_space: DocumentSpace,
     pub resize: ResizeOptions,
     /// Recorded in the file; converts inch/cm sizes to pixels.
@@ -163,6 +165,9 @@ pub struct ExportOptions {
     pub remove_person_info: bool,
     pub remove_location: bool,
     pub keywords_as_hierarchy: bool,
+    /// Embed the source byte stream in a developed DNG. The original retains
+    /// private metadata, so metadata reduction/privacy options are incompatible.
+    pub embed_original_raw: bool,
     /// Tokens: `{name}` file name without extension, `{seq}` 1-based position,
     /// `{date}` capture date `YYYY-MM-DD`.
     pub naming: String,
@@ -185,6 +190,7 @@ impl Default for ExportOptions {
             max_file_bytes: None,
             watermark: None,
             bit_depth: 8,
+            hdr: None,
             color_space: DocumentSpace::Srgb,
             resize: ResizeOptions::default(),
             dpi: 72,
@@ -194,6 +200,7 @@ impl Default for ExportOptions {
             remove_person_info: false,
             remove_location: false,
             keywords_as_hierarchy: true,
+            embed_original_raw: false,
             naming: "{name}".into(),
             upscale: 1,
             destination: String::new(),
@@ -229,6 +236,28 @@ impl ExportOptions {
     /// Everything but the destination (checked when a batch runs).
     pub fn validate(&self) -> Result<()> {
         self.after_export.validate()?;
+        if self.hdr.is_some() {
+            if self.color_space != DocumentSpace::Rec2020
+                || !((self.format == FileFormat::Png && self.bit_depth == 16)
+                    || (self.format == FileFormat::Avif && matches!(self.bit_depth, 10 | 12)))
+            {
+                return Err(failure("HDR requires Rec.2020 PNG16 or AVIF10/12"));
+            }
+            if self.watermark.is_some() || self.upscale != 1 {
+                return Err(failure("HDR does not support SDR watermark or upscaling"));
+            }
+        }
+        if self.embed_original_raw
+            && (self.format != FileFormat::Dng
+                || self.metadata != MetadataPolicy::All
+                || self.remove_person_info
+                || self.remove_location
+                || !self.keywords_as_hierarchy)
+        {
+            return Err(failure(
+                "embed_original_raw requires DNG with unrestricted metadata",
+            ));
+        }
         if self.format == FileFormat::Original
             && (self.metadata != MetadataPolicy::All
                 || self.remove_person_info
@@ -266,6 +295,7 @@ impl ExportOptions {
         if !match self.format {
             FileFormat::Avif => matches!(self.bit_depth, 8 | 10 | 12),
             FileFormat::Dng => self.bit_depth == 32,
+            FileFormat::Png if self.hdr.is_some() => self.bit_depth == 16,
             FileFormat::Tiff | FileFormat::JpegXl => matches!(self.bit_depth, 8 | 16),
             _ => self.bit_depth == 8,
         } {
@@ -338,6 +368,7 @@ impl ExportOptions {
                 },
             },
             color_space: self.color_space.into(),
+            hdr: self.hdr,
             metadata: match self.metadata {
                 MetadataPolicy::All => export::Metadata::All,
                 MetadataPolicy::Copyright => export::Metadata::CopyrightOnly,
@@ -358,6 +389,8 @@ impl ExportOptions {
             render_scale: 1,
             max_file_bytes: self.max_file_bytes,
             watermark: self.watermark.clone(),
+            original_raw: None,
+            metadata_sources: Default::default(),
         })
     }
 }
@@ -1167,6 +1200,8 @@ impl Engine {
                 let crop = recipe.settings.geometry.crop.rect;
                 let settings = export::ExportSettings {
                     naming,
+                    original_raw: options.embed_original_raw.then(|| item.path.clone()),
+                    metadata_sources: [(image.sequence, item.path.clone())].into(),
                     // Always develop at full resolution and resize afterwards: rendering at a
                     // reduced pyramid level fails the exactness gate (tone/detail differ when
                     // applied before the downsample; see M2-21c RESULTS). Opt back in with

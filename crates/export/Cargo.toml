@@ -20,6 +20,8 @@ sidecar = { path = "../sidecar" }
 image = { workspace = true, features = ["png"] }
 serde = { workspace = true }
 fontdue = "0.9.4"
+flate2 = "1"
+libc = "0.2"
 color-mgmt = { path = "../color-mgmt" }
 png = { workspace = true }
 tempfile = { workspace = true }
@@ -31,6 +33,7 @@ zune-jpegxl = { version = "0.5.2", default-features = false, features = ["std"] 
 zune-core = "0.5.3"
 
 [dev-dependencies]
+serde_json = { workspace = true }
 libraw-ffi = { path = "../libraw-ffi" }
 jxl-oxide = { version = "0.12.6", default-features = false }
 color-mgmt = { path = "../color-mgmt", features = ["imageio"] }

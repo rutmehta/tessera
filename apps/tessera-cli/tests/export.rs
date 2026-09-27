@@ -4,6 +4,111 @@ use serde_json::Value;
 use std::path::Path;
 
 #[test]
+fn hdr_cli_exports_png_and_rejects_invalid_combinations() {
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("source.png");
+    image::RgbImage::from_pixel(32, 32, image::Rgb([100; 3]))
+        .save(&source)
+        .unwrap();
+    for transfer in ["pq", "hlg"] {
+        let out = temp.path().join(transfer);
+        cli(&temp.path().join("app"))
+            .arg("export")
+            .arg(&source)
+            .arg("--out")
+            .arg(&out)
+            .args([
+                "--format",
+                "png",
+                "--bit-depth",
+                "16",
+                "--hdr",
+                transfer,
+                "--color-space",
+                "rec2020",
+            ])
+            .assert()
+            .success();
+        let bytes = std::fs::read(out.join("source-1.png")).unwrap();
+        assert!(bytes.windows(8).any(|v| v
+            == [
+                b'c',
+                b'I',
+                b'C',
+                b'P',
+                9,
+                if transfer == "pq" { 16 } else { 18 },
+                0,
+                1
+            ]));
+    }
+    cli(&temp.path().join("app"))
+        .arg("export")
+        .arg(&source)
+        .arg("--out")
+        .arg(temp.path().join("bad"))
+        .args(["--format", "original", "--hdr", "pq"])
+        .assert()
+        .failure();
+    assert!(!temp.path().join("bad").exists());
+}
+
+#[test]
+fn dng_cli_embeds_each_original() {
+    let temp = tempfile::tempdir().unwrap();
+    let app = temp.path().join("app");
+    let sources = temp.path().join("sources");
+    std::fs::create_dir(&sources).unwrap();
+    for (name, value) in [("one", 80), ("two", 120)] {
+        image::RgbImage::from_pixel(16, 16, image::Rgb([value; 3]))
+            .save(sources.join(format!("{name}.png")))
+            .unwrap();
+    }
+    let out = temp.path().join("out");
+    cli(&app)
+        .arg("export")
+        .arg(&sources)
+        .arg("--out")
+        .arg(&out)
+        .args([
+            "--format",
+            "dng",
+            "--bit-depth",
+            "32",
+            "--embed-original-raw",
+            "--name",
+            "{name}",
+        ])
+        .assert()
+        .success();
+    for name in ["one", "two"] {
+        let bytes = std::fs::read(out.join(format!("{name}.dng"))).unwrap();
+        let expected = format!("{name}.png\0");
+        assert!(
+            bytes
+                .windows(expected.len())
+                .any(|v| v == expected.as_bytes())
+        );
+    }
+    cli(&app)
+        .arg("export")
+        .arg(&sources)
+        .arg("--out")
+        .arg(temp.path().join("private"))
+        .args([
+            "--format",
+            "dng",
+            "--bit-depth",
+            "32",
+            "--embed-original-raw",
+            "--remove-location",
+        ])
+        .assert()
+        .failure();
+    assert!(!temp.path().join("private").exists());
+}
+
+#[test]
 fn original_cli_copies_without_decoding_and_merges_recipe() {
     let temp = tempfile::tempdir().unwrap();
     let source = temp.path().join("source.nef");

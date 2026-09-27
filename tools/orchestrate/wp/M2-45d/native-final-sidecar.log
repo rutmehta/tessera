@@ -1,0 +1,24 @@
+   Compiling sidecar v0.1.0 (/Users/rutmehta/Developer/tessera/.worktrees/M2-45d/crates/sidecar)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.65s
+     Running tests/export_policy.rs (/Volumes/betterSSD/tessera-cache/target/M2-45d/debug/deps/export_policy-596c4b5e4dc01852)
+
+running 8 tests
+test nested_camera_and_structured_person_names_are_removed ... ok
+test qualified_keywords_are_preserved_when_not_removed ... ok
+test removes_person_and_location_before_writing_keyword_hierarchy ... ok
+test hierarchy_person_names_are_collected_from_every_property ... ok
+test qualified_keyword_value_attributes_are_filtered_and_preserved ... ok
+test restricted_policies_are_namespace_aware_and_preserve_contact ... ok
+test hierarchy_switch_removes_hierarchy_without_removing_flat_keywords ... ok
+test qualified_person_declarations_remove_flat_keywords ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/native_keywords.rs (/Volumes/betterSSD/tessera-cache/target/M2-45d/debug/deps/native_keywords-f286cd8dab5ac893)
+
+running 2 tests
+test overlay_retains_language_alternatives_qualifiers_and_namespace_shadowing ... ok
+test native_keyword_merge_preserves_qualified_xmp_and_person_filtering ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

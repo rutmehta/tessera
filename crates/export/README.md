@@ -14,7 +14,7 @@ The renderer integration is `render_full` in `src/lib.rs`. It calls `pipeline_cp
 
 Processing order: float render including shared `color_mgmt::Transform` (relative colorimetric, BPC enabled) → row-parallel separable Lanczos-3 (anti-alias support expands when reducing) → Gaussian unsharp mask → final quantization and encode. Filters operate on destination-encoded floats. Screen/matte/glossy use (sigma, amount) of (.6,.5), (1.2,1), (.8,.7). `color_mgmt::Registry` supplies all built-in ICC profiles; this crate no longer constructs profiles or invokes lcms2 transforms itself. The codec receives already-converted pixels and must not convert them a second time. Float samples are clamped/rounded to u16 before 8/16-bit encoding; destination ICC bytes are embedded in JPEG APP2, PNG iCCP and TIFF tag 34675. Direct lcms2 remains only as a dev dependency for independent ICC parsing tests.
 
-The TIFF16 integration regression checks exact equality to the managed float render followed by final quantization, including a saturated wide-gamut sample and distinguishable sub-8-bit differences. ExportSettings still has no custom ICC/intent fields and does not claim printer/CMYK or HDR export. Shared transforms are built per render; cross-export registry/transform caching is not implemented.
+The TIFF16 integration regression checks exact equality to the managed float render followed by final quantization, including a saturated wide-gamut sample and distinguishable sub-8-bit differences. ExportSettings still has no custom ICC/intent fields and does not claim printer/CMYK export. HDR uses the separate path below. Shared transforms are built per render; cross-export registry/transform caching is not implemented.
 
 ## Output sharpening (M2-45b)
 
@@ -43,7 +43,7 @@ by strength, density dependence, repeatability, invalid density, cancellation,
 TIFF16 read-back against resize-then-sharpen, CLI parsing, and FFI JSON/preset
 round trips plus actual exported pixels.
 
-## Developed DNG (M2-45, partial DNG milestone)
+## Developed DNG (M2-45d)
 
 `Format::Dng` writes an uncompressed float32 LinearRaw DNG using
 `merge::dng::write`. The recipe is baked by the CPU full-resolution output-linear
@@ -51,8 +51,10 @@ renderer, including its tone mapping, then orientation/resize/sharpening are
 applied. Samples are linear Rec.2020 D65, not ICC-encoded document RGB. The
 document colour-space and render-scale hints do not apply to this format.
 ColorMatrix1 describes XYZ D65 to Rec.2020; AsShotNeutral is unity because white
-balance is already baked. The writer retains its DNG 1.4 compatibility version
-and 64 Mi-pixel limit. This is not a scene-referred HDR export.
+balance is already baked. Export finalization declares DNG 1.6 with a DNG 1.4
+backward compatibility version and the existing 64 Mi-pixel limit. The minimal
+LinearRaw tag set uses the specification's default crop, scale, black level and
+baseline exposure. This is not a scene-referred HDR export.
 
 CLI: `tessera export input.nef --out /absolute/out --format dng --bit-depth 32`.
 FFI settings JSON: `{"format":"dng","bit_depth":32}`. MCP's existing DNG format
@@ -62,15 +64,86 @@ conversion. Descriptive XMP is rebuilt through the sidecar metadata model,
 discarding foreign/development properties so an editor cannot reapply baked
 Camera Raw adjustments. The selected metadata policy still applies.
 
-Tests check exact float pixel round trips through `raw_decode::linear_dng`,
-LibRaw open/unpack acceptance, metadata removal and CLI/FFI/MCP selection.
-LibRaw's current Rust wrapper exposes only CFA sample buffers, so these tests do
-not claim a pixel-by-pixel RGB round trip through LibRaw.
+`ExportSettings::original_raw` optionally embeds a source file in
+OriginalRawFileData (tag 50828), with its basename in OriginalRawFileName (50827).
+The data fork is encoded as a big-endian length/offset table followed by
+independent 64 KiB zlib blocks. Resource forks and THM companions are not included.
+Input is streamed read-only, bounded to 1 GiB, with cancellation checks between
+blocks. Empty/non-regular files and non-ASCII basenames are rejected. The same
+synced temporary-file/no-clobber publication is used, never in-place source edits.
+The core accepts an opaque byte stream, not a claim to validate arbitrary RAWs.
 
-Still pending for the full DNG milestone: original + XMP copy, embedded original,
-DNG 1.6 tags, and independent LibRaw RGB sample comparison. No lossy DNG or 16-bit
-DNG option is exposed. The separate metadata-policy, sharpening-strength, HDR,
-and export-workflow milestones are not completed by this slice.
+CLI adds `--embed-original-raw` (alongside `--format dng --bit-depth 32`).
+FFI/preset and MCP export JSON add `embed_original_raw`, default false. Hosts
+select each image's own source, not a batch-wide filename. Embedding requires
+unrestricted metadata: copying the original preserves its private data, so
+privacy removal/reduced metadata modes are rejected instead of silently leaking.
+FFI options remain JSON, without a new binary record layout or UI.
+
+Tests audit all tag IDs/types/counts, preserve exact float samples, reconstruct
+the embedded original across block boundaries and beyond the metadata budget,
+and invoke ExifTool independently when installed. A separate vendored LibRaw
+C-API test processes the DNG into linear sRGB and compares non-neutral in-gamut
+ramps against the engine's linear Rec.2020 render transformed to the same space
+(maximum absolute channel error below 0.003, no fitted exposure or white balance).
+The bounded Tessera reader skips opaque original payloads without allocating
+them and rejects unsupported DNG backward versions.
+
+Original + XMP copy mode is separate and remains byte-preserving. No lossy DNG
+or 16-bit DNG option is exposed. Native EXIF/IPTC metadata policy and HDR output
+are not completed by this DNG slice.
+
+## PQ/HLG output (partial M2-45d HDR slice)
+
+`ExportSettings::hdr = Some(HdrTransfer::Pq | HdrTransfer::Hlg)` requires
+`ColorSpace::Rec2020` and either `Format::Png` (16-bit in HDR) or AVIF with
+10/12-bit samples. `None` retains the existing SDR behavior and PNG8 output.
+PQ uses ST 2084 with 203 cd/m² diffuse white. HLG includes the BT.2100 inverse
+OOTF for a 1000-nit reference display and system gamma 1.2, not independent
+per-channel gamma. Recipe `output.hdr` and `hdr_headroom_stops` select the
+tone-curve ceiling: `203 * 2^stops` nits, capped at 10,000 for PQ or 1000 for
+HLG. HDR off or zero stops uses a 203-nit ceiling. Invalid/nonfinite headroom
+is rejected. The sigmoid preserves 18% mid-grey, matching the viewport's
+headroom-dependent curve, in Rec.2020 rather than display sRGB.
+
+The CPU scene-linear renderer supplies full-precision samples. Tone mapping
+and gamut mapping produce display-linear RGB normalized to the selected peak.
+Orientation, resize and sharpening run in that representation. PQ/HLG encoding
+and HLG's transfer-dependent gamut bound are applied after the filters, so
+filter overshoot cannot raise the selected ceiling. Perceptual mapping
+compresses chroma at constant luminance; clip mapping clips components.
+No SDR ICC is embedded: PNG carries cICP `[9,16/18,0,1]`; AVIF carries matching
+Rec.2020 PQ/HLG/full-range identity signaling in nclx and the AV1 stream.
+Existing XMP policies, density metadata, cancellation and no-clobber publication
+remain in effect. Watermarks, super-resolution and SDR-only enhancement hooks
+(including AI masks/depth/AI denoise) are rejected for HDR rather than clipped
+through an SDR intermediate. Other unsupported CPU recipe operators still fail.
+
+CLI examples:
+
+```
+tessera export input.nef --out /absolute/out --format png --bit-depth 16 --color-space rec2020 --hdr pq
+tessera export input.nef --out /absolute/out --format avif --bit-depth 12 --color-space rec2020 --hdr hlg
+```
+
+FFI/preset JSON adds `"hdr":"pq"` or `"hlg"`, with `"color_space":"rec2020"`
+and the corresponding `bit_depth`. These remain JSON fields, not a new binary
+record layout or UI. MCP retains `hdr: true`, adds optional `hdr_transfer`
+(defaults to PQ) and `avif_bit_depth` (defaults to 10 in HDR, 8 in SDR).
+MCP requires PNG `bit_depth:16` for HDR and selects Rec.2020 automatically.
+`hdr_transfer` without `hdr:true`, AVIF depth on a non-AVIF format, and HDR
+AVIF8 are rejected.
+
+Tests parse PNG chunks and AVIF property associations, decode AVIF10/12 through
+ImageIO on macOS, independently reconstruct PQ/HLG radiance from file samples,
+and check black, mid-grey, colored/saturated/negative values and recipe headroom.
+PNG reconstruction tolerance is 0.003 SDR-white units; lossy quality-100 AVIF
+tolerances are 0.015 (10-bit) / 0.004 (12-bit) times `max(expected,1)` because
+PQ's inverse becomes steep at the high end. Edge regressions check resize,
+sharpening and both together stay within 812.1 nits for a two-stop PQ recipe.
+
+This does **not** implement ISO 21496-1 gain-map JPEG or native EXIF/IPTC
+policy/carriers. M2-45d remains incomplete despite this verified subset.
 
 ## AI local masks
 

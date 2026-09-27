@@ -60,8 +60,12 @@ impl XmpPacket {
             description: t.value(DC, "description").unwrap_or_default(),
             copyright: t.value(DC, "rights").unwrap_or_default(),
             creators: t.list(DC, "creator"),
-            keywords: t.list(DC, "subject"),
-            hierarchical_keywords: t.list(LR, "hierarchicalSubject"),
+            keywords: crate::export_policy::keyword_values(&t, DC, "subject"),
+            hierarchical_keywords: crate::export_policy::keyword_values(
+                &t,
+                LR,
+                "hierarchicalSubject",
+            ),
             alt_text: t
                 .value(IPTC_CORE, "AltTextAccessibility")
                 .unwrap_or_default(),
