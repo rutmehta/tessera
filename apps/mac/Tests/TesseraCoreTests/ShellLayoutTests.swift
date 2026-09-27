@@ -24,6 +24,7 @@ final class ShellLayoutTests: XCTestCase {
     }
 
     func testShellContainedAtEverySizeStateAndAppearance() throws {
+        try XCTSkipIf(ProcessInfo.processInfo.environment["CI"] != nil, "CI runners have a smaller virtual screen; windows and screen-derived budgets are clamped. Runs locally.")
         let captureDir = ProcessInfo.processInfo.environment["TESSERA_LAYOUT_CAPTURE"].map { URL(fileURLWithPath: $0) }
         var failures: [String] = []
         var checked = 0

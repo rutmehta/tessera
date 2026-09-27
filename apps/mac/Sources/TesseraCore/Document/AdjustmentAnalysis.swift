@@ -37,19 +37,18 @@ public enum AdjustmentAnalysis {
 
     // MARK: Auto (adjust/statistics.rs `auto_from_histogram`)
 
-    private static func endpoints(_ h: [Double], clip: Double) -> (Double, Double) {
+    private static func endpoints(_ h: [Double], shadow: Double, highlight: Double) -> (Double, Double) {
         let total = h.reduce(0, +)
         guard total > 0 else { return (0, 1) }
-        let cut = total * clip
         var sum = 0.0, lo = 0, hi = h.count - 1
         for (i, v) in h.enumerated() {
             sum += v
-            if sum > cut { lo = i; break }
+            if sum > total * shadow { lo = i; break }
         }
         sum = 0
         for (i, v) in h.enumerated().reversed() {
             sum += v
-            if sum > cut { hi = i; break }
+            if sum > total * highlight { hi = i; break }
         }
         guard hi > lo else { return (0, 1) }
         let n = Double(h.count - 1)
@@ -58,18 +57,28 @@ public enum AdjustmentAnalysis {
 
     /// `clip` is the fraction clipped from each tail, [0, 0.5).
     public static func auto(_ mode: AutoModeModel, histograms h: [[UInt64]], clip: Double) -> AutoAdjustmentModel {
+        auto(mode, histograms: h, shadowClip: clip * 100, highlightClip: clip * 100)
+    }
+
+    /// M5-32: `shadowClip` / `highlightClip` are the percent clipped from the dark and light tails (their sum
+    /// below 100); the result stores them, so the frozen endpoints and the persisted clips agree.
+    public static func auto(_ mode: AutoModeModel, histograms h: [[UInt64]], shadowClip: Double,
+                            highlightClip: Double) -> AutoAdjustmentModel {
         let hs = h.map { $0.map(Double.init) }
-        let clip = min(max(clip, 0), 0.4999)
-        var m = AutoAdjustmentModel(mode: mode, black: [0, 0, 0], white: [1, 1, 1], gamma: [1, 1, 1])
+        let sc = min(max(shadowClip.isFinite ? shadowClip : 0, 0), 49.99)
+        let hc = min(max(highlightClip.isFinite ? highlightClip : 0, 0), 49.99)
+        let shadow = sc / 100, highlight = hc / 100
+        var m = AutoAdjustmentModel(mode: mode, black: [0, 0, 0], white: [1, 1, 1], gamma: [1, 1, 1],
+                                    shadowClip: sc, highlightClip: hc)
         guard hs.count == 3, hs.allSatisfy({ $0.count >= 2 && $0.count == hs[0].count }) else { return m }
         if mode == .contrast {
             let pooled = (0..<hs[0].count).map { hs[0][$0] + hs[1][$0] + hs[2][$0] }
-            let (b, w) = endpoints(pooled, clip: clip)
+            let (b, w) = endpoints(pooled, shadow: shadow, highlight: highlight)
             m.black = [b, b, b]; m.white = [w, w, w]
             return m
         }
         for i in 0..<3 {
-            (m.black[i], m.white[i]) = endpoints(hs[i], clip: clip)
+            (m.black[i], m.white[i]) = endpoints(hs[i], shadow: shadow, highlight: highlight)
             guard mode == .color else { continue }
             let total = hs[i].reduce(0, +), n = Double(hs[i].count - 1)
             guard total > 0 else { continue }
@@ -150,7 +159,8 @@ public enum AdjustmentAnalysis {
         guard sourceLayer != 0, let s = labStats(source), let t = labStats(target) else { return nil }
         var m = base
         m.sourceLayer = sourceLayer
-        m.sourceMean = neutralize ? [s.mean[0], 0, 0] : s.mean
+        m.sourceMean = s.mean
+        m.neutralize = neutralize   // M5-32: the engine removes the mean chroma (was: a zeroed source mean)
         m.sourceStd = s.std
         m.targetMean = t.mean
         m.targetStd = t.std

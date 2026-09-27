@@ -192,6 +192,28 @@ final class DocumentTools {
 
     // MARK: Tools
 
+    /// B5-11b: the status hint, derived from the current tool and its session (the Type tool's text
+    /// session, the Pen's path in progress) — generalising B5-10c's text hint. nil while the Remove
+    /// tool is on (it states its own).
+    func hint(for doc: DocumentController) -> String? {
+        if DocumentRetouch.shared.removeActive { return nil }
+        switch doc.tool {
+        case .type: return DocumentText.shared.hint(for: doc) ?? DocumentTool.type.idleHint
+        case .pen: return DocumentVector.shared.penHint ?? DocumentTool.pen.idleHint
+        default: return doc.tool.idleHint
+        }
+    }
+    @ObservationIgnored private var shownHint: (doc: String, hint: String)?
+
+    /// Shows `hint(for:)` when it changed, on every tool / session change (a message said during the
+    /// same state — an error, "Pen path discarded" — stays until the state changes).
+    func publishHint() {
+        guard let doc = document, let h = hint(for: doc) else { return }
+        if let s = shownHint, s.doc == doc.id, s.hint == h { return }
+        shownHint = (doc.id, h)
+        say(h)
+    }
+
     func select(_ tool: DocumentTool) {
         guard let doc = document else { return }
         DocumentRetouch.shared.toolSelected(tool)   // B5-09: another tool ends the Remove tool
@@ -204,7 +226,7 @@ final class DocumentTools {
         // B5-10 end
         DocumentVector.shared.toolSelected(tool)   // B5-11: finishes a Pen path, drops Path Selection's box
         doc.tool = tool
-        if tool.isPlaceholder { say("\(tool.title): a placeholder in this build (arrives with a later work package)") }
+        publishHint()   // B5-11b: the new tool's hint replaces the previous tool's (placeholders say so)
         doc.viewport?.cursorDidChange()
         redraw()
     }

@@ -31,6 +31,18 @@ final class DocumentAdjustmentAnalysisTests: XCTestCase {
         XCTAssertEqual((clipped.white[0] * 255).rounded(), 150)
         XCTAssertEqual(AdjustmentAnalysis.auto(.tone, histograms: [hist([:]), hist([:]), hist([:])], clip: 0).white, [1, 1, 1],
                        "an empty histogram is the identity")
+        // M5-32: separate shadow / highlight clips (percent), stored with the result and round-tripped.
+        let tails = [hist([0: 1, 100: 499, 150: 499, 200: 1]), hist([0: 1, 255: 1]), hist([0: 1, 255: 1])]
+        let shadowOnly = AdjustmentAnalysis.auto(.tone, histograms: tails, shadowClip: 0.5, highlightClip: 0)
+        XCTAssertEqual((shadowOnly.black[0] * 255).rounded(), 100)
+        XCTAssertEqual((shadowOnly.white[0] * 255).rounded(), 200, "the highlight tail is kept")
+        XCTAssertEqual(shadowOnly.shadowClip, 0.5)
+        XCTAssertEqual(shadowOnly.highlightClip, 0)
+        XCTAssertEqual(AdjustmentModel(json: AdjustmentModel.auto(shadowOnly).json), .auto(shadowOnly))
+        XCTAssertEqual(AutoAdjustmentModel.fresh(.color).shadowClip, AutoAdjustmentModel.photoshopClip)
+        XCTAssertEqual(AdjustmentModel(json: #"{"kind":"auto","mode":"tone","black":[0,0,0],"white":[1,1,1],"gamma":[1,1,1]}"#),
+                       .auto(AutoAdjustmentModel()), "a pre-M5-32 Auto decodes with the engine's 0.5 % default clips")
+        XCTAssertEqual(AutoAdjustmentModel().highlightClip, 0.5)
     }
 
     func testEqualizeMapsAreCDFMinNormalized() {
@@ -53,10 +65,11 @@ final class DocumentAdjustmentAnalysisTests: XCTestCase {
         let m = try XCTUnwrap(AdjustmentAnalysis.matchColor(sourceLayer: 7, source: warm, target: gray, neutralize: false))
         XCTAssertEqual(m.sourceLayer, 7)
         XCTAssertGreaterThan(m.sourceMean[1], 5, "the warm source has positive a*")
-        XCTAssertFalse(m.neutralized)
+        XCTAssertFalse(m.neutralize)
         let n = try XCTUnwrap(AdjustmentAnalysis.matchColor(sourceLayer: 7, source: warm, target: gray, neutralize: true, keeping: m))
-        XCTAssertTrue(n.neutralized)
-        XCTAssertEqual(n.sourceMean[0], m.sourceMean[0])
+        XCTAssertTrue(n.neutralize, "M5-32: Neutralize is the engine's persisted field")
+        XCTAssertEqual(n.sourceMean, m.sourceMean, "the frozen source statistics are unchanged; the engine removes the chroma")
+        XCTAssertEqual(AdjustmentModel(json: AdjustmentModel.matchColor(n).json), .matchColor(n), "Neutralize round-trips")
         XCTAssertNil(AdjustmentAnalysis.matchColor(sourceLayer: 0, source: warm, target: gray, neutralize: false), "the root is not a source")
         XCTAssertNil(AdjustmentAnalysis.matchColor(sourceLayer: 7, source: [], target: gray, neutralize: false))
     }

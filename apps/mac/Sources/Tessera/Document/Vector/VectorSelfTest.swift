@@ -178,8 +178,8 @@ final class VectorSelfTest {
         if let r = rect, let i = shape(doc), case .rectangle(let rr, _)? = i.source.liveShape {
             var s = i.source
             s.liveShape = .rectangle(rect: rr, radii: [0, 60, 140, 260])
-            vector.setSource(doc, layer: r.id, s, final: false)
-            vector.setSource(doc, layer: r.id, s, final: true)
+            vector.setSource(doc, layer: r.id, s, final: false, keyboard: false)
+            vector.setSource(doc, layer: r.id, s, final: true, keyboard: false)
             await vector.idle()
             let after = shape(doc)
             if case .rectangle(_, let radii)? = after?.source.liveShape {
@@ -211,7 +211,7 @@ final class VectorSelfTest {
             check("star has 12 points", i.source.path.subpaths.first?.anchors.count == 12, "\(i.source.path.anchorCount)")
             var s = i.source
             s.liveShape = .polygon(center: cc, radius: radius, sides: 8, rotation: rot, innerRadius: radius * 0.3)
-            vector.setSource(doc, layer: id, s, final: true)
+            vector.setSource(doc, layer: id, s, final: true, keyboard: false)
             await vector.idle()
             let n = shape(doc)?.source.path.subpaths.first?.anchors.count
             check("8 sides with inset regenerate 16 points", n == 16, "\(String(describing: n))")
@@ -240,7 +240,7 @@ final class VectorSelfTest {
                                              end: ShapePoint(x: Double(b.maxX), y: Double(b.midY)),
                                              stops: [ShapeGradientStop(position: 0, color: [0.1, 0.3, 0.9, 1]),
                                                      ShapeGradientStop(position: 1, color: [0.95, 0.8, 0.2, 1])]))
-            vector.setSource(doc, layer: r.id, s, final: true)
+            vector.setSource(doc, layer: r.id, s, final: true, keyboard: false)
             await vector.idle()
             let before = shape(doc)?.source.fill
             vector.setTransform(doc, layer: r.id, .translation(300, 120))
@@ -256,7 +256,7 @@ final class VectorSelfTest {
             var s = i.source
             s.stroke = (ShapeStroke(width: 18, alignment: .inside, dashes: [60, 30], dashOffset: 12, cap: .round, join: .bevel, miterLimit: 6),
                         .solid([0.1, 0.1, 0.12, 1]))
-            vector.setSource(doc, layer: r.id, s, final: true)
+            vector.setSource(doc, layer: r.id, s, final: true, keyboard: false)
             await vector.idle()
             let st = shape(doc)?.source.stroke?.0
             check("stroke settings preserved", st == s.stroke?.0, "\(String(describing: st))")
@@ -322,7 +322,7 @@ final class VectorSelfTest {
             if let e = edited {
                 var s = e.source
                 s.fill = .solid([0.3, 0.6, 0.3, 1])
-                vector.setSource(doc, layer: e.layer, s, final: true)
+                vector.setSource(doc, layer: e.layer, s, final: true, keyboard: false)
                 await vector.idle()
                 check("later edits keep the custom path", shape(doc)?.source.path == e.source.path)
             }
@@ -452,21 +452,21 @@ final class VectorSelfTest {
         // 374. Toggle, density and feather.
         if let r = rect, var m = shape(doc)?.vectorMask {
             let n = doc.history.count
-            for d in [0.9, 0.7, 0.5] as [Float] { m.density = d; vector.setMask(doc, layer: r.id, m, final: false) }
-            vector.setMask(doc, layer: r.id, m, final: true)
+            for d in [0.9, 0.7, 0.5] as [Float] { m.density = d; vector.setMask(doc, layer: r.id, m, final: false, keyboard: false) }
+            vector.setMask(doc, layer: r.id, m, final: true, keyboard: false)
             m.feather = 40
-            vector.setMask(doc, layer: r.id, m, final: true)
+            vector.setMask(doc, layer: r.id, m, final: true, keyboard: false)
             await vector.idle()
             check("density drag + feather are two nodes", doc.history.count == n + 2, "\(n) → \(doc.history.count)")
             check("mask values", shape(doc)?.vectorMask?.density == 0.5 && shape(doc)?.vectorMask?.feather == 40)
             await mark("374-mask-density-feather", doc)
             m.enabled = false
-            vector.setMask(doc, layer: r.id, m, final: true)
+            vector.setMask(doc, layer: r.id, m, final: true, keyboard: false)
             await vector.idle()
             check("mask disabled", shape(doc)?.vectorMask?.enabled == false)
             await mark("374-mask-disabled", doc)
             m.enabled = true
-            vector.setMask(doc, layer: r.id, m, final: true)
+            vector.setMask(doc, layer: r.id, m, final: true, keyboard: false)
             await vector.idle()
         }
 
@@ -503,7 +503,7 @@ final class VectorSelfTest {
             var s = i.source
             s.fill = .solid([1, 1, 1, 1])
             let n = doc.history.count
-            vector.setSource(doc, layer: r.id, s, final: true)
+            vector.setSource(doc, layer: r.id, s, final: true, keyboard: false)
             await vector.idle()
             check("pixel lock rejects content edits", doc.history.count == n && (model.statusMessage ?? "").contains("locked"),
                   model.statusMessage ?? "")
@@ -514,7 +514,7 @@ final class VectorSelfTest {
             var s = li.source
             s.stroke?.0.alignment = .outside
             doc.select(l)
-            vector.setSource(doc, layer: l, s, final: true)
+            vector.setSource(doc, layer: l, s, final: true, keyboard: false)
             await vector.idle()
             check("open path Outside stroke explained", (model.statusMessage ?? "").contains("closed path"), model.statusMessage ?? "")
             await mark("376-open-path-alignment-error", doc)
@@ -622,6 +622,188 @@ final class VectorSelfTest {
                 check("undo restores the styled live shape", d.node(s.id)?.kind == .shape && styles.model(d, s.id)?.effects.count == 2)
             }
         }
+        await verifyFixes(ws)
         finish()
+    }
+
+    // MARK: B5-11b (fixes from the on-screen verification of B5-11)
+
+    private func find<T: NSView>(_ type: T.Type, _ id: String, in root: NSView?) -> T? {
+        guard let root else { return nil }
+        if let v = root as? T, v.accessibilityIdentifier() == id { return v }
+        for s in root.subviews { if let v = find(type, id, in: s) { return v } }
+        return nil
+    }
+
+    private func findRow(_ layer: DocLayerID, in root: NSView?) -> LayerRowCell? {
+        guard let root else { return nil }
+        if let c = root as? LayerRowCell, c.layerID == layer { return c }
+        for s in root.subviews { if let c = findRow(layer, in: s) { return c } }
+        return nil
+    }
+
+    private func keyEvent(_ code: UInt16, _ chars: String, in w: NSWindow, flags: NSEvent.ModifierFlags = []) -> NSEvent? {
+        NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: flags, timestamp: ProcessInfo.processInfo.systemUptime,
+                         windowNumber: w.windowNumber, context: nil, characters: chars, charactersIgnoringModifiers: chars,
+                         isARepeat: false, keyCode: code)
+    }
+
+    /// Items 1–13 of tools/orchestrate/wp/B5-11b/brief.md on a fresh 2400 × 1600 document, through the
+    /// real controls (the Properties slider and colour well, the Layers row, KeyRouter).
+    private func verifyFixes(_ ws: DocumentWorkspace) async {
+        ws.newDocument(NewDocumentSettings(width: 2400, height: 1600))
+        guard await wait(30, { ws.current?.info.width == 2400 && ws.current?.viewport != nil }), let doc = ws.current,
+              let v = doc.viewport, let w = v.window else { check("B5-11b document", false); return }
+        _ = await wait(20) { doc.lastFrame != nil }
+        v.zoomToFit()
+        await pause(0.5)
+        let router = KeyRouter(model: model)
+        let text = DocumentText.shared
+
+        // 1. A twice: Path → Direct Selection (and back).
+        tools.select(.move)
+        _ = key(0, "a", in: v)
+        _ = key(0, "a", in: v)
+        check("11b-1 A twice is Direct Selection", doc.tool == .directSelect, "\(doc.tool)")
+        _ = key(0, "a", in: v)
+        check("11b-1 A again is Path Selection", doc.tool == .pathSelect, "\(doc.tool)")
+
+        // 2. Stroke enabled on an existing shape: not the fill colour.
+        tools.select(.rectangleShape)
+        vector.options.fillColor = [0.85, 0.35, 0.2, 1]
+        tools.colors.foreground = ToolColor(r: 0.85, g: 0.35, b: 0.2)
+        await drag(line(CGPoint(x: 300, y: 300), CGPoint(x: 1100, y: 900)), in: v)
+        guard let id = doc.primary?.id, doc.primary?.kind == .shape, let i0 = shape(doc) else { check("11b shape drawn", false); return }
+        var s = i0.source
+        s.stroke = (ShapeStroke(width: 24, dashes: [60, 30]), vector.newStrokePaint(for: i0))
+        vector.setSource(doc, layer: id, s, final: true, keyboard: false)
+        await vector.idle()
+        let strokeColor = shape(doc)?.source.stroke?.1.representativeColor
+        check("11b-2 new stroke is not the fill colour", strokeColor != nil && strokeColor != i0.source.fill?.representativeColor,
+              "\(String(describing: strokeColor))")
+        tools.select(.pathSelect)
+        await mark("11b-02-stroke-visible", doc)
+
+        // 3 + 7. Keyboard steps on the real dash-offset slider: one node; U / ⇧U while it has the keyboard.
+        _ = await wait(5) { self.find(ValueSlider.self, "document.shape.stroke.dashOffset", in: w.contentView) != nil }
+        if let slider = find(ValueSlider.self, "document.shape.stroke.dashOffset", in: w.contentView) {
+            let n = doc.history.count
+            _ = w.makeFirstResponder(slider)
+            for _ in 0..<5 {
+                if let e = keyEvent(124, "\u{F703}", in: w) { slider.keyDown(with: e) }
+                await pause(0.05)
+            }
+            if let e = keyEvent(36, "\r", in: w) { slider.keyDown(with: e) }   // Return commits the keyboard edit
+            _ = w.makeFirstResponder(slider)
+            for _ in 0..<3 {
+                if let e = keyEvent(124, "\u{F703}", in: w) { slider.keyDown(with: e) }
+                await pause(0.05)
+            }
+            _ = w.makeFirstResponder(nil)   // blur commits again
+            await pause(DocumentVector.defaultKeyboardCommitDelay + 0.4)
+            await vector.idle()
+            check("11b-3 keyboard dash-offset steps are one node", doc.history.count == n + 1 && lastLabel(doc) == "Edit Shape",
+                  "\(doc.history.map(\.label).suffix(4))")
+            check("11b-3 offset moved", (shape(doc)?.source.stroke?.0.dashOffset ?? 0) > 0)
+            _ = w.makeFirstResponder(slider)
+            let u = keyEvent(32, "u", in: w).map { router.handle($0) } ?? false
+            check("11b-7 U with the slider focused", u && doc.tool == .rectangleShape, "\(doc.tool)")
+            let su = keyEvent(32, "U", in: w, flags: .shift).map { router.handle($0) } ?? false
+            check("11b-7 ⇧U with the slider focused", su && doc.tool == .ellipseShape, "\(doc.tool)")
+            _ = w.makeFirstResponder(nil)
+        } else {
+            check("11b-3 dash-offset slider found", false)
+        }
+        if let outline = w.contentView.flatMap({ find(LayersOutlineView.self, "document.layers.outline", in: $0) }) {
+            _ = w.makeFirstResponder(outline)
+            let z = keyEvent(6, "z", in: w).map { router.handle($0) } ?? false
+            check("11b-7 Z with the Layers list focused", z && doc.tool == .zoom, "\(doc.tool)")
+            _ = w.makeFirstResponder(nil)
+        }
+
+        // 4. Pen: the previous anchor's handles stay visible; 9: no stale hint after Return.
+        tools.select(.pen)
+        doc.select(doc.layers.first { $0.kind == .pixel }?.id ?? id)
+        await click(CGPoint(x: 1400, y: 300), in: v)
+        await drag(line(CGPoint(x: 1800, y: 400), CGPoint(x: 1950, y: 550)), in: v)
+        await click(CGPoint(x: 2100, y: 900), in: v)
+        check("11b-4 previous anchor keeps its handles", vector.pen.handleAnchors == [1, 2], "\(vector.pen.handleAnchors)")
+        await mark("11b-04-pen-previous-handles", doc)
+        _ = key(53, "\u{1b}", in: v)
+        check("11b-9 Esc says discarded", model.statusMessage == "Pen path discarded", model.statusMessage ?? "")
+        await click(CGPoint(x: 1400, y: 300), in: v)
+        await click(CGPoint(x: 1900, y: 400), in: v)
+        await click(CGPoint(x: 2100, y: 900), in: v)
+        _ = key(36, "\r", in: v)
+        await vector.idle()
+        check("11b-9 Return: Pen shape, no stale hint", lastLabel(doc) == "Pen" && model.statusMessage == DocumentTool.pen.idleHint,
+              "\(lastLabel(doc) ?? "") / \(model.statusMessage ?? "")")
+
+        // 5. Vector mask thumbnail next to the raster mask.
+        doc.select(id)
+        doc.addMask(.revealAll)
+        vector.addVectorMask(fromSelection: false)
+        await vector.idle()
+        await pause(0.3)
+        let row = findRow(id, in: w.contentView)
+        check("11b-5 raster and vector mask thumbnails", row?.rasterMaskShown == true && row?.vectorMaskShown == true && row?.vectorMaskImage != nil,
+              "raster \(String(describing: row?.rasterMaskShown)) vector \(String(describing: row?.vectorMaskShown))")
+        await mark("11b-05-vector-mask-thumbnail", doc)
+
+        // 10. Properties bounds; 8. Path Selection click on empty canvas deselects.
+        tools.select(.pathSelect)
+        vector.refreshAffine()
+        let b = vector.displayBounds(doc, layer: id)
+        let text10 = doc.node(id).map { PropertiesPanel.boundsText($0, shapeBounds: b) } ?? ""
+        check("11b-10 Properties bounds are the shape's", b.map { abs($0.minX - 288) < 2 && abs($0.minY - 288) < 2 } == true && text10 != "Whole canvas",
+              "\(String(describing: b)) \(text10)")
+        await mark("11b-10-properties-bounds", doc)
+        await click(CGPoint(x: 2300, y: 1500), in: v)
+        vector.refreshAffine()
+        check("11b-8 empty click deselects the path", vector.affine == nil)
+        await mark("11b-08-path-deselected", doc)
+
+        // 6. Locked recolour: the colour well returns to the model colour.
+        doc.toggleLock(.pixels)
+        await pause(0.3)
+        if let well = find(NSColorWell.self, "document.shape.fill.color", in: w.contentView) {
+            let before = vector.rejections
+            well.color = NSColor(srgbRed: 0.1, green: 0.2, blue: 0.9, alpha: 1)   // lint:allow (self-test colour)
+            _ = well.sendAction(well.action, to: well.target)
+            await vector.idle()
+            await pause(0.3)
+            let shown = find(NSColorWell.self, "document.shape.fill.color", in: w.contentView)?.color.usingColorSpace(.sRGB)
+            let model0 = shape(doc)?.source.fill?.representativeColor ?? []
+            check("11b-6 rejected recolour reverts the well", vector.rejections == before + 1 && shown.map { abs(Double($0.redComponent) - (model0.first ?? -1)) < 0.01 } == true,
+                  "\(String(describing: shown)) model \(model0)")
+        } else {
+            check("11b-6 fill colour well found", false)
+        }
+        doc.toggleLock(.pixels)
+
+        // 11–13. Type tool: new area text resized before the first apply; idle hint; auto name.
+        tools.select(.type)
+        let n = doc.history.count
+        await drag(line(CGPoint(x: 1300, y: 1000), CGPoint(x: 1900, y: 1300)), in: v)
+        text.input.insertText("Hi", replacementRange: NSRange(location: NSNotFound, length: 0))
+        await text.idle()
+        await drag(line(CGPoint(x: 1900, y: 1300), CGPoint(x: 2000, y: 1400)), in: v)
+        await text.idle()
+        text.apply()
+        await text.idle()
+        check("11b-11 one Add Text", Array(doc.history.dropFirst(n).map(\.label)) == ["Add Text"], "\(doc.history.dropFirst(n).map(\.label))")
+        check("11b-12 idle Type hint after applying", model.statusMessage == DocumentTool.type.idleHint, model.statusMessage ?? "")
+        if let t = doc.primary, t.kind == .text {
+            _ = text.beginExisting(doc, layer: t.id)
+            text.input.insertText("ZQ", replacementRange: NSRange(location: NSNotFound, length: 0))
+            await text.idle()
+            text.apply()
+            await text.idle()
+            let name = doc.node(t.id)?.name ?? ""
+            check("11b-13 name follows the text", name.contains("ZQ") && name.contains("Hi"), name)
+        } else {
+            check("11b-13 text layer selected", false)
+        }
+        await mark("11b-13-text-name", doc)
     }
 }

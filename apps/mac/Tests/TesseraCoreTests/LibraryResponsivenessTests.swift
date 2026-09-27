@@ -51,6 +51,11 @@ final class LibraryResponsivenessTests: XCTestCase {
             let app = AppModel()
             app.install(library, snapshot: CullController.prepare(library))
             let items = Array(library.items.suffix(100))
+            // This benchmark models 100 simultaneously visible cells, not a scroll
+            // through the loader's default 32-cell viewport.
+            let viewport = UUID()
+            app.loader.setViewportCapacity(items.count, owner: viewport)
+            defer { app.loader.removeViewport(owner: viewport) }
             for item in items { _ = app.loader.request(item, tier: .thumbnail) { _ in } }
             let deadline = Date().addingTimeInterval(60)
             while items.contains(where: { app.loader.cached($0, tier: .thumbnail) == nil }), Date() < deadline {

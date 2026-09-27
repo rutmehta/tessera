@@ -25,7 +25,8 @@ struct PropertiesPanel: View {
                 }
                 InfoRow(label: "Kind", value: kindText(n))
                     .accessibilityIdentifier("document.properties.kind")
-                InfoRow(label: "Bounds", value: n.bounds.map { "\($0.x), \($0.y) · \($0.width) × \($0.height) px" } ?? "Whole canvas")
+                InfoRow(label: "Bounds", value: Self.boundsText(n, shapeBounds: n.kind == .shape
+                    ? DocumentVector.shared.displayBounds(document, layer: n.id) : nil))   // B5-11b
                     .accessibilityIdentifier("document.properties.bounds")
                 if n.hasMask {
                     InfoRow(label: "Mask", value: (n.maskEnabled ? "On" : "Off") + (n.maskLinked ? " · linked" : " · unlinked"))
@@ -39,6 +40,15 @@ struct PropertiesPanel: View {
         } else {
             Hint("Select a layer to see its properties.")
         }
+    }
+
+    /// B5-11b: the Bounds row; a shape layer reports its own (live) document bounds.
+    static func boundsText(_ n: LayerRecord, shapeBounds: CGRect?) -> String {
+        if n.kind == .shape, let b = shapeBounds {
+            let r = { (v: CGFloat) in Int(v.rounded()) }
+            return "\(r(b.minX)), \(r(b.minY)) · \(r(b.width)) × \(r(b.height)) px"
+        }
+        return n.bounds.map { "\($0.x), \($0.y) · \($0.width) × \($0.height) px" } ?? "Whole canvas"
     }
 
     private func kindText(_ n: LayerRecord) -> String {

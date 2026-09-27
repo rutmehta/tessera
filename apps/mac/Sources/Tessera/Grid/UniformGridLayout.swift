@@ -25,6 +25,7 @@ final class UniformGridLayout: NSCollectionViewFlowLayout {
     private var lastExtent: CGFloat = -1
 
     var onColumnsChange: ((Int) -> Void)?
+    var onViewportChange: (() -> Void)?
 
     init(axis: Axis) {
         self.axis = axis
@@ -56,6 +57,7 @@ final class UniformGridLayout: NSCollectionViewFlowLayout {
             columns = max(count, 1)
             lastExtent = vp.height
         }
+        onViewportChange?()
     }
 
     override var collectionViewContentSize: NSSize {

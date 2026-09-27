@@ -20,7 +20,12 @@ struct ThumbnailBrowser: NSViewRepresentable {
         }
         return controller.scrollView
     }
-    func updateNSView(_ nsView: NSScrollView, context: Context) {}
+    func updateNSView(_ nsView: NSScrollView, context: Context) {
+        context.coordinator.visibilityDidChange()
+    }
+    static func dismantleNSView(_ nsView: NSScrollView, coordinator: BrowserController) {
+        coordinator.stopLoading()
+    }
 }
 
 final class ThumbnailCollectionView: NSCollectionView {
@@ -48,6 +53,53 @@ final class BrowserController: NSObject, NSCollectionViewDataSource, NSCollectio
     let collectionView = ThumbnailCollectionView()
     let layout: UniformGridLayout
     private var focusedCellPosition: Int?
+    private let viewportOwner = UUID()
+
+    private var loadingVisible: Bool {
+        model.source != .people && (style == .filmstrip || model.viewMode == .grid)
+    }
+
+    func visibilityDidChange() {
+        updateViewportCapacity()
+        for item in collectionView.visibleItems() {
+            guard let cell = item as? ThumbnailCell else { continue }
+            if loadingVisible { cell.resumeLoading(loader: model.loader) }
+            else { cell.stopLoading() }
+        }
+    }
+
+    func stopLoading() {
+        for item in collectionView.visibleItems() { (item as? ThumbnailCell)?.stopLoading() }
+        model.loader.removeViewport(owner: viewportOwner)
+    }
+
+    private func updateViewportCapacity() {
+        guard loadingVisible else {
+            model.loader.setViewportCapacity(0, owner: viewportOwner)
+            for item in collectionView.visibleItems() { (item as? ThumbnailCell)?.stopLoading() }
+            return
+        }
+        let bounds = scrollView.contentView.bounds
+        let count: Int
+        if style == .grid {
+            count = layout.columns * (Int(ceil(bounds.height / max(1, layout.cellSize.height + layout.spacing))) + 1)
+        } else {
+            count = Int(ceil(bounds.width / max(1, layout.cellSize.width + layout.spacing))) + 1
+        }
+        model.loader.setViewportCapacity(min(model.visibleCount, max(1, count)), owner: viewportOwner)
+    }
+
+    func collectionView(_ collectionView: NSCollectionView, willDisplay item: NSCollectionViewItem,
+                        forRepresentedObjectAt indexPath: IndexPath) {
+        updateViewportCapacity()
+        if loadingVisible { (item as? ThumbnailCell)?.resumeLoading(loader: model.loader) }
+        else { (item as? ThumbnailCell)?.stopLoading() }
+    }
+
+    func collectionView(_ collectionView: NSCollectionView, didEndDisplaying item: NSCollectionViewItem,
+                        forRepresentedObjectAt indexPath: IndexPath) {
+        (item as? ThumbnailCell)?.stopLoading()
+    }
 
     init(model: AppModel, style: CellStyle) {
         self.model = model
@@ -94,6 +146,7 @@ final class BrowserController: NSObject, NSCollectionViewDataSource, NSCollectio
         scrollView.scrollerStyle = .overlay
         scrollView.setAccessibilityIdentifier(style == .grid ? "grid" : "filmstrip")
 
+        layout.onViewportChange = { [weak self] in self?.updateViewportCapacity() }
         model.addObserver(self)
     }
 
@@ -190,6 +243,7 @@ final class BrowserController: NSObject, NSCollectionViewDataSource, NSCollectio
                        groupIndex: model.indexInGroup(of: item), groupSize: model.groupSize(of: item),
                        focused: p == model.focus, style: style, loader: model.loader,
                        suggestion: model.suggestion(at: p))
+        if !loadingVisible { cell.stopLoading() }
     }
 
     func itemsDidChange(_ positions: IndexSet) {

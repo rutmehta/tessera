@@ -139,3 +139,19 @@ fn session_emits_the_fixture_shape_and_photoshop_names() {
         );
     }
 }
+
+/// WP B5-16: the fields M5-32 added to Auto, Match Color and Color Lookup appear in the fixture with
+/// non-default values too, so the Swift mirror (`DocumentAdjustmentJSONTests`) must round-trip them rather
+/// than fall back to the serde defaults.
+#[test]
+fn fixture_carries_m5_32_fields_with_non_default_values() {
+    let objects = fixture();
+    let has = |kind: &str, check: &dyn Fn(&Value) -> bool| {
+        objects.iter().any(|v| v["kind"] == kind && check(v))
+    };
+    assert!(has("auto", &|v| v["shadow_clip"] != 0.5
+        && v["highlight_clip"] != 0.5));
+    assert!(has("match_color", &|v| v["neutralize"] == true));
+    assert!(has("color_lookup", &|v| v["dither"] == true
+        && v["source_filename"].is_string()));
+}

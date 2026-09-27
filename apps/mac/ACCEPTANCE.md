@@ -2036,6 +2036,24 @@ captures are in `tools/orchestrate/wp/B5-11/evidence/`. Known gaps: tools/orches
      layer styles (Drop Shadow, Stroke) to a shape: two history rows, the row shows FX and its effects, the layer stays
      a live Shape; Convert to Pixels keeps the styles and ⌘Z restores the styled live shape.
 
+**B5-11b re-check** (fixes from the on-screen verification; scripted in the `11b-*` checks of
+`tools/orchestrate/wp/B5-11b/run-vector-selftest.sh`, evidence in `tools/orchestrate/wp/B5-11b/evidence/`):
+- **A** twice (or ⇧A) cycles Path ↔ Direct Selection (368).
+- Stroke ▸ Solid on a shape without a stroke takes the foreground colour, or black / white against the fill when the
+  foreground equals the fill; dashes are visible at once (366).
+- Tab to the Dash offset slider and press → several times, Return, → again, click elsewhere: **one** Edit Shape row
+  (0.6 s after the last key). Same for every shape and vector-mask slider.
+- Pen: after clicking the next point the previous anchor's direction handles stay visible (367).
+- A layer with both masks shows the raster mask thumbnail and a separate vector-mask thumbnail (373).
+- Pixel-locked shape: a rejected recolour puts the colour well back to the shape's colour (376).
+- With a Properties slider or the Layers list focused, U, ⇧U, Z, A … still choose tools; text fields keep letters.
+- Path Selection: a click on empty canvas deselects the path (no box, no outline); a drag outside still rotates.
+- The status bar shows the current tool's hint on every tool change and returns to the Pen's idle hint after Return
+  (no stale "Pen path discarded" or Remove hint).
+- Properties ▸ Bounds / Position / Size report the shape's own bounds, following Path Selection drags live.
+- Type tool: new area text resized before the first apply records one **Add Text**; the idle Type hint returns after
+  applying; an auto-named text layer's name follows its first line until renamed (the rename undoes with the edit).
+
 ## Verdict (B5-11 shapes, Pen and vector masks)
 
 PASS when steps 360–379 meet their expectations. Known engine limitations listed in NEEDS.md (PSD reopen of a shape

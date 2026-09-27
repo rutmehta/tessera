@@ -517,6 +517,16 @@ public struct PenDraft: Equatable, Sendable {
     }
 
     public var path: ShapePath { ShapePath(subpaths: anchors.isEmpty ? [] : [ShapeSubpath(anchors: anchors, closed: closed)]) }
+
+    /// B5-11b: the anchors whose direction handles the draft shows — the last segment's two anchors
+    /// (Photoshop keeps the previous anchor's handles visible after the next click), or, once
+    /// the path closes, the closing segment's (last and first).
+    public var handleAnchors: [Int] {
+        guard !anchors.isEmpty else { return [] }
+        let last = anchors.count - 1
+        // Closed: the closing segment runs from the last anchor to the first.
+        return Set(closed ? [0, last] : [max(last - 1, 0), last]).sorted()
+    }
     /// Enough to become a shape layer.
     public var isCommittable: Bool { anchors.count >= 2 }
 }
