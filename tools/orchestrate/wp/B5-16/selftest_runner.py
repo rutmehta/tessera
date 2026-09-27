@@ -34,7 +34,7 @@ def validate_log(text, prefix, returncode, timed_out=False):
         errors.append('missing, duplicate, malformed or failing completion line')
     for line in lines:
         if re.search(r'\bFAIL(?:ED)?\b', line) or (
-            line.startswith(prefix + ':') and 'did not start' in line.lower()
+            line.startswith(prefix + ':') and any(marker in line.lower() for marker in ['did not start', '(no watcher)'])
         ):
             errors.append(line)
     return errors
@@ -68,6 +68,29 @@ def capture_steps(text, prefix, output, evidence, seen):
     return errors
 
 
+def capture_requests(output, evidence, seen):
+    """Text and Transform wait for their requested window capture before proceeding."""
+    errors = []
+    for request in output.glob('*.req'):
+        key = (request.name, request.stat().st_mtime_ns)
+        if key in seen:
+            continue
+        seen.add(key)
+        window = request.read_text().strip()
+        if not window.isdecimal() or int(window) <= 0:
+            errors.append(f'invalid window capture request: {request.name}')
+            continue
+        image = evidence / (request.stem + '.png')
+        result = subprocess.run(['screencapture', '-x', '-o', '-l', window, str(image)],
+                                capture_output=True, text=True, timeout=15)
+        if result.returncode:
+            errors.append(f'capture {request.stem}: {result.stderr.strip()}')
+        else:
+            # The app waits for this PNG; acknowledge only after a successful capture.
+            shutil.copy2(image, output / image.name)
+    return errors
+
+
 def run_test(binary, name, arguments, timeout, scratch, evidence, fixtures):
     prefix = name + '-selftest'
     folder = scratch / name
@@ -90,6 +113,7 @@ def run_test(binary, name, arguments, timeout, scratch, evidence, fixtures):
     timed_out = False
     capture_errors = []
     seen = set()
+    requests_seen = set()
     # Direct bundle executable gives us the actual child PID and exit status.
     # --nonactivating sets accessory policy before launch; never raise its windows.
     with log.open('w') as stderr, (evidence / 'stdout.log').open('w') as stdout:
@@ -101,6 +125,7 @@ def run_test(binary, name, arguments, timeout, scratch, evidence, fixtures):
             while child.poll() is None:
                 text = log.read_text(errors='replace')
                 capture_errors.extend(capture_steps(text, prefix, folder / 'out', evidence, seen))
+                capture_errors.extend(capture_requests(folder / 'out', evidence, requests_seen))
                 if time.monotonic() >= deadline:
                     timed_out = True
                     break

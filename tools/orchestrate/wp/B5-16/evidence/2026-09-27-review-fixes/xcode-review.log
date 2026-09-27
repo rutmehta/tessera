@@ -1,0 +1,1240 @@
+Command line invocation:
+    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -scheme Tessera -configuration Debug -destination platform=macOS -derivedDataPath /Users/rutmehta/.cache/tessera-derived-data-B5-16 -jobs 2 build
+
+Resolve Package Graph
+2026-09-27 14:54:02.099 xcodebuild[73672:26306569] [MT] IDERunDestination: Supported platforms for the buildables in the current scheme is empty.
+
+
+Resolved source packages:
+  Sparkle: https://github.com/sparkle-project/Sparkle @ 2.10.0
+  Tessera: /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac
+
+--- xcodebuild: WARNING: Using the first of multiple matching destinations:
+{ platform:macOS, arch:arm64, id:00006041-0018482A26A1801C, name:My Mac }
+{ platform:macOS, arch:x86_64, id:00006041-0018482A26A1801C, name:My Mac }
+{ platform:macOS, arch:arm64, variant:Mac Catalyst, id:00006041-0018482A26A1801C, name:My Mac }
+{ platform:macOS, arch:x86_64, variant:Mac Catalyst, id:00006041-0018482A26A1801C, name:My Mac }
+{ platform:macOS, arch:arm64, variant:DriverKit, id:00006041-0018482A26A1801C, name:My Mac }
+{ platform:macOS, arch:arm64, variant:Designed for [iPad,iPhone], id:00006041-0018482A26A1801C, name:My Mac }
+{ platform:macOS, arch:arm64_32, variant:Designed for [iPad,iPhone], id:00006041-0018482A26A1801C, name:My Mac }
+Build Preparation
+Build task concurrency set to 2 via user default IDEBuildOperationMaxNumberOfConcurrentCompileTasks
+
+ComputePackagePrebuildTargetDependencyGraph
+
+Prepare packages
+
+CreateBuildRequest
+
+SendProjectDescription
+
+CreateBuildOperation
+
+ComputeTargetDependencyGraph
+note: Building targets in dependency order
+note: Target dependency graph (5 targets)
+    Target 'Tessera' in project 'Tessera'
+        ➜ Explicit dependency on target 'CTesseraFFI' in project 'Tessera'
+        ➜ Explicit dependency on target 'TesseraFFI' in project 'Tessera'
+        ➜ Explicit dependency on target 'TesseraCore' in project 'Tessera'
+        ➜ Explicit dependency on target 'Sparkle' in project 'Sparkle'
+    Target 'Sparkle' in project 'Sparkle' (no dependencies)
+    Target 'TesseraCore' in project 'Tessera'
+        ➜ Explicit dependency on target 'CTesseraFFI' in project 'Tessera'
+        ➜ Explicit dependency on target 'TesseraFFI' in project 'Tessera'
+    Target 'TesseraFFI' in project 'Tessera'
+        ➜ Explicit dependency on target 'CTesseraFFI' in project 'Tessera'
+    Target 'CTesseraFFI' in project 'Tessera' (no dependencies)
+
+GatherProvisioningInputs
+
+CreateBuildDescription
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -v -E -dM -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk -x c -c /dev/null
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc --version
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld -version_details
+
+Build description signature: 4496e091109d342a9813c3c5606d9143
+Build description path: /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/XCBuildData/4496e091109d342a9813c3c5606d9143.xcbuilddata
+ClangStatCache /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk /Users/rutmehta/.cache/tessera-derived-data-B5-16/SDKStatCaches.noindex/macosx26.2-25C58-00fa09913b459cbbc988d1f6730289ae.sdkstatcache
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk -o /Users/rutmehta/.cache/tessera-derived-data-B5-16/SDKStatCaches.noindex/macosx26.2-25C58-00fa09913b459cbbc988d1f6730289ae.sdkstatcache
+
+WriteAuxiliaryFile /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/Objects-normal/arm64/TesseraCore.SwiftFileList (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac
+    write-file /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/Objects-normal/arm64/TesseraCore.SwiftFileList
+
+WriteAuxiliaryFile /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/Objects-normal/arm64/TesseraCore.SwiftConstValuesFileList (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac
+    write-file /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/Objects-normal/arm64/TesseraCore.SwiftConstValuesFileList
+
+WriteAuxiliaryFile /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/Objects-normal/arm64/TesseraCore.LinkFileList (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac
+    write-file /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/Objects-normal/arm64/TesseraCore.LinkFileList
+
+WriteAuxiliaryFile /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/Objects-normal/arm64/TesseraCore-OutputFileMap.json (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac
+    write-file /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/Objects-normal/arm64/TesseraCore-OutputFileMap.json
+
+SwiftDriver TesseraFFI normal arm64 com.apple.xcode.tools.swift.compiler (in target 'TesseraFFI' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    builtin-SwiftDriver -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name TesseraFFI -Onone -enforce-exclusivity\=checked @/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraFFI.build/Objects-normal/arm64/TesseraFFI.SwiftFileList -DSWIFT_PACKAGE -DDEBUG -DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE -Xcc -fmodule-map-file\=/Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/CTesseraFFI/module.modulemap -DXcode -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk -target arm64-apple-macos15.0 -g -module-cache-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/ModuleCache.noindex -Xfrontend -serialize-debugging-options -profile-coverage-mapping -profile-generate -enable-testing -index-store-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 6 -I /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug -Isystem /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib -F /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug -F /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks -parse-as-library -c -j16 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /Users/rutmehta/.cache/tessera-derived-data-B5-16/SDKStatCaches.noindex/macosx26.2-25C58-00fa09913b459cbbc988d1f6730289ae.sdkstatcache -output-file-map /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraFFI.build/Objects-normal/arm64/TesseraFFI-OutputFileMap.json -use-frontend-parseable-output -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/ModuleCache.noindex -sdk-module-cache-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/ModuleCache.noindex -serialize-diagnostics -emit-dependencies -emit-module -emit-module-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraFFI.build/Objects-normal/arm64/TesseraFFI.swiftmodule -validate-clang-modules-once -clang-build-session-file /Users/rutmehta/.cache/tessera-derived-data-B5-16/ModuleCache.noindex/Session.modulevalidation -package-name mac -Xcc -I/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraFFI.build/swift-overrides.hmap -emit-const-values -Xfrontend -const-gather-protocols-file -Xfrontend /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraFFI.build/Objects-normal/arm64/TesseraFFI_const_extract_protocols.json -Xcc -I/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/include -Xcc -I/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraFFI.build/DerivedSources-normal/arm64 -Xcc -I/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraFFI.build/DerivedSources/arm64 -Xcc -I/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraFFI.build/DerivedSources -Xcc -DSWIFT_PACKAGE -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraFFI.build/Objects-normal/arm64/TesseraFFI-Swift.h -working-directory /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode -experimental-emit-module-separately -disable-cmo
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules/CTesseraFFI-330LJQ7AF4U3G2FUDSU9GEX1L.pcm
+
+SwiftEmitModule normal arm64 Emitting\ module\ for\ TesseraFFI (in target 'TesseraFFI' from project 'Tessera')
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraFFI/TesseraFFI.swift (in target 'TesseraFFI' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 Compiling\ TesseraFFI.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraFFI/TesseraFFI.swift (in target 'TesseraFFI' from project 'Tessera')
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraFFI/TesseraFFI.swift (in target 'TesseraFFI' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftDriverJobDiscovery normal arm64 Emitting module for TesseraFFI (in target 'TesseraFFI' from project 'Tessera')
+
+SwiftDriver\ Compilation\ Requirements TesseraFFI normal arm64 com.apple.xcode.tools.swift.compiler (in target 'TesseraFFI' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    builtin-Swift-Compilation-Requirements -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name TesseraFFI -Onone -enforce-exclusivity\=checked @/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraFFI.build/Objects-normal/arm64/TesseraFFI.SwiftFileList -DSWIFT_PACKAGE -DDEBUG -DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE -Xcc -fmodule-map-file\=/Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/CTesseraFFI/module.modulemap -DXcode -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk -target arm64-apple-macos15.0 -g -module-cache-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/ModuleCache.noindex -Xfrontend -serialize-debugging-options -profile-coverage-mapping -profile-generate -enable-testing -index-store-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 6 -I /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug -Isystem /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib -F /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug -F /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks -parse-as-library -c -j16 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /Users/rutmehta/.cache/tessera-derived-data-B5-16/SDKStatCaches.noindex/macosx26.2-25C58-00fa09913b459cbbc988d1f6730289ae.sdkstatcache -output-file-map /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraFFI.build/Objects-normal/arm64/TesseraFFI-OutputFileMap.json -use-frontend-parseable-output -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/ModuleCache.noindex -sdk-module-cache-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/ModuleCache.noindex -serialize-diagnostics -emit-dependencies -emit-module -emit-module-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraFFI.build/Objects-normal/arm64/TesseraFFI.swiftmodule -validate-clang-modules-once -clang-build-session-file /Users/rutmehta/.cache/tessera-derived-data-B5-16/ModuleCache.noindex/Session.modulevalidation -package-name mac -Xcc -I/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraFFI.build/swift-overrides.hmap -emit-const-values -Xfrontend -const-gather-protocols-file -Xfrontend /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraFFI.build/Objects-normal/arm64/TesseraFFI_const_extract_protocols.json -Xcc -I/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/include -Xcc -I/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraFFI.build/DerivedSources-normal/arm64 -Xcc -I/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraFFI.build/DerivedSources/arm64 -Xcc -I/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraFFI.build/DerivedSources -Xcc -DSWIFT_PACKAGE -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraFFI.build/Objects-normal/arm64/TesseraFFI-Swift.h -working-directory /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode -experimental-emit-module-separately -disable-cmo
+
+Copy /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/TesseraFFI.swiftmodule/Project/arm64-apple-macos.swiftsourceinfo /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraFFI.build/Objects-normal/arm64/TesseraFFI.swiftsourceinfo (in target 'TesseraFFI' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraFFI.build/Objects-normal/arm64/TesseraFFI.swiftsourceinfo /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/TesseraFFI.swiftmodule/Project/arm64-apple-macos.swiftsourceinfo
+
+Copy /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/TesseraFFI.swiftmodule/arm64-apple-macos.abi.json /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraFFI.build/Objects-normal/arm64/TesseraFFI.abi.json (in target 'TesseraFFI' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraFFI.build/Objects-normal/arm64/TesseraFFI.abi.json /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/TesseraFFI.swiftmodule/arm64-apple-macos.abi.json
+
+SwiftDriver TesseraCore normal arm64 com.apple.xcode.tools.swift.compiler (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    builtin-SwiftDriver -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name TesseraCore -Onone -enforce-exclusivity\=checked @/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/Objects-normal/arm64/TesseraCore.SwiftFileList -DSWIFT_PACKAGE -DDEBUG -DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE -Xcc -fmodule-map-file\=/Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/CTesseraFFI/module.modulemap -DXcode -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk -target arm64-apple-macos15.0 -g -module-cache-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/ModuleCache.noindex -Xfrontend -serialize-debugging-options -profile-coverage-mapping -profile-generate -enable-testing -index-store-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 6 -I /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug -Isystem /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib -F /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/PackageFrameworks -F /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug -F /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks -c -j16 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /Users/rutmehta/.cache/tessera-derived-data-B5-16/SDKStatCaches.noindex/macosx26.2-25C58-00fa09913b459cbbc988d1f6730289ae.sdkstatcache -output-file-map /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/Objects-normal/arm64/TesseraCore-OutputFileMap.json -use-frontend-parseable-output -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/ModuleCache.noindex -sdk-module-cache-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/ModuleCache.noindex -serialize-diagnostics -emit-dependencies -emit-module -emit-module-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/Objects-normal/arm64/TesseraCore.swiftmodule -validate-clang-modules-once -clang-build-session-file /Users/rutmehta/.cache/tessera-derived-data-B5-16/ModuleCache.noindex/Session.modulevalidation -package-name mac -Xcc -I/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/swift-overrides.hmap -emit-const-values -Xfrontend -const-gather-protocols-file -Xfrontend /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/Objects-normal/arm64/TesseraCore_const_extract_protocols.json -Xcc -I/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/include -Xcc -I/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/DerivedSources-normal/arm64 -Xcc -I/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/DerivedSources/arm64 -Xcc -I/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/DerivedSources -Xcc -DSWIFT_PACKAGE -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/Objects-normal/arm64/TesseraCore-Swift.h -working-directory /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode -experimental-emit-module-separately -disable-cmo
+
+SwiftEmitModule normal arm64 Emitting\ module\ for\ TesseraCore (in target 'TesseraCore' from project 'Tessera')
+
+EmitSwiftModule normal arm64 (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 Compiling\ StubLibrary.swift,\ IncomingStrip.swift,\ TetherNaming.swift,\ ThumbnailLoader.swift,\ PhotoWorkspaceState.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/StubLibrary.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Tether/IncomingStrip.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Tether/TetherNaming.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/ThumbnailLoader.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Workspace/PhotoWorkspaceState.swift (in target 'TesseraCore' from project 'Tessera')
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/StubLibrary.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Tether/IncomingStrip.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Tether/TetherNaming.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/ThumbnailLoader.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Workspace/PhotoWorkspaceState.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftDriverJobDiscovery normal arm64 Emitting module for TesseraCore (in target 'TesseraCore' from project 'Tessera')
+
+SwiftDriver\ Compilation\ Requirements TesseraCore normal arm64 com.apple.xcode.tools.swift.compiler (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    builtin-Swift-Compilation-Requirements -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name TesseraCore -Onone -enforce-exclusivity\=checked @/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/Objects-normal/arm64/TesseraCore.SwiftFileList -DSWIFT_PACKAGE -DDEBUG -DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE -Xcc -fmodule-map-file\=/Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/CTesseraFFI/module.modulemap -DXcode -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk -target arm64-apple-macos15.0 -g -module-cache-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/ModuleCache.noindex -Xfrontend -serialize-debugging-options -profile-coverage-mapping -profile-generate -enable-testing -index-store-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 6 -I /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug -Isystem /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib -F /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/PackageFrameworks -F /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug -F /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks -c -j16 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /Users/rutmehta/.cache/tessera-derived-data-B5-16/SDKStatCaches.noindex/macosx26.2-25C58-00fa09913b459cbbc988d1f6730289ae.sdkstatcache -output-file-map /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/Objects-normal/arm64/TesseraCore-OutputFileMap.json -use-frontend-parseable-output -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/ModuleCache.noindex -sdk-module-cache-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/ModuleCache.noindex -serialize-diagnostics -emit-dependencies -emit-module -emit-module-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/Objects-normal/arm64/TesseraCore.swiftmodule -validate-clang-modules-once -clang-build-session-file /Users/rutmehta/.cache/tessera-derived-data-B5-16/ModuleCache.noindex/Session.modulevalidation -package-name mac -Xcc -I/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/swift-overrides.hmap -emit-const-values -Xfrontend -const-gather-protocols-file -Xfrontend /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/Objects-normal/arm64/TesseraCore_const_extract_protocols.json -Xcc -I/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/include -Xcc -I/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/DerivedSources-normal/arm64 -Xcc -I/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/DerivedSources/arm64 -Xcc -I/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/DerivedSources -Xcc -DSWIFT_PACKAGE -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/Objects-normal/arm64/TesseraCore-Swift.h -working-directory /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode -experimental-emit-module-separately -disable-cmo
+
+SwiftDriverJobDiscovery normal arm64 Compiling StubLibrary.swift, IncomingStrip.swift, TetherNaming.swift, ThumbnailLoader.swift, PhotoWorkspaceState.swift (in target 'TesseraCore' from project 'Tessera')
+
+SwiftCompile normal arm64 Compiling\ KeywordSuggestions.swift,\ LibraryCatalog.swift,\ LightroomImport.swift,\ ModelsAcquisition.swift,\ PhotoJobController.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/KeywordSuggestions.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/LibraryCatalog.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/LightroomImport.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/ModelsAcquisition.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Photo/PhotoJobController.swift (in target 'TesseraCore' from project 'Tessera')
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/KeywordSuggestions.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/LibraryCatalog.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/LightroomImport.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/ModelsAcquisition.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Photo/PhotoJobController.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+Copy /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/TesseraCore.swiftmodule/arm64-apple-macos.swiftmodule /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/Objects-normal/arm64/TesseraCore.swiftmodule (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/Objects-normal/arm64/TesseraCore.swiftmodule /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/TesseraCore.swiftmodule/arm64-apple-macos.swiftmodule
+
+SwiftDriverJobDiscovery normal arm64 Compiling TesseraFFI.swift (in target 'TesseraFFI' from project 'Tessera')
+
+Copy /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/TesseraCore.swiftmodule/arm64-apple-macos.swiftdoc /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/Objects-normal/arm64/TesseraCore.swiftdoc (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/Objects-normal/arm64/TesseraCore.swiftdoc /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/TesseraCore.swiftmodule/arm64-apple-macos.swiftdoc
+
+Copy /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/TesseraCore.swiftmodule/arm64-apple-macos.abi.json /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/Objects-normal/arm64/TesseraCore.abi.json (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/Objects-normal/arm64/TesseraCore.abi.json /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/TesseraCore.swiftmodule/arm64-apple-macos.abi.json
+
+Copy /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/TesseraCore.swiftmodule/Project/arm64-apple-macos.swiftsourceinfo /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/Objects-normal/arm64/TesseraCore.swiftsourceinfo (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/Objects-normal/arm64/TesseraCore.swiftsourceinfo /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/TesseraCore.swiftmodule/Project/arm64-apple-macos.swiftsourceinfo
+
+SwiftCompile normal arm64 Compiling\ TextHitRegion.swift,\ TextLayoutIndex.swift,\ TextSourceModel.swift,\ TypingLatency.swift,\ DocumentToolsBackend.swift,\ EditorTools.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Text/TextHitRegion.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Text/TextLayoutIndex.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Text/TextSourceModel.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Text/TypingLatency.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Tools/DocumentToolsBackend.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Tools/EditorTools.swift (in target 'TesseraCore' from project 'Tessera')
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Text/TextHitRegion.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Text/TextLayoutIndex.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Text/TextSourceModel.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Text/TypingLatency.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Tools/DocumentToolsBackend.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Tools/EditorTools.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftDriver\ Compilation TesseraFFI normal arm64 com.apple.xcode.tools.swift.compiler (in target 'TesseraFFI' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    builtin-Swift-Compilation -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name TesseraFFI -Onone -enforce-exclusivity\=checked @/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraFFI.build/Objects-normal/arm64/TesseraFFI.SwiftFileList -DSWIFT_PACKAGE -DDEBUG -DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE -Xcc -fmodule-map-file\=/Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/CTesseraFFI/module.modulemap -DXcode -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk -target arm64-apple-macos15.0 -g -module-cache-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/ModuleCache.noindex -Xfrontend -serialize-debugging-options -profile-coverage-mapping -profile-generate -enable-testing -index-store-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 6 -I /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug -Isystem /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib -F /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug -F /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks -parse-as-library -c -j16 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /Users/rutmehta/.cache/tessera-derived-data-B5-16/SDKStatCaches.noindex/macosx26.2-25C58-00fa09913b459cbbc988d1f6730289ae.sdkstatcache -output-file-map /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraFFI.build/Objects-normal/arm64/TesseraFFI-OutputFileMap.json -use-frontend-parseable-output -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/ModuleCache.noindex -sdk-module-cache-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/ModuleCache.noindex -serialize-diagnostics -emit-dependencies -emit-module -emit-module-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraFFI.build/Objects-normal/arm64/TesseraFFI.swiftmodule -validate-clang-modules-once -clang-build-session-file /Users/rutmehta/.cache/tessera-derived-data-B5-16/ModuleCache.noindex/Session.modulevalidation -package-name mac -Xcc -I/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraFFI.build/swift-overrides.hmap -emit-const-values -Xfrontend -const-gather-protocols-file -Xfrontend /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraFFI.build/Objects-normal/arm64/TesseraFFI_const_extract_protocols.json -Xcc -I/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/include -Xcc -I/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraFFI.build/DerivedSources-normal/arm64 -Xcc -I/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraFFI.build/DerivedSources/arm64 -Xcc -I/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraFFI.build/DerivedSources -Xcc -DSWIFT_PACKAGE -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraFFI.build/Objects-normal/arm64/TesseraFFI-Swift.h -working-directory /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode -experimental-emit-module-separately -disable-cmo
+
+SwiftDriverJobDiscovery normal arm64 Compiling KeywordSuggestions.swift, LibraryCatalog.swift, LightroomImport.swift, ModelsAcquisition.swift, PhotoJobController.swift (in target 'TesseraCore' from project 'Tessera')
+
+SwiftCompile normal arm64 Compiling\ EngineDocumentBackend+Tools.swift,\ FreeTransformMath.swift,\ StubDocumentBackend+Tools.swift,\ DocumentTransformsBackend.swift,\ TransformModels.swift,\ DocumentVectorBackend.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Tools/EngineDocumentBackend+Tools.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Tools/FreeTransformMath.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Tools/StubDocumentBackend+Tools.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Transforms/DocumentTransformsBackend.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Transforms/TransformModels.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Vector/DocumentVectorBackend.swift (in target 'TesseraCore' from project 'Tessera')
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Tools/EngineDocumentBackend+Tools.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Tools/FreeTransformMath.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Tools/StubDocumentBackend+Tools.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Transforms/DocumentTransformsBackend.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Transforms/TransformModels.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Vector/DocumentVectorBackend.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 Compiling\ DocumentKeyMap.swift,\ DocumentOutline.swift,\ DocumentViewportMath.swift,\ EngineDocumentBackend.swift,\ DocumentFiltersBackend.swift,\ EngineDocumentBackend+Filters.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/DocumentKeyMap.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/DocumentOutline.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/DocumentViewportMath.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/EngineDocumentBackend.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Filters/DocumentFiltersBackend.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Filters/EngineDocumentBackend+Filters.swift (in target 'TesseraCore' from project 'Tessera')
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/DocumentKeyMap.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/DocumentOutline.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/DocumentViewportMath.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/EngineDocumentBackend.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Filters/DocumentFiltersBackend.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Filters/EngineDocumentBackend+Filters.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftDriverJobDiscovery normal arm64 Compiling TextHitRegion.swift, TextLayoutIndex.swift, TextSourceModel.swift, TypingLatency.swift, DocumentToolsBackend.swift, EditorTools.swift (in target 'TesseraCore' from project 'Tessera')
+
+SwiftCompile normal arm64 Compiling\ StubDocumentBackend+Retouch.swift,\ StubCompositor.swift,\ StubDocumentBackend.swift,\ StubDocumentModel.swift,\ DocumentStylesBackend.swift,\ EngineDocumentBackend+Styles.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Retouch/StubDocumentBackend+Retouch.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/StubCompositor.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/StubDocumentModel.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Styles/DocumentStylesBackend.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Styles/EngineDocumentBackend+Styles.swift (in target 'TesseraCore' from project 'Tessera')
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Retouch/StubDocumentBackend+Retouch.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/StubCompositor.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:860:30: warning: reference to captured var 'step' in concurrently-executing code
+                let ty = r * step
+                             ^
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:861:56: warning: reference to captured var 'step' in concurrently-executing code
+                let cy = (Float(y0 + ty) + 0.5 * Float(step)) * scale
+                                                       ^
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:864:71: warning: reference to captured var 'step' in concurrently-executing code
+                    let c = comp.sample((Float(x0 + tx) + 0.5 * Float(step)) * scale, cy)
+                                                                      ^
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:865:39: warning: reference to captured var 'step' in concurrently-executing code
+                    for dy in 0..<min(step, rh - ty) {
+                                      ^
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:867:43: warning: reference to captured var 'step' in concurrently-executing code
+                        for dx in 0..<min(step, rw - tx) { Self.store(c, line + (tx + dx) * 4) }
+                                          ^
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:869:27: warning: reference to captured var 'step' in concurrently-executing code
+                    tx += step
+                          ^
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/StubDocumentModel.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Styles/DocumentStylesBackend.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Styles/EngineDocumentBackend+Styles.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftDriverJobDiscovery normal arm64 Compiling DocumentKeyMap.swift, DocumentOutline.swift, DocumentViewportMath.swift, EngineDocumentBackend.swift, DocumentFiltersBackend.swift, EngineDocumentBackend+Filters.swift (in target 'TesseraCore' from project 'Tessera')
+
+SwiftCompile normal arm64 Compiling\ ExportPresetStore.swift,\ ExportSettings.swift,\ ExportWarnings.swift,\ ExportWatermark.swift,\ Grouping.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Export/ExportPresetStore.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Export/ExportSettings.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Export/ExportWarnings.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Export/ExportWatermark.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Grouping.swift (in target 'TesseraCore' from project 'Tessera')
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Export/ExportPresetStore.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Export/ExportSettings.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Export/ExportWarnings.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Export/ExportWatermark.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Grouping.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftDriverJobDiscovery normal arm64 Compiling EngineDocumentBackend+Tools.swift, FreeTransformMath.swift, StubDocumentBackend+Tools.swift, DocumentTransformsBackend.swift, TransformModels.swift, DocumentVectorBackend.swift (in target 'TesseraCore' from project 'Tessera')
+
+SwiftCompile normal arm64 Compiling\ EDRPresentation.swift,\ LensBlurDenoiseControls.swift,\ LensBlurDepth.swift,\ Masking.swift,\ PresetStore.swift,\ ToneCurveModel.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Develop/EDRPresentation.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Develop/LensBlurDenoiseControls.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Develop/LensBlurDepth.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Develop/Masking.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Develop/PresetStore.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Develop/ToneCurveModel.swift (in target 'TesseraCore' from project 'Tessera')
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Develop/EDRPresentation.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Develop/LensBlurDenoiseControls.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Develop/LensBlurDepth.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Develop/Masking.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Develop/PresetStore.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Develop/ToneCurveModel.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftDriverJobDiscovery normal arm64 Compiling ExportPresetStore.swift, ExportSettings.swift, ExportWarnings.swift, ExportWatermark.swift, Grouping.swift (in target 'TesseraCore' from project 'Tessera')
+
+SwiftCompile normal arm64 Compiling\ StubDocumentBackend+Channels.swift,\ DocumentAdjustmentModels.swift,\ DocumentAdjustments.swift,\ DocumentBackend.swift,\ DocumentBlendModes.swift,\ DocumentInspectorLayout.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Channels/StubDocumentBackend+Channels.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/DocumentAdjustmentModels.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/DocumentAdjustments.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/DocumentBackend.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/DocumentBlendModes.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/DocumentInspectorLayout.swift (in target 'TesseraCore' from project 'Tessera')
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Channels/StubDocumentBackend+Channels.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/DocumentAdjustmentModels.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/DocumentAdjustments.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/DocumentBackend.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/DocumentBlendModes.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/DocumentInspectorLayout.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftDriverJobDiscovery normal arm64 Compiling EDRPresentation.swift, LensBlurDenoiseControls.swift, LensBlurDepth.swift, Masking.swift, PresetStore.swift, ToneCurveModel.swift (in target 'TesseraCore' from project 'Tessera')
+
+SwiftCompile normal arm64 Compiling\ EngineDocumentBackend+Vector.swift,\ ShapeGeometry.swift,\ ShapeModels.swift,\ ShapeToolOptions.swift,\ EngineLibrary.swift,\ ExportNaming.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Vector/EngineDocumentBackend+Vector.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Vector/ShapeGeometry.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Vector/ShapeModels.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Vector/ShapeToolOptions.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/EngineLibrary.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Export/ExportNaming.swift (in target 'TesseraCore' from project 'Tessera')
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Vector/EngineDocumentBackend+Vector.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Vector/ShapeGeometry.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Vector/ShapeModels.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Vector/ShapeToolOptions.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/EngineLibrary.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Export/ExportNaming.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftDriverJobDiscovery normal arm64 Compiling StubDocumentBackend+Retouch.swift, StubCompositor.swift, StubDocumentBackend.swift, StubDocumentModel.swift, DocumentStylesBackend.swift, EngineDocumentBackend+Styles.swift (in target 'TesseraCore' from project 'Tessera')
+
+SwiftCompile normal arm64 Compiling\ LayerStyleModel.swift,\ StubDocumentBackend+Styles.swift,\ StyleJSON.swift,\ StyleSchema.swift,\ DocumentTextBackend.swift,\ TextEditing.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Styles/LayerStyleModel.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Styles/StubDocumentBackend+Styles.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Styles/StyleJSON.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Styles/StyleSchema.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Text/DocumentTextBackend.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Text/TextEditing.swift (in target 'TesseraCore' from project 'Tessera')
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Styles/LayerStyleModel.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Styles/StubDocumentBackend+Styles.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Styles/StyleJSON.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Styles/StyleSchema.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Text/DocumentTextBackend.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Text/TextEditing.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftDriverJobDiscovery normal arm64 Compiling StubDocumentBackend+Channels.swift, DocumentAdjustmentModels.swift, DocumentAdjustments.swift, DocumentBackend.swift, DocumentBlendModes.swift, DocumentInspectorLayout.swift (in target 'TesseraCore' from project 'Tessera')
+
+SwiftCompile normal arm64 Compiling\ CullController.swift,\ CullState.swift,\ ColorMath.swift,\ CropGeometry.swift,\ DevelopController+Masks.swift,\ DevelopControls.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/CullController.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/CullState.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Develop/ColorMath.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Develop/CropGeometry.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Develop/DevelopController+Masks.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Develop/DevelopControls.swift (in target 'TesseraCore' from project 'Tessera')
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/CullController.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/CullState.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Develop/ColorMath.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Develop/CropGeometry.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Develop/DevelopController+Masks.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Develop/DevelopControls.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftDriverJobDiscovery normal arm64 Compiling EngineDocumentBackend+Vector.swift, ShapeGeometry.swift, ShapeModels.swift, ShapeToolOptions.swift, EngineLibrary.swift, ExportNaming.swift (in target 'TesseraCore' from project 'Tessera')
+
+SwiftCompile normal arm64 Compiling\ FilterSchema.swift,\ StubDocumentBackend+Filters.swift,\ DocumentRetouchBackend.swift,\ EngineDocumentBackend+Retouch.swift,\ RetouchJobs.swift,\ RetouchModelDownloads.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Filters/FilterSchema.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Filters/StubDocumentBackend+Filters.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Retouch/DocumentRetouchBackend.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Retouch/EngineDocumentBackend+Retouch.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Retouch/RetouchJobs.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Retouch/RetouchModelDownloads.swift (in target 'TesseraCore' from project 'Tessera')
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Filters/FilterSchema.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Filters/StubDocumentBackend+Filters.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Retouch/DocumentRetouchBackend.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Retouch/EngineDocumentBackend+Retouch.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Retouch/RetouchJobs.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Retouch/RetouchModelDownloads.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftDriverJobDiscovery normal arm64 Compiling LayerStyleModel.swift, StubDocumentBackend+Styles.swift, StyleJSON.swift, StyleSchema.swift, DocumentTextBackend.swift, TextEditing.swift (in target 'TesseraCore' from project 'Tessera')
+
+SwiftCompile normal arm64 Compiling\ TransformControls.swift,\ DevelopController.swift,\ PerformanceTrace.swift,\ AdjustmentAnalysis.swift,\ DocumentChannelsBackend.swift,\ EngineDocumentBackend+Channels.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Develop/TransformControls.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/DevelopController.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Diagnostics/PerformanceTrace.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/AdjustmentAnalysis.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Channels/DocumentChannelsBackend.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Channels/EngineDocumentBackend+Channels.swift (in target 'TesseraCore' from project 'Tessera')
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Develop/TransformControls.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/DevelopController.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Diagnostics/PerformanceTrace.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/AdjustmentAnalysis.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Channels/DocumentChannelsBackend.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Document/Channels/EngineDocumentBackend+Channels.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftDriverJobDiscovery normal arm64 Compiling CullController.swift, CullState.swift, ColorMath.swift, CropGeometry.swift, DevelopController+Masks.swift, DevelopControls.swift (in target 'TesseraCore' from project 'Tessera')
+
+SwiftCompile normal arm64 Compiling\ PhotoMergeSettings.swift,\ PhotoItem.swift,\ PreviewEvents.swift,\ PrintLayout.swift,\ PrintSettings.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Photo/PhotoMergeSettings.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/PhotoItem.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/PreviewEvents.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Print/PrintLayout.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Print/PrintSettings.swift (in target 'TesseraCore' from project 'Tessera')
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Photo/PhotoMergeSettings.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/PhotoItem.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/PreviewEvents.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Print/PrintLayout.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Print/PrintSettings.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftDriverJobDiscovery normal arm64 Compiling FilterSchema.swift, StubDocumentBackend+Filters.swift, DocumentRetouchBackend.swift, EngineDocumentBackend+Retouch.swift, RetouchJobs.swift, RetouchModelDownloads.swift (in target 'TesseraCore' from project 'Tessera')
+
+SwiftCompile normal arm64 Compiling\ AppDefaultsIsolation.swift,\ AISettings.swift,\ AgentFade.swift,\ AgentReview.swift,\ CullController+Assist.swift,\ People.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/AppDefaultsIsolation.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Assist/AISettings.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Assist/AgentFade.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Assist/AgentReview.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Assist/CullController+Assist.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Assist/People.swift (in target 'TesseraCore' from project 'Tessera')
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/AppDefaultsIsolation.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Assist/AISettings.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Assist/AgentFade.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Assist/AgentReview.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Assist/CullController+Assist.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/TesseraCore/Assist/People.swift (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftDriverJobDiscovery normal arm64 Compiling PhotoMergeSettings.swift, PhotoItem.swift, PreviewEvents.swift, PrintLayout.swift, PrintSettings.swift (in target 'TesseraCore' from project 'Tessera')
+
+SwiftDriverJobDiscovery normal arm64 Compiling AppDefaultsIsolation.swift, AISettings.swift, AgentFade.swift, AgentReview.swift, CullController+Assist.swift, People.swift (in target 'TesseraCore' from project 'Tessera')
+
+ExtractAppIntentsMetadata (in target 'TesseraFFI' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsmetadataprocessor --toolchain-dir /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --module-name TesseraFFI --sdk-root /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk --xcode-version 17C529 --platform-family macOS --deployment-target 15.0 --bundle-identifier mac.TesseraFFI --output /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/TesseraFFI.appintents --target-triple arm64-apple-macos15.0 --binary-file /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/TesseraFFI.o --dependency-file /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraFFI.build/Objects-normal/arm64/TesseraFFI_dependency_info.dat --stringsdata-file /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraFFI.build/Objects-normal/arm64/ExtractedAppShortcutsMetadata.stringsdata --source-file-list /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraFFI.build/Objects-normal/arm64/TesseraFFI.SwiftFileList --metadata-file-list /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraFFI.build/TesseraFFI.DependencyMetadataFileList --static-metadata-file-list /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraFFI.build/TesseraFFI.DependencyStaticMetadataFileList --swift-const-vals-list /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraFFI.build/Objects-normal/arm64/TesseraFFI.SwiftConstValuesFileList --force --compile-time-extraction --deployment-aware-processing --validate-assistant-intents --no-app-shortcuts-localization
+2026-09-27 14:54:19.174 appintentsmetadataprocessor[73892:26308530] Starting appintentsmetadataprocessor export
+2026-09-27 14:54:19.252 appintentsmetadataprocessor[73892:26308530] Extracted no relevant App Intents symbols, skipping writing output
+
+SwiftDriverJobDiscovery normal arm64 Compiling TransformControls.swift, DevelopController.swift, PerformanceTrace.swift, AdjustmentAnalysis.swift, DocumentChannelsBackend.swift, EngineDocumentBackend+Channels.swift (in target 'TesseraCore' from project 'Tessera')
+
+SwiftDriver\ Compilation TesseraCore normal arm64 com.apple.xcode.tools.swift.compiler (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    builtin-Swift-Compilation -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name TesseraCore -Onone -enforce-exclusivity\=checked @/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/Objects-normal/arm64/TesseraCore.SwiftFileList -DSWIFT_PACKAGE -DDEBUG -DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE -Xcc -fmodule-map-file\=/Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/CTesseraFFI/module.modulemap -DXcode -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk -target arm64-apple-macos15.0 -g -module-cache-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/ModuleCache.noindex -Xfrontend -serialize-debugging-options -profile-coverage-mapping -profile-generate -enable-testing -index-store-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 6 -I /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug -Isystem /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib -F /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/PackageFrameworks -F /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug -F /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks -c -j16 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /Users/rutmehta/.cache/tessera-derived-data-B5-16/SDKStatCaches.noindex/macosx26.2-25C58-00fa09913b459cbbc988d1f6730289ae.sdkstatcache -output-file-map /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/Objects-normal/arm64/TesseraCore-OutputFileMap.json -use-frontend-parseable-output -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/ModuleCache.noindex -sdk-module-cache-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/ModuleCache.noindex -serialize-diagnostics -emit-dependencies -emit-module -emit-module-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/Objects-normal/arm64/TesseraCore.swiftmodule -validate-clang-modules-once -clang-build-session-file /Users/rutmehta/.cache/tessera-derived-data-B5-16/ModuleCache.noindex/Session.modulevalidation -package-name mac -Xcc -I/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/swift-overrides.hmap -emit-const-values -Xfrontend -const-gather-protocols-file -Xfrontend /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/Objects-normal/arm64/TesseraCore_const_extract_protocols.json -Xcc -I/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/include -Xcc -I/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/DerivedSources-normal/arm64 -Xcc -I/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/DerivedSources/arm64 -Xcc -I/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/DerivedSources -Xcc -DSWIFT_PACKAGE -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/Objects-normal/arm64/TesseraCore-Swift.h -working-directory /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode -experimental-emit-module-separately -disable-cmo
+
+Ld /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/TesseraCore.o normal (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -Xlinker -reproducible -target arm64-apple-macos15.0 -r -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk -O0 -L/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/EagerLinkingTBDs/Debug -L/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug -L/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib -F/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/EagerLinkingTBDs/Debug -F/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/PackageFrameworks -F/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug -iframework /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks -filelist /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/Objects-normal/arm64/TesseraCore.LinkFileList -nostdlib -Xlinker -object_path_lto -Xlinker /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/Objects-normal/arm64/TesseraCore_lto.o -rdynamic -Xlinker -no_deduplicate -Xlinker -debug_variant -Xlinker -dependency_info -Xlinker /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/Objects-normal/arm64/TesseraCore_dependency_info.dat -fobjc-link-runtime -L/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/macosx -L/usr/lib/swift -Xlinker -add_ast_path -Xlinker /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/Objects-normal/arm64/TesseraCore.swiftmodule @/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/Objects-normal/arm64/TesseraCore-linker-args.resp -o /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/TesseraCore.o
+
+ExtractAppIntentsMetadata (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsmetadataprocessor --toolchain-dir /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --module-name TesseraCore --sdk-root /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk --xcode-version 17C529 --platform-family macOS --deployment-target 15.0 --bundle-identifier mac.TesseraCore --output /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/TesseraCore.appintents --target-triple arm64-apple-macos15.0 --binary-file /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/TesseraCore.o --dependency-file /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/Objects-normal/arm64/TesseraCore_dependency_info.dat --stringsdata-file /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/Objects-normal/arm64/ExtractedAppShortcutsMetadata.stringsdata --source-file-list /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/Objects-normal/arm64/TesseraCore.SwiftFileList --metadata-file-list /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/TesseraCore.DependencyMetadataFileList --static-metadata-file-list /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/TesseraCore.DependencyStaticMetadataFileList --swift-const-vals-list /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/Objects-normal/arm64/TesseraCore.SwiftConstValuesFileList --force --compile-time-extraction --deployment-aware-processing --validate-assistant-intents --no-app-shortcuts-localization
+2026-09-27 14:54:19.850 appintentsmetadataprocessor[73896:26308615] Starting appintentsmetadataprocessor export
+2026-09-27 14:54:19.917 appintentsmetadataprocessor[73896:26308615] Extracted no relevant App Intents symbols, skipping writing output
+
+WriteAuxiliaryFile /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/Tessera.build/Objects-normal/arm64/Tessera.LinkFileList (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac
+    write-file /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/Tessera.build/Objects-normal/arm64/Tessera.LinkFileList
+
+WriteAuxiliaryFile /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/Tessera.build/Objects-normal/arm64/Tessera.SwiftFileList (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac
+    write-file /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/Tessera.build/Objects-normal/arm64/Tessera.SwiftFileList
+
+WriteAuxiliaryFile /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/Tessera.build/Objects-normal/arm64/Tessera-OutputFileMap.json (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac
+    write-file /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/Tessera.build/Objects-normal/arm64/Tessera-OutputFileMap.json
+
+RegisterExecutionPolicyException /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/TesseraCore.o (in target 'TesseraCore' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac
+    builtin-RegisterExecutionPolicyException /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/TesseraCore.o
+
+SwiftDriver Tessera normal arm64 com.apple.xcode.tools.swift.compiler (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    builtin-SwiftDriver -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name Tessera -Onone -enforce-exclusivity\=checked @/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/Tessera.build/Objects-normal/arm64/Tessera.SwiftFileList -DSWIFT_PACKAGE -DDEBUG -Xcc -fmodule-map-file\=/Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/CTesseraFFI/module.modulemap -DXcode -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk -target arm64-apple-macos15.0 -g -module-cache-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/ModuleCache.noindex -Xfrontend -serialize-debugging-options -profile-coverage-mapping -profile-generate -enable-testing -index-store-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 6 -I /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug -Isystem /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib -F /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/PackageFrameworks -F /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/PackageFrameworks -F /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug -F /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks -c -j16 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /Users/rutmehta/.cache/tessera-derived-data-B5-16/SDKStatCaches.noindex/macosx26.2-25C58-00fa09913b459cbbc988d1f6730289ae.sdkstatcache -output-file-map /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/Tessera.build/Objects-normal/arm64/Tessera-OutputFileMap.json -use-frontend-parseable-output -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/ModuleCache.noindex -sdk-module-cache-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/ModuleCache.noindex -serialize-diagnostics -emit-dependencies -emit-module -emit-module-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/Tessera.build/Objects-normal/arm64/Tessera.swiftmodule -validate-clang-modules-once -clang-build-session-file /Users/rutmehta/.cache/tessera-derived-data-B5-16/ModuleCache.noindex/Session.modulevalidation -package-name mac -emit-const-values -Xfrontend -const-gather-protocols-file -Xfrontend /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/Tessera.build/Objects-normal/arm64/Tessera_const_extract_protocols.json -Xcc -I/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/include -Xcc -I/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/Tessera.build/DerivedSources-normal/arm64 -Xcc -I/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/Tessera.build/DerivedSources/arm64 -Xcc -I/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/Tessera.build/DerivedSources -Xcc -DSWIFT_PACKAGE -Xcc -DDEBUG\=1 -working-directory /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode -experimental-emit-module-separately -disable-cmo
+
+SwiftCompile normal arm64 Compiling\ LayersOutline.swift,\ LayersPanel.swift,\ PropertiesPanel.swift,\ DocumentRetouch.swift,\ RemoveOverlayView.swift,\ RetouchSelfTest.swift,\ RetouchViews.swift,\ DocumentStyles.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/LayersOutline.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/LayersPanel.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/PropertiesPanel.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Retouch/DocumentRetouch.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Retouch/RemoveOverlayView.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Retouch/RetouchSelfTest.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Retouch/RetouchViews.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Styles/DocumentStyles.swift (in target 'Tessera' from project 'Tessera')
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/LayersOutline.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/LayersPanel.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/PropertiesPanel.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Retouch/DocumentRetouch.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Retouch/RemoveOverlayView.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Retouch/RetouchSelfTest.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Retouch/RetouchViews.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Styles/DocumentStyles.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 Compiling\ DocumentView.swift,\ DocumentViewport.swift,\ DocumentWorkspace.swift,\ DocumentFilters.swift,\ FilterMenus.swift,\ FilterSelfTest.swift,\ FilterSheets.swift,\ SmartFilterRows.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/DocumentView.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/DocumentViewport.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/DocumentWorkspace.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Filters/DocumentFilters.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Filters/FilterMenus.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Filters/FilterSelfTest.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Filters/FilterSheets.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Filters/SmartFilterRows.swift (in target 'Tessera' from project 'Tessera')
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/DocumentView.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/DocumentViewport.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/DocumentWorkspace.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Filters/DocumentFilters.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Filters/FilterMenus.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Filters/FilterSelfTest.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Filters/FilterSheets.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Filters/SmartFilterRows.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftEmitModule normal arm64 Emitting\ module\ for\ Tessera (in target 'Tessera' from project 'Tessera')
+
+EmitSwiftModule normal arm64 (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftDriverJobDiscovery normal arm64 Compiling LayersOutline.swift, LayersPanel.swift, PropertiesPanel.swift, DocumentRetouch.swift, RemoveOverlayView.swift, RetouchSelfTest.swift, RetouchViews.swift, DocumentStyles.swift (in target 'Tessera' from project 'Tessera')
+
+SwiftCompile normal arm64 Compiling\ ExportSheet.swift,\ ExportWatermarkViews.swift,\ ThumbnailBrowser.swift,\ ThumbnailCell.swift,\ UniformGridLayout.swift,\ LightroomImportController.swift,\ LightroomImportSheet.swift,\ ColorWheelView.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Export/ExportSheet.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Export/ExportWatermarkViews.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Grid/ThumbnailBrowser.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Grid/ThumbnailCell.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Grid/UniformGridLayout.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Import/LightroomImportController.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Import/LightroomImportSheet.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Inspector/ColorWheelView.swift (in target 'Tessera' from project 'Tessera')
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Export/ExportSheet.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Export/ExportWatermarkViews.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Grid/ThumbnailBrowser.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Grid/ThumbnailCell.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Grid/UniformGridLayout.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Import/LightroomImportController.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Import/LightroomImportSheet.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Inspector/ColorWheelView.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftDriverJobDiscovery normal arm64 Emitting module for Tessera (in target 'Tessera' from project 'Tessera')
+
+SwiftDriver\ Compilation\ Requirements Tessera normal arm64 com.apple.xcode.tools.swift.compiler (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    builtin-Swift-Compilation-Requirements -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name Tessera -Onone -enforce-exclusivity\=checked @/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/Tessera.build/Objects-normal/arm64/Tessera.SwiftFileList -DSWIFT_PACKAGE -DDEBUG -Xcc -fmodule-map-file\=/Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/CTesseraFFI/module.modulemap -DXcode -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk -target arm64-apple-macos15.0 -g -module-cache-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/ModuleCache.noindex -Xfrontend -serialize-debugging-options -profile-coverage-mapping -profile-generate -enable-testing -index-store-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 6 -I /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug -Isystem /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib -F /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/PackageFrameworks -F /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/PackageFrameworks -F /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug -F /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks -c -j16 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /Users/rutmehta/.cache/tessera-derived-data-B5-16/SDKStatCaches.noindex/macosx26.2-25C58-00fa09913b459cbbc988d1f6730289ae.sdkstatcache -output-file-map /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/Tessera.build/Objects-normal/arm64/Tessera-OutputFileMap.json -use-frontend-parseable-output -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/ModuleCache.noindex -sdk-module-cache-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/ModuleCache.noindex -serialize-diagnostics -emit-dependencies -emit-module -emit-module-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/Tessera.build/Objects-normal/arm64/Tessera.swiftmodule -validate-clang-modules-once -clang-build-session-file /Users/rutmehta/.cache/tessera-derived-data-B5-16/ModuleCache.noindex/Session.modulevalidation -package-name mac -emit-const-values -Xfrontend -const-gather-protocols-file -Xfrontend /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/Tessera.build/Objects-normal/arm64/Tessera_const_extract_protocols.json -Xcc -I/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/include -Xcc -I/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/Tessera.build/DerivedSources-normal/arm64 -Xcc -I/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/Tessera.build/DerivedSources/arm64 -Xcc -I/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/Tessera.build/DerivedSources -Xcc -DSWIFT_PACKAGE -Xcc -DDEBUG\=1 -working-directory /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode -experimental-emit-module-separately -disable-cmo
+
+SwiftDriverJobDiscovery normal arm64 Compiling ExportSheet.swift, ExportWatermarkViews.swift, ThumbnailBrowser.swift, ThumbnailCell.swift, UniformGridLayout.swift, LightroomImportController.swift, LightroomImportSheet.swift, ColorWheelView.swift (in target 'Tessera' from project 'Tessera')
+
+SwiftCompile normal arm64 Compiling\ RuleTextField.swift,\ SmartAlbumSheet.swift,\ UnderstandingController.swift,\ LoupeFrame.swift,\ LoupeMaskTools.swift,\ LoupeRenderer.swift,\ LoupeToolOverlay.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Library/RuleTextField.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Library/SmartAlbumSheet.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Library/UnderstandingController.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Loupe/LoupeFrame.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Loupe/LoupeMaskTools.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Loupe/LoupeRenderer.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Loupe/LoupeToolOverlay.swift (in target 'Tessera' from project 'Tessera')
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Library/RuleTextField.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Library/SmartAlbumSheet.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Library/UnderstandingController.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Loupe/LoupeFrame.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Loupe/LoupeMaskTools.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Loupe/LoupeRenderer.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Loupe/LoupeToolOverlay.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+Copy /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/Tessera.swiftmodule/arm64-apple-macos.swiftmodule /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/Tessera.build/Objects-normal/arm64/Tessera.swiftmodule (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/Tessera.build/Objects-normal/arm64/Tessera.swiftmodule /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/Tessera.swiftmodule/arm64-apple-macos.swiftmodule
+
+SwiftDriverJobDiscovery normal arm64 Compiling DocumentView.swift, DocumentViewport.swift, DocumentWorkspace.swift, DocumentFilters.swift, FilterMenus.swift, FilterSelfTest.swift, FilterSheets.swift, SmartFilterRows.swift (in target 'Tessera' from project 'Tessera')
+
+Copy /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/Tessera.swiftmodule/arm64-apple-macos.swiftdoc /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/Tessera.build/Objects-normal/arm64/Tessera.swiftdoc (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/Tessera.build/Objects-normal/arm64/Tessera.swiftdoc /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/Tessera.swiftmodule/arm64-apple-macos.swiftdoc
+
+Copy /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/Tessera.swiftmodule/arm64-apple-macos.abi.json /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/Tessera.build/Objects-normal/arm64/Tessera.abi.json (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/Tessera.build/Objects-normal/arm64/Tessera.abi.json /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/Tessera.swiftmodule/arm64-apple-macos.abi.json
+
+Copy /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/Tessera.swiftmodule/Project/arm64-apple-macos.swiftsourceinfo /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/Tessera.build/Objects-normal/arm64/Tessera.swiftsourceinfo (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/Tessera.build/Objects-normal/arm64/Tessera.swiftsourceinfo /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/Tessera.swiftmodule/Project/arm64-apple-macos.swiftsourceinfo
+
+SwiftCompile normal arm64 Compiling\ MasksPanel.swift,\ PhotoEditInspectorView.swift,\ TransformPanel.swift,\ UnderstandingPanels.swift,\ ValueSlider.swift,\ FilterBar.swift,\ LibraryModel.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Inspector/MasksPanel.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Inspector/PhotoEditInspectorView.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Inspector/TransformPanel.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Inspector/UnderstandingPanels.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Inspector/ValueSlider.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Library/FilterBar.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Library/LibraryModel.swift (in target 'Tessera' from project 'Tessera')
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Inspector/MasksPanel.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Inspector/PhotoEditInspectorView.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Inspector/TransformPanel.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Inspector/UnderstandingPanels.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Inspector/ValueSlider.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Library/FilterBar.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Library/LibraryModel.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 Compiling\ ModelDownloadsSettingsSection.swift,\ ContentView.swift,\ ShellLayout.swift,\ WorkspaceHeader.swift,\ SidebarView.swift,\ TetherController.swift,\ TetherPanel.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Settings/ModelDownloadsSettingsSection.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Shell/ContentView.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Shell/ShellLayout.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Shell/WorkspaceHeader.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Sidebar/SidebarView.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Tether/TetherController.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Tether/TetherPanel.swift (in target 'Tessera' from project 'Tessera')
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Settings/ModelDownloadsSettingsSection.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Shell/ContentView.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Shell/ShellLayout.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Shell/WorkspaceHeader.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Sidebar/SidebarView.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Tether/TetherController.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Tether/TetherPanel.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftDriverJobDiscovery normal arm64 Compiling RuleTextField.swift, SmartAlbumSheet.swift, UnderstandingController.swift, LoupeFrame.swift, LoupeMaskTools.swift, LoupeRenderer.swift, LoupeToolOverlay.swift (in target 'Tessera' from project 'Tessera')
+
+SwiftCompile normal arm64 Compiling\ Components.swift,\ DevelopTools.swift,\ KeyRouter.swift,\ MaskTools.swift,\ TesseraApp.swift,\ Theme.swift,\ TimingSelfTest.swift,\ CompareView.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/App/Components.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/App/DevelopTools.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/App/KeyRouter.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/App/MaskTools.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/App/TesseraApp.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/App/Theme.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/App/TimingSelfTest.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Compare/CompareView.swift (in target 'Tessera' from project 'Tessera')
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/App/Components.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/App/DevelopTools.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/App/KeyRouter.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/App/MaskTools.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/App/TesseraApp.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/App/Theme.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/App/TimingSelfTest.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Compare/CompareView.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftDriverJobDiscovery normal arm64 Compiling MasksPanel.swift, PhotoEditInspectorView.swift, TransformPanel.swift, UnderstandingPanels.swift, ValueSlider.swift, FilterBar.swift, LibraryModel.swift (in target 'Tessera' from project 'Tessera')
+
+SwiftDriverJobDiscovery normal arm64 Compiling ModelDownloadsSettingsSection.swift, ContentView.swift, ShellLayout.swift, WorkspaceHeader.swift, SidebarView.swift, TetherController.swift, TetherPanel.swift (in target 'Tessera' from project 'Tessera')
+
+SwiftCompile normal arm64 Compiling\ AppModel+Photo.swift,\ EnhanceSheet.swift,\ PhotoMenu.swift,\ PhotoMergeSheet.swift,\ PrintComposer.swift,\ PrintController.swift,\ PrintSheet.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Photo/AppModel+Photo.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Photo/EnhanceSheet.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Photo/PhotoMenu.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Photo/PhotoMergeSheet.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Print/PrintComposer.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Print/PrintController.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Print/PrintSheet.swift (in target 'Tessera' from project 'Tessera')
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Photo/AppModel+Photo.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Photo/EnhanceSheet.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Photo/PhotoMenu.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Photo/PhotoMergeSheet.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Print/PrintComposer.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Print/PrintController.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Print/PrintSheet.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 Compiling\ CurveEditorView.swift,\ DetailPreviewView.swift,\ DevelopPanels.swift,\ HistogramView.swift,\ InspectorView.swift,\ LensBlurPanel.swift,\ LibraryPanels.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Inspector/CurveEditorView.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Inspector/DetailPreviewView.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Inspector/DevelopPanels.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Inspector/HistogramView.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Inspector/InspectorView.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Inspector/LensBlurPanel.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Inspector/LibraryPanels.swift (in target 'Tessera' from project 'Tessera')
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Inspector/CurveEditorView.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Inspector/DetailPreviewView.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Inspector/DevelopPanels.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Inspector/HistogramView.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Inspector/InspectorView.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Inspector/LensBlurPanel.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Inspector/LibraryPanels.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftDriverJobDiscovery normal arm64 Compiling Components.swift, DevelopTools.swift, KeyRouter.swift, MaskTools.swift, TesseraApp.swift, Theme.swift, TimingSelfTest.swift, CompareView.swift (in target 'Tessera' from project 'Tessera')
+
+SwiftCompile normal arm64 Compiling\ TextSelfTest.swift,\ DocumentTools.swift,\ ToolOverlayView.swift,\ ToolsInspector.swift,\ ToolsMenus.swift,\ ToolsPalette.swift,\ ToolsSelfTest.swift,\ ToolsSheets.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Text/TextSelfTest.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Tools/DocumentTools.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Tools/ToolOverlayView.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Tools/ToolsInspector.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Tools/ToolsMenus.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Tools/ToolsPalette.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Tools/ToolsSelfTest.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Tools/ToolsSheets.swift (in target 'Tessera' from project 'Tessera')
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Text/TextSelfTest.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Tools/DocumentTools.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Tools/ToolOverlayView.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Tools/ToolsInspector.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Tools/ToolsMenus.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Tools/ToolsPalette.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Tools/ToolsSelfTest.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Tools/ToolsSheets.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftDriverJobDiscovery normal arm64 Compiling AppModel+Photo.swift, EnhanceSheet.swift, PhotoMenu.swift, PhotoMergeSheet.swift, PrintComposer.swift, PrintController.swift, PrintSheet.swift (in target 'Tessera' from project 'Tessera')
+
+SwiftCompile normal arm64 Compiling\ LoupeUprightGuides.swift,\ LoupeView.swift,\ MaskToolbar.swift,\ MetalLoupeView.swift,\ SoftProof.swift,\ LibrarySettingsView.swift,\ PeopleView.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Loupe/LoupeUprightGuides.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Loupe/LoupeView.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Loupe/MaskToolbar.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Loupe/MetalLoupeView.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Loupe/SoftProof.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/People/LibrarySettingsView.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/People/PeopleView.swift (in target 'Tessera' from project 'Tessera')
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Loupe/LoupeUprightGuides.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Loupe/LoupeView.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Loupe/MaskToolbar.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Loupe/MetalLoupeView.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Loupe/SoftProof.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/People/LibrarySettingsView.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/People/PeopleView.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftDriverJobDiscovery normal arm64 Compiling CurveEditorView.swift, DetailPreviewView.swift, DevelopPanels.swift, HistogramView.swift, InspectorView.swift, LensBlurPanel.swift, LibraryPanels.swift (in target 'Tessera' from project 'Tessera')
+
+SwiftCompile normal arm64 Compiling\ AssistController.swift,\ AssistPanels.swift,\ DefectSweepSheet.swift,\ FaceStripView.swift,\ AdjustmentEditors.swift,\ ChannelOverlay.swift,\ ChannelSheets.swift,\ ChannelsPanel.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Cull/AssistController.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Cull/AssistPanels.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Cull/DefectSweepSheet.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Cull/FaceStripView.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/AdjustmentEditors.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Channels/ChannelOverlay.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Channels/ChannelSheets.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Channels/ChannelsPanel.swift (in target 'Tessera' from project 'Tessera')
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Cull/AssistController.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Cull/AssistPanels.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Cull/DefectSweepSheet.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Cull/FaceStripView.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/AdjustmentEditors.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/AdjustmentEditors.swift:55:55: warning: passing non-Sendable parameter 'change' to function expecting a '@Sendable' closure
+        Toggle(title, isOn: Binding(get: { on }, set: change))
+                                                      ^
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/AdjustmentEditors.swift:54:73: note: parameter 'change' is implicitly non-Sendable
+    private func checkbox(_ title: String, _ on: Bool, _ key: String, _ change: @escaping (Bool) -> Void) -> some View {
+                                                                        ^
+                                                                                @Sendable 
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Channels/ChannelOverlay.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Channels/ChannelSheets.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Channels/ChannelsPanel.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftDriverJobDiscovery normal arm64 Compiling TextSelfTest.swift, DocumentTools.swift, ToolOverlayView.swift, ToolsInspector.swift, ToolsMenus.swift, ToolsPalette.swift, ToolsSelfTest.swift, ToolsSheets.swift (in target 'Tessera' from project 'Tessera')
+
+SwiftCompile normal arm64 Compiling\ ChannelsSelfTest.swift,\ DocumentChannels.swift,\ DocumentController+Adjustments.swift,\ DocumentController.swift,\ DocumentControls.swift,\ DocumentHistoryPanel.swift,\ DocumentSelfTest.swift,\ DocumentSheets.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Channels/ChannelsSelfTest.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Channels/DocumentChannels.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/DocumentController+Adjustments.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/DocumentController.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/DocumentControls.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/DocumentHistoryPanel.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/DocumentSelfTest.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/DocumentSheets.swift (in target 'Tessera' from project 'Tessera')
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Channels/ChannelsSelfTest.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Channels/DocumentChannels.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/DocumentController+Adjustments.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/DocumentController.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/DocumentControls.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/DocumentHistoryPanel.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/DocumentSelfTest.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/DocumentSheets.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftDriverJobDiscovery normal arm64 Compiling LoupeUprightGuides.swift, LoupeView.swift, MaskToolbar.swift, MetalLoupeView.swift, SoftProof.swift, LibrarySettingsView.swift, PeopleView.swift (in target 'Tessera' from project 'Tessera')
+
+SwiftCompile normal arm64 Compiling\ LayerStyleEditors.swift,\ LayerStyleInspector.swift,\ LayerStyleMenus.swift,\ LayerStyleOutline.swift,\ StylesSelfTest.swift,\ DocumentText.swift,\ TextInputView.swift,\ TextInspector.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Styles/LayerStyleEditors.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Styles/LayerStyleInspector.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Styles/LayerStyleMenus.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Styles/LayerStyleOutline.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Styles/StylesSelfTest.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Text/DocumentText.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Text/TextInputView.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Text/TextInspector.swift (in target 'Tessera' from project 'Tessera')
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Styles/LayerStyleEditors.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Styles/LayerStyleInspector.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Styles/LayerStyleMenus.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Styles/LayerStyleOutline.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Styles/StylesSelfTest.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Text/DocumentText.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Text/TextInputView.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Text/TextInspector.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftDriverJobDiscovery normal arm64 Compiling AssistController.swift, AssistPanels.swift, DefectSweepSheet.swift, FaceStripView.swift, AdjustmentEditors.swift, ChannelOverlay.swift, ChannelSheets.swift, ChannelsPanel.swift (in target 'Tessera' from project 'Tessera')
+
+SwiftCompile normal arm64 Compiling\ DocumentTransforms.swift,\ TransformOverlayView.swift,\ TransformSelfTest.swift,\ TransformViews.swift,\ DocumentVector.swift,\ ShapeViews.swift,\ VectorSelfTest.swift,\ ExportController.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Transforms/DocumentTransforms.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Transforms/TransformOverlayView.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Transforms/TransformSelfTest.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Transforms/TransformViews.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Vector/DocumentVector.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Vector/ShapeViews.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Vector/VectorSelfTest.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Export/ExportController.swift (in target 'Tessera' from project 'Tessera')
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Transforms/DocumentTransforms.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Transforms/DocumentTransforms.swift:676:21: warning: 'where' only applies to the second pattern match in this 'case'
+        case 36, 76 where mods.isEmpty || mods == [.command]: apply(); return true
+                 ~~ ^     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Transforms/DocumentTransforms.swift:676:18: note: disambiguate by adding a line break between them if this is desired
+        case 36, 76 where mods.isEmpty || mods == [.command]: apply(); return true
+                 ^
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Transforms/DocumentTransforms.swift:676:14: note: duplicate the 'where' on both patterns to check both patterns
+        case 36, 76 where mods.isEmpty || mods == [.command]: apply(); return true
+             ^~
+                where mods.isEmpty || mods == [.command]
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Transforms/DocumentTransforms.swift:678:22: warning: 'where' only applies to the second pattern match in this 'case'
+        case 51, 117 where mods.isEmpty:
+                 ~~~ ^     ~~~~~~~~~~~~
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Transforms/DocumentTransforms.swift:678:18: note: disambiguate by adding a line break between them if this is desired
+        case 51, 117 where mods.isEmpty:
+                 ^
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Transforms/DocumentTransforms.swift:678:14: note: duplicate the 'where' on both patterns to check both patterns
+        case 51, 117 where mods.isEmpty:
+             ^~
+                where mods.isEmpty
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Transforms/TransformOverlayView.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Transforms/TransformSelfTest.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Transforms/TransformSelfTest.swift:460:16: warning: value 'id' was defined but never used; consider replacing with boolean test
+        if let id = doc?.primary?.id {
+           ~~~~^~~~~
+           (                        ) != nil
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Transforms/TransformViews.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Vector/DocumentVector.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Vector/ShapeViews.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Document/Vector/VectorSelfTest.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Export/ExportController.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftDriverJobDiscovery normal arm64 Compiling ChannelsSelfTest.swift, DocumentChannels.swift, DocumentController+Adjustments.swift, DocumentController.swift, DocumentControls.swift, DocumentHistoryPanel.swift, DocumentSelfTest.swift, DocumentSheets.swift (in target 'Tessera' from project 'Tessera')
+
+SwiftCompile normal arm64 Compiling\ AISettingsView.swift,\ AgentController.swift,\ AgentPanels.swift,\ AgentReviewSheet.swift,\ AutoEditSheet.swift,\ AppCommands.swift,\ AppModel+Output.swift,\ AppModel.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Agent/AISettingsView.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Agent/AgentController.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Agent/AgentPanels.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Agent/AgentReviewSheet.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Agent/AutoEditSheet.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/App/AppCommands.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/App/AppModel+Output.swift /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/App/AppModel.swift (in target 'Tessera' from project 'Tessera')
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Agent/AISettingsView.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Agent/AgentController.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Agent/AgentPanels.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Agent/AgentReviewSheet.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/Agent/AutoEditSheet.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/App/AppCommands.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/App/AppModel+Output.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftCompile normal arm64 /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/Tessera/App/AppModel.swift (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    
+
+SwiftDriverJobDiscovery normal arm64 Compiling LayerStyleEditors.swift, LayerStyleInspector.swift, LayerStyleMenus.swift, LayerStyleOutline.swift, StylesSelfTest.swift, DocumentText.swift, TextInputView.swift, TextInspector.swift (in target 'Tessera' from project 'Tessera')
+
+SwiftDriverJobDiscovery normal arm64 Compiling DocumentTransforms.swift, TransformOverlayView.swift, TransformSelfTest.swift, TransformViews.swift, DocumentVector.swift, ShapeViews.swift, VectorSelfTest.swift, ExportController.swift (in target 'Tessera' from project 'Tessera')
+
+SwiftDriverJobDiscovery normal arm64 Compiling AISettingsView.swift, AgentController.swift, AgentPanels.swift, AgentReviewSheet.swift, AutoEditSheet.swift, AppCommands.swift, AppModel+Output.swift, AppModel.swift (in target 'Tessera' from project 'Tessera')
+
+SwiftDriver\ Compilation Tessera normal arm64 com.apple.xcode.tools.swift.compiler (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode
+    builtin-Swift-Compilation -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name Tessera -Onone -enforce-exclusivity\=checked @/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/Tessera.build/Objects-normal/arm64/Tessera.SwiftFileList -DSWIFT_PACKAGE -DDEBUG -Xcc -fmodule-map-file\=/Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Sources/CTesseraFFI/module.modulemap -DXcode -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk -target arm64-apple-macos15.0 -g -module-cache-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/ModuleCache.noindex -Xfrontend -serialize-debugging-options -profile-coverage-mapping -profile-generate -enable-testing -index-store-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 6 -I /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug -Isystem /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib -F /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/PackageFrameworks -F /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/PackageFrameworks -F /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug -F /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks -c -j16 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /Users/rutmehta/.cache/tessera-derived-data-B5-16/SDKStatCaches.noindex/macosx26.2-25C58-00fa09913b459cbbc988d1f6730289ae.sdkstatcache -output-file-map /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/Tessera.build/Objects-normal/arm64/Tessera-OutputFileMap.json -use-frontend-parseable-output -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/ModuleCache.noindex -sdk-module-cache-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/ModuleCache.noindex -serialize-diagnostics -emit-dependencies -emit-module -emit-module-path /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/Tessera.build/Objects-normal/arm64/Tessera.swiftmodule -validate-clang-modules-once -clang-build-session-file /Users/rutmehta/.cache/tessera-derived-data-B5-16/ModuleCache.noindex/Session.modulevalidation -package-name mac -emit-const-values -Xfrontend -const-gather-protocols-file -Xfrontend /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/Tessera.build/Objects-normal/arm64/Tessera_const_extract_protocols.json -Xcc -I/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/include -Xcc -I/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/Tessera.build/DerivedSources-normal/arm64 -Xcc -I/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/Tessera.build/DerivedSources/arm64 -Xcc -I/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/Tessera.build/DerivedSources -Xcc -DSWIFT_PACKAGE -Xcc -DDEBUG\=1 -working-directory /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/.swiftpm/xcode -experimental-emit-module-separately -disable-cmo
+
+Ld /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/Tessera normal (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -Xlinker -reproducible -target arm64-apple-macos15.0 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk -O0 -L/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/EagerLinkingTBDs/Debug -L/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug -L/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib -F/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/EagerLinkingTBDs/Debug -F/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/PackageFrameworks -F/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/PackageFrameworks -F/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug -iframework /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks -filelist /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/Tessera.build/Objects-normal/arm64/Tessera.LinkFileList -Xlinker -rpath -Xlinker /usr/lib/swift -Xlinker -rpath -Xlinker /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/PackageFrameworks -Xlinker -rpath -Xlinker @executable_path/../lib -Xlinker -object_path_lto -Xlinker /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/Tessera.build/Objects-normal/arm64/Tessera_lto.o -rdynamic -Xlinker -no_deduplicate -Xlinker -debug_variant -Xlinker -dependency_info -Xlinker /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/Tessera.build/Objects-normal/arm64/Tessera_dependency_info.dat -fobjc-link-runtime -fprofile-instr-generate -L/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/macosx -L/usr/lib/swift -Xlinker -add_ast_path -Xlinker /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/Tessera.build/Objects-normal/arm64/Tessera.swiftmodule @/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/Tessera.build/Objects-normal/arm64/Tessera-linker-args.resp -Wl,-no_warn_duplicate_libraries -Wl,-no_warn_duplicate_libraries /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/build/ffi/libtessera_ffi.a -framework Security -framework CoreFoundation -framework Foundation -framework ImageCaptureCore -lc++ -lz -framework Sparkle -framework Sparkle -o /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/Tessera -Xlinker -add_ast_path -Xlinker /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraFFI.build/Objects-normal/arm64/TesseraFFI.swiftmodule @/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraFFI.build/Objects-normal/arm64/TesseraFFI-linker-args.resp -Xlinker -add_ast_path -Xlinker /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/Objects-normal/arm64/TesseraCore.swiftmodule @/Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Intermediates.noindex/Tessera.build/Debug/TesseraCore.build/Objects-normal/arm64/TesseraCore-linker-args.resp
+
+RegisterExecutionPolicyException /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/Tessera (in target 'Tessera' from project 'Tessera')
+    cd /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac
+    builtin-RegisterExecutionPolicyException /Users/rutmehta/.cache/tessera-derived-data-B5-16/Build/Products/Debug/Tessera
+
+** BUILD SUCCEEDED **
+

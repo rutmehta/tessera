@@ -215,3 +215,21 @@ Generated FFI output remains unchanged. Xcode and fresh packaged self-tests are
 in progress. B still owns its heavy slot. **B5-16 is not fully accepted**: app
 self-tests and outstanding interactive checks must be recorded separately.
 A's newer export/Review source on main is outside this exact gate baseline.
+
+### Fresh app verification running — 2026-09-27 18:58 UTC
+
+Xcode Debug passed. Release bundle at `2dc358d` (product `8184da1`) passed
+signature and provenance verification. Runner capture-request support was added
+before launch for Text/Transform; all eight runner tests pass. Nine required
+background self-tests now run sequentially in one owned Python process, PID
+76603 at launch, tool session50559. Do not duplicate while that process lives.
+Log: `/tmp/tessera-b516-app-selftests.log`; evidence root:
+`evidence/2026-09-27-app-selftests/tessera-b516-selftests-fo1la60e/`.
+Scratch outputs are under the system temporary directory with that same name.
+The first Document test launched the exact bundle directly, reached real document
+frames and passed Stack/Properties/Channels shortcut checks. The suite is not
+complete; collect each exact result and retained stderr before claiming success.
+B's heavy slot stays reserved for this serial suite. Next heartbeat should
+inspect that process and logs first, not rebuild/relaunch. Do not edit/repackage
+this app until the suite ends. A status `8dd65b7d` was accepted/completed; newer
+main export/Review integration is acknowledged and outside the tested baseline.

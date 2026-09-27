@@ -5,7 +5,7 @@ import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
-from selftest_runner import validate_log, run_test, TESTS, main
+from selftest_runner import validate_log, run_test, capture_requests, TESTS, main
 
 
 class SelfTestRunnerTests(unittest.TestCase):
@@ -13,7 +13,7 @@ class SelfTestRunnerTests(unittest.TestCase):
         self.assertEqual(validate_log('document-selftest: check opened ok\ndocument-selftest: done, 0 failure(s)\n', 'document-selftest', 0), [])
 
     def test_failures_cannot_hide_behind_zero_summary(self):
-        for failure in ['check saved FAIL', 'FAIL library did not load', 'Warp did not start']:
+        for failure in ['check saved FAIL', 'FAIL library did not load', 'Warp did not start', 'shot example (no watcher)']:
             with self.subTest(failure=failure):
                 self.assertTrue(validate_log(f'document-selftest: {failure}\ndocument-selftest: done, 0 failure(s)\n', 'document-selftest', 0))
 
@@ -30,6 +30,31 @@ class SelfTestRunnerTests(unittest.TestCase):
 
     def test_transform_is_in_default_suite(self):
         self.assertIn('transform', TESTS)
+
+    def test_requested_window_capture_acknowledges_only_success(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            output = root / 'output'; output.mkdir()
+            evidence = root / 'evidence'; evidence.mkdir()
+            (output / '381-warp.req').write_text('123')
+            seen = set()
+            def capture(command, **kwargs):
+                self.assertEqual(command[:5], ['screencapture', '-x', '-o', '-l', '123'])
+                Path(command[-1]).write_bytes(b'captured window')
+                return subprocess.CompletedProcess(command, 0, '', '')
+            with patch('selftest_runner.subprocess.run', side_effect=capture) as run:
+                self.assertEqual(capture_requests(output, evidence, seen), [])
+                self.assertEqual((output / '381-warp.png').read_bytes(), b'captured window')
+                self.assertEqual(capture_requests(output, evidence, seen), [])
+                self.assertEqual(run.call_count, 1)
+            (output / '382-failed.req').write_text('123')
+            with patch('selftest_runner.subprocess.run', return_value=subprocess.CompletedProcess([], 1, '', 'capture failed')):
+                self.assertTrue(capture_requests(output, evidence, seen))
+                self.assertFalse((output / '382-failed.png').exists())
+            (output / '383-invalid.req').write_text('not a window')
+            with patch('selftest_runner.subprocess.run') as run:
+                self.assertTrue(capture_requests(output, evidence, seen))
+                run.assert_not_called()
 
     def test_default_suite_and_failure_exit_from_another_checkout(self):
         with tempfile.TemporaryDirectory() as temp:
