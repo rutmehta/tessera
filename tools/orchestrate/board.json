@@ -1227,7 +1227,15 @@
     "id": "M2-50",
     "owner": "opus",
     "title": "Photo Merge + Enhance UI",
-    "status": "todo",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-51",
+    "owner": "opus",
+    "title": "Enable AI Denoise + Lens Blur, downloads, Guided uncorrected, export warnings",
+    "status": "running",
     "attempts": 0,
     "notes": ""
   }
