@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import TesseraCore
 
@@ -110,5 +111,137 @@ struct ExportFlatSheet: View {
         }
         .frame(width: 460, height: 320)
         .onAppear { settings = workspace.exportSettings }
+    }
+}
+
+/// One Save As in progress: the document, the file name and folder the sheet edits.
+struct SaveAsRequest: Identifiable {
+    enum Format: String, CaseIterable, Identifiable {
+        case tessera = "tessera-doc", psd, psb
+        var id: String { rawValue }
+        var title: String {
+            switch self {
+            case .tessera: "Tessera Document"
+            case .psd: "Photoshop (PSD)"
+            case .psb: "Large Document (PSB)"
+            }
+        }
+    }
+
+    let id = UUID()
+    let doc: DocumentController
+    var name: String
+    var folder: URL
+    var then: (@MainActor () -> Void)?
+
+    /// The format the name's extension asks for (`.tessera-doc` when it has none).
+    var format: Format { Self.format(of: name) }
+    /// The file name with an extension: one of ours is kept, anything else gets `.tessera-doc`.
+    var fileName: String { Self.fileName(name) }
+    var url: URL { folder.appendingPathComponent(fileName) }
+    var isValid: Bool {
+        let stem = (fileName as NSString).deletingPathExtension.trimmingCharacters(in: .whitespaces)
+        return !stem.isEmpty && !fileName.contains("/") && !fileName.hasPrefix(".")
+    }
+
+    static func format(of name: String) -> Format {
+        Format(rawValue: (name as NSString).pathExtension.lowercased()) ?? .tessera
+    }
+
+    static func fileName(_ name: String) -> String {
+        let n = name.trimmingCharacters(in: .whitespaces)
+        return Format(rawValue: (n as NSString).pathExtension.lowercased()) != nil ? n : n + ".tessera-doc"
+    }
+
+    /// `<title stem>.<ext>`: the current file's extension for a PSD / PSB, else `.tessera-doc`.
+    static func defaultName(_ title: String, path: String?) -> String {
+        let ext = path.map { ($0 as NSString).pathExtension.lowercased() } ?? ""
+        let format = Format(rawValue: ext) ?? .tessera
+        return (title as NSString).deletingPathExtension + "." + format.rawValue
+    }
+
+    /// `name` with its extension switched to `format`.
+    static func renamed(_ name: String, to format: Format) -> String {
+        let n = name.trimmingCharacters(in: .whitespaces)
+        let stem = Format(rawValue: (n as NSString).pathExtension.lowercased()) != nil ? (n as NSString).deletingPathExtension : n
+        return stem + "." + format.rawValue
+    }
+}
+
+/// File ▸ Save As…: name (focused on open, `document.saveAs.name`), format and folder.
+struct SaveAsSheet: View {
+    @Bindable var workspace: DocumentWorkspace
+    @State var request: SaveAsRequest
+    @FocusState private var nameFocused: Bool
+
+    var body: some View {
+        SheetScaffold(title: "Save As", subtitle: request.doc.title) {
+            EmptyView()
+        } content: {
+            Form {
+                TextField("Name", text: $request.name)
+                    .focused($nameFocused)
+                    .onSubmit { if request.isValid { save() } }
+                    .accessibilityIdentifier("document.saveAs.name")
+                Picker("Format", selection: Binding(get: { request.format },
+                                                    set: { request.name = SaveAsRequest.renamed(request.name, to: $0) })) {
+                    ForEach(SaveAsRequest.Format.allCases) { Text($0.title).tag($0) }
+                }
+                .accessibilityIdentifier("document.saveAs.format")
+                LabeledContent("Where") {
+                    HStack(spacing: Theme.Space.s) {
+                        Text(request.folder.path)
+                            .font(Theme.Fonts.caption)
+                            .foregroundStyle(Theme.textSecondary)
+                            .lineLimit(1).truncationMode(.head)
+                            .help(request.folder.path)
+                            .accessibilityIdentifier("document.saveAs.folder")
+                        Button("Choose…") { chooseFolder() }
+                            .buttonStyle(.theme(.bordered, height: Theme.Height.small))
+                            .accessibilityIdentifier("document.saveAs.choose")
+                    }
+                }
+                if request.format != .tessera {
+                    Hint("PSD and PSB keep layers, masks and adjustment layers; fill layers and native-only adjustments need a Tessera document.")
+                }
+                if !request.isValid {
+                    StatusLine(text: "Enter a file name", kind: .error)
+                }
+            }
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
+        } leading: {
+            EmptyView()
+        } actions: {
+            Button("Cancel") { workspace.saveAsRequest = nil }
+                .keyboardShortcut(.cancelAction).sheetButton()
+                .accessibilityIdentifier("document.saveAs.cancel")
+            Button("Save") { save() }
+                .keyboardShortcut(.defaultAction)
+                .sheetButton(primary: true)
+                .disabled(!request.isValid)
+                .accessibilityIdentifier("document.saveAs.save")
+        }
+        .frame(width: 520, height: 330)
+        .onAppear {
+            // The field takes the keyboard as the sheet opens (after SwiftUI installs it).
+            DispatchQueue.main.async { MainActor.assumeIsolated { nameFocused = true } }
+        }
+    }
+
+    private func save() {
+        guard request.isValid else { return }
+        workspace.finishSaveAs(request)
+    }
+
+    private func chooseFolder() {
+        let panel = NSOpenPanel()
+        panel.title = "Choose a Folder"
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.canCreateDirectories = true
+        panel.directoryURL = request.folder
+        panel.prompt = "Choose"
+        if panel.runModal() == .OK, let url = panel.url { request.folder = url }
     }
 }

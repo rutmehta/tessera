@@ -85,6 +85,9 @@ struct ContentView: View {
         .sheet(isPresented: Binding(get: { model.documents.showExportFlat }, set: { model.documents.showExportFlat = $0 })) {
             ExportFlatSheet(workspace: model.documents)
         }
+        .sheet(item: Binding(get: { model.documents.saveAsRequest }, set: { model.documents.saveAsRequest = $0 })) { r in
+            SaveAsSheet(workspace: model.documents, request: r)
+        }
         .sheet(isPresented: $model.showDefectSweep) {
             DefectSweepSheet(model: model)
         }

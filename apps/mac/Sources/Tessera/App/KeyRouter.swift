@@ -42,12 +42,28 @@ final class KeyRouter {
     }
 
     private func shouldIgnore(_ event: NSEvent) -> Bool {
-        guard let window = event.window else { return true }
-        if window is NSPanel || window.attachedSheet != nil || window.sheetParent != nil || NSApp.modalWindow != nil { return true }
-        if window.firstResponder is NSText || window.firstResponder is NSTextField ||
-            window.firstResponder is KeyOwningControl { return true }
+        if isBusyWindow(event) { return true }
         let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         return mods.contains(.command) || mods.contains(.control)
+    }
+
+    /// No window, a panel / sheet / modal is up, or a text field or key-owning control has focus.
+    private func isBusyWindow(_ event: NSEvent) -> Bool {
+        guard let window = event.window else { return true }
+        if window is NSPanel || window.attachedSheet != nil || window.sheetParent != nil || NSApp.modalWindow != nil { return true }
+        return window.firstResponder is NSText || window.firstResponder is NSTextField || window.firstResponder is KeyOwningControl
+    }
+
+    /// ⌘E outside document mode is Library ▸ Edit in Layers (B5-v step 144). It is routed here rather than
+    /// left to the menu: the menu's ⌘E is also Layer ▸ Merge Down, and SwiftUI swaps the key equivalent
+    /// between the two items when the mode changes; a stale menu item left ⌘E doing nothing in the grid.
+    func handleEditInLayers(_ event: NSEvent) -> Bool {
+        guard model.viewMode != .document, model.source != .people, !isBusyWindow(event),
+              event.modifierFlags.intersection([.command, .shift, .option, .control]) == .command,
+              event.charactersIgnoringModifiers?.lowercased() == "e" else { return false }
+        guard model.documents.opening == nil else { return true }
+        model.documents.editInLayers(model.focusedItem)
+        return true
     }
 
     /// Space released: the document viewport stops panning.
@@ -59,6 +75,7 @@ final class KeyRouter {
     }
 
     func handle(_ event: NSEvent) -> Bool {
+        if handleEditInLayers(event) { return true }
         if shouldIgnore(event) { return false }
         if model.viewMode == .document { return handleDocument(event) }
         // The People view owns its keys (name fields, Esc); culling keys would act on a hidden photo.

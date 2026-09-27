@@ -171,7 +171,7 @@ final class DocumentController: Identifiable {
         }
     }
 
-    func addAdjustment(_ kind: AdjustmentModel.Kind) { addLayer(.adjustment(json: kind.neutral.json)) }
+    func addAdjustment(_ kind: AdjustmentModel.Kind) { addLayer(.adjustment(json: initialAdjustment(kind).json)) }
 
     func addFill(_ kind: FillModel.Kind) {
         addLayer(.fill(json: FillModel.neutral(kind, width: Double(info.width), height: Double(info.height)).json))

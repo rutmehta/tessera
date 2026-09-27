@@ -2027,7 +2027,8 @@ fn adjustment_title(a: &Adjustment) -> &'static str {
         Adjustment::Auto { .. } => "Auto",
         Adjustment::MatchColor { .. } => "Match Color",
         Adjustment::ReplaceColor { .. } => "Replace Color",
-        _ => "Adjustment",
+        Adjustment::Desaturate => "Desaturate",
+        Adjustment::HdrToning { .. } => "HDR Toning",
     }
 }
 

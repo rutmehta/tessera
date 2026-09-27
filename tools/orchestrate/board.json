@@ -1174,5 +1174,13 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "B5-06",
+    "owner": "opus",
+    "title": "B5-v fixes and editors for the new adjustment layers",
+    "status": "pass",
+    "attempts": 0,
+    "notes": "machine B; wp/B5-06 merged with main 923aad8; 224 XCTest; grid \u2318E hardened (not reproduced); own Save As sheet with document.saveAs.name"
   }
 ]

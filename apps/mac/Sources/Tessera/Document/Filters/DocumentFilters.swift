@@ -155,16 +155,36 @@ final class DocumentFilters {
             doc.report?("\(kind.title): select a pixel layer (use an adjustment layer for other layers)")
             return
         }
-        if kind == .invert {
-            applyAdjustment(kind.neutral, layer: p.id, doc)
+        // WP B5-06: Invert, Desaturate and Equalize apply at once (Equalize measured on the layer); Match Color
+        // opens with its statistics from another pixel layer.
+        if kind.appliesDirectly {
+            applyAdjustment(doc.analyzed(kind.neutral, samples: kind == .equalize ? doc.layerSamples(p.id) : []), layer: p.id, doc)
             return
         }
-        adjustmentSheet = AdjustmentSheetModel(doc: doc, layer: p, model: kind.neutral)
+        var model = kind.neutral
+        if kind == .matchColor, let source = doc.defaultMatchSource(excluding: p.id),
+           let m = AdjustmentAnalysis.matchColor(sourceLayer: source, source: doc.layerSamples(source),
+                                                 target: doc.layerSamples(p.id), neutralize: false) {
+            model = .matchColor(m)
+        }
+        adjustmentSheet = AdjustmentSheetModel(doc: doc, layer: p, model: model)
     }
 
-    func applyAdjustment(_ model: AdjustmentModel, layer: DocLayerID, _ doc: DocumentController) {
+    /// Image ▸ Auto Tone / Auto Contrast / Auto Color (WP B5-06): measured on the selected pixel layer, applied at once.
+    func applyAuto(_ mode: AutoModeModel, _ doc: DocumentController) {
+        guard busy == nil else { return }
+        guard let p = doc.primary, p.kind == .pixel else {
+            doc.report?("\(mode.title): select a pixel layer (use an Auto adjustment layer for other layers)")
+            return
+        }
+        let model = doc.analyzed(.auto(AutoAdjustmentModel(mode: mode, black: [0, 0, 0], white: [1, 1, 1], gamma: [1, 1, 1])),
+                                 samples: doc.layerSamples(p.id))
+        applyAdjustment(model, layer: p.id, doc, title: mode.title)
+    }
+
+    func applyAdjustment(_ model: AdjustmentModel, layer: DocLayerID, _ doc: DocumentController, title: String? = nil) {
         guard let backend = Self.backend(doc), busy == nil else { return }
-        let json = model.json, title = model.kind.title
+        let json = model.json, title = title ?? model.kind.title
         busy = "Applying \(title)…"
         doc.report?(busy ?? "")
         Task { @MainActor [weak self] in

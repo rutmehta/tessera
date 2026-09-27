@@ -1,4 +1,5 @@
 import Foundation
+import simd
 
 /// CPU compositor of the stub backend: the layer tree compiled once per render (JSON parsed,
 /// LUTs built), then evaluated per pixel. Accumulates premultiplied RGBA (COMPOSITOR.md §2.1).
@@ -270,7 +271,97 @@ struct StubCompositor: Sendable {
                 }
                 return mono ? SIMD3(repeating: row(0)) : SIMD3(row(0), row(1), row(2))
             case .levels, .curves: return c
+            // WP B5-06: the pointwise M5-26 kinds follow adjust.rs; the stub leaves Vibrance, Selective Color, Match
+            // Color and the neighbourhood / HDR operators as the identity (the engine renders them).
+            case .brightnessContrast(let b0, let k0, let legacy):
+                let b = Float(min(max(b0, -150), 150) / 150), k = Float(min(max(k0, -100), 100) / 100)
+                func f(_ v0: Float) -> Float {
+                    if legacy { return min(max((v0 - 0.5) * (1 + k) + 0.5 + b, 0), 1) }
+                    let v = min(max(v0, 0), 1), t = min(max(v + b * v * (1 - v), 0), 1), p = powf(2, k)
+                    let x = powf(t, p), y = powf(1 - t, p)
+                    return x + y > 0 ? x / (x + y) : t
+                }
+                return SIMD3(f(c.x), f(c.y), f(c.z))
+            case .colorBalance(let m):
+                let y = min(max(Self.luma(c), 0), 1)
+                let w = SIMD3<Float>((1 - y) * (1 - y), 2 * y * (1 - y), y * y)
+                func off(_ i: Int) -> Float { (w.x * Float(m.shadows[i]) + w.y * Float(m.midtones[i]) + w.z * Float(m.highlights[i])) / 100 }
+                let o = SIMD3(c.x + off(0), c.y + off(1), c.z + off(2))
+                return m.preserveLuminosity ? Self.preserveLuma(o, y) : simd_clamp(o, .zero, .one)
+            case .blackWhite(let sliders, let tint):
+                let h = Self.hsl(c).x * 6, i = Int(h) % 6, f = h - floorf(h)
+                let mx = max(c.x, c.y, c.z), mn = min(c.x, c.y, c.z)
+                let y = min(max(mn + (mx - mn) * (Float(sliders[i]) * (1 - f) + Float(sliders[(i + 1) % 6]) * f) / 100, 0), 1)
+                guard let tint, tint.count == 3 else { return SIMD3(repeating: y) }
+                let t = Self.hsl(SIMD3(Float(tint[0]), Float(tint[1]), Float(tint[2])))
+                return Self.rgb(SIMD3(t.x, t.y, y))
+            case .photoFilter(let color, let density, let preserve):
+                let d = Float(min(max(density / 100, 0), 1))
+                let fc = SIMD3(Float(color[0]), Float(color[1]), Float(color[2]))
+                let o = c * (SIMD3(repeating: 1 - d) + d * simd_clamp(fc, .zero, .one))
+                return preserve ? Self.preserveLuma(o, Self.luma(c)) : o
+            case .gradientMap(let m):
+                var t = min(max(Self.luma(c), 0), 1)
+                if m.reverse { t = 1 - t }
+                let stops = m.stops.filter { $0.count == 4 }.sorted { $0[0] < $1[0] }
+                guard let first = stops.first, let last = stops.last else { return SIMD3(repeating: t) }
+                func rgb(_ s: [Double]) -> SIMD3<Float> { SIMD3(Float(s[1]), Float(s[2]), Float(s[3])) }
+                if Double(t) <= first[0] { return rgb(first) }
+                for i in 1..<stops.count where Double(t) <= stops[i][0] {
+                    let f = Float((Double(t) - stops[i - 1][0]) / max(stops[i][0] - stops[i - 1][0], 1e-9))
+                    return rgb(stops[i - 1]) + (rgb(stops[i]) - rgb(stops[i - 1])) * f
+                }
+                return rgb(last)
+            case .desaturate: return SIMD3(repeating: Self.hsl(c).z)
+            case .equalize(let maps):
+                func f(_ m: [Double], _ v: Float) -> Float {
+                    guard m.count >= 2 else { return v }
+                    let x = min(max(v, 0), 1) * Float(m.count - 1), i = min(Int(x), m.count - 2), t = x - Float(i)
+                    return Float(m[i]) + Float(m[i + 1] - m[i]) * t
+                }
+                return SIMD3(f(maps[0], c.x), f(maps[1], c.y), f(maps[2], c.z))
+            case .auto(let m):
+                func f(_ i: Int, _ v: Float) -> Float {
+                    var l = LevelsChannelModel()
+                    l.inBlack = m.black[i]; l.inWhite = m.white[i]; l.gamma = m.gamma[i]
+                    return Float(l.apply(Double(v)))
+                }
+                return SIMD3(f(0, c.x), f(1, c.y), f(2, c.z))
+            case .replaceColor(let color, let fuzz, let hue, let sat, let light):
+                let sel = SIMD3(Float(color[0]), Float(color[1]), Float(color[2]))
+                let dist = simd_length(c - sel) / Float(3).squareRoot()
+                let radius = Float(min(max(fuzz / 200, 0), 1))
+                let w: Float = radius <= 0 ? (dist <= 1e-7 ? 1 : 0) : min(max(1 - dist / radius, 0), 1)
+                let o = Adjust(.hueSaturation(hue: hue, saturation: sat, lightness: light, colorize: false)).apply(c)
+                return c + w * (o - c)
+            case .colorLookup(let size, let data):
+                guard size >= 2, data.count == 3 * size * size * size else { return c }
+                let n = size, x = simd_clamp(c, .zero, .one) * Float(n - 1)
+                let lo = SIMD3<Int>(min(Int(x.x), n - 2), min(Int(x.y), n - 2), min(Int(x.z), n - 2))
+                let f = x - SIMD3<Float>(Float(lo.x), Float(lo.y), Float(lo.z))
+                var o = SIMD3<Float>.zero
+                for b in 0..<2 { for g in 0..<2 { for r in 0..<2 {
+                    let w = (r == 0 ? 1 - f.x : f.x) * (g == 0 ? 1 - f.y : f.y) * (b == 0 ? 1 - f.z : f.z)
+                    let k = 3 * (lo.x + r + n * (lo.y + g + n * (lo.z + b)))
+                    o += w * SIMD3(Float(data[k]), Float(data[k + 1]), Float(data[k + 2]))
+                } } }
+                return o
+            case .vibrance, .selectiveColor, .matchColor, .shadowsHighlights, .hdrToning: return c
             }
+        }
+
+        static func luma(_ c: SIMD3<Float>) -> Float { 0.299 * c.x + 0.587 * c.y + 0.114 * c.z }
+
+        /// adjust.rs `preserve_luma`: scale to luma `y`, then contract towards gray to fit the gamut.
+        static func preserveLuma(_ c0: SIMD3<Float>, _ y0: Float) -> SIMD3<Float> {
+            let y = min(max(y0, 0), 1), old = luma(c0)
+            guard abs(old) >= 1e-8 else { return SIMD3(repeating: y) }
+            let c = c0 * (y / old)
+            var scale: Float = 1
+            for v in [c.x, c.y, c.z] {
+                if v > 1 { scale = min(scale, (1 - y) / (v - y)) } else if v < 0 { scale = min(scale, y / (y - v)) }
+            }
+            return SIMD3(repeating: y) + (c - SIMD3(repeating: y)) * scale
         }
 
         static func hsl(_ c: SIMD3<Float>) -> SIMD3<Float> {
