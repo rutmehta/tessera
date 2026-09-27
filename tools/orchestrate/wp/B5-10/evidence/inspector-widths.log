@@ -1,0 +1,19 @@
+text-selftest: waiting for a document
+text-selftest: check 341 T selects Type ok
+text-selftest: check 341 click starts a session ok
+text-selftest: check 341 point text layer created ok
+text-selftest: check 341 text ok
+text-selftest: check 340 split view fits the 1440 pt window ok
+text-selftest: shot 340-inspector-1440 window 16713 1440 × 850
+text-selftest: initial window 1440
+text-selftest: check 340 split view fits the 1280 pt window ok
+text-selftest: shot 340-inspector-1280 window 16713 1280 × 850
+text-selftest: check 340 split view fits the 1366 pt window ok
+text-selftest: shot 340-inspector-1366 window 16713 1366 × 850
+text-selftest: check 340 split view fits the 1440 pt window ok
+text-selftest: shot 340-inspector-1440 window 16713 1440 × 850
+text-selftest: check 340 split view fits the 1512 pt window ok
+text-selftest: shot 340-inspector-1512 window 16713 1512 × 850
+text-selftest: check 340 split view fits the 1600 pt window ok
+text-selftest: shot 340-inspector-1600 window 16713 1600 × 850
+text-selftest: done, 0 failure(s)

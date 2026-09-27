@@ -323,6 +323,11 @@ struct LayerMenu: View {
         // B5-07 begin
         LayerStyleMenu(doc: doc)
         // B5-07 end
+        // B5-10 begin: Layer ▸ Rasterize ▸ Type (one node; undo restores the editable text).
+        Divider()
+        Button("Convert Text to Pixels") { if let doc { DocumentText.shared.convertToPixels(doc) } }
+            .disabled(primary?.kind != .text)
+        // B5-10 end
         Divider()
         Button("Merge Down") { doc?.mergeDown() }
             .shortcut(doc != nil, "e", .command)   // ⌘E is Edit in Layers outside document mode (B5-06)

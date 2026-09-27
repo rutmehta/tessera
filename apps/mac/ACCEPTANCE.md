@@ -1831,3 +1831,93 @@ PASS when steps 300–314 meet their expectations. Frame times on styled documen
 | `document.globalLight` (panel) · `document.globalLight.dial` · `.angle` · `.altitude` · `.done` | Global Light panel |
 | `document.layers.addStyle` · `document.layers.fx.<layer>` · `document.layers.effect.<layer>.<index>` · `.visibility` · `.name` | Layers panel fx button, glyph and effect rows |
 | `document.properties.style.<index>` · `document.properties.style.edit` | Properties summary |
+
+## B5-10. Type tool and text layers
+
+Engine backend (not `--stub-library`), a 20 MP scratch image (`sips -s format png fixtures/raw/sample.dng --out
+src.png && sips -z 3648 5472 src.png --out photo20mp.png`, a copy, never the fixture) opened with
+`apps/mac/build/Tessera.app --app-dir "$SCR/appdir" --open-document "$SCR/photo20mp.png"`. Inspector shown, the
+Properties, Layers, Channels and History sections expanded. Fonts are the installed system fonts (Helvetica).
+
+340. **Inspector at 1440 pt.** Window 1440 × 850 pt (also 1280, 1366, 1512): the sidebar's left edge and the
+     inspector's right edge are inside the window; Properties (Name field, Character), Layers (Opacity and Fill values,
+     filter field), Channels (lock glyphs) and History rows are fully visible or reachable by scrolling Properties.
+     No right edge is clipped. The inspector column keeps its 288 pt minimum; the canvas shrinks instead.
+341. **Point text.** Press T (or click the palette's Aa): the options bar shows the font, size, alignment and the hint.
+     Click the canvas: a caret appears with its baseline at the click; type `Hello World`; Enter (keypad) or ⌘Return
+     applies: one History row `Add Text`, a `Hello World` text row (Aa glyph) selected.
+342. **Area text.** Drag a rectangle: a dashed box with eight handles; typed text wraps inside its width.
+343. **Selection and mixed runs.** Click into text to resume editing; drag across words selects them (accent
+     highlight following the glyphs); typing replaces the selection; ⌫ / ⌦ delete across differently styled runs.
+344. **Character.** With a selection, change Font, Style (weight / italic), Size and Color in Properties ▸ Character:
+     only the selected characters change; one History row per change (`Font: …`, `Font Style`, `Font Size`,
+     `Text Color`); runs outside the selection are unchanged. With a caret only, the change applies to the next
+     typed text (Hint says so).
+345. **Tracking, leading, baseline.** Drag the Tracking, Leading and Baseline shift sliders: the text updates live;
+     each release adds exactly one History row (`Tracking`, `Leading`, `Baseline Shift`); ⌘Z undoes one each.
+346. **Paragraph.** Alignment (left / center / right / justify), indents and space before / after update the layout;
+     run styles and the point / area geometry are unchanged.
+347. **Resize the box.** Drag an area box handle: the text rewraps (overflow when too short), glyphs keep their size
+     (no bitmap stretching); release adds `Resize Text Box`.
+348. **Caret alignment.** At Fit, 100 % and 200 % with panning, and after ⌘-dragging outside the frame to rotate the
+     layer (⌘-drag inside moves it), the caret and selection sit on the rendered glyph edges.
+349. **Clusters.** Type `office` (the ffi ligature is one caret stop), `e` + combining acute, `𝐀` (U+1D400) and a
+     skin-toned emoji: arrows and ⌫ never stop inside a ligature, a mark or a surrogate pair; ⌫ removes the emoji whole.
+350. **Bidi.** Type `abc `, Hebrew `אבג`, ` def`: the Hebrew renders right to left; clicking the right half of a Hebrew
+     letter places the caret before it (its visual right edge); replacing it keeps the surrounding source intact.
+351. **IME.** With a Japanese (Kana / Romaji) input source: typing `ka` shows underlined marked text `か` on canvas and
+     the candidate window below it; Esc cancels (no text, no History row); committing `漢` then Enter adds one History
+     row; ⌘Z removes the whole composition.
+352. **Keys stay in the text.** While editing, T V X D Q, digits, Space and ⌫ type or delete text: the tool, the
+     colours, layer opacity and the layer list do not change. ⌘A selects all text, ⌘C / ⌘V copy and paste text,
+     ⌘Z reverts the typing since the last change.
+353. **Typing group.** Type a word and apply: one History row; ⌘Z restores the exact previous text and styles,
+     ⇧⌘Z the typed version.
+354. **Cancel and switch.** Start new text, type, press Esc: the draft layer disappears, no History row. Switch to
+     another document tab and back: no caret, no draft, History unchanged.
+355. **Locks.** Lock pixels (or all): typing into the layer is rejected with a status message and no change. Lock
+     position only: typing works, ⌘-drag moves are rejected.
+356. **Convert to Pixels.** Add a mask to a styled text layer, Layer ▸ Convert Text to Pixels (or Properties ▸
+     Convert to Pixels): the row becomes a pixel layer with the same name, mask and look; one History row
+     `Convert to Pixels`; ⌘Z restores the editable text.
+357. **Native reopen.** Save As `Text.tessera-doc`, close, reopen: text rows are editable (click with T, type).
+358. **PSD reopen.** Save As `Text.psd`, close, reopen: mixed-style text stays editable with its runs; a layer
+     converted to pixels before saving comes back as pixels (no stale type).
+359. **Limitations.** A warped layer shows `Warped text: … canvas caret placement is disabled` and a Source text
+     field instead of a canvas caret; a layer using a missing family shows `Missing font “…”` (no substitution);
+     Display P3 / 32-bit documents show the Colour note (text colours are sRGB bytes, not colour-managed). Vertical
+     text and dictionary hyphenation are reported unsupported. Screenshot the inspector at 1440 pt again.
+
+Scripted run (steps 340–359 except a real IME input source, which uses `NSTextInputClient` calls):
+
+```sh
+open -n apps/mac/build/Tessera.app --env TESSERA_TEXT_SELFTEST="$SCR/out" --stderr "$SCR/text.log" \
+  --args --app-dir "$SCR/appdir" --open-document "$SCR/photo20mp.png"
+```
+
+Each shot writes `$SCR/out/<step>.req` (a `screencapture -R` rectangle of the Tessera window) and waits for
+`<step>.png` from an external watcher; expect every `check … ok`, `latency …` and `done, 0 failure(s)`.
+
+## Verdict (B5-10 Type tool and text layers)
+
+PASS when steps 340–359 meet their expectations. Known limitations: no canvas caret on warped, path or vertical text
+(Source text editor instead); vertical composition and dictionary hyphenation unsupported; no font fallback (missing
+fonts are errors); live text colours are sRGB bytes written into the document's samples (no colour management);
+arrow keys move logically through bidi text (clicks and carets are visual); paragraph settings apply to the whole
+layer; scale / skew of a text layer's affine is not offered on canvas (move and rotate are).
+
+## Appendix: accessibility identifiers (B5-10)
+
+| Identifier | Element |
+| --- | --- |
+| `document.text.family` / `document.text.style` | Character font family and style pop-ups |
+| `document.text.size`, `.leading`, `.tracking`, `.baselineShift` | Character sliders |
+| `document.text.color`, `document.text.kerning` | Colour well, kerning checkbox |
+| `document.text.alignment` | Paragraph alignment segments |
+| `document.text.leftIndent`, `.rightIndent`, `.firstLineIndent`, `.spaceBefore`, `.spaceAfter` | Paragraph sliders |
+| `document.text.toggleBox` | Convert to Point / Paragraph Text |
+| `document.text.source` | Source text field (warped / path / vertical text) |
+| `document.text.limitation` | A limitation note |
+| `document.text.apply`, `document.text.optionsApply` | Apply (inspector, options bar) |
+| `document.text.convert` | Convert to Pixels |
+| `document.option.textSize`, `document.text.latency` | Options bar size field, typing latency readout |

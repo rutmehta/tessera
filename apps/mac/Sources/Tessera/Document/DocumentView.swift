@@ -45,6 +45,7 @@ struct DocumentView: View {
         .modifier(ChannelSheetsModifier(channels: DocumentChannels.shared))
         // B5-08 end
         .modifier(RetouchSheets(retouch: DocumentRetouch.shared))   // B5-09
+        .onAppear { DocumentText.shared.attach(workspace) }   // B5-10: the Type tool
     }
 }
 
@@ -224,7 +225,8 @@ struct DocumentStatusBar: View {
                 if let doc = workspace.current {
                     let i = doc.info
                     Text("\(i.width) × \(i.height) px · \(i.depth.title) · \(i.profileName ?? "Untagged (sRGB)")")
-                        .foregroundStyle(Theme.textPrimary).fixedSize()
+                        .foregroundStyle(Theme.textPrimary)
+                        .lineLimit(1).truncationMode(.middle).layoutPriority(1)   // B5-10: truncates in narrow windows
                         .accessibilityIdentifier("document.status.canvas")
                     separator
                     Text(DocumentViewportMath.percentText(doc.zoom)).fixedSize()

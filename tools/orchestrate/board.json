@@ -1302,5 +1302,21 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "B5-10",
+    "owner": "opus",
+    "title": "Editable Type tool, Character/Paragraph, 1440-pt inspector fix",
+    "status": "pass",
+    "attempts": 0,
+    "notes": "machine B; wp/B5-10 merged with main 1cd02b3; document/text.rs; 295 XCTest; typing 1.07 s median at 20 MP until M5-34"
+  },
+  {
+    "id": "B5-10b",
+    "owner": "opus",
+    "title": "One font snapshot for every document compositor; channel thumbnails",
+    "status": "pass",
+    "attempts": 0,
+    "notes": "machine B; wp/B5-10b = wp/B5-10 + fonts.rs helper; black thumbnails = missing-font error swallowed by try?; engine font gaps in NEEDS.md"
   }
 ]

@@ -1063,7 +1063,7 @@ impl Default for FilterState {
                 cv: Condvar::new(),
             }),
             worker: Mutex::new(None),
-            comp: Arc::new(Compositor::new(256 << 20)),
+            comp: Arc::new(super::fonts::compositor(256 << 20)), // B5-10b
             detail: Mutex::new(None),
             mask_thumbs: Mutex::new(HashMap::new()),
             apply_cancel: Mutex::new(Arc::new(AtomicBool::new(false))),
@@ -1226,7 +1226,7 @@ fn native_filtered(base: &DocState, layer: &Layer, nodes: &[Node], unplaced: boo
     state.profile = profile;
     state.next_id = base.next_id;
     state.root.push(Arc::new(l));
-    let mut comp = Compositor::new(64 << 20);
+    let mut comp = super::fonts::compositor(64 << 20); // B5-10b
     comp.set_filter_evaluator(Arc::new(NativeFilterEvaluator));
     let (_, px) = comp.render_level_rgba(&Document::new(state), 0)?;
     Ok(Img {
@@ -1692,7 +1692,7 @@ pub(crate) fn for_output(doc: Document) -> Result<Document> {
     if sos.is_empty() {
         return Ok(doc);
     }
-    let comp = Compositor::new(128 << 20);
+    let comp = super::fonts::compositor(128 << 20); // B5-10b
     let q = Queue {
         m: Mutex::new(Inner::default()),
         cv: Condvar::new(),

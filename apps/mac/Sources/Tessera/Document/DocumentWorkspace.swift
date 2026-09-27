@@ -102,6 +102,9 @@ final class DocumentWorkspace {
     }
 
     func select(_ doc: DocumentController) {
+        // B5-10 begin: switching documents applies the text being edited (Esc first to discard it).
+        if current !== doc, let c = current, DocumentText.shared.isEditing(c) { DocumentText.shared.documentWillChange() }
+        // B5-10 end
         current = doc
         app?.viewMode = .document
     }
@@ -327,6 +330,7 @@ final class DocumentWorkspace {
     func discard(_ doc: DocumentController) {
         guard let i = documents.firstIndex(where: { $0 === doc }) else { return }
         documents.remove(at: i)
+        DocumentText.shared.documentClosing(doc)   // B5-10: no stale caret or draft
         doc.close()
         if current === doc {
             current = documents.isEmpty ? nil : documents[min(i, documents.count - 1)]
