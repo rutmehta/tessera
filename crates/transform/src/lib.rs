@@ -16,8 +16,14 @@ pub type Point = [f64; 2];
 pub enum Error {
     #[error("invalid transform: {0}")]
     Invalid(String),
+    #[error("transform cancelled")]
+    Cancelled,
 }
 pub type Result<T> = std::result::Result<T, Error>;
+
+pub(crate) fn check_cancel(cancel: &engine_api::jobs::CancellationToken) -> Result<()> {
+    cancel.check().map_err(|_| Error::Cancelled)
+}
 #[derive(Clone, Debug, PartialEq)]
 pub struct Image {
     pub width: usize,

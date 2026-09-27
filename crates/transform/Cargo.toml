@@ -9,6 +9,7 @@ description = "Non-destructive planar RGBA geometry and content-aware scaling"
 serde = { workspace = true }
 thiserror = { workspace = true }
 lens = { path = "../lens" }
+engine-api = { path = "../engine-api" }
 rayon = "1.12"
 
 [dev-dependencies]

@@ -1,6 +1,6 @@
 //! Serializable transform recipe and shared inverse-mapped CPU renderer.
 use crate::{
-    Error, Image, Point, Result,
+    Error, Image, Point, Result, check_cancel,
     displacement::Displacement,
     free::FreeTransform,
     perspective::{PerspectiveWarp, PreparedPerspectiveWarp},
@@ -9,6 +9,7 @@ use crate::{
     seam::{self, ContentAwareScale},
     warp::{WarpInverseField, WarpMesh},
 };
+use engine_api::jobs::CancellationToken;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -82,6 +83,35 @@ impl TransformOp {
     }
     /// Render into a fixed canvas. Input and output are at `level`; transform geometry is level zero.
     pub fn apply(&self, input: &Image, width: usize, height: usize, level: u8) -> Result<Image> {
+        self.apply_with_cancel(input, width, height, level, &CancellationToken::new())
+    }
+
+    /// Render with cooperative cancellation, including during content-aware seam work.
+    pub fn apply_with_cancel(
+        &self,
+        input: &Image,
+        width: usize,
+        height: usize,
+        level: u8,
+        cancel: &CancellationToken,
+    ) -> Result<Image> {
+        self.apply_checked(input, width, height, level, cancel, &|_| {
+            check_cancel(cancel)
+        })
+    }
+
+    // `completed_in_row` lets the tiny regression prove a check occurs after
+    // actual mapping, rather than only at entry or before the first pixel.
+    fn apply_checked(
+        &self,
+        input: &Image,
+        width: usize,
+        height: usize,
+        level: u8,
+        cancel: &CancellationToken,
+        check: &(impl Fn(usize) -> Result<()> + Sync),
+    ) -> Result<Image> {
+        check(0)?;
         self.validate()?;
         let n = canvas(width, height)?;
         input.validate()?;
@@ -98,12 +128,13 @@ impl TransformOp {
             let mut params = t.clone();
             params.target_width = width;
             params.target_height = height;
-            return seam::apply(input, &params);
+            return seam::apply_with_cancel(input, &params, cancel);
         }
         if let Operation::Free(t) = &self.operation {
             t.bounds(input.width as f64 * scale, input.height as f64 * scale)?;
         }
         let prepared = self.prepare()?;
+        check(0)?;
         let kernel = self.effective_kernel(level);
         let mut planes = std::array::from_fn(|_| vec![0.; n]);
         let [r, g, b, a] = &mut planes;
@@ -112,8 +143,11 @@ impl TransformOp {
             .zip(b.par_chunks_mut(width))
             .zip(a.par_chunks_mut(width))
             .enumerate()
-            .for_each(|(y, (((r, g), b), a))| {
+            .try_for_each(|(y, (((r, g), b), a))| -> Result<()> {
                 for x in 0..width {
+                    if x & 1023 == 0 {
+                        check(x)?;
+                    }
                     let p = coordinate(&prepared, x, y, scale);
                     let rgba = sample(input, p, kernel);
                     r[x] = rgba[0];
@@ -121,7 +155,10 @@ impl TransformOp {
                     b[x] = rgba[2];
                     a[x] = rgba[3];
                 }
-            });
+                check(width)?;
+                Ok(())
+            })?;
+        check(0)?;
         Ok(Image {
             width,
             height,
@@ -190,4 +227,33 @@ fn canvas(width: usize, height: usize) -> Result<usize> {
         .checked_mul(height)
         .filter(|n| width > 0 && height > 0 && *n <= 100_000_000)
         .ok_or_else(|| invalid("nonempty canvas of at most 100 MP required"))
+}
+
+#[cfg(test)]
+mod cancellation_tests {
+    use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    #[test]
+    fn nonseam_row_checks_a_token_after_mapping_begins() {
+        const WIDTH: usize = 1025;
+        let image = Image::new(WIDTH, 1, std::array::from_fn(|_| vec![0.25; WIDTH])).unwrap();
+        let op = TransformOp {
+            version: 1,
+            operation: Operation::Free(FreeTransform::identity()),
+            kernel: Kernel::Nearest,
+        };
+        let token = CancellationToken::new();
+        let mapped_in_row = AtomicUsize::new(0);
+        let result = op.apply_checked(&image, WIDTH, 1, 0, &token, &|done| {
+            mapped_in_row.store(done, Ordering::SeqCst);
+            if done >= 1024 {
+                token.cancel();
+            }
+            check_cancel(&token)
+        });
+        assert!(matches!(result, Err(Error::Cancelled)));
+        assert_eq!(mapped_in_row.load(Ordering::SeqCst), 1024);
+        assert!(mapped_in_row.load(Ordering::SeqCst) < WIDTH);
+    }
 }
