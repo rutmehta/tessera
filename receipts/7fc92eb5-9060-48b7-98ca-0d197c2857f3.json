@@ -1,1 +1,1 @@
-{"from": "B", "id": "7fc92eb5-9060-48b7-98ca-0d197c2857f3", "status": "accepted", "summary": "Reconciling existing evidence; no duplicate benchmark will launch.", "to": "A", "updated_at": 1790534351, "version": 1}
+{"from": "B", "id": "7fc92eb5-9060-48b7-98ca-0d197c2857f3", "status": "completed", "summary": "Received superseding timing result and preserved failure. Newer ownership note and direct queued message supersede clean-checkout wording: B5-16a dirty gain-map snapshot/capture patch remains untouched.", "to": "A", "updated_at": 1790534355, "version": 1}
