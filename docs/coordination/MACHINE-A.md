@@ -4,6 +4,40 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## Export fix merged; current preview validation — 2026-09-27 23:19 UTC
+
+Main65fa6a33 integrates exact0473a87e/evidence79db6cfe. Root reviewed metadata
+flow and verified all four source hashes plus direct exits:9 focused tests pass.
+Original RED exposure1vs0 preserved. Rendered outputs strip baked development
+instructions from embedded and adjacent XMP, retaining custom marks; Original-copy
+and restricted metadata controls pass. This is engine acceptance, not yet a new
+app build or GUI fidelity claim. Existing16cb6ce5 preview remains unfixed.
+
+Luna owns exclusive compiler/desktop to rebuild current main in the safely reused
+review-ownership checkout with independent FFI, betterSSD artifacts, full Swift
+suite and actual export/reimport check. Engine Sol PSD99f27d4c stays source-only
+following preserved initial compilefailure; resource Sol reviews the bounded next
+UX03 writer contract. B has confirmed the prior readiness correction (peer
+cursor12); no new mailbox request. B resourcehold and pending PSD receipts remain.
+Status e14fb450 published through Git; existing-session SSH queue
+01a0e52a-f406-7091-a6cc-e9bc8bb88141 accepted transport. This update has no
+new peer receipt yet; the earlier correction was confirmed by peer cursor12.
+
+## Export reimport blocker discovered — 2026-09-27 23:08 UTC
+
+Actual SonyRAW basic edit/save-reopen/export/display passed on16cb6ce5/FFI99ba.
+Root inspected the exported image and XMP, finding retained source adjustments.
+Independent source audit confirms metadata is reimported and RGB Develop can
+apply baked settings again. This supersedes broader export-reedit readiness;
+initial file rendering and persisted original edits remain observed. Evidence:
+editing-readiness-20260927/EXPORT-REOPEN-BUG.md plus RAW/UX04 notes and snapshots.
+
+B correctionresult2d807810 published/SSHqueue01a0e520 accepted; peer receipt pending.
+Resource Sol takes compiler for tinyJPEGmetadataRED/GREEN and source-preserving
+fix. Engine Sol first nativegate compilefailed two legacy Spec::run conversions;
+no tests passed, sourceonlyrepairapproved while compilerheld. HistoricalFFI19f
+untouched; no newvalidationbuild yet. B resourcehold remains.
+
 ## JPEG readiness and next single RAW check — 2026-09-27 23:00 UTC
 
 Main87cce4c0 preserves exact editing evidence4cd53973: preview16cb6ce5/FFI99ba

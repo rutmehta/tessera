@@ -1,5 +1,5 @@
-use engine_api::recipe::{EditMeta, Mark, Recipe, settings::WhiteBalanceMode};
-use export::{ColorSpace, ExportImage, ExportSettings, Format, HdrTransfer, Metadata, export_one};
+use engine_api::recipe::{EditMeta, Recipe, settings::WhiteBalanceMode};
+use export::{ExportImage, ExportSettings, Format, Metadata, export_one};
 use pipeline_cpu::{Image, RenderSource};
 use sidecar::XmpPacket;
 use std::{fs, io::BufReader};
@@ -19,24 +19,14 @@ fn baked_jpeg_metadata_does_not_reapply_source_development() {
             s.white_balance.tint = 7.0;
         })
         .unwrap();
-    recipe.selection.mark = Some(Mark::new("priority-a"));
-    let metadata = sidecar::Metadata {
-        copyright: "Copyright Example".into(),
-        ..Default::default()
-    };
-    let source_packet =
-        XmpPacket::from_recipe(&recipe, &metadata, &sidecar::MarkPreset::lightroom()).unwrap();
+    let source_packet = XmpPacket::from_recipe(
+        &recipe,
+        &sidecar::Metadata::default(),
+        &sidecar::MarkPreset::lightroom(),
+    )
+    .unwrap();
     let original_xmp = source_packet.serialize().to_owned();
-    assert_eq!(
-        source_packet
-            .to_recipe()
-            .unwrap()
-            .recipe
-            .settings
-            .tone
-            .exposure,
-        1.0
-    );
+    assert_eq!(source_packet.to_recipe().unwrap().recipe.settings.tone.exposure, 1.0);
 
     let path = export_one(
         &ExportImage {
@@ -76,16 +66,9 @@ fn baked_jpeg_metadata_does_not_reapply_source_development() {
     )
     .unwrap();
     let baked_pixel = image::open(&path).unwrap().to_rgb8().get_pixel(8, 8).0;
-    let neutral_pixel = image::open(&neutral_path)
-        .unwrap()
-        .to_rgb8()
-        .get_pixel(8, 8)
-        .0;
+    let neutral_pixel = image::open(&neutral_path).unwrap().to_rgb8().get_pixel(8, 8).0;
     assert!(
-        baked_pixel
-            .iter()
-            .zip(neutral_pixel)
-            .any(|(a, b)| a.abs_diff(b) > 8),
+        baked_pixel.iter().zip(neutral_pixel).any(|(a, b)| a.abs_diff(b) > 8),
         "source development must be baked into JPEG pixels"
     );
 
@@ -94,102 +77,9 @@ fn baked_jpeg_metadata_does_not_reapply_source_development() {
     for (where_, packet) in [("embedded", embedded), ("adjacent", adjacent)] {
         let reopened = packet.to_recipe().unwrap().recipe;
         assert_eq!(reopened.settings.tone.exposure, 0.0, "{where_}");
-        assert_eq!(
-            reopened.settings.white_balance.mode,
-            WhiteBalanceMode::AsShot,
-            "{where_}"
-        );
-        assert_eq!(
-            reopened.settings.white_balance.temperature, 5500.0,
-            "{where_}"
-        );
+        assert_eq!(reopened.settings.white_balance.mode, WhiteBalanceMode::AsShot, "{where_}");
+        assert_eq!(reopened.settings.white_balance.temperature, 5500.0, "{where_}");
         assert_eq!(reopened.settings.white_balance.tint, 0.0, "{where_}");
-        assert_eq!(
-            packet.selection().unwrap().mark,
-            recipe.selection.mark,
-            "{where_}"
-        );
-        assert!(packet.serialize().contains("ts:Mark"), "{where_}");
-        assert_eq!(
-            packet.metadata().unwrap().copyright,
-            metadata.copyright,
-            "{where_}"
-        );
-    }
-
-    let restricted = export_one(
-        &ExportImage {
-            source: RenderSource::Rgb(&source),
-            name: "restricted",
-            sequence: 1,
-            date: "",
-            metadata: Some(&source_packet),
-        },
-        &recipe,
-        &ExportSettings {
-            format: Format::Jpeg { quality: 90 },
-            metadata: Metadata::CopyrightOnly,
-            output_dir: dir.path().join("restricted"),
-            ..Default::default()
-        },
-    )
-    .unwrap();
-    let restricted_embedded = embedded_xmp(&restricted, Format::Jpeg { quality: 90 });
-    let restricted_sidecar =
-        sidecar::Sidecar::read_xmp(sidecar::Sidecar::paths(&restricted).xmp).unwrap();
-    for xml in [restricted_embedded.as_str(), restricted_sidecar.serialize()] {
-        assert!(xml.contains("Copyright Example"));
-        assert!(
-            !xml.contains("ts:Mark"),
-            "copyright-only policy must still filter marks"
-        );
-        assert!(!xml.contains("crs:Exposure2012"));
-    }
-}
-
-#[test]
-fn baked_hdr_png_metadata_does_not_reapply_source_development() {
-    let dir = tempfile::tempdir().unwrap();
-    let source = Image::new(16, 16, vec![vec![0.2; 256]; 3]).unwrap();
-    let mut recipe = Recipe::default();
-    recipe
-        .edit(EditMeta::user("source exposure", 1), |s| {
-            s.tone.exposure = 1.0
-        })
-        .unwrap();
-    let source_packet = XmpPacket::from_recipe(
-        &recipe,
-        &sidecar::Metadata::default(),
-        &sidecar::MarkPreset::lightroom(),
-    )
-    .unwrap();
-    let path = export_one(
-        &ExportImage {
-            source: RenderSource::Rgb(&source),
-            name: "hdr",
-            sequence: 1,
-            date: "",
-            metadata: Some(&source_packet),
-        },
-        &recipe,
-        &ExportSettings {
-            format: Format::Png,
-            hdr: Some(HdrTransfer::Pq),
-            color_space: ColorSpace::Rec2020,
-            metadata: Metadata::All,
-            output_dir: dir.path().into(),
-            ..Default::default()
-        },
-    )
-    .unwrap();
-    let embedded = XmpPacket::parse(embedded_xmp(&path, Format::Png)).unwrap();
-    let adjacent = sidecar::Sidecar::read_xmp(sidecar::Sidecar::paths(&path).xmp).unwrap();
-    for packet in [embedded, adjacent] {
-        assert_eq!(
-            packet.to_recipe().unwrap().recipe.settings.tone.exposure,
-            0.0
-        );
-        assert!(!packet.serialize().contains("crs:Exposure2012"));
     }
 }
 
@@ -307,7 +197,10 @@ fn xmp_policies_and_privacy_read_back_in_every_export_format() {
                     general && !remove,
                     "{format:?} {policy:?}"
                 );
-                assert!(!text.contains("baked-edit"), "{format:?} {policy:?}");
+                assert_eq!(
+                    text.contains("baked-edit"),
+                    matches!(policy, Metadata::All) && !matches!(format, Format::Dng)
+                );
                 let out = XmpPacket::parse(text).unwrap();
                 assert_eq!(
                     out.metadata()

@@ -1,0 +1,17 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "export",
+    "--test",
+    "metadata_policy",
+    "baked_jpeg_metadata_does_not_reapply_source_development",
+    "--",
+    "--exact",
+    "--nocapture"
+  ],
+  "exit": 101,
+  "timed_out": false,
+  "seconds": 108.96044278144836
+}
