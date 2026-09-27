@@ -28,7 +28,7 @@ Machine A as sole main integrator. Do useful work while other tasks wait.
 | ID | Work | Owner / location | Next action and acceptance |
 | --- | --- | --- | --- |
 | UX-01 | Library / Photo Edit workspace and split inspector | A root; main `4925677` | DONE first bounded workspace slice; sourcecommitc417229 merged/pushed. Full411+5 checkpoint, final28targeted/0,40layouts,1readyRAW passed; rootvisualreview accepted. Interactive/performance gates remain separate; existing overlay/wrapping polish goesUX04. |
-| ENG-31 | M5-31 source reuse and cold timing | A root; published wp/M5-31 `441da3e` | Local326pass/0fail/14ignored plus6fresh timing samples andstrictchecks pass. Await B repeat on exact candidate via mailbox4820486e-d71c-4fb1-a88f-6919f34d0eaa; prior B125.855125ms failure remains recorded. Main integration pending. |
+| ENG-31 | M5-31 source reuse and cold timing | A root; published wp/M5-31 `441da3e` | Local326pass/0fail/14ignored plus6fresh timing samples andstrictchecks pass. A is now running the exact six-sample repeat directly over authenticated SSH on B’s free completed checkout; mailbox request remains unreceipted; prior B125.855125ms failure remains recorded. Main integration pending. |
 | COM-01 | Establish usable authenticated Machine A ↔ B communication | A root | SSH authenticated and native remote chat discovered: `Resume Tessera Machine B work`, UUID `01a0e323-c018-7fa3-9605-999a2dea6b32`, host `remote-ssh-discovered:tessera-machine-b`. Reads succeed; native send rejects active writer. Preserve B desktop session; no duplicate writer. Git mailbox integrated, A heartbeat active, two requests published; B receipts/heartbeat still unconfirmed. Next: resolve routing to existing writer or receive B mailbox acknowledgement. |
 | OPS-01 | Persistent autonomous coordinator | Root; current chat | Heartbeat `tessera-machine-a-coordinator` ACTIVE every5minutes, created2026-09-27. Check running work before duplicate launches. Read/advance board; stay quiet unless meaningful outcome/blocker. Local execution requires awake host/app and available service limits. |
 
@@ -40,7 +40,8 @@ Scope is AgentController and focused tests on a separate main-based worktree;
 new Review navigation/resume persistence remains planned in UX-02-PLAN.md.
 M5-31 candidate is validated locally and published; B repeat is pending. INT-45 license check also passed (existing unused-license
 allowance warnings only); reproducible gated script is
-`/tmp/tessera-export-integration-gate.sh`, running in session25483.
+`/tmp/tessera-export-integration-gate.sh`; first run stopped on missing fixture,
+retry running after restoring and hashing the existing fixture set.
 
 
 Latest checkpoint: UX-01 merged/pushed main4925677. UI agent advances UX02a
@@ -50,7 +51,10 @@ and pending Develop save-order gaps; source/test fixes are underway before GREEN
 Ownership RED:4tests/6expected assertion failures, no setup/unexpected failures;
 old Accept trained the newly selected folder, old Revert changed the prior recipe,
 late Accept overwrote new-folder status, and old-run completion updated/presented
-foreign queue state. Root INT-45 build gate now owns heavy slot (session25483).
+foreign queue state. INT-45 first gate stopped at a missing ignored RAW fixture in its new worktree;
+source fixture symlink and SHA-256 manifest are now restored, failure retained.
+UX02a RED compiled and failed its four expected Library-preservation assertions.
+Root INT-45 full retry now owns A’s heavy slot (session39983).
 Gain-map source is ready and waits for live-output/host validation. B mailbox remains absent. Benchmark repeat request4820486e and exact-UUID SSH status70405bbf are published; receipt remains unconfirmed.
 Root prepared INT-45 in the managed worktree
 `/Users/rutmehta/.codex/worktrees/export-integration/tessera`, branch
@@ -58,7 +62,7 @@ Root prepared INT-45 in the managed worktree
 wp/M2-45d69bcd3e. Candidate tree9fe7a245e2bc070e65fb3f4c0a4301f233ee473d;
 formatting and source whitespace checks pass. Preserve the merge state. Full
 five-package Rust/strict checks, licenses, workspace and FFI/Swift validation
-are running serially; no main merge yet.
+are running serially after fixture correction; no main merge yet.
 
 EXP-45 diagnostic progress: independently sourced Skia ISO fixtures and the
 preserved Tessera prototype now yield actual SDR/HDR pixels in a small ImageIO

@@ -45,6 +45,26 @@ checks passed. M2-58 actual presentation acceptance remains pending the measurem
 conditions in M2-58-PRESENTATION-PLAN.md. A's five-minute heartbeat is active and
 polls the durable mailbox; SSH now exposes B’s coordinator for reading; direct messaging currently returns an active-writer conflict (see checkpoint below).
 
+## Direct SSH verification allocation — 2026-09-27 18:12 UTC
+
+A is running the M5-31 six-sample timing repeat directly on B over authenticated
+SSH. This is A-run remote verification, not a message receipt or work performed
+by B’s chat. The clean completed `/Users/rutmehta/Developer/lightroom/.worktrees/B5-16a`
+checkout is now detached at `441da3e3f83f46ee04536fa8b6248c2519d6d619`; the
+`wp/B5-16a` branch reference is unchanged. B: do not reuse this checkout or the
+`/Users/rutmehta/.cache/tessera-target/B5-15` build cache until the run finishes.
+Ownership is recorded in `/tmp/tessera-machine-a-benchmark-owner.txt` on B.
+Compile separately, then three original and three unique-ID fresh-process runs;
+all exits, thresholds, host load and thermal evidence are retained. Existing
+background CPU activity is recorded and left untouched. Results are pending.
+
+A’s first INT-45 gate failed because its new worktree lacked the ignored RAW
+fixture set. The failure is preserved, existing fixtures are linked and hashed,
+and the full gate is rerunning in session39983. No source failure was inferred
+from that setup error. UX02a RED confirms four Library-state violations; source
+work now includes an owner/image-keyed Develop-close barrier shared with the
+review safety fix. Fourteen ownership/save-order tests are prepared, not GREEN.
+
 ## SSH discovery checkpoint — 2026-09-27
 
 Authenticated SSH alias `tessera-machine-b` reaches `Ruts-MacBook-Pro.local`.
