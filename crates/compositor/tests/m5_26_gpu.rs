@@ -76,6 +76,47 @@ fn exact_fixture(a: Adjustment, hdr: bool) {
 }
 
 #[test]
+fn unsupported_lookup_dither_and_match_neutralize_are_explicit() {
+    use serde_json::json;
+    let gpu = GpuCompositor::new().expect("requires GPU");
+    for (case, option) in [
+        (
+            json!({"kind":"color_lookup","size":2,"data":vec![[0.5; 3]; 8],"dither":true}),
+            "dither",
+        ),
+        (
+            json!({"kind":"match_color","source_layer":1,"source_mean":[50,5,-10],"source_std":[15,15,15],"target_mean":[50,0,0],"target_std":[20,20,20],"luminance":100,"color_intensity":100,"fade":0,"neutralize":true}),
+            "neutralize",
+        ),
+    ] {
+        for specialized in [false, true] {
+            let e = Extent::new(2, 2);
+            let mut d = doc(e, Depth::F32);
+            add(
+                &mut d,
+                None,
+                layer_fn("pixels", e, Depth::F32, |_, _| [0.4, 0.3, 0.2, 1.0]),
+            );
+            add(
+                &mut d,
+                None,
+                Layer::new(
+                    "adjustment",
+                    LayerKind::Adjustment(serde_json::from_value(case.clone()).unwrap()),
+                ),
+            );
+            let mut r = ResidentRenderer::new(&gpu).unwrap();
+            r.set_specialization(specialized);
+            let err = match r.render(&d, 0) {
+                Err(err) => err,
+                Ok(_) => panic!("unsupported option must not silently misrender"),
+            };
+            assert!(err.to_string().contains(option), "{err}");
+        }
+    }
+}
+
+#[test]
 fn pointwise_adjustments_exact() {
     use serde_json::json;
     let cases = vec![
@@ -146,6 +187,7 @@ fn perceptual_hdr_exact() {
             luminance: 110.0,
             color_intensity: 90.0,
             fade: 25.0,
+            neutralize: false,
         },
         true,
     );
@@ -223,12 +265,16 @@ fn pointwise_edge_cases_exact() {
             black: [0.2, 0.4, 0.8],
             white: [0.2, 0.9, 0.1],
             gamma: [1.0, 0.0, 2.2],
+            shadow_clip: 0.5,
+            highlight_clip: 0.5,
         },
         Adjustment::Auto {
             mode: AutoMode::Contrast,
             black: [0.0; 3],
             white: [1.0; 3],
             gamma: [1.0; 3],
+            shadow_clip: 0.5,
+            highlight_clip: 0.5,
         },
         Adjustment::MatchColor {
             source_layer: 42,
@@ -239,6 +285,7 @@ fn pointwise_edge_cases_exact() {
             luminance: 95.0,
             color_intensity: 120.0,
             fade: 20.0,
+            neutralize: false,
         },
         Adjustment::MatchColor {
             source_layer: 42,
@@ -249,6 +296,7 @@ fn pointwise_edge_cases_exact() {
             luminance: 100.0,
             color_intensity: 100.0,
             fade: 100.0,
+            neutralize: false,
         },
     ] {
         exact(a);
@@ -285,7 +333,12 @@ fn pointwise_edge_cases_exact() {
             ]
         })
         .collect();
-    exact(Adjustment::ColorLookup { size: n, data });
+    exact(Adjustment::ColorLookup {
+        size: n,
+        data,
+        source_filename: None,
+        dither: false,
+    });
 }
 
 #[test]

@@ -6,7 +6,10 @@ use std::{sync::atomic::AtomicBool, time::Instant};
 #[test]
 #[ignore = "18MP CPU timing gate; run with --release --ignored --nocapture"]
 fn remove_18mp_300px_stroke_under_one_second() {
-    assert!(!cfg!(debug_assertions), "benchmark requires --release");
+    assert!(
+        !std::hint::black_box(cfg!(debug_assertions)),
+        "benchmark requires --release"
+    );
     let extent = Extent::new(6000, 3000);
     let mut input = Raster::new(extent, 4, Depth::F32, 0.0);
     input

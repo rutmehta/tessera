@@ -383,6 +383,26 @@ impl Compiler<'_> {
 
     fn adjustment(&mut self, s: &mut Step, adj: &Adjustment) -> EngineResult<()> {
         adj.validate()?;
+        // The shared interpreter shader has neither of these operations. Do not
+        // silently drop them (or implement only specialization: its first frame
+        // and fallback still run through the interpreter).
+        match adj {
+            Adjustment::ColorLookup { dither: true, .. } => {
+                return Err(EngineError::invalid(
+                    "color_lookup",
+                    "resident GPU does not support ColorLookup dither; use the CPU compositor",
+                ));
+            }
+            Adjustment::MatchColor {
+                neutralize: true, ..
+            } => {
+                return Err(EngineError::invalid(
+                    "match_color",
+                    "resident GPU does not support MatchColor neutralize; use the CPU compositor",
+                ));
+            }
+            _ => {}
+        }
         if matches!(adj, Adjustment::BrightnessContrast { legacy: false, .. })
             && let Compiled::Channels(ch) = adj.compile()
         {

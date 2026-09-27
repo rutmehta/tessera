@@ -353,7 +353,7 @@ pub fn fill(
             if cost == 0.0 {
                 return true;
             }
-            let e = patch_cost(&src, &dst, &known, i, q, r, &footprints[q.t]);
+            let e = patch_cost(&src, &dst, &known, i, q, (r, &footprints[q.t]), cost);
             if e < cost {
                 cost = e;
                 best = q;
@@ -373,7 +373,7 @@ pub fn fill(
             'random: for &t in &available {
                 for _ in 0..64 {
                     let q = donors[t].get(rng.index(donors[t].total), t);
-                    let e = patch_cost(&src, &dst, &known, i, q, r, &footprints[q.t]);
+                    let e = patch_cost(&src, &dst, &known, i, q, (r, &footprints[q.t]), cost);
                     if e < cost {
                         cost = e;
                         best = q;
@@ -400,7 +400,15 @@ pub fn fill(
                 order.len() - 1 - k
             }];
             let mut best = nnf[local(i)];
-            let mut cost = patch_cost(&src, &dst, &known, i, best, r, &footprints[best.t]);
+            let mut cost = patch_cost(
+                &src,
+                &dst,
+                &known,
+                i,
+                best,
+                (r, &footprints[best.t]),
+                f32::INFINITY,
+            );
             if cost == 0.0 {
                 continue;
             }
@@ -408,7 +416,7 @@ pub fn fill(
                 if mask[n] > 0.0 {
                     let q = shifted(nnf[local(n)], i, n);
                     if valid(q) {
-                        let e = patch_cost(&src, &dst, &known, i, q, r, &footprints[q.t]);
+                        let e = patch_cost(&src, &dst, &known, i, q, (r, &footprints[q.t]), cost);
                         if e < cost {
                             best = q;
                             cost = e;
@@ -426,7 +434,7 @@ pub fn fill(
                 for t in [best.t, available[rng.index(available.len())]] {
                     let q = Match { t, ..q };
                     if valid(q) {
-                        let e = patch_cost(&src, &dst, &known, i, q, r, &footprints[q.t]);
+                        let e = patch_cost(&src, &dst, &known, i, q, (r, &footprints[q.t]), cost);
                         if e < cost {
                             best = q;
                             cost = e;
@@ -702,12 +710,43 @@ fn patch_cost(
     known: &[bool],
     i: usize,
     q: Match,
-    r: i32,
-    footprint: &[(i32, i32)],
+    patch: (i32, &[(i32, i32)]),
+    limit: f32,
 ) -> f32 {
+    let (r, footprint) = patch;
+    // A conservative denominator bounds the final normalized SSD even when
+    // the target crosses the canvas or has not-yet-known pixels. Reject only
+    // strictly worse candidates; accepted costs retain their original order.
+    let cutoff = limit * (3 * footprint.len()) as f32;
     let mut sum = 0.0;
     let mut count = 0.0;
     let (x, y) = ((i % src.w) as i32, (i / src.w) as i32);
+    // Interior translation is the usual Remove case. Walk contiguous rows,
+    // avoiding per-sample transformed coordinates and repeated edge tests.
+    if q.t == 0 && x >= r && y >= r && x + r < src.w as i32 && y + r < src.h as i32 {
+        let width = (2 * r + 1) as usize;
+        for dy in -r..=r {
+            let target = (y + dy) as usize * src.w + (x - r) as usize;
+            let donor = (q.y + dy) as usize * src.w + (q.x - r) as usize;
+            let row = dst.pixels[target..target + width]
+                .iter()
+                .zip(&src.pixels[donor..donor + width])
+                .zip(&known[target..target + width]);
+            for (dx, ((a, b), &known)) in row.enumerate() {
+                if !known || (dy == 0 && dx == r as usize) {
+                    continue;
+                }
+                for c in 0..3 {
+                    sum += (a[c] - b[c]).powi(2);
+                }
+                if sum > cutoff {
+                    return f32::INFINITY;
+                }
+                count += 3.0;
+            }
+        }
+        return if count == 0.0 { 0.0 } else { sum / count };
+    }
     for dy in -r..=r {
         for dx in -r..=r {
             let (tx, ty) = (x + dx, y + dy);
@@ -721,9 +760,13 @@ fn patch_cost(
             }
             let (sx, sy) = footprint[((dy + r) * (2 * r + 1) + dx + r) as usize];
             let a = dst.pixels[j];
-            let b = src.at(q.x + sx, q.y + sy);
+            // valid() already checked every donor footprint coordinate.
+            let b = src.pixels[(q.y + sy) as usize * src.w + (q.x + sx) as usize];
             for c in 0..3 {
                 sum += (a[c] - b[c]).powi(2);
+            }
+            if sum > cutoff {
+                return f32::INFINITY;
             }
             count += 3.0;
         }

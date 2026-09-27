@@ -289,6 +289,18 @@ pub fn remove(
     if params.dilation > 64 {
         return Err(EngineError::invalid("remove.dilation", "must be 0..64"));
     }
+    // CPU synthesis reads only the stroke neighborhood and explicit donors.
+    // Dispatch before dilation so its temporary coverage is bounded as well.
+    if (params.backend == Backend::Cpu || (params.backend == Backend::Auto && model.is_none()))
+        && mask.iter().any(|&m| m > 0.0)
+    {
+        return Ok(RemoveResult {
+            result: bounded_patchmatch(input, mask, params, cancel)?,
+            backend: BackendUsed::CpuPatchMatch,
+            fallback_reason: (params.backend == Backend::Auto)
+                .then(|| "No inpainting model supplied; CPU PatchMatch used".into()),
+        });
+    }
     let mask = dilate(
         mask,
         input.extent().width as usize,
@@ -368,6 +380,192 @@ pub fn remove(
             .then(|| "No inpainting model supplied; CPU PatchMatch used".into()),
     })
 }
+/// Tile-aligned ROI keeps source tiles shared and preserves exact source depth.
+/// Auto donors are local (128px plus dilation, rounded out to tile boundaries).
+/// Explicit sampling expands the ROI to include every requested donor; it is
+/// never silently clipped to the automatic neighborhood. Large/disconnected
+/// selections can therefore still require a large working region.
+fn bounded_patchmatch(
+    input: &Raster,
+    mask: &[f32],
+    params: &RemoveParams,
+    cancel: &AtomicBool,
+) -> EngineResult<FillResult> {
+    use caf::SamplingArea;
+    use compositor::{Rect, raster::Depth};
+    use engine_api::tile::Extent;
+
+    let (w, h) = (
+        input.extent().width as usize,
+        input.extent().height as usize,
+    );
+    if !matches!(input.channels(), 1 | 3 | 4) {
+        return Err(EngineError::invalid(
+            "filters",
+            "1/3/4-channel raster required",
+        ));
+    }
+    let mut bounds = [w, h, 0, 0];
+    for (y, row) in mask.chunks_exact(w).enumerate() {
+        checkpoint(cancel)?;
+        for (x, &m) in row.iter().enumerate() {
+            if m > 0.0 {
+                bounds[0] = bounds[0].min(x);
+                bounds[1] = bounds[1].min(y);
+                bounds[2] = bounds[2].max(x + 1);
+                bounds[3] = bounds[3].max(y + 1);
+            }
+        }
+    }
+    let margin = 128 + params.dilation as usize;
+    bounds = [
+        bounds[0].saturating_sub(margin),
+        bounds[1].saturating_sub(margin),
+        bounds[2].saturating_add(margin).min(w),
+        bounds[3].saturating_add(margin).min(h),
+    ];
+    match &params.fill.sampling {
+        SamplingArea::Auto => {}
+        SamplingArea::Rect(rect) => {
+            let rect = rect.intersect(&Rect::of_extent(input.extent()));
+            if !rect.is_empty() {
+                bounds[0] = bounds[0].min(rect.x0 as usize);
+                bounds[1] = bounds[1].min(rect.y0 as usize);
+                bounds[2] = bounds[2].max(rect.x1 as usize);
+                bounds[3] = bounds[3].max(rect.y1 as usize);
+            }
+        }
+        SamplingArea::Custom(sampling) => {
+            caf::validate_mask(sampling, mask.len())?;
+            for (y, row) in sampling.chunks_exact(w).enumerate() {
+                checkpoint(cancel)?;
+                for (x, &m) in row.iter().enumerate() {
+                    if m > 0.0 {
+                        bounds[0] = bounds[0].min(x);
+                        bounds[1] = bounds[1].min(y);
+                        bounds[2] = bounds[2].max(x + 1);
+                        bounds[3] = bounds[3].max(y + 1);
+                    }
+                }
+            }
+        }
+    }
+    let [x0, y0, x1, y1] = [
+        bounds[0] / 256 * 256,
+        bounds[1] / 256 * 256,
+        bounds[2].div_ceil(256).saturating_mul(256).min(w),
+        bounds[3].div_ceil(256).saturating_mul(256).min(h),
+    ];
+    let (cw, ch) = (x1 - x0, y1 - y0);
+    let mut crop = Raster::new(
+        Extent::new(cw as u32, ch as u32),
+        input.channels(),
+        input.depth(),
+        input.default_value(),
+    );
+    let (nx, ny) = crop.grid();
+    for ty in 0..ny {
+        checkpoint(cancel)?;
+        for tx in 0..nx {
+            if let Some(slot) = input.slot(tx + (x0 / 256) as u32, ty + (y0 / 256) as u32) {
+                crop.set_slot(tx, ty, slot.tile.clone(), slot.rev)?;
+            }
+        }
+    }
+    let crop_mask = |values: &[f32]| -> EngineResult<Vec<f32>> {
+        let mut out = Vec::with_capacity(cw * ch);
+        for y in y0..y1 {
+            checkpoint(cancel)?;
+            out.extend_from_slice(&values[y * w + x0..y * w + x1]);
+        }
+        Ok(out)
+    };
+    // Avoid cloning a canvas-sized Custom mask just to replace it below.
+    let mut fill = FillParams {
+        patch_radius: params.fill.patch_radius,
+        iterations: params.fill.iterations,
+        seed: params.fill.seed,
+        sampling: SamplingArea::Auto,
+        colour_adaptation: params.fill.colour_adaptation,
+        output_new_layer: params.fill.output_new_layer,
+        rotation_radians: params.fill.rotation_radians,
+        scale_range: params.fill.scale_range,
+        mirror: params.fill.mirror,
+    };
+    fill.sampling = match &params.fill.sampling {
+        SamplingArea::Auto => SamplingArea::Auto,
+        SamplingArea::Rect(r) => {
+            let r = r.intersect(&Rect::of_extent(input.extent()));
+            if r.is_empty() {
+                SamplingArea::Rect(Rect::new(0, 0, 0, 0))
+            } else {
+                SamplingArea::Rect(Rect::new(
+                    r.x0 - x0 as i64,
+                    r.y0 - y0 as i64,
+                    r.x1 - x0 as i64,
+                    r.y1 - y0 as i64,
+                ))
+            }
+        }
+        SamplingArea::Custom(m) => SamplingArea::Custom(crop_mask(m)?),
+    };
+    let coverage = dilate(&crop_mask(mask)?, cw, ch, params.dilation, cancel)?;
+    let result = caf::fill(&crop, &coverage, &fill, cancel)?;
+    let pixels = Buffer::read(&result.composite, cancel)?;
+    let paint = result
+        .new_layer
+        .as_ref()
+        .map(|r| Buffer::read(r, cancel))
+        .transpose()?;
+    let mut composite = input.clone();
+    let mut layer = params
+        .fill
+        .output_new_layer
+        .then(|| Raster::new(input.extent(), 4, Depth::F32, 0.0));
+    let rev = input
+        .max_rev()
+        .checked_add(1)
+        .ok_or_else(|| EngineError::invalid("filters", "revision overflow"))?;
+    for ty in 0..ny {
+        checkpoint(cancel)?;
+        for tx in 0..nx {
+            let touched = (ty as usize * 256..((ty as usize + 1) * 256).min(ch)).any(|y| {
+                coverage[y * cw + tx as usize * 256..y * cw + ((tx as usize + 1) * 256).min(cw)]
+                    .iter()
+                    .any(|&v| v > 0.0)
+            });
+            if touched {
+                let (gx, gy) = (tx + (x0 / 256) as u32, ty + (y0 / 256) as u32);
+                let rect = Rect::new(
+                    i64::from(gx) * 256,
+                    i64::from(gy) * 256,
+                    (i64::from(gx) + 1) * 256,
+                    (i64::from(gy) + 1) * 256,
+                );
+                // Re-encode at the canvas address: a crop tile's embedded
+                // TileCoord must never escape into the document raster.
+                composite.edit_region(rect, rev, |x, y, p| {
+                    let i = (y as usize - y0) * cw + x as usize - x0;
+                    if coverage[i] > 0.0 {
+                        *p = pixels.pixels[i];
+                    }
+                })?;
+                if let (Some(layer), Some(paint)) = (&mut layer, &paint) {
+                    layer.edit_region(rect, 1, |x, y, p| {
+                        let i = (y as usize - y0) * cw + x as usize - x0;
+                        *p = paint.pixels[i];
+                    })?;
+                }
+            }
+        }
+    }
+    checkpoint(cancel)?;
+    Ok(FillResult {
+        composite,
+        new_layer: layer,
+    })
+}
+
 /// Match local first/second moments before the boundary solve, analogous to
 /// PatchMatch colour adaptation. Bounded affine correction retains the model's
 /// structure, but avoids dull/shifted fills. No source pixels inside the hole

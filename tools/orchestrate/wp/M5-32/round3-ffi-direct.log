@@ -1,0 +1,22 @@
+
+running 2 tests
+test fixture_round_trips_through_serde_and_covers_every_variant ... ok
+test session_emits_the_fixture_shape_and_photoshop_names ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+
+
+running 1 test
+
+thread 'restoration_missing_weights_is_atomic_on_pixels_and_smart_objects' (88633263) panicked at crates/tessera-ffi/tests/document_restoration.rs:45:9:
+unsupported: neural/photo_restoration
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test restoration_missing_weights_is_atomic_on_pixels_and_smart_objects ... FAILED
+
+failures:
+
+failures:
+    restoration_missing_weights_is_atomic_on_pixels_and_smart_objects
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+

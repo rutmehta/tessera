@@ -172,6 +172,8 @@
  },
  {
   "kind": "color_lookup",
+  "source_filename": null,
+  "dither": false,
   "size": 2,
   "data": [
    [
@@ -387,6 +389,7 @@
  },
  {
   "kind": "match_color",
+  "neutralize": false,
   "source_layer": 7,
   "source_mean": [
    50,
@@ -446,6 +449,8 @@
  },
  {
   "kind": "auto",
+  "shadow_clip": 0.5,
+  "highlight_clip": 0.5,
   "mode": "color",
   "black": [
    0.0625,

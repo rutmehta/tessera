@@ -29,7 +29,7 @@ fn lookup_dither_is_spatial_repeatable_bounded_and_preserves_alpha() {
     assert_ne!(px(&out, 260, 0, 0), px(&out, 260, 1, 0));
     assert_ne!(px(&out, 260, 0, 0), px(&out, 260, 256, 0));
     assert_ne!(px(&out, 260, 0, 0), px(&out, 260, 0, 1));
-    for p in out.chunks_exact(4) {
+    for p in out.as_chunks::<4>().0 {
         for v in &p[..3] {
             assert!((v - 0.5).abs() <= 0.5 / 255.0 + 1e-7);
         }
@@ -42,7 +42,7 @@ fn lookup_dither_is_spatial_repeatable_bounded_and_preserves_alpha() {
         [0.2, 0.3, 0.4, 0.75],
         extent,
     );
-    for p in out.chunks_exact(4) {
+    for p in out.as_chunks::<4>().0 {
         assert_eq!(p, &out[..4]);
         assert_close(p, &[0.5, 0.5, 0.5, 0.75], 1e-6, "undithered LUT");
     }

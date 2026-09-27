@@ -52,6 +52,8 @@ pub struct ChannelRecord {
     pub color: PaintColor,
     /// Spot: solidity. Alpha: the default overlay opacity (0.5).
     pub opacity: f32,
+    // M5-32: alpha overlay polarity; spot ink is identified by `kind`.
+    pub selected_areas: bool,
     /// Shown by the host's preview overlay (session state, not saved).
     pub visible: bool,
     /// Position in the panel and in the PSD channel list (0 = first).
@@ -274,6 +276,10 @@ impl DocumentSession {
             .map(|(i, c)| {
                 let (kind, color, opacity) = match &c.kind {
                     ChannelKind::Alpha => (DocChannelKind::Alpha, ALPHA_COLOR, ALPHA_OPACITY),
+                    // M5-32: preserve explicit alpha preview properties.
+                    ChannelKind::AlphaDisplay { color, opacity, .. } => {
+                        (DocChannelKind::Alpha, *color, *opacity)
+                    }
                     ChannelKind::Spot { color, solidity } => {
                         (DocChannelKind::Spot, *color, *solidity)
                     }
@@ -288,6 +294,11 @@ impl DocumentSession {
                         b: color[2],
                     },
                     opacity,
+                    // M5-32: legacy alpha channels display masked areas.
+                    selected_areas: matches!(
+                        c.kind,
+                        ChannelKind::AlphaDisplay { selected: true, .. }
+                    ),
                     visible: visible.contains(&c.id.0),
                     index: i as u32,
                     revision: self.channel_revision(c),
@@ -532,7 +543,14 @@ impl DocumentSession {
             .channel_state()?
             .channels
             .iter()
-            .find(|c| c.name == name && c.kind == ChannelKind::Alpha)
+            // M5-32: explicit display metadata does not change alpha identity.
+            .find(|c| {
+                c.name == name
+                    && matches!(
+                        c.kind,
+                        ChannelKind::Alpha | ChannelKind::AlphaDisplay { .. }
+                    )
+            })
             .map(|c| c.id.0);
         self.save_selection_channel(name, existing, SelectionOp::Replace)
             .map(|_| ())
