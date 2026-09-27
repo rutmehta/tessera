@@ -404,6 +404,16 @@ pub struct FilterEvaluationStats {
     pub active_stacks: u64,
     /// Highest simultaneous cold source/stack attempt count observed.
     pub peak_active_stacks: u64,
+    /// Full-child mask blend attempts, including repeated work on pass hits.
+    pub mask_compositions: u64,
+    /// Pixels visited by full-child mask blending, including failed masks.
+    pub mask_pixels_visited: u64,
+    /// Payload bytes of materialized masked output tiles. This
+    /// excludes scratch buffers, retained copies, and allocator overhead.
+    pub mask_tile_bytes_produced: u64,
+    /// Mask tile payload bytes scanned to form a reuse key. The current path
+    /// does no digest scan, so this is zero before masked-result reuse.
+    pub mask_digest_bytes_visited: u64,
 }
 
 pub(super) struct FilterRuntime {
@@ -417,6 +427,10 @@ pub(super) struct FilterRuntime {
     oversized_stacks: AtomicU64,
     active_stacks: AtomicU64,
     peak_active_stacks: AtomicU64,
+    mask_compositions: AtomicU64,
+    mask_pixels_visited: AtomicU64,
+    mask_tile_bytes_produced: AtomicU64,
+    mask_digest_bytes_visited: AtomicU64,
 }
 
 struct ActiveStack<'a>(&'a FilterRuntime);
@@ -440,6 +454,10 @@ impl FilterRuntime {
             oversized_stacks: AtomicU64::new(0),
             active_stacks: AtomicU64::new(0),
             peak_active_stacks: AtomicU64::new(0),
+            mask_compositions: AtomicU64::new(0),
+            mask_pixels_visited: AtomicU64::new(0),
+            mask_tile_bytes_produced: AtomicU64::new(0),
+            mask_digest_bytes_visited: AtomicU64::new(0),
         }
     }
     fn begin_stack(&self) -> ActiveStack<'_> {
@@ -457,6 +475,10 @@ impl FilterRuntime {
             oversized_stacks: get(&self.oversized_stacks),
             active_stacks: get(&self.active_stacks),
             peak_active_stacks: get(&self.peak_active_stacks),
+            mask_compositions: get(&self.mask_compositions),
+            mask_pixels_visited: get(&self.mask_pixels_visited),
+            mask_tile_bytes_produced: get(&self.mask_tile_bytes_produced),
+            mask_digest_bytes_visited: get(&self.mask_digest_bytes_visited),
         }
     }
     pub fn clear(&self) {
@@ -671,7 +693,10 @@ impl Compositor {
                 });
             }
             let mut valid = true;
-            raster.edit_region(Rect::of_extent(raster.extent()), 1, |x, y, p| {
+            let mut visited = 0u64;
+            rt.mask_compositions.fetch_add(1, Ordering::Relaxed);
+            let edit = raster.edit_region(Rect::of_extent(raster.extent()), 1, |x, y, p| {
+                visited = visited.saturating_add(1);
                 let m = mask.raster.pixel(x, y)[0];
                 valid &= m.is_finite() && (0.0..=1.0).contains(&m);
                 let t = 1.0 - mask.density * (1.0 - m);
@@ -686,7 +711,17 @@ impl Compositor {
                     };
                 }
                 p[3] = alpha;
-            })?;
+            });
+            rt.mask_pixels_visited.fetch_add(visited, Ordering::Relaxed);
+            edit?;
+            let produced = raster
+                .slots()
+                .filter_map(|(_, slot)| slot.tile.as_ref())
+                .fold(0u64, |sum, tile| {
+                    sum.saturating_add(u64::try_from(tile.byte_len()).unwrap_or(u64::MAX))
+                });
+            rt.mask_tile_bytes_produced
+                .fetch_add(produced, Ordering::Relaxed);
             if !valid {
                 return Err(EngineError::invalid(
                     "smart filter mask",

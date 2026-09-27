@@ -367,6 +367,43 @@ fn same_key_mask_variants_share_unmasked_pass_entry_without_sharing_pixels() {
 }
 
 #[test]
+fn masked_source_is_materialized_once_per_full_level_pass() {
+    use compositor::{Mask, Rect};
+    let extent = Extent::new(257, 1);
+    let mut state = document("invert").state().as_ref().clone();
+    let LayerKind::SmartObject(smart) = &mut Arc::make_mut(&mut state.root[0]).kind else {
+        unreachable!()
+    };
+    let mut mask = Mask::hide_all(extent, Depth::F32);
+    // Store one nondefault mask tile so a later digest path must account for
+    // scanning actual mask bytes, not only a sparse default value.
+    mask.raster
+        .edit_region(Rect::new(0, 0, 1, 1), 1, |_, _, p| p[0] = 0.5)
+        .unwrap();
+    smart.filter_mask = Some(mask);
+    let compositor = Compositor::new(8_223);
+    let pixels = compositor
+        .render_level_rgba(&Document::new(state), 0)
+        .unwrap()
+        .1;
+    assert_eq!(&pixels[..4], &[0.5, 0.5, 0.5, 1.]);
+    assert_eq!(&pixels[256 * 4..257 * 4], &[0.25, 0.5, 0.75, 1.]);
+    let stats = compositor.filter_evaluation_stats();
+    eprintln!(
+        "RES03 mask counters: compositions={} pixels={} tile_bytes={} digest_bytes={}",
+        stats.mask_compositions,
+        stats.mask_pixels_visited,
+        stats.mask_tile_bytes_produced,
+        stats.mask_digest_bytes_visited,
+    );
+    assert_eq!(stats.attempted_stacks, 1);
+    assert_eq!(stats.mask_compositions, 1);
+    assert_eq!(stats.mask_pixels_visited, 257);
+    assert_eq!(stats.mask_tile_bytes_produced, 4_112);
+    assert!(stats.mask_digest_bytes_visited >= 1_024);
+}
+
+#[test]
 fn concurrent_full_level_calls_have_independent_passes() {
     let doc = document("invert");
     let compositor = Compositor::new(0);
