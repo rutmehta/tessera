@@ -3,6 +3,7 @@ import Observation
 import TesseraCore
 import struct TesseraFFI.HistoryState
 import struct TesseraFFI.QueueDelta
+import struct TesseraFFI.SearchResult
 
 enum ViewMode: String, CaseIterable, Identifiable {
     case grid = "Grid"
@@ -14,7 +15,7 @@ enum ViewMode: String, CaseIterable, Identifiable {
 }
 
 /// Sidebar sources. Filters are applied when chosen, not live, so decided frames do not vanish mid-cull.
-enum LibrarySource: Hashable {
+enum LibrarySource: Hashable, Sendable {
     case all
     case album(String)
     case decision(Decision)
@@ -330,16 +331,18 @@ final class AppModel {
         statusMessage = "Reading \(url.lastPathComponent)…"
         rememberFolder(url)
         Task.detached(priority: .userInitiated) {
-            let result = Result<any PhotoLibrary, Error> {
-                if useStub { return try StubLibrary.scan(folder: url) }
-                return try EngineLibrary.scan(folder: url, basketTarget: target)
+            let result = Result<(any PhotoLibrary, CullController.InitialSnapshot), Error> {
+                let library: any PhotoLibrary = useStub
+                    ? try StubLibrary.scan(folder: url)
+                    : try EngineLibrary.scan(folder: url, basketTarget: target)
+                return (library, CullController.prepare(library))
             }
             await MainActor.run {
                 guard generation == self.loadGeneration else { return }
                 self.isLoading = false
                 switch result {
-                case .success(let lib):
-                    self.install(lib)
+                case .success(let (lib, snapshot)):
+                    self.install(lib, snapshot: snapshot)
                     self.assist.libraryDidLoad(seedFaces: seedFaces)
                     self.openPeople()
                     let raws = lib.items.lazy.filter { $0.kind == .raw }.count
@@ -374,13 +377,13 @@ final class AppModel {
         UserDefaults.standard.set(recentFolders.map(\.path), forKey: Self.recentFoldersKey)
     }
 
-    func install(_ lib: any PhotoLibrary) {
+    func install(_ lib: any PhotoLibrary, snapshot: CullController.InitialSnapshot? = nil) {
         loader.removeAll()
         (library as? EngineLibrary)?.onCatalogChange(nil)
         syncWaiters.removeAll()
         syncRequested = false
         library = lib
-        cull = lib.makeCullController()
+        cull = snapshot.map { CullController(library: lib, snapshot: $0) } ?? lib.makeCullController()
         isEngineBacked = cull.isEngineBacked
         closeDevelop()
         source = .all
@@ -522,20 +525,36 @@ final class AppModel {
     }
 
     /// Re-applies the source and filter bar, keeping the focused photo when it is still visible.
-    func refreshVisible(_ change: () -> Void = {}) {
+    func refreshVisible(keepingExisting: Bool = false, _ change: () -> Void = {}) {
         let focusedID = focus.map { visible[$0] }
+        let selectedIDs = selection.map { visible[$0] }
+        let oldVisible = visible
         change()
-        rebuildVisible()
+        if keepingExisting {
+            rebuildVisible(keeping: Set(visible), admitting: Set(library.items.indices))
+        } else {
+            rebuildVisible()
+        }
+        if keepingExisting, visible == oldVisible { return }
         if let focusedID, positionOfID[focusedID] >= 0 {
             focus = positionOfID[focusedID]
         } else {
             focus = visible.isEmpty ? nil : 0
         }
-        selection = focus.map { IndexSet(integer: $0) } ?? []
+        selection = IndexSet(selectedIDs.compactMap { id in
+            positionOfID.indices.contains(id) && positionOfID[id] >= 0 ? positionOfID[id] : nil
+        })
+        if selection.isEmpty { selection = focus.map { IndexSet(integer: $0) } ?? [] }
         anchor = focus
         refreshFocusSummary()
-        liveObservers.forEach { $0.libraryDidReload() }
-        notifySelection(scroll: true)
+        if keepingExisting, let lib = engineLibrary {
+            let update = VisibleChange(oldKeys: oldVisible.map { lib.imageIDs[$0] },
+                                       newKeys: visible.map { lib.imageIDs[$0] }, changed: [], thumbnails: [], remap: { $0 })
+            liveObservers.forEach { $0.libraryDidUpdate(update) }
+        } else {
+            liveObservers.forEach { $0.libraryDidReload() }
+        }
+        notifySelection(scroll: !keepingExisting)
     }
 
     // MARK: In-place library updates (M2-28)
@@ -555,14 +574,16 @@ final class AppModel {
         syncRequested = false
         let waiters = syncWaiters
         syncWaiters = []
+        let search = collections.updateSearch()
         Task.detached(priority: .userInitiated) {
             // Blocking: grouping a new frame reads its preview for near-duplicates.
             let result = Result { try lib.session.syncChanges() }
+            let matches = try? search?.collect()
             await MainActor.run {
                 self.syncInFlight = false
                 if self.engineLibrary === lib {
                     switch result {
-                    case .success(let delta): self.apply(delta, to: lib)
+                    case .success(let delta): self.apply(delta, to: lib, search: search, matches: matches)
                     case .failure(let error): self.statusMessage = "Library update failed: \(error.localizedDescription)"
                     }
                 }
@@ -594,7 +615,8 @@ final class AppModel {
         }
     }
 
-    private func apply(_ delta: QueueDelta, to lib: EngineLibrary) {
+    private func apply(_ delta: QueueDelta, to lib: EngineLibrary,
+                       search: LibraryModel.UpdateSearch?, matches: SearchResult?) {
         if delta.reset {
             // The change log no longer covers this session: a full reload is the fallback.
             if let folder = lib.folder { reopen(folder) }
@@ -632,6 +654,7 @@ final class AppModel {
         }
         collections.catalog?.libraryDidUpdate(lib)
         let remap: (Int) -> Int? = { update.newID($0) }
+        collections.applyUpdateSearch(search, result: matches, remap: remap)
         relinking = true
         assist.libraryDidUpdate(remap)
         people.libraryDidUpdate(remap)
@@ -650,7 +673,6 @@ final class AppModel {
             }
         }
         relinking = false
-        collections.refreshMatches()
         let keeping = Set(oldKeys.compactMap { lib.itemOfImage[$0] })
         reflow(lib: lib, oldKeys: oldKeys, selected: selected, focusKey: focusKey, anchorKey: anchorKey,
                keeping: keeping, admitting: Set(update.inserted), updated: update.updated.map { $0.id }, stale: stale,
@@ -665,7 +687,7 @@ final class AppModel {
         cull.reloadLibrary()
         let fresh = ids.filter { lib.items.indices.contains($0) && !(positionOfID.indices.contains($0) && positionOfID[$0] >= 0) }
         let oldKeys = visible.map { lib.imageIDs[$0] }
-        collections.refreshMatches()
+        collections.refreshMatches(preservingVisible: true)
         reflow(lib: lib, oldKeys: oldKeys,
                selected: Set(selection.compactMap { oldKeys.indices.contains($0) ? oldKeys[$0] : nil }),
                focusKey: focus.flatMap { oldKeys.indices.contains($0) ? oldKeys[$0] : nil },
@@ -718,7 +740,7 @@ final class AppModel {
     func item(at position: Int) -> PhotoItem { library.items[visible[position]] }
     func state(at position: Int) -> CullState { cull[visible[position]] }
     func status(at position: Int) -> ItemStatus { cull.statuses[visible[position]] }
-    func isSuggestedBest(_ item: PhotoItem) -> Bool { cull.isSuggestedBest(item.id) }
+    func isSuggestedBest(_ item: PhotoItem) -> Bool { cull.isSuggestedBest(item) }
     /// Assist's pre-filled decision for the cell (automated mode, undecided frames only).
     func suggestion(at position: Int) -> Decision? { assist.suggestion(for: visible[position]) }
     func groupSize(of item: PhotoItem) -> Int { library.groups[item.groupID].count }
@@ -764,6 +786,8 @@ final class AppModel {
     }
 
     private func notifySelection(scroll: Bool) {
+        // Identity, not just the count: a same-size selection can have different mixed fields.
+        collections.focusDidChange()
         if let d = develop, d.itemID != focusedItem?.id { closeDevelop() }
         for o in liveObservers { o.selectionDidChange(scrollToFocus: scroll) }
     }
@@ -1001,7 +1025,6 @@ final class AppModel {
                 let samePhoto = it.engineImage != nil && focusedItem?.engineImage == it.engineImage
                 focusedItem = it
                 if !samePhoto {
-                    collections.focusDidChange()
                     assist.refreshFaces()
                 }
             }
@@ -1010,7 +1033,7 @@ final class AppModel {
             if focusedState != s { focusedState = s }
             let st = cull.statuses[it.id]
             if focusedStatus != st { focusedStatus = st }
-            let best = cull.isSuggestedBest(it.id)
+            let best = cull.isSuggestedBest(it)
             if focusedIsBest != best { focusedIsBest = best }
             cull.setCurrent(it.id)
         } else {
@@ -1022,7 +1045,6 @@ final class AppModel {
         }
         if selectionCount != selection.count {
             selectionCount = selection.count
-            collections.focusDidChange()
         }
     }
 
@@ -1072,11 +1094,16 @@ final class AppModel {
 
     /// Photos the next library action applies to: the selection, else the focused photo
     /// (the active side in compare).
-    var targetIDs: [Int] {
+    var targetIDs: [Int] { targetIDs(limit: Int.max) }
+
+    /// Panels compare a bounded sample. Do not materialize Select All's 20k IDs
+    /// just to discard everything after the first 500.
+    func targetIDs(limit: Int) -> [Int] {
+        guard limit > 0 else { return [] }
         if let pair = compare { return [pair.activeID] }
         guard let f = focus else { return [] }
         let positions = selection.contains(f) ? selection : IndexSet(integer: f)
-        return positions.map { visible[$0] }
+        return positions.prefix(limit).map { visible[$0] }
     }
 
     /// library.json changed outside the cull session (sidebar, add to album, keyword tree).

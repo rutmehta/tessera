@@ -1,6 +1,19 @@
 import Foundation
 import TesseraFFI
 
+/// Main-actor-owned identity for worker snapshots. Invalidate at intent time, not when
+/// a debounce expires: an old worker must not win during the debounce interval.
+public struct LibraryRequestGeneration: Sendable {
+    private var value: UInt64 = 0
+    public init() {}
+    public var current: UInt64 { value }
+    @discardableResult public mutating func next() -> UInt64 {
+        value &+= 1
+        return value
+    }
+    public func accepts(_ generation: UInt64) -> Bool { generation == value }
+}
+
 // MARK: - Sidebar tree
 
 /// One album, album group or smart album from library.json, with its children.
@@ -229,8 +242,8 @@ public struct CatalogMatch: Sendable {
 }
 
 /// The library.json + catalog operations the shell uses for albums, smart albums, the filter
-/// bar, keywords and metadata. Blocking engine calls; cheap enough for the main actor at folder
-/// scale, and `LibraryStore` is thread-safe for background use.
+/// bar, keywords and metadata. Blocking engine calls must run on workers.
+/// `LibraryStore` is thread-safe for background use.
 public final class LibraryCatalog: @unchecked Sendable {
     public let store: LibraryStore
     /// Canonical folder of the open library (search scope).
@@ -239,20 +252,35 @@ public final class LibraryCatalog: @unchecked Sendable {
     private let lock = NSLock()
     private var itemOfImage: [String: Int]
     private var imageIDs: [String]
+    private var layoutRevision: UInt64 = 0
+    public var revision: UInt64 { lock.withLock { layoutRevision } }
 
-    public init(library: EngineLibrary) throws {
-        let path = try library.session.libraryPath()
-            ?? URL(fileURLWithPath: library.folder?.path ?? "/").appendingPathComponent("library.json").path
-        store = try library.engine.openLibrary(path: path)
+    public struct Input: Sendable {
+        let library: EngineLibrary
+        let itemOfImage: [String: Int]
+        let imageIDs: [String]
+        public init(_ library: EngineLibrary) {
+            self.library = library
+            itemOfImage = library.itemOfImage
+            imageIDs = library.imageIDs
+        }
+    }
+
+    public convenience init(library: EngineLibrary) throws { try self.init(input: Input(library)) }
+
+    public init(input: Input) throws {
+        let path = try input.library.session.libraryPath()
+            ?? URL(fileURLWithPath: input.library.folder?.path ?? "/").appendingPathComponent("library.json").path
+        store = try input.library.engine.openLibrary(path: path)
         folder = URL(fileURLWithPath: path).deletingLastPathComponent().path
-        itemOfImage = library.itemOfImage
-        imageIDs = library.imageIDs
+        itemOfImage = input.itemOfImage
+        imageIDs = input.imageIDs
     }
 
     /// The library was updated in place: item ids now follow its new layout.
     public func libraryDidUpdate(_ library: EngineLibrary) {
         let (map, ids) = (library.itemOfImage, library.imageIDs)
-        lock.withLock { itemOfImage = map; imageIDs = ids }
+        lock.withLock { itemOfImage = map; imageIDs = ids; layoutRevision &+= 1 }
     }
 
     public func imageIDs(for items: [Int]) -> [String] {
@@ -263,9 +291,9 @@ public final class LibraryCatalog: @unchecked Sendable {
 
     public func nodes() throws -> [CollectionNode] { CollectionNode.tree(try store.nodes()) }
 
-    public func search(_ filter: LibraryFilter, scope: SearchScope) throws -> CatalogMatch {
-        let r = try store.search(request: SearchRequest(text: filter.text, filters: filter.facetFilters,
-                                                        scope: scope, folder: folder))
+    public func search(_ filter: LibraryFilter, scope: SearchScope, includeIDs: Bool = true) throws -> CatalogMatch {
+        let request = SearchRequest(text: filter.text, filters: filter.facetFilters, scope: scope, folder: folder)
+        let r = try includeIDs ? store.search(request: request) : store.searchFacets(request: request)
         return CatalogMatch(ids: items(for: r.imageIds), facets: r.facets, diagnostic: r.diagnostic,
                             rule: r.rule, group: r.group)
     }
@@ -290,6 +318,26 @@ public final class LibraryCatalog: @unchecked Sendable {
     public func metadata(of item: Int) throws -> ImageMetadata? {
         guard let id = imageID(of: item) else { return nil }
         return try store.metadata(imageId: id)
+    }
+    public struct MetadataSnapshot: Sendable {
+        public let metadata: ImageMetadata?
+        public let mixed: Set<String>
+    }
+
+    /// One FFI crossing/lock for the selection, with comparison on the same worker.
+    public func metadataSnapshot(items: [Int]) throws -> MetadataSnapshot {
+        let rows = try store.metadataBatch(imageIds: imageIDs(for: items))
+        guard let base = rows.first else { return MetadataSnapshot(metadata: nil, mixed: []) }
+        var mixed = Set<String>()
+        for row in rows.dropFirst() {
+            if row.title != base.title { mixed.insert("title") }
+            if row.caption != base.caption { mixed.insert("caption") }
+            if row.altText != base.altText { mixed.insert("altText") }
+            if row.creator != base.creator { mixed.insert("creator") }
+            if row.copyright != base.copyright { mixed.insert("copyright") }
+            if Set(row.keywords) != Set(base.keywords) { mixed.insert("keywords") }
+        }
+        return MetadataSnapshot(metadata: base, mixed: mixed)
     }
     public func setIPTC(_ edit: IptcEdit, items: [Int]) throws { try store.setIptc(imageIds: imageIDs(for: items), edit: edit) }
 }

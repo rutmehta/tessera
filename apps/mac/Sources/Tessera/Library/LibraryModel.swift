@@ -55,11 +55,25 @@ final class LibraryModel {
     @ObservationIgnored private(set) var matches: [Int]?
     @ObservationIgnored private var searchTask: Task<Void, Never>?
     @ObservationIgnored private var facetTask: Task<Void, Never>?
+    @ObservationIgnored private var searchGeneration = LibraryRequestGeneration()
+    @ObservationIgnored private var metadataGeneration = LibraryRequestGeneration()
+    @ObservationIgnored private var installGeneration = LibraryRequestGeneration()
+    @ObservationIgnored private var metadataTask: Task<Void, Never>?
+    @ObservationIgnored private var facetGeneration = LibraryRequestGeneration()
+    @ObservationIgnored private var nodesGeneration = LibraryRequestGeneration()
+    @ObservationIgnored private var keywordsGeneration = LibraryRequestGeneration()
+    /// End-to-end query wall time, including queueing and the main-actor return hop.
+    @ObservationIgnored private(set) var searchDuration: TimeInterval?
 
     // MARK: Lifecycle
 
     func install(_ library: any PhotoLibrary) {
+        let generation = installGeneration.next()
+        _ = searchGeneration.next()
+        _ = metadataGeneration.next()
         searchTask?.cancel()
+        facetTask?.cancel()
+        metadataTask?.cancel()
         matches = nil
         filter = LibraryFilter()
         searchTask?.cancel()
@@ -68,18 +82,35 @@ final class LibraryModel {
         matchCount = nil
         composedRule = ""
         metadata = nil
+        mixed = []
+        nodes = []
+        keywords = []
         catalog = nil
-        if let engine = library as? EngineLibrary {
-            do { catalog = try LibraryCatalog(library: engine) } catch {
-                app?.statusMessage = "Library unavailable: \(error.localizedDescription)"
-            }
-        }
-        isAvailable = catalog != nil
-        reloadNodes()
-        reloadKeywords()
-        refreshMatches(applyMatches: false)
+        isAvailable = false
         understanding.library = self
         understanding.install()
+        guard let engine = library as? EngineLibrary else { return }
+        let input = LibraryCatalog.Input(engine)
+        Task { [weak self] in
+            let result = await Task.detached(priority: .userInitiated) {
+                Result { try LibraryCatalog(input: input) }
+            }.value
+            guard let self, self.installGeneration.accepts(generation) else { return }
+            switch result {
+            case .success(let catalog):
+                catalog.libraryDidUpdate(engine)
+                self.catalog = catalog
+                self.isAvailable = true
+                self.reloadNodes()
+                self.reloadKeywords()
+                // First grid is already installed. Optional counts must not reset selection.
+                self.refreshMatches(applyMatches: !self.filter.isEmpty || self.app?.source != .all)
+                self.understanding.install()
+                self.reloadMetadata()
+            case .failure(let error):
+                self.app?.statusMessage = "Library unavailable: \(error.localizedDescription)"
+            }
+        }
     }
 
     private func report(_ verb: String, _ body: () throws -> Void) -> Bool {
@@ -93,6 +124,47 @@ final class LibraryModel {
     }
 
     // MARK: Search and the filter bar
+
+    /// Collect raw identities before publishing a changed layout, then map them
+    /// to its new dense IDs without a blocking SQL call on the main actor.
+    struct UpdateSearch: Sendable {
+        let catalog: LibraryCatalog
+        let filter: LibraryFilter
+        let source: LibrarySource
+        let request: SearchRequest
+        let generation: UInt64
+        nonisolated func collect() throws -> SearchResult { try catalog.store.search(request: request) }
+    }
+
+    func updateSearch() -> UpdateSearch? {
+        guard let catalog, let app else { return nil }
+        guard scope(for: app.source).needed || !filter.isEmpty else { return nil }
+        var f = filter
+        if app.source == .notInAlbum { f.albumStatus = "none" }
+        return UpdateSearch(catalog: catalog, filter: filter, source: app.source,
+                            request: SearchRequest(text: f.text, filters: f.facetFilters,
+                                                   scope: scope(for: app.source).0, folder: catalog.folder),
+                            generation: searchGeneration.current)
+    }
+
+    func applyUpdateSearch(_ request: UpdateSearch?, result: SearchResult?, remap: (Int) -> Int?) {
+        matches = matches.map { $0.compactMap(remap) }
+        guard let request, let result else { return }
+        guard request.catalog === catalog, searchGeneration.accepts(request.generation),
+              request.filter == filter, request.source == app?.source else {
+            refreshMatches(preservingVisible: request.filter == filter && request.source == app?.source)
+            return
+        }
+        _ = searchGeneration.next()
+        _ = facetGeneration.next()
+        let needed = scope(for: request.source).needed
+        matches = needed || !filter.isEmpty ? request.catalog.items(for: result.imageIds) : nil
+        facets = result.facets
+        diagnostic = result.diagnostic
+        matchCount = result.imageIds.count
+        composedRule = result.rule
+        scopeGroup = result.group
+    }
 
     /// Engine scope for the current source; nil means "all photos in the folder".
     private func scope(for source: LibrarySource) -> (SearchScope, needed: Bool) {
@@ -110,37 +182,60 @@ final class LibraryModel {
 
     /// Runs the search for the app's source + filter. `applyMatches` false refreshes only the
     /// facet counts (after culling edits: filters apply when chosen, not live).
-    func refreshMatches(applyMatches: Bool = true) {
+    func refreshMatches(applyMatches: Bool = true, preservingVisible: Bool = false) {
         guard let catalog, let app else {
             if applyMatches { matches = nil }
             return
         }
         let (scope, needed) = scope(for: app.source)
+        let revision = catalog.revision
         var f = filter
         if app.source == .notInAlbum { f.albumStatus = "none" }
-        do {
-            let r = try catalog.search(f, scope: scope)
-            if applyMatches {
-                let albumMissing: Bool = if case .album(let name) = app.source { node(handle: name) == nil } else { false }
-                matches = (needed || !filter.isEmpty) && !albumMissing ? r.ids : nil
+        let facetsKey = facetGeneration.next()
+        let generation = applyMatches ? searchGeneration.next() : facetsKey
+        let source = app.source
+        let requestedFilter = filter
+        let request = f
+        let started = Date()
+        let albumMissing: Bool = if case .album(let name) = source { node(handle: name) == nil } else { false }
+        Task { [weak self] in
+            let result = await Task.detached(priority: .userInitiated) {
+                Result { try catalog.search(request, scope: scope, includeIDs: applyMatches) }
+            }.value
+            guard let self, self.catalog === catalog,
+                  (applyMatches ? self.searchGeneration.accepts(generation) : self.facetGeneration.accepts(generation)),
+                  catalog.revision == revision,
+                  let app = self.app, app.source == source, self.filter == requestedFilter else { return }
+            self.searchDuration = Date().timeIntervalSince(started)
+            switch result {
+            case .success(let r):
+                if applyMatches {
+                    app.refreshVisible(keepingExisting: preservingVisible) {
+                        self.matches = (needed || !requestedFilter.isEmpty) && !albumMissing ? r.ids : nil
+                    }
+                }
+                if self.facetGeneration.accepts(facetsKey) {
+                    if self.facets != r.facets { self.facets = r.facets }
+                    if self.diagnostic != r.diagnostic { self.diagnostic = r.diagnostic }
+                }
+                if applyMatches { self.matchCount = r.ids.count }
+                self.composedRule = r.rule
+                self.scopeGroup = r.group
+            case .failure(let error):
+                if applyMatches { app.refreshVisible { self.matches = needed ? [] : nil } }
+                app.statusMessage = "Search failed: \(error.localizedDescription)"
             }
-            if facets != r.facets { facets = r.facets }
-            if diagnostic != r.diagnostic { diagnostic = r.diagnostic }
-            matchCount = r.ids.count
-            composedRule = r.rule
-            scopeGroup = r.group
-        } catch {
-            if applyMatches { matches = needed ? [] : nil }
-            app.statusMessage = "Search failed: \(error.localizedDescription)"
         }
     }
 
     private func scheduleSearch() {
+        _ = searchGeneration.next()
+        _ = facetGeneration.next()
         searchTask?.cancel()
         searchTask = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .milliseconds(120))
-            guard let self, !Task.isCancelled, let app = self.app else { return }
-            app.refreshVisible { self.refreshMatches() }
+            guard let self, !Task.isCancelled else { return }
+            self.refreshMatches()
         }
     }
 
@@ -165,12 +260,22 @@ final class LibraryModel {
     // MARK: Sidebar nodes
 
     func reloadNodes() {
+        let generation = nodesGeneration.next()
         guard let catalog else { if !nodes.isEmpty { nodes = [] }; return }
-        do {
-            let fresh = try catalog.nodes()
-            if fresh != nodes { nodes = fresh }
-        } catch {
-            app?.statusMessage = "Could not read library.json: \(error.localizedDescription)"
+        Task { [weak self] in
+            let result = await Task.detached { Result { try catalog.nodes() } }.value
+            guard let self, self.catalog === catalog, self.nodesGeneration.accepts(generation) else { return }
+            switch result {
+            case .success(let fresh):
+                // A newly created/renamed album may be selected before its sidebar
+                // snapshot arrives. Resolve that handle without re-filtering ordinary
+                // cull/count updates (decided photos must stay visible).
+                let unresolved: String? = if case .album(let name)? = self.app?.source,
+                                             self.node(handle: name) == nil { name } else { nil }
+                if fresh != self.nodes { self.nodes = fresh }
+                if let unresolved, self.node(handle: unresolved) != nil { self.refreshMatches() }
+            case .failure(let error): self.app?.statusMessage = "Could not read library.json: \(error.localizedDescription)"
+            }
         }
     }
 
@@ -403,8 +508,13 @@ final class LibraryModel {
     // MARK: Keywords
 
     func reloadKeywords() {
+        let generation = keywordsGeneration.next()
         guard let catalog else { if !keywords.isEmpty { keywords = [] }; return }
-        if let fresh = try? catalog.keywords(), fresh != keywords { keywords = fresh }
+        Task { [weak self] in
+            let fresh = await Task.detached { try? catalog.keywords() }.value
+            guard let self, self.catalog === catalog, self.keywordsGeneration.accepts(generation), let fresh else { return }
+            if fresh != self.keywords { self.keywords = fresh }
+        }
     }
 
     /// Bulk apply (or remove) to the selection; writes each photo's XMP sidecar.
@@ -458,25 +568,26 @@ final class LibraryModel {
 
     func reloadMetadata() {
         metadataRevision += 1
+        let generation = metadataGeneration.next()
+        metadataTask?.cancel()
+        metadata = nil
+        mixed = []
         guard let catalog, let app, let item = app.focusedItem else {
             metadata = nil; mixed = []; understanding.reload(); return
         }
-        metadata = try? catalog.metadata(of: item.id)
-        // Fields that differ across the selection (up to 500 photos compared) show "Mixed".
-        var differing = Set<String>()
-        let others = app.targetIDs.filter { $0 != item.id }.prefix(499)
-        if let base = metadata, !others.isEmpty {
-            for id in others {
-                guard let m = try? catalog.metadata(of: id) else { continue }
-                if m.title != base.title { differing.insert("title") }
-                if m.caption != base.caption { differing.insert("caption") }
-                if m.altText != base.altText { differing.insert("altText") }
-                if m.creator != base.creator { differing.insert("creator") }
-                if m.copyright != base.copyright { differing.insert("copyright") }
-                if Set(m.keywords) != Set(base.keywords) { differing.insert("keywords") }
-            }
+        let items = [item.id] + app.targetIDs(limit: 500).lazy.filter { $0 != item.id }.prefix(499)
+        let revision = catalog.revision
+        metadataTask = Task { [weak self] in
+            let snapshot = await Task.detached(priority: .userInitiated) {
+                try? catalog.metadataSnapshot(items: items)
+            }.value
+            guard let self, !Task.isCancelled, self.catalog === catalog,
+                  catalog.revision == revision,
+                  self.metadataGeneration.accepts(generation) else { return }
+            self.metadata = snapshot?.metadata
+            self.mixed = snapshot?.mixed ?? []
+            self.metadataRevision += 1
         }
-        mixed = differing
         understanding.reload()
     }
 
