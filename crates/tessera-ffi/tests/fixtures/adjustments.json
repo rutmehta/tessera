@@ -467,5 +467,102 @@
    1,
    0.75
   ]
+ },
+ {
+  "kind": "auto",
+  "shadow_clip": 1.25,
+  "highlight_clip": 0.125,
+  "mode": "tone",
+  "black": [
+   0.125,
+   0.125,
+   0.125
+  ],
+  "white": [
+   0.875,
+   0.875,
+   0.875
+  ],
+  "gamma": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "kind": "match_color",
+  "neutralize": true,
+  "source_layer": 3,
+  "source_mean": [
+   60,
+   20,
+   -10
+  ],
+  "source_std": [
+   15,
+   6,
+   4
+  ],
+  "target_mean": [
+   45,
+   1,
+   2
+  ],
+  "target_std": [
+   12,
+   3,
+   3
+  ],
+  "luminance": 100,
+  "color_intensity": 150,
+  "fade": 0
+ },
+ {
+  "kind": "color_lookup",
+  "source_filename": "Teal Orange.cube",
+  "dither": true,
+  "size": 2,
+  "data": [
+   [
+    0,
+    0,
+    0
+   ],
+   [
+    1,
+    0,
+    0
+   ],
+   [
+    0,
+    1,
+    0
+   ],
+   [
+    1,
+    1,
+    0
+   ],
+   [
+    0,
+    0,
+    1
+   ],
+   [
+    1,
+    0,
+    1
+   ],
+   [
+    0,
+    1,
+    1
+   ],
+   [
+    1,
+    1,
+    1
+   ]
+  ]
  }
 ]

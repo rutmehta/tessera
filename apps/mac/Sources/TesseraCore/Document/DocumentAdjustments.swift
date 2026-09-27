@@ -61,7 +61,9 @@ public enum AdjustmentModel: Equatable, Sendable {
     /// Encoded RGB colour; fuzziness 0…200; hue degrees; saturation / lightness percent.
     case replaceColor(color: [Double], fuzziness: Double, hue: Double, saturation: Double, lightness: Double)
     /// Red-fastest cube of `size`³ RGB samples, flattened (`data.count == 3·size³`).
-    case colorLookup(size: Int, data: [Double])
+    /// (M5-32) `source_filename`: the LUT file the samples came from (metadata; `null` when unknown); `dither`:
+    /// deterministic sub-byte noise (serde default false).
+    case colorLookup(size: Int, data: [Double], sourceFilename: String? = nil, dither: Bool = false)
     case shadowsHighlights(ShadowsHighlightsModel)
     case hdrToning(HDRToningModel)
 
@@ -275,7 +277,8 @@ public enum AdjustmentModel: Equatable, Sendable {
             let size = Int(num("size", 2))
             let data = ((o["data"] as? [Any]) ?? []).flatMap { JSONNumbers.array($0, count: 3) ?? [] }
             guard data.count == 3 * size * size * size else { return nil }
-            self = .colorLookup(size: size, data: data)
+            self = .colorLookup(size: size, data: data, sourceFilename: o["source_filename"] as? String,
+                                dither: (o["dither"] as? Bool) ?? false)
         case "shadows_highlights":
             self = .shadowsHighlights(ShadowsHighlightsModel(object: (o["settings"] as? [String: Any]) ?? [:]))
         case "hdr_toning":
@@ -316,11 +319,12 @@ public enum AdjustmentModel: Equatable, Sendable {
         case .matchColor(let m): return m.jsonObject
         case .replaceColor(let c, let f, let h, let s, let l):
             return ["kind": "replace_color", "color": c, "fuzziness": f, "hue": h, "saturation": s, "lightness": l]
-        case .colorLookup(let size, let data):
+        case .colorLookup(let size, let data, let sourceFilename, let dither):
             let rows: [[Double]] = stride(from: 0, to: data.count - 2, by: 3).map { (i: Int) -> [Double] in
                 [data[i], data[i + 1], data[i + 2]]
             }
-            return ["kind": "color_lookup", "size": size, "data": rows]
+            return ["kind": "color_lookup", "size": size, "data": rows,
+                    "source_filename": sourceFilename.map { $0 as Any } ?? NSNull(), "dither": dither]
         case .shadowsHighlights(let m): return ["kind": "shadows_highlights", "settings": m.jsonObject]
         case .hdrToning(let m): return ["kind": "hdr_toning", "settings": m.jsonObject]
         }
