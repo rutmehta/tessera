@@ -46,7 +46,7 @@ and its source digest matched the retained manifest. Root inspected real saved
 pixels at minimum width; 34 captures include ready states. Masks reproduced six real narrow-label failures plus one OCR punctuation mismatch.
 The two-row correction passed focused Masks+ThemeLint checks (2/2) and root visual
 inspection. Evidence checkpoint is being finalized; no main merge yet.
-Review+Masks integration candidateb1d1a15 is prepared in the reused export-integration
+Review+Masks integration candidatefe0ff9e is prepared in the reused export-integration
 checkout, retaining main export source and ownership evidence; full gate pending. A Luna
 agent inspected the old baseline, then launched the isolated dev-test candidate.
 Initial CUA binding failed; uniquely named executable variant bound successfully.
@@ -57,7 +57,10 @@ keep catalogs separate and serialize UI control as well as heavy builds.
 
 Sol gainmap_gate_review now owns A’s heavy slot for supplemental Core Image and
 CLI/FFI/MCP checks, after reconciling that no prior process survived interruption.
-The original ImageIO four-stop failure remains intact; no package pass claimed.
+CLI host gate passed1/1. FFI failed before encoding on a sidecar/image-ID fixture
+mismatch; Cargo stopped before MCP. Supplemental test first failed on helper
+JSON numeric-versus-boolean serialization; both failures retained for narrow test
+repair. The original ImageIO four-stop failure remains intact; no package pass claimed.
 
 B’s original coordinator received queued messages, completed the Git bootstrap,
 and verified its single active heartbeat. Its B5-16 resolved-tree verification
