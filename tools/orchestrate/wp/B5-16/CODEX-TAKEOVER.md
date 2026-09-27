@@ -415,3 +415,13 @@ See PSD-COPY-IMPLEMENTATION.md for exact scope, compositor token handoff and all
 12 UNRUN tests. Bindings are intentionally stale until A regenerates; no compile
 or end-to-end cancellation acceptance. A owns compositor follow-up and telemetry;
 no edits there, no B workload/heartbeat restart, dirty snapshots preserved.
+
+## PSD error-precedence correction — fbd39d94 (2026-09-27)
+
+Accepted new exact-target request and corrected candidate7240948's finalizer.
+CopyError distinguishes typed cancellation from genuine failures; no later flag
+can overwrite failure. Native EngineError cancellation survives until typed
+mapping; legacy erased BridgeErrors remain failures rather than guesses.
+Running-drain admission and commit semantics retained. Two deterministic source
+tests added UNRUN; see PSD-COPY-ERROR-PRECEDENCE.md, including ambiguous legacy
+effect cancellation limitation. No B workloads or heartbeat restart.

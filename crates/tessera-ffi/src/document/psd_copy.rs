@@ -5,6 +5,40 @@ use crate::{Result, failure};
 use compositor::{Document, Layer, LayerId, LayerKind};
 use std::sync::{Arc, Mutex, MutexGuard, Weak};
 
+/// Cancellation must originate at a typed checkpoint, never from a later flag
+/// observed while handling an unrelated evaluator, validation or IO failure.
+#[derive(Debug)]
+pub(super) enum CopyError {
+    Cancelled,
+    Failed(crate::BridgeError),
+}
+pub(super) type CopyResult<T> = std::result::Result<T, CopyError>;
+impl From<crate::BridgeError> for CopyError {
+    fn from(error: crate::BridgeError) -> Self {
+        Self::Failed(error)
+    }
+}
+impl From<engine_api::EngineError> for CopyError {
+    fn from(error: engine_api::EngineError) -> Self {
+        match error {
+            engine_api::EngineError::Cancelled => Self::Cancelled,
+            other => Self::Failed(other.into()),
+        }
+    }
+}
+impl From<std::io::Error> for CopyError {
+    fn from(error: std::io::Error) -> Self {
+        Self::Failed(error.into())
+    }
+}
+fn outcome(result: CopyResult<()>) -> Result<RasterizedPsdCopyOutcome> {
+    match result {
+        Ok(()) => Ok(RasterizedPsdCopyOutcome::Saved),
+        Err(CopyError::Cancelled) => Ok(RasterizedPsdCopyOutcome::Cancelled),
+        Err(CopyError::Failed(error)) => Err(error),
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, uniffi::Enum)]
 pub enum RasterizedPsdCopyOutcome {
     Saved,
@@ -66,12 +100,17 @@ impl CopyState {
         life.phase = Phase::Running;
         Ok(true)
     }
-    fn check(&self) -> Result<()> {
+    fn check(&self) -> CopyResult<()> {
         if self.cancel.is_cancelled() {
-            Err(failure("rasterized copy cancelled"))
+            Err(CopyError::Cancelled)
         } else {
             Ok(())
         }
+    }
+    fn finish_result(&self, result: CopyResult<()>) -> Result<RasterizedPsdCopyOutcome> {
+        // Drop the lifecycle lock before mapping/returning the owned error.
+        self.life().phase = Phase::Finished;
+        outcome(result)
     }
     fn holds_admission(&self) -> bool {
         let life = self.life();
@@ -115,14 +154,14 @@ impl CopyRegistry {
             state.cancel();
         }
     }
-    fn admit_commit(&self, state: &Arc<CopyState>) -> Result<()> {
+    fn admit_commit(&self, state: &Arc<CopyState>) -> CopyResult<()> {
         let registry = self.lock();
         let mut life = state.life();
         if registry.closed || life.cancelled || life.phase != Phase::Running {
-            return Err(failure("rasterized copy cancelled before commit"));
+            return Err(CopyError::Cancelled);
         }
         if !registry.active.ptr_eq(&Arc::downgrade(state)) {
-            return Err(failure("rasterized copy lost ownership"));
+            return Err(failure("rasterized copy lost ownership").into());
         }
         life.phase = Phase::Committing;
         // Neither gate is held during persist, evaluation, copying or callbacks.
@@ -180,27 +219,21 @@ impl RasterizedPsdCopyOperation {
             return Ok(RasterizedPsdCopyOutcome::Cancelled);
         }
         let result = self.run_inner(std::path::Path::new(&path));
-        // Before commit cancellation wins outcome publication. The same lifecycle
-        // gate excludes cancel after a successful result or non-cancel failure.
-        let mut life = self.state.life();
-        let cancelled = life.cancelled;
-        life.phase = Phase::Finished;
-        if cancelled {
-            Ok(RasterizedPsdCopyOutcome::Cancelled)
-        } else {
-            result.map(|()| RasterizedPsdCopyOutcome::Saved)
-        }
+        // Finalize admission under the lifecycle gate, but do not reclassify
+        // a genuine failure using cancellation that arrived after that failure.
+        self.state.finish_result(result)
     }
 }
 impl RasterizedPsdCopyOperation {
-    fn run_inner(&self, path: &std::path::Path) -> Result<()> {
+    fn run_inner(&self, path: &std::path::Path) -> CopyResult<()> {
         self.state.check()?;
         let kind = io::save_kind(path)?;
         if kind == io::SaveKind::Native {
-            return Err(failure("the rasterized copy is a .psd or .psb file"));
+            return Err(failure("the rasterized copy is a .psd or .psb file").into());
         }
         let snapshot = {
             let st = self.shared.lock()?;
+            self.state.check()?;
             st.open()?;
             st.doc.state().clone()
         };
@@ -208,7 +241,7 @@ impl RasterizedPsdCopyOperation {
         if kind == io::SaveKind::Psd
             && (snapshot.canvas.width > 30_000 || snapshot.canvas.height > 30_000)
         {
-            return Err(failure("PSD is limited to 30000 pixels: save as .psb"));
+            return Err(failure("PSD is limited to 30000 pixels: save as .psb").into());
         }
         let mut ids = Vec::new();
         collect_layers(&snapshot.root, &mut ids, &|| self.state.check())?;
@@ -224,8 +257,8 @@ fn rasterize_layers(
     snapshot: &compositor::DocState,
     ids: &[u64],
     state: &CopyState,
-    mut rasterize: impl FnMut(&Layer) -> Result<compositor::Raster>,
-) -> Result<compositor::DocState> {
+    mut rasterize: impl FnMut(&Layer) -> CopyResult<compositor::Raster>,
+) -> CopyResult<compositor::DocState> {
     state.check()?;
     let mut copy = snapshot.clone();
     for &id in ids {
@@ -239,8 +272,8 @@ fn rasterize_layers(
 fn collect_layers(
     layers: &[Arc<Layer>],
     out: &mut Vec<u64>,
-    check: &impl Fn() -> Result<()>,
-) -> Result<()> {
+    check: &impl Fn() -> CopyResult<()>,
+) -> CopyResult<()> {
     for layer in layers {
         check()?;
         match &layer.kind {
@@ -257,6 +290,67 @@ fn collect_layers(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn genuine_failure_wins_cancel_between_work_and_finalization() {
+        for message in [
+            "evaluator failed",
+            "invalid PSD destination",
+            "write failed",
+        ] {
+            let registry = Arc::new(CopyRegistry::default());
+            let state = registry.prepare().unwrap();
+            let (failed_tx, failed_rx) = std::sync::mpsc::channel();
+            let (finish_tx, finish_rx) = std::sync::mpsc::channel();
+            let r = registry.clone();
+            let worker_state = state.clone();
+            let worker = std::thread::spawn(move || {
+                worker_state.start().unwrap();
+                let _drain = Drain {
+                    registry: &r,
+                    state: &worker_state,
+                };
+                let result = Err(CopyError::from(failure(message)));
+                failed_tx.send(()).unwrap();
+                finish_rx
+                    .recv_timeout(std::time::Duration::from_secs(5))
+                    .unwrap();
+                worker_state.finish_result(result)
+            });
+            failed_rx
+                .recv_timeout(std::time::Duration::from_secs(5))
+                .unwrap();
+            assert!(state.cancel());
+            assert!(registry.prepare().is_err(), "failure/cancel still draining");
+            finish_tx.send(()).unwrap();
+            let error = worker.join().unwrap().unwrap_err();
+            assert_eq!(error.to_string(), message);
+            assert!(registry.prepare().is_ok());
+        }
+    }
+
+    #[test]
+    fn only_typed_cancellation_maps_to_cancelled() {
+        let state = CopyState::new();
+        state.start().unwrap();
+        state.cancel();
+        assert_eq!(
+            state.finish_result(state.check()).unwrap(),
+            RasterizedPsdCopyOutcome::Cancelled
+        );
+        assert_eq!(
+            outcome(Err(engine_api::EngineError::Cancelled.into())).unwrap(),
+            RasterizedPsdCopyOutcome::Cancelled
+        );
+        // Even a legacy failure with this text stays an error; no string matching.
+        assert!(outcome(Err(failure("cancelled").into())).is_err());
+        assert!(
+            outcome(Err(
+                engine_api::EngineError::invalid("test", "bad raster").into()
+            ))
+            .is_err()
+        );
+        assert!(outcome(Err(std::io::Error::other("disk failure").into())).is_err());
+    }
     #[test]
     fn cancelled_first_layer_prevents_next_and_preserves_source() {
         let extent = engine_api::tile::Extent::new(2, 2);

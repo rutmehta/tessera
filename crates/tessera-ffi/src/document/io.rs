@@ -368,13 +368,13 @@ pub(crate) fn save(doc: &Document, path: &Path) -> Result<()> {
 pub(super) fn save_psd_copy_checked(
     doc: &Document,
     path: &Path,
-    check: &impl Fn() -> Result<()>,
-    admit_commit: &impl Fn() -> Result<()>,
-) -> Result<()> {
+    check: &impl Fn() -> super::psd_copy::CopyResult<()>,
+    admit_commit: &impl Fn() -> super::psd_copy::CopyResult<()>,
+) -> super::psd_copy::CopyResult<()> {
     check()?;
     let kind = save_kind(path)?;
     if kind == SaveKind::Native {
-        return Err(failure("copy requires PSD or PSB"));
+        return Err(failure("copy requires PSD or PSB").into());
     }
     let mut psd = compositor::psd::to_psd(doc)?;
     check()?;
@@ -391,9 +391,9 @@ pub(super) fn save_psd_copy_checked(
 fn write_copy_atomic(
     path: &Path,
     bytes: &[u8],
-    check: &impl Fn() -> Result<()>,
-    admit_commit: &impl Fn() -> Result<()>,
-) -> Result<()> {
+    check: &impl Fn() -> super::psd_copy::CopyResult<()>,
+    admit_commit: &impl Fn() -> super::psd_copy::CopyResult<()>,
+) -> super::psd_copy::CopyResult<()> {
     check()?;
     let dir = path
         .parent()
@@ -424,7 +424,7 @@ mod copy_transaction_tests {
         let path = dir.path().join("copy.psd");
         std::fs::write(&path, b"sentinel").unwrap();
         let result = write_copy_atomic(&path, b"replacement", &|| Ok(()), &|| {
-            Err(failure("cancelled"))
+            Err(super::psd_copy::CopyError::Cancelled)
         });
         assert!(result.is_err());
         assert_eq!(std::fs::read(&path).unwrap(), b"sentinel");
@@ -444,7 +444,7 @@ mod copy_transaction_tests {
             &|| {
                 checks.set(checks.get() + 1);
                 if checks.get() == 3 {
-                    Err(failure("cancelled before second chunk"))
+                    Err(super::psd_copy::CopyError::Cancelled)
                 } else {
                     Ok(())
                 }
