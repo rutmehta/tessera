@@ -4,7 +4,7 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
-## Current coordinator checkpoint — 2026-09-27 18:44 UTC
+## Current coordinator checkpoint — 2026-09-27 18:49 UTC
 
 Published main **fb7c604670a197e2c663d0b47448956e7336dff0**. It integrates the
 bounded DNG1.6/original embedding, PQ-HLG/native metadata export slice and Review
@@ -21,7 +21,11 @@ existing-copy disclosure remains truthful. UX02b relaunch persistence is pending
 The third A agent audits narrow overlay/Masks label layout without global theme
 or Document changes.
 
-Fresh gain-map validation now runs on A(session89001). B core compilation passed,
+A gain-map gate completed: four passed, one failed. The four-stop resize/sharpen
+case decodes natively to peak7.9837623 versus16; independent reconstruction passed.
+Preserve this failure while isolating decoder/context behavior; no relaxed checks.
+A short artifact capture precedes UX02a checkpoint4fcb802 focused validation.
+B core compilation passed,
 but four native auxiliary-discovery assertions failed. Both independent Skia ISO
 controls also lack HDR reconstruction through the same B macOS26.1 path; this is
 a tested-host limitation, not proof of encoder acceptance or a blanket OS claim.
