@@ -662,7 +662,7 @@ fn save_render_undo_races_keep_history_and_surfaces_valid() {
 
 /// The composite thumbnail (Channels panel, per edit on the main thread)
 /// reuses its layers' mips after a property edit instead of reducing every
-/// layer from level 0 again; during a drag it shows the committed state.
+/// layer from level 0 again; within a drag only its first tick is cold.
 #[test]
 fn composite_thumbnails_reuse_mips_across_edits() {
     let (_d, engine) = engine();
@@ -677,17 +677,20 @@ fn composite_thumbnails_reuse_mips_across_edits() {
     let t = Instant::now();
     let second = s.composite_thumbnail(48).unwrap();
     let warm = t.elapsed();
-    assert_ne!(first, second, "a committed edit renders a new thumbnail");
+    assert_ne!(first, second, "an edit renders a new thumbnail");
     eprintln!("composite thumbnail: cold {cold:?}, after an opacity edit {warm:?}");
     assert!(warm * 4 < cold, "cold {cold:?} vs warm {warm:?}");
-    // An interactive drag keeps the committed thumbnail (no render per tick).
-    let n = s.thumbnail_renders();
+    // A drag shows its live state; after its first tick the scratch's mips
+    // are cached too.
+    let mut ticks = Vec::new();
     for i in 0..5 {
         s.set_opacity(layer, 0.1 * i as f32, true).unwrap();
-        assert_eq!(s.composite_thumbnail(48).unwrap(), second);
+        let t = Instant::now();
+        s.composite_thumbnail(48).unwrap();
+        ticks.push(t.elapsed());
     }
-    assert_eq!(s.thumbnail_renders(), n);
+    eprintln!("drag ticks: {ticks:?}");
+    assert!(ticks[1..].iter().all(|t| *t * 4 < cold), "{ticks:?}");
     s.commit("Opacity".into()).unwrap();
-    assert_ne!(s.composite_thumbnail(48).unwrap(), second);
     s.close();
 }

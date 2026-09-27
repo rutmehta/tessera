@@ -1080,19 +1080,18 @@ pub(crate) fn thumbnail(shared: &Shared, kind: ThumbKind, max_px: u32) -> Result
                     false,
                 )
             }
-            // B5-14: the committed document (a drag's scratch shows on the
-            // canvas; the thumbnail follows on commit). Without smart
-            // filters it is rendered as is: a stable key, so a property edit
-            // recomposites the tiny thumbnail level from cached mips instead
-            // of re-reducing every layer from level 0 (seconds on the main
-            // thread for 60 × 18 MP layers, per edit).
+            // B5-14: without smart filters the live document is rendered as
+            // is: its cache key is stable (the committed document, or one
+            // drag's scratch), so an edit recomposites the tiny thumbnail
+            // level from cached mips instead of re-reducing every layer from
+            // level 0 (seconds on the main thread for 60 × 18 MP layers, per
+            // edit). A drag's first thumbnail is still cold (NEEDS.md 1).
             ThumbKind::Composite => {
-                let s = st.doc.state();
                 if has_smart_filters(s) {
                     let d = Document::new(super::filtering::unfiltered_state(s));
                     (s.rev, Arc::new(d), false)
                 } else {
-                    (s.rev, st.doc.share(), true)
+                    (s.rev, st.live_shared(), true)
                 }
             }
         }
