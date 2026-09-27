@@ -56,6 +56,23 @@ final class CurveEditorView: NSView, KeyOwningControl {
     }
     required init?(coder: NSCoder) { fatalError() }
 
+    /// Knot radius (the plot inset) and the unselected knot's outline width.
+    static let knotRadius: CGFloat = 4
+    static let knotStroke: CGFloat = 1.5
+
+    /// M2-56 (audit D09): the knot's path. An outlined knot's path is inset by half its stroke, so
+    /// the painted knot keeps to `knotRadius` and an end knot stays inside the 4 pt plot inset.
+    static func knotPath(center c: CGPoint, selected: Bool) -> NSRect {
+        let r = NSRect(x: c.x - knotRadius, y: c.y - knotRadius, width: 2 * knotRadius, height: 2 * knotRadius)
+        return selected ? r : r.insetBy(dx: knotStroke / 2, dy: knotStroke / 2)
+    }
+
+    /// The knot's painted rectangle (path plus the outside half of its stroke).
+    static func knotPaintRect(center c: CGPoint, selected: Bool) -> NSRect {
+        let path = knotPath(center: c, selected: selected)
+        return selected ? path : path.insetBy(dx: -knotStroke / 2, dy: -knotStroke / 2)
+    }
+
     private var plot: NSRect {
         let strip = mode == .parametric ? splitStrip : 0
         return NSRect(x: bounds.minX + 4, y: bounds.minY + 4 + strip,
@@ -196,13 +213,13 @@ final class CurveEditorView: NSView, KeyOwningControl {
         curvePath(curve.evaluate).stroke()
         for (i, k) in curve.knots.enumerated() {
             let c = point(k.x, k.y)
-            let r = NSRect(x: c.x - 4, y: c.y - 4, width: 8, height: 8)
-            let dot = NSBezierPath(ovalIn: r)
-            if i == selected {
+            let selectedKnot = i == selected
+            let dot = NSBezierPath(ovalIn: Self.knotPath(center: c, selected: selectedKnot))
+            if selectedKnot {
                 Theme.Palette.accent.setFill(); dot.fill()
             } else {
                 Theme.Palette.plotWell.setFill(); dot.fill()
-                channelColor.setStroke(); dot.lineWidth = 1.5; dot.stroke()
+                channelColor.setStroke(); dot.lineWidth = Self.knotStroke; dot.stroke()
             }
         }
     }

@@ -15,6 +15,20 @@ impl PreviewStore {
 
     /// Blocking worker entry point. Schedule at Priority::Preview, never on UI.
     pub fn from_raw(&self, path: &Path, max_px: u32) -> Result<(PreviewKey, PreviewSource)> {
+        let hash = engine_api::recipe::Recipe::default().recipe_hash().0.0;
+        let revision = PreviewKey::for_source(path, max_px, 0, hash)?;
+        if let Some(hit) = self.raw_alias(&revision) {
+            return Ok(hit);
+        }
+        self.source_work.fetch_add(1, Ordering::Relaxed);
+        let (key, source) = self.load_raw_uncached(path, max_px)?;
+        if revision == PreviewKey::for_source(path, max_px, 0, hash)? {
+            self.put_raw_alias(&revision, &key, source)?;
+        }
+        Ok((key, source))
+    }
+
+    fn load_raw_uncached(&self, path: &Path, max_px: u32) -> Result<(PreviewKey, PreviewSource)> {
         if max_px == 0 {
             return Err(engine_api::EngineError::invalid("max_px", "must be positive").into());
         }
@@ -90,6 +104,25 @@ impl PreviewStore {
     /// same file identity as [`PreviewStore::from_raw`]. A preview already
     /// stored under that key (e.g. by the develop session) is reused.
     pub fn from_raw_settings(
+        &self,
+        path: &Path,
+        max_px: u32,
+        settings: &engine_api::recipe::DevelopSettings,
+        recipe_hash: [u8; 32],
+    ) -> Result<PreviewKey> {
+        let revision = PreviewKey::for_source(path, max_px, 0, recipe_hash)?;
+        if let Some((key, _)) = self.raw_alias(&revision) {
+            return Ok(key);
+        }
+        self.source_work.fetch_add(1, Ordering::Relaxed);
+        let key = self.load_raw_settings_uncached(path, max_px, settings, recipe_hash)?;
+        if revision == PreviewKey::for_source(path, max_px, 0, recipe_hash)? {
+            self.put_raw_alias(&revision, &key, PreviewSource::Rendered)?;
+        }
+        Ok(key)
+    }
+
+    fn load_raw_settings_uncached(
         &self,
         path: &Path,
         max_px: u32,

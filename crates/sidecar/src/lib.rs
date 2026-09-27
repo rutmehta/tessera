@@ -1,7 +1,9 @@
 //! XMP metadata sidecar synchronization.
 mod develop;
+mod export_policy;
 mod faces;
 pub use develop::ImportedRecipe;
+pub use export_policy::ExportMetadataPolicy;
 pub use faces::FaceRegion;
 mod xml;
 mod xmp;

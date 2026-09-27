@@ -138,6 +138,31 @@ Open Folder (leading) · Grid / Loupe / Compare segmented (centre) · thumbnail 
 Auto-advance, Inspector (trailing; icon + label). Below: filter bar (panel, hairline) · content
 (canvas) · progress strips · status bar · filmstrip. Sidebar left, inspector right.
 
+### 3.5 Layout contracts (WP M2-56)
+
+Tokens make controls look alike; these rules make them fit. `Shell/ShellLayout.swift` holds the
+shell's budget and `ShellLayoutTests` checks it at 960 × 600 (the declared minimum content size),
+1280 × 800, 1440 × 900 and 1728 × 1117, light and dark.
+
+- **The window is the budget.** Each split-view column is a `containedColumn()`: it takes the size
+  the split view gives it and clips (or scrolls) its own overflow. No subtree may raise the window's
+  minimum, sit at a negative origin or slide under the toolbar.
+- **Yield order when the window shrinks:** 1) the library sidebar collapses (the person's choice
+  returns when it fits again); 2) the inspector narrows towards its 288 pt minimum; 3) the filmstrip
+  hides when the canvas above it would be shorter than 320 pt. Below 1280 pt the toolbar's text
+  buttons show icons only (titles stay in help and accessibility).
+- **Text in a constrained row** truncates at a measured width (`lineLimit(1)` + a truncation mode,
+  full text in help); never a character count, never two-axis `fixedSize()` on a text or menu group.
+  Pop-up menus hug their title and give width back (`hugCompressible()`); chevrons, icons and
+  numeric readouts do not compress.
+- **Label / value pairs** reserve a gap (`Space.s`); the value is always whole, the label truncates
+  (ValueSlider).
+- **Rows with optional parts** remove them (`if`), not `opacity(0)`; AppKit rows collapse the
+  constraint and its gaps when a part is hidden.
+- **Status and action rows** offer a compact variant (`ViewThatFits`): the full row when it fits,
+  else short labels or icons; a message never decides which variant fits (ideal width 0).
+- **Custom drawing** budgets the whole painted envelope: stroke halves, handle radii, text rects.
+
 ## 4. Type
 
 SF Pro only, at six sizes and three weights (regular, medium, semibold; never bold). Every

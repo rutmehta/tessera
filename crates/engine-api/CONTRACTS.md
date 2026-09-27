@@ -139,6 +139,11 @@ Layered documents (spec 02) have a second call enum with the same conventions, `
 
 ## Change log
 
+- 1.6.0 (M5-32), additive; no recipe schema change:
+  - `ChannelKind::AlphaDisplay` preserves alpha overlay RGB, opacity and selected-area polarity. Legacy `Alpha` remains red at 50% opacity over masked areas. Spot colour retains its existing display RGB and solidity. Channel summaries expose the kind and its display metadata.
+  - `StrokeTarget::Channel(ChannelId)` extends the existing document brush call to alpha and spot planes. Existing pixel and mask targets retain their wire representation. MCP routes channel strokes through ordinary `DocOp::PaintTiles` and undo/redo; no new command name is introduced.
+  - Rust exhaustive enum matches must handle the added variants. Earlier serialized alpha channels and stroke requests remain valid.
+
 - 1.5.0 (M5-30), additive; no recipe schema or process revision change:
   - Typed editable `TextModel`, `TextRun`, `ShapeModel`, and `VectorMask` contracts.
   - Eight document commands: add/edit text, replace run ranges, add/edit shape, set/remove vector masks, and convert editable layers to pixels. Each command records one ordinary history entry and round-trips through Actions. Run ranges index runs, not characters. Transform defaults to identity.

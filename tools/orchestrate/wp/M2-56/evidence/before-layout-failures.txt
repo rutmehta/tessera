@@ -1,0 +1,169 @@
+/Users/rutmehta/Developer/tessera/.worktrees/M2-56/apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift:75: error: -[TesseraCoreTests.ShellLayoutTests testShellContainedAtEverySizeStateAndAppearance] : XCTAssertTrue failed - 168 layout failures:
+library-960x600-dark containment: AppKitPlatformViewHost<PlatformViewRepresentableAdaptor<SystemSplitView>> {{-137, 0}, {1235, 652}} outside {{0, 0}, {960, 652}}
+library-960x600-dark containment: NSSplitView {{-137, 0}, {1235, 652}} outside {{0, 0}, {960, 652}}
+library-960x600-dark containment: _NSSplitViewItemViewWrapper {{-137, 0}, {1235, 652}} outside {{0, 0}, {960, 652}}
+library-960x600-dark containment: NSHostingView<ModifiedContent<_ViewList_View, NavigationPaneModifier<ContainerStyleContext>>> {{-137, 0}, {1235, 652}} outside {{0, 0}, {960, 652}}
+library-960x600-dark containment: NSSplitView {{-137, 0}, {1235, 652}} outside {{0, 0}, {960, 652}}
+library-960x600-dark containment: _NSSplitViewItemViewWrapper {{-137, 0}, {1235, 652}} outside {{0, 0}, {960, 652}}
+library-960x600-dark containment: NSHostingView<ModifiedContent<ColumnView, NavigationPaneModifier<ContainerStyleContext>>> {{-137, 0}, {1235, 652}} outside {{0, 0}, {960, 652}}
+library-960x600-dark containment: _NSSplitViewItemViewWrapper {{-137, 0}, {228, 652}} outside {{0, 0}, {960, 652}}
+library-960x600-dark containment: NSHostingView<ModifiedContent<ColumnView, NavigationPaneModifier<SidebarStyleContext>>> {{-129, 8}, {220, 636}} outside {{0, 0}, {960, 652}}
+library-960x600-dark containment: _NSCoreHostingView<RootView> {{-129, 8}, {220, 636}} outside {{0, 0}, {960, 652}}
+library-960x600-dark containment: _NSSplitViewCollapsedInteractionsView {{-137, 0}, {15, 652}} outside {{0, 0}, {960, 652}}
+library-960x600-dark containment: _NSSplitViewCollapsedInteractionsView {{1083, 0}, {15, 652}} outside {{0, 0}, {960, 652}}
+library-960x600-dark containment: _NSSplitViewItemViewWrapper {{802, 0}, {296, 652}} outside {{0, 0}, {960, 652}}
+library-960x600-dark containment: NSHostingView<ModifiedContent<_ViewList_View, NavigationPaneModifier<InspectorStyleContext>>> {{802, 0}, {296, 652}} outside {{0, 0}, {960, 652}}
+library-960x600-dark containment: HostingScrollView {{802, 0}, {296, 652}} outside {{0, 0}, {960, 652}}
+library-960x600-dark containment: _NSCoreHostingView<RootView> {{802, 0}, {296, 652}} outside {{0, 0}, {960, 652}}
+library-960x600-dark outside the window: AXOutline 'sidebarOutline' {{-129, 52}, {220, 592}}
+library-960x600-light containment: AppKitPlatformViewHost<PlatformViewRepresentableAdaptor<SystemSplitView>> {{-137, 0}, {1235, 652}} outside {{0, 0}, {960, 652}}
+library-960x600-light containment: NSSplitView {{-137, 0}, {1235, 652}} outside {{0, 0}, {960, 652}}
+library-960x600-light containment: _NSSplitViewItemViewWrapper {{-137, 0}, {1235, 652}} outside {{0, 0}, {960, 652}}
+library-960x600-light containment: NSHostingView<ModifiedContent<_ViewList_View, NavigationPaneModifier<ContainerStyleContext>>> {{-137, 0}, {1235, 652}} outside {{0, 0}, {960, 652}}
+library-960x600-light containment: NSSplitView {{-137, 0}, {1235, 652}} outside {{0, 0}, {960, 652}}
+library-960x600-light containment: _NSSplitViewItemViewWrapper {{-137, 0}, {1235, 652}} outside {{0, 0}, {960, 652}}
+library-960x600-light containment: NSHostingView<ModifiedContent<ColumnView, NavigationPaneModifier<ContainerStyleContext>>> {{-137, 0}, {1235, 652}} outside {{0, 0}, {960, 652}}
+library-960x600-light containment: _NSSplitViewItemViewWrapper {{-137, 0}, {228, 652}} outside {{0, 0}, {960, 652}}
+library-960x600-light containment: NSHostingView<ModifiedContent<ColumnView, NavigationPaneModifier<SidebarStyleContext>>> {{-129, 8}, {220, 636}} outside {{0, 0}, {960, 652}}
+library-960x600-light containment: _NSCoreHostingView<RootView> {{-129, 8}, {220, 636}} outside {{0, 0}, {960, 652}}
+library-960x600-light containment: _NSSplitViewCollapsedInteractionsView {{-137, 0}, {15, 652}} outside {{0, 0}, {960, 652}}
+library-960x600-light containment: _NSSplitViewCollapsedInteractionsView {{1083, 0}, {15, 652}} outside {{0, 0}, {960, 652}}
+library-960x600-light containment: _NSSplitViewItemViewWrapper {{802, 0}, {296, 652}} outside {{0, 0}, {960, 652}}
+library-960x600-light containment: NSHostingView<ModifiedContent<_ViewList_View, NavigationPaneModifier<InspectorStyleContext>>> {{802, 0}, {296, 652}} outside {{0, 0}, {960, 652}}
+library-960x600-light containment: HostingScrollView {{802, 0}, {296, 652}} outside {{0, 0}, {960, 652}}
+library-960x600-light containment: _NSCoreHostingView<RootView> {{802, 0}, {296, 652}} outside {{0, 0}, {960, 652}}
+library-960x600-light outside the window: AXOutline 'sidebarOutline' {{-129, 52}, {220, 592}}
+raw-960x600-dark containment: AppKitPlatformViewHost<PlatformViewRepresentableAdaptor<SystemSplitView>> {{-130, 0}, {1221, 652}} outside {{0, 0}, {960, 652}}
+raw-960x600-dark containment: NSSplitView {{-130, 0}, {1221, 652}} outside {{0, 0}, {960, 652}}
+raw-960x600-dark containment: _NSSplitViewItemViewWrapper {{-130, 0}, {1221, 652}} outside {{0, 0}, {960, 652}}
+raw-960x600-dark containment: NSHostingView<ModifiedContent<_ViewList_View, NavigationPaneModifier<ContainerStyleContext>>> {{-130, 0}, {1221, 652}} outside {{0, 0}, {960, 652}}
+raw-960x600-dark containment: NSSplitView {{-130, 0}, {1221, 652}} outside {{0, 0}, {960, 652}}
+raw-960x600-dark containment: _NSSplitViewItemViewWrapper {{-130, 0}, {1221, 652}} outside {{0, 0}, {960, 652}}
+raw-960x600-dark containment: NSHostingView<ModifiedContent<ColumnView, NavigationPaneModifier<ContainerStyleContext>>> {{-130, 0}, {1221, 652}} outside {{0, 0}, {960, 652}}
+raw-960x600-dark containment: _NSSplitViewItemViewWrapper {{-130, 0}, {228, 652}} outside {{0, 0}, {960, 652}}
+raw-960x600-dark containment: NSHostingView<ModifiedContent<ColumnView, NavigationPaneModifier<SidebarStyleContext>>> {{-122, 8}, {220, 636}} outside {{0, 0}, {960, 652}}
+raw-960x600-dark containment: _NSCoreHostingView<RootView> {{-122, 8}, {220, 636}} outside {{0, 0}, {960, 652}}
+raw-960x600-dark containment: _NSSplitViewCollapsedInteractionsView {{-130, 0}, {15, 652}} outside {{0, 0}, {960, 652}}
+raw-960x600-dark containment: _NSSplitViewCollapsedInteractionsView {{1076, 0}, {15, 652}} outside {{0, 0}, {960, 652}}
+raw-960x600-dark containment: _NSSplitViewItemViewWrapper {{795, 0}, {296, 652}} outside {{0, 0}, {960, 652}}
+raw-960x600-dark containment: NSHostingView<ModifiedContent<_ViewList_View, NavigationPaneModifier<InspectorStyleContext>>> {{795, 0}, {296, 652}} outside {{0, 0}, {960, 652}}
+raw-960x600-dark containment: HostingScrollView {{795, 0}, {296, 652}} outside {{0, 0}, {960, 652}}
+raw-960x600-dark containment: _NSCoreHostingView<RootView> {{795, 0}, {296, 652}} outside {{0, 0}, {960, 652}}
+raw-960x600-dark outside the window: AXOutline 'sidebarOutline' {{-122, 52}, {220, 592}}
+raw-960x600-light containment: AppKitPlatformViewHost<PlatformViewRepresentableAdaptor<SystemSplitView>> {{-130, 0}, {1221, 652}} outside {{0, 0}, {960, 652}}
+raw-960x600-light containment: NSSplitView {{-130, 0}, {1221, 652}} outside {{0, 0}, {960, 652}}
+raw-960x600-light containment: _NSSplitViewItemViewWrapper {{-130, 0}, {1221, 652}} outside {{0, 0}, {960, 652}}
+raw-960x600-light containment: NSHostingView<ModifiedContent<_ViewList_View, NavigationPaneModifier<ContainerStyleContext>>> {{-130, 0}, {1221, 652}} outside {{0, 0}, {960, 652}}
+raw-960x600-light containment: NSSplitView {{-130, 0}, {1221, 652}} outside {{0, 0}, {960, 652}}
+raw-960x600-light containment: _NSSplitViewItemViewWrapper {{-130, 0}, {1221, 652}} outside {{0, 0}, {960, 652}}
+raw-960x600-light containment: NSHostingView<ModifiedContent<ColumnView, NavigationPaneModifier<ContainerStyleContext>>> {{-130, 0}, {1221, 652}} outside {{0, 0}, {960, 652}}
+raw-960x600-light containment: _NSSplitViewItemViewWrapper {{-130, 0}, {228, 652}} outside {{0, 0}, {960, 652}}
+raw-960x600-light containment: NSHostingView<ModifiedContent<ColumnView, NavigationPaneModifier<SidebarStyleContext>>> {{-122, 8}, {220, 636}} outside {{0, 0}, {960, 652}}
+raw-960x600-light containment: _NSCoreHostingView<RootView> {{-122, 8}, {220, 636}} outside {{0, 0}, {960, 652}}
+raw-960x600-light containment: _NSSplitViewCollapsedInteractionsView {{-130, 0}, {15, 652}} outside {{0, 0}, {960, 652}}
+raw-960x600-light containment: _NSSplitViewCollapsedInteractionsView {{1076, 0}, {15, 652}} outside {{0, 0}, {960, 652}}
+raw-960x600-light containment: _NSSplitViewItemViewWrapper {{795, 0}, {296, 652}} outside {{0, 0}, {960, 652}}
+raw-960x600-light containment: NSHostingView<ModifiedContent<_ViewList_View, NavigationPaneModifier<InspectorStyleContext>>> {{795, 0}, {296, 652}} outside {{0, 0}, {960, 652}}
+raw-960x600-light containment: HostingScrollView {{795, 0}, {296, 652}} outside {{0, 0}, {960, 652}}
+raw-960x600-light containment: _NSCoreHostingView<RootView> {{795, 0}, {296, 652}} outside {{0, 0}, {960, 652}}
+raw-960x600-light outside the window: AXOutline 'sidebarOutline' {{-122, 52}, {220, 592}}
+document-960x600-dark containment: AppKitPlatformViewHost<PlatformViewRepresentableAdaptor<SystemSplitView>> {{-122, -82}, {1204, 869}} outside {{0, 0}, {960, 652}}
+document-960x600-dark containment: NSSplitView {{-122, -82}, {1204, 869}} outside {{0, 0}, {960, 652}}
+document-960x600-dark containment: _NSSplitViewItemViewWrapper {{-122, -82}, {1204, 869}} outside {{0, 0}, {960, 652}}
+document-960x600-dark containment: NSHostingView<ModifiedContent<_ViewList_View, NavigationPaneModifier<ContainerStyleContext>>> {{-122, -82}, {1204, 869}} outside {{0, 0}, {960, 652}}
+document-960x600-dark containment: NSSplitView {{-122, -82}, {1204, 869}} outside {{0, 0}, {960, 652}}
+document-960x600-dark containment: _NSSplitViewItemViewWrapper {{-122, -82}, {1204, 869}} outside {{0, 0}, {960, 652}}
+document-960x600-dark containment: NSHostingView<ModifiedContent<ColumnView, NavigationPaneModifier<ContainerStyleContext>>> {{-122, -82}, {1204, 869}} outside {{0, 0}, {960, 652}}
+document-960x600-dark containment: HostingScrollView {{170, -18}, {604, 32}} outside {{0, 0}, {960, 652}}
+document-960x600-dark containment: _NSSplitViewShadowView {{106, -82}, {12, 869}} outside {{0, 0}, {960, 652}}
+document-960x600-dark containment: _NSSplitViewItemViewWrapper {{-122, -82}, {228, 869}} outside {{0, 0}, {960, 652}}
+document-960x600-dark containment: NSHostingView<ModifiedContent<ColumnView, NavigationPaneModifier<SidebarStyleContext>>> {{-114, -74}, {220, 853}} outside {{0, 0}, {960, 652}}
+document-960x600-dark containment: _NSCoreHostingView<RootView> {{-114, -74}, {220, 853}} outside {{0, 0}, {960, 652}}
+document-960x600-dark containment: _NSSplitViewCollapsedInteractionsView {{-122, -82}, {15, 869}} outside {{0, 0}, {960, 652}}
+document-960x600-dark containment: _NSSplitViewCollapsedInteractionsView {{1067, -82}, {15, 869}} outside {{0, 0}, {960, 652}}
+document-960x600-dark containment: _NSSplitViewShadowView {{774, -82}, {12, 869}} outside {{0, 0}, {960, 652}}
+document-960x600-dark containment: _NSSplitViewItemViewWrapper {{786, -82}, {296, 869}} outside {{0, 0}, {960, 652}}
+document-960x600-dark containment: NSHostingView<ModifiedContent<_ViewList_View, NavigationPaneModifier<InspectorStyleContext>>> {{786, -82}, {296, 869}} outside {{0, 0}, {960, 652}}
+document-960x600-dark containment: HostingScrollView {{786, -82}, {296, 244}} outside {{0, 0}, {960, 652}}
+document-960x600-dark containment: HostingScrollView {{798, 554}, {272, 144}} outside {{0, 0}, {960, 652}}
+document-960x600-dark containment: _NSCoreHostingView<RootView> {{786, -82}, {296, 869}} outside {{0, 0}, {960, 652}}
+document-960x600-dark under the toolbar: AXUnknown 'AppKitTextField' {{878, 2}, {192, 21}} top=52.0
+document-960x600-dark 'sidebarOutline' under toolbar item '_NSThemeCloseWidget'
+document-960x600-dark 'sidebarOutline' under toolbar item '_NSThemeZoomWidget'
+document-960x600-dark 'sidebarOutline' under toolbar item '_NSThemeWidget'
+document-960x600-dark 'AppKitTextField' under toolbar item 'more toolbar items'
+document-960x600-dark outside the window: AXOutline 'sidebarOutline' {{-114, -30}, {220, 809}}
+document-960x600-dark outside the window: AXUnknown 'AppKitTextField' {{878, 2}, {192, 21}}
+document-960x600-dark outside the window: AXSlider 'Fill' {{940, 218}, {130, 32}}
+document-960x600-dark outside the window: AXOutline 'Layers' {{786, 287}, {296, 172}}
+document-960x600-dark outside the window: AXScrollBar 'NSScroller' {{1065, 287}, {17, 172}}
+document-1280x800-dark containment: AppKitPlatformViewHost<PlatformViewRepresentableAdaptor<SystemSplitView>> {{0, -8}, {1280, 869}} outside {{0, 0}, {1280, 800}}
+document-1280x800-dark containment: NSSplitView {{0, -8}, {1280, 869}} outside {{0, 0}, {1280, 800}}
+document-1280x800-dark containment: _NSSplitViewItemViewWrapper {{0, -8}, {1280, 869}} outside {{0, 0}, {1280, 800}}
+document-1280x800-dark containment: NSHostingView<ModifiedContent<_ViewList_View, NavigationPaneModifier<ContainerStyleContext>>> {{0, -8}, {1280, 869}} outside {{0, 0}, {1280, 800}}
+document-1280x800-dark containment: NSSplitView {{0, -8}, {1280, 869}} outside {{0, 0}, {1280, 800}}
+document-1280x800-dark containment: _NSSplitViewItemViewWrapper {{0, -8}, {1280, 869}} outside {{0, 0}, {1280, 800}}
+document-1280x800-dark containment: NSHostingView<ModifiedContent<ColumnView, NavigationPaneModifier<ContainerStyleContext>>> {{0, -8}, {1280, 869}} outside {{0, 0}, {1280, 800}}
+document-1280x800-dark containment: _NSSplitViewShadowView {{228, -8}, {12, 869}} outside {{0, 0}, {1280, 800}}
+document-1280x800-dark containment: _NSSplitViewItemViewWrapper {{0, -8}, {228, 869}} outside {{0, 0}, {1280, 800}}
+document-1280x800-dark containment: NSHostingView<ModifiedContent<ColumnView, NavigationPaneModifier<SidebarStyleContext>>> {{8, 0}, {220, 853}} outside {{0, 0}, {1280, 800}}
+document-1280x800-dark containment: _NSCoreHostingView<RootView> {{8, 0}, {220, 853}} outside {{0, 0}, {1280, 800}}
+document-1280x800-dark containment: _NSSplitViewCollapsedInteractionsView {{0, -8}, {15, 869}} outside {{0, 0}, {1280, 800}}
+document-1280x800-dark containment: _NSSplitViewCollapsedInteractionsView {{1265, -8}, {15, 869}} outside {{0, 0}, {1280, 800}}
+document-1280x800-dark containment: _NSSplitViewShadowView {{972, -8}, {12, 869}} outside {{0, 0}, {1280, 800}}
+document-1280x800-dark containment: _NSSplitViewItemViewWrapper {{984, -8}, {296, 869}} outside {{0, 0}, {1280, 800}}
+document-1280x800-dark containment: NSHostingView<ModifiedContent<_ViewList_View, NavigationPaneModifier<InspectorStyleContext>>> {{984, -8}, {296, 869}} outside {{0, 0}, {1280, 800}}
+document-1280x800-dark containment: HostingScrollView {{984, -8}, {296, 244}} outside {{0, 0}, {1280, 800}}
+document-1280x800-dark containment: _NSCoreHostingView<RootView> {{984, -8}, {296, 869}} outside {{0, 0}, {1280, 800}}
+document-1280x800-dark outside the window: AXOutline 'sidebarOutline' {{8, 44}, {220, 809}}
+document-1280x800-dark overlap: AXOutline 'Layers' {{984, 361}, {296, 172}} × AXScrollBar 'NSScroller' {{1263, 361}, {17, 172}}
+document-960x600-light containment: AppKitPlatformViewHost<PlatformViewRepresentableAdaptor<SystemSplitView>> {{-122, -82}, {1204, 869}} outside {{0, 0}, {960, 652}}
+document-960x600-light containment: NSSplitView {{-122, -82}, {1204, 869}} outside {{0, 0}, {960, 652}}
+document-960x600-light containment: _NSSplitViewItemViewWrapper {{-122, -82}, {1204, 869}} outside {{0, 0}, {960, 652}}
+document-960x600-light containment: NSHostingView<ModifiedContent<_ViewList_View, NavigationPaneModifier<ContainerStyleContext>>> {{-122, -82}, {1204, 869}} outside {{0, 0}, {960, 652}}
+document-960x600-light containment: NSSplitView {{-122, -82}, {1204, 869}} outside {{0, 0}, {960, 652}}
+document-960x600-light containment: _NSSplitViewItemViewWrapper {{-122, -82}, {1204, 869}} outside {{0, 0}, {960, 652}}
+document-960x600-light containment: NSHostingView<ModifiedContent<ColumnView, NavigationPaneModifier<ContainerStyleContext>>> {{-122, -82}, {1204, 869}} outside {{0, 0}, {960, 652}}
+document-960x600-light containment: HostingScrollView {{170, -18}, {604, 32}} outside {{0, 0}, {960, 652}}
+document-960x600-light containment: _NSSplitViewShadowView {{106, -82}, {12, 869}} outside {{0, 0}, {960, 652}}
+document-960x600-light containment: _NSSplitViewItemViewWrapper {{-122, -82}, {228, 869}} outside {{0, 0}, {960, 652}}
+document-960x600-light containment: NSHostingView<ModifiedContent<ColumnView, NavigationPaneModifier<SidebarStyleContext>>> {{-114, -74}, {220, 853}} outside {{0, 0}, {960, 652}}
+document-960x600-light containment: _NSCoreHostingView<RootView> {{-114, -74}, {220, 853}} outside {{0, 0}, {960, 652}}
+document-960x600-light containment: _NSSplitViewCollapsedInteractionsView {{-122, -82}, {15, 869}} outside {{0, 0}, {960, 652}}
+document-960x600-light containment: _NSSplitViewCollapsedInteractionsView {{1067, -82}, {15, 869}} outside {{0, 0}, {960, 652}}
+document-960x600-light containment: _NSSplitViewShadowView {{774, -82}, {12, 869}} outside {{0, 0}, {960, 652}}
+document-960x600-light containment: _NSSplitViewItemViewWrapper {{786, -82}, {296, 869}} outside {{0, 0}, {960, 652}}
+document-960x600-light containment: NSHostingView<ModifiedContent<_ViewList_View, NavigationPaneModifier<InspectorStyleContext>>> {{786, -82}, {296, 869}} outside {{0, 0}, {960, 652}}
+document-960x600-light containment: HostingScrollView {{786, -82}, {296, 244}} outside {{0, 0}, {960, 652}}
+document-960x600-light containment: HostingScrollView {{798, 554}, {272, 144}} outside {{0, 0}, {960, 652}}
+document-960x600-light containment: _NSCoreHostingView<RootView> {{786, -82}, {296, 869}} outside {{0, 0}, {960, 652}}
+document-960x600-light under the toolbar: AXUnknown 'AppKitTextField' {{878, 2}, {192, 21}} top=52.0
+document-960x600-light 'sidebarOutline' under toolbar item '_NSThemeCloseWidget'
+document-960x600-light 'sidebarOutline' under toolbar item '_NSThemeZoomWidget'
+document-960x600-light 'sidebarOutline' under toolbar item '_NSThemeWidget'
+document-960x600-light 'AppKitTextField' under toolbar item 'more toolbar items'
+document-960x600-light outside the window: AXOutline 'sidebarOutline' {{-114, -30}, {220, 809}}
+document-960x600-light outside the window: AXUnknown 'AppKitTextField' {{878, 2}, {192, 21}}
+document-960x600-light outside the window: AXSlider 'Fill' {{940, 218}, {130, 32}}
+document-960x600-light outside the window: AXOutline 'Layers' {{786, 287}, {296, 172}}
+document-960x600-light outside the window: AXScrollBar 'NSScroller' {{1065, 287}, {17, 172}}
+document-1280x800-light containment: AppKitPlatformViewHost<PlatformViewRepresentableAdaptor<SystemSplitView>> {{0, -8}, {1280, 869}} outside {{0, 0}, {1280, 800}}
+document-1280x800-light containment: NSSplitView {{0, -8}, {1280, 869}} outside {{0, 0}, {1280, 800}}
+document-1280x800-light containment: _NSSplitViewItemViewWrapper {{0, -8}, {1280, 869}} outside {{0, 0}, {1280, 800}}
+document-1280x800-light containment: NSHostingView<ModifiedContent<_ViewList_View, NavigationPaneModifier<ContainerStyleContext>>> {{0, -8}, {1280, 869}} outside {{0, 0}, {1280, 800}}
+document-1280x800-light containment: NSSplitView {{0, -8}, {1280, 869}} outside {{0, 0}, {1280, 800}}
+document-1280x800-light containment: _NSSplitViewItemViewWrapper {{0, -8}, {1280, 869}} outside {{0, 0}, {1280, 800}}
+document-1280x800-light containment: NSHostingView<ModifiedContent<ColumnView, NavigationPaneModifier<ContainerStyleContext>>> {{0, -8}, {1280, 869}} outside {{0, 0}, {1280, 800}}
+document-1280x800-light containment: _NSSplitViewShadowView {{228, -8}, {12, 869}} outside {{0, 0}, {1280, 800}}
+document-1280x800-light containment: _NSSplitViewItemViewWrapper {{0, -8}, {228, 869}} outside {{0, 0}, {1280, 800}}
+document-1280x800-light containment: NSHostingView<ModifiedContent<ColumnView, NavigationPaneModifier<SidebarStyleContext>>> {{8, 0}, {220, 853}} outside {{0, 0}, {1280, 800}}
+document-1280x800-light containment: _NSCoreHostingView<RootView> {{8, 0}, {220, 853}} outside {{0, 0}, {1280, 800}}
+document-1280x800-light containment: _NSSplitViewCollapsedInteractionsView {{0, -8}, {15, 869}} outside {{0, 0}, {1280, 800}}
+document-1280x800-light containment: _NSSplitViewCollapsedInteractionsView {{1265, -8}, {15, 869}} outside {{0, 0}, {1280, 800}}
+document-1280x800-light containment: _NSSplitViewShadowView {{972, -8}, {12, 869}} outside {{0, 0}, {1280, 800}}
+document-1280x800-light containment: _NSSplitViewItemViewWrapper {{984, -8}, {296, 869}} outside {{0, 0}, {1280, 800}}
+document-1280x800-light containment: NSHostingView<ModifiedContent<_ViewList_View, NavigationPaneModifier<InspectorStyleContext>>> {{984, -8}, {296, 869}} outside {{0, 0}, {1280, 800}}
+document-1280x800-light containment: HostingScrollView {{984, -8}, {296, 244}} outside {{0, 0}, {1280, 800}}
+document-1280x800-light containment: _NSCoreHostingView<RootView> {{984, -8}, {296, 869}} outside {{0, 0}, {1280, 800}}
+document-1280x800-light outside the window: AXOutline 'sidebarOutline' {{8, 44}, {220, 809}}
+document-1280x800-light overlap: AXOutline 'Layers' {{984, 361}, {296, 172}} × AXScrollBar 'NSScroller' {{1263, 361}, {17, 172}}

@@ -6,3 +6,7 @@ fixtures/raw
 *.xcuserstate
 bench-results/
 tools/bench/__pycache__/
+
+# SwiftPM build dirs may be symlinks to the external SSD
+.build
+apps/mac/.build

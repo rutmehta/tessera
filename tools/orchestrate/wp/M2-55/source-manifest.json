@@ -1,0 +1,10 @@
+{
+  "crates/previews/src/disk.rs": "c3dbb49b745c25955a0427184d02211d7085e2b85dbee525eb76e3d0de06d95b",
+  "crates/previews/src/revision.rs": "40a236ca338b5ef96353798c45d346a59c7692681de7805540cf04d1e1772501",
+  "crates/previews/tests/revision.rs": "6bf2e8061bc4eca6787581b25f1be710cdf43985576695c408ae62d3291e1efe",
+  "crates/previews/src/lib.rs": "1c2de31ee89f6f271db109a54c33a15e0946568aab5b529ca0110ada9c77c429",
+  "crates/previews/src/raw.rs": "22f99c15a5917d42a9f94a47d8fe503b7aef61f251352b360ce4d514eb5efe97",
+  "crates/previews/tests/linear_dng.rs": "3415215a827bac3cbc6c7c0783053dd6441f4c472dfb10f4a060f0edf2a1462a",
+  "crates/tessera-ffi/src/lib.rs": "12a3341c4c8f1c884ffb9a04e604be779e171901928b8576db2a156daf382702",
+  "crates/tessera-ffi/src/preview.rs": "5cd4567e06f8efac0c24287ee671893b27decc9787c4542c637226d1b758608e"
+}

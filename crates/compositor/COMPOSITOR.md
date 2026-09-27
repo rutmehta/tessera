@@ -289,7 +289,7 @@ through to the backdrop.
 | Auto Tone/Contrast/Color | One-shot histograms → stored black/white/gamma. Tone clips each channel's tails; Contrast uses pooled endpoints; Color also derives per-channel gamma from stretched means. Nonidentity gamma uses shared 4096-knot LUTs |
 | Match Color | Frozen source-layer identity and source/target Lab D65 population mean/std. `mapped=(Lab−target_mean)·source_std/max(target_std,1e−6)+source_mean`; luminance and color intensity scale L and a,b, fade blends with original |
 | Replace Color | Native normalized encoded-RGB distance `dist=length(c−selected)/sqrt(3)`; radius `clamp(fuzziness/200)`. Mask `clamp(1−dist/radius)` (zero radius selects exact color within 1e−7), blending the existing HSL shift with original |
-| Color Lookup | Red-fastest RGB cube, trilinear interpolation, checked CUBE/3DL/ICC loaders; samples/size stored in the adjustment, not an external filename |
+| Color Lookup | Red-fastest RGB cube, trilinear interpolation, checked CUBE/3DL/ICC loaders; samples/size are embedded, with optional source filename metadata and spatial dither |
 | Shadows/Highlights | Separate amount/tone/radius controls, native separable bilateral luminance bases (Rec.709 weights; spatial σ=max(radius/2,0.5), range σ=0.15), shadow lift/highlight compression, color/midtone and black/white endpoints. CPU halo replay and resident GPU prefix/blur passes, including positive radius |
 
 These are display-referred operators on the document encoding.
@@ -297,6 +297,23 @@ pipeline-cpu's operators are scene-referred linear Rec.2020, and reusing them
 would pull `raw-decode`/LibRaw into the compositor, so they are not reused.
 
 ### 4.1 M5-26 controls, numerical definition and serialization
+
+M5-32 adds backward-compatible `source_filename`/`dither` (None/false),
+Match Color `neutralize` (false), and Auto `shadow_clip`/`highlight_clip`
+(0.5 percent each). Auto endpoints remain frozen until analysis runs again.
+Color Lookup maps filename and dither through Photoshop's `LUT3DFileName`
+and `Dthr` descriptor fields. CPU lookup dither is spatial; CPU neutralization
+uses gray-world Lab chroma removal. Photoshop numerical equivalence has not
+been established. Resident interpreter and specialization implement both options
+with bit-exact CPU parity on Metal. Lookup dither adds the same spatial noise as
+Gradient Map to the sampled output RGB, then clamps to [0,1]. Neutralization
+removes the matched source's mean Lab chroma before intensity and fade controls.
+
+Named alpha channels can persist explicit RGB, opacity and selected-area
+polarity through `ChannelKind::AlphaDisplay`; legacy `Alpha` remains red at
+50% opacity over masked areas. PSD resources 1007/1077 preserve these fields.
+`PaintTarget::Channel` routes brush tile deltas to alpha/spot planes through
+ordinary document history, independently of layer content and masks.
 
 These are native implementations of spec 02 §7, **not claims of numerical
 equivalence to Photoshop's proprietary algorithms**. Color-space-dependent

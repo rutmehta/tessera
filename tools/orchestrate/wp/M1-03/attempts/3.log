@@ -1,5 +1,0 @@
-The required test, clippy, and formatting command passed with CARGO_TARGET_DIR preserved.
-
-Acceptance remains blocked: fixtures/raw is already untracked and outside the allowed paths, so I left it untouched. Existing FINDINGS.md also documents incomplete export support for nonempty PointColors, LensBlur, retouch blocks, and non-linear masks. No files were changed during this retry.
-
-RESULT: FAIL pre-existing out-of-scope fixtures/raw requires authorized cleanup; develop export remains incomplete.

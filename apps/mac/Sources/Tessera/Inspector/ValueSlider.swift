@@ -104,6 +104,29 @@ final class ValueSlider: NSControl, KeyOwningControl {
     }
 
     private static let thumb = Theme.Height.thumb
+    /// Space always kept between the title and the value readout.
+    static let labelValueGap = Theme.Space.s
+    /// Height of the title / value line.
+    static let textLineHeight = Theme.Height.slider - Theme.Height.small + Theme.Space.xs
+
+    /// The formatted readout (a value within half a step of zero reads as zero).
+    var valueText: String { String(format: valueFormat, abs(value) < step / 2 ? 0 : value) }
+
+    /// Title and value rectangles for a control `width` wide whose value is `valueWidth` wide:
+    /// the value keeps its full width at the trailing edge, the title gets what is left after the gap.
+    static func textRects(width: CGFloat, valueWidth: CGFloat) -> (title: NSRect, value: NSRect) {
+        let valueW = min(valueWidth, max(width, 0))
+        let value = NSRect(x: max(width, 0) - valueW, y: 0, width: valueW, height: textLineHeight)
+        let title = NSRect(x: 0, y: 0, width: max(0, value.minX - labelValueGap), height: textLineHeight)
+        return (title, value)
+    }
+
+    /// The thumb ring's painted rectangle: the stroke is centred on the path, so the path is inset by
+    /// half the stroke and the ring (1 pt, or 2 pt while dragging) never paints past the thumb disc,
+    /// which the track keeps inside the bounds (audit D08).
+    static func ringPath(thumb: NSRect, lineWidth: CGFloat) -> NSRect {
+        thumb.insetBy(dx: lineWidth / 2, dy: lineWidth / 2)
+    }
     /// Track: full width minus half a thumb each side, centred on the thumb row.
     private var trackRect: NSRect {
         let inset = Self.thumb / 2
@@ -132,10 +155,17 @@ final class ValueSlider: NSControl, KeyOwningControl {
         let valueAttrs: [NSAttributedString.Key: Any] = [
             .font: changed ? Theme.NSFonts.captionNumericMedium : Theme.NSFonts.captionNumeric,
             .foregroundColor: changed ? Theme.Palette.textPrimary : Theme.Palette.textTertiary]
-        (title as NSString).draw(at: NSPoint(x: 0, y: 0), withAttributes: titleAttrs)
-        let text = String(format: valueFormat, abs(value) < step / 2 ? 0 : value) as NSString
-        let tw = ceil(text.size(withAttributes: valueAttrs).width)
-        text.draw(at: NSPoint(x: bounds.width - tw, y: 0), withAttributes: valueAttrs)
+        // M2-56 (audit D03): the value is always drawn whole; the title gets the rest of the line
+        // minus a gap and truncates, so "Highlights" and "−100" never run together at 80 pt.
+        let text = valueText as NSString
+        let rects = Self.textRects(width: bounds.width, valueWidth: ceil(text.size(withAttributes: valueAttrs).width))
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.lineBreakMode = .byTruncatingTail
+        var truncating = titleAttrs
+        truncating[.paragraphStyle] = paragraph
+        (title as NSString).draw(with: rects.title, options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine],
+                                 attributes: truncating)
+        text.draw(at: rects.value.origin, withAttributes: valueAttrs)
 
         let track = trackRect
         let x0 = track.minX + track.width * fraction(defaultValue)
@@ -168,8 +198,9 @@ final class ValueSlider: NSControl, KeyOwningControl {
         Theme.Palette.thumb.setFill()
         NSBezierPath(ovalIn: thumb.insetBy(dx: 0.5, dy: 0.5)).fill()
         NSGraphicsContext.restoreGraphicsState()
-        let ring = NSBezierPath(ovalIn: thumb.insetBy(dx: 0.5, dy: 0.5))
-        ring.lineWidth = isDragging ? 2 : Theme.Space.hairline
+        let ringWidth = isDragging ? 2 : Theme.Space.hairline
+        let ring = NSBezierPath(ovalIn: Self.ringPath(thumb: thumb, lineWidth: ringWidth))
+        ring.lineWidth = ringWidth
         (isDragging ? Theme.Palette.accent : Theme.Palette.hairlineStrong).setStroke()
         ring.stroke()
     }

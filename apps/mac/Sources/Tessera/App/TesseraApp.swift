@@ -6,12 +6,18 @@ import Sparkle
 @main
 struct TesseraApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    private let model = AppModel.shared
+    private let model: AppModel
+
+    init() {
+        // M2-56: with --app-dir / TESSERA_APP_DIR, user defaults (the folder registry included) live
+        // in that directory; installed before the model first reads them.
+        AppDefaultsIsolation.installForLaunch()
+        model = AppModel.shared
+    }
 
     var body: some Scene {
         Window("Tessera", id: "main") {
-            ContentView(model: model)
-                .frame(minWidth: 960, minHeight: 600)
+            ContentView.root(model: model)
         }
         .defaultSize(width: 1440, height: 900)
         .commands {
@@ -39,7 +45,8 @@ struct TesseraApp: App {
 ///
 /// Launch arguments (used by the acceptance script and benchmarks):
 ///   --folder <path>   open this folder instead of the remembered one
-///   --app-dir <path>  store the index and caches here (overrides TESSERA_APP_DIR)
+///   --app-dir <path>  store the index, caches and user defaults (folder registry, panel state) here
+///                     (overrides TESSERA_APP_DIR, which does the same)
 ///   --stub <count>    load <count> synthetic items (e.g. 20000)
 ///   --benchmark       run the grid scroll benchmark after loading
 ///   --seed-faces      (hidden test aid) write deterministic synthetic faces (two people) into the
@@ -52,6 +59,7 @@ struct TesseraApp: App {
 ///   --tether-connect  (test aid) also connect to the (single) camera once the folder has loaded
 ///   --import-lrcat <catalog.lrcat>  open File ▸ Import Lightroom Catalog… with this catalog chosen
 ///   --front           order the window front without activating (screenshots while another app is active)
+///   --nonactivating   background audits: accessory policy, no activation, ignores --front
 ///   --appearance dark|light|system  (test aid) use this appearance for this run only
 ///   --new-document    (test aid) create a layered document (2400 × 1600; one blank layer on the engine, sample layers
 ///                     on the stub) after launch. Documents use the engine unless --stub-library is given
@@ -86,9 +94,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
     }()
     private var keyRouter: KeyRouter?
+    private var backgroundAuditWindow: BackgroundAuditWindow?
+    private let nonactivating = ProcessInfo.processInfo.arguments.contains("--nonactivating")
 
     func applicationWillFinishLaunching(_ notification: Notification) {
-        NSApp.setActivationPolicy(.regular)
+        NSApp.setActivationPolicy(nonactivating ? .accessory : .regular)
         // Follows the system unless View ▸ Appearance picks one (DESIGN.md: dark first, full light).
         let args = ProcessInfo.processInfo.arguments
         if let i = args.firstIndex(of: "--appearance"), i + 1 < args.count, let forced = AppearancePreference(rawValue: args[i + 1]) {
@@ -101,11 +111,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        _ = updaterController // Start scheduled checks only for configured builds.
+        // Background diagnostics must not open updater UI or perform scheduled network checks.
+        if !nonactivating { _ = updaterController }
         let model = AppModel.shared
         keyRouter = KeyRouter(model: model)
         keyRouter?.install()
-        NSApp.activate()
+        if !nonactivating { NSApp.activate() }
 
         let args = ProcessInfo.processInfo.arguments
         if args.contains("--develop-selftest"), args.contains("--bundle-selftest") {
@@ -170,7 +181,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let test = ToolsSelfTest(model: model, dir: URL(fileURLWithPath: (dir as NSString).expandingTildeInPath), hold: hold)
             Task { @MainActor in await test.run() }
         }
-        if args.contains("--front") {   // test aid: show the window without activating the app
+        if args.contains("--front"), !nonactivating {   // never front a background audit
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 MainActor.assumeIsolated { NSApp.windows.first { !($0 is NSPanel) }?.orderFrontRegardless() }
             }
@@ -183,6 +194,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                 MainActor.assumeIsolated { model.requestScrollBenchmark() }
             }
+        }
+        if args.contains("--timing-selftest") || args.contains("--timing-grid-only") {
+            if nonactivating {
+                let panel = BackgroundAuditWindow(model: model)
+                backgroundAuditWindow = panel
+                panel.order(.below, relativeTo: 0)
+            }
+            runTimingSelfTest(model: model)
         }
     }
 

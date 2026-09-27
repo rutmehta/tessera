@@ -5,12 +5,16 @@ use ml_filters::{Cancel, NeuralFilter, Params, PhotoRestoration, catalog};
 fn catalog_is_offline_and_restoration_never_silently_ignores_unsupported_controls()
 -> anyhow::Result<()> {
     let entries = catalog();
-    assert_eq!(entries.len(), 3);
+    assert_eq!(entries.len(), 4);
     assert_eq!(entries[0].name, "Skin Smoothing");
     assert!(!entries[0].requires_weights);
     assert_eq!(entries[1].name, "Colorize");
     assert!(entries[1].limitation.unwrap().contains("CPU"));
     assert_eq!(entries[2].name, "JPEG Artifact Removal");
+    assert_eq!(entries[3].name, "Photo Restoration");
+    assert!(entries[3].requires_weights);
+    assert_eq!(entries[3].params.len(), 1);
+    assert_eq!(entries[3].params[0].name, "Photo enhancement");
     let filter = PhotoRestoration::unloaded();
     assert_eq!(filter.name(), "Photo Restoration (no face model)");
     let r = Raster::new(Extent::new(2, 2), 4, Depth::U8, 0.5);

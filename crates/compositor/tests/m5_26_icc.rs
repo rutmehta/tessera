@@ -16,7 +16,7 @@ fn abstract_fixture() -> Vec<u8> {
 fn abstract_icc_loads_as_red_fastest_color_lookup() {
     let bytes = abstract_fixture();
     let adjustment = Adjustment::color_lookup_from_icc(&bytes, 5).unwrap();
-    let Adjustment::ColorLookup { size, data } = adjustment else {
+    let Adjustment::ColorLookup { size, data, .. } = adjustment else {
         panic!("expected LUT")
     };
     assert_eq!(size, 5);
@@ -42,7 +42,7 @@ fn rgb_device_link_loads_without_implicit_srgb_conversion() {
     .unwrap();
     let link = Profile::new_device_link(&transform, 4.3, Flags::default()).unwrap();
     let adjustment = Adjustment::color_lookup_from_icc(&link.icc().unwrap(), 5).unwrap();
-    let Adjustment::ColorLookup { size, data } = adjustment else {
+    let Adjustment::ColorLookup { size, data, .. } = adjustment else {
         panic!("expected LUT")
     };
     assert_eq!(size, 5);

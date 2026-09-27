@@ -8844,6 +8844,11 @@ public protocol LibraryStoreProtocol: AnyObject, Sendable {
     
     func search(request: SearchRequest) throws  -> SearchResult
     
+    /**
+     * Optional sidebar enrichment does not need the potentially unbounded ID vector.
+     */
+    func searchFacets(request: SearchRequest) throws  -> SearchResult
+    
     func updateSmartAlbum(id: Int64, rule: String?, scoped: Bool?) throws 
     
     func addKeyword(name: String, parent: String?) throws 
@@ -8866,6 +8871,13 @@ public protocol LibraryStoreProtocol: AnyObject, Sendable {
     func keywords(folder: String?) throws  -> [KeywordInfo]
     
     func metadata(imageId: String) throws  -> ImageMetadata
+    
+    /**
+     * Reads metadata in input order, preserving duplicates, under one catalog
+     * lock. Empty input returns an empty list. The first failed individual
+     * read fails the batch; no partial result is returned.
+     */
+    func metadataBatch(imageIds: [String]) throws  -> [ImageMetadata]
     
     /**
      * Moves a keyword (and its children) under `parent`, or to the root.
@@ -9141,6 +9153,19 @@ open func search(request: SearchRequest)throws  -> SearchResult  {
 })
 }
     
+    /**
+     * Optional sidebar enrichment does not need the potentially unbounded ID vector.
+     */
+open func searchFacets(request: SearchRequest)throws  -> SearchResult  {
+    return try  FfiConverterTypeSearchResult_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_librarystore_search_facets(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeSearchRequest_lower(request),uniffiCallStatus
+    )
+})
+}
+    
 open func updateSmartAlbum(id: Int64, rule: String?, scoped: Bool?)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
         uniffiCallStatus in
     uniffi_tessera_ffi_fn_method_librarystore_update_smart_album(
@@ -9209,6 +9234,21 @@ open func metadata(imageId: String)throws  -> ImageMetadata  {
     uniffi_tessera_ffi_fn_method_librarystore_metadata(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(imageId),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Reads metadata in input order, preserving duplicates, under one catalog
+     * lock. Empty input returns an empty list. The first failed individual
+     * read fails the batch; no partial result is returned.
+     */
+open func metadataBatch(imageIds: [String])throws  -> [ImageMetadata]  {
+    return try  FfiConverterSequenceTypeImageMetadata.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_librarystore_metadata_batch(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceString.lower(imageIds),uniffiCallStatus
     )
 })
 }
@@ -12438,6 +12478,7 @@ public struct ChannelRecord: Equatable, Hashable {
      * Spot: solidity. Alpha: the default overlay opacity (0.5).
      */
     public var opacity: Float
+    public var selectedAreas: Bool
     /**
      * Shown by the host's preview overlay (session state, not saved).
      */
@@ -12466,7 +12507,7 @@ public struct ChannelRecord: Equatable, Hashable {
          */color: PaintColor, 
         /**
          * Spot: solidity. Alpha: the default overlay opacity (0.5).
-         */opacity: Float, 
+         */opacity: Float, selectedAreas: Bool, 
         /**
          * Shown by the host's preview overlay (session state, not saved).
          */visible: Bool, 
@@ -12481,6 +12522,7 @@ public struct ChannelRecord: Equatable, Hashable {
         self.name = name
         self.color = color
         self.opacity = opacity
+        self.selectedAreas = selectedAreas
         self.visible = visible
         self.index = index
         self.revision = revision
@@ -12507,6 +12549,7 @@ public struct FfiConverterTypeChannelRecord: FfiConverterRustBuffer {
                 name: FfiConverterString.read(from: &buf), 
                 color: FfiConverterTypePaintColor.read(from: &buf), 
                 opacity: FfiConverterFloat.read(from: &buf), 
+                selectedAreas: FfiConverterBool.read(from: &buf), 
                 visible: FfiConverterBool.read(from: &buf), 
                 index: FfiConverterUInt32.read(from: &buf), 
                 revision: FfiConverterUInt64.read(from: &buf)
@@ -12519,6 +12562,7 @@ public struct FfiConverterTypeChannelRecord: FfiConverterRustBuffer {
         FfiConverterString.write(value.name, into: &buf)
         FfiConverterTypePaintColor.write(value.color, into: &buf)
         FfiConverterFloat.write(value.opacity, into: &buf)
+        FfiConverterBool.write(value.selectedAreas, into: &buf)
         FfiConverterBool.write(value.visible, into: &buf)
         FfiConverterUInt32.write(value.index, into: &buf)
         FfiConverterUInt64.write(value.revision, into: &buf)
@@ -27505,6 +27549,7 @@ public enum RasterFilterOperation: Equatable, Hashable {
     case skinSmoothing
     case colorize
     case jpegArtifactRemoval
+    case photoRestoration
 
 
 
@@ -27543,6 +27588,8 @@ public struct FfiConverterTypeRasterFilterOperation: FfiConverterRustBuffer {
         case 8: return .colorize
         
         case 9: return .jpegArtifactRemoval
+        
+        case 10: return .photoRestoration
         
         default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -27586,6 +27633,10 @@ public struct FfiConverterTypeRasterFilterOperation: FfiConverterRustBuffer {
         
         case .jpegArtifactRemoval:
             writeInt(&buf, Int32(9))
+        
+        
+        case .photoRestoration:
+            writeInt(&buf, Int32(10))
         
         }
     }
@@ -30706,6 +30757,31 @@ fileprivate struct FfiConverterSequenceTypeImageDecision: FfiConverterRustBuffer
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeImageMetadata: FfiConverterRustBuffer {
+    typealias SwiftType = [ImageMetadata]
+
+    public static func write(_ value: [ImageMetadata], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeImageMetadata.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ImageMetadata] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ImageMetadata]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeImageMetadata.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeImageState: FfiConverterRustBuffer {
     typealias SwiftType = [ImageState]
 
@@ -32489,6 +32565,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_librarystore_search() != 36190) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tessera_ffi_checksum_method_librarystore_search_facets() != 30989) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_tessera_ffi_checksum_method_librarystore_update_smart_album() != 54725) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -32505,6 +32584,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_librarystore_metadata() != 33862) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_librarystore_metadata_batch() != 37333) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_librarystore_move_keyword() != 11080) {

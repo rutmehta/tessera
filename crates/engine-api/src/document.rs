@@ -280,6 +280,8 @@ pub enum StrokeTarget {
     Pixels,
     /// The layer's raster mask (created reveal-all if absent).
     Mask,
+    /// Saved alpha/spot plane. The call's layer ID is ignored for this target.
+    Channel(ChannelId),
 }
 
 /// The region a selection change describes.
@@ -744,6 +746,16 @@ pub enum ChannelKind {
     /// Saved selection mask.
     #[default]
     Alpha,
+    /// Saved selection with explicit display metadata (1.6). Legacy alpha is
+    /// red at 50% opacity showing masked areas. Display does not alter samples.
+    AlphaDisplay {
+        /// Finite normalized display RGB.
+        display_rgb: [f32; 3],
+        /// Finite normalized overlay opacity.
+        opacity: f32,
+        /// Show selected areas rather than masked areas.
+        selected: bool,
+    },
     /// Spot ink mask.
     Spot {
         /// Finite normalized RGB display colour.

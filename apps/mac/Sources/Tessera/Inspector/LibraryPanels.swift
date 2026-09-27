@@ -60,19 +60,22 @@ struct KeywordsPanel: View {
     }
 }
 
-private struct KeywordChip: View {
+struct KeywordChip: View {
     let name: String
     let mixed: Bool
     let remove: () -> Void
     var body: some View {
         HStack(spacing: Theme.Space.xs) {
             Text(name).font(Theme.Fonts.caption).foregroundStyle(mixed ? Theme.textSecondary : Theme.textPrimary)
+                .lineLimit(1).truncationMode(.middle)
+                .help(name)
             Button(action: remove) {
                 Image(systemName: "xmark").font(Theme.Fonts.iconSmall).foregroundStyle(Theme.textTertiary)
             }
             .buttonStyle(.plain)
             .help("Remove from the selected photos")
             .accessibilityLabel("Remove \(name)")
+            .fixedSize()
         }
         .padding(.horizontal, Theme.Space.s - Theme.Space.xxs)
         .frame(height: Theme.Height.small)
@@ -129,30 +132,49 @@ private struct KeywordTreeRow: View {
     }
 }
 
-/// Wrapping row of chips.
+/// Wrapping row of chips. M2-56 (audit D06): measuring and placing use the same proposal, and an
+/// item wider than the row is offered the row's width (a chip truncates its text) instead of being
+/// placed at its unbounded width past the row's edge; the first item wraps like any other.
 struct FlowRow: Layout {
     var spacing: CGFloat = Theme.Space.xs
 
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let width = proposal.width ?? 240
+    /// Frames (relative to the row's origin) for items of `sizes` in a row `width` wide; `fit` gives
+    /// an oversized item's size when offered the full width.
+    static func frames(sizes: [CGSize], width: CGFloat, spacing: CGFloat,
+                       fit: (Int, CGFloat) -> CGSize = { _, _ in .zero }) -> [CGRect] {
+        var out: [CGRect] = []
         var x: CGFloat = 0, y: CGFloat = 0, line: CGFloat = 0
-        for v in subviews {
-            let s = v.sizeThatFits(.unspecified)
+        for (i, ideal) in sizes.enumerated() {
+            var s = ideal
+            if s.width > width {
+                let fitted = fit(i, width)
+                s = CGSize(width: min(width, fitted.width > 0 ? fitted.width : width), height: max(fitted.height, ideal.height))
+            }
             if x > 0, x + s.width > width { x = 0; y += line + spacing; line = 0 }
+            out.append(CGRect(x: x, y: y, width: s.width, height: s.height))
             x += s.width + spacing
             line = max(line, s.height)
         }
-        return CGSize(width: width, height: y + line)
+        return out
+    }
+
+    private func frames(_ proposal: ProposedViewSize, _ subviews: Subviews) -> (CGFloat, [CGRect]) {
+        let width = proposal.width ?? 240
+        let frames = Self.frames(sizes: subviews.map { $0.sizeThatFits(.unspecified) }, width: width, spacing: spacing) { i, w in
+            subviews[i].sizeThatFits(ProposedViewSize(width: w, height: nil))
+        }
+        return (width, frames)
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let (width, frames) = frames(proposal, subviews)
+        return CGSize(width: width, height: frames.map(\.maxY).max() ?? 0)
     }
 
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        var x = bounds.minX, y = bounds.minY, line: CGFloat = 0
-        for v in subviews {
-            let s = v.sizeThatFits(.unspecified)
-            if x > bounds.minX, x + s.width > bounds.maxX { x = bounds.minX; y += line + spacing; line = 0 }
-            v.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(s))
-            x += s.width + spacing
-            line = max(line, s.height)
+        let (_, frames) = frames(ProposedViewSize(width: bounds.width, height: proposal.height), subviews)
+        for (v, f) in zip(subviews, frames) {
+            v.place(at: CGPoint(x: bounds.minX + f.minX, y: bounds.minY + f.minY), proposal: ProposedViewSize(f.size))
         }
     }
 }

@@ -162,6 +162,39 @@ pub fn brush_from_params(p: &BrushParams) -> Brush {
     b
 }
 
+/// Build one undoable stroke for layer pixels, an existing layer mask, or a
+/// saved alpha/spot channel. Scalar destinations use brush luminance; erase
+/// paints toward zero. Active selection clips every destination. `id` is
+/// ignored for channel targets; apply the returned op through `Document`.
+pub fn paint_document_stroke(
+    state: &compositor::DocState,
+    id: compositor::LayerId,
+    target: compositor::PaintTarget,
+    params: &BrushParams,
+    points: &[StrokePoint],
+    seed: u64,
+) -> EngineResult<Option<compositor::DocOp>> {
+    let base = target.raster(state, id)?;
+    let Some((dirty, tiles)) =
+        paint_stroke(base, state.selection.as_deref(), params, points, seed)?
+    else {
+        return Ok(None);
+    };
+    Ok(Some(compositor::DocOp::PaintTiles {
+        id,
+        target,
+        dirty,
+        tiles: tiles
+            .into_iter()
+            .map(|(tx, ty, tile)| compositor::TileDelta {
+                tx,
+                ty,
+                tile: Some(tile),
+            })
+            .collect(),
+    }))
+}
+
 /// Rasterizes a whole `paint_stroke` call over `base` (a layer's pixels or
 /// mask), limited by `selection`. Returns the dirty rect and the replaced
 /// tiles, ready for `DocOp::PaintTiles`.

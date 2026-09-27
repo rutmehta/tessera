@@ -27,10 +27,29 @@ final class ColorWheelView: NSView {
     }
     required init?(coder: NSCoder) { fatalError() }
 
-    private var disc: NSRect {
-        let d = min(bounds.width, bounds.height) - 4
+    /// Puck radius and stroke; the stroke is centred on the circle, so the puck paints out to
+    /// `puckRadius + puckStroke / 2` around its centre.
+    static let puckRadius: CGFloat = 5
+    static let puckStroke: CGFloat = 2
+    /// M2-56 (audit D07): the disc is inset by the puck's whole painted envelope, so a puck on the
+    /// rim (saturation 100) stays inside the view instead of 4 pt past it.
+    static var discInset: CGFloat { puckRadius + puckStroke / 2 }
+
+    static func disc(in bounds: NSRect) -> NSRect {
+        let d = max(min(bounds.width, bounds.height) - 2 * discInset, 0)
         return NSRect(x: bounds.midX - d / 2, y: bounds.midY - d / 2, width: d, height: d)
     }
+
+    /// The puck's painted rectangle (stroke included) for a hue / saturation in `bounds`.
+    static func puckPaintRect(in bounds: NSRect, hue: Double, saturation: Double) -> NSRect {
+        let d = disc(in: bounds)
+        let r = d.width / 2 * CGFloat(saturation / 100), a = CGFloat(hue * .pi / 180)
+        let c = CGPoint(x: d.midX + r * cos(a), y: d.midY + r * sin(a))
+        let e = puckRadius + puckStroke / 2
+        return NSRect(x: c.x - e, y: c.y - e, width: 2 * e, height: 2 * e)
+    }
+
+    private var disc: NSRect { Self.disc(in: bounds) }
 
     /// Engine hue (OkLab a/b angle, counter-clockwise from +a) and saturation (0…100 over the radius).
     private func puck() -> CGPoint {
@@ -61,13 +80,13 @@ final class ColorWheelView: NSView {
             Theme.Palette.OnImage.guide.withAlphaComponent(0.6).setStroke()
             line.stroke()
         }
-        let r = NSRect(x: p.x - 5, y: p.y - 5, width: 10, height: 10)
+        let r = NSRect(x: p.x - Self.puckRadius, y: p.y - Self.puckRadius, width: 2 * Self.puckRadius, height: 2 * Self.puckRadius)
         let dot = NSBezierPath(ovalIn: r)
         let c = OkLab.srgb(l: 0.72, c: 0.14 * saturation / 100, hue: hue)
         NSColor(srgbRed: c.r, green: c.g, blue: c.b, alpha: 1).setFill()   // lint:allow (the graded colour itself)
         dot.fill()
         (dragging ? Theme.Palette.accent : Theme.Palette.thumb).setStroke()
-        dot.lineWidth = 2
+        dot.lineWidth = Self.puckStroke
         dot.stroke()
     }
 

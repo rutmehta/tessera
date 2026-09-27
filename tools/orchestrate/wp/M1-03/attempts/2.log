@@ -1,7 +1,0 @@
-The required test, clippy, and fmt command passed with CARGO_TARGET_DIR preserved.
-
-Acceptance remains incomplete: develop export still has unsupported structures documented in FINDINGS.md. The previous attempt’s untracked fixtures/raw also remains outside the allowed paths. I left it untouched rather than violate your scope restriction.
-
-Recorded verification in tools/orchestrate/wp/M1-03/RETRY-STATUS.md. No source or engine-api changes made.
-
-RESULT: FAIL incomplete develop export and pre-existing out-of-scope fixtures/raw require resolution

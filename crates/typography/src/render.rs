@@ -97,29 +97,48 @@ impl TextRenderer {
             {
                 return Err(Error::Invalid("non-finite glyph position"));
             }
-            let path = self
-                .fonts
-                .with_face_data(glyph.font, |data, index| {
-                    let mut face = ttf_parser::Face::parse(data, index).map_err(|_| Error::Font)?;
-                    for (tag, value) in &run.axes {
-                        face.set_variation(
-                            ttf_parser::Tag::from_bytes_lossy(tag.as_bytes()),
-                            *value,
-                        );
-                    }
-                    let mut builder = OutlineBuilder {
-                        builder: Path::builder(),
-                        glyph,
-                        scale: run.size / face.units_per_em() as f32,
-                        open: false,
-                    };
-                    face.outline_glyph(ttf_parser::GlyphId(glyph.id), &mut builder);
-                    if builder.open {
-                        builder.builder.end(false);
-                    }
-                    Ok::<_, Error>(builder.builder.build())
-                })
-                .ok_or(Error::Font)??;
+            // Absolute positioned f32 contours retain the legacy arithmetic:
+            // translating a cached origin outline can introduce different rounding.
+            let key = serde_json::to_vec(&(
+                format!("{:?}", glyph.font),
+                glyph.id,
+                glyph.x.to_bits(),
+                glyph.y.to_bits(),
+                glyph.angle.to_bits(),
+                run.size.to_bits(),
+                &run.axes,
+            ))?;
+            let path = if let Some(path) = self.contours.get(&key) {
+                path
+            } else {
+                let path = self
+                    .fonts
+                    .with_face_data(glyph.font, |data, index| {
+                        let mut face =
+                            ttf_parser::Face::parse(data, index).map_err(|_| Error::Font)?;
+                        for (tag, value) in &run.axes {
+                            face.set_variation(
+                                ttf_parser::Tag::from_bytes_lossy(tag.as_bytes()),
+                                *value,
+                            );
+                        }
+                        let mut builder = OutlineBuilder {
+                            builder: Path::builder(),
+                            glyph,
+                            scale: run.size / face.units_per_em() as f32,
+                            open: false,
+                        };
+                        face.outline_glyph(ttf_parser::GlyphId(glyph.id), &mut builder);
+                        if builder.open {
+                            builder.builder.end(false);
+                        }
+                        Ok::<_, Error>(builder.builder.build())
+                    })
+                    .ok_or(Error::Font)??;
+                self.contours
+                    .insert(key, path.clone(), path.iter().count() * 64);
+                path
+            };
             outlines.push(GlyphOutline {
                 path,
                 color: run.color,

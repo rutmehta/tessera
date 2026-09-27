@@ -158,6 +158,8 @@ fn soco_is_not_an_adjustment_and_native_only_errors_are_explicit() {
             black: [0.0; 3],
             white: [1.0; 3],
             gamma: [1.0; 3],
+            shadow_clip: 0.5,
+            highlight_clip: 0.5,
         },
         A::ReplaceColor {
             color: [0.0; 3],
@@ -175,6 +177,7 @@ fn soco_is_not_an_adjustment_and_native_only_errors_are_explicit() {
             luminance: 100.0,
             color_intensity: 100.0,
             fade: 0.0,
+            neutralize: false,
         },
         A::ShadowsHighlights {
             settings: Default::default(),
@@ -385,13 +388,42 @@ fn lookup_fixture(format: &[u8], cube: &[u8]) -> Vec<u8> {
 }
 
 #[test]
+fn color_lookup_filename_and_dither_roundtrip() {
+    for filename in [
+        None,
+        Some("Looks/暖かい.cube".to_owned()),
+        Some(String::new()),
+    ] {
+        for dither in [false, true] {
+            let source = roundtrip(
+                A::ColorLookup {
+                    size: 2,
+                    data: vec![[0.5; 3]; 8],
+                    source_filename: filename.clone(),
+                    dither,
+                },
+                b"clrL",
+            );
+            let bytes = &source.layer_section.layers[0].info(b"clrL").unwrap().data;
+            let (descriptor, _) = psd::metadata::parse_descriptor(&bytes[6..]).unwrap();
+            use psd::metadata::Value as V;
+            assert_eq!(descriptor.get(b"Dthr"), Some(&V::Bool(dither)));
+            assert_eq!(
+                descriptor.get(b"LUT3DFileName"),
+                filename.clone().map(V::Text).as_ref()
+            );
+        }
+    }
+}
+
+#[test]
 fn color_lookup_malformed_errors_and_unsupported_stays_opaque() {
     let cube = b"LUT_3D_SIZE 2\n1 0 0\n0 0 0\n1 1 0\n0 1 0\n1 0 1\n0 0 1\n1 1 1\n0 1 1\n";
     let bytes = lookup_fixture(b"LUTFormatCUBE", cube);
     let source = malformed(b"clrL", bytes.clone());
     let imported = from_psd(&source).unwrap();
     assert!(
-        matches!(&imported.root[0].kind, LayerKind::Adjustment(A::ColorLookup { size: 2, data }) if data[0] == [1.0, 0.0, 0.0] && data[1] == [0.0; 3])
+        matches!(&imported.root[0].kind, LayerKind::Adjustment(A::ColorLookup { size: 2, data, .. }) if data[0] == [1.0, 0.0, 0.0] && data[1] == [0.0; 3])
     );
     for length in 0..bytes.len() {
         assert!(
@@ -439,6 +471,8 @@ fn color_lookup_cube_descriptor_roundtrips_psd_and_psb() {
     let expected = A::ColorLookup {
         size: 2,
         data: data.clone(),
+        source_filename: None,
+        dither: false,
     };
     for version in [psd::Version::Psd, psd::Version::Psb] {
         let mut source = export(expected.clone());

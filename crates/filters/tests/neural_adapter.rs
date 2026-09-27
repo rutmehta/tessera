@@ -41,6 +41,7 @@ fn neural_catalog_is_strict_and_cpu_only() {
         "neural/skin_smoothing",
         "neural/colorize",
         "neural/jpeg_artifact_removal",
+        "neural/photo_restoration",
     ] {
         let mut node = SmartFilter {
             name: name.into(),

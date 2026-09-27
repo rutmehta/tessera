@@ -81,6 +81,34 @@ extension View {
     }
 }
 
+// MARK: - Width contracts (WP M2-56)
+
+/// A view that takes its ideal width when there is room and gives width back (to a truncating
+/// label inside) when there is not. `fixedSize()` would keep the ideal width even when that is
+/// wider than the proposal, painting past the parent (audit D05); `.frame(maxWidth: .infinity)`
+/// alone lets pop-up menus stretch to the full row.
+struct HugCompressible: Layout {
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        guard let content = subviews.first else { return .zero }
+        let ideal = content.sizeThatFits(.unspecified)
+        let width = min(ideal.width, proposal.width ?? ideal.width)
+        let fitted = content.sizeThatFits(ProposedViewSize(width: width, height: proposal.height ?? ideal.height))
+        return CGSize(width: width, height: min(fitted.height, proposal.height ?? fitted.height))
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        subviews.first?.place(at: CGPoint(x: bounds.minX, y: bounds.midY), anchor: .leading,
+                              proposal: ProposedViewSize(width: bounds.width, height: bounds.height))
+    }
+}
+
+extension View {
+    /// Ideal width when it fits, less when it does not (see `HugCompressible`).
+    func hugCompressible() -> some View {
+        HugCompressible { self }
+    }
+}
+
 // MARK: - Menus
 
 /// A pull-down that looks like a bordered button with a chevron.
@@ -90,20 +118,25 @@ struct ThemeMenuStyle: MenuStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         // `.button` + `.plain` keeps the label in the text colour (a borderless menu takes the tint).
+        // M2-56 (audit D05): the title hugs its ideal width when there is room and truncates when
+        // there is not; the chevron never compresses. A two-axis `fixedSize()` here used to keep
+        // the full title even when the row was narrower, painting past the inspector's edge.
         HStack(spacing: Theme.Space.xs) {
             Menu(configuration)
                 .menuStyle(.button)
                 .buttonStyle(.plain)
                 .menuIndicator(.hidden)
+                .hugCompressible()
             Image(systemName: "chevron.down")
                 .font(Theme.Fonts.iconSmall)
                 .imageScale(.small)
                 .foregroundStyle(Theme.textTertiary)
                 .allowsHitTesting(false)
+                .fixedSize()
         }
         .font(height <= Theme.Height.small ? Theme.Fonts.caption : Theme.Fonts.label)
         .foregroundStyle(Theme.textPrimary)
-        .fixedSize()
+        .fixedSize(horizontal: false, vertical: true)
         .padding(.horizontal, Theme.Space.s)
         .frame(height: height)
         .background(RoundedRectangle(cornerRadius: Theme.Radius.control).fill(active ? Theme.accentSubtle : Theme.raised))
@@ -127,15 +160,13 @@ struct MenuPicker<Value: Hashable>: View {
             .pickerStyle(.inline)
             .labelsHidden()
         } label: {
-            Text(Self.clipped(options.first { $0.value == selection }?.title ?? ""))
+            // Long names (ICC profiles) truncate in the middle at the width the row actually
+            // gives (measured by layout, not a character count); the menu lists them in full.
+            Text(options.first { $0.value == selection }?.title ?? "")
+                .lineLimit(1)
+                .truncationMode(.middle)
         }
         .menuStyle(ThemeMenuStyle(height: height))
-    }
-
-    /// Long names (ICC profiles) are shortened in the middle so the control keeps panel width.
-    private static func clipped(_ s: String, max: Int = 26) -> String {
-        guard s.count > max else { return s }
-        return String(s.prefix(max / 2 - 1)) + "…" + String(s.suffix(max / 2 - 1))
     }
 }
 
