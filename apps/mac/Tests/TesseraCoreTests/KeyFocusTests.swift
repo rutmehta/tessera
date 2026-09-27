@@ -11,6 +11,34 @@ final class KeyFocusTests: XCTestCase {
                          charactersIgnoringModifiers: character, isARepeat: false, keyCode: code)!
     }
 
+    func testPhotoEditConsumesCullKeysWithoutChangingDecisions() {
+        let model = AppModel()
+        model.loadStubItems(count: 10)
+        model.enterPhotoEdit()
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 100),
+                              styleMask: .titled, backing: .buffered, defer: false)
+        let router = KeyRouter(model: model)
+        for (code, character) in [(UInt16(7), "x"), (UInt16(16), "y"), (UInt16(35), "p")] {
+            XCTAssertTrue(router.handle(key(code, character, window: window)))
+            XCTAssertEqual(model.focusedState.decision, .undecided)
+        }
+        XCTAssertTrue(router.handle(key(53, "\u{1b}", window: window)))
+        XCTAssertFalse(model.isPhotoEditing)
+    }
+
+    func testPhotoEditTextFieldStillOwnsLetters() {
+        let model = AppModel()
+        model.loadStubItems(count: 10)
+        model.enterPhotoEdit()
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 100),
+                              styleMask: .titled, backing: .buffered, defer: false)
+        let field = NSTextField(frame: window.contentView!.bounds)
+        window.contentView?.addSubview(field)
+        XCTAssertTrue(window.makeFirstResponder(field))
+        XCTAssertFalse(KeyRouter(model: model).handle(key(2, "d", window: window)))
+        XCTAssertTrue(model.isPhotoEditing)
+    }
+
     func testFocusedSliderOwnsArrows() {
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 100),
                               styleMask: .titled, backing: .buffered, defer: false)

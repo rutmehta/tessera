@@ -31,7 +31,7 @@ final class LibraryModel {
     /// Sidebar tree (roots).
     private(set) var nodes: [CollectionNode] = []
     var filter = LibraryFilter() {
-        didSet { if filter != oldValue { scheduleSearch() } }
+        didSet { if filter != oldValue { app?.leavePhotoEditForLibraryChange(); scheduleSearch() } }
     }
     private(set) var facets: SearchFacets?
     private(set) var diagnostic: RuleDiagnostic?
