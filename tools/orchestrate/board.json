@@ -1262,5 +1262,13 @@
     "status": "merged",
     "attempts": 0,
     "notes": "machine B; wp/B5-07 merged with main c1f95e1; document/styles.rs + CPU style fallback in render.rs; 254 XCTest; styled frames slow/failing >=16 MP until M5-31"
+  },
+  {
+    "id": "M2-45c",
+    "owner": "astra",
+    "title": "Export part 3: metadata policy, DNG modes, HDR",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
