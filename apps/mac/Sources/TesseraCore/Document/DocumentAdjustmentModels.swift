@@ -120,15 +120,34 @@ public enum AutoModeModel: String, CaseIterable, Sendable, Identifiable {
     }
 }
 
-/// `Adjustment::Auto`: frozen per-channel black / white / gamma.
+/// `Adjustment::Auto`: frozen per-channel black / white / gamma, and (M5-32) the population clipped from each
+/// tail when they were analysed, in percent (`shadow_clip` / `highlight_clip`, serde default 0.5).
 public struct AutoAdjustmentModel: Equatable, Sendable {
+    /// The engine's serde default for a missing `shadow_clip` / `highlight_clip` (percent).
+    public static let engineDefaultClip = 0.5
+    /// Photoshop's Auto default, used when Tessera analyses a new Auto layer or Image ▸ Auto (percent).
+    public static let photoshopClip = 0.1
+
     public var mode: AutoModeModel = .tone
     public var black: [Double] = [0, 0, 0]
     public var white: [Double] = [1, 1, 1]
     public var gamma: [Double] = [1, 1, 1]
+    /// Shadow population clipped during analysis, in percent.
+    public var shadowClip: Double = AutoAdjustmentModel.engineDefaultClip
+    /// Highlight population clipped during analysis, in percent.
+    public var highlightClip: Double = AutoAdjustmentModel.engineDefaultClip
     public init() {}
-    public init(mode: AutoModeModel, black: [Double], white: [Double], gamma: [Double]) {
+    public init(mode: AutoModeModel, black: [Double], white: [Double], gamma: [Double],
+                shadowClip: Double = AutoAdjustmentModel.engineDefaultClip,
+                highlightClip: Double = AutoAdjustmentModel.engineDefaultClip) {
         self.mode = mode; self.black = black; self.white = white; self.gamma = gamma
+        self.shadowClip = shadowClip; self.highlightClip = highlightClip
+    }
+
+    /// An Auto model to analyse: identity endpoints, Photoshop's 0.1 % clips.
+    public static func fresh(_ mode: AutoModeModel) -> AutoAdjustmentModel {
+        AutoAdjustmentModel(mode: mode, black: [0, 0, 0], white: [1, 1, 1], gamma: [1, 1, 1],
+                            shadowClip: photoshopClip, highlightClip: photoshopClip)
     }
 
     init(object o: [String: Any]) {
@@ -136,10 +155,13 @@ public struct AutoAdjustmentModel: Equatable, Sendable {
         black = JSONNumbers.array(o["black"], count: 3) ?? [0, 0, 0]
         white = JSONNumbers.array(o["white"], count: 3) ?? [1, 1, 1]
         gamma = JSONNumbers.array(o["gamma"], count: 3) ?? [1, 1, 1]
+        shadowClip = JSONNumbers.double(o["shadow_clip"]) ?? Self.engineDefaultClip
+        highlightClip = JSONNumbers.double(o["highlight_clip"]) ?? Self.engineDefaultClip
     }
 
     var jsonObject: [String: Any] {
-        ["kind": "auto", "mode": mode.rawValue, "black": black, "white": white, "gamma": gamma]
+        ["kind": "auto", "mode": mode.rawValue, "black": black, "white": white, "gamma": gamma,
+         "shadow_clip": shadowClip, "highlight_clip": highlightClip]
     }
 }
 
@@ -157,6 +179,8 @@ public struct MatchColorModel: Equatable, Sendable {
     public var colorIntensity: Double = 100
     /// 0…100.
     public var fade: Double = 0
+    /// (M5-32) Remove the transferred population's mean Lab chroma (the engine's `neutralize`, serde default false).
+    public var neutralize: Bool = false
     public init() {}
 
     init(object o: [String: Any]) {
@@ -168,16 +192,17 @@ public struct MatchColorModel: Equatable, Sendable {
         luminance = JSONNumbers.double(o["luminance"]) ?? 100
         colorIntensity = JSONNumbers.double(o["color_intensity"]) ?? 100
         fade = JSONNumbers.double(o["fade"]) ?? 0
+        neutralize = (o["neutralize"] as? Bool) ?? false
     }
 
     var jsonObject: [String: Any] {
         ["kind": "match_color", "source_layer": NSNumber(value: sourceLayer), "source_mean": sourceMean,
          "source_std": sourceStd, "target_mean": targetMean, "target_std": targetStd, "luminance": luminance,
-         "color_intensity": colorIntensity, "fade": fade]
+         "color_intensity": colorIntensity, "fade": fade, "neutralize": neutralize]
     }
 
-    /// Neutralize (Photoshop's option): the source's mean chroma is zero, so the match removes the target's cast.
-    public var neutralized: Bool { sourceMean.count == 3 && sourceMean[1] == 0 && sourceMean[2] == 0 }
+    /// Whether Neutralize is on: the persisted field, or a pre-M5-32 match whose source chroma was zeroed.
+    public var neutralized: Bool { neutralize || (sourceMean.count == 3 && sourceMean[1] == 0 && sourceMean[2] == 0) }
 }
 
 /// `adjust::shadows::ShadowsHighlights` (serde default: the identity).
