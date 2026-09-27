@@ -3,7 +3,9 @@ mod ai_masks;
 mod batch;
 /// Shared preview/export segmentation implementation.
 pub use mask_ai;
+mod avif;
 mod codec;
+pub use avif::{AvifOptions, encode_avif};
 mod watermark;
 pub use batch::{
     BatchReport, ExportItem, Progress, export_batch, export_batch_upscaled, export_batch_with_jobs,
@@ -33,17 +35,20 @@ pub enum Format {
     Jpeg { quality: u8 },
     Png,
     Tiff { bits: u8 },
+    Avif(AvifOptions),
 }
 impl Format {
-    fn extension(self) -> &'static str {
+    pub fn extension(self) -> &'static str {
         match self {
             Self::Jpeg { .. } => "jpg",
             Self::Png => "png",
             Self::Tiff { .. } => "tif",
+            Self::Avif(_) => "avif",
         }
     }
     fn validate(self) -> EngineResult<()> {
         match self {
+            Self::Avif(options) => options.validate(),
             Self::Jpeg { quality: 1..=100 } | Self::Png | Self::Tiff { bits: 8 | 16 } => Ok(()),
             _ => Err(EngineError::invalid(
                 "format",

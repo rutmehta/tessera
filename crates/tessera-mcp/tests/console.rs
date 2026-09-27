@@ -11,6 +11,28 @@ fn request(value: serde_json::Value) -> ToolRequest {
 }
 
 #[test]
+fn avif_export_uses_the_shared_codec() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("source.jpg");
+    image::RgbImage::from_pixel(32, 24, image::Rgb([70, 100, 180]))
+        .save(&path)
+        .unwrap();
+    let mut console = Console::open(dir.path().join("app")).unwrap();
+    let id = console.open_image(&path).unwrap();
+    let out = dir.path().join("out");
+    let response = console.execute(request(json!({"tool":"export","images":[id],"settings":{"destination":out,"format":{"format":"avif","quality":90}}})));
+    assert!(
+        matches!(
+            response,
+            ToolResponse::Ok(ToolOutput::ExportQueued { images: 1, .. })
+        ),
+        "{response:?}"
+    );
+    let bytes = std::fs::read(out.join("source.avif")).unwrap();
+    assert_eq!(&bytes[4..12], b"ftypavif");
+}
+
+#[test]
 #[cfg(target_os = "macos")]
 fn heic_console_describe_edit_and_export() {
     let dir = tempfile::tempdir().unwrap();

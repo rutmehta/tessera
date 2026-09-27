@@ -68,6 +68,26 @@ fn apply_orientation_rotates_raw_exports_only_when_asked() {
     )
     .unwrap();
     assert_eq!(image::image_dimensions(&path).unwrap(), (22, 26));
+    #[cfg(target_os = "macos")]
+    {
+        let avif = export_one(
+            &image("oriented-avif"),
+            &Recipe::default(),
+            &ExportSettings {
+                format: Format::Avif(AvifOptions {
+                    bits: 12,
+                    speed: 10,
+                    ..Default::default()
+                }),
+                ..oriented.clone()
+            },
+        )
+        .unwrap();
+        let tiff = color_mgmt::decode_to_tiff(&std::fs::read(avif).unwrap()).unwrap();
+        let mut decoder = tiff::decoder::Decoder::new(std::io::Cursor::new(tiff)).unwrap();
+        assert_eq!(decoder.dimensions().unwrap(), (22, 26));
+        decoder.read_image().unwrap();
+    }
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;

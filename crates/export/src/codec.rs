@@ -170,6 +170,15 @@ fn encode_inner(
             .collect::<Vec<_>>()
     };
     match format {
+        Format::Avif(options) => {
+            let rgba = image::Rgba32FImage::from_fn(rgb.width(), rgb.height(), |x, y| {
+                let [r, g, b] = rgb.get_pixel(x, y).0;
+                image::Rgba([r, g, b, 1.0])
+            });
+            writer
+                .write_all(&crate::encode_avif(&rgba, options, space, xmp, cancel)?)
+                .map_err(encode_error)?;
+        }
         Format::Jpeg { quality } => {
             let mut encoder = jpeg_encoder::Encoder::new(writer, quality);
             if let Some(dpi) = dpi {

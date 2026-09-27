@@ -25,6 +25,7 @@ pub enum FileFormat {
     Jpeg,
     Png,
     Tiff,
+    Avif,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -137,12 +138,14 @@ pub enum OnConflict {
 #[serde(default, deny_unknown_fields)]
 pub struct ExportOptions {
     pub format: FileFormat,
-    /// JPEG quality 1–100.
+    /// JPEG/AVIF quality 1–100.
     pub quality: u8,
+    /// AVIF encoding speed: 1 (slow) through 10 (fast).
+    pub avif_speed: u8,
     /// JPEG byte budget including the embedded ICC and XMP packets.
     pub max_file_bytes: Option<u64>,
     pub watermark: Option<export::Watermark>,
-    /// TIFF 8 or 16 (PNG and JPEG are 8-bit).
+    /// AVIF 8/10/12, TIFF 8/16 (PNG and JPEG are 8-bit).
     pub bit_depth: u8,
     pub color_space: DocumentSpace,
     pub resize: ResizeOptions,
@@ -166,6 +169,7 @@ impl Default for ExportOptions {
         Self {
             format: FileFormat::Jpeg,
             quality: 90,
+            avif_speed: 6,
             max_file_bytes: None,
             watermark: None,
             bit_depth: 8,
@@ -198,6 +202,7 @@ impl ExportOptions {
             FileFormat::Jpeg => "jpg",
             FileFormat::Png => "png",
             FileFormat::Tiff => "tif",
+            FileFormat::Avif => "avif",
         }
     }
     /// Everything but the destination (checked when a batch runs).
@@ -215,11 +220,15 @@ impl ExportOptions {
         if !(1..=100).contains(&self.quality) {
             return Err(failure("JPEG quality must be 1–100"));
         }
-        if !matches!(self.bit_depth, 8 | 16) {
-            return Err(failure("bit depth must be 8 or 16"));
+        if !(1..=10).contains(&self.avif_speed) {
+            return Err(failure("AVIF speed must be 1–10"));
         }
-        if self.bit_depth == 16 && self.format != FileFormat::Tiff {
-            return Err(failure("16-bit output needs TIFF"));
+        if !match self.format {
+            FileFormat::Avif => matches!(self.bit_depth, 8 | 10 | 12),
+            FileFormat::Tiff => matches!(self.bit_depth, 8 | 16),
+            _ => self.bit_depth == 8,
+        } {
+            return Err(failure("unsupported bit depth for format"));
         }
         if !(1..=9600).contains(&self.dpi) {
             return Err(failure("resolution must be 1–9600 dpi"));
@@ -273,6 +282,11 @@ impl ExportOptions {
                     quality: self.quality,
                 },
                 FileFormat::Png => export::Format::Png,
+                FileFormat::Avif => export::Format::Avif(export::AvifOptions {
+                    quality: self.quality,
+                    bits: self.bit_depth,
+                    speed: self.avif_speed,
+                }),
                 FileFormat::Tiff => export::Format::Tiff {
                     bits: self.bit_depth,
                 },

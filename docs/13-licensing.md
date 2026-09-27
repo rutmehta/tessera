@@ -17,6 +17,22 @@ Decided 2026-09-25 after a review of how Adobe, Capture One, DxO, Affinity, Pixe
 
 JPEG XL: decode with `jxl-oxide` (MIT/Apache), encode through our own thin bindings to libjxl (BSD-3), which is what Adobe's DNG SDK ships.
 
+AVIF export uses `rav1e` 0.8.1 directly under BSD-2-Clause. The application
+contains its own small HEIF still-image muxer for ICC/CICP, XMP and auxiliary
+alpha. No GPL encoder or system codec binary is linked. Default rav1e CLI,
+assembly-build and signal-handler features are disabled; only threading is
+enabled. This path supports 8/10/12-bit SDR encoding. macOS ImageIO is used
+only by export's development tests for independent decoding.
+
+Narrow exception: `libfuzzer-sys` 0.4.13, referenced only by rav1e under
+`cfg(fuzzing)`, also uses NCSA for the LLVM fuzzing runtime. Cargo-deny's
+all-target dependency graph includes it, although normal/build dependency
+trees do not. NCSA permits commercial use, modification and redistribution,
+requiring retained notices/disclaimers and non-endorsement, like BSD-3.
+The version-specific exception does not allow NCSA globally, disable license
+checks, or permit GPL. See https://spdx.org/licenses/NCSA.html. Preserve these
+notices if distributing a fuzzing build that actually includes that runtime.
+
 ## Optional Lensfun data pack
 
 Lensfun's calibration XML database is CC-BY-SA-3.0, not Apache-2.0.

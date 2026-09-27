@@ -18,8 +18,14 @@ pub struct Options {
     query: Option<String>,
     #[arg(long)]
     out: PathBuf,
-    #[arg(long, value_parser = ["jpeg", "png", "tiff"])]
+    #[arg(long, value_parser = ["jpeg", "png", "tiff", "avif"])]
     format: String,
+    /// AVIF 8/10/12 or TIFF 8/16 bits per channel.
+    #[arg(long, default_value_t = 8)]
+    bit_depth: u8,
+    /// AVIF encoding speed, 1 (slow) through 10 (fast).
+    #[arg(long, default_value_t = 6, value_parser = clap::value_parser!(u8).range(1..=10))]
+    avif_speed: u8,
     #[arg(long, default_value_t = 90, value_parser = clap::value_parser!(u8).range(1..=100))]
     quality: u8,
     /// Maximum JPEG bytes including ICC and XMP (fails if unattainable).
@@ -96,6 +102,14 @@ fn is_image(path: &Path) -> bool {
 
 fn settings(options: &Options) -> Result<ExportSettings> {
     ensure!(
+        match options.format.as_str() {
+            "avif" => matches!(options.bit_depth, 8 | 10 | 12),
+            "tiff" => matches!(options.bit_depth, 8 | 16),
+            _ => options.bit_depth == 8,
+        },
+        "unsupported bit depth for format"
+    );
+    ensure!(
         options.max_file_bytes.is_none() || options.format == "jpeg",
         "--max-file-bytes requires JPEG"
     );
@@ -115,7 +129,14 @@ fn settings(options: &Options) -> Result<ExportSettings> {
                 quality: options.quality,
             },
             "png" => Format::Png,
-            _ => Format::Tiff { bits: 8 },
+            "avif" => Format::Avif(export::AvifOptions {
+                quality: options.quality,
+                bits: options.bit_depth,
+                speed: options.avif_speed,
+            }),
+            _ => Format::Tiff {
+                bits: options.bit_depth,
+            },
         },
         color_space: match options.color_space.as_str() {
             "p3" => ColorSpace::DisplayP3,
@@ -201,11 +222,7 @@ fn preflight_upscale(
     cancel: &CancellationToken,
 ) -> Result<()> {
     let mut names = std::collections::HashSet::new();
-    let extension = match settings.format {
-        Format::Jpeg { .. } => "jpg",
-        Format::Png => "png",
-        Format::Tiff { .. } => "tif",
-    };
+    let extension = settings.format.extension();
     for (index, path) in paths.iter().enumerate() {
         cancel.check()?;
         let name = path
@@ -390,6 +407,57 @@ fn load(path: &Path) -> Result<Loaded> {
 #[cfg(test)]
 mod tests {
     use clap::Parser;
+
+    #[test]
+    fn avif_flags_reach_encoder_settings() {
+        use clap::CommandFactory;
+        let mut command = crate::Cli::command();
+        let help = command
+            .find_subcommand_mut("export")
+            .unwrap()
+            .render_long_help()
+            .to_string();
+        for flag in ["avif", "--avif-speed", "--bit-depth"] {
+            assert!(help.contains(flag));
+        }
+        for bits in ["8", "10", "12", "16"] {
+            let parsed = crate::Cli::try_parse_from([
+                "tessera",
+                "export",
+                "input.png",
+                "--out",
+                "out",
+                "--format",
+                "avif",
+                "--bit-depth",
+                bits,
+                "--avif-speed",
+                "10",
+                "--quality",
+                "73",
+            ])
+            .unwrap();
+            let crate::Command::Export(options) = parsed.command else {
+                panic!("export")
+            };
+            let result = super::settings(&options);
+            if bits == "16" {
+                assert!(result.is_err());
+            } else {
+                let export::Format::Avif(options) = result.unwrap().format else {
+                    panic!("avif")
+                };
+                assert_eq!(
+                    options,
+                    export::AvifOptions {
+                        bits: bits.parse().unwrap(),
+                        speed: 10,
+                        quality: 73
+                    }
+                );
+            }
+        }
+    }
 
     #[test]
     fn byte_limit_and_watermark_flags_are_exposed() {

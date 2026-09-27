@@ -1,5 +1,12 @@
 # M2-45 partial implementation, not acceptance-complete
 
+## Round 2 supersedes the allow-list blocker below
+
+The widened allow-list permits the MCP change. AVIF is now implemented through
+the existing `export::Format` and wired to CLI, FFI settings JSON and MCP. See
+`ROUND2.md` for the current checkpoint, verification and remaining scope.
+The older allow-list discussion below is historical, not a current blocker.
+
 ## Allow-list decision required
 
 `crates/tessera-mcp/src/exports.rs:116-120` exhaustively matches
