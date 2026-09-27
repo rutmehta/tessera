@@ -597,58 +597,6 @@ struct StatusBar: View {
     }
 }
 
-/// Loupe chrome: file and decision (top left), display / proof state (top right), shortcuts
-/// (bottom). A reserved 32 pt top strip keeps the mask toolbar clear of this text.
-struct LoupeOverlay: View {
-    let model: AppModel
-    var body: some View {
-        VStack(spacing: 0) {
-            HStack(alignment: .center, spacing: Theme.Space.s) {
-                if let item = model.focusedItem {
-                    Text(item.name).font(Theme.Fonts.labelMedium).foregroundStyle(Theme.textPrimary)
-                        .allowsHitTesting(false)
-                    if !model.isPhotoEditing, let badge = model.focusedState.badgeText {
-                        Chip(text: badge, color: Color(nsColor: model.focusedState.decision.color), style: .outlined,
-                             height: Theme.Height.chip)
-                    }
-                    if !model.isPhotoEditing, model.focusedIsBest {
-                        Chip(text: "Suggested best · K keeps it, rejects the rest", color: Theme.keep, style: .outlined,
-                             height: Theme.Height.chip)
-                    }
-                }
-                Spacer(minLength: Theme.Space.s)
-                if SoftProof.shared.enabled {
-                    Chip(text: SoftProof.shared.lut.map { "Soft proof · \($0.profileName)" + (SoftProof.shared.gamutWarning ? " · gamut warning" : "") }
-                         ?? SoftProof.shared.status, color: Theme.accent, style: .outlined, height: Theme.Height.chip)
-                        .accessibilityIdentifier("softproof-badge")
-                }
-                Text(model.loupeInfo).font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary).lineLimit(1)
-                    .allowsHitTesting(false)
-                if model.isPhotoEditing, model.developStatus == .ready, !MaskTools.shared.active {
-                    Button { MaskTools.shared.setActive(true) } label: {
-                        Label("Masks", systemImage: "circle.lefthalf.striped.horizontal")
-                    }
-                    .buttonStyle(.theme(.bordered, height: Theme.Height.small))
-                    .help("Local adjustments with masks (M)")
-                }
-            }
-            .padding(.horizontal, Theme.Space.gutter)
-            .frame(height: Theme.Height.sectionHeader)
-            Spacer()
-                .allowsHitTesting(false)
-            Text(model.isReviewEditing
-                 ? "← → previous / next review photo  ·  D Develop  ·  M masks  ·  ⌘Z photo undo  ·  Esc tool / Back to Review"
-                 : model.isPhotoEditing
-                 ? "← → previous / next photo  ·  D Develop  ·  M masks  ·  ⌘Z photo undo  ·  Esc tool / Back to Library"
-                 : "← → group  ·  ↑ ↓ frame in group  ·  X U P decide  ·  1 2 3 grade  ·  K keep best  ·  C compare  ·  Y N suggestions  ·  ⌘Z undo  ·  D Edit photo  ·  Esc grid")
-                .font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary)
-                .lineLimit(1)
-                .padding(.bottom, Theme.Space.s)
-                .allowsHitTesting(false)
-        }
-    }
-}
-
 struct EmptyStateView: View {
     let model: AppModel
     var body: some View {

@@ -4,6 +4,26 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## Loupe integrated; timer correction returned — 2026-09-27 21:22 UTC
+
+Mainb18ab0bb merges Loupe display/shortcut disclosures and scoped Escape callback.
+Merged apps/mac byte-identical to tested d40114eb; Rust unchanged. Final14 focused
+checks and actual isolated JPEG GUI pass: each popup closes on Escape while Loupe
+stays, next Escape goes Grid, Right/D/X do not leak, narrow longname disclosure
+works. RAW pointer/liveproof states remain untested; syntheticCmdQ inconclusive.
+Luna now source-audits Review relaunch persistence (UX02b); no current GUI owner.
+
+B timer candidate4797b2a failed A's first compile with Swift6 timer capture error;
+no tests ran. Exact source/evidence pushed6544a1d6. Failed receipt601e4825 published.
+Source-only correctionae3c2b6a queued01a0e4bc-eae0-78d0-bcc9-5f6c70d8f426; no new
+peer receipt claimed yet. No B builds/tests/app launch/heartbeat restart.
+
+RES03 exact RED9a50e5a0 observed mask work2/514pixels/8224tilebytes/0digestbytes;
+reviewed scoped reuse source waits GREEN. Bridge Sol owns A compiler for v5
+focused/regression/strict checks; prior4focused/1mapper pass not whole acceptance.
+Resource followup6108eb2b corrects earlier CPU-only integration label: selected48
+included a GPU-capable test; library Metal-required tests passed. Raw logs retained.
+
 ## Transform primitive integrated — 2026-09-27 21:07 UTC
 
 Main505c4c29 merges transform cancellation primitive;66tests and strict all-target
@@ -23,7 +43,7 @@ bridge compilation uses external target. No user data cleanup performed.
 Main d2ac1226 contains per-frame smart-filter reuse and retained-result admission.
 Merged crates/Cargo bytes match reviewed/tested resource head e5bfbd5c. Final gates:
 8 focused,60 library (1 ignored benchmark; small Metal tests exercised),48 selected
-CPU integration, strict Clippy/format. Initial fixture-ID failure and repair retained.
+integration (including a GPU-capable live case), strict Clippy/format. Initial fixture-ID failure and repair retained.
 Evidence: tools/orchestrate/wp/RES-01/evidence/2026-09-27/followup/README.md.
 This bounds retained unmasked results per frame, not total memory or GPU use.
 B source review673e2a7/result0926ae38 confirms receipt and identifies remaining

@@ -1,0 +1,54 @@
+[0/1] Planning build
+Building for production...
+[0/7] Write sources
+[2/7] Write swift-version--58304C5D6DBC2206.txt
+[4/8] Compiling Tessera AISettingsView.swift
+/Users/rutmehta/.codex/worktrees/export-integration/tessera/apps/mac/Sources/Tessera/Document/AdjustmentEditors.swift:55:55: warning: passing non-Sendable parameter 'change' to function expecting a '@Sendable' closure
+ 52 |     }
+ 53 | 
+ 54 |     private func checkbox(_ title: String, _ on: Bool, _ key: String, _ change: @escaping (Bool) -> Void) -> some View {
+    |                                                                         `- note: parameter 'change' is implicitly non-Sendable
+ 55 |         Toggle(title, isOn: Binding(get: { on }, set: change))
+    |                                                       `- warning: passing non-Sendable parameter 'change' to function expecting a '@Sendable' closure
+ 56 |             .toggleStyle(.checkbox)
+ 57 |             .font(Theme.Fonts.caption)
+
+/Users/rutmehta/.codex/worktrees/export-integration/tessera/apps/mac/Sources/Tessera/Document/Transforms/DocumentTransforms.swift:676:21: warning: 'where' only applies to the second pattern match in this 'case'
+674 |         let mods = e.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.numericPad, .function, .capsLock])
+675 |         switch e.keyCode {
+676 |         case 36, 76 where mods.isEmpty || mods == [.command]: apply(); return true
+    |              |   |  `- warning: 'where' only applies to the second pattern match in this 'case'
+    |              |   `- note: disambiguate by adding a line break between them if this is desired
+    |              `- note: duplicate the 'where' on both patterns to check both patterns
+677 |         case 53 where mods.isEmpty: cancel(); return true
+678 |         case 51, 117 where mods.isEmpty:
+
+/Users/rutmehta/.codex/worktrees/export-integration/tessera/apps/mac/Sources/Tessera/Document/Transforms/DocumentTransforms.swift:678:22: warning: 'where' only applies to the second pattern match in this 'case'
+676 |         case 36, 76 where mods.isEmpty || mods == [.command]: apply(); return true
+677 |         case 53 where mods.isEmpty: cancel(); return true
+678 |         case 51, 117 where mods.isEmpty:
+    |              |   |   `- warning: 'where' only applies to the second pattern match in this 'case'
+    |              |   `- note: disambiguate by adding a line break between them if this is desired
+    |              `- note: duplicate the 'where' on both patterns to check both patterns
+679 |             if case .puppet = session?.op, selectedPin != nil { removeSelectedPin(); return true }
+680 |             return false
+
+/Users/rutmehta/.codex/worktrees/export-integration/tessera/apps/mac/Sources/Tessera/Document/Transforms/TransformSelfTest.swift:460:16: warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+458 | 
+459 |         // 395: position lock rejects geometry.
+460 |         if let id = doc?.primary?.id {
+    |                `- warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+461 |             doc?.toggleLock(.position)
+462 |             await settle()
+
+/Users/rutmehta/.codex/worktrees/export-integration/tessera/apps/mac/Sources/Tessera/Document/DocumentAnimatedOverlayView.swift:32:27: error: sending 'timer' risks causing data races [#SendingRisksDataRace]
+30 |                 guard let self else {
+31 |                     // The run loop owns repeating timers even after their view dies.
+32 |                     timer.invalidate()
+   |                           |- error: sending 'timer' risks causing data races [#SendingRisksDataRace]
+   |                           `- note: task-isolated 'timer' is captured by a main actor-isolated closure. main actor-isolated uses in closure may race against later nonisolated uses
+33 |                     return
+34 |                 }
+
+[#SendingRisksDataRace]: <https://docs.swift.org/compiler/documentation/diagnostics/sending-risks-data-race>
+error: fatalError

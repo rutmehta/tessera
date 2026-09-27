@@ -79,6 +79,16 @@ final class KeyRouter {
     }
 
     func handle(_ event: NSEvent) -> Bool {
+        // A SwiftUI popover does not always take keyboard focus, so the app-level monitor must
+        // dismiss it directly on Escape. All other events remain native popover input; none reach
+        // the workspace key map while a disclosure is presented.
+        if model.loupeDisclosurePresented {
+            guard event.keyCode == 53, let dismiss = model.dismissLoupeDisclosure else { return false }
+            dismiss()
+            model.loupeDisclosurePresented = false
+            model.dismissLoupeDisclosure = nil
+            return true
+        }
         // B5-10c begin: ⌘Return / keypad Enter / Esc reach an active text session whichever view of the
         // document window has the keyboard (e.g. the viewport after a box handle drag).
         if model.viewMode == .document, DocumentText.shared.routeSessionKey(event) { return true }

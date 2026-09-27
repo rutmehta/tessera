@@ -1,0 +1,35 @@
+{
+  "kind": "Loupe overlay clarity callback gate and isolated GUI validation",
+  "source_base": "9f62d8738b829656fba447117cc7c09e82907998",
+  "branch": "codex/loupe-overlay-clarity",
+  "gate": {
+    "log": "logs/focused-gate.log",
+    "exit_file": "logs/focused-gate.exit",
+    "exit_code": 0,
+    "passed": 14,
+    "failed": 0,
+    "suite_counts": {
+      "KeyFocusTests": 10,
+      "LoupeOverlayPresentationTests": 3,
+      "ThemeLintTests": 1
+    }
+  },
+  "changed_files_sha256": {
+    "apps/mac/Sources/Tessera/App/AppModel.swift": "2eb8d5a64e62b49406bf97aa4b429ef327c12455582585b5b718ea2ace117bb3",
+    "apps/mac/Sources/Tessera/App/KeyRouter.swift": "0c0102e4455831a1628e840ccd8925699363dfd7b09d21b9285e44f2acb7585a",
+    "apps/mac/Sources/Tessera/Loupe/LoupeOverlay.swift": "959716d84b5d3a8df4c895b29d28a0a9aa5002297158c7b91964e43ecc32588d",
+    "apps/mac/Tests/TesseraCoreTests/KeyFocusTests.swift": "6687fcd610ecedf617e355bdcb0281e6a5bfafc50bebe4a5910e07fc11f0c8a1"
+  },
+  "gui_package": {
+    "bundle_id": "dev.tessera.validation.loupeoverlay.9f62d87.escapecallback",
+    "executable": "TesseraLoupeEscapeCallback",
+    "sha256": "16e9f8432cac5138a423878a4592295fd6605447a113d4d03f4ee1d03b7022b7",
+    "external_bundle_path": "/Volumes/betterSSD/tessera-validation/loupe-overlay/escape-callback-20260927/Tessera-LoupeOverlay-EscapeCallback.app",
+    "code_signing": "deep strict verification passed"
+  },
+  "gui_result": "Display info and Shortcuts Escape-dismissed and left Loupe selected; next Escape selected Grid. Right/D/X did not alter photo, mode, or decision while Display info was open. Long filename remained fully available in Display info at ~960x650 minimum reached window size.",
+  "limits": [
+    "Generated JPEG-only catalog; RAW-specific mask/picker pointer pass-through and live soft-proof states were not exercised.",
+    "Synthetic Command-Q action did not terminate the process and is not counted as passed; explicit app-menu Quit closed the isolated process."
+  ]
+}
