@@ -5039,6 +5039,7 @@ dependencies = [
  "thiserror 2.0.21",
  "tiff 0.10.3",
  "uniffi",
+ "vector",
  "wgpu",
 ]
 

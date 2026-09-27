@@ -38,6 +38,7 @@ extension LayerKindTag {
         case .group: self = .group
         case .smartObject: self = .smartObject
         case .text: self = .text
+        case .shape: self = .shape   // B5-11
         }
     }
     var ffi: DocLayerKind {
@@ -48,6 +49,7 @@ extension LayerKindTag {
         case .group: .group
         case .smartObject: .smartObject
         case .text: .text
+        case .shape: .shape   // B5-11
         }
     }
 }

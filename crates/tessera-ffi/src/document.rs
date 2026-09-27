@@ -61,6 +61,14 @@ pub use filtering::{
 #[path = "document/retouch.rs"]
 mod retouch;
 pub use retouch::*;
+// B5-11 begin: live shapes, Pen / Direct Selection and vector masks.
+#[path = "document/vector.rs"]
+mod vector_shapes;
+pub use vector_shapes::{
+    ShapeBounds, ShapeHitPart, ShapeHitRecord, ShapeLayerRecord, ShapePathOperation,
+    VectorMaskRecord, shape_primitive_path,
+};
+// B5-11 end
 
 use crate::{Engine, Result, failure, surface::Surface};
 use compositor::{
@@ -115,6 +123,10 @@ pub enum DocLayerKind {
     Group,
     SmartObject,
     Text,
+    // B5-11 begin
+    /// An editable vector shape (`vector::ShapeModel` + affine).
+    Shape,
+    // B5-11 end
 }
 
 /// How a group composites its children.
@@ -651,6 +663,12 @@ enum Pending {
     Props(u64),
     Adjustment(u64),
     Fill(u64),
+    // B5-11 begin: shape source and vector-mask drafts (document/vector.rs).
+    /// A shape model / transform draft of a layer.
+    Shape(u64),
+    /// A vector-mask draft of a layer.
+    VectorMask(u64),
+    // B5-11 end
 }
 
 pub(crate) struct State {
@@ -792,8 +810,7 @@ fn kind_of(l: &Layer) -> DocLayerKind {
         LayerKind::Group { .. } => DocLayerKind::Group,
         LayerKind::SmartObject(_) => DocLayerKind::SmartObject,
         LayerKind::Text { .. } => DocLayerKind::Text,
-        // Compatibility until Machine B introduces the shape-specific host ABI.
-        LayerKind::Shape { .. } => DocLayerKind::Fill,
+        LayerKind::Shape { .. } => DocLayerKind::Shape, // B5-11
     }
 }
 

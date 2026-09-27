@@ -19,6 +19,8 @@ import TesseraCore
 ///   Document tools (B5-04, `ToolKeyMap`): V M L W B E S J G C T I H Z (⇧ cycles M / L / W), [ ] size,
 ///   ⇧[ ⇧] hardness, 0–9 opacity, X swap / D default colours, Return / Esc, ⌫ clears the selection.
 ///   Channels (B5-08): Q toggles Quick Mask.
+///   Vector tools (B5-11): U shapes (⇧ cycles rectangle / ellipse / polygon / line) · P Pen · A Path / Direct
+///   Selection; Return finishes a Pen path, Esc cancels a drag or path, ⌫ deletes selected anchors.
 /// First responders that own their keyboard input. The local monitor must leave their events
 /// untouched even when they do not handle a particular key themselves.
 @MainActor protocol KeyOwningControl: AnyObject {}

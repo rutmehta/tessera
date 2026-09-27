@@ -80,6 +80,10 @@ struct PropertiesPanel: View {
             Hint("Text layers show their rasterized proxy. Editing type arrives with the type work package.")
         case .pixel:
             EmptyView()
+        // B5-11 begin: live shape parameters, paint, stroke and vector mask (Document/Vector/ShapeInspector.swift).
+        case .shape:
+            ShapeInspector(document: document, vector: DocumentVector.shared, layer: n.id)
+        // B5-11 end
         }
     }
 }

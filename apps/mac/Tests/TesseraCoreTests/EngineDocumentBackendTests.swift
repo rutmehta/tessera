@@ -24,7 +24,7 @@ final class EngineDocumentBackendTests: XCTestCase {
         for d in DocBitDepth.allCases { XCTAssertEqual(DocBitDepth(d.ffi), d) }
         XCTAssertEqual([DocDepth.u8, .u16, .f32].map { DocBitDepth($0).ffi }, [.u8, .u16, .f32])
         for k in LayerKindTag.allCases { XCTAssertEqual(LayerKindTag(k.ffi), k) }
-        let kinds: [DocLayerKind] = [.pixel, .adjustment, .fill, .group, .smartObject, .text]
+        let kinds: [DocLayerKind] = [.pixel, .adjustment, .fill, .group, .smartObject, .text, .shape]   // B5-11: .shape
         XCTAssertEqual(kinds.map { LayerKindTag($0).ffi }, kinds)
         XCTAssertEqual(Set(kinds.map { LayerKindTag($0) }).count, LayerKindTag.allCases.count)
         for m in LayerGroupMode.allCases { XCTAssertEqual(LayerGroupMode(m.ffi), m) }

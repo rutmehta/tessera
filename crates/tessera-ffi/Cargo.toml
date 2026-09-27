@@ -38,6 +38,8 @@ style-profile = { path = "../style-profile" }
 agent = { path = "../agent" }
 compositor = { path = "../compositor" }
 psd = { path = "../psd" }
+# Live shapes and vector masks (WP B5-11).
+vector = { path = "../vector" }
 gpu-core = { path = "../gpu-core" }
 wgpu.workspace = true
 bytemuck.workspace = true

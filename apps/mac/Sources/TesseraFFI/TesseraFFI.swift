@@ -4599,6 +4599,98 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
      */
     func strokePoints(points: [StrokeSample]) throws  -> StrokeFrame
     
+    /**
+     * Adds a shape layer (one node, "<Kind> Tool"): `model_json` is a
+     * `vector::ShapeModel`; with `live_shape` its path is regenerated from
+     * the construction parameters. `name` empty: "Rectangle 1", …;
+     * `parent` `None`: the root; `index` bottom-first, `None`: on top. The
+     * new id is `DocumentUpdate.created[0]`.
+     */
+    func addShapeLayer(name: String, parent: UInt64?, index: UInt32?, modelJson: String, transform: TransformMatrix) throws  -> DocumentUpdate
+    
+    /**
+     * Combines the paths of `operands` into `layer` (Combine, Subtract
+     * Front, Intersect, Exclude Overlapping, applied in order) and removes
+     * the operand layers: ONE history node. Operand geometry is mapped
+     * through its own affine and the inverse of the target's. The result is
+     * canonical nonzero contours (holes wind opposite); it clears
+     * `live_shape` and keeps the target's paint, stroke and transform.
+     */
+    func booleanShapePaths(layer: UInt64, operands: [UInt64], operation: ShapePathOperation) throws  -> DocumentUpdate
+    
+    /**
+     * Drops a pending shape or vector-mask draft with no history change
+     * (Esc). Other pending drags are rebuilt on a fresh scratch.
+     * B5-11 temporary: replace with B5-10 cancel_source_preview.
+     */
+    func cancelShapePreview() throws  -> DocumentUpdate
+    
+    /**
+     * Layer ▸ Rasterize ▸ Shape: pixels at document depth in one node,
+     * keeping id, properties, styles and both masks; undo restores the live
+     * shape. B5-11 temporary: replace with B5-10 convert_to_pixels.
+     */
+    func convertShapeToPixels(layer: UInt64) throws  -> DocumentUpdate
+    
+    /**
+     * A Pen / Direct Selection edit of the shape's path in local pixels:
+     * one command object or an array of them (`{"op":"move_anchor",
+     * "subpath":0,"anchor":2,"x":10,"y":4}`, `set_handle` with `handle`
+     * `incoming`/`outgoing` and `mirror`, `insert_anchor` with `segment`
+     * and `t`, `delete_anchor`, `add_subpath`, `set_closed`,
+     * `set_fill_rule`, `set_path`). Commands apply to the committed path, so
+     * an interactive drag sends absolute positions. The edit clears
+     * `live_shape`: the primitive no longer regenerates over it.
+     */
+    func editShapePath(layer: UInt64, commandJson: String, interactive: Bool) throws  -> DocumentUpdate
+    
+    /**
+     * Replaces a shape's model and transform. `interactive`: a live draft
+     * (inspector slider, affine handle drag) with no history until the
+     * final call of the same layer, which records the net change as one
+     * node. A draft equal to the committed source records nothing. The
+     * layer's vector mask stays where it is in the document.
+     */
+    func setShapeLayer(layer: UInt64, modelJson: String, transform: TransformMatrix, interactive: Bool) throws  -> DocumentUpdate
+    
+    /**
+     * Adds, replaces (`Some`) or deletes (`None`) the document-space vector
+     * mask of any layer, next to its raster mask (which is untouched).
+     * `interactive` as for `set_shape_layer` (density / feather drags).
+     */
+    func setVectorMask(layer: UInt64, mask: VectorMaskRecord?, interactive: Bool) throws  -> DocumentUpdate
+    
+    /**
+     * The topmost visible shape layer whose geometry contains document
+     * point `(x, y)`: its stroke outline (when `include_stroke`, within
+     * `tolerance` document pixels of it) and then its fill under the path's
+     * fill rule. Geometric only: masks and opacity are not considered.
+     */
+    func shapeHitTest(x: Double, y: Double, includeStroke: Bool, tolerance: Double) throws  -> ShapeHitRecord?
+    
+    /**
+     * The shape source of `layer` (the live draft while one is pending).
+     */
+    func shapeLayer(layer: UInt64) throws  -> ShapeLayerRecord
+    
+    /**
+     * [`shape_hit_test`](Self::shape_hit_test) of one layer (hidden or not).
+     */
+    func shapeLayerHitTest(layer: UInt64, x: Double, y: Double, includeStroke: Bool, tolerance: Double) throws  -> ShapeHitPart?
+    
+    /**
+     * The explicit linked-mask gesture: the new shape `transform` AND the
+     * layer's vector mask moved by the same document-space change
+     * (`new ∘ old⁻¹`), as ONE atomic `Batch` node (or draft). Without a
+     * vector mask this is `set_shape_layer` with the same model.
+     */
+    func transformShapeWithMask(layer: UInt64, transform: TransformMatrix, interactive: Bool) throws  -> DocumentUpdate
+    
+    /**
+     * The document-space vector mask of any layer.
+     */
+    func vectorMask(layer: UInt64) throws  -> VectorMaskRecord?
+    
 }
 open class DocumentSession: DocumentSessionProtocol, @unchecked Sendable {
     fileprivate let handle: UInt64
@@ -6416,6 +6508,215 @@ open func strokePoints(points: [StrokeSample])throws  -> StrokeFrame  {
     uniffi_tessera_ffi_fn_method_documentsession_stroke_points(
             self.uniffiCloneHandle(),
         FfiConverterSequenceTypeStrokeSample.lower(points),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Adds a shape layer (one node, "<Kind> Tool"): `model_json` is a
+     * `vector::ShapeModel`; with `live_shape` its path is regenerated from
+     * the construction parameters. `name` empty: "Rectangle 1", …;
+     * `parent` `None`: the root; `index` bottom-first, `None`: on top. The
+     * new id is `DocumentUpdate.created[0]`.
+     */
+open func addShapeLayer(name: String, parent: UInt64?, index: UInt32?, modelJson: String, transform: TransformMatrix)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_add_shape_layer(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(name),
+        FfiConverterOptionUInt64.lower(parent),
+        FfiConverterOptionUInt32.lower(index),
+        FfiConverterString.lower(modelJson),
+        FfiConverterTypeTransformMatrix_lower(transform),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Combines the paths of `operands` into `layer` (Combine, Subtract
+     * Front, Intersect, Exclude Overlapping, applied in order) and removes
+     * the operand layers: ONE history node. Operand geometry is mapped
+     * through its own affine and the inverse of the target's. The result is
+     * canonical nonzero contours (holes wind opposite); it clears
+     * `live_shape` and keeps the target's paint, stroke and transform.
+     */
+open func booleanShapePaths(layer: UInt64, operands: [UInt64], operation: ShapePathOperation)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_boolean_shape_paths(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),
+        FfiConverterSequenceUInt64.lower(operands),
+        FfiConverterTypeShapePathOperation_lower(operation),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Drops a pending shape or vector-mask draft with no history change
+     * (Esc). Other pending drags are rebuilt on a fresh scratch.
+     * B5-11 temporary: replace with B5-10 cancel_source_preview.
+     */
+open func cancelShapePreview()throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_cancel_shape_preview(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Layer ▸ Rasterize ▸ Shape: pixels at document depth in one node,
+     * keeping id, properties, styles and both masks; undo restores the live
+     * shape. B5-11 temporary: replace with B5-10 convert_to_pixels.
+     */
+open func convertShapeToPixels(layer: UInt64)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_convert_shape_to_pixels(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * A Pen / Direct Selection edit of the shape's path in local pixels:
+     * one command object or an array of them (`{"op":"move_anchor",
+     * "subpath":0,"anchor":2,"x":10,"y":4}`, `set_handle` with `handle`
+     * `incoming`/`outgoing` and `mirror`, `insert_anchor` with `segment`
+     * and `t`, `delete_anchor`, `add_subpath`, `set_closed`,
+     * `set_fill_rule`, `set_path`). Commands apply to the committed path, so
+     * an interactive drag sends absolute positions. The edit clears
+     * `live_shape`: the primitive no longer regenerates over it.
+     */
+open func editShapePath(layer: UInt64, commandJson: String, interactive: Bool)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_edit_shape_path(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),
+        FfiConverterString.lower(commandJson),
+        FfiConverterBool.lower(interactive),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Replaces a shape's model and transform. `interactive`: a live draft
+     * (inspector slider, affine handle drag) with no history until the
+     * final call of the same layer, which records the net change as one
+     * node. A draft equal to the committed source records nothing. The
+     * layer's vector mask stays where it is in the document.
+     */
+open func setShapeLayer(layer: UInt64, modelJson: String, transform: TransformMatrix, interactive: Bool)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_set_shape_layer(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),
+        FfiConverterString.lower(modelJson),
+        FfiConverterTypeTransformMatrix_lower(transform),
+        FfiConverterBool.lower(interactive),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Adds, replaces (`Some`) or deletes (`None`) the document-space vector
+     * mask of any layer, next to its raster mask (which is untouched).
+     * `interactive` as for `set_shape_layer` (density / feather drags).
+     */
+open func setVectorMask(layer: UInt64, mask: VectorMaskRecord?, interactive: Bool)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_set_vector_mask(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),
+        FfiConverterOptionTypeVectorMaskRecord.lower(mask),
+        FfiConverterBool.lower(interactive),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * The topmost visible shape layer whose geometry contains document
+     * point `(x, y)`: its stroke outline (when `include_stroke`, within
+     * `tolerance` document pixels of it) and then its fill under the path's
+     * fill rule. Geometric only: masks and opacity are not considered.
+     */
+open func shapeHitTest(x: Double, y: Double, includeStroke: Bool, tolerance: Double)throws  -> ShapeHitRecord?  {
+    return try  FfiConverterOptionTypeShapeHitRecord.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_shape_hit_test(
+            self.uniffiCloneHandle(),
+        FfiConverterDouble.lower(x),
+        FfiConverterDouble.lower(y),
+        FfiConverterBool.lower(includeStroke),
+        FfiConverterDouble.lower(tolerance),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * The shape source of `layer` (the live draft while one is pending).
+     */
+open func shapeLayer(layer: UInt64)throws  -> ShapeLayerRecord  {
+    return try  FfiConverterTypeShapeLayerRecord_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_shape_layer(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * [`shape_hit_test`](Self::shape_hit_test) of one layer (hidden or not).
+     */
+open func shapeLayerHitTest(layer: UInt64, x: Double, y: Double, includeStroke: Bool, tolerance: Double)throws  -> ShapeHitPart?  {
+    return try  FfiConverterOptionTypeShapeHitPart.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_shape_layer_hit_test(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),
+        FfiConverterDouble.lower(x),
+        FfiConverterDouble.lower(y),
+        FfiConverterBool.lower(includeStroke),
+        FfiConverterDouble.lower(tolerance),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * The explicit linked-mask gesture: the new shape `transform` AND the
+     * layer's vector mask moved by the same document-space change
+     * (`new ∘ old⁻¹`), as ONE atomic `Batch` node (or draft). Without a
+     * vector mask this is `set_shape_layer` with the same model.
+     */
+open func transformShapeWithMask(layer: UInt64, transform: TransformMatrix, interactive: Bool)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_transform_shape_with_mask(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),
+        FfiConverterTypeTransformMatrix_lower(transform),
+        FfiConverterBool.lower(interactive),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * The document-space vector mask of any layer.
+     */
+open func vectorMask(layer: UInt64)throws  -> VectorMaskRecord?  {
+    return try  FfiConverterOptionTypeVectorMaskRecord.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_vector_mask(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),uniffiCallStatus
     )
 })
 }
@@ -21328,6 +21629,271 @@ public func FfiConverterTypeSessionImage_lower(_ value: SessionImage) -> RustBuf
 
 
 /**
+ * Axis-aligned bounds in document pixels (fractional).
+ */
+public struct ShapeBounds: Equatable, Hashable {
+    public var x0: Double
+    public var y0: Double
+    public var x1: Double
+    public var y1: Double
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(x0: Double, y0: Double, x1: Double, y1: Double) {
+        self.x0 = x0
+        self.y0 = y0
+        self.x1 = x1
+        self.y1 = y1
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ShapeBounds: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeShapeBounds: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ShapeBounds {
+        return
+            try ShapeBounds(
+                x0: FfiConverterDouble.read(from: &buf), 
+                y0: FfiConverterDouble.read(from: &buf), 
+                x1: FfiConverterDouble.read(from: &buf), 
+                y1: FfiConverterDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ShapeBounds, into buf: inout [UInt8]) {
+        FfiConverterDouble.write(value.x0, into: &buf)
+        FfiConverterDouble.write(value.y0, into: &buf)
+        FfiConverterDouble.write(value.x1, into: &buf)
+        FfiConverterDouble.write(value.y1, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeShapeBounds_lift(_ buf: RustBuffer) throws -> ShapeBounds {
+    return try FfiConverterTypeShapeBounds.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeShapeBounds_lower(_ value: ShapeBounds) -> RustBuffer {
+    return FfiConverterTypeShapeBounds.lower(value)
+}
+
+
+/**
+ * The topmost shape under a document point.
+ */
+public struct ShapeHitRecord: Equatable, Hashable {
+    public var layer: UInt64
+    public var part: ShapeHitPart
+    /**
+     * The point in the layer's local coordinates.
+     */
+    public var localX: Double
+    public var localY: Double
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(layer: UInt64, part: ShapeHitPart, 
+        /**
+         * The point in the layer's local coordinates.
+         */localX: Double, localY: Double) {
+        self.layer = layer
+        self.part = part
+        self.localX = localX
+        self.localY = localY
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ShapeHitRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeShapeHitRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ShapeHitRecord {
+        return
+            try ShapeHitRecord(
+                layer: FfiConverterUInt64.read(from: &buf), 
+                part: FfiConverterTypeShapeHitPart.read(from: &buf), 
+                localX: FfiConverterDouble.read(from: &buf), 
+                localY: FfiConverterDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ShapeHitRecord, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.layer, into: &buf)
+        FfiConverterTypeShapeHitPart.write(value.part, into: &buf)
+        FfiConverterDouble.write(value.localX, into: &buf)
+        FfiConverterDouble.write(value.localY, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeShapeHitRecord_lift(_ buf: RustBuffer) throws -> ShapeHitRecord {
+    return try FfiConverterTypeShapeHitRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeShapeHitRecord_lower(_ value: ShapeHitRecord) -> RustBuffer {
+    return FfiConverterTypeShapeHitRecord.lower(value)
+}
+
+
+/**
+ * An editable shape layer as the inspector and overlays read it.
+ */
+public struct ShapeLayerRecord: Equatable, Hashable {
+    public var layer: UInt64
+    /**
+     * `vector::ShapeModel` JSON (`path`, `fill`, `stroke`, `live_shape`).
+     */
+    public var modelJson: String
+    /**
+     * Local-to-document map.
+     */
+    public var transform: TransformMatrix
+    /**
+     * The layer's thumbnail revision (changes with the source or a mask).
+     */
+    public var revision: UInt64
+    /**
+     * `rectangle`, `ellipse`, `polygon`, `line` or `custom` while live
+     * construction parameters exist; `None` after a custom path edit.
+     */
+    public var liveKind: String?
+    /**
+     * Document-space bounds of the fill path (stroke outline included).
+     */
+    public var bounds: ShapeBounds?
+    /**
+     * Some subpath is open (Inside / Outside strokes need closed paths).
+     */
+    public var hasOpenSubpaths: Bool
+    public var vectorMask: VectorMaskRecord?
+    /**
+     * Interchange and colour limitations that apply to this layer.
+     */
+    public var notes: [String]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(layer: UInt64, 
+        /**
+         * `vector::ShapeModel` JSON (`path`, `fill`, `stroke`, `live_shape`).
+         */modelJson: String, 
+        /**
+         * Local-to-document map.
+         */transform: TransformMatrix, 
+        /**
+         * The layer's thumbnail revision (changes with the source or a mask).
+         */revision: UInt64, 
+        /**
+         * `rectangle`, `ellipse`, `polygon`, `line` or `custom` while live
+         * construction parameters exist; `None` after a custom path edit.
+         */liveKind: String?, 
+        /**
+         * Document-space bounds of the fill path (stroke outline included).
+         */bounds: ShapeBounds?, 
+        /**
+         * Some subpath is open (Inside / Outside strokes need closed paths).
+         */hasOpenSubpaths: Bool, vectorMask: VectorMaskRecord?, 
+        /**
+         * Interchange and colour limitations that apply to this layer.
+         */notes: [String]) {
+        self.layer = layer
+        self.modelJson = modelJson
+        self.transform = transform
+        self.revision = revision
+        self.liveKind = liveKind
+        self.bounds = bounds
+        self.hasOpenSubpaths = hasOpenSubpaths
+        self.vectorMask = vectorMask
+        self.notes = notes
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ShapeLayerRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeShapeLayerRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ShapeLayerRecord {
+        return
+            try ShapeLayerRecord(
+                layer: FfiConverterUInt64.read(from: &buf), 
+                modelJson: FfiConverterString.read(from: &buf), 
+                transform: FfiConverterTypeTransformMatrix.read(from: &buf), 
+                revision: FfiConverterUInt64.read(from: &buf), 
+                liveKind: FfiConverterOptionString.read(from: &buf), 
+                bounds: FfiConverterOptionTypeShapeBounds.read(from: &buf), 
+                hasOpenSubpaths: FfiConverterBool.read(from: &buf), 
+                vectorMask: FfiConverterOptionTypeVectorMaskRecord.read(from: &buf), 
+                notes: FfiConverterSequenceString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ShapeLayerRecord, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.layer, into: &buf)
+        FfiConverterString.write(value.modelJson, into: &buf)
+        FfiConverterTypeTransformMatrix.write(value.transform, into: &buf)
+        FfiConverterUInt64.write(value.revision, into: &buf)
+        FfiConverterOptionString.write(value.liveKind, into: &buf)
+        FfiConverterOptionTypeShapeBounds.write(value.bounds, into: &buf)
+        FfiConverterBool.write(value.hasOpenSubpaths, into: &buf)
+        FfiConverterOptionTypeVectorMaskRecord.write(value.vectorMask, into: &buf)
+        FfiConverterSequenceString.write(value.notes, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeShapeLayerRecord_lift(_ buf: RustBuffer) throws -> ShapeLayerRecord {
+    return try FfiConverterTypeShapeLayerRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeShapeLayerRecord_lower(_ value: ShapeLayerRecord) -> RustBuffer {
+    return FfiConverterTypeShapeLayerRecord.lower(value)
+}
+
+
+/**
  * One smart filter of a smart object, bottom (first applied) first.
  */
 public struct SmartFilterRecord: Equatable, Hashable {
@@ -22622,6 +23188,89 @@ public func FfiConverterTypeUpdatedImage_lower(_ value: UpdatedImage) -> RustBuf
 
 
 /**
+ * A layer's document-space vector mask.
+ */
+public struct VectorMaskRecord: Equatable, Hashable {
+    /**
+     * `vector::Path` JSON in level-zero document pixels.
+     */
+    public var pathJson: String
+    public var enabled: Bool
+    /**
+     * Level-zero pixel radius, finite and ≥ 0.
+     */
+    public var feather: Float
+    /**
+     * 0…1: the effective mask is `1 − density · (1 − coverage)`.
+     */
+    public var density: Float
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * `vector::Path` JSON in level-zero document pixels.
+         */pathJson: String, enabled: Bool, 
+        /**
+         * Level-zero pixel radius, finite and ≥ 0.
+         */feather: Float, 
+        /**
+         * 0…1: the effective mask is `1 − density · (1 − coverage)`.
+         */density: Float) {
+        self.pathJson = pathJson
+        self.enabled = enabled
+        self.feather = feather
+        self.density = density
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension VectorMaskRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVectorMaskRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VectorMaskRecord {
+        return
+            try VectorMaskRecord(
+                pathJson: FfiConverterString.read(from: &buf), 
+                enabled: FfiConverterBool.read(from: &buf), 
+                feather: FfiConverterFloat.read(from: &buf), 
+                density: FfiConverterFloat.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: VectorMaskRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.pathJson, into: &buf)
+        FfiConverterBool.write(value.enabled, into: &buf)
+        FfiConverterFloat.write(value.feather, into: &buf)
+        FfiConverterFloat.write(value.density, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVectorMaskRecord_lift(_ buf: RustBuffer) throws -> VectorMaskRecord {
+    return try FfiConverterTypeVectorMaskRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVectorMaskRecord_lower(_ value: VectorMaskRecord) -> RustBuffer {
+    return FfiConverterTypeVectorMaskRecord.lower(value)
+}
+
+
+/**
  * Who plans the base edit. Keys are passed per run (the host keeps them in
  * the Keychain); they are never stored, logged or included in errors.
  */
@@ -23483,6 +24132,10 @@ public enum DocLayerKind: Equatable, Hashable {
     case group
     case smartObject
     case text
+    /**
+     * An editable vector shape (`vector::ShapeModel` + affine).
+     */
+    case shape
 
 
 
@@ -23516,6 +24169,8 @@ public struct FfiConverterTypeDocLayerKind: FfiConverterRustBuffer {
         
         case 6: return .text
         
+        case 7: return .shape
+        
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
@@ -23546,6 +24201,10 @@ public struct FfiConverterTypeDocLayerKind: FfiConverterRustBuffer {
         
         case .text:
             writeInt(&buf, Int32(6))
+        
+        
+        case .shape:
+            writeInt(&buf, Int32(7))
         
         }
     }
@@ -26463,6 +27122,159 @@ public func FfiConverterTypeSelectionOp_lower(_ value: SelectionOp) -> RustBuffe
 
 
 /**
+ * Which part of a shape a hit landed on.
+ */
+
+public enum ShapeHitPart: Equatable, Hashable {
+    
+    case fill
+    case stroke
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension ShapeHitPart: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeShapeHitPart: FfiConverterRustBuffer {
+    typealias SwiftType = ShapeHitPart
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ShapeHitPart {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .fill
+        
+        case 2: return .stroke
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: ShapeHitPart, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .fill:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .stroke:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeShapeHitPart_lift(_ buf: RustBuffer) throws -> ShapeHitPart {
+    return try FfiConverterTypeShapeHitPart.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeShapeHitPart_lower(_ value: ShapeHitPart) -> RustBuffer {
+    return FfiConverterTypeShapeHitPart.lower(value)
+}
+
+
+
+/**
+ * Path operations (Photoshop's Combine / Subtract Front / Intersect /
+ * Exclude Overlapping).
+ */
+
+public enum ShapePathOperation: Equatable, Hashable {
+    
+    case combine
+    case subtract
+    case intersect
+    case exclude
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension ShapePathOperation: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeShapePathOperation: FfiConverterRustBuffer {
+    typealias SwiftType = ShapePathOperation
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ShapePathOperation {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .combine
+        
+        case 2: return .subtract
+        
+        case 3: return .intersect
+        
+        case 4: return .exclude
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: ShapePathOperation, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .combine:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .subtract:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .intersect:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .exclude:
+            writeInt(&buf, Int32(4))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeShapePathOperation_lift(_ buf: RustBuffer) throws -> ShapePathOperation {
+    return try FfiConverterTypeShapePathOperation.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeShapePathOperation_lower(_ value: ShapePathOperation) -> RustBuffer {
+    return FfiConverterTypeShapePathOperation.lower(value)
+}
+
+
+
+/**
  * What [`DocumentSession::set_smart_filter`] changes.
  */
 
@@ -27792,6 +28604,54 @@ fileprivate struct FfiConverterOptionTypeRuleDiagnostic: FfiConverterRustBuffer 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeShapeBounds: FfiConverterRustBuffer {
+    typealias SwiftType = ShapeBounds?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeShapeBounds.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeShapeBounds.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeShapeHitRecord: FfiConverterRustBuffer {
+    typealias SwiftType = ShapeHitRecord?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeShapeHitRecord.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeShapeHitRecord.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeSoftProofLut: FfiConverterRustBuffer {
     typealias SwiftType = SoftProofLut?
 
@@ -27840,6 +28700,30 @@ fileprivate struct FfiConverterOptionTypeSoftProofOptions: FfiConverterRustBuffe
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeVectorMaskRecord: FfiConverterRustBuffer {
+    typealias SwiftType = VectorMaskRecord?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeVectorMaskRecord.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeVectorMaskRecord.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeDecision: FfiConverterRustBuffer {
     typealias SwiftType = Decision?
 
@@ -27880,6 +28764,30 @@ fileprivate struct FfiConverterOptionTypeDocGroupMode: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeDocGroupMode.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeShapeHitPart: FfiConverterRustBuffer {
+    typealias SwiftType = ShapeHitPart?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeShapeHitPart.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeShapeHitPart.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -29898,6 +30806,18 @@ public func importAbr(path: String)throws  -> [BrushTipInfo]  {
 })
 }
 /**
+ * The path a live shape primitive generates (`vector::Shape` JSON →
+ * `vector::Path` JSON), for host overlays drawn before a layer exists.
+ */
+public func shapePrimitivePath(shapeJson: String)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_func_shape_primitive_path(
+        FfiConverterString.lower(shapeJson),uniffiCallStatus
+    )
+})
+}
+/**
  * Describes one profile file (for "Other…"); fails unless it is an output profile.
  */
 public func describePrinterProfile(path: String)throws  -> PrinterProfile  {
@@ -29988,6 +30908,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_func_import_abr() != 46665) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_func_shape_primitive_path() != 10866) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_func_describe_printer_profile() != 56173) {
@@ -30864,6 +31787,42 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_stroke_points() != 28255) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_add_shape_layer() != 64988) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_boolean_shape_paths() != 18956) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_cancel_shape_preview() != 58884) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_convert_shape_to_pixels() != 2733) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_edit_shape_path() != 62412) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_set_shape_layer() != 10165) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_set_vector_mask() != 40421) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_shape_hit_test() != 58520) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_shape_layer() != 54754) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_shape_layer_hit_test() != 53989) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_transform_shape_with_mask() != 1308) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_vector_mask() != 64949) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_cancelflag_cancel() != 15413) {
