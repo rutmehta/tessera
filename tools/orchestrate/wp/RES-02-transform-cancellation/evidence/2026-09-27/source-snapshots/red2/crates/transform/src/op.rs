@@ -95,23 +95,7 @@ impl TransformOp {
         level: u8,
         cancel: &CancellationToken,
     ) -> Result<Image> {
-        self.apply_checked(input, width, height, level, cancel, &|_| {
-            check_cancel(cancel)
-        })
-    }
-
-    // `completed_in_row` lets the tiny regression prove a check occurs after
-    // actual mapping, rather than only at entry or before the first pixel.
-    fn apply_checked(
-        &self,
-        input: &Image,
-        width: usize,
-        height: usize,
-        level: u8,
-        cancel: &CancellationToken,
-        check: &(impl Fn(usize) -> Result<()> + Sync),
-    ) -> Result<Image> {
-        check(0)?;
+        check_cancel(cancel)?;
         self.validate()?;
         let n = canvas(width, height)?;
         input.validate()?;
@@ -134,7 +118,7 @@ impl TransformOp {
             t.bounds(input.width as f64 * scale, input.height as f64 * scale)?;
         }
         let prepared = self.prepare()?;
-        check(0)?;
+        check_cancel(cancel)?;
         let kernel = self.effective_kernel(level);
         let mut planes = std::array::from_fn(|_| vec![0.; n]);
         let [r, g, b, a] = &mut planes;
@@ -146,7 +130,7 @@ impl TransformOp {
             .try_for_each(|(y, (((r, g), b), a))| -> Result<()> {
                 for x in 0..width {
                     if x & 1023 == 0 {
-                        check(x)?;
+                        check_cancel(cancel)?;
                     }
                     let p = coordinate(&prepared, x, y, scale);
                     let rgba = sample(input, p, kernel);
@@ -155,10 +139,9 @@ impl TransformOp {
                     b[x] = rgba[2];
                     a[x] = rgba[3];
                 }
-                check(width)?;
                 Ok(())
             })?;
-        check(0)?;
+        check_cancel(cancel)?;
         Ok(Image {
             width,
             height,

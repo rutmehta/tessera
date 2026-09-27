@@ -1,0 +1,15 @@
+{
+  "cmd": [
+    "cargo",
+    "test",
+    "-p",
+    "transform",
+    "--lib"
+  ],
+  "exit_code": 101,
+  "timed_out": false,
+  "elapsed_s": 1.31,
+  "pid": 2147,
+  "CARGO_BUILD_JOBS": "2",
+  "RAYON_NUM_THREADS": "2"
+}

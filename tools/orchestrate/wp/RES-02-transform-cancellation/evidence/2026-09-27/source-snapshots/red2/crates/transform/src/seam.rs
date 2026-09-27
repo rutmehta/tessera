@@ -22,23 +22,16 @@ pub fn apply_with_cancel(
     params: &ContentAwareScale,
     cancel: &CancellationToken,
 ) -> Result<Image> {
-    let mut check = |_| check_cancel(cancel);
+    let mut check = || check_cancel(cancel);
     apply_checked(input, params, &mut check)
-}
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum SeamCheckpoint {
-    Work,
-    AfterWidth,
-    BeforeHeight,
 }
 
 fn apply_checked(
     input: &Image,
     params: &ContentAwareScale,
-    check: &mut impl FnMut(SeamCheckpoint) -> Result<()>,
+    check: &mut impl FnMut() -> Result<()>,
 ) -> Result<Image> {
-    check(SeamCheckpoint::Work)?;
+    check()?;
     validate(input, params)?;
     let mut output = Image::new(input.width, input.height, input.planes.clone())?;
     let mut mask = params
@@ -62,26 +55,18 @@ fn apply_checked(
     };
     let width = intermediate(input.width, params.target_width);
     let height = intermediate(input.height, params.target_height);
-    (output, mask) =
-        resize_width_checked(output, mask, width, &mut || check(SeamCheckpoint::Work))?;
-    check(SeamCheckpoint::AfterWidth)?;
+    (output, mask) = resize_width_checked(output, mask, width, check)?;
+    check()?;
     if output.height != height {
-        check(SeamCheckpoint::BeforeHeight)?;
-        (output, mask) = transpose_checked(&output, &mask, &mut || check(SeamCheckpoint::Work))?;
-        (output, mask) =
-            resize_width_checked(output, mask, height, &mut || check(SeamCheckpoint::Work))?;
-        (output, _) = transpose_checked(&output, &mask, &mut || check(SeamCheckpoint::Work))?;
+        (output, mask) = transpose_checked(&output, &mask, check)?;
+        (output, mask) = resize_width_checked(output, mask, height, check)?;
+        (output, _) = transpose_checked(&output, &mask, check)?;
     }
-    check(SeamCheckpoint::Work)?;
+    check()?;
     if output.width != params.target_width || output.height != params.target_height {
-        return resample_checked(
-            &output,
-            params.target_width,
-            params.target_height,
-            &mut || check(SeamCheckpoint::Work),
-        );
+        return resample_checked(&output, params.target_width, params.target_height, check);
     }
-    check(SeamCheckpoint::Work)?;
+    check()?;
     Ok(output)
 }
 

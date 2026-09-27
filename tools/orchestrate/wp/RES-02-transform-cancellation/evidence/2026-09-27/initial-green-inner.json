@@ -1,0 +1,16 @@
+{
+  "cmd": [
+    "cargo",
+    "test",
+    "-p",
+    "transform",
+    "--lib",
+    "seam_search_checks_cancellation_during_its_inner_work"
+  ],
+  "exit_code": 0,
+  "timed_out": false,
+  "elapsed_s": 1.325,
+  "pid": 72026,
+  "CARGO_BUILD_JOBS": "2",
+  "RAYON_NUM_THREADS": "2"
+}

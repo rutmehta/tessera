@@ -1,6 +1,5 @@
 //! Deterministic forward-energy seam carving of premultiplied planar RGBA.
-use crate::{Error, Image, Result, check_cancel};
-use engine_api::jobs::CancellationToken;
+use crate::{Error, Image, Result};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -13,32 +12,6 @@ pub struct ContentAwareScale {
 }
 
 pub fn apply(input: &Image, params: &ContentAwareScale) -> Result<Image> {
-    apply_with_cancel(input, params, &CancellationToken::new())
-}
-
-/// Apply content-aware scaling with cooperative cancellation during seam work.
-pub fn apply_with_cancel(
-    input: &Image,
-    params: &ContentAwareScale,
-    cancel: &CancellationToken,
-) -> Result<Image> {
-    let mut check = |_| check_cancel(cancel);
-    apply_checked(input, params, &mut check)
-}
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum SeamCheckpoint {
-    Work,
-    AfterWidth,
-    BeforeHeight,
-}
-
-fn apply_checked(
-    input: &Image,
-    params: &ContentAwareScale,
-    check: &mut impl FnMut(SeamCheckpoint) -> Result<()>,
-) -> Result<Image> {
-    check(SeamCheckpoint::Work)?;
     validate(input, params)?;
     let mut output = Image::new(input.width, input.height, input.planes.clone())?;
     let mut mask = params
@@ -62,26 +35,15 @@ fn apply_checked(
     };
     let width = intermediate(input.width, params.target_width);
     let height = intermediate(input.height, params.target_height);
-    (output, mask) =
-        resize_width_checked(output, mask, width, &mut || check(SeamCheckpoint::Work))?;
-    check(SeamCheckpoint::AfterWidth)?;
+    (output, mask) = resize_width(output, mask, width)?;
     if output.height != height {
-        check(SeamCheckpoint::BeforeHeight)?;
-        (output, mask) = transpose_checked(&output, &mask, &mut || check(SeamCheckpoint::Work))?;
-        (output, mask) =
-            resize_width_checked(output, mask, height, &mut || check(SeamCheckpoint::Work))?;
-        (output, _) = transpose_checked(&output, &mask, &mut || check(SeamCheckpoint::Work))?;
+        (output, mask) = transpose(&output, &mask)?;
+        (output, mask) = resize_width(output, mask, height)?;
+        (output, _) = transpose(&output, &mask)?;
     }
-    check(SeamCheckpoint::Work)?;
     if output.width != params.target_width || output.height != params.target_height {
-        return resample_checked(
-            &output,
-            params.target_width,
-            params.target_height,
-            &mut || check(SeamCheckpoint::Work),
-        );
+        return resample(&output, params.target_width, params.target_height);
     }
-    check(SeamCheckpoint::Work)?;
     Ok(output)
 }
 
@@ -93,25 +55,11 @@ fn apply_checked(
 pub fn apply_with_skin_protection<F>(
     input: &Image,
     params: &ContentAwareScale,
-    hook: F,
-) -> Result<Image>
-where
-    F: FnMut(usize, usize, [f32; 4]) -> f32,
-{
-    apply_with_skin_protection_and_cancel(input, params, hook, &CancellationToken::new())
-}
-
-/// Apply caller-supplied skin protection with cancellation during hook generation and carving.
-pub fn apply_with_skin_protection_and_cancel<F>(
-    input: &Image,
-    params: &ContentAwareScale,
     mut hook: F,
-    cancel: &CancellationToken,
 ) -> Result<Image>
 where
     F: FnMut(usize, usize, [f32; 4]) -> f32,
 {
-    check_cancel(cancel)?;
     validate(input, params)?;
     let mut combined = params.clone();
     let mut mask = combined
@@ -120,7 +68,6 @@ where
         .unwrap_or_else(|| vec![0.0; input.width * input.height]);
     for y in 0..input.height {
         for x in 0..input.width {
-            check_cancel(cancel)?;
             let i = y * input.width + x;
             let score = hook(x, y, std::array::from_fn(|c| input.planes[c][i]));
             if !score.is_finite() || !(0.0..=1.0).contains(&score) {
@@ -129,11 +76,10 @@ where
                 ));
             }
             mask[i] = mask[i].max(score);
-            check_cancel(cancel)?;
         }
     }
     combined.protect = Some(mask);
-    apply_with_cancel(input, &combined, cancel)
+    apply(input, &combined)
 }
 
 fn validate(input: &Image, params: &ContentAwareScale) -> Result<()> {
@@ -176,25 +122,15 @@ fn validate(input: &Image, params: &ContentAwareScale) -> Result<()> {
     Ok(())
 }
 
-fn resample_checked(
-    input: &Image,
-    width: usize,
-    height: usize,
-    check: &mut impl FnMut() -> Result<()>,
-) -> Result<Image> {
-    check()?;
+fn resample(input: &Image, width: usize, height: usize) -> Result<Image> {
     let mut planes = std::array::from_fn(|_| vec![0.0; width * height]);
     for y in 0..height {
-        check()?;
         let sy = ((y as f64 + 0.5) * input.height as f64 / height as f64 - 0.5)
             .clamp(0.0, (input.height - 1) as f64);
         let y0 = sy.floor() as usize;
         let y1 = (y0 + 1).min(input.height - 1);
         let fy = sy - y0 as f64;
         for x in 0..width {
-            if x & 1023 == 0 {
-                check()?;
-            }
             let sx = ((x as f64 + 0.5) * input.width as f64 / width as f64 - 0.5)
                 .clamp(0.0, (input.width - 1) as f64);
             let x0 = sx.floor() as usize;
@@ -210,45 +146,29 @@ fn resample_checked(
             }
         }
     }
-    check()?;
     Image::new(width, height, planes)
 }
 
-fn resize_width_checked(
-    mut image: Image,
-    mut mask: Vec<f32>,
-    target: usize,
-    check: &mut impl FnMut() -> Result<()>,
-) -> Result<(Image, Vec<f32>)> {
+fn resize_width(mut image: Image, mut mask: Vec<f32>, target: usize) -> Result<(Image, Vec<f32>)> {
     while image.width > target {
-        check()?;
-        let seam = find_seam_checked(&image, &mask, check)?;
-        (image, mask) = remove_checked(&image, &mask, &seam, check)?;
+        let seam = find_seam(&image, &mask);
+        (image, mask) = remove(&image, &mask, &seam)?;
     }
     while image.width < target {
-        check()?;
         let count = (target - image.width).min((image.width - 1).max(1));
-        (image, mask) = insert_batch_checked(&image, &mask, count, check)?;
+        (image, mask) = insert_batch(&image, &mask, count)?;
     }
-    check()?;
     Ok((image, mask))
 }
 
 // Discover distinct seams on a shrinking copy, mapping each row back to
 // original coordinates. This avoids re-inserting the same low-energy seam
 // within a batch; enlargements beyond 2x necessarily use additional batches.
-fn insert_batch_checked(
-    image: &Image,
-    mask: &[f32],
-    count: usize,
-    check: &mut impl FnMut() -> Result<()>,
-) -> Result<(Image, Vec<f32>)> {
-    check()?;
+fn insert_batch(image: &Image, mask: &[f32], count: usize) -> Result<(Image, Vec<f32>)> {
     let (w, h) = (image.width, image.height);
     let mut selected = vec![vec![false; w]; h];
     if w == 1 {
         for row in &mut selected {
-            check()?;
             row[0] = true;
         }
     } else {
@@ -256,23 +176,17 @@ fn insert_batch_checked(
         let mut work_mask = mask.to_vec();
         let mut indices: Vec<Vec<usize>> = (0..h).map(|_| (0..w).collect()).collect();
         for _ in 0..count {
-            check()?;
-            let seam = find_seam_checked(&work, &work_mask, check)?;
+            let seam = find_seam(&work, &work_mask);
             for y in 0..h {
-                check()?;
                 selected[y][indices[y].remove(seam[y])] = true;
             }
-            (work, work_mask) = remove_checked(&work, &work_mask, &seam, check)?;
+            (work, work_mask) = remove(&work, &work_mask, &seam)?;
         }
     }
     let mut planes: [Vec<f32>; 4] = std::array::from_fn(|_| Vec::with_capacity((w + count) * h));
     let mut out_mask = Vec::with_capacity((w + count) * h);
     for (y, selected_row) in selected.iter().enumerate() {
-        check()?;
         for (x, &selected) in selected_row.iter().enumerate() {
-            if x & 1023 == 0 {
-                check()?;
-            }
             let i = y * w + x;
             for (c, plane) in planes.iter_mut().enumerate() {
                 plane.push(image.planes[c][i]);
@@ -296,24 +210,14 @@ fn insert_batch_checked(
             }
         }
     }
-    check()?;
     Ok((Image::new(w + count, h, planes)?, out_mask))
 }
 
-fn transpose_checked(
-    image: &Image,
-    mask: &[f32],
-    check: &mut impl FnMut() -> Result<()>,
-) -> Result<(Image, Vec<f32>)> {
-    check()?;
+fn transpose(image: &Image, mask: &[f32]) -> Result<(Image, Vec<f32>)> {
     let mut planes = std::array::from_fn(|_| vec![0.0; image.width * image.height]);
     let mut out_mask = vec![0.0; mask.len()];
     for y in 0..image.height {
-        check()?;
         for x in 0..image.width {
-            if x & 1023 == 0 {
-                check()?;
-            }
             let i = y * image.width + x;
             let j = x * image.height + y;
             for (c, plane) in planes.iter_mut().enumerate() {
@@ -322,7 +226,6 @@ fn transpose_checked(
             out_mask[j] = mask[i];
         }
     }
-    check()?;
     Ok((Image::new(image.height, image.width, planes)?, out_mask))
 }
 
@@ -336,20 +239,12 @@ fn distance(image: &Image, a: usize, b: usize) -> f64 {
         .sum()
 }
 
-fn find_seam_checked(
-    image: &Image,
-    mask: &[f32],
-    check: &mut impl FnMut() -> Result<()>,
-) -> Result<Vec<usize>> {
-    check()?;
+fn find_seam(image: &Image, mask: &[f32]) -> Vec<usize> {
     let (w, h) = (image.width, image.height);
     let mut energy = vec![0.0f64; w * h];
     let mut max_energy = 1.0f64;
     for y in 0..h {
         for x in 0..w {
-            if x & 1023 == 0 {
-                check()?;
-            }
             let i = y * w + x;
             let dx = distance(
                 image,
@@ -371,9 +266,6 @@ fn find_seam_checked(
     let mut parent = vec![0; w * h];
     for y in 0..h {
         for x in 0..w {
-            if x & 1023 == 0 {
-                check()?;
-            }
             let i = y * w + x;
             let base = energy[i] + f64::from(mask[i]) * penalty;
             if y == 0 {
@@ -409,31 +301,18 @@ fn find_seam_checked(
         .unwrap();
     let mut seam = vec![0; h];
     for y in (0..h).rev() {
-        if y & 1023 == 0 {
-            check()?;
-        }
         seam[y] = x;
         x = parent[y * w + x];
     }
-    check()?;
-    Ok(seam)
+    seam
 }
 
-fn remove_checked(
-    image: &Image,
-    mask: &[f32],
-    seam: &[usize],
-    check: &mut impl FnMut() -> Result<()>,
-) -> Result<(Image, Vec<f32>)> {
-    check()?;
+fn remove(image: &Image, mask: &[f32], seam: &[usize]) -> Result<(Image, Vec<f32>)> {
     let mut planes: [Vec<f32>; 4] =
         std::array::from_fn(|_| Vec::with_capacity((image.width - 1) * image.height));
     let mut out_mask = Vec::with_capacity((image.width - 1) * image.height);
     for (y, &sx) in seam.iter().enumerate() {
         for x in 0..image.width {
-            if x & 1023 == 0 {
-                check()?;
-            }
             if x == sx {
                 continue;
             }
@@ -444,56 +323,5 @@ fn remove_checked(
             out_mask.push(mask[i]);
         }
     }
-    check()?;
     Ok((Image::new(image.width - 1, image.height, planes)?, out_mask))
-}
-
-#[cfg(test)]
-mod cancellation_tests {
-    use super::*;
-    use engine_api::jobs::CancellationToken;
-
-    #[test]
-    fn seam_search_checks_cancellation_during_its_inner_work() {
-        let image = Image::new(4, 4, std::array::from_fn(|_| vec![0.25; 16])).unwrap();
-        let mask = vec![0.0; 16];
-        let token = CancellationToken::new();
-        let mut checks = 0;
-        let result = find_seam_checked(&image, &mask, &mut || {
-            checks += 1;
-            if checks == 3 {
-                token.cancel();
-            }
-            token.check().map_err(|_| Error::Cancelled)
-        });
-        assert!(matches!(result, Err(Error::Cancelled)));
-        assert_eq!(checks, 3);
-    }
-
-    #[test]
-    fn cancellation_after_width_stops_before_height_work() {
-        let image = Image::new(4, 4, std::array::from_fn(|_| vec![0.25; 16])).unwrap();
-        let params = ContentAwareScale {
-            target_width: 3,
-            target_height: 3,
-            amount: 1.0,
-            protect: None,
-        };
-        let token = CancellationToken::new();
-        let mut reached_width_boundary = false;
-        let mut reached_height = false;
-        let result = apply_checked(&image, &params, &mut |phase| {
-            if phase == SeamCheckpoint::AfterWidth {
-                reached_width_boundary = true;
-                token.cancel();
-            }
-            if phase == SeamCheckpoint::BeforeHeight {
-                reached_height = true;
-            }
-            token.check().map_err(|_| Error::Cancelled)
-        });
-        assert!(reached_width_boundary);
-        assert!(!reached_height);
-        assert!(matches!(result, Err(Error::Cancelled)));
-    }
 }

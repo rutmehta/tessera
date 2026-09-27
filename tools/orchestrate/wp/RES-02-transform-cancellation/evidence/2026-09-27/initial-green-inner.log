@@ -1,0 +1,9 @@
+   Compiling transform v0.1.0 (/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/crates/transform)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.08s
+     Running unittests src/lib.rs (target/debug/deps/transform-df50833d8fff4c64)
+
+running 1 test
+test seam::cancellation_tests::seam_search_checks_cancellation_during_its_inner_work ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 0.00s
+
