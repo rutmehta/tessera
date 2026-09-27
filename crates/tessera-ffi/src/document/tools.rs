@@ -833,7 +833,8 @@ fn check_points(points: &[ToolPoint]) -> Result<()> {
 }
 
 /// Pixel-exact bounds of a layer raster's content (alpha > 0 for RGBA).
-fn content_bounds(r: &Raster) -> Option<Rect> {
+// B5-12: shared with document/transform.rs (content bounds of a pixel layer).
+pub(super) fn content_bounds(r: &Raster) -> Option<Rect> {
     if r.channels() != 4 {
         return r.bounds();
     }

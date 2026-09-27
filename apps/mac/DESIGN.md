@@ -492,3 +492,17 @@ Layered documents reuse the system above; nothing here adds a colour, size or fo
   (Live <kind> or Custom Path, Fill, Stroke, Vector Mask, Interchange) of `DocSlider` rows, neutral `SegmentedPicker`s
   (paint kind, alignment, caps, fill rule), `ThemeMenuStyle` pop-ups (gradient style, corners), a dash field, `Hint`s
   for behaviour and warning `StatusLine`s for the engine's interchange and colour limitations.
+* **Warp, Perspective Warp, Puppet Warp, Content-Aware Scale (WP B5-12)** add no colour, size or font. On canvas only
+  the on-image set: the child canvas the stage clips to as a dashed `OnImage.guideFaint` rectangle; the warp net's
+  iso-curves, perspective planes and the content-aware box as 1 pt `OnImage.guide` over a 3 pt `OnImage.shadow`;
+  tangents, the puppet mesh (0.5 pt) and, in Warp mode, the layout planes (dashed) in `OnImage.guideFaint`; anchors,
+  plane vertices and box handles are the square transform handles, warp tangents 6 pt dots; puppet pins 10 pt dots in
+  `OnImage.text` with an `OnImage.ink` ring, the selected pin in the accent (content selection), a pin rotation as a
+  faint ring with a guide tick; readouts (Layout / Warp, dimensions) are scrim chips. The options bar replaces the
+  tool's options while a session is open: the operation's icon and name, then its controls (preset `MenuPicker`
+  and Bend field; Grid menu; the split mode as an icon `SegmentedPicker`; Layout / Warp segments; Mode pop-up,
+  Density segments, Expansion and Rotate fields, Show Mesh; W / H / Amount fields and the Protect pop-up listing saved
+  alpha channels only), the interpolation pop-up, an `info.circle` glyph whose help lists the limitations, the
+  tertiary latency readout, then borderless Reset and Cancel and bordered Apply (`Apply…` when Apply converts the
+  layer, which asks in a standard alert). Transform stages appear as ordinary smart filter rows named after the
+  operation; double-click re-opens the editor.

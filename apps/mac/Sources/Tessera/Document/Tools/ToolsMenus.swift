@@ -64,6 +64,7 @@ struct EditToolsMenuItems: View {
 
     var body: some View {
         let pixel = doc?.primary?.kind == .pixel
+        let advanced = DocumentTransforms.shared.canBegin(doc)   // B5-12
         Button("Fill…") { tools.sheet = .fill }
             .disabled(!pixel)
         Button("Clear    (⌫)") { _ = tools.clearSelection() }
@@ -73,6 +74,7 @@ struct EditToolsMenuItems: View {
             .shortcut(docMode, "t", .command)
             .disabled(!pixel)
         Menu("Transform") {
+            Group {
             Button("Rotate 180°") {
                 tools.quickTransform("Rotate 180°") { r in
                     .translation(r.midX, r.midY).concatenating(after: .rotation(degrees: 180))
@@ -98,7 +100,11 @@ struct EditToolsMenuItems: View {
             Button("Flip Vertical") {
                 tools.quickTransform("Flip Vertical") { r in AffineTransform2D(a: 1, b: 0, c: 0, d: 0, e: -1, f: 2 * r.midY) }
             }
+            }
+            .disabled(!pixel)
+            // B5-12: non-destructive Warp, Perspective Warp, Puppet Warp and Content-Aware Scale.
+            AdvancedTransformMenuItems(doc: doc)
         }
-        .disabled(!pixel)
+        .disabled(!pixel && !advanced)
     }
 }

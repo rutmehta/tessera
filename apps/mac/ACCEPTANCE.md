@@ -2054,3 +2054,54 @@ recorded, not failures of the host.
 | `document.shape.stroke.kind` · `stroke.color` · `stroke.width` · `stroke.alignment` · `stroke.cap` · `stroke.join` · `stroke.miter` · `stroke.dashes` · `stroke.dashOffset` | Stroke |
 | `document.shape.mask.add` · `mask.enabled` · `mask.density` · `mask.feather` · `mask.linked` · `mask.delete` | Vector mask |
 | `document.option.fillColor` · `document.option.strokeColor` · `document.option.width` · `document.option.radius` · `document.option.sides` · `document.option.weight` | Options bar |
+
+## B5-12. Warp, perspective, puppet and content-aware scale
+
+Engine backend, a scratch image (never a fixture), e.g. a 1600 × 1000 PNG and a 5472 × 3648 copy for step 399. The
+self-test `Tessera.app --args --transform-selftest=<dir>` (launched with `open -g -n`) writes its own test cards, runs
+every step below through `DocumentTransforms` and synthesized viewport events and prints `check <step> ok|FAIL`.
+
+380. **Menus.** Edit ▸ Transform lists Content-Aware Scale (⌥⇧⌘C), Puppet Warp, Perspective Warp and Warp under the
+     rotate / flip items. They are enabled for pixel, text, shape, fill, group and smart object layers, disabled for
+     adjustment layers.
+381. **Consent.** On a pixel layer choose Warp, pick Arc in the preset pop-up: the canvas shows the warp at once.
+     Esc: the layer is a Pixel layer again and History is unchanged. Warp again, Arc, Return: an alert "Convert to
+     Smart Object?" appears; Cancel keeps the session; Convert and Apply records one "Warp" node, the row becomes a
+     smart object (same name, opacity, mask, style) with a "Warp" smart filter row. Undo restores the pixel layer.
+382. **Bézier net.** Double-click the Warp row: the net re-opens with its handles. Drag an anchor: its tangent
+     handles follow; drag a tangent: only that curve bends. The image follows the drag (reduced resolution while
+     dragging a large layer); the options bar shows the preview latency.
+383. **Splits.** Choose the crosswise split segment and click inside the net: a row and a column of patches appear
+     through the click and the image does not move.
+384. **Presets.** Each preset with Bend 0 % is the flat net; Arc at 40 % arcs the layer; negative bend reverses it.
+385. **Linked planes.** Perspective Warp: Layout mode shows one plane over the layer; Split Vertically makes two
+     planes sharing an edge. Warp mode: dragging the shared top vertex moves both planes with no crack.
+386. **Rejected geometry.** Drag a corner across its plane: the drag stops at the last convex shape, the status bar
+     says the planes must stay convex, and the previous preview stays.
+387. **Pins.** Puppet Warp: the mesh covers the layer's opaque pixels. Click three places: three pins; drag one: the
+     mesh bends around the others; ⌥-drag beside a pin: a ring with an angle tick rotates the mesh around it;
+     ⌥-click a pin removes it; select a pin and type an angle in Rotate.
+388. **Options.** Mode Rigid, Density Sparse / Normal / Dense and Expansion 0…64 px re-mesh with the pins kept. A
+     large opaque layer shows a warning glyph: the mesh was built from a coarser level to stay within 16,384 vertices.
+     Expansion above 64 px is refused (engine error, not a clamp).
+389. **Content-Aware Scale.** Drag the right handle to 70 %: W / H fields and the chip show pixels and percent.
+     Amount 0 % is a plain resize, 100 % seam carving (visibly different). The output is anchored at the top left
+     inside the fixed canvas.
+390. **Protection.** Select ▸ Save Selection over an area, then choose it in Protect: that area keeps its shape.
+     The pop-up lists saved alpha channels only; there is no skin-tone option.
+391. **Zoom / pan.** At 200 % with the view panned, handles sit on the net and a 40-pixel drag moves the point 40
+     child pixels.
+392. **History.** Apply is one node labelled after the operation; undo / redo step exactly once.
+393. **Cancel / switch.** With a preview showing, switch to another document (or open one): the session ends with
+     no node in either document; nothing lands later.
+394. **Re-edit.** A smart object with Gaussian Blur, Warp and Add Noise: re-editing Warp keeps the order, the other
+     filters and Warp's enabled state and blending.
+395. **Locks.** Lock Position (or All): Warp refuses with "locked"; colour filters still follow their existing rules.
+396. **Live text.** On a text layer, Warp previews; Esc leaves the text layer editable; Apply asks to convert and the
+     text stays live inside the smart object.
+397. **Native reopen.** Save as `.tessera-doc`, reopen: the stages, masks and source are intact and re-editable.
+398. **PSD.** Save As `.psd` fails with "native-only; rasterize explicitly for PSD". File ▸ Save Rasterized PSD Copy…
+     writes a PSD with those smart objects rasterized; the open document is unchanged.
+399. **20 MP and evidence.** On the 5472 × 3648 copy converted to a smart object, drag a warp anchor for a few
+     seconds: frames keep up (draft preview, latency in the options bar); Apply renders the exact result. Screenshots
+     at 1440 pt; B5-07 styles and B5-09 Remove still work (their self-tests).

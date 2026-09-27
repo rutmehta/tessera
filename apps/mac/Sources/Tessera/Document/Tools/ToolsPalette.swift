@@ -173,6 +173,14 @@ struct ToolOptionsBar: View {
 
     private var bar: some View {
         HStack(spacing: Theme.Space.s) {
+            // B5-12 begin: an advanced transform session owns the bar while it is open.
+            if let tag = DocumentTransforms.shared.isActive(document) ? DocumentTransforms.shared.tag : nil {
+                Image(systemName: tag.symbol).font(Theme.Fonts.icon).foregroundStyle(Theme.textSecondary)
+                Text(tag.title).font(Theme.Fonts.labelMedium).foregroundStyle(Theme.textPrimary).fixedSize()
+                separator
+                TransformOptionsBar(document: document, t: DocumentTransforms.shared)
+            } else {
+            // B5-12 end
             Image(systemName: tools.transform != nil ? "arrow.up.left.and.arrow.down.right"
                   : DocumentRetouch.shared.removeActive ? "eraser.line.dashed" : document.tool.symbol)   // B5-09
                 .font(Theme.Fonts.icon).foregroundStyle(Theme.textSecondary)
@@ -192,6 +200,7 @@ struct ToolOptionsBar: View {
             } else {
                 otherOptions
             }
+            } // B5-12
         }
         .padding(.horizontal, Theme.Space.m)
         .frame(height: Theme.Height.large + Theme.Space.xs)

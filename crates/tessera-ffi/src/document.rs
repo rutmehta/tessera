@@ -73,6 +73,14 @@ pub use filtering::{
 #[path = "document/retouch.rs"]
 mod retouch;
 pub use retouch::*;
+// B5-12 begin: non-destructive warp, perspective, puppet and content-aware scale.
+#[path = "document/transform.rs"]
+mod advanced_transform;
+pub use advanced_transform::{
+    AdvancedTransformInfo, AdvancedTransformKind, AdvancedTransformPreview, PuppetMeshRecord,
+    TransformStageRecord, warp_preset, warp_preset_names, warp_split, warp_subdivide,
+};
+// B5-12 end
 // Layer styles and Global Light (WP B5-07).
 #[path = "document/styles.rs"]
 mod styles;
@@ -738,6 +746,8 @@ pub(crate) struct State {
     )>,
     /// Strokes, transforms, clone source, channels (WP B5-04).
     tools: tools::ToolState,
+    // B5-12: the open Warp / Perspective / Puppet / Content-Aware Scale session.
+    advanced: advanced_transform::AdvancedState,
     closed: bool,
     pub(crate) view: render::View,
 }
@@ -980,6 +990,7 @@ impl DocumentSession {
                 unlinked_masks: Default::default(),
                 selection_bounds: None,
                 tools: Default::default(),
+                advanced: Default::default(), // B5-12
                 closed: false,
                 view: Default::default(),
             }),

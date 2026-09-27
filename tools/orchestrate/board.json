@@ -1358,5 +1358,13 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "B5-12",
+    "owner": "opus",
+    "title": "Non-destructive warp, perspective, puppet and content-aware scale",
+    "status": "merged",
+    "attempts": 0,
+    "notes": "machine B; wp/B5-12 merged with wp/B5-10c + main cf9dc6f; document/transform.rs; 343 XCTest; deadlock workaround until M5-35"
   }
 ]
