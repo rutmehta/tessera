@@ -1,0 +1,509 @@
+<meta charset="utf-8">
+<title>Tessera Redesign</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#f3f2ef; --panel:#ffffff; --ink:#1c1b19; --ink2:#5d5a55; --ink3:#8b8780; --line:#dcd9d3; --accent:#9a5a14; --chip:#ebe9e4;
+  --font:"Schibsted Grotesk",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#121211; --panel:#1a1918; --ink:#ecebe7; --ink2:#a6a39c; --ink3:#77746e; --line:#2c2b28; --accent:#e8a54c; --chip:#242320; color-scheme:dark;}}
+:root[data-theme="dark"]{--bg:#121211; --panel:#1a1918; --ink:#ecebe7; --ink2:#a6a39c; --ink3:#77746e; --line:#2c2b28; --accent:#e8a54c; --chip:#242320; color-scheme:dark;}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.5;margin:0}
+.page{max-width:1320px;margin:0 auto;padding-inline:24px;padding-block:40px 80px}
+@media (max-width:600px){.page{padding-inline:16px}}
+h1{font-size:clamp(28px,4vw,44px);line-height:1.05;letter-spacing:-.02em;font-weight:700;margin:0 0 12px;text-wrap:balance}
+h2{font-size:22px;letter-spacing:-.01em;margin:0 0 8px;text-wrap:balance}
+.lede{max-width:68ch;color:var(--ink2);margin:0}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3)}
+header.top{display:grid;gap:14px;margin-bottom:28px}
+.controls{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:end;margin:8px 0 18px}
+.ctl{display:grid;gap:6px}
+.seg{display:inline-flex;background:var(--chip);border:1px solid var(--line);border-radius:8px;padding:3px;gap:2px;flex-wrap:wrap}
+.seg button{font:inherit;font-size:13px;font-weight:500;color:var(--ink2);background:transparent;border:0;border-radius:6px;padding:6px 12px;cursor:pointer;white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--panel);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.seg button:focus-visible,.kbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.kbtn{font:inherit;font-size:13px;font-weight:500;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:7px 12px;cursor:pointer}
+.kbtn kbd{font-family:var(--mono);font-size:11px;color:var(--ink3);margin-left:6px}
+.stage{position:relative;width:100%;overflow:hidden;border-radius:14px}
+.scaler{transform-origin:0 0;width:1280px}
+.notes{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:28px;margin-top:22px}
+@media (max-width:860px){.notes{grid-template-columns:1fr}}
+.notes ul{margin:8px 0 0;padding-left:18px;color:var(--ink2)}
+.notes li{margin:6px 0}
+.notes li b{color:var(--ink);font-weight:600}
+.dirnote{border-left:2px solid var(--accent);padding-left:14px}
+.tokens{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.sw{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;color:var(--ink2);background:var(--chip);border:1px solid var(--line);border-radius:6px;padding:4px 8px 4px 4px}
+.sw i{width:16px;height:16px;border-radius:4px;border:1px solid rgba(128,128,128,.35);display:block}
+section.block{margin-top:56px;display:grid;gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+@media (max-width:900px){.grid3{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px}
+.card h3{margin:0 0 6px;font-size:16px}
+.card p{margin:0;color:var(--ink2);font-size:14px}
+.flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px;color:var(--ink2)}
+.flow span{background:var(--chip);border:1px solid var(--line);border-radius:6px;padding:3px 8px;color:var(--ink)}
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th,.tbl td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+.tbl th{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);font-weight:500}
+.tbl td:first-child{font-family:var(--mono);color:var(--ink3);width:36px}
+.tbl td b{font-weight:600}
+.tbl .sym{color:var(--ink2)}
+.tblwrap{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px}
+.pill{display:inline-block;font-family:var(--mono);font-size:11px;padding:1px 7px;border-radius:999px;background:var(--chip);border:1px solid var(--line);color:var(--ink2);white-space:nowrap}
+.pill.run{border-color:var(--accent);color:var(--accent)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* ───────── the mock window (app UI uses the system font, as the real app will) ───────── */
+.win{--w-canvas:var(--w-surround);--ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;font-family:var(--ui);width:1280px;height:790px;border-radius:12px;overflow:hidden;display:grid;grid-template-rows:auto minmax(0,1fr);
+  background:var(--w-canvas);color:var(--w-text);box-shadow:0 30px 80px -20px rgba(0,0,0,.45),0 0 0 1px rgba(0,0,0,.25);font-size:var(--w-fs);-webkit-font-smoothing:antialiased;position:relative}
+.win *{min-width:0}
+.win .num{font-variant-numeric:tabular-nums}
+.tb{display:grid;grid-template-columns:auto auto auto minmax(0,1fr) auto;align-items:center;gap:14px;height:var(--w-tbh);padding:0 12px 0 14px;background:var(--w-chrome);border-bottom:1px solid var(--w-line)}
+.lights{display:flex;gap:8px}.lights i{width:12px;height:12px;border-radius:50%;display:block}
+.lights i:nth-child(1){background:#ff5f57}.lights i:nth-child(2){background:#febc2e}.lights i:nth-child(3){background:#28c840}
+.modes{display:flex;gap:2px;background:var(--w-well);border-radius:var(--w-r);padding:2px}
+.modes b{font-weight:500;font-size:12.5px;padding:4px 12px;border-radius:calc(var(--w-r) - 2px);color:var(--w-dim);white-space:nowrap}
+.modes b.on{background:var(--w-raised);color:var(--w-text);box-shadow:0 1px 1px rgba(0,0,0,.2)}
+.doc{display:flex;align-items:baseline;gap:8px;justify-content:center;overflow:hidden;white-space:nowrap}
+.doc strong{font-weight:600;font-size:13px}.doc span{color:var(--w-dim);font-size:12px;overflow:hidden;text-overflow:ellipsis}
+.tbr{display:flex;gap:6px;align-items:center}
+.ib{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:26px;padding:0 8px;border-radius:var(--w-r);color:var(--w-dim);font-size:12px;white-space:nowrap}
+.ib.acc{background:var(--w-accent);color:var(--w-on-accent);font-weight:600}
+.ib svg{width:15px;height:15px;stroke-width:1.75}
+.cmd{display:flex;align-items:center;gap:8px;height:28px;padding:0 10px;border-radius:var(--w-r);background:var(--w-well);color:var(--w-faint);font-size:12.5px;width:360px;justify-self:center;overflow:hidden;white-space:nowrap}
+.cmd kbd{margin-left:auto;font-family:var(--ui);font-size:11px;color:var(--w-faint);border:1px solid var(--w-line);border-radius:4px;padding:0 4px}
+.cmd svg{width:14px;height:14px}
+
+.body{display:grid;min-height:0;position:relative;grid-template-columns:var(--w-cols);grid-template-rows:minmax(0,1fr) var(--w-striph);grid-template-areas:var(--w-areas)}
+.rail{grid-area:rail;background:var(--w-chrome);border-right:1px solid var(--w-line);display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 0}
+.rail .ri{width:36px;height:36px;border-radius:8px;display:grid;place-items:center;color:var(--w-dim)}
+.rail .ri.on{background:var(--w-raised);color:var(--w-accent)}
+.rail .ri svg{width:18px;height:18px;stroke-width:1.7}
+.rail .sep{width:22px;height:1px;background:var(--w-line);margin:4px 0}
+.side{grid-area:side;background:var(--w-panel);border-right:1px solid var(--w-line);padding:12px 10px;display:flex;flex-direction:column;gap:14px;overflow:hidden}
+.main{grid-area:main;position:relative;overflow:hidden;background:var(--w-canvas);display:grid;min-height:0}
+.insp{grid-area:insp;background:var(--w-panel);border-left:1px solid var(--w-line);overflow:hidden;display:flex;flex-direction:column}
+.strip{grid-area:strip;background:var(--w-chrome);border-top:1px solid var(--w-line);display:flex;gap:6px;align-items:center;padding:0 10px;overflow:hidden}
+.grp{display:grid;gap:2px}
+.grp h6{margin:0 0 4px;font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--w-faint);padding:0 6px}
+.row{display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:calc(var(--w-r) - 1px);color:var(--w-text);white-space:nowrap;font-size:12.5px}
+.row .ct{margin-left:auto;color:var(--w-faint);font-size:11.5px}
+.row.on{background:var(--w-raised)}
+.dot{width:8px;height:8px;border-radius:50%;flex:none}
+.row svg{width:14px;height:14px;color:var(--w-dim);flex:none}
+
+.ph{position:relative;overflow:hidden;background:#0a0a0a}
+.ph img{width:100%;height:100%;object-fit:cover;display:block}
+.loupe{position:absolute;inset:var(--w-pad);display:grid;place-items:center}
+.loupe .ph{width:100%;height:100%;background:transparent}
+.loupe .ph img{object-fit:contain}
+.chips{position:absolute;left:calc(var(--w-pad) + 10px);top:calc(var(--w-pad) + 10px);display:flex;gap:6px;flex-wrap:wrap;max-width:70%}
+.chip{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;border-radius:999px;font-size:11.5px;background:rgba(18,18,18,.62);color:#f2f2f0;backdrop-filter:blur(8px);white-space:nowrap}
+.chip.good{color:#8fe0b0}.chip.warn{color:#ffd08a}
+.chip svg{width:12px;height:12px}
+.fs{height:calc(var(--w-striph) - 18px);aspect-ratio:3/2;border-radius:4px;overflow:hidden;position:relative;flex:none;opacity:.86;outline:1px solid rgba(0,0,0,.25)}
+.fs.on{outline:2px solid var(--w-accent);opacity:1}
+.fs img{width:100%;height:100%;object-fit:cover;display:block}
+.fs .m{position:absolute;right:3px;bottom:3px;font-size:10px;font-weight:700;width:15px;height:15px;border-radius:4px;display:grid;place-items:center;color:#111}
+.m.k{background:#7ad49c}.m.x{background:#ef7b6e}
+.fs .stk{position:absolute;left:3px;top:3px;font-size:9.5px;font-weight:600;background:rgba(0,0,0,.6);color:#fff;border-radius:3px;padding:0 3px}
+
+.sec{border-bottom:1px solid var(--w-line);padding:10px 12px;display:grid;gap:8px}
+.sec h5{margin:0;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--w-faint);display:flex;align-items:center;gap:6px}
+.sec h5 .r{margin-left:auto;text-transform:none;letter-spacing:0;font-weight:500;color:var(--w-dim)}
+.sl{display:grid;grid-template-columns:78px minmax(0,1fr) 44px;align-items:center;gap:8px;font-size:12px}
+.sl label{color:var(--w-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sl .tr{height:4px;border-radius:2px;background:var(--w-well);position:relative}
+.sl .tr i{position:absolute;top:50%;width:11px;height:11px;border-radius:50%;background:var(--w-text);transform:translate(-50%,-50%);box-shadow:0 0 0 2px var(--w-panel)}
+.sl .tr u{position:absolute;top:0;bottom:0;background:var(--w-accent);border-radius:2px;opacity:.9}
+.sl .v{text-align:right;color:var(--w-text);font-variant-numeric:tabular-nums}
+.hist{height:64px;border-radius:calc(var(--w-r) - 1px);background:var(--w-well);overflow:hidden}
+.hist canvas{width:100%;height:100%;display:block}
+.tabs{display:flex;gap:2px;padding:6px 8px;border-bottom:1px solid var(--w-line)}
+.tabs b{font-size:12px;font-weight:500;padding:4px 10px;border-radius:calc(var(--w-r) - 1px);color:var(--w-dim);white-space:nowrap}
+.tabs b.on{background:var(--w-raised);color:var(--w-text)}
+.lay{display:grid;grid-template-columns:18px 36px minmax(0,1fr) auto;align-items:center;gap:8px;padding:5px 10px;font-size:12.5px;white-space:nowrap}
+.lay.on{background:var(--w-raised)}
+.lay .th{width:36px;height:24px;border-radius:3px;overflow:hidden;background:var(--w-well)}
+.lay .th img{width:100%;height:100%;object-fit:cover}
+.lay .nm{overflow:hidden;text-overflow:ellipsis}
+.lay .bd{font-size:10px;font-weight:600;padding:1px 5px;border-radius:3px;background:var(--w-well);color:var(--w-dim)}
+.lay .bd.raw{background:var(--w-accent);color:var(--w-on-accent)}
+.lay svg{width:14px;height:14px;color:var(--w-dim)}
+.mask{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:8px;align-items:center;padding:6px 8px;border-radius:calc(var(--w-r) - 1px);font-size:12.5px}
+.mask.on{background:var(--w-raised)}
+.mask .sw2{width:22px;height:16px;border-radius:3px}
+.mask small{color:var(--w-faint);font-size:11px}
+.btnrow{display:flex;gap:6px;flex-wrap:wrap}
+.pb{height:26px;padding:0 10px;border-radius:var(--w-r);background:var(--w-well);color:var(--w-text);font-size:12px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.pb.acc{background:var(--w-accent);color:var(--w-on-accent);font-weight:600}
+.pb svg{width:13px;height:13px}
+.kbd{font-size:10.5px;color:var(--w-faint);border:1px solid var(--w-line);border-radius:4px;padding:0 4px}
+.decide{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.decide div{border-radius:var(--w-r);background:var(--w-well);padding:8px 6px;text-align:center;font-size:12px;display:grid;gap:2px}
+.decide div b{font-size:13px}
+.decide div.pick{background:color-mix(in srgb,#5fc38a 22%,var(--w-well));}
+.meter{display:grid;grid-template-columns:70px minmax(0,1fr) 34px;gap:8px;align-items:center;font-size:12px;color:var(--w-dim)}
+.meter .bar{height:5px;border-radius:3px;background:var(--w-well);overflow:hidden}
+.meter .bar i{display:block;height:100%;background:var(--w-accent)}
+.meter .v{text-align:right;color:var(--w-text)}
+.faces{display:flex;gap:6px}
+.face{width:34px;height:34px;border-radius:50%;overflow:hidden;background:var(--w-well);border:2px solid var(--w-panel)}
+.face img{width:100%;height:100%;object-fit:cover}
+.gridv{position:absolute;inset:var(--w-pad);display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;align-content:start;overflow:hidden}
+.cell{display:grid;gap:5px}
+.cell .ph{aspect-ratio:3/2;border-radius:5px}
+.cell.sel .ph{outline:2px solid var(--w-accent);outline-offset:1px}
+.cell .cap{display:flex;gap:6px;align-items:center;font-size:11px;color:var(--w-dim);white-space:nowrap;overflow:hidden}
+.cell .cap span{overflow:hidden;text-overflow:ellipsis}
+.cell .cap em{font-style:normal;margin-left:auto;font-size:10.5px;padding:0 5px;border-radius:3px;background:var(--w-well)}
+.cell .cap em.rev{background:color-mix(in srgb,#f0b04c 30%,var(--w-well));color:var(--w-text)}
+.split{position:absolute;top:0;bottom:0;width:2px;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.3)}
+.split::after{content:"";position:absolute;top:50%;left:50%;width:22px;height:22px;border-radius:50%;background:#fff;transform:translate(-50%,-50%);box-shadow:0 1px 4px rgba(0,0,0,.4)}
+.lbl{position:absolute;top:10px;font-size:10.5px;font-weight:600;color:#fff;background:rgba(0,0,0,.5);border-radius:4px;padding:1px 6px;letter-spacing:.04em}
+.opts{position:absolute;left:var(--w-pad);right:var(--w-pad);top:var(--w-pad);height:34px;display:flex;align-items:center;gap:10px;padding:0 10px;border-radius:var(--w-r);background:var(--w-panel);border:1px solid var(--w-line);font-size:12px;white-space:nowrap;overflow:hidden;z-index:2}
+.opts .grp2{display:flex;align-items:center;gap:6px;color:var(--w-dim)}
+.opts .fld{background:var(--w-well);border-radius:4px;padding:2px 7px;color:var(--w-text);font-variant-numeric:tabular-nums}
+.opts .more{margin-left:auto;color:var(--w-dim);display:flex;align-items:center;gap:4px}
+.tools{position:absolute;left:var(--w-pad);top:calc(var(--w-pad) + 44px);width:38px;display:grid;gap:2px;padding:4px;border-radius:var(--w-r);background:var(--w-panel);border:1px solid var(--w-line);z-index:2}
+.tools i{width:30px;height:28px;border-radius:5px;display:grid;place-items:center;color:var(--w-dim)}
+.tools i.on{background:var(--w-raised);color:var(--w-accent)}
+.tools svg{width:16px;height:16px;stroke-width:1.7}
+.canvas{position:absolute;left:calc(var(--w-pad) + 52px);right:var(--w-pad);top:calc(var(--w-pad) + 44px);bottom:var(--w-pad);display:grid;place-items:center}
+.art{position:relative;width:88%;aspect-ratio:3/2;box-shadow:0 10px 40px rgba(0,0,0,.35)}
+.art img{width:100%;height:100%;object-fit:cover;display:block}
+.art .txt{position:absolute;left:0;right:0;top:12%;text-align:center;color:#fff;font:600 54px/1 "Schibsted Grotesk",var(--ui);letter-spacing:.32em;text-shadow:0 2px 20px rgba(0,0,0,.35)}
+.art .bbox{position:absolute;left:18%;right:18%;top:9%;height:17%;border:1px solid var(--w-accent)}
+.art .bbox i{position:absolute;width:7px;height:7px;background:#fff;border:1px solid var(--w-accent)}
+.crumb{display:flex;align-items:center;gap:6px;padding:8px 12px;font-size:12px;color:var(--w-dim);border-bottom:1px solid var(--w-line);white-space:nowrap;overflow:hidden}
+.crumb b{color:var(--w-text);font-weight:600;overflow:hidden;text-overflow:ellipsis}
+.crumb svg{width:12px;height:12px;flex:none}
+.banner{margin:8px 10px 0;padding:8px 10px;border-radius:var(--w-r);background:color-mix(in srgb,var(--w-accent) 16%,var(--w-panel));font-size:12px;color:var(--w-text);display:flex;gap:8px;align-items:flex-start}
+.banner svg{width:14px;height:14px;flex:none;margin-top:2px;color:var(--w-accent)}
+.progress{position:absolute;left:50%;bottom:calc(var(--w-pad) + 8px);transform:translateX(-50%);display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:999px;background:var(--w-panel);border:1px solid var(--w-line);font-size:12px;box-shadow:0 8px 24px rgba(0,0,0,.25);white-space:nowrap}
+.progress .pbar{width:160px;height:4px;border-radius:2px;background:var(--w-well);overflow:hidden}
+.progress .pbar i{display:block;width:64%;height:100%;background:var(--w-accent)}
+.palette{position:absolute;inset:0;background:rgba(0,0,0,.35);display:grid;place-items:start center;padding-top:90px;z-index:20}
+.palette .box{width:560px;border-radius:12px;background:var(--w-panel);border:1px solid var(--w-line);box-shadow:0 30px 80px rgba(0,0,0,.5);overflow:hidden}
+.palette .q{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--w-line);font-size:15px}
+.palette .q svg{width:16px;height:16px;color:var(--w-dim)}
+.palette .it{display:grid;grid-template-columns:20px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 14px;font-size:13px}
+.palette .it.on{background:var(--w-raised)}
+.palette .it svg{width:15px;height:15px;color:var(--w-dim)}
+.palette .it small{color:var(--w-faint);font-size:11.5px}
+.palette h6{margin:0;padding:8px 14px 4px;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--w-faint)}
+
+/* ───── Direction A · Graphite (recommended): quiet native tool, neutral surround, amber only for selection ───── */
+.win[data-dir="graphite"]{--w-chrome:#1c1c1c;--w-panel:#222222;--w-raised:#2d2d2d;--w-well:#2a2a2a;--w-line:#3a3a3a;--w-text:#eeeeee;--w-dim:#b7b7b7;--w-faint:#858585;--w-accent:#e2a04a;--w-on-accent:#1b1305;
+  --w-r:6px;--w-tbh:42px;--w-pad:14px;--w-striph:80px;--w-surround:#181818;
+  --w-cols:0px 220px minmax(0,1fr) 316px;--w-areas:"rail side main insp" "rail side strip insp"}
+.win[data-dir="graphite"] .rail,.win[data-dir="graphite"] .cmd{display:none}
+.win[data-dir="graphite"][data-ctx="edit"]{--w-cols:0px 0px minmax(0,1fr) 316px}
+.win[data-dir="graphite"][data-ctx="edit"] .side{display:none}
+/* ───── Direction B · Archive: editorial contact sheet, warm paper chrome that stops at the photo edge ───── */
+.win[data-dir="archive"]{--w-chrome:#efebe3;--w-panel:#f4f1eb;--w-raised:#fffdfa;--w-well:#e6e1d7;--w-line:#d2ccc1;--w-text:#25231f;--w-dim:#625c52;--w-faint:#8e877b;--w-accent:#246b63;--w-on-accent:#ffffff;
+  --w-r:5px;--w-tbh:52px;--w-pad:20px;--w-striph:96px;--w-surround:#777777;
+  --w-cols:0px 240px minmax(0,1fr) 336px;--w-areas:"rail side main insp" "rail side strip insp"}
+.win[data-dir="archive"] .rail,.win[data-dir="archive"] .cmd{display:none}
+.win[data-dir="archive"][data-ctx="edit"]{--w-cols:0px 0px minmax(0,1fr) 336px}
+.win[data-dir="archive"][data-ctx="edit"] .side{display:none}
+.win[data-dir="archive"] .doc strong{font-family:ui-serif,"New York",Georgia,serif;font-size:17px;font-weight:500}
+.win[data-dir="archive"] .modes b{font-size:13.5px;padding:5px 16px}
+.win[data-dir="archive"] .cell .cap{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10.5px}
+.win[data-dir="archive"] .sec{padding:12px 16px}
+/* ───── Direction C · Instrument: dense technical workstation, mode rail + command bar ───── */
+.win[data-dir="instrument"]{--w-chrome:#161616;--w-panel:#1c1c1c;--w-raised:#292929;--w-well:#242424;--w-line:#454545;--w-text:#f0f0f0;--w-dim:#b9b9b9;--w-faint:#8a8a8a;--w-accent:#90b8f0;--w-on-accent:#0b1320;
+  --w-r:3px;--w-tbh:38px;--w-pad:10px;--w-striph:64px;--w-surround:#121212;
+  --w-cols:52px 0px minmax(0,1fr) 304px;--w-areas:"rail side main insp" "rail side strip insp"}
+.win[data-dir="instrument"] .side,.win[data-dir="instrument"] .modes{display:none}
+.win[data-dir="instrument"] .tb{grid-template-columns:auto minmax(0,1fr) auto auto}
+.win[data-dir="instrument"] .doc{justify-content:flex-start}
+.win[data-dir="instrument"] .sl .v,.win[data-dir="instrument"] .meter .v,.win[data-dir="instrument"] .row .ct{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:11px}
+.win[data-dir="instrument"] .fs.on{outline:none;box-shadow:inset 0 0 0 2px var(--w-accent)}
+/* ───── Density and surround ───── */
+.win[data-density="comfortable"]{--w-fs:13px}
+.win[data-density="compact"]{--w-fs:12px}
+.win[data-density="compact"] .row{padding:2px 6px}
+.win[data-density="compact"] .sec{gap:5px;padding-block:7px}
+.win[data-density="compact"] .sl{grid-template-columns:70px minmax(0,1fr) 40px;font-size:11.5px}
+.win[data-surround="dark"]{--w-canvas:#202020}
+.win[data-surround="mid"]{--w-canvas:#777777}
+.win[data-surround="light"]{--w-canvas:#d8d8d8}
+.win[data-surround="auto"]{--w-canvas:var(--w-surround)}
+.vtabs{display:flex;gap:2px}
+.vtabs b{font-weight:500;font-size:12px;padding:3px 9px;border-radius:calc(var(--w-r) - 1px);color:var(--w-dim);white-space:nowrap}
+.vtabs b.on{color:var(--w-text);background:var(--w-well)}
+.scope{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--w-dim);white-space:nowrap}
+.scope b{color:var(--w-text);font-weight:600}
+.chip.pend{background:rgba(18,18,18,.55);box-shadow:inset 0 0 0 1px rgba(255,255,255,.55);color:#f2f2f0}
+.chip.pend::before{content:"Suggested";font-size:10px;opacity:.7;margin-right:2px}
+</style>
+
+<div class="page">
+  <header class="top">
+    <div class="eyebrow">Tessera · design exploration · Sept 2026</div>
+    <h1>One workspace for choosing, editing and composing photos</h1>
+    <p class="lede">Three visual directions, each shown across the five jobs a photographer actually does. Switch the direction and the journey to compare them. Every screen uses real photos rendered by the Tessera engine from the project's test raws.</p>
+  </header>
+
+  <div class="controls" role="group" aria-label="Mockup controls">
+    <div class="ctl"><span class="eyebrow">Direction</span>
+      <div class="seg" id="dirSeg">
+        <button type="button" data-v="graphite" aria-pressed="true">Graphite</button>
+        <button type="button" data-v="archive" aria-pressed="false">Archive</button>
+        <button type="button" data-v="instrument" aria-pressed="false">Instrument</button>
+      </div></div>
+    <div class="ctl"><span class="eyebrow">Journey</span>
+      <div class="seg" id="scrSeg">
+        <button type="button" data-v="choose" aria-pressed="true">Choose</button>
+        <button type="button" data-v="batch" aria-pressed="false">Review a batch</button>
+        <button type="button" data-v="develop" aria-pressed="false">Develop + masks</button>
+        <button type="button" data-v="compose" aria-pressed="false">Layers</button>
+        <button type="button" data-v="together" aria-pressed="false">Raw inside layers</button>
+      </div></div>
+    <div class="ctl"><span class="eyebrow">Density</span>
+      <div class="seg" id="denSeg"><button type="button" data-v="comfortable" aria-pressed="true">Comfortable</button><button type="button" data-v="compact" aria-pressed="false">Compact</button></div></div>
+    <div class="ctl"><span class="eyebrow">Photo surround</span>
+      <div class="seg" id="surSeg"><button type="button" data-v="auto" aria-pressed="true">Default</button><button type="button" data-v="dark" aria-pressed="false">Dark</button><button type="button" data-v="mid" aria-pressed="false">Mid grey</button><button type="button" data-v="light" aria-pressed="false">Light</button></div></div>
+    <button type="button" class="kbtn" id="palBtn" aria-pressed="false">Command palette <kbd>⌘K</kbd></button>
+  </div>
+
+  <div class="stage" id="stage"><div class="scaler" id="scaler"></div></div>
+
+  <div class="notes">
+    <div><div class="eyebrow" id="jEye">Journey</div><h2 id="jTitle"></h2><ul id="jNotes"></ul></div>
+    <div class="dirnote"><div class="eyebrow">Direction</div><h2 id="dTitle"></h2><p id="dText" style="margin:0;color:var(--ink2)"></p><div class="tokens" id="dTok"></div></div>
+  </div>
+
+  <section class="block">
+    <div class="eyebrow">Information architecture</div>
+    <h2>Library and Edit instead of seven modules</h2>
+    <p class="lede">Lightroom splits the job into Library, Develop, Map, Book, Slideshow, Print and Web, and Photoshop is a separate app. Tessera keeps one window with two contexts. Library holds Grid, Loupe, Compare and Review. Edit holds Develop, Masks and Layers as fixed tabs over the same document. Both share the selection, filmstrip, history and command palette, and moving between them never exports or round-trips a file.</p>
+    <div class="grid3">
+      <div class="card"><h3>Library · choose and review</h3><p>Import, cull, rate, group into stacks and people. Keyboard first: P keep, X reject, arrows move, space zooms to 100 %. AI explains its suggestions and never decides for you.</p></div>
+      <div class="card"><h3>Edit · Develop and Masks</h3><p>Raw develop for one photo or many. Masks are a first-class panel, not a hidden tool. Batch edits sync by category and show a review queue for photos that drift from the reference.</p></div>
+      <div class="card"><h3>Edit · Layers</h3><p>Layers, selections, retouch, type and filters. A raw file placed in a document stays a Develop layer, so its sliders open right in the layer inspector.</p></div>
+    </div>
+    <div class="flow" aria-label="Typical session"><span>Import 412 photos</span>→<span>Choose 38 keepers</span>→<span>Batch look on 38</span>→<span>Develop 3 heroes with masks</span>→<span>Compose one poster</span>→<span>Export all</span></div>
+  </section>
+
+  <section class="block" id="speed">
+    <div class="eyebrow">Diagnosis · why the app feels slow</div>
+    <h2>The engine is fast; the app spends that speed on waiting</h2>
+    <p class="lede">GPT-6 Astra read the app and engine paths end to end and re-ran what could be measured without taking over the screen. Engine benchmarks were already quick (sliders under 12 ms at screen level), but those numbers stop before a frame reaches the screen. The time goes to work done on the interface thread and to caches that do the expensive work before checking whether they need to.</p>
+    <div class="tblwrap"><table class="tbl">
+      <thead><tr><th>#</th><th>What happens</th><th>What you feel</th><th>Fix</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td><b>The interface thread waits on the database.</b> Opening a library, searching, focus changes and Select All call the catalog synchronously.</td><td class="sym">The grid appears late; typing in search or selecting many photos stutters.</td><td><span class="pill run">M2-54 running</span></td></tr>
+        <tr><td>2</td><td><b>Cached thumbnails are decoded again before the cache is checked.</b> A JPEG hit still reads, decodes and re-encodes the original.</td><td class="sym">Reopening a folder is nearly as slow as the first time.</td><td><span class="pill run">M2-55 running</span></td></tr>
+        <tr><td>3</td><td><b>Every cache write scans the whole cache folder</b> while holding the lock readers need.</td><td class="sym">Thumbnails fill in slower and slower as the cache grows.</td><td><span class="pill run">M2-55 running</span></td></tr>
+        <tr><td>4</td><td><b>Layer styles recompute the full canvas once per tile.</b> A 20 MP image has 330 tiles.</td><td class="sym">Adding a drop shadow can freeze a document for seconds.</td><td><span class="pill run">M5-31 running</span></td></tr>
+        <tr><td>5</td><td><b>Automatic Upright can run a full-resolution analysis inside a slider update</b> on the interface thread.</td><td class="sym">A slider hangs while the render readout claims it was fast.</td><td><span class="pill">Next wave</span></td></tr>
+        <tr><td>6</td><td><b>Layered documents render the whole canvas</b> instead of the visible area.</td><td class="sym">Zooming to 100 % on a large document feels heavy.</td><td><span class="pill">Machine B</span></td></tr>
+        <tr><td>7</td><td><b>Background thumbnails can occupy every worker.</b> Priorities order the queue but can't pause running jobs.</td><td class="sym">The loupe and sliders lag while you scroll or while analysis runs.</td><td><span class="pill">Next wave</span></td></tr>
+        <tr><td>8</td><td><b>The hidden loupe compiles its Metal shaders at launch</b> on the interface thread.</td><td class="sym">The first window is slow even before you open a photo.</td><td><span class="pill run">M2-53 running</span></td></tr>
+      </tbody></table></div>
+    <p class="lede">Not the cause: the grid is already a reusable native collection view, release builds are optimized, and there is no logging storm. Swapping to SwiftUI everywhere or to a web stack would not fix any row above. The first package adds timing from input to pixels on screen, so every fix is measured the way you experience it.</p>
+  </section>
+
+  <section class="block" id="layout">
+    <div class="eyebrow">Diagnosis · why text and buttons overlap</div>
+    <h2>It is how the layout is composed, not Swift versus React</h2>
+    <p class="lede">GPT-6 Astra hosted the real app views in background windows at 1280 × 800, 1440 × 900 and 1728 × 1117, captured them without taking the screen, and traced each overlap to a file and line. At 1280 × 800 the layered-document view asks for 1318 × 817 points inside a 1280 × 748 area, so the whole panel tree is placed 34 points up and 19 points left, under the toolbar and past the window edge.</p>
+    <figure style="margin:0"><img src="img/overflow-1280.jpg" alt="Document mode at 1280 by 800: the Properties heading sits on the Assist button and the right column is cut off" style="width:100%;border-radius:10px;border:1px solid var(--line)"><figcaption class="eyebrow" style="margin-top:8px">Current app, document mode at 1280 × 800: "Properties" is drawn over Assist, the title collides with the toolbar, and Fill and the layer actions are cut off at the right.</figcaption></figure>
+    <div class="grid3">
+      <div class="card"><h3>Panels whose minimums add up past the window</h3><p>Properties, Layers, Channels, History and Snapshots each reserve a minimum height in one column that can't scroll. Together they are taller than a laptop window, so the layout overflows instead of shrinking.</p></div>
+      <div class="card"><h3>Controls that refuse to shrink</h3><p>Menus and keyword chips are forced to their ideal width, and some truncate by counting characters instead of measuring text. The slider draws its label and value with no gap between them, so "Highlights" and "−100" touch at narrow widths.</p></div>
+      <div class="card"><h3>A design system that checks colour, not fit</h3><p>The existing lint enforces colours, fonts and spacing, but nothing checks that a view fits its window. Every overlapping screen passed it.</p></div>
+    </div>
+    <div class="tblwrap"><table class="tbl">
+      <thead><tr><th>#</th><th>Fix</th><th>Owner</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td><b>Shell never overflows the window.</b> Content respects the toolbar's safe area; panels give up width in a fixed order (library sidebar first, then inspector, then filmstrip); shared menus, chips and sliders measure their text and reserve gaps.</td><td><span class="pill run">M2-56 running</span></td></tr>
+        <tr><td>2</td><td><b>Document inspector budgeted or tabbed.</b> Properties, Layers, Channels, History and Snapshots stay reachable at the smallest window, which is also what the redesign's inspector tabs do.</td><td><span class="pill">Machine B, after M2-56</span></td></tr>
+        <tr><td>3</td><td><b>A layout test that fails the build.</b> Every screen is rendered in background windows at four sizes in light and dark, and the test fails if any region leaves the window or two controls overlap.</td><td><span class="pill run">M2-56 starts it</span></td></tr>
+      </tbody></table></div>
+    <p class="lede">A web stack would not help. React with CSS can overflow in exactly the same ways, and a GPU photo viewer, colour management and HDR still need native code. The recommendation is to keep Rust, Metal, AppKit and SwiftUI, and fix the layout rules and tests.</p>
+  </section>
+
+  <section class="block">
+    <div class="eyebrow">What the UX research changed</div>
+    <h2>Rules every direction follows</h2>
+    <div class="grid3">
+      <div class="card"><h3>The photo sits on neutral grey</h3><p>Chrome can be warm or tinted, but the surround next to the photo is always a neutral dark, mid or light grey, chosen separately from the app's appearance.</p></div>
+      <div class="card"><h3>Suggestions look different from decisions</h3><p>AI proposals are outlined and say Suggested. Decisions you made are filled. Turning Assist on never re-sorts the shoot or moves your place.</p></div>
+      <div class="card"><h3>Every action names its scope</h3><p>Batch actions say how many photos they touch, Undo names what it will undo ("Undo Batch edit: 38 photos"), and a single key never changes photos you can't see.</p></div>
+      <div class="card"><h3>One app, two densities</h3><p>Comfortable is the default with 13 pt labels and hints. Compact tightens rows for professionals. There is no separate consumer and pro edition.</p></div>
+      <div class="card"><h3>Raw stays raw inside layers</h3><p>Today, Edit in Layers bakes the raw into a 16-bit pixel layer. Until live raw layers ship, the command should say it creates a rendered copy; the mockup shows the target, a Develop layer you can reopen.</p></div>
+      <div class="card"><h3>Missing models are a preflight, not a surprise</h3><p>If a feature needs a model that isn't installed, export asks before it writes files without it, and one Settings page lists every model, its size and whether it runs on this Mac.</p></div>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="eyebrow">Why the current app looks crowded</div>
+    <h2>What these mockups fix in the shipping layout</h2>
+    <div class="grid3">
+      <div class="card"><h3>Every panel is always on</h3><p>The library sidebar with culling counts stays visible while you edit layers, and the inspector stacks Properties, Color, Layers, Channels, History and Snapshots in one column. Each mode here shows only the panels its job needs.</p></div>
+      <div class="card"><h3>Toolbars overflow instead of adapting</h3><p>The Remove options bar clips its last control ("Remove Distract…") and runs into the tool rail. Here the options bar keeps its three most-used controls and moves the rest into More, so nothing clips at any width.</p></div>
+      <div class="card"><h3>Chrome competes with the photo</h3><p>Coloured culling labels, filled buttons and bordered fields all carry similar weight. Here the accent marks only the current selection or the primary action, and the photo sits on a neutral surround you can judge colour against.</p></div>
+    </div>
+  </section>
+</div>
+
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<script>
+(function(){
+const F=i=>`img/f${String(i).padStart(2,'0')}.jpg`;
+const ic=n=>`<i data-lucide="${n}"></i>`;
+const state={dir:'graphite',scr:'choose',pal:false,density:'comfortable',surround:'auto'};
+try{const s=JSON.parse(localStorage.getItem('tessera-mock')||'{}');if(['graphite','archive','instrument'].includes(s.dir))state.dir=s.dir;if(s.scr)state.scr=s.scr;if(s.density)state.density=s.density;if(s.surround)state.surround=s.surround;}catch(e){}
+const ctxOf={choose:'library',batch:'library',develop:'edit',compose:'edit',together:'edit'};const viewOf={choose:'Loupe',batch:'Review'};const itabOf={develop:'Masks',compose:'Layers',together:'Layers'};
+const docOf={choose:['Lofoten, June','412 photos · 38 picked'],batch:['Lofoten, June','Review · 38 photos with the harbour look'],develop:['DSCF4121.RAF','Fujifilm X-T5 · 23 mm · f/8 · 1/250 · ISO 125'],compose:['Harbour poster.tessera','3000 × 2000 px · 6 layers'],together:['Harbour poster.tessera','Develop layer · DSCF4121.RAF']};
+
+function sl(label,val,pos,fill){const f=fill==null?'':`<u style="left:${Math.min(50,pos)}%;width:${Math.abs(pos-50)}%"></u>`;return `<div class="sl"><label>${label}</label><div class="tr">${f}<i style="left:${pos}%"></i></div><span class="v num">${val}</span></div>`}
+function strip(active,marks){let h='';for(let i=1;i<=18;i++){const m=marks[i]||'';h+=`<div class="fs${i===active?' on':''}"><img src="${F(i)}" alt="">${m==='k'?'<span class="m k">✓</span>':m==='x'?'<span class="m x">✕</span>':''}${[2,6,9].includes(i)?'<span class="stk">4</span>':''}</div>`;}return h}
+function side(){return `<div class="grp"><h6>Library</h6><div class="row">${ic('images')}All photos<span class="ct num">12,480</span></div><div class="row on">${ic('folder-open')}Lofoten, June<span class="ct num">412</span></div><div class="row">${ic('clock')}Last import<span class="ct num">412</span></div><div class="row">${ic('users')}People<span class="ct num">7</span></div></div>
+<div class="grp"><h6>This shoot</h6><div class="row"><span class="dot" style="background:#7ad49c"></span>Picked<span class="ct num">38</span></div><div class="row"><span class="dot" style="background:#9a958c"></span>Unreviewed<span class="ct num">311</span></div><div class="row"><span class="dot" style="background:#ef7b6e"></span>Rejected<span class="ct num">63</span></div><div class="row">${ic('layers-3')}Stacks<span class="ct num">41</span></div></div>
+<div class="grp"><h6>Albums</h6><div class="row">${ic('book-image')}Portfolio<span class="ct num">96</span></div><div class="row">${ic('send')}Client selects<span class="ct num">24</span></div></div>`}
+function rail(ctx){const r=(n,on)=>`<div class="ri${on?' on':''}">${ic(n)}</div>`;return `${r('grid-2x2',ctx==='library')}${r('sliders-horizontal',ctx==='edit')}<div class="sep"></div>${r('folder-open')}${r('users')}${r('list-checks')}${r('search')}`}
+function itabs(on){return `<div class="tabs">${['Develop','Masks','Layers'].map(t=>`<b class="${t===on?'on':''}">${t}</b>`).join('')}<span style="margin-left:auto" class="kbd">D · M · L</span></div>`}
+function hist(){return `<div class="hist"><canvas data-hist width="560" height="128"></canvas></div>`}
+
+const screens={
+choose:{
+ main:()=>`<div class="loupe"><div class="ph"><img src="img/hero-harbour.jpg" alt="Harbour with two white houses under cloud"></div></div>
+ <div class="chips"><span class="chip good">${ic('focus')}Sharp</span><span class="chip good">${ic('sun')}Exposure OK</span><span class="chip">${ic('layers-3')}Best of 4 in stack</span><span class="chip pend">Keep</span><span class="chip warn">${ic('copy')}Near duplicate of 0412</span></div>`,
+ insp:()=>`<div class="sec"><h5>Decision<span class="r">4 of 412</span></h5><div class="decide"><div class="pick"><b>Keep</b><span class="kbd">P</span></div><div><b>Skip</b><span class="kbd">U</span></div><div><b>Reject</b><span class="kbd">X</span></div></div><div class="btnrow"><span class="pb">${ic('star')}★★★★☆</span><span class="pb">${ic('columns-2')}Compare stack <span class="kbd">C</span></span></div></div>
+ <div class="sec"><h5>${ic('sparkles')}Why it looks like a keeper</h5>${[['Focus',92],['Exposure',81],['Horizon',96],['Unique',44]].map(([k,v])=>`<div class="meter"><span>${k}</span><div class="bar"><i style="width:${v}%"></i></div><span class="v num">${v}</span></div>`).join('')}<div style="font-size:11.5px;color:var(--w-dim)">Suggestion only. Nothing is rated until you press a key.</div></div>
+ <div class="sec"><h5>In this photo</h5><div class="faces"><div class="face"><img src="${F(5)}" alt=""></div><div class="face"><img src="${F(15)}" alt=""></div></div><div class="row" style="padding:0">${ic('map-pin')}Henningsvær, Lofoten<span class="ct">68.15° N</span></div></div>
+ <div class="sec"><h5>Capture</h5><div class="row" style="padding:0">X-T5 · XF23mmF1.4<span class="ct num">06-14 21:48</span></div><div class="row" style="padding:0">f/8 · 1/250 s · ISO 125<span class="ct">RAF 26.1 MP</span></div></div>`,
+ strip:()=>strip(4,{1:'k',2:'k',3:'x',5:'k',7:'x',9:'k',12:'k'})
+},
+batch:{
+ main:()=>`<div class="scope" style="position:absolute;left:var(--w-pad);right:var(--w-pad);top:calc(var(--w-pad) - 2px);height:22px;z-index:1">${ic('target')}Applies to <b>38 selected</b> · reference <b>DSCF4121</b> · <b>2</b> need review<span style="margin-left:auto">Sorted by capture time · order won't change while you review</span></div><div class="gridv" style="top:calc(var(--w-pad) + 28px)">${[1,2,4,5,6,7,8,9,11,12,15,17].map((n,i)=>`<div class="cell sel"><div class="ph"><img src="${F(n)}" alt=""></div><div class="cap"><span>DSCF${4118+i}.RAF</span>${i===3||i===8?'<em class="rev">Review</em>':'<em>Synced</em>'}</div></div>`).join('')}</div>
+ <div class="progress">${ic('refresh-cw')}<span>Applying look to 38 photos</span><div class="pbar"><i></i></div><span class="num">24 / 38</span></div>`,
+ insp:()=>`<div class="sec"><h5>Reference<span class="r">DSCF4121</span></h5><div class="ph" style="aspect-ratio:3/2;border-radius:5px"><img src="${F(1)}" alt=""></div></div>
+ <div class="sec"><h5>Sync from reference</h5>${[['Basic tone',1],['Color grading',1],['White balance',0],['Masks: Sky',1],['Lens corrections',1],['Crop',0]].map(([k,on])=>`<div class="row" style="padding:2px 0">${ic(on?'square-check':'square')}${k}<span class="ct">${on?'on':'off'}</span></div>`).join('')}</div>
+ <div class="sec"><h5>${ic('sparkles')}Match look</h5><div style="font-size:12px;color:var(--w-dim)">Adjusts exposure and white balance per photo so the set matches the reference. 2 photos drifted more than 0.5 EV and wait in Review.</div><div class="btnrow"><span class="pb acc">Apply to 38</span><span class="pb">Review 2</span></div></div>`,
+ strip:()=>strip(1,{1:'k',2:'k',4:'k',5:'k',6:'k',7:'k',8:'k',9:'k',11:'k',12:'k'})
+},
+develop:{
+ main:()=>`<div class="loupe"><div class="ph" style="position:relative"><img src="img/hero-harbour.jpg" alt="Harbour photo with the sky mask shown">
+ <div style="position:absolute;left:0;right:0;top:0;height:42%;background:rgba(240,120,90,.28);mix-blend-mode:screen"></div>
+ <span class="split" style="left:58%"></span><span class="lbl" style="left:10px">BEFORE</span><span class="lbl" style="right:10px">AFTER</span></div></div>`,
+ insp:()=>`${itabs('Masks')}<div class="sec">${hist()}<div class="row" style="padding:0;font-size:11.5px;color:var(--w-dim)">f/8 · 1/250 · ISO 125<span class="ct">Adobe-compatible · PV6</span></div></div>
+ <div class="sec"><h5>Masks<span class="r">${ic('plus')}</span></h5>
+ <div class="mask on"><span class="sw2" style="background:linear-gradient(#c7d6e8,#9fb4cc)"></span><span>Sky <small>AI · subject-aware</small></span><span class="kbd">1</span></div>
+ <div class="mask"><span class="sw2" style="background:linear-gradient(#2f5b5a,#1e3b3b)"></span><span>Water <small>AI</small></span><span class="kbd">2</span></div>
+ <div class="mask"><span class="sw2" style="background:#e9e7e0"></span><span>Houses <small>Brush</small></span><span class="kbd">3</span></div></div>
+ <div class="sec"><h5>Sky adjustments</h5>${sl('Exposure','−0.45',41,1)}${sl('Highlights','−38',31,1)}${sl('Texture','+12',56,1)}${sl('Dehaze','+18',59,1)}${sl('Temp','−6',47,1)}</div>
+ <div class="sec"><h5>Global<span class="r">Basic</span></h5>${sl('Exposure','+0.20',54,1)}${sl('Contrast','+14',57,1)}${sl('Shadows','+31',65,1)}</div>`,
+ strip:()=>strip(1,{1:'k',2:'k',5:'k',9:'k',12:'k'})
+},
+compose:{
+ main:()=>`<div class="opts"><span class="grp2">${ic('type')}<b style="color:var(--w-text);font-weight:600">Type</b></span><span class="grp2">Font <span class="fld">Schibsted Grotesk</span></span><span class="grp2">Size <span class="fld num">96 pt</span></span><span class="grp2">Tracking <span class="fld num">320</span></span><span class="more">More ${ic('chevron-down')}</span></div>
+ <div class="tools">${['mouse-pointer-2','square-dashed','lasso','wand-sparkles','brush','eraser','stamp','bandage','type','pen-tool','crop','hand'].map((n,i)=>`<i class="${n==='type'?'on':''}">${ic(n)}</i>`).join('')}</div>
+ <div class="canvas"><div class="art"><img src="img/hero-harbour.jpg" alt="Poster in progress"><div class="txt">LOFOTEN</div><div class="bbox"><i style="left:-4px;top:-4px"></i><i style="right:-4px;top:-4px"></i><i style="left:-4px;bottom:-4px"></i><i style="right:-4px;bottom:-4px"></i></div></div></div>`,
+ insp:()=>`${itabs('Layers')}<div class="tabs" style="padding-top:4px"><b class="on">Stack</b><b>Properties</b><b>Channels</b></div>
+ <div style="padding:6px 0">${[['type','Text · LOFOTEN','',1],['shapes','Frame','Shape'],['sliders','Curves','Adjust'],['','Sky from DSC_0932','Masked',0,6],['','DSCF4121.RAF','Raw',0,1]].map(([i2,n,b,on,img])=>`<div class="lay${on?' on':''}">${ic('eye')}<div class="th">${img?`<img src="${F(img)}" alt="">`:`<div style="display:grid;place-items:center;height:100%;color:var(--w-dim)">${ic(i2)}</div>`}</div><span class="nm">${n}</span>${b?`<span class="bd${b==='Raw'?' raw':''}">${b}</span>`:''}</div>`).join('')}</div>
+ <div class="sec" style="margin-top:auto;border-top:1px solid var(--w-line);border-bottom:0"><h5>Layer<span class="r">Normal · 100 %</span></h5>${sl('Opacity','100 %',100,null)}${sl('Fill','100 %',100,null)}<div class="btnrow"><span class="pb">${ic('square-plus')}Layer</span><span class="pb">${ic('circle-half')}Adjust</span><span class="pb">${ic('sparkles')}Style</span></div></div>`,
+ strip:()=>strip(1,{})
+},
+together:{
+ main:()=>`<div class="opts"><span class="grp2">${ic('mouse-pointer-2')}<b style="color:var(--w-text);font-weight:600">Move</b></span><span class="grp2">Editing <span class="fld">DSCF4121.RAF</span> as a Develop layer</span><span class="more">Done <span class="kbd" style="margin-left:4px">Esc</span></span></div>
+ <div class="tools">${['mouse-pointer-2','square-dashed','lasso','wand-sparkles','brush','eraser','stamp','bandage','type','pen-tool','crop','hand'].map((n,i)=>`<i class="${i===0?'on':''}">${ic(n)}</i>`).join('')}</div>
+ <div class="canvas"><div class="art"><img src="img/hero-harbour.jpg" alt="Poster with the raw layer selected"><div class="txt" style="opacity:.35">LOFOTEN</div><div style="position:absolute;inset:0;outline:2px solid var(--w-accent);outline-offset:-2px"></div></div></div>`,
+ insp:()=>`${itabs('Layers')}<div class="crumb">${ic('layers')}Harbour poster ${ic('chevron-right')}<b>DSCF4121.RAF</b><span class="bd" style="margin-left:auto;background:var(--w-accent);color:var(--w-on-accent);font-size:10px;font-weight:600;border-radius:3px;padding:1px 5px">Raw</span></div>
+ <div class="banner">${ic('info')}<span>Raw settings for this layer only. The rest of the document keeps its cached render, so sliders stay live.</span></div>
+ <div class="sec">${hist()}</div>
+ <div class="sec"><h5>Basic</h5>${sl('Temp','5,400 K',52,1)}${sl('Exposure','+0.20',54,1)}${sl('Highlights','−42',29,1)}${sl('Shadows','+31',65,1)}${sl('Vibrance','+12',56,1)}</div>
+ <div class="sec"><h5>Masks<span class="r">from Develop</span></h5><div class="mask on"><span class="sw2" style="background:linear-gradient(#c7d6e8,#9fb4cc)"></span><span>Sky <small>AI</small></span><span class="kbd">1</span></div></div>`,
+ strip:()=>strip(1,{})
+}};
+
+const journeys={
+choose:['Choose','Cull 400 photos in minutes',[
+ ['One key per decision','P, U and X move to the next photo automatically. Stacks collapse bursts, and C compares the stack side by side.'],
+ ['AI explains, you decide','Measured facts are filled chips; the outlined "Suggested keep" is only a proposal. Nothing is rated until you press a key, and turning Assist on never re-sorts the shoot.'],
+ ['The filmstrip carries state','Marks for kept and rejected frames and stack counts sit on the thumbnails, so you never lose your place.'],
+ ['People and place in context','Faces and location appear for the current photo instead of in a separate module.']]],
+batch:['Review a batch','Give 38 photos one look, then review only the exceptions',[
+ ['Reference, then sync by category','Pick the hero, then choose what travels: tone, grading, sky mask, lens. Crop and white balance stay per photo unless you tick them.'],
+ ['Match look keeps sets consistent','Per-photo exposure and white balance are nudged toward the reference instead of copied blindly.'],
+ ['A review queue, not a surprise','Photos that drift from the reference are tagged Review, so you check two photos instead of 38.'],
+ ['Scope is always written down','The caption says what the action applies to, and the order never changes under you while you review.']]],
+develop:['Develop + masks','Edit one photo with masks as a first-class panel',[
+ ['Masks sit above the sliders','Sky, water and a brush mask are listed with number keys 1–9. The sliders below always belong to the selected mask, and Global is its own section.'],
+ ['Before and after in place','Drag the split on the photo or press \\ ; no separate compare mode.'],
+ ['The histogram stays in view','Capture data under the histogram, not in a separate metadata panel.'],
+ ['Develop, Masks and Layers are fixed tabs','D, M and L switch the inspector over the same photo; nothing is exported and the zoom stays put. The library sidebar is hidden in Edit.']]],
+compose:['Layers','Photoshop-class layers in the same Edit context',[
+ ['A contextual options bar that never clips','Each tool shows its three most-used controls; the rest live in More.'],
+ ['Floating tool rail','Tools sit on the canvas edge and don\'t steal a full column.'],
+ ['Tabs instead of stacked panels','Develop, Masks and Layers sit at fixed places, and Stack, Properties and Channels are sub-tabs, so nothing is squeezed into one endless column.'],
+ ['The raw photo is still a raw','The base layer is marked Raw and keeps its develop settings.']]],
+together:['Raw inside layers','Develop and compose at the same time',[
+ ['Double-click a Raw layer to develop it in place','The inspector switches to the develop panels with a breadcrumb back to the document. Esc returns to layers.'],
+ ['Only that layer re-renders','The rest of the document keeps its cached render, so sliders stay live on large composites.'],
+ ['Masks from Develop carry over','An AI sky mask made in Edit can drive a layer mask in Compose.'],
+ ['No export, no round trip','The same file stays in the library, and its stack shows the document it is used in.']]]};
+
+const dirs={
+graphite:['Graphite · recommended','An evolution of today\'s app for people who cull and edit thousands of frames. Neutral greys keep the photo the only colour on screen, and amber appears only on the current selection and the primary action. Comfortable is the default; Compact is one switch away.',[['Surround','#181818'],['Panel','#222222'],['Raised','#2d2d2d'],['Text','#eeeeee'],['Accent','#e2a04a'],['Radius','6 px'],['Body','13 pt']]],
+archive:['Archive','An editorial contact sheet for enthusiasts and fine-art photographers. Warm paper chrome and serif collection titles make the library feel like a print archive, and the paper stops at the photo edge: the surround stays a neutral grey you can judge colour against.',[['Surround','#777777'],['Paper','#f4f1eb'],['Raised','#fffdfa'],['Ink','#25231f'],['Accent','#246b63'],['Radius','5 px'],['Body','13–14 pt']]],
+instrument:['Instrument','A dense technical workstation for retouchers and colour specialists. A narrow rail replaces the Library/Edit switch, a command bar is always visible, values use monospaced digits, and selection is a squared blue bracket. Best offered as the Compact preset rather than the only look.',[['Surround','#121212'],['Panel','#1c1c1c'],['Raised','#292929'],['Text','#f0f0f0'],['Accent','#90b8f0'],['Radius','3 px'],['Body','12 pt']]]};
+
+function palette(){return `<div class="palette"><div class="box"><div class="q">${ic('search')}<span>mask sk</span></div>
+<h6>Actions</h6><div class="it on">${ic('cloud')}<span>Mask sky <small>on DSCF4121</small></span><span class="kbd">⇧⌘M</span></div>
+<div class="it">${ic('copy-check')}<span>Sync sky mask to 38 selected</span><span class="kbd">⌥⌘S</span></div>
+<div class="it">${ic('layers')}<span>Open in Compose as Develop layer</span><span class="kbd">⌘E</span></div>
+<h6>History</h6><div class="it">${ic('undo-2')}<span>Undo Batch edit: 38 photos</span><span class="kbd">⌘Z</span></div><h6>Photos</h6><div class="it">${ic('image')}<span>Skies · 41 photos <small>smart album</small></span><span></span></div></div></div>`}
+
+function render(){
+ const scr=screens[state.scr],ctx=ctxOf[state.scr],[dt,ds]=docOf[state.scr];
+ const modes=['library','edit'].map(m=>`<b class="${m===ctx?'on':''}">${m[0].toUpperCase()+m.slice(1)}</b>`).join('');
+ const vt=ctx==='library'?`<div class="vtabs">${['Grid','Loupe','Compare','Review'].map(v=>`<b class="${v===viewOf[state.scr]?'on':''}">${v}</b>`).join('')}</div>`:`<div class="scope">${ic('arrow-left')}Back to <b>Lofoten, June</b></div>`;
+ document.getElementById('scaler').innerHTML=`<div class="win" data-dir="${state.dir}" data-ctx="${ctx}" data-density="${state.density}" data-surround="${state.surround}">
+ <div class="tb"><div class="lights"><i></i><i></i><i></i></div><div class="modes">${modes}</div>${vt}
+ <div class="doc"><strong>${dt}</strong><span>${ds}</span></div>
+ <div class="cmd">${ic('search')}Search photos or run a command<kbd>⌘K</kbd></div>
+ <div class="tbr"><span class="ib">${ic('sparkles')}Assist</span><span class="ib">${ic('share')}Export</span></div></div>
+ <div class="body"><nav class="rail">${rail(ctx)}</nav><aside class="side">${side()}</aside><div class="main">${scr.main()}</div><aside class="insp">${scr.insp()}</aside><div class="strip">${scr.strip()}</div></div>
+ ${state.pal?palette():''}</div>`;
+ if(window.lucide)lucide.createIcons({attrs:{'stroke-width':1.75}});
+ document.querySelectorAll('canvas[data-hist]').forEach(drawHist);
+ const j=journeys[state.scr],d=dirs[state.dir];
+ document.getElementById('jEye').textContent='Journey · '+j[0];
+ document.getElementById('jTitle').textContent=j[1];
+ document.getElementById('jNotes').innerHTML=j[2].map(([a,b])=>`<li><b>${a}.</b> ${b}</li>`).join('');
+ document.getElementById('dTitle').textContent=d[0];
+ document.getElementById('dText').textContent=d[1];
+ document.getElementById('dTok').innerHTML=d[2].map(([k,v])=>`<span class="sw">${v.startsWith('#')?`<i style="background:${v}"></i>`:''}${k} ${v}</span>`).join('');
+ for(const [id,key] of [['dirSeg','dir'],['scrSeg','scr'],['denSeg','density'],['surSeg','surround']])document.querySelectorAll('#'+id+' button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.v===state[key])));
+ document.getElementById('palBtn').setAttribute('aria-pressed',String(state.pal));
+ try{localStorage.setItem('tessera-mock',JSON.stringify({dir:state.dir,scr:state.scr,density:state.density,surround:state.surround}))}catch(e){}
+ fit();
+}
+function drawHist(c){const x=c.getContext('2d'),W=c.width,H=c.height;x.clearRect(0,0,W,H);
+ const ch=[['rgba(230,90,80,.55)',.55,.16],['rgba(90,190,120,.5)',.5,.15],['rgba(90,140,235,.55)',.45,.17]];
+ x.globalCompositeOperation='screen';
+ for(const [col,mu,sd] of ch){x.beginPath();x.moveTo(0,H);for(let i=0;i<=W;i++){const t=i/W;const y=Math.exp(-((t-mu)**2)/(2*sd*sd))*.8+Math.exp(-((t-.18)**2)/(2*.05*.05))*.35+.03*Math.sin(i*.21);x.lineTo(i,H-Math.max(0,y)*H*.9)}x.lineTo(W,H);x.closePath();x.fillStyle=col;x.fill();}
+}
+function fit(){const st=document.getElementById('stage'),sc=document.getElementById('scaler');const s=Math.min(1,st.clientWidth/1280);sc.style.transform=`scale(${s})`;st.style.height=(790*s)+'px'}
+new ResizeObserver(fit).observe(document.getElementById('stage'));
+document.getElementById('dirSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(b){state.dir=b.dataset.v;render()}});
+document.getElementById('scrSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(b){state.scr=b.dataset.v;render()}});
+document.getElementById('denSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(b){state.density=b.dataset.v;render()}});
+document.getElementById('surSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(b){state.surround=b.dataset.v;render()}});
+document.getElementById('palBtn').addEventListener('click',()=>{state.pal=!state.pal;render()});
+document.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();state.pal=!state.pal;render()}if(e.key==='Escape'&&state.pal){state.pal=false;render()}});
+render();
+window.addEventListener('load',()=>{if(window.lucide)lucide.createIcons({attrs:{'stroke-width':1.75}})});
+})();
+</script>
