@@ -1,6 +1,6 @@
 # Tessera task board — Machine A coordinator
 
-Updated: 2026-09-27 21:22 UTC
+Updated: 2026-09-27 21:36 UTC
 
 User mandate: autonomously advance UI/UX redesign **and** the recovered engine
 queue, using parallel GPT-6 Astra/Luna agents; coordinate Machine B and keep
@@ -31,13 +31,19 @@ Machine A as sole main integrator. Do useful work while other tasks wait.
 | ENG-31 | M5-31 source reuse and cold timing | A root; wp/M5-31 `97eb4ca`, product `441da3e` | A local326tests and6timings pass. Direct SSH six-sample repeat on B FAILED first original cold106.084084ms/100ms; remaining5pass. All evidence retained in branch; no main merge. Cold diagnostics did not reproduce the outlier or establish a cause; A root retains the unresolved gate. No threshold changes or replacement samples. B completed receipt confirmed; result7fc92eb5 supersedes benchmark request execution. |
 | COM-01 | Establish usable authenticated Machine A ↔ B communication | A root + B coordinator | DONE verified SSH execution and existing-chat delivery via installed `codex queue`, peer reply, accepted/completed Git receipts. Exact B UUID01a0e323-c018-7fa3-9605-999a2dea6b32. B scheduled wakeup was verified at18:50:41Z (bd919fed); B has since paused its heartbeat for the resource audit. Preserve existing writers, use mailbox receipts and no duplicate enqueues. |
 | RES-01 | Repeated CPU smart-filter evaluation and pass retention | A root; main d2ac1226 | DONE bounded slice. Reviewed/tested e5bfbd5c merged with byte-identical crates/Cargo. 8focused,60library/1ignored (Metal exercised),48integration, strict pass. Full-mask work RES03, cancellation RES02 and global/GPU admission remain separate. B hold stays. |
-| RES-02 | Cancellation inside expensive transform kernels | A Sol implementation in codex/transform-cancellation; B retains Document/FFI integration | Primitive DONE main505c4c29:66tests and strict all-target Clippy pass, exact source matched. Compositor caller bridge in progress; no end-to-end cancellation claim. No B run. |
-| RES-03 | Repeated full-image filter-mask blending | A resource Sol; B report0926ae38 accepted | RED9a50e5a0 measured2compositions/514pixels/8224tilebytes/0digestbytes vs once-per-frame target. Bounded semantic-mask-key reuse source prepared; separately charges masked payload, counts repeated digest scans. GREEN pending after bridge slot. |
+| RES-02 | Cancellation inside expensive transform kernels | A Sol implementation in codex/transform-cancellation; B retains Document/FFI integration | Primitive DONE main505c4c29:66tests/strict; caller compositor bridge DONE main0d627023:31CPU tests/strict. No end-to-end app cancellation claim. B source plan056daf87 reviewed next; no B run. |
+| RES-03 | Repeated full-image filter-mask blending | A resource Sol; B report0926ae38 accepted | RED9a50e5a0 preserved. Branch4f5f0f49 passed10focused+25regressions/strict. Combined55d1dea1 passed48CPU/strict; root found partial-cancellation produced-byte counter omission. Sol correcting and re-gating before merge; no acceptance from old green after edits. |
 | OPS-01 | Persistent autonomous coordinators | A root + B coordinator | A coordinator remains active. B paused its heartbeat and load tests following the user’s report of severe responsiveness/resource pressure; no B rebuild, benchmark, runner or heartbeat restart without B/user direction. B audits low-impact resource evidence. A local work stays separate. |
 
 ## Ready / next
 
-A compiler slot: Sol bridge v5 focused/regression/strict gates. Resource RES03 GREEN next; root awaits B timer source correction. Loupe merged b18ab0bb; Luna source-audits UX02b persistence, no build/GUI. Resource final checks8focused/60library (Metal exercised,1ignored benchmark)/48integration/strict pass. Root merged/pushed RES01 atd2ac1226. No B builds or heartbeat restart.
+A compiler slot: Sol partial-mask cancellation accounting on codex/resource-integration.
+Luna implements reviewed UX02b latest-queue relaunch persistence, source/tests only until compiler release.
+Resource Sol reviews B outline2429de2 and viewport63a06a2 source, both UNRUN B.
+Timer correction7a58b48 integrated as main261a585f after19focused/0 and tiny GUI checks.
+GUI retained FFI19f predates Rust resource work; no combined-app performance claim.
+B cancellation plan request7e842a6c accepted receipt confirmed, plan056daf87 received.
+No B builds/tests/app launches or heartbeat restart.
 
 Main fb7c604 now contains the verified export slice and Review ownership/save-order
 safety. Final combined source b82fe333 passed436XCTest cases (one existing skip),
@@ -85,14 +91,14 @@ separate evidence; no threshold was weakened or failed sample replaced.
 | DEV-58 | Complete remaining Develop performance acceptance | A; `wp/M2-58` `196005e` product `5ff2679` | P01 actual input-to-present and P11 detail settle<=200ms /drag p95 regression<=10% remain unverified. Read M2-58-PRESENTATION-PLAN.md: actual Loupe scanout requires a non-occluded surface and detail CALayer publication lacks a display-time oracle. Keep acceptance pending; do not substitute callbacks or transaction completion. Existing correctness/parity evidence preserved. |
 | EXP-45 | Gain-map JPEG reference interoperability and implementation | A gainmap_gate_review (Sol); codex/gainmap-restoration | A core gate FAILED:4passed/1failed; four-stop native peak7.9837623 vs16. Captured outputs preserved. ImageIO options tested unchanged; software CoreImage reconstructs the same four-stop file to16, ImageIO path still8. Supplemental native tests being prepared; original failed assertion retained, no tolerance changes. B frozen core1pass/4fail; independent ISO controls also yield no native HDR on B macOS26.1, documented as tested-host limitation, not encoder acceptance. Independent libjpeg reconstruction passes5patches. B snapshot/capture preserved; no new B runs while its slot is reserved. |
 | INT-45 | Integrate validated DNG/PQ-HLG/native metadata slice | A root; main fb7c604 | DONE bounded slice. 564Rust/0fail/21ignored, strictchecks, FFI, final436XCTest/1existing skip/0fail +5SwiftTesting. DNG1.6/backward1.4 contract verified. Gain-map JPEG separate. |
-| UX-02 | Navigable Review and resume persistence | A root; Review workspace merged b2757c7 | Ownership/save barriers and mutation exclusion DONE:23regressions included in full436+5 gate. UX02a source4fcb802 passed43focused tests; 34captures include real ready pixels; recovered2-test status/ready gate passed. Checkpoint a54044f and isolated hands-on checks passed; fe0ff9e full455+5 passed and merged mainb2757c7. UX02b relaunch persistence still pending. |
+| UX-02 | Navigable Review and resume persistence | A root; Review workspace merged b2757c7 | Ownership/save barriers and mutation exclusion DONE:23regressions included in full436+5 gate. UX02a source4fcb802 passed43focused tests; 34captures include real ready pixels; recovered2-test status/ready gate passed. Checkpoint a54044f and isolated hands-on checks passed; fe0ff9e full455+5 passed and merged mainb2757c7. UX02b plan reviewed: latest queue, canonical same-path library/app-support, no prompts or auto-replay, recipe-authoritative status, fresh owner/generation. Luna implementing; move/rename identity remains outside contract. |
 | UX-03 | Selective batch editing and source/target clarity | A; after UX-01/02 contract | Preserve source/target snapshots and settings selection; define undo/review semantics, verify no unseen batch action from a single-key shortcut. |
 | UX-04 | Visual/accessibility refinement | A b516_review implementation; B agreed split | Masks slice041778b passed populated 288/380-point light/dark checks and ThemeLint (2/2), with root visual review; merged mainb2757c7 after full455+5 gate. Loupe bounded disclosure/keyboard slice merged mainb18ab0bb after final14/0 and GUI: both popovers Escape→dismiss/stayLoupe, nextEscape→Grid, Right/D/X noleak, narrowlongname disclosure. RAW pointer/liveproof and syntheticCmdQ remain unverified. No Document/global-theme edits. |
 | UX-05 | True live-RAW/layer continuity | A engine+B document contract | Separate substantial dependency: current transition is rendered copy. Define graph/persistence/version contract and release scenario before making live-raw claims. |
 
 ## Machine B / integration dependencies
 
-Last peer note read: `673e2a7`. B's resource hold supersedes its older queue.
+Last peer note read: `056daf87`. B's resource hold supersedes its older queue.
 Channels and Text targeted reruns passed with actual exit0; Transform was stopped
 at rasterized PSD after986%CPU and7.0GiB footprint (7.5GiB peak). Host43GiBswap
 is not all Tessera. B heartbeat and runner remain held. A accepted hold7cf0f7e2

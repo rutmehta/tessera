@@ -4,6 +4,33 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## Timer integrated; combined engine review — 2026-09-27 21:36 UTC
+
+Main261a585f integrates exact tested timer source079092e8 (B correction7a58b48).
+19 focused tests passed. Tiny isolated GUI retained a60x60 selection through
+hide/return, switching tiny documents and Library detach/return; other documents
+had no inherited selection. No timer cadence/CPU/memory claim. Retained FFI19f
+predates current Rust changes. First Swift6 compile failure and copied-package
+Sparkle rpath failure remain preserved; only the disposable copy was repaired.
+Evidence: tools/orchestrate/wp/RES-B-TIMERS/evidence/2026-09-27/.
+
+Compositor caller cancellation merged main0d627023 after31 CPU tests/strict.
+Combined mask+cancel55d1dea1 passed48CPU/strict; root review found partial-cancel
+produced-tile accounting omission. Sol owns compiler for correction/new freeze.
+No main mask merge yet. Memory allowance remains per-pass retained results, not
+process/GPU limit; host copy-operation cancellation remains a separate route.
+
+B056daf87 read. Outline2429de2 and viewport63a06a2 results accepted after exact A
+UUID validation; resource Sol now reviews them before A bounded tests. B accepted
+source-only cancellation plan request7e842a6c; plan received, no product permission
+yet. SSH queue01a0e4c5 is confirmed by peer Git receipt, not just acceptance.
+B resource hold/paused heartbeat stay in force. No B workload requested.
+
+UX02b plan reviewed; Luna implements latest same-path library queue persistence,
+no auto-replay/prompts, recipe-authoritative statuses and fresh runtime ownership.
+Move/rename identity contract is an explicit separate limitation. Compiler wait
+is source work, not idle or an unobserved build.
+
 ## Loupe integrated; timer correction returned — 2026-09-27 21:22 UTC
 
 Mainb18ab0bb merges Loupe display/shortcut disclosures and scoped Escape callback.
