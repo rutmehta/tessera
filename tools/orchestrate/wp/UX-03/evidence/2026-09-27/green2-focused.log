@@ -1,0 +1,75 @@
+[0/1] Planning build
+Building for production...
+[0/4] Write sources
+[1/4] Write swift-version--58304C5D6DBC2206.txt
+[3/4] Compiling TesseraCoreTests AgentReviewLayoutTests.swift
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentOverlayAnimationTests.swift:72:18: warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 70 |     func testReleasedOwnerInvalidatesRetainedTimerWithoutTicks() {
+ 71 |         var view: Overlay? = makeOverlay()
+ 72 |         weak var weakView = view
+    |                  `- warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 73 |         view?.updateAnimation()
+ 74 |         let timer = view?.animationTimer
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentViewportOwnershipTests.swift:32:18: warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+30 |     func testControllerReleasedBeforeDismantleStillClearsLocalResources() throws {
+31 |         var doc: DocumentController? = try document()
+32 |         weak var released = doc
+   |                  `- warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+33 |         let view = DocumentViewportView(frame: .zero)
+34 |         view.attach(doc)
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[#WeakMutability]: <https://docs.swift.org/compiler/documentation/diagnostics/weak-mutability>
+[3/5] Write Objects.LinkFileList
+ld: warning: object file (/Users/rutmehta/.codex/worktrees/export-integration/tessera/apps/mac/build/ffi/libtessera_ffi.a[2845](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[4/5] Linking TesseraPackageTests
+Build complete! (27.03s)
+Test Suite 'Selected tests' started at 2026-09-27 18:58:47.871.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-27 18:58:47.872.
+Test Suite 'BatchSettingsDraftTests' started at 2026-09-27 18:58:47.872.
+Test Case '-[TesseraCoreTests.BatchSettingsDraftTests testChangingGroupsRebuildsPreviewWithoutChangingSourceOrTargets]' started.
+Test Case '-[TesseraCoreTests.BatchSettingsDraftTests testChangingGroupsRebuildsPreviewWithoutChangingSourceOrTargets]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.BatchSettingsDraftTests testCropAndEmptyFieldsAreRejected]' started.
+Test Case '-[TesseraCoreTests.BatchSettingsDraftTests testCropAndEmptyFieldsAreRejected]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.BatchSettingsDraftTests testDefaultPatchCopiesToneAndColorButExcludesImageSpecificWork]' started.
+Test Case '-[TesseraCoreTests.BatchSettingsDraftTests testDefaultPatchCopiesToneAndColorButExcludesImageSpecificWork]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.BatchSettingsDraftTests testEmptyOpaqueIDsAreRejectedAtDraftBoundary]' started.
+Test Case '-[TesseraCoreTests.BatchSettingsDraftTests testEmptyOpaqueIDsAreRejectedAtDraftBoundary]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.BatchSettingsDraftTests testInvalidSourceSettingsCannotCreateMisleadingPreview]' started.
+Test Case '-[TesseraCoreTests.BatchSettingsDraftTests testInvalidSourceSettingsCannotCreateMisleadingPreview]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.BatchSettingsDraftTests testOnlyReferenceOrDuplicatesCannotApply]' started.
+Test Case '-[TesseraCoreTests.BatchSettingsDraftTests testOnlyReferenceOrDuplicatesCannotApply]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.BatchSettingsDraftTests testPatchLeavesExcludedAndUnselectedNestedTargetValuesIntact]' started.
+Test Case '-[TesseraCoreTests.BatchSettingsDraftTests testPatchLeavesExcludedAndUnselectedNestedTargetValuesIntact]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.BatchSettingsDraftTests testReferenceMustBeInExplicitSelection]' started.
+Test Case '-[TesseraCoreTests.BatchSettingsDraftTests testReferenceMustBeInExplicitSelection]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.BatchSettingsDraftTests testTargetsAreFrozenDeduplicatedAndNeverIncludeReference]' started.
+Test Case '-[TesseraCoreTests.BatchSettingsDraftTests testTargetsAreFrozenDeduplicatedAndNeverIncludeReference]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.BatchSettingsDraftTests testValidSourceWithoutSelectedPathsCannotClaimASettingsCopy]' started.
+Test Case '-[TesseraCoreTests.BatchSettingsDraftTests testValidSourceWithoutSelectedPathsCannotClaimASettingsCopy]' passed (0.000 seconds).
+Test Suite 'BatchSettingsDraftTests' passed at 2026-09-27 18:58:47.875.
+	 Executed 10 tests, with 0 failures (0 unexpected) in 0.003 (0.003) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-09-27 18:58:47.875.
+	 Executed 10 tests, with 0 failures (0 unexpected) in 0.003 (0.003) seconds
+Test Suite 'Selected tests' passed at 2026-09-27 18:58:47.875.
+	 Executed 10 tests, with 0 failures (0 unexpected) in 0.003 (0.004) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

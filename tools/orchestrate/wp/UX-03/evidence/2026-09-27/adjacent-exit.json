@@ -1,0 +1,20 @@
+{
+  "command": [
+    "swift",
+    "test",
+    "--package-path",
+    "apps/mac",
+    "--scratch-path",
+    "/Volumes/betterSSD/tessera-cache/swift/batch-settings-a988-green",
+    "-c",
+    "release",
+    "-Xswiftc",
+    "-enable-testing",
+    "--jobs",
+    "2",
+    "--filter",
+    "DevelopPanelsTests|testMergePatchRemovesMembersWithNull"
+  ],
+  "exit": 0,
+  "elapsed_seconds": 0.7202658327296376
+}
