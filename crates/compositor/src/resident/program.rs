@@ -490,7 +490,7 @@ impl Compiler<'_> {
                     0.0,
                 ];
             }
-            Adjustment::ColorLookup { size, data } => {
+            Adjustment::ColorLookup { size, data, .. } => {
                 if !(2..=256).contains(size)
                     || (*size as usize).checked_pow(3) != Some(data.len())
                     || data.iter().flatten().any(|v| !v.is_finite())
