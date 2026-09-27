@@ -1326,5 +1326,13 @@
     "status": "merged",
     "attempts": 0,
     "notes": "machine B; wp/B5-09b merged with main 1cd02b3; 287 XCTest; real downloads (steps 334/335/337) left for Sol"
+  },
+  {
+    "id": "M2-56",
+    "owner": "opus",
+    "title": "Layout foundations: shell budget, safe area, shared width contracts",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
