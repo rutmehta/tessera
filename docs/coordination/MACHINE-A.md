@@ -4,6 +4,21 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## Native cancellation and outline merged — 2026-09-27 22:00 UTC
+
+Main1fb7e983 contains the exact tested native preview/bake cancellation from
+cd07b435/7971a771. Five private tests,12 small mixed-backend integration tests and
+strict FFI Clippy passed;20MP benchmark ignored. Resultb69c56ca completed. Main
+5fa0faea contains bounded outline scheduling after12 focused tests; result674d7f3e
+completed. Neither slice establishes global memory limits or all host cancellation.
+
+Viewport correction candidatefb4d7df8 is frozen and unrun. Luna owns next Review
+persistence compiler slot; Sol independently reviews its revision/ownership logic.
+B accepted CPU-frame requestaa0a9692. Next source-only cache request04e1a883 has
+SSH queue01a0e4e0 transport acceptance; peer receipt pending. It adds a512MiB
+per-session retained-image cache allowance and skips oversized cache-only clones,
+not total working-memory admission. B workloads/heartbeat remain paused.
+
 ## Region API integrated; B callers queued — 2026-09-27 21:51 UTC
 
 Maina1d51f6b integrates cancellable CPU region rendering, exact8585478b Rust/Cargo.

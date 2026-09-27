@@ -1,6 +1,6 @@
 # Tessera task board — Machine A coordinator
 
-Updated: 2026-09-27 21:51 UTC
+Updated: 2026-09-27 22:00 UTC
 
 User mandate: autonomously advance UI/UX redesign **and** the recovered engine
 queue, using parallel GPT-6 Astra/Luna agents; coordinate Machine B and keep
@@ -33,14 +33,14 @@ Machine A as sole main integrator. Do useful work while other tasks wait.
 | RES-01 | Repeated CPU smart-filter evaluation and pass retention | A root; main d2ac1226 | DONE bounded slice. Reviewed/tested e5bfbd5c merged with byte-identical crates/Cargo. 8focused,60library/1ignored (Metal exercised),48integration, strict pass. Full-mask work RES03, cancellation RES02 and global/GPU admission remain separate. B hold stays. |
 | RES-02 | Cancellation inside expensive transform kernels | A Sol implementation in codex/transform-cancellation; B retains Document/FFI integration | Primitive DONE main505c4c29:66tests/strict; caller compositor bridge DONE main0d627023:31CPU tests/strict. No end-to-end app cancellation claim. B source plan056daf87 reviewed next; no B run. |
 | RES-03 | Repeated full-image filter-mask blending | A resource Sol; B report0926ae38 accepted | DONE bounded slice main7d58ceff, exact420826ac Rust/Cargo bytes. Combined predecessor48CPU/strict; final partial-counter fix15focused/strict and behavioralRED0vs4096. Per-pass masked admission/reuse; digest scans remain per lookup. Not a global memory cap. |
-| RES-04 | Cancellable CPU region API | A Sol; codex/cpu-region-cancellation | DONE maina1d51f6b exact8585478b crates/Cargo.19focused/strict pass. Region clipped at requested level; one pass across covered tiles. B source-only frame wiring requestaa0a9692 queued01a0e4d9; receipt pending, readback/PSD separate. |
+| RES-04 | Cancellable CPU region API | A Sol; codex/cpu-region-cancellation | DONE maina1d51f6b exact8585478b crates/Cargo.19focused/strict pass. Region clipped at requested level; one pass across covered tiles. B source-only frame wiring requestaa0a9692 queued01a0e4d9; peer accepted, readback/PSD separate. |
 | OPS-01 | Persistent autonomous coordinators | A root + B coordinator | A coordinator remains active. B paused its heartbeat and load tests following the user’s report of severe responsiveness/resource pressure; no B rebuild, benchmark, runner or heartbeat restart without B/user direction. B audits low-impact resource evidence. A local work stays separate. |
 
 ## Ready / next
 
-A compiler slot: resource Sol outline Swift gate session88242; next Luna repaired store gate, then Sol native preview/bake FFI gate cd07b435.
+A compiler slot: Luna repaired Review persistence gate; viewport Swift gate is next. Native FFI candidate cd07b435 passed and merged as 1fb7e983. Sol independently reviews persistence source while waiting for B frame candidate.
 Luna implements reviewed UX02b latest-queue relaunch persistence. Initial store4pass1fail and recursive recovery crash preserved; source repair separates raw read from explicit restore. No persistence main merge.
-Resource Sol prepares blocked-outline integration tests on isolated B outline2429de2 candidate. B corrected weak-controller-nil teardown atb2f8d85; result4b930939 accepted. Prepare new source/gate after current outline gate finishes.
+Resource Sol prepares blocked-outline integration tests on isolated B outline2429de2 candidate. B corrected weak-controller-nil teardown atb2f8d85; result4b930939 accepted. Separate clean candidatefb4d7df8 is frozen for16 focused ownership/outline/timer tests plus adjacent document cases; unrun.
 Timer correction7a58b48 integrated as main261a585f after19focused/0 and tiny GUI checks.
 GUI retained FFI19f predates Rust resource work; no combined-app performance claim.
 B cancellation plan056daf87 reviewed; native preview/bake source implementation request1a0330c4 peer accepted. Queue01a0e4cc verified via Git receipt. Region/frame/PSD handles remain separate.
@@ -93,9 +93,10 @@ B retains Document/frontend remediation. Main B5-16 integration stays held.
 | --- | --- | --- |
 | B5-16 | Tabbed Document inspector / persisted editors | Original six-pass/three-fail evidence retained; repaired Channels/Text pass. Transform interrupted under resource hold. No new B loads; main integration and interactive acceptance remain pending. |
 | RES-B-TIMERS | Two frontend overlay timer lifecycles | DONE bounded slice main261a585f/evidence1c5e16c1. Correction7a58b48 source079092e8 passed19focused/0 and observable tinyGUIflows. Original compile failure6544a1d6 preserved; result21c4f39e completed. No measured timer cadence/CPU/memory or full current-FFI app claim. |
-| RES-B-OUTLINE | Bound pending selection outline work | B2429de2 source; A resource Sol candidate/tests | Accepted674d7f3e. Source scheduler review sound; deterministic blocked-fetch switch/close/coalesce integration tests being added before A compile. Existing synchronous work is not cancelled. |
+| RES-B-OUTLINE | Bound pending selection outline work | B2429de2 source; A resource Sol candidate/tests | DONE main5fa0faea, exact tested398acb76/f2309eec Swift bytes.12 tests passed:3 blocked-fetch lifecycle,4 buffer,5 timers. Receipt674d7f3e completed. Already-running synchronous work remains uncancellable. |
 | RES-B-VIEWPORT | Ownership-safe viewport teardown | B63a06a2 source | Accepted9dc8db44; root review blocker: weak controller nil causes attach(nil) to skip local cleanup. Correctionb2f8d85 received/accepted4b930939; exact source review okay, four tiny ownership tests UNRUN pending A slot. |
-| RES-B-CANCEL | Native preview/bake caller cancellation | B source-only request1a0330c4 | Source d9974d7 received/acceptedb69c56ca. Exact filters.rs candidate711f9ada, currentmainregion integrationcd07b435; independent review/freeze, compile pending. Five CPU cases plus mixed-backend tiny document_filters and strict planned. Region/frame/PSD handles separate. |
+| RES-B-CANCEL | Native preview/bake caller cancellation | B source-only request1a0330c4 | DONE main1fb7e983; exact testedcd07b435/7971a771 Rust/Cargo.5 private plus12 mixed-backend integration tests passed,1 ignored benchmark; strict FFI Clippy passed. Receiptb69c56ca completed. Frame/readback/PSD handles and large-image latency remain separate. |
+| RES-B-CACHE | Byte-bound FFI image cache retention | B source-only request04e1a883 | Named512MiB plus4entry cap, skip oversize retention and preflight before prefix deep copy. Queue01a0e4e0 accepted by transport; peer receipt pending. Tiny64-byte/zero-budget tests required on A. Not a process/GPU cap. |
 | B5-15 | Export App Nap fix / performance | B published `aec242f`; export-only improvement does not clear main-thread maxima35.93/58.00ms vs8ms, AppKit layout exception, P19 or memory gates. B owns app fixes; A engine optimization only with explicit evidence/split. |
 | B5-12b | Transform acceptance | Interrupted for resource hold; not accepted. No rerun. |
 | B5-13 | Liquify / move / extend | B owns preserved work and current acceptance. |
