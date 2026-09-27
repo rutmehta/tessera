@@ -6,21 +6,27 @@ struct WorkspaceHeader: View {
     let model: AppModel
     private var source: String { model.source == .all ? model.library.title : model.source.title }
 
+    private var target: String {
+        if model.isReviewing { return "Review" + (model.selectedReviewEntry.map { " › \($0.name)" } ?? "") }
+        if model.isReviewEditing { return "Review › " + (model.editTarget?.name ?? "Photo unavailable") }
+        return model.source == .people ? "People" : source + (model.focusedItem.map { " › \($0.name)" } ?? "")
+    }
+
     var body: some View {
         HStack(spacing: Theme.Space.m) {
-            if model.isPhotoEditing {
-                Button { model.returnToLibrary() } label: {
-                    Label("Back to Library", systemImage: "arrow.left")
+            if model.isPhotoEditing || model.isReviewing {
+                Button { model.isPhotoEditing ? model.returnFromPhotoEdit() : model.returnToLibrary() } label: {
+                    Label(model.isReviewEditing ? "Back to Review" : "Back to Library", systemImage: "arrow.left")
                 }
                 .buttonStyle(.theme(.borderless, height: Theme.Height.regular))
-                .help("Return to \(source), preserving your selection and position")
+                .help(model.isReviewEditing ? "Return to the same review photo and draft" : "Return to \(source), preserving your selection and position")
                 .accessibilityIdentifier("workspace-back-to-library")
             }
             VStack(alignment: .leading, spacing: Theme.Space.xxs) {
-                Text(model.source == .people ? "People" : source + (model.focusedItem.map { " › \($0.name)" } ?? ""))
+                Text(target)
                     .font(Theme.Fonts.labelMedium).foregroundStyle(Theme.textPrimary)
                     .lineLimit(1).truncationMode(.middle)
-                    .help(model.focusedItem?.name ?? source)
+                    .help(target)
                     .accessibilityIdentifier("workspace-photo-target")
                 Text(model.workspaceScope)
                     .font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)

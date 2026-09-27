@@ -10,6 +10,7 @@ enum ViewMode: String, CaseIterable, Identifiable {
     case grid = "Grid"
     case loupe = "Loupe"
     case compare = "Compare"
+    case review = "Review"
     /// Layered documents (WP B5-02): viewport, Layers, Properties and History.
     case document = "Document"
     var id: String { rawValue }
@@ -76,6 +77,7 @@ struct Toast: Identifiable, Equatable {
     func selectionDidChange(scrollToFocus: Bool)
     func thumbnailSizeDidChange()
     func workspaceWillEnterPhotoEdit()
+    func workspaceWillEnterReview()
     func workspaceWillLeavePhotoEdit()
     func workspaceDidReturnToLibrary()
     /// The items' previews changed (a saved edit); cells should request them again.
@@ -103,6 +105,7 @@ extension LibraryObserver {
     func libraryDidUpdate(_ change: VisibleChange) {}
     func thumbnailSizeDidChange() {}
     func workspaceWillEnterPhotoEdit() {}
+    func workspaceWillEnterReview() {}
     func workspaceWillLeavePhotoEdit() {}
     func workspaceDidReturnToLibrary() {}
     func thumbnailsDidChange(_ positions: IndexSet) {}
@@ -177,6 +180,9 @@ final class AppModel {
     /// Layered documents (WP B5-02): open documents, tabs, New / Open / Save.
     let documents = DocumentWorkspace()
     private(set) var photoEditing = false
+    var reviewNavigation = ReviewNavigationState()
+    @ObservationIgnored private var explicitEditKey: String?
+    private(set) var editingFromReview = false
     var photoInspectorTab: PhotoInspectorTab = .develop
     var layeredCopyRequest: LayeredCopyRequest?
     @ObservationIgnored private var workspaceTransition = false
@@ -189,16 +195,24 @@ final class AppModel {
         let compareZoom: Int
         let modeBeforeCompare: ViewMode
         let sidebarVisibility: NavigationSplitViewVisibility
+        let inspectorVisible: Bool
     }
 
     var viewMode: ViewMode = .grid {
         didSet {
             guard viewMode != oldValue else { return }
-            if !workspaceTransition, viewMode != .loupe, photoEditing {
-                liveObservers.forEach { $0.workspaceWillLeavePhotoEdit() }
+            if !workspaceTransition, (oldValue == .review || (viewMode != .loupe && photoEditing)) {
+                if photoEditing { liveObservers.forEach { $0.workspaceWillLeavePhotoEdit() } }
                 photoEditing = false
-                if let saved = libraryReturnState { documents.columnVisibility = saved.sidebarVisibility }
+                explicitEditKey = nil
+                editingFromReview = false
+                if let saved = libraryReturnState {
+                    documents.columnVisibility = saved.sidebarVisibility
+                    showInspector = saved.inspectorVisible
+                }
                 libraryReturnState = nil
+                closeDevelop()
+                refreshFocusSummary()
             }
             if viewMode == .compare, compare == nil {
                 // Chosen from the toolbar: build a pair, or refuse.
@@ -423,10 +437,20 @@ final class AppModel {
 
     func install(_ lib: any PhotoLibrary, snapshot: CullController.InitialSnapshot? = nil) {
         if photoEditing { liveObservers.forEach { $0.workspaceWillLeavePhotoEdit() } }
-        if let saved = libraryReturnState { documents.columnVisibility = saved.sidebarVisibility }
+        if let saved = libraryReturnState {
+            documents.columnVisibility = saved.sidebarVisibility
+            showInspector = saved.inspectorVisible
+        }
         photoEditing = false
+        explicitEditKey = nil
+        editingFromReview = false
         libraryReturnState = nil
         layeredCopyRequest = nil
+        if viewMode == .review {
+            workspaceTransition = true
+            viewMode = .grid
+            workspaceTransition = false
+        }
         loader.removeAll()
         (library as? EngineLibrary)?.onCatalogChange(nil)
         syncWaiters.removeAll()
@@ -803,9 +827,15 @@ final class AppModel {
 
     // MARK: Library / Photo Edit workspace
 
+    var isReviewing: Bool { viewMode == .review }
+    var isReviewEditing: Bool { editingFromReview && isPhotoEditing }
+    var isLibraryWorkspace: Bool { !isPhotoEditing && !isReviewing && viewMode != .document }
     var isPhotoEditing: Bool { photoEditing && viewMode != .document }
     var editTarget: PhotoItem? { isPhotoEditing ? focusedItem : nil }
-    var canEnterPhotoEdit: Bool { focusedItem != nil && source != .people && viewMode != .document }
+    var canEnterPhotoEdit: Bool {
+        if isReviewing { return reviewTargetItem.map { canOpenReviewEdit($0) } ?? false }
+        return focusedItem != nil && source != .people && viewMode != .document
+    }
     /// Empty panels describe the actual session state instead of sending Edit back to Loupe.
     var photoEditAvailabilityHint: String {
         switch developStatus {
@@ -817,6 +847,7 @@ final class AppModel {
     }
 
     var workspaceScope: String {
+        if isReviewing { return selectedReviewEntry == nil ? "No review photo selected" : "Review actions apply to 1 photo" }
         if isPhotoEditing {
             guard let item = editTarget else { return "No photo selected" }
             return item.kind == .synthetic ? "Preview only · STUB" : "Editing 1 photo · \(item.kind.rawValue)"
@@ -833,7 +864,7 @@ final class AppModel {
     }
 
     func requestLayeredCopy() {
-        guard source != .people, viewMode != .document, let item = focusedItem else { return }
+        guard !isReviewing, source != .people, viewMode != .document, let item = focusedItem else { return }
         layeredCopyRequest = LayeredCopyRequest(item: item)
     }
 
@@ -844,8 +875,8 @@ final class AppModel {
         documents.editInLayers(item)
     }
 
-    func enterPhotoEdit() {
-        guard canEnterPhotoEdit, !isPhotoEditing else { return }
+    private func rememberLibraryPlace() {
+        guard libraryReturnState == nil else { return }
         let keys = visible.map { workspaceKey(for: library.items[$0]) }
         func key(_ position: Int?) -> String? { position.flatMap { keys.indices.contains($0) ? keys[$0] : nil } }
         libraryReturnState = LibraryReturnState(
@@ -854,22 +885,37 @@ final class AppModel {
             view: viewMode, compareKeys: compare?.ids.map { workspaceKey(for: library.items[$0]) },
             compareActive: compare?.active ?? 0, compareZoom: compare?.zoomToggles ?? 0,
             modeBeforeCompare: modeBeforeCompare,
-            sidebarVisibility: documents.columnVisibility)
+            sidebarVisibility: documents.columnVisibility, inspectorVisible: showInspector)
+    }
+
+    func enterPhotoEdit() {
+        if isReviewing { editReviewedPhoto(); return }
+        guard canEnterPhotoEdit, !isPhotoEditing else { return }
+        rememberLibraryPlace()
         liveObservers.forEach { $0.workspaceWillEnterPhotoEdit() }
+        beginPhotoEdit()
+    }
+
+    private func beginPhotoEdit() {
         workspaceTransition = true
         photoEditing = true
         documents.columnVisibility = .detailOnly
         viewMode = .loupe
         workspaceTransition = false
+        refreshFocusSummary()
         notifySelection(scroll: false)
     }
 
     func returnToLibrary(grid: Bool = false) {
-        guard isPhotoEditing, let saved = libraryReturnState else { return }
-        liveObservers.forEach { $0.workspaceWillLeavePhotoEdit() }
+        guard isPhotoEditing || isReviewing, let saved = libraryReturnState else { return }
+        if isPhotoEditing { liveObservers.forEach { $0.workspaceWillLeavePhotoEdit() } }
+        closeDevelop()
         workspaceTransition = true
         photoEditing = false
+        explicitEditKey = nil
+        editingFromReview = false
         documents.columnVisibility = saved.sidebarVisibility
+        showInspector = saved.inspectorVisible
         libraryReturnState = nil
         let keys = visible.map { workspaceKey(for: library.items[$0]) }
         let restored = saved.selection.resolve(in: keys)
@@ -895,7 +941,118 @@ final class AppModel {
 
     /// Source/filter changes are explicit Library navigation, never a hidden edit-scope mutation.
     func leavePhotoEditForLibraryChange() {
+        if isPhotoEditing || isReviewing { returnToLibrary() }
+    }
+
+    // MARK: Review destination (session-local)
+
+    var selectedReviewEntry: AgentReviewEntry? {
+        reviewNavigation.selectedID.flatMap { agent.queue.entry($0) }
+    }
+
+    var reviewTargetItem: PhotoItem? {
+        guard let entry = selectedReviewEntry, let target = agent.queueTarget(entry),
+              let id = agent.currentItem(for: target), library.items.indices.contains(id) else { return nil }
+        return library.items[id]
+    }
+
+    var reviewUnavailableReason: String? {
+        guard selectedReviewEntry != nil else { return nil }
+        guard let owner = agent.reviewLibrary else { return "This review has no available library owner." }
+        guard engineLibrary === owner else {
+            return "This queue belongs to another library session. Its actions are unavailable here."
+        }
+        return reviewTargetItem == nil ? "This photo is no longer available in the open library." : nil
+    }
+
+    func reconcileReviewNavigation() {
+        reviewNavigation.reconcile(queue: agent.queue, generation: agent.reviewGeneration)
+    }
+
+    func enterReview() {
+        guard viewMode != .document else { return }
+        if isReviewEditing { returnFromPhotoEdit(); return }
         if isPhotoEditing { returnToLibrary() }
+        guard !isReviewing else { reconcileReviewNavigation(); return }
+        rememberLibraryPlace()
+        liveObservers.forEach { $0.workspaceWillEnterReview() }
+        closeDevelop()
+        reconcileReviewNavigation()
+        workspaceTransition = true
+        documents.columnVisibility = .detailOnly
+        showInspector = true
+        viewMode = .review
+        workspaceTransition = false
+        notifySelection(scroll: false)
+    }
+
+    func selectReviewPhoto(_ imageID: String) {
+        reviewNavigation.select(imageID, queue: agent.queue)
+    }
+
+    func moveReviewSelection(_ delta: Int) {
+        if isReviewEditing { liveObservers.forEach { $0.workspaceWillLeavePhotoEdit() } }
+        reviewNavigation.move(delta, queue: agent.queue)
+        if isReviewEditing {
+            explicitEditKey = reviewTargetItem.map { workspaceKey(for: $0) }
+            // Missing rows must return to Review, never edit the underlying Library focus.
+            guard explicitEditKey != nil else { returnFromPhotoEdit(); return }
+            refreshFocusSummary()
+            notifySelection(scroll: false)
+        }
+    }
+
+    private func canOpenReviewEdit(_ item: PhotoItem) -> Bool {
+        guard let ref = item.engineImage, let owner = engineLibrary else { return item.kind == .synthetic }
+        return !agent.isMutating(imageID: ref.imageID, library: owner)
+    }
+
+    func editReviewedPhoto() {
+        guard isReviewing, let item = reviewTargetItem, canOpenReviewEdit(item) else { return }
+        openReviewPhotoForEditing(item.id)
+    }
+
+    func returnFromPhotoEdit() {
+        guard isReviewEditing else { returnToLibrary(); return }
+        liveObservers.forEach { $0.workspaceWillLeavePhotoEdit() }
+        closeDevelop()
+        workspaceTransition = true
+        photoEditing = false
+        explicitEditKey = nil
+        editingFromReview = false
+        viewMode = .review
+        workspaceTransition = false
+        refreshFocusSummary()
+        notifySelection(scroll: false)
+    }
+
+    func backFromReview() {
+        if reviewNavigation.isDrafting { reviewNavigation.cancelRedo() }
+        else { returnToLibrary() }
+    }
+
+    func acceptReviewedPhoto(advance: Bool) {
+        guard isReviewing, let entry = selectedReviewEntry, let target = agent.queueTarget(entry) else { return }
+        let generation = agent.reviewGeneration
+        agent.accept(target) { [weak self] succeeded in
+            guard let self, self.isReviewing, advance else { return }
+            self.reviewNavigation.advanceAfterAccept(imageID: entry.imageID, generation: generation,
+                                                     succeeded: succeeded, queue: self.agent.queue)
+        }
+    }
+
+    func revertReviewedPhoto() {
+        guard isReviewing, let entry = selectedReviewEntry, let target = agent.queueTarget(entry) else { return }
+        agent.revert(target)
+    }
+
+    func redoReviewedPhoto() {
+        let instruction = reviewNavigation.instruction.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard isReviewing, !instruction.isEmpty, let entry = selectedReviewEntry,
+              let target = agent.queueTarget(entry), agent.currentItem(for: target) != nil,
+              !agent.isRunning, agent.busy.isEmpty else { return }
+        agent.redo(target, instruction: instruction)
+        reviewNavigation.cancelRedo()
     }
 
     // MARK: Selection
@@ -929,7 +1086,7 @@ final class AppModel {
 
     func selectAll() {
         if viewMode == .document { documents.current?.selectAll(); return }
-        guard !visible.isEmpty else { return }
+        guard !isReviewing, !isReviewEditing, !visible.isEmpty else { return }
         selection = IndexSet(integersIn: 0..<visible.count)
         refreshFocusSummary()
         notifySelection(scroll: false)
@@ -949,6 +1106,10 @@ final class AppModel {
     /// Grid: spatial arrows. Loupe (and ⌥ in the grid): ←/→ between groups, ↑/↓ within a group
     /// (docs/06 §3). Unfiltered, group moves come from the Rust session.
     func navigate(_ move: Move, groupwise: Bool, extend: Bool) {
+        if isReviewing || isReviewEditing {
+            moveReviewSelection(move == .left || move == .up ? -1 : 1)
+            return
+        }
         if viewMode == .compare {
             if move == .left || move == .right { setCompareActive(move == .left ? 0 : 1) }
             return
@@ -1019,7 +1180,7 @@ final class AppModel {
     // MARK: Culling
 
     func perform(_ action: CullAction) {
-        guard !isPhotoEditing else { return }
+        guard !isPhotoEditing, !isReviewing else { return }
         if let pair = compare {
             run { try self.cull.apply(action, to: [pair.activeID]) }
             return
@@ -1088,16 +1249,17 @@ final class AppModel {
     }
 
     /// Edit ▸ Undo / Redo titles: the People view names the engine's people edit.
-    var undoMenuTitle: String { isPhotoEditing ? "Undo Photo Edit" : viewMode != .document && source == .people ? people.undoTitle : "Undo" }
-    var redoMenuTitle: String { isPhotoEditing ? "Redo Photo Edit" : viewMode != .document && source == .people ? people.redoTitle : "Redo" }
+    var undoMenuTitle: String { isReviewing ? "Undo (Edit photo first)" : isPhotoEditing ? "Undo Photo Edit" : viewMode != .document && source == .people ? people.undoTitle : "Undo" }
+    var redoMenuTitle: String { isReviewing ? "Redo (Edit photo first)" : isPhotoEditing ? "Redo Photo Edit" : viewMode != .document && source == .people ? people.redoTitle : "Redo" }
 
     func undo() {
         if viewMode == .document {
             if let doc = documents.current { doc.undo() } else { statusMessage = "Nothing to undo" }
             return
         }
+        if isReviewing { statusMessage = "Use Edit photo to undo recipe changes"; return }
         // The People view (grid or detail) is frontmost: ⌘Z replays the engine's people history.
-        if source == .people {
+        if source == .people && !isPhotoEditing {
             people.undo()
             reportPeople()
             return
@@ -1130,7 +1292,8 @@ final class AppModel {
             if let doc = documents.current { doc.redo() } else { statusMessage = "Nothing to redo" }
             return
         }
-        if source == .people {
+        if isReviewing { statusMessage = "Use Edit photo to redo recipe changes"; return }
+        if source == .people && !isPhotoEditing {
             people.redo()
             reportPeople()
             return
@@ -1179,8 +1342,15 @@ final class AppModel {
     }
 
     private func refreshFocusSummary() {
-        if let f = focus, f < visible.count {
-            let it = item(at: f)
+        let explicit = explicitEditKey.flatMap { key -> PhotoItem? in
+            if let owner = engineLibrary {
+                return owner.itemOfImage[key].map { owner.items[$0] }
+            }
+            return library.items.first { workspaceKey(for: $0) == key }
+        }
+        let libraryItem = focus.flatMap { visible.indices.contains($0) ? item(at: $0) : nil }
+        if let it = explicitEditKey == nil ? libraryItem : explicit {
+            let f = positionOfID.indices.contains(it.id) && positionOfID[it.id] >= 0 ? positionOfID[it.id] : nil
             if focusedItem != it {
                 // Renumbered by an in-place update: same photo, no reload of its panels.
                 let samePhoto = it.engineImage != nil && focusedItem?.engineImage == it.engineImage
@@ -1260,7 +1430,7 @@ final class AppModel {
     /// Panels compare a bounded sample. Do not materialize Select All's 20k IDs
     /// just to discard everything after the first 500.
     func targetIDs(limit: Int) -> [Int] {
-        guard limit > 0 else { return [] }
+        guard limit > 0, !isReviewing else { return [] }
         if isPhotoEditing { return focusedItem.map { [$0.id] } ?? [] }
         if let pair = compare { return [pair.activeID] }
         guard let f = focus else { return [] }
@@ -1783,14 +1953,24 @@ final class AppModel {
 
     // MARK: Agent edits (WP M3-11)
 
-    /// "Show" in the review queue: that photo in the loupe.
+    /// Inspection callers (People and tether) retain Library Loupe and its culling keys.
     func showInLoupe(_ itemID: Int) {
+        returnToLibrary()
         if positionOfID.indices.contains(itemID), positionOfID[itemID] < 0 {
             assist.clearPersonFilter()
             if positionOfID[itemID] < 0 { setSource(.all) }
         }
         select(id: itemID)
         viewMode = .loupe
+    }
+
+    /// Review's explicit edit target is independent of the filtered Library selection.
+    func openReviewPhotoForEditing(_ itemID: Int) {
+        guard isReviewing, library.items.indices.contains(itemID),
+              canOpenReviewEdit(library.items[itemID]) else { return }
+        editingFromReview = true
+        explicitEditKey = workspaceKey(for: library.items[itemID])
+        beginPhotoEdit()
     }
 
     /// Writes pending develop edits and closes the session when it shows one of `itemIDs`, so an

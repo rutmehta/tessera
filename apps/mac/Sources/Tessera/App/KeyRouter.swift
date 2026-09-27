@@ -62,7 +62,7 @@ final class KeyRouter {
     /// left to the menu: the menu's ⌘E is also Layer ▸ Merge Down, and SwiftUI swaps the key equivalent
     /// between the two items when the mode changes; a stale menu item left ⌘E doing nothing in the grid.
     func handleEditInLayers(_ event: NSEvent) -> Bool {
-        guard model.viewMode != .document, model.source != .people, !isBusyWindow(event),
+        guard model.viewMode != .document, !model.isReviewing, model.source != .people, !isBusyWindow(event),
               event.modifierFlags.intersection([.command, .shift, .option, .control]) == .command,
               event.charactersIgnoringModifiers?.lowercased() == "e" else { return false }
         guard model.documents.opening == nil else { return true }
@@ -88,8 +88,9 @@ final class KeyRouter {
         if model.viewMode == .document, handleToolLetterOverKeyOwner(event) { return true }
         if shouldIgnore(event) { return false }
         if model.viewMode == .document { return handleDocument(event) }
+        if model.isReviewing { return handleReview(event) }
         // The People view owns its keys (name fields, Esc); culling keys would act on a hidden photo.
-        if model.source == .people { return false }
+        if model.source == .people && !model.isPhotoEditing { return false }
         // Develop tools receive shortcuts only when a key-owning control is not focused.
         if model.isPhotoEditing {
             if MaskTools.shared.model === model, MaskTools.shared.handleKey(event) { return true }
@@ -150,10 +151,27 @@ final class KeyRouter {
         return true
     }
 
+    private func handleReview(_ event: NSEvent) -> Bool {
+        switch event.keyCode {
+        case 53: model.backFromReview(); return true
+        case 123, 126: model.moveReviewSelection(-1); return true
+        case 124, 125: model.moveReviewSelection(1); return true
+        default: break
+        }
+        switch event.charactersIgnoringModifiers?.lowercased() {
+        case "d", "e": model.editReviewedPhoto()
+        case "g": model.returnToLibrary(grid: true)
+        // Review has no cull/accept-all shortcuts. Each mutation is an explicit row action.
+        case "x", "u", "p", "1", "2", "3", "6", "7", "8", "9", "b", "a", "k", "y", "n", "c": break
+        default: return false
+        }
+        return true
+    }
+
     /// Photo Edit has one photo target. Library decision keys never leak into it.
     private func handlePhotoEdit(_ event: NSEvent) -> Bool {
         switch event.keyCode {
-        case 53: model.returnToLibrary(); return true
+        case 53: model.returnFromPhotoEdit(); return true
         case 123, 126: model.navigate(.left, groupwise: false, extend: false); return true
         case 124, 125: model.navigate(.right, groupwise: false, extend: false); return true
         default: break

@@ -67,11 +67,13 @@ struct AppCommands: Commands {
         CommandGroup(before: .sidebar) {
             Button("Edit Photo    (D)") { model.enterPhotoEdit() }
                 .disabled(!model.canEnterPhotoEdit)
-            Button("Back to Library") { model.returnToLibrary() }
-                .disabled(!model.isPhotoEditing)
+            Button(model.isReviewEditing ? "Back to Review" : "Back to Library") {
+                if model.isPhotoEditing { model.returnFromPhotoEdit() } else { model.returnToLibrary() }
+            }
+                .disabled(!model.isPhotoEditing && !model.isReviewing)
             Divider()
             Button("Grid    (G)") {
-                if model.isPhotoEditing { model.returnToLibrary(grid: true) } else { model.viewMode = .grid }
+                if model.isPhotoEditing || model.isReviewing { model.returnToLibrary(grid: true) } else { model.viewMode = .grid }
             }
             Button("Loupe    (E / Return)") { model.returnToLibrary(); model.viewMode = .loupe }
             Button("Compare    (C)") { model.returnToLibrary(); model.enterCompare() }
@@ -166,14 +168,14 @@ struct AppCommands: Commands {
             Button("Delete from Disk…") { model.confirmDeleteFromDisk() }
                 .keyboardShortcut(.delete, modifiers: .command)
             }
-            .disabled(model.isPhotoEditing || docMode || model.source == .people)
+            .disabled(model.isPhotoEditing || model.isReviewing || docMode || model.source == .people)
         }
         documentMenus
         Group {   // M2-50: Library + Photo as one builder item (the builder takes at most 10)
         CommandMenu("Library") {
             Button("Open in Layers…") { model.requestLayeredCopy() }
                 .shortcut(!docMode, "e", .command)
-                .disabled(docMode || model.focusedItem == nil)
+                .disabled(docMode || model.isReviewing || model.focusedItem == nil)
             Divider()
             Button("New Album…") { model.collections.newAlbum() }
                 .keyboardShortcut("n", modifiers: [.command, .option])
@@ -204,8 +206,8 @@ struct AppCommands: Commands {
             Button("Auto Edit…") { model.agent.present() }
                 .keyboardShortcut("a", modifiers: [.command, .shift])
                 .disabled(model.agent.isRunning)
-            Button("Agent Review…") { model.agent.showReview = true }
-                .disabled(model.agent.queue.isEmpty)
+            Button("Agent Review") { model.enterReview() }
+                .disabled(docMode)
             Divider()
             Button("Reset All Settings") { model.resetDevelop() }
                 .keyboardShortcut("r", modifiers: [.command, .shift])
