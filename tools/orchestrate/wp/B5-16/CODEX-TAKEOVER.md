@@ -362,3 +362,10 @@ completion, cancels obsolete bakes, and removes uncancellable native prewarm.
 Five tiny deterministic Rust tests are UNRUN; source formatted/diff checked,
 compilation pending A. Exact requirements/limits in CANCELLATION-ROUTE-PLAN.md.
 No viewport/readback/PSD handle or engine-api implementation change.
+
+### Weak-owner teardown correction — 37c3461b
+
+Separate follow-up after d9974d7: same-non-nil early return keeps attach(nil)
+cleanup active after weak controller deallocation. New 1x1 injected-surface
+regression observes ring release and marquee/timer eligibility reset; UNRUN and
+uncompiled. A outline integration test file untouched. Resource hold remains.

@@ -313,3 +313,23 @@ These use no windows/fixtures but viewport initialization may create a Metal
 device/pipeline on A. They verify ownership/callback lifecycle, not measured
 IOSurface reclamation. Compilation, test execution and actual surface-lifetime
 validation remain pending A; no B loads or heartbeat restart.
+
+## Weak-owner teardown correction — review37c3461b
+
+A reviewddaf1741 identified a real omission: weak controller can become nil
+before SwiftUI dismantles its viewport; attach(nil)'s equality early return
+then skips local ring/current/lastPushed/ants cleanup. Accepted the exact-target
+source-only request after native cancellationd9974d7 was committed.
+
+The early return now applies only to the same non-nil document. Backend/callback
+cleanup still requires old.viewport === self. Added a narrow offscreen lifecycle
+seam to retain a single supplied IOSurface without a backend request/Metal
+texture, and a read-only ring count. New UNRUN regression injects a 1x1 surface
+and marquee, closes/releases the controller, confirms weak owner nil, then
+asserts teardown clears the retained ring and animation eligibility. Repeated
+teardown remains idempotent. Existing three ownership regressions are unchanged.
+The test creates no window and schedules no render; viewport initialization can
+still create its usual Metal pipeline on A. This tests local ownership/reset,
+not runtime GPU allocation reclamation. Compilation/tests pending A; only source
+review/diff check on B. A-owned DocumentOutlineLifecycleTests.swift untouched.
+No B build/test/app/heartbeat restart or main merge.

@@ -27,6 +27,33 @@ final class DocumentViewportOwnershipTests: XCTestCase {
         XCTAssertNil(doc.onFrame)
     }
 
+    func testControllerReleasedBeforeDismantleStillClearsLocalResources() throws {
+        var doc: DocumentController? = try document()
+        weak var released = doc
+        let view = DocumentViewportView(frame: .zero)
+        view.attach(doc)
+        let surface = try XCTUnwrap(DocumentSurfaces.make(width: 1, height: 1))
+        view.retainSurfaceForLifecycleTest(surface)
+        let ants = try XCTUnwrap(view.subviews.compactMap { $0 as? MarchingAntsView }.first)
+        ants.rect = CGRect(x: 0, y: 0, width: 1, height: 1)
+        XCTAssertEqual(view.retainedSurfaceCount, 1)
+        XCTAssertTrue(ants.wantsAnimation)
+        doc?.close()
+        doc = nil
+        XCTAssertNil(released)
+        XCTAssertNil(view.controller, "exercise nil weak owner before teardown")
+
+        view.detachFromWorkspace()
+        XCTAssertEqual(view.retainedSurfaceCount, 0, "dismantle must release its ring before view deallocation")
+        XCTAssertNil(ants.rect)
+        XCTAssertFalse(ants.wantsAnimation)
+        XCTAssertNil(ants.animationTimer)
+        XCTAssertFalse(view.toolOverlay.wantsAnimation)
+        XCTAssertNil(view.toolOverlay.animationTimer)
+        view.detachFromWorkspace()
+        XCTAssertEqual(view.retainedSurfaceCount, 0)
+    }
+
     func testStaleOwnerCannotClearNewOwnerCallback() throws {
         let doc = try document()
         defer { doc.close() }
