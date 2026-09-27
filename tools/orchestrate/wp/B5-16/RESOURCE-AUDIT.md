@@ -260,3 +260,23 @@ real AppKit occlusion notification delivery and visible document switching remai
 separate, bounded follow-up checks on A. This is not runtime leak closure.
 No outline coalescing, backend surface teardown, engine mask edits or main merge
 is included. B hold/paused heartbeat and dirty B5-16a snapshot remain unchanged.
+
+### Timer Swift 6 compilation correction — ae3c2b6a
+
+A's first compile of exact4797b2a failed before any tests: the callback's
+non-Sendable Timer parameter was captured by MainActor.assumeIsolated at line32.
+Raw evidence is preserved on main6544a1d6 under
+`tools/orchestrate/wp/RES-B-TIMERS/evidence/2026-09-27/first-compile/`.
+Validated the follow-up's exact B target/expiry and accepted before editing.
+
+Moved weak-self resolution and nil-owner `timer.invalidate()` into the original
+Timer callback, outside assumeIsolated. Only the live MainActor view crosses
+into the synchronous actor assertion; the Timer parameter does not. Scheduling
+remains on the main run loop, and deterministic manual test firing remains on
+MainActor. No detached task, unchecked Sendable wrapper, or concurrency-check
+suppression was added. Existing five regression cases are unchanged and UNRUN
+on B, including the released-owner case that exercises this branch.
+
+Local verification: source diff review and git diff --check only. Compilation
+and all test outcomes for the correction remain pending A validation. The
+original failed compile is retained, not replaced by a claimed pass.

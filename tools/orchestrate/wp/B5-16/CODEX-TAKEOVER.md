@@ -319,3 +319,10 @@ ToolOverlay requires active document plus current viewport ownership. Added five
 deterministic manual-tick XCTest cases, all UNRUN and compilation pending on A.
 RESOURCE-AUDIT.md contains validation plan and limits. No B workloads/heartbeat
 restart, no outline/surface changes, no main merge.
+
+### Timer compilation follow-up — ae3c2b6a
+
+A4797b2a compile failed before tests (SendingRisksDataRace); evidence main6544a1d6.
+Source correction keeps callback Timer invalidation outside assumeIsolated and
+captures only live MainActor self within it. Tests unchanged, UNRUN on B; A owns
+compile/focused validation. No B workloads or heartbeat restart.

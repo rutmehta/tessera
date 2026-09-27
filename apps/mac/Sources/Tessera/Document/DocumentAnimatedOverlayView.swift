@@ -26,12 +26,14 @@ class DocumentAnimatedOverlayView: NSView {
         }
         guard animationTimer == nil else { return }
         animationTimer = makeAnimationTimer { [weak self] timer in
+            // Keep the callback's non-Sendable Timer in its original isolation
+            // region. Production scheduling and manual test delivery are on main.
+            guard let self else {
+                // The run loop owns repeating timers even after their view dies.
+                timer.invalidate()
+                return
+            }
             MainActor.assumeIsolated {
-                guard let self else {
-                    // The run loop owns repeating timers even after their view dies.
-                    timer.invalidate()
-                    return
-                }
                 guard self.wantsAnimation && self.animationIsVisible else {
                     self.updateAnimation()
                     return
