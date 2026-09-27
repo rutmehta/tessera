@@ -308,6 +308,9 @@ struct LayerMenu: View {
                 .disabled(primary?.hasMask != true)
         }
         .disabled(!on)
+        // B5-07 begin
+        LayerStyleMenu(doc: doc)
+        // B5-07 end
         Divider()
         Button("Merge Down") { doc?.mergeDown() }
             .keyboardShortcut("e", modifiers: .command)

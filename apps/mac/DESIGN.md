@@ -352,3 +352,18 @@ Layered documents reuse the system above; nothing here adds a colour, size or fo
   eye (tertiary when off, name tertiary too), a 20 pt mask thumbnail on the checkerboard, 11 pt
   name (with mode and opacity when not Normal 100 %), and a blending-options glyph; double-click
   re-opens the filter dialog. They are not selectable as layers.
+* **Layer Style** (WP B5-07) is a floating panel (`NSPanel`, utility style), not a modal sheet: edits apply live
+  and each gesture is one history node, so there is no Cancel. Its content uses `SheetScaffold` (title *Layer
+  Style*, the layer as subtitle, a `Locked` outlined warning chip when Lock All is on; footer: effect count left,
+  **Done** primary right). Left, a 216 pt `panel` column: *Blending Options*, a hairline, then every effect kind
+  in the engine's stacking order (top first) as 24 pt rows (checkbox, 12 pt title; absent kinds in secondary
+  ink, hidden effects in tertiary; the selected row `accentSubtle` at radius 6; repeatable kinds carry a 20 pt
+  "+" `IconButton`), and a 28 pt footer with an `fx` add menu and delete. Right, the editor generated from
+  `style_effects_schema_json()` exactly like filter dialogs: `ValueSlider` rows, the 28 pt angle dial beside
+  angles, colour wells, `ThemeMenuStyle` pop-ups for blend modes and long choices, `SegmentedPicker` up to three.
+  Contour / jitter / texture appear only as `InfoRow`s under a "Kept, not rendered" `SubHeader`, never as
+  controls. The Global Light panel is the same scaffold with the dial and Angle / Altitude sliders.
+* **Styled layer rows**: an `fx` SF Symbol glyph after the name (secondary ink, like the kind glyph); under
+  non-group layers, effect rows as smart filter rows are drawn (eye, 11 pt name, tertiary when hidden), after any
+  smart filter rows. The Properties panel lists effects under a *Layer Style* `SubHeader` (eye glyph, 11 pt name,
+  tertiary size / angle readout) with a bordered *Edit…*. No new colours or sizes.
