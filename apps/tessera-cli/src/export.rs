@@ -18,10 +18,23 @@ pub struct Options {
     query: Option<String>,
     #[arg(long)]
     out: PathBuf,
-    #[arg(long, value_parser = ["jpeg", "png", "tiff"])]
+    /// Output format. JXL is lossless sRGB; DNG is developed linear Rec.2020.
+    #[arg(long, value_parser = ["jpeg", "png", "tiff", "avif", "jxl", "dng"])]
     format: String,
+    /// AVIF 8/10/12, TIFF/JPEG XL 8/16, DNG 32-bit float per channel.
+    #[arg(long, default_value_t = 8)]
+    bit_depth: u8,
+    /// AVIF encoding speed, 1 (slow) through 10 (fast).
+    #[arg(long, default_value_t = 6, value_parser = clap::value_parser!(u8).range(1..=10))]
+    avif_speed: u8,
     #[arg(long, default_value_t = 90, value_parser = clap::value_parser!(u8).range(1..=100))]
     quality: u8,
+    /// Maximum JPEG bytes including ICC and XMP (fails if unattainable).
+    #[arg(long, value_parser = clap::value_parser!(u64).range(1..))]
+    max_file_bytes: Option<u64>,
+    /// Watermark JSON file (text/font or PNG graphic, anchor, inset, opacity).
+    #[arg(long)]
+    watermark: Option<PathBuf>,
     #[arg(long, conflicts_with = "fit", value_parser = clap::value_parser!(u32).range(1..))]
     long_edge: Option<u32>,
     #[arg(long)]
@@ -89,6 +102,23 @@ fn is_image(path: &Path) -> bool {
 }
 
 fn settings(options: &Options) -> Result<ExportSettings> {
+    ensure!(
+        options.format != "jxl" || options.color_space == "srgb",
+        "lossless JPEG XL currently supports only sRGB"
+    );
+    ensure!(
+        match options.format.as_str() {
+            "avif" => matches!(options.bit_depth, 8 | 10 | 12),
+            "dng" => options.bit_depth == 32,
+            "tiff" | "jxl" => matches!(options.bit_depth, 8 | 16),
+            _ => options.bit_depth == 8,
+        },
+        "unsupported bit depth for format"
+    );
+    ensure!(
+        options.max_file_bytes.is_none() || options.format == "jpeg",
+        "--max-file-bytes requires JPEG"
+    );
     let resize = if let Some(edge) = options.long_edge {
         Resize::LongEdge(edge)
     } else if let Some(fit) = &options.fit {
@@ -105,7 +135,18 @@ fn settings(options: &Options) -> Result<ExportSettings> {
                 quality: options.quality,
             },
             "png" => Format::Png,
-            _ => Format::Tiff { bits: 8 },
+            "dng" => Format::Dng,
+            "jxl" => Format::JpegXl {
+                bits: options.bit_depth,
+            },
+            "avif" => Format::Avif(export::AvifOptions {
+                quality: options.quality,
+                bits: options.bit_depth,
+                speed: options.avif_speed,
+            }),
+            _ => Format::Tiff {
+                bits: options.bit_depth,
+            },
         },
         color_space: match options.color_space.as_str() {
             "p3" => ColorSpace::DisplayP3,
@@ -127,6 +168,16 @@ fn settings(options: &Options) -> Result<ExportSettings> {
         },
         naming: options.name.clone(),
         output_dir: options.out.clone(),
+        max_file_bytes: options.max_file_bytes,
+        watermark: options
+            .watermark
+            .as_ref()
+            .map(|path| -> Result<export::Watermark> {
+                let mark: export::Watermark = serde_json::from_slice(&std::fs::read(path)?)?;
+                mark.validate()?;
+                Ok(mark)
+            })
+            .transpose()?,
         ..ExportSettings::default()
     })
 }
@@ -181,11 +232,7 @@ fn preflight_upscale(
     cancel: &CancellationToken,
 ) -> Result<()> {
     let mut names = std::collections::HashSet::new();
-    let extension = match settings.format {
-        Format::Jpeg { .. } => "jpg",
-        Format::Png => "png",
-        Format::Tiff { .. } => "tif",
-    };
+    let extension = settings.format.extension();
     for (index, path) in paths.iter().enumerate() {
         cancel.check()?;
         let name = path
@@ -370,6 +417,146 @@ fn load(path: &Path) -> Result<Loaded> {
 #[cfg(test)]
 mod tests {
     use clap::Parser;
+
+    #[test]
+    fn dng_flags_select_float_linear_export() {
+        let parsed = crate::Cli::try_parse_from([
+            "tessera",
+            "export",
+            "input.dng",
+            "--out",
+            "out",
+            "--format",
+            "dng",
+            "--bit-depth",
+            "32",
+        ])
+        .unwrap();
+        let crate::Command::Export(options) = parsed.command else {
+            panic!("export")
+        };
+        assert!(matches!(
+            super::settings(&options).unwrap().format,
+            export::Format::Dng
+        ));
+    }
+
+    #[test]
+    fn jpeg_xl_flags_select_lossless_16_bit() {
+        let parsed = crate::Cli::try_parse_from([
+            "tessera",
+            "export",
+            "input.png",
+            "--out",
+            "out",
+            "--format",
+            "jxl",
+            "--bit-depth",
+            "16",
+        ])
+        .unwrap();
+        let crate::Command::Export(options) = parsed.command else {
+            panic!("export")
+        };
+        assert!(matches!(
+            super::settings(&options).unwrap().format,
+            export::Format::JpegXl { bits: 16 }
+        ));
+    }
+
+    #[test]
+    fn avif_flags_reach_encoder_settings() {
+        use clap::CommandFactory;
+        let mut command = crate::Cli::command();
+        let help = command
+            .find_subcommand_mut("export")
+            .unwrap()
+            .render_long_help()
+            .to_string();
+        for flag in ["avif", "--avif-speed", "--bit-depth"] {
+            assert!(help.contains(flag));
+        }
+        for bits in ["8", "10", "12", "16"] {
+            let parsed = crate::Cli::try_parse_from([
+                "tessera",
+                "export",
+                "input.png",
+                "--out",
+                "out",
+                "--format",
+                "avif",
+                "--bit-depth",
+                bits,
+                "--avif-speed",
+                "10",
+                "--quality",
+                "73",
+            ])
+            .unwrap();
+            let crate::Command::Export(options) = parsed.command else {
+                panic!("export")
+            };
+            let result = super::settings(&options);
+            if bits == "16" {
+                assert!(result.is_err());
+            } else {
+                let export::Format::Avif(options) = result.unwrap().format else {
+                    panic!("avif")
+                };
+                assert_eq!(
+                    options,
+                    export::AvifOptions {
+                        bits: bits.parse().unwrap(),
+                        speed: 10,
+                        quality: 73
+                    }
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn byte_limit_and_watermark_flags_are_exposed() {
+        use clap::CommandFactory;
+        let mut command = crate::Cli::command();
+        let help = command
+            .find_subcommand_mut("export")
+            .unwrap()
+            .render_long_help()
+            .to_string();
+        assert!(help.contains("--max-file-bytes"));
+        assert!(help.contains("--watermark"));
+        assert!(
+            crate::Cli::try_parse_from([
+                "tessera",
+                "export",
+                "input.png",
+                "--out",
+                "out",
+                "--format",
+                "jpeg",
+                "--max-file-bytes",
+                "4096",
+                "--watermark",
+                "mark.json"
+            ])
+            .is_ok()
+        );
+        assert!(
+            crate::Cli::try_parse_from([
+                "tessera",
+                "export",
+                "input.png",
+                "--out",
+                "out",
+                "--format",
+                "jpeg",
+                "--max-file-bytes",
+                "0"
+            ])
+            .is_err()
+        );
+    }
 
     #[test]
     fn upscale_parser_accepts_only_two_or_four() {

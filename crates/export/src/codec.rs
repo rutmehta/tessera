@@ -44,6 +44,63 @@ pub(crate) fn encode(
     result
 }
 
+/// At most eight encodes (one full-quality probe and seven bisections over
+/// 1..=100). Keep the actual successful bytes: JPEG size is not strictly
+/// monotone across quantization/sampling transitions, so never re-encode a
+/// guessed final quality or promise a globally optimal quality.
+pub(crate) fn encode_limited(
+    writer: &mut (impl Write + Seek),
+    rgb: &image::Rgb32FImage,
+    encoding: Encoding,
+    xmp: Option<&str>,
+    cancel: &CancellationToken,
+    limit: Option<u64>,
+) -> EngineResult<()> {
+    let Some(limit) = limit else {
+        return encode(writer, rgb, encoding, xmp, cancel);
+    };
+    let Format::Jpeg { quality } = encoding.format else {
+        return Err(encode_error("file size limits require JPEG"));
+    };
+    let trial = |quality| -> EngineResult<Vec<u8>> {
+        cancel.check()?;
+        let mut out = std::io::Cursor::new(Vec::new());
+        encode(
+            &mut out,
+            rgb,
+            Encoding {
+                format: Format::Jpeg { quality },
+                ..encoding
+            },
+            xmp,
+            cancel,
+        )?;
+        Ok(out.into_inner())
+    };
+    let full = trial(quality)?;
+    if full.len() as u64 <= limit {
+        return writer.write_all(&full).map_err(encode_error);
+    }
+    let mut best = None;
+    let (mut low, mut high) = (1u16, u16::from(quality).saturating_sub(1));
+    for _ in 0..7 {
+        if low > high {
+            break;
+        }
+        let mid = low + (high - low) / 2;
+        let bytes = trial(mid as u8)?;
+        if bytes.len() as u64 <= limit {
+            best = Some(bytes);
+            low = mid + 1;
+        } else {
+            high = mid - 1;
+        }
+    }
+    let bytes = best.ok_or_else(|| encode_error("JPEG cannot fit the byte budget at quality 1"))?;
+    cancel.check()?;
+    writer.write_all(&bytes).map_err(encode_error)
+}
+
 struct CancelWriter<'a, W> {
     inner: W,
     cancel: &'a CancellationToken,
@@ -83,6 +140,30 @@ fn encode_inner(
     cancel: &CancellationToken,
 ) -> EngineResult<()> {
     let Encoding { format, space, dpi } = encoding;
+    if matches!(format, Format::Dng) {
+        // Unlike document codecs, the DNG render supplies linear Rec.2020.
+        // ColorMatrix1 maps XYZ D65 into these already-white-balanced primaries.
+        let linear = merge::LinearImage {
+            width: rgb.width() as usize,
+            height: rgb.height() as usize,
+            pixels: rgb.pixels().map(|p| p.0).collect(),
+            color_matrix: [
+                [1.7166511880, -0.3556707838, -0.2533662814],
+                [-0.6666843518, 1.6164812366, 0.0157685458],
+                [0.0176398574, -0.0427706133, 0.9421031212],
+            ],
+            as_shot_neutral: [1.0; 3],
+        };
+        return merge::dng::write(writer, &linear, xmp.unwrap_or("")).map_err(encode_error);
+    }
+    if let Format::JpegXl { bits } = format {
+        if !matches!(space, ColorSpace::Srgb) {
+            return Err(encode_error(
+                "lossless JPEG XL currently supports only sRGB",
+            ));
+        }
+        return crate::jxl::encode(writer, rgb, bits, xmp, cancel);
+    }
     let dpi = dpi.filter(|d| (1..=u32::from(u16::MAX)).contains(d));
     // render_full supplies destination-encoded float RGB. Quantize only here;
     // a second CMM conversion would double-encode the document colour space.
@@ -113,6 +194,17 @@ fn encode_inner(
             .collect::<Vec<_>>()
     };
     match format {
+        Format::Dng => unreachable!("DNG returned before quantization"),
+        Format::JpegXl { .. } => unreachable!("JPEG XL returned before quantization"),
+        Format::Avif(options) => {
+            let rgba = image::Rgba32FImage::from_fn(rgb.width(), rgb.height(), |x, y| {
+                let [r, g, b] = rgb.get_pixel(x, y).0;
+                image::Rgba([r, g, b, 1.0])
+            });
+            writer
+                .write_all(&crate::encode_avif(&rgba, options, space, xmp, cancel)?)
+                .map_err(encode_error)?;
+        }
         Format::Jpeg { quality } => {
             let mut encoder = jpeg_encoder::Encoder::new(writer, quality);
             if let Some(dpi) = dpi {

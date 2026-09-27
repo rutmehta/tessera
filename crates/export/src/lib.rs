@@ -3,10 +3,15 @@ mod ai_masks;
 mod batch;
 /// Shared preview/export segmentation implementation.
 pub use mask_ai;
+mod avif;
 mod codec;
+mod jxl;
+pub use avif::{AvifOptions, encode_avif};
+mod watermark;
 pub use batch::{
     BatchReport, ExportItem, Progress, export_batch, export_batch_upscaled, export_batch_with_jobs,
 };
+pub use watermark::{Anchor, Watermark, apply_watermark};
 mod filter;
 mod gpu;
 use engine_api::{EngineError, EngineResult};
@@ -28,24 +33,43 @@ pub struct ExportImage<'a> {
 
 #[derive(Clone, Copy, Debug)]
 pub enum Format {
-    Jpeg { quality: u8 },
+    Jpeg {
+        quality: u8,
+    },
     Png,
-    Tiff { bits: u8 },
+    /// Developed float32 LinearRaw DNG in linear Rec.2020 (D65).
+    Dng,
+    Tiff {
+        bits: u8,
+    },
+    Avif(AvifOptions),
+    /// Lossless sRGB JPEG XL, 8 or 16 bits per channel.
+    JpegXl {
+        bits: u8,
+    },
 }
 impl Format {
-    fn extension(self) -> &'static str {
+    pub fn extension(self) -> &'static str {
         match self {
             Self::Jpeg { .. } => "jpg",
             Self::Png => "png",
+            Self::Dng => "dng",
             Self::Tiff { .. } => "tif",
+            Self::Avif(_) => "avif",
+            Self::JpegXl { .. } => "jxl",
         }
     }
     fn validate(self) -> EngineResult<()> {
         match self {
-            Self::Jpeg { quality: 1..=100 } | Self::Png | Self::Tiff { bits: 8 | 16 } => Ok(()),
+            Self::Avif(options) => options.validate(),
+            Self::Jpeg { quality: 1..=100 }
+            | Self::Png
+            | Self::Dng
+            | Self::Tiff { bits: 8 | 16 }
+            | Self::JpegXl { bits: 8 | 16 } => Ok(()),
             _ => Err(EngineError::invalid(
                 "format",
-                "JPEG quality must be 1..=100; TIFF bits must be 8 or 16",
+                "JPEG quality must be 1..=100; TIFF/JPEG XL bits must be 8 or 16",
             )),
         }
     }
@@ -85,6 +109,11 @@ pub struct ExportSettings {
     /// a scale that still covers the output size. Ignored with AI masks or
     /// super-resolution (both need full resolution).
     pub render_scale: u32,
+    /// JPEG byte budget including embedded metadata. An impossible budget
+    /// fails without publishing output. Quality is an upper bound.
+    pub max_file_bytes: Option<u64>,
+    /// Composited in document-encoded RGB after output sharpening.
+    pub watermark: Option<Watermark>,
 }
 impl Default for ExportSettings {
     fn default() -> Self {
@@ -99,6 +128,8 @@ impl Default for ExportSettings {
             dpi: None,
             apply_orientation: false,
             render_scale: 1,
+            max_file_bytes: None,
+            watermark: None,
         }
     }
 }
@@ -414,6 +445,22 @@ pub fn render_one_cancellable(
     cancel.check()?;
     recipe.validate()?;
     settings.format.validate()?;
+    if matches!(settings.format, Format::Dng) && settings.watermark.is_some() {
+        return Err(encode_error(
+            "DNG watermark compositing in linear colour is not supported",
+        ));
+    }
+    if let Some(mark) = &settings.watermark {
+        mark.validate()?;
+    }
+    if settings.max_file_bytes.is_some()
+        && (!matches!(settings.format, Format::Jpeg { .. }) || settings.max_file_bytes == Some(0))
+    {
+        return Err(EngineError::invalid(
+            "max_file_bytes",
+            "positive JPEG-only byte budget required",
+        ));
+    }
     let path = settings.output_dir.join(filename(
         &settings.naming,
         image.name,
@@ -431,7 +478,8 @@ pub fn render_one_cancellable(
     {
         return Err(EngineError::invalid("output", "destination already exists"));
     }
-    let gpu_pixels = if upscale.is_none()
+    let gpu_pixels = if !matches!(settings.format, Format::Dng)
+        && upscale.is_none()
         && !ai_masks::active(&recipe.settings)
         && std::env::var("TESSERA_EXPORT_BACKEND").as_deref() != Ok("cpu")
     {
@@ -457,7 +505,17 @@ pub fn render_one_cancellable(
     };
     let already_resized = gpu_pixels.is_some();
     let started = std::time::Instant::now();
-    let rgb = if let Some(rgb) = gpu_pixels {
+    let rgb = if matches!(settings.format, Format::Dng) {
+        let rgb = if ai_masks::active(&recipe.settings) {
+            ai_masks::render(&image.source, &recipe.settings, segmenter)?
+        } else {
+            render_full_float(image, recipe)?
+        };
+        match upscale {
+            Some(model) => upscale_rgb(rgb, model)?,
+            None => rgb,
+        }
+    } else if let Some(rgb) = gpu_pixels {
         rgb
     } else if ai_masks::active(&recipe.settings) {
         let rgb = ai_masks::render(&image.source, &recipe.settings, segmenter)?;
@@ -488,8 +546,27 @@ pub fn render_one_cancellable(
     } else {
         filter::resize(rgb, settings.resize, cancel)?
     };
-    let rgb = filter::sharpen(rgb, settings.sharpen_for, cancel)?;
+    let mut rgb = filter::sharpen(rgb, settings.sharpen_for, cancel)?;
+    if let Some(mark) = &settings.watermark {
+        apply_watermark(&mut rgb, mark, cancel)?;
+    }
     let packet = metadata_packet(image, recipe, settings.metadata)?;
+    // A developed DNG must not carry source development instructions, which
+    // another raw editor could apply a second time. Rebuild descriptive XMP.
+    let packet = if matches!(settings.format, Format::Dng) {
+        packet
+            .map(|p| {
+                let preset = MarkPreset::lightroom();
+                XmpPacket::from_selection(&recipe.selection, &preset).with_metadata(
+                    &p.selection()?,
+                    &p.metadata()?,
+                    &preset,
+                )
+            })
+            .transpose()?
+    } else {
+        packet
+    };
     gpu::trace("CPU render/orient/resize/sharpen", started);
     Ok(RenderedExport {
         used_gpu: already_resized,
@@ -517,7 +594,7 @@ fn encode_rendered(
     fs::create_dir_all(&settings.output_dir)
         .map_err(|e| EngineError::io_at(&settings.output_dir, &e))?;
     let mut temp = new_output_temp(&settings.output_dir)?;
-    codec::encode(
+    codec::encode_limited(
         temp.as_file_mut(),
         &rgb,
         codec::Encoding {
@@ -527,6 +604,7 @@ fn encode_rendered(
         },
         packet.as_ref().map(XmpPacket::serialize),
         cancel,
+        settings.max_file_bytes,
     )?;
     temp.as_file().sync_all().map_err(encode_error)?;
     let side_temp = if let Some(packet) = &packet {

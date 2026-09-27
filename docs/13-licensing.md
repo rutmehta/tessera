@@ -15,7 +15,36 @@ Decided 2026-09-25 after a review of how Adobe, Capture One, DxO, Affinity, Pixe
 | LibRaw | taken under its **CDDL** option, never the LGPL one (CDDL is fine with static linking) |
 | **Banned:** GPL-2/3, AGPL-3, including `jpegxl-rs`, `jpegxl-sys`, `exiv2` bindings | a single GPL crate makes the whole statically linked Rust binary GPL |
 
-JPEG XL: decode with `jxl-oxide` (MIT/Apache), encode through our own thin bindings to libjxl (BSD-3), which is what Adobe's DNG SDK ships.
+JPEG XL export uses `zune-jpegxl` 0.5.2 (MIT OR Apache-2.0 OR Zlib),
+with `zune-core` 0.5.3 under the same permissive licensing. It is a pure-Rust,
+lossless modular encoder, compiled without its optional thread pool.
+`jxl-oxide` (MIT/Apache) independently decodes round-trip tests only; import
+support is not added by this work package. The encoder currently supports
+8/16-bit sRGB only: its image header hardcodes sRGB and its public API has
+no ICC setter. Other spaces are rejected, never tagged incorrectly. The
+standard codestream colour description replaces an embedded ICC payload.
+
+Lossy JPEG XL/libjxl is deferred under M2-45's explicit lossless-only option.
+No vendored libjxl build was attempted, and no build failure is claimed.
+Bundling and auditing libjxl's CMake/Brotli/Highway source closure is not a
+trivial extension of this pure-Rust slice. A future BSD-3 libjxl integration
+must use our own bindings, not the banned GPL `jpegxl-rs`/`jpegxl-sys` crates.
+
+AVIF export uses `rav1e` 0.8.1 directly under BSD-2-Clause. The application
+contains its own small HEIF still-image muxer for ICC/CICP, XMP and auxiliary
+alpha. No GPL encoder or system codec binary is linked. Default rav1e CLI,
+assembly-build and signal-handler features are disabled; only threading is
+enabled. This path supports 8/10/12-bit SDR encoding. macOS ImageIO is used
+only by export's development tests for independent decoding.
+
+Narrow exception: `libfuzzer-sys` 0.4.13, referenced only by rav1e under
+`cfg(fuzzing)`, also uses NCSA for the LLVM fuzzing runtime. Cargo-deny's
+all-target dependency graph includes it, although normal/build dependency
+trees do not. NCSA permits commercial use, modification and redistribution,
+requiring retained notices/disclaimers and non-endorsement, like BSD-3.
+The version-specific exception does not allow NCSA globally, disable license
+checks, or permit GPL. See https://spdx.org/licenses/NCSA.html. Preserve these
+notices if distributing a fuzzing build that actually includes that runtime.
 
 ## Optional Lensfun data pack
 
