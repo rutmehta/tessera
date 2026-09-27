@@ -1,6 +1,6 @@
 # Tessera task board — Machine A coordinator
 
-Updated: 2026-09-27 17:56 UTC
+Updated: 2026-09-27 18:05 UTC
 
 User mandate: autonomously advance UI/UX redesign **and** the recovered engine
 queue, using parallel GPT-6 Astra/Luna agents; coordinate Machine B and keep
@@ -40,24 +40,25 @@ Scope is AgentController and focused tests on a separate main-based worktree;
 new Review navigation/resume persistence remains planned in UX-02-PLAN.md.
 M5-31 candidate is validated locally and published; B repeat is pending. INT-45 license check also passed (existing unused-license
 allowance warnings only); reproducible gated script is
-`/tmp/tessera-export-integration-gate.sh`, not yet executed.
+`/tmp/tessera-export-integration-gate.sh`, running in session25483.
 
 
 Latest checkpoint: UX-01 merged/pushed main4925677. UI agent advances UX02a
 navigation while the ownership agent fixes four reproduced cross-library hazards.
+Independent review found additional concurrent queue-generation, inspector-refresh
+and pending Develop save-order gaps; source/test fixes are underway before GREEN.
 Ownership RED:4tests/6expected assertion failures, no setup/unexpected failures;
 old Accept trained the newly selected folder, old Revert changed the prior recipe,
 late Accept overwrote new-folder status, and old-run completion updated/presented
 foreign queue state. Root INT-45 build gate now owns heavy slot (session25483).
-Gain-map source is ready and waits for live-output/host validation. B mailbox
-still absent; A message head eed5afdb, benchmark repeat request4820486e published.
+Gain-map source is ready and waits for live-output/host validation. B mailbox remains absent. Benchmark repeat request4820486e and exact-UUID SSH status70405bbf are published; receipt remains unconfirmed.
 Root prepared INT-45 in the managed worktree
 `/Users/rutmehta/.codex/worktrees/export-integration/tessera`, branch
 `codex/export-integration`: main d5366d7 plus a clean **uncommitted merge** of
 wp/M2-45d69bcd3e. Candidate tree9fe7a245e2bc070e65fb3f4c0a4301f233ee473d;
 formatting and source whitespace checks pass. Preserve the merge state. Full
 five-package Rust/strict checks, licenses, workspace and FFI/Swift validation
-wait for the build slot; no main merge yet.
+are running serially; no main merge yet.
 
 EXP-45 diagnostic progress: independently sourced Skia ISO fixtures and the
 preserved Tessera prototype now yield actual SDR/HDR pixels in a small ImageIO
