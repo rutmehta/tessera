@@ -1,0 +1,45 @@
+2026-09-27 14:58:21.984 Tessera[76615:26331246] Sparkle updates not configured for this build
+document: frames on the Viewport path (L2, requested Rect { x0: 0, y0: 0, x1: 1303, y1: 867 })
+background-run: no scene window; hosting the shell in window 20647
+document-selftest: edit in layers: 5.12 s to first frame
+document-selftest: check engine backend ok
+document-selftest: check one pixel layer ok
+document-selftest: check source image ok
+document-selftest: document 5212 × 3468 px, 16-bit, Metal (Apple M4 Max), title sample
+document-selftest: check first frame ok
+document-selftest: step 1 edit-in-layers window 0 429 960 652 window-id 20647
+document-selftest: check B5-16 ⌃2 shows Properties ok
+document-selftest: step 2 inspector-properties window 0 429 960 652 window-id 20647
+document-selftest: check B5-16 ⌃3 shows Channels ok
+document-selftest: step 3 inspector-channels window 0 429 960 652 window-id 20647
+document-selftest: check B5-16 ⌃1 shows Stack ok
+document-selftest: step 4 inspector-stack window 0 429 960 652 window-id 20647
+document-selftest: check adjustment layer added ok
+document-selftest: exposure drag: frames 21, render median 1.00 ms, p90 2.37 ms, max 55.12 ms
+document-selftest: check exposure committed as one row ok
+document-selftest: step 5 adjustment window 0 429 960 652 window-id 20647
+document-selftest: opacity drag: frames 61, render median 1.03 ms, p90 2.27 ms, max 4.78 ms, levels [2], viewport L2 1303 × 867
+document-selftest: opacity drag: main-thread call frames 61, median 0.71 ms, p90 0.79 ms, max 0.84 ms
+document-selftest: check opacity 40 % ok
+document-selftest: check one history row for the drag ok
+document-selftest: check opacity frame median < 16 ms ok
+document-selftest: step 6 opacity-drag window 0 429 960 652 window-id 20647
+document-selftest: check undo restores opacity ok
+document-selftest: step 7 undo window 0 429 960 652 window-id 20647
+document-selftest: check save .tessera-doc ok
+document-selftest: step 8 saved window 0 429 960 652 window-id 20647
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 2400, y1: 1600 })
+document: frames on the Viewport path (L2, requested Rect { x0: 0, y0: 0, x1: 1303, y1: 867 })
+document-selftest: check reopen layers ok
+document-selftest: check reopen adjustment ok
+document-selftest: check reopen title ok
+document-selftest: step 9 reopened window 0 429 960 652 window-id 20647
+document-selftest: check export flat PNG ok
+document-selftest: step 10 exported window 0 429 960 652 window-id 20647
+document-selftest: check save as PSD ok
+document: frames on the Viewport path (L2, requested Rect { x0: 0, y0: 0, x1: 1303, y1: 867 })
+document-selftest: check PSD layers ok
+document-selftest: check PSD adjustment kind ok
+document-selftest: step 11 psd-open window 0 429 960 652 window-id 20647
+document-selftest: call cost (ms, median of 10): setOpacity(interactive) 0.01, layers 0.02, info 0.01, historyItems 0.00, snapshots 0.00, historyMemoryBytes 0.01, layerThumbnail(after a property change) 0.01, reloadModel 0.03, reloadHistory 0.02
+document-selftest: done, 0 failure(s)

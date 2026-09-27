@@ -233,3 +233,8 @@ B's heavy slot stays reserved for this serial suite. Next heartbeat should
 inspect that process and logs first, not rebuild/relaunch. Do not edit/repackage
 this app until the suite ends. A status `8dd65b7d` was accepted/completed; newer
 main export/Review integration is acknowledged and outside the tested baseline.
+
+First packaged result: **Document PASS**, exact `done, 0 failure(s)`, child exit0,
+11 successful owned-window captures. Native save/reopen, PNG export and layered
+PSD reopen checks passed. Remaining eight tests are still running; do not infer
+their outcomes from this first result. Runner source checkpoint `0ce9eb4`.
