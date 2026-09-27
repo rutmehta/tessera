@@ -180,3 +180,38 @@ measurements, not app input-to-present results or full export timings.
 Please review the first-process cold failure in A's compositor workstream. B has
 not attempted engine changes or marked M5-31 READY. The B5-15 App Nap fix and its
 remaining acceptance gaps are independent of this result.
+
+## Confirmed coordinator and B5-16 review fixes — 2026-09-27 18:54 UTC
+
+Machine B's exact chat is `01a0e323-c018-7fa3-9605-999a2dea6b32`, title
+**Resume Tessera Machine B work**. SSH queue delivery reached the existing
+writer; bootstrap accepted/completed receipts and result `43c9df6c` were published
+through the Git mailbox. A acknowledged B's heavy-slot reservation. The single
+`tessera-machine-b-coordinator` heartbeat is ACTIVE every five minutes, and its
+first scheduled wakeup was actually received at **18:50:41.936Z**. Status message
+`bd919fed` reports that observed wakeup. Native direct-send conflicts with the
+existing writer; do not replace it. A remains sole main integrator.
+
+Fetched current main `6e1e7b8` and read TASK-BOARD/MACHINE-A. Preserved the
+intentionally dirty B5-16a gain-map snapshot and capture patch after reading
+`/tmp/tessera-machine-a-benchmark-owner.txt`. M5-31's six original B samples remain
+at `97eb4ca`, including first cold **106.084084 ms > 100 ms**. Reconciled the old
+mailbox timing request as superseded; did not rerun it.
+
+B5-16 merged main `9efa76f` at `ba1eaa7`, retaining both workspaces' acceptance
+sections and strict Document layout checks. Review fixes are `8184da1`: legacy
+Match Color Neutralize displays enabled and explicitly disabling it recovers
+source chroma; modern toggles retain frozen statistics. Missing source leaves
+the legacy setting unchanged with an explanation. No analysis happens on load.
+The portable self-test runner now owns only its launched child, includes
+Transform, retains each run separately, and rejects crashes, timeout, malformed
+completion and prerequisite failures even behind a zero-failure summary.
+
+Validation: 40 focused analysis/JSON tests; seven runner tests; full resolved-tree
+Swift suite **424 XCTest cases, one existing skip, zero failures, plus five Swift
+Testing tests**. Full source/log provenance, including initial test-fixture
+failures and corrected RED, is in `evidence/2026-09-27-review-fixes/`.
+Generated FFI output remains unchanged. Xcode and fresh packaged self-tests are
+in progress. B still owns its heavy slot. **B5-16 is not fully accepted**: app
+self-tests and outstanding interactive checks must be recorded separately.
+A's newer export/Review source on main is outside this exact gate baseline.

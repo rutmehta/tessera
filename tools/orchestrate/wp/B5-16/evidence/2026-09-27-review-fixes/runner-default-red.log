@@ -1,0 +1,32 @@
+[document] FAIL: /var/folders/jh/jhxgltyx58x93fykk2hhgh940000gn/T/tmpaxg_h7p3/evidence/tessera-b516-selftests-05rzp41j/document
+fixture failure
+[tools] FAIL: /var/folders/jh/jhxgltyx58x93fykk2hhgh940000gn/T/tmpaxg_h7p3/evidence/tessera-b516-selftests-05rzp41j/tools
+fixture failure
+[filter] FAIL: /var/folders/jh/jhxgltyx58x93fykk2hhgh940000gn/T/tmpaxg_h7p3/evidence/tessera-b516-selftests-05rzp41j/filter
+fixture failure
+[retouch] FAIL: /var/folders/jh/jhxgltyx58x93fykk2hhgh940000gn/T/tmpaxg_h7p3/evidence/tessera-b516-selftests-05rzp41j/retouch
+fixture failure
+[styles] FAIL: /var/folders/jh/jhxgltyx58x93fykk2hhgh940000gn/T/tmpaxg_h7p3/evidence/tessera-b516-selftests-05rzp41j/styles
+fixture failure
+[channels] FAIL: /var/folders/jh/jhxgltyx58x93fykk2hhgh940000gn/T/tmpaxg_h7p3/evidence/tessera-b516-selftests-05rzp41j/channels
+fixture failure
+[text] FAIL: /var/folders/jh/jhxgltyx58x93fykk2hhgh940000gn/T/tmpaxg_h7p3/evidence/tessera-b516-selftests-05rzp41j/text
+fixture failure
+[vector] FAIL: /var/folders/jh/jhxgltyx58x93fykk2hhgh940000gn/T/tmpaxg_h7p3/evidence/tessera-b516-selftests-05rzp41j/vector
+fixture failure
+[transform] FAIL: /var/folders/jh/jhxgltyx58x93fykk2hhgh940000gn/T/tmpaxg_h7p3/evidence/tessera-b516-selftests-05rzp41j/transform
+fixture failure
+F......
+======================================================================
+FAIL: test_default_suite_and_failure_exit_from_another_checkout (__main__.SelfTestRunnerTests.test_default_suite_and_failure_exit_from_another_checkout)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/rutmehta/Developer/lightroom/.worktrees/B5-16/tools/orchestrate/wp/B5-16/test_selftest_runner.py", line 45, in test_default_suite_and_failure_exit_from_another_checkout
+    self.assertEqual(run.call_args.args[0], binary)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: PosixPath('/private/var/folders/jh/jhxgltyx58x93fykk2[73 chars]era') != PosixPath('/var/folders/jh/jhxgltyx58x93fykk2hhgh9400[65 chars]era')
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.850s
+
+FAILED (failures=1)

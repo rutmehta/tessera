@@ -1,0 +1,1124 @@
+[0/1] Planning build
+Building for production...
+[0/3] Write swift-version--58304C5D6DBC2206.txt
+Build complete! (0.67s)
+Test Suite 'All tests' started at 2026-09-27 14:51:08.233.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-27 14:51:08.233.
+Test Suite 'AISettingsTests' started at 2026-09-27 14:51:08.233.
+Test Case '-[TesseraCoreTests.AISettingsTests testKeychainStoreRoundTripUsesItsOwnService]' started.
+Test Case '-[TesseraCoreTests.AISettingsTests testKeychainStoreRoundTripUsesItsOwnService]' passed (0.055 seconds).
+Test Case '-[TesseraCoreTests.AISettingsTests testKeysLiveOnlyInTheSecretStoreAndProvidersReadThemLate]' started.
+Test Case '-[TesseraCoreTests.AISettingsTests testKeysLiveOnlyInTheSecretStoreAndProvidersReadThemLate]' passed (0.002 seconds).
+Test Case '-[TesseraCoreTests.AISettingsTests testPreferencesToleratePartialFilesAndClampGuardrails]' started.
+Test Case '-[TesseraCoreTests.AISettingsTests testPreferencesToleratePartialFilesAndClampGuardrails]' passed (0.001 seconds).
+Test Suite 'AISettingsTests' passed at 2026-09-27 14:51:08.292.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.059 (0.059) seconds
+Test Suite 'AgentFadeTests' started at 2026-09-27 14:51:08.292.
+Test Case '-[TesseraCoreTests.AgentFadeTests testBlendInterpolatesNumbersAndSwitchesOtherValuesAtHalf]' started.
+Test Case '-[TesseraCoreTests.AgentFadeTests testBlendInterpolatesNumbersAndSwitchesOtherValuesAtHalf]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.AgentFadeTests testMergePatchRemovesMembersWithNull]' started.
+Test Case '-[TesseraCoreTests.AgentFadeTests testMergePatchRemovesMembersWithNull]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.AgentFadeTests testPatchOnlyTouchesWhatTheAmountChangesAndKeepsLaterEdits]' started.
+Test Case '-[TesseraCoreTests.AgentFadeTests testPatchOnlyTouchesWhatTheAmountChangesAndKeepsLaterEdits]' passed (0.000 seconds).
+Test Suite 'AgentFadeTests' passed at 2026-09-27 14:51:08.294.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.002 (0.002) seconds
+Test Suite 'AgentReviewQueueTests' started at 2026-09-27 14:51:08.294.
+Test Case '-[TesseraCoreTests.AgentReviewQueueTests testOrdersFailuresThenLeastConfidentFirst]' started.
+Test Case '-[TesseraCoreTests.AgentReviewQueueTests testOrdersFailuresThenLeastConfidentFirst]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewQueueTests testRedoMergeReplacesOnlyThosePhotos]' started.
+Test Case '-[TesseraCoreTests.AgentReviewQueueTests testRedoMergeReplacesOnlyThosePhotos]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewQueueTests testStatusesChangeInPlaceAndNextSkipsReviewed]' started.
+Test Case '-[TesseraCoreTests.AgentReviewQueueTests testStatusesChangeInPlaceAndNextSkipsReviewed]' passed (0.000 seconds).
+Test Suite 'AgentReviewQueueTests' passed at 2026-09-27 14:51:08.295.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'AssistBridgeTests' started at 2026-09-27 14:51:08.295.
+Test Case '-[TesseraCoreTests.AssistBridgeTests testAutomatedSuggestionsConfirmAndFacesThroughTheController]' started.
+Test Case '-[TesseraCoreTests.AssistBridgeTests testAutomatedSuggestionsConfirmAndFacesThroughTheController]' passed (0.140 seconds).
+Test Suite 'AssistBridgeTests' passed at 2026-09-27 14:51:08.436.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.140 (0.140) seconds
+Test Suite 'BridgeTests' started at 2026-09-27 14:51:08.436.
+Test Case '-[TesseraCoreTests.BridgeTests testBasketAlbumsSafeDeleteAndDefectSweep]' started.
+Test Case '-[TesseraCoreTests.BridgeTests testBasketAlbumsSafeDeleteAndDefectSweep]' passed (0.268 seconds).
+Test Case '-[TesseraCoreTests.BridgeTests testDeleteFromDiskTrashesFileAndLeavesTheQueue]' started.
+Test Case '-[TesseraCoreTests.BridgeTests testDeleteFromDiskTrashesFileAndLeavesTheQueue]' passed (0.045 seconds).
+Test Case '-[TesseraCoreTests.BridgeTests testGroupNavigationComesFromTheSession]' started.
+Test Case '-[TesseraCoreTests.BridgeTests testGroupNavigationComesFromTheSession]' passed (0.012 seconds).
+Test Case '-[TesseraCoreTests.BridgeTests testKeepBestRejectRestIsOneUndoableStepThatPersists]' started.
+Test Case '-[TesseraCoreTests.BridgeTests testKeepBestRejectRestIsOneUndoableStepThatPersists]' passed (0.142 seconds).
+Test Case '-[TesseraCoreTests.BridgeTests testRawFixturesPersistAcrossReopenThroughTheSession]' started.
+Test Case '-[TesseraCoreTests.BridgeTests testRawFixturesPersistAcrossReopenThroughTheSession]' passed (2.309 seconds).
+Test Case '-[TesseraCoreTests.BridgeTests testRestoreDoesNotCreateUndoHistory]' started.
+Test Case '-[TesseraCoreTests.BridgeTests testRestoreDoesNotCreateUndoHistory]' passed (0.000 seconds).
+Test Suite 'BridgeTests' passed at 2026-09-27 14:51:11.212.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 2.776 (2.777) seconds
+Test Suite 'DevelopPanelsSessionTests' started at 2026-09-27 14:51:11.212.
+Test Case '-[TesseraCoreTests.DevelopPanelsSessionTests testPanelsDriveTheSession]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [416.168542, 193.879875, 216.811333]; GPU [332.426667, 1.305625, 4.346541]
+Test Case '-[TesseraCoreTests.DevelopPanelsSessionTests testPanelsDriveTheSession]' passed (1.676 seconds).
+Test Suite 'DevelopPanelsSessionTests' passed at 2026-09-27 14:51:12.888.
+	 Executed 1 test, with 0 failures (0 unexpected) in 1.676 (1.676) seconds
+Test Suite 'DevelopPanelsTests' started at 2026-09-27 14:51:12.888.
+Test Case '-[TesseraCoreTests.DevelopPanelsTests testCropOrientationRoundTripAndConstraints]' started.
+Test Case '-[TesseraCoreTests.DevelopPanelsTests testCropOrientationRoundTripAndConstraints]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DevelopPanelsTests testCurveEditorKeepsMonotoneValidPoints]' started.
+Test Case '-[TesseraCoreTests.DevelopPanelsTests testCurveEditorKeepsMonotoneValidPoints]' passed (0.037 seconds).
+Test Case '-[TesseraCoreTests.DevelopPanelsTests testCurveEvaluationMatchesKnotsAndIdentity]' started.
+Test Case '-[TesseraCoreTests.DevelopPanelsTests testCurveEvaluationMatchesKnotsAndIdentity]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DevelopPanelsTests testEachPanelControlWritesItsPatch]' started.
+Test Case '-[TesseraCoreTests.DevelopPanelsTests testEachPanelControlWritesItsPatch]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DevelopPanelsTests testHueBandWeightsAndTargetedAdjustment]' started.
+Test Case '-[TesseraCoreTests.DevelopPanelsTests testHueBandWeightsAndTargetedAdjustment]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DevelopPanelsTests testMergePatchAccumulatesLikeRFC7386]' started.
+Test Case '-[TesseraCoreTests.DevelopPanelsTests testMergePatchAccumulatesLikeRFC7386]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DevelopPanelsTests testPresetsArePartialRecipesSavedAsJSON]' started.
+Test Case '-[TesseraCoreTests.DevelopPanelsTests testPresetsArePartialRecipesSavedAsJSON]' passed (0.001 seconds).
+Test Suite 'DevelopPanelsTests' passed at 2026-09-27 14:51:12.928.
+	 Executed 7 tests, with 0 failures (0 unexpected) in 0.040 (0.040) seconds
+Test Suite 'DevelopTests' started at 2026-09-27 14:51:12.928.
+Test Case '-[TesseraCoreTests.DevelopTests testAppModelOpensRenderedJpegAndHeic]' started.
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/build/develop-app-rendered-A53E28EE-27FC-41F8-9A1B-28E49CDA5E3C/shoot/photo.jpg
+  /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/build/develop-app-rendered-A53E28EE-27FC-41F8-9A1B-28E49CDA5E3C/shoot/photo.heic
+develop L2 calibration [first, tone, WB] ms: CPU [0.47675, 0.279, 0.276458]; GPU [5.2325, 0.645125, 0.734208]
+Test Case '-[TesseraCoreTests.DevelopTests testAppModelOpensRenderedJpegAndHeic]' passed (0.388 seconds).
+Test Case '-[TesseraCoreTests.DevelopTests testJpegIsDevelopable]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.39158299999999996, 0.309292, 0.410542]; GPU [5.568917, 0.611709, 0.682208]
+Test Case '-[TesseraCoreTests.DevelopTests testJpegIsDevelopable]' passed (0.039 seconds).
+Test Case '-[TesseraCoreTests.DevelopTests testSettingsChangeRendersIntoTheSurfaceAndReopenRestoresExposure]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [410.575416, 188.425042, 217.50074999999998]; GPU [258.567042, 0.922708, 4.681958]
+develop L2 calibration [first, tone, WB] ms: CPU [403.54420899999997, 191.476917, 213.67329099999998]; GPU [416.49825000000004, 1.644625, 4.3563339999999995]
+Test Case '-[TesseraCoreTests.DevelopTests testSettingsChangeRendersIntoTheSurfaceAndReopenRestoresExposure]' passed (2.698 seconds).
+Test Suite 'DevelopTests' passed at 2026-09-27 14:51:16.053.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 3.124 (3.125) seconds
+Test Suite 'DocumentAdjustmentAnalysisTests' started at 2026-09-27 14:51:16.053.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testAutoToneStretchesEachChannelAndColorSetsGamma]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testAutoToneStretchesEachChannelAndColorSetsGamma]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testBlackWhiteAutoMatchesLumaAndKeepsDefaultsForMissingHues]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testBlackWhiteAutoMatchesLumaAndKeepsDefaultsForMissingHues]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testCompositeAnalysisNeutralizesTheLayerAndLeavesNoTrace]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testCompositeAnalysisNeutralizesTheLayerAndLeavesNoTrace]' passed (0.109 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testCubeAnd3DLLoaders]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testCubeAnd3DLLoaders]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testEqualizeMapsAreCDFMinNormalized]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testEqualizeMapsAreCDFMinNormalized]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testHDREqualizeFreezesALuminanceMap]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testHDREqualizeFreezesALuminanceMap]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testLabStatisticsAndMatchColor]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testLabStatisticsAndMatchColor]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testLegacyMatchColorMissingSourceDoesNotPretendToDisable]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testLegacyMatchColorMissingSourceDoesNotPretendToDisable]' passed (0.013 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testLegacyMatchColorNeutralizeReopenDisableUndoAndSave]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testLegacyMatchColorNeutralizeReopenDisableUndoAndSave]' passed (0.020 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testMenusListEveryKindOnceInPhotoshopOrder]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testMenusListEveryKindOnceInPhotoshopOrder]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testModernMatchColorToggleKeepsFrozenStatisticsWithoutReadingPixels]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testModernMatchColorToggleKeepsFrozenStatisticsWithoutReadingPixels]' passed (0.012 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testNewImageDependentLayersAreAnalysed]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testNewImageDependentLayersAreAnalysed]' passed (0.014 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testPhotoFilterPresetsMatchTheEngineSwatches]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testPhotoFilterPresetsMatchTheEngineSwatches]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testSaveAsNames]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testSaveAsNames]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testStubRendersTheNewPointwiseKinds]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentAnalysisTests testStubRendersTheNewPointwiseKinds]' passed (0.000 seconds).
+Test Suite 'DocumentAdjustmentAnalysisTests' passed at 2026-09-27 14:51:16.227.
+	 Executed 15 tests, with 0 failures (0 unexpected) in 0.173 (0.173) seconds
+Test Suite 'DocumentAdjustmentJSONTests' started at 2026-09-27 14:51:16.227.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testAuto]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testAuto]' passed (0.011 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testBlackWhite]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testBlackWhite]' passed (0.010 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testBrightnessContrast]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testBrightnessContrast]' passed (0.010 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testChannelMixer]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testChannelMixer]' passed (0.011 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testColorBalance]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testColorBalance]' passed (0.011 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testColorLookup]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testColorLookup]' passed (0.012 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testCurves]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testCurves]' passed (0.014 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testDesaturate]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testDesaturate]' passed (0.011 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testEqualize]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testEqualize]' passed (0.011 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testExposure]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testExposure]' passed (0.011 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testFixtureCoversEveryKindAndRoundTrips]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testFixtureCoversEveryKindAndRoundTrips]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testGradientMap]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testGradientMap]' passed (0.011 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testHdrToning]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testHdrToning]' passed (0.011 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testHueSaturation]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testHueSaturation]' passed (0.021 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testInvert]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testInvert]' passed (0.011 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testLevels]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testLevels]' passed (0.011 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testMatchColor]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testMatchColor]' passed (0.011 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testNeutralValuesRoundTripThroughTheEngine]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testNeutralValuesRoundTripThroughTheEngine]' passed (0.011 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testPhotoFilter]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testPhotoFilter]' passed (0.010 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testPosterize]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testPosterize]' passed (0.011 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testReplaceColor]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testReplaceColor]' passed (0.011 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testSelectiveColor]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testSelectiveColor]' passed (0.011 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testShadowsHighlights]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testShadowsHighlights]' passed (0.010 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testThreshold]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testThreshold]' passed (0.010 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testVibrance]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentJSONTests testVibrance]' passed (0.012 seconds).
+Test Suite 'DocumentAdjustmentJSONTests' passed at 2026-09-27 14:51:16.503.
+	 Executed 25 tests, with 0 failures (0 unexpected) in 0.275 (0.276) seconds
+Test Suite 'DocumentAdjustmentModelTests' started at 2026-09-27 14:51:16.503.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentModelTests testEveryAdjustmentRoundTripsThroughJSON]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentModelTests testEveryAdjustmentRoundTripsThroughJSON]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.DocumentAdjustmentModelTests testFillsRoundTrip]' started.
+Test Case '-[TesseraCoreTests.DocumentAdjustmentModelTests testFillsRoundTrip]' passed (0.000 seconds).
+Test Suite 'DocumentAdjustmentModelTests' passed at 2026-09-27 14:51:16.504.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'DocumentBlendModeTests' started at 2026-09-27 14:51:16.504.
+Test Case '-[TesseraCoreTests.DocumentBlendModeTests testRoundTripAndGroups]' started.
+Test Case '-[TesseraCoreTests.DocumentBlendModeTests testRoundTripAndGroups]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentBlendModeTests testStubAcceptsEveryModeAndRejectsOthers]' started.
+Test Case '-[TesseraCoreTests.DocumentBlendModeTests testStubAcceptsEveryModeAndRejectsOthers]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.DocumentBlendModeTests testTwentySevenModesInPhotoshopOrder]' started.
+Test Case '-[TesseraCoreTests.DocumentBlendModeTests testTwentySevenModesInPhotoshopOrder]' passed (0.000 seconds).
+Test Suite 'DocumentBlendModeTests' passed at 2026-09-27 14:51:16.505.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'DocumentChannelsTests' started at 2026-09-27 14:51:16.505.
+Test Case '-[TesseraCoreTests.DocumentChannelsTests testComponentVisibilityAndNames]' started.
+Test Case '-[TesseraCoreTests.DocumentChannelsTests testComponentVisibilityAndNames]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentChannelsTests testEngineChannelsThroughTheAdapter]' started.
+Test Case '-[TesseraCoreTests.DocumentChannelsTests testEngineChannelsThroughTheAdapter]' passed (0.024 seconds).
+Test Case '-[TesseraCoreTests.DocumentChannelsTests testLoadSelectionFormMapping]' started.
+Test Case '-[TesseraCoreTests.DocumentChannelsTests testLoadSelectionFormMapping]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentChannelsTests testPanelRowsFromRecords]' started.
+Test Case '-[TesseraCoreTests.DocumentChannelsTests testPanelRowsFromRecords]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentChannelsTests testQuickMaskEnterExitOnTheStub]' started.
+Test Case '-[TesseraCoreTests.DocumentChannelsTests testQuickMaskEnterExitOnTheStub]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentChannelsTests testSaveSelectionFormMapping]' started.
+Test Case '-[TesseraCoreTests.DocumentChannelsTests testSaveSelectionFormMapping]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentChannelsTests testStubChannelsSaveLoadAndEdit]' started.
+Test Case '-[TesseraCoreTests.DocumentChannelsTests testStubChannelsSaveLoadAndEdit]' passed (0.000 seconds).
+Test Suite 'DocumentChannelsTests' passed at 2026-09-27 14:51:16.531.
+	 Executed 7 tests, with 0 failures (0 unexpected) in 0.026 (0.026) seconds
+Test Suite 'DocumentFiltersTests' started at 2026-09-27 14:51:16.531.
+Test Case '-[TesseraCoreTests.DocumentFiltersTests testEngineFiltersThroughTheAdapter]' started.
+Test Case '-[TesseraCoreTests.DocumentFiltersTests testEngineFiltersThroughTheAdapter]' passed (0.013 seconds).
+Test Case '-[TesseraCoreTests.DocumentFiltersTests testFilterSettingsJSONRoundTrips]' started.
+Test Case '-[TesseraCoreTests.DocumentFiltersTests testFilterSettingsJSONRoundTrips]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.DocumentFiltersTests testLastFilterMemoryRemembersPerFilterAndPersists]' started.
+Test Case '-[TesseraCoreTests.DocumentFiltersTests testLastFilterMemoryRemembersPerFilterAndPersists]' passed (0.002 seconds).
+Test Case '-[TesseraCoreTests.DocumentFiltersTests testMenusOpenDialogsAndLastFilterReapplies]' started.
+Test Case '-[TesseraCoreTests.DocumentFiltersTests testMenusOpenDialogsAndLastFilterReapplies]' passed (0.039 seconds).
+Test Case '-[TesseraCoreTests.DocumentFiltersTests testSchemaMapsEveryControlKind]' started.
+Test Case '-[TesseraCoreTests.DocumentFiltersTests testSchemaMapsEveryControlKind]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentFiltersTests testTheEngineCatalogueDecodesAndGroups]' started.
+Test Case '-[TesseraCoreTests.DocumentFiltersTests testTheEngineCatalogueDecodesAndGroups]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentFiltersTests testTheStubListsFiltersButNeedsTheEngineToApply]' started.
+Test Case '-[TesseraCoreTests.DocumentFiltersTests testTheStubListsFiltersButNeedsTheEngineToApply]' passed (0.001 seconds).
+Test Suite 'DocumentFiltersTests' passed at 2026-09-27 14:51:16.589.
+	 Executed 7 tests, with 0 failures (0 unexpected) in 0.058 (0.058) seconds
+Test Suite 'DocumentInspectorLayoutTests' started at 2026-09-27 14:51:16.589.
+Test Case '-[TesseraCoreTests.DocumentInspectorLayoutTests testColumnBudgetAt1440AndAdjacentWidths]' started.
+Test Case '-[TesseraCoreTests.DocumentInspectorLayoutTests testColumnBudgetAt1440AndAdjacentWidths]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentInspectorLayoutTests testInspectorFitsItsColumnForEveryLayerKindAt1440AndAdjacentWidths]' started.
+Test Case '-[TesseraCoreTests.DocumentInspectorLayoutTests testInspectorFitsItsColumnForEveryLayerKindAt1440AndAdjacentWidths]' passed (3.386 seconds).
+Test Suite 'DocumentInspectorLayoutTests' passed at 2026-09-27 14:51:19.975.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 3.386 (3.386) seconds
+Test Suite 'DocumentInspectorTabsTests' started at 2026-09-27 14:51:19.975.
+Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testBudgetFitsTheSmallestColumn]' started.
+Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testBudgetFitsTheSmallestColumn]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testHistoryHeightIsClampedToItsMinimumAndTheTabMinimum]' started.
+Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testHistoryHeightIsClampedToItsMinimumAndTheTabMinimum]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testOpacityAndFillShareARowFrom300Points]' started.
+Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testOpacityAndFillShareARowFrom300Points]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testTabsAndShortcuts]' started.
+Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testTabsAndShortcuts]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testTabStripShowsAtMostThreeIncludingTheCurrentOne]' started.
+Test Case '-[TesseraCoreTests.DocumentInspectorTabsTests testTabStripShowsAtMostThreeIncludingTheCurrentOne]' passed (0.000 seconds).
+Test Suite 'DocumentInspectorTabsTests' passed at 2026-09-27 14:51:19.976.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+Test Suite 'DocumentKeyMapTests' started at 2026-09-27 14:51:19.976.
+Test Case '-[TesseraCoreTests.DocumentKeyMapTests testCommandShortcuts]' started.
+Test Case '-[TesseraCoreTests.DocumentKeyMapTests testCommandShortcuts]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentKeyMapTests testCullingKeysDoNothingInDocumentMode]' started.
+Test Case '-[TesseraCoreTests.DocumentKeyMapTests testCullingKeysDoNothingInDocumentMode]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentKeyMapTests testToolsAndPanelKeys]' started.
+Test Case '-[TesseraCoreTests.DocumentKeyMapTests testToolsAndPanelKeys]' passed (0.000 seconds).
+Test Suite 'DocumentKeyMapTests' passed at 2026-09-27 14:51:19.976.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'DocumentKeyRoutingTests' started at 2026-09-27 14:51:19.976.
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testCommandEInGridDisclosesRenderedCopyBeforeExistingHandoff]' started.
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testCommandEInGridDisclosesRenderedCopyBeforeExistingHandoff]' passed (0.074 seconds).
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testControllerGroupsAndDragsAsOneStepEach]' started.
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testControllerGroupsAndDragsAsOneStepEach]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testCullingKeysDoNotFireInDocumentMode]' started.
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testCullingKeysDoNotFireInDocumentMode]' passed (0.005 seconds).
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testDocumentKeys]' started.
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testDocumentKeys]' passed (0.004 seconds).
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testUndoRoutesToTheDocumentInDocumentMode]' started.
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testUndoRoutesToTheDocumentInDocumentMode]' passed (0.000 seconds).
+Test Suite 'DocumentKeyRoutingTests' passed at 2026-09-27 14:51:20.061.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.085 (0.085) seconds
+Test Suite 'DocumentOutlineTests' started at 2026-09-27 14:51:20.061.
+Test Case '-[TesseraCoreTests.DocumentOutlineTests testInsertRemoveAndUngroupDiffs]' started.
+Test Case '-[TesseraCoreTests.DocumentOutlineTests testInsertRemoveAndUngroupDiffs]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentOutlineTests testListOrderDoesNotMatterOnlyIndices]' started.
+Test Case '-[TesseraCoreTests.DocumentOutlineTests testListOrderDoesNotMatterOnlyIndices]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentOutlineTests testLongestIncreasingSubsequence]' started.
+Test Case '-[TesseraCoreTests.DocumentOutlineTests testLongestIncreasingSubsequence]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentOutlineTests testMinimalMovesForUnchangedTree]' started.
+Test Case '-[TesseraCoreTests.DocumentOutlineTests testMinimalMovesForUnchangedTree]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentOutlineTests testMoveIntoGroupAndOutIsOneMoveEach]' started.
+Test Case '-[TesseraCoreTests.DocumentOutlineTests testMoveIntoGroupAndOutIsOneMoveEach]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentOutlineTests testRandomTreesDiffToTheirTarget]' started.
+Test Case '-[TesseraCoreTests.DocumentOutlineTests testRandomTreesDiffToTheirTarget]' passed (0.008 seconds).
+Test Case '-[TesseraCoreTests.DocumentOutlineTests testSampleDocumentFlattensTopFirst]' started.
+Test Case '-[TesseraCoreTests.DocumentOutlineTests testSampleDocumentFlattensTopFirst]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentOutlineTests testSingleReorderIsOneMove]' started.
+Test Case '-[TesseraCoreTests.DocumentOutlineTests testSingleReorderIsOneMove]' passed (0.000 seconds).
+Test Suite 'DocumentOutlineTests' passed at 2026-09-27 14:51:20.070.
+	 Executed 8 tests, with 0 failures (0 unexpected) in 0.008 (0.008) seconds
+Test Suite 'DocumentRetouchTests' started at 2026-09-27 14:51:20.070.
+Test Case '-[TesseraCoreTests.DocumentRetouchTests testCancelledRemoveNeverReachesHistory]' started.
+Test Case '-[TesseraCoreTests.DocumentRetouchTests testCancelledRemoveNeverReachesHistory]' passed (0.064 seconds).
+Test Case '-[TesseraCoreTests.DocumentRetouchTests testContentAwareFillIsEnabledWithAMarqueeAndDisabledWithoutASelection]' started.
+Test Case '-[TesseraCoreTests.DocumentRetouchTests testContentAwareFillIsEnabledWithAMarqueeAndDisabledWithoutASelection]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentRetouchTests testContentAwareFillMenuFollowsTheDocumentSelection]' started.
+Test Case '-[TesseraCoreTests.DocumentRetouchTests testContentAwareFillMenuFollowsTheDocumentSelection]' passed (0.007 seconds).
+Test Case '-[TesseraCoreTests.DocumentRetouchTests testDownloadAllowedShowsProgressThenRunsTheOperation]' started.
+Test Case '-[TesseraCoreTests.DocumentRetouchTests testDownloadAllowedShowsProgressThenRunsTheOperation]' passed (0.014 seconds).
+Test Case '-[TesseraCoreTests.DocumentRetouchTests testDownloadFailureIsReportedAndRetryRequestsAgain]' started.
+Test Case '-[TesseraCoreTests.DocumentRetouchTests testDownloadFailureIsReportedAndRetryRequestsAgain]' passed (0.014 seconds).
+Test Case '-[TesseraCoreTests.DocumentRetouchTests testDownloadsOffNeverRequestsAndSaysSo]' started.
+Test Case '-[TesseraCoreTests.DocumentRetouchTests testDownloadsOffNeverRequestsAndSaysSo]' passed (0.002 seconds).
+Test Case '-[TesseraCoreTests.DocumentRetouchTests testEngineRetouchThroughTheAdapter]' started.
+Test Case '-[TesseraCoreTests.DocumentRetouchTests testEngineRetouchThroughTheAdapter]' passed (0.021 seconds).
+Test Case '-[TesseraCoreTests.DocumentRetouchTests testForgettingAWaitingOperationKeepsTheDownload]' started.
+Test Case '-[TesseraCoreTests.DocumentRetouchTests testForgettingAWaitingOperationKeepsTheDownload]' passed (0.008 seconds).
+Test Case '-[TesseraCoreTests.DocumentRetouchTests testJobsCancelAbandonsWithoutWaitingAndRefusesUntilStopped]' started.
+Test Case '-[TesseraCoreTests.DocumentRetouchTests testJobsCancelAbandonsWithoutWaitingAndRefusesUntilStopped]' passed (0.021 seconds).
+Test Case '-[TesseraCoreTests.DocumentRetouchTests testMissingWeightsAreNamedWithTheirSource]' started.
+Test Case '-[TesseraCoreTests.DocumentRetouchTests testMissingWeightsAreNamedWithTheirSource]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentRetouchTests testNeuralCatalogueComesFromTheEngine]' started.
+Test Case '-[TesseraCoreTests.DocumentRetouchTests testNeuralCatalogueComesFromTheEngine]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentRetouchTests testNeuralSheetDestinationsFollowTheLayer]' started.
+Test Case '-[TesseraCoreTests.DocumentRetouchTests testNeuralSheetDestinationsFollowTheLayer]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentRetouchTests testOutlineGenerationDropsStaleResults]' started.
+Test Case '-[TesseraCoreTests.DocumentRetouchTests testOutlineGenerationDropsStaleResults]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentRetouchTests testReEditingANeuralSmartFilterKeepsItsFacesAndOutput]' started.
+Test Case '-[TesseraCoreTests.DocumentRetouchTests testReEditingANeuralSmartFilterKeepsItsFacesAndOutput]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentRetouchTests testRemoveOptionsMapToEngineParams]' started.
+Test Case '-[TesseraCoreTests.DocumentRetouchTests testRemoveOptionsMapToEngineParams]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentRetouchTests testSuggestionReviewStartsAcceptedAndAppliesOnlyAccepted]' started.
+Test Case '-[TesseraCoreTests.DocumentRetouchTests testSuggestionReviewStartsAcceptedAndAppliesOnlyAccepted]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentRetouchTests testTheStubNeedsTheEngine]' started.
+Test Case '-[TesseraCoreTests.DocumentRetouchTests testTheStubNeedsTheEngine]' passed (0.000 seconds).
+Test Suite 'DocumentRetouchTests' passed at 2026-09-27 14:51:20.223.
+	 Executed 17 tests, with 0 failures (0 unexpected) in 0.153 (0.153) seconds
+Test Suite 'DocumentStylesTests' started at 2026-09-27 14:51:20.223.
+Test Case '-[TesseraCoreTests.DocumentStylesTests testControllerAddsEditsAndFollowsTheGlobalLight]' started.
+Test Case '-[TesseraCoreTests.DocumentStylesTests testControllerAddsEditsAndFollowsTheGlobalLight]' passed (0.014 seconds).
+Test Case '-[TesseraCoreTests.DocumentStylesTests testEngineBackendRoundTripsAndRecordsOneNodePerGesture]' started.
+Test Case '-[TesseraCoreTests.DocumentStylesTests testEngineBackendRoundTripsAndRecordsOneNodePerGesture]' passed (0.016 seconds).
+Test Case '-[TesseraCoreTests.DocumentStylesTests testEveryEffectKindRoundTripsThroughTheModel]' started.
+Test Case '-[TesseraCoreTests.DocumentStylesTests testEveryEffectKindRoundTripsThroughTheModel]' passed (0.013 seconds).
+Test Case '-[TesseraCoreTests.DocumentStylesTests testGlobalLightPropagatesAcrossLayersInTheUIModel]' started.
+Test Case '-[TesseraCoreTests.DocumentStylesTests testGlobalLightPropagatesAcrossLayersInTheUIModel]' passed (0.003 seconds).
+Test Case '-[TesseraCoreTests.DocumentStylesTests testRepeatableEffectsOrderAndLimits]' started.
+Test Case '-[TesseraCoreTests.DocumentStylesTests testRepeatableEffectsOrderAndLimits]' passed (0.003 seconds).
+Test Case '-[TesseraCoreTests.DocumentStylesTests testSchemaDescribesEveryKindTopFirst]' started.
+Test Case '-[TesseraCoreTests.DocumentStylesTests testSchemaDescribesEveryKindTopFirst]' passed (0.003 seconds).
+Test Case '-[TesseraCoreTests.DocumentStylesTests testStubBackendKeepsStylesPerDocument]' started.
+Test Case '-[TesseraCoreTests.DocumentStylesTests testStubBackendKeepsStylesPerDocument]' passed (0.003 seconds).
+Test Suite 'DocumentStylesTests' passed at 2026-09-27 14:51:20.278.
+	 Executed 7 tests, with 0 failures (0 unexpected) in 0.055 (0.055) seconds
+Test Suite 'DocumentTextSessionTests' started at 2026-09-27 14:51:20.278.
+Test Case '-[TesseraCoreTests.DocumentTextSessionTests testApplyAndCancelKeysReachTheSessionWhateverViewIsFocused]' started.
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 1200, y1: 800 })
+Test Case '-[TesseraCoreTests.DocumentTextSessionTests testApplyAndCancelKeysReachTheSessionWhateverViewIsFocused]' passed (0.394 seconds).
+Test Case '-[TesseraCoreTests.DocumentTextSessionTests testClickJustRightOfTheLastGlyphResumesEditing]' started.
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 1200, y1: 800 })
+Test Case '-[TesseraCoreTests.DocumentTextSessionTests testClickJustRightOfTheLastGlyphResumesEditing]' passed (0.066 seconds).
+Test Case '-[TesseraCoreTests.DocumentTextSessionTests testCommandReturnAppliesAfterABoxHandleDrag]' started.
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 1200, y1: 800 })
+Test Case '-[TesseraCoreTests.DocumentTextSessionTests testCommandReturnAppliesAfterABoxHandleDrag]' passed (0.120 seconds).
+Test Case '-[TesseraCoreTests.DocumentTextSessionTests testHitRegionIsTheLineBoxPlusTheTrailingMargin]' started.
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 1200, y1: 800 })
+Test Case '-[TesseraCoreTests.DocumentTextSessionTests testHitRegionIsTheLineBoxPlusTheTrailingMargin]' passed (0.064 seconds).
+Test Case '-[TesseraCoreTests.DocumentTextSessionTests testLatencyCountsKeystrokesOnlyAndExcludesInactiveTime]' started.
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 1200, y1: 800 })
+Test Case '-[TesseraCoreTests.DocumentTextSessionTests testLatencyCountsKeystrokesOnlyAndExcludesInactiveTime]' passed (0.060 seconds).
+Test Case '-[TesseraCoreTests.DocumentTextSessionTests testSessionMeasuresKeystrokesNotGestures]' started.
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 1200, y1: 800 })
+Test Case '-[TesseraCoreTests.DocumentTextSessionTests testSessionMeasuresKeystrokesNotGestures]' passed (0.100 seconds).
+Test Case '-[TesseraCoreTests.DocumentTextSessionTests testStatusHintFollowsTheSession]' started.
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 1200, y1: 800 })
+Test Case '-[TesseraCoreTests.DocumentTextSessionTests testStatusHintFollowsTheSession]' passed (0.114 seconds).
+Test Case '-[TesseraCoreTests.DocumentTextSessionTests testTextFrameIsDashedForPointAndAreaText]' started.
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 1200, y1: 800 })
+Test Case '-[TesseraCoreTests.DocumentTextSessionTests testTextFrameIsDashedForPointAndAreaText]' passed (0.062 seconds).
+Test Suite 'DocumentTextSessionTests' passed at 2026-09-27 14:51:21.259.
+	 Executed 8 tests, with 0 failures (0 unexpected) in 0.980 (0.981) seconds
+Test Suite 'DocumentTextTests' started at 2026-09-27 14:51:21.259.
+Test Case '-[TesseraCoreTests.DocumentTextTests testAffineConversionToCoreGraphicsKeepsTranslationAndSkew]' started.
+Test Case '-[TesseraCoreTests.DocumentTextTests testAffineConversionToCoreGraphicsKeepsTranslationAndSkew]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTextTests testApplyStyleSplitsOnlyAtTheSelectionAndSpliceMatchesTheEngine]' started.
+Test Case '-[TesseraCoreTests.DocumentTextTests testApplyStyleSplitsOnlyAtTheSelectionAndSpliceMatchesTheEngine]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTextTests testDeletionAcrossMixedStyleRunsKeepsUntouchedRuns]' started.
+Test Case '-[TesseraCoreTests.DocumentTextTests testDeletionAcrossMixedStyleRunsKeepsUntouchedRuns]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTextTests testDraftsThroughTheSessionAreOneNodeCancelAndLocks]' started.
+Test Case '-[TesseraCoreTests.DocumentTextTests testDraftsThroughTheSessionAreOneNodeCancelAndLocks]' passed (0.025 seconds).
+Test Case '-[TesseraCoreTests.DocumentTextTests testEngineLayoutClustersAgreeWithTheIndexOnRealText]' started.
+Test Case '-[TesseraCoreTests.DocumentTextTests testEngineLayoutClustersAgreeWithTheIndexOnRealText]' passed (0.002 seconds).
+Test Case '-[TesseraCoreTests.DocumentTextTests testInsertJoinsTheRunBeforeTheCaretAndSplitsForATypingStyle]' started.
+Test Case '-[TesseraCoreTests.DocumentTextTests testInsertJoinsTheRunBeforeTheCaretAndSplitsForATypingStyle]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTextTests testLigatureInteriorIsNotACaretStopAndHitsSnapToClusterEdges]' started.
+Test Case '-[TesseraCoreTests.DocumentTextTests testLigatureInteriorIsNotACaretStopAndHitsSnapToClusterEdges]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTextTests testMarkedTextCancelRestoresAndCommitKeepsOneComposition]' started.
+Test Case '-[TesseraCoreTests.DocumentTextTests testMarkedTextCancelRestoresAndCommitKeepsOneComposition]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTextTests testMixedBidiCaretAndHitTestFollowTheVisualLayout]' started.
+Test Case '-[TesseraCoreTests.DocumentTextTests testMixedBidiCaretAndHitTestFollowTheVisualLayout]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTextTests testModelJSONMatchesTheEngineSchemaAndKeepsPathData]' started.
+Test Case '-[TesseraCoreTests.DocumentTextTests testModelJSONMatchesTheEngineSchemaAndKeepsPathData]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.DocumentTextTests testRunMappingPrefersTheRunBeforeTheCaret]' started.
+Test Case '-[TesseraCoreTests.DocumentTextTests testRunMappingPrefersTheRunBeforeTheCaret]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTextTests testTrailingNewlineVerticalMovesAndLineBounds]' started.
+Test Case '-[TesseraCoreTests.DocumentTextTests testTrailingNewlineVerticalMovesAndLineBounds]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTextTests testTypingStyleAndDeleteBackwardOverNonBMP]' started.
+Test Case '-[TesseraCoreTests.DocumentTextTests testTypingStyleAndDeleteBackwardOverNonBMP]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTextTests testUTF16UTF8AndGraphemeMappingAcrossNonBMPAndCombiningMarks]' started.
+Test Case '-[TesseraCoreTests.DocumentTextTests testUTF16UTF8AndGraphemeMappingAcrossNonBMPAndCombiningMarks]' passed (0.000 seconds).
+Test Suite 'DocumentTextTests' passed at 2026-09-27 14:51:21.289.
+	 Executed 14 tests, with 0 failures (0 unexpected) in 0.029 (0.030) seconds
+Test Suite 'DocumentToolsTests' started at 2026-09-27 14:51:21.289.
+Test Case '-[TesseraCoreTests.DocumentToolsTests testAffineComposition]' started.
+Test Case '-[TesseraCoreTests.DocumentToolsTests testAffineComposition]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentToolsTests testBracketKeysAndHardness]' started.
+Test Case '-[TesseraCoreTests.DocumentToolsTests testBracketKeysAndHardness]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentToolsTests testCoalescerBatchesSamplesWhileAFrameIsInFlight]' started.
+Test Case '-[TesseraCoreTests.DocumentToolsTests testCoalescerBatchesSamplesWhileAFrameIsInFlight]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentToolsTests testEngineToolsThroughTheAdapter]' started.
+Test Case '-[TesseraCoreTests.DocumentToolsTests testEngineToolsThroughTheAdapter]' passed (0.017 seconds).
+Test Case '-[TesseraCoreTests.DocumentToolsTests testFreeTransformHandleDrags]' started.
+Test Case '-[TesseraCoreTests.DocumentToolsTests testFreeTransformHandleDrags]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentToolsTests testFreeTransformModel]' started.
+Test Case '-[TesseraCoreTests.DocumentToolsTests testFreeTransformModel]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentToolsTests testFreeTransformRotateMoveAndHitTest]' started.
+Test Case '-[TesseraCoreTests.DocumentToolsTests testFreeTransformRotateMoveAndHitTest]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentToolsTests testHUDDragMapsToSizeAndHardness]' started.
+Test Case '-[TesseraCoreTests.DocumentToolsTests testHUDDragMapsToSizeAndHardness]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentToolsTests testMarqueeGeometry]' started.
+Test Case '-[TesseraCoreTests.DocumentToolsTests testMarqueeGeometry]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentToolsTests testOpacityDigits]' started.
+Test Case '-[TesseraCoreTests.DocumentToolsTests testOpacityDigits]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentToolsTests testPressureCurve]' started.
+Test Case '-[TesseraCoreTests.DocumentToolsTests testPressureCurve]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentToolsTests testSelectionModifierMapping]' started.
+Test Case '-[TesseraCoreTests.DocumentToolsTests testSelectionModifierMapping]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentToolsTests testStubAdoptsTheGeometricSubset]' started.
+Test Case '-[TesseraCoreTests.DocumentToolsTests testStubAdoptsTheGeometricSubset]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentToolsTests testToolColors]' started.
+Test Case '-[TesseraCoreTests.DocumentToolsTests testToolColors]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentToolsTests testToolKeyMap]' started.
+Test Case '-[TesseraCoreTests.DocumentToolsTests testToolKeyMap]' passed (0.000 seconds).
+Test Suite 'DocumentToolsTests' passed at 2026-09-27 14:51:21.308.
+	 Executed 15 tests, with 0 failures (0 unexpected) in 0.018 (0.019) seconds
+Test Suite 'DocumentTransformTests' started at 2026-09-27 14:51:21.308.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testChildMappingUsesTheRowMajorAffineWithSkewAndTranslation]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testChildMappingUsesTheRowMajorAffineWithSkewAndTranslation]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testContentAwareBoxHandlesProportionsAndLimits]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testContentAwareBoxHandlesProportionsAndLimits]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testCrossingAndDegenerateQuadsAreRejectedBeforeTheEngine]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testCrossingAndDegenerateQuadsAreRejectedBeforeTheEngine]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testEnginePuppetMeshAndProtectionChannels]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testEnginePuppetMeshAndProtectionChannels]' passed (0.012 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testEngineSessionNeedsConsentCancelsCleanlyAndAppliesOneNode]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testEngineSessionNeedsConsentCancelsCleanlyAndAppliesOneNode]' passed (0.013 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testEngineSplitAddsLinesWithoutMovingTheSurface]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testEngineSplitAddsLinesWithoutMovingTheSurface]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testOperationJSONCarriesKernelAndNeverAProtectMask]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testOperationJSONCarriesKernelAndNeverAProtectMask]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testPerspectiveLayoutMovesBothSpacesAndWarpOnlyTheDestination]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testPerspectiveLayoutMovesBothSpacesAndWarpOnlyTheDestination]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testPerspectiveQuadsArePerimeterOrderedAndRoundTrip]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testPerspectiveQuadsArePerimeterOrderedAndRoundTrip]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testPerspectiveSplitKeepsTheWarpedImageInPlace]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testPerspectiveSplitKeepsTheWarpedImageInPlace]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testPresetsBendZeroIsIdentityAndInvalidBendFails]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testPresetsBendZeroIsIdentityAndInvalidBendFails]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testPuppetModelRoundTripsAndPinsNeverJump]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testPuppetModelRoundTripsAndPinsNeverJump]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testPuppetRebaseKeepsPinsOnTheNearestNewVertex]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testPuppetRebaseKeepsPinsOnTheNearestNewVertex]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testWarpAnchorDragCarriesItsHandles]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testWarpAnchorDragCarriesItsHandles]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testWarpMeshJSONMatchesTheEngineSchema]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testWarpMeshJSONMatchesTheEngineSchema]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentTransformTests testWarpSurfaceInterpolatesCornersAndIsLinearAtIdentity]' started.
+Test Case '-[TesseraCoreTests.DocumentTransformTests testWarpSurfaceInterpolatesCornersAndIsLinearAtIdentity]' passed (0.000 seconds).
+Test Suite 'DocumentTransformTests' passed at 2026-09-27 14:51:21.336.
+	 Executed 16 tests, with 0 failures (0 unexpected) in 0.028 (0.029) seconds
+Test Suite 'DocumentVectorTests' started at 2026-09-27 14:51:21.336.
+Test Case '-[TesseraCoreTests.DocumentVectorTests testAffineLayoutsConvertExplicitlyWithSkewAndTranslation]' started.
+Test Case '-[TesseraCoreTests.DocumentVectorTests testAffineLayoutsConvertExplicitlyWithSkewAndTranslation]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentVectorTests testCoincidentAnchorsMergeLikeTheEngine]' started.
+Test Case '-[TesseraCoreTests.DocumentVectorTests testCoincidentAnchorsMergeLikeTheEngine]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentVectorTests testEllipseOverlayLiesOnTheEnginesEllipse]' started.
+Test Case '-[TesseraCoreTests.DocumentVectorTests testEllipseOverlayLiesOnTheEnginesEllipse]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.DocumentVectorTests testEngineShapesDraftsMasksBooleansAndConversion]' started.
+Test Case '-[TesseraCoreTests.DocumentVectorTests testEngineShapesDraftsMasksBooleansAndConversion]' passed (0.015 seconds).
+Test Case '-[TesseraCoreTests.DocumentVectorTests testEvenOddHolesAndNonzeroContainment]' started.
+Test Case '-[TesseraCoreTests.DocumentVectorTests testEvenOddHolesAndNonzeroContainment]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentVectorTests testInverseAffineHitsWithSkewAndTranslation]' started.
+Test Case '-[TesseraCoreTests.DocumentVectorTests testInverseAffineHitsWithSkewAndTranslation]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentVectorTests testPathCommandJSONMatchesTheEngineSchema]' started.
+Test Case '-[TesseraCoreTests.DocumentVectorTests testPathCommandJSONMatchesTheEngineSchema]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentVectorTests testPatternPaintIsCarriedOpaquely]' started.
+Test Case '-[TesseraCoreTests.DocumentVectorTests testPatternPaintIsCarriedOpaquely]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.DocumentVectorTests testPenDraftBuildsCubicHandlesAndCloses]' started.
+Test Case '-[TesseraCoreTests.DocumentVectorTests testPenDraftBuildsCubicHandlesAndCloses]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentVectorTests testPolygonStarAndLinePrimitivesMatchTheEngine]' started.
+Test Case '-[TesseraCoreTests.DocumentVectorTests testPolygonStarAndLinePrimitivesMatchTheEngine]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentVectorTests testRectanglePrimitiveMatchesTheEngineConstruction]' started.
+Test Case '-[TesseraCoreTests.DocumentVectorTests testRectanglePrimitiveMatchesTheEngineConstruction]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentVectorTests testShapeSourceDecodesAndReencodesTheEngineSchema]' started.
+Test Case '-[TesseraCoreTests.DocumentVectorTests testShapeSourceDecodesAndReencodesTheEngineSchema]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.DocumentVectorTests testShapeToolConstraints]' started.
+Test Case '-[TesseraCoreTests.DocumentVectorTests testShapeToolConstraints]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentVectorTests testSplitIsExactAndHandlesMirrorOrStayIndependent]' started.
+Test Case '-[TesseraCoreTests.DocumentVectorTests testSplitIsExactAndHandlesMirrorOrStayIndependent]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentVectorTests testTargetsPreferSelectedHandlesThenAnchorsThenSegments]' started.
+Test Case '-[TesseraCoreTests.DocumentVectorTests testTargetsPreferSelectedHandlesThenAnchorsThenSegments]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentVectorTests testToolRoutingKeysAndGroups]' started.
+Test Case '-[TesseraCoreTests.DocumentVectorTests testToolRoutingKeysAndGroups]' passed (0.000 seconds).
+Test Suite 'DocumentVectorTests' passed at 2026-09-27 14:51:21.355.
+	 Executed 16 tests, with 0 failures (0 unexpected) in 0.018 (0.019) seconds
+Test Suite 'DocumentVectorVerifyFixesTests' started at 2026-09-27 14:51:21.355.
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testAutoNamedTextLayerNameFollowsItsFirstLine]' started.
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 1200, y1: 800 })
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testAutoNamedTextLayerNameFollowsItsFirstLine]' passed (0.127 seconds).
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testKeyboardStepsOfAShapeSliderAreOneHistoryNode]' started.
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 1200, y1: 800 })
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testKeyboardStepsOfAShapeSliderAreOneHistoryNode]' passed (1.447 seconds).
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testLayersRowShowsAVectorMaskThumbnailNextToTheRasterMask]' started.
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 1200, y1: 800 })
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testLayersRowShowsAVectorMaskThumbnailNextToTheRasterMask]' passed (0.095 seconds).
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testNewAreaTextResizedBeforeTheFirstApplyIsOneAddText]' started.
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 1200, y1: 800 })
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testNewAreaTextResizedBeforeTheFirstApplyIsOneAddText]' passed (0.112 seconds).
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testNewStrokeTakesTheForegroundOrAContrastingColourNotTheFill]' started.
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 1200, y1: 800 })
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testNewStrokeTakesTheForegroundOrAContrastingColourNotTheFill]' passed (0.061 seconds).
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testPathSelectionClickOnEmptyCanvasDeselects]' started.
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 1200, y1: 800 })
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testPathSelectionClickOnEmptyCanvasDeselects]' passed (0.106 seconds).
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testPenDraftKeepsThePreviousAnchorsHandles]' started.
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 1200, y1: 800 })
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testPenDraftKeepsThePreviousAnchorsHandles]' passed (0.070 seconds).
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testPropertiesReportTheShapesRealBoundsLiveDuringDrags]' started.
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 1200, y1: 800 })
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testPropertiesReportTheShapesRealBoundsLiveDuringDrags]' passed (0.085 seconds).
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testRejectedRecolourRevertsTheColourWell]' started.
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 1200, y1: 800 })
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testRejectedRecolourRevertsTheColourWell]' passed (0.372 seconds).
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testStatusHintsFollowTheToolAndPenState]' started.
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 1200, y1: 800 })
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testStatusHintsFollowTheToolAndPenState]' passed (0.076 seconds).
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testToolLettersWorkWhileASliderOrTheLayersListHasTheKeyboard]' started.
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 1200, y1: 800 })
+Test Case '-[TesseraCoreTests.DocumentVectorVerifyFixesTests testToolLettersWorkWhileASliderOrTheLayersListHasTheKeyboard]' passed (0.070 seconds).
+Test Suite 'DocumentVectorVerifyFixesTests' passed at 2026-09-27 14:51:23.978.
+	 Executed 11 tests, with 0 failures (0 unexpected) in 2.622 (2.623) seconds
+Test Suite 'DocumentViewportMathTests' started at 2026-09-27 14:51:23.978.
+Test Case '-[TesseraCoreTests.DocumentViewportMathTests testAnchoredZoomKeepsThePointUnderThePointer]' started.
+Test Case '-[TesseraCoreTests.DocumentViewportMathTests testAnchoredZoomKeepsThePointUnderThePointer]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentViewportMathTests testFitZoomAndSteps]' started.
+Test Case '-[TesseraCoreTests.DocumentViewportMathTests testFitZoomAndSteps]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentViewportMathTests testLevelFromZoom]' started.
+Test Case '-[TesseraCoreTests.DocumentViewportMathTests testLevelFromZoom]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentViewportMathTests testVisibleRectAndPan]' started.
+Test Case '-[TesseraCoreTests.DocumentViewportMathTests testVisibleRectAndPan]' passed (0.000 seconds).
+Test Suite 'DocumentViewportMathTests' passed at 2026-09-27 14:51:23.979.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+Test Suite 'EDRPresentationTests' started at 2026-09-27 14:51:23.979.
+Test Case '-[TesseraCoreTests.EDRPresentationTests testEDRScreenUsesFloatSurfacesOnlyWithHDROn]' started.
+Test Case '-[TesseraCoreTests.EDRPresentationTests testEDRScreenUsesFloatSurfacesOnlyWithHDROn]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.EDRPresentationTests testHeadroomChangesAreDebounced]' started.
+Test Case '-[TesseraCoreTests.EDRPresentationTests testHeadroomChangesAreDebounced]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.EDRPresentationTests testHeadroomControlPatchesTheRecipe]' started.
+Test Case '-[TesseraCoreTests.EDRPresentationTests testHeadroomControlPatchesTheRecipe]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.EDRPresentationTests testHeadroomIsCappedByTheCurrentDisplayHeadroom]' started.
+Test Case '-[TesseraCoreTests.EDRPresentationTests testHeadroomIsCappedByTheCurrentDisplayHeadroom]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.EDRPresentationTests testOddScreenValuesAreSanitized]' started.
+Test Case '-[TesseraCoreTests.EDRPresentationTests testOddScreenValuesAreSanitized]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.EDRPresentationTests testSDRScreenAlwaysKeepsTheRGBA8Path]' started.
+Test Case '-[TesseraCoreTests.EDRPresentationTests testSDRScreenAlwaysKeepsTheRGBA8Path]' passed (0.000 seconds).
+Test Suite 'EDRPresentationTests' passed at 2026-09-27 14:51:23.980.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'EngineDocumentBackendTests' started at 2026-09-27 14:51:23.980.
+Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testBlendModeStringsMatchTheEngine]' started.
+Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testBlendModeStringsMatchTheEngine]' passed (0.013 seconds).
+Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testEngineSessionThroughTheAdapter]' started.
+Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testEngineSessionThroughTheAdapter]' passed (0.014 seconds).
+Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testEnumsRoundTripEveryValue]' started.
+Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testEnumsRoundTripEveryValue]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testFramesReachTheListenerOnMain]' started.
+document: frames on the Viewport path (L1, requested Rect { x0: 0, y0: 0, x1: 128, y1: 64 })
+Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testFramesReachTheListenerOnMain]' passed (0.040 seconds).
+Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testHistoryIDMapShowsTheBaseAsOpened]' started.
+Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testHistoryIDMapShowsTheBaseAsOpened]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testListenerCoalescesUntilTheMainQueueDrains]' started.
+Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testListenerCoalescesUntilTheMainQueueDrains]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testListenerDeliversOnTheMainThread]' started.
+Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testListenerDeliversOnTheMainThread]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testRecordsRoundTripFieldByField]' started.
+Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testRecordsRoundTripFieldByField]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testWorkspaceChoosesTheEngineOrTheStub]' started.
+Test Case '-[TesseraCoreTests.EngineDocumentBackendTests testWorkspaceChoosesTheEngineOrTheStub]' passed (0.016 seconds).
+Test Suite 'EngineDocumentBackendTests' passed at 2026-09-27 14:51:24.063.
+	 Executed 9 tests, with 0 failures (0 unexpected) in 0.083 (0.083) seconds
+Test Suite 'ExportFormatsWatermarkTests' started at 2026-09-27 14:51:24.063.
+Test Case '-[TesseraCoreTests.ExportFormatsWatermarkTests testFormatSwitchesStayValidForTheEngine]' started.
+Test Case '-[TesseraCoreTests.ExportFormatsWatermarkTests testFormatSwitchesStayValidForTheEngine]' passed (0.020 seconds).
+Test Case '-[TesseraCoreTests.ExportFormatsWatermarkTests testJPEGSizeLimitConverges]' started.
+Test Case '-[TesseraCoreTests.ExportFormatsWatermarkTests testJPEGSizeLimitConverges]' passed (0.762 seconds).
+Test Case '-[TesseraCoreTests.ExportFormatsWatermarkTests testNewFieldsEncodeAsTheEngineExpects]' started.
+Test Case '-[TesseraCoreTests.ExportFormatsWatermarkTests testNewFieldsEncodeAsTheEngineExpects]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.ExportFormatsWatermarkTests testPresetsKeepNewFieldsAndOldPresetsLoadUnchanged]' started.
+Test Case '-[TesseraCoreTests.ExportFormatsWatermarkTests testPresetsKeepNewFieldsAndOldPresetsLoadUnchanged]' passed (0.009 seconds).
+Test Case '-[TesseraCoreTests.ExportFormatsWatermarkTests testRealExportsAVIFJXLAndDNG]' started.
+Test Case '-[TesseraCoreTests.ExportFormatsWatermarkTests testRealExportsAVIFJXLAndDNG]' passed (0.778 seconds).
+Test Case '-[TesseraCoreTests.ExportFormatsWatermarkTests testWatermarkProblemsAndPlacement]' started.
+Test Case '-[TesseraCoreTests.ExportFormatsWatermarkTests testWatermarkProblemsAndPlacement]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.ExportFormatsWatermarkTests testWatermarksAreBurnedIn]' started.
+Test Case '-[TesseraCoreTests.ExportFormatsWatermarkTests testWatermarksAreBurnedIn]' passed (0.732 seconds).
+Test Suite 'ExportFormatsWatermarkTests' passed at 2026-09-27 14:51:26.366.
+	 Executed 7 tests, with 0 failures (0 unexpected) in 2.303 (2.303) seconds
+Test Suite 'ExportPrintTests' started at 2026-09-27 14:51:26.367.
+Test Case '-[TesseraCoreTests.ExportPrintTests testContactSheetGrid]' started.
+Test Case '-[TesseraCoreTests.ExportPrintTests testContactSheetGrid]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.ExportPrintTests testNamingMatchesTheEngine]' started.
+Test Case '-[TesseraCoreTests.ExportPrintTests testNamingMatchesTheEngine]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.ExportPrintTests testNamingTokensAndProblems]' started.
+Test Case '-[TesseraCoreTests.ExportPrintTests testNamingTokensAndProblems]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.ExportPrintTests testOutputSizes]' started.
+Test Case '-[TesseraCoreTests.ExportPrintTests testOutputSizes]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.ExportPrintTests testPlacementRotatesToFitAndSizesRenders]' started.
+Test Case '-[TesseraCoreTests.ExportPrintTests testPlacementRotatesToFitAndSizesRenders]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.ExportPrintTests testPresetsPersistUnderTheAppDirectory]' started.
+Test Case '-[TesseraCoreTests.ExportPrintTests testPresetsPersistUnderTheAppDirectory]' passed (0.009 seconds).
+Test Case '-[TesseraCoreTests.ExportPrintTests testPrintSettingsPersist]' started.
+Test Case '-[TesseraCoreTests.ExportPrintTests testPrintSettingsPersist]' passed (0.002 seconds).
+Test Case '-[TesseraCoreTests.ExportPrintTests testSettingsRoundTripThroughTheEngine]' started.
+Test Case '-[TesseraCoreTests.ExportPrintTests testSettingsRoundTripThroughTheEngine]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.ExportPrintTests testSingleAndCustomCells]' started.
+Test Case '-[TesseraCoreTests.ExportPrintTests testSingleAndCustomCells]' passed (0.000 seconds).
+Test Suite 'ExportPrintTests' passed at 2026-09-27 14:51:26.382.
+	 Executed 9 tests, with 0 failures (0 unexpected) in 0.015 (0.015) seconds
+Test Suite 'ExportWarningsTests' started at 2026-09-27 14:51:26.382.
+Test Case '-[TesseraCoreTests.ExportWarningsTests testWarningFilesAreReadAndSurfacedInTheToast]' started.
+Test Case '-[TesseraCoreTests.ExportWarningsTests testWarningFilesAreReadAndSurfacedInTheToast]' passed (0.001 seconds).
+Test Suite 'ExportWarningsTests' passed at 2026-09-27 14:51:26.383.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'IncomingStripTests' started at 2026-09-27 14:51:26.383.
+Test Case '-[TesseraCoreTests.IncomingStripTests testBadgesPreferTheSubjectsFaceAndNeverInventEyes]' started.
+Test Case '-[TesseraCoreTests.IncomingStripTests testBadgesPreferTheSubjectsFaceAndNeverInventEyes]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.IncomingStripTests testFailedFramesAreKeptButNotAdvancedTo]' started.
+Test Case '-[TesseraCoreTests.IncomingStripTests testFailedFramesAreKeptButNotAdvancedTo]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.IncomingStripTests testFrameCountFieldCommitsTypedValueAndClamps]' started.
+Test Case '-[TesseraCoreTests.IncomingStripTests testFrameCountFieldCommitsTypedValueAndClamps]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.IncomingStripTests testIncomingDecisionRevisionTracksLocalCullAndFeed]' started.
+Test Case '-[TesseraCoreTests.IncomingStripTests testIncomingDecisionRevisionTracksLocalCullAndFeed]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.IncomingStripTests testIntervalPlanCountsDown]' started.
+Test Case '-[TesseraCoreTests.IncomingStripTests testIntervalPlanCountsDown]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.IncomingStripTests testNewestFirstCappedWithPendingRequests]' started.
+Test Case '-[TesseraCoreTests.IncomingStripTests testNewestFirstCappedWithPendingRequests]' passed (0.000 seconds).
+Test Suite 'IncomingStripTests' passed at 2026-09-27 14:51:26.384.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'IncrementalLibraryTests' started at 2026-09-27 14:51:26.384.
+Test Case '-[TesseraCoreTests.IncrementalLibraryTests testAppModelKeepsSelectionFilterAndGridAcrossUpdates]' started.
+Test Case '-[TesseraCoreTests.IncrementalLibraryTests testAppModelKeepsSelectionFilterAndGridAcrossUpdates]' passed (0.321 seconds).
+Test Case '-[TesseraCoreTests.IncrementalLibraryTests testLibraryInsertsUpdatesAndRemovesInPlaceKeepingUndo]' started.
+Test Case '-[TesseraCoreTests.IncrementalLibraryTests testLibraryInsertsUpdatesAndRemovesInPlaceKeepingUndo]' passed (0.046 seconds).
+Test Case '-[TesseraCoreTests.IncrementalLibraryTests testTwentyTetheredFramesKeepUndoAndFilters]' started.
+Test Case '-[TesseraCoreTests.IncrementalLibraryTests testTwentyTetheredFramesKeepUndoAndFilters]' passed (4.438 seconds).
+Test Suite 'IncrementalLibraryTests' passed at 2026-09-27 14:51:31.188.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 4.804 (4.804) seconds
+Test Suite 'KeyFocusTests' started at 2026-09-27 14:51:31.188.
+Test Case '-[TesseraCoreTests.KeyFocusTests testFocusedCurveOwnsArrowsWithoutSelectedPoint]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testFocusedCurveOwnsArrowsWithoutSelectedPoint]' passed (0.005 seconds).
+Test Case '-[TesseraCoreTests.KeyFocusTests testFocusedSliderOwnsArrows]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testFocusedSliderOwnsArrows]' passed (0.006 seconds).
+Test Case '-[TesseraCoreTests.KeyFocusTests testPhotoEditConsumesCullKeysWithoutChangingDecisions]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testPhotoEditConsumesCullKeysWithoutChangingDecisions]' passed (0.005 seconds).
+Test Case '-[TesseraCoreTests.KeyFocusTests testPhotoEditTextFieldStillOwnsLetters]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testPhotoEditTextFieldStillOwnsLetters]' passed (0.005 seconds).
+Test Case '-[TesseraCoreTests.KeyFocusTests testSearchFieldOwnsCullKeys]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testSearchFieldOwnsCullKeys]' passed (0.022 seconds).
+Test Case '-[TesseraCoreTests.KeyFocusTests testSliderModifiersBoundsAndBlurCommit]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testSliderModifiersBoundsAndBlurCommit]' passed (0.006 seconds).
+Test Case '-[TesseraCoreTests.KeyFocusTests testUnfocusedLoupeReceivesArrows]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testUnfocusedLoupeReceivesArrows]' passed (0.004 seconds).
+Test Suite 'KeyFocusTests' passed at 2026-09-27 14:51:31.241.
+	 Executed 7 tests, with 0 failures (0 unexpected) in 0.053 (0.054) seconds
+Test Suite 'LayoutContractTests' started at 2026-09-27 14:51:31.241.
+Test Case '-[TesseraCoreTests.LayoutContractTests testAppDirDefaultsAreIsolatedFromTheSharedDomain]' started.
+Test Case '-[TesseraCoreTests.LayoutContractTests testAppDirDefaultsAreIsolatedFromTheSharedDomain]' passed (0.003 seconds).
+Test Case '-[TesseraCoreTests.LayoutContractTests testColorWheelPuckStaysInsideAtFullSaturation]' started.
+Test Case '-[TesseraCoreTests.LayoutContractTests testColorWheelPuckStaysInsideAtFullSaturation]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.LayoutContractTests testCompareCaptionAndBadgeShareOnePartition]' started.
+Test Case '-[TesseraCoreTests.LayoutContractTests testCompareCaptionAndBadgeShareOnePartition]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.LayoutContractTests testCurveEndKnotsStayInsideTheView]' started.
+Test Case '-[TesseraCoreTests.LayoutContractTests testCurveEndKnotsStayInsideTheView]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.LayoutContractTests testFlowRowOffersOversizedItemsTheRowWidth]' started.
+Test Case '-[TesseraCoreTests.LayoutContractTests testFlowRowOffersOversizedItemsTheRowWidth]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.LayoutContractTests testKeywordChipRowStaysInsideTheInspector]' started.
+Test Case '-[TesseraCoreTests.LayoutContractTests testKeywordChipRowStaysInsideTheInspector]' passed (0.007 seconds).
+Test Case '-[TesseraCoreTests.LayoutContractTests testShellBudgetYieldOrder]' started.
+Test Case '-[TesseraCoreTests.LayoutContractTests testShellBudgetYieldOrder]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.LayoutContractTests testSidebarHiddenBadgeGivesItsWidthBack]' started.
+Test Case '-[TesseraCoreTests.LayoutContractTests testSidebarHiddenBadgeGivesItsWidthBack]' passed (0.019 seconds).
+Test Case '-[TesseraCoreTests.LayoutContractTests testSoftProofRowFitsTheMinimumInspector]' started.
+Test Case '-[TesseraCoreTests.LayoutContractTests testSoftProofRowFitsTheMinimumInspector]' passed (0.023 seconds).
+Test Case '-[TesseraCoreTests.LayoutContractTests testStatusBarFitsANarrowDetailWithLongStrings]' started.
+Test Case '-[TesseraCoreTests.LayoutContractTests testStatusBarFitsANarrowDetailWithLongStrings]' passed (0.011 seconds).
+Test Case '-[TesseraCoreTests.LayoutContractTests testThemeMenuTruncatesInsteadOfOverflowing]' started.
+Test Case '-[TesseraCoreTests.LayoutContractTests testThemeMenuTruncatesInsteadOfOverflowing]' passed (0.005 seconds).
+Test Case '-[TesseraCoreTests.LayoutContractTests testValueSliderDrawsWithoutOverflowAt80Points]' started.
+Test Case '-[TesseraCoreTests.LayoutContractTests testValueSliderDrawsWithoutOverflowAt80Points]' passed (0.002 seconds).
+Test Case '-[TesseraCoreTests.LayoutContractTests testValueSliderRingPaintsInsideTheThumb]' started.
+Test Case '-[TesseraCoreTests.LayoutContractTests testValueSliderRingPaintsInsideTheThumb]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.LayoutContractTests testValueSliderTitleAndValueNeverTouch]' started.
+Test Case '-[TesseraCoreTests.LayoutContractTests testValueSliderTitleAndValueNeverTouch]' passed (0.000 seconds).
+Test Suite 'LayoutContractTests' passed at 2026-09-27 14:51:31.314.
+	 Executed 14 tests, with 0 failures (0 unexpected) in 0.072 (0.073) seconds
+Test Suite 'LazyLoupeTests' started at 2026-09-27 14:51:31.314.
+Test Case '-[TesseraCoreTests.LazyLoupeTests testBackgroundAuditWindowCannotBecomeKeyOrMain]' started.
+Test Case '-[TesseraCoreTests.LazyLoupeTests testBackgroundAuditWindowCannotBecomeKeyOrMain]' passed (1.097 seconds).
+Test Case '-[TesseraCoreTests.LazyLoupeTests testEmptyLoupeConstructionDoesNotPrepareMetal]' started.
+Test Case '-[TesseraCoreTests.LazyLoupeTests testEmptyLoupeConstructionDoesNotPrepareMetal]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.LazyLoupeTests testLateLoupeObserverSynchronizesExistingSelection]' started.
+Test Case '-[TesseraCoreTests.LazyLoupeTests testLateLoupeObserverSynchronizesExistingSelection]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.LazyLoupeTests testPreparedResourcesAreSharedAndBuiltOffMain]' started.
+Test Case '-[TesseraCoreTests.LazyLoupeTests testPreparedResourcesAreSharedAndBuiltOffMain]' passed (0.051 seconds).
+Test Suite 'LazyLoupeTests' passed at 2026-09-27 14:51:32.464.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 1.150 (1.150) seconds
+Test Suite 'LensBlurDepthModelTests' started at 2026-09-27 14:51:32.464.
+Test Case '-[TesseraCoreTests.LensBlurDepthModelTests testHistogramBindsTheEngineBinsNormalised]' started.
+Test Case '-[TesseraCoreTests.LensBlurDepthModelTests testHistogramBindsTheEngineBinsNormalised]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.LensBlurDepthModelTests testMissingWeightsAreAnInlineErrorAndNoEngineCall]' started.
+Test Case '-[TesseraCoreTests.LensBlurDepthModelTests testMissingWeightsAreAnInlineErrorAndNoEngineCall]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.LensBlurDepthModelTests testSubjectAcquiresSegmentationAndAppliesTheEngineRange]' started.
+Test Case '-[TesseraCoreTests.LensBlurDepthModelTests testSubjectAcquiresSegmentationAndAppliesTheEngineRange]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.LensBlurDepthModelTests testVisualizeToggleDrivesTheSessionOverlay]' started.
+Test Case '-[TesseraCoreTests.LensBlurDepthModelTests testVisualizeToggleDrivesTheSessionOverlay]' passed (0.001 seconds).
+Test Suite 'LensBlurDepthModelTests' passed at 2026-09-27 14:51:32.468.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.004 (0.004) seconds
+Test Suite 'LensBlurExportWarningTests' started at 2026-09-27 14:51:32.468.
+Test Case '-[TesseraCoreTests.LensBlurExportWarningTests testLensBlurWithoutDepthWeightsExportsWithAWarning]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [431.792666, 189.114709, 221.891333]; GPU [266.628917, 1.186, 4.310291]
+Test Case '-[TesseraCoreTests.LensBlurExportWarningTests testLensBlurWithoutDepthWeightsExportsWithAWarning]' passed (12.637 seconds).
+Test Suite 'LensBlurExportWarningTests' passed at 2026-09-27 14:51:45.105.
+	 Executed 1 test, with 0 failures (0 unexpected) in 12.637 (12.637) seconds
+Test Suite 'LibraryResponsivenessTests' started at 2026-09-27 14:51:45.105.
+Test Case '-[TesseraCoreTests.LibraryResponsivenessTests testBottomHundredLookupScaling]' started.
+Test Case '-[TesseraCoreTests.LibraryResponsivenessTests testBottomHundredLookupScaling]' passed (0.058 seconds).
+Test Case '-[TesseraCoreTests.LibraryResponsivenessTests testLatestRequestWinsEvenWhenOldWorkFinishesLast]' started.
+Test Case '-[TesseraCoreTests.LibraryResponsivenessTests testLatestRequestWinsEvenWhenOldWorkFinishesLast]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.LibraryResponsivenessTests testSingletonsAndRemappedItems]' started.
+Test Case '-[TesseraCoreTests.LibraryResponsivenessTests testSingletonsAndRemappedItems]' passed (0.025 seconds).
+Test Case '-[TesseraCoreTests.LibraryResponsivenessTests testSuggestedBestUsesStableGroupIdentity]' started.
+Test Case '-[TesseraCoreTests.LibraryResponsivenessTests testSuggestedBestUsesStableGroupIdentity]' passed (0.024 seconds).
+Test Case '-[TesseraCoreTests.LibraryResponsivenessTests testTwentyThousandCoreInstallAndSelectAll]' started.
+Test Case '-[TesseraCoreTests.LibraryResponsivenessTests testTwentyThousandCoreInstallAndSelectAll]' passed (0.022 seconds).
+Test Case '-[TesseraCoreTests.LibraryResponsivenessTests testWarmBottomHundredCellConfiguration]' started.
+Test Case '-[TesseraCoreTests.LibraryResponsivenessTests testWarmBottomHundredCellConfiguration]' passed (0.079 seconds).
+Test Suite 'LibraryResponsivenessTests' passed at 2026-09-27 14:51:45.314.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.208 (0.208) seconds
+Test Suite 'LibraryTests' started at 2026-09-27 14:51:45.314.
+Test Case '-[TesseraCoreTests.LibraryTests testAlbumOrderingAndSidebarNestingPersist]' started.
+Test Case '-[TesseraCoreTests.LibraryTests testAlbumOrderingAndSidebarNestingPersist]' passed (0.062 seconds).
+Test Case '-[TesseraCoreTests.LibraryTests testBatchMetadataAndFacetOnlySnapshot]' started.
+Test Case '-[TesseraCoreTests.LibraryTests testBatchMetadataAndFacetOnlySnapshot]' passed (0.022 seconds).
+Test Case '-[TesseraCoreTests.LibraryTests testFilterBarFacetsAndNotInAnyAlbum]' started.
+Test Case '-[TesseraCoreTests.LibraryTests testFilterBarFacetsAndNotInAnyAlbum]' passed (0.055 seconds).
+Test Case '-[TesseraCoreTests.LibraryTests testRapidQueriesAndLibraryReplacementRejectOldResults]' started.
+Test Case '-[TesseraCoreTests.LibraryTests testRapidQueriesAndLibraryReplacementRejectOldResults]' passed (0.357 seconds).
+Test Case '-[TesseraCoreTests.LibraryTests testRuleDiagnosticsMapToSwiftRangesThroughTheBridge]' started.
+Test Case '-[TesseraCoreTests.LibraryTests testRuleDiagnosticsMapToSwiftRangesThroughTheBridge]' passed (0.008 seconds).
+Test Case '-[TesseraCoreTests.LibraryTests testSupportDirectoryResolution]' started.
+Test Case '-[TesseraCoreTests.LibraryTests testSupportDirectoryResolution]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.LibraryTests testTwentyThousandEngineLibraryMeasurement]' started.
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-16/apps/mac/Tests/TesseraCoreTests/LibraryTests.swift:146: -[TesseraCoreTests.LibraryTests testTwentyThousandEngineLibraryMeasurement] : Test skipped - Opt-in generated 20k-file engine fixture
+Test Case '-[TesseraCoreTests.LibraryTests testTwentyThousandEngineLibraryMeasurement]' skipped (0.001 seconds).
+Test Suite 'LibraryTests' passed at 2026-09-27 14:51:45.820.
+	 Executed 7 tests, with 1 test skipped and 0 failures (0 unexpected) in 0.506 (0.506) seconds
+Test Suite 'LightroomImportTests' started at 2026-09-27 14:51:45.820.
+Test Case '-[TesseraCoreTests.LightroomImportTests testBridgeRejectsANonCatalog]' started.
+Test Case '-[TesseraCoreTests.LightroomImportTests testBridgeRejectsANonCatalog]' passed (0.002 seconds).
+Test Case '-[TesseraCoreTests.LightroomImportTests testCancelledReportSaysHowToResumeAndIsWrittenBesideLibraryJSON]' started.
+Test Case '-[TesseraCoreTests.LightroomImportTests testCancelledReportSaysHowToResumeAndIsWrittenBesideLibraryJSON]' passed (0.002 seconds).
+Test Case '-[TesseraCoreTests.LightroomImportTests testFidelityGridSortsAndFiltersLooksDifferent]' started.
+Test Case '-[TesseraCoreTests.LightroomImportTests testFidelityGridSortsAndFiltersLooksDifferent]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.LightroomImportTests testFolderTableRelocatesRootsAndMovesTheLibraryWithThem]' started.
+Test Case '-[TesseraCoreTests.LightroomImportTests testFolderTableRelocatesRootsAndMovesTheLibraryWithThem]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.LightroomImportTests testFolderTableTakesImageCountsFromThePlan]' started.
+Test Case '-[TesseraCoreTests.LightroomImportTests testFolderTableTakesImageCountsFromThePlan]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.LightroomImportTests testMarkTableMapsKeepsAndDropsLabels]' started.
+Test Case '-[TesseraCoreTests.LightroomImportTests testMarkTableMapsKeepsAndDropsLabels]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.LightroomImportTests testReportMarkdownListsImportedSkippedAndUnsupported]' started.
+Test Case '-[TesseraCoreTests.LightroomImportTests testReportMarkdownListsImportedSkippedAndUnsupported]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.LightroomImportTests testSelectionText]' started.
+Test Case '-[TesseraCoreTests.LightroomImportTests testSelectionText]' passed (0.000 seconds).
+Test Suite 'LightroomImportTests' passed at 2026-09-27 14:51:45.825.
+	 Executed 8 tests, with 0 failures (0 unexpected) in 0.005 (0.006) seconds
+Test Suite 'MaskingTests' started at 2026-09-27 14:51:45.825.
+Test Case '-[TesseraCoreTests.MaskingTests testAIProgressFollowsJobsAndTheEngineList]' started.
+Test Case '-[TesseraCoreTests.MaskingTests testAIProgressFollowsJobsAndTheEngineList]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.MaskingTests testGradientShapesRoundTripTheirEngineJSON]' started.
+Test Case '-[TesseraCoreTests.MaskingTests testGradientShapesRoundTripTheirEngineJSON]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.MaskingTests testListCyclesAndEditsTheSelectedGroupOptimistically]' started.
+Test Case '-[TesseraCoreTests.MaskingTests testListCyclesAndEditsTheSelectedGroupOptimistically]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.MaskingTests testListSelectsNewGroupsAndNeighboursOfDeletedOnes]' started.
+Test Case '-[TesseraCoreTests.MaskingTests testListSelectsNewGroupsAndNeighboursOfDeletedOnes]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.MaskingTests testMaskEditsAreCoalescedPerFrameAndCommittedAsOneStep]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [412.5695, 192.130791, 218.44312499999998]; GPU [248.10750000000002, 1.08825, 3.8540829999999997]
+Test Case '-[TesseraCoreTests.MaskingTests testMaskEditsAreCoalescedPerFrameAndCommittedAsOneStep]' passed (1.645 seconds).
+Test Case '-[TesseraCoreTests.MaskingTests testMaskSpaceRoundTripsThroughCropAndOrientation]' started.
+Test Case '-[TesseraCoreTests.MaskingTests testMaskSpaceRoundTripsThroughCropAndOrientation]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.MaskingTests testStrokeCoalescerBatchesManyEventsPerFrame]' started.
+Test Case '-[TesseraCoreTests.MaskingTests testStrokeCoalescerBatchesManyEventsPerFrame]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.MaskingTests testStrokeCoalescerDropsDenseSamplesAndKeepsTheLast]' started.
+Test Case '-[TesseraCoreTests.MaskingTests testStrokeCoalescerDropsDenseSamplesAndKeepsTheLast]' passed (0.000 seconds).
+Test Suite 'MaskingTests' passed at 2026-09-27 14:51:47.472.
+	 Executed 8 tests, with 0 failures (0 unexpected) in 1.646 (1.646) seconds
+Test Suite 'ModelAcquisitionTests' started at 2026-09-27 14:51:47.472.
+Test Case '-[TesseraCoreTests.ModelAcquisitionTests testAllowDownloadsSettingPersistsAndReopensTheDownloader]' started.
+Test Case '-[TesseraCoreTests.ModelAcquisitionTests testAllowDownloadsSettingPersistsAndReopensTheDownloader]' passed (0.002 seconds).
+Test Case '-[TesseraCoreTests.ModelAcquisitionTests testDownloaderThatCannotOpenFailsWithTheReason]' started.
+Test Case '-[TesseraCoreTests.ModelAcquisitionTests testDownloaderThatCannotOpenFailsWithTheReason]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.ModelAcquisitionTests testDownloadProgressQueuedBytesReady]' started.
+Test Case '-[TesseraCoreTests.ModelAcquisitionTests testDownloadProgressQueuedBytesReady]' passed (0.016 seconds).
+Test Case '-[TesseraCoreTests.ModelAcquisitionTests testFailureCarriesTheReasonAndRetryRequestsAgain]' started.
+Test Case '-[TesseraCoreTests.ModelAcquisitionTests testFailureCarriesTheReasonAndRetryRequestsAgain]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.ModelAcquisitionTests testStandardPathsUseTheSupportModelsFolder]' started.
+Test Case '-[TesseraCoreTests.ModelAcquisitionTests testStandardPathsUseTheSupportModelsFolder]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.ModelAcquisitionTests testStatesFollowTheEngineEvents]' started.
+Test Case '-[TesseraCoreTests.ModelAcquisitionTests testStatesFollowTheEngineEvents]' passed (0.000 seconds).
+Test Suite 'ModelAcquisitionTests' passed at 2026-09-27 14:51:47.493.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.021 (0.021) seconds
+Test Suite 'PeopleBridgeTests' started at 2026-09-27 14:51:47.493.
+Test Case '-[TesseraCoreTests.PeopleBridgeTests testNameMergeSplitConfirmAndFilterThroughTheEngine]' started.
+Test Case '-[TesseraCoreTests.PeopleBridgeTests testNameMergeSplitConfirmAndFilterThroughTheEngine]' passed (0.056 seconds).
+Test Suite 'PeopleBridgeTests' passed at 2026-09-27 14:51:47.549.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.056 (0.057) seconds
+Test Suite 'PeopleLayoutTests' started at 2026-09-27 14:51:47.549.
+Test Case '-[TesseraCoreTests.PeopleLayoutTests testDetailFitsWindowAndKeepsHeaderAtTop]' started.
+Test Case '-[TesseraCoreTests.PeopleLayoutTests testDetailFitsWindowAndKeepsHeaderAtTop]' passed (0.417 seconds).
+Test Suite 'PeopleLayoutTests' passed at 2026-09-27 14:51:47.967.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.417 (0.417) seconds
+Test Suite 'PeopleModelTests' started at 2026-09-27 14:51:47.967.
+Test Case '-[TesseraCoreTests.PeopleModelTests testDetailLoadsMembersInOneCall]' started.
+Test Case '-[TesseraCoreTests.PeopleModelTests testDetailLoadsMembersInOneCall]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.PeopleModelTests testEngineErrorsBecomeMessagesAndNothingIsHalfApplied]' started.
+Test Case '-[TesseraCoreTests.PeopleModelTests testEngineErrorsBecomeMessagesAndNothingIsHalfApplied]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.PeopleModelTests testFootnoteReportsTheJobsSampleSize]' started.
+Test Case '-[TesseraCoreTests.PeopleModelTests testFootnoteReportsTheJobsSampleSize]' passed (0.002 seconds).
+Test Case '-[TesseraCoreTests.PeopleModelTests testInstallResetsAndLibraryUpdatesRemapItems]' started.
+Test Case '-[TesseraCoreTests.PeopleModelTests testInstallResetsAndLibraryUpdatesRemapItems]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.PeopleModelTests testMergeSelectionKeepsTheNamedPersonAndItsName]' started.
+Test Case '-[TesseraCoreTests.PeopleModelTests testMergeSelectionKeepsTheNamedPersonAndItsName]' passed (0.004 seconds).
+Test Case '-[TesseraCoreTests.PeopleModelTests testNamingCommitsTrimmedNameWithOptInsAndReloads]' started.
+Test Case '-[TesseraCoreTests.PeopleModelTests testNamingCommitsTrimmedNameWithOptInsAndReloads]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.PeopleModelTests testPersonFacetIsAUnionWithinAndIntersectsOtherFilters]' started.
+Test Case '-[TesseraCoreTests.PeopleModelTests testPersonFacetIsAUnionWithinAndIntersectsOtherFilters]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.PeopleModelTests testReassignAndConfirmGoThroughTheEngine]' started.
+Test Case '-[TesseraCoreTests.PeopleModelTests testReassignAndConfirmGoThroughTheEngine]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.PeopleModelTests testRefreshRunsTheJobOffTheMainActorAndReportsApproximation]' started.
+Test Case '-[TesseraCoreTests.PeopleModelTests testRefreshRunsTheJobOffTheMainActorAndReportsApproximation]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.PeopleModelTests testSplitMovesSelectedFacesToANewUnconfirmedPerson]' started.
+Test Case '-[TesseraCoreTests.PeopleModelTests testSplitMovesSelectedFacesToANewUnconfirmedPerson]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.PeopleModelTests testSuggestionsAreFilteredSortedAndAcceptingMerges]' started.
+Test Case '-[TesseraCoreTests.PeopleModelTests testSuggestionsAreFilteredSortedAndAcceptingMerges]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.PeopleModelTests testTilesNamedFirstThenByFramesWithNamesMembersAndBadges]' started.
+Test Case '-[TesseraCoreTests.PeopleModelTests testTilesNamedFirstThenByFramesWithNamesMembersAndBadges]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.PeopleModelTests testTilesUseTheMedoidAndEngineCountsWithoutScanningAssignments]' started.
+Test Case '-[TesseraCoreTests.PeopleModelTests testTilesUseTheMedoidAndEngineCountsWithoutScanningAssignments]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.PeopleModelTests testUndoRedoReplayEngineHistoryWithItsDescriptions]' started.
+Test Case '-[TesseraCoreTests.PeopleModelTests testUndoRedoReplayEngineHistoryWithItsDescriptions]' passed (0.000 seconds).
+Test Suite 'PeopleModelTests' passed at 2026-09-27 14:51:47.981.
+	 Executed 14 tests, with 0 failures (0 unexpected) in 0.014 (0.014) seconds
+Test Suite 'PeopleUndoMenuTests' started at 2026-09-27 14:51:47.981.
+Test Case '-[TesseraCoreTests.PeopleUndoMenuTests testUndoRedoCoverPeopleEditsWhileThePeopleViewIsFrontmost]' started.
+Test Case '-[TesseraCoreTests.PeopleUndoMenuTests testUndoRedoCoverPeopleEditsWhileThePeopleViewIsFrontmost]' passed (0.000 seconds).
+Test Suite 'PeopleUndoMenuTests' passed at 2026-09-27 14:51:47.981.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'PerformanceTraceTests' started at 2026-09-27 14:51:47.981.
+Test Case '-[TesseraCoreTests.PerformanceTraceTests testBoundedTraceReportsDropsAndPreservesIdentity]' started.
+Test Case '-[TesseraCoreTests.PerformanceTraceTests testBoundedTraceReportsDropsAndPreservesIdentity]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.PerformanceTraceTests testDisabledTraceDoesNotRecord]' started.
+Test Case '-[TesseraCoreTests.PerformanceTraceTests testDisabledTraceDoesNotRecord]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.PerformanceTraceTests testSpanDurationAndConcurrentCallbacks]' started.
+Test Case '-[TesseraCoreTests.PerformanceTraceTests testSpanDurationAndConcurrentCallbacks]' passed (0.000 seconds).
+Test Suite 'PerformanceTraceTests' passed at 2026-09-27 14:51:47.982.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'PhotoMergeEnhanceTests' started at 2026-09-27 14:51:47.982.
+Test Case '-[TesseraCoreTests.PhotoMergeEnhanceTests testAppModelMenuStateFollowsTheSelection]' started.
+Test Case '-[TesseraCoreTests.PhotoMergeEnhanceTests testAppModelMenuStateFollowsTheSelection]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.PhotoMergeEnhanceTests testCancelStopsTheJobAndReportsCancelled]' started.
+Test Case '-[TesseraCoreTests.PhotoMergeEnhanceTests testCancelStopsTheJobAndReportsCancelled]' passed (0.054 seconds).
+Test Case '-[TesseraCoreTests.PhotoMergeEnhanceTests testCommandRules]' started.
+Test Case '-[TesseraCoreTests.PhotoMergeEnhanceTests testCommandRules]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.PhotoMergeEnhanceTests testDefaultsMatchTheEngineAndHDRIgnoresPanoramaControls]' started.
+Test Case '-[TesseraCoreTests.PhotoMergeEnhanceTests testDefaultsMatchTheEngineAndHDRIgnoresPanoramaControls]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.PhotoMergeEnhanceTests testEnhanceOptionsMapping]' started.
+Test Case '-[TesseraCoreTests.PhotoMergeEnhanceTests testEnhanceOptionsMapping]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.PhotoMergeEnhanceTests testExposureParsingAndSpreadWarnings]' started.
+Test Case '-[TesseraCoreTests.PhotoMergeEnhanceTests testExposureParsingAndSpreadWarnings]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.PhotoMergeEnhanceTests testFailuresAreExplained]' started.
+Test Case '-[TesseraCoreTests.PhotoMergeEnhanceTests testFailuresAreExplained]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.PhotoMergeEnhanceTests testMergeProblemsExplainWhyMergeIsDisabled]' started.
+Test Case '-[TesseraCoreTests.PhotoMergeEnhanceTests testMergeProblemsExplainWhyMergeIsDisabled]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.PhotoMergeEnhanceTests testMergeRunsWithPreviewProgressAndCompletion]' started.
+Test Case '-[TesseraCoreTests.PhotoMergeEnhanceTests testMergeRunsWithPreviewProgressAndCompletion]' passed (0.040 seconds).
+Test Case '-[TesseraCoreTests.PhotoMergeEnhanceTests testPanoramaAndHDRPanoramaMapping]' started.
+Test Case '-[TesseraCoreTests.PhotoMergeEnhanceTests testPanoramaAndHDRPanoramaMapping]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.PhotoMergeEnhanceTests testRealEngineMergesThreeBracketsIntoAnHDRDngThatOpensInDevelop]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [163.54154200000002, 82.577042, 83.047708]; GPU [85.221458, 0.696125, 0.905125]
+Test Case '-[TesseraCoreTests.PhotoMergeEnhanceTests testRealEngineMergesThreeBracketsIntoAnHDRDngThatOpensInDevelop]' passed (0.897 seconds).
+Test Case '-[TesseraCoreTests.PhotoMergeEnhanceTests testStageTitlesAndErrorMessages]' started.
+Test Case '-[TesseraCoreTests.PhotoMergeEnhanceTests testStageTitlesAndErrorMessages]' passed (0.000 seconds).
+Test Suite 'PhotoMergeEnhanceTests' passed at 2026-09-27 14:51:48.975.
+	 Executed 12 tests, with 0 failures (0 unexpected) in 0.992 (0.993) seconds
+Test Suite 'PreviewEventsTests' started at 2026-09-27 14:51:48.975.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testCacheDoesNotAliasReusedDenseItemIDs]' started.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testCacheDoesNotAliasReusedDenseItemIDs]' passed (0.002 seconds).
+Test Case '-[TesseraCoreTests.PreviewEventsTests testCacheKeysRemainRetrievableAcrossManyRequests]' started.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testCacheKeysRemainRetrievableAcrossManyRequests]' passed (0.095 seconds).
+Test Case '-[TesseraCoreTests.PreviewEventsTests testCancelledTaskStopsWaitingWithoutAnEvent]' started.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testCancelledTaskStopsWaitingWithoutAnEvent]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.PreviewEventsTests testCancellingOneSubscriberDoesNotRemoveAnother]' started.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testCancellingOneSubscriberDoesNotRemoveAnother]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.PreviewEventsTests testConcurrentDeliveriesPublishBeforeCallbackAndEvictOlderImages]' started.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testConcurrentDeliveriesPublishBeforeCallbackAndEvictOlderImages]' passed (0.002 seconds).
+Test Case '-[TesseraCoreTests.PreviewEventsTests testInvalidationCancelsInFlightRequestsForBothTiersOnlyForThatItem]' started.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testInvalidationCancelsInFlightRequestsForBothTiersOnlyForThatItem]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.PreviewEventsTests testOverBudgetImageIsCachedBeforeDelivery]' started.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testOverBudgetImageIsCachedBeforeDelivery]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.PreviewEventsTests testReadyBeforeWaitIsBufferedAndFiltered]' started.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testReadyBeforeWaitIsBufferedAndFiltered]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.PreviewEventsTests testRemoveAllPreventsLateDeliveryAndCacheRepopulation]' started.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testRemoveAllPreventsLateDeliveryAndCacheRepopulation]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.PreviewEventsTests testUnrelatedEventsDoNotWakeSubscriber]' started.
+Test Case '-[TesseraCoreTests.PreviewEventsTests testUnrelatedEventsDoNotWakeSubscriber]' passed (0.000 seconds).
+Test Suite 'PreviewEventsTests' passed at 2026-09-27 14:51:49.076.
+	 Executed 10 tests, with 0 failures (0 unexpected) in 0.101 (0.101) seconds
+Test Suite 'SearchTermTests' started at 2026-09-27 14:51:49.076.
+Test Case '-[TesseraCoreTests.SearchTermTests testAppendingANDsOntoExistingText]' started.
+Test Case '-[TesseraCoreTests.SearchTermTests testAppendingANDsOntoExistingText]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.SearchTermTests testTextTermsAreQuotedWithTheGrammarsJSONEscaping]' started.
+Test Case '-[TesseraCoreTests.SearchTermTests testTextTermsAreQuotedWithTheGrammarsJSONEscaping]' passed (0.000 seconds).
+Test Suite 'SearchTermTests' passed at 2026-09-27 14:51:49.076.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'ShellLayoutTests' started at 2026-09-27 14:51:49.076.
+Test Case '-[TesseraCoreTests.ShellLayoutTests testDocumentInspectorEveryTabAndHistoryStateAtEverySize]' started.
+Test Case '-[TesseraCoreTests.ShellLayoutTests testDocumentInspectorEveryTabAndHistoryStateAtEverySize]' passed (28.927 seconds).
+Test Case '-[TesseraCoreTests.ShellLayoutTests testInspectorTabShortcuts]' started.
+Test Case '-[TesseraCoreTests.ShellLayoutTests testInspectorTabShortcuts]' passed (1.867 seconds).
+Test Case '-[TesseraCoreTests.ShellLayoutTests testManyDocumentTabsStayCapped]' started.
+Test Case '-[TesseraCoreTests.ShellLayoutTests testManyDocumentTabsStayCapped]' passed (2.401 seconds).
+Test Case '-[TesseraCoreTests.ShellLayoutTests testShellContainedAtEverySizeStateAndAppearance]' started.
+Test Case '-[TesseraCoreTests.ShellLayoutTests testShellContainedAtEverySizeStateAndAppearance]' passed (47.251 seconds).
+Test Suite 'ShellLayoutTests' passed at 2026-09-27 14:53:09.522.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 80.446 (80.446) seconds
+Test Suite 'StubDocumentBackendTests' started at 2026-09-27 14:53:09.522.
+Test Case '-[TesseraCoreTests.StubDocumentBackendTests testCompositeHasTransparentMarginAndThumbnailsAreCached]' started.
+Test Case '-[TesseraCoreTests.StubDocumentBackendTests testCompositeHasTransparentMarginAndThumbnailsAreCached]' passed (0.017 seconds).
+Test Case '-[TesseraCoreTests.StubDocumentBackendTests testDragPlanAppliesThroughMoveLayer]' started.
+Test Case '-[TesseraCoreTests.StubDocumentBackendTests testDragPlanAppliesThroughMoveLayer]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.StubDocumentBackendTests testInteractiveEditsWaitForCommit]' started.
+Test Case '-[TesseraCoreTests.StubDocumentBackendTests testInteractiveEditsWaitForCommit]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.StubDocumentBackendTests testSaveOpenAndExport]' started.
+Test Case '-[TesseraCoreTests.StubDocumentBackendTests testSaveOpenAndExport]' passed (0.296 seconds).
+Test Case '-[TesseraCoreTests.StubDocumentBackendTests testStructuralEdits]' started.
+Test Case '-[TesseraCoreTests.StubDocumentBackendTests testStructuralEdits]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.StubDocumentBackendTests testUndoRedoCheckoutAndSnapshots]' started.
+Test Case '-[TesseraCoreTests.StubDocumentBackendTests testUndoRedoCheckoutAndSnapshots]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.StubDocumentBackendTests testViewportFramesArriveOnTheListener]' started.
+Test Case '-[TesseraCoreTests.StubDocumentBackendTests testViewportFramesArriveOnTheListener]' passed (0.185 seconds).
+Test Suite 'StubDocumentBackendTests' passed at 2026-09-27 14:53:10.022.
+	 Executed 7 tests, with 0 failures (0 unexpected) in 0.499 (0.499) seconds
+Test Suite 'SuggestionChipTests' started at 2026-09-27 14:53:10.022.
+Test Case '-[TesseraCoreTests.SuggestionChipTests testBridgeRecordConversion]' started.
+Test Case '-[TesseraCoreTests.SuggestionChipTests testBridgeRecordConversion]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.SuggestionChipTests testClickAcceptsOneAndRejectRemovesOne]' started.
+Test Case '-[TesseraCoreTests.SuggestionChipTests testClickAcceptsOneAndRejectRemovesOne]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.SuggestionChipTests testOrderingDeduplicationAndMapping]' started.
+Test Case '-[TesseraCoreTests.SuggestionChipTests testOrderingDeduplicationAndMapping]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.SuggestionChipTests testReplaceKeepsTheThreshold]' started.
+Test Case '-[TesseraCoreTests.SuggestionChipTests testReplaceKeepsTheThreshold]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.SuggestionChipTests testShiftClickAcceptsEverythingAtOrAboveTheThreshold]' started.
+Test Case '-[TesseraCoreTests.SuggestionChipTests testShiftClickAcceptsEverythingAtOrAboveTheThreshold]' passed (0.000 seconds).
+Test Suite 'SuggestionChipTests' passed at 2026-09-27 14:53:10.022.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+Test Suite 'TetherBridgeTests' started at 2026-09-27 14:53:10.022.
+Test Case '-[TesseraCoreTests.TetherBridgeTests testFakeCameraFrameArrivesNamedIndexedAndScored]' started.
+Test Case '-[TesseraCoreTests.TetherBridgeTests testFakeCameraFrameArrivesNamedIndexedAndScored]' passed (0.294 seconds).
+Test Case '-[TesseraCoreTests.TetherBridgeTests testLaunchArguments]' started.
+Test Case '-[TesseraCoreTests.TetherBridgeTests testLaunchArguments]' passed (0.000 seconds).
+Test Suite 'TetherBridgeTests' passed at 2026-09-27 14:53:10.317.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.295 (0.295) seconds
+Test Suite 'TetherNamingTests' started at 2026-09-27 14:53:10.317.
+Test Case '-[TesseraCoreTests.TetherNamingTests testRejectsWhatTheEngineRejects]' started.
+Test Case '-[TesseraCoreTests.TetherNamingTests testRejectsWhatTheEngineRejects]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.TetherNamingTests testRendersTokensWithFourDigitSequence]' started.
+Test Case '-[TesseraCoreTests.TetherNamingTests testRendersTokensWithFourDigitSequence]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.TetherNamingTests testSessionNames]' started.
+Test Case '-[TesseraCoreTests.TetherNamingTests testSessionNames]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.TetherNamingTests testTokenMenuInsertsBeforeTheExtension]' started.
+Test Case '-[TesseraCoreTests.TetherNamingTests testTokenMenuInsertsBeforeTheExtension]' passed (0.000 seconds).
+Test Suite 'TetherNamingTests' passed at 2026-09-27 14:53:10.318.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'ThemeLintTests' started at 2026-09-27 14:53:10.318.
+Test Case '-[TesseraCoreTests.ThemeLintTests testViewsUseThemeTokensOnly]' started.
+Test Case '-[TesseraCoreTests.ThemeLintTests testViewsUseThemeTokensOnly]' passed (0.232 seconds).
+Test Suite 'ThemeLintTests' passed at 2026-09-27 14:53:10.550.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.232 (0.232) seconds
+Test Suite 'ThumbnailQueueTests' started at 2026-09-27 14:53:10.550.
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testCancelAndImmediatelyResubscribeDoesNotOverlapSameKey]' started.
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testCancelAndImmediatelyResubscribeDoesNotOverlapSameKey]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testCancellingSharedSubscriberKeepsOtherTierAndSubscriber]' started.
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testCancellingSharedSubscriberKeepsOtherTierAndSubscriber]' passed (0.010 seconds).
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testGridAndFilmstripShareOneDecodedImage]' started.
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testGridAndFilmstripShareOneDecodedImage]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testLateSubscriberAfterCacheEvictionStillReceivesResult]' started.
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testLateSubscriberAfterCacheEvictionStillReceivesResult]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testLoupeIsNextAdmissionAheadOfThumbnailBacklog]' started.
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testLoupeIsNextAdmissionAheadOfThumbnailBacklog]' passed (0.010 seconds).
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testMixedTiersShareViewportPendingBudget]' started.
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testMixedTiersShareViewportPendingBudget]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testPendingCancellationRemovesSubscriberSynchronously]' started.
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testPendingCancellationRemovesSubscriberSynchronously]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testReentrantInvalidationPreventsOtherSharedDeliveryAndCanReload]' started.
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testReentrantInvalidationPreventsOtherSharedDeliveryAndCanReload]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testTwentyThousandRequestsKeepOnlyNewestBoundedBacklog]' started.
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testTwentyThousandRequestsKeepOnlyNewestBoundedBacklog]' passed (0.446 seconds).
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testTwentyThousandReversalDeliversOnlyFinalViewport]' started.
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testTwentyThousandReversalDeliversOnlyFinalViewport]' passed (0.571 seconds).
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testViewportOwnersResizeAndReleaseBound]' started.
+Test Case '-[TesseraCoreTests.ThumbnailQueueTests testViewportOwnersResizeAndReleaseBound]' passed (0.002 seconds).
+Test Suite 'ThumbnailQueueTests' passed at 2026-09-27 14:53:11.593.
+	 Executed 11 tests, with 0 failures (0 unexpected) in 1.043 (1.043) seconds
+Test Suite 'ThumbnailViewportTests' started at 2026-09-27 14:53:11.593.
+Test Case '-[TesseraCoreTests.ThumbnailViewportTests testHiddenRetainedGridDoesNotContributeViewportBudget]' started.
+Test Case '-[TesseraCoreTests.ThumbnailViewportTests testHiddenRetainedGridDoesNotContributeViewportBudget]' passed (0.002 seconds).
+Test Suite 'ThumbnailViewportTests' passed at 2026-09-27 14:53:11.596.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.002 (0.002) seconds
+Test Suite 'TransformLensBlurTests' started at 2026-09-27 14:53:11.596.
+Test Case '-[TesseraCoreTests.TransformLensBlurTests testAIDenoiseTogglesTheNeuralModeAndAmount]' started.
+Test Case '-[TesseraCoreTests.TransformLensBlurTests testAIDenoiseTogglesTheNeuralModeAndAmount]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.TransformLensBlurTests testGuidedEditorKeepsTwoToFourGuidesInTheImage]' started.
+Test Case '-[TesseraCoreTests.TransformLensBlurTests testGuidedEditorKeepsTwoToFourGuidesInTheImage]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.TransformLensBlurTests testLensBlurApplyBokehAndFocalRange]' started.
+Test Case '-[TesseraCoreTests.TransformLensBlurTests testLensBlurApplyBokehAndFocalRange]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.TransformLensBlurTests testTransformSlidersWriteTheirPatchesAndResetPerGroup]' started.
+Test Case '-[TesseraCoreTests.TransformLensBlurTests testTransformSlidersWriteTheirPatchesAndResetPerGroup]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.TransformLensBlurTests testUprightButtonsWriteTheirModeAndClearGuides]' started.
+Test Case '-[TesseraCoreTests.TransformLensBlurTests testUprightButtonsWriteTheirModeAndClearGuides]' passed (0.000 seconds).
+Test Suite 'TransformLensBlurTests' passed at 2026-09-27 14:53:11.597.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.002 (0.002) seconds
+Test Suite 'TransformSessionTests' started at 2026-09-27 14:53:11.597.
+Test Case '-[TesseraCoreTests.TransformSessionTests testTransformDragsAndUprightButtonsAreOneHistoryStepEach]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [412.82012499999996, 190.118875, 219.874458]; GPU [250.352958, 1.075208, 4.153208]
+Test Case '-[TesseraCoreTests.TransformSessionTests testTransformDragsAndUprightButtonsAreOneHistoryStepEach]' passed (4.391 seconds).
+Test Case '-[TesseraCoreTests.TransformSessionTests testUprightAutoChangesTheRenderedFrame]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [415.830875, 189.453541, 215.127792]; GPU [237.722208, 0.934, 3.989083]
+Test Case '-[TesseraCoreTests.TransformSessionTests testUprightAutoChangesTheRenderedFrame]' passed (20.202 seconds).
+Test Suite 'TransformSessionTests' passed at 2026-09-27 14:53:36.191.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 24.593 (24.593) seconds
+Test Suite 'UncorrectedPlacementTests' started at 2026-09-27 14:53:36.191.
+Test Case '-[TesseraCoreTests.UncorrectedPlacementTests testGuidedEnterAndExitToggleTheUncorrectedView]' started.
+Test Case '-[TesseraCoreTests.UncorrectedPlacementTests testGuidedEnterAndExitToggleTheUncorrectedView]' passed (0.000 seconds).
+Test Suite 'UncorrectedPlacementTests' passed at 2026-09-27 14:53:36.191.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'WorkspaceBrowserRestoreTests' started at 2026-09-27 14:53:36.191.
+Test Case '-[TesseraCoreTests.WorkspaceBrowserRestoreTests testReturnRestoresGridAnchorWithoutFocusSnap]' started.
+Test Case '-[TesseraCoreTests.WorkspaceBrowserRestoreTests testReturnRestoresGridAnchorWithoutFocusSnap]' passed (0.025 seconds).
+Test Suite 'WorkspaceBrowserRestoreTests' passed at 2026-09-27 14:53:36.216.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.025 (0.025) seconds
+Test Suite 'WorkspaceNavigationTests' started at 2026-09-27 14:53:36.216.
+Test Case '-[TesseraCoreTests.WorkspaceNavigationTests testChangingSourceExitsEditWithoutRestoringOldSource]' started.
+Test Case '-[TesseraCoreTests.WorkspaceNavigationTests testChangingSourceExitsEditWithoutRestoringOldSource]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.WorkspaceNavigationTests testCompareReturnRestoresPairAndActiveSide]' started.
+Test Case '-[TesseraCoreTests.WorkspaceNavigationTests testCompareReturnRestoresPairAndActiveSide]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.WorkspaceNavigationTests testEditTargetsOnePhotoAndReturnsOriginalSelection]' started.
+Test Case '-[TesseraCoreTests.WorkspaceNavigationTests testEditTargetsOnePhotoAndReturnsOriginalSelection]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.WorkspaceNavigationTests testEveryExitDisarmsModelOwnedPointerTools]' started.
+Test Case '-[TesseraCoreTests.WorkspaceNavigationTests testEveryExitDisarmsModelOwnedPointerTools]' passed (0.002 seconds).
+Test Case '-[TesseraCoreTests.WorkspaceNavigationTests testInspectorTabKeepsTargetAndReturnState]' started.
+Test Case '-[TesseraCoreTests.WorkspaceNavigationTests testInspectorTabKeepsTargetAndReturnState]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.WorkspaceNavigationTests testInstallingDifferentLibraryDiscardsBookmark]' started.
+Test Case '-[TesseraCoreTests.WorkspaceNavigationTests testInstallingDifferentLibraryDiscardsBookmark]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.WorkspaceNavigationTests testPhotoEditUndoCannotConsumeCullHistory]' started.
+Test Case '-[TesseraCoreTests.WorkspaceNavigationTests testPhotoEditUndoCannotConsumeCullHistory]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.WorkspaceNavigationTests testRenderedCopyRequestCapturesTargetAndCancelHasNoSideEffect]' started.
+Test Case '-[TesseraCoreTests.WorkspaceNavigationTests testRenderedCopyRequestCapturesTargetAndCancelHasNoSideEffect]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.WorkspaceNavigationTests testScopeUsesCompareCandidateRatherThanOriginalSelection]' started.
+Test Case '-[TesseraCoreTests.WorkspaceNavigationTests testScopeUsesCompareCandidateRatherThanOriginalSelection]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.WorkspaceNavigationTests testUnavailablePhotoExplainsItsActualStateInEdit]' started.
+Test Case '-[TesseraCoreTests.WorkspaceNavigationTests testUnavailablePhotoExplainsItsActualStateInEdit]' passed (0.000 seconds).
+Test Suite 'WorkspaceNavigationTests' passed at 2026-09-27 14:53:36.220.
+	 Executed 10 tests, with 0 failures (0 unexpected) in 0.004 (0.004) seconds
+Test Suite 'WorkspaceReadyPhotoTests' started at 2026-09-27 14:53:36.220.
+Test Case '-[TesseraCoreTests.WorkspaceReadyPhotoTests testRealRAWDevelopAndMasksRemainReadyAcrossInspectorTabs]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [420.854958, 200.091792, 220.74474999999998]; GPU [257.246958, 1.2674590000000001, 4.263375]
+Test Case '-[TesseraCoreTests.WorkspaceReadyPhotoTests testRealRAWDevelopAndMasksRemainReadyAcrossInspectorTabs]' passed (4.290 seconds).
+Test Suite 'WorkspaceReadyPhotoTests' passed at 2026-09-27 14:53:40.510.
+	 Executed 1 test, with 0 failures (0 unexpected) in 4.290 (4.291) seconds
+Test Suite 'WorkspaceSelectionTests' started at 2026-09-27 14:53:40.510.
+Test Case '-[TesseraCoreTests.WorkspaceSelectionTests testEmptyDestinationHasNoAccidentalTarget]' started.
+Test Case '-[TesseraCoreTests.WorkspaceSelectionTests testEmptyDestinationHasNoAccidentalTarget]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.WorkspaceSelectionTests testRestorationUsesStableKeysAfterInsertionAndRemoval]' started.
+Test Case '-[TesseraCoreTests.WorkspaceSelectionTests testRestorationUsesStableKeysAfterInsertionAndRemoval]' passed (0.000 seconds).
+Test Suite 'WorkspaceSelectionTests' passed at 2026-09-27 14:53:40.511.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-09-27 14:53:40.511.
+	 Executed 424 tests, with 1 test skipped and 0 failures (0 unexpected) in 152.254 (152.277) seconds
+Test Suite 'All tests' passed at 2026-09-27 14:53:40.511.
+	 Executed 424 tests, with 1 test skipped and 0 failures (0 unexpected) in 152.254 (152.278) seconds
+lensblur-export-warning: ["sony-arw.ARW: Lens Blur skipped: Lens Blur depth model is not cached; download depth/anything-v2-small in Models"]
+M2-54 lookup count=1000 before_ms=0.027300119400024414 after_ms=0.0022101402282714844
+M2-54 lookup count=20000 before_ms=0.5199694633483887 after_ms=0.002290010452270508
+M2-54 core_install_ms=0.1729726791381836 select_all_ms=0.010967254638671875
+M2-54 warm_bottom_100 count=1000 before_median_ms=0.1150369644165039 median_ms=0.08404254913330078 max_ms=0.09107589721679688
+M2-54 warm_bottom_100 count=20000 before_median_ms=0.6330013275146484 median_ms=0.08606910705566406 max_ms=0.10597705841064453
+M2-54 warm_bottom_100 ratio=1.0241134751773049 target=1.2
+P08 20k retained subscribers: 68
+P08 20k forward/reverse: peak pending=24, active=4, subscribers=24, delivered=24, traceMs=570.6627083127387
+upright-auto: 640x426 -> 640x426, 43.4% of pixels changed
+◇ Test run started.
+↳ Testing Library Version: 1501
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite CullStoreTests started.
+◇ Suite GroupingTests started.
+◇ Test decisionsGradesMarksBasket() started.
+◇ Test syntheticLibraryIsGroupedAndSorted() started.
+◇ Test undoRedo() started.
+◇ Test exifDateParsing() started.
+◇ Test splitsOnGaps() started.
+✔ Test decisionsGradesMarksBasket() passed after 0.001 seconds.
+✔ Test undoRedo() passed after 0.001 seconds.
+✔ Test splitsOnGaps() passed after 0.001 seconds.
+✔ Test exifDateParsing() passed after 0.001 seconds.
+✔ Suite CullStoreTests passed after 0.001 seconds.
+✔ Test syntheticLibraryIsGroupedAndSorted() passed after 0.023 seconds.
+✔ Suite GroupingTests passed after 0.023 seconds.
+✔ Test run with 5 tests in 2 suites passed after 0.024 seconds.
