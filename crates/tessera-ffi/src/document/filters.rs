@@ -71,6 +71,8 @@ pub enum RasterFilterOperation {
     SkinSmoothing,
     Colorize,
     JpegArtifactRemoval,
+    // M5-32: DRUNet denoise only; no face or scratch model.
+    PhotoRestoration,
 }
 
 /// Retouch/neural request. Applied destructively to pixels or appended to an
@@ -191,6 +193,8 @@ fn adapter_id(id: &str) -> bool {
             | "neural/skin_smoothing"
             | "neural/colorize"
             | "neural/jpeg_artifact_removal"
+            // M5-32: restoration follows the full-resolution neural adapter path.
+            | "neural/photo_restoration"
     )
 }
 
@@ -2167,6 +2171,8 @@ impl DocumentSession {
             RasterFilterOperation::SkinSmoothing => "neural/skin_smoothing",
             RasterFilterOperation::Colorize => "neural/colorize",
             RasterFilterOperation::JpegArtifactRemoval => "neural/jpeg_artifact_removal",
+            // M5-32: preserve the restoration ID for native smart-filter replay.
+            RasterFilterOperation::PhotoRestoration => "neural/photo_restoration",
         };
         let params: serde_json::Value =
             serde_json::from_str(&request.params_json).map_err(failure)?;

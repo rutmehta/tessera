@@ -30,5 +30,11 @@ pub fn catalog() -> Vec<FilterInfo> {
             requires_weights: true,
             limitation: None,
         },
+        FilterInfo {
+            name: "Photo Restoration",
+            params: &crate::restoration::SCHEMA[..1],
+            requires_weights: true,
+            limitation: Some("Denoise only; GFPGAN excluded and scratch reduction unavailable"),
+        },
     ]
 }

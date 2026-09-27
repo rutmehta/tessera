@@ -1,0 +1,71 @@
+/Volumes/betterSSD/tessera-cache/target/M5-32/release/deps/m532_photo_perf-535310f2ed3240c0
+
+running 1 test
+test real_photo_18mp_300px_stroke ... M5-32 real photograph 6000x3000 / 300x300 stroke / default CAF: 1995.992 ms
+
+thread 'real_photo_18mp_300px_stroke' (89663422) panicked at crates/filters/tests/m532_photo_perf.rs:59:5:
+real-photo CPU Remove exceeds 1s: 1.995991625s
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    real_photo_18mp_300px_stroke
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.41s
+
+
+/Volumes/betterSSD/tessera-cache/target/M5-32/release/deps/m532_photo_perf-535310f2ed3240c0
+
+running 1 test
+test real_photo_18mp_300px_stroke ... M5-32 real photograph 6000x3000 / 300x300 stroke / default CAF: 1965.731 ms
+
+thread 'real_photo_18mp_300px_stroke' (89663655) panicked at crates/filters/tests/m532_photo_perf.rs:59:5:
+real-photo CPU Remove exceeds 1s: 1.965730792s
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    real_photo_18mp_300px_stroke
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.12s
+
+
+/Volumes/betterSSD/tessera-cache/target/M5-32/release/deps/m532_photo_perf-535310f2ed3240c0
+
+running 1 test
+test real_photo_18mp_300px_stroke ... M5-32 real photograph 6000x3000 / 300x300 stroke / default CAF: 2050.840 ms
+
+thread 'real_photo_18mp_300px_stroke' (89663737) panicked at crates/filters/tests/m532_photo_perf.rs:59:5:
+real-photo CPU Remove exceeds 1s: 2.050839708s
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    real_photo_18mp_300px_stroke
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.27s
+
+
+/Volumes/betterSSD/tessera-cache/target/M5-32/release/deps/m532_remove_perf-9b62bd59ae8e746a
+
+running 1 test
+test remove_18mp_300px_stroke_under_one_second ... M5-32 CPU Remove 6000x3000 / 300x300 stroke / dilation=2 / default CAF: 129.027 ms
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+
+
+/Volumes/betterSSD/tessera-cache/target/M5-32/release/deps/remove_patchmatch_roi-5f8f406084428341
+
+running 1 test
+test remove_18mp_300px_stroke ... REMOVE 6000x3000 300x300 hole default+dilation: 148.143 ms, MAE 0.000000
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.20s
+
