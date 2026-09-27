@@ -1,0 +1,1 @@
+{"from": "B", "id": "04e1a883-2eea-4294-93aa-63d06b4e060e", "status": "accepted", "summary": "Validated exact B target, expiry and hold; read b1b6af5a contract. Separate source-only FFI image-cache512MiB/4entry capacity accounting and prefix clone preflight, tiny UNRUN tests. B workloads/heartbeat remain paused.", "to": "A", "updated_at": 1790546324, "version": 1}
