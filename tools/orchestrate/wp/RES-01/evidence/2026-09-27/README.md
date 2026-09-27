@@ -1,0 +1,19 @@
+# RES-01 CPU smart-filter resource evidence — 2026-09-27
+
+The source branch is `codex/render-resource-bounds`. The implemented checkpoint is `0e58792db7d5c204d4e43c619ce68566b05e7a2c` on base `3825d78e89173d5a01dce5f2ec935816a38b33b9`. The unrun two-case test addition is preserved separately in [`extra-cases/`](extra-cases/); it is not part of that checkpoint.
+
+The prior resource audit and design are in [`notes/source-audit.md`](notes/source-audit.md), [`notes/regression-plan.md`](notes/regression-plan.md), and [`notes/mitigation-report-original.md`](notes/mitigation-report-original.md). The last report records development-era absolute paths; this directory is the portable evidence package. [`freeze-2/MANIFEST.txt`](freeze-2/MANIFEST.txt) SHA-256 identifies the exact source bytes for the successful focused gate. Its full source copies are under [`freeze-2/source/`](freeze-2/source/), and [`freeze-2/worktree.patch`](freeze-2/worktree.patch) reproduces the source change against the base. The later two-test source and its patch are in [`extra-cases/`](extra-cases/), with its own SHA-256 manifest.
+
+| Gate | Exit | Evidence |
+| --- | ---: | --- |
+| Existing direct-tile Barrier(2) nested Rayon deadlock control, baseline | 0 | [`baseline/deadlock-green.log`](baseline/deadlock-green.log) |
+| 257×1, 8,223-byte persistent-cache budget full-level duplicate-work regression, baseline | 101, expected RED: 2 stack attempts versus required 1 | [`baseline/oversize-red.log`](baseline/oversize-red.log) |
+| First production compilation | 101, E0061 at direct resident `filtered_source` call; no test ran | [`production/first-compile-e0061.log`](production/first-compile-e0061.log) |
+| Frozen production `smart_filter_deadlock` integration file | 0, 6/6 tests passed | [`production/integration-green.log`](production/integration-green.log) |
+| Frozen private same-pass RAII reservation test | 0, 1/1 passed | [`production/reservation-green.log`](production/reservation-green.log) |
+
+The baseline gate commands and source SHA-256 are in [`notes/baseline-gate-manifest.md`](notes/baseline-gate-manifest.md). The exact baseline **test** source is [`red-source/smart_filter_deadlock.rs`](red-source/smart_filter_deadlock.rs), SHA-256 `7df8e8e59438e9d4378054359f39807aed0de69ae7590701e37968c38e5922b4`, matching that manifest. The baseline filter implementation file was not saved before production edits. [`red-source/smart_filters.RECONSTRUCTED-NOT-EXACT.rs`](red-source/smart_filters.RECONSTRUCTED-NOT-EXACT.rs) is a reconstruction with SHA-256 `52d54e27764127d31e2a2be72327e3e722b686229cc29d6cc35c144ca80a7338`, which **does not match** the manifest's final RED-source SHA-256 `a916899e67214788c24c41cfe70ed2249fa79b2fd68c89070aa5114b46567a46`. The RED log and counters are valid observed evidence, but the exact pre-fix filter source bytes are a provenance gap; do not describe the reconstruction as an exact source archive.
+
+All gates used the cached release target, `CARGO_BUILD_JOBS=2`, `RAYON_NUM_THREADS=2`, and a 600-second outer process-group timeout. The deadlock control explicitly constructs local Rayon pools of **1, 2, and 4 workers** within its child-process watchdog; the environment value of 2 is not a strict runtime worker cap for that test. No full compositor, GPU, large-stress, or Machine B gate is included.
+
+The implementation retains unmasked source/result pairs for one CPU full-level pass with a default 1 GiB / 256-entry per-pass allowance, independent of the persistent cache budget. It serializes top-level filtered-frame tiles but leaves nested kernel Rayon work available. Direct tiles and concurrent frames can still duplicate full-image work. The allowance is for retained results, not total transient, process, or GPU working memory. The exposed evaluation counters count work attempts, not bytes. The Machine B swap cause and its requested working-memory accounting remain unproven/open.

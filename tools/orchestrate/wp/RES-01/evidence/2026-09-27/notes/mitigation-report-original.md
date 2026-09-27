@@ -1,0 +1,21 @@
+# Bounded CPU smart-filter pass checkpoint
+
+Source checkout: `/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera`  
+Branch: `codex/render-resource-bounds`  
+Commit: `0e58792db7d5c204d4e43c619ce68566b05e7a2c`  
+Base: `3825d78e89173d5a01dce5f2ec935816a38b33b9`  
+Exact pre-gate committed-source freeze: `/tmp/tessera-resource-production-freeze-2/MANIFEST.txt` and `worktree.patch` in that directory.
+
+The CPU `render_level` path now serializes first-touch top-level tiles when the layer tree contains an enabled smart filter and retains each actually reached, unmasked source/result pair in a call-local pass. The pass uses the existing exact smart-filter key; masks apply after retrieval. Persistent-cache hits are pinned and charged too. `DocRef` propagates the pass through nested smart objects, style source rasterization, and the live text/shape scene. Direct `render_tile`, GPU resident calls, and concurrent full-level calls do not share a pass or wait on a per-key lock. Filter evaluator kernels can still use Rayon. The scheduling detector is overinclusive: hidden or offscreen smart objects can cause serial scheduling without being evaluated.
+
+Public API: `Compositor::set_filter_pass_limits(FilterPassLimits { retained_bytes, entries })`, default **1 GiB combined source+result charge and 256 entries per full-level pass**, independent of `Compositor::new(cache_budget)`. Zero in either field rejects any reached filtered source. One entry and checked source+result bytes are reserved under a short pass mutex before `source_raster`; nested reservations coexist; an RAII guard releases them on every error. Completed entries remain until the pass ends. Reaching the configured allowance returns `ResourceExhausted` before work on that key. This is a retained-result policy, **not a total working-memory, process, GPU, or concurrent-frame cap**; it does not bound transform intermediates, tile output, evaluator-private allocations, or direct-tile duplicate work. The default is a new explicit limit for very large frames.
+
+`FilterEvaluationStats` exposes attempted stacks/stages, completed persistent-cache duplicate publications, oversized accepted stacks, and active/peak stack attempts. Relaxed snapshots are not transactional. Oversized repeated evaluations increment attempts but usually not `duplicate_stacks`, since no persistent winner is retained. These counters are work counters, not working-memory counters; B's requested total working-memory accounting remains open.
+
+Evidence:
+
+- Baseline 257×1, 8,223-byte persistent-budget regression failed as intended: two whole-image attempts for one frame (`/tmp/tessera-resource-oversize-red.log`). The direct two-party nested Rayon deadlock control passed (`/tmp/tessera-resource-deadlock-gate.log`). The RED test file bytes are archived at `/tmp/tessera-resource-red-source/smart_filter_deadlock.rs` and SHA-match the manifest. The reconstructed `/tmp/tessera-resource-red-source/smart_filters.rs` **does not** SHA-match the manifest; exact pre-fix instrumentation bytes were not archived, so there is a source-provenance gap for that RED gate. Manifest and logs are retained; do not describe the reconstructed file as exact gate source.
+- First production gate failed at compile time with E0061: direct resident `filtered_source` call needed the new `None` context. Log `/tmp/tessera-resource-filterpass-gate.log`. No tests ran in that gate. This was fixed before the second source freeze.
+- Focused production integration test file: **6/6 passed**, including oversized result exactly once, one/two-worker nested Rayon control, pre-admission error, nested cap, hidden/disabled/clipped/offscreen reachability, and live shape plus styled smart pixel parity. Log `/tmp/tessera-resource-filterpass-gate-2.log`.
+- Private same-pass nested reservation/RAII test: **1/1 passed**. Log `/tmp/tessera-resource-filterpass-reservation-gate.log`.
+- Gates used release mode, cached compositor target, `CARGO_BUILD_JOBS=2`, `RAYON_NUM_THREADS=2`, and 600-second process-group timeout. No GPU test, full compositor suite, large stress fixture, Machine B run, or host swap attribution is claimed. `git diff --check` passed and committed worktree was clean.

@@ -1,0 +1,4 @@
+Committed base: 0e58792db7d5c204d4e43c619ce68566b05e7a2c
+Unbuilt two extra fixtures.
+401bb8638a6cc5db1154dcc95a5c782f6167e2753e5ca1aff29751f4b77d0dd2  crates/compositor/tests/smart_filter_deadlock.rs
+baf5513e8be8baf1a6ac6338951480d692436290e810cf323397e96c065f3737  extra-cases.patch

@@ -1,0 +1,16 @@
+Post-compile-fix source freeze
+Root: /Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera
+Base: 3825d78e89173d5a01dce5f2ec935816a38b33b9
+Previous gate: E0061 in resident/filters.rs; no tests executed.
+
+702fd7a731ff0d35c51e5ce274f362a2afa61cc88a182574c551191d56767076  crates/compositor/src/gpu.rs
+8f3ecfe00e5efcc5ad56e73042f604d4814b7bdb74f1e8f241fa5d88d830be03  crates/compositor/src/render/effects.rs
+9b1ad86e729a3891adcec68061fb5ff5d2d7b100af5f9e90560234da3e85788c  crates/compositor/src/render/exec.rs
+f18020a854ec7635fd2be6ce1a7d9b85db52ec1aac48a73f712efd121f8fe8cb  crates/compositor/src/render/mod.rs
+fe4a2f50dc744e8435a7d50dacdfe73f47fb2cdded84e4aa1baa566d351afc6f  crates/compositor/src/render/smart_filters.rs
+90b87f80aa78538ed3dbb1737c2a437f75e1ee7413553fc9bf97c2cf8ab63084  crates/compositor/src/resident/filters.rs
+89b8988d97b3dbd1d83f1a476cd2fa154da58b464a6e7f5462df48166e926cc2  crates/compositor/src/resident/mod.rs
+cd8ac45856abc408932cbb8b002432aea69d1ad951d6b4a77b5e9f4b2513fb0a  crates/compositor/src/text_vector/damage.rs
+1b024523cc5a7864e6564825a27a862415446b622988ca39ae5c6891b0f60b43  crates/compositor/tests/smart_filter_deadlock.rs
+
+23f317420202b47527974ab85fc8fffc5988c881285e2d501a75f35ecfe06af9  worktree.patch
