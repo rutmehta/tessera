@@ -112,9 +112,15 @@ impl Renderer {
                 StageId::Color => ParamHash::of(stage, &settings.color),
                 StageId::Locals => ParamHash::of(stage, &settings.locals),
                 // Effects are anchored to the eventual crop.
-                StageId::Effects => {
-                    ParamHash::of(stage, &(&settings.effects, &settings.geometry.crop))
-                }
+                StageId::Effects => ParamHash::of(
+                    stage,
+                    &(
+                        &settings.effects,
+                        &settings.geometry.crop,
+                        self.depth_visualisation,
+                        self.depth.as_ref().map(|p| Arc::as_ptr(p) as usize),
+                    ),
+                ),
                 _ => ParamHash::of(stage, &settings.geometry),
             };
             key = ParamHash::chain(key, hash);
@@ -191,11 +197,21 @@ impl Renderer {
                     &settings.locals.adjustments,
                     Default::default(),
                 )?,
-                StageId::Effects => run(Op::EffectsInCrop(
-                    &settings.effects,
-                    extent,
-                    &settings.geometry.crop,
-                ))?,
+                StageId::Effects => {
+                    let developed = self.apply_depth_effects(&rgb, settings)?;
+                    if self.depth_visualisation {
+                        developed
+                    } else {
+                        let mut effects = settings.effects.clone();
+                        effects.lens_blur = None;
+                        self.ops.run_image(
+                            stage,
+                            &Op::EffectsInCrop(&effects, extent, &settings.geometry.crop),
+                            developed,
+                            cancel,
+                        )?
+                    }
+                }
                 _ => {
                     let mut suffix = neutral();
                     suffix.geometry = settings.geometry.clone();

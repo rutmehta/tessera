@@ -13,6 +13,7 @@ mod lrcat;
 mod lrcat_fidelity;
 mod merge;
 mod metadata;
+mod models;
 mod preview;
 mod proof;
 mod session;

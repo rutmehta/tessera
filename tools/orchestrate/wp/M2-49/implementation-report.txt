@@ -1,0 +1,10 @@
+Implemented the geometry, denoise, downloads, depth, bokeh, and FFI changes; regenerated bindings. No commits or pushes.
+
+Metal parity/HDR tests, clippy, formatting, and Swift build passed. **Acceptance remains open:**
+
+- Export/slider concurrency test fails.
+- Three geometry cases exceed 16 ms; cold Auto takes 11.89 seconds.
+- Missing weights prevent real-model verification.
+- Additional host checks remain running.
+
+Diagnosis requires Metal profiling unavailable inside this sandbox. Exact changes, evidence, and limitations: [REPORT.md](/Users/rutmehta/Developer/tessera/.worktrees/M2-49/tools/orchestrate/wp/M2-49/REPORT.md).

@@ -105,3 +105,70 @@ fn full_resolution_reduction_matches_cpu_counting_and_reuses_stages() {
         assert_eq!(gpu.stats().submissions - before.submissions, 1);
     }
 }
+
+#[test]
+fn composed_optics_metrics_match_rendered_pixels_without_poisoning_wb_cache() {
+    use engine_api::recipe::settings::{GuideLine, LensProfileSource, NormalizedRect, UprightMode};
+    let gpu = Arc::new(GpuStageOp::new(Arc::new(
+        GpuContext::new().expect("Metal adapter required"),
+    )));
+    let config = RendererConfig::default();
+    let renderer = Renderer::with_ops(
+        gpu,
+        Arc::new(TileCache::new(config.cache_budget_bytes)),
+        config,
+    );
+    let image = common::synthetic(1449, 320, 280, common::RGGB, [0, 0, 320, 280]);
+    let mut settings = DevelopSettings::default();
+    settings.lens.profile = LensProfileSource::None;
+    settings.lens.remove_chromatic_aberration = false;
+    settings.lens.manual_distortion = 18.;
+    settings.geometry.upright.mode = UprightMode::Guided;
+    settings.geometry.upright.guides = vec![
+        GuideLine {
+            start: [0.2, 0.1],
+            end: [0.3, 0.9],
+        },
+        GuideLine {
+            start: [0.8, 0.1],
+            end: [0.7, 0.9],
+        },
+    ];
+    settings.geometry.transform.rotate = 2.;
+    settings.geometry.crop.rect = NormalizedRect {
+        left: 0.1,
+        top: 0.1,
+        right: 0.9,
+        bottom: 0.9,
+    };
+    for vignette in [35., -15.] {
+        settings.lens.manual_vignetting = vignette;
+        // Metrics runs first: its WB checkpoint must contain the same optics
+        // as the subsequent display request, including after a lens edit.
+        let reduced = renderer
+            .render_output_metrics(&image, &settings, &CancellationToken::new())
+            .unwrap()
+            .unwrap();
+        let extent = Renderer::output_extent(&image, &settings, 0).unwrap();
+        let tiles = renderer
+            .render_region(&image, &settings, 0, PixelRect::full(extent))
+            .unwrap();
+        let mut expected = OutputMetrics::default();
+        for tile in tiles {
+            let layout = tile.layout();
+            let samples = tile.samples::<u8>().unwrap();
+            for y in 0..layout.extent.height {
+                for x in 0..layout.extent.width {
+                    expected.add_pixel(std::array::from_fn(|c| {
+                        samples[layout.index(c as u8, x as i32, y as i32).unwrap()]
+                    }));
+                }
+            }
+        }
+        assert_eq!(reduced.pixels, extent.area());
+        assert_eq!(reduced.histogram, expected.histogram);
+        assert_eq!(reduced.clipped_shadows, expected.clipped_shadows);
+        assert_eq!(reduced.clipped_highlights, expected.clipped_highlights);
+        assert!((reduced.mean_luminance() - expected.mean_luminance()).abs() < 1e-4);
+    }
+}

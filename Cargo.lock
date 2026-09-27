@@ -2160,6 +2160,7 @@ dependencies = [
  "half",
  "image",
  "jobs",
+ "ml-depth",
  "ml-enhance",
  "ml-runtime",
  "pipeline-adobe",
