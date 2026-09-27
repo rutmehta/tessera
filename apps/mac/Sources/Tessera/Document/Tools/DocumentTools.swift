@@ -144,6 +144,10 @@ final class DocumentTools {
     /// Bound work as well as result publication: one engine call plus newest pending input.
     @ObservationIgnored private var outlineRequests = LatestRequestBuffer<OutlineInput>()
     @ObservationIgnored private var outlineKey: (String, UInt64, Int)?
+    // Nil in production. Tests may hold a fetch and observe its main-actor
+    // completion without depending on a large engine contour or a timer.
+    @ObservationIgnored var outlineFetchForTesting: (@Sendable (any DocumentToolsBackend, UInt8) throws -> [SelectionOutline])?
+    @ObservationIgnored var outlineCompletionForTesting: (@MainActor (UInt64, Bool, String) -> Void)?
     @ObservationIgnored private var transformPush = (inFlight: false, dirty: false)
     @ObservationIgnored private var busy = 0
     @ObservationIgnored private var magneticToken = 0
@@ -720,8 +724,14 @@ final class DocumentTools {
     }
 
     private func startOutline(_ request: LatestRequestBuffer<OutlineInput>.Request) {
+        let fetch = outlineFetchForTesting
         outlineQueue.async {
-            let o = (try? request.value.backend.selectionOutline(level: request.value.level)) ?? []
+            let o: [SelectionOutline]
+            if let fetch {
+                o = (try? fetch(request.value.backend, request.value.level)) ?? []
+            } else {
+                o = (try? request.value.backend.selectionOutline(level: request.value.level)) ?? []
+            }
             DispatchQueue.main.async {
                 MainActor.assumeIsolated {
                     let tools = DocumentTools.shared
@@ -731,6 +741,7 @@ final class DocumentTools {
                         tools.redraw()
                     }
                     if let next = completion.next { tools.startOutline(next) }
+                    tools.outlineCompletionForTesting?(request.generation, completion.accept, request.value.documentID)
                 }
             }
         }
