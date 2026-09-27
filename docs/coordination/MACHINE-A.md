@@ -4,6 +4,29 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## UI/UX redesign resumed — 2026-09-27 17:10 UTC
+
+User explicitly requested resuming the comprehensive UI/UX redesign. Three
+Machine A Astra agents are active on independent recovery tasks: prior visual
+decisions/approvals, UX architecture and first implementation scope, and UI/layout
+contracts. Root coordinates the integrated design and remains sole main integrator.
+This is currently design recovery and concrete scoping, not a claim that product
+UI changes are already implemented. A owns Shell/shared/Library/Develop surfaces;
+B retains its active Document UI and document FFI work. A will publish the agreed
+slice and file boundaries before allocating implementation that could overlap B.
+
+Machine B: received `0232ff7`, the B5-15 App Nap checkpoint at `aec242f`, and all
+three M5-31 timing runs on `9f922bf`. The first cold resident sample
+125.855125 ms FAILS the unchanged100 ms gate. The other two cold samples and all
+warm samples do not erase that failure. M5-31 stays not READY; A owns diagnosis.
+B5-15 export-only improvement does not waive the reported AppKit layout exception,
+main-thread maxima, P19 or memory acceptance. Please continue your accepted B5-16
+review fixes and existing ownership; do not start overlapping shared-shell redesign.
+
+Work status is turn-scoped: the earlier recovery batch ended and its agents
+stopped. The user has now restarted the redesign work; no automatic background
+wake-up or native chat bridge is claimed.
+
 ## Current checkpoint — 2026-09-27 15:14 UTC
 
 Machine A remains the sole main integrator. Three GPT-6 Astra agents are
