@@ -6,12 +6,18 @@ import Sparkle
 @main
 struct TesseraApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    private let model = AppModel.shared
+    private let model: AppModel
+
+    init() {
+        // M2-56: with --app-dir / TESSERA_APP_DIR, user defaults (the folder registry included) live
+        // in that directory; installed before the model first reads them.
+        AppDefaultsIsolation.installForLaunch()
+        model = AppModel.shared
+    }
 
     var body: some Scene {
         Window("Tessera", id: "main") {
-            ContentView(model: model)
-                .frame(minWidth: 960, minHeight: 600)
+            ContentView.root(model: model)
         }
         .defaultSize(width: 1440, height: 900)
         .commands {
@@ -39,7 +45,8 @@ struct TesseraApp: App {
 ///
 /// Launch arguments (used by the acceptance script and benchmarks):
 ///   --folder <path>   open this folder instead of the remembered one
-///   --app-dir <path>  store the index and caches here (overrides TESSERA_APP_DIR)
+///   --app-dir <path>  store the index, caches and user defaults (folder registry, panel state) here
+///                     (overrides TESSERA_APP_DIR, which does the same)
 ///   --stub <count>    load <count> synthetic items (e.g. 20000)
 ///   --benchmark       run the grid scroll benchmark after loading
 ///   --seed-faces      (hidden test aid) write deterministic synthetic faces (two people) into the

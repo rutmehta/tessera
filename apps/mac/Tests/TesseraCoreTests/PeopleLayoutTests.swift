@@ -6,7 +6,8 @@ import XCTest
 
 @MainActor
 final class PeopleLayoutTests: XCTestCase {
-    func testDetailFitsWindowAndKeepsHeaderAtTop() {
+    func testDetailFitsWindowAndKeepsHeaderAtTop() throws {
+        ShellHarness.prepare()   // M2-56: background-safe (never activates, never key)
         let model = AppModel()
         model.install(StubLibrary.synthetic(count: 40))
         let engine = StubPeopleEngine()
@@ -20,7 +21,7 @@ final class PeopleLayoutTests: XCTestCase {
                               styleMask: [.titled, .resizable], backing: .buffered, defer: false)
         let host = NSHostingView(rootView: ContentView(model: model))
         window.contentView = host
-        window.makeKeyAndOrderFront(nil)
+        window.orderBack(nil)
         host.layoutSubtreeIfNeeded()
         RunLoop.main.run(until: Date().addingTimeInterval(0.1))
         host.layoutSubtreeIfNeeded()
@@ -29,13 +30,14 @@ final class PeopleLayoutTests: XCTestCase {
             [view] + view.subviews.flatMap(descendants)
         }
         let outlines = descendants(host).compactMap { $0 as? NSOutlineView }
-        let sidebar = try? XCTUnwrap(outlines.first)
-        guard let sidebar else { return }
+        let sidebar = try XCTUnwrap(outlines.first, "the sidebar outline must exist")
         let frame = sidebar.convert(sidebar.bounds, to: host)
         XCTAssertLessThanOrEqual(host.bounds.height, 700,
                                  "detail must not make the hosting view taller than the window")
         XCTAssertGreaterThanOrEqual(frame.minY, 0, "detail must not push the sidebar above the window")
         XCTAssertLessThanOrEqual(frame.maxY, host.bounds.maxY + 1, "detail must not expand the content beyond the window")
+        XCTAssert(ShellLayoutAudit.containmentViolations(in: host).isEmpty,
+                  ShellLayoutAudit.containmentViolations(in: host).joined(separator: "\n"))
         window.orderOut(nil)
     }
 }
