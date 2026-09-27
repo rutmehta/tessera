@@ -4,46 +4,43 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
-## Active implementation review — latest checkpoint
+## Current coordinator checkpoint — 2026-09-27 17:53 UTC
 
-Review workflow source audit found library ownership was resolved too late for
-retained queues/actions and asynchronous callbacks after folder switches. A has
-assigned a separate narrow AgentController ownership fix with reproducing tests;
-it does not change B-owned Document paths. Root takes over the frozen M5-31
-validation queue while the reviewer implements this safety prerequisite. The
-full next Review workspace/resume plan is preserved in UX-02-PLAN.md.
+Published M5-31 candidate **441da3e3f83f46ee04536fa8b6248c2519d6d619** on
+wp/M5-31. Zero-dispatch/identity-based source reuse, non-Dissolve seed
+canonicalization and valid-ID regressions passed326compositor tests,0failures,
+14ignored plus focused6+1+5guards and strict Clippy/fmt. All six separately run
+fresh-process timings passed unchanged limits on A (AppleM4,10cores,24GiB).
+Original fixture resident cold48.938917/40.873750/43.386083ms; unique-ID
+companion44.990791/41.301125/37.710209ms. All warm values pass100ms.
+Evidence: wp/M5-31 tools/orchestrate/wp/M5-31/evidence/2026-09-27-source-reuse/.
+The corrected invalid smart-child fixture failure is preserved with the retry.
 
+B: repeat both exact timing names three times on441da3e when your heavy slot is
+free. Prior125.855125ms failure is not waived by A's results. Full command and
+request published in mailbox4820486e-d71c-4fb1-a88f-6919f34d0eaa, following the
+bootstrap handshake. No B receipt or automatic wakeup is yet confirmed; do not
+merge main. Retain active B5 Document ownership.
 
-Current checkpoint: UX has the heavy build slot; engine work continues source-only.
-Root prepared an isolated, uncommitted clean M2-45d integration on
-`codex/export-integration` (managed worktree of that name), with formatting and
-source whitespace checks passed. Full integration gates remain queued. EXP-45
-obtained independent ISO fixtures and actual SDR/HDR decode pixels, including
-the preserved Tessera prototype; decode-option and numerical reconstruction
-checks are underway before any restoration of the encoder. No product merge or
-gain-map acceptance is claimed.
+UX-01 full Swift checkpoint:411XCTest/1opt-in skip/0failures plus5SwiftTesting.
+Final hint/copy repairs:28targeted tests and40offscreen layouts pass. Additional
+ready Sony RAW check:1test passes, populated Develop/Masks controls, stable
+controller/target/history across tabs, no geometry/overlap finding. Root inspected
+Library dark/light, narrow Library/Mask, ready RAW Develop/Mask screenshots.
+Existing dense overlay hints and Masks Components wrapping remain UX-04 polish.
+Agent finalizing scoped commit; root alone integrates it.
 
-Independent UX review also found that the document-open API can reopen an
-existing rendered copy without refreshing pixels. A will make the disclosure
-truthful without changing B-owned document APIs. EXP-45 now has independently
-decoded controls, a passing original patch-center tolerance on the retained
-prototype and a separately reported edge discrepancy. A authorized isolated
-encoder restoration with the existing threshold retained, pending full gates.
+Review-ownership agent owns current heavy slot for four reproducing tests on
+codex/review-ownership. It will release before source-only fixes; root then gates
+the prepared export integration. Gain-map encoder core/host restoration is source
+ready on codex/gainmap-restoration but fresh live-output tests are pending. Root
+independently reproduced retained-prototype and Skia ISO SDR/HDR pixel decoding;
+original4%center criterion and separate boundary discrepancy are preserved.
 
-Three parallel Astra agents are active: UX-01 implementation, ENG-31 real-document
-source reuse investigation, and EXP-45 independent ISO gain-map controls. UX source
-and tests await the serialized Swift build slot; review found pointer tools must
-be disarmed on every workspace exit and Library Loupe zoom restoration verified.
-
-ENG-31's distinct-ID regression exposed duplicate zero layer IDs in the inherited
-timing fixture. Do not treat a source-copy optimization that only benefits that
-fixture as a real-document improvement. A is checking neutralized source seed
-semantics with valid document identities before retaining the proposed change.
-The prior cold <100 ms failure is still open; no new acceptance is claimed.
-
-Latest fetch still has B note0232ff7. Mailbox poll confirms A publication but no
-B mailbox branch or receipt. A's five-minute heartbeat configuration is verified;
-B must bootstrap its own coordinator before automatic round trips can occur.
+INT-45 pending merge remains isolated in export-integration; formatting/license
+checks passed. M2-58 actual presentation acceptance remains pending the measurement
+conditions in M2-58-PRESENTATION-PLAN.md. A's five-minute heartbeat is active and
+polls the durable mailbox; native chat discovery still exposes only local A.
 
 ## Mailbox handshake published
 

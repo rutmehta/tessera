@@ -1,6 +1,6 @@
 # Tessera task board — Machine A coordinator
 
-Updated: 2026-09-27 17:47 UTC
+Updated: 2026-09-27 17:53 UTC
 
 User mandate: autonomously advance UI/UX redesign **and** the recovered engine
 queue, using parallel GPT-6 Astra/Luna agents; coordinate Machine B and keep
@@ -27,8 +27,8 @@ Machine A as sole main integrator. Do useful work while other tasks wait.
 
 | ID | Work | Owner / location | Next action and acceptance |
 | --- | --- | --- | --- |
-| UX-01 | Resume coherent Library / Photo Edit workspace and split inspector | A `develop_resume`; `codex/workspace-redesign`, `/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera` | Concrete first-slice plan reviewed by coordinator; implementation assigned. Implement navigation/target clarity while preserving Library selection/filter/order/zoom and truthful rendered-copy Document boundary. Default provisional direction: Precision Graphite, retaining amber identity; historical palette approval is not claimed. Review changes, run targeted behavior/layout/accessibility checks and strict Swift gate. |
-| ENG-31 | M5-31 first-process cold resident failure | A root gates; existing `.worktrees/M5-31` | Diagnose B's exact `9f922bf` results: cold 125.855125 FAIL /43.970875/33.298750 ms; all warm pass. Source reuse and non-Dissolve seed canonicalization prepared; realistic distinct-ID tests and a separate timing companion await validation. Root retry awaits UI final-check slot release. Rerun unchanged <100 ms gate in fresh processes. Never discard failed samples. |
+| UX-01 | Library / Photo Edit workspace and split inspector | A `develop_resume`; `codex/workspace-redesign` | Full Swift411+5 checkpoint, finaltargeted28/0,40offscreenlayouts,1readyRAW test pass. Root visually reviewed. Agent committing scoped slice; rootintegration next. Existing overlay density/Components wrapping trackedUX04. |
+| ENG-31 | M5-31 source reuse and cold timing | A root; published wp/M5-31 `441da3e` | Local326pass/0fail/14ignored plus6fresh timing samples andstrictchecks pass. Await B repeat on exact candidate via mailbox4820486e-d71c-4fb1-a88f-6919f34d0eaa; prior B125.855125ms failure remains recorded. Main integration pending. |
 | COM-01 | Establish usable authenticated Machine A ↔ B communication | A `cross_machine_research` +root | Native UI inspection blocked; only local app host exposed. Bonjour MacBook SSH refused, B identity unverified. Mailbox integrated067261e,9tests pass; A heartbeat polls it. Handshake1c60b6fd-49d0-43e5-8f6d-81d0766f272f published on codex/coordination-a0c6479d; B receipt/heartbeat unconfirmed. Root polls/bootstrap; agent advancing EXP-45 while waiting. Avoid a second agent server owning active desktop chat. Implement durable deduped Git fallback where needed. No exposed unauthenticated listeners. |
 | OPS-01 | Persistent autonomous coordinator | Root; current chat | Heartbeat `tessera-machine-a-coordinator` ACTIVE every5minutes, created2026-09-27. Check running work before duplicate launches. Read/advance board; stay quiet unless meaningful outcome/blocker. Local execution requires awake host/app and available service limits. |
 
@@ -38,30 +38,18 @@ UX-02 safety prerequisite is now assigned to `b516_review`: isolate review queue
 owner/engine/image identities across folder switches and asynchronous completions.
 Scope is AgentController and focused tests on a separate main-based worktree;
 new Review navigation/resume persistence remains planned in UX-02-PLAN.md.
-M5-31 source is frozen after fixture correction; root retry awaits the UI slot. INT-45 license check also passed (existing unused-license
+M5-31 candidate is validated locally and published; B repeat is pending. INT-45 license check also passed (existing unused-license
 allowance warnings only); reproducible gated script is
 `/tmp/tessera-export-integration-gate.sh`, not yet executed.
 
 
-Current review checkpoint: UX-01 first compilation found a SwiftUI toolbar builder
-limit; the agent is fixing it and browser reflow findings before rerunning. Pointer
-tools now have workspace exit hooks. Existing Library Loupe is fit-only; only
-Compare has a separate zoom state to restore. ENG-31's new guard exposed
-duplicate layer IDs in the inherited timing fixture. The proposed source reuse
-must demonstrate benefit with valid distinct IDs before shipping; the original
-cold failure remains open. EXP-45 is actively assigned, not waiting for B.
-
-Build-slot checkpoint: first root M5-31 focused run failed5pass/1fail before any
-timing. A smart-child fixture reused cache identity and tile stamp for different
-pixels; source audit located the CPU root-stamp cache collision. Root fixed only
-that fixture, retaining real EditSmartObject mutation coverage. Failure log:
-`/tmp/tessera-m531-final-focused-fixture-failure.log`; retry patch SHA256
-`20a9271c65aa0322083b54f0ce1eb352fa2ea79d38c91f59be2e9535db5fb90f`.
-UI currently owns the slot for final copy/layout checks. Prior full source had
-411XCTest/1opt-in skip/0failures plus5SwiftTesting; all40offscreen layout cases
-passed, but visual review found stale cull hints. Root also requires one bounded
-real-RAW ready Photo Edit capture, since new Edit matrix states use stubs.
-Root M5-31 retry, review-ownership red tests, then INT-45/HDR gates remain queued.
+Latest validation checkpoint: UX-01 functional/visual checks completed as above;
+M5-31 candidate441da3e published with all local gates and six timing samples.
+Review-ownership RED tests now own the heavy slot (agent session16403); then root
+runs INT-45 gates while that agent fixes source. Gain-map source is prepared,
+awaiting its fresh output/host tests. No B receipt yet; local native chat discovery
+still exposes only A. The failed smart-child fixture log and source patches remain
+in M5-31's committed evidence directory, not silently discarded.
 Root prepared INT-45 in the managed worktree
 `/Users/rutmehta/.codex/worktrees/export-integration/tessera`, branch
 `codex/export-integration`: main d5366d7 plus a clean **uncommitted merge** of
