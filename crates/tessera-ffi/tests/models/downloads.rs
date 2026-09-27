@@ -12,6 +12,42 @@ impl ModelDownloadListener for Listener {
 fn manifest() -> String {
     concat!(env!("CARGO_MANIFEST_DIR"), "/../ml-runtime/models.toml").into()
 }
+#[test]
+fn ai_download_uses_production_target_without_research_artifacts() {
+    let dir = tempfile::tempdir().unwrap();
+    let text = std::fs::read_to_string(manifest()).unwrap()
+        .replace("https://huggingface.co/synthscript/drunet-color-onnx/resolve/a2b9fccfa27b197f44a3876c567f5e48970c44a7/drunet_color.onnx", "file:conv.onnx")
+        .replace("2ae3ab5eb15daac2ee79be984d584b908ce7f0f60b27be87d005f728c2aa0087", "c64f58321fa5cfeca15daf11a4db55e9546e057d9d812acbf4f23e38f860d901");
+    std::fs::write(dir.path().join("models.toml"), text).unwrap();
+    std::fs::copy(
+        concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../ml-runtime/tests/data/conv.onnx"
+        ),
+        dir.path().join("conv.onnx"),
+    )
+    .unwrap();
+    let downloads = ModelDownloads::open(
+        dir.path().join("models.toml").display().to_string(),
+        dir.path().join("cache").display().to_string(),
+        true,
+    )
+    .unwrap();
+    let (send, receive) = mpsc::channel();
+    downloads
+        .request(
+            "enhance/cfa-unet-fp32".into(),
+            "a138c59a65846c10967839e85817231ec6ea92b318a57814cb153e8ac8bb311b".into(),
+            Arc::new(Listener(send)),
+        )
+        .unwrap();
+    let events: Vec<_> = receive.iter().collect();
+    assert!(
+        matches!(events.last(), Some(ModelDownloadEvent::Ready { .. })),
+        "{events:?}"
+    );
+}
+
 fn request(downloads: &ModelDownloads) -> Vec<ModelDownloadEvent> {
     let (send, receive) = mpsc::channel();
     downloads

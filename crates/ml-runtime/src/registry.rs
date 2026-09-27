@@ -172,6 +172,38 @@ impl ModelRegistry {
     pub fn models(&self) -> &[ModelSpec] {
         &self.models
     }
+    /// Select ONLY when enabling a new edit, never while replaying a recipe.
+    /// Optional research CFA weights must already be cached or locally present.
+    /// Local import is digest verified and never performs network I/O.
+    pub fn preferred_ai_denoise(&self) -> Result<ModelRef> {
+        for id in ["enhance/cfa-unet-fp32", "enhance/cfa-unet-fp16"] {
+            if let Some(spec) = self.models.iter().find(|s| s.id == id) {
+                let model = ModelRef {
+                    id: id.into(),
+                    version: spec.version.clone(),
+                };
+                if self.resolve_cached_ref(&model)?.is_some() {
+                    return Ok(model);
+                }
+                if spec.source == ModelSource::Local
+                    && let Some(path) = &spec.local_path
+                    && self.base.join(path).try_exists()?
+                {
+                    self.download(&model, true, |_, _| {})?;
+                    return Ok(model);
+                }
+            }
+        }
+        let spec = self
+            .models
+            .iter()
+            .find(|s| s.id == "enhance/drunet-color")
+            .context("missing production AI Denoise model")?;
+        Ok(ModelRef {
+            id: spec.id.as_str().into(),
+            version: spec.version.clone(),
+        })
+    }
     /// Rejects ambiguous IDs: use resolve_ref when multiple versions are installed.
     pub fn resolve(&self, id: &str) -> Result<ModelHandle> {
         let mut matches = self.models.iter().filter(|m| m.id == id);
@@ -315,6 +347,40 @@ fn verify(path: &Path, expected: &str) -> Result<()> {
 #[cfg(test)]
 mod download_tests {
     use super::*;
+
+    #[test]
+    fn ai_denoise_prefers_available_local_or_cached_cfa() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let cache = dir.path().join("cache");
+        let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("models.toml");
+        let mut text = fs::read_to_string(source)?;
+        // Use genuine digest-verified fixture bytes, not a fake model session.
+        let fixture = include_bytes!("../tests/data/conv.onnx");
+        let sha = format!("{:x}", Sha256::digest(fixture));
+        text = text
+            .replace(
+                "a138c59a65846c10967839e85817231ec6ea92b318a57814cb153e8ac8bb311b",
+                &sha,
+            )
+            .replace(
+                "../../tools/orchestrate/wp/M3-16/artifacts/cfa-fp32.onnx",
+                "research.onnx",
+            );
+        let manifest = dir.path().join("models.toml");
+        fs::write(&manifest, text)?;
+        let registry = ModelRegistry::open(&manifest, &cache)?.with_downloads_allowed(false);
+        assert_eq!(
+            registry.preferred_ai_denoise()?.id.as_str(),
+            "enhance/drunet-color"
+        );
+        fs::write(dir.path().join("research.onnx"), fixture)?;
+        let selected = registry.preferred_ai_denoise()?;
+        assert_eq!(selected.id.as_str(), "enhance/cfa-unet-fp32");
+        assert!(registry.resolve_cached_ref(&selected)?.is_some());
+        fs::remove_file(dir.path().join("research.onnx"))?;
+        assert_eq!(registry.preferred_ai_denoise()?, selected);
+        Ok(())
+    }
 
     #[test]
     fn adapter_policy_prevents_implicit_downloads() -> Result<()> {

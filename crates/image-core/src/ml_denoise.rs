@@ -98,14 +98,16 @@ impl PostDemosaicDenoise for MlPostDemosaicDenoise {
                     .map_err(|e| err(&e))?,
             );
         }
-        // No calibrated sensor-to-display noise mapping: use the pinned sigma.
+        // Estimate M2-49 noise in demosaiced linear sRGB, then propagate through
+        // the transfer derivative. Amount/mask remain linear-light blends.
         let model = session.as_mut().expect("loaded above");
-        let result = if let Some(mask) = &self.mask {
-            model.denoise_masked(&tensor, amount, None, &mask.planes()[0])
-        } else {
-            model.denoise(&tensor, amount, None)
-        }
-        .map_err(|e| err(&e))?;
+        let result = model
+            .denoise_automatic(
+                &tensor,
+                amount,
+                self.mask.as_ref().map(|mask| mask.planes()[0].as_slice()),
+            )
+            .map_err(|e| err(&e))?;
         let n = input.width() as usize * input.height() as usize;
         Image::new(
             input.width(),

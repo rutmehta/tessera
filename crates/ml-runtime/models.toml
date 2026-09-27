@@ -253,6 +253,9 @@ outputs = [{ name = "output", shape = [1, 2, 512, 512], dtype = "fp32" }]
 # StyleGAN2/NVIDIA non-commercial lineage; reviewed export declares license: other.
 # See crates/ml-filters/MODELS.md and training/export_gfpgan.py; no fake hash.
 
+# Optional local research entries, not distributable app download targets.
+# AI Denoise selects these only when verified cache/local weights are present.
+# Otherwise the production download target is enhance/drunet-color above.
 # BEGIN GENERATED CFA MODELS
 [[models]]
 id = "enhance/cfa-unet-fp32"
