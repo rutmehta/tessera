@@ -725,6 +725,7 @@ final class DocumentTools {
 
     private func startOutline(_ request: LatestRequestBuffer<OutlineInput>.Request) {
         let fetch = outlineFetchForTesting
+        let observeCompletion = outlineCompletionForTesting
         outlineQueue.async {
             let o: [SelectionOutline]
             if let fetch {
@@ -736,12 +737,13 @@ final class DocumentTools {
                 MainActor.assumeIsolated {
                     let tools = DocumentTools.shared
                     let completion = tools.outlineRequests.finish(request.generation)
-                    if completion.accept, tools.document?.id == request.value.documentID {
+                    let published = completion.accept && tools.document?.id == request.value.documentID
+                    if published {
                         tools.outline = o
                         tools.redraw()
                     }
                     if let next = completion.next { tools.startOutline(next) }
-                    tools.outlineCompletionForTesting?(request.generation, completion.accept, request.value.documentID)
+                    observeCompletion?(request.generation, published, request.value.documentID)
                 }
             }
         }
