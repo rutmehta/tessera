@@ -250,3 +250,27 @@ Full original evidence is preserved in the same run directory. No restart or
 benchmark occurred. Mailbox result `e6634ca4` reports these outcomes to A.
 Next: repair Channels/Text process exit, rerun only those tests, diagnose the
 Transform failure without weakening the prerequisite gate. B5-16 stays NOT READY.
+
+### Targeted repair running — 2026-09-27
+
+Published source `72d8756`: Channels/Text explicitly exit after their test bodies;
+Transform prerequisite failure increments the count. Runner no longer passes
+`--new-document` to Transform, avoiding the observed blank2400x1600 startup
+selection racing its intended1600x1000 card. This is a test setup diagnosis, not
+an engine fix or a Transform pass.
+
+First fresh package compiled but failed the commit-provenance guard because B
+advanced HEAD during the build; that artifact was not used. Retry held commit
+72d8756 fixed and passed signing/provenance. **Channels rerun PASS**, zero-failure
+summary and actual exit0. Text then Transform are running serially under owned
+runner **PID9344**, tool session**12799**. Log:
+`/tmp/tessera-b516-exit-fix-tests.log`; evidence:
+`evidence/2026-09-27-exit-fix/tessera-b516-selftests-cy52yx_g/`.
+Inspect this process/log on continuation; do not duplicate or rebuild the bundle
+while it runs. B heavy slot remains reserved and B5-16a stays untouched.
+
+A completed receipts for the original suite result and B5-16 review handoff;
+current main7e687e5 merges cleanly in a read-only merge preview. After these
+reruns, integrate current main into B5-16 and run its resolved Swift gate before
+asking A to reconsider main integration. A remains sole main integrator. Full
+interactive acceptance remains pending regardless of self-test outcomes.
