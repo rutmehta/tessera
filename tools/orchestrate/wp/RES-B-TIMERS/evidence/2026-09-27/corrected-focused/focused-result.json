@@ -1,0 +1,24 @@
+{
+  "command": [
+    "swift",
+    "test",
+    "--jobs",
+    "2",
+    "--package-path",
+    "apps/mac",
+    "--scratch-path",
+    "/Volumes/betterSSD/tessera-cache/swift/export-integration",
+    "-c",
+    "release",
+    "-Xswiftc",
+    "-enable-testing",
+    "--filter",
+    "DocumentOverlayAnimationTests|KeyFocusTests|LoupeOverlayPresentationTests|ThemeLintTests"
+  ],
+  "exit": 0,
+  "timed_out": false,
+  "elapsed_seconds": 116.145,
+  "finished_utc": "2026-09-27T21:26:43.293899+00:00",
+  "changed_sources": [],
+  "ffi_scope": "Timer Swift source focused validation only; retained FFI archive predates newly merged Rust resource changes; not current complete app provenance"
+}

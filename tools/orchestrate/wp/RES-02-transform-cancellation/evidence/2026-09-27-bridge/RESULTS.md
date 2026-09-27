@@ -1,0 +1,20 @@
+# Compositor cancellation bridge evidence — 2026-09-27
+
+Scope: uncommitted candidate on `codex/transform-cancellation`, based on merge commit `bfa0aba3f852e7f2cfc7baee773d909c957649d8` (resource and UI main baseline). Product changes are confined to the compositor. No B Document/FFI caller or resident GPU cancellation contract was changed. This evidence does not claim a main integration or a global working-memory bound.
+
+`red-source` contains exact test-first source for the two expected RED compile failures. `green-source`, `green-source-v2`, `green-source-v3`, and `green-source-v4` preserve intermediate source bytes; v2 and v3 had the nested test fixture's `Arc<DocState>`/`DocState` type mismatch. `green-source-v5` is the exact final source tested below, including `Cargo.lock`. Its manifest's ten SHA-256 hashes matched checkout bytes both before and after the final gates. Every gate has raw combined stdout/stderr and a JSON record of command, exit, timeout, worker settings, source manifest, and elapsed time.
+
+| Gate | Command | Exit | Result |
+|---|---|---:|---|
+| Public RED | `cargo test -p compositor --test transform_cancellation` | 101 | Expected compile failure: missing `SmartFilterEvaluator::evaluate_with_cancel` and `Compositor::render_level_rgba_with_cancel`; no tests executed. |
+| Private RED | `cargo test -p compositor --lib transform_cancelled_is_not_reported_as_invalid_input` | 101 | Expected compile failure: missing `map_transform_result`; no test executed. |
+| First post-test additions | `cargo test -p compositor --test transform_cancellation` on v2 and v3 | 101, 101 | Fixture-only E0308: `Document::state()` returns `&Arc<DocState>`, while `SmartObject::new` requires `DocState`. Both failed builds are retained, not counted as passing tests. |
+| Corrected v4 focused | `cargo test -p compositor --test transform_cancellation` | 0 | Four tests passed. |
+| Final v5 focused | Same focused command | 0 | Four tests passed after adding the post-render, pre-allocation cancellation check. |
+| Final v5 private mapper | `cargo test -p compositor --lib transform_cancelled_is_not_reported_as_invalid_input` | 0 | One test passed: transform cancellation remains `EngineError::Cancelled`. |
+| Final v5 regressions | `cargo test -p compositor --test <target>`, independently for `smart_filter_deadlock`, `smart_filters`, `transform_content`, `transforms`, `layer_styles`, `live_style_damage`, and `live_frame` | 0 each | 8 + 3 + 1 + 5 + 5 + 2 + 2 = 26 tests passed. These cover existing filtered pixels, reuse/deadlock, transform content, styles, and live frames. They do not exercise cancellation within every live or style loop. |
+| Final v5 strict Rust lint | `cargo clippy -p compositor --all-targets -- -D warnings` | 0 | Strict compositor lint passed. Vendor LibRaw C/C++ warnings are present in raw output. |
+
+All final gates used `CARGO_BUILD_JOBS=2`, `RAYON_NUM_THREADS=2`, and `CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/main`, with per-command process timeouts (480 seconds for tests, 600 for Clippy); none timed out. `cargo fmt -p compositor -- --check` and `git diff --check` passed on v5. The nine final test commands ran 31 tests in total with zero failures.
+
+The bridge passes the caller token through full-level CPU tile rendering, nested smart-object source rasters, adapter stages, transform kernels, and final RGBA assembly. The legacy `SmartFilterEvaluator::evaluate` method remains valid through a default cancellable boundary method. A canceled stage returns without publishing a completed filter result; the tests verify zero active stack attempts after error and a fresh retry that reevaluates the stack. Direct public tile rendering retains its existing no-token API. Legacy `render_level_rgba` creates its own token; callers needing external cancellation must call `render_level_rgba_with_cancel`. B-owned FFI/Document entrypoints, resident GPU work, and transient transform allocation accounting remain separate follow-up boundaries.

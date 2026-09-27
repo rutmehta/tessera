@@ -24,6 +24,9 @@ pub struct Options {
     /// AVIF 8/10/12, TIFF/JPEG XL 8/16, DNG 32-bit float per channel.
     #[arg(long, default_value_t = 8)]
     bit_depth: u8,
+    /// HDR transfer. Requires Rec.2020 PNG16 or AVIF10/12; headroom comes from the recipe.
+    #[arg(long, value_parser = ["pq", "hlg"])]
+    hdr: Option<String>,
     /// AVIF encoding speed, 1 (slow) through 10 (fast).
     #[arg(long, default_value_t = 6, value_parser = clap::value_parser!(u8).range(1..=10))]
     avif_speed: u8,
@@ -51,15 +54,18 @@ pub struct Options {
     ppi: Option<u32>,
     #[arg(long, default_value = "all", value_parser = ["all", "copyright", "copyright-and-contact", "all-except-camera", "none"])]
     metadata: String,
-    /// Remove XMP face regions and their associated person keywords.
+    /// Remove face regions and identified person keywords from native metadata and XMP.
     #[arg(long)]
     remove_person_info: bool,
-    /// Remove XMP GPS and IPTC location properties.
+    /// Remove native and XMP GPS and IPTC image locations.
     #[arg(long)]
     remove_location: bool,
     /// Retain Lightroom keyword paths, or omit the hierarchy with false.
     #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
     keywords_as_hierarchy: bool,
+    /// Embed the source byte stream in a developed DNG (retains private metadata).
+    #[arg(long)]
+    embed_original_raw: bool,
     #[arg(long, default_value = "{name}-{seq}")]
     name: String,
     #[arg(long, value_parser = clap::value_parser!(u32).range(1..))]
@@ -129,6 +135,27 @@ fn is_image(path: &Path) -> bool {
 }
 
 fn settings(options: &Options) -> Result<ExportSettings> {
+    if options.hdr.is_some() {
+        ensure!(
+            options.color_space == "rec2020"
+                && ((options.format == "png" && options.bit_depth == 16)
+                    || (options.format == "avif" && matches!(options.bit_depth, 10 | 12))),
+            "--hdr requires Rec.2020 PNG16 or AVIF10/12"
+        );
+        ensure!(
+            options.watermark.is_none() && options.upscale.is_none(),
+            "HDR does not support SDR watermark or upscaling"
+        );
+    }
+    ensure!(
+        !options.embed_original_raw
+            || (options.format == "dng"
+                && options.metadata == "all"
+                && !options.remove_person_info
+                && !options.remove_location
+                && options.keywords_as_hierarchy),
+        "--embed-original-raw requires DNG with unrestricted metadata"
+    );
     if options.format == "original" {
         ensure!(
             options.metadata == "all"
@@ -152,6 +179,7 @@ fn settings(options: &Options) -> Result<ExportSettings> {
         match options.format.as_str() {
             "avif" => matches!(options.bit_depth, 8 | 10 | 12),
             "dng" => options.bit_depth == 32,
+            "png" if options.hdr.is_some() => options.bit_depth == 16,
             "tiff" | "jxl" => matches!(options.bit_depth, 8 | 16),
             _ => options.bit_depth == 8,
         },
@@ -172,6 +200,13 @@ fn settings(options: &Options) -> Result<ExportSettings> {
         Resize::None
     };
     Ok(ExportSettings {
+        hdr: options.hdr.as_deref().map(|v| {
+            if v == "pq" {
+                export::HdrTransfer::Pq
+            } else {
+                export::HdrTransfer::Hlg
+            }
+        }),
         format: match options.format.as_str() {
             "jpeg" => Format::Jpeg {
                 quality: options.quality,
@@ -355,12 +390,22 @@ pub fn run(index: &Index, app_dir: &Path, options: &Options) -> Result<Value> {
     let mut errors = Vec::new();
     // Decode only one wave at a time; the export crate bounds render/encode workers.
     let cores = std::thread::available_parallelism().map_or(1, |n| n.get());
-    let jobs = if upscale.is_some() {
+    // An embedded original is per image, not a batch-wide source path.
+    let jobs = if upscale.is_some() || options.embed_original_raw {
         1
     } else {
         options.jobs.map_or(cores, |n| (n as usize).min(cores))
     };
     for (wave, chunk) in paths.chunks(jobs).enumerate() {
+        let settings = ExportSettings {
+            original_raw: options.embed_original_raw.then(|| chunk[0].clone()),
+            metadata_sources: chunk
+                .iter()
+                .enumerate()
+                .map(|(i, p)| (wave * jobs + i + 1, p.clone()))
+                .collect(),
+            ..settings.clone()
+        };
         if cancel.is_cancelled() {
             break;
         }

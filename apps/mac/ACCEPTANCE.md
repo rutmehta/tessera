@@ -2225,3 +2225,36 @@ New identifiers: `workspace-back-to-library`, `workspace-photo-target`,
 `photo-edit-target`, `workspace-create-layered-copy`.
 
 The first Layers open renders current adjustments; an already-open copy reopens unchanged. Change the photo recipe after creating a copy, invoke Open in Layers again, and confirm the disclosure promises no refresh and the existing document/pixels/layer edits are retained.
+
+## Workspace redesign: navigable Review (UX-02a)
+
+These replace the earlier modal Agent Review expectations for this slice. They
+are acceptance instructions; executed evidence is recorded separately under
+`tools/orchestrate/wp/UX-02a/`. Relaunch persistence remains UX-02b.
+
+1. Run Auto Edit on photos outside a current Library filter. Completion leaves the
+   current workspace intact; choose Review explicitly. Empty and all-reviewed
+   queues are also reachable from the workspace control, Review count, and menu.
+2. Browse the least-confident queue. The named target, Current preview and inspector
+   agree. Critic outcome and Your review status are separate. Long filenames remain
+   identifiable; failed and foreign-library entries retain their actual reason.
+3. From a filtered, scrolled, multi-selected Library, enter Review and Edit photo on
+   a queued image outside that filter. The actual Develop session must match the
+   queued stable image ID. Return to Review, retaining selected row/list position
+   and draft, then Library, retaining its original filter, selection and anchor.
+   Resize and insert/remove catalog items while away; restoration uses stable IDs.
+4. Accept & next moves only after a successful current-target acceptance, skipping
+   failed/reviewed rows according to the existing queue rule. Revert stays on the
+   row. Redo's merge may reorder rows but keeps the selected image. Errors, foreign
+   owners, changed generation and late completions never advance another selection.
+5. Use cull keys and Undo in Review: Library decisions/history stay unchanged. Type
+   in the Redo field and use numeric controls: those controls retain input. Escape
+   cancels a draft first, then returns. Document shortcuts retain precedence.
+6. Review at 960×600, 1280×800, 1440×900 and 1728×1117 in both appearances. Back,
+   target, list and actions remain reachable; test empty, populated, failed, busy
+   and long-name content without foreground activation.
+
+New identifiers include `agent-review-list`, `agent-review-inspector`,
+`review-current-preview`, `review-user-status`, `review-critic-status`,
+`review-edit-photo`, `review-accept-next`, `review-revert` and
+`agent-review-instruction`. The legacy sheet is not presented by the shell.

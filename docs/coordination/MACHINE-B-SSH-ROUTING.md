@@ -2,7 +2,37 @@
 
 Target: `01a0e323-c018-7fa3-9605-999a2dea6b32`, “Resume Tessera Machine B work”. SSH-discovered host: `remote-ssh-discovered:tessera-machine-b`.
 
-## Conclusion
+## Verified follow-up: existing-session queue succeeds
+
+The initial read-only investigation below did not test `codex queue`. A later
+bounded invocation of the installed CLI succeeded without writer takeover:
+
+`/Users/rutmehta/.local/bin/codex queue --thread 01a0e323-c018-7fa3-9605-999a2dea6b32 --message TEXT`
+
+Invoked over authenticated SSH, it returned exit0 and queue ID
+`01a0e428-7e56-7850-8b37-b3bc4faac94e`. B’s existing chat replied in turn
+`01a0e428-7ff7-7520-91dd-d2f67f451483`, then published an **accepted** bootstrap
+receipt on `codex/coordination-b` at `94dd36bd58d4ee03da266caaad55acf9649fcd46`.
+This establishes actual delivery for this installed CLI/version/setup. The CLI
+help explicitly describes queuing to an existing session; no bypass, takeover,
+extra session, restart or authentication copy was requested.
+
+Use exact UUID addressing and a bounded command with safely quoted message text.
+Record queue IDs and avoid duplicate enqueueing. Queue success alone is not a
+receipt; confirm B’s reply or typed Git receipt. The separate SSH app-server still
+reported `notLoaded`/`interrupted` while B published work, so that view does not
+reliably describe the desktop writer’s live state. Git mailbox receipts and
+explicit peer evidence remain authoritative for coordination outcomes.
+
+## Subsequent integration notice
+
+Mailbox status `8dd65b7d-ff9a-4e25-a71f-c59b3be8968f` publishes main fb7c604
+integration and confirms B's reserved build slot. A queued a pointer to that
+same item, returning queue ID `01a0e436-a610-7031-929d-16931c872a79`, exit0.
+This is verified queue publication; receipt of this new item is still pending.
+It does not authorize duplicate benchmark execution or a second coordinator.
+
+## Initial read-only conclusion (superseded by the verified queue experiment)
 
 No verified supported route from the presently exposed SSH app-server to the other process that owns this desktop chat. Do not equate `notLoaded` with “no writer anywhere”: official thread/read is a persisted read which does not load a thread; loaded status belongs to the contacted server. Parent's observed successful read plus active-writer rejection is consistent with a different server retaining ownership, but does not identify that writer conclusively.
 

@@ -1,0 +1,116 @@
+{"app_name":"TesseraBTimer079092e8","timestamp":"2026-09-27 17:28:49.00 -0400","app_version":"0.0.1","slice_uuid":"059f341f-19b1-3176-a24d-74b6edc7ed5a","build_version":"1","platform":1,"bundleID":"dev.tessera.validation.btimer.079092e8.20260927","share_with_app_devs":1,"is_first_party":0,"bug_type":"309","os_version":"macOS 26.6.2 (25G83)","roots_installed":0,"name":"TesseraBTimer079092e8","incident_id":"869B42AB-E5E9-4C00-BD2C-4105BD4F53A3"}
+{
+  "uptime" : 2500000,
+  "procRole" : "Background",
+  "version" : 2,
+  "userID" : 501,
+  "deployVersion" : 210,
+  "modelCode" : "Mac16,10",
+  "coalitionID" : 327734,
+  "osVersion" : {
+    "train" : "macOS 26.6.2",
+    "build" : "25G83",
+    "releaseType" : "User"
+  },
+  "captureTime" : "2026-09-27 17:28:48.1765 -0400",
+  "codeSigningMonitor" : 2,
+  "incident" : "869B42AB-E5E9-4C00-BD2C-4105BD4F53A3",
+  "pid" : 56644,
+  "translated" : false,
+  "cpuType" : "ARM-64",
+  "procLaunch" : "2026-09-27 17:28:47.1438 -0400",
+  "procStartAbsTime" : 62350835977168,
+  "procExitAbsTime" : 62350860702059,
+  "procName" : "TesseraBTimer079092e8",
+  "procPath" : "\/Volumes\/VOLUME\/*\/Tessera-BTimer-A-GUI.app\/Contents\/MacOS\/TesseraBTimer079092e8",
+  "bundleInfo" : {"CFBundleShortVersionString":"0.0.1","CFBundleVersion":"1","CFBundleIdentifier":"dev.tessera.validation.btimer.079092e8.20260927"},
+  "storeInfo" : {"deviceIdentifierForVendor":"C261C9E4-E9B1-5AD7-8FEC-10A2D8B1372B","thirdParty":true},
+  "parentProc" : "launchd",
+  "parentPid" : 1,
+  "coalitionName" : "dev.tessera.validation.btimer.079092e8.20260927",
+  "crashReporterKey" : "70C7861F-8CAE-DDAC-4E2F-37A6261825C3",
+  "appleIntelligenceStatus" : {"state":"available"},
+  "developerMode" : 1,
+  "codeSigningID" : "dev.tessera.validation.btimer.079092e8.20260927",
+  "codeSigningTeamID" : "",
+  "codeSigningFlags" : 570425857,
+  "codeSigningValidationCategory" : 10,
+  "codeSigningTrustLevel" : 4294967295,
+  "codeSigningAuxiliaryInfo" : 0,
+  "instructionByteStream" : {"beforePC":"vAAAADgBAABwAAAAAAEAAGgAAAAYAQAASAEAAGwBAAAwQYDSARAA1A==","atPC":"AwEAVH8jA9X9e7+p\/QMAkX30\/5e\/AwCR\/XvBqP8PX9bAA1\/WEC2A0g=="},
+  "bootSessionUUID" : "0CC59035-1A00-4B60-99D1-44E96C5C333B",
+  "wakeTime" : 862112,
+  "fatalDyldError" : 1,
+  "sleepWakeUUID" : "DF2568AD-23C0-44D8-9BDC-246E6924E3C5",
+  "sip" : "enabled",
+  "exception" : {"codes":"0x0000000000000000, 0x0000000000000000","rawCodes":[0,0],"type":"EXC_CRASH","signal":"SIGABRT"},
+  "termination" : {"code":1,"flags":518,"namespace":"DYLD","indicator":"Library missing","details":["(terminated at launch; ignore backtrace)"],"reasons":["Library not loaded: @rpath\/Sparkle.framework\/Versions\/B\/Sparkle","Referenced from: <059F341F-19B1-3176-A24D-74B6EDC7ED5A> \/Volumes\/VOLUME\/*\/Tessera-BTimer-A-GUI.app\/Contents\/MacOS\/TesseraBTimer079092e8","Reason: tried: '\/usr\/lib\/swift\/Sparkle.framework\/Versions\/B\/Sparkle' (no such file, not in dyld cache), '\/System\/Volumes\/Preboot\/Cryptexes\/OS\/usr\/lib\/swift\/Sparkle.framework\/Versions\/B\/Sparkle' (no such file), '\/Volumes\/betterSSD\/tessera-validation\/document-timers\/a-gui-079092e8-20260927\/Tessera-BTimer-A-GUI.app\/Contents\/MacOS\/Sparkle.framework\/Versions\/B\/Sparkle' (no such file), '\/Applications\/Xcode.app\/Contents\/Developer\/Toolchains\/XcodeDefault.xctoolchain\/usr\/lib\/swift-6.2\/macosx\/Sparkle.framework\/Versions\/B\/Sparkle' (no such file), '\/System\/Volumes\/Preboot\/Cryptexes\/OS\/Applications\/Xcode.app\/Contents\/Developer\/Toolchains\/XcodeDefault.xctoolchain\/usr\/lib\/swift-6.2\/macosx\/Sparkle.framework\/Versions\/B\/Sparkle' (no such file), '\/usr\/lib\/swift\/Sparkl"]},
+  "extMods" : {"caller":{"thread_create":0,"thread_set_state":0,"task_for_pid":0},"system":{"thread_create":0,"thread_set_state":184,"task_for_pid":7},"targeted":{"thread_create":0,"thread_set_state":0,"task_for_pid":0},"warnings":0},
+  "faultingThread" : 0,
+  "threads" : [{"triggered":true,"id":94501433,"threadState":{"x":[{"value":6},{"value":1},{"value":6159702368},{"value":204},{"value":6159701344},{"value":0},{"value":0},{"value":0},{"value":32},{"value":7380213154305736734},{"value":8506376728,"symbolLocation":16600,"symbol":"lsl::sPoolBytes"},{"value":8506491200},{"value":131072},{"value":6682429888,"symbolLocation":0,"symbol":"_dyld_start"},{"value":1},{"value":86},{"value":521},{"value":6159700880},{"value":0},{"value":0},{"value":6159701344},{"value":204},{"value":6159702368},{"value":1},{"value":6},{"value":0},{"value":520552452},{"value":1},{"value":0}],"flavor":"ARM_THREAD_STATE64","lr":{"value":6683062276},"cpsr":{"value":2147483648},"fp":{"value":6159701296},"sp":{"value":6159701232},"esr":{"value":1442840704,"description":"(Syscall)"},"pc":{"value":6682434468,"matchesCrashFrame":1},"far":{"value":0}},"frames":[{"imageOffset":23460,"symbol":"__abort_with_payload","symbolLocation":8,"imageIndex":1},{"imageOffset":651268,"symbol":"abort_with_payload_wrapper_internal","symbolLocation":104,"imageIndex":1},{"imageOffset":651320,"symbol":"abort_with_payload","symbolLocation":16,"imageIndex":1},{"imageOffset":154948,"symbol":"dyld4::halt(char const*, dyld4::StructuredError const*)","symbolLocation":312,"imageIndex":1},{"imageOffset":139056,"symbol":"dyld4::prepare(dyld4::APIs&, mach_o::UnsafeHeader const*)","symbolLocation":5092,"imageIndex":1},{"imageOffset":133936,"symbol":"dyld4::start(dyld4::KernelArgs*, void*, void*, unsigned long long)::$_1::operator()() const","symbolLocation":320,"imageIndex":1},{"imageOffset":132236,"symbol":"start","symbolLocation":6904,"imageIndex":1}]}],
+  "usedImages" : [
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4307173376,
+    "CFBundleShortVersionString" : "0.0.1",
+    "CFBundleIdentifier" : "dev.tessera.validation.btimer.079092e8.20260927",
+    "size" : 69550080,
+    "uuid" : "059f341f-19b1-3176-a24d-74b6edc7ed5a",
+    "path" : "\/Volumes\/VOLUME\/*\/Tessera-BTimer-A-GUI.app\/Contents\/MacOS\/TesseraBTimer079092e8",
+    "name" : "TesseraBTimer079092e8",
+    "CFBundleVersion" : "1"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 6682411008,
+    "size" : 734464,
+    "uuid" : "74e52480-c2bd-3c8d-812d-95fe2b74a096",
+    "path" : "\/usr\/lib\/dyld",
+    "name" : "dyld"
+  },
+  {
+    "size" : 0,
+    "source" : "A",
+    "base" : 0,
+    "uuid" : "00000000-0000-0000-0000-000000000000"
+  }
+],
+  "sharedCache" : {
+  "base" : 6681280512,
+  "size" : 6010847232,
+  "uuid" : "f2e86c53-6052-388b-ba71-5a0c9b569413"
+},
+  "vmSummary" : "ReadOnly portion of Libraries: Total=681.9M resident=0K(0%) swapped_out_or_unallocated=681.9M(100%)\nWritable regions: Total=8624K written=128K(1%) resident=128K(1%) swapped_out=0K(0%) unallocated=8496K(99%)\n\n                                VIRTUAL   REGION \nREGION TYPE                        SIZE    COUNT (non-coalesced) \n===========                     =======  ======= \nSTACK GUARD                       56.0M        1 \nStack                             8176K        1 \n__AUTH_CONST                        23K        1 \n__DATA                             612K        3 \n__DATA_CONST                      2089K        2 \n__DATA_DIRTY                        14K        1 \n__LINKEDIT                       614.8M        2 \n__TEXT                            67.0M        2 \n__TPRO_CONST                       128K        1 \ndyld private memory                 16K        1 \npage table in kernel               128K        1 \n===========                     =======  ======= \nTOTAL                            748.8M       16 \n",
+  "legacyInfo" : {
+  "threadTriggered" : {
+
+  }
+},
+  "logWritingSignature" : "32e630bf24ab37e5de986bfaa7cafbf5b579fc24",
+  "roots_installed" : 0,
+  "bug_type" : "309",
+  "trmStatus" : 8192,
+  "trialInfo" : {
+  "rollouts" : [
+    {
+      "rolloutId" : "6785b622614dbd65bffd025a",
+      "factorPackIds" : [
+        "6a2108cf34a0c07a0681423b"
+      ],
+      "deploymentId" : 240000017
+    },
+    {
+      "rolloutId" : "6761d0c9df60af01adb250fb",
+      "factorPackIds" : [
+
+      ],
+      "deploymentId" : 240000009
+    }
+  ],
+  "experiments" : [
+
+  ]
+}
+}

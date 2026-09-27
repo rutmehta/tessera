@@ -1,0 +1,150 @@
+   Compiling transform v0.1.0 (/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/crates/transform)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.64s
+     Running unittests src/lib.rs (target/debug/deps/transform-df50833d8fff4c64)
+
+running 12 tests
+test tests::rejects_malformed_image ... ok
+test seam::cancellation_tests::seam_search_checks_cancellation_during_its_inner_work ... ok
+test perspective::tests::perspective_rejects_cracked_shared_vertices_and_bad_quads ... ok
+test warp::tests::warp_invalid_data_is_rejected ... ok
+test perspective::tests::perspective_quad_roundtrip ... ok
+test warp::tests::warp_presets_have_zero_identity_and_signed_bend ... ok
+test perspective::tests::perspective_shared_edge_is_continuous_with_bilinear_blending ... ok
+test warp::tests::warp_subdivide_preserves_shape_and_serde ... ok
+test warp::tests::warp_field_recovers_singular_initial_guess ... ok
+test perspective::tests::perspective_four_planes_share_corner_and_serialize ... ok
+test warp::tests::warp_identity_roundtrip ... ok
+test warp::tests::warp_split_preserves_curved_surface ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/adaptive.rs (target/debug/deps/adaptive-f802a73bd2b97057)
+
+running 8 tests
+test displacement_interpolates_absolute_pixel_centers_and_rejects_bad_payloads ... ok
+test degenerate_uncovered_and_nonconvergent_recipes_report_errors ... ok
+test profile_native_terms_and_crop_scale_round_trip ... ok
+test camera_sphere_reprojection_recovers_synthetic_fisheye_grid ... ok
+test incompatible_constraints_fail_instead_of_folding ... ok
+test imperfect_fisheye_model_grid_is_straight_below_half_pixel ... ok
+test mesh_constraints_really_straighten_curved_lines_and_are_deterministic ... ok
+test straight_and_vertical_constraints_and_source_segments ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s
+
+     Running tests/automatic.rs (target/debug/deps/automatic-7c3bef910cbb7c3d)
+
+running 2 tests
+test automatic_chooses_exact_lattice_downsample_and_reconstruction ... ok
+test protected_seams_work_on_supplied_mip_grid ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/cancellation.rs (target/debug/deps/cancellation-caffd9da67f66b97)
+
+running 4 tests
+test skin_hook_cancellation_stops_before_the_next_pixel ... ok
+test seam_rejects_a_precancelled_token_even_for_identity ... ok
+test transform_op_passes_cancellation_into_content_aware_scale ... ok
+test transform_op_nonseam_path_observes_a_precancelled_token ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/displacement_render.rs (target/debug/deps/displacement_render-4ecb4142a2d5a51a)
+
+running 1 test
+test adaptive_operation_uses_shared_cpu_and_gpu_coordinate_contract ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/free_geometry.rs (target/debug/deps/free_geometry-3f80d7b1206c4b49)
+
+running 2 tests
+test reference_helpers_preserve_pivot ... ok
+test homography_inverse_and_exact_bounds ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/free_render.rs (target/debug/deps/free_render-b30413e7570ee3dc)
+
+running 1 test
+test identity_render_and_level_centers ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/free_sampling.rs (target/debug/deps/free_sampling-5ec8db867963ad73)
+
+running 2 tests
+test transparent_extension_keeps_premultiplied_color ... ok
+test kernels_match_scalar_reference_at_fractional_positions ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/free_unified.rs (target/debug/deps/free_unified-a02e6a0d3d483c67)
+
+running 5 tests
+test content_aware_dispatch_checks_canvas_and_no_geometry_field ... ok
+test rejects_bad_public_images_and_canvases_without_panicking ... ok
+test translation_respects_level_and_fixed_canvas ... ok
+test homography_render_uses_inverse_not_forward ... ok
+test unified_geometry_dispatch_roundtrips_real_types ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/puppet_arap.rs (target/debug/deps/puppet_arap-f0e25a8edd961248)
+
+running 3 tests
+test puppet_alpha_mesh_identity_and_hole ... ok
+test puppet_pin_translation_rotation_and_determinism ... ok
+test puppet_multiple_pins_deform_interior ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/puppet_validation.rs (target/debug/deps/puppet_validation-c7de42019ae8fc80)
+
+running 6 tests
+test puppet_rejects_invalid_input_and_serialized_state ... ok
+test puppet_subpixel_and_odd_dimensions_have_finite_boundary_mapping ... ok
+test puppet_prepared_mapping_rejects_corrupted_indices_without_panicking ... ok
+test puppet_density_and_expansion_control_coverage ... ok
+test puppet_unpinned_disconnected_island_stays_at_rest ... ok
+test puppet_rigid_mode_changes_multipin_solution ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/seam_content.rs (target/debug/deps/seam_content-ff526f78b19dc72c)
+
+running 8 tests
+test seam_identity_is_exact ... ok
+test seam_rejects_invalid_parameters_and_publicly_mutated_images ... ok
+test seam_height_shrink_tracks_mask ... ok
+test seam_amount_zero_is_bilinear_and_partial_amount_keeps_target ... ok
+test seam_skin_hook_matches_explicit_mask_and_rejects_bad_scores ... ok
+test seam_partial_amount_rounds_seam_count_symmetrically ... ok
+test seam_shrink_avoids_protected_columns ... ok
+test seam_enlarges_both_axes_and_handles_single_pixel ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/vanishing.rs (target/debug/deps/vanishing-74688a8136d7375f)
+
+running 10 tests
+test seam_endpoint_agreement_alone_is_not_enough ... ok
+test stroke_keeps_atlas_spacing_and_phase_across_multiple_planes ... ok
+test quad_plane_roundtrips_with_pure_projective_mapping ... ok
+test document_clone_crosses_planes_and_roundtrips_serde ... ok
+test folded_clone_has_no_seam_jump_and_survives_serialization ... ok
+test pasted_checker_has_projected_corners_and_projective_resampling ... ok
+test resampled_paste_is_premultiplied_and_continuous_across_planes ... ok
+test tear_off_uses_pinhole_rotation_and_preserves_entire_edge ... ok
+test tilted_plane_seam_is_projective_not_linearly_reparameterized ... ok
+test coplanar_tear_off_all_edges_and_both_windings ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests transform
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

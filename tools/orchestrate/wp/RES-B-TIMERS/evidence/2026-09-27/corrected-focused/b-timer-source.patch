@@ -1,0 +1,305 @@
+diff --git a/apps/mac/Sources/Tessera/Document/DocumentAnimatedOverlayView.swift b/apps/mac/Sources/Tessera/Document/DocumentAnimatedOverlayView.swift
+new file mode 100644
+index 00000000..69b38d5b
+--- /dev/null
++++ b/apps/mac/Sources/Tessera/Document/DocumentAnimatedOverlayView.swift
+@@ -0,0 +1,73 @@
++import AppKit
++
++/// Main-run-loop animation shared by document overlays. No timer retains its view.
++/// Visibility notifications stop hidden work; the callback also rechecks eligibility
++/// so a selection/ownership change cannot produce a stale animation tick.
++@MainActor
++class DocumentAnimatedOverlayView: NSView {
++    private(set) var animationTimer: Timer?
++    // Injectable unscheduled timer for deterministic lifecycle tests.
++    var makeAnimationTimer: (@escaping @Sendable (Timer) -> Void) -> Timer = {
++        Timer.scheduledTimer(withTimeInterval: 1.0 / 30, repeats: true, block: $0)
++    }
++
++    var wantsAnimation: Bool { false }
++    var animationIsVisible: Bool {
++        window?.occlusionState.contains(.visible) == true && !isHiddenOrHasHiddenAncestor
++    }
++
++    func animationTick() { needsDisplay = true }
++
++    func updateAnimation() {
++        guard wantsAnimation && animationIsVisible else {
++            animationTimer?.invalidate()
++            animationTimer = nil
++            return
++        }
++        guard animationTimer == nil else { return }
++        animationTimer = makeAnimationTimer { [weak self] timer in
++            // Keep the callback's non-Sendable Timer in its original isolation
++            // region. Production scheduling and manual test delivery are on main.
++            guard let self else {
++                // The run loop owns repeating timers even after their view dies.
++                timer.invalidate()
++                return
++            }
++            MainActor.assumeIsolated {
++                guard self.wantsAnimation && self.animationIsVisible else {
++                    self.updateAnimation()
++                    return
++                }
++                self.animationTick()
++            }
++        }
++    }
++
++    override func viewDidMoveToWindow() {
++        super.viewDidMoveToWindow()
++        let center = NotificationCenter.default
++        center.removeObserver(self, name: NSWindow.didChangeOcclusionStateNotification, object: nil)
++        if let window {
++            center.addObserver(self, selector: #selector(visibilityChanged(_:)),
++                               name: NSWindow.didChangeOcclusionStateNotification, object: window)
++        }
++        updateAnimation()
++        needsDisplay = true
++    }
++
++    override func viewDidHide() {
++        super.viewDidHide()
++        updateAnimation()
++    }
++
++    override func viewDidUnhide() {
++        super.viewDidUnhide()
++        updateAnimation()
++        needsDisplay = true
++    }
++
++    @objc private func visibilityChanged(_ notification: Notification) {
++        updateAnimation()
++        needsDisplay = true
++    }
++}
+diff --git a/apps/mac/Sources/Tessera/Document/DocumentViewport.swift b/apps/mac/Sources/Tessera/Document/DocumentViewport.swift
+index 5b9dfce7..b84c90c0 100644
+--- a/apps/mac/Sources/Tessera/Document/DocumentViewport.swift
++++ b/apps/mac/Sources/Tessera/Document/DocumentViewport.swift
+@@ -211,7 +211,7 @@ final class DocumentViewportView: NSView {
+         ringSize = (0, 0)
+         current = nil
+         lastPushed = nil
+-        guard let doc else { ants.rect = nil; render(); return }
++        guard let doc else { ants.rect = nil; toolOverlay.updateAnimation(); render(); return }
+         doc.viewport = self
+         doc.onFrame = { [weak self, weak doc] f in
+             guard let self, let doc, doc === self.controller else { return }
+@@ -454,6 +454,7 @@ final class DocumentViewportView: NSView {
+         // WP B5-04: the marching ants follow the engine's selection outline (ToolOverlayView).
+         ants.rect = nil
+         DocumentTools.shared.selectionDidChange(in: self)
++        toolOverlay.updateAnimation()
+         toolOverlay.needsDisplay = true
+     }
+ 
+@@ -510,27 +511,20 @@ final class DocumentViewportView: NSView {
+ 
+ /// The marquee's marching ants: a two-tone dashed rectangle whose phase advances at 30 fps.
+ @MainActor
+-final class MarchingAntsView: NSView {
++final class MarchingAntsView: DocumentAnimatedOverlayView {
+     var rect: CGRect? {
+         didSet {
+             guard rect != oldValue else { return }
+             needsDisplay = true
+-            if rect != nil, timer == nil {
+-                timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30, repeats: true) { [weak self] _ in
+-                    MainActor.assumeIsolated {
+-                        guard let self else { return }
+-                        self.phase = (self.phase + 0.5).truncatingRemainder(dividingBy: 8)
+-                        self.needsDisplay = true
+-                    }
+-                }
+-            } else if rect == nil {
+-                timer?.invalidate()
+-                timer = nil
+-            }
++            updateAnimation()
+         }
+     }
+     private var phase: CGFloat = 0
+-    private var timer: Timer?
++    override var wantsAnimation: Bool { rect != nil }
++    override func animationTick() {
++        phase = (phase + 0.5).truncatingRemainder(dividingBy: 8)
++        needsDisplay = true
++    }
+ 
+     override var isFlipped: Bool { true }
+     override func hitTest(_ point: NSPoint) -> NSView? { nil }
+diff --git a/apps/mac/Sources/Tessera/Document/Tools/ToolOverlayView.swift b/apps/mac/Sources/Tessera/Document/Tools/ToolOverlayView.swift
+index e1ea8e5f..44efdf0d 100644
+--- a/apps/mac/Sources/Tessera/Document/Tools/ToolOverlayView.swift
++++ b/apps/mac/Sources/Tessera/Document/Tools/ToolOverlayView.swift
+@@ -7,30 +7,22 @@ import TesseraCore
+ /// source, the brush HUD readout, the Free Transform box, and Select and Mask preview modes. It never
+ /// takes mouse events: the viewport forwards them to `DocumentTools`.
+ @MainActor
+-final class ToolOverlayView: NSView {
+-    weak var viewport: DocumentViewportView?
++final class ToolOverlayView: DocumentAnimatedOverlayView {
++    weak var viewport: DocumentViewportView? { didSet { updateAnimation() } }
+     private var phase: CGFloat = 0
+-    private var timer: Timer?
+ 
+     override var isFlipped: Bool { true }
+     override func hitTest(_ point: NSPoint) -> NSView? { nil }
+ 
+-    /// Ants march at 30 fps while there is an outline.
+-    private func updateTimer() {
+-        let animate = !DocumentTools.shared.outline.isEmpty || DocumentTools.shared.gesture != nil
+-        if animate, timer == nil {
+-            timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30, repeats: true) { [weak self] _ in
+-                MainActor.assumeIsolated {
+-                    guard let self else { return }
+-                    self.phase = (self.phase + 0.5).truncatingRemainder(dividingBy: 8)
+-                    self.needsDisplay = true
+-                    if DocumentTools.shared.outline.isEmpty && DocumentTools.shared.gesture == nil {
+-                        self.timer?.invalidate()
+-                        self.timer = nil
+-                    }
+-                }
+-            }
+-        }
++    override var wantsAnimation: Bool {
++        guard let viewport, let doc = viewport.controller, doc.viewport === viewport,
++              DocumentTools.shared.document === doc else { return false }
++        return !DocumentTools.shared.outline.isEmpty || DocumentTools.shared.gesture != nil
++    }
++
++    override func animationTick() {
++        phase = (phase + 0.5).truncatingRemainder(dividingBy: 8)
++        needsDisplay = true
+     }
+ 
+     private func path(_ pts: [CanvasPoint], closed: Bool, in v: DocumentViewportView) -> NSBezierPath? {
+@@ -63,7 +55,7 @@ final class ToolOverlayView: NSView {
+     }
+ 
+     override func draw(_ dirtyRect: NSRect) {
+-        updateTimer()
++        updateAnimation()
+         guard let v = viewport, let doc = v.controller, DocumentTools.shared.document === doc else { return }
+         let tools = DocumentTools.shared
+         NSGraphicsContext.current?.cgContext.setShouldAntialias(true)
+diff --git a/apps/mac/Tests/TesseraCoreTests/DocumentOverlayAnimationTests.swift b/apps/mac/Tests/TesseraCoreTests/DocumentOverlayAnimationTests.swift
+new file mode 100644
+index 00000000..de99b948
+--- /dev/null
++++ b/apps/mac/Tests/TesseraCoreTests/DocumentOverlayAnimationTests.swift
+@@ -0,0 +1,109 @@
++import AppKit
++import XCTest
++@testable import Tessera
++
++/// Source-only resource repair: UNRUN on Machine B. No sleeps or real timer scheduling.
++@MainActor
++final class DocumentOverlayAnimationTests: XCTestCase {
++    private final class Overlay: DocumentAnimatedOverlayView {
++        var eligible = true
++        var visible = true
++        var ticks = 0
++        override var wantsAnimation: Bool { eligible }
++        override var animationIsVisible: Bool { visible }
++        override func animationTick() { ticks += 1 }
++    }
++
++    private func makeOverlay() -> Overlay {
++        let view = Overlay(frame: .zero)
++        view.makeAnimationTimer = { callback in
++            Timer(timeInterval: 1.0 / 30, repeats: true, block: callback)
++        }
++        return view
++    }
++
++    func testRepeatedUpdatesDoNotDuplicateTimerAndRestartOnce() {
++        let view = makeOverlay()
++        view.updateAnimation()
++        let first = view.animationTimer
++        XCTAssertNotNil(first)
++        view.updateAnimation()
++        XCTAssertTrue(first === view.animationTimer)
++        first?.fire()
++        XCTAssertEqual(view.ticks, 1)
++        view.visible = false
++        view.updateAnimation()
++        XCTAssertNil(view.animationTimer)
++        XCTAssertFalse(first!.isValid)
++        first?.fire()
++        XCTAssertEqual(view.ticks, 1)
++        view.visible = true
++        view.updateAnimation()
++        let second = view.animationTimer
++        XCTAssertNotNil(second)
++        XCTAssertFalse(first === second)
++        view.updateAnimation()
++        XCTAssertTrue(second === view.animationTimer)
++        view.eligible = false
++        view.updateAnimation()
++        XCTAssertNil(view.animationTimer)
++        XCTAssertFalse(second!.isValid)
++    }
++
++    func testTickRechecksVisibilityAndOwnershipBeforeDrawing() {
++        let view = makeOverlay()
++        view.updateAnimation()
++        let timer = view.animationTimer
++        view.eligible = false // ownership/selection changes before a lifecycle callback
++        timer?.fire()
++        XCTAssertEqual(view.ticks, 0)
++        XCTAssertFalse(timer!.isValid)
++        view.eligible = true
++        view.updateAnimation()
++        let restarted = view.animationTimer
++        view.visible = false
++        restarted?.fire()
++        XCTAssertEqual(view.ticks, 0)
++        XCTAssertFalse(restarted!.isValid)
++    }
++
++    func testReleasedOwnerInvalidatesRetainedTimerWithoutTicks() {
++        var view: Overlay? = makeOverlay()
++        weak var weakView = view
++        view?.updateAnimation()
++        let timer = view?.animationTimer
++        view = nil
++        XCTAssertNil(weakView, "timer must not retain the view")
++        timer?.fire() // models the run loop's next delivery after owner release
++        XCTAssertFalse(timer!.isValid, "nil owner must stop repeating deliveries")
++    }
++
++    func testHideUnhideAndWindowDetachHooksReconcileTimer() {
++        let view = makeOverlay()
++        view.updateAnimation()
++        let first = view.animationTimer
++        view.visible = false
++        view.viewDidHide()
++        XCTAssertFalse(first!.isValid)
++        XCTAssertNil(view.animationTimer)
++        view.visible = true
++        view.viewDidUnhide()
++        let second = view.animationTimer
++        XCTAssertNotNil(second)
++        view.visible = false
++        view.viewDidMoveToWindow()
++        XCTAssertFalse(second!.isValid)
++        XCTAssertNil(view.animationTimer)
++    }
++
++    func testConcreteOverlaysNeverScheduleWhileDetached() {
++        let marquee = MarchingAntsView(frame: .zero)
++        marquee.rect = CGRect(x: 0, y: 0, width: 10, height: 10)
++        XCTAssertTrue(marquee.wantsAnimation)
++        XCTAssertNil(marquee.animationTimer)
++        let tools = ToolOverlayView(frame: .zero)
++        tools.updateAnimation()
++        XCTAssertFalse(tools.wantsAnimation, "an unowned overlay cannot animate global tool state")
++        XCTAssertNil(tools.animationTimer)
++    }
++}

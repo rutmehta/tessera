@@ -1,0 +1,47 @@
+{
+  "working_directory": "/Users/rutmehta/.codex/worktrees/review-ownership/tessera",
+  "red": {
+    "base": "1995f7534747ada0d2bd9ce57cd3c89711f43e32",
+    "arguments": [
+      "swift",
+      "test",
+      "--package-path",
+      "apps/mac",
+      "--scratch-path",
+      "/Volumes/betterSSD/tessera-cache/swift/review-ownership",
+      "-c",
+      "release",
+      "-Xswiftc",
+      "-enable-testing",
+      "--filter",
+      "AgentReviewOwnershipTests"
+    ],
+    "exit_code": 1,
+    "tests": 4,
+    "failures": 6,
+    "unexpected": 0
+  },
+  "focused_green": {
+    "source_manifest": "focused-source.json",
+    "arguments": [
+      "swift",
+      "test",
+      "--package-path",
+      "apps/mac",
+      "--scratch-path",
+      "/Volumes/betterSSD/tessera-cache/swift/review-ownership",
+      "-c",
+      "release",
+      "-Xswiftc",
+      "-enable-testing",
+      "--filter",
+      "AgentReviewOwnershipTests|AgentReviewQueueTests"
+    ],
+    "exit_code": 0,
+    "tests": 21,
+    "failures": 0,
+    "test_seconds": 9.955,
+    "build_seconds": 123.14
+  },
+  "full_suite": "Pending coordinator combined integration gate; intentionally not duplicated here."
+}

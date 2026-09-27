@@ -1,0 +1,18 @@
+{
+  "tessera-export-integration-clippy.log": "37cf7fdcf526387b415b44b4e27d766d9eea7ab999e2efb1ba3231de81d9ecd6",
+  "tessera-export-integration-gate.sh": "eeb2073e0a801a37b643f772f65e87bef13846f4d94f7bbaed6e55fb23d08ecc",
+  "tessera-export-integration-fmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "tessera-export-integration-dng-contract.log": "3c08a6ecbb4fcb6bee348df9b12821bea32d7e6b2d8a723669e1d49e31cd1bf1",
+  "tessera-export-integration-tests.log": "fb16659858376a12bd9ac3225b8455bacb1bf46e04eba801d764bb00d72e0daa",
+  "final-source.json": "69e62da8bdf88b3d7c7801495743d05d2160ed2b057ae32d071aa3db0ee1a3b2",
+  "tessera-export-integration-final-swift.log": "71fccf1c6310ef8c1daee751580d75488b9e9cd1b0f062219bdd5d2b61f63304",
+  "tessera-export-integration-licenses.log": "11442e82e0b22bddffe8bdbd9077ca9544b59b1e4004ede49a1569f1b1205ded",
+  "tessera-export-integration-final-swift.sh": "d7ace0432d744ad25421e4f36dc1febcb8aed97f9281bfbe041ed371a7e903e9",
+  "RESULTS.md": "7fa7cdd41af962363afc3ff24006c9d04ef1aceed58366fcb3d223aee4ba2125",
+  "tessera-export-integration-swift.log": "35f181cb2b1d090ce28279f881c33e3f6d11a8a91cda19556a7a59e983e08da4",
+  "tessera-export-integration-ffi.log": "bf78419373ff99fd68a8c0025ccdfa436258a30177fef6517645c35900867ff4",
+  "tessera-export-integration-workspace.log": "11bdf8abb647065bfa38f8990897c48029a9ff10b29348b59d133636fea44714",
+  "tessera-export-integration-final-swift-old-dng-expectation.log": "e1d5ca69227944a0aed0cf3f4e145e118f54b167d0f07109642f6a78481452b0",
+  "tessera-export-integration-tests-missing-fixture.log": "14505ee90872da22f73d484dcffd0b737f5f352991ae4e4f247f7a55a7e9e31e",
+  "tessera-export-integration-fixture-sha256.txt": "198d73ae61fdb5b2dfa8cabfcfc51266d3c95226db84057603cef7a4f0529a3f"
+}

@@ -1,0 +1,90 @@
+[0/1] Planning build
+Building for production...
+[0/6] Write sources
+[2/6] Write swift-version--58304C5D6DBC2206.txt
+[4/7] Compiling Tessera AISettingsView.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Document/AdjustmentEditors.swift:55:55: warning: passing non-Sendable parameter 'change' to function expecting a '@Sendable' closure
+ 52 |     }
+ 53 | 
+ 54 |     private func checkbox(_ title: String, _ on: Bool, _ key: String, _ change: @escaping (Bool) -> Void) -> some View {
+    |                                                                         `- note: parameter 'change' is implicitly non-Sendable
+ 55 |         Toggle(title, isOn: Binding(get: { on }, set: change))
+    |                                                       `- warning: passing non-Sendable parameter 'change' to function expecting a '@Sendable' closure
+ 56 |             .toggleStyle(.checkbox)
+ 57 |             .font(Theme.Fonts.caption)
+
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Document/Transforms/DocumentTransforms.swift:676:21: warning: 'where' only applies to the second pattern match in this 'case'
+674 |         let mods = e.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.numericPad, .function, .capsLock])
+675 |         switch e.keyCode {
+676 |         case 36, 76 where mods.isEmpty || mods == [.command]: apply(); return true
+    |              |   |  `- warning: 'where' only applies to the second pattern match in this 'case'
+    |              |   `- note: disambiguate by adding a line break between them if this is desired
+    |              `- note: duplicate the 'where' on both patterns to check both patterns
+677 |         case 53 where mods.isEmpty: cancel(); return true
+678 |         case 51, 117 where mods.isEmpty:
+
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Document/Transforms/DocumentTransforms.swift:678:22: warning: 'where' only applies to the second pattern match in this 'case'
+676 |         case 36, 76 where mods.isEmpty || mods == [.command]: apply(); return true
+677 |         case 53 where mods.isEmpty: cancel(); return true
+678 |         case 51, 117 where mods.isEmpty:
+    |              |   |   `- warning: 'where' only applies to the second pattern match in this 'case'
+    |              |   `- note: disambiguate by adding a line break between them if this is desired
+    |              `- note: duplicate the 'where' on both patterns to check both patterns
+679 |             if case .puppet = session?.op, selectedPin != nil { removeSelectedPin(); return true }
+680 |             return false
+
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Document/Transforms/TransformSelfTest.swift:460:16: warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+458 | 
+459 |         // 395: position lock rejects geometry.
+460 |         if let id = doc?.primary?.id {
+    |                `- warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+461 |             doc?.toggleLock(.position)
+462 |             await settle()
+[4/8] Write Objects.LinkFileList
+ld: warning: object file (/Users/rutmehta/.codex/worktrees/export-integration/tessera/apps/mac/build/ffi/libtessera_ffi.a[2845](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[5/8] Linking Tessera
+[7/9] Compiling TesseraCoreTests AgentReviewOwnershipTests.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[8/10] Compiling TesseraPackageTests runner.swift
+[8/10] Write Objects.LinkFileList
+ld: warning: object file (/Users/rutmehta/.codex/worktrees/export-integration/tessera/apps/mac/build/ffi/libtessera_ffi.a[2845](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[9/10] Linking TesseraPackageTests
+Build complete! (105.40s)
+Test Suite 'Selected tests' started at 2026-09-27 15:58:20.268.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-27 15:58:20.269.
+Test Suite 'MasksPanelLayoutTests' started at 2026-09-27 15:58:20.269.
+Test Case '-[TesseraCoreTests.MasksPanelLayoutTests testPopulatedInspectorKeepsComponentActionsReadableAtMinimumWidth]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [17.617667, 0.35100000000000003, 0.49083299999999996]; GPU [23.029166, 0.7575000000000001, 0.957792]
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/MasksPanelLayoutTests.swift:69: error: -[TesseraCoreTests.MasksPanelLayoutTests testPopulatedInspectorKeepsComponentActionsReadableAtMinimumWidth] : XCTAssertTrue failed - masks-components-288-light: full label 'Components' is not painted; recognized ["+", "+0", "+0.00", "+0°", "1", "100%", "Add-", "Amount", "Balance", "Blacks", "Clarity", "Component", "Contrast", "Create", "Dehaze", "Exposure", "Gradient", "Highlights", "Hue", "Inter...v", "Invert", "Light", "Linear", "Mask", "Masks", "Presence", "Reset", "Shadows", "Show", "Sliders", "Sub...", "Temp", "Texture", "Tint", "V", "White", "Whites", "mask", "tools", "v"]
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/MasksPanelLayoutTests.swift:69: error: -[TesseraCoreTests.MasksPanelLayoutTests testPopulatedInspectorKeepsComponentActionsReadableAtMinimumWidth] : XCTAssertTrue failed - masks-components-288-light: full label 'Add' is not painted; recognized ["+", "+0", "+0.00", "+0°", "1", "100%", "Add-", "Amount", "Balance", "Blacks", "Clarity", "Component", "Contrast", "Create", "Dehaze", "Exposure", "Gradient", "Highlights", "Hue", "Inter...v", "Invert", "Light", "Linear", "Mask", "Masks", "Presence", "Reset", "Shadows", "Show", "Sliders", "Sub...", "Temp", "Texture", "Tint", "V", "White", "Whites", "mask", "tools", "v"]
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/MasksPanelLayoutTests.swift:69: error: -[TesseraCoreTests.MasksPanelLayoutTests testPopulatedInspectorKeepsComponentActionsReadableAtMinimumWidth] : XCTAssertTrue failed - masks-components-288-light: full label 'Subtract' is not painted; recognized ["+", "+0", "+0.00", "+0°", "1", "100%", "Add-", "Amount", "Balance", "Blacks", "Clarity", "Component", "Contrast", "Create", "Dehaze", "Exposure", "Gradient", "Highlights", "Hue", "Inter...v", "Invert", "Light", "Linear", "Mask", "Masks", "Presence", "Reset", "Shadows", "Show", "Sliders", "Sub...", "Temp", "Texture", "Tint", "V", "White", "Whites", "mask", "tools", "v"]
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/MasksPanelLayoutTests.swift:69: error: -[TesseraCoreTests.MasksPanelLayoutTests testPopulatedInspectorKeepsComponentActionsReadableAtMinimumWidth] : XCTAssertTrue failed - masks-components-288-light: full label 'Intersect' is not painted; recognized ["+", "+0", "+0.00", "+0°", "1", "100%", "Add-", "Amount", "Balance", "Blacks", "Clarity", "Component", "Contrast", "Create", "Dehaze", "Exposure", "Gradient", "Highlights", "Hue", "Inter...v", "Invert", "Light", "Linear", "Mask", "Masks", "Presence", "Reset", "Shadows", "Show", "Sliders", "Sub...", "Temp", "Texture", "Tint", "V", "White", "Whites", "mask", "tools", "v"]
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/MasksPanelLayoutTests.swift:69: error: -[TesseraCoreTests.MasksPanelLayoutTests testPopulatedInspectorKeepsComponentActionsReadableAtMinimumWidth] : XCTAssertTrue failed - masks-components-288-dark: full label 'Components' is not painted; recognized ["+", "+0", "+0.00", "+0°", "1", "100%", "Add", "Amount", "Balance", "Blacks", "Clarity", "Component", "Contrast", "Create", "Dehaze", "Exposure", "Gradient", "Highlights", "Hue", "Inter...", "Invert", "Light", "Linear", "Mask", "Masks", "Presence", "Reset", "Shadows", "Show", "Sliders", "Sub...", "Temp", "Texture", "Tint", "White", "Whites", "mask", "tools", "v"]
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/MasksPanelLayoutTests.swift:69: error: -[TesseraCoreTests.MasksPanelLayoutTests testPopulatedInspectorKeepsComponentActionsReadableAtMinimumWidth] : XCTAssertTrue failed - masks-components-288-dark: full label 'Subtract' is not painted; recognized ["+", "+0", "+0.00", "+0°", "1", "100%", "Add", "Amount", "Balance", "Blacks", "Clarity", "Component", "Contrast", "Create", "Dehaze", "Exposure", "Gradient", "Highlights", "Hue", "Inter...", "Invert", "Light", "Linear", "Mask", "Masks", "Presence", "Reset", "Shadows", "Show", "Sliders", "Sub...", "Temp", "Texture", "Tint", "White", "Whites", "mask", "tools", "v"]
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/MasksPanelLayoutTests.swift:69: error: -[TesseraCoreTests.MasksPanelLayoutTests testPopulatedInspectorKeepsComponentActionsReadableAtMinimumWidth] : XCTAssertTrue failed - masks-components-288-dark: full label 'Intersect' is not painted; recognized ["+", "+0", "+0.00", "+0°", "1", "100%", "Add", "Amount", "Balance", "Blacks", "Clarity", "Component", "Contrast", "Create", "Dehaze", "Exposure", "Gradient", "Highlights", "Hue", "Inter...", "Invert", "Light", "Linear", "Mask", "Masks", "Presence", "Reset", "Shadows", "Show", "Sliders", "Sub...", "Temp", "Texture", "Tint", "White", "Whites", "mask", "tools", "v"]
+Test Case '-[TesseraCoreTests.MasksPanelLayoutTests testPopulatedInspectorKeepsComponentActionsReadableAtMinimumWidth]' failed (12.094 seconds).
+Test Suite 'MasksPanelLayoutTests' failed at 2026-09-27 15:58:32.363.
+	 Executed 1 test, with 7 failures (0 unexpected) in 12.094 (12.094) seconds
+Test Suite 'TesseraPackageTests.xctest' failed at 2026-09-27 15:58:32.363.
+	 Executed 1 test, with 7 failures (0 unexpected) in 12.094 (12.094) seconds
+Test Suite 'Selected tests' failed at 2026-09-27 15:58:32.363.
+	 Executed 1 test, with 7 failures (0 unexpected) in 12.094 (12.095) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

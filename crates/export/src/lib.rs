@@ -6,6 +6,9 @@ mod depth;
 pub use mask_ai;
 mod avif;
 mod codec;
+mod dng;
+mod hdr;
+pub use engine_api::tools::HdrTransfer;
 mod jxl;
 pub use avif::{AvifOptions, encode_avif};
 mod watermark;
@@ -22,6 +25,7 @@ use engine_api::{jobs::CancellationToken, recipe::Recipe};
 pub use filter::{Resize, SharpenAmount, SharpenFor, sharpen_output};
 use pipeline_cpu::RenderSource;
 use sidecar::{MarkPreset, Sidecar, XmpPacket};
+mod native;
 mod original;
 pub use original::export_original;
 use std::{fs, io::Write, path::PathBuf};
@@ -98,11 +102,13 @@ pub enum Metadata {
 #[derive(Clone, Debug)]
 pub struct ExportSettings {
     pub format: Format,
+    /// HDR PNG uses 16-bit samples; HDR AVIF requires 10/12 bits. None is SDR.
+    pub hdr: Option<HdrTransfer>,
     pub color_space: ColorSpace,
     pub metadata: Metadata,
-    /// Remove named regions and their associated person keywords from XMP.
+    /// Remove named regions and associated person keywords across native/XMP carriers.
     pub remove_person_info: bool,
-    /// Remove GPS and IPTC location properties from XMP.
+    /// Remove GPS and IPTC image locations across native/XMP carriers.
     pub remove_location: bool,
     /// Preserve Lightroom keyword paths (flat keywords become single-level paths).
     pub keywords_as_hierarchy: bool,
@@ -129,11 +135,17 @@ pub struct ExportSettings {
     pub max_file_bytes: Option<u64>,
     /// Composited in document-encoded RGB after output sharpening.
     pub watermark: Option<Watermark>,
+    /// Embed this source's byte stream in a developed DNG. Requires unrestricted
+    /// metadata because the original itself is not privacy-filtered.
+    pub original_raw: Option<PathBuf>,
+    /// Source files keyed by ExportImage sequence; read-only native metadata context.
+    pub metadata_sources: std::collections::BTreeMap<usize, PathBuf>,
 }
 impl Default for ExportSettings {
     fn default() -> Self {
         Self {
             format: Format::Jpeg { quality: 90 },
+            hdr: None,
             color_space: ColorSpace::Srgb,
             metadata: Metadata::All,
             remove_person_info: false,
@@ -149,6 +161,8 @@ impl Default for ExportSettings {
             render_scale: 1,
             max_file_bytes: None,
             watermark: None,
+            original_raw: None,
+            metadata_sources: Default::default(),
         }
     }
 }
@@ -432,6 +446,7 @@ pub struct RenderedExport {
     used_gpu: bool,
     rgb: image::Rgb32FImage,
     packet: Option<XmpPacket>,
+    native: native::Native,
     settings: ExportSettings,
     path: PathBuf,
     side_path: PathBuf,
@@ -471,6 +486,17 @@ pub fn render_one_cancellable(
     cancel.check()?;
     recipe.validate()?;
     settings.format.validate()?;
+    dng::validate(settings)?;
+    hdr::validate(settings)?;
+    if settings.hdr.is_some()
+        && (upscale.is_some()
+            || ai_masks::active(&recipe.settings)
+            || depth::active(&image.source, &recipe.settings))
+    {
+        return Err(encode_error(
+            "HDR export does not support SDR enhancement hooks",
+        ));
+    }
     if matches!(settings.format, Format::Dng) && settings.watermark.is_some() {
         return Err(encode_error(
             "DNG watermark compositing in linear colour is not supported",
@@ -510,9 +536,18 @@ pub fn render_one_cancellable(
     {
         return Err(EngineError::invalid("output", "destination already exists"));
     }
+    let mut native = settings
+        .metadata_sources
+        .get(&image.sequence)
+        .map(|path| native::Native::read(path, cancel))
+        .transpose()?
+        .unwrap_or_default();
+    let packet = metadata_packet(image, recipe, settings, &native)?;
+    native.filter(settings, packet.as_ref())?;
     let needs_hooks = depth::active(&image.source, &recipe.settings);
     let mut warnings = Vec::new();
-    let gpu_pixels = if !matches!(settings.format, Format::Dng)
+    let gpu_pixels = if settings.hdr.is_none()
+        && !matches!(settings.format, Format::Dng)
         && upscale.is_none()
         && !needs_hooks
         && !ai_masks::active(&recipe.settings)
@@ -541,7 +576,9 @@ pub fn render_one_cancellable(
     let already_resized = gpu_pixels.is_some();
     let mut used_gpu = already_resized;
     let started = std::time::Instant::now();
-    let rgb = if matches!(settings.format, Format::Dng) {
+    let rgb = if settings.hdr.is_some() {
+        hdr::render(image, recipe, settings, cancel)?
+    } else if matches!(settings.format, Format::Dng) {
         let rgb = if ai_masks::active(&recipe.settings) {
             ai_masks::render(&image.source, &recipe.settings, segmenter)?
         } else {
@@ -625,10 +662,12 @@ pub fn render_one_cancellable(
         settings.dpi.unwrap_or(300),
         cancel,
     )?;
+    if settings.hdr.is_some() {
+        hdr::finalize(&mut rgb, recipe, settings, cancel)?;
+    }
     if let Some(mark) = &settings.watermark {
         apply_watermark(&mut rgb, mark, cancel)?;
     }
-    let packet = metadata_packet(image, recipe, settings)?;
     // A developed DNG must not carry source development instructions, which
     // another raw editor could apply a second time. Keep descriptive metadata.
     let packet = if matches!(settings.format, Format::Dng) {
@@ -642,6 +681,7 @@ pub fn render_one_cancellable(
         used_gpu,
         rgb,
         packet,
+        native,
         settings: settings.clone(),
         path,
         side_path,
@@ -657,6 +697,7 @@ fn encode_rendered(
         warnings,
         rgb,
         packet,
+        native,
         settings,
         path,
         side_path,
@@ -665,18 +706,36 @@ fn encode_rendered(
     fs::create_dir_all(&settings.output_dir)
         .map_err(|e| EngineError::io_at(&settings.output_dir, &e))?;
     let mut temp = new_output_temp(&settings.output_dir)?;
-    codec::encode_limited(
-        temp.as_file_mut(),
-        &rgb,
-        codec::Encoding {
-            format: settings.format,
-            space: settings.color_space,
-            dpi: settings.dpi,
-        },
-        packet.as_ref().map(XmpPacket::serialize),
-        cancel,
-        settings.max_file_bytes,
-    )?;
+    if settings.hdr.is_some() {
+        hdr::encode(
+            temp.as_file_mut(),
+            &rgb,
+            &settings,
+            &native,
+            packet.as_ref().map(XmpPacket::serialize),
+            cancel,
+        )?;
+    } else {
+        codec::encode_limited(
+            temp.as_file_mut(),
+            &rgb,
+            codec::Encoding {
+                format: settings.format,
+                space: settings.color_space,
+                dpi: settings.dpi,
+                native: Some(&native),
+            },
+            packet.as_ref().map(XmpPacket::serialize),
+            cancel,
+            settings.max_file_bytes,
+        )?;
+    }
+    if matches!(settings.format, Format::Dng) {
+        dng::finish(temp.as_file_mut(), settings.original_raw.as_deref(), cancel)?;
+    }
+    if matches!(settings.format, Format::Dng | Format::Tiff { .. }) {
+        native::append_tiff(temp.as_file_mut(), &native)?;
+    }
     temp.as_file().sync_all().map_err(encode_error)?;
     let side_temp = if let Some(packet) = &packet {
         let mut temp = new_output_temp(&settings.output_dir)?;
@@ -835,6 +894,7 @@ fn metadata_packet(
     image: &ExportImage<'_>,
     recipe: &Recipe,
     settings: &ExportSettings,
+    native: &native::Native,
 ) -> EngineResult<Option<XmpPacket>> {
     use sidecar::ExportMetadataPolicy as Policy;
     let policy = match settings.metadata {
@@ -845,16 +905,31 @@ fn metadata_packet(
         Metadata::AllExceptCamera => Policy::AllExceptCamera,
     };
     let preset = MarkPreset::lightroom();
-    let packet = image
-        .metadata
-        .cloned()
-        .unwrap_or_else(|| XmpPacket::from_selection(&recipe.selection, &preset));
+    // Native fields are source context. Reconcile them before applying edits,
+    // so an explicit empty/replaced sidecar property remains authoritative.
+    let keywords = native.keywords()?;
+    let packet = match image.metadata {
+        // With no native context, preserve the caller's packet structure.
+        Some(sidecar) if native.xmp.is_none() && keywords.is_empty() => sidecar.clone(),
+        sidecar => {
+            let packet = native
+                .xmp
+                .clone()
+                .unwrap_or_else(|| XmpPacket::from_selection(&recipe.selection, &preset))
+                .with_native_keywords(&keywords)?;
+            match sidecar {
+                Some(sidecar) => packet.with_sidecar_overrides(sidecar)?,
+                None => packet,
+            }
+        }
+    };
     let packet = packet.with_selection(&recipe.selection, &preset)?;
-    Ok(Some(packet.for_export(
+    Ok(Some(packet.for_export_with_person_source(
         policy,
         settings.remove_person_info,
         settings.remove_location,
         settings.keywords_as_hierarchy,
+        native.xmp.as_ref(),
     )?))
 }
 

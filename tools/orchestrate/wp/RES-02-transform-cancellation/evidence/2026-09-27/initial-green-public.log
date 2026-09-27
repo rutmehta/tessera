@@ -1,0 +1,12 @@
+   Compiling transform v0.1.0 (/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/crates/transform)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.39s
+     Running tests/cancellation.rs (target/debug/deps/cancellation-caffd9da67f66b97)
+
+running 4 tests
+test seam_rejects_a_precancelled_token_even_for_identity ... ok
+test skin_hook_cancellation_stops_before_the_next_pixel ... ok
+test transform_op_nonseam_path_observes_a_precancelled_token ... ok
+test transform_op_passes_cancellation_into_content_aware_scale ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

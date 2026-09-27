@@ -1,6 +1,8 @@
 import AppKit
 import XCTest
+import SwiftUI
 @testable import Tessera
+@testable import TesseraCore
 
 @MainActor
 final class KeyFocusTests: XCTestCase {
@@ -9,6 +11,53 @@ final class KeyFocusTests: XCTestCase {
         NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: modifiers, timestamp: 0,
                          windowNumber: window.windowNumber, context: nil, characters: character,
                          charactersIgnoringModifiers: character, isARepeat: false, keyCode: code)!
+    }
+
+    func testReviewOwnsCullKeysAndEscapeCancelsDraftBeforeReturn() {
+        let model = AppModel()
+        model.loadStubItems(count: 10)
+        model.setSelectionFromUI([1, 2], clicked: 2)
+        model.enterReview()
+        let queue = AgentReviewQueue(entries: [.init(imageID: "draft", name: "Draft", confidence: 0.5)])
+        model.reviewNavigation.reconcile(queue: queue, generation: UUID())
+        model.reviewNavigation.beginRedo()
+        model.reviewNavigation.instruction = "Warmer"
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 100),
+                              styleMask: .titled, backing: .buffered, defer: false)
+        let router = KeyRouter(model: model)
+        for (code, character) in [(UInt16(7), "x"), (UInt16(16), "y"), (UInt16(35), "p")] {
+            XCTAssertTrue(router.handle(key(code, character, window: window)))
+            XCTAssertEqual(model.state(id: 2).decision, .undecided)
+            XCTAssertEqual(model.selection, [1, 2])
+        }
+        XCTAssertTrue(router.handle(key(53, "\u{1b}", window: window)))
+        XCTAssertTrue(model.isReviewing)
+        XCTAssertFalse(model.reviewNavigation.isDrafting)
+        XCTAssertTrue(router.handle(key(53, "\u{1b}", window: window)))
+        XCTAssertEqual(model.viewMode, .grid)
+    }
+
+    func testReviewTextAndNumericControlsKeepTheirInputAndDocumentWins() {
+        let model = AppModel()
+        model.loadStubItems(count: 10)
+        model.enterReview()
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 100),
+                              styleMask: .titled, backing: .buffered, defer: false)
+        let field = NSTextField(frame: window.contentView!.bounds)
+        window.contentView?.addSubview(field)
+        XCTAssertTrue(window.makeFirstResponder(field))
+        let router = KeyRouter(model: model)
+        XCTAssertFalse(router.handle(key(7, "x", window: window)))
+        XCTAssertFalse(router.handle(key(53, "\u{1b}", window: window)))
+        XCTAssertTrue(model.isReviewing)
+        let slider = ValueSlider(frame: window.contentView!.bounds)
+        window.contentView?.addSubview(slider)
+        XCTAssertTrue(window.makeFirstResponder(slider))
+        XCTAssertFalse(router.handle(key(124, "\u{F703}", window: window)))
+        model.viewMode = .document
+        model.enterReview()
+        XCTAssertEqual(model.viewMode, .document)
+        XCTAssertFalse(model.isReviewing)
     }
 
     func testPhotoEditConsumesCullKeysWithoutChangingDecisions() {
@@ -81,6 +130,45 @@ final class KeyFocusTests: XCTestCase {
                               styleMask: .titled, backing: .buffered, defer: false)
         XCTAssertTrue(KeyRouter(model: model).handle(key(124, "\u{F703}", window: window)))
         XCTAssertNotNil(model.focusedPosition)
+    }
+
+    func testLoupeDisclosureLeavesKeysToPopoverWithoutWorkspaceRouting() {
+        let model = AppModel()
+        model.loadStubItems(count: 10)
+        model.viewMode = .loupe
+        model.loupeDisclosurePresented = true
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 100),
+                              styleMask: .titled, backing: .buffered, defer: false)
+        let router = KeyRouter(model: model)
+        let originalPosition = model.focusedPosition
+        let originalDecision = model.focusedState.decision
+
+        for (code, character) in [(UInt16(123), "\u{F702}"), (UInt16(7), "x"), (UInt16(2), "d")] {
+            XCTAssertFalse(router.handle(key(code, character, window: window)))
+        }
+        XCTAssertFalse(router.handle(key(48, "\t", window: window)), "Tab remains available to native popover focus")
+        XCTAssertFalse(router.handle(key(12, "q", window: window, modifiers: .command)), "Command shortcuts remain native input")
+        XCTAssertEqual(model.viewMode, .loupe)
+        XCTAssertEqual(model.focusedPosition, originalPosition)
+        XCTAssertEqual(model.focusedState.decision, originalDecision)
+        XCTAssertFalse(model.isPhotoEditing)
+
+        var displayInfoPresented = true
+        var shortcutsPresented = false
+        let displayInfoBinding = Binding(get: { displayInfoPresented }, set: { displayInfoPresented = $0 })
+        let shortcutsBinding = Binding(get: { shortcutsPresented }, set: { shortcutsPresented = $0 })
+        model.dismissLoupeDisclosure = LoupeOverlay.makeDismissAction(
+            displayInfo: displayInfoBinding, shortcuts: shortcutsBinding
+        )
+        XCTAssertTrue(router.handle(key(53, "\u{1b}", window: window)), "Escape dismisses the active disclosure")
+        XCTAssertFalse(displayInfoPresented)
+        XCTAssertFalse(shortcutsPresented)
+        XCTAssertEqual(model.viewMode, .loupe)
+        XCTAssertFalse(model.loupeDisclosurePresented, "the active disclosure is cleared after Escape")
+        XCTAssertNil(model.dismissLoupeDisclosure)
+
+        XCTAssertTrue(router.handle(key(53, "\u{1b}", window: window)))
+        XCTAssertEqual(model.viewMode, .grid)
     }
 
     func testSliderModifiersBoundsAndBlurCommit() {

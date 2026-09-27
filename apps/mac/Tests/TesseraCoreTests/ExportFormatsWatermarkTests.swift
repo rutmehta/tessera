@@ -344,9 +344,10 @@ final class ExportFormatsWatermarkTests: XCTestCase {
         let tiffHead = try [UInt8](Data(contentsOf: dngURL).prefix(4))
         XCTAssertTrue(tiffHead == [0x49, 0x49, 0x2A, 0x00] || tiffHead == [0x4D, 0x4D, 0x00, 0x2A], "DNG is TIFF-based: \(tiffHead)")
         // Apple ImageIO does not decode this linear float DNG (REPORT.md), so read IFD0 directly:
-        // DNGVersion 1.4 and the developed picture's size.
+        // DNGVersion 1.6, its float-sample backward compatibility, and picture size.
         let tags = try ifd0(Data(contentsOf: dngURL))
-        XCTAssertEqual(tags[50706], 0x0000_0401, "DNGVersion 1.4.0.0")
+        XCTAssertEqual(tags[50706], 0x0000_0601, "DNGVersion 1.6.0.0")
+        XCTAssertEqual(tags[50707], 0x0000_0401, "DNGBackwardVersion 1.4.0.0")
         XCTAssertEqual(tags[256], 480)
         XCTAssertEqual(tags[257], 320)
         XCTAssertEqual(tags[258], 32, "32-bit samples")

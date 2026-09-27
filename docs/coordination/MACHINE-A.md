@@ -4,41 +4,306 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
-## Current coordinator checkpoint — 2026-09-27 18:30 UTC
+## Timer integrated; combined engine review — 2026-09-27 21:36 UTC
 
-A is validating combined integration commit26099ce in the isolated
-export-integration worktree. The accepted DNG/PQ-HLG/native metadata slice passed
-564 Rust tests, strict Clippy, workspace/license/format checks, FFI generation and
-Swift build. Review ownership/save-order fixes at e886888 passed21focused Swift
-tests. The combined full Swift release suite now runs in A session19525; main
-integration remains pending this result. The first missing-fixture Rust failure
-is preserved alongside the successful retry.
+Main261a585f integrates exact tested timer source079092e8 (B correction7a58b48).
+19 focused tests passed. Tiny isolated GUI retained a60x60 selection through
+hide/return, switching tiny documents and Library detach/return; other documents
+had no inherited selection. No timer cadence/CPU/memory claim. Retained FFI19f
+predates current Rust changes. First Swift6 compile failure and copied-package
+Sparkle rpath failure remain preserved; only the disposable copy was repaired.
+Evidence: tools/orchestrate/wp/RES-B-TIMERS/evidence/2026-09-27/.
 
-UX01 remains shipped on main4925677. UX02a navigation is source-ready in the UI
-worktree, with an independent behavior review and offscreen harness preparation
-in progress. It builds on the settled ownership API and owner/image save barriers.
-Queue relaunch persistence remains a later UX02b task. Develop close now flushes
-queued slider/mask edits and coalesces actual backend close completion; matching
-pending opens are cancelled and awaited without touching another library.
+Compositor caller cancellation merged main0d627023 after31 CPU tests/strict.
+Combined mask+cancel55d1dea1 passed48CPU/strict; root review found partial-cancel
+produced-tile accounting omission. Sol owns compiler for correction/new freeze.
+No main mask merge yet. Memory allowance remains per-pass retained results, not
+process/GPU limit; host copy-operation cancellation remains a separate route.
 
-M5-31 remains unmerged. A’s six timings passed, but direct B verification of
-441da3e failed its first original cold sample106.084084ms/100ms. All six samples
-are published at wp/M5-31 97eb4ca. Passive diagnostics on B did not reproduce the
-outlier or establish its cause; they are separate on codex/m531-cold-diagnostics
-2f46d97 and do not replace acceptance. No speculative production fix was made.
+B056daf87 read. Outline2429de2 and viewport63a06a2 results accepted after exact A
+UUID validation; resource Sol now reviews them before A bounded tests. B accepted
+source-only cancellation plan request7e842a6c; plan received, no product permission
+yet. SSH queue01a0e4c5 is confirmed by peer Git receipt, not just acceptance.
+B resource hold/paused heartbeat stay in force. No B workload requested.
 
-B’s free completed B5-16a checkout is now allocated to gain-map validation of an
-immutable13-file snapshot based on69bcd3e. Snapshot archive SHA256:
-0c94c47d11d8375e07c4827ad0ae1c069981e6c5ede91786734409e166a853a6.
-B: preserve this checkout and cache until the ownership note marks completion.
-Its active Document branches and original B5-16a branch reference remain intact.
-Core and host tests will retain every failure and require native ImageIO pixels,
-not just metadata. Gain-map JPEG remains unvalidated and unmerged.
+UX02b plan reviewed; Luna implements latest same-path library queue persistence,
+no auto-replay/prompts, recipe-authoritative statuses and fresh runtime ownership.
+Move/rename identity contract is an explicit separate limitation. Compiler wait
+is source work, not idle or an unobserved build.
 
-SSH read and command execution work. Sending to B’s existing desktop chat still
-fails with an active-writer conflict; no B chat receipt or heartbeat is claimed.
-A’s five-minute heartbeat is active and records the verified remote host/chat
-identity. Git mailbox and status notes remain durable coordination fallback.
+## Loupe integrated; timer correction returned — 2026-09-27 21:22 UTC
+
+Mainb18ab0bb merges Loupe display/shortcut disclosures and scoped Escape callback.
+Merged apps/mac byte-identical to tested d40114eb; Rust unchanged. Final14 focused
+checks and actual isolated JPEG GUI pass: each popup closes on Escape while Loupe
+stays, next Escape goes Grid, Right/D/X do not leak, narrow longname disclosure
+works. RAW pointer/liveproof states remain untested; syntheticCmdQ inconclusive.
+Luna now source-audits Review relaunch persistence (UX02b); no current GUI owner.
+
+B timer candidate4797b2a failed A's first compile with Swift6 timer capture error;
+no tests ran. Exact source/evidence pushed6544a1d6. Failed receipt601e4825 published.
+Source-only correctionae3c2b6a queued01a0e4bc-eae0-78d0-bcc9-5f6c70d8f426; no new
+peer receipt claimed yet. No B builds/tests/app launch/heartbeat restart.
+
+RES03 exact RED9a50e5a0 observed mask work2/514pixels/8224tilebytes/0digestbytes;
+reviewed scoped reuse source waits GREEN. Bridge Sol owns A compiler for v5
+focused/regression/strict checks; prior4focused/1mapper pass not whole acceptance.
+Resource followup6108eb2b corrects earlier CPU-only integration label: selected48
+included a GPU-capable test; library Metal-required tests passed. Raw logs retained.
+
+## Transform primitive integrated — 2026-09-27 21:07 UTC
+
+Main505c4c29 merges transform cancellation primitive;66tests and strict all-target
+Clippy pass. Root verified exact transform/Cargo bytes and unchanged compositor
+bytes; strict follow-up evidence32f4966e is published. Compositor caller bridge
+now has tiny test-first source and owns A compiler. This is not app-level
+cancellation acceptance. Existing validation/preparation scans remain boundaries.
+
+B accepted source-only timer requestbac04a31, confirmed via Git receipt. B hold
+still excludes builds/tests/app launch/heartbeat restart. Luna's explicit popover
+exit handler passed14focused; actual GUI retest continues on tiny local disposable
+catalog. Builds/packages stay on betterSSD (3.2TiB free); local12GiB free, so larger
+bridge compilation uses external target. No user data cleanup performed.
+
+## RES-01 merged — 2026-09-27 21:04 UTC
+
+Main d2ac1226 contains per-frame smart-filter reuse and retained-result admission.
+Merged crates/Cargo bytes match reviewed/tested resource head e5bfbd5c. Final gates:
+8 focused,60 library (1 ignored benchmark; small Metal tests exercised),48 selected
+integration (including a GPU-capable live case), strict Clippy/format. Initial fixture-ID failure and repair retained.
+Evidence: tools/orchestrate/wp/RES-01/evidence/2026-09-27/followup/README.md.
+This bounds retained unmasked results per frame, not total memory or GPU use.
+B source review673e2a7/result0926ae38 confirms receipt and identifies remaining
+full-image mask blending. A accepted that as RES-03; investigation continues.
+
+Transform primitive610ca001/evidenced946b460 passed66 tests; strict checks and
+compositor caller bridge next. Luna owns compiler for explicit native-popover
+Escape dismissal after the prior fix's GUI failure. No Loupe acceptance yet.
+B source-only timer requestbac04a31 queued01a0e4ad-008a-7f31-a8ec-f53e64afee8a;
+receipt not yet checked. No B builds/tests/app launch or heartbeat restart.
+
+## Active checkpoint — 2026-09-27 20:57 UTC
+
+RES-01 product0e58792d and evidencec10b4eea are pushed on
+codex/render-resource-bounds. Six integration tests and one reservation test
+passed; two extra mask/concurrent tests and broader strict checks remain pending.
+Independent source review is resource-audit-20260927/FILTERPASS-IMPLEMENTATION-REVIEW.md.
+The 1GiB/256-entry retained allowance is per CPU full-level frame, not total
+working-memory, concurrent-frame or GPU admission. Exact pre-fix instrumentation
+snapshot is missing; preserved RED logs and nonidentical reconstruction are
+explicitly labeled. Investigation9a28ab84 receipt completed, not incident closure.
+
+Result fbe21798-06e4-4eaa-9064-2dd5417bb78f published in Git. Existing-session SSH
+queue01a0e4a8-4970-7301-90c4-bd96dd3adb83 accepted at20:57:09Z; no new peer receipt
+claimed. B resource hold remains; requested source review only, no builds/tests.
+
+Transform primitive first full gate64/0; Sol owns compiler for deterministic
+RED2/final GREEN. Compositor/FFI caller bridge remains separate. Resource Sol
+prepares next bounded gates and reviews source while waiting for the slot.
+
+Loupe corrected keyboard guard passed14 focused tests. Fixed packagePID99028
+never reached UI: root sample shows main thread blocked in mkdirat during
+AppDefaultsIsolation, footprint2.3MB. This is actual pre-UI startup blocking,
+not established as a CUA bridge failure. Luna owns diagnosis using an isolated
+local disposable app-support path and GUI retest; old GUI RED bundle is preserved.
+No Loupe main merge or GUI acceptance claimed. Root owns main integration.
+
+## Loupe GUI failure — 2026-09-27 20:45 UTC
+
+Focused Loupe9f62d87 checks passed4/0, but root reproduced a real GUI failure:
+Loupe → Display info → Escape dismisses the popover and also switches to Grid.
+Luna owns the keyboard-ownership fix; no Loupe merge/acceptance yet. Full filename
+and display metadata disclosure were visibly present. Bundle-ID CUA timed out;
+using verified package name Tessera-LoupeOverlay-UniqueExec bound successfully.
+CandidatePID46916 remains as RED evidence; own disposable6JPEG catalog only.
+
+Sol now tests frozen FilterPass source on tiny CPU cases. Separate Sol prepares
+transform cancellation implementation after two expected missing-API RED builds.
+All B workloads remain paused. Cancellation and global CPU/GPU caps still open.
+
+## Tiny resource regression — 2026-09-27 20:34 UTC
+
+A reproduced the repeated-work defect without large load:257×1 pixels,8223-byte
+persistent cache, actual whole-image attempts2 vs expected1. RED exited101;
+original nested/reentrant two-worker deadlock gate passed exit0. Logs and source
+manifest under /tmp/tessera-resource-* will be checkpointed on resource branch.
+Source fix now proceeds using per-render bounded retention and serial first touch
+for filtered CPU frames; no claim of global working-memory bound or B hold closure.
+Independent review rejected treating small cache size alone as admission failure.
+Luna owns the next heavy slot for Loupe tests while Sol edits resource source.
+
+Mailbox371a35fb publishes mainb2757c7 integration; no peer receipt yet for this
+new status. Earlier2ff37936 was explicitly received by B. No B test request.
+
+## Verified UI integration — 2026-09-27 20:30 UTC
+
+Main b2757c7 now contains Review workspace and Masks component clarity, including
+saved-target navigation/ownership and truthful rendered-copy handoff. Full455XCTest,
+one existing skip, zero failures plus5SwiftTesting passed onfe0ff9e. Merged product
+and tests were checked byte-identical before push. Evidence lives in
+ tools/orchestrate/wp/UX-02a/combined-integration-20260927/.
+
+B's actual peer reply confirms mailbox2ff37936/main3825d78 receipt and the source
+ownership split. Hold remains: no B work or heartbeat restart. A Sol now runs tiny
+compositor regression/deadlock checks at two workers; independent Sol reviews it.
+Luna prepares Loupe source integration, no concurrent build or UI test.
+Gain-map evidence-only c716460 is pushed; original ImageIO failure remains held.
+
+## Resource investigation publication — 2026-09-27 20:27 UTC
+
+Source findings and independent review are in resource-audit-20260927/.
+No resource regression has run yet. Plans distinguish observable attempted work
+from accepted-cache counters, and pre-evaluation alone from real memory admission.
+Existing PSD code already prewarms one tile: captured stacks alone do not count
+incident duplicates. No global resource cap or leak fix is claimed.
+
+Mailbox status2ff37936 published the ownership split and hold. SSH queue
+01a0e48a-fb90-7362-a4cd-fa0c719eb63c accepted its pointer; peer receipt pending.
+Sol prepares tiny counters/regressions in the separate render-resource-bounds
+worktree. Root's combined Swift suite is running; no concurrent test launch.
+
+## Current checkpoint — 2026-09-27 20:24 UTC
+
+Fetched B131af17 and read RESOURCE-AUDIT.md. Accepted exact-target mailbox
+hold7cf0f7e2 and A-only investigation9a28ab84; no B workload or heartbeat restart.
+B reports Text now passed; Transform interrupted during rasterized PSD, not accepted.
+Two Sol agents independently examine duplicate CPU evaluation, cache size cliffs,
+transient accounting and reentrancy-safe admission on A without running tests.
+
+Gain-map supplemental Core Image1/1 and CLI/FFI/MCP1/1 each passed after retained
+fixture repairs. Original ImageIO4pass/1fail stays unchanged and unaccepted.
+Root started the full Review+Masks Swift suite on fe0ff9e with two workers;
+session24626, /tmp/tessera-review-masks-integration/full-swift.log and exit marker.
+No duplicate build; all source/archive hashes checked before launch.
+
+## B resource-audit pause — 2026-09-27 20:14 UTC
+
+Read the actual user message in B's coordinator: severe CPU load/fan noise and
+poor responsiveness prompted a full resource audit. B paused its heartbeat and
+stopped its owned Transform test/runner; it reports roughly10cores from that test,
+an orphaned old stress yes process, and43GBswap. These are B-reported observations,
+not a completed leak/engine-cause diagnosis. A will not restart B work or send
+remote builds/benchmarks. Queue01a0e480-6f32-7e53-a834-b570e0ee17ea published A's
+acknowledgement and offer of read-only engine-source help; receipt still pending.
+
+A's separate lightweight check found49% system memory free,6.0GBswap in use,
+and current rustc processes about0.56/0.18GBRSS. Test apps were idle. This does
+not establish historical swap ownership or a leak. A keeps builds serialized
+and compiler parallelism bounded; its local full Swift gate remains queued.
+
+## Validation checkpoint — 2026-09-27 20:09 UTC
+
+The unique-executable dev-test variant bound successfully through CUA. Luna
+verified Library/Edit/back target restoration, selected-fixture AutoEdit, Review
+saved preview and Edit/back, draft text focus, and single-entry acceptance on
+six disposable JPEG fixtures. Original candidate binding failure is preserved;
+no product source fix or definitive tool-cause claim. Combined Review+Masks
+candidate b1d1a15 still awaits its full source-matched suite after engine gates.
+
+B note8e301f0 reports fresh Channels exit0 after lifecycle repair. Text/Transform
+reruns are active; their outcomes remain pending. B found conflicting startup
+new-document arguments in the Transform harness and retained the prior failure.
+
+## Live checkpoint — 2026-09-27 20:05 UTC
+
+Masks focused layout+ThemeLint passed2/2; root visually verified full action labels
+at288points. Source/evidence commit pending, then combined Review integration.
+Sol gainmap_gate_review owns the next heavy slot for the supplemental/host gates.
+No duplicate process was found after interruption; prior failures remain intact.
+
+Isolated dev-test app is running from betterSSD with disposable generated photos
+and its own app-support directory. Computer-use binding timed out; no hands-on
+candidate success is claimed. Its process sample shows an idle main event loop,
+so source/packaging investigation continues without changing the user's app.
+B latest note72d8756 retains its six-pass/three-fail strict suite and repair queue.
+Mailbox has no unprocessed messages or accepted work needing replay.
+
+## Current work — 2026-09-27 20:00 UTC
+
+B result e6634ca4 reconciles its original runner: aggregate failure, six packaged
+passes, Channels/Text timeout after done0, and Transform Puppet source failure.
+B retains its heavy slot to repair and investigate. A has not merged B5-16.
+
+A prepared resolved Review integration candidate4188dd7 in the free managed
+export-integration checkout; no product conflicts, ownership evidence appendix
+retained. Source format check passed (raw captured compiler logs retain original
+trailing whitespace). Full combined gate is pending. Masks reproduced narrow
+label failures and now validates its bounded correction. The Luna baseline audit
+and Sol gain-map validation preparation run as separate tasks. Isolated Review
+dev-test packaging on betterSSD is underway, distinct from release acceptance.
+
+## Resume checkpoint — 2026-09-27 19:57 UTC
+
+Recovered the interrupted Review gate: two tests passed with zero failures;
+manifest digest432fff1dae551112cf435e2b24e8d72e9cf052f964e0e5a579bdb9d6f4ed9e15
+still matches source. Root visually inspected actual saved pixels in the narrow
+ready capture. Masks now runs its separate focused regression. The user permits
+multiple isolated betterSSD builds and Luna/Sol computer-use testing. Keep app
+catalogs separate and serialize control of the shared desktop.
+
+Queued resume message01a0e470-a16a-7972-8178-efe1644c8e72 reached B's existing
+chat: peer commentary confirms it is collecting the retained runner results.
+B source8184da1 addresses the reviewed legacy Neutralize and strict-runner issues;
+root inspected the fixes. B reports424XCTest/one skip/zero failures +5SwiftTesting,
+Xcode and package verification, and the first bundled Document self-test pass.
+Remaining app outcomes and new-main integration are still pending. B retains
+its slot and dirty snapshot; no duplicate remote run requested.
+
+Reverse SSH queue acknowledgement ACK-REVERSE-SSH-QUEUE-20260927 was received
+and acknowledged. Two-way message delivery is verified; idle queue wakeup has
+not been separately tested. Scheduled heartbeat wakeup is separate evidence.
+
+## Current coordinator checkpoint — 2026-09-27 18:57 UTC
+
+Published main **fb7c604670a197e2c663d0b47448956e7336dff0**. It integrates the
+bounded DNG1.6/original embedding, PQ-HLG/native metadata export slice and Review
+ownership/save-order safety. Validation:564Rust tests/0fail/21ignored; strict
+Clippy/workspace/license/format checks; FFI build; final436XCTest cases with one
+existing skip and zero failures, plus5SwiftTesting. All23ownership regressions
+are included. Root verified merged product source identical to tested source.
+First fixture/setup and obsolete DNG expectation failures remain in evidence:
+tools/orchestrate/wp/INT-45/evidence/2026-09-27-integration/.
+
+UX02a navigation is separate: frozen4fcb802 passed43focused tests with zero failures.
+32 offscreen layout captures passed but show loading states: the synchronous
+harness blocks async preview work. Ready-preview validation is still required.
+Independent review found a stale Saving status
+on canceled handoff, which remains queued for a bounded repair and verification. A is also fixing
+preview and first rendered-copy handoff save ordering. No B Document/FFI edits;
+existing-copy disclosure remains truthful. UX02b relaunch persistence is pending.
+The third A agent audits narrow overlay/Masks label layout without global theme
+or Document changes.
+
+A gain-map gate completed: four passed, one failed. The four-stop resize/sharpen
+case decodes natively to peak7.9837623 versus16; independent reconstruction passed.
+Preserve this failure while isolating decoder/context behavior; no relaxed checks.
+Short artifact capture completed with unchanged failure. Decoder/context probes
+found default target0, luma-off and allow-float unchanged. Software CoreImage
+reconstructs the identical file to16 while the ImageIO path produces8; supplemental
+readback tests are being prepared, preserving the original failed assertion.
+B core compilation passed,
+but four native auxiliary-discovery assertions failed. Both independent Skia ISO
+controls also lack HDR reconstruction through the same B macOS26.1 path; this is
+a tested-host limitation, not proof of encoder acceptance or a blanket OS claim.
+Independent libjpeg reconstruction passes the five4%patch criteria. Fresh JPEG,
+SDR/HDR float buffers, controls and all failures are preserved in gain-map branch
+ae19820. Dirty B5-16a snapshot/capture is preserved; do not reset/reuse it.
+
+M5-31 remains unmerged after B’s106.084084ms/100ms first cold failure. All six
+samples are retained at97eb4ca. Passive diagnostics2f46d97 did not establish the
+cause and do not replace acceptance. No speculative production fix was made.
+
+Coordination is now confirmed: existing-session `codex queue` over SSH reached
+B’s original desktop writer; B replied and completed bootstrap receipts. Both
+five-minute heartbeat configurations are ACTIVE; B reported its first scheduled wakeup
+at18:50:41.936Z in exact-target status bd919fed. Native direct-send still conflicts with that writer and
+its separate SSH-host live status is unreliable for desktop activity. Use exact
+chat UUIDs, durable receipts and recorded queue IDs; no duplicate enqueues.
+
+B reports its B5-16 Document integration owns its heavy slot. A acknowledges this
+reservation and will not launch more B builds/benchmarks until released. B keeps
+Document/UI FFI ownership; A alone merges main. B message43c9df6c was accepted
+before reconciliation; its bootstrap/status/slot report is now incorporated.
 
 ## Direct SSH verification outcome — 2026-09-27 18:13 UTC
 

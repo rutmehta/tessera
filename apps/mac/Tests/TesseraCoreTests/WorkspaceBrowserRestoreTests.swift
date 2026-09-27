@@ -5,6 +5,35 @@ import XCTest
 
 @MainActor
 final class WorkspaceBrowserRestoreTests: XCTestCase {
+    func testReviewEditRoundTripRestoresNativeAnchorAfterColumnResize() {
+        let model = AppModel()
+        model.loadStubItems(count: 300)
+        model.setSelectionFromUI([1, 2], clicked: 2)
+        let browser = BrowserController(model: model, style: .grid)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 400),
+                              styleMask: .titled, backing: .buffered, defer: false)
+        window.contentView = browser.scrollView
+        browser.libraryDidReload()
+        browser.scrollView.layoutSubtreeIfNeeded()
+        browser.scrollView.contentView.scroll(to: CGPoint(x: 0, y: 800))
+        browser.scrollView.reflectScrolledClipView(browser.scrollView.contentView)
+        browser.collectionView.layoutSubtreeIfNeeded()
+        let before = browser.scrollView.contentView.bounds.origin
+        model.enterReview()
+        window.setContentSize(NSSize(width: 960, height: 400))
+        browser.scrollView.layoutSubtreeIfNeeded()
+        model.openReviewPhotoForEditing(250)
+        model.returnFromPhotoEdit()
+        XCTAssertTrue(model.isReviewing)
+        model.returnToLibrary()
+        window.setContentSize(NSSize(width: 640, height: 400))
+        browser.scrollView.layoutSubtreeIfNeeded()
+        XCTAssertEqual(browser.scrollView.contentView.bounds.origin.y, before.y, accuracy: 1)
+        XCTAssertEqual(model.selection, [1, 2])
+        XCTAssertEqual(model.focus, 2)
+        XCTAssertFalse(window.isVisible)
+    }
+
     func testReturnRestoresGridAnchorWithoutFocusSnap() {
         let model = AppModel()
         model.loadStubItems(count: 300)

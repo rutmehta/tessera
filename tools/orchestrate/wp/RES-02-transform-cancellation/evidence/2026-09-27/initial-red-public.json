@@ -1,0 +1,14 @@
+{
+  "cmd": [
+    "cargo",
+    "test",
+    "-p",
+    "transform",
+    "--test",
+    "cancellation"
+  ],
+  "exit_code": 101,
+  "timed_out": false,
+  "elapsed_s": 32.276,
+  "pid": 49345
+}

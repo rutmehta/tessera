@@ -1,0 +1,56 @@
+{
+  "branch": "codex/transform-cancellation",
+  "head": "bfa0aba3f852e7f2cfc7baee773d909c957649d8",
+  "files": [
+    {
+      "path": "Cargo.lock",
+      "sha256": "9ef23f19fd6cb3fb848ecbea8bc3fb6cabc9891f192bf4be63fc1ceab46f87fd",
+      "bytes": 157406
+    },
+    {
+      "path": "crates/compositor/src/gpu.rs",
+      "sha256": "c707da71a8d957fbb7b51a8c926dbb8d919255d3824b1fdc459ddae033e57020",
+      "bytes": 12682
+    },
+    {
+      "path": "crates/compositor/src/render/effects.rs",
+      "sha256": "1a3d00d1cd96d302286b55b448f9d286e5c8ffa05c0b27fd772dc4d2aabb41f7",
+      "bytes": 6651
+    },
+    {
+      "path": "crates/compositor/src/render/exec.rs",
+      "sha256": "26bc7408b92522a73fe4b38ad028285d261f1b53e901007605c256a342d5fbfc",
+      "bytes": 31128
+    },
+    {
+      "path": "crates/compositor/src/render/mod.rs",
+      "sha256": "894119966ac4e2426abeda1476116f7daf2ece93160d3095b09c0c3b405801de",
+      "bytes": 35981
+    },
+    {
+      "path": "crates/compositor/src/render/smart_filters.rs",
+      "sha256": "60c3d5403b51bb169d91f8905dd971e31f969041d7a0a940231d8353f71a6d76",
+      "bytes": 30156
+    },
+    {
+      "path": "crates/compositor/src/resident/filters.rs",
+      "sha256": "88e29974f855b942039d8183237f17aa60e655e02bf319d6ff54911b5ae75edf",
+      "bytes": 16399
+    },
+    {
+      "path": "crates/compositor/src/resident/mod.rs",
+      "sha256": "1b11da82ee84629ec67c31c2036670b9965d2986304bd94a5ccb0ec512a75d3c",
+      "bytes": 76306
+    },
+    {
+      "path": "crates/compositor/src/text_vector/damage.rs",
+      "sha256": "a5cd706ae0014cbb11c56b3939008aa2a8efd2370df70d54c9fbcf81cdf78223",
+      "bytes": 12428
+    },
+    {
+      "path": "crates/compositor/tests/transform_cancellation.rs",
+      "sha256": "6cc361bf0c66f45afb355867aa8a74d06d3816a6f08eac679878c0d32ebb8808",
+      "bytes": 5873
+    }
+  ]
+}
