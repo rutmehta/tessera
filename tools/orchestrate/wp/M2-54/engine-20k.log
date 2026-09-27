@@ -1,0 +1,17 @@
+[0/1] Planning build
+Test Suite 'Selected tests' started at 2026-09-27 04:14:05.004.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-27 04:14:05.005.
+Test Suite 'LibraryTests' started at 2026-09-27 04:14:05.005.
+Test Case '-[TesseraCoreTests.LibraryTests testTwentyThousandEngineLibraryMeasurement]' started.
+Test Case '-[TesseraCoreTests.LibraryTests testTwentyThousandEngineLibraryMeasurement]' passed (22.969 seconds).
+Test Suite 'LibraryTests' passed at 2026-09-27 04:14:27.974.
+	 Executed 1 test, with 0 failures (0 unexpected) in 22.969 (22.969) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-09-27 04:14:27.974.
+	 Executed 1 test, with 0 failures (0 unexpected) in 22.969 (22.969) seconds
+Test Suite 'Selected tests' passed at 2026-09-27 04:14:27.974.
+	 Executed 1 test, with 0 failures (0 unexpected) in 22.969 (22.970) seconds
+M2-54 engine_20k install_ms=0.8689165115356445 search_submit_ms=0.013947486877441406 query_wall_ms=60.81104278564453 select_all_ms=0.08606910705566406
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

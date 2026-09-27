@@ -1,0 +1,34 @@
+{
+  "base_commit": "84fc6f23abeea5365394bb1dff0449c2ac85f33b",
+  "configuration": "Swift release -enable-testing, Rust release",
+  "swift_version": "6.3.3",
+  "ffi_archive_sha256": "95e705790b228314784c8c226d1b21f8d598b4e609eefe9524e433d8e32a5ca0",
+  "warm_cell_configuration": [
+    {
+      "count": 1000.0,
+      "before_median_ms": 0.11599063873291016,
+      "median_ms": 0.09000301361083984,
+      "max_ms": 0.10895729064941406
+    },
+    {
+      "count": 20000.0,
+      "before_median_ms": 0.6339550018310547,
+      "median_ms": 0.09202957153320312,
+      "max_ms": 0.09691715240478516
+    }
+  ],
+  "20k_vs_1k_increase_percent": 2.251655629139071,
+  "20k_cell_speedup": 6.88860103626943,
+  "engine_20k": {
+    "install_ms": 0.8689165115356445,
+    "search_submit_ms": 0.013947486877441406,
+    "query_wall_ms": 60.81104278564453,
+    "select_all_ms": 0.08606910705566406
+  },
+  "limitations": [
+    "Model install/search submission/selection timings do not cover every main-thread task or first-visible presentation.",
+    "Focus still invokes synchronous face-strip SQL in out-of-scope Cull/AssistController.swift.",
+    "Swift 6.2.4 toolchain is not installed."
+  ],
+  "required_gate_exit_code": 0
+}

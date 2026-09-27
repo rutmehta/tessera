@@ -91,6 +91,38 @@ public final class CullController {
     }
     var backend: Backend
 
+    /// Built before a library is published to the main actor. Contains values only;
+    /// no mutable controller is shared between the worker and UI.
+    public struct InitialSnapshot: Sendable {
+        let groups: [Range<Int>]
+        let best: [Int]
+        let states: [CullState]
+        let statuses: [ItemStatus]
+        let counts: CullStore.Counts
+        let basket: String
+        let albums: [AlbumSummary]
+    }
+
+    public static func prepare(_ library: any PhotoLibrary) -> InitialSnapshot {
+        let controller = library.makeCullController()
+        return InitialSnapshot(groups: controller.groups, best: controller.bestOfGroup,
+                               states: controller.states, statuses: controller.statuses,
+                               counts: controller.counts, basket: controller.basketTarget,
+                               albums: controller.albums)
+    }
+
+    public init(library: any PhotoLibrary, snapshot: InitialSnapshot) {
+        groups = snapshot.groups
+        bestOfGroup = snapshot.best
+        states = snapshot.states
+        statuses = snapshot.statuses
+        counts = snapshot.counts
+        basketTarget = snapshot.basket
+        albums = snapshot.albums
+        if let engine = library as? EngineLibrary { backend = .engine(engine) }
+        else { backend = .memory(CullStore(count: library.items.count)) }
+    }
+
     public init(engine library: EngineLibrary) {
         groups = library.groups
         bestOfGroup = library.bestOfGroup
@@ -135,6 +167,15 @@ public final class CullController {
     public func isSuggestedBest(_ id: Int) -> Bool {
         guard let g = group(of: id), groups[g].count > 1 else { return false }
         return bestOfGroup[g] == id
+    }
+
+    /// Cell hot path: the item's stable group identity avoids an O(groups) scan.
+    /// Validate membership too, so an item retained across a layout remap is harmless.
+    public func isSuggestedBest(_ item: PhotoItem) -> Bool {
+        let g = item.groupID
+        guard groups.indices.contains(g), bestOfGroup.indices.contains(g),
+              groups[g].count > 1, groups[g].contains(item.id) else { return false }
+        return bestOfGroup[g] == item.id
     }
 
     // MARK: Decisions

@@ -916,6 +916,11 @@ void uniffi_tessera_ffi_fn_method_librarystore_reorder_album(uint64_t ptr, int64
 RustBuffer uniffi_tessera_ffi_fn_method_librarystore_search(uint64_t ptr, RustBuffer request, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_LIBRARYSTORE_SEARCH_FACETS
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_LIBRARYSTORE_SEARCH_FACETS
+RustBuffer uniffi_tessera_ffi_fn_method_librarystore_search_facets(uint64_t ptr, RustBuffer request, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_LIBRARYSTORE_UPDATE_SMART_ALBUM
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_LIBRARYSTORE_UPDATE_SMART_ALBUM
 void uniffi_tessera_ffi_fn_method_librarystore_update_smart_album(uint64_t ptr, int64_t id, RustBuffer rule, RustBuffer scoped, RustCallStatus *_Nonnull out_status
@@ -944,6 +949,11 @@ RustBuffer uniffi_tessera_ffi_fn_method_librarystore_keywords(uint64_t ptr, Rust
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_LIBRARYSTORE_METADATA
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_LIBRARYSTORE_METADATA
 RustBuffer uniffi_tessera_ffi_fn_method_librarystore_metadata(uint64_t ptr, RustBuffer image_id, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_LIBRARYSTORE_METADATA_BATCH
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_LIBRARYSTORE_METADATA_BATCH
+RustBuffer uniffi_tessera_ffi_fn_method_librarystore_metadata_batch(uint64_t ptr, RustBuffer image_ids, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_LIBRARYSTORE_MOVE_KEYWORD
@@ -3472,6 +3482,12 @@ uint16_t uniffi_tessera_ffi_checksum_method_librarystore_search(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_LIBRARYSTORE_SEARCH_FACETS
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_LIBRARYSTORE_SEARCH_FACETS
+uint16_t uniffi_tessera_ffi_checksum_method_librarystore_search_facets(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_LIBRARYSTORE_UPDATE_SMART_ALBUM
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_LIBRARYSTORE_UPDATE_SMART_ALBUM
 uint16_t uniffi_tessera_ffi_checksum_method_librarystore_update_smart_album(void
@@ -3505,6 +3521,12 @@ uint16_t uniffi_tessera_ffi_checksum_method_librarystore_keywords(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_LIBRARYSTORE_METADATA
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_LIBRARYSTORE_METADATA
 uint16_t uniffi_tessera_ffi_checksum_method_librarystore_metadata(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_LIBRARYSTORE_METADATA_BATCH
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_LIBRARYSTORE_METADATA_BATCH
+uint16_t uniffi_tessera_ffi_checksum_method_librarystore_metadata_batch(void
     
 );
 #endif

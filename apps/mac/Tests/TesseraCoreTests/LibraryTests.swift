@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 import XCTest
 import TesseraFFI
 @testable import TesseraCore
+@testable import Tessera
 
 /// Library bridge (M2-12): rule diagnostics mapped to Swift string ranges, the rule tree
 /// round trip, album ordering and the filter bar, all on scratch folders.
@@ -138,6 +139,91 @@ final class LibraryTests: XCTestCase {
         filter.text = "rating>="
         let bad = try catalog.search(filter, scope: .all)
         XCTAssertNotNil(bad.diagnostic)
+    }
+
+    @MainActor func testTwentyThousandEngineLibraryMeasurement() async throws {
+        guard ProcessInfo.processInfo.environment["TESSERA_RUN_20K_LIBRARY"] == "1" else {
+            throw XCTSkip("Opt-in generated 20k-file engine fixture")
+        }
+        let temp = root.appendingPathComponent("Tests/library-perf-\(UUID().uuidString)")
+        let folder = temp.appendingPathComponent("photos")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: temp) }
+        let first = folder.appendingPathComponent("photo_0.jpg")
+        try writeJPEG(first, shade: 80)
+        let jpeg = try Data(contentsOf: first)
+        let library = try await Task.detached(priority: .userInitiated) {
+            for i in 1..<20_000 { try jpeg.write(to: folder.appendingPathComponent("photo_\(i).jpg")) }
+            return try EngineLibrary.scan(folder: folder, appSupport: temp.appendingPathComponent("support"))
+        }.value
+        let snapshot = await Task.detached { CullController.prepare(library) }.value
+        XCTAssertEqual(library.items.count, 20_000)
+        let app = AppModel()
+        let installStart = Date()
+        app.install(library, snapshot: snapshot)
+        let installMS = Date().timeIntervalSince(installStart) * 1_000
+        let deadline = Date().addingTimeInterval(120)
+        while !app.collections.isAvailable, Date() < deadline { try await Task.sleep(for: .milliseconds(10)) }
+        XCTAssertTrue(app.collections.isAvailable)
+        var filter = LibraryFilter()
+        filter.text = "19999"
+        let searchStart = Date()
+        app.collections.filter = filter
+        app.collections.refreshMatches()
+        let submitMS = Date().timeIntervalSince(searchStart) * 1_000
+        while app.collections.matchCount != 1, Date() < deadline { try await Task.sleep(for: .milliseconds(10)) }
+        XCTAssertEqual(app.visibleCount, 1)
+        let queryMS = (app.collections.searchDuration ?? 0) * 1_000
+        app.collections.clearFilter()
+        app.collections.refreshMatches()
+        while app.visibleCount != 20_000, Date() < deadline { try await Task.sleep(for: .milliseconds(10)) }
+        XCTAssertEqual(app.visibleCount, 20_000)
+        let selectStart = Date()
+        app.selectAll()
+        let selectMS = Date().timeIntervalSince(selectStart) * 1_000
+        XCTAssertEqual(app.selectionCount, 20_000)
+        print("M2-54 engine_20k install_ms=\(installMS) search_submit_ms=\(submitMS) query_wall_ms=\(queryMS) select_all_ms=\(selectMS)")
+    }
+
+    @MainActor func testRapidQueriesAndLibraryReplacementRejectOldResults() async throws {
+        let (library, _) = try openLibrary()
+        let app = AppModel()
+        app.install(library, snapshot: CullController.prepare(library))
+        let deadline = Date().addingTimeInterval(30)
+        while !app.collections.isAvailable, Date() < deadline { try await Task.sleep(for: .milliseconds(10)) }
+        XCTAssertTrue(app.collections.isAvailable)
+        for text in ["a", "b", "c", "d", "a", "c"] {
+            var filter = LibraryFilter()
+            filter.text = text
+            app.collections.filter = filter
+            app.collections.refreshMatches()
+        }
+        let c = try XCTUnwrap(library.items.first { $0.name == "c.jpg" }?.id)
+        while app.collections.matches != [c], Date() < deadline { try await Task.sleep(for: .milliseconds(10)) }
+        XCTAssertEqual(app.collections.matches, [c])
+        app.selectAll()
+        app.collections.refreshMatches()
+        app.install(StubLibrary.synthetic(count: 20_000))
+        try await Task.sleep(for: .milliseconds(300))
+        XCTAssertNil(app.collections.matches)
+        XCTAssertNil(app.collections.metadata)
+        XCTAssertFalse(app.collections.isAvailable)
+        XCTAssertEqual(app.visibleCount, 20_000)
+    }
+
+    func testBatchMetadataAndFacetOnlySnapshot() throws {
+        let (library, catalog) = try openLibrary()
+        let ids = library.items.map(\.id)
+        try catalog.applyKeywords(["only-first"], to: [ids[0]], add: true)
+        let snapshot = try catalog.metadataSnapshot(items: ids)
+        XCTAssertEqual(snapshot.metadata?.imageId, library.imageIDs[ids[0]])
+        XCTAssertEqual(snapshot.mixed, ["keywords"])
+        XCTAssertTrue(try catalog.metadataSnapshot(items: [ids[0]]).mixed.isEmpty)
+        XCTAssertNil(try catalog.metadataSnapshot(items: []).metadata)
+        let full = try catalog.search(LibraryFilter(), scope: .all)
+        let facets = try catalog.search(LibraryFilter(), scope: .all, includeIDs: false)
+        XCTAssertTrue(facets.ids.isEmpty)
+        XCTAssertEqual(facets.facets, full.facets)
     }
 
     private func writeJPEG(_ url: URL, shade: Int) throws {

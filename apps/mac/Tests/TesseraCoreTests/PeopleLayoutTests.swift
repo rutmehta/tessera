@@ -20,7 +20,8 @@ final class PeopleLayoutTests: XCTestCase {
                               styleMask: [.titled, .resizable], backing: .buffered, defer: false)
         let host = NSHostingView(rootView: ContentView(model: model))
         window.contentView = host
-        window.makeKeyAndOrderFront(nil)
+        // Layout verification must not steal focus from the user's application.
+        window.order(.below, relativeTo: 0)
         host.layoutSubtreeIfNeeded()
         RunLoop.main.run(until: Date().addingTimeInterval(0.1))
         host.layoutSubtreeIfNeeded()
