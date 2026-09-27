@@ -73,15 +73,66 @@ and selections should derive from local geometry then apply the affine.
 ## Rendering, persistence and cost
 
 CPU and resident rendering share output-level rasterization of live source and
-vector-mask coverage. Source tile caching includes serialized model/transform,
-canvas/depth and output tile/level. Content edits bump revisions and conservatively
-damage the full canvas, including the old and new location. Shapes, outlines and
-masks rasterize on CPU before GPU upload; this is not native GPU curve rendering.
-The live-source tile cache has its own byte budget (the compositor cache budget
-passed at construction), in addition to the existing composite/filter caches.
-`CompositorStats::live_tiles` counts source rasterizations after cache misses.
-Text layout/font resolution and complex paths can be expensive. Coalesce pointer
-moves and preview transient edits before committing an undo step.
+vector-mask coverage through `Compositor::live_tile`. Positioned text outlines
+and transformed shape fill/stroke paths are prepared once per model/transform
+while resident in the geometry memo. Typography caches paragraph layouts,
+shaped lines (with paragraph-local source offsets and bidi ordering), and
+positioned glyph outlines. Font-database mutation clears typography caches;
+`set_text_renderer` clears compositor caches as well.
+
+Layer rasters are sparse collections of potentially occupied output tiles. Their keys contain
+only the ordered geometry and paints intersecting the tile, canvas, depth and
+level. Glyph/path coverage is cached separately from paint, keyed by exact
+positioned outline geometry (therefore font, axes, size and transform), output
+level and tile origin. Appending text retains unchanged glyph coverage and
+source tiles. Changing glyph positions regenerates the affected coverage.
+Rasterization retains the original tile coordinate system and vector area
+arithmetic for exact parity; it does not translate previously rounded bitmaps.
+Tiles outside geometry bounds are not stored. Stroke bounds come from the actual stroke
+outline, including alignment, joins, caps and dashes.
+
+For CPU pixel-local scenes containing live layers, root tile identities include
+intersecting live geometry plus ordinary layer revisions, hierarchy, properties
+and masks. The common ordered prefix/suffix of old/new geometry determines the
+union of changed run/glyph or fill/stroke bounds. Small damage recomposites only
+that rectangle; other tiles reuse their completed composites. This also handles
+movement, deletion, reflow, undo and skipped intermediate revisions. Document
+history still records conservative damage; no document/edit ABI was changed.
+Styled live layers expand changed bounds by the finite effect support (including
+offset sampling and bevel derivatives); nested styled ancestors add their support.
+Only intersecting root tiles/regions recompose. Global light and style properties
+remain in cache identity, and masks/pixel sources feeding effects retain conservative
+revision dependencies. Neighborhood adjustments still use full revision-based
+recomposition. Effect-source evaluation itself remains the existing whole-source
+CPU barrier, so styled editing has no interactive latency claim.
+
+The resident GPU path benefits from the shared prepared source and coverage
+caches, but its upload/damage scheduling still uses its existing revision keys.
+M5-31 can wire the same spatial identity/damage approach into that scheduler;
+this package does not modify resident code or claim GPU frame latency.
+
+Small warm CPU live viewports (up to 32 tiles, roughly 2MP) execute without
+thread-pool fanout; cold frames and larger outputs retain parallel rendering.
+This avoids scheduling and shared-cache contention when most tiles are hits.
+
+The live source/mask tile LRU has the compositor's supplied byte budget; coverage
+has half that budget, geometry one quarter (minimum 1 MiB), and CPU damage
+snapshots one eighth. These are separate from the existing composite/filter
+budgets. Typography's three memos each have an 8 MiB limit. Geometry/typography
+memos use FIFO eviction; tile coverage uses LRU. Eviction loses reuse, never
+correctness. `live_tiles`, `live_preparations` and `live_coverages` expose work
+counts. Cache byte/entry counters retain their existing composite-cache meaning.
+
+Limitations: paragraph placement is recalculated when incoming baseline/box
+geometry changes, with shaped-line reuse where inputs agree. Warped/path text
+uses the full positioned-outline preparation, and complex or very large paths,
+styled layers, cold font discovery, cold photo mip generation, and insufficient
+cache budgets can exceed the measured warm editing latency. Glyph coverage is
+position-specific, not a font atlas with approximate subpixel phases. A new
+coverage miss still runs exact polygon clipping. The vector renderer shares the
+first two (horizontal) clipping planes down each pixel column, preserving the
+original clipping order and area sums while avoiding repeated contour scans. Sources are rasterized on CPU
+before GPU upload, not by native GPU curves.
 
 The compositor discovers system fonts by default. A host-supplied typography
 renderer provides controlled fonts; missing fonts and unsupported typography
