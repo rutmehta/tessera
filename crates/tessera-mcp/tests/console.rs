@@ -11,6 +11,27 @@ fn request(value: serde_json::Value) -> ToolRequest {
 }
 
 #[test]
+fn dng_export_uses_the_shared_codec() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("source.png");
+    image::RgbImage::from_pixel(32, 24, image::Rgb([70, 100, 180]))
+        .save(&path)
+        .unwrap();
+    let mut console = Console::open(dir.path().join("app")).unwrap();
+    let id = console.open_image(&path).unwrap();
+    let out = dir.path().join("out");
+    let response = console.execute(request(json!({"tool":"export","images":[id],"settings":{"destination":out,"format":{"format":"dng"}}})));
+    assert!(
+        matches!(
+            response,
+            ToolResponse::Ok(ToolOutput::ExportQueued { images: 1, .. })
+        ),
+        "{response:?}"
+    );
+    assert!(out.join("source.dng").exists());
+}
+
+#[test]
 fn jpeg_xl_export_accepts_only_lossless_quality() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("source.png");

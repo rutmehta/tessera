@@ -5,6 +5,7 @@ edition = "2024"
 license = "Apache-2.0"
 
 [dependencies]
+merge = { path = "../merge" }
 mask-ai = { path = "../mask-ai" }
 image-core = { path = "../image-core" }
 pipeline-gpu = { path = "../pipeline-gpu" }
@@ -30,6 +31,7 @@ zune-jpegxl = { version = "0.5.2", default-features = false, features = ["std"] 
 zune-core = "0.5.3"
 
 [dev-dependencies]
+libraw-ffi = { path = "../libraw-ffi" }
 jxl-oxide = { version = "0.12.6", default-features = false }
 color-mgmt = { path = "../color-mgmt", features = ["imageio"] }
 lcms2 = { workspace = true }

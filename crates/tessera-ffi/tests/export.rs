@@ -75,6 +75,15 @@ fn files(dir: &Path) -> Vec<String> {
 }
 
 #[test]
+fn dng_settings_select_float_linear_export() {
+    let json = normalize_export_settings(r#"{"format":"dng","bit_depth":32}"#.into()).unwrap();
+    let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(value["format"], "dng");
+    assert_eq!(value["bit_depth"], 32);
+    assert!(normalize_export_settings(r#"{"format":"dng","bit_depth":16}"#.into()).is_err());
+}
+
+#[test]
 fn jpeg_xl_settings_support_lossless_depths_and_reject_false_profiles() {
     for bits in [8, 16] {
         let json = format!(r#"{{"format":"jpeg_xl","bit_depth":{bits}}}"#);

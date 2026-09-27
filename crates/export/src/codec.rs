@@ -140,6 +140,22 @@ fn encode_inner(
     cancel: &CancellationToken,
 ) -> EngineResult<()> {
     let Encoding { format, space, dpi } = encoding;
+    if matches!(format, Format::Dng) {
+        // Unlike document codecs, the DNG render supplies linear Rec.2020.
+        // ColorMatrix1 maps XYZ D65 into these already-white-balanced primaries.
+        let linear = merge::LinearImage {
+            width: rgb.width() as usize,
+            height: rgb.height() as usize,
+            pixels: rgb.pixels().map(|p| p.0).collect(),
+            color_matrix: [
+                [1.7166511880, -0.3556707838, -0.2533662814],
+                [-0.6666843518, 1.6164812366, 0.0157685458],
+                [0.0176398574, -0.0427706133, 0.9421031212],
+            ],
+            as_shot_neutral: [1.0; 3],
+        };
+        return merge::dng::write(writer, &linear, xmp.unwrap_or("")).map_err(encode_error);
+    }
     if let Format::JpegXl { bits } = format {
         if !matches!(space, ColorSpace::Srgb) {
             return Err(encode_error(
@@ -178,6 +194,7 @@ fn encode_inner(
             .collect::<Vec<_>>()
     };
     match format {
+        Format::Dng => unreachable!("DNG returned before quantization"),
         Format::JpegXl { .. } => unreachable!("JPEG XL returned before quantization"),
         Format::Avif(options) => {
             let rgba = image::Rgba32FImage::from_fn(rgb.width(), rgb.height(), |x, y| {

@@ -33,6 +33,7 @@ fn formats_profiles_and_privacy() {
                 source.metadata = Some(&packet);
                 let path = export_one(&source, &recipe, &settings).unwrap();
                 let (icc, xmp) = match format {
+                    Format::Dng => unreachable!("DNG uses a linear colour matrix"),
                     Format::Avif(_) => unreachable!("AVIF profiles tested in avif.rs"),
                     Format::JpegXl { .. } => {
                         unreachable!("JPEG XL is sRGB-only; tested separately")

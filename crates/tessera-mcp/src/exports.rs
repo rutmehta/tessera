@@ -70,6 +70,7 @@ impl Console {
             ));
         }
         let format = match settings.format {
+            ExportFormat::Dng => export::Format::Dng,
             ExportFormat::JpegXl { quality: 100 } => export::Format::JpegXl { bits: 8 },
             ExportFormat::Avif {
                 quality: quality @ 1..=100,
@@ -94,7 +95,7 @@ impl Console {
             }
             _ => {
                 return Err(unsupported(
-                    "export supports JPEG/AVIF quality 1..=100, PNG 8-bit, TIFF 8/16-bit, lossless JPEG XL quality 100",
+                    "export supports JPEG/AVIF quality 1..=100, PNG 8-bit, TIFF 8/16-bit, lossless JPEG XL quality 100, and developed float32 DNG",
                 ));
             }
         };

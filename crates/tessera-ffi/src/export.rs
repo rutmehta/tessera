@@ -27,6 +27,7 @@ pub enum FileFormat {
     Tiff,
     Avif,
     JpegXl,
+    Dng,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -146,7 +147,7 @@ pub struct ExportOptions {
     /// JPEG byte budget including the embedded ICC and XMP packets.
     pub max_file_bytes: Option<u64>,
     pub watermark: Option<export::Watermark>,
-    /// AVIF 8/10/12, TIFF/JPEG XL 8/16 (PNG and JPEG are 8-bit).
+    /// AVIF 8/10/12, TIFF/JPEG XL 8/16, DNG 32-bit float (linear Rec.2020).
     pub bit_depth: u8,
     pub color_space: DocumentSpace,
     pub resize: ResizeOptions,
@@ -205,6 +206,7 @@ impl ExportOptions {
             FileFormat::Tiff => "tif",
             FileFormat::Avif => "avif",
             FileFormat::JpegXl => "jxl",
+            FileFormat::Dng => "dng",
         }
     }
     /// Everything but the destination (checked when a batch runs).
@@ -230,6 +232,7 @@ impl ExportOptions {
         }
         if !match self.format {
             FileFormat::Avif => matches!(self.bit_depth, 8 | 10 | 12),
+            FileFormat::Dng => self.bit_depth == 32,
             FileFormat::Tiff | FileFormat::JpegXl => matches!(self.bit_depth, 8 | 16),
             _ => self.bit_depth == 8,
         } {
@@ -287,6 +290,7 @@ impl ExportOptions {
                     quality: self.quality,
                 },
                 FileFormat::Png => export::Format::Png,
+                FileFormat::Dng => export::Format::Dng,
                 FileFormat::JpegXl => export::Format::JpegXl {
                     bits: self.bit_depth,
                 },

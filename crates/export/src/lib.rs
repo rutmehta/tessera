@@ -37,6 +37,8 @@ pub enum Format {
         quality: u8,
     },
     Png,
+    /// Developed float32 LinearRaw DNG in linear Rec.2020 (D65).
+    Dng,
     Tiff {
         bits: u8,
     },
@@ -51,6 +53,7 @@ impl Format {
         match self {
             Self::Jpeg { .. } => "jpg",
             Self::Png => "png",
+            Self::Dng => "dng",
             Self::Tiff { .. } => "tif",
             Self::Avif(_) => "avif",
             Self::JpegXl { .. } => "jxl",
@@ -61,6 +64,7 @@ impl Format {
             Self::Avif(options) => options.validate(),
             Self::Jpeg { quality: 1..=100 }
             | Self::Png
+            | Self::Dng
             | Self::Tiff { bits: 8 | 16 }
             | Self::JpegXl { bits: 8 | 16 } => Ok(()),
             _ => Err(EngineError::invalid(
@@ -441,6 +445,11 @@ pub fn render_one_cancellable(
     cancel.check()?;
     recipe.validate()?;
     settings.format.validate()?;
+    if matches!(settings.format, Format::Dng) && settings.watermark.is_some() {
+        return Err(encode_error(
+            "DNG watermark compositing in linear colour is not supported",
+        ));
+    }
     if let Some(mark) = &settings.watermark {
         mark.validate()?;
     }
@@ -469,7 +478,8 @@ pub fn render_one_cancellable(
     {
         return Err(EngineError::invalid("output", "destination already exists"));
     }
-    let gpu_pixels = if upscale.is_none()
+    let gpu_pixels = if !matches!(settings.format, Format::Dng)
+        && upscale.is_none()
         && !ai_masks::active(&recipe.settings)
         && std::env::var("TESSERA_EXPORT_BACKEND").as_deref() != Ok("cpu")
     {
@@ -495,7 +505,17 @@ pub fn render_one_cancellable(
     };
     let already_resized = gpu_pixels.is_some();
     let started = std::time::Instant::now();
-    let rgb = if let Some(rgb) = gpu_pixels {
+    let rgb = if matches!(settings.format, Format::Dng) {
+        let rgb = if ai_masks::active(&recipe.settings) {
+            ai_masks::render(&image.source, &recipe.settings, segmenter)?
+        } else {
+            render_full_float(image, recipe)?
+        };
+        match upscale {
+            Some(model) => upscale_rgb(rgb, model)?,
+            None => rgb,
+        }
+    } else if let Some(rgb) = gpu_pixels {
         rgb
     } else if ai_masks::active(&recipe.settings) {
         let rgb = ai_masks::render(&image.source, &recipe.settings, segmenter)?;
@@ -531,6 +551,22 @@ pub fn render_one_cancellable(
         apply_watermark(&mut rgb, mark, cancel)?;
     }
     let packet = metadata_packet(image, recipe, settings.metadata)?;
+    // A developed DNG must not carry source development instructions, which
+    // another raw editor could apply a second time. Rebuild descriptive XMP.
+    let packet = if matches!(settings.format, Format::Dng) {
+        packet
+            .map(|p| {
+                let preset = MarkPreset::lightroom();
+                XmpPacket::from_selection(&recipe.selection, &preset).with_metadata(
+                    &p.selection()?,
+                    &p.metadata()?,
+                    &preset,
+                )
+            })
+            .transpose()?
+    } else {
+        packet
+    };
     gpu::trace("CPU render/orient/resize/sharpen", started);
     Ok(RenderedExport {
         used_gpu: already_resized,

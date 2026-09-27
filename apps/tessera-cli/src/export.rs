@@ -18,10 +18,10 @@ pub struct Options {
     query: Option<String>,
     #[arg(long)]
     out: PathBuf,
-    /// Output format. JPEG XL (jxl) is always lossless and sRGB-only.
-    #[arg(long, value_parser = ["jpeg", "png", "tiff", "avif", "jxl"])]
+    /// Output format. JXL is lossless sRGB; DNG is developed linear Rec.2020.
+    #[arg(long, value_parser = ["jpeg", "png", "tiff", "avif", "jxl", "dng"])]
     format: String,
-    /// AVIF 8/10/12 or TIFF/JPEG XL 8/16 bits per channel.
+    /// AVIF 8/10/12, TIFF/JPEG XL 8/16, DNG 32-bit float per channel.
     #[arg(long, default_value_t = 8)]
     bit_depth: u8,
     /// AVIF encoding speed, 1 (slow) through 10 (fast).
@@ -109,6 +109,7 @@ fn settings(options: &Options) -> Result<ExportSettings> {
     ensure!(
         match options.format.as_str() {
             "avif" => matches!(options.bit_depth, 8 | 10 | 12),
+            "dng" => options.bit_depth == 32,
             "tiff" | "jxl" => matches!(options.bit_depth, 8 | 16),
             _ => options.bit_depth == 8,
         },
@@ -134,6 +135,7 @@ fn settings(options: &Options) -> Result<ExportSettings> {
                 quality: options.quality,
             },
             "png" => Format::Png,
+            "dng" => Format::Dng,
             "jxl" => Format::JpegXl {
                 bits: options.bit_depth,
             },
@@ -415,6 +417,29 @@ fn load(path: &Path) -> Result<Loaded> {
 #[cfg(test)]
 mod tests {
     use clap::Parser;
+
+    #[test]
+    fn dng_flags_select_float_linear_export() {
+        let parsed = crate::Cli::try_parse_from([
+            "tessera",
+            "export",
+            "input.dng",
+            "--out",
+            "out",
+            "--format",
+            "dng",
+            "--bit-depth",
+            "32",
+        ])
+        .unwrap();
+        let crate::Command::Export(options) = parsed.command else {
+            panic!("export")
+        };
+        assert!(matches!(
+            super::settings(&options).unwrap().format,
+            export::Format::Dng
+        ));
+    }
 
     #[test]
     fn jpeg_xl_flags_select_lossless_16_bit() {
