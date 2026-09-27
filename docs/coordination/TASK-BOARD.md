@@ -1,6 +1,6 @@
 # Tessera task board — Machine A coordinator
 
-Updated: 2026-09-27 20:09 UTC
+Updated: 2026-09-27 20:14 UTC
 
 User mandate: autonomously advance UI/UX redesign **and** the recovered engine
 queue, using parallel GPT-6 Astra/Luna agents; coordinate Machine B and keep
@@ -30,7 +30,7 @@ Machine A as sole main integrator. Do useful work while other tasks wait.
 | UX-01 | Library / Photo Edit workspace and split inspector | A root; main `4925677` | DONE first bounded workspace slice; sourcecommitc417229 merged/pushed. Full411+5 checkpoint, final28targeted/0,40layouts,1readyRAW passed; rootvisualreview accepted. Interactive/performance gates remain separate; existing overlay/wrapping polish goesUX04. |
 | ENG-31 | M5-31 source reuse and cold timing | A root; wp/M5-31 `97eb4ca`, product `441da3e` | A local326tests and6timings pass. Direct SSH six-sample repeat on B FAILED first original cold106.084084ms/100ms; remaining5pass. All evidence retained in branch; no main merge. `cross_machine_research` investigates residual cold cost, no threshold changes or replacement samples. B completed receipt confirmed; result7fc92eb5 supersedes benchmark request execution. |
 | COM-01 | Establish usable authenticated Machine A ↔ B communication | A root + B coordinator | DONE verified SSH execution and existing-chat delivery via installed `codex queue`, peer reply, accepted/completed Git receipts. Exact B UUID01a0e323-c018-7fa3-9605-999a2dea6b32. Both heartbeat configurations active; B reports first scheduled wakeup at18:50:41Z, mailbox bd919fed. Preserve existing writers, use mailbox receipts and no duplicate enqueues. |
-| OPS-01 | Persistent autonomous coordinators | A root + B coordinator | A tessera-machine-a-coordinator and B tessera-machine-b-coordinator confirmed ACTIVE every5minutes. Both check existing work and stay quiet unless meaningful outcomes. B reserves its heavy slot for B5-16. Local hosts/apps/service availability still apply. |
+| OPS-01 | Persistent autonomous coordinators | A root + B coordinator | A coordinator remains active. B paused its heartbeat and load tests following the user’s report of severe responsiveness/resource pressure; no B rebuild, benchmark, runner or heartbeat restart without B/user direction. B audits low-impact resource evidence. A local work stays separate. |
 
 ## Ready / next
 
@@ -62,9 +62,9 @@ mismatch; Cargo stopped before MCP. Supplemental test first failed on helper
 JSON numeric-versus-boolean serialization; both failures retained for narrow test
 repair. The original ImageIO four-stop failure remains intact; no package pass claimed.
 
-B’s original coordinator received queued messages, completed the Git bootstrap,
-and verified its single active heartbeat. Its B5-16 resolved-tree verification
-owns B’s heavy slot; A must not launch additional B builds/benchmarks. The dirty
+B’s original coordinator received queued messages and completed the Git bootstrap.
+Its previously observed scheduled heartbeat is now paused by B. B paused its heartbeat and load tests for the user-requested resource audit;
+A must not launch B builds/benchmarks or resume that coordinator loop. The dirty
 B5-16a gain-map snapshot/capture remains deliberately preserved. Native SSH-host
 status may say notLoaded/interrupted despite actual desktop progress; use peer
 receipts/status evidence. Never confuse queued/published messages with receipts.

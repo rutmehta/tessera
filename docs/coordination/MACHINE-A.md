@@ -4,6 +4,21 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## B resource-audit pause — 2026-09-27 20:14 UTC
+
+Read the actual user message in B's coordinator: severe CPU load/fan noise and
+poor responsiveness prompted a full resource audit. B paused its heartbeat and
+stopped its owned Transform test/runner; it reports roughly10cores from that test,
+an orphaned old stress yes process, and43GBswap. These are B-reported observations,
+not a completed leak/engine-cause diagnosis. A will not restart B work or send
+remote builds/benchmarks. Queue01a0e480-6f32-7e53-a834-b570e0ee17ea published A's
+acknowledgement and offer of read-only engine-source help; receipt still pending.
+
+A's separate lightweight check found49% system memory free,6.0GBswap in use,
+and current rustc processes about0.56/0.18GBRSS. Test apps were idle. This does
+not establish historical swap ownership or a leak. A keeps builds serialized
+and compiler parallelism bounded; its local full Swift gate remains queued.
+
 ## Validation checkpoint — 2026-09-27 20:09 UTC
 
 The unique-executable dev-test variant bound successfully through CUA. Luna
