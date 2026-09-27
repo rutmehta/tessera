@@ -7273,11 +7273,25 @@ public protocol EngineProtocol: AnyObject, Sendable {
     func exportBatch(target: ExportTarget, settingsJson: String, listener: ExportProgressListener?, cancel: CancelFlag?) throws  -> ExportReport
     
     /**
+     * Run 1–32 preset settings documents over the same resolved selection.
+     * JSON and destination paths are validated before any output. Execution
+     * is serial by preset, with a per-preset progress stream and report.
+     * Cancellation stops before the next preset; already published files stay.
+     */
+    func exportMultiple(target: ExportTarget, settingsJsons: [String], listener: ExportProgressListener?, cancel: CancelFlag?) throws  -> [ExportReport]
+    
+    /**
      * Export presets: the shipped ones (installed into the app directory on
      * first use, then editable like any other) in their order, then the
      * user's alphabetically.
      */
     func exportPresets() throws  -> [ExportPreset]
+    
+    /**
+     * Reuses the last fully successful export's settings on a NEW selection.
+     * The saved document contains settings only, never source IDs or recipes.
+     */
+    func exportWithPrevious(target: ExportTarget, listener: ExportProgressListener?, cancel: CancelFlag?) throws  -> [ExportReport]
     
     func renameExportPreset(name: String, newName: String) throws 
     
@@ -7907,6 +7921,25 @@ open func exportBatch(target: ExportTarget, settingsJson: String, listener: Expo
 }
     
     /**
+     * Run 1–32 preset settings documents over the same resolved selection.
+     * JSON and destination paths are validated before any output. Execution
+     * is serial by preset, with a per-preset progress stream and report.
+     * Cancellation stops before the next preset; already published files stay.
+     */
+open func exportMultiple(target: ExportTarget, settingsJsons: [String], listener: ExportProgressListener?, cancel: CancelFlag?)throws  -> [ExportReport]  {
+    return try  FfiConverterSequenceTypeExportReport.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_export_multiple(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeExportTarget_lower(target),
+        FfiConverterSequenceString.lower(settingsJsons),
+        FfiConverterOptionTypeExportProgressListener.lower(listener),
+        FfiConverterOptionTypeCancelFlag.lower(cancel),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * Export presets: the shipped ones (installed into the app directory on
      * first use, then editable like any other) in their order, then the
      * user's alphabetically.
@@ -7916,6 +7949,22 @@ open func exportPresets()throws  -> [ExportPreset]  {
         uniffiCallStatus in
     uniffi_tessera_ffi_fn_method_engine_export_presets(
             self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Reuses the last fully successful export's settings on a NEW selection.
+     * The saved document contains settings only, never source IDs or recipes.
+     */
+open func exportWithPrevious(target: ExportTarget, listener: ExportProgressListener?, cancel: CancelFlag?)throws  -> [ExportReport]  {
+    return try  FfiConverterSequenceTypeExportReport.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_export_with_previous(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeExportTarget_lower(target),
+        FfiConverterOptionTypeExportProgressListener.lower(listener),
+        FfiConverterOptionTypeCancelFlag.lower(cancel),uniffiCallStatus
     )
 })
 }
@@ -14210,19 +14259,27 @@ public struct ExportReport: Equatable, Hashable {
     public var failed: UInt32
     public var cancelled: Bool
     public var seconds: Double
+    /**
+     * Host action / last-settings persistence failures. Exported files remain valid.
+     */
+    public var workflowErrors: [String]
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
     public init(destination: String, 
         /**
          * Input order. Images not reached after a cancel have neither path nor error.
-         */items: [ExportItemResult], exported: UInt32, failed: UInt32, cancelled: Bool, seconds: Double) {
+         */items: [ExportItemResult], exported: UInt32, failed: UInt32, cancelled: Bool, seconds: Double, 
+        /**
+         * Host action / last-settings persistence failures. Exported files remain valid.
+         */workflowErrors: [String]) {
         self.destination = destination
         self.items = items
         self.exported = exported
         self.failed = failed
         self.cancelled = cancelled
         self.seconds = seconds
+        self.workflowErrors = workflowErrors
     }
 
     
@@ -14246,7 +14303,8 @@ public struct FfiConverterTypeExportReport: FfiConverterRustBuffer {
                 exported: FfiConverterUInt32.read(from: &buf), 
                 failed: FfiConverterUInt32.read(from: &buf), 
                 cancelled: FfiConverterBool.read(from: &buf), 
-                seconds: FfiConverterDouble.read(from: &buf)
+                seconds: FfiConverterDouble.read(from: &buf), 
+                workflowErrors: FfiConverterSequenceString.read(from: &buf)
         )
     }
 
@@ -14257,6 +14315,7 @@ public struct FfiConverterTypeExportReport: FfiConverterRustBuffer {
         FfiConverterUInt32.write(value.failed, into: &buf)
         FfiConverterBool.write(value.cancelled, into: &buf)
         FfiConverterDouble.write(value.seconds, into: &buf)
+        FfiConverterSequenceString.write(value.workflowErrors, into: &buf)
     }
 }
 
@@ -30455,6 +30514,31 @@ fileprivate struct FfiConverterSequenceTypeExportPreset: FfiConverterRustBuffer 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeExportReport: FfiConverterRustBuffer {
+    typealias SwiftType = [ExportReport]
+
+    public static func write(_ value: [ExportReport], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeExportReport.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ExportReport] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ExportReport]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeExportReport.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeFaceChipInfo: FfiConverterRustBuffer {
     typealias SwiftType = [FaceChipInfo]
 
@@ -32282,7 +32366,13 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_engine_export_batch() != 38114) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tessera_ffi_checksum_method_engine_export_multiple() != 12163) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_tessera_ffi_checksum_method_engine_export_presets() != 10384) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_export_with_previous() != 1109) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_engine_rename_export_preset() != 64111) {

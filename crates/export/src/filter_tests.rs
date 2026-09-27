@@ -1,5 +1,64 @@
 use super::*;
 #[test]
+fn output_sharpening_chart_strength_density_and_determinism() {
+    let token = CancellationToken::new();
+    let chart = Rgb32FImage::from_fn(65, 41, |x, y| {
+        image::Rgb([if x > 32 + y / 8 { 0.6 } else { 0.4 }; 3])
+    });
+    for medium in [SharpenFor::Screen, SharpenFor::Matte, SharpenFor::Glossy] {
+        let mut energies = Vec::new();
+        for strength in [
+            SharpenAmount::Low,
+            SharpenAmount::Standard,
+            SharpenAmount::High,
+        ] {
+            let run = |ppi| sharpen_output(chart.clone(), medium, strength, ppi, &token).unwrap();
+            let out = run(300);
+            assert_eq!(out, run(300));
+            energies.push(
+                out.as_raw()
+                    .iter()
+                    .zip(chart.as_raw())
+                    .map(|(a, b)| (a - b).abs())
+                    .sum::<f32>(),
+            );
+            if matches!(medium, SharpenFor::Screen) {
+                assert_eq!(out, run(150));
+            } else {
+                assert_ne!(out, run(150));
+            }
+            let flat = Rgb32FImage::from_pixel(17, 13, image::Rgb([0.4; 3]));
+            let flat = sharpen_output(flat, medium, strength, 300, &token).unwrap();
+            assert!(flat.as_raw().iter().all(|v| (v - 0.4).abs() < 1e-6));
+        }
+        assert!(energies[0] > 0.0 && energies[0] < energies[1] && energies[1] < energies[2]);
+    }
+    for ppi in [0, 9601] {
+        assert!(
+            sharpen_output(
+                chart.clone(),
+                SharpenFor::Matte,
+                SharpenAmount::Standard,
+                ppi,
+                &token
+            )
+            .is_err()
+        );
+    }
+    token.cancel();
+    assert!(
+        sharpen_output(
+            chart,
+            SharpenFor::Matte,
+            SharpenAmount::Standard,
+            300,
+            &token
+        )
+        .is_err()
+    );
+}
+
+#[test]
 fn lanczos_preserves_constants_and_suppresses_aliasing() {
     let token = CancellationToken::new();
     let flat = Rgb32FImage::from_pixel(63, 47, image::Rgb([0.3, 0.5, 0.8]));

@@ -1,0 +1,56 @@
+Usage: tessera export [OPTIONS] --out <OUT> --format <FORMAT> [INPUT]
+
+Arguments:
+  [INPUT]  
+
+Options:
+      --app-dir <APP_DIR>
+          
+      --query <QUERY>
+          
+      --json
+          
+      --out <OUT>
+          
+      --format <FORMAT>
+          Output format. JXL is lossless sRGB; DNG is developed linear Rec.2020 [possible values: jpeg, png, tiff, avif, jxl, dng]
+      --bit-depth <BIT_DEPTH>
+          AVIF 8/10/12, TIFF/JPEG XL 8/16, DNG 32-bit float per channel [default: 8]
+      --avif-speed <AVIF_SPEED>
+          AVIF encoding speed, 1 (slow) through 10 (fast) [default: 6]
+      --quality <QUALITY>
+          [default: 90]
+      --max-file-bytes <MAX_FILE_BYTES>
+          Maximum JPEG bytes including ICC and XMP (fails if unattainable)
+      --watermark <WATERMARK>
+          Watermark JSON file (text/font or PNG graphic, anchor, inset, opacity)
+      --long-edge <LONG_EDGE>
+          
+      --fit <FIT>
+          
+      --color-space <COLOR_SPACE>
+          [default: srgb] [possible values: srgb, p3, rec2020, prophoto]
+      --sharpen <SHARPEN>
+          [possible values: screen, matte, glossy]
+      --sharpen-amount <SHARPEN_AMOUNT>
+          Output sharpening strength (after resize, before watermark) [default: standard] [possible values: low, standard, high]
+      --ppi <PPI>
+          Output pixel density; paper sharpening uses 300 ppi when omitted
+      --metadata <METADATA>
+          [default: all] [possible values: all, copyright, none]
+      --name <NAME>
+          [default: {name}-{seq}]
+      --jobs <JOBS>
+          
+      --upscale <UPSCALE>
+          Apply x2/x4 super-resolution before resize/sharpen (serial; ignores --jobs) [possible values: 2, 4]
+      --reveal
+          Reveal successful exports in Finder (macOS)
+      --open-in-app <OPEN_IN_APP>
+          Open successful exports in this absolute app path (macOS)
+      --after-export-script <AFTER_EXPORT_SCRIPT>
+          Execute this absolute script path with output paths as separate arguments
+      --after-export-timeout <AFTER_EXPORT_TIMEOUT>
+          Timeout for each post-export child process [default: 60]
+  -h, --help
+          Print help

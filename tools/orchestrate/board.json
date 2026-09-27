@@ -1203,7 +1203,7 @@
     "id": "M2-45b",
     "owner": "astra",
     "title": "Export completeness part 2 (metadata, sharpening, HDR, workflow)",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
@@ -1278,5 +1278,45 @@
     "status": "pass",
     "attempts": 0,
     "notes": "machine B; wp/B5-10b = wp/B5-10 + fonts.rs helper; black thumbnails = missing-font error swallowed by try?; engine font gaps in NEEDS.md"
+  },
+  {
+    "id": "M2-45c",
+    "owner": "astra",
+    "title": "Export part 3: metadata policy, DNG modes, HDR",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M5-34",
+    "owner": "astra",
+    "title": "Interactive text/shape editing under 16 ms per keystroke",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-53",
+    "owner": "astra",
+    "title": "Perf: Performance foundations: timing spans, build provenance, no shader compile at launch",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-54",
+    "owner": "astra",
+    "title": "Perf: Library responsiveness: nothing blocking on the main thread",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-55",
+    "owner": "astra",
+    "title": "Perf: Preview cache: hits do no decode, writes do no directory scans",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
