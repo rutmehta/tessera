@@ -4,6 +4,26 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## First redesign implementation allocation
+
+UX-01 concrete plan is reviewed and assigned to A on `codex/workspace-redesign`
+in `/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera`. First slice:
+Library/Photo Edit separation, truthful one-photo versus selection target header,
+Develop/Masks inspector tabs, stable-key Library return state/browser position,
+and edit-domain undo/keyboard routing. Preserve the existing separate Document
+workspace and disclose the rendered-copy conversion honestly. No live-raw claim.
+
+A owns focused non-Document hunks in AppModel, AppCommands, KeyRouter,
+Shell/ContentView and new Shell/Inspector/workspace helpers plus tests. B: retain
+Document/** and document FFI; flag any overlap in those shared app files before
+new edits. Existing B5-16 fixes remain B-owned. General Review destination,
+batch-sync contracts and live-RAW graph remain separate board tasks.
+
+Use the recovered prototype and recommended Precision Graphite direction as
+A's provisional design judgment under the user's autonomous instruction,
+retaining amber identity; do not invent earlier user palette approval. This
+first slice changes structure and behavior, not a global theme sweep.
+
 ## Autonomous coordinator and Machine B bootstrap request — 2026-09-27 17:14 UTC
 
 The user explicitly requested a task board, autonomous iteration across both
