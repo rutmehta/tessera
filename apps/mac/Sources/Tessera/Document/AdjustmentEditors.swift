@@ -198,11 +198,10 @@ struct ExtendedAdjustmentEditor: View {
             n.stops = s.map { [$0.position, $0.color[0], $0.color[1], $0.color[2]] }
             set(.gradientMap(n), final)
         }
-        labeled("Method") {
-            SegmentedPicker(selection: Binding(get: { m.method }, set: { var n = m; n.method = $0; set(.gradientMap(n), true) }),
-                            segments: GradientMethodModel.allCases.map { .init(value: $0, title: $0.title) },
-                            height: Theme.Height.small)
-                .accessibilityIdentifier("document.properties.gradientMap.method")
+        popUp("Method", m.method.title, GradientMethodModel.allCases.map { ($0, $0.title) }, "gradientMap.method") { method in
+            var n = m
+            n.method = method
+            set(.gradientMap(n), true)
         }
         .padding(.top, Theme.Space.xs)
         HStack(spacing: Theme.Space.m) {
@@ -499,13 +498,14 @@ struct GradientStopsEditor: View {
                         s[i].color = rgb + [s[i].color.count > 3 ? s[i].color[3] : 1]
                         onChange(s, true)
                     }
-                    .frame(width: Theme.Height.large, height: Theme.Height.small)
+                    .frame(width: Theme.Height.large * 2, height: Theme.Height.small)
                     DocSlider(title: "Stop \(i + 1)", value: stop.position * 100, range: 0...100, defaultValue: i == 0 ? 0 : 100,
                               format: "%.0f %%", identifier: "\(identifier).stop.\(i).position", revision: revision) { v, final in
                         var s = sorted
                         s[i].position = v / 100
                         onChange(s, final)
                     }
+                    .frame(minWidth: 0, maxWidth: .infinity)
                     .frame(height: Theme.Height.slider)
                     IconButton(symbol: "minus", help: "Remove this stop", size: Theme.Height.small) {
                         var s = sorted
