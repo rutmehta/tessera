@@ -4,6 +4,20 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## Tiny resource regression — 2026-09-27 20:34 UTC
+
+A reproduced the repeated-work defect without large load:257×1 pixels,8223-byte
+persistent cache, actual whole-image attempts2 vs expected1. RED exited101;
+original nested/reentrant two-worker deadlock gate passed exit0. Logs and source
+manifest under /tmp/tessera-resource-* will be checkpointed on resource branch.
+Source fix now proceeds using per-render bounded retention and serial first touch
+for filtered CPU frames; no claim of global working-memory bound or B hold closure.
+Independent review rejected treating small cache size alone as admission failure.
+Luna owns the next heavy slot for Loupe tests while Sol edits resource source.
+
+Mailbox371a35fb publishes mainb2757c7 integration; no peer receipt yet for this
+new status. Earlier2ff37936 was explicitly received by B. No B test request.
+
 ## Verified UI integration — 2026-09-27 20:30 UTC
 
 Main b2757c7 now contains Review workspace and Masks component clarity, including

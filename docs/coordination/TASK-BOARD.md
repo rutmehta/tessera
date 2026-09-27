@@ -1,6 +1,6 @@
 # Tessera task board — Machine A coordinator
 
-Updated: 2026-09-27 20:30 UTC
+Updated: 2026-09-27 20:34 UTC
 
 User mandate: autonomously advance UI/UX redesign **and** the recovered engine
 queue, using parallel GPT-6 Astra/Luna agents; coordinate Machine B and keep
@@ -64,8 +64,11 @@ Gain-map CI supplemental and CLI/FFI/MCP targeted checks passed after preserved
 fixture repairs. Original ImageIO4pass/1fail remains unresolved. Evidence-only
 c716460 is pushed on codex/gainmap-restoration; dirty product source remains intact.
 
-Sol resource_source_audit owns A's heavy slot for tiny two-worker compositor
-regression and existing bounded deadlock tests. Separate Sol independently reviews
+Tiny compositor regression reproduced repeated work:257×1 pixels,8223-byte cache,
+two actual whole-image attempts vs required one (expected RED exit101). Existing
+two-worker child-process deadlock test passed exit0. Sol implements a bounded
+per-render retained-result mitigation from source; Luna now owns A's heavy slot
+for the separate Loupe focused gate. Separate Sol independently reviews
 counters and frame-scoped reuse/admission design. No B workloads. Request9a28ab84
 is accepted/in_progress; no resource fix or global memory cap claimed.
 
