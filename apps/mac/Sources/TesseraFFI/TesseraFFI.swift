@@ -12038,6 +12038,10 @@ public func FfiConverterTypeDocumentUpdate_lower(_ value: DocumentUpdate) -> Rus
 public struct EnhanceOptions: Equatable, Hashable {
     public var denoiseAmount: UInt8?
     public var superResolution: Bool
+    /**
+     * Reserved for compatibility. True is rejected: no supported Apache/MIT
+     * learned-demosaic model is available; Raw Details is out of scope.
+     */
     public var rawDetails: Bool
     /**
      * Explicit consent; cache-only by default.
@@ -12046,7 +12050,11 @@ public struct EnhanceOptions: Equatable, Hashable {
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(denoiseAmount: UInt8?, superResolution: Bool, rawDetails: Bool, 
+    public init(denoiseAmount: UInt8?, superResolution: Bool, 
+        /**
+         * Reserved for compatibility. True is rejected: no supported Apache/MIT
+         * learned-demosaic model is available; Raw Details is out of scope.
+         */rawDetails: Bool, 
         /**
          * Explicit consent; cache-only by default.
          */allowModelDownload: Bool) {

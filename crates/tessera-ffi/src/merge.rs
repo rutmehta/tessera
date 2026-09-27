@@ -81,11 +81,7 @@ impl MergeOptions {
         if self.boundary_warp > 100 {
             return Err(failure("boundary warp must be 0..=100"));
         }
-        if self.boundary_warp != 0 {
-            return Err(failure(
-                "boundary warp is not implemented by the merge engine; use 0 (not silently substituted with crop)",
-            ));
-        }
+
         if self.focal_pixels.is_some_and(|v| !v.is_finite() || v <= 0.) {
             return Err(failure("focal_pixels must be positive and finite"));
         }
@@ -476,28 +472,101 @@ impl Engine {
 }
 
 pub(crate) fn load_linear(source: &PhotoSource) -> Result<(LinearImage, Option<hdr::Exposure>)> {
-    if source.orientation != 1 {
-        return Err(failure(
-            "merge/enhance currently requires orientation 1; rotated sensor data is not silently retagged",
-        ));
-    }
     if let Ok(dng) = raw_decode::linear_dng::read(&mut std::fs::File::open(&source.path)?) {
         return Ok((
-            LinearImage {
-                width: dng.width,
-                height: dng.height,
-                pixels: dng.pixels,
-                color_matrix: dng.color_matrix,
-                as_shot_neutral: dng.as_shot_neutral,
-            },
+            orient_linear(
+                LinearImage {
+                    width: dng.width,
+                    height: dng.height,
+                    pixels: dng.pixels,
+                    color_matrix: dng.color_matrix,
+                    as_shot_neutral: dng.as_shot_neutral,
+                },
+                source.orientation,
+            )?,
             None,
         ));
     }
     let mut raw = raw_decode::RawSource::open(&source.path)?;
     let meta = raw.metadata();
     let image = ::merge::from_cfa(&raw.decode_cfa()?, &meta).map_err(failure)?;
-    Ok((image, Some(hdr::Exposure::from_metadata(&meta))))
+    Ok((
+        orient_linear(image, source.orientation)?,
+        Some(hdr::Exposure::from_metadata(&meta)),
+    ))
 }
+/// Consume EXIF orientation in camera space, before alignment, without
+/// resampling or changing the calibration. Published DNGs are orientation 1.
+fn orient_linear(mut image: LinearImage, orientation: u16) -> Result<LinearImage> {
+    if !(1..=8).contains(&orientation) {
+        return Err(failure("source orientation must be 1..=8"));
+    }
+    if orientation == 1 {
+        return Ok(image);
+    }
+    let (w, h) = (image.width, image.height);
+    let (out_w, out_h) = if orientation >= 5 { (h, w) } else { (w, h) };
+    let mut pixels = vec![[0.; 3]; image.pixels.len()];
+    for (i, pixel) in image.pixels.into_iter().enumerate() {
+        let (x, y) = (i % w, i / w);
+        let (x, y) = match orientation {
+            2 => (w - 1 - x, y),
+            3 => (w - 1 - x, h - 1 - y),
+            4 => (x, h - 1 - y),
+            5 => (y, x),
+            6 => (h - 1 - y, x),
+            7 => (h - 1 - y, w - 1 - x),
+            8 => (y, w - 1 - x),
+            _ => (x, y),
+        };
+        pixels[y * out_w + x] = pixel;
+    }
+    image.width = out_w;
+    image.height = out_h;
+    image.pixels = pixels;
+    Ok(image)
+}
+/// Dependency inversion avoids filters -> compositor -> merge -> filters.
+/// CAF sees linear float samples, preserving HDR/negative values and coverage.
+fn content_aware_edges(
+    image: &LinearImage,
+    coverage: &[bool],
+    job: Option<&PhotoJob>,
+) -> ::merge::Result<Vec<[f32; 3]>> {
+    use compositor::{Depth, Raster, Rect};
+    use engine_api::tile::Extent;
+    let (w, h) = (image.width, image.height);
+    if let Some(job) = job {
+        job.check().map_err(|e| e.to_string())?;
+        job.progress("fill-edges", 0, 1);
+    }
+    let mut raster = Raster::new(Extent::new(w as u32, h as u32), 4, Depth::F32, 0.);
+    raster
+        .edit_region(Rect::new(0, 0, w as i64, h as i64), 1, |x, y, p| {
+            let c = image.pixels[y as usize * w + x as usize];
+            *p = [c[0], c[1], c[2], 1.];
+        })
+        .map_err(|e| e.to_string())?;
+    let mask: Vec<_> = coverage.iter().map(|v| if *v { 0. } else { 1. }).collect();
+    let uncancelled = AtomicBool::new(false);
+    let result = filters::caf::fill(
+        &raster,
+        &mask,
+        &Default::default(),
+        job.map(|j| &j.cancel).unwrap_or(&uncancelled),
+    )
+    .map_err(|e| e.to_string())?;
+    if let Some(job) = job {
+        job.progress("fill-edges", 1, 1);
+    }
+    Ok((0..w * h)
+        .map(|i| {
+            let p = result.composite.pixel((i % w) as u32, (i / w) as u32);
+            [p[0], p[1], p[2]]
+        })
+        .collect())
+}
+
 fn thumbnail(image: &LinearImage, limit: usize) -> LinearImage {
     let scale = (limit as f64 / image.width.max(image.height) as f64).min(1.);
     let w = (image.width as f64 * scale).round().max(1.) as usize;
@@ -531,11 +600,7 @@ fn merge_images(
             job.check()?;
             job.progress("decode", i as u32, sources.len() as u32);
         }
-        if source.orientation != 1 {
-            return Err(failure(
-                "merge/enhance currently requires orientation 1; rotated sensor data is not silently retagged",
-            ));
-        }
+
         let (mut image, exposure) = load_linear(source)?;
         if preview {
             let resized = thumbnail(&image, 512);
@@ -580,21 +645,25 @@ fn merge_images(
         ..Default::default()
     };
     let projection = match options.projection {
-        MergeProjection::Auto | MergeProjection::Perspective => pano::Projection::Perspective,
+        MergeProjection::Auto => pano::Projection::Auto,
+        MergeProjection::Perspective => pano::Projection::Perspective,
         MergeProjection::Spherical => pano::Projection::Spherical,
         MergeProjection::Cylindrical => pano::Projection::Cylindrical,
     };
-    if options.projection == MergeProjection::Auto && options.kind != MergeKind::Hdr {
-        warnings.push("Auto projection selects Perspective; automatic geometry-based selection is unavailable".into());
-    }
-    if options.fill_edges {
-        warnings
-            .push("Fill Edges uses nearest-covered extension, not content-aware inpainting".into());
+    if options.projection == MergeProjection::Auto
+        && options.kind != MergeKind::Hdr
+        && options.focal_pixels.is_none()
+    {
+        warnings.push("Auto FOV estimated from a 60-degree first-view horizontal FOV; supply focal_pixels for calibrated selection".into());
     }
     let pano_options = pano::PanoramaOptions {
         projection,
-        focal_pixels: options.focal_pixels.unwrap_or(1000.) * focal_scale,
+        focal_pixels: options
+            .focal_pixels
+            .map(|v| v * focal_scale)
+            .unwrap_or(frames[0].image.width as f64 / (2. * 30_f64.to_radians().tan())),
         auto_crop: false,
+        boundary_warp: options.boundary_warp,
         fill_edges: options.fill_edges,
         ..Default::default()
     };
@@ -605,7 +674,11 @@ fn merge_images(
         }
         MergeKind::Panorama => {
             let images: Vec<_> = frames.into_iter().map(|f| f.image).collect();
-            let result = pano::panorama(&images, &pano_options).map_err(failure)?;
+            let result = pano::panorama_with_fill(&images, &pano_options, |image, mask| {
+                content_aware_edges(image, mask, job)
+            })
+            .map_err(failure)?;
+            warnings.push(format!("Projection: {:?}", result.projection));
             if result.coverage.contains(&false) {
                 warnings.push("Panorama contains uncovered or filled borders".into());
             }
@@ -618,8 +691,14 @@ fn merge_images(
                 .iter()
                 .map(|n| iter.by_ref().take(*n as usize).collect())
                 .collect();
-            let result =
-                ::merge::hdr_panorama(&groups, &hdr_options, &pano_options).map_err(failure)?;
+            let result = ::merge::hdr_panorama_with_fill(
+                &groups,
+                &hdr_options,
+                &pano_options,
+                |image, mask| content_aware_edges(image, mask, job),
+            )
+            .map_err(failure)?;
+            warnings.push(format!("Projection: {:?}", result.panorama.projection));
             if result.panorama.coverage.contains(&false) {
                 warnings.push("Panorama contains uncovered or filled borders".into());
             }

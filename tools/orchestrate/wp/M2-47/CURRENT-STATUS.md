@@ -1,31 +1,32 @@
-# M2-47 current verification: gate PASS, acceptance FAIL
+# M2-47 current verification: round 2 PASS
 
-This run inspected the existing implementation and its documented gaps, preserved it, regenerated Swift/C bindings, and executed the entire requested gate itself. No missing feature was implemented in this run. No commits or pushes were made.
+All four round-two decisions are implemented. The required gate was run in this worktree and exited 0. No commits or pushes were made.
 
-## Executed gate
+## Delivered
+
+1. Native float32 and uint16 LinearRaw DNGs enter calibrated linear Rec.2020 RGB at the Demosaic boundary. CFA DNG remains on the raw path. Develop, grid previews, and export work. The FFI regression actually merges a bracket, receives a grid JPEG, opens a develop session, renders non-black, changes exposure, flushes/reopens the persisted settings, and exports a non-black JPEG.
+2. Boundary Warp 0..100 deforms a separable ruled boundary mesh without substituting a crop. Auto projection samples angular horizontal/vertical FOV (spherical above 80 degrees vertical, otherwise cylindrical above 100 degrees horizontal, otherwise perspective). Fill Edges uses actual filters::caf through an FFI callback: a direct merge -> filters dependency would cycle through compositor. Preview warnings expose the selected projection and any uncalibrated Auto FOV estimate.
+3. Raw Details remains an explicitly rejected compatibility field, with the missing Apache/MIT learned-demosaic model reason documented in ml-enhance/README.md.
+4. Merge/enhance consumes EXIF orientation before processing and writes upright DNGs. All eight orientation permutations are tested through real enhancement publication and through RGB ingestion.
+
+## Required gate: PASS
 
 Working directory: `/Users/rutmehta/Developer/tessera/.worktrees/M2-47`
 
-`CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/M2-47` was exported for the entire chain:
+`CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/M2-47` stayed set for every Cargo command. No CI or test-thread override was set for the gate.
 
-```
-cargo test -p tessera-ffi -p merge -p ml-enhance --release && cargo clippy -p tessera-ffi -p merge -p ml-enhance --all-targets -- -D warnings && cargo fmt --check && (cd apps/mac && ./build-ffi.sh && swift build)
-```
+    cargo test -p tessera-ffi -p merge -p ml-enhance -p image-core --release && cargo clippy -p tessera-ffi -p merge -p ml-enhance -p image-core --all-targets -- -D warnings && cargo fmt --check && (cd apps/mac && ./build-ffi.sh && swift build)
 
-Process `proc_91d81bed0620` exited 0. Evidence: `current-gate.log`, ending `GATE_EXIT=0`. Parsed Rust summaries: 214 passed, 0 failed, 9 ignored. Conditional model tests may return early without cached weights; these totals are not proof that production inference ran. Swift build completed in 26.25 seconds. The linker still warns that a blake3 object targets macOS 26.5 while the application links for 15.0.
+Evidence: `round2-gate.log`, ending `GATE_EXIT=0`. Background process `proc_550adbfc1d07` exited 0. Parsed Rust totals: 296 passed, 0 failed, 11 ignored. Model-dependent cases can explicitly skip without weights; these totals do not establish real production-weight inference. Swift/C bindings were regenerated and `swift build` completed in 23.29 seconds. Generated Swift was read back for photoMerge, mergePreview, enhance, MergeOptions, EnhanceOptions, PhotoJob, and PhotoJobListener.
 
-Read-back of regenerated Swift confirmed `photoMerge`, `mergePreview`, `enhance`, `photoStack`, `PhotoJob`, `PhotoJobListener`, `EnhanceOptions`, and `MergeOptions`. The branch remains `wp/M2-47`. The changed/untracked path audit found no paths outside the supplied allow-list. `git diff --check` reports trailing whitespace in generated bindings; this is separate from the requested gate, which passed.
+Additional parent-run verification: `cargo test -p raw-decode -p previews --test linear_dng --release` passed 4 tests (`round2-ingestion.log`, `INGESTION_EXIT=0`). Focused FFI tests passed, including observed red failures for the prior orientation rejection, missing warp wiring, and LibRaw export failure before the corresponding fixes (`round2-ffi-red.log`, `round2-merge-red.log`, `round2-ffi-green.log`). The full gate also exercises the strengthened all-orientation test.
 
-## Unmet acceptance requirements
+The existing native LibRaw C++ warnings and blake3 macOS 26.5-vs-15.0 linker warning remain nonfatal. `git diff --check` reports two trailing-whitespace lines emitted by UniFFI for the new Raw Details documentation; the requested formatting/build gate passes.
 
-- Boundary Warp 1..100 is rejected at `crates/tessera-ffi/src/merge.rs:84`. No boundary mesh implementation exists in `crates/merge/src/pano.rs`; cropping is not a substitute.
-- Fill Edges calls nearest-covered extension at `crates/merge/src/pano.rs:248`, not the content-aware fill required by `docs/01-lightroom-classic-spec.md:350`.
-- Raw Details is rejected at `crates/tessera-ffi/src/enhance.rs:19`. The supplied enhancement library explicitly requires a separate trained model (`crates/ml-enhance/README.md:138`), and the model registry has no learned-demosaic entry. The CFA denoiser produces CFA planes, not learned-demosaiced RGB. Ordinary demosaic cannot honestly be relabeled Raw Details.
-- Generated native LinearRaw DNGs are indexed, but the normal grid/develop source still invokes `RawSource::decode_cfa` at `crates/image-core/src/source.rs:57-60`. The FFI's private linear-DNG decode does not integrate that renderer. This reader is outside the allow-list.
-- Auto projection unconditionally chooses Perspective. Nonidentity orientation and nonzero enhancement of HDR/out-of-sRGB-gamut input are still rejected, as already recorded in HANDOFF.md.
+## Scope and caveats
 
-To unblock full completion, the task needs a supported learned-demosaic model contract and authorization/dependency work for native LinearRaw grid/develop ingestion. Boundary mesh warping and content-aware fill remain implementation work within the allowed merge crate. Rerunning the gate alone cannot resolve any of these gaps.
+Changed paths remain within the provided allow-list. No export.rs, document modules, render/resident files, or UI were edited. Image-core production changes are only source.rs/rgb.rs. Native LinearRaw parsing is bounded interchange support, not an arbitrary third-party DNG decoder. Merge preview remains an explicitly warned approximate camera-channel rendition. Real enhancement models retain their existing SDR/gamut limits. See HANDOFF.md for API contracts, Auto calibration fallback, cancellation/publication behavior, and coordinator integration hotspots.
 
-No Kanban task ID was injected: `kanban_show()` returned the missing-task-ID error. No board lifecycle transition was possible or claimed.
+No Kanban task ID was injected; the initial kanban_show returned the missing-task-ID error. No board lifecycle transition was possible or claimed.
 
-RESULT: FAIL requested features remain incomplete despite a green build/test gate.
+RESULT: PASS

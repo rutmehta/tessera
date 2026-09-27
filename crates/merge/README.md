@@ -20,7 +20,22 @@ Deghost None/Low/Medium/High uses reference consistency thresholds of disabled/3
 
 Panorama uses deterministic FAST-9, 256-bit BRIEF, mutual Hamming/ratio matching, normalized homography RANSAC, and robust direct photometric refinement. Perspective, cylindrical, and spherical projections are actual distinct ray mappings using centered principal point and square pixels. Laplacian image pyramids blend with Gaussian feather-mask pyramids. Invalid/disconnected/degenerate geometry and projective horizons are rejected.
 
-Boundary-warp substitute: `auto_crop` finds the largest entirely source-covered rectangle. If crop is disabled, `fill_edges` performs nearest-covered flood fill, an explicitly temporary inpainting placeholder, **not content-aware fill or a mesh warp**. Without either option, uncovered pixels are zero. Coverage continues to distinguish source pixels from filled pixels. Do not export uncovered borders unless that is intended.
+`PanoramaOptions::boundary_warp: u8` accepts 0..=100 (default 0; larger values error). It deforms the panorama before crop/fill using two separable ruled meshes: row boundary vertices move horizontally toward the full canvas edges, then column vertices move vertically. Interior displacement interpolates between boundary vertices; inverse linear sampling rasterizes each pass without cracks or foldovers in nondegenerate cells. 0 is an exact bypass, 100 makes a connected, scanline-convex footprint rectangular without reducing canvas dimensions or discarding its boundary. Intermediate amounts partially expand it. This is a genuine geometry warp, not crop or border replication; it is not a content-preserving/global optimization mesh. Strong warps can distort subjects. Holes retain false coverage, empty scanlines are skipped, and singleton spans are not stretched. With warp enabled, homographies describe **pre-warp** geometry and origin is only the canvas/crop offset, not a complete inverse output map.
+
+`Projection::Auto` measures the union of registered image boundary rays about the first image principal point. Horizontal FOV is the longitude span `atan(x/f)`; vertical FOV is the elevation span `atan(y/sqrt(f²+x²))`. Boundary sampling uses the maximum input dimension as its step count. Select spherical when vertical FOV **>80°**, otherwise cylindrical when horizontal FOV **>100°**, otherwise perspective (threshold equality stays in the lower-distortion mode). Vertical takes priority for tall/multi-row sweeps. `PanoramaResult::projection` reports the resolved mode, never Auto. Default remains Perspective for compatibility. This policy does not remove the registration model's large-rotation / projective-horizon limitations.
+
+Processing order is projection/blend → boundary mesh → crop **or** fill. `auto_crop` finds the largest entirely source-covered rectangle and takes precedence over `fill_edges`. Without either, uncovered samples are zero. Coverage is resampled with the mesh and continues to distinguish measured support from synthesized pixels.
+
+### Content-aware fill integration (dependency inversion)
+
+A direct production dependency is impossible in the current package graph: `filters → compositor → merge`. `filters` and `compositor` are dev-dependencies here so integration tests execute real deterministic `filters::caf::fill`, not a replica. Production callers above these crates must use:
+
+- `pano::panorama_with_fill(images, options, adapter)`
+- `hdr_panorama_with_fill(groups, hdr_options, pano_options, adapter)`
+
+Both accept `adapter: impl FnOnce(&LinearImage, &[bool]) -> merge::Result<Vec<[f32; 3]>>`. It receives post-warp, uncropped linear camera RGB with zero outside coverage. Convert to F32 RGBA (alpha 1), set CAF mask to 1 for false coverage and 0 otherwise, call `filters::caf::fill` with deterministic `FillParams::default()`, and return canvas-sized RGB. **Do not color-convert, tone-map, clamp HDR/negative samples, or mark synthesized coverage true.** A complete eligible donor patch is required by CAF; propagate its error rather than falling back to nearest extension. `tests/support/mod.rs` is the exercised adapter implementation ready to reuse in the FFI layer.
+
+The adapter runs only if fill is enabled, crop is disabled, and holes remain. Merge validates output size/finiteness, propagates failures, preserves all covered samples exactly, and computes the recipe after synthesis. The original `panorama`/`hdr_panorama` entry points now return an explicit adapter-required error if synthesis is needed; there is **no nearest-extension fallback**. Parent FFI wiring is required to enable production CAF without a cross-crate dependency refactor.
 
 ## DNG and recipe
 
@@ -39,7 +54,7 @@ FAST/BRIEF, RANSAC, and blending are implemented here under the crate's Apache-2
 The engine currently exposes DNG as an export format, but has no photo-merge request/result contract. Integration needs:
 
 1. Ordered source IDs and explicit bracket groups, reference frame, align toggle, deghost strength, histogram-refinement toggle.
-2. Projection enum, focal length in pixels, auto-crop/fill policy, pyramid levels, and an eventual genuine boundary-warp amount (do not label this placeholder as a mesh warp).
+2. Projection enum including Auto, focal length in pixels, auto-crop/fill policy, pyramid levels, boundary-warp amount 0..=100, and the CAF adapter described above.
 3. Merge output path/image ID and stack membership/create-stack policy.
 4. Linear camera-RGB decode source with dimensions, calibration illuminant, XYZ-to-camera matrix, as-shot neutral, and scene-referred HDR range. It must bypass CFA demosaic while retaining downstream camera-color/WB processing.
 5. Coverage and deghost overlay coordinates, transforms, exposure diagnostics, cancellation/progress/job scheduling.

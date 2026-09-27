@@ -111,27 +111,71 @@ fn missing_weights_are_an_offline_job_error_without_output() {
 }
 
 #[test]
-fn rotated_source_is_not_silently_written_with_identity_orientation() {
-    let (dir, engine, id) = fixture(0.2);
-    let conn = rusqlite::Connection::open(dir.path().join("support/index.sqlite")).unwrap();
-    conn.execute(
-        "UPDATE metadata SET value='6' WHERE image_id=? AND key='orientation'",
-        [&id],
-    )
-    .unwrap();
-    let status = engine
-        .enhance(
-            vec![id],
-            EnhanceOptions {
-                denoise_amount: Some(0),
-                ..Default::default()
-            },
-            Arc::new(Listener),
+fn rotated_source_is_written_upright_with_identity_orientation() {
+    for (orientation, expected) in [
+        (1u16, [1., 2., 3., 4., 5., 6.]),
+        (2, [2., 1., 4., 3., 6., 5.]),
+        (3, [6., 5., 4., 3., 2., 1.]),
+        (4, [5., 6., 3., 4., 1., 2.]),
+        (5, [1., 3., 5., 2., 4., 6.]),
+        (6, [5., 3., 1., 6., 4., 2.]),
+        (7, [6., 4., 2., 5., 3., 1.]),
+        (8, [2., 4., 6., 1., 3., 5.]),
+    ] {
+        let dir = tempfile::tempdir().unwrap();
+        let photos = dir.path().join("photos");
+        std::fs::create_dir(&photos).unwrap();
+        let image = merge::LinearImage {
+            width: 2,
+            height: 3,
+            pixels: (1..=6).map(|v| [v as f32; 3]).collect(),
+            color_matrix: [[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]],
+            as_shot_neutral: [1.; 3],
+        };
+        let mut bytes = Vec::new();
+        merge::write_dng(&mut bytes, &image, &Default::default()).unwrap();
+        let ifd = u32::from_le_bytes(bytes[4..8].try_into().unwrap()) as usize;
+        let n = u16::from_le_bytes(bytes[ifd..ifd + 2].try_into().unwrap()) as usize;
+        let entry = (0..n)
+            .map(|i| ifd + 2 + 12 * i)
+            .find(|i| u16::from_le_bytes(bytes[*i..*i + 2].try_into().unwrap()) == 274)
+            .unwrap();
+        bytes[entry + 8..entry + 10].copy_from_slice(&orientation.to_le_bytes());
+        std::fs::write(photos.join("oriented.dng"), bytes).unwrap();
+        let engine = Engine::open(dir.path().join("support").to_string_lossy().into()).unwrap();
+        engine
+            .index_folder(photos.to_string_lossy().into())
+            .unwrap();
+        let id = engine.list_images(ImageQuery::default()).unwrap()[0]
+            .id
+            .clone();
+        let status = engine
+            .enhance(
+                vec![id],
+                EnhanceOptions {
+                    denoise_amount: Some(0),
+                    ..Default::default()
+                },
+                Arc::new(Listener),
+            )
+            .unwrap()
+            .wait();
+        assert_eq!(status.state, PhotoJobState::Completed, "{:?}", status.error);
+        let dng = raw_decode::linear_dng::read(
+            &mut std::fs::File::open(&status.outputs[0].path).unwrap(),
         )
-        .unwrap()
-        .wait();
-    assert_eq!(status.state, PhotoJobState::Failed);
-    assert!(status.error.unwrap().message.contains("orientation"));
+        .unwrap();
+        assert_eq!(dng.orientation, 1);
+        assert_eq!(
+            (dng.width, dng.height),
+            if orientation >= 5 { (3, 2) } else { (2, 3) }
+        );
+        assert_eq!(
+            dng.pixels.iter().map(|p| p[0]).collect::<Vec<_>>(),
+            expected,
+            "orientation {orientation}"
+        );
+    }
 }
 
 #[test]

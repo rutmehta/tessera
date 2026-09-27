@@ -1,3 +1,4 @@
+mod support;
 use merge::{
     LinearImage,
     pano::{PanoramaOptions, Projection, panorama},
@@ -152,12 +153,13 @@ fn fill_preserves_measured_coverage_and_metadata() {
         ..Default::default()
     };
     let empty = panorama(std::slice::from_ref(&a), &o).unwrap();
-    let filled = panorama(
+    let filled = merge::pano::panorama_with_fill(
         std::slice::from_ref(&a),
         &PanoramaOptions {
             fill_edges: true,
             ..o
         },
+        support::caf,
     )
     .unwrap();
     assert_eq!(empty.coverage, filled.coverage);

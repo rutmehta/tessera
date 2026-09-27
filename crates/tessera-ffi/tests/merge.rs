@@ -137,6 +137,7 @@ fn panorama_and_explicit_hdr_panorama_publish_with_each_projection() {
     rows.sort_by(|a, b| a.path.cmp(&b.path));
     let ids: Vec<_> = rows.iter().map(|r| r.id.clone()).collect();
     for projection in [
+        MergeProjection::Auto,
         MergeProjection::Perspective,
         MergeProjection::Cylindrical,
         MergeProjection::Spherical,
@@ -147,6 +148,7 @@ fn panorama_and_explicit_hdr_panorama_publish_with_each_projection() {
             focal_pixels: Some(300.),
             create_stack: false,
             fill_edges: true,
+            boundary_warp: 50,
             ..Default::default()
         };
         let selected = vec![ids[0].clone(), ids[2].clone()];
@@ -213,6 +215,117 @@ fn fixture() -> (tempfile::TempDir, Arc<Engine>, Vec<String>) {
     let mut images = engine.list_images(ImageQuery::default()).unwrap();
     images.sort_by(|a, b| a.path.cmp(&b.path));
     (dir, engine, images.into_iter().map(|i| i.id).collect())
+}
+
+#[test]
+#[cfg(target_os = "macos")]
+fn merged_dng_develop_edit_persist_preview_and_export() {
+    use std::sync::mpsc;
+    use std::time::Duration;
+    struct Frames(mpsc::Sender<std::result::Result<FrameInfo, String>>);
+    impl DevelopListener for Frames {
+        fn frame_ready(&self, frame: FrameInfo) {
+            if frame.is_final {
+                let _ = self.0.send(Ok(frame));
+            }
+        }
+        fn render_failed(&self, message: String) {
+            let _ = self.0.send(Err(message));
+        }
+        fn saved(&self, _: String) {}
+    }
+    let (dir, engine, ids) = fixture();
+    let result = engine
+        .clone()
+        .photo_merge(
+            ids,
+            MergeOptions {
+                auto_align: false,
+                auto_tone: false,
+                exposure_values: vec![1., 4.],
+                ..Default::default()
+            },
+            Arc::new(Listener::default()),
+        )
+        .unwrap()
+        .wait();
+    assert_eq!(result.state, PhotoJobState::Completed, "{:?}", result.error);
+    let id = result.outputs[0].image_id.clone();
+    struct Ready(mpsc::Sender<()>);
+    impl EngineEventListener for Ready {
+        fn on_event(&self, event: EngineEvent) {
+            if matches!(event, EngineEvent::PreviewReady { .. }) {
+                let _ = self.0.send(());
+            }
+        }
+    }
+    let (tx, ready) = mpsc::channel();
+    engine.set_event_listener(Some(Arc::new(Ready(tx))));
+    let original = loop {
+        if let Some(bytes) = engine
+            .clone()
+            .embedded_preview(id.clone(), 64)
+            .unwrap()
+            .bytes
+        {
+            break bytes;
+        }
+        ready.recv_timeout(Duration::from_secs(60)).unwrap();
+    };
+    assert!(
+        image::load_from_memory(&original)
+            .unwrap()
+            .to_rgb8()
+            .as_raw()
+            .iter()
+            .any(|v| *v > 30)
+    );
+    let session = engine.clone().open_develop_session(id.clone()).unwrap();
+    let (tx, rx) = mpsc::channel();
+    session.set_listener(Some(Arc::new(Frames(tx))));
+    let plan = session.plan_surface(64, 64);
+    for _ in 0..2 {
+        let surface = surface::testing::create_rgba8(plan.width, plan.height);
+        session
+            .attach_surface(surface, plan.width, plan.height)
+            .unwrap();
+    }
+    rx.recv_timeout(Duration::from_secs(60)).unwrap().unwrap();
+    let brightness = || {
+        let hist = session.get_histogram().unwrap().luminance;
+        hist.iter()
+            .enumerate()
+            .map(|(i, n)| i as f64 * f64::from(*n))
+            .sum::<f64>()
+            / hist.iter().map(|n| f64::from(*n)).sum::<f64>()
+    };
+    let before = brightness();
+    assert!(before > 30., "LinearRaw must not render black");
+    session
+        .set_settings(r#"{"tone":{"exposure":-1.0}}"#.into(), false)
+        .unwrap();
+    rx.recv_timeout(Duration::from_secs(60)).unwrap().unwrap();
+    assert!(brightness() < before);
+    session.commit("Exposure".into()).unwrap();
+    session.flush().unwrap();
+    session.close().unwrap();
+    drop(session);
+    drop(engine);
+    let engine = Engine::open(dir.path().join("support").to_string_lossy().into()).unwrap();
+    let session = engine.clone().open_develop_session(id.clone()).unwrap();
+    let settings: serde_json::Value =
+        serde_json::from_str(&session.get_settings_json().unwrap()).unwrap();
+    assert_eq!(settings["tone"]["exposure"], -1.0);
+    session.close().unwrap();
+    let report = engine.export_batch(ExportTarget::Images { image_ids: vec![id] }, serde_json::json!({
+        "format":"jpeg", "destination":dir.path().join("out"), "naming":"{name}", "metadata":"none"
+    }).to_string(), None, None).unwrap();
+    assert_eq!((report.exported, report.failed), (1, 0), "{report:?}");
+    let exported = image::open(dir.path().join("out/frame0-HDR.jpg"))
+        .unwrap()
+        .to_rgb8();
+    assert_eq!(exported.dimensions(), (16, 12));
+    assert!(exported.as_raw().iter().any(|v| *v > 20));
 }
 
 #[test]

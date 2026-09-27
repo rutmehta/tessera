@@ -10,6 +10,8 @@ use std::{path::PathBuf, sync::Arc};
 pub struct EnhanceOptions {
     pub denoise_amount: Option<u8>,
     pub super_resolution: bool,
+    /// Reserved for compatibility. True is rejected: no supported Apache/MIT
+    /// learned-demosaic model is available; Raw Details is out of scope.
     pub raw_details: bool,
     /// Explicit consent; cache-only by default.
     pub allow_model_download: bool,

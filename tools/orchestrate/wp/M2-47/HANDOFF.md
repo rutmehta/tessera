@@ -1,37 +1,44 @@
-# M2-47 integration handoff
+# M2-47 integration handoff (round 2)
 
-## Implemented host API
+Round 2 closes the prior LinearRaw ingestion, panorama geometry, and orientation gaps. See CURRENT-STATUS.md for the final gate result. No UI changes, commits, or pushes are part of this run.
 
-`Engine.photo_merge(image_ids, MergeOptions, PhotoJobListener)` and `Engine.enhance(image_ids, EnhanceOptions, PhotoJobListener)` return `PhotoJob`. `status()` is nonblocking; `wait()` is blocking and must not be called from a callback or the main actor. `cancel()` is cooperative. Native decoding, merge kernels, model download and an ONNX invocation already in flight are not interrupted; cancellation is checked before publication. A publication already committed is retained and reported. Callbacks run on the worker, outside catalog locks. Errors contain a stage and message. Completed outputs have paths and indexed IDs.
+## Host API
 
-`Engine.merge_preview` runs synchronously off the main actor, decodes sources, downsamples the merge inputs to at most 512px, and returns a JPEG at most 512px per edge plus warnings. Failed overlap/geometry produces a warning with no JPEG. Preview does not create files. Its rendition is currently a camera-channel/WB/exposure approximation, explicitly warned, not the color-managed develop renderer.
+`Engine.photo_merge(image_ids, MergeOptions, PhotoJobListener)` and `Engine.enhance(image_ids, EnhanceOptions, PhotoJobListener)` return `PhotoJob`. `status()` is nonblocking; `wait()` is blocking and must not run on the main actor or inside callbacks. Cancellation is cooperative between kernels and before publication; CAF also receives the job cancellation flag. Callbacks run on the worker outside catalog locks. Errors carry stage/message; outputs carry saved paths and indexed IDs.
 
-Merge supports HDR, perspective/cylindrical/spherical panorama, and explicit-group HDR panorama through the existing merge core. `bracket_sizes` partitions the ordered input for HDR panorama. Never infer bracket groups from filenames. `exposure_values` can explicitly supply positive sensor exposures for native float DNGs lacking EXIF exposure tags. Ordinary RAW HDR uses shutter/ISO/aperture. Curved projections require calibrated `focal_pixels`.
+`Engine.merge_preview` is synchronous, off-main-actor, read-only, at most 512px. It returns warnings and no JPEG if overlap/geometry cannot be solved. Its camera-channel/WB/exposure rendition remains an explicitly warned approximation, not the color-managed develop renderer.
 
-Unique no-clobber filenames use `-HDR`, `-Pano`, `-HDR-Pano`, `-Enhanced-NR`, `-Enhanced-SR`, or `-Enhanced-NR-SR`, then `-2`, etc. Publication uses an fsynced same-directory temporary file and no-clobber persistence. Float DNG pixels/calibration round-trip through the bounded native DNG reader. Recipes are embedded and written as indexed editable sidecars. Catalog change notifications use the existing M2-28 feed.
+HDR panorama uses explicit `bracket_sizes` in input order, never filename inference. `exposure_values` supplies positive sensor exposures for LinearRaw brackets without EXIF exposure tags. Ordinary RAW uses shutter/ISO/aperture.
 
-`Engine.photo_stack(image_id)` returns persistent ordered members, derived first. The new FFI-owned `photo_stack_member` table unions intersecting existing groups rather than dropping earlier enhancements. It is catalog-local, not a portable stack-sidecar interchange format. New records appear in `list_images`; the existing general RAW thumbnail/develop reader is not extended in this package to consume native LinearRaw pixels.
+Unique no-clobber names use `-HDR`, `-Pano`, `-HDR-Pano`, `-Enhanced-NR`, `-Enhanced-SR`, or `-Enhanced-NR-SR`, then `-2`, etc. An fsynced same-directory temporary DNG is persisted without clobbering. Editable sidecars, catalog indexing/change notifications, and persistent ordered stacks follow publication. `photo_stack(image_id)` returns the derived image first and unions intersecting existing stacks. File publication and catalog changes are not a single transaction: a later indexing/sidecar failure preserves an already-written DNG and reports failure.
 
-Enhancement uses the pinned DRUNet/Real-ESRGAN x2 models with a reversible calibrated camera-to-sRGB adapter. NR operates in linear sRGB, SR in encoded sRGB, then the output is converted back to camera space and stored with original calibration. Source recipe edits are retained. `allow_model_download` defaults false. Cached loads are strictly cache-only, including if a file disappears between lookup and load. Download progress is truthful stage-level start/ready, not byte-level percentage. Zero NR bypasses models and is bit-exact even for HDR samples.
+## Round 2 ingestion
 
-## Acceptance gaps / explicit limitations
+`raw_decode::linear_dng` classifies PhotometricInterpretation 34892 and reads bounded native float32/uint16 DNG interchange. CFA DNG stays on the raw path. `RawImage::open` and `RgbSource::{recognizes,open}` route native LinearRaw to working RGB, so develop, grid, and export all accept outputs without changing export.rs or render/resident files.
 
-This is NOT full completion of the requested WP:
+`RgbSource::from_linear_dng` inverts ColorMatrix1, derives the scene white from AsShotNeutral, Bradford-adapts to D65, and enters linear Rec.2020 at the RGB/Demosaic boundary. It preserves finite signed/HDR values and consumes orientation exactly once. PreviewStore uses the same calibrated ingestion and upright cache key. The reader supports single-IFD/single-uncompressed-strip DNG 1.4 interchange with D65 calibration, not arbitrary third-party tiled/compressed/SubIFD LinearRaw layouts; unsupported data is an error.
 
-- Nonzero Boundary Warp returns an explicit unsupported error. The existing merge crate does not have a boundary mesh/TPS warp. It is not silently mapped to crop.
-- Raw Details returns an explicit unsupported error. No learned demosaic model or supported runtime contract exists in the provided enhancement crate. Ordinary demosaic is not relabeled Raw Details.
-- Fill Edges retains the merge core's nearest-covered extension, with a preview warning, rather than content-aware inpainting.
-- Auto projection currently selects Perspective and reports that policy in preview warnings.
-- Source orientation other than 1 is explicitly rejected, rather than writing wrongly tagged pixels.
-- Nonzero enhancement rejects HDR/negative/out-of-sRGB-gamut model input, without silent clipping; this model adapter is not a scene-linear HDR denoiser.
-- Existing general grid thumbnails/develop need a LinearRaw-capable reader outside the allowed files; native DNG catalog indexing and merge preview work independently.
-- Indexing/sidecar/stack failure after file publication leaves the completed DNG in place and returns an error (including saved path for scan failure). Already indexed outputs remain in the job status. Disk and SQLite are not one transaction.
-- Model-dependent tests are conditional on existing weights. No production weights were downloaded by this task.
+Merge/enhance applies all eight EXIF orientations in camera space before alignment/inference, permuting pixels without interpolation and retaining calibration. The published DNG is upright/orientation 1.
 
-## Verification
+## Round 2 panorama
 
-Focused integration test command: `cargo test -p tessera-ffi --test merge --test enhance --release` passed. Coverage includes float HDR values, read-only preview, new catalog rows/change feed, stack persistence and repeated enhancement, unique names, cancellation before publication, validation/missing exposure/overlap warnings, all three panorama projections, grouped HDR panorama, zero-NR bit preservation, offline model errors, and orientation rejection.
+`PanoramaOptions.boundary_warp` is 0..100. Two separable ruled meshes move the external boundary toward the existing rectangular canvas while deforming interior content. Zero is identity, not crop. Mesh warp precedes optional crop and synthesis. Interior holes remain unsupported until fill; coverage continues to describe source support, not fabricated support. Homographies remain pre-warp and are not a full inverse nonlinear output map.
 
-Initial missing-API compilation failure is in `red-check.log`; the orientation regression was observed failing before its fix in `enhance-red.log`. Model adapter and cache tests were also developed with missing-API failures first. The final full-gate result will be recorded separately after real execution.
+Auto samples registered boundary rays and selects spherical above 80 degrees vertical FOV, else cylindrical above 100 degrees horizontal FOV, else perspective. Vertical wins if both exceed thresholds. FFI preview reports the resolved projection. Explicit curved modes require `focal_pixels`; Auto without calibration estimates a 60-degree horizontal FOV for the first upright view and warns. Supplying calibrated `focal_pixels` avoids that estimate.
 
-All builds use `CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/M2-47`. No commits or pushes were made.
+Fill Edges invokes actual `filters::caf::fill` with a float RGBA raster and inverse-coverage mask, preserving source-covered pixels and HDR values. Direct `merge -> filters` would cycle through `filters -> compositor -> merge`, so production uses dependency-inverted `panorama_with_fill` and `hdr_panorama_with_fill` callbacks from FFI (which already depends on filters). Merge's tests depend on filters and exercise the same adapter. The old no-adapter entry points explicitly error if synthesis is needed; nearest-covered extension is no longer advertised or used as Fill Edges.
+
+## Enhance and remaining limitations
+
+Raw Details is explicitly out of scope by the coordinator decision. The compatibility field remains but true is rejected before scheduling, documented in ml-enhance/README.md. Ordinary demosaic is not mislabeled learned Raw Details.
+
+NR/SR uses pinned DRUNet/Real-ESRGAN x2 with a reversible calibrated camera-to-sRGB adapter. Zero NR bypasses models bit-exactly. Nonzero inference rejects HDR/negative/out-of-sRGB-gamut model input rather than clipping. `allow_model_download` defaults false; cache-only loads remain offline if a cached file disappears. Download progress is stage-level start/verified-ready, not byte-level percentages. Production weights are not downloaded in tests; model-dependent tests skip cleanly when absent.
+
+## Verification coverage
+
+- FFI merge -> asynchronous grid preview -> real develop session/non-black render -> exposure edit -> persisted/reopened settings -> JPEG export.
+- Native float32 and uint16 ingestion, calibration, signed/HDR preservation, CFA routing, endian/truncation validation, all orientations, preview cache/edit behavior.
+- Boundary warp strengths/canvas/interior displacement/identity, angular Auto threshold boundaries, CAF comparison against actual filters::caf, crop/fill precedence, invalid adapter output, HDR panorama fill entry point.
+- FFI projection/warp/fill publication, cancellation, stacking/index/change feed, naming, offline weights, Raw Details rejection, and all eight orientation permutations through enhancement.
+
+All Cargo commands use CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/M2-47. Shared integration hotspots for the coordinator: Cargo.lock, generated Swift/C bindings, and previews/src/raw.rs. Image-core changes are confined to source.rs/rgb.rs and tests as requested.

@@ -12,3 +12,6 @@ serde_json.workspace = true
 rustfft = "6.4"
 transform = { path = "../transform" }
 lens = { path = "../lens" }
+[dev-dependencies]
+filters = { path = "../filters", default-features = false }
+compositor = { path = "../compositor" }
