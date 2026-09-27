@@ -1,0 +1,18 @@
+{
+  "cmd": [
+    "cargo",
+    "clippy",
+    "-p",
+    "transform",
+    "--all-targets",
+    "--",
+    "-D",
+    "warnings"
+  ],
+  "exit_code": 0,
+  "timed_out": false,
+  "elapsed_s": 13.689,
+  "pid": 52818,
+  "CARGO_BUILD_JOBS": "2",
+  "RAYON_NUM_THREADS": "2"
+}
