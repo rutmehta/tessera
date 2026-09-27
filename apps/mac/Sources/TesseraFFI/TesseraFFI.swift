@@ -4413,6 +4413,57 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
     func retouchModels() throws  -> [RetouchModel]
     
     /**
+     * Whether Copy Layer Style has something to paste.
+     */
+    func canPasteLayerStyles()  -> Bool
+    
+    /**
+     * Clear Layer Style: removes every effect (Scale Effects back to 100 %)
+     * as one history node.
+     */
+    func clearLayerStyles(layer: UInt64) throws  -> DocumentUpdate
+    
+    /**
+     * Copy Layer Style: remembers the layer's effects and Scale Effects
+     * (application-wide). Records no history.
+     */
+    func copyLayerStyles(from: UInt64) throws 
+    
+    /**
+     * The document's Global Light (live state).
+     */
+    func globalLight() throws  -> GlobalLightRecord
+    
+    /**
+     * Every layer with at least one effect, in `layers()` order.
+     */
+    func layerStyleSummaries() throws  -> [LayerStyleSummary]
+    
+    /**
+     * The layer's styles as `LayerStyles` JSON (live state: shows a drag).
+     */
+    func layerStylesJson(layer: UInt64) throws  -> String
+    
+    /**
+     * Paste Layer Style onto every layer of `to`: one history node.
+     */
+    func pasteLayerStyles(to: [UInt64]) throws  -> DocumentUpdate
+    
+    /**
+     * Layer ▸ Layer Style ▸ Global Light: every effect with Use Global Light
+     * follows it. `interactive` as for `set_layer_styles_json`.
+     */
+    func setGlobalLight(angle: Float, altitude: Float, interactive: Bool) throws  -> DocumentUpdate
+    
+    /**
+     * Replaces the layer's styles (`LayerStyles` JSON), keeping every other
+     * property. `interactive`: live only, no history node until `commit`
+     * (an inspector slider drag). Refused on locked (Lock All) layers,
+     * adjustment layers and pass-through groups.
+     */
+    func setLayerStylesJson(layer: UInt64, json: String, interactive: Bool) throws  -> DocumentUpdate
+    
+    /**
      * Starts a stroke of `tool` on `layer`'s pixels or mask with `brush` and
      * `color` (the foreground colour; a mask takes its luminance). Commits a
      * pending drag first; a stroke already open is committed. The selection
@@ -5951,6 +6002,129 @@ open func retouchModels()throws  -> [RetouchModel]  {
         uniffiCallStatus in
     uniffi_tessera_ffi_fn_method_documentsession_retouch_models(
             self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Whether Copy Layer Style has something to paste.
+     */
+open func canPasteLayerStyles() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_can_paste_layer_styles(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Clear Layer Style: removes every effect (Scale Effects back to 100 %)
+     * as one history node.
+     */
+open func clearLayerStyles(layer: UInt64)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_clear_layer_styles(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Copy Layer Style: remembers the layer's effects and Scale Effects
+     * (application-wide). Records no history.
+     */
+open func copyLayerStyles(from: UInt64)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_copy_layer_styles(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(from),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * The document's Global Light (live state).
+     */
+open func globalLight()throws  -> GlobalLightRecord  {
+    return try  FfiConverterTypeGlobalLightRecord_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_global_light(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Every layer with at least one effect, in `layers()` order.
+     */
+open func layerStyleSummaries()throws  -> [LayerStyleSummary]  {
+    return try  FfiConverterSequenceTypeLayerStyleSummary.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_layer_style_summaries(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * The layer's styles as `LayerStyles` JSON (live state: shows a drag).
+     */
+open func layerStylesJson(layer: UInt64)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_layer_styles_json(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Paste Layer Style onto every layer of `to`: one history node.
+     */
+open func pasteLayerStyles(to: [UInt64])throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_paste_layer_styles(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceUInt64.lower(to),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Layer ▸ Layer Style ▸ Global Light: every effect with Use Global Light
+     * follows it. `interactive` as for `set_layer_styles_json`.
+     */
+open func setGlobalLight(angle: Float, altitude: Float, interactive: Bool)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_set_global_light(
+            self.uniffiCloneHandle(),
+        FfiConverterFloat.lower(angle),
+        FfiConverterFloat.lower(altitude),
+        FfiConverterBool.lower(interactive),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Replaces the layer's styles (`LayerStyles` JSON), keeping every other
+     * property. `interactive`: live only, no history node until `commit`
+     * (an inspector slider drag). Refused on locked (Lock All) layers,
+     * adjustment layers and pass-through groups.
+     */
+open func setLayerStylesJson(layer: UInt64, json: String, interactive: Bool)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_set_layer_styles_json(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),
+        FfiConverterString.lower(json),
+        FfiConverterBool.lower(interactive),uniffiCallStatus
     )
 })
 }
@@ -14315,6 +14489,64 @@ public func FfiConverterTypeFrameInfo_lower(_ value: FrameInfo) -> RustBuffer {
 }
 
 
+/**
+ * The document's light: `angle` in degrees (0 lights from the right, 90
+ * from above), `altitude` (elevation) in `0…90` degrees.
+ */
+public struct GlobalLightRecord: Equatable, Hashable {
+    public var angle: Float
+    public var altitude: Float
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(angle: Float, altitude: Float) {
+        self.angle = angle
+        self.altitude = altitude
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension GlobalLightRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeGlobalLightRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> GlobalLightRecord {
+        return
+            try GlobalLightRecord(
+                angle: FfiConverterFloat.read(from: &buf), 
+                altitude: FfiConverterFloat.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: GlobalLightRecord, into buf: inout [UInt8]) {
+        FfiConverterFloat.write(value.angle, into: &buf)
+        FfiConverterFloat.write(value.altitude, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGlobalLightRecord_lift(_ buf: RustBuffer) throws -> GlobalLightRecord {
+    return try FfiConverterTypeGlobalLightRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGlobalLightRecord_lower(_ value: GlobalLightRecord) -> RustBuffer {
+    return FfiConverterTypeGlobalLightRecord.lower(value)
+}
+
+
 public struct GroupDecision: Equatable, Hashable {
     public var best: String
     public var rejected: UInt32
@@ -16139,6 +16371,64 @@ public func FfiConverterTypeLayerPropsRecord_lift(_ buf: RustBuffer) throws -> L
 #endif
 public func FfiConverterTypeLayerPropsRecord_lower(_ value: LayerPropsRecord) -> RustBuffer {
     return FfiConverterTypeLayerPropsRecord.lower(value)
+}
+
+
+/**
+ * The effects of one styled layer in the engine's stacking order, **top
+ * first** (the order the Layers panel and the inspector list them).
+ */
+public struct LayerStyleSummary: Equatable, Hashable {
+    public var layer: UInt64
+    public var effects: [StyleEffectSummary]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(layer: UInt64, effects: [StyleEffectSummary]) {
+        self.layer = layer
+        self.effects = effects
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LayerStyleSummary: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLayerStyleSummary: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LayerStyleSummary {
+        return
+            try LayerStyleSummary(
+                layer: FfiConverterUInt64.read(from: &buf), 
+                effects: FfiConverterSequenceTypeStyleEffectSummary.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LayerStyleSummary, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.layer, into: &buf)
+        FfiConverterSequenceTypeStyleEffectSummary.write(value.effects, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLayerStyleSummary_lift(_ buf: RustBuffer) throws -> LayerStyleSummary {
+    return try FfiConverterTypeLayerStyleSummary.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLayerStyleSummary_lower(_ value: LayerStyleSummary) -> RustBuffer {
+    return FfiConverterTypeLayerStyleSummary.lower(value)
 }
 
 
@@ -21779,6 +22069,79 @@ public func FfiConverterTypeStrokeSample_lift(_ buf: RustBuffer) throws -> Strok
 #endif
 public func FfiConverterTypeStrokeSample_lower(_ value: StrokeSample) -> RustBuffer {
     return FfiConverterTypeStrokeSample.lower(value)
+}
+
+
+/**
+ * One effect of a styled layer, for the Layers panel's effect rows.
+ */
+public struct StyleEffectSummary: Equatable, Hashable {
+    /**
+     * Index into the layer's `effects` (the JSON array).
+     */
+    public var index: UInt32
+    /**
+     * Serde kind name (`drop_shadow`, `stroke`, …).
+     */
+    public var kind: String
+    public var enabled: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Index into the layer's `effects` (the JSON array).
+         */index: UInt32, 
+        /**
+         * Serde kind name (`drop_shadow`, `stroke`, …).
+         */kind: String, enabled: Bool) {
+        self.index = index
+        self.kind = kind
+        self.enabled = enabled
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension StyleEffectSummary: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeStyleEffectSummary: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> StyleEffectSummary {
+        return
+            try StyleEffectSummary(
+                index: FfiConverterUInt32.read(from: &buf), 
+                kind: FfiConverterString.read(from: &buf), 
+                enabled: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: StyleEffectSummary, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.index, into: &buf)
+        FfiConverterString.write(value.kind, into: &buf)
+        FfiConverterBool.write(value.enabled, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeStyleEffectSummary_lift(_ buf: RustBuffer) throws -> StyleEffectSummary {
+    return try FfiConverterTypeStyleEffectSummary.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeStyleEffectSummary_lower(_ value: StyleEffectSummary) -> RustBuffer {
+    return FfiConverterTypeStyleEffectSummary.lower(value)
 }
 
 
@@ -28885,6 +29248,31 @@ fileprivate struct FfiConverterSequenceTypeLayerNode: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeLayerStyleSummary: FfiConverterRustBuffer {
+    typealias SwiftType = [LayerStyleSummary]
+
+    public static func write(_ value: [LayerStyleSummary], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeLayerStyleSummary.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [LayerStyleSummary] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [LayerStyleSummary]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeLayerStyleSummary.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeLibraryChange: FfiConverterRustBuffer {
     typealias SwiftType = [LibraryChange]
 
@@ -29685,6 +30073,31 @@ fileprivate struct FfiConverterSequenceTypeStrokeSample: FfiConverterRustBuffer 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeStyleEffectSummary: FfiConverterRustBuffer {
+    typealias SwiftType = [StyleEffectSummary]
+
+    public static func write(_ value: [StyleEffectSummary], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeStyleEffectSummary.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [StyleEffectSummary] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [StyleEffectSummary]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeStyleEffectSummary.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeTetherDevice: FfiConverterRustBuffer {
     typealias SwiftType = [TetherDevice]
 
@@ -29863,6 +30276,24 @@ public func neuralFilters() -> [NeuralFilterInfo]  {
 })
 }
 /**
+ * The effect kinds `LayerStyles` JSON may hold, their fields (JSON keys of
+ * `settings`) with UI ranges, defaults and flags, top first in the engine's
+ * stacking order. Field `type`s: `number` (`min`/`max` in stored units,
+ * shown × `display_scale` with `unit`), `angle` (degrees), `bool`, `color`
+ * (straight RGBA), `blend_mode` (a `blend_mode_names()` name), `enum`
+ * (`options`), `fill` (`compositor::Fill` JSON). `metadata` fields are
+ * preserved but not rendered. `repeatable` kinds may appear more than once;
+ * `global_light` kinds follow Use Global Light; `psd` kinds survive a PSD
+ * save (solid fills only, one of each).
+ */
+public func styleEffectsSchemaJson() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_func_style_effects_schema_json(uniffiCallStatus
+    )
+})
+}
+/**
  * A preview of tip `id` (or the computed round tip of `hardness` for
  * `round:<hardness>`) at most `max_px` on the long edge.
  */
@@ -29979,6 +30410,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_func_neural_filters() != 17162) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_func_style_effects_schema_json() != 46429) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_func_brush_tip_preview() != 21691) {
@@ -30771,6 +31205,33 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_retouch_models() != 9959) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_can_paste_layer_styles() != 15469) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_clear_layer_styles() != 11243) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_copy_layer_styles() != 40526) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_global_light() != 15945) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_layer_style_summaries() != 13617) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_layer_styles_json() != 13000) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_paste_layer_styles() != 44262) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_set_global_light() != 38883) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_set_layer_styles_json() != 39086) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_begin_stroke() != 7153) {
