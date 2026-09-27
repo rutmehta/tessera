@@ -21326,6 +21326,10 @@ public struct RetouchModel: Equatable, Hashable {
      */
     public var modelId: String
     /**
+     * Pinned registry version (what `ModelDownloads::request` takes).
+     */
+    public var version: String
+    /**
      * What needs it (`Remove (LaMa)`).
      */
     public var usedBy: String
@@ -21346,6 +21350,9 @@ public struct RetouchModel: Equatable, Hashable {
          * Registry id (`remove/lama`).
          */modelId: String, 
         /**
+         * Pinned registry version (what `ModelDownloads::request` takes).
+         */version: String, 
+        /**
          * What needs it (`Remove (LaMa)`).
          */usedBy: String, installed: Bool, 
         /**
@@ -21355,6 +21362,7 @@ public struct RetouchModel: Equatable, Hashable {
          * Where the file comes from (never fetched implicitly).
          */sourceUrl: String) {
         self.modelId = modelId
+        self.version = version
         self.usedBy = usedBy
         self.installed = installed
         self.cachePath = cachePath
@@ -21378,6 +21386,7 @@ public struct FfiConverterTypeRetouchModel: FfiConverterRustBuffer {
         return
             try RetouchModel(
                 modelId: FfiConverterString.read(from: &buf), 
+                version: FfiConverterString.read(from: &buf), 
                 usedBy: FfiConverterString.read(from: &buf), 
                 installed: FfiConverterBool.read(from: &buf), 
                 cachePath: FfiConverterString.read(from: &buf), 
@@ -21387,6 +21396,7 @@ public struct FfiConverterTypeRetouchModel: FfiConverterRustBuffer {
 
     public static func write(_ value: RetouchModel, into buf: inout [UInt8]) {
         FfiConverterString.write(value.modelId, into: &buf)
+        FfiConverterString.write(value.version, into: &buf)
         FfiConverterString.write(value.usedBy, into: &buf)
         FfiConverterBool.write(value.installed, into: &buf)
         FfiConverterString.write(value.cachePath, into: &buf)

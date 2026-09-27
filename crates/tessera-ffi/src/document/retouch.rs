@@ -118,6 +118,8 @@ pub struct NeuralFilterInfo {
 pub struct RetouchModel {
     /// Registry id (`remove/lama`).
     pub model_id: String,
+    /// Pinned registry version (what `ModelDownloads::request` takes).
+    pub version: String,
     /// What needs it (`Remove (LaMa)`).
     pub used_by: String,
     pub installed: bool,
@@ -215,9 +217,9 @@ const SFACE: &str = "opencv/sface";
 /// Set once this process installed LaMa into the adapter (from the cache).
 static LAMA_LOADED: AtomicBool = AtomicBool::new(false);
 
-/// The app's model registry (`<support>/models`), the manifest refreshed
-/// from the build's pinned `models.toml`. Opening it never downloads.
-fn registry(shared: &Shared) -> Result<ml_runtime::ModelRegistry> {
+/// The app's model folder (`<support>/models`), its manifest refreshed from
+/// the build's pinned `models.toml`.
+fn models_dir(shared: &Shared) -> Result<std::path::PathBuf> {
     let engine = shared
         .engine
         .upgrade()
@@ -229,10 +231,46 @@ fn registry(shared: &Shared) -> Result<ml_runtime::ModelRegistry> {
     if std::fs::read_to_string(&manifest).ok().as_deref() != Some(text) {
         std::fs::write(&manifest, text).map_err(failure)?;
     }
-    let cache = std::env::var_os("TESSERA_RETOUCH_MODEL_CACHE")
+    Ok(dir)
+}
+
+/// The shared app cache `<support>/models/cache`: where the app's model
+/// downloads (`ModelDownloads`, Settings ▸ AI "Allow model downloads") put
+/// verified files, and so where retouching looks for them.
+fn app_cache(dir: &std::path::Path) -> std::path::PathBuf {
+    dir.join("cache")
+}
+
+/// A hand-installed extra cache (`TESSERA_RETOUCH_MODEL_CACHE`), looked at
+/// before the app cache. It never replaces the app cache (B5-09b: downloads
+/// land in the app cache and must be found there).
+fn extra_cache() -> Option<std::path::PathBuf> {
+    std::env::var_os("TESSERA_RETOUCH_MODEL_CACHE")
+        .filter(|v| !v.is_empty())
         .map(std::path::PathBuf::from)
-        .unwrap_or_else(|| dir.join("cache"));
-    ml_runtime::ModelRegistry::open(&manifest, &cache).map_err(failure)
+}
+
+/// The registry over the app cache. Opening it never downloads.
+fn registry(shared: &Shared) -> Result<ml_runtime::ModelRegistry> {
+    let dir = models_dir(shared)?;
+    ml_runtime::ModelRegistry::open(dir.join("models.toml"), app_cache(&dir)).map_err(failure)
+}
+
+/// The registry whose cache holds model `id` (the extra cache first, then
+/// the app cache); the app cache's when neither does, so a missing model is
+/// reported where a download would put it.
+fn registry_for(shared: &Shared, id: &str) -> Result<ml_runtime::ModelRegistry> {
+    let dir = models_dir(shared)?;
+    if let Some(extra) = extra_cache()
+        && extra != app_cache(&dir)
+    {
+        let reg =
+            ml_runtime::ModelRegistry::open(dir.join("models.toml"), &extra).map_err(failure)?;
+        if cached(&reg, id).unwrap_or(false) {
+            return Ok(reg);
+        }
+    }
+    registry(shared)
 }
 
 /// Whether model `id` is cached and hash-verified (never downloads).
@@ -250,12 +288,9 @@ fn cached(reg: &ml_runtime::ModelRegistry, id: &str) -> Result<bool> {
 }
 
 impl DocumentSession {
+    /// Where a missing model is expected: the app cache, where downloads go.
     fn cache_dir(&self) -> Option<std::path::PathBuf> {
-        if let Some(c) = std::env::var_os("TESSERA_RETOUCH_MODEL_CACHE") {
-            return Some(c.into());
-        }
-        let engine = self.shared.engine.upgrade()?;
-        Some(engine.support_dir().ok()?.join("models").join("cache"))
+        models_dir(&self.shared).ok().map(|d| app_cache(&d))
     }
 
     /// `Ok` when model `id` is installed; otherwise the documented error:
@@ -272,9 +307,9 @@ impl DocumentSession {
             _ => "the app's model cache".into(),
         };
         Err(failure(format!(
-            "{what} needs the {id} model weights, which are not installed. Tessera never \
-             downloads weights on its own: the file comes from {url} and is expected, \
-             hash-verified, at {path}"
+            "{what} needs the {id} model weights, which are not installed. The engine never \
+             downloads weights on its own (the app asks first, per Settings ▸ AI ▸ Allow model \
+             downloads): the file comes from {url} and is expected, hash-verified, at {path}"
         )))
     }
 
@@ -483,7 +518,7 @@ impl DocumentSession {
         match backend {
             RemoveBackend::PatchMatch => Ok(("cpu", "PatchMatch", None)),
             RemoveBackend::Lama => {
-                let reg = registry(&self.shared)?;
+                let reg = registry_for(&self.shared, LAMA)?;
                 self.load_cached(&reg, LAMA, "remove", "Remove with LaMa")?;
                 Ok(("onnx", "LaMa", None))
             }
@@ -491,7 +526,7 @@ impl DocumentSession {
                 if LAMA_LOADED.load(Ordering::Relaxed) {
                     return Ok(("auto", "LaMa", None));
                 }
-                let reg = registry(&self.shared)?;
+                let reg = registry_for(&self.shared, LAMA)?;
                 if Self::installed(&reg, LAMA) {
                     self.load_cached(&reg, LAMA, "remove", "Remove with LaMa")?;
                     Ok(("auto", "LaMa", None))
@@ -564,6 +599,7 @@ impl DocumentSession {
     pub fn retouch_models(&self) -> Result<Vec<RetouchModel>> {
         let reg = registry(&self.shared)?;
         let dir = self.cache_dir();
+        let extra = extra_cache();
         Ok([
             (LAMA, "Remove (LaMa)"),
             (DDCOLOR, "Colorize (DDColor)"),
@@ -574,13 +610,21 @@ impl DocumentSession {
         .into_iter()
         .filter_map(|(id, used_by)| {
             let s = reg.models().iter().find(|m| m.id == id)?;
+            let file = format!("{}.onnx", s.sha256);
+            let in_app = Self::installed(&reg, id);
+            // A hand-installed extra cache counts too (and is where it is).
+            let in_extra = !in_app
+                && registry_for(&self.shared, id)
+                    .map(|r| Self::installed(&r, id))
+                    .unwrap_or(false);
+            let at = if in_extra { extra.clone() } else { dir.clone() };
             Some(RetouchModel {
                 model_id: id.into(),
+                version: s.version.clone(),
                 used_by: used_by.into(),
-                installed: Self::installed(&reg, id),
-                cache_path: dir
-                    .as_ref()
-                    .map(|d| d.join(format!("{}.onnx", s.sha256)).display().to_string())
+                installed: in_app || in_extra,
+                cache_path: at
+                    .map(|d| d.join(&file).display().to_string())
                     .unwrap_or_default(),
                 source_url: s.download_url.clone(),
             })
@@ -949,11 +993,11 @@ impl DocumentSession {
         // Weights first: a missing model is the clear error, before any work.
         match kind {
             NeuralFilterKind::Colorize => {
-                let reg = registry(&self.shared)?;
+                let reg = registry_for(&self.shared, DDCOLOR)?;
                 self.load_cached(&reg, DDCOLOR, "neural/colorize", "Colorize")?;
             }
             NeuralFilterKind::JpegArtifactRemoval => {
-                let reg = registry(&self.shared)?;
+                let reg = registry_for(&self.shared, DRUNET)?;
                 self.load_cached(
                     &reg,
                     DRUNET,
@@ -1083,7 +1127,7 @@ fn components(mask: &[f32], w: usize) -> Vec<Vec<u32>> {
 impl DocumentSession {
     /// Face boxes from the face detector (cached weights only).
     fn detect_faces(&self, rgba: &[f32], canvas: Extent) -> Result<Vec<[f32; 4]>> {
-        let reg = registry(&self.shared)?;
+        let reg = registry_for(&self.shared, YUNET)?;
         self.require(&reg, YUNET, "Finding faces")?;
         self.require(&reg, SFACE, "Finding faces")?;
         let mut models = ml_faces::FaceModels::load(&reg, ml_runtime::SessionOptions::default())
