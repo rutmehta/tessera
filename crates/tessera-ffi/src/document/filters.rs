@@ -2906,15 +2906,17 @@ impl DocumentSession {
                 },
             )?
         } else {
-            let output = spec.run(
-                &img,
-                &compositor::render::smart_filters::FilterContext {
-                    profile: base.profile.clone(),
-                    canvas: base.canvas,
-                    level: 0,
-                },
-                &cancel,
-            )?;
+            let output = spec
+                .run(
+                    &img,
+                    &compositor::render::smart_filters::FilterContext {
+                        profile: base.profile.clone(),
+                        canvas: base.canvas,
+                        level: 0,
+                    },
+                    &cancel,
+                )
+                .map_err(FilterEvalError::into_bridge)?;
             self.write_pixels(&base, layer, &output, "Remove Distractions")?
         };
         Ok(DistractionRemovalResult {
@@ -2991,7 +2993,8 @@ impl DocumentSession {
                     canvas: base.canvas,
                 },
                 &cancel,
-            )?
+            )
+            .map_err(FilterEvalError::into_bridge)?
             .crop(region);
         self.write_pixels(&base, layer, &out, &name)
     }
