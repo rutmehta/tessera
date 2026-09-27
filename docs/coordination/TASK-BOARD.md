@@ -1,6 +1,6 @@
 # Tessera task board — Machine A coordinator
 
-Updated: 2026-09-27 22:08 UTC
+Updated: 2026-09-27 22:16 UTC
 
 User mandate: autonomously advance UI/UX redesign **and** the recovered engine
 queue, using parallel GPT-6 Astra/Luna agents; coordinate Machine B and keep
@@ -38,9 +38,14 @@ Machine A as sole main integrator. Do useful work while other tasks wait.
 
 ## Ready / next
 
-A compiler slot: resource Sol is validating frozen viewport candidate `fb4d7df8`.
-Luna's Review persistence candidate passed 47 focused tests after provenance and
-ordinal corrections; evidence packaging and final source review are active. It is
+A compiler slot: engine Sol repairs frame telemetry after frozen `bb020485` failed
+the existing replaced-ring dropped-record assertion. New frame/cache/preview tests
+passed, but the combined gate did not. Original failure is preserved; no merge.
+Cancellation skips the old render-record path; preserve the existing regression
+and add deterministic accounting coverage, then freeze and rerun.
+Viewport merged as `1c0f36b8` after 16 focused and 27 adjacent tests passed.
+Luna's Review persistence candidate `41438202` passed 47 focused tests after
+provenance and ordinal corrections; main integration and GUI preparation are active. It is
 not merged and GUI relaunch is unverified. Earlier failed gates remain preserved.
 Engine Sol independently reviews B frame `f518c03c` and cache `755ac31e` in an
 isolated A candidate; neither has compiled yet. These are next in the build queue.
@@ -97,10 +102,11 @@ B retains Document/frontend remediation. Main B5-16 integration stays held.
 | B5-16 | Tabbed Document inspector / persisted editors | Original six-pass/three-fail evidence retained; repaired Channels/Text pass. Transform interrupted under resource hold. No new B loads; main integration and interactive acceptance remain pending. |
 | RES-B-TIMERS | Two frontend overlay timer lifecycles | DONE bounded slice main261a585f/evidence1c5e16c1. Correction7a58b48 source079092e8 passed19focused/0 and observable tinyGUIflows. Original compile failure6544a1d6 preserved; result21c4f39e completed. No measured timer cadence/CPU/memory or full current-FFI app claim. |
 | RES-B-OUTLINE | Bound pending selection outline work | B2429de2 source; A resource Sol candidate/tests | DONE main5fa0faea, exact tested398acb76/f2309eec Swift bytes.12 tests passed:3 blocked-fetch lifecycle,4 buffer,5 timers. Receipt674d7f3e completed. Already-running synchronous work remains uncancellable. |
-| RES-B-VIEWPORT | Ownership-safe viewport teardown | B63a06a2 source | Accepted9dc8db44; root review blocker: weak controller nil causes attach(nil) to skip local cleanup. Correctionb2f8d85 received/accepted4b930939; exact source review okay, four tiny ownership tests UNRUN pending A slot. |
+| RES-B-VIEWPORT | Ownership-safe viewport teardown | B63a06a2 source | DONE main1c0f36b8, exact fb4d7df8 Swift bytes.16 focused plus27 adjacent passed; evidence c544be51. Original weak-nil blocker corrected b2f8d85. Both result receipts completed. Offscreen Metal/1x1 IOSurface; old FFI19f, no GUI/performance claim. |
 | RES-B-CANCEL | Native preview/bake caller cancellation | B source-only request1a0330c4 | DONE main1fb7e983; exact testedcd07b435/7971a771 Rust/Cargo.5 private plus12 mixed-backend integration tests passed,1 ignored benchmark; strict FFI Clippy passed. Receiptb69c56ca completed. Frame/readback/PSD handles and large-image latency remain separate. |
-| RES-B-FRAME | CPU frame request cancellation | B f518c03c; A engine Sol | Accepted resultb1b6b4dc. Five tests UNRUN; reviewing token lifecycle, callback acceptance and region/copy behavior before A gate. No GPU preemption or readback/PSD claim. |
-| RES-B-CACHE | Byte-bound FFI image cache retention | B source-only request04e1a883 | B source755ac31e received and accepted resultc65a3f7e; seven tiny tests UNRUN. Independent A review and serialized validation pending. Named512MiB plus4entry cap, prefix-copy preflight. Not a process/GPU cap. |
+| RES-B-FRAME | CPU frame request cancellation | B f518c03c; A engine Sol | Accepted resultb1b6b4dc. Five new tests pass at bb020485, but unchanged replaced-ring regression fails because cancelled work has no record. A repairs accounting and reruns; no acceptance yet. No GPU preemption or readback/PSD claim. |
+| RES-B-CACHE | Byte-bound FFI image cache retention | B source-only request04e1a883 | B source755ac31e received and accepted resultc65a3f7e; seven tiny tests pass at bb020485. Combined gate stopped on frame telemetry regression; final strict/repaired gate pending. Named512MiB plus4entry cap, prefix-copy preflight. Not a process/GPU cap. |
+| RES-B-COPY | Cancellable rasterized PSD operation design | B request92b23b0f | Source-only concrete API/writer-atomicity plan requested; queue01a0e4e9 accepted transport and peer commentary confirms receipt; formal Git acceptance pending. No product changes or workloads authorized yet. |
 | B5-15 | Export App Nap fix / performance | B published `aec242f`; export-only improvement does not clear main-thread maxima35.93/58.00ms vs8ms, AppKit layout exception, P19 or memory gates. B owns app fixes; A engine optimization only with explicit evidence/split. |
 | B5-12b | Transform acceptance | Interrupted for resource hold; not accepted. No rerun. |
 | B5-13 | Liquify / move / extend | B owns preserved work and current acceptance. |

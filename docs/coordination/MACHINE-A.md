@@ -4,6 +4,38 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## Combined engine gate found a telemetry regression — 2026-09-27 22:16 UTC
+
+Frozen `bb020485` passed frame5, cache7, preview5, filters12 (one ignored) and
+small-ring1. The unchanged replaced-ring regression then failed: early request
+cancellation suppressed output correctly but skipped dropped-frame accounting.
+Original exit101/log/manifest remain in the external frame-cache evidence folder.
+A engine Sol repairs accounting with a deterministic regression; no merge or
+strict-pass claim yet. Unused import warning also needs correction.
+
+Review recovery now includes a visible persistence warning for nonempty queues;
+that change and its new test are untested until the final current-FFI full Swift
+gate. The isolated two-JPEG relaunch fixture is prepared, with no GUI run yet.
+B peer commentary confirms receipt of PSD design request `92b23b0f`; formal Git
+acceptance is not yet observed. Native notLoaded status does not negate that reply.
+
+## Viewport integrated and final application gate queued — 2026-09-27 22:11 UTC
+
+Main `1c0f36b8` merges viewport ownership/weak-controller cleanup. All 16 focused
+and 27 adjacent tests passed at frozen `fb4d7df8`; root verified all nine source
+hashes and complete Swift tree identity. Evidence `c544be51` and completed Git
+receipts preserve the retained-old-FFI and offscreen-only validation limits.
+
+Frame/cache candidate `bb020485` now owns A's compiler. Review persistence
+`41438202` remains isolated, with 47 focused tests and no GUI acceptance yet.
+After engine gates, assemble one current-source FFI/Swift build and run full
+Swift plus disposable-catalog relaunch checks. No large user catalogs are involved.
+
+B source-only PSD cancellation design request `92b23b0f` was queued through SSH
+as `01a0e4e9-0cc4-73b1-a169-480dc930e0e5`. Queue acceptance is confirmed; peer
+receipt remains pending. Request covers exact operation API and destination
+preservation analysis before product edits, and explicitly preserves B's hold.
+
 ## Active validation and new B candidates — 2026-09-27 22:08 UTC
 
 Review persistence passed 47 focused tests after independent review corrected
