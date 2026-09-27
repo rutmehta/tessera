@@ -4510,6 +4510,7 @@ dependencies = [
  "kamadak-exif",
  "lcms2",
  "library",
+ "merge",
  "ml-caption",
  "ml-embed",
  "ml-enhance",

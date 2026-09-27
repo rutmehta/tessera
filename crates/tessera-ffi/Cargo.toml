@@ -29,6 +29,7 @@ brush = { path = "../brush" }
 selection = { path = "../selection" }
 export = { path = "../export" }
 ml-enhance = { path = "../ml-enhance" }
+merge = { path = "../merge" }
 ml-faces = { path = "../ml-faces" }
 ml-quality = { path = "../ml-quality" }
 ml-caption = { path = "../ml-caption" }

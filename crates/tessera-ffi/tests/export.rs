@@ -481,7 +481,8 @@ fn print_renders_fit_the_box_in_the_chosen_colour_handling() {
     assert!(managed.icc.len() > 100);
 
     let profile_path = f.dir.path().join("printer.icc");
-    std::fs::write(&profile_path, output_profile()).unwrap();
+    let expected_profile = output_profile();
+    std::fs::write(&profile_path, &expected_profile).unwrap();
     let described = describe_printer_profile(profile_path.to_string_lossy().into_owned()).unwrap();
     assert_eq!(described.color_space, "RGB");
     let app = f
@@ -502,7 +503,9 @@ fn print_renders_fit_the_box_in_the_chosen_colour_handling() {
         )
         .unwrap();
     assert_eq!((app.width, app.height, app.channels), (40, 60, 3));
-    assert_eq!(app.icc, output_profile());
+    // ICC creation embeds a timestamp. Compare with the actual input, not a
+    // second profile that may have been generated across a second boundary.
+    assert_eq!(app.icc, expected_profile);
 
     let cmyk = PathBuf::from("/System/Library/ColorSync/Profiles/Generic CMYK Profile.icc");
     if cmyk.exists() {
