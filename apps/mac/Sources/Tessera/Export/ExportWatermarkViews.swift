@@ -94,7 +94,7 @@ struct WatermarkPlacementPreview: View {
             let font = Self.font(path: mark.font, size: max(short * mark.size, 1))
             let text = mark.text.isEmpty ? " " : mark.text
             let measured = (text as NSString).size(withAttributes: [.font: font as NSFont])
-            let angle = CGFloat(mark.rotation) * .pi / 180
+            let angle = CGFloat(mark.rotation) * .pi / 180   // explicit CGFloat: Swift 6.2.4 finds cos(angle) ambiguous
             let rw = measured.width * abs(cos(angle)) + measured.height * abs(sin(angle))
             let rh = measured.height * abs(cos(angle)) + measured.width * abs(sin(angle))
             let o = mark.origin(markWidth: rw, markHeight: rh, width: w, height: h)

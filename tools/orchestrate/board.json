@@ -1254,5 +1254,13 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "B5-07",
+    "owner": "opus",
+    "title": "Layer Style inspector and global light",
+    "status": "merged",
+    "attempts": 0,
+    "notes": "machine B; wp/B5-07 merged with main c1f95e1; document/styles.rs + CPU style fallback in render.rs; 254 XCTest; styled frames slow/failing >=16 MP until M5-31"
   }
 ]

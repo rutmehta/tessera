@@ -1757,3 +1757,77 @@ shows the inline failure with its reason and nothing is recorded.
 | `detail-ai-denoise-model` · `lensblur-model` (and `-retry`) | Inline model progress / failure rows |
 | `lensblur-visualize-depth` · `lensblur-subject` · `lensblur-error` · `lensblur-busy` | Lens Blur depth tools |
 | `transform-guides-uncorrected` | Guided Upright's uncorrected-view hint |
+
+## AD. Layer styles and Global Light (B5-07)
+
+Setup: an engine build (`Support/make-app.sh`), a scratch folder `$SCR` with an empty `shoot` folder, and a small
+document. Styled layers are composited on the CPU (the Metal resident renderer does not draw effects yet), so a
+1000 × 700 document redraws in about 0.5–1 s per change; larger documents are slow, and above 16.7 million
+pixels (canvas plus effect padding) styled frames fail with "style alpha canvas exceeds CPU pixel limit"
+(IMPLEMENTATION-STATUS.md of WP B5-07). Steps 300–312 use File ▸ New Document at 1000 × 700.
+
+300. **Two shapes.** On the first layer, Select ▸ All, Edit ▸ Fill… with a light grey, deselect. Add two pixel
+     layers, *Shape A* and *Shape B*, each with a filled rectangular selection (orange), well apart.
+301. **Drop Shadow.** Select Shape A, Layer ▸ Layer Style ▸ Drop Shadow…. The Layer Style panel opens (title
+     *Layer Style*, subtitle *Shape A*) with Drop Shadow checked and selected; a shadow appears down-right of the
+     shape (Global Light 120°). History gains one *Drop Shadow* row. The Layers panel shows an fx glyph on
+     Shape A and, under it, a *Drop Shadow* row with an eye.
+302. **Live drag, one node.** Drag Distance to about 28 px and Size to about 12 px: the canvas follows the drag;
+     each release adds exactly one *Drop Shadow* history row.
+303. **Stroke.** Check Stroke in the panel's list: a 3 px black stroke appears outside the edge. Set Size 6 px and
+     the colour well to blue. Stroke is listed above Drop Shadow (the engine's stacking order), in the panel and
+     under Shape A in the Layers panel.
+304. **Repeat an effect.** Click "+" on the Stroke row: a second Stroke appears above the first (both listed);
+     the "−"/trash button removes the selected one. Bevel & Emboss, Satin, the glows and Pattern Overlay have no
+     "+" beyond one instance of the non-repeatable kinds.
+305. **Fill 0 %, effects stay.** Select Blending Options in the panel and drag Fill Opacity to 0 %: the orange
+     interior disappears while the stroke and shadow stay (the shadow shows through the empty interior: the
+     engine has no "Layer Knocks Out Drop Shadow" yet). The Properties panel lists *Stroke* and *Drop Shadow*
+     under Layer Style.
+306. **Second shape.** Double-click Shape B's row away from its name: the panel switches to Shape B (Blending
+     Options). Check Drop Shadow; set Distance 28 px.
+307. **Global Light across two layers.** Layer ▸ Layer Style ▸ Global Light…: the panel says "2 layers use it".
+     Drag the dial (or Angle) from 120° to 30°: both shadows swing to the lower left together; one *Global Light*
+     history row on release. In the Layer Style panel both shadows show *Angle (global)* 30°.
+308. **Local angle.** On Shape B's Drop Shadow, uncheck Use Global Light (the angle stays 30°), then set its Angle
+     to 90°: only Shape B's shadow moves. Undo twice to return it to the global light.
+309. **Undo / redo.** ⌘Z undoes *Global Light*: both shadows return to 120°. ⇧⌘Z redoes it.
+310. **Copy / paste / clear.** With Shape A selected, Layer ▸ Layer Style ▸ Copy Layer Style; select Shape B,
+     Paste Layer Style (one *Paste Layer Style* row; Shape B gets Stroke and Drop Shadow); Clear Layer Style
+     (one row); undo.
+311. **Locked and unstyleable layers.** Lock All on Shape A: the panel shows a *Locked* chip and its controls are
+     disabled; Layer ▸ Layer Style's effect items and Clear Layer Style are disabled, and a style edit
+     from anywhere else reports that the layer is locked. On an adjustment layer, the effects are disabled with a
+     warning line. Unlock.
+312. **Save PSD, reopen.** File ▸ Save As… `Styles.psd`, close the document, open `Styles.psd`: Shape A has
+     Stroke and Drop Shadow with Fill 0 %, Shape B its Drop Shadow, Global Light 30° (Layer ▸ Layer Style ▸
+     Global Light…). Effects PSD cannot store (bevel, satin, gradient / pattern overlays, repeated effects,
+     gradient strokes) make Save As PSD fail with a message instead of being dropped; `.tessera-doc` keeps
+     everything.
+313. **Metadata only.** Open a PSD whose effects have contours: the effect's editor lists *Contour* (and for
+     Bevel & Emboss *Texture*) under "Kept, not rendered"; no working controls for them. Saving keeps them.
+314. **Scripted run.**
+     ```sh
+     apps/mac/build/Tessera.app/Contents/MacOS/Tessera --folder "$SCR/shoot" --app-dir "$SCR/appdir" \
+       --styles-selftest "$SCR/out" 2>&1 | grep styles-selftest
+     ```
+     Runs 300–312 through the controller (shapes, drop shadow + stroke with a one-node drag, Fill 0 %, a second
+     shadow, Global Light 120° → 30°, undo, redo, save `.tessera-doc` and PSD, close, reopen the PSD) and prints
+     `step <n> <name> window … panel …` for `screencapture -R`. Expect 15 `check … ok` and `done, 0 failure(s)`.
+
+## Verdict (layer styles)
+
+PASS when steps 300–314 meet their expectations. Frame times on styled documents are recorded, not gated
+(the CPU fallback is a stopgap until effects render on the GPU).
+
+## Appendix: accessibility identifiers (B5-07)
+
+| Identifier | Element |
+| --- | --- |
+| `document.layerStyle` (panel) · `document.layerStyle.list` · `.detail` · `.done` · `.addMenu` · `.delete` · `.globalLight` | Layer Style panel |
+| `document.layerStyle.row.blending` · `document.layerStyle.row.<kind>[.<index>]` · `document.layerStyle.enable.<kind>[.<index>]` · `document.layerStyle.add.<kind>.<index>` | Effect list (kind = serde name, e.g. `drop_shadow`) |
+| `document.layerStyle.<kind>.<key>` (e.g. `document.layerStyle.drop_shadow.distance`, `.dial` for angles, `.fill.color`) · `document.layerStyle.editor.<kind>` · `document.layerStyle.<kind>.metadata.<key>` | Effect editors |
+| `document.layerStyle.opacity` · `.fill` · `.scale` | Blending Options |
+| `document.globalLight` (panel) · `document.globalLight.dial` · `.angle` · `.altitude` · `.done` | Global Light panel |
+| `document.layers.addStyle` · `document.layers.fx.<layer>` · `document.layers.effect.<layer>.<index>` · `.visibility` · `.name` | Layers panel fx button, glyph and effect rows |
+| `document.properties.style.<index>` · `document.properties.style.edit` | Properties summary |

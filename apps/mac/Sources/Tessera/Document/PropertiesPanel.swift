@@ -31,6 +31,7 @@ struct PropertiesPanel: View {
                     InfoRow(label: "Mask", value: (n.maskEnabled ? "On" : "Off") + (n.maskLinked ? " · linked" : " · unlinked"))
                 }
                 editor(n)
+                LayerStylesSummary(document: document, layer: n)   // B5-07
             }
             .onAppear { name = n.name }
             .onChange(of: n.id) { _, _ in name = n.name }

@@ -149,7 +149,45 @@ struct GpuBackend {
     scratch: Option<wgpu::Texture>,
     /// IOSurface textures by surface id (imported once per attached surface).
     targets: HashMap<u32, wgpu::Texture>,
+    // B5-07 begin: CPU fallback for documents the resident program refuses
+    // (layer styles). Created on first use; `cpu_frames` logs switches.
+    cpu: Option<Box<Compositor>>,
+    cpu_frames: bool,
+    // B5-07 end
 }
+
+// B5-07 begin
+impl GpuBackend {
+    /// Renders `level` on the GPU, or `None` when the resident program does
+    /// not support the document (layer styles need the CPU compositor).
+    fn render_or_refuse(
+        &mut self,
+        doc: &Document,
+        level: u8,
+    ) -> EngineResult<Option<compositor::resident::FrameReport>> {
+        let cpu = match self.resident.render(doc, level) {
+            Ok(report) => Some(report),
+            Err(EngineError::Unsupported { what }) => {
+                if !self.cpu_frames {
+                    eprintln!("document: frames composited on the CPU ({what})");
+                }
+                None
+            }
+            Err(e) => return Err(e),
+        };
+        if cpu.is_some() && self.cpu_frames {
+            eprintln!("document: frames composited on the GPU again");
+        }
+        self.cpu_frames = cpu.is_none();
+        Ok(cpu)
+    }
+
+    fn cpu(&mut self) -> &Compositor {
+        self.cpu
+            .get_or_insert_with(|| Box::new(Compositor::new(256 << 20)))
+    }
+}
+// B5-07 end
 
 impl GpuBackend {
     /// Presents `src` of a rendered level top-left into `surface`, straight
@@ -285,6 +323,8 @@ impl Renderer {
                     resident,
                     scratch: None,
                     targets: HashMap::new(),
+                    cpu: None,         // B5-07
+                    cpu_frames: false, // B5-07
                 })),
             ),
             other => {
@@ -354,8 +394,13 @@ impl Renderer {
         let mut backend = self.backend.lock().map_err(failure)?;
         let (e, v) = match &mut *backend {
             Backend::Gpu(g) => {
-                g.resident.render(doc, level)?;
-                g.resident.read_level(level, false)?
+                // B5-07 begin: styled documents read back from the CPU compositor.
+                if g.render_or_refuse(doc, level)?.is_none() {
+                    g.cpu().render_level_rgba(doc, level)?
+                } else {
+                    g.resident.read_level(level, false)?
+                }
+                // B5-07 end
             }
             Backend::Cpu(c) => c.render_level_rgba(doc, level)?,
             Backend::Stopped => return Err(failure("document is closed")),
@@ -440,10 +485,22 @@ fn present_frame(shared: &Arc<Shared>, since: Instant) -> Result<Option<DocFrame
         match &mut *backend {
             Backend::Gpu(g) => {
                 g.targets.retain(|id, _| attached.contains(id));
-                report = g.resident.render(doc, level)?;
-                drop(st);
-                g.present(level, src, &surface)?;
-                g.resident.wait()?;
+                // B5-07 begin: frames the resident program refuses (layer
+                // styles) are composited on the CPU, as the Cpu arm does.
+                match g.render_or_refuse(doc, level)? {
+                    Some(r) => {
+                        report = r;
+                        drop(st);
+                        g.present(level, src, &surface)?;
+                        g.resident.wait()?;
+                    }
+                    None => {
+                        cpu_present(g.cpu(), doc, level, src, &surface)?;
+                        report.full = true;
+                        drop(st);
+                    }
+                }
+                // B5-07 end
             }
             Backend::Cpu(c) => {
                 cpu_present(c, doc, level, src, &surface)?;

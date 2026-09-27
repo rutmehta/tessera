@@ -94,6 +94,7 @@ struct LayersPanel: View {
                 .menuStyle(IconMenuStyle())
                 .help("New adjustment layer")
                 .accessibilityIdentifier("document.layers.addAdjustment")
+            LayerStyleFooterButton(document: document)   // B5-07
             Spacer(minLength: 0)
             IconButton(symbol: "folder.badge.plus", help: "Group the selected layers (⌘G)") { document.groupSelection() }
                 .accessibilityIdentifier("document.layers.group")
