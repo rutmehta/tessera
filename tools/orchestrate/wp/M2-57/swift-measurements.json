@@ -1,0 +1,66 @@
+{
+  "configuration": "release Swift, release Rust archive",
+  "samples": [
+    {
+      "pending": 24,
+      "active": 4,
+      "subscribers": 24,
+      "delivered": 24,
+      "trace_ms": 648.3878334984183,
+      "load": [
+        15.01318359375,
+        27.2880859375,
+        32.9345703125
+      ]
+    },
+    {
+      "pending": 24,
+      "active": 4,
+      "subscribers": 24,
+      "delivered": 24,
+      "trace_ms": 1086.831208318472,
+      "load": [
+        14.2109375,
+        26.91796875,
+        32.7705078125
+      ]
+    },
+    {
+      "pending": 24,
+      "active": 4,
+      "subscribers": 24,
+      "delivered": 24,
+      "trace_ms": 1194.6105835959315,
+      "load": [
+        13.55322265625,
+        26.5703125,
+        32.61328125
+      ]
+    },
+    {
+      "pending": 24,
+      "active": 4,
+      "subscribers": 24,
+      "delivered": 24,
+      "trace_ms": 1139.896625187248,
+      "load": [
+        13.55322265625,
+        26.5703125,
+        32.61328125
+      ]
+    },
+    {
+      "pending": 24,
+      "active": 4,
+      "subscribers": 24,
+      "delivered": 24,
+      "trace_ms": 783.34845835343,
+      "load": [
+        13.55322265625,
+        26.5703125,
+        32.61328125
+      ]
+    }
+  ],
+  "median_trace_ms": 1086.831208318472
+}

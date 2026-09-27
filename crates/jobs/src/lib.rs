@@ -1,7 +1,9 @@
 //! Cooperative, priority-ordered background work (spec 08 §2).
 //!
 //! Dequeue and transition to Running are atomic under one lock: a worker never
-//! picks a less urgent job while a more urgent job is ready. Equal priorities
+//! picks a less urgent job while a more urgent job is ready in the default pool.
+//! The opt-in reserved pool bounds background starvation with FIFO service every
+//! ninth admission on shared workers. Equal priorities
 //! use submission order, including after reprioritization. Running jobs are not
 //! pre-empted. Long jobs must poll cancellation and yield per tile; to yield a
 //! worker to higher-priority work, split work into separately submitted tiles.
@@ -64,6 +66,22 @@ pub struct ThreadPoolScheduler {
 impl ThreadPoolScheduler {
     /// Starts `worker_count` workers. Panics for zero or thread creation failure.
     pub fn new(worker_count: usize) -> Self {
+        Self::build(worker_count, false)
+    }
+
+    /// Reserves one worker exclusively for Ui/Viewport jobs. Other workers
+    /// remain shared, serving the oldest background job at least every ninth
+    /// admission when one is queued (otherwise priority/FIFO order). This bounds
+    /// starvation in completed jobs, not time: running jobs must finish/yield.
+    /// Requires at least two workers so background work can
+    /// progress. Unlike `new`, this opts into admission and background fairness.
+    /// Running jobs are never preempted; this is not a real-time guarantee.
+    pub fn with_interactive_reservation(worker_count: usize) -> Self {
+        assert!(worker_count >= 2, "reservation needs at least two workers");
+        Self::build(worker_count, true)
+    }
+
+    fn build(worker_count: usize, reserved: bool) -> Self {
         assert!(worker_count > 0, "a scheduler needs at least one worker");
         let mut pool = Self {
             shared: Arc::new(Shared::default()),
@@ -74,7 +92,7 @@ impl ThreadPoolScheduler {
             pool.workers.push(
                 thread::Builder::new()
                     .name(format!("jobs-{index}"))
-                    .spawn(move || worker(shared))
+                    .spawn(move || worker(shared, reserved && index == 0, reserved))
                     .expect("could not spawn job worker"),
             );
         }
@@ -119,7 +137,7 @@ impl Scheduler for ThreadPoolScheduler {
             },
         );
         drop(state);
-        self.shared.wake.notify_one();
+        self.shared.wake.notify_all();
         JobHandle {
             id,
             cancellation: token,
@@ -144,6 +162,8 @@ impl Scheduler for ThreadPoolScheduler {
                 }
             }
         }
+        drop(state);
+        self.shared.wake.notify_all();
     }
 
     fn cancel(&self, target: JobTarget) {
@@ -257,17 +277,47 @@ impl ProgressSink for Progress {
     }
 }
 
-fn worker(shared: Arc<Shared>) {
+fn worker(shared: Arc<Shared>, interactive_only: bool, fair: bool) {
+    // Every ninth shared-worker admission services the oldest background job,
+    // regardless of its priority. Finite jobs therefore cannot be starved by
+    // either a continuous UI stream or newer, higher-priority background work.
+    let mut admissions = 0usize;
     loop {
         let (id, job, token, cancelled) = {
             let mut state = shared.state.lock().unwrap();
-            while state.ready.is_empty() && !state.shutdown {
+            let key = loop {
+                if state.shutdown {
+                    return;
+                }
+                let background = if fair && !interactive_only && admissions >= 8 {
+                    state
+                        .ready
+                        .iter()
+                        .copied()
+                        .filter(|(priority, _)| !priority.is_interactive())
+                        .min_by_key(|(_, id)| *id)
+                } else {
+                    None
+                };
+                let next = background.or_else(|| {
+                    state
+                        .ready
+                        .first()
+                        .copied()
+                        .filter(|(priority, _)| !interactive_only || priority.is_interactive())
+                });
+                if let Some(key) = next {
+                    if background.is_some() {
+                        admissions = 0;
+                    } else {
+                        admissions = admissions.saturating_add(1).min(8);
+                    }
+                    break key;
+                }
                 state = shared.wake.wait(state).unwrap();
-            }
-            if state.shutdown {
-                return;
-            }
-            let (_, id) = state.ready.pop_first().unwrap();
+            };
+            state.ready.remove(&key);
+            let (_, id) = key;
             let record = state.records.get_mut(&id).unwrap();
             let cancelled = record.token.is_cancelled();
             record.status = if cancelled {

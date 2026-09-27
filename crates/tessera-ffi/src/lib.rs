@@ -309,7 +309,7 @@ impl Engine {
             db,
             catalog: Mutex::new(Catalog { index, reader }),
             previews,
-            jobs: jobs::ThreadPoolScheduler::new(3),
+            jobs: jobs::ThreadPoolScheduler::with_interactive_reservation(3),
             renderer: std::sync::OnceLock::new(),
             segmenter: Default::default(),
             faces: Mutex::new(None),
