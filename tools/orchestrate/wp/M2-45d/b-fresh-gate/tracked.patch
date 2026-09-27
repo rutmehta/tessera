@@ -1,0 +1,305 @@
+diff --git a/apps/tessera-cli/src/export.rs b/apps/tessera-cli/src/export.rs
+index e2e7a650a62f636ad7f0cf74f62b3afb20554b3f..9f634a2705794f231c1f7602b4628a7bc3e0c9a2 100644
+--- a/apps/tessera-cli/src/export.rs
++++ b/apps/tessera-cli/src/export.rs
+@@ -27,6 +27,9 @@ pub struct Options {
+     /// HDR transfer. Requires Rec.2020 PNG16 or AVIF10/12; headroom comes from the recipe.
+     #[arg(long, value_parser = ["pq", "hlg"])]
+     hdr: Option<String>,
++    /// ISO gain-map JPEG with an sRGB SDR base; requires HDR recipe headroom.
++    #[arg(long, conflicts_with = "hdr")]
++    gain_map: bool,
+     /// AVIF encoding speed, 1 (slow) through 10 (fast).
+     #[arg(long, default_value_t = 6, value_parser = clap::value_parser!(u8).range(1..=10))]
+     avif_speed: u8,
+@@ -135,6 +138,16 @@ fn is_image(path: &Path) -> bool {
+ }
+ 
+ fn settings(options: &Options) -> Result<ExportSettings> {
++    if options.gain_map {
++        ensure!(
++            options.format == "jpeg"
++                && options.color_space == "srgb"
++                && options.hdr.is_none()
++                && options.watermark.is_none()
++                && options.upscale.is_none(),
++            "--gain-map requires sRGB JPEG without PQ/HLG, watermark or upscaling"
++        );
++    }
+     if options.hdr.is_some() {
+         ensure!(
+             options.color_space == "rec2020"
+@@ -200,6 +213,7 @@ fn settings(options: &Options) -> Result<ExportSettings> {
+         Resize::None
+     };
+     Ok(ExportSettings {
++        gain_map: options.gain_map,
+         hdr: options.hdr.as_deref().map(|v| {
+             if v == "pq" {
+                 export::HdrTransfer::Pq
+diff --git a/crates/engine-api/src/tools.rs b/crates/engine-api/src/tools.rs
+index b71879699745ab0328044edaa3a91da906eecc93..c1cf322b20574d194f0def303b89d658c538ea63 100644
+--- a/crates/engine-api/src/tools.rs
++++ b/crates/engine-api/src/tools.rs
+@@ -36,10 +36,10 @@ use crate::id::{
+     ChannelId, DocumentId, HistoryEntryId, HistoryGroupId, ImageId, JobId, LayerId, MaskId,
+     PersonId, SelectionId, SimilarityGroupId, StyleId,
+ };
++use crate::recipe::RecipeHash;
+ use crate::recipe::mask::{LocalParams, MaskComponent};
+ use crate::recipe::selection::{Decision, Grade, Mark};
+ use crate::recipe::settings::NormalizedRect;
+-use crate::recipe::RecipeHash;
+ 
+ /// Partial update of global tone and colour controls. `None` leaves a
+ /// control unchanged. Units as in [`crate::recipe::settings`].
+@@ -255,7 +255,7 @@ pub struct ExportSettings {
+     /// Write HDR (gain map or PQ/HLG, format permitting).
+     #[serde(default)]
+     pub hdr: bool,
+-    /// PQ by default when HDR is enabled. Must be omitted for SDR.
++    /// PQ by default for HDR PNG/AVIF. Must be omitted for SDR and gain-map JPEG.
+     #[serde(default)]
+     pub hdr_transfer: Option<HdrTransfer>,
+     /// AVIF sample precision. Defaults to 10 in HDR, 8 in SDR; allowed 8/10/12.
+diff --git a/crates/export/src/hdr.rs b/crates/export/src/hdr.rs
+index d88b2093f0737ac8d5d18c8be029241a3a464dc5..d7d4c8548d2fc68901fd3c9750a09c1a0cb3f76b 100644
+--- a/crates/export/src/hdr.rs
++++ b/crates/export/src/hdr.rs
+@@ -24,7 +24,7 @@ pub(crate) fn validate(settings: &ExportSettings) -> EngineResult<()> {
+     Ok(())
+ }
+ 
+-fn headroom(recipe: &Recipe, transfer: HdrTransfer) -> EngineResult<f32> {
++pub(crate) fn headroom(recipe: &Recipe, transfer: HdrTransfer) -> EngineResult<f32> {
+     let stops = recipe.settings.output.hdr_headroom_stops;
+     if !stops.is_finite() || !(0.0..=16.0).contains(&stops) {
+         return Err(encode_error("HDR headroom must be finite and 0–16 stops"));
+@@ -51,7 +51,9 @@ pub(crate) fn render(
+     settings: &ExportSettings,
+     cancel: &CancellationToken,
+ ) -> EngineResult<image::Rgb32FImage> {
+-    let headroom = headroom(recipe, settings.hdr.expect("HDR render selected"))?;
++    // Gain-map output shares the PQ display-linear rendition and peak ceiling,
++    // but encodes its SDR base and logarithmic ratio without applying PQ.
++    let headroom = headroom(recipe, settings.hdr.unwrap_or(HdrTransfer::Pq))?;
+     let mut develop = recipe.settings.clone();
+     // These output controls are consumed here, not by the scene renderer.
+     develop.output.proof_profile = None;
+diff --git a/crates/export/src/lib.rs b/crates/export/src/lib.rs
+index ea11b2a505eafbb9023915cea025741c03990a77..c3decaa8bfc002538aa01636be8f9f026ce4fe18 100644
+--- a/crates/export/src/lib.rs
++++ b/crates/export/src/lib.rs
+@@ -7,6 +7,7 @@ pub use mask_ai;
+ mod avif;
+ mod codec;
+ mod dng;
++mod gain_map;
+ mod hdr;
+ pub use engine_api::tools::HdrTransfer;
+ mod jxl;
+@@ -102,8 +103,11 @@ pub enum Metadata {
+ #[derive(Clone, Debug)]
+ pub struct ExportSettings {
+     pub format: Format,
+-    /// HDR PNG uses 16-bit samples; HDR AVIF requires 10/12 bits. None is SDR.
++    /// HDR PNG uses 16-bit samples; HDR AVIF requires 10/12 bits.
++    /// None selects SDR unless `gain_map` is enabled.
+     pub hdr: Option<HdrTransfer>,
++    /// ISO 21496-1 gain-map JPEG with an sRGB SDR base. Requires HDR recipe headroom.
++    pub gain_map: bool,
+     pub color_space: ColorSpace,
+     pub metadata: Metadata,
+     /// Remove named regions and associated person keywords across native/XMP carriers.
+@@ -146,6 +150,7 @@ impl Default for ExportSettings {
+         Self {
+             format: Format::Jpeg { quality: 90 },
+             hdr: None,
++            gain_map: false,
+             color_space: ColorSpace::Srgb,
+             metadata: Metadata::All,
+             remove_person_info: false,
+@@ -447,6 +452,8 @@ pub struct RenderedExport {
+     rgb: image::Rgb32FImage,
+     packet: Option<XmpPacket>,
+     native: native::Native,
++    gain_map_headroom: f32,
++    gain_map_clip: bool,
+     settings: ExportSettings,
+     path: PathBuf,
+     side_path: PathBuf,
+@@ -488,7 +495,19 @@ pub fn render_one_cancellable(
+     settings.format.validate()?;
+     dng::validate(settings)?;
+     hdr::validate(settings)?;
+-    if settings.hdr.is_some()
++    gain_map::validate(settings)?;
++    let gain_map_headroom = if settings.gain_map {
++        let headroom = hdr::headroom(recipe, HdrTransfer::Pq)?;
++        if headroom <= 1.0 {
++            return Err(encode_error(
++                "gain-map JPEG requires positive HDR headroom in the recipe",
++            ));
++        }
++        headroom
++    } else {
++        1.0
++    };
++    if (settings.hdr.is_some() || settings.gain_map)
+         && (upscale.is_some()
+             || ai_masks::active(&recipe.settings)
+             || depth::active(&image.source, &recipe.settings))
+@@ -547,6 +566,7 @@ pub fn render_one_cancellable(
+     let needs_hooks = depth::active(&image.source, &recipe.settings);
+     let mut warnings = Vec::new();
+     let gpu_pixels = if settings.hdr.is_none()
++        && !settings.gain_map
+         && !matches!(settings.format, Format::Dng)
+         && upscale.is_none()
+         && !needs_hooks
+@@ -576,7 +596,7 @@ pub fn render_one_cancellable(
+     let already_resized = gpu_pixels.is_some();
+     let mut used_gpu = already_resized;
+     let started = std::time::Instant::now();
+-    let rgb = if settings.hdr.is_some() {
++    let rgb = if settings.hdr.is_some() || settings.gain_map {
+         hdr::render(image, recipe, settings, cancel)?
+     } else if matches!(settings.format, Format::Dng) {
+         let rgb = if ai_masks::active(&recipe.settings) {
+@@ -682,6 +702,9 @@ pub fn render_one_cancellable(
+         rgb,
+         packet,
+         native,
++        gain_map_headroom,
++        gain_map_clip: recipe.settings.output.gamut_mapping
++            == engine_api::recipe::settings::GamutMapping::Clip,
+         settings: settings.clone(),
+         path,
+         side_path,
+@@ -698,6 +721,8 @@ fn encode_rendered(
+         rgb,
+         packet,
+         native,
++        gain_map_headroom,
++        gain_map_clip,
+         settings,
+         path,
+         side_path,
+@@ -706,7 +731,20 @@ fn encode_rendered(
+     fs::create_dir_all(&settings.output_dir)
+         .map_err(|e| EngineError::io_at(&settings.output_dir, &e))?;
+     let mut temp = new_output_temp(&settings.output_dir)?;
+-    if settings.hdr.is_some() {
++    if settings.gain_map {
++        gain_map::encode(
++            temp.as_file_mut(),
++            &rgb,
++            &settings,
++            gain_map::Metadata {
++                headroom: gain_map_headroom,
++                clip: gain_map_clip,
++                native: &native,
++                xmp: packet.as_ref().map(XmpPacket::serialize),
++            },
++            cancel,
++        )?;
++    } else if settings.hdr.is_some() {
+         hdr::encode(
+             temp.as_file_mut(),
+             &rgb,
+diff --git a/crates/tessera-ffi/src/export.rs b/crates/tessera-ffi/src/export.rs
+index ee89cece0848fc560e8ef9ff4e166ae3f55f1603..bf5aa94b1aac535c70e3c0be51315474226e918d 100644
+--- a/crates/tessera-ffi/src/export.rs
++++ b/crates/tessera-ffi/src/export.rs
+@@ -155,6 +155,8 @@ pub struct ExportOptions {
+     pub bit_depth: u8,
+     /// PQ/HLG Rec.2020 output; null keeps SDR. PNG requires 16 bits, AVIF 10/12.
+     pub hdr: Option<export::HdrTransfer>,
++    /// ISO gain-map JPEG with an sRGB SDR base; requires HDR recipe headroom.
++    pub gain_map: bool,
+     pub color_space: DocumentSpace,
+     pub resize: ResizeOptions,
+     /// Recorded in the file; converts inch/cm sizes to pixels.
+@@ -191,6 +193,7 @@ impl Default for ExportOptions {
+             watermark: None,
+             bit_depth: 8,
+             hdr: None,
++            gain_map: false,
+             color_space: DocumentSpace::Srgb,
+             resize: ResizeOptions::default(),
+             dpi: 72,
+@@ -236,6 +239,17 @@ impl ExportOptions {
+     /// Everything but the destination (checked when a batch runs).
+     pub fn validate(&self) -> Result<()> {
+         self.after_export.validate()?;
++        if self.gain_map
++            && (self.format != FileFormat::Jpeg
++                || self.color_space != DocumentSpace::Srgb
++                || self.hdr.is_some()
++                || self.watermark.is_some()
++                || self.upscale != 1)
++        {
++            return Err(failure(
++                "gain_map requires sRGB JPEG without PQ/HLG, watermark or upscaling",
++            ));
++        }
+         if self.hdr.is_some() {
+             if self.color_space != DocumentSpace::Rec2020
+                 || !((self.format == FileFormat::Png && self.bit_depth == 16)
+@@ -369,6 +383,7 @@ impl ExportOptions {
+             },
+             color_space: self.color_space.into(),
+             hdr: self.hdr,
++            gain_map: self.gain_map,
+             metadata: match self.metadata {
+                 MetadataPolicy::All => export::Metadata::All,
+                 MetadataPolicy::Copyright => export::Metadata::CopyrightOnly,
+diff --git a/crates/tessera-mcp/src/exports.rs b/crates/tessera-mcp/src/exports.rs
+index 92ef3639f96d717e6cc105bceffa2189afed1d94..d5331f8d01552572bd273443db72c33ed60993f6 100644
+--- a/crates/tessera-mcp/src/exports.rs
++++ b/crates/tessera-mcp/src/exports.rs
+@@ -85,6 +85,13 @@ impl Console {
+                 "custom ICC handles need a registry/output mapping",
+             ));
+         }
++        let gain_map = settings.hdr && matches!(settings.format, ExportFormat::Jpeg { .. });
++        if gain_map && settings.hdr_transfer.is_some() {
++            return Err(EngineError::invalid(
++                "hdr_transfer",
++                "JPEG HDR uses a gain map; omit PQ/HLG transfer",
++            ));
++        }
+         if !settings.hdr && settings.hdr_transfer.is_some() {
+             return Err(EngineError::invalid("hdr_transfer", "requires hdr=true"));
+         }
+@@ -105,10 +112,14 @@ impl Console {
+         if settings.hdr
+             && !matches!(
+                 settings.format,
+-                ExportFormat::Png { bit_depth: 16 } | ExportFormat::Avif { .. }
++                ExportFormat::Jpeg { .. }
++                    | ExportFormat::Png { bit_depth: 16 }
++                    | ExportFormat::Avif { .. }
+             )
+         {
+-            return Err(unsupported("HDR requires PNG16 or AVIF10/12"));
++            return Err(unsupported(
++                "HDR requires gain-map JPEG, PNG16 or AVIF10/12",
++            ));
+         }
+         if settings.hdr && avif_bits == 8 {
+             return Err(unsupported("HDR AVIF requires 10/12 bits"));
+@@ -157,10 +168,10 @@ impl Console {
+         };
+         let options = export::ExportSettings {
+             format,
+-            hdr: settings
+-                .hdr
++            gain_map,
++            hdr: (settings.hdr && !gain_map)
+                 .then_some(settings.hdr_transfer.unwrap_or(export::HdrTransfer::Pq)),
+-            color_space: if settings.hdr {
++            color_space: if settings.hdr && !gain_map {
+                 export::ColorSpace::Rec2020
+             } else {
+                 export::ColorSpace::Srgb

@@ -1,0 +1,10 @@
+{
+  "root_chat_id": "01a0e327-1570-7d83-bc33-7ed882318eea",
+  "pid": 62163,
+  "start_utc": "2026-09-27T18:33:48.366220+00:00",
+  "status": "completed: diagnostic captured; original core gate still failed",
+  "checkout": "/Users/rutmehta/Developer/lightroom/.worktrees/B5-16a",
+  "source_snapshot": "0c94c47d11d8375e07c4827ad0ae1c069981e6c5ede91786734409e166a853a6",
+  "command": "one canonical capture test then existing native probe, no host gates",
+  "updated_utc": "2026-09-27T18:33:55.975090+00:00"
+}

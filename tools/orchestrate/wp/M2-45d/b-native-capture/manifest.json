@@ -1,0 +1,117 @@
+{
+  "start_utc": "2026-09-27T18:33:48.366595+00:00",
+  "source_manifest": {
+    "base": "69bcd3e5d3d30ac334720ec6a02e1688b6f6b5cb",
+    "tracked": [
+      "apps/tessera-cli/src/export.rs",
+      "crates/engine-api/src/tools.rs",
+      "crates/export/src/hdr.rs",
+      "crates/export/src/lib.rs",
+      "crates/tessera-ffi/src/export.rs",
+      "crates/tessera-mcp/src/exports.rs"
+    ],
+    "untracked": [
+      "crates/export/src/gain_map.rs",
+      "crates/export/tests/gain_map.rs",
+      "crates/export/tests/support/gain_map_fixture.rs",
+      "crates/export/tests/support/gain_map_imageio.rs",
+      "apps/tessera-cli/tests/gain_map_hosts.rs",
+      "crates/tessera-ffi/tests/gain_map_hosts.rs",
+      "crates/tessera-mcp/tests/gain_map_hosts.rs"
+    ],
+    "source_sha256": {
+      "apps/tessera-cli/src/export.rs": "9d3c37bfe43e8e8ceb7368ac1d1a370ed2f19d3345c75008c6e541eb8eb82db5",
+      "crates/engine-api/src/tools.rs": "343c897939ee5f00e01c1466a8f927f37dbb9316efbe66d32c38b5ae90e04d36",
+      "crates/export/src/hdr.rs": "9492bfd3d345ca6eb02cfba6b3eecd7db58d2b09c6e89e6fc7773d4fa1ff3c42",
+      "crates/export/src/lib.rs": "ee8deaa4b0eea1c0437b3ccde7d9e5c813cc7edfbc19151c611544b11eabbf71",
+      "crates/tessera-ffi/src/export.rs": "90ae22e4a7403ec10559f24a5ffc0241faf0c75dcb3a60abb108c1b5eec4ed82",
+      "crates/tessera-mcp/src/exports.rs": "16f1705dc060bffc9658de89c66a04c6fea5191d0e897b2524616b246c71219a",
+      "crates/export/src/gain_map.rs": "ca69cbb41b8e5901bdb1f5286a36ca7c2b3f0c81b4018c5ab6442d319fbb3dec",
+      "crates/export/tests/gain_map.rs": "7e6b5555ebb43d79b925bc8c1424b0588a97537ea97dd3851dff9284fe7b1089",
+      "crates/export/tests/support/gain_map_fixture.rs": "914e4ee45c347f4a057aa036a647af69cf3a27c00352c99e89368a2da60d4674",
+      "crates/export/tests/support/gain_map_imageio.rs": "38c3169a8b4267b14158acce7da7bc0368be08d6a4f529903daf9ff790b648f4",
+      "apps/tessera-cli/tests/gain_map_hosts.rs": "dcc4c4d4ea8ddcef20a8ad610891ad2c156902afd2c2271eaffcd526ef221113",
+      "crates/tessera-ffi/tests/gain_map_hosts.rs": "979258d6a61166053ad17e79bd93d0edfb4e6d6fb1b1c5ac7229ba59987d6b23",
+      "crates/tessera-mcp/tests/gain_map_hosts.rs": "1e9d91c887a917e87485b436a3abfa438301b3b48d2cc93f2bcf6ac1c6587ec8"
+    },
+    "tracked_patch_sha256": "e99e7ff3d841216f22122f02a272b105a0784f6646f43d0d07c4e023600c02c2",
+    "source_scope": "13 explicit product/test files only; excludes unrelated pycache and planning docs; unvalidated source, no feature commit"
+  },
+  "input_hashes": {
+    "capture.patch": "155e9047d6af2a8a8064f54bf8c2452889cbcef6d5f5406fc849e15841dc37ad",
+    "decode-probe.m": "52a964e37789d7d6dc4359af18d2ff198dd7a65fd6e0f629ce9d34df39781333",
+    "gainmap_iso21496_1.jpg": "5a59ad3e36e3876d95b5bb6c76c0df2134e04cc06bd42092c84b83d4610d791f",
+    "gainmap_iso21496_1_adobe_gcontainer.jpg": "22a607c29dd1897c152be4b65e93ef08e8625dc7a3704e8368a42813e2bc5636",
+    "provenance.json": "7a0d310ce386c3d8b09447d1b33ccaa535af076be8bdc041d1463663436efd82",
+    "LICENSE": "5f787c1dee3c56547f09ccc2906ab5f5293c4d8dd6c8654e573216c38e908dbd"
+  },
+  "runs": [
+    {
+      "name": "canonical-capture",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "export",
+        "--release",
+        "--test",
+        "gain_map",
+        "iso_gain_map_reconstructs_reference_hdr_and_has_real_mpf_associations",
+        "--",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit": 101,
+      "start": "2026-09-27T18:33:48.797314+00:00",
+      "end": "2026-09-27T18:33:54.784304+00:00",
+      "seconds": 5.986976375
+    },
+    {
+      "name": "probe-compile",
+      "command": [
+        "/usr/bin/xcrun",
+        "clang",
+        "-fobjc-arc",
+        "-framework",
+        "Foundation",
+        "-framework",
+        "ImageIO",
+        "-framework",
+        "CoreGraphics",
+        "/tmp/tessera-gainmap-b-capture/decode-probe.m",
+        "-o",
+        "/tmp/tessera-gainmap-b-capture/decode-probe"
+      ],
+      "exit": 0,
+      "start": "2026-09-27T18:33:55.025323+00:00",
+      "end": "2026-09-27T18:33:55.528694+00:00",
+      "seconds": 0.5034057920000006
+    },
+    {
+      "name": "pixel-decode",
+      "command": [
+        "/tmp/tessera-gainmap-b-capture/decode-probe",
+        "/tmp/tessera-gainmap-b-capture/artifacts/fresh-gain-map.jpg",
+        "/tmp/tessera-gainmap-b-capture/gainmap_iso21496_1.jpg",
+        "/tmp/tessera-gainmap-b-capture/gainmap_iso21496_1_adobe_gcontainer.jpg"
+      ],
+      "exit": 0,
+      "start": "2026-09-27T18:33:55.732399+00:00",
+      "end": "2026-09-27T18:33:55.936367+00:00",
+      "seconds": 0.20398904099999982
+    }
+  ],
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/rutmehta/.cache/tessera-target/B5-15",
+    "CARGO_BUILD_JOBS": "2",
+    "MACOSX_DEPLOYMENT_TARGET": "15.0",
+    "TESSERA_GAINMAP_ARTIFACT_DIR": "/tmp/tessera-gainmap-b-capture/artifacts",
+    "PROBE_OPTIONS": "none",
+    "PROBE_DUMP": "/tmp/tessera-gainmap-b-capture/artifacts"
+  },
+  "capture_test_sha256": "b02241b377dab7e34b38de6a218cf86ded9bde55daaa9685827e51ffec7f3778",
+  "final_status": "M apps/tessera-cli/src/export.rs\n M crates/engine-api/src/tools.rs\n M crates/export/src/hdr.rs\n M crates/export/src/lib.rs\n M crates/tessera-ffi/src/export.rs\n M crates/tessera-mcp/src/exports.rs\n?? apps/tessera-cli/tests/gain_map_hosts.rs\n?? crates/export/src/gain_map.rs\n?? crates/export/tests/gain_map.rs\n?? crates/export/tests/support/gain_map_fixture.rs\n?? crates/export/tests/support/gain_map_imageio.rs\n?? crates/tessera-ffi/tests/gain_map_hosts.rs\n?? crates/tessera-mcp/tests/gain_map_hosts.rs",
+  "completed_utc": "2026-09-27T18:33:55.974756+00:00"
+}

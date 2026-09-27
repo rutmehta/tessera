@@ -1,0 +1,26 @@
+[
+  {
+    "url": "https://raw.githubusercontent.com/google/skia/c6bb2106c13b23d67f95562c99ade38d4b0e2eb1/resources/images/gainmap_iso21496_1.jpg",
+    "path": "/tmp/tessera-iso-gainmap-control/gainmap_iso21496_1.jpg",
+    "bytes": 1996,
+    "sha256": "5a59ad3e36e3876d95b5bb6c76c0df2134e04cc06bd42092c84b83d4610d791f"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/google/skia/c6bb2106c13b23d67f95562c99ade38d4b0e2eb1/resources/images/gainmap_iso21496_1_adobe_gcontainer.jpg",
+    "path": "/tmp/tessera-iso-gainmap-control/gainmap_iso21496_1_adobe_gcontainer.jpg",
+    "bytes": 3758,
+    "sha256": "22a607c29dd1897c152be4b65e93ef08e8625dc7a3704e8368a42813e2bc5636"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/google/skia/c6bb2106c13b23d67f95562c99ade38d4b0e2eb1/tests/JpegGainmapTest.cpp",
+    "path": "/tmp/tessera-iso-gainmap-control/JpegGainmapTest.cpp",
+    "bytes": 43591,
+    "sha256": "2ed4e587b9ab3d90c1cb69e70382538c4e7331cd1abbe995b60e08a2392c4443"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/google/skia/c6bb2106c13b23d67f95562c99ade38d4b0e2eb1/LICENSE",
+    "path": "/tmp/tessera-iso-gainmap-control/LICENSE",
+    "bytes": 1507,
+    "sha256": "5f787c1dee3c56547f09ccc2906ab5f5293c4d8dd6c8654e573216c38e908dbd"
+  }
+]

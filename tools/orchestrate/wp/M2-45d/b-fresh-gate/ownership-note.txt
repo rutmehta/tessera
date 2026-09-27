@@ -1,0 +1,13 @@
+{
+  "root_chat_id": "01a0e327-1570-7d83-bc33-7ed882318eea",
+  "pid": 59593,
+  "start_utc": "2026-09-27T18:29:13.113896+00:00",
+  "checkout": "/Users/rutmehta/Developer/lightroom/.worktrees/B5-16a",
+  "base": "69bcd3e5d3d30ac334720ec6a02e1688b6f6b5cb",
+  "snapshot_sha256": "0c94c47d11d8375e07c4827ad0ae1c069981e6c5ede91786734409e166a853a6",
+  "status": "completed: failure retained - Core test failure retained; no host runs",
+  "heavy_slot": "Machine B one compile/test job",
+  "command": "core gain_map compile then 5 tests; if pass, CLI/FFI/MCP gain_map_hosts",
+  "preserve": "leave dirty snapshot checkout intact after completion",
+  "updated_utc": "2026-09-27T18:31:09.033743+00:00"
+}

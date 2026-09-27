@@ -1,0 +1,2 @@
+COMMAND ['/usr/bin/xcrun', 'clang', '-fobjc-arc', '-framework', 'Foundation', '-framework', 'ImageIO', '-framework', 'CoreGraphics', '/tmp/tessera-gainmap-b-capture/decode-probe.m', '-o', '/tmp/tessera-gainmap-b-capture/decode-probe']
+UTC 2026-09-27T18:33:55.025323+00:00

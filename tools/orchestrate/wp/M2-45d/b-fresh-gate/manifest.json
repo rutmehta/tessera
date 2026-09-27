@@ -1,0 +1,58 @@
+{
+  "started_utc": "2026-09-27T18:29:13.114247+00:00",
+  "root_chat_id": "01a0e327-1570-7d83-bc33-7ed882318eea",
+  "base": "69bcd3e5d3d30ac334720ec6a02e1688b6f6b5cb",
+  "snapshot_sha256": "0c94c47d11d8375e07c4827ad0ae1c069981e6c5ede91786734409e166a853a6",
+  "original_branch": "bcd0e792f248b3d5ce20ea4a121b9c20e61c7d6c",
+  "environment": {
+    "PATH": "/Users/rutmehta/.cargo/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+    "CARGO_TARGET_DIR": "/Users/rutmehta/.cache/tessera-target/B5-15",
+    "CARGO_BUILD_JOBS": "2",
+    "MACOSX_DEPLOYMENT_TARGET": "15.0"
+  },
+  "runs": [
+    {
+      "name": "core-compile",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "export",
+        "--release",
+        "--test",
+        "gain_map",
+        "--no-run"
+      ],
+      "start_utc": "2026-09-27T18:29:13.931023+00:00",
+      "end_utc": "2026-09-27T18:31:06.855977+00:00",
+      "seconds": 112.92389187500001,
+      "exit_code": 0
+    },
+    {
+      "name": "core-tests",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "export",
+        "--release",
+        "--test",
+        "gain_map",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "start_utc": "2026-09-27T18:31:07.328516+00:00",
+      "end_utc": "2026-09-27T18:31:08.920145+00:00",
+      "seconds": 1.5916178750000114,
+      "exit_code": 101
+    }
+  ],
+  "prebuild_source_verified": true,
+  "initial_status": "M apps/tessera-cli/src/export.rs\n M crates/engine-api/src/tools.rs\n M crates/export/src/hdr.rs\n M crates/export/src/lib.rs\n M crates/tessera-ffi/src/export.rs\n M crates/tessera-mcp/src/exports.rs\n?? apps/tessera-cli/tests/gain_map_hosts.rs\n?? crates/export/src/gain_map.rs\n?? crates/export/tests/gain_map.rs\n?? crates/export/tests/support/gain_map_fixture.rs\n?? crates/export/tests/support/gain_map_imageio.rs\n?? crates/tessera-ffi/tests/gain_map_hosts.rs\n?? crates/tessera-mcp/tests/gain_map_hosts.rs",
+  "failure": "Core test failure retained; no host runs",
+  "completed_utc": "2026-09-27T18:31:08.920497+00:00",
+  "final_status": "M apps/tessera-cli/src/export.rs\n M crates/engine-api/src/tools.rs\n M crates/export/src/hdr.rs\n M crates/export/src/lib.rs\n M crates/tessera-ffi/src/export.rs\n M crates/tessera-mcp/src/exports.rs\n?? apps/tessera-cli/tests/gain_map_hosts.rs\n?? crates/export/src/gain_map.rs\n?? crates/export/tests/gain_map.rs\n?? crates/export/tests/support/gain_map_fixture.rs\n?? crates/export/tests/support/gain_map_imageio.rs\n?? crates/tessera-ffi/tests/gain_map_hosts.rs\n?? crates/tessera-mcp/tests/gain_map_hosts.rs"
+}

@@ -1,0 +1,19 @@
+--- a/crates/export/tests/gain_map.rs
++++ b/crates/export/tests/gain_map.rs
+@@ -187,6 +187,16 @@
+     map: &image::GrayImage,
+     expected: &[[f64; 3]],
+ ) {
++    // Artifact capture only; native assertions below are unchanged.
++    if let Some(directory) = std::env::var_os("TESSERA_GAINMAP_ARTIFACT_DIR") {
++        let directory = std::path::PathBuf::from(directory);
++        std::fs::create_dir_all(&directory).unwrap();
++        std::fs::write(directory.join("fresh-gain-map.jpg"), bytes).unwrap();
++        let (primary, gain) = images(bytes);
++        std::fs::write(directory.join("primary.jpg"), primary).unwrap();
++        std::fs::write(directory.join("gain.jpg"), gain).unwrap();
++        std::fs::write(directory.join("expected-patches.json"), serde_json::to_vec_pretty(expected).unwrap()).unwrap();
++    }
+     let sdr = native_decode::decode(bytes, false, true);
+     let hdr = native_decode::decode(bytes, true, true);
+     for (x, expected) in [8usize, 24, 40, 56, 72].into_iter().zip(expected) {

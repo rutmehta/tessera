@@ -1,0 +1,11 @@
+{
+  "source-manifest.json": "96ba2a47eff0e3eda752be97b7e6089ac533539f1c5a867e58f70a3573bb9d34",
+  "tracked.patch": "e99e7ff3d841216f22122f02a272b105a0784f6646f43d0d07c4e023600c02c2",
+  "core-compile.log": "3b5e3af5db36f869305bd70468058e048c2067238a85bd99747ee8978a741d87",
+  "manifest.json": "3b235d822553059ff97d97b7e4b8a2e6425d9bf62b95fd4e9c711e9fe2a7e4e4",
+  "core-tests-host.txt": "76025cc64418c0d4cc94059d29687b9570f48235c2a15e2e38b2ea600a44f4ef",
+  "snapshot.tar": "0c94c47d11d8375e07c4827ad0ae1c069981e6c5ede91786734409e166a853a6",
+  "core-tests.log": "83ecd81b6cf966cbf2ab5daa1f386f2795fe9800b75d43cfa28586e60101d88d",
+  "previous-owner.json": "5160a4351203a556fe39e5d5c1b8fcea6b6c4e21ef3e9e5bfdfb196cb1f5cd65",
+  "core-compile-host.txt": "dbb3c8a5d0024cb464198e7b7c5b6384f9b1c4628789436f3a7c277442bbe66f"
+}

@@ -1,0 +1,203 @@
+COMMAND ['/tmp/tessera-gainmap-b-capture/decode-probe', '/tmp/tessera-gainmap-b-capture/artifacts/fresh-gain-map.jpg', '/tmp/tessera-gainmap-b-capture/gainmap_iso21496_1.jpg', '/tmp/tessera-gainmap-b-capture/gainmap_iso21496_1_adobe_gcontainer.jpg']
+UTC 2026-09-27T18:33:55.732399+00:00
+[
+  {
+    "apple_aux_present" : 0,
+    "iso_aux_present" : 0,
+    "image_count" : 1,
+    "hdr" : {
+      "bits_per_component" : 8,
+      "alpha_min" : 1,
+      "patch_centers" : [
+        [
+          0,
+          0,
+          0,
+          1
+        ],
+        [
+          0.18115234375,
+          0.18115234375,
+          0.18115234375,
+          1
+        ],
+        [
+          1,
+          0.791259765625,
+          0.679443359375,
+          1
+        ],
+        [
+          0.9912109375,
+          0.9130859375,
+          0.85498046875,
+          1
+        ],
+        [
+          1,
+          1,
+          1,
+          1
+        ]
+      ],
+      "width" : 80,
+      "provider_bytes" : 5120,
+      "rgb_max" : 1,
+      "rgb_mean" : 0.58329366048177078,
+      "nonzero_rgb_samples" : 3072,
+      "image_created" : true,
+      "alpha_max" : 1,
+      "height" : 16,
+      "nonfinite_rgb" : 0,
+      "headroom" : 1,
+      "samples_above_one" : 0,
+      "rgb_min" : 0,
+      "pixels_decoded" : 1
+    },
+    "path" : "\/tmp\/tessera-gainmap-b-capture\/artifacts\/fresh-gain-map.jpg",
+    "sdr" : {
+      "bits_per_component" : 8,
+      "alpha_min" : 1,
+      "patch_centers" : [
+        [
+          0,
+          0,
+          0,
+          1
+        ],
+        [
+          0.18115234375,
+          0.18115234375,
+          0.18115234375,
+          1
+        ],
+        [
+          1,
+          0.791259765625,
+          0.679443359375,
+          1
+        ],
+        [
+          0.9912109375,
+          0.9130859375,
+          0.85498046875,
+          1
+        ],
+        [
+          1,
+          1,
+          1,
+          1
+        ]
+      ],
+      "width" : 80,
+      "provider_bytes" : 5120,
+      "rgb_max" : 1,
+      "rgb_mean" : 0.58329366048177078,
+      "nonzero_rgb_samples" : 3072,
+      "image_created" : true,
+      "alpha_max" : 1,
+      "height" : 16,
+      "nonfinite_rgb" : 0,
+      "headroom" : 1,
+      "samples_above_one" : 0,
+      "rgb_min" : 0,
+      "pixels_decoded" : 1
+    },
+    "max_sdr_hdr_delta" : 0
+  },
+  {
+    "apple_aux_present" : 0,
+    "iso_aux_present" : 0,
+    "image_count" : 1,
+    "hdr" : {
+      "bits_per_component" : 8,
+      "alpha_min" : 1,
+      "patch_centers" : [
+
+      ],
+      "width" : 128,
+      "provider_bytes" : 65536,
+      "rgb_max" : 1.088623046875,
+      "rgb_mean" : 0.19193522135416666,
+      "nonzero_rgb_samples" : 24576,
+      "image_created" : true,
+      "alpha_max" : 1,
+      "height" : 128,
+      "nonfinite_rgb" : 0,
+      "headroom" : 1,
+      "samples_above_one" : 8192,
+      "rgb_min" : -0.001220703125,
+      "pixels_decoded" : 1
+    },
+    "path" : "\/tmp\/tessera-gainmap-b-capture\/gainmap_iso21496_1.jpg",
+    "sdr" : {
+      "bits_per_component" : 8,
+      "alpha_min" : 1,
+      "patch_centers" : [
+
+      ],
+      "width" : 128,
+      "provider_bytes" : 65536,
+      "rgb_max" : 1.088623046875,
+      "rgb_mean" : 0.19193522135416666,
+      "nonzero_rgb_samples" : 24576,
+      "image_created" : true,
+      "alpha_max" : 1,
+      "height" : 128,
+      "nonfinite_rgb" : 0,
+      "headroom" : 1,
+      "samples_above_one" : 8192,
+      "rgb_min" : -0.001220703125,
+      "pixels_decoded" : 1
+    },
+    "max_sdr_hdr_delta" : 0
+  },
+  {
+    "apple_aux_present" : 0,
+    "iso_aux_present" : 0,
+    "image_count" : 1,
+    "hdr" : {
+      "bits_per_component" : 8,
+      "alpha_min" : 1,
+      "patch_centers" : [
+
+      ],
+      "width" : 128,
+      "provider_bytes" : 65536,
+      "rgb_max" : 1.088623046875,
+      "rgb_mean" : 0.19193522135416666,
+      "nonzero_rgb_samples" : 24576,
+      "image_created" : true,
+      "alpha_max" : 1,
+      "height" : 128,
+      "nonfinite_rgb" : 0,
+      "headroom" : 1,
+      "samples_above_one" : 8192,
+      "rgb_min" : -0.001220703125,
+      "pixels_decoded" : 1
+    },
+    "path" : "\/tmp\/tessera-gainmap-b-capture\/gainmap_iso21496_1_adobe_gcontainer.jpg",
+    "sdr" : {
+      "bits_per_component" : 8,
+      "alpha_min" : 1,
+      "patch_centers" : [
+
+      ],
+      "width" : 128,
+      "provider_bytes" : 65536,
+      "rgb_max" : 1.088623046875,
+      "rgb_mean" : 0.19193522135416666,
+      "nonzero_rgb_samples" : 24576,
+      "image_created" : true,
+      "alpha_max" : 1,
+      "height" : 128,
+      "nonfinite_rgb" : 0,
+      "headroom" : 1,
+      "samples_above_one" : 8192,
+      "rgb_min" : -0.001220703125,
+      "pixels_decoded" : 1
+    },
+    "max_sdr_hdr_delta" : 0
+  }
+]
