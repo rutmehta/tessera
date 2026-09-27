@@ -6,6 +6,85 @@ use std::sync::{Arc, Mutex};
 use tessera_ffi::*;
 
 #[test]
+fn hdr_options_roundtrip_and_export() {
+    for transfer in ["pq", "hlg"] {
+        let options = serde_json::json!({"format":"png", "bit_depth":16, "hdr":transfer, "color_space":"rec2020"});
+        let normalized: serde_json::Value =
+            serde_json::from_str(&normalize_export_settings(options.to_string()).unwrap()).unwrap();
+        assert_eq!(normalized["hdr"], transfer);
+        let f = fixture();
+        let out = f.dir.path().join("hdr");
+        let report = f
+            .engine
+            .export_batch(
+                ExportTarget::Images {
+                    image_ids: vec![f.ids[0].clone()],
+                },
+                settings(&out, options),
+                None,
+                None,
+            )
+            .unwrap();
+        assert_eq!((report.exported, report.failed), (1, 0), "{report:?}");
+        let bytes = std::fs::read(out.join("a.png")).unwrap();
+        assert!(bytes.windows(8).any(|v| v
+            == [
+                b'c',
+                b'I',
+                b'C',
+                b'P',
+                9,
+                if transfer == "pq" { 16 } else { 18 },
+                0,
+                1
+            ]));
+    }
+    for bad in [
+        r#"{"format":"png","bit_depth":8,"hdr":"pq","color_space":"rec2020"}"#,
+        r#"{"format":"jpeg","hdr":"pq","color_space":"rec2020"}"#,
+        r#"{"format":"original","hdr":"pq"}"#,
+        r#"{"format":"avif","bit_depth":10,"hdr":"pq","color_space":"srgb"}"#,
+    ] {
+        assert!(normalize_export_settings(bad.into()).is_err());
+    }
+}
+
+#[test]
+fn dng_embedded_original_option_roundtrips_and_exports() {
+    let input = r#"{"format":"dng","bit_depth":32,"embed_original_raw":true}"#;
+    let normalized: serde_json::Value =
+        serde_json::from_str(&normalize_export_settings(input.into()).unwrap()).unwrap();
+    assert_eq!(normalized["embed_original_raw"], true);
+    for extra in [
+        serde_json::json!({"format":"jpeg"}),
+        serde_json::json!({"metadata":"none"}),
+        serde_json::json!({"remove_location":true}),
+    ] {
+        let mut value: serde_json::Value = serde_json::from_str(input).unwrap();
+        for (k, v) in extra.as_object().unwrap() {
+            value[k] = v.clone();
+        }
+        assert!(normalize_export_settings(value.to_string()).is_err());
+    }
+    let f = fixture();
+    let out = f.dir.path().join("embedded");
+    let report = f
+        .engine
+        .export_batch(
+            ExportTarget::Images {
+                image_ids: vec![f.ids[0].clone()],
+            },
+            settings(&out, serde_json::from_str(input).unwrap()),
+            None,
+            None,
+        )
+        .unwrap();
+    assert_eq!((report.exported, report.failed), (1, 0), "{report:?}");
+    let bytes = std::fs::read(out.join("a.dng")).unwrap();
+    assert!(bytes.windows(6).any(|v| v == b"a.jpg\0"));
+}
+
+#[test]
 fn original_export_keeps_embedded_only_dng_edits() {
     let dir = tempfile::tempdir().unwrap();
     let photos = dir.path().join("photos");
@@ -1194,4 +1273,40 @@ fn raw_export_with_the_web_preset_and_a_binned_print_render() {
     );
     assert_eq!(print.width.max(print.height), 300);
     assert_eq!(print.height > print.width, row.orientation >= 5);
+}
+
+#[path = "../../export/tests/support/native_fixture.rs"]
+mod native_fixture;
+#[test]
+fn ffi_extracts_native_metadata_per_source_and_filters() {
+    let f = fixture();
+    for name in ["a", "b"] {
+        native_fixture::stamp(&f.dir.path().join(format!("photos/{name}.jpg")), name);
+    }
+    for policy in ["all", "copyright"] {
+        let out = f.dir.path().join(policy);
+        let report = f
+            .engine
+            .export_batch(
+                ExportTarget::Images {
+                    image_ids: f.ids[..2].to_vec(),
+                },
+                settings(&out, serde_json::json!({"format":"png","metadata":policy})),
+                None,
+                None,
+            )
+            .unwrap();
+        assert_eq!((report.exported, report.failed), (2, 0), "{report:?}");
+        for name in ["a", "b"] {
+            let path = out.join(format!("{name}.png"));
+            assert_eq!(
+                native_fixture::tags(&path, &["-s3", "-EXIF:Copyright"]).trim(),
+                name
+            );
+            assert_eq!(
+                native_fixture::tags(&path, &["-s3", "-EXIF:Make"]).contains("Private Camera"),
+                policy == "all"
+            );
+        }
+    }
 }

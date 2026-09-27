@@ -1,0 +1,19 @@
+warning[license-exception-not-encountered]: license exception was not encountered
+   ┌─ /Users/rutmehta/.codex/worktrees/export-integration/tessera/deny.toml:10:9
+   │
+10 │ name = "lcms2"
+   │         ━━━━━ unmatched license exception
+
+warning[license-not-encountered]: license was not encountered
+  ┌─ /Users/rutmehta/.codex/worktrees/export-integration/tessera/deny.toml:6:167
+  │
+6 │ allow = ["MIT", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "ISC", "Zlib", "Unicode-3.0", "MPL-2.0", "CDDL-1.0", "IJG", "CDLA-Permissive-2.0", "Unicode-DFS-2016", "OpenSSL", "BSL-1.0", "0BSD"]
+  │                                                                                                                                                                       ━━━━━━━ unmatched license allowance
+
+warning[license-not-encountered]: license was not encountered
+  ┌─ /Users/rutmehta/.codex/worktrees/export-integration/tessera/deny.toml:6:147
+  │
+6 │ allow = ["MIT", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "ISC", "Zlib", "Unicode-3.0", "MPL-2.0", "CDDL-1.0", "IJG", "CDLA-Permissive-2.0", "Unicode-DFS-2016", "OpenSSL", "BSL-1.0", "0BSD"]
+  │                                                                                                                                                   ━━━━━━━━━━━━━━━━ unmatched license allowance
+
+licenses ok

@@ -1,0 +1,11 @@
+{
+  "passed": false,
+  "security_concerns": [
+    "native.rs append_tiff relocates pointer tag IDs regardless of containing IFD. Source ExifIFD tag 34853 LONG count=1 value=0x00100000 survives as ordinary tag, then relocation follows blob[p..], panicking. Reject directory pointers in unexpected groups or relocate only generated validated links. Add malformed input regression.",
+    "JPEG Extended XMP APP1 ignored. Person identities stored in extended packet do not reach for_export_with_person_source, leaving matching IPTC keywords copied into native/XMP under remove_person_info. Assemble bounded extensions or reject unsupported extended XMP rather than silently leaking. Regression with HasExtendedXMP and PersonInImage Alice plus IPTC Alice,Nature."
+  ],
+  "logic_errors": [
+    "lib.rs metadata_packet image.metadata.or(native.xmp) means rating-only external sidecar discards all embedded copyright/contact/description/hierarchy under All and CopyrightOnly. Merge properties with sidecar overrides; add regression with embedded rights/hierarchy plus rating-only sidecar. Original-mode authoritative packet semantics need not change."
+  ],
+  "summary": "Independent static review found native metadata panic, Extended XMP privacy bypass, and embedded metadata preservation loss. Must reproduce and fix before committing."
+}

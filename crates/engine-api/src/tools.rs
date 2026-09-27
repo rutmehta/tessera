@@ -178,6 +178,33 @@ pub enum Resize {
     },
 }
 
+/// HDR file transfer, with Rec.2020 primaries and 203 cd/m² diffuse white.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HdrTransfer {
+    /// Absolute ST 2084, limited to 10,000 cd/m².
+    Pq,
+    /// BT.2100 HLG, 1000 cd/m² reference display, system gamma 1.2.
+    Hlg,
+}
+
+/// Descriptive metadata retained by developed exports.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExportMetadata {
+    /// All supported portable metadata.
+    #[default]
+    All,
+    /// Copyright, credit and source.
+    Copyright,
+    /// Copyright plus creator/contact fields.
+    CopyrightAndContact,
+    /// Descriptive fields excluding camera and development information.
+    AllExceptCamera,
+    /// No source metadata.
+    None,
+}
+
 /// Export settings.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ExportSettings {
@@ -206,12 +233,34 @@ pub struct ExportSettings {
     /// Omitted uses 300 ppi for sharpening without adding a density tag.
     #[serde(default)]
     pub ppi: Option<u32>,
-    /// Embed XMP metadata (ratings, keywords, IPTC).
+    /// Policy for EXIF, IPTC and XMP. `embed_metadata=false` overrides it.
+    #[serde(default)]
+    pub metadata: ExportMetadata,
+    /// Remove face regions and identified person keywords across carriers.
+    #[serde(default)]
+    pub remove_person_info: bool,
+    /// Remove capture GPS and IPTC image locations.
+    #[serde(default)]
+    pub remove_location: bool,
+    /// Preserve/construct Lightroom keyword hierarchy in XMP.
+    #[serde(default = "yes")]
+    pub keywords_as_hierarchy: bool,
+    /// Embed native EXIF/IPTC and XMP metadata.
     #[serde(default = "yes")]
     pub embed_metadata: bool,
+    /// Embed the source byte stream in a developed DNG. Retains all original
+    /// metadata and is incompatible with disabling `embed_metadata`.
+    #[serde(default)]
+    pub embed_original_raw: bool,
     /// Write HDR (gain map or PQ/HLG, format permitting).
     #[serde(default)]
     pub hdr: bool,
+    /// PQ by default when HDR is enabled. Must be omitted for SDR.
+    #[serde(default)]
+    pub hdr_transfer: Option<HdrTransfer>,
+    /// AVIF sample precision. Defaults to 10 in HDR, 8 in SDR; allowed 8/10/12.
+    #[serde(default)]
+    pub avif_bit_depth: Option<u8>,
 }
 
 fn default_template() -> String {
@@ -1503,8 +1552,15 @@ pub(crate) mod tests {
                     sharpening: None,
                     sharpening_amount: None,
                     ppi: None,
+                    metadata: ExportMetadata::All,
+                    remove_person_info: false,
+                    remove_location: false,
+                    keywords_as_hierarchy: true,
                     embed_metadata: true,
+                    embed_original_raw: false,
                     hdr: false,
+                    hdr_transfer: None,
+                    avif_bit_depth: None,
                 },
             },
         ]

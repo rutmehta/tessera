@@ -1,0 +1,1486 @@
+Fetching https://github.com/sparkle-project/Sparkle from cache
+Fetched https://github.com/sparkle-project/Sparkle from cache (0.41s)
+Computing version for https://github.com/sparkle-project/Sparkle
+Computed https://github.com/sparkle-project/Sparkle at 2.10.0 (0.81s)
+Creating working copy for https://github.com/sparkle-project/Sparkle
+Working copy of https://github.com/sparkle-project/Sparkle resolved at 2.10.0
+Fetching binary artifact https://github.com/sparkle-project/Sparkle/releases/download/2.10.0/Sparkle-for-Swift-Package-Manager.zip from cache
+Fetched https://github.com/sparkle-project/Sparkle/releases/download/2.10.0/Sparkle-for-Swift-Package-Manager.zip from cache (0.38s)
+Building for production...
+[0/12] /Volumes/betterSSD/tessera-cache/swift/review-ownership/arm64-apple-macosx/release/TesseraPackageTests.derived/runner.swift
+[1/12] Write sources
+[6/12] Copying Sparkle.framework
+[7/12] Write swift-version--58304C5D6DBC2206.txt
+[9/13] Compiling TesseraFFI TesseraFFI.swift
+[10/14] Compiling TesseraCore AppDefaultsIsolation.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:860:30: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 858 |         DispatchQueue.concurrentPerform(iterations: bands) { band in
+ 859 |             for r in (rows * band / bands)..<(rows * (band + 1) / bands) {
+ 860 |                 let ty = r * step
+     |                              `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 861 |                 let cy = (Float(y0 + ty) + 0.5 * Float(step)) * scale
+ 862 |                 var tx = 0
+
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:861:56: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 859 |             for r in (rows * band / bands)..<(rows * (band + 1) / bands) {
+ 860 |                 let ty = r * step
+ 861 |                 let cy = (Float(y0 + ty) + 0.5 * Float(step)) * scale
+     |                                                        `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 862 |                 var tx = 0
+ 863 |                 while tx < rw {
+
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:864:71: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 862 |                 var tx = 0
+ 863 |                 while tx < rw {
+ 864 |                     let c = comp.sample((Float(x0 + tx) + 0.5 * Float(step)) * scale, cy)
+     |                                                                       `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 865 |                     for dy in 0..<min(step, rh - ty) {
+ 866 |                         let line = bytes + (ty + dy) * stride
+
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:865:39: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 863 |                 while tx < rw {
+ 864 |                     let c = comp.sample((Float(x0 + tx) + 0.5 * Float(step)) * scale, cy)
+ 865 |                     for dy in 0..<min(step, rh - ty) {
+     |                                       `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 866 |                         let line = bytes + (ty + dy) * stride
+ 867 |                         for dx in 0..<min(step, rw - tx) { Self.store(c, line + (tx + dx) * 4) }
+
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:867:43: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 865 |                     for dy in 0..<min(step, rh - ty) {
+ 866 |                         let line = bytes + (ty + dy) * stride
+ 867 |                         for dx in 0..<min(step, rw - tx) { Self.store(c, line + (tx + dx) * 4) }
+     |                                           `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 868 |                     }
+ 869 |                     tx += step
+
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:869:27: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 867 |                         for dx in 0..<min(step, rw - tx) { Self.store(c, line + (tx + dx) * 4) }
+ 868 |                     }
+ 869 |                     tx += step
+     |                           `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 870 |                 }
+ 871 |             }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[11/15] Compiling Tessera AISettingsView.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Document/AdjustmentEditors.swift:55:55: warning: passing non-Sendable parameter 'change' to function expecting a '@Sendable' closure
+ 52 |     }
+ 53 | 
+ 54 |     private func checkbox(_ title: String, _ on: Bool, _ key: String, _ change: @escaping (Bool) -> Void) -> some View {
+    |                                                                         `- note: parameter 'change' is implicitly non-Sendable
+ 55 |         Toggle(title, isOn: Binding(get: { on }, set: change))
+    |                                                       `- warning: passing non-Sendable parameter 'change' to function expecting a '@Sendable' closure
+ 56 |             .toggleStyle(.checkbox)
+ 57 |             .font(Theme.Fonts.caption)
+
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Document/Transforms/DocumentTransforms.swift:676:21: warning: 'where' only applies to the second pattern match in this 'case'
+674 |         let mods = e.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.numericPad, .function, .capsLock])
+675 |         switch e.keyCode {
+676 |         case 36, 76 where mods.isEmpty || mods == [.command]: apply(); return true
+    |              |   |  `- warning: 'where' only applies to the second pattern match in this 'case'
+    |              |   `- note: disambiguate by adding a line break between them if this is desired
+    |              `- note: duplicate the 'where' on both patterns to check both patterns
+677 |         case 53 where mods.isEmpty: cancel(); return true
+678 |         case 51, 117 where mods.isEmpty:
+
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Document/Transforms/DocumentTransforms.swift:678:22: warning: 'where' only applies to the second pattern match in this 'case'
+676 |         case 36, 76 where mods.isEmpty || mods == [.command]: apply(); return true
+677 |         case 53 where mods.isEmpty: cancel(); return true
+678 |         case 51, 117 where mods.isEmpty:
+    |              |   |   `- warning: 'where' only applies to the second pattern match in this 'case'
+    |              |   `- note: disambiguate by adding a line break between them if this is desired
+    |              `- note: duplicate the 'where' on both patterns to check both patterns
+679 |             if case .puppet = session?.op, selectedPin != nil { removeSelectedPin(); return true }
+680 |             return false
+
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Document/Transforms/TransformSelfTest.swift:460:16: warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+458 | 
+459 |         // 395: position lock rejects geometry.
+460 |         if let id = doc?.primary?.id {
+    |                `- warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+461 |             doc?.toggleLock(.position)
+462 |             await settle()
+[11/15] Write Objects.LinkFileList
+ld: warning: object file (/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/build/ffi/libtessera_ffi.a[2845](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[12/15] Linking Tessera
+[14/16] Compiling TesseraCoreTests AgentReviewOwnershipTests.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[15/17] Compiling TesseraPackageTests runner.swift
+[15/17] Write Objects.LinkFileList
+ld: warning: object file (/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/build/ffi/libtessera_ffi.a[2845](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[16/17] Linking TesseraPackageTests
+Build complete! (153.27s)
+Test Suite 'Selected tests' started at 2026-09-27 13:54:33.793.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-27 13:54:33.794.
+Test Suite 'AgentReviewOwnershipTests' started at 2026-09-27 13:54:33.794.
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testAcceptAlreadyInFlightCannotPublishStatusInNewLibrary]' started.
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/AgentReviewOwnershipTests.swift:115: error: -[TesseraCoreTests.AgentReviewOwnershipTests testAcceptAlreadyInFlightCannotPublishStatusInNewLibrary] : XCTAssertEqual failed: ("Optional("Accepted photo-0.jpg · style profile now has 1 sample")") is not equal to ("Optional("Current library B")")
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testAcceptAlreadyInFlightCannotPublishStatusInNewLibrary]' failed (1.308 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRetainedQueueAcceptCannotTrainNewLibraryProfile]' started.
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/AgentReviewOwnershipTests.swift:88: error: -[TesseraCoreTests.AgentReviewOwnershipTests testRetainedQueueAcceptCannotTrainNewLibraryProfile] : XCTAssertEqual failed: ("1") is not equal to ("0") - Old review must not teach the newly opened folder
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/AgentReviewOwnershipTests.swift:90: error: -[TesseraCoreTests.AgentReviewOwnershipTests testRetainedQueueAcceptCannotTrainNewLibraryProfile] : XCTAssertEqual failed: ("accepted") is not equal to ("needs review") - Foreign queue action must be rejected
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRetainedQueueAcceptCannotTrainNewLibraryProfile]' failed (0.699 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRetainedQueueRevertCannotRefreshNewLibraryOrMutateOldRecipe]' started.
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/AgentReviewOwnershipTests.swift:102: error: -[TesseraCoreTests.AgentReviewOwnershipTests testRetainedQueueRevertCannotRefreshNewLibraryOrMutateOldRecipe] : XCTAssertEqual failed: ("{
+  "schema_version": 3,
+  "image_id": "4dfb420a6caa43871cf96ee76b1c506c",
+  "source_kind": "rgb",
+  "process_version": {
+    "family": "native",
+    "revision": 2
+  },
+  "settings": {
+    "decode": {
+      "frame_index": 0,
+      "pixel_shift_merge": false
+    },
+    "linearize": {
+      "highlight_reconstruction": "reconstruct_color"
+    },
+    "denoise": {
+      "method": {
+        "kind": "off"
+      },
+      "amount": 50.0,
+      "chroma_only": false
+    },
+    "demosaic": {
+      "method": "auto",
+      "model": null
+    },
+    "lens": {
+      "profile": {
+        "kind": "auto"
+      },
+      "distortion_scale": 100.0,
+      "vignetting_scale": 100.0,
+      "chromatic_aberration_scale": 100.0,
+      "remove_chromatic_aberration": true,
+      "manual_distortion": 0.0,
+      "manual_vignetting": 0.0,
+      "manual_vignetting_midpoint": 50.0,
+      "defringe_purple": {
+        "amount": 0.0,
+        "hue_range": [
+          270.0,
+          330.0
+        ]
+      },
+      "defringe_green": {
+        "amount": 0.0,
+        "hue_range": [
+          60.0,
+          110.0
+        ]
+      },
+      "softness_correction": 0.0
+    },
+    "camera_profile": {
+      "profile": {
+        "name": "",
+        "digest": ""
+      },
+      "amount": 100.0,
+      "working_space": "linear_rec2020",
+      "look": null,
+      "calibration": {
+        "shadow_tint": 0.0,
+        "red_hue": 0.0,
+        "red_saturation": 0.0,
+        "green_hue": 0.0,
+        "green_saturation": 0.0,
+        "blue_hue": 0.0,
+        "blue_saturation": 0.0
+      }
+    },
+    "white_balance": {
+      "mode": "as_shot",
+      "temperature": 5500.0,
+      "tint": 0.0
+    },
+    "detail": {
+      "sharpening": {
+        "amount": 40.0,
+        "radius": 1.0,
+        "detail": 25.0,
+        "masking": 0.0
+      },
+      "noise_reduction": {
+        "luminance": 0.0,
+        "luminance_detail": 50.0,
+        "luminance_contrast": 0.0,
+        "color": 25.0,
+        "color_detail": 50.0,
+        "color_smoothness": 50.0
+      }
+    },
+    "tone": {
+      "exposure": 0.0,
+      "contrast": 0.0,
+      "highlights": 0.0,
+      "shadows": 0.0,
+      "whites": 0.0,
+      "blacks": 0.0,
+      "texture": 0.0,
+      "clarity": 0.0,
+      "dehaze": 0.0,
+      "curves": {
+        "parametric": {
+          "shadows": 0.0,
+          "darks": 0.0,
+          "lights": 0.0,
+          "highlights": 0.0,
+          "shadow_split": 25.0,
+          "midtone_split": 50.0,
+          "highlight_split": 75.0
+        },
+        "rgb": [],
+        "red": [],
+        "green": [],
+        "blue": [],
+        "luminance": []
+      },
+      "display_transform": "native"
+    },
+    "color": {
+      "vibrance": 0.0,
+      "saturation": 0.0,
+      "hsl": {
+        "hue": {
+          "red": 0.0,
+          "orange": 0.0,
+          "yellow": 0.0,
+          "green": 0.0,
+          "aqua": 0.0,
+          "blue": 0.0,
+          "purple": 0.0,
+          "magenta": 0.0
+        },
+        "saturation": {
+          "red": 0.0,
+          "orange": 0.0,
+          "yellow": 0.0,
+          "green": 0.0,
+          "aqua": 0.0,
+          "blue": 0.0,
+          "purple": 0.0,
+          "magenta": 0.0
+        },
+        "luminance": {
+          "red": 0.0,
+          "orange": 0.0,
+          "yellow": 0.0,
+          "green": 0.0,
+          "aqua": 0.0,
+          "blue": 0.0,
+          "purple": 0.0,
+          "magenta": 0.0
+        }
+      },
+      "grading": {
+        "shadows": {
+          "hue": 0.0,
+          "saturation": 0.0,
+          "luminance": 0.0
+        },
+        "midtones": {
+          "hue": 0.0,
+          "saturation": 0.0,
+          "luminance": 0.0
+        },
+        "highlights": {
+          "hue": 0.0,
+          "saturation": 0.0,
+          "luminance": 0.0
+        },
+        "global": {
+          "hue": 0.0,
+          "saturation": 0.0,
+          "luminance": 0.0
+        },
+        "blending": 50.0,
+        "balance": 0.0
+      },
+      "point_colors": [],
+      "lut": null
+    },
+    "locals": {
+      "retouch": [],
+      "adjustments": []
+    },
+    "effects": {
+      "vignette": {
+        "amount": 0.0,
+        "midpoint": 50.0,
+        "roundness": 0.0,
+        "feather": 50.0,
+        "highlights": 0.0,
+        "style": "highlight_priority"
+      },
+      "grain": {
+        "amount": 0.0,
+        "size": 25.0,
+        "roughness": 50.0
+      },
+      "lens_blur": null
+    },
+    "geometry": {
+      "orientation": 1,
+      "upright": {
+        "mode": "off",
+        "guides": []
+      },
+      "transform": {
+        "vertical": 0.0,
+        "horizontal": 0.0,
+        "rotate": 0.0,
+        "aspect": 0.0,
+        "scale": 100.0,
+        "offset_x": 0.0,
+        "offset_y": 0.0
+      },
+      "constrain_crop": false,
+      "crop": {
+        "rect": {
+          "left": 0.0,
+          "top": 0.0,
+          "right": 1.0,
+          "bottom": 1.0
+        },
+        "angle": 0.0,
+        "aspect": null
+      }
+    },
+    "output": {
+      "gamut_mapping": "perceptual",
+      "hdr": false,
+      "hdr_headroom_stops": 0.0,
+      "proof_profile": null
+    }
+  },
+  "selection": {
+    "decision": "undecided",
+    "grade": null,
+    "mark": null
+  },
+  "history": {
+    "base": {
+      "decode": {
+        "frame_index": 0,
+        "pixel_shift_merge": false
+      },
+      "linearize": {
+        "highlight_reconstruction": "reconstruct_color"
+      },
+      "denoise": {
+        "method": {
+          "kind": "off"
+        },
+        "amount": 50.0,
+        "chroma_only": false
+      },
+      "demosaic": {
+        "method": "auto",
+        "model": null
+      },
+      "lens": {
+        "profile": {
+          "kind": "auto"
+        },
+        "distortion_scale": 100.0,
+        "vignetting_scale": 100.0,
+        "chromatic_aberration_scale": 100.0,
+        "remove_chromatic_aberration": true,
+        "manual_distortion": 0.0,
+        "manual_vignetting": 0.0,
+        "manual_vignetting_midpoint": 50.0,
+        "defringe_purple": {
+          "amount": 0.0,
+          "hue_range": [
+            270.0,
+            330.0
+          ]
+        },
+        "defringe_green": {
+          "amount": 0.0,
+          "hue_range": [
+            60.0,
+            110.0
+          ]
+        },
+        "softness_correction": 0.0
+      },
+      "camera_profile": {
+        "profile": {
+          "name": "",
+          "digest": ""
+        },
+        "amount": 100.0,
+        "working_space": "linear_rec2020",
+        "look": null,
+        "calibration": {
+          "shadow_tint": 0.0,
+          "red_hue": 0.0,
+          "red_saturation": 0.0,
+          "green_hue": 0.0,
+          "green_saturation": 0.0,
+          "blue_hue": 0.0,
+          "blue_saturation": 0.0
+        }
+      },
+      "white_balance": {
+        "mode": "as_shot",
+        "temperature": 5500.0,
+        "tint": 0.0
+      },
+      "detail": {
+        "sharpening": {
+          "amount": 40.0,
+          "radius": 1.0,
+          "detail": 25.0,
+          "masking": 0.0
+        },
+        "noise_reduction": {
+          "luminance": 0.0,
+          "luminance_detail": 50.0,
+          "luminance_contrast": 0.0,
+          "color": 25.0,
+          "color_detail": 50.0,
+          "color_smoothness": 50.0
+        }
+      },
+      "tone": {
+        "exposure": 0.0,
+        "contrast": 0.0,
+        "highlights": 0.0,
+        "shadows": 0.0,
+        "whites": 0.0,
+        "blacks": 0.0,
+        "texture": 0.0,
+        "clarity": 0.0,
+        "dehaze": 0.0,
+        "curves": {
+          "parametric": {
+            "shadows": 0.0,
+            "darks": 0.0,
+            "lights": 0.0,
+            "highlights": 0.0,
+            "shadow_split": 25.0,
+            "midtone_split": 50.0,
+            "highlight_split": 75.0
+          },
+          "rgb": [],
+          "red": [],
+          "green": [],
+          "blue": [],
+          "luminance": []
+        },
+        "display_transform": "native"
+      },
+      "color": {
+        "vibrance": 0.0,
+        "saturation": 0.0,
+        "hsl": {
+          "hue": {
+            "red": 0.0,
+            "orange": 0.0,
+            "yellow": 0.0,
+            "green": 0.0,
+            "aqua": 0.0,
+            "blue": 0.0,
+            "purple": 0.0,
+            "magenta": 0.0
+          },
+          "saturation": {
+            "red": 0.0,
+            "orange": 0.0,
+            "yellow": 0.0,
+            "green": 0.0,
+            "aqua": 0.0,
+            "blue": 0.0,
+            "purple": 0.0,
+            "magenta": 0.0
+          },
+          "luminance": {
+            "red": 0.0,
+            "orange": 0.0,
+            "yellow": 0.0,
+            "green": 0.0,
+            "aqua": 0.0,
+            "blue": 0.0,
+            "purple": 0.0,
+            "magenta": 0.0
+          }
+        },
+        "grading": {
+          "shadows": {
+            "hue": 0.0,
+            "saturation": 0.0,
+            "luminance": 0.0
+          },
+          "midtones": {
+            "hue": 0.0,
+            "saturation": 0.0,
+            "luminance": 0.0
+          },
+          "highlights": {
+            "hue": 0.0,
+            "saturation": 0.0,
+            "luminance": 0.0
+          },
+          "global": {
+            "hue": 0.0,
+            "saturation": 0.0,
+            "luminance": 0.0
+          },
+          "blending": 50.0,
+          "balance": 0.0
+        },
+        "point_colors": [],
+        "lut": null
+      },
+      "locals": {
+        "retouch": [],
+        "adjustments": []
+      },
+      "effects": {
+        "vignette": {
+          "amount": 0.0,
+          "midpoint": 50.0,
+          "roundness": 0.0,
+          "feather": 50.0,
+          "highlights": 0.0,
+          "style": "highlight_priority"
+        },
+        "grain": {
+          "amount": 0.0,
+          "size": 25.0,
+          "roughness": 50.0
+        },
+        "lens_blur": null
+      },
+      "geometry": {
+        "orientation": 1,
+        "upright": {
+          "mode": "off",
+          "guides": []
+        },
+        "transform": {
+          "vertical": 0.0,
+          "horizontal": 0.0,
+          "rotate": 0.0,
+          "aspect": 0.0,
+          "scale": 100.0,
+          "offset_x": 0.0,
+          "offset_y": 0.0
+        },
+        "constrain_crop": false,
+        "crop": {
+          "rect": {
+            "left": 0.0,
+            "top": 0.0,
+            "right": 1.0,
+            "bottom": 1.0
+          },
+          "angle": 0.0,
+          "aspect": null
+        }
+      },
+      "output": {
+        "gamut_mapping": "perceptual",
+        "hdr": false,
+        "hdr_headroom_stops": 0.0,
+        "proof_profile": null
+      }
+    },
+    "entries": [
+      {
+        "id": 1,
+        "parent": null,
+        "label": "set_tone",
+        "author": {
+          "kind": "agent",
+          "name": "tessera-mcp"
+        },
+        "timestamp_ms": 1790531675957,
+        "group": 1,
+        "rationale": "Exposure -0.10 EV because mean luminance measured 0.20 against a 0.18 mid-grey target",
+        "changes": [
+          {
+            "op": "set",
+            "path": "/tone/exposure",
+            "value": -0.10000000149011612
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "parent": 1,
+        "label": "set_tone",
+        "author": {
+          "kind": "agent",
+          "name": "tessera-mcp"
+        },
+        "timestamp_ms": 1790531676062,
+        "group": 1,
+        "rationale": "Contrast +10 and clarity +8 to give the flat base some shape",
+        "changes": [
+          {
+            "op": "set",
+            "path": "/tone/clarity",
+            "value": 8.0
+          },
+          {
+            "op": "set",
+            "path": "/tone/contrast",
+            "value": 10.0
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "parent": 2,
+        "label": "set_tone",
+        "author": {
+          "kind": "agent",
+          "name": "tessera-mcp"
+        },
+        "timestamp_ms": 1790531676168,
+        "group": 1,
+        "rationale": "Vibrance +12: colours read muted at a neutral base; saturation left alone",
+        "changes": [
+          {
+            "op": "set",
+            "path": "/color/vibrance",
+            "value": 12.0
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "parent": 3,
+        "label": "Agent base edit 0%",
+        "author": {
+          "kind": "user"
+        },
+        "timestamp_ms": 1790531676294,
+        "group": null,
+        "rationale": "tessera:group-amount:1:0",
+        "changes": [
+          {
+            "op": "set",
+            "path": "/color/vibrance",
+            "value": 0.0
+          },
+          {
+            "op": "set",
+            "path": "/tone/clarity",
+            "value": 0.0
+          },
+          {
+            "op": "set",
+            "path": "/tone/contrast",
+            "value": 0.0
+          },
+          {
+            "op": "set",
+            "path": "/tone/exposure",
+            "value": 0.0
+          }
+        ]
+      }
+    ],
+    "head": 4,
+    "snapshots": [],
+    "groups": [
+      {
+        "id": 1,
+        "name": "Agent base edit"
+      }
+    ]
+  },
+  "ids": {
+    "next_mask": 0,
+    "next_retouch": 0
+  },
+  "provenance": {
+    "properties": {}
+  },
+  "tessera_agent_v1": {
+    "group": 1,
+    "provenance": "AI-assisted, non-generative edits",
+    "report": {
+      "accepted": true,
+      "confidence": 0.8796551261614738,
+      "critiques": [
+        {
+          "accepted": true,
+          "confidence": 0.8796551261614738,
+          "metrics": {
+            "contrast": 0.17559452262867792,
+            "highlight_clipping": 0.0,
+            "mean_luminance": 0.1925444164657234,
+            "noise": 0.039002286864013844,
+            "percentiles": [
+              0.013671875,
+              0.025390625,
+              0.376953125
+            ],
+            "shadow_clipping": 0.0,
+            "skin_delta_e": null
+          },
+          "reasons": [],
+          "visual": null
+        }
+      ],
+      "dry_run": false,
+      "image": "4dfb420a6caa43871cf96ee76b1c506c",
+      "plans": [
+        [
+          {
+            "blacks": null,
+            "clarity": null,
+            "contrast": null,
+            "dehaze": null,
+            "expect_recipe": null,
+            "exposure": -0.10000000149011612,
+            "group": 1,
+            "highlights": null,
+            "image": "4dfb420a6caa43871cf96ee76b1c506c",
+            "rationale": "Exposure -0.10 EV because mean luminance measured 0.20 against a 0.18 mid-grey target",
+            "saturation": null,
+            "shadows": null,
+            "temperature": null,
+            "texture": null,
+            "tint": null,
+            "tool": "set_tone",
+            "vibrance": null,
+            "whites": null
+          },
+          {
+            "blacks": null,
+            "clarity": 8.0,
+            "contrast": 10.0,
+            "dehaze": null,
+            "expect_recipe": null,
+            "exposure": null,
+            "group": 1,
+            "highlights": null,
+            "image": "4dfb420a6caa43871cf96ee76b1c506c",
+            "rationale": "Contrast +10 and clarity +8 to give the flat base some shape",
+            "saturation": null,
+            "shadows": null,
+            "temperature": null,
+            "texture": null,
+            "tint": null,
+            "tool": "set_tone",
+            "vibrance": null,
+            "whites": null
+          },
+          {
+            "blacks": null,
+            "clarity": null,
+            "contrast": null,
+            "dehaze": null,
+            "expect_recipe": null,
+            "exposure": null,
+            "group": 1,
+            "highlights": null,
+            "image": "4dfb420a6caa43871cf96ee76b1c506c",
+            "rationale": "Vibrance +12: colours read muted at a neutral base; saturation left alone",
+            "saturation": null,
+            "shadows": null,
+            "temperature": null,
+            "texture": null,
+            "tint": null,
+            "tool": "set_tone",
+            "vibrance": 12.0,
+            "whites": null
+          }
+        ]
+      ],
+      "stop_reason": "accepted"
+    },
+    "review_status": "reverted",
+    "version": 1
+  }
+}") is not equal to ("{
+  "schema_version": 3,
+  "image_id": "4dfb420a6caa43871cf96ee76b1c506c",
+  "source_kind": "rgb",
+  "process_version": {
+    "family": "native",
+    "revision": 2
+  },
+  "settings": {
+    "decode": {
+      "frame_index": 0,
+      "pixel_shift_merge": false
+    },
+    "linearize": {
+      "highlight_reconstruction": "reconstruct_color"
+    },
+    "denoise": {
+      "method": {
+        "kind": "off"
+      },
+      "amount": 50.0,
+      "chroma_only": false
+    },
+    "demosaic": {
+      "method": "auto",
+      "model": null
+    },
+    "lens": {
+      "profile": {
+        "kind": "auto"
+      },
+      "distortion_scale": 100.0,
+      "vignetting_scale": 100.0,
+      "chromatic_aberration_scale": 100.0,
+      "remove_chromatic_aberration": true,
+      "manual_distortion": 0.0,
+      "manual_vignetting": 0.0,
+      "manual_vignetting_midpoint": 50.0,
+      "defringe_purple": {
+        "amount": 0.0,
+        "hue_range": [
+          270.0,
+          330.0
+        ]
+      },
+      "defringe_green": {
+        "amount": 0.0,
+        "hue_range": [
+          60.0,
+          110.0
+        ]
+      },
+      "softness_correction": 0.0
+    },
+    "camera_profile": {
+      "profile": {
+        "name": "",
+        "digest": ""
+      },
+      "amount": 100.0,
+      "working_space": "linear_rec2020",
+      "look": null,
+      "calibration": {
+        "shadow_tint": 0.0,
+        "red_hue": 0.0,
+        "red_saturation": 0.0,
+        "green_hue": 0.0,
+        "green_saturation": 0.0,
+        "blue_hue": 0.0,
+        "blue_saturation": 0.0
+      }
+    },
+    "white_balance": {
+      "mode": "as_shot",
+      "temperature": 5500.0,
+      "tint": 0.0
+    },
+    "detail": {
+      "sharpening": {
+        "amount": 40.0,
+        "radius": 1.0,
+        "detail": 25.0,
+        "masking": 0.0
+      },
+      "noise_reduction": {
+        "luminance": 0.0,
+        "luminance_detail": 50.0,
+        "luminance_contrast": 0.0,
+        "color": 25.0,
+        "color_detail": 50.0,
+        "color_smoothness": 50.0
+      }
+    },
+    "tone": {
+      "exposure": -0.1,
+      "contrast": 10.0,
+      "highlights": 0.0,
+      "shadows": 0.0,
+      "whites": 0.0,
+      "blacks": 0.0,
+      "texture": 0.0,
+      "clarity": 8.0,
+      "dehaze": 0.0,
+      "curves": {
+        "parametric": {
+          "shadows": 0.0,
+          "darks": 0.0,
+          "lights": 0.0,
+          "highlights": 0.0,
+          "shadow_split": 25.0,
+          "midtone_split": 50.0,
+          "highlight_split": 75.0
+        },
+        "rgb": [],
+        "red": [],
+        "green": [],
+        "blue": [],
+        "luminance": []
+      },
+      "display_transform": "native"
+    },
+    "color": {
+      "vibrance": 12.0,
+      "saturation": 0.0,
+      "hsl": {
+        "hue": {
+          "red": 0.0,
+          "orange": 0.0,
+          "yellow": 0.0,
+          "green": 0.0,
+          "aqua": 0.0,
+          "blue": 0.0,
+          "purple": 0.0,
+          "magenta": 0.0
+        },
+        "saturation": {
+          "red": 0.0,
+          "orange": 0.0,
+          "yellow": 0.0,
+          "green": 0.0,
+          "aqua": 0.0,
+          "blue": 0.0,
+          "purple": 0.0,
+          "magenta": 0.0
+        },
+        "luminance": {
+          "red": 0.0,
+          "orange": 0.0,
+          "yellow": 0.0,
+          "green": 0.0,
+          "aqua": 0.0,
+          "blue": 0.0,
+          "purple": 0.0,
+          "magenta": 0.0
+        }
+      },
+      "grading": {
+        "shadows": {
+          "hue": 0.0,
+          "saturation": 0.0,
+          "luminance": 0.0
+        },
+        "midtones": {
+          "hue": 0.0,
+          "saturation": 0.0,
+          "luminance": 0.0
+        },
+        "highlights": {
+          "hue": 0.0,
+          "saturation": 0.0,
+          "luminance": 0.0
+        },
+        "global": {
+          "hue": 0.0,
+          "saturation": 0.0,
+          "luminance": 0.0
+        },
+        "blending": 50.0,
+        "balance": 0.0
+      },
+      "point_colors": [],
+      "lut": null
+    },
+    "locals": {
+      "retouch": [],
+      "adjustments": []
+    },
+    "effects": {
+      "vignette": {
+        "amount": 0.0,
+        "midpoint": 50.0,
+        "roundness": 0.0,
+        "feather": 50.0,
+        "highlights": 0.0,
+        "style": "highlight_priority"
+      },
+      "grain": {
+        "amount": 0.0,
+        "size": 25.0,
+        "roughness": 50.0
+      },
+      "lens_blur": null
+    },
+    "geometry": {
+      "orientation": 1,
+      "upright": {
+        "mode": "off",
+        "guides": []
+      },
+      "transform": {
+        "vertical": 0.0,
+        "horizontal": 0.0,
+        "rotate": 0.0,
+        "aspect": 0.0,
+        "scale": 100.0,
+        "offset_x": 0.0,
+        "offset_y": 0.0
+      },
+      "constrain_crop": false,
+      "crop": {
+        "rect": {
+          "left": 0.0,
+          "top": 0.0,
+          "right": 1.0,
+          "bottom": 1.0
+        },
+        "angle": 0.0,
+        "aspect": null
+      }
+    },
+    "output": {
+      "gamut_mapping": "perceptual",
+      "hdr": false,
+      "hdr_headroom_stops": 0.0,
+      "proof_profile": null
+    }
+  },
+  "selection": {
+    "decision": "undecided",
+    "grade": null,
+    "mark": null
+  },
+  "history": {
+    "base": {
+      "decode": {
+        "frame_index": 0,
+        "pixel_shift_merge": false
+      },
+      "linearize": {
+        "highlight_reconstruction": "reconstruct_color"
+      },
+      "denoise": {
+        "method": {
+          "kind": "off"
+        },
+        "amount": 50.0,
+        "chroma_only": false
+      },
+      "demosaic": {
+        "method": "auto",
+        "model": null
+      },
+      "lens": {
+        "profile": {
+          "kind": "auto"
+        },
+        "distortion_scale": 100.0,
+        "vignetting_scale": 100.0,
+        "chromatic_aberration_scale": 100.0,
+        "remove_chromatic_aberration": true,
+        "manual_distortion": 0.0,
+        "manual_vignetting": 0.0,
+        "manual_vignetting_midpoint": 50.0,
+        "defringe_purple": {
+          "amount": 0.0,
+          "hue_range": [
+            270.0,
+            330.0
+          ]
+        },
+        "defringe_green": {
+          "amount": 0.0,
+          "hue_range": [
+            60.0,
+            110.0
+          ]
+        },
+        "softness_correction": 0.0
+      },
+      "camera_profile": {
+        "profile": {
+          "name": "",
+          "digest": ""
+        },
+        "amount": 100.0,
+        "working_space": "linear_rec2020",
+        "look": null,
+        "calibration": {
+          "shadow_tint": 0.0,
+          "red_hue": 0.0,
+          "red_saturation": 0.0,
+          "green_hue": 0.0,
+          "green_saturation": 0.0,
+          "blue_hue": 0.0,
+          "blue_saturation": 0.0
+        }
+      },
+      "white_balance": {
+        "mode": "as_shot",
+        "temperature": 5500.0,
+        "tint": 0.0
+      },
+      "detail": {
+        "sharpening": {
+          "amount": 40.0,
+          "radius": 1.0,
+          "detail": 25.0,
+          "masking": 0.0
+        },
+        "noise_reduction": {
+          "luminance": 0.0,
+          "luminance_detail": 50.0,
+          "luminance_contrast": 0.0,
+          "color": 25.0,
+          "color_detail": 50.0,
+          "color_smoothness": 50.0
+        }
+      },
+      "tone": {
+        "exposure": 0.0,
+        "contrast": 0.0,
+        "highlights": 0.0,
+        "shadows": 0.0,
+        "whites": 0.0,
+        "blacks": 0.0,
+        "texture": 0.0,
+        "clarity": 0.0,
+        "dehaze": 0.0,
+        "curves": {
+          "parametric": {
+            "shadows": 0.0,
+            "darks": 0.0,
+            "lights": 0.0,
+            "highlights": 0.0,
+            "shadow_split": 25.0,
+            "midtone_split": 50.0,
+            "highlight_split": 75.0
+          },
+          "rgb": [],
+          "red": [],
+          "green": [],
+          "blue": [],
+          "luminance": []
+        },
+        "display_transform": "native"
+      },
+      "color": {
+        "vibrance": 0.0,
+        "saturation": 0.0,
+        "hsl": {
+          "hue": {
+            "red": 0.0,
+            "orange": 0.0,
+            "yellow": 0.0,
+            "green": 0.0,
+            "aqua": 0.0,
+            "blue": 0.0,
+            "purple": 0.0,
+            "magenta": 0.0
+          },
+          "saturation": {
+            "red": 0.0,
+            "orange": 0.0,
+            "yellow": 0.0,
+            "green": 0.0,
+            "aqua": 0.0,
+            "blue": 0.0,
+            "purple": 0.0,
+            "magenta": 0.0
+          },
+          "luminance": {
+            "red": 0.0,
+            "orange": 0.0,
+            "yellow": 0.0,
+            "green": 0.0,
+            "aqua": 0.0,
+            "blue": 0.0,
+            "purple": 0.0,
+            "magenta": 0.0
+          }
+        },
+        "grading": {
+          "shadows": {
+            "hue": 0.0,
+            "saturation": 0.0,
+            "luminance": 0.0
+          },
+          "midtones": {
+            "hue": 0.0,
+            "saturation": 0.0,
+            "luminance": 0.0
+          },
+          "highlights": {
+            "hue": 0.0,
+            "saturation": 0.0,
+            "luminance": 0.0
+          },
+          "global": {
+            "hue": 0.0,
+            "saturation": 0.0,
+            "luminance": 0.0
+          },
+          "blending": 50.0,
+          "balance": 0.0
+        },
+        "point_colors": [],
+        "lut": null
+      },
+      "locals": {
+        "retouch": [],
+        "adjustments": []
+      },
+      "effects": {
+        "vignette": {
+          "amount": 0.0,
+          "midpoint": 50.0,
+          "roundness": 0.0,
+          "feather": 50.0,
+          "highlights": 0.0,
+          "style": "highlight_priority"
+        },
+        "grain": {
+          "amount": 0.0,
+          "size": 25.0,
+          "roughness": 50.0
+        },
+        "lens_blur": null
+      },
+      "geometry": {
+        "orientation": 1,
+        "upright": {
+          "mode": "off",
+          "guides": []
+        },
+        "transform": {
+          "vertical": 0.0,
+          "horizontal": 0.0,
+          "rotate": 0.0,
+          "aspect": 0.0,
+          "scale": 100.0,
+          "offset_x": 0.0,
+          "offset_y": 0.0
+        },
+        "constrain_crop": false,
+        "crop": {
+          "rect": {
+            "left": 0.0,
+            "top": 0.0,
+            "right": 1.0,
+            "bottom": 1.0
+          },
+          "angle": 0.0,
+          "aspect": null
+        }
+      },
+      "output": {
+        "gamut_mapping": "perceptual",
+        "hdr": false,
+        "hdr_headroom_stops": 0.0,
+        "proof_profile": null
+      }
+    },
+    "entries": [
+      {
+        "id": 1,
+        "parent": null,
+        "label": "set_tone",
+        "author": {
+          "kind": "agent",
+          "name": "tessera-mcp"
+        },
+        "timestamp_ms": 1790531675957,
+        "group": 1,
+        "rationale": "Exposure -0.10 EV because mean luminance measured 0.20 against a 0.18 mid-grey target",
+        "changes": [
+          {
+            "op": "set",
+            "path": "/tone/exposure",
+            "value": -0.10000000149011612
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "parent": 1,
+        "label": "set_tone",
+        "author": {
+          "kind": "agent",
+          "name": "tessera-mcp"
+        },
+        "timestamp_ms": 1790531676062,
+        "group": 1,
+        "rationale": "Contrast +10 and clarity +8 to give the flat base some shape",
+        "changes": [
+          {
+            "op": "set",
+            "path": "/tone/clarity",
+            "value": 8.0
+          },
+          {
+            "op": "set",
+            "path": "/tone/contrast",
+            "value": 10.0
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "parent": 2,
+        "label": "set_tone",
+        "author": {
+          "kind": "agent",
+          "name": "tessera-mcp"
+        },
+        "timestamp_ms": 1790531676168,
+        "group": 1,
+        "rationale": "Vibrance +12: colours read muted at a neutral base; saturation left alone",
+        "changes": [
+          {
+            "op": "set",
+            "path": "/color/vibrance",
+            "value": 12.0
+          }
+        ]
+      }
+    ],
+    "head": 3,
+    "snapshots": [],
+    "groups": [
+      {
+        "id": 1,
+        "name": "Agent base edit"
+      }
+    ]
+  },
+  "ids": {
+    "next_mask": 0,
+    "next_retouch": 0
+  },
+  "provenance": {
+    "properties": {}
+  },
+  "tessera_agent_v1": {
+    "group": 1,
+    "provenance": "AI-assisted, non-generative edits",
+    "report": {
+      "accepted": true,
+      "confidence": 0.8796551261614738,
+      "critiques": [
+        {
+          "accepted": true,
+          "confidence": 0.8796551261614738,
+          "metrics": {
+            "contrast": 0.17559452262867792,
+            "highlight_clipping": 0.0,
+            "mean_luminance": 0.1925444164657234,
+            "noise": 0.039002286864013844,
+            "percentiles": [
+              0.013671875,
+              0.025390625,
+              0.376953125
+            ],
+            "shadow_clipping": 0.0,
+            "skin_delta_e": null
+          },
+          "reasons": [],
+          "visual": null
+        }
+      ],
+      "dry_run": false,
+      "image": "4dfb420a6caa43871cf96ee76b1c506c",
+      "plans": [
+        [
+          {
+            "blacks": null,
+            "clarity": null,
+            "contrast": null,
+            "dehaze": null,
+            "expect_recipe": null,
+            "exposure": -0.10000000149011612,
+            "group": 1,
+            "highlights": null,
+            "image": "4dfb420a6caa43871cf96ee76b1c506c",
+            "rationale": "Exposure -0.10 EV because mean luminance measured 0.20 against a 0.18 mid-grey target",
+            "saturation": null,
+            "shadows": null,
+            "temperature": null,
+            "texture": null,
+            "tint": null,
+            "tool": "set_tone",
+            "vibrance": null,
+            "whites": null
+          },
+          {
+            "blacks": null,
+            "clarity": 8.0,
+            "contrast": 10.0,
+            "dehaze": null,
+            "expect_recipe": null,
+            "exposure": null,
+            "group": 1,
+            "highlights": null,
+            "image": "4dfb420a6caa43871cf96ee76b1c506c",
+            "rationale": "Contrast +10 and clarity +8 to give the flat base some shape",
+            "saturation": null,
+            "shadows": null,
+            "temperature": null,
+            "texture": null,
+            "tint": null,
+            "tool": "set_tone",
+            "vibrance": null,
+            "whites": null
+          },
+          {
+            "blacks": null,
+            "clarity": null,
+            "contrast": null,
+            "dehaze": null,
+            "expect_recipe": null,
+            "exposure": null,
+            "group": 1,
+            "highlights": null,
+            "image": "4dfb420a6caa43871cf96ee76b1c506c",
+            "rationale": "Vibrance +12: colours read muted at a neutral base; saturation left alone",
+            "saturation": null,
+            "shadows": null,
+            "temperature": null,
+            "texture": null,
+            "tint": null,
+            "tool": "set_tone",
+            "vibrance": 12.0,
+            "whites": null
+          }
+        ]
+      ],
+      "stop_reason": "accepted"
+    },
+    "version": 1
+  }
+}")
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRetainedQueueRevertCannotRefreshNewLibraryOrMutateOldRecipe]' failed (0.516 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRunCompletionAfterFolderSwitchDoesNotRefreshNewLibrary]' started.
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/AgentReviewOwnershipTests.swift:128: error: -[TesseraCoreTests.AgentReviewOwnershipTests testRunCompletionAfterFolderSwitchDoesNotRefreshNewLibrary] : XCTAssertEqual failed: ("1") is not equal to ("0") - Completion must resolve/refresh only in its owner library
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/AgentReviewOwnershipTests.swift:129: error: -[TesseraCoreTests.AgentReviewOwnershipTests testRunCompletionAfterFolderSwitchDoesNotRefreshNewLibrary] : XCTAssertFalse failed - Foreign completion must not present its queue over the new library
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRunCompletionAfterFolderSwitchDoesNotRefreshNewLibrary]' failed (0.494 seconds).
+Test Suite 'AgentReviewOwnershipTests' failed at 2026-09-27 13:54:36.812.
+	 Executed 4 tests, with 6 failures (0 unexpected) in 3.017 (3.018) seconds
+Test Suite 'TesseraPackageTests.xctest' failed at 2026-09-27 13:54:36.812.
+	 Executed 4 tests, with 6 failures (0 unexpected) in 3.017 (3.018) seconds
+Test Suite 'Selected tests' failed at 2026-09-27 13:54:36.812.
+	 Executed 4 tests, with 6 failures (0 unexpected) in 3.017 (3.019) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

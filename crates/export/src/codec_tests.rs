@@ -19,6 +19,7 @@ fn jpeg_xl_rejects_invalid_input_without_writing() {
                 &mut out,
                 &rgb,
                 Encoding {
+                    native: None,
                     format: Format::JpegXl { bits },
                     space,
                     dpi: None
@@ -39,6 +40,7 @@ fn jpeg_xl_rejects_invalid_input_without_writing() {
             &mut out,
             &rgb,
             Encoding {
+                native: None,
                 format: Format::JpegXl { bits: 8 },
                 space: ColorSpace::Srgb,
                 dpi: None
@@ -64,6 +66,7 @@ fn jpeg_xl_round_trips_quantized_srgb_at_both_depths() {
                 &mut out,
                 &rgb,
                 Encoding {
+                    native: None,
                     format: Format::JpegXl { bits },
                     space: ColorSpace::Srgb,
                     dpi: None,
@@ -125,6 +128,7 @@ fn shared_profiles_are_reused_and_tiff_quantizes_target_encoded_pixels() {
             &mut bytes,
             &image,
             Encoding {
+                native: None,
                 format: Format::Tiff { bits: 16 },
                 space,
                 dpi: None,
@@ -192,6 +196,7 @@ fn cancel_during_encoding_stops_writes() {
                 &mut writer,
                 &image,
                 Encoding {
+                    native: None,
                     format,
                     space: ColorSpace::Srgb,
                     dpi: None
@@ -214,6 +219,7 @@ fn density_is_recorded_in_every_container() {
             &mut out,
             &image,
             Encoding {
+                native: None,
                 format,
                 space: ColorSpace::Srgb,
                 dpi,

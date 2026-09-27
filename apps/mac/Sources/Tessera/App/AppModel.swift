@@ -252,6 +252,21 @@ final class AppModel {
     /// Develop session for the focused RAW while the loupe shows it (docs/11 §1.2).
     @ObservationIgnored private(set) var develop: DevelopController?
     @ObservationIgnored private var developTask: Task<Void, Never>?
+    @ObservationIgnored private var activeDevelopOpen: UUID?
+    /// Captured when opening, before a folder switch can replace `library`.
+    @ObservationIgnored private var developLibrary: EngineLibrary?
+    private struct DevelopCloseKey: Hashable {
+        let owner: ObjectIdentifier
+        let imageID: String
+    }
+    private struct PendingDevelopClose {
+        // Retain the owner while its object identity keys a pending operation.
+        let owner: EngineLibrary
+        let token: UUID
+        let task: Task<Void, Never>
+    }
+    @ObservationIgnored private var pendingDevelopCloses: [DevelopCloseKey: PendingDevelopClose] = [:]
+    @ObservationIgnored private var pendingDevelopOpens: [DevelopCloseKey: PendingDevelopClose] = [:]
     @ObservationIgnored private var undoDomain = UndoDomain.cull
     @ObservationIgnored private var pendingReadout: String?
     @ObservationIgnored private var developSelfTestRan = false
@@ -1409,7 +1424,11 @@ final class AppModel {
 
     /// Opens the session for an indexed photo. Called by the loupe when it shows an image.
     func openDevelop(for item: PhotoItem) {
-        if develop?.itemID == item.id {
+        // The matching owner/photo's pending sessions were captured before the
+        // mutation began. Do not create a new stale session after that barrier.
+        if let owner = engineLibrary, let ref = item.engineImage,
+           agent.isMutating(imageID: ref.imageID, library: owner) { return }
+        if develop?.itemID == item.id, developLibrary === engineLibrary {
             liveObservers.forEach { $0.developDidChange() }
             return
         }
@@ -1421,25 +1440,47 @@ final class AppModel {
         }
         developStatus = .loading
         let generation = loadGeneration
-        developTask = Task { [weak self] in
+        let owner = engineLibrary
+        let key = owner.map { DevelopCloseKey(owner: ObjectIdentifier($0), imageID: ref.imageID) }
+        let pendingClose = key.flatMap { pendingDevelopCloses[$0]?.task }
+        let pendingOpen = key.flatMap { pendingDevelopOpens[$0]?.task }
+        let token = UUID()
+        let task = Task { [weak self] in
+            defer {
+                if let key, self?.pendingDevelopOpens[key]?.token == token {
+                    self?.pendingDevelopOpens.removeValue(forKey: key)
+                }
+            }
             do {
+                // Cancelled opens can still produce a controller; await their cleanup as well.
+                await pendingOpen?.value
+                await pendingClose?.value
+                guard !Task.isCancelled else { return }
                 let controller = try await DevelopController.open(ref, itemID: item.id)
                 guard let self, !Task.isCancelled, generation == self.loadGeneration,
-                      self.focusedItem?.id == item.id else {
+                      self.engineLibrary === owner, self.focusedItem?.id == item.id else {
                     await controller.close()
                     return
                 }
-                self.install(develop: controller)
+                self.install(develop: controller, library: owner)
             } catch {
-                guard let self, !Task.isCancelled, self.focusedItem?.id == item.id else { return }
+                guard let self, !Task.isCancelled, self.engineLibrary === owner,
+                      self.focusedItem?.id == item.id else { return }
                 self.developStatus = .unavailable(error.localizedDescription)
             }
         }
+        developTask = task
+        activeDevelopOpen = token
+        if let owner, let key {
+            pendingDevelopOpens[key] = PendingDevelopClose(owner: owner, token: token, task: task)
+        }
     }
 
-    private func install(develop controller: DevelopController) {
+    private func install(develop controller: DevelopController, library owner: EngineLibrary?) {
         developTask = nil
+        activeDevelopOpen = nil
         develop = controller
+        developLibrary = owner
         developStatus = .ready
         developHistory = controller.history
         developRevision += 1
@@ -1448,8 +1489,10 @@ final class AppModel {
             self.developDidRender(frame, controller)
         }
         // The item id can change while the session is open (in-place library updates).
-        controller.onSaved = { [weak self, weak controller] _ in
-            if let controller { self?.developDidSave(itemID: controller.itemID) }
+        controller.onSaved = { [weak self, weak controller, weak owner] _ in
+            guard let self, let controller, let owner, self.engineLibrary === owner,
+                  let itemID = owner.itemOfImage[controller.imageID] else { return }
+            self.developDidSave(itemID: itemID)
         }
         controller.onFailure = { [weak self] message in self?.statusMessage = "Develop: \(message)" }
         if ProcessInfo.processInfo.arguments.contains("--develop-selftest"), !developSelfTestRan {
@@ -1471,15 +1514,60 @@ final class AppModel {
     func closeDevelop() {
         developTask?.cancel()
         developTask = nil
+        activeDevelopOpen = nil
         if developStatus != .none { developStatus = .none }
         guard let controller = develop else { return }
+        let owner = developLibrary
         develop = nil
+        developLibrary = nil
         controller.onFrame = nil
         controller.onFailure = nil
         developHistory = nil
         renderReadout = nil
+        guard let owner else {
+            Task { await controller.close() }
+            liveObservers.forEach { $0.developDidChange() }
+            return
+        }
+        let key = DevelopCloseKey(owner: ObjectIdentifier(owner), imageID: controller.imageID)
+        let previous = pendingDevelopCloses[key]?.task
+        let token = UUID()
+        let task = Task { [weak self] in
+            await previous?.value
+            await controller.close()
+            if self?.pendingDevelopCloses[key]?.token == token {
+                self?.pendingDevelopCloses.removeValue(forKey: key)
+            }
+        }
+        pendingDevelopCloses[key] = PendingDevelopClose(owner: owner, token: token, task: task)
+        // Publish only after the barrier exists; observers may synchronously reopen the photo.
         liveObservers.forEach { $0.developDidChange() }
-        Task { await controller.close() }
+    }
+
+    /// Capture the save barriers synchronously, before an agent action suspends or changes folder.
+    /// Already-closing sessions remain visible here after `develop` has been cleared.
+    func prepareForAgent(imageIDs: Set<String>, library owner: EngineLibrary) -> Task<Void, Never> {
+        if developLibrary === owner, let controller = develop, imageIDs.contains(controller.imageID) {
+            closeDevelop()
+        }
+        let ownerID = ObjectIdentifier(owner)
+        let closes = pendingDevelopCloses.compactMap { key, close in
+            key.owner == ownerID && imageIDs.contains(key.imageID) ? close.task : nil
+        }
+        let openings = pendingDevelopOpens.filter { key, _ in
+            key.owner == ownerID && imageIDs.contains(key.imageID)
+        }.map(\.value)
+        // Do not cancel another library's currently opening photo or clear its loading state.
+        for open in openings { open.task.cancel() }
+        if let activeDevelopOpen, openings.contains(where: { $0.token == activeDevelopOpen }) {
+            self.activeDevelopOpen = nil
+            developTask = nil
+            if develop == nil { developStatus = .none }
+        }
+        let opens = openings.map(\.task)
+        return Task {
+            for barrier in opens + closes { await barrier.value }
+        }
     }
 
     private func developDidRender(_ frame: DevelopFrame, _ controller: DevelopController) {

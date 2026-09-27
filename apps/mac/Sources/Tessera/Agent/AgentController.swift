@@ -29,7 +29,54 @@ final class AgentController {
     private(set) var progress: AgentRunProgress?
     private(set) var runningTitle = ""
     private(set) var queue = AgentReviewQueue()
+    private var queueOwner: EngineLibrary?
+    private var queueGeneration = UUID()
+    @ObservationIgnored private var runID: UUID?
+    private var runningLibrary: EngineLibrary?
+    private var runningImages: Set<String> = []
+    private var mutationOwners: [String: EngineLibrary] = [:]
+    private enum SourceKey: Hashable {
+        case resource(device: UInt64, inode: UInt64)
+        case path(URL)
+    }
+    private var runningSources: Set<SourceKey> = []
+    private var mutationSources: [String: SourceKey] = [:]
+    // Scoped to active mutations: SwiftUI availability queries reuse the first
+    // resolution, and later mutations do not inherit stale filesystem identities.
+    @ObservationIgnored private var sourceKeys: [URL: SourceKey] = [:]
     var showReview = false
+    var reviewLibrary: EngineLibrary? { queueOwner }
+    var reviewGeneration: UUID { queueGeneration }
+
+    /// A row's owner and stable photo identity, captured before any suspension.
+    struct ReviewTarget: Sendable {
+        let entry: AgentReviewEntry
+        let library: EngineLibrary
+        fileprivate let generation: UUID
+    }
+
+    func queueTarget(_ entry: AgentReviewEntry) -> ReviewTarget? {
+        guard let queueOwner, let stored = queue.entry(entry.imageID), stored.groupID == entry.groupID else { return nil }
+        return ReviewTarget(entry: entry, library: queueOwner, generation: queueGeneration)
+    }
+
+    func reviewTarget(_ entry: AgentReviewEntry, library: EngineLibrary) -> ReviewTarget {
+        ReviewTarget(entry: entry, library: library, generation: queueGeneration)
+    }
+
+    /// Never use a stored item index after a library update or folder switch.
+    func currentItem(for target: ReviewTarget) -> Int? {
+        guard app?.engineLibrary === target.library,
+              target.generation == queueGeneration else { return nil }
+        return target.library.itemOfImage[target.entry.imageID]
+    }
+
+    private func setStatus(_ status: AgentReviewEntry.Status, for target: ReviewTarget) {
+        guard queueOwner === target.library,
+              target.generation == queueGeneration,
+              queue.entry(target.entry.imageID)?.groupID == target.entry.groupID else { return }
+        queue.setStatus(status, for: target.entry.imageID)
+    }
     /// Photos whose accept / revert / redo is in flight (row spinners).
     private(set) var busy: Set<String> = []
     private(set) var profile: StyleProfileStatus?
@@ -37,6 +84,43 @@ final class AgentController {
     @ObservationIgnored private var cancelFlag: CancelFlag?
 
     var isRunning: Bool { progress != nil }
+
+    /// Session creation must not race an agent's recipe write. Other owners and
+    /// unrelated photos remain available while a captured run finishes offscreen.
+    func isMutating(imageID: String, library: EngineLibrary) -> Bool {
+        if (runningLibrary === library && runningImages.contains(imageID)) || mutationOwners[imageID] === library {
+            return true
+        }
+        guard !runningSources.isEmpty || !mutationSources.isEmpty,
+              let key = sourceKey(imageID: imageID, library: library) else { return false }
+        return runningSources.contains(key) || mutationSources.values.contains(key)
+    }
+
+    private func sourceKey(imageID: String, library: EngineLibrary) -> SourceKey? {
+        guard let item = library.itemOfImage[imageID], library.items.indices.contains(item),
+              let url = library.items[item].url else { return nil }
+        if let cached = sourceKeys[url] { return cached }
+        let canonical = url.standardizedFileURL.resolvingSymlinksInPath()
+        let attributes = try? FileManager.default.attributesOfItem(atPath: canonical.path)
+        let key: SourceKey
+        if let device = attributes?[.systemNumber] as? NSNumber,
+           let inode = attributes?[.systemFileNumber] as? NSNumber {
+            key = .resource(device: device.uint64Value, inode: inode.uint64Value)
+        } else { key = .path(canonical) }
+        sourceKeys[url] = key
+        return key
+    }
+
+    private func clearSourceKeysIfIdle() {
+        if runningImages.isEmpty && mutationOwners.isEmpty { sourceKeys.removeAll() }
+    }
+
+    private func finishMutation(_ imageID: String) {
+        mutationOwners.removeValue(forKey: imageID)
+        mutationSources.removeValue(forKey: imageID)
+        busy.remove(imageID)
+        clearSourceKeysIfIdle()
+    }
 
     init(arguments: [String] = ProcessInfo.processInfo.arguments) {
         store = AISettingsStore(directory: EngineLibrary.defaultSupportDirectory)
@@ -108,6 +192,7 @@ final class AgentController {
         guard let app else { return }
         guard app.isEngineBacked else { app.statusMessage = "Auto Edit needs a folder opened on the engine"; return }
         guard !isRunning else { app.statusMessage = "An auto edit is already running"; return }
+        guard busy.isEmpty else { app.statusMessage = "Wait for the current review action to finish"; return }
         error = nil
         if !providers.contains(provider) { provider = preferences.provider }
         scope = app.selectionCount > 1 ? .selection : (app.source == .all ? .shoot : .view)
@@ -136,6 +221,7 @@ final class AgentController {
 
     /// Problem that blocks the run, if any (shown in the sheet).
     var blocker: String? {
+        if !busy.isEmpty { return "Wait for the current review action to finish" }
         if provider.keyAccount != nil, !store.hasKey(for: provider) { return AISettingsError.missingKey(provider).errorDescription }
         if count(scope) == 0 { return "Nothing to edit in this scope" }
         return nil
@@ -146,6 +232,9 @@ final class AgentController {
     /// Starts the base edit (or, with `instruction`, a scoped redo) for item ids.
     func start(itemIDs: [Int], instruction: String? = nil, provider kind: AIProviderKind? = nil) {
         guard let app, let lib = app.engineLibrary, let folder = lib.folder, !isRunning, !itemIDs.isEmpty else { return }
+        // A run replaces the queue generation; let existing review completions
+        // publish their result and refresh their photo before any run starts.
+        guard busy.isEmpty, itemIDs.allSatisfy(lib.imageIDs.indices.contains) else { return }
         let kind = kind ?? provider
         let provider: AgentProvider
         do { provider = try store.provider(kind, preferences) } catch {
@@ -171,26 +260,43 @@ final class AgentController {
         error = nil
         runningTitle = instruction.map { "Redo “\($0)”" } ?? "Auto edit · \(kind.title)"
         progress = AgentRunProgress(done: 0, total: UInt32(itemIDs.count), current: "", phase: "Preparing")
-        let relay = AgentRelay { [weak self] p in Task { @MainActor in if self?.progress != nil { self?.progress = p } } }
-        let ids = Set(itemIDs)
-        let images = itemIDs.filter(lib.imageIDs.indices.contains).map { lib.imageIDs[$0] }
+        let job = UUID()
+        runID = job
+        let relay = AgentRelay { [weak self] p in
+            Task { @MainActor in if self?.runID == job { self?.progress = p } }
+        }
+        let images = inputs.map(\.imageId)
+        runningLibrary = lib
+        runningImages = Set(images)
+        runningSources = Set(images.compactMap { sourceKey(imageID: $0, library: lib) })
+        let closeBarrier = app.prepareForAgent(imageIDs: Set(images), library: lib)
         Task {
-            // Pending develop saves of these photos land before the agent reads their recipes.
-            await app.releaseDevelop(for: ids)
+            // The captured owner can finish offscreen, but all of its prior
+            // Develop saves must land before the agent reads the recipes.
+            await closeBarrier.value
             let result = await Task.detached(priority: .userInitiated) {
                 Result { try lib.engine.runAgent(request: request, cancel: cancel, listener: relay) }
             }.value
             self.progress = nil
             self.cancelFlag = nil
+            self.runID = nil
+            self.runningLibrary = nil
+            self.runningImages.removeAll()
+            self.runningSources.removeAll()
+            self.clearSourceKeysIfIdle()
             switch result {
             case .success(let report): self.didFinish(report, library: lib, redo: instruction != nil)
             case .failure(let e):
-                self.error = e.localizedDescription
-                app.statusMessage = "Auto edit failed: \(e.localizedDescription)"
-                app.showToast("Auto edit failed: \(e.localizedDescription)", undoable: false)
+                if app.engineLibrary === lib {
+                    self.error = e.localizedDescription
+                    app.statusMessage = "Auto edit failed: \(e.localizedDescription)"
+                    app.showToast("Auto edit failed: \(e.localizedDescription)", undoable: false)
+                }
             }
             // Item ids may have moved while the run was going (frames arriving, an import).
-            app.agentDidEdit(images.compactMap { lib.itemOfImage[$0] })
+            if app.engineLibrary === lib {
+                app.agentDidEdit(images.compactMap { lib.itemOfImage[$0] })
+            }
         }
     }
 
@@ -198,17 +304,20 @@ final class AgentController {
 
     /// The library changed in place: review rows follow their photos.
     func libraryDidUpdate(_ lib: EngineLibrary) {
-        guard !queue.isEmpty else { return }
+        guard queueOwner === lib, !queue.isEmpty else { return }
         queue.relink { lib.itemOfImage[$0] }
     }
 
     private func didFinish(_ report: AgentRunReport, library lib: EngineLibrary, redo: Bool) {
         let entries = report.items.map { AgentReviewEntry($0, itemID: lib.itemOfImage[$0.imageId]) }
-        if redo || !queue.isEmpty && queue.provider == report.provider {
+        if queueOwner === lib && (redo || !queue.isEmpty && queue.provider == report.provider) {
             queue.merge(entries)
         } else {
             queue = AgentReviewQueue(entries: entries, provider: report.provider)
         }
+        queueOwner = lib
+        queueGeneration = UUID()
+        guard app?.engineLibrary === lib else { return }
         let failed = entries.filter { $0.error != nil }
         let done = entries.count - failed.count
         var headline = report.cancelled ? "Auto edit cancelled: \(done) edited" : redo
@@ -222,51 +331,79 @@ final class AgentController {
 
     // MARK: Review actions
 
-    func accept(_ entry: AgentReviewEntry) {
-        guard let app, let lib = app.engineLibrary, let folder = lib.folder else { return }
+    func accept(_ target: ReviewTarget, completion: @escaping @MainActor (Bool) -> Void = { _ in }) {
+        let entry = target.entry
+        guard let app, currentItem(for: target) != nil,
+              let folder = target.library.folder, entry.groupID != nil,
+              entry.error == nil, !isRunning, !busy.contains(entry.imageID) else { completion(false); return }
+        let lib = target.library
         busy.insert(entry.imageID)
+        mutationOwners[entry.imageID] = lib
+        mutationSources[entry.imageID] = sourceKey(imageID: entry.imageID, library: lib)
         let imageID = entry.imageID
-        Task.detached(priority: .userInitiated) {
-            let result = Result { try lib.engine.acceptAgentEdit(imageId: imageID, libraryFolder: folder.path) }
-            await MainActor.run {
-                self.busy.remove(imageID)
-                switch result {
-                case .success(let r):
-                    self.queue.setStatus(.accepted, for: imageID)
+        let closeBarrier = app.prepareForAgent(imageIDs: [imageID], library: lib)
+        Task {
+            await closeBarrier.value
+            guard self.currentItem(for: target) != nil else {
+                self.finishMutation(imageID)
+                completion(false)
+                return
+            }
+            let result = await Task.detached(priority: .userInitiated) {
+                Result { try lib.engine.acceptAgentEdit(imageId: imageID, libraryFolder: folder.path) }
+            }.value
+            self.finishMutation(imageID)
+            switch result {
+            case .success(let r):
+                self.setStatus(.accepted, for: target)
+                if let item = self.currentItem(for: target) {
+                    app.agentDidEdit([item])
                     app.statusMessage = "Accepted \(entry.name)" + (r.feedbackRecorded
                         ? " · style profile now has \(r.samples) sample\(r.samples == 1 ? "" : "s")"
                         : " · not learned: \(r.note ?? "")")
-                case .failure(let e): app.statusMessage = "Accept failed: \(e.localizedDescription)"
-                }
+                    completion(true)
+                } else { completion(false) }
+            case .failure(let e):
+                if self.currentItem(for: target) != nil { app.statusMessage = "Accept failed: \(e.localizedDescription)" }
+                completion(false)
             }
         }
     }
 
-    func revert(_ entry: AgentReviewEntry) {
-        guard let app, let lib = app.engineLibrary, let group = entry.groupID else { return }
+    func revert(_ target: ReviewTarget) {
+        let entry = target.entry
+        guard let app, currentItem(for: target) != nil, let group = entry.groupID,
+              !isRunning, !busy.contains(entry.imageID) else { return }
+        let lib = target.library
         busy.insert(entry.imageID)
+        mutationOwners[entry.imageID] = lib
+        mutationSources[entry.imageID] = sourceKey(imageID: entry.imageID, library: lib)
         let imageID = entry.imageID
-        let item = entry.itemID
+        let closeBarrier = app.prepareForAgent(imageIDs: [imageID], library: lib)
         Task {
-            if let item { await app.releaseDevelop(for: [item]) }
+            await closeBarrier.value
+            guard self.currentItem(for: target) != nil else { self.finishMutation(imageID); return }
             let result = await Task.detached { Result { try lib.engine.revertAgentEdit(imageId: imageID, groupId: group) } }.value
-            self.busy.remove(imageID)
+            self.finishMutation(imageID)
             switch result {
             case .success:
-                self.queue.setStatus(.reverted, for: imageID)
-                app.statusMessage = "Reverted the agent's edit of \(entry.name) (one step in its history)"
-            case .failure(let e): app.statusMessage = "Revert failed: \(e.localizedDescription)"
+                self.setStatus(.reverted, for: target)
+                if self.currentItem(for: target) != nil {
+                    app.statusMessage = "Reverted the agent's edit of \(entry.name) (one step in its history)"
+                }
+            case .failure(let e):
+                if self.currentItem(for: target) != nil { app.statusMessage = "Revert failed: \(e.localizedDescription)" }
             }
-            if let item = lib.itemOfImage[imageID] { app.agentDidEdit([item]) }
+            if let item = self.currentItem(for: target) { app.agentDidEdit([item]) }
         }
     }
 
     /// Natural-language redo ("warmer, keep the sky"): a new, named group on that photo.
-    func redo(_ itemIDs: [Int], instruction: String) {
+    func redo(_ target: ReviewTarget, instruction: String) {
+        guard let item = currentItem(for: target) else { return }
         let text = instruction.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
-        // A redo uses the provider that made the queue when possible, else the sheet's choice.
-        start(itemIDs: itemIDs, instruction: text)
+        start(itemIDs: [item], instruction: text)
     }
 }
 

@@ -37,6 +37,12 @@ assembly-build and signal-handler features are disabled; only threading is
 enabled. This path supports 8/10/12-bit SDR encoding. macOS ImageIO is used
 only by export's development tests for independent decoding.
 
+Developed DNG original-file embedding uses `flate2` (MIT OR Apache-2.0)
+for independent 64 KiB zlib blocks. This is an existing transitive dependency,
+now also a direct export dependency. No Adobe SDK or ExifTool code is linked
+or redistributed. ExifTool, when installed, is invoked only as an independent
+test reader. LibRaw RGB comparison tests use the existing CDDL-licensed build.
+
 Narrow exception: `libfuzzer-sys` 0.4.13, referenced only by rav1e under
 `cfg(fuzzing)`, also uses NCSA for the LLVM fuzzing runtime. Cargo-deny's
 all-target dependency graph includes it, although normal/build dependency
