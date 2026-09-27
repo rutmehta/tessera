@@ -75,8 +75,12 @@ public final class DevelopController {
     public private(set) var lastFrame: DevelopFrame?
     public private(set) var histogram: Histogram?
     public private(set) var plan: SurfacePlan?
-    /// Settings not drawn by this pipeline version (kept in the recipe).
+    /// Settings not drawn by this pipeline version (kept in the recipe), as JSON pointers
+    /// (`/geometry/upright/mode`). Refreshed on open, history moves and each recorded commit.
     public private(set) var ignoredSettings: [String] = []
+
+    /// Whether the loupe skips any setting under `prefix` (e.g. `/geometry/transform`).
+    public func ignores(_ prefix: String) -> Bool { ignoredSettings.contains { $0.hasPrefix(prefix) } }
 
     public var onFrame: ((DevelopFrame) -> Void)?
     public var onSaved: ((String) -> Void)?
@@ -376,6 +380,7 @@ public final class DevelopController {
     public func commit(label: String) -> Bool {
         flushPending()
         let recorded = (try? session.commit(label: label)) ?? false
+        if recorded { ignoredSettings = (try? session.ignoredSettings()) ?? ignoredSettings }
         refreshHistory()
         return recorded
     }
