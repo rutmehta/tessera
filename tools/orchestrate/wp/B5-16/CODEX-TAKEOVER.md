@@ -274,3 +274,14 @@ current main7e687e5 merges cleanly in a read-only merge preview. After these
 reruns, integrate current main into B5-16 and run its resolved Swift gate before
 asking A to reconsider main integration. A remains sole main integrator. Full
 interactive acceptance remains pending regardless of self-test outcomes.
+
+### 20:06 UTC heartbeat — targeted Text pass
+
+Fetched main550e09a and read current A board/status; mailbox has no new requests.
+Original queued status8dd65b7d remains completed, not a second task. Targeted
+**Text PASS** with zero failures and actual exit0. Transform now opens the
+intended1600x1000 card and passes Puppet mesh/pins, CAS, live-text conversion,
+document-switch cancellation and native save/PSD refusal. It is still running
+(runnerPID9344, appPID12083) at rasterized-copy/reopen, with the20MP step afterward.
+No final Transform or whole-suite pass is claimed. Keep the heavy slot reserved;
+collect the same runner/log rather than restarting. A remains sole main merger.
