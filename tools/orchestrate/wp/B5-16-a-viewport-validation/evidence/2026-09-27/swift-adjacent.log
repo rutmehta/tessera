@@ -1,0 +1,76 @@
+Building for production...
+[0/3] Write swift-version--58304C5D6DBC2206.txt
+Build complete! (0.26s)
+Test Suite 'Selected tests' started at 2026-09-27 18:07:57.963.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-27 18:07:57.964.
+Test Suite 'DocumentOutlineTests' started at 2026-09-27 18:07:57.964.
+Test Case '-[TesseraCoreTests.DocumentOutlineTests testInsertRemoveAndUngroupDiffs]' started.
+Test Case '-[TesseraCoreTests.DocumentOutlineTests testInsertRemoveAndUngroupDiffs]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.DocumentOutlineTests testListOrderDoesNotMatterOnlyIndices]' started.
+Test Case '-[TesseraCoreTests.DocumentOutlineTests testListOrderDoesNotMatterOnlyIndices]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentOutlineTests testLongestIncreasingSubsequence]' started.
+Test Case '-[TesseraCoreTests.DocumentOutlineTests testLongestIncreasingSubsequence]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentOutlineTests testMinimalMovesForUnchangedTree]' started.
+Test Case '-[TesseraCoreTests.DocumentOutlineTests testMinimalMovesForUnchangedTree]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentOutlineTests testMoveIntoGroupAndOutIsOneMoveEach]' started.
+Test Case '-[TesseraCoreTests.DocumentOutlineTests testMoveIntoGroupAndOutIsOneMoveEach]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentOutlineTests testRandomTreesDiffToTheirTarget]' started.
+Test Case '-[TesseraCoreTests.DocumentOutlineTests testRandomTreesDiffToTheirTarget]' passed (0.010 seconds).
+Test Case '-[TesseraCoreTests.DocumentOutlineTests testSampleDocumentFlattensTopFirst]' started.
+Test Case '-[TesseraCoreTests.DocumentOutlineTests testSampleDocumentFlattensTopFirst]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentOutlineTests testSingleReorderIsOneMove]' started.
+Test Case '-[TesseraCoreTests.DocumentOutlineTests testSingleReorderIsOneMove]' passed (0.000 seconds).
+Test Suite 'DocumentOutlineTests' passed at 2026-09-27 18:07:57.976.
+	 Executed 8 tests, with 0 failures (0 unexpected) in 0.012 (0.012) seconds
+Test Suite 'DocumentToolsTests' started at 2026-09-27 18:07:57.976.
+Test Case '-[TesseraCoreTests.DocumentToolsTests testAffineComposition]' started.
+Test Case '-[TesseraCoreTests.DocumentToolsTests testAffineComposition]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentToolsTests testBracketKeysAndHardness]' started.
+Test Case '-[TesseraCoreTests.DocumentToolsTests testBracketKeysAndHardness]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentToolsTests testCoalescerBatchesSamplesWhileAFrameIsInFlight]' started.
+Test Case '-[TesseraCoreTests.DocumentToolsTests testCoalescerBatchesSamplesWhileAFrameIsInFlight]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentToolsTests testEngineToolsThroughTheAdapter]' started.
+Test Case '-[TesseraCoreTests.DocumentToolsTests testEngineToolsThroughTheAdapter]' passed (0.120 seconds).
+Test Case '-[TesseraCoreTests.DocumentToolsTests testFreeTransformHandleDrags]' started.
+Test Case '-[TesseraCoreTests.DocumentToolsTests testFreeTransformHandleDrags]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentToolsTests testFreeTransformModel]' started.
+Test Case '-[TesseraCoreTests.DocumentToolsTests testFreeTransformModel]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentToolsTests testFreeTransformRotateMoveAndHitTest]' started.
+Test Case '-[TesseraCoreTests.DocumentToolsTests testFreeTransformRotateMoveAndHitTest]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentToolsTests testHUDDragMapsToSizeAndHardness]' started.
+Test Case '-[TesseraCoreTests.DocumentToolsTests testHUDDragMapsToSizeAndHardness]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentToolsTests testMarqueeGeometry]' started.
+Test Case '-[TesseraCoreTests.DocumentToolsTests testMarqueeGeometry]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentToolsTests testOpacityDigits]' started.
+Test Case '-[TesseraCoreTests.DocumentToolsTests testOpacityDigits]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentToolsTests testPressureCurve]' started.
+Test Case '-[TesseraCoreTests.DocumentToolsTests testPressureCurve]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentToolsTests testSelectionModifierMapping]' started.
+Test Case '-[TesseraCoreTests.DocumentToolsTests testSelectionModifierMapping]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentToolsTests testStubAdoptsTheGeometricSubset]' started.
+Test Case '-[TesseraCoreTests.DocumentToolsTests testStubAdoptsTheGeometricSubset]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentToolsTests testToolColors]' started.
+Test Case '-[TesseraCoreTests.DocumentToolsTests testToolColors]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentToolsTests testToolKeyMap]' started.
+Test Case '-[TesseraCoreTests.DocumentToolsTests testToolKeyMap]' passed (0.000 seconds).
+Test Suite 'DocumentToolsTests' passed at 2026-09-27 18:07:58.098.
+	 Executed 15 tests, with 0 failures (0 unexpected) in 0.121 (0.122) seconds
+Test Suite 'DocumentViewportMathTests' started at 2026-09-27 18:07:58.098.
+Test Case '-[TesseraCoreTests.DocumentViewportMathTests testAnchoredZoomKeepsThePointUnderThePointer]' started.
+Test Case '-[TesseraCoreTests.DocumentViewportMathTests testAnchoredZoomKeepsThePointUnderThePointer]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentViewportMathTests testFitZoomAndSteps]' started.
+Test Case '-[TesseraCoreTests.DocumentViewportMathTests testFitZoomAndSteps]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentViewportMathTests testLevelFromZoom]' started.
+Test Case '-[TesseraCoreTests.DocumentViewportMathTests testLevelFromZoom]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentViewportMathTests testVisibleRectAndPan]' started.
+Test Case '-[TesseraCoreTests.DocumentViewportMathTests testVisibleRectAndPan]' passed (0.000 seconds).
+Test Suite 'DocumentViewportMathTests' passed at 2026-09-27 18:07:58.099.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-09-27 18:07:58.099.
+	 Executed 27 tests, with 0 failures (0 unexpected) in 0.134 (0.135) seconds
+Test Suite 'Selected tests' passed at 2026-09-27 18:07:58.099.
+	 Executed 27 tests, with 0 failures (0 unexpected) in 0.134 (0.136) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
