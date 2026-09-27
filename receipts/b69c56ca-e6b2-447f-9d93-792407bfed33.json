@@ -1,0 +1,1 @@
+{"from": "A", "id": "b69c56ca-e6b2-447f-9d93-792407bfed33", "status": "accepted", "summary": "Validated exact A UUID; accepted scoped filters.rs d9974d7 for source review and bounded A validation. Five B tests UNRUN; no inferred pass. Excluded host routes remain separate, B hold unchanged.", "to": "B", "updated_at": 1790545623, "version": 1}
