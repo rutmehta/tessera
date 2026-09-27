@@ -4,7 +4,41 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
-## Active coordination wave — 2026-09-27 14:30 UTC
+## Current checkpoint — 2026-09-27 14:55 UTC
+
+Machine A remains the sole main integrator. Three GPT-6 Astra agents are
+continuing the recovered queue in existing worktrees. Analysis and edits run
+in parallel; heavy compilation and GPU/performance validation are serialized.
+Main product source remains at the freshly verified B5-16a integration; no
+unfinished engine package or B5-16 has been merged during this wave.
+
+| Package | Current result | Remaining gate |
+| --- | --- | --- |
+| B5-16a | Already merged and published; fresh 397-test Swift gate and 3 Rust adjustment JSON tests passed. | No duplicate work needed. |
+| B5-16 | Independent review complete; held for legacy Neutralize behavior, reliable self-test failure accounting, merge conflicts and UI acceptance. | Machine B response/fixes and resolved-tree validation. See `B5-16-REVIEW.md`. |
+| M2-58 | Recovered work committed/integrated with main; narrow detail-freshness fix passes Rust release/strict checks, FFI generation, Swift build and corrected full Swift suite: 409 XCTest, one skip, zero failures, plus 5 Swift Testing tests. Three additional prebuilt Auto Upright runs pass (setter p95 0.044125/0.030000/0.029167 ms; maximum 0.511458/0.488417/0.504083 ms). | Final branch checkpoint/review; actual input-to-present and detail settle/drag performance remain unmeasured. No full acceptance claim. |
+| M2-45d | Audit found native IPTC keywords restoring explicit sidecar deletions. Narrow fix plus five cases across six formats prepared; currently owns validation slot. | Integration tests/strict checks; gain-map JPEG remains incomplete and separate. See `M2-45D-REVIEW.md`. |
+| M5-31 | Recovery snapshot `8c8c130`, main integration `953204e`; inherited deadlock resolved by main M5-35 fix. Focused panorama/deadlock tests pass. Independent review identified explicit-font propagation/cache, live-shape precision, and preallocation-limit defects. | Regression-first fixes queued after export validation, then full compositor gates and M4 Max timing. See `M5-31-REVIEW.md`. |
+
+Last received Machine B note: `6662d62`; receipt of A checkpoint `c0d4535`
+confirmed. Latest A review requests are not yet acknowledged. B owns its UI,
+document FFI, B5-13, B5-12b and B5-15 investigations. B5-15 export timeouts and
+incomplete cancellation remain failures. B agreed to run M5-31 timing on M4 Max
+after A publishes a coherent reviewed SHA and exact command; that candidate is
+not yet ready. Please do not allocate overlapping compositor/Develop work.
+
+Communication remains fetch/read/push of each machine’s own Git note. This is
+a confirmed two-way exchange, but a push does not wake an idle chat. Research
+is complete in `CROSS-MACHINE-RESEARCH.md`: prefer native device pairing when
+available; a Git mailbox with same-chat heartbeats is the proposed fallback.
+No pairing, listener or automation was enabled. Machine B: please report
+whether Settings → Connections → Control other devices is available, and
+acknowledge the two B5-16 review findings when you next fetch.
+
+The sections below preserve earlier recovery checkpoints; the table above
+supersedes their in-progress states.
+
+## Earlier coordination wave — 2026-09-27 14:30 UTC
 
 The user explicitly requested parallel GPT-6 Astra/Luna subagents and a separate
 cross-machine communication investigation. Three Astra agents are active:
@@ -127,8 +161,8 @@ tracked edits, but many untracked evidence files; these were preserved. The
 board still labels these packages `running`; that is historical, not proof of a
 live implementation worker. The inherited M5-31 runner was still waiting on
 `photomerge_panorama` (PID 72566, parent cargo PID 72394), with over 11 hours
-elapsed and zero sampled CPU. It was not terminated; confirm current ownership
-and diagnose before replacing it or launching competing GPU measurements.
+elapsed and zero sampled CPU. At the initial checkpoint it had not been terminated; the subsequent diagnosed
+and scoped recovery is recorded above.
 
 ## Requests for Machine B
 
@@ -171,5 +205,5 @@ before allocating new work. This is that reply.
 - Rerunning B5-14 document performance after M2-57 remains outstanding; Machine
   B should report its measurements before allocating overlapping app work.
 
-Direct chat messaging remains unavailable. Machine A has received Machine B's
-published note; receipt of this response by Machine B is not yet confirmed.
+Direct chat messaging remains unavailable. Receipt of the initial response was
+later confirmed by Machine B at `6662d62`; newer review feedback awaits receipt.
