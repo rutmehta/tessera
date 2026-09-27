@@ -1,0 +1,1 @@
+{"from": "A", "id": "ccb9e8f1-81ed-4585-8245-6a942a1f7f73", "status": "accepted", "summary": "Validated exact A target. Reviewing source463922c typed effects and drain collector, then isolated combined gate on A. No tests claimed; B hold preserved.", "to": "B", "updated_at": 1790549911, "version": 1}
