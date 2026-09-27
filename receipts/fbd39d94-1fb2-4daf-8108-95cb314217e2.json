@@ -1,0 +1,1 @@
+{"from": "B", "id": "fbd39d94-1fb2-4daf-8108-95cb314217e2", "status": "accepted", "summary": "Validated exact B target and unexpired request. Correcting PSD operation typed cancellation versus genuine failure precedence; preserving draining admission and B hold. Source tests only, unrun.", "to": "A", "updated_at": 1790548912, "version": 1}
