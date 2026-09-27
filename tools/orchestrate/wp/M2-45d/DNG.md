@@ -81,8 +81,10 @@ cargo test -p export -p tessera-ffi -p tessera-cli -p tessera-mcp -p sidecar --r
 - `dng-final-focused.log`: all 7 DNG tests passed, including the malformed-tag
   regression added after the full gate had already compiled that test binary.
   This is a supplementary run, not 7 additional unique tests on top of 521.
-- Final `cargo fmt --check` and `git diff --check` passed. Scope verification
-  found no modified tracked/untracked paths outside the user's allowlist.
+- Final `cargo fmt --check` passed. Source diffs passed `git diff --check`
+  before adding the verbatim diagnostic logs; the logs retain tool-emitted
+  trailing whitespace and blank lines. Scope verification found no modified
+  tracked/untracked paths outside the user's allowlist.
 - Existing native LibRaw warnings, Swift unused-value warnings in unrelated
   document self-tests, and the blake3_neon deployment-target linker warning
   remain; no warning suppression was added.
