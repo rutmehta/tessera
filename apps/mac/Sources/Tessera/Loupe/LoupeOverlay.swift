@@ -9,11 +9,17 @@ struct LoupeOverlay: View {
 
     private var proof: SoftProof { SoftProof.shared }
 
-    private var proofSummary: String {
-        if let lut = proof.lut {
-            return "Proof · \(lut.profileName)" + (proof.gamutWarning ? " · gamut warning" : "")
+    static func proofBadgeText(enabled: Bool, profileName: String?, status: String, gamutWarning: Bool) -> String? {
+        guard enabled else { return nil }
+        if let profileName {
+            return "Proof · \(profileName)" + (gamutWarning ? " · gamut warning" : "")
         }
-        return "Proof on"
+        return status.isEmpty ? "Proof unavailable" : status
+    }
+
+    private var proofSummary: String {
+        Self.proofBadgeText(enabled: proof.enabled, profileName: proof.lut?.profileName,
+                            status: proof.status, gamutWarning: proof.gamutWarning) ?? ""
     }
 
     private var proofDetails: String {
@@ -21,10 +27,14 @@ struct LoupeOverlay: View {
         return status + (proof.gamutWarning ? " · Gamut warning is on." : "")
     }
 
-    private var shortcutText: String {
-        model.isPhotoEditing
-            ? "← → previous / next photo\nD Develop · M masks\n⌘Z photo undo · Esc tool / Back to Library"
-            : "← → group · ↑ ↓ frame in group\nX U P decide · 1 2 3 grade · K keep best\nC compare · Y N suggestions · ⌘Z undo\nD Edit photo · Esc grid"
+    var shortcutText: String {
+        if model.isReviewEditing {
+            return "← → previous / next review photo\nD Develop · M masks\n⌘Z photo undo · Esc Back to Review"
+        }
+        if model.isPhotoEditing {
+            return "← → previous / next photo\nD Develop · M masks\n⌘Z photo undo · Esc tool / Back to Library"
+        }
+        return "← → group · ↑ ↓ frame in group\nX U P decide · 1 2 3 grade · K keep best\nC compare · Y N suggestions · ⌘Z undo\nD Edit photo · Esc grid"
     }
 
     var body: some View {
