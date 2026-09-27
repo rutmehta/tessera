@@ -1,0 +1,22 @@
+{
+  "cmd": [
+    "cargo",
+    "test",
+    "-p",
+    "tessera-ffi",
+    "--test",
+    "document",
+    "frames_are_coalesced_and_straight_alpha",
+    "--",
+    "--nocapture"
+  ],
+  "exit_code": 0,
+  "timed_out": false,
+  "elapsed_s": 3.426,
+  "pid": 41447,
+  "source_manifest": "/Volumes/betterSSD/tessera-validation/frame-cache-integration/544e8a13/manifest.json",
+  "head": "544e8a13b75ac4dab1f031cc7e1f4e95c0726494",
+  "CARGO_BUILD_JOBS": "2",
+  "RAYON_NUM_THREADS": "2",
+  "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/main"
+}
