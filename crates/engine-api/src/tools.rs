@@ -194,6 +194,18 @@ pub struct ExportSettings {
     /// Resize, if any.
     #[serde(default)]
     pub resize: Option<Resize>,
+    /// Output sharpening after resize: `none`, `screen`, `matte`, or `glossy`.
+    /// Omitted means no output sharpening.
+    #[serde(default)]
+    pub sharpening: Option<String>,
+    /// Output sharpening strength: `low`, `standard`, or `high`.
+    /// Omitted means standard; has no effect when sharpening is disabled.
+    #[serde(default)]
+    pub sharpening_amount: Option<String>,
+    /// Output density, 1–9600 pixels/inch. Controls paper sharpening radius.
+    /// Omitted uses 300 ppi for sharpening without adding a density tag.
+    #[serde(default)]
+    pub ppi: Option<u32>,
     /// Embed XMP metadata (ratings, keywords, IPTC).
     #[serde(default = "yes")]
     pub embed_metadata: bool,
@@ -1488,6 +1500,9 @@ pub(crate) mod tests {
                     format: ExportFormat::Jpeg { quality: 90 },
                     profile: None,
                     resize: Some(Resize::LongEdge { pixels: 2048 }),
+                    sharpening: None,
+                    sharpening_amount: None,
+                    ppi: None,
                     embed_metadata: true,
                     hdr: false,
                 },

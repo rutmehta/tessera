@@ -25,8 +25,31 @@ a green item. It does not claim metadata/DNG/HDR/workflow completeness.
 
 The legacy print `render_pixels` API retains standard/300-ppi behavior. The
 public `sharpen_output` function permits explicit controls on unsharpened
-renders. MCP's minimal export schema still does not expose sharpening controls
-and continues to use no sharpening. This checkpoint does not add UI controls.
+renders. This checkpoint does not add UI controls.
+
+### Retry: MCP sharpening controls
+
+- MCP `export.settings` now accepts `sharpening` (`none`, `screen`, `matte`,
+  `glossy`), `sharpening_amount` (`low`, `standard`, `high`) and `ppi` (1–9600).
+  Absent/null fields preserve legacy no-sharpening, standard strength and
+  300-ppi paper radius without adding a density tag. Screen is ppi-independent.
+- All settings reach the existing shared resize-then-sharpen engine path.
+  Unknown medium/strength and invalid density fail before source decoding,
+  output publication or history writes. No new codec/dependency was added.
+- The engine API uses optional strings for the two mode fields, validated at
+  the MCP boundary. Its existing build-time schema mirror picks up these
+  fields without changes to the out-of-scope MCP build script; supported
+  values are documented in the generated schema descriptions.
+- New MCP integration tests export an edge chart across all nine presets,
+  read decoded PNG pixels, check default compatibility and density behavior,
+  and verify schema exposure and invalid-input side-effect isolation.
+- `mcp-sharpen-red.log`: low/standard produced identical pixels before wiring.
+  `mcp-validation-red.log`: invalid density reached PNG decode before the
+  new preflight guard. `mcp-sharpen-green.log`: all three tests pass.
+- The previously failing slider/export test passed in isolation with 120/120
+  L2 frames and 3.3 ms render p90. No assertion was weakened, fixture skipped,
+  environment skip flag set, or scheduling code changed. This is not a claim
+  that the earlier latency failure's cause has been identified or fixed.
 
 ## Verification
 
@@ -41,6 +64,22 @@ Red/green evidence (local ignored logs):
 Full gate result is recorded in `verification.txt` after execution; `gate.log`
 is the full local log. `CARGO_TARGET_DIR` remains
 `/Volumes/betterSSD/tessera-cache/target/M2-45b` throughout.
+
+The retry's first full gate (`retry-gate.log`) found an independent clock-boundary
+failure in `disabled_ai_never_calls_backend_and_matches_default_export`.
+Programmatic comparison of its failure arrays found equal lengths (1243 bytes)
+and exactly one difference: JPEG byte 73, ICC header byte 35, seconds 32 versus
+33. The codec builds a fresh LittleCMS profile for each export. The regression
+now explicitly separates the exports by 1.1 seconds, checks the APP2 ICC segment
+sequence/count and ICC signature, and compares every byte except the 12-byte ICC
+creation date. No pixel, color transform, or other metadata bytes are excluded.
+The corrected test passes (`icc-time-green.log`); no codec behavior changed.
+
+The final retry gate passed in full, including the slider/export test, Clippy,
+formatting, license check, regenerated FFI and Swift build: 331 tests passed,
+0 failed, 15 ignored. See `retry-verification.txt` for this invocation's results
+and `retry-final-gate.log` for the full local output. The original
+`verification.txt` remains the previous attempt's historical record.
 
 ## Still required (not attempted in this checkpoint)
 
