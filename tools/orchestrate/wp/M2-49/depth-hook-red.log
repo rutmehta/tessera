@@ -1,9 +1,0 @@
-error[E0463]: can't find crate for `image_core`
- --> crates/image-core/tests/depth_hook.rs:2:5
-  |
-2 | use image_core::{Renderer, RendererConfig, depth::DepthProvider, ml_depth::DepthMap};
-  |     ^^^^^^^^^^ can't find crate
-
-error: aborting due to 1 previous error
-
-For more information about this error, try `rustc --explain E0463`.
