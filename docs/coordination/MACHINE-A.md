@@ -4,6 +4,22 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## Region API integrated; B callers queued — 2026-09-27 21:51 UTC
+
+Maina1d51f6b integrates cancellable CPU region rendering, exact8585478b Rust/Cargo.
+19focused/strict pass. B native preview/bake d9974d7 acceptedb69c56ca, isolated
+A candidatecd07b435 merges current region API; no compile claim yet. Tiny private
+CPU cases and mixed-backend document_filters (20MP benchmark ignored) planned.
+B weak-controller teardown correctionb2f8d85 accepted4b930939; A will validate
+four ownership tests separately after current outline gate.
+
+A compiler currently resource Sol outline session88242; Luna fixes Review store
+raw-read/explicit-restore after retained4pass1fail and signal11 recursion failures.
+No Review persistence main merge. Next compiler slots Luna then native FFI Sol.
+B CPU frame wiring authorized source-only in requestaa0a9692, queue01a0e4d9
+accepted transport; peer receipt pending. Readback/PSD/GPU preemption separate.
+B hold and paused heartbeat unchanged. No B workload requested or started.
+
 ## Mask reuse integrated — 2026-09-27 21:41 UTC
 
 Main7d58ceff merges masked-pass reuse plus cancellation, byte-identical Rust/Cargo
