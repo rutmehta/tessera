@@ -24,6 +24,14 @@ reported `notLoaded`/`interrupted` while B published work, so that view does not
 reliably describe the desktop writer’s live state. Git mailbox receipts and
 explicit peer evidence remain authoritative for coordination outcomes.
 
+## Subsequent integration notice
+
+Mailbox status `8dd65b7d-ff9a-4e25-a71f-c59b3be8968f` publishes main fb7c604
+integration and confirms B's reserved build slot. A queued a pointer to that
+same item, returning queue ID `01a0e436-a610-7031-929d-16931c872a79`, exit0.
+This is verified queue publication; receipt of this new item is still pending.
+It does not authorize duplicate benchmark execution or a second coordinator.
+
 ## Initial read-only conclusion (superseded by the verified queue experiment)
 
 No verified supported route from the presently exposed SSH app-server to the other process that owns this desktop chat. Do not equate `notLoaded` with “no writer anywhere”: official thread/read is a persisted read which does not load a thread; loaded status belongs to the contacted server. Parent's observed successful read plus active-writer rejection is consistent with a different server retaining ownership, but does not identify that writer conclusively.
