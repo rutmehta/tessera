@@ -151,8 +151,10 @@ final class AgentReviewNavigationTests: XCTestCase {
         XCTAssertEqual(model.viewMode, .grid)
     }
 
-    func testForeignQueueCannotEditAcceptOrAdvanceAndAllReviewedRemainsReachable() async throws {
+    func testSamePathLibraryReopenRehydratesAllReviewedQueueAndRejectsStaleTarget() async throws {
         let model = try await reviewedModel()
+        let oldEntry = try XCTUnwrap(model.agent.queue.entries.first)
+        let staleTarget = try XCTUnwrap(model.agent.queueTarget(oldEntry))
         model.enterReview()
         for _ in 0..<model.agent.queue.count {
             model.acceptReviewedPhoto(advance: true)
@@ -163,19 +165,56 @@ final class AgentReviewNavigationTests: XCTestCase {
         model.enterReview()
         XCTAssertTrue(model.isReviewing)
         XCTAssertNotNil(model.selectedReviewEntry)
-        let original = model.reviewNavigation.selectedID
         let owner = try XCTUnwrap(model.engineLibrary)
-        let other = try EngineLibrary.scan(folder: try XCTUnwrap(owner.folder), appSupport: try XCTUnwrap(owner.folder).deletingLastPathComponent().appendingPathComponent("support"))
-        model.install(other)
+        let folder = try XCTUnwrap(owner.folder)
+        let support = folder.deletingLastPathComponent().appendingPathComponent("support")
+        let reopened = try EngineLibrary.scan(folder: folder, appSupport: support)
+        model.install(reopened)
+
+        XCTAssertTrue(model.agent.reviewLibrary === reopened)
+        XCTAssertEqual(model.agent.queue.count, 2)
+        XCTAssertTrue(model.agent.queue.entries.allSatisfy { $0.status == .accepted })
+        XCTAssertEqual(model.agent.queue.pendingCount, 0)
+        XCTAssertEqual(model.viewMode, .grid, "a library reopen does not force Review navigation")
+        XCTAssertNil(model.agent.currentItem(for: staleTarget), "rebind invalidates captured runtime targets")
         model.enterReview()
-        XCTAssertNotNil(model.reviewUnavailableReason)
-        XCTAssertNil(model.reviewTargetItem)
-        model.editReviewedPhoto()
-        model.acceptReviewedPhoto(advance: true)
         XCTAssertTrue(model.isReviewing)
-        XCTAssertEqual(model.reviewNavigation.selectedID, original)
+        XCTAssertNotNil(model.selectedReviewEntry, "all-reviewed queues remain reachable after restoration")
+        XCTAssertNotNil(model.reviewTargetItem)
+        var acceptedStaleTarget: Bool?
+        model.agent.accept(staleTarget) { acceptedStaleTarget = $0 }
+        model.agent.revert(staleTarget)
+        model.agent.redo(staleTarget, instruction: "warmer")
+        XCTAssertEqual(acceptedStaleTarget, false)
+        XCTAssertFalse(model.agent.isRunning)
         XCTAssertTrue(model.agent.busy.isEmpty)
-        XCTAssertTrue(model.targetIDs.isEmpty)
+    }
+
+    func testForeignFolderRejectsCapturedReviewTarget() async throws {
+        let model = try await reviewedModel()
+        let entry = try XCTUnwrap(model.agent.queue.entries.first)
+        let staleTarget = try XCTUnwrap(model.agent.queueTarget(entry))
+        let owner = try XCTUnwrap(model.engineLibrary)
+        let originalFolder = try XCTUnwrap(owner.folder)
+        let root = originalFolder.deletingLastPathComponent()
+        let foreignFolder = root.appendingPathComponent("foreign-photos")
+        try FileManager.default.createDirectory(at: foreignFolder, withIntermediateDirectories: true)
+        let source = try XCTUnwrap(owner.items.first?.url)
+        try FileManager.default.copyItem(at: source, to: foreignFolder.appendingPathComponent("photo-0.jpg"))
+        let foreign = try EngineLibrary.scan(folder: foreignFolder,
+                                             appSupport: root.appendingPathComponent("support"))
+        model.install(foreign)
+
+        XCTAssertNil(model.agent.currentItem(for: staleTarget))
+        XCTAssertTrue(model.agent.queue.isEmpty)
+        var acceptedStaleTarget: Bool?
+        model.agent.accept(staleTarget) { acceptedStaleTarget = $0 }
+        model.agent.revert(staleTarget)
+        model.agent.redo(staleTarget, instruction: "warmer")
+        XCTAssertEqual(acceptedStaleTarget, false)
+        XCTAssertFalse(model.agent.isRunning)
+        XCTAssertTrue(model.agent.busy.isEmpty)
+        XCTAssertNil(try foreign.engine.agentProvenance(imageId: foreign.imageIDs[0]))
     }
 
     func testReviewEditKeysAndMenuCannotOpenTargetDuringRunOrAcceptance() async throws {
@@ -321,8 +360,10 @@ final class AgentReviewNavigationTests: XCTestCase {
             CGImageDestinationAddImage(destination, image, nil)
             XCTAssertTrue(CGImageDestinationFinalize(destination))
         }
-        let model = AppModel()
-        model.install(try EngineLibrary.scan(folder: folder, appSupport: root.appendingPathComponent("support")))
+        let support = root.appendingPathComponent("support")
+        let agent = AgentController(arguments: ["--fake-planner"], supportDirectory: support)
+        let model = AppModel(agent: agent)
+        model.install(try EngineLibrary.scan(folder: folder, appSupport: support))
         let saved = model.agent.preferences
         addTeardownBlock { await MainActor.run { model.agent.preferences = saved } }
         model.agent.preferences.sceneConsistency = false

@@ -195,7 +195,7 @@ final class AgentReviewOwnershipTests: XCTestCase {
         let f = try fixture()
         let old = try await run(f)
         f.model.install(f.b)
-        let other = AgentController(arguments: ["--fake-planner"])
+        let other = AgentController(arguments: ["--fake-planner"], supportDirectory: f.support)
         other.preferences = f.agent.preferences
         other.app = f.model
         other.start(itemIDs: [0], provider: .scripted)
