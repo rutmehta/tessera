@@ -310,3 +310,12 @@ coordination mainbc9a8cc. RESOURCE-AUDIT.md now records remaining per-tile whole
 mask work for A, plus B's second orphan timer, obsolete outline queue work and
 viewport dismantle/surface ownership gap. No product mutation/build/test/app
 launch; resource hold and paused heartbeat remain. A retains sole main merges.
+
+### Timer-only source candidate — bac04a31
+
+Accepted validated request before editing. Shared overlay timer lifecycle now
+stops for inactivity/visibility loss and invalidates after weak-owner release;
+ToolOverlay requires active document plus current viewport ownership. Added five
+deterministic manual-tick XCTest cases, all UNRUN and compilation pending on A.
+RESOURCE-AUDIT.md contains validation plan and limits. No B workloads/heartbeat
+restart, no outline/surface changes, no main merge.

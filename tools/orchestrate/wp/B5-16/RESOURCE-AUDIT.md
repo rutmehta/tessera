@@ -231,3 +231,32 @@ The existing model/history synchronous refresh concern remains an unmeasured
 contention risk. Coalescing those notifications requires event-order tests; it
 should not be changed blindly alongside the timer repair. This review introduces
 no product changes under the current source-review-only request.
+
+## Timer repair candidate — request bac04a31
+
+Validated exact chat target, expiry and local hold, then published accepted receipt
+before editing. Source-only candidate adds `DocumentAnimatedOverlayView`, shared
+by MarchingAntsView and ToolOverlayView. It reconciles a single 30 Hz timer on
+window moves, hide/unhide and window occlusion notifications, rechecks visibility
+and eligibility before each tick, and invalidates a run-loop-retained timer on
+its first callback after owner release (without drawing). Selector-based window
+observation does not retain the view; registration is replaced on window changes.
+The tool overlay additionally requires both the active document and that
+document's current viewport, preventing a superseded view from animating.
+
+Five deterministic XCTest source cases use unscheduled timers/manual `fire()`:
+identity-preserving repeated update and one restart; eligibility/visibility loss
+before a tick; weak owner release; hide/unhide/detach hooks; detached concrete
+overlays. **ALL FIVE UNRUN; source not compiled.** No RED/GREEN claim. The user
+explicitly requested unrun tests and forbade B execution; source review and
+`git diff --check` are the only local verification.
+
+A validation plan: review the exact candidate diff first; on an available A slot,
+compile with two workers and run only DocumentOverlayAnimationTests under a
+short outer timeout, preserving failures. Tests need no image fixtures, Metal
+viewport creation, real timer waits or application window activation. They test
+the shared lifecycle with fake visibility plus detached real overlay classes;
+real AppKit occlusion notification delivery and visible document switching remain
+separate, bounded follow-up checks on A. This is not runtime leak closure.
+No outline coalescing, backend surface teardown, engine mask edits or main merge
+is included. B hold/paused heartbeat and dirty B5-16a snapshot remain unchanged.
