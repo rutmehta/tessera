@@ -1,0 +1,7 @@
+RES-03 production source freeze 2
+base=9a50e5a0f417e61db547124f9919da477af35344
+branch=codex/masked-filter-pass
+green_gate=not_run
+crates/compositor/src/render/smart_filters.rs sha256=f69969c6260c0dc147ea83d3b0385503fa66d27a676b50a6fbfb60fab594a42f
+crates/compositor/tests/smart_filter_deadlock.rs sha256=d56e883a2ca44046c658707e1fea1dd2ab22cb8f3f9fe8e4536e5dcd92ddaa6d
+product.patch sha256=f9ee5f568d564851e5e287727dd1a8c526fec3fc4de4816fcf3d9a0e4690217a

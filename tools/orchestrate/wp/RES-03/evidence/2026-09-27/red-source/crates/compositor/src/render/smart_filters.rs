@@ -4,16 +4,12 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
-use engine_api::{
-    EngineError, EngineResult,
-    jobs::CancellationToken,
-    tile::{TILE_SIZE, TileCoord, TileFormat},
-};
+use engine_api::{EngineError, EngineResult};
 use serde::{Deserialize, Serialize};
 
 use super::{Compositor, DocRef};
 use crate::blend::{BlendMode, blend_pixel, dissolve_threshold};
-use crate::document::{DocState, Layer, LayerKind, Mask, SmartFilter, SmartObject};
+use crate::document::{DocState, Layer, LayerKind, SmartFilter, SmartObject};
 use crate::geom::{Rect, next_doc_key};
 use crate::raster::{Depth, Raster};
 
@@ -91,28 +87,6 @@ pub trait SmartFilterEvaluator: Send + Sync {
         filter: &SmartFilter,
         context: &FilterContext,
     ) -> EngineResult<Raster>;
-
-    /// Evaluate with a caller token. Existing evaluators receive boundary
-    /// checks; implementations may override this to check inside their work.
-    fn evaluate_with_cancel(
-        &self,
-        input: &Raster,
-        filter: &SmartFilter,
-        context: &FilterContext,
-        cancel: &CancellationToken,
-    ) -> EngineResult<Raster> {
-        cancel.check()?;
-        let result = self.evaluate(input, filter, context)?;
-        cancel.check()?;
-        Ok(result)
-    }
-}
-
-pub(super) fn check_render_cancel(cancel: Option<&CancellationToken>) -> EngineResult<()> {
-    if let Some(cancel) = cancel {
-        cancel.check()?;
-    }
-    Ok(())
 }
 
 /// Shared-device smart-filter bridge. Buffers are tightly interleaved straight
@@ -222,103 +196,61 @@ fn gaussian(input: &Raster, params: &serde_json::Value) -> EngineResult<Raster> 
 
 // Transform kernels require premultiplied planes. Evaluate at native child
 // resolution; the existing smart-object resampler selects output mip levels.
-fn map_transform_result<T>(result: transform::Result<T>) -> EngineResult<T> {
-    result.map_err(|error| match error {
-        transform::Error::Cancelled => EngineError::Cancelled,
-        transform::Error::Invalid(_) => EngineError::invalid("transform", error.to_string()),
-    })
-}
-
-fn evaluate_transform(
-    input: &Raster,
-    op: &transform::TransformOp,
-    cancel: Option<&CancellationToken>,
-) -> EngineResult<Raster> {
-    check_render_cancel(cancel)?;
+fn evaluate_transform(input: &Raster, op: &transform::TransformOp) -> EngineResult<Raster> {
     let e = input.extent();
     let (w, h) = (e.width as usize, e.height as usize);
     let mut planes: [Vec<f32>; 4] = std::array::from_fn(|_| Vec::with_capacity(w * h));
     for y in 0..e.height {
-        check_render_cancel(cancel)?;
         for x in 0..e.width {
-            if x & 1023 == 0 {
-                check_render_cancel(cancel)?;
-            }
             let p = input.pixel(x, y);
             for c in 0..4 {
                 planes[c].push(if c == 3 { p[3] } else { p[c] * p[3] });
             }
         }
     }
-    let image = map_transform_result(transform::Image::new(w, h, planes))?;
-    check_render_cancel(cancel)?;
+    let image = transform::Image::new(w, h, planes)
+        .map_err(|e| EngineError::invalid("transform", e.to_string()))?;
     // A content-aware resize changes content bounds, not the child canvas.
     // Keep stack masks/blends in the original canvas, clipping or padding at origin.
     let (rw, rh) = match &op.operation {
         transform::Operation::ContentAwareScale(p) => (p.target_width, p.target_height),
         _ => (w, h),
     };
-    let result = map_transform_result(if let Some(cancel) = cancel {
-        op.apply_with_cancel(&image, rw, rh, 0, cancel)
-    } else {
-        op.apply(&image, rw, rh, 0)
-    })?;
-    check_render_cancel(cancel)?;
+    let result = op
+        .apply(&image, rw, rh, 0)
+        .map_err(|e| EngineError::invalid("transform", e.to_string()))?;
     let mut out = Raster::new(e, 4, Depth::F32, 0.0);
-    let (cols, rows) = e.tile_grid(TILE_SIZE);
-    for ty in 0..rows {
-        for tx in 0..cols {
-            check_render_cancel(cancel)?;
-            out.edit_region(Rect::of_tile(TileCoord::new(0, tx, ty), e), 1, |x, y, p| {
-                if x as usize >= rw || y as usize >= rh {
-                    *p = [0.; 4];
-                    return;
-                }
-                let i = y as usize * rw + x as usize;
-                let a = result.planes[3][i];
-                for (c, channel) in p.iter_mut().enumerate().take(3) {
-                    *channel = if a > 0.0 {
-                        result.planes[c][i] / a
-                    } else {
-                        0.0
-                    };
-                }
-                p[3] = a;
-            })?;
+    out.edit_region(Rect::of_extent(e), 1, |x, y, p| {
+        if x as usize >= rw || y as usize >= rh {
+            *p = [0.; 4];
+            return;
         }
-    }
-    check_render_cancel(cancel)?;
+        let i = y as usize * rw + x as usize;
+        let a = result.planes[3][i];
+        for (c, channel) in p.iter_mut().enumerate().take(3) {
+            *channel = if a > 0.0 {
+                result.planes[c][i] / a
+            } else {
+                0.0
+            };
+        }
+        p[3] = a;
+    })?;
     Ok(out)
 }
 
 type CacheKey = (u64, u64, [u8; 32], [u8; 32]);
-type MaskedKey = (CacheKey, [u8; 32]);
-
-#[cfg(test)]
-mod cancellation_mapping_tests {
-    use engine_api::EngineError;
-
-    #[test]
-    fn transform_cancelled_is_not_reported_as_invalid_input() {
-        assert!(matches!(
-            super::map_transform_result::<()>(Err(transform::Error::Cancelled)),
-            Err(EngineError::Cancelled)
-        ));
-    }
-}
-
 struct Cached {
     source: Raster,
     result: Raster,
     bytes: usize,
 }
 
-/// Retained filter results allowed during one full-level CPU render.
+/// Retained unmasked filter results allowed during one full-level CPU render.
 /// This excludes temporary rasters, evaluator allocations, tile caches and GPU memory.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct FilterPassLimits {
-    /// Maximum combined unmasked source/result and masked-output tile charge
-    /// of live pass entries.
+    /// Maximum combined `source + result` charge of live pass entries.
     /// Zero rejects every filtered source reached by the frame.
     pub retained_bytes: usize,
     /// Maximum number of live pass entries, including in-progress reservations.
@@ -338,7 +270,6 @@ impl Default for FilterPassLimits {
 #[derive(Default)]
 struct PassState {
     entries: HashMap<CacheKey, Arc<Cached>>,
-    masked: HashMap<MaskedKey, Arc<Raster>>,
     reserved_bytes: usize,
     reserved_entries: usize,
 }
@@ -368,15 +299,6 @@ impl FilterPass {
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .entries
-            .get(key)
-            .cloned()
-    }
-
-    fn get_masked(&self, key: &MaskedKey) -> Option<Arc<Raster>> {
-        self.state
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .masked
             .get(key)
             .cloned()
     }
@@ -414,19 +336,6 @@ impl PassReservation<'_> {
         state.entries.insert(key, entry.clone());
         self.active = false;
         entry
-    }
-
-    fn commit_masked(mut self, key: MaskedKey, raster: Arc<Raster>) -> Arc<Raster> {
-        let mut state = self.pass.state.lock().unwrap_or_else(|e| e.into_inner());
-        if let Some(existing) = state.masked.get(&key).cloned() {
-            state.reserved_bytes -= self.bytes;
-            state.reserved_entries -= 1;
-            self.active = false;
-            return existing;
-        }
-        state.masked.insert(key, raster.clone());
-        self.active = false;
-        raster
     }
 }
 
@@ -476,89 +385,6 @@ fn entry_bytes(so: &SmartObject) -> EngineResult<usize> {
         })
 }
 
-fn masked_entry_bytes(raster: &Raster) -> EngineResult<usize> {
-    usize::try_from(raster.extent().area())
-        .ok()
-        .and_then(|area| area.checked_mul(16))
-        .ok_or_else(|| EngineError::ResourceExhausted {
-            resource: "CPU smart-filter masked result size overflow".into(),
-        })
-}
-
-// Hash semantic mask data rather than layer IDs, revisions or temporary style
-// object addresses. Dense masks still require a full stored-byte scan on each
-// lookup; the counter makes that residual work visible.
-fn mask_digest(
-    mask: &Mask,
-    cancel: Option<&CancellationToken>,
-    bytes_visited: &AtomicU64,
-) -> EngineResult<[u8; 32]> {
-    check_render_cancel(cancel)?;
-    let mut hash = blake3::Hasher::new();
-    hash.update(b"tessera-smart-filter-mask-v1");
-    hash.update(&[u8::from(mask.enabled)]);
-    hash.update(&mask.density.to_bits().to_le_bytes());
-    hash.update(&mask.feather.to_bits().to_le_bytes());
-    let raster = &mask.raster;
-    let extent = raster.extent();
-    hash.update(&extent.width.to_le_bytes());
-    hash.update(&extent.height.to_le_bytes());
-    hash.update(&[raster.channels()]);
-    hash.update(&[match raster.depth() {
-        Depth::U8 => 1,
-        Depth::U16 => 2,
-        Depth::F32 => 4,
-    }]);
-    hash.update(&raster.default_value().to_bits().to_le_bytes());
-    for ((tx, ty), slot) in raster.slots() {
-        check_render_cancel(cancel)?;
-        hash.update(&tx.to_le_bytes());
-        hash.update(&ty.to_le_bytes());
-        let Some(tile) = &slot.tile else {
-            hash.update(&[0]);
-            continue;
-        };
-        hash.update(&[1]);
-        let layout = tile.layout();
-        hash.update(&layout.extent.width.to_le_bytes());
-        hash.update(&layout.extent.height.to_le_bytes());
-        hash.update(&layout.halo.to_le_bytes());
-        hash.update(&[layout.channels]);
-        hash.update(&[match tile.format() {
-            TileFormat::U8 => 1,
-            TileFormat::U16 => 2,
-            TileFormat::F16Planar => 3,
-            TileFormat::F32Planar => 4,
-        }]);
-        match tile.format() {
-            TileFormat::U8 => {
-                hash.update(tile.samples::<u8>()?);
-            }
-            TileFormat::U16 => {
-                for sample in tile.samples::<u16>()? {
-                    hash.update(&sample.to_le_bytes());
-                }
-            }
-            TileFormat::F16Planar => {
-                for sample in tile.samples::<half::f16>()? {
-                    hash.update(&sample.to_bits().to_le_bytes());
-                }
-            }
-            TileFormat::F32Planar => {
-                for sample in tile.samples::<f32>()? {
-                    hash.update(&sample.to_bits().to_le_bytes());
-                }
-            }
-        }
-        bytes_visited.fetch_add(
-            u64::try_from(tile.byte_len()).unwrap_or(u64::MAX),
-            Ordering::Relaxed,
-        );
-    }
-    check_render_cancel(cancel)?;
-    Ok(*hash.finalize().as_bytes())
-}
-
 /// Whole-image CPU filter work, including source work discarded after a cold race.
 /// Relaxed atomics give a non-transactional snapshot; active counts refer to
 /// stack attempts, not threads. These are not process-memory or GPU counters.
@@ -585,8 +411,8 @@ pub struct FilterEvaluationStats {
     /// Payload bytes of materialized masked output tiles. This
     /// excludes scratch buffers, retained copies, and allocator overhead.
     pub mask_tile_bytes_produced: u64,
-    /// Mask tile payload bytes scanned to form frame-local reuse keys. Dense
-    /// masks are rescanned on each lookup; this is not all mask-related work.
+    /// Mask tile payload bytes scanned to form a reuse key. The current path
+    /// does no digest scan, so this is zero before masked-result reuse.
     pub mask_digest_bytes_visited: u64,
 }
 
@@ -689,9 +515,7 @@ impl Compositor {
         &self,
         so: &SmartObject,
         pass: Option<&FilterPass>,
-        cancel: Option<&CancellationToken>,
     ) -> EngineResult<Option<FilteredSource>> {
-        check_render_cancel(cancel)?;
         if !so.filters.iter().any(|f| f.enabled) {
             return Ok(None);
         }
@@ -708,7 +532,6 @@ impl Compositor {
         );
         let rt = &self.filter_runtime;
         let bytes = entry_bytes(so)?;
-        check_render_cancel(cancel)?;
         let pass_cached = pass.and_then(|p| p.get(&key));
         let cached = if let Some(cached) = pass_cached {
             cached
@@ -731,7 +554,6 @@ impl Compositor {
                 // Reserve before source_raster: nested smart objects need their own
                 // simultaneous charge, and errors release this one by RAII.
                 let reservation = pass.map(|p| p.reserve(bytes)).transpose()?;
-                check_render_cancel(cancel)?;
                 // Nested smart objects can recurse into this runtime: never hold its
                 // cache lock while compositing the input document.
                 let _active = rt.begin_stack();
@@ -739,9 +561,7 @@ impl Compositor {
                     state: &so.state,
                     key: so.key,
                     pass,
-                    cancel,
                 })?;
-                check_render_cancel(cancel)?;
                 let cached = rt
                     .cache
                     .lock()
@@ -758,7 +578,6 @@ impl Compositor {
                     let mut result = source.clone();
                     let mut evaluations = 0;
                     for filter in so.filters.iter().filter(|f| f.enabled) {
-                        check_render_cancel(cancel)?;
                         if !filter.blend.opacity.is_finite()
                             || !(0.0..=1.0).contains(&filter.blend.opacity)
                         {
@@ -772,17 +591,11 @@ impl Compositor {
                         }
                         let next = if let Some(op) = filter.transform_op()? {
                             rt.attempted_stages.fetch_add(1, Ordering::Relaxed);
-                            evaluate_transform(&result, &op, cancel)?
+                            evaluate_transform(&result, &op)?
                         } else {
                             rt.attempted_stages.fetch_add(1, Ordering::Relaxed);
-                            if let Some(cancel) = cancel {
-                                rt.evaluator
-                                    .evaluate_with_cancel(&result, filter, &context, cancel)?
-                            } else {
-                                rt.evaluator.evaluate(&result, filter, &context)?
-                            }
+                            rt.evaluator.evaluate(&result, filter, &context)?
                         };
-                        check_render_cancel(cancel)?;
                         if next.extent() != source.extent()
                             || next.channels() != 4
                             || next.depth() != Depth::F32
@@ -823,7 +636,6 @@ impl Compositor {
                         }
                         evaluations += 1;
                     }
-                    check_render_cancel(cancel)?;
                     let entry = Arc::new(Cached {
                         source,
                         result,
@@ -832,7 +644,6 @@ impl Compositor {
                     // Publish only complete, validated results. A concurrent miss
                     // may have finished first; reuse it without charging bytes twice.
                     {
-                        check_render_cancel(cancel)?;
                         let mut cache = rt.cache.lock().unwrap_or_else(|e| e.into_inner());
                         if let Some(cached) = cache.get(&key) {
                             rt.duplicate_stacks.fetch_add(1, Ordering::Relaxed);
@@ -858,16 +669,15 @@ impl Compositor {
                     }
                 };
                 if let Some(reservation) = reservation {
-                    check_render_cancel(cancel)?;
                     reservation.commit(key, published)
                 } else {
                     published
                 }
             }
         };
-        check_render_cancel(cancel)?;
-        let raster = if let Some(mask) = so.filter_mask.as_ref().filter(|m| m.enabled) {
-            if mask.raster.extent() != cached.result.extent()
+        let mut raster = cached.result.clone();
+        if let Some(mask) = so.filter_mask.as_ref().filter(|m| m.enabled) {
+            if mask.raster.extent() != raster.extent()
                 || mask.raster.channels() != 1
                 || !mask.density.is_finite()
                 || !(0.0..=1.0).contains(&mask.density)
@@ -882,86 +692,43 @@ impl Compositor {
                     what: "smart-filter mask feather".into(),
                 });
             }
-            let masked_key = if pass.is_some() {
-                check_render_cancel(cancel)?;
-                let digest = mask_digest(mask, cancel, &rt.mask_digest_bytes_visited)?;
-                check_render_cancel(cancel)?;
-                Some((key, digest))
-            } else {
-                None
-            };
-            if let Some(hit) =
-                pass.and_then(|pass| masked_key.as_ref().and_then(|key| pass.get_masked(key)))
-            {
-                hit.as_ref().clone()
-            } else {
-                let reservation = pass
-                    .map(|pass| pass.reserve(masked_entry_bytes(&cached.result)?))
-                    .transpose()?;
-                check_render_cancel(cancel)?;
-                let mut raster = cached.result.clone();
-                let mut valid = true;
-                rt.mask_compositions.fetch_add(1, Ordering::Relaxed);
-                let raster_extent = raster.extent();
-                let (cols, rows) = raster_extent.tile_grid(TILE_SIZE);
-                for ty in 0..rows {
-                    for tx in 0..cols {
-                        check_render_cancel(cancel)?;
-                        let mut visited = 0u64;
-                        let edit = raster.edit_region(
-                            Rect::of_tile(TileCoord::new(0, tx, ty), raster_extent),
-                            1,
-                            |x, y, p| {
-                                visited = visited.saturating_add(1);
-                                let m = mask.raster.pixel(x, y)[0];
-                                valid &= m.is_finite() && (0.0..=1.0).contains(&m);
-                                let t = 1.0 - mask.density * (1.0 - m);
-                                let a = cached.source.pixel(x, y);
-                                let b = *p;
-                                let alpha = a[3] + t * (b[3] - a[3]);
-                                for c in 0..3 {
-                                    p[c] = if alpha > 0.0 {
-                                        (a[c] * a[3] * (1.0 - t) + b[c] * b[3] * t) / alpha
-                                    } else {
-                                        0.0
-                                    };
-                                }
-                                p[3] = alpha;
-                            },
-                        );
-                        rt.mask_pixels_visited.fetch_add(visited, Ordering::Relaxed);
-                        edit?;
-                    }
+            let mut valid = true;
+            let mut visited = 0u64;
+            rt.mask_compositions.fetch_add(1, Ordering::Relaxed);
+            let edit = raster.edit_region(Rect::of_extent(raster.extent()), 1, |x, y, p| {
+                visited = visited.saturating_add(1);
+                let m = mask.raster.pixel(x, y)[0];
+                valid &= m.is_finite() && (0.0..=1.0).contains(&m);
+                let t = 1.0 - mask.density * (1.0 - m);
+                let a = cached.source.pixel(x, y);
+                let b = *p;
+                let alpha = a[3] + t * (b[3] - a[3]);
+                for c in 0..3 {
+                    p[c] = if alpha > 0.0 {
+                        (a[c] * a[3] * (1.0 - t) + b[c] * b[3] * t) / alpha
+                    } else {
+                        0.0
+                    };
                 }
-                check_render_cancel(cancel)?;
-                let produced = raster
-                    .slots()
-                    .filter_map(|(_, slot)| slot.tile.as_ref())
-                    .fold(0u64, |sum, tile| {
-                        sum.saturating_add(u64::try_from(tile.byte_len()).unwrap_or(u64::MAX))
-                    });
-                rt.mask_tile_bytes_produced
-                    .fetch_add(produced, Ordering::Relaxed);
-                if !valid {
-                    return Err(EngineError::invalid(
-                        "smart filter mask",
-                        "expected finite [0,1] samples",
-                    ));
-                }
-                if let (Some(reservation), Some(key)) = (reservation, masked_key) {
-                    check_render_cancel(cancel)?;
-                    reservation
-                        .commit_masked(key, Arc::new(raster))
-                        .as_ref()
-                        .clone()
-                } else {
-                    raster
-                }
+                p[3] = alpha;
+            });
+            rt.mask_pixels_visited.fetch_add(visited, Ordering::Relaxed);
+            edit?;
+            let produced = raster
+                .slots()
+                .filter_map(|(_, slot)| slot.tile.as_ref())
+                .fold(0u64, |sum, tile| {
+                    sum.saturating_add(u64::try_from(tile.byte_len()).unwrap_or(u64::MAX))
+                });
+            rt.mask_tile_bytes_produced
+                .fetch_add(produced, Ordering::Relaxed);
+            if !valid {
+                return Err(EngineError::invalid(
+                    "smart filter mask",
+                    "expected finite [0,1] samples",
+                ));
             }
-        } else {
-            cached.result.clone()
-        };
-        check_render_cancel(cancel)?;
+        }
         let mut state = DocState::new(raster.extent(), Depth::F32);
         state.profile = context.profile;
         state.rev = so.state.rev;

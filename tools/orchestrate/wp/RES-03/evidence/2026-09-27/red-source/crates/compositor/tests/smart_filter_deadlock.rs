@@ -344,7 +344,6 @@ fn same_key_mask_variants_share_unmasked_pass_entry_without_sharing_pixels() {
     });
     let mut right = left.clone(); // Exact child/filter cache key, different mask and placement.
     left.filter_mask = Some(Mask::hide_all(child_extent, Depth::F32));
-    right.filter_mask = Some(Mask::reveal_all(child_extent, Depth::F32));
     right.transform = Affine::scale_translate(1., 1., 257., 0.);
     let extent = Extent::new(514, 1);
     let mut state = DocState::new(extent, Depth::F32);
@@ -365,40 +364,6 @@ fn same_key_mask_variants_share_unmasked_pass_entry_without_sharing_pixels() {
         assert_eq!(&pixels[x * 4..x * 4 + 4], &[1., 1., 0., 1.]);
     }
     assert_eq!(compositor.filter_evaluation_stats().attempted_stacks, 1);
-    let stats = compositor.filter_evaluation_stats();
-    assert_eq!(stats.mask_compositions, 2, "one blend per distinct mask");
-    assert_eq!(stats.mask_pixels_visited, 514);
-    assert_eq!(stats.mask_tile_bytes_produced, 8_224);
-}
-
-#[test]
-fn masked_pass_charge_is_separate_and_admitted_before_blending() {
-    use compositor::Mask;
-    let extent = Extent::new(257, 1);
-    let mut state = document("invert").state().as_ref().clone();
-    let LayerKind::SmartObject(smart) = &mut Arc::make_mut(&mut state.root[0]).kind else {
-        unreachable!()
-    };
-    smart.filter_mask = Some(Mask::hide_all(extent, Depth::F32));
-    let doc = Document::new(state);
-    let mut compositor = Compositor::new(0);
-    // Unmasked source+result fits exactly, but the masked output needs another
-    // 4,112 bytes and entry. Its rejection must precede mask pixel work.
-    compositor.set_filter_pass_limits(FilterPassLimits {
-        retained_bytes: 8_224,
-        entries: 2,
-    });
-    assert!(matches!(
-        compositor.render_level_rgba(&doc, 0),
-        Err(EngineError::ResourceExhausted { .. })
-    ));
-    assert_eq!(compositor.filter_evaluation_stats().mask_compositions, 0);
-    compositor.set_filter_pass_limits(FilterPassLimits {
-        retained_bytes: 12_336,
-        entries: 2,
-    });
-    assert!(compositor.render_level_rgba(&doc, 0).is_ok());
-    assert_eq!(compositor.filter_evaluation_stats().mask_compositions, 1);
 }
 
 #[test]
