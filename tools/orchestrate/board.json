@@ -1350,5 +1350,13 @@
     "status": "merged",
     "attempts": 0,
     "notes": "machine B; wp/B5-10c = wp/B5-11 + fixes; 319 XCTest; needs on-screen recheck of 347/hit margin/hint"
+  },
+  {
+    "id": "M5-35",
+    "owner": "astra",
+    "title": "URGENT: smart-filter cache deadlock",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
