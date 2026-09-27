@@ -12,8 +12,7 @@ pub(super) struct RequestKey {
     image_id: String,
     max_px: u32,
     recipe_hash: String,
-    length: u64,
-    modified: Option<std::time::SystemTime>,
+    revision: [u8; 32],
 }
 pub(super) enum State {
     Pending,
@@ -28,7 +27,9 @@ impl Engine {
         max_px: u32,
         recipe_hash: String,
     ) -> Result<PreviewResponse> {
-        let metadata = std::fs::metadata(&path)?;
+        let revision = previews::PreviewKey::for_source(Path::new(&path), max_px, 0, [0; 32])
+            .map_err(failure)?
+            .file_hash;
         let default_hash = core::Recipe::default().recipe_hash().to_string();
         let request = RequestKey {
             image_id,
@@ -40,8 +41,7 @@ impl Engine {
             } else {
                 recipe_hash
             },
-            length: metadata.len(),
-            modified: metadata.modified().ok(),
+            revision,
         };
         let mut states = self.preview_states.lock().map_err(failure)?;
         match states.get(&request) {

@@ -1,0 +1,24 @@
+warning: method `put_if_room` is never used
+   --> tools/orchestrate/wp/M2-55/../../../../crates/previews/src/disk.rs:145:12
+    |
+ 69 | impl Disk {
+    | --------- method in this implementation
+...
+145 |     pub fn put_if_room(&self, path: &Path, bytes: &[u8], cap: u64) -> Result<()> {
+    |            ^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: 1 warning emitted
+
+
+running 6 tests
+test disk::tests::a_cache_root_has_exactly_one_live_owner ... ok
+test disk::tests::multiple_store_handles_share_the_same_accounting ... ok
+test disk::tests::accounting_overwrite_eviction_and_missing_victim ... ok
+test disk::tests::maintenance_never_locks_readers_even_with_full_touch_queue ... ok
+test disk::tests::concurrent_replacements_publish_complete_bytes ... ok
+test disk::tests::bounded_admission_and_recovery_account_every_file ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.23s
+

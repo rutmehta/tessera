@@ -33,5 +33,19 @@ fn linear_dng_grid_and_edited_previews_share_upright_rgb_path() {
             .unwrap();
         assert_eq!(full_edited.dimensions(), (3, 2));
         assert!(full_edited.get_pixel(0, 0)[1] < full.get_pixel(0, 0)[1]);
+        drop(store);
+        let reopened =
+            PreviewStore::new(dir.path().join(format!("cache-{bits}")), 1_000_000).unwrap();
+        let warm = reopened
+            .from_raw_settings(&path, 32, &recipe.settings, recipe.recipe_hash().0.0)
+            .unwrap();
+        assert_eq!(warm, edited);
+        assert_eq!(reopened.source_work_count(), 0);
+        assert_eq!(reopened.render_count(), 0);
+        assert_eq!(
+            Jpeg.decode(&reopened.get(&warm, Level::Full).unwrap())
+                .unwrap(),
+            full_edited
+        );
     }
 }

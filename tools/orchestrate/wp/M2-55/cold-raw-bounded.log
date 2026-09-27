@@ -1,0 +1,16 @@
+
+running 1 test
+preview 24.177220709s: mean=0.2884667189542532, stddev=0.2552569601127745
+
+thread 'tests::raw_without_jpeg_is_rendered' (88704485) panicked at crates/previews/src/lib.rs:337:13:
+assertion failed: start.elapsed().as_secs_f64() < 3.0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test tests::raw_without_jpeg_is_rendered ... FAILED
+
+failures:
+
+failures:
+    tests::raw_without_jpeg_is_rendered
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 18 filtered out; finished in 24.18s
+

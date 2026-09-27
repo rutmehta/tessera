@@ -1,0 +1,19 @@
+Exact requested gate, executed by terminal process proc_fe9085caf02b:
+
+cargo test -p previews -p tessera-ffi --release && cargo clippy -p previews -p tessera-ffi --all-targets -- -D warnings && cargo fmt --check
+
+CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/M2-55
+No CI override on this run.
+
+Summary transcribed from the terminal process result:
+- Release compilation completed in 25m 15s.
+- previews unit tests: 15 passed, 1 failed, 3 ignored.
+- Failing test: tests::raw_without_jpeg_is_rendered
+- preview 22.806448333s: mean=0.2884667189542532, stddev=0.2552569601127745
+- Assertion: start.elapsed().as_secs_f64() < 3.0
+- Process exit code: 101.
+- && therefore did not proceed to tessera-ffi tests, clippy, or fmt in this invocation.
+
+Independent bounded-Rayon retry also failed that unchanged timing assertion;
+see cold-raw-bounded.log. Independent checks and diagnostic CI-mode results are
+recorded separately, not claimed as a pass of this exact gate.

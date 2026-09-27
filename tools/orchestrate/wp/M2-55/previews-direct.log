@@ -1,0 +1,37 @@
+
+running 19 tests
+test disk::tests::a_cache_root_has_exactly_one_live_owner ... ok
+test disk::tests::accounting_overwrite_eviction_and_missing_victim ... ok
+test disk::tests::bounded_admission_and_recovery_account_every_file ... ok
+test disk::tests::concurrent_replacements_publish_complete_bytes ... ok
+test disk::tests::maintenance_never_locks_readers_even_with_full_touch_queue ... ok
+test disk::tests::multiple_store_handles_share_the_same_accounting ... ok
+test raw::tests::embedded_threshold_includes_exact_eighth ... ok
+test raw::tests::recipe_edits_change_cache_identity ... ok
+test revision::tests::alias_admission_never_evicts_the_preview_it_names ... ok
+test tests::all_exif_orientations ... ok
+test tests::cache_80k_measurement ... ignored, M2-55 repeatable measurement
+test tests::embedded_raw_does_not_render ... ok
+test tests::eviction_respects_cap ... ok
+test tests::jpeg_baseline_measurement ... ignored, M2-55 baseline JPEG measurement
+test tests::orientation_six_rotates ... ok
+test tests::pyramid_dimensions ... ok
+test tests::raw_without_jpeg_is_rendered ... FAILED
+test tests::restart_recovers_cap_and_abandoned_writes ... ok
+test tests::synthetic_45mp_under_400ms ... ignored, release performance check
+
+failures:
+
+---- tests::raw_without_jpeg_is_rendered stdout ----
+preview 22.998560667s: mean=0.2884667189542532, stddev=0.2552569601127745
+
+thread 'tests::raw_without_jpeg_is_rendered' (88616369) panicked at crates/previews/src/lib.rs:337:13:
+assertion failed: start.elapsed().as_secs_f64() < 3.0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tests::raw_without_jpeg_is_rendered
+
+test result: FAILED. 15 passed; 1 failed; 3 ignored; 0 measured; 0 filtered out; finished in 24.22s
+
