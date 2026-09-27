@@ -1,6 +1,6 @@
 # Tessera task board — Machine A coordinator
 
-Updated: 2026-09-27 17:35 UTC
+Updated: 2026-09-27 17:41 UTC
 
 User mandate: autonomously advance UI/UX redesign **and** the recovered engine
 queue, using parallel GPT-6 Astra/Luna agents; coordinate Machine B and keep
@@ -28,11 +28,21 @@ Machine A as sole main integrator. Do useful work while other tasks wait.
 | ID | Work | Owner / location | Next action and acceptance |
 | --- | --- | --- | --- |
 | UX-01 | Resume coherent Library / Photo Edit workspace and split inspector | A `develop_resume`; `codex/workspace-redesign`, `/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera` | Concrete first-slice plan reviewed by coordinator; implementation assigned. Implement navigation/target clarity while preserving Library selection/filter/order/zoom and truthful rendered-copy Document boundary. Default provisional direction: Precision Graphite, retaining amber identity; historical palette approval is not claimed. Review changes, run targeted behavior/layout/accessibility checks and strict Swift gate. |
-| ENG-31 | M5-31 first-process cold resident failure | A `b516_review`; existing `.worktrees/M5-31` | Diagnose B's exact `9f922bf` results: cold 125.855125 FAIL /43.970875/33.298750 ms; all warm pass. Source reuse and non-Dissolve seed canonicalization prepared; realistic distinct-ID tests and a separate timing companion await validation. UX-01 owns the heavy slot. Rerun unchanged <100 ms gate in fresh processes. Never discard failed samples. |
+| ENG-31 | M5-31 first-process cold resident failure | A root gates; existing `.worktrees/M5-31` | Diagnose B's exact `9f922bf` results: cold 125.855125 FAIL /43.970875/33.298750 ms; all warm pass. Source reuse and non-Dissolve seed canonicalization prepared; realistic distinct-ID tests and a separate timing companion await validation. UX-01 owns the heavy slot. Rerun unchanged <100 ms gate in fresh processes. Never discard failed samples. |
 | COM-01 | Establish usable authenticated Machine A ↔ B communication | A `cross_machine_research` +root | Native UI inspection blocked; only local app host exposed. Bonjour MacBook SSH refused, B identity unverified. Mailbox integrated067261e,9tests pass; A heartbeat polls it. Handshake1c60b6fd-49d0-43e5-8f6d-81d0766f272f published on codex/coordination-a0c6479d; B receipt/heartbeat unconfirmed. Root polls/bootstrap; agent advancing EXP-45 while waiting. Avoid a second agent server owning active desktop chat. Implement durable deduped Git fallback where needed. No exposed unauthenticated listeners. |
 | OPS-01 | Persistent autonomous coordinator | Root; current chat | Heartbeat `tessera-machine-a-coordinator` ACTIVE every5minutes, created2026-09-27. Check running work before duplicate launches. Read/advance board; stay quiet unless meaningful outcome/blocker. Local execution requires awake host/app and available service limits. |
 
 ## Ready / next
+
+UX-02 safety prerequisite is now assigned to `b516_review`: isolate review queue
+owner/engine/image identities across folder switches and asynchronous completions.
+Scope is AgentController and focused tests on a separate main-based worktree;
+new Review navigation/resume persistence remains planned in UX-02-PLAN.md.
+M5-31 source is frozen for root to run its next focused and full gates after UX-01
+releases the heavy slot. INT-45 license check also passed (existing unused-license
+allowance warnings only); reproducible gated script is
+`/tmp/tessera-export-integration-gate.sh`, not yet executed.
+
 
 Current review checkpoint: UX-01 first compilation found a SwiftUI toolbar builder
 limit; the agent is fixing it and browser reflow findings before rerunning. Pointer

@@ -6,6 +6,14 @@ Recovered Claude chat: `Multi-model execution plan (fork)`, session
 
 ## Active implementation review — latest checkpoint
 
+Review workflow source audit found library ownership was resolved too late for
+retained queues/actions and asynchronous callbacks after folder switches. A has
+assigned a separate narrow AgentController ownership fix with reproducing tests;
+it does not change B-owned Document paths. Root takes over the frozen M5-31
+validation queue while the reviewer implements this safety prerequisite. The
+full next Review workspace/resume plan is preserved in UX-02-PLAN.md.
+
+
 Current checkpoint: UX has the heavy build slot; engine work continues source-only.
 Root prepared an isolated, uncommitted clean M2-45d integration on
 `codex/export-integration` (managed worktree of that name), with formatting and
