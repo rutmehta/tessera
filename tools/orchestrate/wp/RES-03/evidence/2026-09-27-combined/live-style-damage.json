@@ -1,0 +1,19 @@
+{
+  "name": "live-style-damage",
+  "cmd": [
+    "cargo",
+    "test",
+    "-p",
+    "compositor",
+    "--test",
+    "live_style_damage"
+  ],
+  "exit_code": 0,
+  "timed_out": false,
+  "elapsed_s": 78.503,
+  "pid": 61683,
+  "CARGO_BUILD_JOBS": "2",
+  "RAYON_NUM_THREADS": "2",
+  "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/main",
+  "source_manifest": "/tmp/tessera-res03-cancel-integration/candidate-manifest.json"
+}

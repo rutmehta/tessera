@@ -1,0 +1,8 @@
+RES-03 diagnostic RED freeze; no build/test executed
+base d11e1ffd679cbcfb3d4fcfb86cf4ad3bf7767092
+branch codex/masked-filter-pass
+
+17beb182c4fd0259a5945e61cb2fe1c307b039efbb2c692b65a4a912e8aea13a  crates/compositor/src/render/smart_filters.rs
+600fc184b29e83466e3fb0ce2933a042b066e1418fcc4d432d6316c9843bb06d  crates/compositor/tests/smart_filter_deadlock.rs
+
+9dad8b7a75f5cb1e6ccd6b65099a136489e5ad02f2a0ff55fb112aef39293ce6  red.patch

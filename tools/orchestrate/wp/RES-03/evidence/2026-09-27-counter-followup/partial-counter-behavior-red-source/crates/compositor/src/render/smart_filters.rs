@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 use engine_api::{
     EngineError, EngineResult,
     jobs::CancellationToken,
-    tile::{TILE_SIZE, Tile, TileCoord, TileFormat},
+    tile::{TILE_SIZE, TileCoord, TileFormat},
 };
 use serde::{Deserialize, Serialize};
 
@@ -733,15 +733,18 @@ fn blend_mask_tiles(
             );
             rt.mask_pixels_visited.fetch_add(visited, Ordering::Relaxed);
             edit?;
-            let produced = raster.tile(tx, ty).map(Tile::byte_len).unwrap_or(0);
-            rt.mask_tile_bytes_produced.fetch_add(
-                u64::try_from(produced).unwrap_or(u64::MAX),
-                Ordering::Relaxed,
-            );
             after_tile(tx, ty);
         }
     }
     check_render_cancel(cancel)?;
+    let produced = raster
+        .slots()
+        .filter_map(|(_, slot)| slot.tile.as_ref())
+        .fold(0u64, |sum, tile| {
+            sum.saturating_add(u64::try_from(tile.byte_len()).unwrap_or(u64::MAX))
+        });
+    rt.mask_tile_bytes_produced
+        .fetch_add(produced, Ordering::Relaxed);
     Ok(valid)
 }
 

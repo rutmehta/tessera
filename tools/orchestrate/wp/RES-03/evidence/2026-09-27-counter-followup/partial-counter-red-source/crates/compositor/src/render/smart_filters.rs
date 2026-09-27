@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 use engine_api::{
     EngineError, EngineResult,
     jobs::CancellationToken,
-    tile::{TILE_SIZE, Tile, TileCoord, TileFormat},
+    tile::{TILE_SIZE, TileCoord, TileFormat},
 };
 use serde::{Deserialize, Serialize};
 
@@ -693,58 +693,6 @@ impl FilterRuntime {
     }
 }
 
-/// Blend one masked output tile at a time so cancellation and work counters
-/// observe completed tiles. The callback is a deterministic test checkpoint.
-fn blend_mask_tiles(
-    raster: &mut Raster,
-    source: &Raster,
-    mask: &Mask,
-    rt: &FilterRuntime,
-    cancel: Option<&CancellationToken>,
-    mut after_tile: impl FnMut(u32, u32),
-) -> EngineResult<bool> {
-    let mut valid = true;
-    let raster_extent = raster.extent();
-    let (cols, rows) = raster_extent.tile_grid(TILE_SIZE);
-    for ty in 0..rows {
-        for tx in 0..cols {
-            check_render_cancel(cancel)?;
-            let mut visited = 0u64;
-            let edit = raster.edit_region(
-                Rect::of_tile(TileCoord::new(0, tx, ty), raster_extent),
-                1,
-                |x, y, p| {
-                    visited = visited.saturating_add(1);
-                    let m = mask.raster.pixel(x, y)[0];
-                    valid &= m.is_finite() && (0.0..=1.0).contains(&m);
-                    let t = 1.0 - mask.density * (1.0 - m);
-                    let a = source.pixel(x, y);
-                    let b = *p;
-                    let alpha = a[3] + t * (b[3] - a[3]);
-                    for c in 0..3 {
-                        p[c] = if alpha > 0.0 {
-                            (a[c] * a[3] * (1.0 - t) + b[c] * b[3] * t) / alpha
-                        } else {
-                            0.0
-                        };
-                    }
-                    p[3] = alpha;
-                },
-            );
-            rt.mask_pixels_visited.fetch_add(visited, Ordering::Relaxed);
-            edit?;
-            let produced = raster.tile(tx, ty).map(Tile::byte_len).unwrap_or(0);
-            rt.mask_tile_bytes_produced.fetch_add(
-                u64::try_from(produced).unwrap_or(u64::MAX),
-                Ordering::Relaxed,
-            );
-            after_tile(tx, ty);
-        }
-    }
-    check_render_cancel(cancel)?;
-    Ok(valid)
-}
-
 pub(crate) struct FilteredSource {
     pub state: DocState,
     pub key: u64,
@@ -985,9 +933,48 @@ impl Compositor {
                     .transpose()?;
                 check_render_cancel(cancel)?;
                 let mut raster = cached.result.clone();
+                let mut valid = true;
                 rt.mask_compositions.fetch_add(1, Ordering::Relaxed);
-                let valid =
-                    blend_mask_tiles(&mut raster, &cached.source, mask, rt, cancel, |_, _| {})?;
+                let raster_extent = raster.extent();
+                let (cols, rows) = raster_extent.tile_grid(TILE_SIZE);
+                for ty in 0..rows {
+                    for tx in 0..cols {
+                        check_render_cancel(cancel)?;
+                        let mut visited = 0u64;
+                        let edit = raster.edit_region(
+                            Rect::of_tile(TileCoord::new(0, tx, ty), raster_extent),
+                            1,
+                            |x, y, p| {
+                                visited = visited.saturating_add(1);
+                                let m = mask.raster.pixel(x, y)[0];
+                                valid &= m.is_finite() && (0.0..=1.0).contains(&m);
+                                let t = 1.0 - mask.density * (1.0 - m);
+                                let a = cached.source.pixel(x, y);
+                                let b = *p;
+                                let alpha = a[3] + t * (b[3] - a[3]);
+                                for c in 0..3 {
+                                    p[c] = if alpha > 0.0 {
+                                        (a[c] * a[3] * (1.0 - t) + b[c] * b[3] * t) / alpha
+                                    } else {
+                                        0.0
+                                    };
+                                }
+                                p[3] = alpha;
+                            },
+                        );
+                        rt.mask_pixels_visited.fetch_add(visited, Ordering::Relaxed);
+                        edit?;
+                    }
+                }
+                check_render_cancel(cancel)?;
+                let produced = raster
+                    .slots()
+                    .filter_map(|(_, slot)| slot.tile.as_ref())
+                    .fold(0u64, |sum, tile| {
+                        sum.saturating_add(u64::try_from(tile.byte_len()).unwrap_or(u64::MAX))
+                    });
+                rt.mask_tile_bytes_produced
+                    .fetch_add(produced, Ordering::Relaxed);
                 if !valid {
                     return Err(EngineError::invalid(
                         "smart filter mask",

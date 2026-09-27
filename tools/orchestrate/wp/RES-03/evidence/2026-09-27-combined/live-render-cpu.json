@@ -1,0 +1,22 @@
+{
+  "name": "live-render-cpu",
+  "cmd": [
+    "cargo",
+    "test",
+    "-p",
+    "compositor",
+    "--test",
+    "live_render",
+    "--",
+    "--skip",
+    "resident_live_geometry_and_masks_match_cpu"
+  ],
+  "exit_code": 0,
+  "timed_out": false,
+  "elapsed_s": 3.877,
+  "pid": 62554,
+  "CARGO_BUILD_JOBS": "2",
+  "RAYON_NUM_THREADS": "2",
+  "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/main",
+  "source_manifest": "/tmp/tessera-res03-cancel-integration/candidate-manifest.json"
+}
