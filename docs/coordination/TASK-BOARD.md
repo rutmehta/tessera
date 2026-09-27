@@ -1,6 +1,6 @@
 # Tessera task board — Machine A coordinator
 
-Updated: 2026-09-27 18:57 UTC
+Updated: 2026-09-27 19:57 UTC
 
 User mandate: autonomously advance UI/UX redesign **and** the recovered engine
 queue, using parallel GPT-6 Astra/Luna agents; coordinate Machine B and keep
@@ -40,14 +40,17 @@ zero failures, plus5SwiftTesting. The missing-fixture Rust failure and obsolete
 Swift DNG expectation failure are retained with their successful corrections.
 Full provenance lives in tools/orchestrate/wp/INT-45/evidence/2026-09-27-integration/.
 
-A’s core gain-map gate finished with four passes and one failure: native decoding
-of the four-stop resize/sharpen case peaks at 7.9837623 instead of 16. The failure
-is preserved. The short diagnostic capture finished with the original failure preserved. UX02a
-checkpoint 4fcb802 passed43focused tests; 32 offscreen layout captures passed. They show loading state because the
-synchronous harness blocks async preview loading; ready pixels remain unverified.
-The UI agent holds A’s slot for bounded asynchronous ready-preview validation. Independent review found a stale Saving status after canceled handoff;
-the UI owner will correct it and verify the cancellation path. The third agent implements the
-audited Masks header refinement without touching navigation or Document UI.
+A resumed after a usage-limit interruption; no duplicate tests were launched.
+UX02a's completed status/ready-preview gate passed two tests with zero failures,
+and its source digest matched the retained manifest. Root inspected real saved
+pixels at minimum width; 34 captures include ready states. Masks now owns the
+heavy slot for its populated narrow-width regression and refinement. A Luna
+agent inspected the old packaged baseline and prepares hands-on candidate checks.
+The user authorizes multiple isolated builds on betterSSD and computer-use tests;
+keep catalogs separate and serialize UI control as well as heavy builds.
+
+Gain-map supplemental Core Image tests and CLI/FFI/MCP checks await a build slot.
+The original ImageIO four-stop failure remains intact; no package pass claimed.
 
 B’s original coordinator received queued messages, completed the Git bootstrap,
 and verified its single active heartbeat. Its B5-16 resolved-tree verification
@@ -65,15 +68,15 @@ separate evidence; no threshold was weakened or failed sample replaced.
 | DEV-58 | Complete remaining Develop performance acceptance | A; `wp/M2-58` `196005e` product `5ff2679` | P01 actual input-to-present and P11 detail settle<=200ms /drag p95 regression<=10% remain unverified. Read M2-58-PRESENTATION-PLAN.md: actual Loupe scanout requires a non-occluded surface and detail CALayer publication lacks a display-time oracle. Keep acceptance pending; do not substitute callbacks or transaction completion. Existing correctness/parity evidence preserved. |
 | EXP-45 | Gain-map JPEG reference interoperability and implementation | A cross_machine_research; codex/gainmap-restoration | A core gate FAILED:4passed/1failed; four-stop native peak7.9837623 vs16. Captured outputs preserved. ImageIO options tested unchanged; software CoreImage reconstructs the same four-stop file to16, ImageIO path still8. Supplemental native tests being prepared; original failed assertion retained, no tolerance changes. B frozen core1pass/4fail; independent ISO controls also yield no native HDR on B macOS26.1, documented as tested-host limitation, not encoder acceptance. Independent libjpeg reconstruction passes5patches. B snapshot/capture preserved; no new B runs while its slot is reserved. |
 | INT-45 | Integrate validated DNG/PQ-HLG/native metadata slice | A root; main fb7c604 | DONE bounded slice. 564Rust/0fail/21ignored, strictchecks, FFI, final436XCTest/1existing skip/0fail +5SwiftTesting. DNG1.6/backward1.4 contract verified. Gain-map JPEG separate. |
-| UX-02 | Navigable Review and resume persistence | A develop_resume; safety merged fb7c604 | Ownership/save barriers and mutation exclusion DONE:23regressions included in full436+5 gate. UX02a source4fcb802 passed43focused tests; 32layout captures passed (loading states only); async ready-preview verification and canceled-handoff status cleanup pending. UX02b relaunch persistence still pending. |
+| UX-02 | Navigable Review and resume persistence | A develop_resume; safety merged fb7c604 | Ownership/save barriers and mutation exclusion DONE:23regressions included in full436+5 gate. UX02a source4fcb802 passed43focused tests; 34captures include real ready pixels; recovered2-test status/ready gate passed. Source checkpoint and candidate packaging/integration next. UX02b relaunch persistence still pending. |
 | UX-03 | Selective batch editing and source/target clarity | A; after UX-01/02 contract | Preserve source/target snapshots and settings selection; define undo/review semantics, verify no unseen batch action from a single-key shortcut. |
 | UX-04 | Visual/accessibility refinement | A b516_review implementation; B agreed split | Audit complete. Implement independent two-row Masks header with full labels/accessibility; populated minimum-width visual acceptance pending. Loupe disclosure work deferred until UX02a coordinates ContentView extraction. No Document/global-theme edits; build slot pending. |
 | UX-05 | True live-RAW/layer continuity | A engine+B document contract | Separate substantial dependency: current transition is rendered copy. Define graph/persistence/version contract and release scenario before making live-raw claims. |
 
 ## Machine B / integration dependencies
 
-Last peer note read: `0232ff7`; latest published A status acknowledged by B:
-`6e1e7b8` via mailbox bd919fed. B reports40focused legacy tests and7runner regressions passed, full strict suite underway; no final acceptance inferred. A acknowledges B5-15 checkpoint `aec242f` and failed M5-31 timing.
+Last peer note read: `8f32f51`; latest published A status acknowledged by B:
+`6e1e7b8` via mailbox bd919fed. B reports424XCTest/one skip/zero failures +5SwiftTesting, Xcode and package provenance passed. First packaged Document test passed; eight others awaited runner reconciliation after interruption. No final acceptance inferred. A acknowledges B5-15 checkpoint `aec242f` and failed M5-31 timing.
 
 | ID | Work | State / next action |
 | --- | --- | --- |

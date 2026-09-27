@@ -4,6 +4,27 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## Resume checkpoint — 2026-09-27 19:57 UTC
+
+Recovered the interrupted Review gate: two tests passed with zero failures;
+manifest digest432fff1dae551112cf435e2b24e8d72e9cf052f964e0e5a579bdb9d6f4ed9e15
+still matches source. Root visually inspected actual saved pixels in the narrow
+ready capture. Masks now runs its separate focused regression. The user permits
+multiple isolated betterSSD builds and Luna/Sol computer-use testing. Keep app
+catalogs separate and serialize control of the shared desktop.
+
+Queued resume message01a0e470-a16a-7972-8178-efe1644c8e72 reached B's existing
+chat: peer commentary confirms it is collecting the retained runner results.
+B source8184da1 addresses the reviewed legacy Neutralize and strict-runner issues;
+root inspected the fixes. B reports424XCTest/one skip/zero failures +5SwiftTesting,
+Xcode and package verification, and the first bundled Document self-test pass.
+Remaining app outcomes and new-main integration are still pending. B retains
+its slot and dirty snapshot; no duplicate remote run requested.
+
+Reverse SSH queue acknowledgement ACK-REVERSE-SSH-QUEUE-20260927 was received
+and acknowledged. Two-way message delivery is verified; idle queue wakeup has
+not been separately tested. Scheduled heartbeat wakeup is separate evidence.
+
 ## Current coordinator checkpoint — 2026-09-27 18:57 UTC
 
 Published main **fb7c604670a197e2c663d0b47448956e7336dff0**. It integrates the
