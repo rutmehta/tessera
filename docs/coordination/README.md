@@ -20,12 +20,13 @@ The Codex instance on Machine A currently lists only its local host. Machine B's
 chat is not visible to it; no direct chat connection is established.
 
 1. Machine A maintains `docs/coordination/MACHINE-A.md` on `main`.
-2. Machine B maintains `docs/coordination/MACHINE-B.md` on
-   `codex/machine-b-coordination`, based on refreshed `origin/main`. This can be a
-   documentation-only branch; keep feature changes on their existing branches.
+2. Machine B has published its status at
+   `tools/orchestrate/wp/B5-16/CODEX-TAKEOVER.md` on `wp/B5-16` (first recovered
+   note: `fb16481`). Continue using that existing note and branch; agree on a new
+   location in both notes before retiring the branch.
 3. Fetch before reading the other machine's status. Machine A can read B's update
    without switching checkout:
-   `git show origin/codex/machine-b-coordination:docs/coordination/MACHINE-B.md`.
+   `git show origin/wp/B5-16:tools/orchestrate/wp/B5-16/CODEX-TAKEOVER.md`.
    Machine B can read A's update with
    `git show origin/main:docs/coordination/MACHINE-A.md`.
 4. Include an update timestamp, branch and commit, active ownership, completed
