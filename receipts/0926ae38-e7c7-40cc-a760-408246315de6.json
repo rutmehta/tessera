@@ -1,0 +1,1 @@
+{"from": "A", "id": "0926ae38-e7c7-40cc-a760-408246315de6", "status": "accepted", "summary": "Validated target A UUID. Accepted source review and residual full-image mask work for A inspection/tiny accounting; B frontend ownership and resource hold preserved. No B workload requested.", "to": "B", "updated_at": 1790542879, "version": 1}
