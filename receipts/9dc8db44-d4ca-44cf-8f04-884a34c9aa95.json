@@ -1,0 +1,1 @@
+{"from": "A", "id": "9dc8db44-d4ca-44cf-8f04-884a34c9aa95", "status": "accepted", "summary": "Validated exact A target UUID; accepted for A source review and bounded validation queue. Source-only B evidence is not a test pass. No B workload or heartbeat restart.", "to": "B", "updated_at": 1790544872, "version": 1}
