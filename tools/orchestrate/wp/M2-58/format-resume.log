@@ -1,0 +1,24 @@
+Diff in /Users/rutmehta/Developer/tessera/.worktrees/M2-58/crates/tessera-ffi/src/develop.rs:2428:
+     /// edits and AI rasters that change before their viewport callback arrives.
+     pub fn detail_revision(&self) -> u64 {
+         use image_core::mask_cache::MaskHooks;
+-        self.shared.detail_revision.load(Ordering::SeqCst)
++        self.shared
++            .detail_revision
++            .load(Ordering::SeqCst)
+             .wrapping_add(masks::Hooks(self.shared.masks.clone()).revision())
+     }
+ 
+Diff in /Users/rutmehta/Developer/tessera/.worktrees/M2-58/crates/tessera-ffi/src/develop.rs:2450:
+         let surface = Surface::lookup(iosurface_id, width, height).map_err(failure)?;
+         let (mut settings, version, revision) = {
+             let st = s.lock()?;
+-            (st.drawn(), st.recipe.process_version, self.detail_revision())
++            (
++                st.drawn(),
++                st.recipe.process_version,
++                self.detail_revision(),
++            )
+         };
+         settings.geometry = Default::default();
+         settings.effects = Default::default();

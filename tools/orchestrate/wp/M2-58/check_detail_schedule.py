@@ -9,6 +9,8 @@ tests = (root / 'apps/mac/Tests/TesseraCoreTests/DetailPreviewSchedulingTests.sw
 # Model the original callback's unconditional invalidate before the dedup API exists.
 if 'func observeSettings(' not in schedule:
     schedule += '\nextension DetailPreviewSchedule { mutating func observeSettings(revision: UInt64) { invalidate() } }\n'
+if 'engineCurrent:' not in schedule:
+    schedule += '\nextension DetailPreviewSchedule { mutating func complete(_ request: UInt64, engineCurrent: Bool) -> Bool { complete(request) } }\n'
 folder = pathlib.Path(__file__).resolve().parent / 'detail-check'
 (folder / 'Tests').mkdir(parents=True, exist_ok=True)
 (folder / 'Package.swift').write_text('''// swift-tools-version: 6.0

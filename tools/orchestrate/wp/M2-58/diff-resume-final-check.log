@@ -1,0 +1,10 @@
+apps/mac/Sources/CTesseraFFI/CTesseraFFI.h:3846: trailing whitespace.
++    
+apps/mac/Sources/TesseraFFI/TesseraFFI.swift:2423: trailing whitespace.
++    
+apps/mac/Sources/TesseraFFI/TesseraFFI.swift:2882: trailing whitespace.
++    
+apps/mac/Sources/TesseraFFI/TesseraFFI.swift:13460: trailing whitespace.
++         */revision: UInt64, 
+apps/mac/Sources/TesseraFFI/TesseraFFI.swift:13490: trailing whitespace.
++                revision: FfiConverterUInt64.read(from: &buf), 

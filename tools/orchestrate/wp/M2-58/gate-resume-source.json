@@ -1,0 +1,96 @@
+{
+  "at": "2026-09-27T14:37:26.212873+00:00",
+  "head": "fbacd9ee9cc4fce607be747461734adf0f4dd90d",
+  "source": {
+    "apps/mac/Sources/CTesseraFFI/CTesseraFFI.h": {
+      "sha256": "6899045a1819b049a79f59c942aab0fd5e7534fb2c27d961e9d0e48531b831ea",
+      "mtime_ns": 1790512676449528333
+    },
+    "apps/mac/Sources/Tessera/App/AppModel.swift": {
+      "sha256": "b5b3308214d9bf38f53cc33af37e71790c70de43932e313a03ea4e3d6234e5ae",
+      "mtime_ns": 1790505223542060715
+    },
+    "apps/mac/Sources/Tessera/App/DevelopTools.swift": {
+      "sha256": "617bedae800863f027363b3f10814433e231eee4f6699985ab013d08505627d9",
+      "mtime_ns": 1790519530595654678
+    },
+    "apps/mac/Sources/Tessera/App/MaskTools.swift": {
+      "sha256": "df1793be7190252ffae41b30ed97615c4fb1eebec79a40cbc5185cc8cc416fa5",
+      "mtime_ns": 1790503537168996143
+    },
+    "apps/mac/Sources/Tessera/Loupe/LoupeFrame.swift": {
+      "sha256": "6e33323839892e8e6923eb94f73465478547fc684eacf2989bcc7627e9c6ae42",
+      "mtime_ns": 1790504587115885817
+    },
+    "apps/mac/Sources/Tessera/Loupe/LoupeRenderer.swift": {
+      "sha256": "5ccd4e29db3f2e88b56b1156226c8a1d8fea3364241c47298ad2cfde20d4ddd3",
+      "mtime_ns": 1790504587700725890
+    },
+    "apps/mac/Sources/Tessera/Loupe/MetalLoupeView.swift": {
+      "sha256": "1ca51af73f7196fd30522e43e9031ea4711b330f52b2217e663f43c044865267",
+      "mtime_ns": 1790505223197996504
+    },
+    "apps/mac/Sources/TesseraCore/DevelopController.swift": {
+      "sha256": "4d4a8d1a8d50cad9e125a70105a85b420ed9e072ce0a3d1c4b702ab96f47e87a",
+      "mtime_ns": 1790510937832031083
+    },
+    "apps/mac/Sources/TesseraCore/DevelopSurfaceLease.swift": {
+      "sha256": "b4fcab17bb4d3d9dae64f21c5359f55c7e80a3e0d7e466188a067c86985c1205",
+      "mtime_ns": 1790504557948236997
+    },
+    "apps/mac/Sources/TesseraCore/Diagnostics/PerformanceTrace.swift": {
+      "sha256": "fd6e259038a53dd04767e821015a876040e942f2796ef020f030124a42a5bab2",
+      "mtime_ns": 1790504254908579938
+    },
+    "apps/mac/Sources/TesseraCore/LatestFrameMailbox.swift": {
+      "sha256": "6cc74e11f152afeea9ce9ccfbbcd8446a0932a2618d5c746995482bbaa27f4b3",
+      "mtime_ns": 1790504678377297865
+    },
+    "apps/mac/Sources/TesseraFFI/TesseraFFI.swift": {
+      "sha256": "7a792acd235115bc24168f5a2e98ebcc0601e3501c62ab8304c66d03626b842c",
+      "mtime_ns": 1790512676447230650
+    },
+    "apps/mac/Tests/TesseraCoreTests/DetailPreviewSchedulingTests.swift": {
+      "sha256": "e8f49f049b9bef711ecaae03d3e95137ba28193cf3af8110cb0f3fcfe59c44c6",
+      "mtime_ns": 1790519494162637211
+    },
+    "apps/mac/Tests/TesseraCoreTests/DevelopTests.swift": {
+      "sha256": "dd23f86e05737f9c6ddb60a5cad84c5e8fe8d1217182fa0e82cd5db87077bed7",
+      "mtime_ns": 1790519638065020062
+    },
+    "apps/mac/Tests/TesseraCoreTests/LatestFrameMailboxTests.swift": {
+      "sha256": "047b43a97296fd1c73bb4efa3fc062094667f7b3f7b701e1d25800c99c28a026",
+      "mtime_ns": 1790504652611889102
+    },
+    "crates/tessera-ffi/src/develop.rs": {
+      "sha256": "c08b323f1704734f8f97b63e962363474a8b67124fa9875987304bfc4cee5a5e",
+      "mtime_ns": 1790519557581703583
+    },
+    "crates/tessera-ffi/src/masks.rs": {
+      "sha256": "7df92a8eb7eeeebfa6c47ae62cdcd8c4df4b64dbc617f43ec54362804cd598d8",
+      "mtime_ns": 1790519803032441842
+    },
+    "crates/tessera-ffi/src/surface.rs": {
+      "sha256": "70083b37d966879e552f1b569d39b57fb2eb353bd21ed2af2168283961fe61a4",
+      "mtime_ns": 1790504691171246123
+    },
+    "crates/tessera-ffi/tests/develop.rs": {
+      "sha256": "ef45507e1b10da2201060c89621c5c58524af9ced696c3d0729e99ec664c7de3",
+      "mtime_ns": 1790504539047900361
+    },
+    "tools/bench/README.md": {
+      "sha256": "481e9d14d897b28e16eeccaec802dc15e2eaafd6e739c85980d2b2eb663e9fb4",
+      "mtime_ns": 1790505685841866439
+    },
+    "tools/bench/app_timing.py": {
+      "sha256": "1a32bf62f77ba18faf070a308753c7f98f13c04d4bf9f1e9990bc80ef3a97348",
+      "mtime_ns": 1790504325888357891
+    },
+    "tools/bench/test_causal_timing.py": {
+      "sha256": "b8578b961ace2b6a929ce31c6fc2d16429d5418f8e9c9538d59404daa3e4e3a6",
+      "mtime_ns": 1790504286492359896
+    }
+  },
+  "cargo_target_dir": "/Volumes/betterSSD/tessera-cache/target/M2-58",
+  "macosx_deployment_target": "15.0"
+}

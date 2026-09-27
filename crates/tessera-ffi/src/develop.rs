@@ -224,6 +224,8 @@ pub struct HistoryGroupState {
 /// A rendered 1:1 detail crop.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, uniffi::Record)]
 pub struct DetailPreview {
+    /// Engine state identity; validate again on the host immediately before display.
+    pub revision: u64,
     /// Top-left of the crop in level-0 active-area pixels (sensor orientation).
     pub x: u32,
     pub y: u32,
@@ -537,6 +539,8 @@ pub(crate) struct Shared {
     // release an IOSurface while a submitted write is still in flight.
     render_serial: Mutex<()>,
     generation: AtomicU64,
+    // Counts requests even when interactive work is coalesced before a new generation.
+    detail_revision: AtomicU64,
     listener: Mutex<Option<Arc<dyn DevelopListener>>>,
     save: Mutex<SaveState>,
     save_cv: Condvar,
@@ -904,6 +908,7 @@ impl Engine {
             }),
             render_serial: Mutex::new(()),
             generation: AtomicU64::new(0),
+            detail_revision: AtomicU64::new(0),
             listener: Mutex::new(None),
             save: Mutex::new(SaveState::default()),
             save_cv: Condvar::new(),
@@ -1098,6 +1103,7 @@ impl Shared {
         interactive: bool,
         input_id: Option<u64>,
     ) {
+        self.detail_revision.fetch_add(1, Ordering::SeqCst);
         st.input_id = input_id;
         if st.closed {
             return;
@@ -1352,6 +1358,7 @@ impl Shared {
     fn close(&self) {
         if let Ok(mut st) = self.state.lock() {
             st.closed = true;
+            self.detail_revision.fetch_add(1, Ordering::SeqCst);
             st.generation += 1;
             self.generation.store(st.generation, Ordering::SeqCst);
             if let Some(job) = st.job.take() {
@@ -2417,6 +2424,16 @@ impl DevelopSession {
         Ok(changed)
     }
 
+    /// Lock-free invalidation identity for detail crops, including coalesced mask
+    /// edits and AI rasters that change before their viewport callback arrives.
+    pub fn detail_revision(&self) -> u64 {
+        use image_core::mask_cache::MaskHooks;
+        self.shared
+            .detail_revision
+            .load(Ordering::SeqCst)
+            .wrapping_add(masks::Hooks(self.shared.masks.clone()).revision())
+    }
+
     /// Renders a 1:1 (level 0) crop of the live settings centred on
     /// (`center_x`, `center_y`), normalized active-area coordinates in sensor
     /// orientation, into an RGBA8 IOSurface of `width × height`. Blocking:
@@ -2433,9 +2450,13 @@ impl DevelopSession {
     ) -> Result<DetailPreview> {
         let s = &self.shared;
         let surface = Surface::lookup(iosurface_id, width, height).map_err(failure)?;
-        let (mut settings, version) = {
+        let (mut settings, version, revision) = {
             let st = s.lock()?;
-            (st.drawn(), st.recipe.process_version)
+            (
+                st.drawn(),
+                st.recipe.process_version,
+                self.detail_revision(),
+            )
         };
         settings.geometry = Default::default();
         settings.effects = Default::default();
@@ -2494,6 +2515,7 @@ impl DevelopSession {
             })
             .map_err(failure)?;
         Ok(DetailPreview {
+            revision,
             x,
             y,
             width: w,
@@ -3183,9 +3205,16 @@ mod tests {
         session
             .set_settings_identified(r#"{"tone":{"exposure":0.3}}"#.into(), true, Some(41))
             .unwrap();
+        let detail_revision = session.detail_revision();
+        let generation = session.shared.lock().unwrap().generation;
         session
             .set_settings_identified(r#"{"tone":{"exposure":0.7}}"#.into(), true, Some(42))
             .unwrap();
+        assert_eq!(session.shared.lock().unwrap().generation, generation);
+        assert!(
+            session.detail_revision() > detail_revision,
+            "coalesced edits must invalidate detail before a new viewport generation"
+        );
         drop(serial);
         for expected in [41, 42] {
             let frame = rx.recv_timeout(Duration::from_secs(30)).unwrap();

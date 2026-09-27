@@ -31,9 +31,10 @@ struct DetailPreviewSchedule {
         return revision
     }
 
-    mutating func complete(_ request: UInt64) -> Bool {
+    mutating func complete(_ request: UInt64, engineCurrent: Bool = true) -> Bool {
         guard inFlight == request else { return false }
         inFlight = nil
+        if !engineCurrent { invalidate() }
         return request == revision && !interactive
     }
 }
@@ -334,7 +335,8 @@ final class DevelopTools: LibraryObserver {
                     if self.develop?.session === session, let current = self.develop {
                         self.detailSchedule.observeSettings(revision: current.settingsRevision)
                     }
-                    let current = self.detailSchedule.complete(request)
+                    let engineCurrent = result.map { $0.revision == session.detailRevision() } ?? true
+                    let current = self.detailSchedule.complete(request, engineCurrent: engineCurrent)
                     if current, self.detailPreviewVisible, self.develop?.session === session {
                         self.onDetailPreview?(target, result)
                     }

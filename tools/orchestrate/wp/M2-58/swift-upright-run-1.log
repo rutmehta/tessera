@@ -1,0 +1,18 @@
+[0/1] Planning build
+Test Suite 'Selected tests' started at 2026-09-27 10:51:19.355.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-27 10:51:19.356.
+Test Suite 'DevelopTests' started at 2026-09-27 10:51:19.356.
+Test Case '-[TesseraCoreTests.DevelopTests testAutoUprightMainSetterAndFinalIdentity]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [449.944875, 187.690292, 213.09824999999998]; GPU [260.72762500000005, 1.903, 6.392125]
+Test Case '-[TesseraCoreTests.DevelopTests testAutoUprightMainSetterAndFinalIdentity]' passed (5.849 seconds).
+Test Suite 'DevelopTests' passed at 2026-09-27 10:51:25.205.
+	 Executed 1 test, with 0 failures (0 unexpected) in 5.849 (5.850) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-09-27 10:51:25.205.
+	 Executed 1 test, with 0 failures (0 unexpected) in 5.849 (5.850) seconds
+Test Suite 'Selected tests' passed at 2026-09-27 10:51:25.206.
+	 Executed 1 test, with 0 failures (0 unexpected) in 5.849 (5.850) seconds
+M2-58 Auto Upright Swift setter: count=101 median_ms=0.02187490463256836 p95_ms=0.04412513226270676 max_ms=0.5114581435918808
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

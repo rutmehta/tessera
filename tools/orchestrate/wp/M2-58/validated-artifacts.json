@@ -1,0 +1,9 @@
+{
+  "head": "fbacd9ee9cc4fce607be747461734adf0f4dd90d",
+  "files": {
+    "apps/mac/Sources/CTesseraFFI/CTesseraFFI.h": "2d8f35071e69ac93090fff03921d85ebbc575ec1b5fb685cdd124d231d380ef0",
+    "apps/mac/Sources/TesseraFFI/TesseraFFI.swift": "669a0f4e38120798866e6968335cb3323b156a9e92d1ea54aee8d5753d2197f3",
+    "apps/mac/build/ffi/libtessera_ffi.a": "3ae72cbdb600f65c9a09fa9a1db6e11ecbfcd486d6cc15e2bd69643049684a2a",
+    "apps/mac/.build/arm64-apple-macosx/release/TesseraPackageTests.xctest/Contents/MacOS/TesseraPackageTests": "ca1fe33eb60adc293e709ca50cdcf661643cd75a098302e6c2dbc703ed1632e0"
+  }
+}

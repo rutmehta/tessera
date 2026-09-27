@@ -1,6 +1,6 @@
 # M2-58 results
 
-RESULT: FAIL — latest exact gate fails in DocumentAdjustmentJSONTests; the identified-settings detail-settle race is fixed, but end-to-end presentation and P11 performance acceptance remain unverified.
+RESULT: PARTIAL — resumed correctness validation passes after the current main merge and a test-fixture correction. The full Swift Auto Upright setter meets P10 timing limits in three recorded runs. Full P10 pixel-parity, P11 presentation/performance, and P01 actual input-to-present acceptance remain unverified. The historical failures below are preserved; the final resumption section supersedes their current status.
 
 ## Scope
 
@@ -92,3 +92,51 @@ Python discovery passed 27 tests plus the separate P10 boundary check (`python-c
 The result remains incomplete: actual input-to-present timestamps under background-only conditions, Auto-Upright full Swift main-span/pixel-parity acceptance, and the P11 <=200 ms settle / <=10% open-versus-closed drag-p95 comparison are not established. `HERMES_KANBAN_TASK` is unset, so no board transition was available.
 
 RESULT: FAIL required Swift gate has six Document JSON assertions; full P10/P11/P01 performance acceptance remains unverified.
+
+
+## September 27 resumption on current main
+
+Recovered work was preserved before integration: `/Volumes/betterSSD/tessera-cache/recovery/M2-58-20260927-102859/` contains a binary tracked patch, an archive of all 52 untracked source/evidence files, and a SHA-256 manifest. No M2-58 worker was active. Commit `45c69a2` preserves the recovered implementation/evidence; merge `fbacd9e` brought main `c0d4535` into `wp/M2-58`. Main was never modified or pushed. Excluded Document/jobs/previews source was only inherited from main, never edited by this package.
+
+### Remaining detail race corrected
+
+A direct mask edit or AI raster completion could invalidate an in-flight detail crop before the later unidentified viewport callback informed Swift. The host settings revision alone could not detect it.
+
+- A lock-free engine `detail_revision()` combines the render-request revision (advanced even when a request coalesces without a new viewport generation) with the existing AI mask-raster revision. A rendered `DetailPreview` carries the captured revision.
+- The main-actor detail completion checks that token immediately before delivery. A stale result is rejected and admits one replacement, while the existing interaction/session/visibility and single-flight checks remain active.
+- The scheduler regression failed with two assertions against the old behavior (`engine-detail-red.log`) and passed all eight standalone value tests after correction (`engine-detail-green.log`). All nine scheduler tests, including AppModel notification ordering, passed in the actual app test target.
+- Rust tests exercise coalesced settings with unchanged viewport generation and real AI `set_ai(Ready)` publication. The latter holds the session, AI map, and resampling locks while another thread reads the revision with a bounded timeout; it observes the changed token before any new viewport generation. This tests publication/invalidation, not neural inference quality.
+- The Swift RAW test renders a detail crop, performs an actual direct linear-mask mutation, and observes the token change before a callback is needed. Generated Swift/header bindings were regenerated from the final merged Rust source and inspected for `DetailPreview.revision` and `detailRevision()`.
+
+### Validation and first-attempt fixture failure
+
+Executed the exact required chained gate in `gate-resume.log` with `CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/M2-58`, `MACOSX_DEPLOYMENT_TARGET=15.0`, and `RUST_TEST_THREADS=1` for Rust release tests. Rust release tests, strict clippy, formatting, workspace check, FFI regeneration/build, and Swift debug build all passed. Both new Rust regression names appear in that log as passing.
+
+The chain then exited 1 in release Swift: 409 XCTest tests, one existing skip, exactly one unexpected failure. My newly added direct-mask assertion initially used the JPEG test's tiny RGB fixture; detail rendering rejected that source with `RGB sources have no camera metadata` before reaching the mask assertion. The existing JPEG test behavior was restored, and the identical meaningful token assertion was moved onto the designated real RAW fixture. No production workaround or weakened threshold was introduced. All prior DocumentAdjustmentJSONTests failures are resolved by inherited main; the fixture round-trip and engine schema tests passed.
+
+After that test-only correction:
+
+- Focused release Swift: **15 tests, zero failures** (`swift-corrected-focused.log`).
+- Full `swift test --package-path apps/mac -c release -Xswiftc -enable-testing`: **exit 0, 409 XCTest tests, one existing skip, zero failures, plus five Swift Testing tests passed** (`swift-resume-full.log`, `swift-resume-full-exit.json`). Existing expected ShellLayout behavior and compiler/native-library warnings remain unchanged.
+- Rust source hashes match the gate snapshot, so the completed Rust checks remain evidence for the final source. This is a completed stage-by-stage gate after a Swift fixture correction, not a claim that the original chained command exited zero.
+- Python bench discovery: **27 passed** (`python-resume.log`); the separate P10 submission-boundary check also passed. Path verification found no exclusions/allowlist violations (`scope-resume.json`).
+- `git diff --check` still identifies UniFFI-generated trailing whitespace (`diff-resume-final-check.log`); no clean-whitespace claim. The actual generated files were retained rather than hand-editing their output.
+- Swift is **6.3.3**. Swift 6.2.4 was not executed. Artifact/archive/binding hashes are retained in `validated-artifacts.json`, with source freeze hashes/timestamps in `gate-resume-source.json`.
+
+### P10 full Swift setter measurement
+
+The new main-actor RAW test measures the complete synchronous `DevelopController.apply` call, including Swift patch merge, JSON encoding, and FFI. It attaches a 1280×900 planned viewport on the Sony ARW, sends 101 exposure edits with Auto Upright enabled (100 interactive, final noninteractive), waits for final causal input 101, and verifies the histogram generation. It retains the requested **p95 <2 ms and max <8 ms assertions**. It does not install a display-link flush callback, so each measured call reaches the synchronous setter directly. Coalescing may skip obsolete worker frames; these are not 101 completed Upright renders.
+
+After the full suite, three fresh test processes ran from the same release binary using `--skip-build`; no concurrent heavy work was started by the coordinated Machine A lanes. The host remained shared. Exact commands, all load averages and results are in `swift-upright-runs.json` and the per-run logs. Each run passed all timing, final-input, histogram and mask-token assertions.
+
+| Run | Median setter ms | p95 setter ms | Maximum setter ms | 1-min load before / after |
+|---|---:|---:|---:|---:|
+| 1 | 0.021875 | 0.044125 | 0.511458 | 2.87 / 2.88 |
+| 2 | 0.021583 | 0.030000 | 0.488417 | 2.88 / 2.90 |
+| 3 | 0.022583 | 0.029167 | 0.504083 | 2.90 / 3.55 |
+
+Median of the three run medians: **0.021875 ms**. Worst p95: **0.044125 ms**; worst maximum: **0.511458 ms**. Driver/filesystem caches were not purged. There is no controlled pre-change Auto-Upright Swift-setter baseline, so this is threshold evidence, not a claimed speedup. It does not measure all main-thread occupancy.
+
+### Acceptance still open
+
+No new app was launched or window activated/raised during this resumption. The retained earlier background traces still have no actual presentation timestamps. P01 input-to-present p50/p95 therefore remain unavailable; GPU completion or callback latency is not substituted. P11's <=200 ms actual final-detail presentation and <=10% open-versus-closed drag-p95 comparison remain unmeasured. A controlled before/after Auto-Upright pixel-parity comparison is also not established by the passing correctness suites. The full M2-58 performance acceptance is consequently **PARTIAL**, despite passing final correctness/build stages and observed P10 setter thresholds.

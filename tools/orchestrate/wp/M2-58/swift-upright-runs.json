@@ -1,0 +1,92 @@
+[
+  {
+    "run": 1,
+    "at_utc": "2026-09-27T14:51:17.372946+00:00",
+    "command": [
+      "swift",
+      "test",
+      "--package-path",
+      "/Users/rutmehta/Developer/tessera/.worktrees/M2-58/apps/mac",
+      "-c",
+      "release",
+      "--skip-build",
+      "--filter",
+      "DevelopTests.testAutoUprightMainSetterAndFinalIdentity"
+    ],
+    "load_before": [
+      2.87109375,
+      4.62060546875,
+      6.44384765625
+    ],
+    "exit_code": 0,
+    "load_after": [
+      2.88134765625,
+      4.59326171875,
+      6.42333984375
+    ],
+    "count": 101,
+    "median_ms": 0.02187490463256836,
+    "p95_ms": 0.04412513226270676,
+    "max_ms": 0.5114581435918808
+  },
+  {
+    "run": 2,
+    "at_utc": "2026-09-27T14:51:25.250350+00:00",
+    "command": [
+      "swift",
+      "test",
+      "--package-path",
+      "/Users/rutmehta/Developer/tessera/.worktrees/M2-58/apps/mac",
+      "-c",
+      "release",
+      "--skip-build",
+      "--filter",
+      "DevelopTests.testAutoUprightMainSetterAndFinalIdentity"
+    ],
+    "load_before": [
+      2.88134765625,
+      4.59326171875,
+      6.42333984375
+    ],
+    "exit_code": 0,
+    "load_after": [
+      2.89892578125,
+      4.5400390625,
+      6.3828125
+    ],
+    "count": 101,
+    "median_ms": 0.021583400666713715,
+    "p95_ms": 0.029999762773513794,
+    "max_ms": 0.48841675743460655
+  },
+  {
+    "run": 3,
+    "at_utc": "2026-09-27T14:51:31.494163+00:00",
+    "command": [
+      "swift",
+      "test",
+      "--package-path",
+      "/Users/rutmehta/Developer/tessera/.worktrees/M2-58/apps/mac",
+      "-c",
+      "release",
+      "--skip-build",
+      "--filter",
+      "DevelopTests.testAutoUprightMainSetterAndFinalIdentity"
+    ],
+    "load_before": [
+      2.89892578125,
+      4.5400390625,
+      6.3828125
+    ],
+    "exit_code": 0,
+    "load_after": [
+      3.54736328125,
+      4.64697265625,
+      6.40966796875
+    ],
+    "count": 101,
+    "median_ms": 0.02258317545056343,
+    "p95_ms": 0.02916669473052025,
+    "max_ms": 0.5040830001235008
+  }
+]

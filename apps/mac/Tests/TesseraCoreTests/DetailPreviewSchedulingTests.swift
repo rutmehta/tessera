@@ -4,6 +4,18 @@ import XCTest
 #endif
 
 final class DetailPreviewSchedulingTests: XCTestCase {
+    func testEngineMutationRejectsDetailBeforeViewportCallback() throws {
+        var schedule = DetailPreviewSchedule()
+        schedule.observeSettings(revision: 1)
+        let original = try XCTUnwrap(schedule.begin())
+        XCTAssertFalse(schedule.complete(original, engineCurrent: false),
+                       "a direct engine mask mutation must reject the old crop immediately")
+        let refreshed = try XCTUnwrap(schedule.begin(), "stale engine output must request one refresh")
+        XCTAssertNil(schedule.begin())
+        XCTAssertTrue(schedule.complete(refreshed, engineCurrent: true))
+        XCTAssertNil(schedule.begin())
+    }
+
     func testViewportCompletionDoesNotSupersedeMatchingSettleWork() throws {
         var schedule = DetailPreviewSchedule()
         schedule.invalidate(interactive: true)

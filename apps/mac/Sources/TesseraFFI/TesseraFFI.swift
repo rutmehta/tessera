@@ -2416,6 +2416,12 @@ public protocol DevelopSessionProtocol: AnyObject, Sendable {
     func detachSurfaces() 
     
     /**
+     * Lock-free invalidation identity for detail crops, including coalesced mask
+     * edits and AI rasters that change before their viewport callback arrives.
+     */
+    func detailRevision()  -> UInt64
+    
+    /**
      * Writes pending changes now and waits for the save to finish.
      */
     func flush() throws 
@@ -2859,6 +2865,19 @@ open func detachSurfaces()  {try! rustCall() {
             self.uniffiCloneHandle(),uniffiCallStatus
     )
 }
+}
+    
+    /**
+     * Lock-free invalidation identity for detail crops, including coalesced mask
+     * edits and AI rasters that change before their viewport callback arrives.
+     */
+open func detailRevision() -> UInt64  {
+    return try!  FfiConverterUInt64.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_detail_revision(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
 }
     
     /**
@@ -13419,6 +13438,10 @@ public func FfiConverterTypeDefectThreshold_lower(_ value: DefectThreshold) -> R
  */
 public struct DetailPreview: Equatable, Hashable {
     /**
+     * Engine state identity; validate again on the host immediately before display.
+     */
+    public var revision: UInt64
+    /**
      * Top-left of the crop in level-0 active-area pixels (sensor orientation).
      */
     public var x: UInt32
@@ -13433,11 +13456,15 @@ public struct DetailPreview: Equatable, Hashable {
     // declare one manually.
     public init(
         /**
+         * Engine state identity; validate again on the host immediately before display.
+         */revision: UInt64, 
+        /**
          * Top-left of the crop in level-0 active-area pixels (sensor orientation).
          */x: UInt32, y: UInt32, 
         /**
          * Pixels written, anchored top-left in the surface.
          */width: UInt32, height: UInt32) {
+        self.revision = revision
         self.x = x
         self.y = y
         self.width = width
@@ -13460,6 +13487,7 @@ public struct FfiConverterTypeDetailPreview: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DetailPreview {
         return
             try DetailPreview(
+                revision: FfiConverterUInt64.read(from: &buf), 
                 x: FfiConverterUInt32.read(from: &buf), 
                 y: FfiConverterUInt32.read(from: &buf), 
                 width: FfiConverterUInt32.read(from: &buf), 
@@ -13468,6 +13496,7 @@ public struct FfiConverterTypeDetailPreview: FfiConverterRustBuffer {
     }
 
     public static func write(_ value: DetailPreview, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.revision, into: &buf)
         FfiConverterUInt32.write(value.x, into: &buf)
         FfiConverterUInt32.write(value.y, into: &buf)
         FfiConverterUInt32.write(value.width, into: &buf)
@@ -33571,6 +33600,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_developsession_detach_surfaces() != 32727) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_detail_revision() != 38148) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_developsession_flush() != 25039) {

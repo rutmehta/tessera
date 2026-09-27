@@ -1,0 +1,82 @@
+[0/1] Planning build
+Building for production...
+[0/4] Write sources
+[1/4] Write swift-version--58304C5D6DBC2206.txt
+[3/4] Compiling TesseraCoreTests AssistTests.swift
+/Users/rutmehta/Developer/tessera/.worktrees/M2-58/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[3/5] Write Objects.LinkFileList
+ld: warning: object file (/Users/rutmehta/Developer/tessera/.worktrees/M2-58/apps/mac/build/ffi/libtessera_ffi.a[2845](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[4/5] Linking TesseraPackageTests
+Build complete! (19.69s)
+Test Suite 'Selected tests' started at 2026-09-27 10:48:28.062.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-27 10:48:28.062.
+Test Suite 'DetailPreviewSchedulingTests' started at 2026-09-27 10:48:28.062.
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testCompletionDuringDragCannotPublishOrLaunchMoreWork]' started.
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testCompletionDuringDragCannotPublishOrLaunchMoreWork]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testDragDefersEveryFrameAndSettleStartsWithoutAnotherFrame]' started.
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testDragDefersEveryFrameAndSettleStartsWithoutAnotherFrame]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testEngineMutationRejectsDetailBeforeViewportCallback]' started.
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testEngineMutationRejectsDetailBeforeViewportCallback]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testInFlightWorkIsSupersededAndExactlyOneLatestRequestFollows]' started.
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testInFlightWorkIsSupersededAndExactlyOneLatestRequestFollows]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testModelNotifiesBeforeMutationAndSettlesAfterFinalSetter]' started.
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testModelNotifiesBeforeMutationAndSettlesAfterFinalSetter]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testSessionChangeResetsGestureButRetainsSingleFlightOwnership]' started.
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testSessionChangeResetsGestureButRetainsSingleFlightOwnership]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testSettingsChangingBeforeCompletionRejectsOldDetail]' started.
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testSettingsChangingBeforeCompletionRejectsOldDetail]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testSurfaceOrVisibilityChangeRejectsInFlightResult]' started.
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testSurfaceOrVisibilityChangeRejectsInFlightResult]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testViewportCompletionDoesNotSupersedeMatchingSettleWork]' started.
+Test Case '-[TesseraCoreTests.DetailPreviewSchedulingTests testViewportCompletionDoesNotSupersedeMatchingSettleWork]' passed (0.000 seconds).
+Test Suite 'DetailPreviewSchedulingTests' passed at 2026-09-27 10:48:28.065.
+	 Executed 9 tests, with 0 failures (0 unexpected) in 0.002 (0.003) seconds
+Test Suite 'DevelopTests' started at 2026-09-27 10:48:28.065.
+Test Case '-[TesseraCoreTests.DevelopTests testAppModelOpensRenderedJpegAndHeic]' started.
+/Users/rutmehta/Developer/tessera/.worktrees/M2-58/apps/mac/build/develop-app-rendered-7CDC378A-9EFA-4A38-9AFF-5162DA8438C6/shoot/photo.jpg
+  /Users/rutmehta/Developer/tessera/.worktrees/M2-58/apps/mac/build/develop-app-rendered-7CDC378A-9EFA-4A38-9AFF-5162DA8438C6/shoot/photo.heic
+develop L2 calibration [first, tone, WB] ms: CPU [0.813584, 0.30133299999999996, 0.279333]; GPU [2.866458, 0.8824580000000001, 0.935083]
+Test Case '-[TesseraCoreTests.DevelopTests testAppModelOpensRenderedJpegAndHeic]' passed (0.301 seconds).
+Test Case '-[TesseraCoreTests.DevelopTests testAutoUprightMainSetterAndFinalIdentity]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [461.567, 193.35258299999998, 222.974541]; GPU [269.280208, 1.4955829999999999, 6.413708]
+Test Case '-[TesseraCoreTests.DevelopTests testAutoUprightMainSetterAndFinalIdentity]' passed (5.934 seconds).
+Test Case '-[TesseraCoreTests.DevelopTests testJpegIsDevelopable]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [0.39879200000000004, 0.281125, 0.26679200000000003]; GPU [2.521292, 0.8811249999999999, 1.124084]
+Test Case '-[TesseraCoreTests.DevelopTests testJpegIsDevelopable]' passed (0.042 seconds).
+Test Case '-[TesseraCoreTests.DevelopTests testSettingsChangeRendersIntoTheSurfaceAndReopenRestoresExposure]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [446.43570900000003, 190.95825, 219.680917]; GPU [262.757458, 1.154375, 6.5725]
+develop L2 calibration [first, tone, WB] ms: CPU [448.245084, 195.228125, 219.51616700000002]; GPU [262.338625, 1.447708, 6.346667]
+Test Case '-[TesseraCoreTests.DevelopTests testSettingsChangeRendersIntoTheSurfaceAndReopenRestoresExposure]' passed (2.661 seconds).
+Test Suite 'DevelopTests' passed at 2026-09-27 10:48:37.003.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 8.938 (8.938) seconds
+Test Suite 'LatestFrameMailboxTests' started at 2026-09-27 10:48:37.003.
+Test Case '-[TesseraCoreTests.LatestFrameMailboxTests testDelayedDrainOnlyTakesNewestAndSchedulesOnce]' started.
+Test Case '-[TesseraCoreTests.LatestFrameMailboxTests testDelayedDrainOnlyTakesNewestAndSchedulesOnce]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.LatestFrameMailboxTests testLateOldGenerationCannotReplacePendingOrDeliveredFrame]' started.
+Test Case '-[TesseraCoreTests.LatestFrameMailboxTests testLateOldGenerationCannotReplacePendingOrDeliveredFrame]' passed (0.000 seconds).
+Test Suite 'LatestFrameMailboxTests' passed at 2026-09-27 10:48:37.004.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-09-27 10:48:37.004.
+	 Executed 15 tests, with 0 failures (0 unexpected) in 8.940 (8.941) seconds
+Test Suite 'Selected tests' passed at 2026-09-27 10:48:37.004.
+	 Executed 15 tests, with 0 failures (0 unexpected) in 8.940 (8.942) seconds
+M2-58 Auto Upright Swift setter: count=101 median_ms=0.023416709154844284 p95_ms=0.03337487578392029 max_ms=0.6513330154120922
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

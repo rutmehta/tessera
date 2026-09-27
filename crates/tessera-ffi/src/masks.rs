@@ -1900,6 +1900,53 @@ mod tests {
     use super::*;
 
     #[test]
+    fn ai_completion_invalidates_detail_without_waiting_for_viewport_or_state_lock() {
+        let dir = tempfile::tempdir().unwrap();
+        image::RgbImage::from_pixel(32, 24, image::Rgb([180, 90, 40]))
+            .save(dir.path().join("one.jpg"))
+            .unwrap();
+        let engine = Engine::open(dir.path().join("db").to_string_lossy().into_owned()).unwrap();
+        engine
+            .index_folder(dir.path().to_string_lossy().into_owned())
+            .unwrap();
+        let row = engine
+            .list_images(crate::ImageQuery::default())
+            .unwrap()
+            .remove(0);
+        let session = engine.clone().open_develop_session(row.id).unwrap();
+        let before = session.detail_revision();
+        // Hold the session lock exactly as an unrelated synchronous operation could.
+        // The AI raster publication itself does not need it, nor may the main-thread
+        // getter wait for it or for the subsequent viewport render request.
+        let state = session.shared.state.lock().unwrap();
+        let generation = state.generation;
+        session.shared.masks.set_ai(
+            "subject",
+            AiEntry::Ready(Arc::new(AlphaPlane {
+                width: 1,
+                height: 1,
+                data: vec![1.0],
+            })),
+        );
+        let ai = session.shared.masks.ai.lock().unwrap();
+        let resampled = session.shared.masks.resampled.lock().unwrap();
+        let (tx, rx) = std::sync::mpsc::channel();
+        let reader = session.clone();
+        let worker = std::thread::spawn(move || tx.send(reader.detail_revision()).unwrap());
+        assert!(
+            rx.recv_timeout(Duration::from_secs(2))
+                .expect("detail revision must not acquire state/mask locks")
+                > before
+        );
+        assert_eq!(state.generation, generation);
+        drop(resampled);
+        drop(ai);
+        drop(state);
+        worker.join().unwrap();
+        session.close().unwrap();
+    }
+
+    #[test]
     fn ai_thumbnail_uses_its_own_scale_instead_of_the_observed_level() {
         let shared = MaskShared::with_extents(vec![(8, 8), (2, 2)]);
         let kind = MaskKind::Subject { model: None };

@@ -3,6 +3,7 @@ import CoreGraphics
 import Foundation
 import ImageIO
 import IOSurface
+import QuartzCore
 import XCTest
 import TesseraFFI
 @testable import TesseraCore
@@ -110,6 +111,42 @@ final class DevelopTests: XCTestCase {
         XCTAssertTrue(restored.history.canUndo)
         await restored.close()
         _ = saved
+    }
+
+    /// The complete synchronous Swift setter boundary, including patch merge,
+    /// encoding and FFI, while cold Auto Upright work runs on the worker.
+    func testAutoUprightMainSetterAndFinalIdentity() async throws {
+        let (folder, support) = try scratchRaw()
+        let library = try EngineLibrary.scan(folder: folder, appSupport: support)
+        let item = try XCTUnwrap(library.items.first)
+        let controller = try await DevelopController.open(try XCTUnwrap(item.engineImage), itemID: item.id)
+        _ = try controller.attachSurfaces(viewWidth: 1280, viewHeight: 900)
+        let first = try await nextFrame(controller, after: 0)
+        var samples: [Double] = []
+        for index in 0...100 {
+            let start = CACurrentMediaTime()
+            controller.apply(patch: ["geometry": ["upright": ["mode": "auto"]],
+                                     "tone": ["exposure": Double(index) / 100]],
+                             interactive: index != 100)
+            samples.append((CACurrentMediaTime() - start) * 1000)
+        }
+        var last = try await nextFrame(controller, after: first.generation)
+        while last.inputID != 101 { last = try await nextFrame(controller, after: last.generation) }
+        XCTAssertEqual(last.inputID, 101)
+        XCTAssertEqual(controller.histogram?.generation, last.generation)
+        samples.sort()
+        let median = samples[50], p95 = samples[95], maximum = samples[100]
+        print("M2-58 Auto Upright Swift setter: count=101 median_ms=\(median) p95_ms=\(p95) max_ms=\(maximum)")
+        XCTAssertLessThan(p95, 2, "P10 main setter p95")
+        XCTAssertLessThan(maximum, 8, "P10 main setter maximum")
+        let detailSurface = try XCTUnwrap(DevelopController.makeDetailSurface(width: 160, height: 120))
+        let preview = try DevelopController.renderDetail(session: controller.session, into: detailSurface,
+                                                        centerX: 0.5, centerY: 0.5)
+        XCTAssertEqual(preview.revision, controller.session.detailRevision())
+        _ = try XCTUnwrap(controller.addMask(LinearGradientShape(start: (0.5, 0.1), end: (0.5, 0.9)).json))
+        XCTAssertNotEqual(preview.revision, controller.session.detailRevision(),
+                          "direct mask edits invalidate detail before their viewport callback")
+        await controller.close()
     }
 
     func testJpegIsDevelopable() async throws {
