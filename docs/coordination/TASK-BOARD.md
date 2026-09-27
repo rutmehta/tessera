@@ -1,6 +1,6 @@
 # Tessera task board — Machine A coordinator
 
-Updated: 2026-09-27 18:49 UTC
+Updated: 2026-09-27 18:57 UTC
 
 User mandate: autonomously advance UI/UX redesign **and** the recovered engine
 queue, using parallel GPT-6 Astra/Luna agents; coordinate Machine B and keep
@@ -29,7 +29,7 @@ Machine A as sole main integrator. Do useful work while other tasks wait.
 | --- | --- | --- | --- |
 | UX-01 | Library / Photo Edit workspace and split inspector | A root; main `4925677` | DONE first bounded workspace slice; sourcecommitc417229 merged/pushed. Full411+5 checkpoint, final28targeted/0,40layouts,1readyRAW passed; rootvisualreview accepted. Interactive/performance gates remain separate; existing overlay/wrapping polish goesUX04. |
 | ENG-31 | M5-31 source reuse and cold timing | A root; wp/M5-31 `97eb4ca`, product `441da3e` | A local326tests and6timings pass. Direct SSH six-sample repeat on B FAILED first original cold106.084084ms/100ms; remaining5pass. All evidence retained in branch; no main merge. `cross_machine_research` investigates residual cold cost, no threshold changes or replacement samples. B completed receipt confirmed; result7fc92eb5 supersedes benchmark request execution. |
-| COM-01 | Establish usable authenticated Machine A ↔ B communication | A root + B coordinator | DONE verified SSH execution and existing-chat delivery via installed `codex queue`, peer reply, accepted/completed Git receipts. Exact B UUID01a0e323-c018-7fa3-9605-999a2dea6b32. Both heartbeat configurations active; first scheduled B wakeup not yet observed. Preserve existing writers, use mailbox receipts and no duplicate enqueues. |
+| COM-01 | Establish usable authenticated Machine A ↔ B communication | A root + B coordinator | DONE verified SSH execution and existing-chat delivery via installed `codex queue`, peer reply, accepted/completed Git receipts. Exact B UUID01a0e323-c018-7fa3-9605-999a2dea6b32. Both heartbeat configurations active; B reports first scheduled wakeup at18:50:41Z, mailbox bd919fed. Preserve existing writers, use mailbox receipts and no duplicate enqueues. |
 | OPS-01 | Persistent autonomous coordinators | A root + B coordinator | A tessera-machine-a-coordinator and B tessera-machine-b-coordinator confirmed ACTIVE every5minutes. Both check existing work and stay quiet unless meaningful outcomes. B reserves its heavy slot for B5-16. Local hosts/apps/service availability still apply. |
 
 ## Ready / next
@@ -42,8 +42,10 @@ Full provenance lives in tools/orchestrate/wp/INT-45/evidence/2026-09-27-integra
 
 A’s core gain-map gate finished with four passes and one failure: native decoding
 of the four-stop resize/sharpen case peaks at 7.9837623 instead of 16. The failure
-is preserved. A short diagnostic capture has the heavy slot; frozen UX02a
-checkpoint 4fcb802 gets the next focused gate. The third agent implements the
+is preserved. The short diagnostic capture finished with the original failure preserved. UX02a
+checkpoint 4fcb802 passed43focused tests; offscreen layout capture now owns A’s
+heavy slot. Independent review found a stale Saving status after canceled handoff;
+the UI owner will correct it and verify the cancellation path. The third agent implements the
 audited Masks header refinement without touching navigation or Document UI.
 
 B’s original coordinator received queued messages, completed the Git bootstrap,
@@ -62,7 +64,7 @@ separate evidence; no threshold was weakened or failed sample replaced.
 | DEV-58 | Complete remaining Develop performance acceptance | A; `wp/M2-58` `196005e` product `5ff2679` | P01 actual input-to-present and P11 detail settle<=200ms /drag p95 regression<=10% remain unverified. Read M2-58-PRESENTATION-PLAN.md: actual Loupe scanout requires a non-occluded surface and detail CALayer publication lacks a display-time oracle. Keep acceptance pending; do not substitute callbacks or transaction completion. Existing correctness/parity evidence preserved. |
 | EXP-45 | Gain-map JPEG reference interoperability and implementation | A cross_machine_research; codex/gainmap-restoration | A core gate FAILED:4passed/1failed; four-stop native peak7.9837623 vs16. Short output capture and isolated decoder/context probes next; no tolerance changes. B frozen core1pass/4fail; independent ISO controls also yield no native HDR on B macOS26.1, documented as tested-host limitation, not encoder acceptance. Independent libjpeg reconstruction passes5patches. B snapshot/capture preserved; no new B runs while its slot is reserved. |
 | INT-45 | Integrate validated DNG/PQ-HLG/native metadata slice | A root; main fb7c604 | DONE bounded slice. 564Rust/0fail/21ignored, strictchecks, FFI, final436XCTest/1existing skip/0fail +5SwiftTesting. DNG1.6/backward1.4 contract verified. Gain-map JPEG separate. |
-| UX-02 | Navigable Review and resume persistence | A develop_resume; safety merged fb7c604 | Ownership/save barriers and mutation exclusion DONE:23regressions included in full436+5 gate. UX02a navigation/preview freshness/rendered-copy save ordering source in progress, focused gate next. UX02b relaunch persistence still pending. |
+| UX-02 | Navigable Review and resume persistence | A develop_resume; safety merged fb7c604 | Ownership/save barriers and mutation exclusion DONE:23regressions included in full436+5 gate. UX02a source4fcb802 passed43focused tests; layout capture running and canceled-handoff status cleanup pending. UX02b relaunch persistence still pending. |
 | UX-03 | Selective batch editing and source/target clarity | A; after UX-01/02 contract | Preserve source/target snapshots and settings selection; define undo/review semantics, verify no unseen batch action from a single-key shortcut. |
 | UX-04 | Visual/accessibility refinement | A b516_review implementation; B agreed split | Audit complete. Implement independent two-row Masks header with full labels/accessibility; populated minimum-width visual acceptance pending. Loupe disclosure work deferred until UX02a coordinates ContentView extraction. No Document/global-theme edits; build slot pending. |
 | UX-05 | True live-RAW/layer continuity | A engine+B document contract | Separate substantial dependency: current transition is rendered copy. Define graph/persistence/version contract and release scenario before making live-raw claims. |
@@ -70,7 +72,7 @@ separate evidence; no threshold was weakened or failed sample replaced.
 ## Machine B / integration dependencies
 
 Last peer note read: `0232ff7`; latest published A status acknowledged by B:
-`353aa97`. A acknowledges B5-15 checkpoint `aec242f` and failed M5-31 timing.
+`6e1e7b8` via mailbox bd919fed. B reports40focused legacy tests and7runner regressions passed, full strict suite underway; no final acceptance inferred. A acknowledges B5-15 checkpoint `aec242f` and failed M5-31 timing.
 
 | ID | Work | State / next action |
 | --- | --- | --- |

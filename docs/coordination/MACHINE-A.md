@@ -4,7 +4,7 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
-## Current coordinator checkpoint — 2026-09-27 18:49 UTC
+## Current coordinator checkpoint — 2026-09-27 18:57 UTC
 
 Published main **fb7c604670a197e2c663d0b47448956e7336dff0**. It integrates the
 bounded DNG1.6/original embedding, PQ-HLG/native metadata export slice and Review
@@ -15,7 +15,9 @@ are included. Root verified merged product source identical to tested source.
 First fixture/setup and obsolete DNG expectation failures remain in evidence:
 tools/orchestrate/wp/INT-45/evidence/2026-09-27-integration/.
 
-UX02a navigation is separate, still awaiting its focused gate. A is also fixing
+UX02a navigation is separate: frozen4fcb802 passed43focused tests with zero failures.
+Offscreen layout captures now run; independent review found a stale Saving status
+on canceled handoff, which remains queued for a bounded repair and verification. A is also fixing
 preview and first rendered-copy handoff save ordering. No B Document/FFI edits;
 existing-copy disclosure remains truthful. UX02b relaunch persistence is pending.
 The third A agent audits narrow overlay/Masks label layout without global theme
@@ -24,7 +26,8 @@ or Document changes.
 A gain-map gate completed: four passed, one failed. The four-stop resize/sharpen
 case decodes natively to peak7.9837623 versus16; independent reconstruction passed.
 Preserve this failure while isolating decoder/context behavior; no relaxed checks.
-A short artifact capture precedes UX02a checkpoint4fcb802 focused validation.
+Short artifact capture completed with unchanged failure. Decoder/context probes
+found default target0, luma-off and allow-float unchanged; cause remains unresolved.
 B core compilation passed,
 but four native auxiliary-discovery assertions failed. Both independent Skia ISO
 controls also lack HDR reconstruction through the same B macOS26.1 path; this is
@@ -39,8 +42,8 @@ cause and do not replace acceptance. No speculative production fix was made.
 
 Coordination is now confirmed: existing-session `codex queue` over SSH reached
 B’s original desktop writer; B replied and completed bootstrap receipts. Both
-five-minute heartbeat configurations are ACTIVE; B’s first scheduled wakeup has
-not yet been observed. Native direct-send still conflicts with that writer and
+five-minute heartbeat configurations are ACTIVE; B reported its first scheduled wakeup
+at18:50:41.936Z in exact-target status bd919fed. Native direct-send still conflicts with that writer and
 its separate SSH-host live status is unreliable for desktop activity. Use exact
 chat UUIDs, durable receipts and recorded queue IDs; no duplicate enqueues.
 

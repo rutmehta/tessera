@@ -107,8 +107,8 @@ conflicts with the existing desktop writer. The installed `codex queue --thread`
 route delivered to that writer without takeover, confirmed by a reply and Git
 receipts. Record queue IDs, confirm receipt, and avoid duplicate sends. The
 separate SSH server's `notLoaded`/`interrupted` status does not prove the desktop
-chat is idle. B confirmed its single heartbeat active; its first scheduled wakeup
-has not yet been observed. Preserve writer processes and ownership boundaries.
+chat is idle. B confirmed its single heartbeat active and reported its first scheduled wakeup
+at 2026-09-27T18:50:41.936Z (mailbox status bd919fed). Preserve writer processes and ownership boundaries.
 
 ## Verification
 
