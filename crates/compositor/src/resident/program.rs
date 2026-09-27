@@ -20,6 +20,7 @@ pub(super) const K_PUSH_PASS: u32 = 3;
 pub(super) const K_POP: u32 = 4;
 pub(super) const K_POP_PASS: u32 = 5;
 pub(super) const K_SNAPSHOT: u32 = 6;
+pub(super) const K_STYLE: u32 = 7;
 
 const F_ATOP: u32 = 1;
 const F_BLEND_IF: u32 = 8;
@@ -126,6 +127,7 @@ pub(super) struct Program {
     pub steps: Vec<Step>,
     pub aux: Vec<f32>,
     pub tables: Vec<TableRef>,
+    pub styles: Vec<(usize, Arc<Layer>)>,
 }
 
 impl Program {
@@ -135,6 +137,7 @@ impl Program {
             steps: Vec::new(),
             aux: (0..256).map(|i| i as f32 / 255.0).collect(),
             tables: Vec::new(),
+            styles: Vec::new(),
         };
         let mut c = Compiler {
             p: &mut p,
@@ -244,6 +247,9 @@ impl Compiler<'_> {
     }
 
     fn emit(&mut self, layer: &Arc<Layer>, atop: bool) -> EngineResult<()> {
+        if !layer.props.styles.effects.is_empty() {
+            return self.emit_with(layer, Params::of(layer, atop), true);
+        }
         if let LayerKind::Group {
             mode: GroupMode::PassThrough,
             children,
@@ -270,6 +276,25 @@ impl Compiler<'_> {
     }
 
     fn emit_with(&mut self, layer: &Arc<Layer>, params: Params, mask: bool) -> EngineResult<()> {
+        if !layer.props.styles.effects.is_empty() {
+            if matches!(
+                layer.kind,
+                LayerKind::Adjustment(_)
+                    | LayerKind::Group {
+                        mode: GroupMode::PassThrough,
+                        ..
+                    }
+            ) {
+                return Err(EngineError::Unsupported {
+                    what: "styles on adjustment/pass-through layers require isolation".into(),
+                });
+            }
+            let mut step = Step::new(K_STYLE);
+            step.set(&params);
+            self.p.styles.push((self.p.steps.len(), layer.clone()));
+            self.p.steps.push(step);
+            return Ok(());
+        }
         let mut s = Step::new(K_BLEND);
         match &layer.kind {
             LayerKind::Pixel(_) | LayerKind::Text(_) => {

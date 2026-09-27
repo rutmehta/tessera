@@ -322,7 +322,7 @@ fn main(@builtin(workgroup_id) wg: vec3<u32>, @builtin(num_workgroups) nwg: vec3
         let f = sh_f[j];
         let pg = sh_pg[j];
         let op = h.x;
-        if (op == 0u || op == 4u) {
+        if (op == 0u || op == 4u || op == 7u) {
             var s = vec4<f32>(0.0);
             var skip = false;
             if (op == 0u) {
@@ -341,7 +341,7 @@ fn main(@builtin(workgroup_id) wg: vec3<u32>, @builtin(num_workgroups) nwg: vec3
                 } else {
                     s = fill_sample(k, fx, fy);
                 }
-            } else {
+            } else if (op == 4u) {
                 let c = cur;
                 sp = sp - 1u;
                 switch sp {
@@ -379,7 +379,11 @@ fn main(@builtin(workgroup_id) wg: vec3<u32>, @builtin(num_workgroups) nwg: vec3
                         }
                     }
                 }
-                cur = composite_step(k, h, f, pg.z, cur, s, kb_on, kb, q);
+                if (op == 7u) {
+                    cur = composite_styled(k, cur, kb_on, kb, q);
+                } else {
+                    cur = composite_step(k, h, f, pg.z, cur, s, kb_on, kb, q);
+                }
             }
         } else if (op == 1u) {
             if (cur.w > 0.0) {

@@ -92,6 +92,7 @@ impl ResidentRenderer {
         self.stack.cpu.set_filter_evaluator(evaluator.clone());
         self.stack.evaluator = Some(evaluator);
         self.stack.clear();
+        self.styles.clear();
         self.children.clear();
         self.smarts.clear();
         self.layers.clear();
@@ -128,7 +129,7 @@ impl ResidentRenderer {
             mapped_at_creation: false,
         }))
     }
-    fn stack_op(
+    pub(super) fn stack_op(
         &mut self,
         input: &wgpu::Buffer,
         next: &wgpu::Buffer,
@@ -211,7 +212,12 @@ impl ResidentRenderer {
         self.queue.submit([encoder.finish()]);
         Ok(out)
     }
-    fn convert(&mut self, input: &wgpu::Buffer, e: Extent, op: u32) -> EngineResult<wgpu::Buffer> {
+    pub(super) fn convert(
+        &mut self,
+        input: &wgpu::Buffer,
+        e: Extent,
+        op: u32,
+    ) -> EngineResult<wgpu::Buffer> {
         self.stack_op(
             input,
             input,
@@ -234,7 +240,7 @@ impl ResidentRenderer {
         key = hash(key, &context.cache_digest());
         let base_key = key;
         let mut stage_keys = Vec::new();
-        let mut supported = !so.state.has_layer_styles();
+        let mut supported = true;
         for filter in so.filters.iter().filter(|f| f.enabled) {
             if !filter.blend.opacity.is_finite() || !(0.0..=1.0).contains(&filter.blend.opacity) {
                 return Err(EngineError::invalid(

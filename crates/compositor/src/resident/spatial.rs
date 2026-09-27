@@ -103,10 +103,11 @@ mod tests {
     #[test]
     fn spatial_and_document_shaders_validate_without_adapter() {
         let doc = crate::gpu::shader(&format!(
-            "{}\n{}\n{}",
+            "{}\n{}\n{}\n{}",
             include_str!("pages.wgsl").replace("ACCESS", "read"),
             include_str!("doc.wgsl"),
-            include_str!("adjustments.wgsl")
+            include_str!("adjustments.wgsl"),
+            include_str!("styles_compose.wgsl")
         ));
         for source in [include_str!("spatial.wgsl"), doc.as_str()] {
             let module = wgpu::naga::front::wgsl::parse_str(source)

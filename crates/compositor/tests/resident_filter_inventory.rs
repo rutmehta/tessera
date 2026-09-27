@@ -215,7 +215,7 @@ fn prefix_cache_revision_invalidation_and_budget() {
 }
 
 #[test]
-fn styled_smart_source_falls_back_without_omitting_effects() {
+fn styled_smart_source_stays_resident_without_omitting_effects() {
     let mut layer = Layer::new(
         "styled",
         LayerKind::Fill(compositor::document::Fill::Solid {
@@ -242,12 +242,13 @@ fn styled_smart_source_falls_back_without_omitting_effects() {
         &Compositor::new(1 << 20),
         0.0,
     );
-    assert!(renderer.filter_fallbacks() > 0);
-    assert!(
-        ResidentRenderer::new(&gpu)
-            .unwrap()
-            .render(&Document::new(child), 0)
-            .is_err()
+    assert_eq!(renderer.filter_fallbacks(), 0);
+    let mut direct = ResidentRenderer::new(&gpu).unwrap();
+    compare(
+        &Document::new(child),
+        &mut direct,
+        &Compositor::new(1 << 20),
+        0.0,
     );
 }
 

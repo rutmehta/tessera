@@ -44,6 +44,10 @@ mod program;
 mod smart_gpu;
 mod spatial;
 mod specialize;
+mod styles_gpu;
+mod styles_runtime;
+#[cfg(test)]
+mod styles_tests;
 mod transform_gpu;
 pub use output::{DisplayDestination, Headroom, OutputCacheStats, SourceColorPolicy, SourceDomain};
 pub use smart_gpu::SmartQuality;
@@ -143,10 +147,11 @@ impl Pipelines {
             device,
             "resident document",
             &shader(&format!(
-                "{}\n{}\n{}",
+                "{}\n{}\n{}\n{}",
                 pages("read"),
                 include_str!("doc.wgsl"),
-                include_str!("adjustments.wgsl")
+                include_str!("adjustments.wgsl"),
+                include_str!("styles_compose.wgsl")
             )),
             "main",
             (BLOCK, BLOCK, 1),
@@ -485,6 +490,8 @@ pub struct ResidentRenderer {
     specialization: bool,
     smart_quality: SmartQuality,
     stack: filters::StackRuntime,
+    styles: styles_runtime::StyleRuntime,
+    float_adjustments: bool,
 }
 
 fn page_bytes(depth: Depth) -> u64 {
@@ -581,6 +588,8 @@ impl ResidentRenderer {
             specialization: true,
             smart_quality: SmartQuality::default(),
             stack: filters::StackRuntime::new(budget),
+            styles: styles_runtime::StyleRuntime::default(),
+            float_adjustments: false,
         })
     }
 
@@ -600,6 +609,7 @@ impl ResidentRenderer {
         self.pending_smart.clear();
         self.children.clear();
         self.stack.clear();
+        self.styles.clear();
         for layer in self.layers.values_mut() {
             layer.smart.clear();
         }
@@ -635,7 +645,8 @@ impl ResidentRenderer {
         s.resident_bytes = self.main.bytes()
             + self.smart.bytes()
             + self.levels.values().map(|l| l.out.size()).sum::<u64>()
-            + self.stack.bytes();
+            + self.stack.bytes()
+            + self.styles.bytes();
         s
     }
 
@@ -650,6 +661,7 @@ impl ResidentRenderer {
         self.levels.clear();
         self.children.clear();
         self.stack.clear();
+        self.styles.clear();
         self.depth = Some(depth);
         self.canvas = canvas;
         Ok(())
@@ -1119,19 +1131,7 @@ impl ResidentRenderer {
         viewport: Option<Rect>,
     ) -> EngineResult<FrameReport> {
         let state = doc.state();
-        // Smart children have a layer-local fallback; direct styles need the
-        // backdrop-aware CPU program. Never silently omit them.
-        fn styled(layer: &Layer) -> bool {
-            !layer.props.styles.effects.is_empty()
-                || layer
-                    .children()
-                    .is_some_and(|c| c.iter().any(|l| styled(l)))
-        }
-        if state.root.iter().any(|l| styled(l)) {
-            return Err(EngineError::Unsupported {
-                what: "styles in the resident document program require CPU composition".into(),
-            });
-        }
+
         if level >= MAX_LEVEL {
             return Err(EngineError::invalid(
                 "level",
@@ -1147,9 +1147,15 @@ impl ResidentRenderer {
         self.frame += 1;
         self.report = FrameReport::default();
         let le = state.canvas.at_level(level);
+        if state.has_layer_styles() && self.styles_idle(doc, level, viewport) {
+            self.stats.frames += 1;
+            self.stats.idle_frames += 1;
+            return Ok(self.report.clone());
+        }
         let (cols, rows) = le.tile_grid(TILE_SIZE);
         let grid = (cols * rows) as usize;
         let mut program = Program::compile(&state.root, grid)?;
+
         let radii = |s: &program::Step| -> [f32; 2] {
             match s.adj {
                 20 => [s.p[2][1], s.p[2][2]],
@@ -1198,6 +1204,7 @@ impl ResidentRenderer {
             .ok_or_else(|| EngineError::ResourceExhausted {
                 resource: format!("level {level} viewport exceeds the storage binding limit"),
             })?;
+        let style_copies = self.prepare_styles(doc, level, region, &mut program)?;
         let pixels = (le.width as usize)
             .checked_mul(le.height as usize)
             .ok_or_else(|| EngineError::invalid("canvas", "spatial size overflow"))?;
@@ -1312,7 +1319,12 @@ impl ResidentRenderer {
         let bytes = program.bytes();
         let level_rect = Rect::of_extent(le);
         let damage = self.damage(doc, level, &bytes, &nodes, grid, cols, le);
-        let damage = if spatial && damage.as_ref().is_none_or(|r| !r.is_empty()) {
+        let style_changed = !program.styles.is_empty()
+            && self.levels[&level].last.as_ref().is_none_or(|last| {
+                last.key != doc.key() || last.epoch != doc.epoch() || last.rev != state.rev
+            });
+        let damage = if style_changed || (spatial && damage.as_ref().is_none_or(|r| !r.is_empty()))
+        {
             None
         } else {
             damage
@@ -1383,6 +1395,15 @@ impl ResidentRenderer {
                 .write(&device, &queue, bytemuck::cast_slice(&pages));
             self.aux
                 .write(&device, &queue, bytemuck::cast_slice(&program.aux));
+            for (buffer, offset) in &style_copies {
+                encoder.copy_buffer_to_buffer(
+                    buffer,
+                    0,
+                    self.aux.buffer.as_ref().expect("allocated auxiliary"),
+                    *offset,
+                    buffer.size(),
+                );
+            }
             self.blocks
                 .write(&device, &queue, bytemuck::cast_slice(&list));
             let out = self.levels[&level].out.clone();
@@ -1394,7 +1415,7 @@ impl ResidentRenderer {
                 blocks: if full { 0 } else { nblocks },
                 bcols,
                 brows,
-                clamp: u32::from(!state.depth.is_float()),
+                clamp: u32::from(!self.float_adjustments && !state.depth.is_float()),
                 level: u32::from(level),
                 ox: region.x0 as u32,
                 oy: region.y0 as u32,

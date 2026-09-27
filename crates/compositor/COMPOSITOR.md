@@ -431,8 +431,8 @@ result scales RGB by mapped luminance/L, preserving hue before output clamping.
 Histogram parameters serialize with the adjustment, so per-tile analysis cannot
 produce seams. Controls are validated, including inactive method fields.
 
-**Still not done:** per-range Hue/Saturation bands (pre-existing), the unsupported
-formats/features above, and resident layer styles. The explicit live CPU reference
+**Still not done:** per-range Hue/Saturation bands (pre-existing) and the unsupported
+formats/features above. The explicit live CPU neighbourhood reference
 rejects styled documents because eager style sources cannot replay their prefixes.
 
 ## 5. Revisions, stamps and caches
@@ -693,7 +693,7 @@ morphology has a square footprint, bevel uses a blurred-alpha rather than a
 distance-field height, and contour/jitter controls are preserved placeholders.
 Bevel texture is not evaluated. Scaled kernel support is limited to 256 pixels,
 offset to 16384, and padded working alpha to 16,777,216 samples. Invalid/nonfinite
-controls fail instead of silently clamping. Styles currently recompute their
+controls fail instead of silently clamping. CPU styles recompute their
 whole-source planes per uncached output tile, a correctness-first path rather
 than an interactive-performance claim. Styled documents use whole-document
 revision stamps, full damage, and no partial CPU updates, including nested
@@ -731,16 +731,14 @@ nested source compositing never runs under the filter-cache lock.
 
 ### GPU routing and PSD
 
-M5-14 supplied CPU layer styles, not GPU style kernels. The per-tile GPU port
-returns `Unsupported` for styled source operations. M5-23 adds automatic resident
-smart-filter routing and CPU fallback confined to a smart-object source (§12.6).
-Styles inside that source also use this local fallback. Styles directly in the
-resident document/group program are explicitly rejected, never silently omitted,
-because their backdrop-dependent composition cannot be replaced by one flattened
-source. `DocState::check_resident_effects()` remains the old conservative host
-preflight; it rejects even GPU-capable filters. Hosts using the new resident
-router should call `render`/`render_viewport` directly and handle `Unsupported`
-for direct styles, rather than using that legacy all-filter rejection.
+M5-14 supplied CPU layer styles. The older per-tile GPU port still returns
+`Unsupported` for styled source operations. M5-31 adds resident effect kernels
+and backdrop-aware composition (§9.2), including styled smart-object children.
+No M5-14 effect requires a CPU style fallback. M5-23's layer-local CPU fallback
+for unsupported smart filters remains independent of style support (§12.6).
+`DocState::check_resident_effects()` remains the old conservative host preflight;
+it rejects styles and even GPU-capable filters. Hosts should call resident
+`render`/`render_viewport` directly instead of that legacy preflight.
 
 PSD lfx2 basics map drop/inner shadows, outer/inner glows, solid colour overlays,
 and solid strokes, including scale, blend mode, opacity, and global light
@@ -758,6 +756,78 @@ global-light edits/undo, zero fill and whole-layer opacity, soft alpha, tile-edg
 shadows and damage, filter result reuse/parameter/source invalidation, shared
 mask placement, native persistence, and actual PSD byte round trips. Existing
 golden files are unchanged.
+
+## 9.2 GPU-resident layer styles (M5-31)
+
+`resident/styles_gpu.rs` and `styles.wgsl` evaluate every M5-14 variant: drop and
+inner shadows; outer and edge/center inner glows; inner/outer/emboss/pillow bevel
+(both directions and soften); satin; generic/color/gradient/pattern overlays;
+and inside/center/outside strokes with any native Fill. Coverage uses the CPU's
+square morphology, fractional-radius interpolation, separable truncated Gaussian,
+bilinear offsets, and blurred-alpha bevel height, not a new distance transform.
+Gradients upload stops and patterns upload texels, with all sampling on GPU.
+Only scalar Gaussian weights and light vectors are computed on the host so the
+transcendental constants match the CPU. Contour/jitter and bevel texture remain
+unevaluated, exactly as in the CPU reference. Additional Adobe technique, noise,
+or range controls not represented/evaluated by M5-14 are not invented here.
+
+`styles_runtime.rs` renders the masked source at L0 using a temporary resident
+child. Its properties are neutralized just like `render/effects.rs`. Native
+storage depth is retained for page uploads while adjustment intermediates use
+the CPU style-source F32 policy. Source and effect planes are independently
+alpha-weighted downsampled through the existing smart-filter mip machinery.
+There is no source/effect GPU readback or CPU pixel composition on this path.
+
+The viewport source rectangle includes a real L0 halo. Support is the sum of
+rounded morphology and blur radii, plus displacement and a bilinear sample for
+shadows/satin, or the extra gradient sample for bevel. Two guard pixels cover
+padding, and boundaries align to both the resident block and requested mip grid.
+The existing resident viewport/page resolver fetches those neighbouring tiles.
+Offset interpolation retains absolute padded coordinates before subtracting the
+crop origin, avoiding tile-dependent fractional rounding. Fill coordinates also
+remain absolute. Rendering the entire document naturally uses its whole source.
+Nested spatial adjustments may conservatively enlarge the child source region.
+
+Planes are cached under document namespace/history epoch, layer source revision
+(including masks and descendants), serialized style hash, global light, storage
+depth/canvas, mip level and halo region. Unrelated layer edits reuse them. A
+budget-bounded LRU retains final source/plane buffers; oversized entries render
+without retention. Device buffer/binding limits return `ResourceExhausted`.
+The CPU's padded-alpha sample cap still applies per rendered region. Large full
+frames or many effect planes may require smaller viewports rather than silently
+switching to CPU. `style_evaluations()` and `style_cache_bytes()` expose the cache.
+Unchanged valid styled viewports return before reconstructing auxiliary storage.
+
+`styles_compose.wgsl` is shared by interpreter and specialized document kernels.
+It preserves the CPU's exterior/interior/stroke order, unit-coverage interior,
+one final shape application, fill versus whole opacity, per-plane blend-if,
+source-atop clipping, and source-only shallow/deep knockout. Styled layers are
+not flattened against transparency. Styles directly on adjustments or
+pass-through groups remain explicitly unsupported, just as on CPU; isolate
+the group. No supported M5-14 effect is listed for CPU fallback.
+
+Numerical gate: scalar/morphology/blur/offset/solid/pattern effect planes are
+tested bit-for-bit against CPU at four scales, including fractional radii and
+zero scale. Bevel and radial-gradient planes allow at most `1e-4` absolute
+linear-component error for square-root/division variation. Completed L0/L2
+composites allow at most `1e-4` in linear premultiplied RGBA (and straight RGBA
+where asserted); no tolerance is applied to expected exact kernel operations.
+Tests require a real GPU, exercise cropped tile-boundary viewports after waiting
+for specialization, soft alpha, F32/U8/U16 sources, global-light edits, masks,
+blend-if, clipping, knockout, nested styles, cache invalidation/undo and an
+independently assembled native PSD `lfx2` fixture imported through the adapter.
+
+Ignored synchronized benchmark:
+
+```
+cargo test -p compositor --release --test resident_styles_semantics benchmark_4k_twenty_styled_layers_l2_tile -- --ignored --nocapture
+```
+
+Measured in this worktree: 3840×2160 document, 20 sparse styled layers, one
+256×256 L2 viewport (not the full L2 canvas). CPU cold tile: 48.006 s; resident
+cold viewport: 435.410 ms. Unchanged warm calls: CPU 185.875 µs, resident 1.875 µs,
+with zero dispatched blocks. These are single-run cold/idle timings, not an
+interactive edit-throughput claim. The benchmark also verifies pixel parity.
 
 ## 10. CPU bench
 
