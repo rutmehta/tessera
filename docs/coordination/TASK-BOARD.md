@@ -1,6 +1,6 @@
 # Tessera task board — Machine A coordinator
 
-Updated: 2026-09-27 17:23 UTC
+Updated: 2026-09-27 17:28 UTC
 
 User mandate: autonomously advance UI/UX redesign **and** the recovered engine
 queue, using parallel GPT-6 Astra/Luna agents; coordinate Machine B and keep
@@ -33,6 +33,13 @@ Machine A as sole main integrator. Do useful work while other tasks wait.
 | OPS-01 | Persistent autonomous coordinator | Root; current chat | Heartbeat `tessera-machine-a-coordinator` ACTIVE every5minutes, created2026-09-27. Check running work before duplicate launches. Read/advance board; stay quiet unless meaningful outcome/blocker. Local execution requires awake host/app and available service limits. |
 
 ## Ready / next
+
+Current review checkpoint: UX-01 source and behavior tests are implemented but
+have not compiled yet; review requires disarming all pointer tools on workspace
+exit and verifying Library Loupe zoom restoration. ENG-31's new guard exposed
+duplicate layer IDs in the inherited timing fixture. The proposed source reuse
+must demonstrate benefit with valid distinct IDs before shipping; the original
+cold failure remains open. EXP-45 is actively assigned, not waiting for B.
 
 | ID | Work | Owner / branch | Entry condition / acceptance |
 | --- | --- | --- | --- |

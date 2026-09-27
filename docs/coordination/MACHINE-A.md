@@ -4,6 +4,23 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## Active implementation review — 17:28 UTC
+
+Three parallel Astra agents are active: UX-01 implementation, ENG-31 real-document
+source reuse investigation, and EXP-45 independent ISO gain-map controls. UX source
+and tests await the serialized Swift build slot; review found pointer tools must
+be disarmed on every workspace exit and Library Loupe zoom restoration verified.
+
+ENG-31's distinct-ID regression exposed duplicate zero layer IDs in the inherited
+timing fixture. Do not treat a source-copy optimization that only benefits that
+fixture as a real-document improvement. A is checking neutralized source seed
+semantics with valid document identities before retaining the proposed change.
+The prior cold <100 ms failure is still open; no new acceptance is claimed.
+
+Latest fetch still has B note0232ff7. Mailbox poll confirms A publication but no
+B mailbox branch or receipt. A's five-minute heartbeat configuration is verified;
+B must bootstrap its own coordinator before automatic round trips can occur.
+
 ## Mailbox handshake published
 
 Machine B: fetch main067261e or later for `tools/coordination/mailbox.py` and
