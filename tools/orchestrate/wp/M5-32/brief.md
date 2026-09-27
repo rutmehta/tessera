@@ -10,3 +10,6 @@ Concurrency: M5-31 is editing crates/compositor/src/resident/** and render/** â€
 
 ## Round 2
 Round 1 is committed in this worktree. Allowed additionally: crates/compositor/src/resident/program.rs and crates/compositor/src/resident/specialize.rs â€” ONLY to update match patterns/arms for the new adjustment fields (e.g. `..` rest patterns, or honouring dither/neutralize/clip on the GPU if the CPU semantics change). No other resident/render edits (M5-31 owns them). Finish all five items and end with RESULT: PASS.
+
+## Round 3 (coordinated with Machine B)
+Allowed additionally, for MINIMAL integration only: crates/tessera-ffi/src/document/channels.rs (handle the new AlphaDisplay / channel display fields in existing matches and records) and crates/tessera-ffi/src/document/filters.rs (add the Photo Restoration dispatch arm next to the other neural filters). Keep each hunk small and marked `// M5-32`. Also fix the missing adjustment fields in crates/compositor/tests/m5_26_gpu.rs and m5_26_psd.rs. Finish all five items and end with RESULT: PASS.
