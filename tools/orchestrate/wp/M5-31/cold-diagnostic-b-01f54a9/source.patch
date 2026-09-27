@@ -1,0 +1,339 @@
+diff --git a/crates/compositor/src/resident/mod.rs b/crates/compositor/src/resident/mod.rs
+index c611ae5..386a474 100644
+--- a/crates/compositor/src/resident/mod.rs
++++ b/crates/compositor/src/resident/mod.rs
+@@ -1187,6 +1187,8 @@ impl ResidentRenderer {
+         level: u8,
+         viewport: Option<Rect>,
+     ) -> EngineResult<FrameReport> {
++        let _render = gpu_core::diagnostics::span("render_region");
++        let phase = gpu_core::diagnostics::span("render.reset_program_region");
+         let state = doc.state();
+ 
+         if level >= MAX_LEVEL {
+@@ -1264,7 +1266,11 @@ impl ResidentRenderer {
+             .ok_or_else(|| EngineError::ResourceExhausted {
+                 resource: format!("level {level} viewport exceeds the storage binding limit"),
+             })?;
++        drop(phase);
++        let phase = gpu_core::diagnostics::span("render.styles");
+         let style_copies = self.prepare_styles(doc, level, region, &mut program)?;
++        drop(phase);
++        let phase = gpu_core::diagnostics::span("render.aux_resolve");
+         let pixels = (le.width as usize)
+             .checked_mul(le.height as usize)
+             .ok_or_else(|| EngineError::invalid("canvas", "spatial size overflow"))?;
+@@ -1312,6 +1318,8 @@ impl ResidentRenderer {
+         self.children.retain(|id, _| self.layers.contains_key(id));
+ 
+         // Phase 2: pages for new nodes, uploads and mip jobs.
++        drop(phase);
++        let phase = gpu_core::diagnostics::span("render.materialize");
+         let mut encoder = match self.materialize() {
+             Ok(e) => e,
+             Err(e) => {
+@@ -1320,6 +1328,8 @@ impl ResidentRenderer {
+             }
+         };
+ 
++        drop(phase);
++        let phase = gpu_core::diagnostics::span("render.output_damage_blocks");
+         // A block-aligned, compact output window. Copy overlapping pixels before
+         // discarding the old window; only copied blocks may remain valid.
+         if self.levels.get(&level).is_none_or(|st| st.region != region) {
+@@ -1433,8 +1443,11 @@ impl ResidentRenderer {
+         let nblocks = if full { total } else { list.len() as u32 };
+         self.report.blocks = nblocks;
+ 
++        drop(phase);
++        let phase = gpu_core::diagnostics::span("render.encoding");
+         let mut encoder = encoder;
+         if nblocks > 0 {
++            let specialization = gpu_core::diagnostics::span("render.specialization_request");
+             let pipeline = if self.specialization && !spatial {
+                 self.specialized.pipeline(
+                     &self.device,
+@@ -1446,6 +1459,7 @@ impl ResidentRenderer {
+                 None
+             }
+             .unwrap_or_else(|| self.pipes.doc.clone());
++            drop(specialization);
+             let pages: Vec<u32> = nodes.iter().map(|id| self.page(*id)).collect();
+             let steps = bytemuck::cast_slice(&program.steps);
+             let (device, queue) = (self.device.clone(), self.queue.clone());
+@@ -1556,7 +1570,10 @@ impl ResidentRenderer {
+                 }
+             }
+         }
++        drop(phase);
++        let phase = gpu_core::diagnostics::span("render.submit");
+         self.queue.submit([encoder.finish()]);
++        drop(phase);
+         if let Some(st) = self.levels.get_mut(&level) {
+             st.valid = valid;
+             // Remember the last known node of every entry, including
+@@ -1832,6 +1849,7 @@ impl ResidentRenderer {
+ 
+     /// Blocks until all submitted GPU work has completed.
+     pub fn wait(&self) -> EngineResult<()> {
++        let _phase = gpu_core::diagnostics::span("render.final_wait");
+         self.device
+             .poll(wgpu::PollType::wait_indefinitely())
+             .map_err(internal)?;
+diff --git a/crates/compositor/src/resident/specialize.rs b/crates/compositor/src/resident/specialize.rs
+index 06a4719..d632299 100644
+--- a/crates/compositor/src/resident/specialize.rs
++++ b/crates/compositor/src/resident/specialize.rs
+@@ -125,6 +125,7 @@ impl Cache {
+         let spawned = std::thread::Builder::new()
+             .name("resident specialization".into())
+             .spawn(move || {
++                let _phase = gpu_core::diagnostics::span("specialization.worker");
+                 let _ = tx.send(compile(&device, &key, depth, slabs));
+             });
+         if spawned.is_err() {
+diff --git a/crates/compositor/src/resident/styles_gpu.rs b/crates/compositor/src/resident/styles_gpu.rs
+index 0a0d028..6d9e944 100644
+--- a/crates/compositor/src/resident/styles_gpu.rs
++++ b/crates/compositor/src/resident/styles_gpu.rs
+@@ -397,6 +397,7 @@ impl StylesGpu {
+ impl Render<'_> {
+     fn submit(&mut self) {
+         if let Some(encoder) = self.encoder.take() {
++            let _phase = gpu_core::diagnostics::span("effects.submit");
+             self.queue.submit([encoder.finish()]);
+         }
+     }
+diff --git a/crates/compositor/src/resident/styles_runtime.rs b/crates/compositor/src/resident/styles_runtime.rs
+index 679a33d..a0e76e4 100644
+--- a/crates/compositor/src/resident/styles_runtime.rs
++++ b/crates/compositor/src/resident/styles_runtime.rs
+@@ -173,6 +173,8 @@ impl ResidentRenderer {
+         let extent = state.canvas;
+         let limit = self.device.limits().max_storage_buffer_binding_size;
+         for (step_index, layer) in &program.styles {
++            let _layer = gpu_core::diagnostics::span("style.layer");
++            let phase = gpu_core::diagnostics::span("style.key");
+             layer.props.styles.validate()?;
+             state.global_light.validate()?;
+             let region = halo_region(viewport, extent, level, &layer.props.styles);
+@@ -197,6 +199,7 @@ impl ResidentRenderer {
+             ))
+             .map_err(|e| EngineError::invalid("style cache key", e.to_string()))?;
+             let key = *blake3::hash(&bytes).as_bytes();
++            drop(phase);
+             let cached = if let Some(cached) = self.styles.get(&key) {
+                 if !reserved_sources.contains(&cached.source) {
+                     reserve_words(&mut reserved_words, cached.source.size(), limit)?;
+@@ -218,6 +221,7 @@ impl ResidentRenderer {
+                 source_state.root = vec![Arc::new(source)];
+                 let source_doc = Document::new(source_state);
+                 if source_renderer.is_none() {
++                    let _phase = gpu_core::diagnostics::span("style.child_construct");
+                     let mut child = Self::with_budget(&self.gpu, self.budget)?;
+                     if let Some(fonts) = self.live.text_renderer_snapshot() {
+                         child.set_text_renderer(fonts);
+@@ -233,7 +237,9 @@ impl ResidentRenderer {
+                 let child = source_renderer
+                     .as_mut()
+                     .expect("source renderer initialized");
++                let phase = gpu_core::diagnostics::span("style.source_render");
+                 let frame = child.render_viewport(&source_doc, level, region, 0)?;
++                drop(phase);
+                 let region = child.levels[&level].region;
+                 let local = Extent::new(region.width() as u32, region.height() as u32);
+                 // Reserve the complete expansion before converting the source or
+@@ -261,7 +267,9 @@ impl ResidentRenderer {
+                 let source = if let Some(last) = reusable {
+                     last.source.clone()
+                 } else {
++                    let phase = gpu_core::diagnostics::span("style.convert");
+                     let source = self.convert(output, local, 0)?;
++                    drop(phase);
+                     reserved_sources.push(source.clone());
+                     previous_source = Some(ConvertedSource {
+                         level,
+@@ -273,8 +281,10 @@ impl ResidentRenderer {
+                 };
+ 
+                 if self.styles.gpu.is_none() {
++                    let _phase = gpu_core::diagnostics::span("style.pipeline_init");
+                     self.styles.gpu = Some(StylesGpu::new(&self.device)?);
+                 }
++                let phase = gpu_core::diagnostics::span("style.effects_encode_submit");
+                 let planes = self
+                     .styles
+                     .gpu
+@@ -290,6 +300,7 @@ impl ResidentRenderer {
+                         [region.x0 as u32, region.y0 as u32],
+                         level,
+                     )?;
++                drop(phase);
+                 debug_assert_eq!(planes.len(), StylesGpu::plane_count(&settings));
+                 let value = Arc::new(Cached {
+                     source,
+diff --git a/crates/compositor/tests/resident_styles_large.rs b/crates/compositor/tests/resident_styles_large.rs
+index 9e6f030..5f9abb8 100644
+--- a/crates/compositor/tests/resident_styles_large.rs
++++ b/crates/compositor/tests/resident_styles_large.rs
+@@ -79,10 +79,12 @@ fn twenty_mp_five_styles_1368x912_l1_timing() {
+     let start = Instant::now();
+     cpu_view(&cpu, &doc, 1, view);
+     let cpu_cold = start.elapsed();
++    let cold_span = gpu_core::diagnostics::span("MEASURED_COLD");
+     let start = Instant::now();
+     let cold_frame = resident.render_viewport(&doc, 1, view, 0).unwrap();
+     resident.wait().unwrap();
+     let gpu_cold = start.elapsed();
++    drop(cold_span);
+     assert!(cold_frame.blocks > 0, "cold measurement must dispatch work");
+     assert_eq!(resident.style_evaluations(), 5);
+     assert_eq!(resident.filter_fallbacks(), 0);
+@@ -98,6 +100,7 @@ fn twenty_mp_five_styles_1368x912_l1_timing() {
+     let warm_frame = resident.render_viewport(&doc, 1, view, 0).unwrap();
+     resident.wait().unwrap();
+     let gpu_warm = start.elapsed();
++    gpu_core::diagnostics::emit();
+     assert!(warm_frame.blocks > 0, "warm measurement must dispatch work");
+     assert_eq!(
+         resident.style_evaluations(),
+@@ -139,10 +142,12 @@ fn twenty_mp_five_styles_1368x912_l1_unique_ids_timing() {
+     let start = Instant::now();
+     cpu_view(&cpu, &doc, 1, view);
+     let cpu_cold = start.elapsed();
++    let cold_span = gpu_core::diagnostics::span("MEASURED_COLD");
+     let start = Instant::now();
+     let cold_frame = resident.render_viewport(&doc, 1, view, 0).unwrap();
+     resident.wait().unwrap();
+     let gpu_cold = start.elapsed();
++    drop(cold_span);
+     assert!(cold_frame.blocks > 0, "cold measurement must dispatch work");
+     assert_eq!(resident.style_evaluations(), 5);
+     assert_eq!(resident.filter_fallbacks(), 0);
+@@ -158,6 +163,7 @@ fn twenty_mp_five_styles_1368x912_l1_unique_ids_timing() {
+     let warm_frame = resident.render_viewport(&doc, 1, view, 0).unwrap();
+     resident.wait().unwrap();
+     let gpu_warm = start.elapsed();
++    gpu_core::diagnostics::emit();
+     assert!(warm_frame.blocks > 0, "warm measurement must dispatch work");
+     assert_eq!(
+         resident.style_evaluations(),
+diff --git a/crates/gpu-core/src/diagnostics.rs b/crates/gpu-core/src/diagnostics.rs
+new file mode 100644
+index 0000000..d5503ce
+--- /dev/null
++++ b/crates/gpu-core/src/diagnostics.rs
+@@ -0,0 +1,62 @@
++//! Opt-in passive CPU spans for isolated latency diagnostics; no GPU fences.
++use std::{
++    sync::{Mutex, OnceLock},
++    time::Instant,
++};
++static ENABLED: OnceLock<bool> = OnceLock::new();
++static ORIGIN: OnceLock<Instant> = OnceLock::new();
++static EVENTS: Mutex<Vec<Event>> = Mutex::new(Vec::new());
++struct Event {
++    label: String,
++    thread: std::thread::ThreadId,
++    start_us: u128,
++    end_us: u128,
++}
++/// A CPU interval recorded on drop, with bounded storage and deferred output.
++pub struct Span<'a> {
++    label: &'a str,
++    start: Instant,
++}
++/// Disabled unless TESSERA_COLD_DIAGNOSTIC=1 at process start.
++pub fn span(label: &str) -> Option<Span<'_>> {
++    if !*ENABLED.get_or_init(|| std::env::var("TESSERA_COLD_DIAGNOSTIC").is_ok_and(|v| v == "1")) {
++        return None;
++    }
++    ORIGIN.get_or_init(Instant::now);
++    Some(Span {
++        label,
++        start: Instant::now(),
++    })
++}
++impl Drop for Span<'_> {
++    fn drop(&mut self) {
++        let end = Instant::now();
++        let origin = *ORIGIN.get().expect("diagnostic origin");
++        if let Ok(mut events) = EVENTS.lock() {
++            if events.len() < 4096 {
++                events.push(Event {
++                    label: self.label.to_owned(),
++                    thread: std::thread::current().id(),
++                    start_us: self.start.duration_since(origin).as_micros(),
++                    end_us: end.duration_since(origin).as_micros(),
++                });
++            }
++        }
++    }
++}
++/// Emit only after the caller's measured interval. CPU spans overlap GPU work.
++pub fn emit() {
++    if let Ok(mut events) = EVENTS.lock() {
++        events.sort_by_key(|event| event.start_us);
++        for event in events.drain(..) {
++            eprintln!(
++                "COLD-SPAN thread={:?} start_us={} end_us={} duration_us={} label={}",
++                event.thread,
++                event.start_us,
++                event.end_us,
++                event.end_us - event.start_us,
++                event.label
++            );
++        }
++    }
++}
+diff --git a/crates/gpu-core/src/lib.rs b/crates/gpu-core/src/lib.rs
+index f5236c3..553ec10 100644
+--- a/crates/gpu-core/src/lib.rs
++++ b/crates/gpu-core/src/lib.rs
+@@ -10,6 +10,8 @@
+ 
+ pub use color_mgmt;
+ pub use color_mgmt::Lut3d;
++#[doc(hidden)]
++pub mod diagnostics;
+ mod iosurface;
+ mod precise;
+ pub use iosurface::{SurfaceFormat, write_to_iosurface};
+diff --git a/crates/gpu-core/src/precise.rs b/crates/gpu-core/src/precise.rs
+index 0963a37..e09a06e 100644
+--- a/crates/gpu-core/src/precise.rs
++++ b/crates/gpu-core/src/precise.rs
+@@ -60,6 +60,8 @@ pub fn precise_compute_pipeline(
+     workgroup: (u32, u32, u32),
+     entries: &[wgpu::BindGroupLayoutEntry],
+ ) -> EngineResult<PrecisePipeline> {
++    let _whole = crate::diagnostics::span(label);
++    let phase = crate::diagnostics::span("pipeline.layout");
+     let mut entries = entries.to_vec();
+     entries.sort_by_key(|e| e.binding);
+     let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+@@ -71,12 +73,16 @@ pub fn precise_compute_pipeline(
+         bind_group_layouts: &[Some(&layout)],
+         immediate_size: 0,
+     });
++    drop(phase);
+     let passthrough = device
+         .features()
+         .contains(wgpu::Features::PASSTHROUGH_SHADERS)
+         && cfg!(target_os = "macos");
+     let (module, entry_name, precision) = if passthrough {
++        let phase = crate::diagnostics::span("pipeline.translate");
+         let (msl, name) = translate(wgsl, entry, &entries)?;
++        drop(phase);
++        let _phase = crate::diagnostics::span("pipeline.module");
+         let desc = wgpu::ShaderModuleDescriptorPassthrough {
+             label: Some(label),
+             entry_points: Cow::Owned(vec![wgpu::PassthroughShaderEntryPoint {
+@@ -106,6 +112,7 @@ pub fn precise_compute_pipeline(
+         };
+         (module, entry.to_string(), Precision::Relaxed)
+     };
++    let _phase = crate::diagnostics::span("pipeline.create_compute");
+     let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+         label: Some(label),
+         layout: Some(&pipeline_layout),

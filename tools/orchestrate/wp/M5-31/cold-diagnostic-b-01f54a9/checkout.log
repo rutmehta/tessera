@@ -1,0 +1,6 @@
+UTC 2026-09-27T18:21:03.758396+00:00
+CWD /Users/rutmehta/Developer/lightroom/.worktrees/B5-16a
+COMMAND ['git', 'checkout', '--detach', '01f54a9b1e65253a68e6ae7ce13c0770ba40c1fd']
+ENV {"CARGO_TARGET_DIR": "/Users/rutmehta/.cache/tessera-target/B5-15", "CARGO_BUILD_JOBS": "2", "MACOSX_DEPLOYMENT_TARGET": "15.0", "TESSERA_COLD_DIAGNOSTIC": "1"}
+Previous HEAD position was 441da3e Reuse unchanged styled sources and preserve meaningful dissolve identity
+HEAD is now at 01f54a9 Instrument opt-in passive CPU spans for cold-render diagnostics

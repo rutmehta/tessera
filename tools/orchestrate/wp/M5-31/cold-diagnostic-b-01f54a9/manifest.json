@@ -1,0 +1,111 @@
+{
+  "root_chat_id": "01a0e327-1570-7d83-bc33-7ed882318eea",
+  "started_utc": "2026-09-27T18:21:03.233015+00:00",
+  "candidate": "01f54a9b1e65253a68e6ae7ce13c0770ba40c1fd",
+  "checkout": "/Users/rutmehta/Developer/lightroom/.worktrees/B5-16a",
+  "branch_before": "bcd0e792f248b3d5ce20ea4a121b9c20e61c7d6c",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/rutmehta/.cache/tessera-target/B5-15",
+    "CARGO_BUILD_JOBS": "2",
+    "MACOSX_DEPLOYMENT_TARGET": "15.0",
+    "TESSERA_COLD_DIAGNOSTIC": "1"
+  },
+  "runs": [
+    {
+      "name": "original-1",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "compositor",
+        "--release",
+        "--test",
+        "resident_styles_large",
+        "twenty_mp_five_styles_1368x912_l1_timing",
+        "--",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "start_utc": "2026-09-27T18:21:39.948358+00:00",
+      "end_utc": "2026-09-27T18:21:41.321949+00:00",
+      "exit_code": 0,
+      "seconds": 1.373592084000002
+    },
+    {
+      "name": "unique-1",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "compositor",
+        "--release",
+        "--test",
+        "resident_styles_large",
+        "twenty_mp_five_styles_1368x912_l1_unique_ids_timing",
+        "--",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "start_utc": "2026-09-27T18:21:41.716701+00:00",
+      "end_utc": "2026-09-27T18:21:42.224827+00:00",
+      "exit_code": 0,
+      "seconds": 0.5081241250000019
+    }
+  ],
+  "source": "Machine A direct authenticated SSH execution; not B chat receipt",
+  "fetch": {
+    "name": "fetch",
+    "command": [
+      "git",
+      "fetch",
+      "origin",
+      "codex/m531-cold-diagnostics"
+    ],
+    "start_utc": "2026-09-27T18:21:03.233114+00:00",
+    "end_utc": "2026-09-27T18:21:03.749089+00:00",
+    "exit_code": 0,
+    "seconds": 0.515994917
+  },
+  "checkout_result": {
+    "name": "checkout",
+    "command": [
+      "git",
+      "checkout",
+      "--detach",
+      "01f54a9b1e65253a68e6ae7ce13c0770ba40c1fd"
+    ],
+    "start_utc": "2026-09-27T18:21:03.758396+00:00",
+    "end_utc": "2026-09-27T18:21:03.787124+00:00",
+    "exit_code": 0,
+    "seconds": 0.028736542000000087
+  },
+  "compile": {
+    "name": "compile",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "compositor",
+      "--release",
+      "--test",
+      "resident_styles_large",
+      "--no-run"
+    ],
+    "start_utc": "2026-09-27T18:21:04.408813+00:00",
+    "end_utc": "2026-09-27T18:21:39.427628+00:00",
+    "exit_code": 0,
+    "seconds": 35.019381917000004
+  },
+  "final_head": "01f54a9b1e65253a68e6ae7ce13c0770ba40c1fd",
+  "branch_after": "bcd0e792f248b3d5ce20ea4a121b9c20e61c7d6c",
+  "final_status": "",
+  "completed_utc": "2026-09-27T18:21:42.315200+00:00",
+  "outcome": "passed"
+}

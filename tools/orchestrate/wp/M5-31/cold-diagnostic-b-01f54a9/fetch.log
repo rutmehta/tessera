@@ -1,0 +1,7 @@
+UTC 2026-09-27T18:21:03.233114+00:00
+CWD /Users/rutmehta/Developer/lightroom/.worktrees/B5-16a
+COMMAND ['git', 'fetch', 'origin', 'codex/m531-cold-diagnostics']
+ENV {"CARGO_TARGET_DIR": "/Users/rutmehta/.cache/tessera-target/B5-15", "CARGO_BUILD_JOBS": "2", "MACOSX_DEPLOYMENT_TARGET": "15.0", "TESSERA_COLD_DIAGNOSTIC": "1"}
+From https://github.com/rutmehta/lightroom
+ * branch            codex/m531-cold-diagnostics -> FETCH_HEAD
+ * [new branch]      codex/m531-cold-diagnostics -> origin/codex/m531-cold-diagnostics

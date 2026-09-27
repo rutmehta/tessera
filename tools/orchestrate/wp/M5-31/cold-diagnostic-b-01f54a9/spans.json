@@ -1,0 +1,3756 @@
+{
+  "original": {
+    "cold": {
+      "thread": 2,
+      "start": 155250,
+      "end": 197074,
+      "duration": 41824,
+      "label": "MEASURED_COLD"
+    },
+    "cold_events": [
+      {
+        "thread": 2,
+        "start": 155250,
+        "end": 197074,
+        "duration": 41824,
+        "label": "MEASURED_COLD"
+      },
+      {
+        "thread": 2,
+        "start": 155266,
+        "end": 155294,
+        "duration": 28,
+        "label": "render.reset_program_region"
+      },
+      {
+        "thread": 2,
+        "start": 155266,
+        "end": 179790,
+        "duration": 24524,
+        "label": "render_region"
+      },
+      {
+        "thread": 2,
+        "start": 155295,
+        "end": 179025,
+        "duration": 23730,
+        "label": "render.styles"
+      },
+      {
+        "thread": 2,
+        "start": 155297,
+        "end": 155309,
+        "duration": 12,
+        "label": "style.key"
+      },
+      {
+        "thread": 2,
+        "start": 155297,
+        "end": 172301,
+        "duration": 17004,
+        "label": "style.layer"
+      },
+      {
+        "thread": 2,
+        "start": 155333,
+        "end": 155414,
+        "duration": 81,
+        "label": "style.child_construct"
+      },
+      {
+        "thread": 2,
+        "start": 155414,
+        "end": 155415,
+        "duration": 1,
+        "label": "render.reset_program_region"
+      },
+      {
+        "thread": 2,
+        "start": 155414,
+        "end": 164722,
+        "duration": 9308,
+        "label": "render_region"
+      },
+      {
+        "thread": 2,
+        "start": 155414,
+        "end": 164722,
+        "duration": 9308,
+        "label": "style.source_render"
+      },
+      {
+        "thread": 2,
+        "start": 155416,
+        "end": 155417,
+        "duration": 1,
+        "label": "render.styles"
+      },
+      {
+        "thread": 2,
+        "start": 155417,
+        "end": 155460,
+        "duration": 43,
+        "label": "render.aux_resolve"
+      },
+      {
+        "thread": 2,
+        "start": 155460,
+        "end": 163684,
+        "duration": 8224,
+        "label": "render.materialize"
+      },
+      {
+        "thread": 2,
+        "start": 163685,
+        "end": 163764,
+        "duration": 79,
+        "label": "render.output_damage_blocks"
+      },
+      {
+        "thread": 2,
+        "start": 163765,
+        "end": 163852,
+        "duration": 87,
+        "label": "render.specialization_request"
+      },
+      {
+        "thread": 2,
+        "start": 163765,
+        "end": 163909,
+        "duration": 144,
+        "label": "render.encoding"
+      },
+      {
+        "thread": 2,
+        "start": 163909,
+        "end": 164716,
+        "duration": 807,
+        "label": "render.submit"
+      },
+      {
+        "thread": 19,
+        "start": 164074,
+        "end": 170377,
+        "duration": 6303,
+        "label": "specialization.worker"
+      },
+      {
+        "thread": 19,
+        "start": 164189,
+        "end": 164199,
+        "duration": 10,
+        "label": "pipeline.layout"
+      },
+      {
+        "thread": 19,
+        "start": 164189,
+        "end": 170372,
+        "duration": 6183,
+        "label": "specialized resident structure"
+      },
+      {
+        "thread": 19,
+        "start": 164200,
+        "end": 169832,
+        "duration": 5632,
+        "label": "pipeline.translate"
+      },
+      {
+        "thread": 2,
+        "start": 164723,
+        "end": 168015,
+        "duration": 3292,
+        "label": "style.convert"
+      },
+      {
+        "thread": 2,
+        "start": 164726,
+        "end": 164755,
+        "duration": 29,
+        "label": "pipeline.layout"
+      },
+      {
+        "thread": 2,
+        "start": 164726,
+        "end": 166984,
+        "duration": 2258,
+        "label": "smart filter plumbing"
+      },
+      {
+        "thread": 2,
+        "start": 164755,
+        "end": 165746,
+        "duration": 991,
+        "label": "pipeline.translate"
+      },
+      {
+        "thread": 2,
+        "start": 165746,
+        "end": 166070,
+        "duration": 324,
+        "label": "pipeline.module"
+      },
+      {
+        "thread": 2,
+        "start": 166070,
+        "end": 166982,
+        "duration": 912,
+        "label": "pipeline.create_compute"
+      },
+      {
+        "thread": 2,
+        "start": 168016,
+        "end": 169814,
+        "duration": 1798,
+        "label": "style.pipeline_init"
+      },
+      {
+        "thread": 2,
+        "start": 168017,
+        "end": 168032,
+        "duration": 15,
+        "label": "pipeline.layout"
+      },
+      {
+        "thread": 2,
+        "start": 168017,
+        "end": 169813,
+        "duration": 1796,
+        "label": "resident layer effects"
+      },
+      {
+        "thread": 2,
+        "start": 168033,
+        "end": 169275,
+        "duration": 1242,
+        "label": "pipeline.translate"
+      },
+      {
+        "thread": 2,
+        "start": 169276,
+        "end": 169693,
+        "duration": 417,
+        "label": "pipeline.module"
+      },
+      {
+        "thread": 2,
+        "start": 169693,
+        "end": 169812,
+        "duration": 119,
+        "label": "pipeline.create_compute"
+      },
+      {
+        "thread": 2,
+        "start": 169814,
+        "end": 172297,
+        "duration": 2483,
+        "label": "style.effects_encode_submit"
+      },
+      {
+        "thread": 19,
+        "start": 169833,
+        "end": 169915,
+        "duration": 82,
+        "label": "pipeline.module"
+      },
+      {
+        "thread": 19,
+        "start": 169915,
+        "end": 170371,
+        "duration": 456,
+        "label": "pipeline.create_compute"
+      },
+      {
+        "thread": 2,
+        "start": 170018,
+        "end": 170343,
+        "duration": 325,
+        "label": "effects.submit"
+      },
+      {
+        "thread": 2,
+        "start": 170604,
+        "end": 172296,
+        "duration": 1692,
+        "label": "effects.submit"
+      },
+      {
+        "thread": 2,
+        "start": 172301,
+        "end": 172312,
+        "duration": 11,
+        "label": "style.key"
+      },
+      {
+        "thread": 2,
+        "start": 172301,
+        "end": 172995,
+        "duration": 694,
+        "label": "style.layer"
+      },
+      {
+        "thread": 2,
+        "start": 172315,
+        "end": 172317,
+        "duration": 2,
+        "label": "render.reset_program_region"
+      },
+      {
+        "thread": 2,
+        "start": 172315,
+        "end": 172364,
+        "duration": 49,
+        "label": "render_region"
+      },
+      {
+        "thread": 2,
+        "start": 172315,
+        "end": 172364,
+        "duration": 49,
+        "label": "style.source_render"
+      },
+      {
+        "thread": 2,
+        "start": 172317,
+        "end": 172318,
+        "duration": 1,
+        "label": "render.styles"
+      },
+      {
+        "thread": 2,
+        "start": 172318,
+        "end": 172329,
+        "duration": 11,
+        "label": "render.aux_resolve"
+      },
+      {
+        "thread": 2,
+        "start": 172329,
+        "end": 172330,
+        "duration": 1,
+        "label": "render.materialize"
+      },
+      {
+        "thread": 2,
+        "start": 172330,
+        "end": 172342,
+        "duration": 12,
+        "label": "render.output_damage_blocks"
+      },
+      {
+        "thread": 2,
+        "start": 172342,
+        "end": 172342,
+        "duration": 0,
+        "label": "render.encoding"
+      },
+      {
+        "thread": 2,
+        "start": 172342,
+        "end": 172363,
+        "duration": 21,
+        "label": "render.submit"
+      },
+      {
+        "thread": 2,
+        "start": 172365,
+        "end": 172994,
+        "duration": 629,
+        "label": "style.effects_encode_submit"
+      },
+      {
+        "thread": 2,
+        "start": 172471,
+        "end": 172612,
+        "duration": 141,
+        "label": "effects.submit"
+      },
+      {
+        "thread": 2,
+        "start": 172728,
+        "end": 172994,
+        "duration": 266,
+        "label": "effects.submit"
+      },
+      {
+        "thread": 2,
+        "start": 172995,
+        "end": 173003,
+        "duration": 8,
+        "label": "style.key"
+      },
+      {
+        "thread": 2,
+        "start": 172995,
+        "end": 174846,
+        "duration": 1851,
+        "label": "style.layer"
+      },
+      {
+        "thread": 2,
+        "start": 173004,
+        "end": 173005,
+        "duration": 1,
+        "label": "render.reset_program_region"
+      },
+      {
+        "thread": 2,
+        "start": 173004,
+        "end": 173038,
+        "duration": 34,
+        "label": "render_region"
+      },
+      {
+        "thread": 2,
+        "start": 173004,
+        "end": 173038,
+        "duration": 34,
+        "label": "style.source_render"
+      },
+      {
+        "thread": 2,
+        "start": 173005,
+        "end": 173005,
+        "duration": 0,
+        "label": "render.styles"
+      },
+      {
+        "thread": 2,
+        "start": 173005,
+        "end": 173010,
+        "duration": 5,
+        "label": "render.aux_resolve"
+      },
+      {
+        "thread": 2,
+        "start": 173010,
+        "end": 173011,
+        "duration": 1,
+        "label": "render.materialize"
+      },
+      {
+        "thread": 2,
+        "start": 173011,
+        "end": 173018,
+        "duration": 7,
+        "label": "render.output_damage_blocks"
+      },
+      {
+        "thread": 2,
+        "start": 173018,
+        "end": 173018,
+        "duration": 0,
+        "label": "render.encoding"
+      },
+      {
+        "thread": 2,
+        "start": 173019,
+        "end": 173037,
+        "duration": 18,
+        "label": "render.submit"
+      },
+      {
+        "thread": 2,
+        "start": 173038,
+        "end": 174845,
+        "duration": 1807,
+        "label": "style.effects_encode_submit"
+      },
+      {
+        "thread": 2,
+        "start": 173122,
+        "end": 173273,
+        "duration": 151,
+        "label": "effects.submit"
+      },
+      {
+        "thread": 2,
+        "start": 173741,
+        "end": 174843,
+        "duration": 1102,
+        "label": "effects.submit"
+      },
+      {
+        "thread": 2,
+        "start": 174846,
+        "end": 174856,
+        "duration": 10,
+        "label": "style.key"
+      },
+      {
+        "thread": 2,
+        "start": 174846,
+        "end": 176228,
+        "duration": 1382,
+        "label": "style.layer"
+      },
+      {
+        "thread": 2,
+        "start": 174858,
+        "end": 174860,
+        "duration": 2,
+        "label": "render.reset_program_region"
+      },
+      {
+        "thread": 2,
+        "start": 174858,
+        "end": 174898,
+        "duration": 40,
+        "label": "render_region"
+      },
+      {
+        "thread": 2,
+        "start": 174858,
+        "end": 174898,
+        "duration": 40,
+        "label": "style.source_render"
+      },
+      {
+        "thread": 2,
+        "start": 174860,
+        "end": 174860,
+        "duration": 0,
+        "label": "render.styles"
+      },
+      {
+        "thread": 2,
+        "start": 174860,
+        "end": 174867,
+        "duration": 7,
+        "label": "render.aux_resolve"
+      },
+      {
+        "thread": 2,
+        "start": 174867,
+        "end": 174868,
+        "duration": 1,
+        "label": "render.materialize"
+      },
+      {
+        "thread": 2,
+        "start": 174868,
+        "end": 174878,
+        "duration": 10,
+        "label": "render.output_damage_blocks"
+      },
+      {
+        "thread": 2,
+        "start": 174878,
+        "end": 174878,
+        "duration": 0,
+        "label": "render.encoding"
+      },
+      {
+        "thread": 2,
+        "start": 174878,
+        "end": 174897,
+        "duration": 19,
+        "label": "render.submit"
+      },
+      {
+        "thread": 2,
+        "start": 174898,
+        "end": 176226,
+        "duration": 1328,
+        "label": "style.effects_encode_submit"
+      },
+      {
+        "thread": 2,
+        "start": 175260,
+        "end": 175394,
+        "duration": 134,
+        "label": "effects.submit"
+      },
+      {
+        "thread": 2,
+        "start": 175669,
+        "end": 176226,
+        "duration": 557,
+        "label": "effects.submit"
+      },
+      {
+        "thread": 2,
+        "start": 176228,
+        "end": 176239,
+        "duration": 11,
+        "label": "style.key"
+      },
+      {
+        "thread": 2,
+        "start": 176228,
+        "end": 178758,
+        "duration": 2530,
+        "label": "style.layer"
+      },
+      {
+        "thread": 2,
+        "start": 176241,
+        "end": 176242,
+        "duration": 1,
+        "label": "render.reset_program_region"
+      },
+      {
+        "thread": 2,
+        "start": 176241,
+        "end": 176283,
+        "duration": 42,
+        "label": "render_region"
+      },
+      {
+        "thread": 2,
+        "start": 176241,
+        "end": 176283,
+        "duration": 42,
+        "label": "style.source_render"
+      },
+      {
+        "thread": 2,
+        "start": 176242,
+        "end": 176243,
+        "duration": 1,
+        "label": "render.styles"
+      },
+      {
+        "thread": 2,
+        "start": 176243,
+        "end": 176250,
+        "duration": 7,
+        "label": "render.aux_resolve"
+      },
+      {
+        "thread": 2,
+        "start": 176250,
+        "end": 176251,
+        "duration": 1,
+        "label": "render.materialize"
+      },
+      {
+        "thread": 2,
+        "start": 176252,
+        "end": 176261,
+        "duration": 9,
+        "label": "render.output_damage_blocks"
+      },
+      {
+        "thread": 2,
+        "start": 176261,
+        "end": 176261,
+        "duration": 0,
+        "label": "render.encoding"
+      },
+      {
+        "thread": 2,
+        "start": 176261,
+        "end": 176282,
+        "duration": 21,
+        "label": "render.submit"
+      },
+      {
+        "thread": 2,
+        "start": 176284,
+        "end": 178755,
+        "duration": 2471,
+        "label": "style.effects_encode_submit"
+      },
+      {
+        "thread": 2,
+        "start": 176383,
+        "end": 176535,
+        "duration": 152,
+        "label": "effects.submit"
+      },
+      {
+        "thread": 2,
+        "start": 176680,
+        "end": 178753,
+        "duration": 2073,
+        "label": "effects.submit"
+      },
+      {
+        "thread": 2,
+        "start": 179026,
+        "end": 179027,
+        "duration": 1,
+        "label": "render.aux_resolve"
+      },
+      {
+        "thread": 2,
+        "start": 179027,
+        "end": 179029,
+        "duration": 2,
+        "label": "render.materialize"
+      },
+      {
+        "thread": 2,
+        "start": 179029,
+        "end": 179131,
+        "duration": 102,
+        "label": "render.output_damage_blocks"
+      },
+      {
+        "thread": 2,
+        "start": 179133,
+        "end": 179172,
+        "duration": 39,
+        "label": "render.specialization_request"
+      },
+      {
+        "thread": 2,
+        "start": 179133,
+        "end": 179586,
+        "duration": 453,
+        "label": "render.encoding"
+      },
+      {
+        "thread": 20,
+        "start": 179195,
+        "end": 188691,
+        "duration": 9496,
+        "label": "specialization.worker"
+      },
+      {
+        "thread": 20,
+        "start": 179436,
+        "end": 179447,
+        "duration": 11,
+        "label": "pipeline.layout"
+      },
+      {
+        "thread": 20,
+        "start": 179436,
+        "end": 188685,
+        "duration": 9249,
+        "label": "specialized resident structure"
+      },
+      {
+        "thread": 20,
+        "start": 179447,
+        "end": 187680,
+        "duration": 8233,
+        "label": "pipeline.translate"
+      },
+      {
+        "thread": 2,
+        "start": 179586,
+        "end": 179776,
+        "duration": 190,
+        "label": "render.submit"
+      },
+      {
+        "thread": 2,
+        "start": 179790,
+        "end": 197072,
+        "duration": 17282,
+        "label": "render.final_wait"
+      },
+      {
+        "thread": 20,
+        "start": 187682,
+        "end": 188467,
+        "duration": 785,
+        "label": "pipeline.module"
+      },
+      {
+        "thread": 20,
+        "start": 188467,
+        "end": 188683,
+        "duration": 216,
+        "label": "pipeline.create_compute"
+      }
+    ],
+    "worker_overlap": [
+      {
+        "thread": 19,
+        "start": 164074,
+        "end": 170377,
+        "duration": 6303,
+        "label": "specialization.worker"
+      },
+      {
+        "thread": 19,
+        "start": 164189,
+        "end": 164199,
+        "duration": 10,
+        "label": "pipeline.layout"
+      },
+      {
+        "thread": 19,
+        "start": 164189,
+        "end": 170372,
+        "duration": 6183,
+        "label": "specialized resident structure"
+      },
+      {
+        "thread": 19,
+        "start": 164200,
+        "end": 169832,
+        "duration": 5632,
+        "label": "pipeline.translate"
+      },
+      {
+        "thread": 19,
+        "start": 169833,
+        "end": 169915,
+        "duration": 82,
+        "label": "pipeline.module"
+      },
+      {
+        "thread": 19,
+        "start": 169915,
+        "end": 170371,
+        "duration": 456,
+        "label": "pipeline.create_compute"
+      },
+      {
+        "thread": 20,
+        "start": 179195,
+        "end": 188691,
+        "duration": 9496,
+        "label": "specialization.worker"
+      },
+      {
+        "thread": 20,
+        "start": 179436,
+        "end": 179447,
+        "duration": 11,
+        "label": "pipeline.layout"
+      },
+      {
+        "thread": 20,
+        "start": 179436,
+        "end": 188685,
+        "duration": 9249,
+        "label": "specialized resident structure"
+      },
+      {
+        "thread": 20,
+        "start": 179447,
+        "end": 187680,
+        "duration": 8233,
+        "label": "pipeline.translate"
+      },
+      {
+        "thread": 20,
+        "start": 187682,
+        "end": 188467,
+        "duration": 785,
+        "label": "pipeline.module"
+      },
+      {
+        "thread": 20,
+        "start": 188467,
+        "end": 188683,
+        "duration": 216,
+        "label": "pipeline.create_compute"
+      }
+    ],
+    "all_events": [
+      {
+        "thread": 2,
+        "start": 0,
+        "end": 96,
+        "duration": 96,
+        "label": "pipeline.layout"
+      },
+      {
+        "thread": 2,
+        "start": 0,
+        "end": 1836,
+        "duration": 1836,
+        "label": "composite"
+      },
+      {
+        "thread": 2,
+        "start": 106,
+        "end": 1021,
+        "duration": 915,
+        "label": "pipeline.translate"
+      },
+      {
+        "thread": 2,
+        "start": 1021,
+        "end": 1471,
+        "duration": 450,
+        "label": "pipeline.module"
+      },
+      {
+        "thread": 2,
+        "start": 1472,
+        "end": 1835,
+        "duration": 363,
+        "label": "pipeline.create_compute"
+      },
+      {
+        "thread": 2,
+        "start": 6276,
+        "end": 6285,
+        "duration": 9,
+        "label": "pipeline.layout"
+      },
+      {
+        "thread": 2,
+        "start": 6276,
+        "end": 11261,
+        "duration": 4985,
+        "label": "resident document"
+      },
+      {
+        "thread": 2,
+        "start": 6285,
+        "end": 9943,
+        "duration": 3658,
+        "label": "pipeline.translate"
+      },
+      {
+        "thread": 2,
+        "start": 9943,
+        "end": 10559,
+        "duration": 616,
+        "label": "pipeline.module"
+      },
+      {
+        "thread": 2,
+        "start": 10560,
+        "end": 11259,
+        "duration": 699,
+        "label": "pipeline.create_compute"
+      },
+      {
+        "thread": 2,
+        "start": 11270,
+        "end": 11279,
+        "duration": 9,
+        "label": "pipeline.layout"
+      },
+      {
+        "thread": 2,
+        "start": 11270,
+        "end": 12131,
+        "duration": 861,
+        "label": "resident mip"
+      },
+      {
+        "thread": 2,
+        "start": 11279,
+        "end": 12003,
+        "duration": 724,
+        "label": "pipeline.translate"
+      },
+      {
+        "thread": 2,
+        "start": 12003,
+        "end": 12057,
+        "duration": 54,
+        "label": "pipeline.module"
+      },
+      {
+        "thread": 2,
+        "start": 12058,
+        "end": 12131,
+        "duration": 73,
+        "label": "pipeline.create_compute"
+      },
+      {
+        "thread": 2,
+        "start": 12786,
+        "end": 12800,
+        "duration": 14,
+        "label": "pipeline.layout"
+      },
+      {
+        "thread": 2,
+        "start": 12786,
+        "end": 13257,
+        "duration": 471,
+        "label": "resident bilateral"
+      },
+      {
+        "thread": 2,
+        "start": 12800,
+        "end": 13024,
+        "duration": 224,
+        "label": "pipeline.translate"
+      },
+      {
+        "thread": 2,
+        "start": 13024,
+        "end": 13049,
+        "duration": 25,
+        "label": "pipeline.module"
+      },
+      {
+        "thread": 2,
+        "start": 13049,
+        "end": 13256,
+        "duration": 207,
+        "label": "pipeline.create_compute"
+      },
+      {
+        "thread": 2,
+        "start": 155250,
+        "end": 197074,
+        "duration": 41824,
+        "label": "MEASURED_COLD"
+      },
+      {
+        "thread": 2,
+        "start": 155266,
+        "end": 155294,
+        "duration": 28,
+        "label": "render.reset_program_region"
+      },
+      {
+        "thread": 2,
+        "start": 155266,
+        "end": 179790,
+        "duration": 24524,
+        "label": "render_region"
+      },
+      {
+        "thread": 2,
+        "start": 155295,
+        "end": 179025,
+        "duration": 23730,
+        "label": "render.styles"
+      },
+      {
+        "thread": 2,
+        "start": 155297,
+        "end": 155309,
+        "duration": 12,
+        "label": "style.key"
+      },
+      {
+        "thread": 2,
+        "start": 155297,
+        "end": 172301,
+        "duration": 17004,
+        "label": "style.layer"
+      },
+      {
+        "thread": 2,
+        "start": 155333,
+        "end": 155414,
+        "duration": 81,
+        "label": "style.child_construct"
+      },
+      {
+        "thread": 2,
+        "start": 155414,
+        "end": 155415,
+        "duration": 1,
+        "label": "render.reset_program_region"
+      },
+      {
+        "thread": 2,
+        "start": 155414,
+        "end": 164722,
+        "duration": 9308,
+        "label": "render_region"
+      },
+      {
+        "thread": 2,
+        "start": 155414,
+        "end": 164722,
+        "duration": 9308,
+        "label": "style.source_render"
+      },
+      {
+        "thread": 2,
+        "start": 155416,
+        "end": 155417,
+        "duration": 1,
+        "label": "render.styles"
+      },
+      {
+        "thread": 2,
+        "start": 155417,
+        "end": 155460,
+        "duration": 43,
+        "label": "render.aux_resolve"
+      },
+      {
+        "thread": 2,
+        "start": 155460,
+        "end": 163684,
+        "duration": 8224,
+        "label": "render.materialize"
+      },
+      {
+        "thread": 2,
+        "start": 163685,
+        "end": 163764,
+        "duration": 79,
+        "label": "render.output_damage_blocks"
+      },
+      {
+        "thread": 2,
+        "start": 163765,
+        "end": 163852,
+        "duration": 87,
+        "label": "render.specialization_request"
+      },
+      {
+        "thread": 2,
+        "start": 163765,
+        "end": 163909,
+        "duration": 144,
+        "label": "render.encoding"
+      },
+      {
+        "thread": 2,
+        "start": 163909,
+        "end": 164716,
+        "duration": 807,
+        "label": "render.submit"
+      },
+      {
+        "thread": 19,
+        "start": 164074,
+        "end": 170377,
+        "duration": 6303,
+        "label": "specialization.worker"
+      },
+      {
+        "thread": 19,
+        "start": 164189,
+        "end": 164199,
+        "duration": 10,
+        "label": "pipeline.layout"
+      },
+      {
+        "thread": 19,
+        "start": 164189,
+        "end": 170372,
+        "duration": 6183,
+        "label": "specialized resident structure"
+      },
+      {
+        "thread": 19,
+        "start": 164200,
+        "end": 169832,
+        "duration": 5632,
+        "label": "pipeline.translate"
+      },
+      {
+        "thread": 2,
+        "start": 164723,
+        "end": 168015,
+        "duration": 3292,
+        "label": "style.convert"
+      },
+      {
+        "thread": 2,
+        "start": 164726,
+        "end": 164755,
+        "duration": 29,
+        "label": "pipeline.layout"
+      },
+      {
+        "thread": 2,
+        "start": 164726,
+        "end": 166984,
+        "duration": 2258,
+        "label": "smart filter plumbing"
+      },
+      {
+        "thread": 2,
+        "start": 164755,
+        "end": 165746,
+        "duration": 991,
+        "label": "pipeline.translate"
+      },
+      {
+        "thread": 2,
+        "start": 165746,
+        "end": 166070,
+        "duration": 324,
+        "label": "pipeline.module"
+      },
+      {
+        "thread": 2,
+        "start": 166070,
+        "end": 166982,
+        "duration": 912,
+        "label": "pipeline.create_compute"
+      },
+      {
+        "thread": 2,
+        "start": 168016,
+        "end": 169814,
+        "duration": 1798,
+        "label": "style.pipeline_init"
+      },
+      {
+        "thread": 2,
+        "start": 168017,
+        "end": 168032,
+        "duration": 15,
+        "label": "pipeline.layout"
+      },
+      {
+        "thread": 2,
+        "start": 168017,
+        "end": 169813,
+        "duration": 1796,
+        "label": "resident layer effects"
+      },
+      {
+        "thread": 2,
+        "start": 168033,
+        "end": 169275,
+        "duration": 1242,
+        "label": "pipeline.translate"
+      },
+      {
+        "thread": 2,
+        "start": 169276,
+        "end": 169693,
+        "duration": 417,
+        "label": "pipeline.module"
+      },
+      {
+        "thread": 2,
+        "start": 169693,
+        "end": 169812,
+        "duration": 119,
+        "label": "pipeline.create_compute"
+      },
+      {
+        "thread": 2,
+        "start": 169814,
+        "end": 172297,
+        "duration": 2483,
+        "label": "style.effects_encode_submit"
+      },
+      {
+        "thread": 19,
+        "start": 169833,
+        "end": 169915,
+        "duration": 82,
+        "label": "pipeline.module"
+      },
+      {
+        "thread": 19,
+        "start": 169915,
+        "end": 170371,
+        "duration": 456,
+        "label": "pipeline.create_compute"
+      },
+      {
+        "thread": 2,
+        "start": 170018,
+        "end": 170343,
+        "duration": 325,
+        "label": "effects.submit"
+      },
+      {
+        "thread": 2,
+        "start": 170604,
+        "end": 172296,
+        "duration": 1692,
+        "label": "effects.submit"
+      },
+      {
+        "thread": 2,
+        "start": 172301,
+        "end": 172312,
+        "duration": 11,
+        "label": "style.key"
+      },
+      {
+        "thread": 2,
+        "start": 172301,
+        "end": 172995,
+        "duration": 694,
+        "label": "style.layer"
+      },
+      {
+        "thread": 2,
+        "start": 172315,
+        "end": 172317,
+        "duration": 2,
+        "label": "render.reset_program_region"
+      },
+      {
+        "thread": 2,
+        "start": 172315,
+        "end": 172364,
+        "duration": 49,
+        "label": "render_region"
+      },
+      {
+        "thread": 2,
+        "start": 172315,
+        "end": 172364,
+        "duration": 49,
+        "label": "style.source_render"
+      },
+      {
+        "thread": 2,
+        "start": 172317,
+        "end": 172318,
+        "duration": 1,
+        "label": "render.styles"
+      },
+      {
+        "thread": 2,
+        "start": 172318,
+        "end": 172329,
+        "duration": 11,
+        "label": "render.aux_resolve"
+      },
+      {
+        "thread": 2,
+        "start": 172329,
+        "end": 172330,
+        "duration": 1,
+        "label": "render.materialize"
+      },
+      {
+        "thread": 2,
+        "start": 172330,
+        "end": 172342,
+        "duration": 12,
+        "label": "render.output_damage_blocks"
+      },
+      {
+        "thread": 2,
+        "start": 172342,
+        "end": 172342,
+        "duration": 0,
+        "label": "render.encoding"
+      },
+      {
+        "thread": 2,
+        "start": 172342,
+        "end": 172363,
+        "duration": 21,
+        "label": "render.submit"
+      },
+      {
+        "thread": 2,
+        "start": 172365,
+        "end": 172994,
+        "duration": 629,
+        "label": "style.effects_encode_submit"
+      },
+      {
+        "thread": 2,
+        "start": 172471,
+        "end": 172612,
+        "duration": 141,
+        "label": "effects.submit"
+      },
+      {
+        "thread": 2,
+        "start": 172728,
+        "end": 172994,
+        "duration": 266,
+        "label": "effects.submit"
+      },
+      {
+        "thread": 2,
+        "start": 172995,
+        "end": 173003,
+        "duration": 8,
+        "label": "style.key"
+      },
+      {
+        "thread": 2,
+        "start": 172995,
+        "end": 174846,
+        "duration": 1851,
+        "label": "style.layer"
+      },
+      {
+        "thread": 2,
+        "start": 173004,
+        "end": 173005,
+        "duration": 1,
+        "label": "render.reset_program_region"
+      },
+      {
+        "thread": 2,
+        "start": 173004,
+        "end": 173038,
+        "duration": 34,
+        "label": "render_region"
+      },
+      {
+        "thread": 2,
+        "start": 173004,
+        "end": 173038,
+        "duration": 34,
+        "label": "style.source_render"
+      },
+      {
+        "thread": 2,
+        "start": 173005,
+        "end": 173005,
+        "duration": 0,
+        "label": "render.styles"
+      },
+      {
+        "thread": 2,
+        "start": 173005,
+        "end": 173010,
+        "duration": 5,
+        "label": "render.aux_resolve"
+      },
+      {
+        "thread": 2,
+        "start": 173010,
+        "end": 173011,
+        "duration": 1,
+        "label": "render.materialize"
+      },
+      {
+        "thread": 2,
+        "start": 173011,
+        "end": 173018,
+        "duration": 7,
+        "label": "render.output_damage_blocks"
+      },
+      {
+        "thread": 2,
+        "start": 173018,
+        "end": 173018,
+        "duration": 0,
+        "label": "render.encoding"
+      },
+      {
+        "thread": 2,
+        "start": 173019,
+        "end": 173037,
+        "duration": 18,
+        "label": "render.submit"
+      },
+      {
+        "thread": 2,
+        "start": 173038,
+        "end": 174845,
+        "duration": 1807,
+        "label": "style.effects_encode_submit"
+      },
+      {
+        "thread": 2,
+        "start": 173122,
+        "end": 173273,
+        "duration": 151,
+        "label": "effects.submit"
+      },
+      {
+        "thread": 2,
+        "start": 173741,
+        "end": 174843,
+        "duration": 1102,
+        "label": "effects.submit"
+      },
+      {
+        "thread": 2,
+        "start": 174846,
+        "end": 174856,
+        "duration": 10,
+        "label": "style.key"
+      },
+      {
+        "thread": 2,
+        "start": 174846,
+        "end": 176228,
+        "duration": 1382,
+        "label": "style.layer"
+      },
+      {
+        "thread": 2,
+        "start": 174858,
+        "end": 174860,
+        "duration": 2,
+        "label": "render.reset_program_region"
+      },
+      {
+        "thread": 2,
+        "start": 174858,
+        "end": 174898,
+        "duration": 40,
+        "label": "render_region"
+      },
+      {
+        "thread": 2,
+        "start": 174858,
+        "end": 174898,
+        "duration": 40,
+        "label": "style.source_render"
+      },
+      {
+        "thread": 2,
+        "start": 174860,
+        "end": 174860,
+        "duration": 0,
+        "label": "render.styles"
+      },
+      {
+        "thread": 2,
+        "start": 174860,
+        "end": 174867,
+        "duration": 7,
+        "label": "render.aux_resolve"
+      },
+      {
+        "thread": 2,
+        "start": 174867,
+        "end": 174868,
+        "duration": 1,
+        "label": "render.materialize"
+      },
+      {
+        "thread": 2,
+        "start": 174868,
+        "end": 174878,
+        "duration": 10,
+        "label": "render.output_damage_blocks"
+      },
+      {
+        "thread": 2,
+        "start": 174878,
+        "end": 174878,
+        "duration": 0,
+        "label": "render.encoding"
+      },
+      {
+        "thread": 2,
+        "start": 174878,
+        "end": 174897,
+        "duration": 19,
+        "label": "render.submit"
+      },
+      {
+        "thread": 2,
+        "start": 174898,
+        "end": 176226,
+        "duration": 1328,
+        "label": "style.effects_encode_submit"
+      },
+      {
+        "thread": 2,
+        "start": 175260,
+        "end": 175394,
+        "duration": 134,
+        "label": "effects.submit"
+      },
+      {
+        "thread": 2,
+        "start": 175669,
+        "end": 176226,
+        "duration": 557,
+        "label": "effects.submit"
+      },
+      {
+        "thread": 2,
+        "start": 176228,
+        "end": 176239,
+        "duration": 11,
+        "label": "style.key"
+      },
+      {
+        "thread": 2,
+        "start": 176228,
+        "end": 178758,
+        "duration": 2530,
+        "label": "style.layer"
+      },
+      {
+        "thread": 2,
+        "start": 176241,
+        "end": 176242,
+        "duration": 1,
+        "label": "render.reset_program_region"
+      },
+      {
+        "thread": 2,
+        "start": 176241,
+        "end": 176283,
+        "duration": 42,
+        "label": "render_region"
+      },
+      {
+        "thread": 2,
+        "start": 176241,
+        "end": 176283,
+        "duration": 42,
+        "label": "style.source_render"
+      },
+      {
+        "thread": 2,
+        "start": 176242,
+        "end": 176243,
+        "duration": 1,
+        "label": "render.styles"
+      },
+      {
+        "thread": 2,
+        "start": 176243,
+        "end": 176250,
+        "duration": 7,
+        "label": "render.aux_resolve"
+      },
+      {
+        "thread": 2,
+        "start": 176250,
+        "end": 176251,
+        "duration": 1,
+        "label": "render.materialize"
+      },
+      {
+        "thread": 2,
+        "start": 176252,
+        "end": 176261,
+        "duration": 9,
+        "label": "render.output_damage_blocks"
+      },
+      {
+        "thread": 2,
+        "start": 176261,
+        "end": 176261,
+        "duration": 0,
+        "label": "render.encoding"
+      },
+      {
+        "thread": 2,
+        "start": 176261,
+        "end": 176282,
+        "duration": 21,
+        "label": "render.submit"
+      },
+      {
+        "thread": 2,
+        "start": 176284,
+        "end": 178755,
+        "duration": 2471,
+        "label": "style.effects_encode_submit"
+      },
+      {
+        "thread": 2,
+        "start": 176383,
+        "end": 176535,
+        "duration": 152,
+        "label": "effects.submit"
+      },
+      {
+        "thread": 2,
+        "start": 176680,
+        "end": 178753,
+        "duration": 2073,
+        "label": "effects.submit"
+      },
+      {
+        "thread": 2,
+        "start": 179026,
+        "end": 179027,
+        "duration": 1,
+        "label": "render.aux_resolve"
+      },
+      {
+        "thread": 2,
+        "start": 179027,
+        "end": 179029,
+        "duration": 2,
+        "label": "render.materialize"
+      },
+      {
+        "thread": 2,
+        "start": 179029,
+        "end": 179131,
+        "duration": 102,
+        "label": "render.output_damage_blocks"
+      },
+      {
+        "thread": 2,
+        "start": 179133,
+        "end": 179172,
+        "duration": 39,
+        "label": "render.specialization_request"
+      },
+      {
+        "thread": 2,
+        "start": 179133,
+        "end": 179586,
+        "duration": 453,
+        "label": "render.encoding"
+      },
+      {
+        "thread": 20,
+        "start": 179195,
+        "end": 188691,
+        "duration": 9496,
+        "label": "specialization.worker"
+      },
+      {
+        "thread": 20,
+        "start": 179436,
+        "end": 179447,
+        "duration": 11,
+        "label": "pipeline.layout"
+      },
+      {
+        "thread": 20,
+        "start": 179436,
+        "end": 188685,
+        "duration": 9249,
+        "label": "specialized resident structure"
+      },
+      {
+        "thread": 20,
+        "start": 179447,
+        "end": 187680,
+        "duration": 8233,
+        "label": "pipeline.translate"
+      },
+      {
+        "thread": 2,
+        "start": 179586,
+        "end": 179776,
+        "duration": 190,
+        "label": "render.submit"
+      },
+      {
+        "thread": 2,
+        "start": 179790,
+        "end": 197072,
+        "duration": 17282,
+        "label": "render.final_wait"
+      },
+      {
+        "thread": 20,
+        "start": 187682,
+        "end": 188467,
+        "duration": 785,
+        "label": "pipeline.module"
+      },
+      {
+        "thread": 20,
+        "start": 188467,
+        "end": 188683,
+        "duration": 216,
+        "label": "pipeline.create_compute"
+      },
+      {
+        "thread": 2,
+        "start": 373479,
+        "end": 373484,
+        "duration": 5,
+        "label": "render.reset_program_region"
+      },
+      {
+        "thread": 2,
+        "start": 373479,
+        "end": 373743,
+        "duration": 264,
+        "label": "render_region"
+      },
+      {
+        "thread": 2,
+        "start": 373485,
+        "end": 373496,
+        "duration": 11,
+        "label": "style.key"
+      },
+      {
+        "thread": 2,
+        "start": 373485,
+        "end": 373499,
+        "duration": 14,
+        "label": "style.layer"
+      },
+      {
+        "thread": 2,
+        "start": 373485,
+        "end": 373526,
+        "duration": 41,
+        "label": "render.styles"
+      },
+      {
+        "thread": 2,
+        "start": 373499,
+        "end": 373505,
+        "duration": 6,
+        "label": "style.key"
+      },
+      {
+        "thread": 2,
+        "start": 373499,
+        "end": 373506,
+        "duration": 7,
+        "label": "style.layer"
+      },
+      {
+        "thread": 2,
+        "start": 373506,
+        "end": 373512,
+        "duration": 6,
+        "label": "style.key"
+      },
+      {
+        "thread": 2,
+        "start": 373506,
+        "end": 373512,
+        "duration": 6,
+        "label": "style.layer"
+      },
+      {
+        "thread": 2,
+        "start": 373512,
+        "end": 373517,
+        "duration": 5,
+        "label": "style.key"
+      },
+      {
+        "thread": 2,
+        "start": 373512,
+        "end": 373518,
+        "duration": 6,
+        "label": "style.layer"
+      },
+      {
+        "thread": 2,
+        "start": 373518,
+        "end": 373524,
+        "duration": 6,
+        "label": "style.key"
+      },
+      {
+        "thread": 2,
+        "start": 373518,
+        "end": 373524,
+        "duration": 6,
+        "label": "style.layer"
+      },
+      {
+        "thread": 2,
+        "start": 373526,
+        "end": 373527,
+        "duration": 1,
+        "label": "render.aux_resolve"
+      },
+      {
+        "thread": 2,
+        "start": 373527,
+        "end": 373529,
+        "duration": 2,
+        "label": "render.materialize"
+      },
+      {
+        "thread": 2,
+        "start": 373530,
+        "end": 373554,
+        "duration": 24,
+        "label": "render.output_damage_blocks"
+      },
+      {
+        "thread": 2,
+        "start": 373554,
+        "end": 373557,
+        "duration": 3,
+        "label": "render.specialization_request"
+      },
+      {
+        "thread": 2,
+        "start": 373554,
+        "end": 373662,
+        "duration": 108,
+        "label": "render.encoding"
+      },
+      {
+        "thread": 2,
+        "start": 373662,
+        "end": 373739,
+        "duration": 77,
+        "label": "render.submit"
+      },
+      {
+        "thread": 2,
+        "start": 373744,
+        "end": 378191,
+        "duration": 4447,
+        "label": "render.final_wait"
+      }
+    ]
+  },
+  "unique": {
+    "cold": {
+      "thread": 2,
+      "start": 101181,
+      "end": 143962,
+      "duration": 42781,
+      "label": "MEASURED_COLD"
+    },
+    "cold_events": [
+      {
+        "thread": 2,
+        "start": 101181,
+        "end": 143962,
+        "duration": 42781,
+        "label": "MEASURED_COLD"
+      },
+      {
+        "thread": 2,
+        "start": 101183,
+        "end": 101193,
+        "duration": 10,
+        "label": "render.reset_program_region"
+      },
+      {
+        "thread": 2,
+        "start": 101183,
+        "end": 115311,
+        "duration": 14128,
+        "label": "render_region"
+      },
+      {
+        "thread": 2,
+        "start": 101193,
+        "end": 114823,
+        "duration": 13630,
+        "label": "render.styles"
+      },
+      {
+        "thread": 2,
+        "start": 101195,
+        "end": 101206,
+        "duration": 11,
+        "label": "style.key"
+      },
+      {
+        "thread": 2,
+        "start": 101195,
+        "end": 109801,
+        "duration": 8606,
+        "label": "style.layer"
+      },
+      {
+        "thread": 2,
+        "start": 101213,
+        "end": 101284,
+        "duration": 71,
+        "label": "style.child_construct"
+      },
+      {
+        "thread": 2,
+        "start": 101284,
+        "end": 101285,
+        "duration": 1,
+        "label": "render.reset_program_region"
+      },
+      {
+        "thread": 2,
+        "start": 101284,
+        "end": 106595,
+        "duration": 5311,
+        "label": "render_region"
+      },
+      {
+        "thread": 2,
+        "start": 101284,
+        "end": 106596,
+        "duration": 5312,
+        "label": "style.source_render"
+      },
+      {
+        "thread": 2,
+        "start": 101285,
+        "end": 101286,
+        "duration": 1,
+        "label": "render.styles"
+      },
+      {
+        "thread": 2,
+        "start": 101286,
+        "end": 101305,
+        "duration": 19,
+        "label": "render.aux_resolve"
+      },
+      {
+        "thread": 2,
+        "start": 101305,
+        "end": 106043,
+        "duration": 4738,
+        "label": "render.materialize"
+      },
+      {
+        "thread": 2,
+        "start": 106044,
+        "end": 106143,
+        "duration": 99,
+        "label": "render.output_damage_blocks"
+      },
+      {
+        "thread": 2,
+        "start": 106143,
+        "end": 106171,
+        "duration": 28,
+        "label": "render.specialization_request"
+      },
+      {
+        "thread": 2,
+        "start": 106143,
+        "end": 106218,
+        "duration": 75,
+        "label": "render.encoding"
+      },
+      {
+        "thread": 19,
+        "start": 106184,
+        "end": 110296,
+        "duration": 4112,
+        "label": "specialization.worker"
+      },
+      {
+        "thread": 2,
+        "start": 106218,
+        "end": 106590,
+        "duration": 372,
+        "label": "render.submit"
+      },
+      {
+        "thread": 19,
+        "start": 106271,
+        "end": 106278,
+        "duration": 7,
+        "label": "pipeline.layout"
+      },
+      {
+        "thread": 19,
+        "start": 106271,
+        "end": 110292,
+        "duration": 4021,
+        "label": "specialized resident structure"
+      },
+      {
+        "thread": 19,
+        "start": 106278,
+        "end": 110149,
+        "duration": 3871,
+        "label": "pipeline.translate"
+      },
+      {
+        "thread": 2,
+        "start": 106597,
+        "end": 108022,
+        "duration": 1425,
+        "label": "style.convert"
+      },
+      {
+        "thread": 2,
+        "start": 106599,
+        "end": 106604,
+        "duration": 5,
+        "label": "pipeline.layout"
+      },
+      {
+        "thread": 2,
+        "start": 106599,
+        "end": 107707,
+        "duration": 1108,
+        "label": "smart filter plumbing"
+      },
+      {
+        "thread": 2,
+        "start": 106604,
+        "end": 107522,
+        "duration": 918,
+        "label": "pipeline.translate"
+      },
+      {
+        "thread": 2,
+        "start": 107523,
+        "end": 107594,
+        "duration": 71,
+        "label": "pipeline.module"
+      },
+      {
+        "thread": 2,
+        "start": 107594,
+        "end": 107706,
+        "duration": 112,
+        "label": "pipeline.create_compute"
+      },
+      {
+        "thread": 2,
+        "start": 108022,
+        "end": 108832,
+        "duration": 810,
+        "label": "style.pipeline_init"
+      },
+      {
+        "thread": 2,
+        "start": 108023,
+        "end": 108027,
+        "duration": 4,
+        "label": "pipeline.layout"
+      },
+      {
+        "thread": 2,
+        "start": 108023,
+        "end": 108831,
+        "duration": 808,
+        "label": "resident layer effects"
+      },
+      {
+        "thread": 2,
+        "start": 108027,
+        "end": 108728,
+        "duration": 701,
+        "label": "pipeline.translate"
+      },
+      {
+        "thread": 2,
+        "start": 108728,
+        "end": 108766,
+        "duration": 38,
+        "label": "pipeline.module"
+      },
+      {
+        "thread": 2,
+        "start": 108766,
+        "end": 108831,
+        "duration": 65,
+        "label": "pipeline.create_compute"
+      },
+      {
+        "thread": 2,
+        "start": 108832,
+        "end": 109797,
+        "duration": 965,
+        "label": "style.effects_encode_submit"
+      },
+      {
+        "thread": 2,
+        "start": 108933,
+        "end": 109096,
+        "duration": 163,
+        "label": "effects.submit"
+      },
+      {
+        "thread": 2,
+        "start": 109220,
+        "end": 109795,
+        "duration": 575,
+        "label": "effects.submit"
+      },
+      {
+        "thread": 2,
+        "start": 109801,
+        "end": 109814,
+        "duration": 13,
+        "label": "style.key"
+      },
+      {
+        "thread": 2,
+        "start": 109801,
+        "end": 110667,
+        "duration": 866,
+        "label": "style.layer"
+      },
+      {
+        "thread": 2,
+        "start": 109818,
+        "end": 109821,
+        "duration": 3,
+        "label": "render.reset_program_region"
+      },
+      {
+        "thread": 2,
+        "start": 109818,
+        "end": 109869,
+        "duration": 51,
+        "label": "render_region"
+      },
+      {
+        "thread": 2,
+        "start": 109818,
+        "end": 109869,
+        "duration": 51,
+        "label": "style.source_render"
+      },
+      {
+        "thread": 2,
+        "start": 109821,
+        "end": 109821,
+        "duration": 0,
+        "label": "render.styles"
+      },
+      {
+        "thread": 2,
+        "start": 109821,
+        "end": 109833,
+        "duration": 12,
+        "label": "render.aux_resolve"
+      },
+      {
+        "thread": 2,
+        "start": 109833,
+        "end": 109834,
+        "duration": 1,
+        "label": "render.materialize"
+      },
+      {
+        "thread": 2,
+        "start": 109834,
+        "end": 109847,
+        "duration": 13,
+        "label": "render.output_damage_blocks"
+      },
+      {
+        "thread": 2,
+        "start": 109847,
+        "end": 109847,
+        "duration": 0,
+        "label": "render.encoding"
+      },
+      {
+        "thread": 2,
+        "start": 109847,
+        "end": 109867,
+        "duration": 20,
+        "label": "render.submit"
+      },
+      {
+        "thread": 2,
+        "start": 109869,
+        "end": 110665,
+        "duration": 796,
+        "label": "style.effects_encode_submit"
+      },
+      {
+        "thread": 2,
+        "start": 110016,
+        "end": 110158,
+        "duration": 142,
+        "label": "effects.submit"
+      },
+      {
+        "thread": 19,
+        "start": 110149,
+        "end": 110225,
+        "duration": 76,
+        "label": "pipeline.module"
+      },
+      {
+        "thread": 19,
+        "start": 110225,
+        "end": 110291,
+        "duration": 66,
+        "label": "pipeline.create_compute"
+      },
+      {
+        "thread": 2,
+        "start": 110277,
+        "end": 110664,
+        "duration": 387,
+        "label": "effects.submit"
+      },
+      {
+        "thread": 2,
+        "start": 110667,
+        "end": 110678,
+        "duration": 11,
+        "label": "style.key"
+      },
+      {
+        "thread": 2,
+        "start": 110667,
+        "end": 112808,
+        "duration": 2141,
+        "label": "style.layer"
+      },
+      {
+        "thread": 2,
+        "start": 110681,
+        "end": 110682,
+        "duration": 1,
+        "label": "render.reset_program_region"
+      },
+      {
+        "thread": 2,
+        "start": 110681,
+        "end": 110753,
+        "duration": 72,
+        "label": "render_region"
+      },
+      {
+        "thread": 2,
+        "start": 110681,
+        "end": 110753,
+        "duration": 72,
+        "label": "style.source_render"
+      },
+      {
+        "thread": 2,
+        "start": 110682,
+        "end": 110683,
+        "duration": 1,
+        "label": "render.styles"
+      },
+      {
+        "thread": 2,
+        "start": 110683,
+        "end": 110703,
+        "duration": 20,
+        "label": "render.aux_resolve"
+      },
+      {
+        "thread": 2,
+        "start": 110704,
+        "end": 110707,
+        "duration": 3,
+        "label": "render.materialize"
+      },
+      {
+        "thread": 2,
+        "start": 110707,
+        "end": 110718,
+        "duration": 11,
+        "label": "render.output_damage_blocks"
+      },
+      {
+        "thread": 2,
+        "start": 110718,
+        "end": 110718,
+        "duration": 0,
+        "label": "render.encoding"
+      },
+      {
+        "thread": 2,
+        "start": 110718,
+        "end": 110752,
+        "duration": 34,
+        "label": "render.submit"
+      },
+      {
+        "thread": 2,
+        "start": 110753,
+        "end": 112804,
+        "duration": 2051,
+        "label": "style.effects_encode_submit"
+      },
+      {
+        "thread": 2,
+        "start": 110854,
+        "end": 111000,
+        "duration": 146,
+        "label": "effects.submit"
+      },
+      {
+        "thread": 2,
+        "start": 111239,
+        "end": 112802,
+        "duration": 1563,
+        "label": "effects.submit"
+      },
+      {
+        "thread": 2,
+        "start": 112808,
+        "end": 112824,
+        "duration": 16,
+        "label": "style.key"
+      },
+      {
+        "thread": 2,
+        "start": 112808,
+        "end": 113603,
+        "duration": 795,
+        "label": "style.layer"
+      },
+      {
+        "thread": 2,
+        "start": 112831,
+        "end": 112836,
+        "duration": 5,
+        "label": "render.reset_program_region"
+      },
+      {
+        "thread": 2,
+        "start": 112831,
+        "end": 112928,
+        "duration": 97,
+        "label": "render_region"
+      },
+      {
+        "thread": 2,
+        "start": 112831,
+        "end": 112928,
+        "duration": 97,
+        "label": "style.source_render"
+      },
+      {
+        "thread": 2,
+        "start": 112836,
+        "end": 112839,
+        "duration": 3,
+        "label": "render.styles"
+      },
+      {
+        "thread": 2,
+        "start": 112839,
+        "end": 112860,
+        "duration": 21,
+        "label": "render.aux_resolve"
+      },
+      {
+        "thread": 2,
+        "start": 112860,
+        "end": 112866,
+        "duration": 6,
+        "label": "render.materialize"
+      },
+      {
+        "thread": 2,
+        "start": 112866,
+        "end": 112891,
+        "duration": 25,
+        "label": "render.output_damage_blocks"
+      },
+      {
+        "thread": 2,
+        "start": 112891,
+        "end": 112891,
+        "duration": 0,
+        "label": "render.encoding"
+      },
+      {
+        "thread": 2,
+        "start": 112891,
+        "end": 112926,
+        "duration": 35,
+        "label": "render.submit"
+      },
+      {
+        "thread": 2,
+        "start": 112929,
+        "end": 113600,
+        "duration": 671,
+        "label": "style.effects_encode_submit"
+      },
+      {
+        "thread": 2,
+        "start": 113115,
+        "end": 113203,
+        "duration": 88,
+        "label": "effects.submit"
+      },
+      {
+        "thread": 2,
+        "start": 113324,
+        "end": 113599,
+        "duration": 275,
+        "label": "effects.submit"
+      },
+      {
+        "thread": 2,
+        "start": 113603,
+        "end": 113616,
+        "duration": 13,
+        "label": "style.key"
+      },
+      {
+        "thread": 2,
+        "start": 113603,
+        "end": 114775,
+        "duration": 1172,
+        "label": "style.layer"
+      },
+      {
+        "thread": 2,
+        "start": 113619,
+        "end": 113621,
+        "duration": 2,
+        "label": "render.reset_program_region"
+      },
+      {
+        "thread": 2,
+        "start": 113619,
+        "end": 113656,
+        "duration": 37,
+        "label": "render_region"
+      },
+      {
+        "thread": 2,
+        "start": 113619,
+        "end": 113656,
+        "duration": 37,
+        "label": "style.source_render"
+      },
+      {
+        "thread": 2,
+        "start": 113621,
+        "end": 113621,
+        "duration": 0,
+        "label": "render.styles"
+      },
+      {
+        "thread": 2,
+        "start": 113621,
+        "end": 113630,
+        "duration": 9,
+        "label": "render.aux_resolve"
+      },
+      {
+        "thread": 2,
+        "start": 113630,
+        "end": 113631,
+        "duration": 1,
+        "label": "render.materialize"
+      },
+      {
+        "thread": 2,
+        "start": 113631,
+        "end": 113639,
+        "duration": 8,
+        "label": "render.output_damage_blocks"
+      },
+      {
+        "thread": 2,
+        "start": 113639,
+        "end": 113639,
+        "duration": 0,
+        "label": "render.encoding"
+      },
+      {
+        "thread": 2,
+        "start": 113639,
+        "end": 113655,
+        "duration": 16,
+        "label": "render.submit"
+      },
+      {
+        "thread": 2,
+        "start": 113656,
+        "end": 114773,
+        "duration": 1117,
+        "label": "style.effects_encode_submit"
+      },
+      {
+        "thread": 2,
+        "start": 113747,
+        "end": 113821,
+        "duration": 74,
+        "label": "effects.submit"
+      },
+      {
+        "thread": 2,
+        "start": 114235,
+        "end": 114773,
+        "duration": 538,
+        "label": "effects.submit"
+      },
+      {
+        "thread": 2,
+        "start": 114823,
+        "end": 114823,
+        "duration": 0,
+        "label": "render.aux_resolve"
+      },
+      {
+        "thread": 2,
+        "start": 114823,
+        "end": 114824,
+        "duration": 1,
+        "label": "render.materialize"
+      },
+      {
+        "thread": 2,
+        "start": 114824,
+        "end": 114848,
+        "duration": 24,
+        "label": "render.output_damage_blocks"
+      },
+      {
+        "thread": 2,
+        "start": 114848,
+        "end": 114872,
+        "duration": 24,
+        "label": "render.specialization_request"
+      },
+      {
+        "thread": 2,
+        "start": 114848,
+        "end": 115061,
+        "duration": 213,
+        "label": "render.encoding"
+      },
+      {
+        "thread": 20,
+        "start": 114889,
+        "end": 120420,
+        "duration": 5531,
+        "label": "specialization.worker"
+      },
+      {
+        "thread": 20,
+        "start": 115007,
+        "end": 115014,
+        "duration": 7,
+        "label": "pipeline.layout"
+      },
+      {
+        "thread": 20,
+        "start": 115007,
+        "end": 120418,
+        "duration": 5411,
+        "label": "specialized resident structure"
+      },
+      {
+        "thread": 20,
+        "start": 115015,
+        "end": 120187,
+        "duration": 5172,
+        "label": "pipeline.translate"
+      },
+      {
+        "thread": 2,
+        "start": 115061,
+        "end": 115306,
+        "duration": 245,
+        "label": "render.submit"
+      },
+      {
+        "thread": 2,
+        "start": 115311,
+        "end": 143961,
+        "duration": 28650,
+        "label": "render.final_wait"
+      },
+      {
+        "thread": 20,
+        "start": 120188,
+        "end": 120317,
+        "duration": 129,
+        "label": "pipeline.module"
+      },
+      {
+        "thread": 20,
+        "start": 120317,
+        "end": 120417,
+        "duration": 100,
+        "label": "pipeline.create_compute"
+      }
+    ],
+    "worker_overlap": [
+      {
+        "thread": 19,
+        "start": 106184,
+        "end": 110296,
+        "duration": 4112,
+        "label": "specialization.worker"
+      },
+      {
+        "thread": 19,
+        "start": 106271,
+        "end": 106278,
+        "duration": 7,
+        "label": "pipeline.layout"
+      },
+      {
+        "thread": 19,
+        "start": 106271,
+        "end": 110292,
+        "duration": 4021,
+        "label": "specialized resident structure"
+      },
+      {
+        "thread": 19,
+        "start": 106278,
+        "end": 110149,
+        "duration": 3871,
+        "label": "pipeline.translate"
+      },
+      {
+        "thread": 19,
+        "start": 110149,
+        "end": 110225,
+        "duration": 76,
+        "label": "pipeline.module"
+      },
+      {
+        "thread": 19,
+        "start": 110225,
+        "end": 110291,
+        "duration": 66,
+        "label": "pipeline.create_compute"
+      },
+      {
+        "thread": 20,
+        "start": 114889,
+        "end": 120420,
+        "duration": 5531,
+        "label": "specialization.worker"
+      },
+      {
+        "thread": 20,
+        "start": 115007,
+        "end": 115014,
+        "duration": 7,
+        "label": "pipeline.layout"
+      },
+      {
+        "thread": 20,
+        "start": 115007,
+        "end": 120418,
+        "duration": 5411,
+        "label": "specialized resident structure"
+      },
+      {
+        "thread": 20,
+        "start": 115015,
+        "end": 120187,
+        "duration": 5172,
+        "label": "pipeline.translate"
+      },
+      {
+        "thread": 20,
+        "start": 120188,
+        "end": 120317,
+        "duration": 129,
+        "label": "pipeline.module"
+      },
+      {
+        "thread": 20,
+        "start": 120317,
+        "end": 120417,
+        "duration": 100,
+        "label": "pipeline.create_compute"
+      }
+    ],
+    "all_events": [
+      {
+        "thread": 2,
+        "start": 0,
+        "end": 17,
+        "duration": 17,
+        "label": "pipeline.layout"
+      },
+      {
+        "thread": 2,
+        "start": 0,
+        "end": 969,
+        "duration": 969,
+        "label": "composite"
+      },
+      {
+        "thread": 2,
+        "start": 18,
+        "end": 862,
+        "duration": 844,
+        "label": "pipeline.translate"
+      },
+      {
+        "thread": 2,
+        "start": 862,
+        "end": 909,
+        "duration": 47,
+        "label": "pipeline.module"
+      },
+      {
+        "thread": 2,
+        "start": 909,
+        "end": 968,
+        "duration": 59,
+        "label": "pipeline.create_compute"
+      },
+      {
+        "thread": 2,
+        "start": 5242,
+        "end": 9388,
+        "duration": 4146,
+        "label": "resident document"
+      },
+      {
+        "thread": 2,
+        "start": 5243,
+        "end": 5255,
+        "duration": 12,
+        "label": "pipeline.layout"
+      },
+      {
+        "thread": 2,
+        "start": 5255,
+        "end": 9022,
+        "duration": 3767,
+        "label": "pipeline.translate"
+      },
+      {
+        "thread": 2,
+        "start": 9023,
+        "end": 9170,
+        "duration": 147,
+        "label": "pipeline.module"
+      },
+      {
+        "thread": 2,
+        "start": 9170,
+        "end": 9386,
+        "duration": 216,
+        "label": "pipeline.create_compute"
+      },
+      {
+        "thread": 2,
+        "start": 9393,
+        "end": 9402,
+        "duration": 9,
+        "label": "pipeline.layout"
+      },
+      {
+        "thread": 2,
+        "start": 9393,
+        "end": 10160,
+        "duration": 767,
+        "label": "resident mip"
+      },
+      {
+        "thread": 2,
+        "start": 9402,
+        "end": 10061,
+        "duration": 659,
+        "label": "pipeline.translate"
+      },
+      {
+        "thread": 2,
+        "start": 10061,
+        "end": 10096,
+        "duration": 35,
+        "label": "pipeline.module"
+      },
+      {
+        "thread": 2,
+        "start": 10096,
+        "end": 10160,
+        "duration": 64,
+        "label": "pipeline.create_compute"
+      },
+      {
+        "thread": 2,
+        "start": 10321,
+        "end": 10325,
+        "duration": 4,
+        "label": "pipeline.layout"
+      },
+      {
+        "thread": 2,
+        "start": 10321,
+        "end": 10539,
+        "duration": 218,
+        "label": "resident bilateral"
+      },
+      {
+        "thread": 2,
+        "start": 10325,
+        "end": 10491,
+        "duration": 166,
+        "label": "pipeline.translate"
+      },
+      {
+        "thread": 2,
+        "start": 10492,
+        "end": 10506,
+        "duration": 14,
+        "label": "pipeline.module"
+      },
+      {
+        "thread": 2,
+        "start": 10506,
+        "end": 10539,
+        "duration": 33,
+        "label": "pipeline.create_compute"
+      },
+      {
+        "thread": 2,
+        "start": 101181,
+        "end": 143962,
+        "duration": 42781,
+        "label": "MEASURED_COLD"
+      },
+      {
+        "thread": 2,
+        "start": 101183,
+        "end": 101193,
+        "duration": 10,
+        "label": "render.reset_program_region"
+      },
+      {
+        "thread": 2,
+        "start": 101183,
+        "end": 115311,
+        "duration": 14128,
+        "label": "render_region"
+      },
+      {
+        "thread": 2,
+        "start": 101193,
+        "end": 114823,
+        "duration": 13630,
+        "label": "render.styles"
+      },
+      {
+        "thread": 2,
+        "start": 101195,
+        "end": 101206,
+        "duration": 11,
+        "label": "style.key"
+      },
+      {
+        "thread": 2,
+        "start": 101195,
+        "end": 109801,
+        "duration": 8606,
+        "label": "style.layer"
+      },
+      {
+        "thread": 2,
+        "start": 101213,
+        "end": 101284,
+        "duration": 71,
+        "label": "style.child_construct"
+      },
+      {
+        "thread": 2,
+        "start": 101284,
+        "end": 101285,
+        "duration": 1,
+        "label": "render.reset_program_region"
+      },
+      {
+        "thread": 2,
+        "start": 101284,
+        "end": 106595,
+        "duration": 5311,
+        "label": "render_region"
+      },
+      {
+        "thread": 2,
+        "start": 101284,
+        "end": 106596,
+        "duration": 5312,
+        "label": "style.source_render"
+      },
+      {
+        "thread": 2,
+        "start": 101285,
+        "end": 101286,
+        "duration": 1,
+        "label": "render.styles"
+      },
+      {
+        "thread": 2,
+        "start": 101286,
+        "end": 101305,
+        "duration": 19,
+        "label": "render.aux_resolve"
+      },
+      {
+        "thread": 2,
+        "start": 101305,
+        "end": 106043,
+        "duration": 4738,
+        "label": "render.materialize"
+      },
+      {
+        "thread": 2,
+        "start": 106044,
+        "end": 106143,
+        "duration": 99,
+        "label": "render.output_damage_blocks"
+      },
+      {
+        "thread": 2,
+        "start": 106143,
+        "end": 106171,
+        "duration": 28,
+        "label": "render.specialization_request"
+      },
+      {
+        "thread": 2,
+        "start": 106143,
+        "end": 106218,
+        "duration": 75,
+        "label": "render.encoding"
+      },
+      {
+        "thread": 19,
+        "start": 106184,
+        "end": 110296,
+        "duration": 4112,
+        "label": "specialization.worker"
+      },
+      {
+        "thread": 2,
+        "start": 106218,
+        "end": 106590,
+        "duration": 372,
+        "label": "render.submit"
+      },
+      {
+        "thread": 19,
+        "start": 106271,
+        "end": 106278,
+        "duration": 7,
+        "label": "pipeline.layout"
+      },
+      {
+        "thread": 19,
+        "start": 106271,
+        "end": 110292,
+        "duration": 4021,
+        "label": "specialized resident structure"
+      },
+      {
+        "thread": 19,
+        "start": 106278,
+        "end": 110149,
+        "duration": 3871,
+        "label": "pipeline.translate"
+      },
+      {
+        "thread": 2,
+        "start": 106597,
+        "end": 108022,
+        "duration": 1425,
+        "label": "style.convert"
+      },
+      {
+        "thread": 2,
+        "start": 106599,
+        "end": 106604,
+        "duration": 5,
+        "label": "pipeline.layout"
+      },
+      {
+        "thread": 2,
+        "start": 106599,
+        "end": 107707,
+        "duration": 1108,
+        "label": "smart filter plumbing"
+      },
+      {
+        "thread": 2,
+        "start": 106604,
+        "end": 107522,
+        "duration": 918,
+        "label": "pipeline.translate"
+      },
+      {
+        "thread": 2,
+        "start": 107523,
+        "end": 107594,
+        "duration": 71,
+        "label": "pipeline.module"
+      },
+      {
+        "thread": 2,
+        "start": 107594,
+        "end": 107706,
+        "duration": 112,
+        "label": "pipeline.create_compute"
+      },
+      {
+        "thread": 2,
+        "start": 108022,
+        "end": 108832,
+        "duration": 810,
+        "label": "style.pipeline_init"
+      },
+      {
+        "thread": 2,
+        "start": 108023,
+        "end": 108027,
+        "duration": 4,
+        "label": "pipeline.layout"
+      },
+      {
+        "thread": 2,
+        "start": 108023,
+        "end": 108831,
+        "duration": 808,
+        "label": "resident layer effects"
+      },
+      {
+        "thread": 2,
+        "start": 108027,
+        "end": 108728,
+        "duration": 701,
+        "label": "pipeline.translate"
+      },
+      {
+        "thread": 2,
+        "start": 108728,
+        "end": 108766,
+        "duration": 38,
+        "label": "pipeline.module"
+      },
+      {
+        "thread": 2,
+        "start": 108766,
+        "end": 108831,
+        "duration": 65,
+        "label": "pipeline.create_compute"
+      },
+      {
+        "thread": 2,
+        "start": 108832,
+        "end": 109797,
+        "duration": 965,
+        "label": "style.effects_encode_submit"
+      },
+      {
+        "thread": 2,
+        "start": 108933,
+        "end": 109096,
+        "duration": 163,
+        "label": "effects.submit"
+      },
+      {
+        "thread": 2,
+        "start": 109220,
+        "end": 109795,
+        "duration": 575,
+        "label": "effects.submit"
+      },
+      {
+        "thread": 2,
+        "start": 109801,
+        "end": 109814,
+        "duration": 13,
+        "label": "style.key"
+      },
+      {
+        "thread": 2,
+        "start": 109801,
+        "end": 110667,
+        "duration": 866,
+        "label": "style.layer"
+      },
+      {
+        "thread": 2,
+        "start": 109818,
+        "end": 109821,
+        "duration": 3,
+        "label": "render.reset_program_region"
+      },
+      {
+        "thread": 2,
+        "start": 109818,
+        "end": 109869,
+        "duration": 51,
+        "label": "render_region"
+      },
+      {
+        "thread": 2,
+        "start": 109818,
+        "end": 109869,
+        "duration": 51,
+        "label": "style.source_render"
+      },
+      {
+        "thread": 2,
+        "start": 109821,
+        "end": 109821,
+        "duration": 0,
+        "label": "render.styles"
+      },
+      {
+        "thread": 2,
+        "start": 109821,
+        "end": 109833,
+        "duration": 12,
+        "label": "render.aux_resolve"
+      },
+      {
+        "thread": 2,
+        "start": 109833,
+        "end": 109834,
+        "duration": 1,
+        "label": "render.materialize"
+      },
+      {
+        "thread": 2,
+        "start": 109834,
+        "end": 109847,
+        "duration": 13,
+        "label": "render.output_damage_blocks"
+      },
+      {
+        "thread": 2,
+        "start": 109847,
+        "end": 109847,
+        "duration": 0,
+        "label": "render.encoding"
+      },
+      {
+        "thread": 2,
+        "start": 109847,
+        "end": 109867,
+        "duration": 20,
+        "label": "render.submit"
+      },
+      {
+        "thread": 2,
+        "start": 109869,
+        "end": 110665,
+        "duration": 796,
+        "label": "style.effects_encode_submit"
+      },
+      {
+        "thread": 2,
+        "start": 110016,
+        "end": 110158,
+        "duration": 142,
+        "label": "effects.submit"
+      },
+      {
+        "thread": 19,
+        "start": 110149,
+        "end": 110225,
+        "duration": 76,
+        "label": "pipeline.module"
+      },
+      {
+        "thread": 19,
+        "start": 110225,
+        "end": 110291,
+        "duration": 66,
+        "label": "pipeline.create_compute"
+      },
+      {
+        "thread": 2,
+        "start": 110277,
+        "end": 110664,
+        "duration": 387,
+        "label": "effects.submit"
+      },
+      {
+        "thread": 2,
+        "start": 110667,
+        "end": 110678,
+        "duration": 11,
+        "label": "style.key"
+      },
+      {
+        "thread": 2,
+        "start": 110667,
+        "end": 112808,
+        "duration": 2141,
+        "label": "style.layer"
+      },
+      {
+        "thread": 2,
+        "start": 110681,
+        "end": 110682,
+        "duration": 1,
+        "label": "render.reset_program_region"
+      },
+      {
+        "thread": 2,
+        "start": 110681,
+        "end": 110753,
+        "duration": 72,
+        "label": "render_region"
+      },
+      {
+        "thread": 2,
+        "start": 110681,
+        "end": 110753,
+        "duration": 72,
+        "label": "style.source_render"
+      },
+      {
+        "thread": 2,
+        "start": 110682,
+        "end": 110683,
+        "duration": 1,
+        "label": "render.styles"
+      },
+      {
+        "thread": 2,
+        "start": 110683,
+        "end": 110703,
+        "duration": 20,
+        "label": "render.aux_resolve"
+      },
+      {
+        "thread": 2,
+        "start": 110704,
+        "end": 110707,
+        "duration": 3,
+        "label": "render.materialize"
+      },
+      {
+        "thread": 2,
+        "start": 110707,
+        "end": 110718,
+        "duration": 11,
+        "label": "render.output_damage_blocks"
+      },
+      {
+        "thread": 2,
+        "start": 110718,
+        "end": 110718,
+        "duration": 0,
+        "label": "render.encoding"
+      },
+      {
+        "thread": 2,
+        "start": 110718,
+        "end": 110752,
+        "duration": 34,
+        "label": "render.submit"
+      },
+      {
+        "thread": 2,
+        "start": 110753,
+        "end": 112804,
+        "duration": 2051,
+        "label": "style.effects_encode_submit"
+      },
+      {
+        "thread": 2,
+        "start": 110854,
+        "end": 111000,
+        "duration": 146,
+        "label": "effects.submit"
+      },
+      {
+        "thread": 2,
+        "start": 111239,
+        "end": 112802,
+        "duration": 1563,
+        "label": "effects.submit"
+      },
+      {
+        "thread": 2,
+        "start": 112808,
+        "end": 112824,
+        "duration": 16,
+        "label": "style.key"
+      },
+      {
+        "thread": 2,
+        "start": 112808,
+        "end": 113603,
+        "duration": 795,
+        "label": "style.layer"
+      },
+      {
+        "thread": 2,
+        "start": 112831,
+        "end": 112836,
+        "duration": 5,
+        "label": "render.reset_program_region"
+      },
+      {
+        "thread": 2,
+        "start": 112831,
+        "end": 112928,
+        "duration": 97,
+        "label": "render_region"
+      },
+      {
+        "thread": 2,
+        "start": 112831,
+        "end": 112928,
+        "duration": 97,
+        "label": "style.source_render"
+      },
+      {
+        "thread": 2,
+        "start": 112836,
+        "end": 112839,
+        "duration": 3,
+        "label": "render.styles"
+      },
+      {
+        "thread": 2,
+        "start": 112839,
+        "end": 112860,
+        "duration": 21,
+        "label": "render.aux_resolve"
+      },
+      {
+        "thread": 2,
+        "start": 112860,
+        "end": 112866,
+        "duration": 6,
+        "label": "render.materialize"
+      },
+      {
+        "thread": 2,
+        "start": 112866,
+        "end": 112891,
+        "duration": 25,
+        "label": "render.output_damage_blocks"
+      },
+      {
+        "thread": 2,
+        "start": 112891,
+        "end": 112891,
+        "duration": 0,
+        "label": "render.encoding"
+      },
+      {
+        "thread": 2,
+        "start": 112891,
+        "end": 112926,
+        "duration": 35,
+        "label": "render.submit"
+      },
+      {
+        "thread": 2,
+        "start": 112929,
+        "end": 113600,
+        "duration": 671,
+        "label": "style.effects_encode_submit"
+      },
+      {
+        "thread": 2,
+        "start": 113115,
+        "end": 113203,
+        "duration": 88,
+        "label": "effects.submit"
+      },
+      {
+        "thread": 2,
+        "start": 113324,
+        "end": 113599,
+        "duration": 275,
+        "label": "effects.submit"
+      },
+      {
+        "thread": 2,
+        "start": 113603,
+        "end": 113616,
+        "duration": 13,
+        "label": "style.key"
+      },
+      {
+        "thread": 2,
+        "start": 113603,
+        "end": 114775,
+        "duration": 1172,
+        "label": "style.layer"
+      },
+      {
+        "thread": 2,
+        "start": 113619,
+        "end": 113621,
+        "duration": 2,
+        "label": "render.reset_program_region"
+      },
+      {
+        "thread": 2,
+        "start": 113619,
+        "end": 113656,
+        "duration": 37,
+        "label": "render_region"
+      },
+      {
+        "thread": 2,
+        "start": 113619,
+        "end": 113656,
+        "duration": 37,
+        "label": "style.source_render"
+      },
+      {
+        "thread": 2,
+        "start": 113621,
+        "end": 113621,
+        "duration": 0,
+        "label": "render.styles"
+      },
+      {
+        "thread": 2,
+        "start": 113621,
+        "end": 113630,
+        "duration": 9,
+        "label": "render.aux_resolve"
+      },
+      {
+        "thread": 2,
+        "start": 113630,
+        "end": 113631,
+        "duration": 1,
+        "label": "render.materialize"
+      },
+      {
+        "thread": 2,
+        "start": 113631,
+        "end": 113639,
+        "duration": 8,
+        "label": "render.output_damage_blocks"
+      },
+      {
+        "thread": 2,
+        "start": 113639,
+        "end": 113639,
+        "duration": 0,
+        "label": "render.encoding"
+      },
+      {
+        "thread": 2,
+        "start": 113639,
+        "end": 113655,
+        "duration": 16,
+        "label": "render.submit"
+      },
+      {
+        "thread": 2,
+        "start": 113656,
+        "end": 114773,
+        "duration": 1117,
+        "label": "style.effects_encode_submit"
+      },
+      {
+        "thread": 2,
+        "start": 113747,
+        "end": 113821,
+        "duration": 74,
+        "label": "effects.submit"
+      },
+      {
+        "thread": 2,
+        "start": 114235,
+        "end": 114773,
+        "duration": 538,
+        "label": "effects.submit"
+      },
+      {
+        "thread": 2,
+        "start": 114823,
+        "end": 114823,
+        "duration": 0,
+        "label": "render.aux_resolve"
+      },
+      {
+        "thread": 2,
+        "start": 114823,
+        "end": 114824,
+        "duration": 1,
+        "label": "render.materialize"
+      },
+      {
+        "thread": 2,
+        "start": 114824,
+        "end": 114848,
+        "duration": 24,
+        "label": "render.output_damage_blocks"
+      },
+      {
+        "thread": 2,
+        "start": 114848,
+        "end": 114872,
+        "duration": 24,
+        "label": "render.specialization_request"
+      },
+      {
+        "thread": 2,
+        "start": 114848,
+        "end": 115061,
+        "duration": 213,
+        "label": "render.encoding"
+      },
+      {
+        "thread": 20,
+        "start": 114889,
+        "end": 120420,
+        "duration": 5531,
+        "label": "specialization.worker"
+      },
+      {
+        "thread": 20,
+        "start": 115007,
+        "end": 115014,
+        "duration": 7,
+        "label": "pipeline.layout"
+      },
+      {
+        "thread": 20,
+        "start": 115007,
+        "end": 120418,
+        "duration": 5411,
+        "label": "specialized resident structure"
+      },
+      {
+        "thread": 20,
+        "start": 115015,
+        "end": 120187,
+        "duration": 5172,
+        "label": "pipeline.translate"
+      },
+      {
+        "thread": 2,
+        "start": 115061,
+        "end": 115306,
+        "duration": 245,
+        "label": "render.submit"
+      },
+      {
+        "thread": 2,
+        "start": 115311,
+        "end": 143961,
+        "duration": 28650,
+        "label": "render.final_wait"
+      },
+      {
+        "thread": 20,
+        "start": 120188,
+        "end": 120317,
+        "duration": 129,
+        "label": "pipeline.module"
+      },
+      {
+        "thread": 20,
+        "start": 120317,
+        "end": 120417,
+        "duration": 100,
+        "label": "pipeline.create_compute"
+      },
+      {
+        "thread": 2,
+        "start": 230207,
+        "end": 230525,
+        "duration": 318,
+        "label": "render_region"
+      },
+      {
+        "thread": 2,
+        "start": 230208,
+        "end": 230215,
+        "duration": 7,
+        "label": "render.reset_program_region"
+      },
+      {
+        "thread": 2,
+        "start": 230216,
+        "end": 230229,
+        "duration": 13,
+        "label": "style.key"
+      },
+      {
+        "thread": 2,
+        "start": 230216,
+        "end": 230231,
+        "duration": 15,
+        "label": "style.layer"
+      },
+      {
+        "thread": 2,
+        "start": 230216,
+        "end": 230258,
+        "duration": 42,
+        "label": "render.styles"
+      },
+      {
+        "thread": 2,
+        "start": 230231,
+        "end": 230238,
+        "duration": 7,
+        "label": "style.key"
+      },
+      {
+        "thread": 2,
+        "start": 230231,
+        "end": 230238,
+        "duration": 7,
+        "label": "style.layer"
+      },
+      {
+        "thread": 2,
+        "start": 230238,
+        "end": 230245,
+        "duration": 7,
+        "label": "style.key"
+      },
+      {
+        "thread": 2,
+        "start": 230238,
+        "end": 230245,
+        "duration": 7,
+        "label": "style.layer"
+      },
+      {
+        "thread": 2,
+        "start": 230245,
+        "end": 230250,
+        "duration": 5,
+        "label": "style.key"
+      },
+      {
+        "thread": 2,
+        "start": 230245,
+        "end": 230250,
+        "duration": 5,
+        "label": "style.layer"
+      },
+      {
+        "thread": 2,
+        "start": 230250,
+        "end": 230256,
+        "duration": 6,
+        "label": "style.key"
+      },
+      {
+        "thread": 2,
+        "start": 230250,
+        "end": 230257,
+        "duration": 7,
+        "label": "style.layer"
+      },
+      {
+        "thread": 2,
+        "start": 230258,
+        "end": 230259,
+        "duration": 1,
+        "label": "render.aux_resolve"
+      },
+      {
+        "thread": 2,
+        "start": 230259,
+        "end": 230262,
+        "duration": 3,
+        "label": "render.materialize"
+      },
+      {
+        "thread": 2,
+        "start": 230262,
+        "end": 230293,
+        "duration": 31,
+        "label": "render.output_damage_blocks"
+      },
+      {
+        "thread": 2,
+        "start": 230293,
+        "end": 230294,
+        "duration": 1,
+        "label": "render.specialization_request"
+      },
+      {
+        "thread": 2,
+        "start": 230293,
+        "end": 230414,
+        "duration": 121,
+        "label": "render.encoding"
+      },
+      {
+        "thread": 2,
+        "start": 230414,
+        "end": 230520,
+        "duration": 106,
+        "label": "render.submit"
+      },
+      {
+        "thread": 2,
+        "start": 230525,
+        "end": 234119,
+        "duration": 3594,
+        "label": "render.final_wait"
+      }
+    ]
+  }
+}
