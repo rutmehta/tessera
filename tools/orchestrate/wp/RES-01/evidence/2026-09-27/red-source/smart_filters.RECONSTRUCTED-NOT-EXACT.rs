@@ -245,158 +245,15 @@ struct Cached {
     result: Raster,
     bytes: usize,
 }
-
-/// Retained unmasked filter results allowed during one full-level CPU render.
-/// This excludes temporary rasters, evaluator allocations, tile caches and GPU memory.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct FilterPassLimits {
-    /// Maximum combined `source + result` charge of live pass entries.
-    /// Zero rejects every filtered source reached by the frame.
-    pub retained_bytes: usize,
-    /// Maximum number of live pass entries, including in-progress reservations.
-    /// Zero rejects every filtered source reached by the frame.
-    pub entries: usize,
-}
-
-impl Default for FilterPassLimits {
-    fn default() -> Self {
-        Self {
-            retained_bytes: 1 << 30,
-            entries: 256,
-        }
-    }
-}
-
-#[derive(Default)]
-struct PassState {
-    entries: HashMap<CacheKey, Arc<Cached>>,
-    reserved_bytes: usize,
-    reserved_entries: usize,
-}
-
-/// One caller's full-level results; never shared with direct-tile or other frame calls.
-pub(crate) struct FilterPass {
-    limits: FilterPassLimits,
-    state: Mutex<PassState>,
-}
-
-struct PassReservation<'a> {
-    pass: &'a FilterPass,
-    bytes: usize,
-    active: bool,
-}
-
-impl FilterPass {
-    pub(super) fn new(limits: FilterPassLimits) -> Self {
-        Self {
-            limits,
-            state: Mutex::new(PassState::default()),
-        }
-    }
-
-    fn get(&self, key: &CacheKey) -> Option<Arc<Cached>> {
-        self.state
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .entries
-            .get(key)
-            .cloned()
-    }
-
-    fn reserve(&self, bytes: usize) -> EngineResult<PassReservation<'_>> {
-        let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
-        let next_bytes = state.reserved_bytes.checked_add(bytes);
-        let next_entries = state.reserved_entries.checked_add(1);
-        if next_bytes.is_none_or(|n| n > self.limits.retained_bytes)
-            || next_entries.is_none_or(|n| n > self.limits.entries)
-        {
-            return Err(EngineError::ResourceExhausted {
-                resource: "CPU smart-filter pass retained results exceed configured limit".into(),
-            });
-        }
-        state.reserved_bytes = next_bytes.unwrap();
-        state.reserved_entries = next_entries.unwrap();
-        Ok(PassReservation {
-            pass: self,
-            bytes,
-            active: true,
-        })
-    }
-}
-
-impl PassReservation<'_> {
-    fn commit(mut self, key: CacheKey, entry: Arc<Cached>) -> Arc<Cached> {
-        let mut state = self.pass.state.lock().unwrap_or_else(|e| e.into_inner());
-        if let Some(existing) = state.entries.get(&key).cloned() {
-            state.reserved_bytes -= self.bytes;
-            state.reserved_entries -= 1;
-            self.active = false;
-            return existing;
-        }
-        state.entries.insert(key, entry.clone());
-        self.active = false;
-        entry
-    }
-}
-
-impl Drop for PassReservation<'_> {
-    fn drop(&mut self) {
-        if self.active {
-            let mut state = self.pass.state.lock().unwrap_or_else(|e| e.into_inner());
-            state.reserved_bytes -= self.bytes;
-            state.reserved_entries -= 1;
-        }
-    }
-}
-
-#[cfg(test)]
-mod pass_reservation_tests {
-    use super::{FilterPass, FilterPassLimits};
-
-    #[test]
-    fn failed_nested_admission_releases_outer_charge_in_same_pass() {
-        let pass = FilterPass::new(FilterPassLimits {
-            retained_bytes: 16,
-            entries: 1,
-        });
-        {
-            let outer = pass.reserve(16).unwrap();
-            assert!(pass.reserve(1).is_err());
-            drop(outer); // Models source/evaluator failure after a nested admission error.
-        }
-        let next = pass.reserve(16).unwrap();
-        let state = pass.state.lock().unwrap();
-        assert_eq!(state.reserved_bytes, 16);
-        assert_eq!(state.reserved_entries, 1);
-        drop(state);
-        drop(next);
-        let state = pass.state.lock().unwrap();
-        assert_eq!(state.reserved_bytes, 0);
-        assert_eq!(state.reserved_entries, 0);
-    }
-}
-
-fn entry_bytes(so: &SmartObject) -> EngineResult<usize> {
-    usize::try_from(so.state.canvas.area())
-        .ok()
-        .and_then(|area| area.checked_mul(32))
-        .ok_or_else(|| EngineError::ResourceExhausted {
-            resource: "CPU smart-filter source and result size overflow".into(),
-        })
-}
-
 /// Whole-image CPU filter work, including source work discarded after a cold race.
-/// Relaxed atomics give a non-transactional snapshot; active counts refer to
-/// stack attempts, not threads. These are not process-memory or GPU counters.
+/// These counters describe work, not process memory or GPU allocations.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct FilterEvaluationStats {
     /// Cold misses that began rendering the whole child source, including errors.
     pub attempted_stacks: u64,
     /// Calls to a transform or evaluator, including failed and discarded calls.
     pub attempted_stages: u64,
-    /// Completed results discarded after another caller published the same
-    /// persistent-cache key. Oversized repeat work has attempts but no winner
-    /// retained in that cache, so it does not increment this field.
+    /// Completed stacks discarded because another caller published the same key.
     pub duplicate_stacks: u64,
     /// Completed stacks whose source plus result exceeded the persistent budget.
     pub oversized_stacks: u64,
@@ -489,11 +346,7 @@ impl Compositor {
         self.filter_runtime.stats()
     }
 
-    pub(crate) fn filtered_source(
-        &self,
-        so: &SmartObject,
-        pass: Option<&FilterPass>,
-    ) -> EngineResult<Option<FilteredSource>> {
+    pub(crate) fn filtered_source(&self, so: &SmartObject) -> EngineResult<Option<FilteredSource>> {
         if !so.filters.iter().any(|f| f.enabled) {
             return Ok(None);
         }
@@ -509,147 +362,122 @@ impl Compositor {
             context.cache_digest(),
         );
         let rt = &self.filter_runtime;
-        let bytes = entry_bytes(so)?;
-        let pass_cached = pass.and_then(|p| p.get(&key));
-        let cached = if let Some(cached) = pass_cached {
+        let cached = rt
+            .cache
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get(&key)
+            .cloned();
+        let cached = if let Some(cached) = cached {
             cached
         } else {
-            let persistent = rt
+            // Nested smart objects can recurse into this runtime: never hold its
+            // cache lock while compositing the input document.
+            let _active = rt.begin_stack();
+            let source = self.source_raster(DocRef {
+                state: &so.state,
+                key: so.key,
+            })?;
+            let cached = rt
                 .cache
                 .lock()
                 .unwrap_or_else(|e| e.into_inner())
                 .get(&key)
                 .cloned();
-            if let Some(cached) = persistent {
-                // Pin even a persistent hit for this pass: another stack may
-                // evict it before later tiles reach this smart object.
-                if let Some(pass) = pass {
-                    pass.reserve(bytes)?.commit(key, cached)
-                } else {
-                    cached
-                }
+            if let Some(cached) = cached {
+                cached
             } else {
-                // Reserve before source_raster: nested smart objects need their own
-                // simultaneous charge, and errors release this one by RAII.
-                let reservation = pass.map(|p| p.reserve(bytes)).transpose()?;
-                // Nested smart objects can recurse into this runtime: never hold its
-                // cache lock while compositing the input document.
-                let _active = rt.begin_stack();
-                let source = self.source_raster(DocRef {
-                    state: &so.state,
-                    key: so.key,
-                    pass,
-                })?;
-                let cached = rt
-                    .cache
-                    .lock()
-                    .unwrap_or_else(|e| e.into_inner())
-                    .get(&key)
-                    .cloned();
-                let published = if let Some(cached) = cached {
-                    cached
-                } else {
-                    // Evaluators and transforms can use Rayon or re-enter this cache.
-                    // Never hold the mutex (or wait for per-key initialization) here:
-                    // a worker may steal another tile that needs the same entry.
-                    // Duplicate cold work is safe because evaluators are deterministic.
-                    let mut result = source.clone();
-                    let mut evaluations = 0;
-                    for filter in so.filters.iter().filter(|f| f.enabled) {
-                        if !filter.blend.opacity.is_finite()
-                            || !(0.0..=1.0).contains(&filter.blend.opacity)
-                        {
-                            return Err(EngineError::invalid(
-                                "filter opacity",
-                                "expected finite [0,1]",
-                            ));
-                        }
-                        if filter.blend.opacity == 0.0 {
-                            continue;
-                        }
-                        let next = if let Some(op) = filter.transform_op()? {
-                            rt.attempted_stages.fetch_add(1, Ordering::Relaxed);
-                            evaluate_transform(&result, &op)?
-                        } else {
-                            rt.attempted_stages.fetch_add(1, Ordering::Relaxed);
-                            rt.evaluator.evaluate(&result, filter, &context)?
-                        };
-                        if next.extent() != source.extent()
-                            || next.channels() != 4
-                            || next.depth() != Depth::F32
-                        {
-                            return Err(EngineError::invalid(
-                                "smart filter",
-                                "evaluator changed raster layout",
-                            ));
-                        }
-                        let old = result.clone();
-                        let mut finite = true;
-                        result.edit_region(Rect::of_extent(source.extent()), 1, |x, y, p| {
-                            let a = old.pixel(x, y);
-                            let b = next.pixel(x, y);
-                            finite &= b.iter().all(|v| v.is_finite());
-                            let blend = blend_pixel(
-                                filter.blend.mode,
-                                [a[0], a[1], a[2]],
-                                [b[0], b[1], b[2]],
-                            );
-                            let mut t = filter.blend.opacity;
-                            if filter.blend.mode == BlendMode::Dissolve {
-                                t = if dissolve_threshold(x, y, 0) < t {
-                                    1.0
-                                } else {
-                                    0.0
-                                };
-                            }
-                            let alpha = a[3] + t * (b[3] - a[3]);
-                            for c in 0..3 {
-                                let v = a[c] * a[3] * (1.0 - t) + blend[c] * b[3] * t;
-                                p[c] = if alpha > 0.0 { v / alpha } else { 0.0 };
-                            }
-                            p[3] = alpha;
-                        })?;
-                        if !finite {
-                            return Err(EngineError::invalid("smart filter", "nonfinite result"));
-                        }
-                        evaluations += 1;
-                    }
-                    let entry = Arc::new(Cached {
-                        source,
-                        result,
-                        bytes,
-                    });
-                    // Publish only complete, validated results. A concurrent miss
-                    // may have finished first; reuse it without charging bytes twice.
+                // Evaluators and transforms can use Rayon or re-enter this cache.
+                // Never hold the mutex (or wait for per-key initialization) here:
+                // a worker may steal another tile that needs the same entry.
+                // Duplicate cold work is safe because evaluators are deterministic.
+                let mut result = source.clone();
+                let mut evaluations = 0;
+                for filter in so.filters.iter().filter(|f| f.enabled) {
+                    if !filter.blend.opacity.is_finite()
+                        || !(0.0..=1.0).contains(&filter.blend.opacity)
                     {
-                        let mut cache = rt.cache.lock().unwrap_or_else(|e| e.into_inner());
-                        if let Some(cached) = cache.get(&key) {
-                            rt.duplicate_stacks.fetch_add(1, Ordering::Relaxed);
-                            cached.clone()
-                        } else {
-                            rt.evaluations.fetch_add(evaluations, Ordering::Relaxed);
-                            if bytes > rt.budget {
-                                rt.oversized_stacks.fetch_add(1, Ordering::Relaxed);
-                            }
-                            if bytes <= rt.budget {
-                                if cache
-                                    .values()
-                                    .fold(0usize, |sum, v| sum.saturating_add(v.bytes))
-                                    .saturating_add(bytes)
-                                    > rt.budget
-                                {
-                                    cache.clear();
-                                }
-                                cache.insert(key, entry.clone());
-                            }
-                            entry
-                        }
+                        return Err(EngineError::invalid(
+                            "filter opacity",
+                            "expected finite [0,1]",
+                        ));
                     }
-                };
-                if let Some(reservation) = reservation {
-                    reservation.commit(key, published)
+                    if filter.blend.opacity == 0.0 {
+                        continue;
+                    }
+                    let next = if let Some(op) = filter.transform_op()? {
+                        rt.attempted_stages.fetch_add(1, Ordering::Relaxed);
+                        evaluate_transform(&result, &op)?
+                    } else {
+                        rt.attempted_stages.fetch_add(1, Ordering::Relaxed);
+                        rt.evaluator.evaluate(&result, filter, &context)?
+                    };
+                    if next.extent() != source.extent()
+                        || next.channels() != 4
+                        || next.depth() != Depth::F32
+                    {
+                        return Err(EngineError::invalid(
+                            "smart filter",
+                            "evaluator changed raster layout",
+                        ));
+                    }
+                    let old = result.clone();
+                    let mut finite = true;
+                    result.edit_region(Rect::of_extent(source.extent()), 1, |x, y, p| {
+                        let a = old.pixel(x, y);
+                        let b = next.pixel(x, y);
+                        finite &= b.iter().all(|v| v.is_finite());
+                        let blend =
+                            blend_pixel(filter.blend.mode, [a[0], a[1], a[2]], [b[0], b[1], b[2]]);
+                        let mut t = filter.blend.opacity;
+                        if filter.blend.mode == BlendMode::Dissolve {
+                            t = if dissolve_threshold(x, y, 0) < t {
+                                1.0
+                            } else {
+                                0.0
+                            };
+                        }
+                        let alpha = a[3] + t * (b[3] - a[3]);
+                        for c in 0..3 {
+                            let v = a[c] * a[3] * (1.0 - t) + blend[c] * b[3] * t;
+                            p[c] = if alpha > 0.0 { v / alpha } else { 0.0 };
+                        }
+                        p[3] = alpha;
+                    })?;
+                    if !finite {
+                        return Err(EngineError::invalid("smart filter", "nonfinite result"));
+                    }
+                    evaluations += 1;
+                }
+                let bytes = source.extent().area() as usize * 32;
+                let entry = Arc::new(Cached {
+                    source,
+                    result,
+                    bytes,
+                });
+                // Publish only complete, validated results. A concurrent miss
+                // may have finished first; reuse it without charging bytes twice.
+                let mut cache = rt.cache.lock().unwrap_or_else(|e| e.into_inner());
+                if let Some(cached) = cache.get(&key) {
+                    rt.duplicate_stacks.fetch_add(1, Ordering::Relaxed);
+                    cached.clone()
                 } else {
-                    published
+                    rt.evaluations.fetch_add(evaluations, Ordering::Relaxed);
+                    if bytes > rt.budget {
+                        rt.oversized_stacks.fetch_add(1, Ordering::Relaxed);
+                    }
+                    if bytes <= rt.budget {
+                        if cache
+                            .values()
+                            .fold(0usize, |sum, v| sum.saturating_add(v.bytes))
+                            .saturating_add(bytes)
+                            > rt.budget
+                        {
+                            cache.clear();
+                        }
+                        cache.insert(key, entry.clone());
+                    }
+                    entry
                 }
             }
         };

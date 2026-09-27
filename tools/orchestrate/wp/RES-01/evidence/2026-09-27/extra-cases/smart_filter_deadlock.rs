@@ -2,9 +2,7 @@
 //! test runner (or leave blocked Rayon workers behind in other tests).
 use compositor::document::{Fill, SmartFilter, SmartObject};
 use compositor::render::smart_filters::{FilterContext, FilterPassLimits, SmartFilterEvaluator};
-use compositor::{
-    Affine, Compositor, Depth, DocState, Document, Layer, LayerId, LayerKind, Raster,
-};
+use compositor::{Affine, Compositor, Depth, DocState, Document, Layer, LayerKind, Raster};
 use engine_api::{EngineError, EngineResult, tile::Extent, tile::TileCoord};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Barrier, OnceLock, Weak};
@@ -347,12 +345,14 @@ fn same_key_mask_variants_share_unmasked_pass_entry_without_sharing_pixels() {
     right.transform = Affine::scale_translate(1., 1., 257., 0.);
     let extent = Extent::new(514, 1);
     let mut state = DocState::new(extent, Depth::F32);
-    let mut left_layer = Layer::new("masked left", LayerKind::SmartObject(left));
-    left_layer.id = LayerId(1);
-    let mut right_layer = Layer::new("unmasked right", LayerKind::SmartObject(right));
-    right_layer.id = LayerId(2);
-    state.root.push(Arc::new(left_layer));
-    state.root.push(Arc::new(right_layer));
+    state.root.push(Arc::new(Layer::new(
+        "masked left",
+        LayerKind::SmartObject(left),
+    )));
+    state.root.push(Arc::new(Layer::new(
+        "unmasked right",
+        LayerKind::SmartObject(right),
+    )));
     let compositor = Compositor::new(8_223);
     let (_, pixels) = compositor
         .render_level_rgba(&Document::new(state), 0)

@@ -2,9 +2,7 @@
 //! test runner (or leave blocked Rayon workers behind in other tests).
 use compositor::document::{Fill, SmartFilter, SmartObject};
 use compositor::render::smart_filters::{FilterContext, FilterPassLimits, SmartFilterEvaluator};
-use compositor::{
-    Affine, Compositor, Depth, DocState, Document, Layer, LayerId, LayerKind, Raster,
-};
+use compositor::{Affine, Compositor, Depth, DocState, Document, Layer, LayerKind, Raster};
 use engine_api::{EngineError, EngineResult, tile::Extent, tile::TileCoord};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Barrier, OnceLock, Weak};
@@ -323,66 +321,6 @@ fn live_scene_and_styled_smart_keep_full_level_pixels_and_one_evaluation() {
     let stats = compositor.filter_evaluation_stats();
     assert_eq!(stats.attempted_stacks, 1);
     assert_eq!(stats.attempted_stages, 1);
-}
-
-#[test]
-fn same_key_mask_variants_share_unmasked_pass_entry_without_sharing_pixels() {
-    use compositor::Mask;
-    let child_extent = Extent::new(257, 1);
-    let mut child = DocState::new(child_extent, Depth::F32);
-    child.root.push(Arc::new(Layer::new(
-        "blue",
-        LayerKind::Fill(Fill::Solid {
-            color: [0., 0., 1.],
-        }),
-    )));
-    let mut left = SmartObject::new(child, Affine::IDENTITY);
-    left.filters.push(SmartFilter {
-        name: "invert".into(),
-        enabled: true,
-        ..Default::default()
-    });
-    let mut right = left.clone(); // Exact child/filter cache key, different mask and placement.
-    left.filter_mask = Some(Mask::hide_all(child_extent, Depth::F32));
-    right.transform = Affine::scale_translate(1., 1., 257., 0.);
-    let extent = Extent::new(514, 1);
-    let mut state = DocState::new(extent, Depth::F32);
-    let mut left_layer = Layer::new("masked left", LayerKind::SmartObject(left));
-    left_layer.id = LayerId(1);
-    let mut right_layer = Layer::new("unmasked right", LayerKind::SmartObject(right));
-    right_layer.id = LayerId(2);
-    state.root.push(Arc::new(left_layer));
-    state.root.push(Arc::new(right_layer));
-    let compositor = Compositor::new(8_223);
-    let (_, pixels) = compositor
-        .render_level_rgba(&Document::new(state), 0)
-        .unwrap();
-    for x in [0, 256] {
-        assert_eq!(&pixels[x * 4..x * 4 + 4], &[0., 0., 1., 1.]);
-    }
-    for x in [257, 513] {
-        assert_eq!(&pixels[x * 4..x * 4 + 4], &[1., 1., 0., 1.]);
-    }
-    assert_eq!(compositor.filter_evaluation_stats().attempted_stacks, 1);
-}
-
-#[test]
-fn concurrent_full_level_calls_have_independent_passes() {
-    let doc = document("invert");
-    let compositor = Compositor::new(0);
-    let pool = rayon::ThreadPoolBuilder::new()
-        .num_threads(2)
-        .build()
-        .unwrap();
-    pool.install(|| {
-        let (a, b) = rayon::join(
-            || compositor.render_level_rgba(&doc, 0),
-            || compositor.render_level_rgba(&doc, 0),
-        );
-        assert_eq!(a.unwrap(), b.unwrap());
-    });
-    assert_eq!(compositor.filter_evaluation_stats().attempted_stacks, 2);
-    assert_eq!(compositor.filter_evaluation_stats().active_stacks, 0);
 }
 
 #[test]

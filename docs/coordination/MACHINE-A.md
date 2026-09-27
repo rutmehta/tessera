@@ -4,6 +4,45 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## Active checkpoint — 2026-09-27 20:57 UTC
+
+RES-01 product0e58792d and evidencec10b4eea are pushed on
+codex/render-resource-bounds. Six integration tests and one reservation test
+passed; two extra mask/concurrent tests and broader strict checks remain pending.
+Independent source review is resource-audit-20260927/FILTERPASS-IMPLEMENTATION-REVIEW.md.
+The 1GiB/256-entry retained allowance is per CPU full-level frame, not total
+working-memory, concurrent-frame or GPU admission. Exact pre-fix instrumentation
+snapshot is missing; preserved RED logs and nonidentical reconstruction are
+explicitly labeled. Investigation9a28ab84 receipt completed, not incident closure.
+
+Result fbe21798-06e4-4eaa-9064-2dd5417bb78f published in Git. Existing-session SSH
+queue01a0e4a8-4970-7301-90c4-bd96dd3adb83 accepted at20:57:09Z; no new peer receipt
+claimed. B resource hold remains; requested source review only, no builds/tests.
+
+Transform primitive first full gate64/0; Sol owns compiler for deterministic
+RED2/final GREEN. Compositor/FFI caller bridge remains separate. Resource Sol
+prepares next bounded gates and reviews source while waiting for the slot.
+
+Loupe corrected keyboard guard passed14 focused tests. Fixed packagePID99028
+never reached UI: root sample shows main thread blocked in mkdirat during
+AppDefaultsIsolation, footprint2.3MB. This is actual pre-UI startup blocking,
+not established as a CUA bridge failure. Luna owns diagnosis using an isolated
+local disposable app-support path and GUI retest; old GUI RED bundle is preserved.
+No Loupe main merge or GUI acceptance claimed. Root owns main integration.
+
+## Loupe GUI failure — 2026-09-27 20:45 UTC
+
+Focused Loupe9f62d87 checks passed4/0, but root reproduced a real GUI failure:
+Loupe → Display info → Escape dismisses the popover and also switches to Grid.
+Luna owns the keyboard-ownership fix; no Loupe merge/acceptance yet. Full filename
+and display metadata disclosure were visibly present. Bundle-ID CUA timed out;
+using verified package name Tessera-LoupeOverlay-UniqueExec bound successfully.
+CandidatePID46916 remains as RED evidence; own disposable6JPEG catalog only.
+
+Sol now tests frozen FilterPass source on tiny CPU cases. Separate Sol prepares
+transform cancellation implementation after two expected missing-API RED builds.
+All B workloads remain paused. Cancellation and global CPU/GPU caps still open.
+
 ## Tiny resource regression — 2026-09-27 20:34 UTC
 
 A reproduced the repeated-work defect without large load:257×1 pixels,8223-byte
