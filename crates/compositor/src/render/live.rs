@@ -87,8 +87,28 @@ pub(super) struct Prepared {
 impl Primitive {
     fn new(path: vector::Path, fill: vector::Fill) -> EngineResult<Self> {
         path.validate().map_err(invalid)?;
-        let bytes = serde_json::to_vec(&path).map_err(invalid)?;
-        let coverage_key = *blake3::hash(&bytes).as_bytes();
+        // Runtime-only identity: hash the exact coordinates rather than format
+        // thousands of stroke vertices as decimal JSON on every pointer edit.
+        let mut geometry = blake3::Hasher::new();
+        geometry.update(&[match path.fill_rule {
+            vector::FillRule::EvenOdd => 0,
+            vector::FillRule::NonZero => 1,
+        }]);
+        for subpath in &path.subpaths {
+            geometry.update(&(subpath.anchors.len() as u64).to_le_bytes());
+            geometry.update(&[u8::from(subpath.closed)]);
+            for a in &subpath.anchors {
+                geometry.update(bytemuck::cast_slice(&[
+                    a.point.x,
+                    a.point.y,
+                    a.incoming.x,
+                    a.incoming.y,
+                    a.outgoing.x,
+                    a.outgoing.y,
+                ]));
+            }
+        }
+        let coverage_key = *geometry.finalize().as_bytes();
         let mut h = blake3::Hasher::new();
         h.update(&coverage_key);
         h.update(&serde_json::to_vec(&fill).map_err(invalid)?);

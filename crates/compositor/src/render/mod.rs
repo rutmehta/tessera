@@ -681,6 +681,18 @@ impl Compositor {
         level: u8,
         cancel: &CancellationToken,
     ) -> EngineResult<Vec<Tile>> {
+        self.render_level_premultiplied(doc, level, cancel)?
+            .iter()
+            .map(unpremultiply)
+            .collect()
+    }
+
+    fn render_level_premultiplied(
+        &self,
+        doc: &Document,
+        level: u8,
+        cancel: &CancellationToken,
+    ) -> EngineResult<Vec<Tile>> {
         let (cols, rows) = doc.state().canvas.at_level(level).tile_grid(TILE_SIZE);
         let coords: Vec<TileCoord> = (0..rows)
             .flat_map(|y| (0..cols).map(move |x| TileCoord::new(level, x, y)))
@@ -708,14 +720,41 @@ impl Compositor {
                 .map(render)
                 .collect::<EngineResult<Vec<_>>>()?
         };
-        tiles.iter().map(unpremultiply).collect()
+        Ok(tiles)
     }
 
     /// A whole level as interleaved straight RGBA (`width·height·4`).
     pub fn render_level_rgba(&self, doc: &Document, level: u8) -> EngineResult<(Extent, Vec<f32>)> {
         let e = doc.state().canvas.at_level(level);
-        let tiles = self.render_level(doc, level, &CancellationToken::new())?;
-        Ok((e, interleave(e, &tiles)?))
+        let tiles = self.render_level_premultiplied(doc, level, &CancellationToken::new())?;
+        // Fuse straight-alpha conversion and assembly. A warm viewport otherwise
+        // allocates/copies a second entire frame just to interleave it immediately.
+        let mut out = vec![0.; e.width as usize * e.height as usize * 4];
+        for tile in &tiles {
+            let (ox, oy) = tile.coord().pixel_origin(TILE_SIZE);
+            let layout = tile.layout();
+            let s = tile.samples::<f32>()?;
+            let n = layout.plane_len();
+            let width = layout.extent.width as usize;
+            for y in 0..layout.extent.height as usize {
+                let start = y * layout.stride();
+                let r = &s[start..start + width];
+                let g = &s[n + start..n + start + width];
+                let b = &s[2 * n + start..2 * n + start + width];
+                let a = &s[3 * n + start..3 * n + start + width];
+                let dst = ((oy as usize + y) * e.width as usize + ox as usize) * 4;
+                for (i, pixel) in out[dst..dst + width * 4]
+                    .as_chunks_mut::<4>()
+                    .0
+                    .iter_mut()
+                    .enumerate()
+                {
+                    let rgb = pixel::unpremul([r[i], g[i], b[i], a[i]]);
+                    pixel.copy_from_slice(&[rgb[0], rgb[1], rgb[2], a[i]]);
+                }
+            }
+        }
+        Ok((e, out))
     }
 
     /// A read-only [`Pyramid`] view of the composite (straight f32 RGBA).

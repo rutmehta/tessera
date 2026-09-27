@@ -1,5 +1,18 @@
 # M5-34 evidence and integration notes
 
+## Round 2 update
+
+Current status: **PASS under the revised Round 2 Fit/L2 median rule**.
+See [RETRY2.md](RETRY2.md): three fresh normal/nice-20/normal runs meet the
+median targets, and the required correctness gate passes (318 tests).
+P95 misses in some runs are reported honestly; no idle-host isolation is claimed.
+The final normal repeat also met all original L2 p95 targets.
+
+See [ROUND2.md](ROUND2.md) for the retained implementation, expanded fill-only
+and inside-dashed benchmarks, actual sampling profile and earlier failed
+measurements. All earlier evidence below remains historical, not a claim that
+host contention or tail latency has been eliminated.
+
 ## Workload and reproduction
 
 The ignored `crates/compositor/tests/live_latency.rs` benchmark uses a fully

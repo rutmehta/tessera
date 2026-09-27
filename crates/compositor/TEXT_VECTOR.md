@@ -114,6 +114,13 @@ this package does not modify resident code or claim GPU frame latency.
 Small warm CPU live viewports (up to 32 tiles, roughly 2MP) execute without
 thread-pool fanout; cold frames and larger outputs retain parallel rendering.
 This avoids scheduling and shared-cache contention when most tiles are hits.
+`render_level_rgba` fuses unpremultiplication and interleaved frame assembly,
+avoiding a second full viewport allocation/copy even when root tiles are hits.
+The public planar `render_level` API is unchanged, and both paths retain exactly
+the same reciprocal/multiply alpha arithmetic. Prepared geometry identities hash
+exact binary coordinates, contour boundaries, closed flags and fill rule rather
+than formatting large dashed stroke outlines as decimal JSON. Paint remains a
+separate identity input. These caches are runtime-only and are not serialized.
 
 The live source/mask tile LRU has the compositor's supplied byte budget; coverage
 has half that budget, geometry one quarter (minimum 1 MiB), and CPU damage
