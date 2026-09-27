@@ -199,7 +199,8 @@ final class DocumentViewportView: NSView {
     // MARK: Document
 
     func attach(_ doc: DocumentController?) {
-        guard doc !== controller else { return }
+        // Nil always means local teardown, even if the weak owner died first.
+        if let doc, doc === controller { return }
         if let old = controller, old.viewport === self {
             old.viewState = math
             old.onFrame = nil
@@ -229,6 +230,16 @@ final class DocumentViewportView: NSView {
         pushViewport()
         render()
     }
+
+    /// Narrow lifecycle regression seam: retain a tiny surface without a window,
+    /// backend render request, or Metal texture. Never used by presentation code.
+    func retainSurfaceForLifecycleTest(_ surface: IOSurfaceRef) {
+        precondition(window == nil && ring.isEmpty)
+        ring[IOSurfaceGetID(surface)] = (surface, nil)
+        ringSize = (UInt32(IOSurfaceGetWidth(surface)), UInt32(IOSurfaceGetHeight(surface)))
+    }
+
+    var retainedSurfaceCount: Int { ring.count }
 
     func detachFromWorkspace() {
         attach(nil)
