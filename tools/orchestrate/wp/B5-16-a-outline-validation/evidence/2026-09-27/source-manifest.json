@@ -1,0 +1,20 @@
+{
+  "utc": "2026-09-27T21:48:19.228395+00:00",
+  "head": "f2309eec25e1ce8e3159858d274ece60d906b0fb",
+  "status": "",
+  "files": {
+    "apps/mac/Package.swift": "61b355d8cb436723616d0ee60579a6ff38f13dc0fa5786be5ac3e92369521c86",
+    "apps/mac/Sources/CTesseraFFI/CTesseraFFI.h": "6439d9239cee419564b81f8eff1f4d93ae79db81de79d7664c3827778c343fb2",
+    "apps/mac/Sources/Tessera/Document/DocumentWorkspace.swift": "bd1c8a8cd722b569825be8357949756d098320a9510c708cb886cf3e7bf6fa56",
+    "apps/mac/Sources/Tessera/Document/Tools/DocumentTools.swift": "cb1c59adea530d4e574012e8bd2bdd1b4b8810e0e2d920210e6d6e4ac577b89c",
+    "apps/mac/Sources/TesseraCore/Document/LatestRequestBuffer.swift": "3e754841effeb0b0fc9a39038aff557fe1b5f171b0584257fa7476671bcd1596",
+    "apps/mac/Tests/TesseraCoreTests/LatestRequestBufferTests.swift": "d450eee0787583aa75d0772607e1837a041c1e2c6cb2bd0f8fbc590e4d1e02db",
+    "apps/mac/Tests/TesseraCoreTests/DocumentOutlineLifecycleTests.swift": "78e45b19dd46881eec4d7c7583bd920da941a324e1f3a4fef8ad50ca2aa847e2"
+  },
+  "ffi_archive": {
+    "path": "/Users/rutmehta/.codex/worktrees/export-integration/tessera/apps/mac/build/ffi/libtessera_ffi.a",
+    "sha256": "19f9f5487752e2588c6febe99d126905cad7d9986285d2aebf633dfaeba2b427"
+  },
+  "scratch": "/Volumes/betterSSD/tessera-cache/swift/export-integration",
+  "filter": "DocumentOutlineLifecycleTests|LatestRequestBufferTests|DocumentOverlayAnimationTests"
+}
