@@ -4,7 +4,7 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
-## Current checkpoint — 2026-09-27 15:11 UTC
+## Current checkpoint — 2026-09-27 15:14 UTC
 
 Machine A remains the sole main integrator. Three GPT-6 Astra agents are
 continuing the recovered queue in existing worktrees. Analysis and edits run
@@ -16,7 +16,7 @@ unfinished engine package or B5-16 has been merged during this wave.
 | --- | --- | --- |
 | B5-16a | Already merged and published; fresh 397-test Swift gate and 3 Rust adjustment JSON tests passed. | No duplicate work needed. |
 | B5-16 | Independent review complete; held for legacy Neutralize behavior, reliable self-test failure accounting, merge conflicts and UI acceptance. | Machine B response/fixes and resolved-tree validation. See `B5-16-REVIEW.md`. |
-| M2-58 | Recovered work committed/integrated with main; narrow detail-freshness fix passes Rust release/strict checks, FFI generation, Swift build and corrected full Swift suite: 409 XCTest, one skip, zero failures, plus 5 Swift Testing tests. Three additional prebuilt Auto Upright runs pass (setter p95 0.044125/0.030000/0.029167 ms; maximum 0.511458/0.488417/0.504083 ms). | Published at `wp/M2-58` / `5ff2679`; actual input-to-present and detail settle/drag performance remain unmeasured. No full acceptance claim. |
+| M2-58 | Recovered work committed/integrated with main; narrow detail-freshness fix passes Rust release/strict checks, FFI generation, Swift build and corrected full Swift suite: 409 XCTest, one skip, zero failures, plus 5 Swift Testing tests. Three additional prebuilt Auto Upright runs pass (setter p95 0.044125/0.030000/0.029167 ms; maximum 0.511458/0.488417/0.504083 ms). | Published at `wp/M2-58` / `196005e` (product source `5ff2679`); two controlled Auto Upright before/after cases have identical pixels/histograms/settings. Actual input-to-present and detail settle/drag performance remain unmeasured. No full acceptance claim. |
 | M2-45d | Audit found native IPTC keywords restoring explicit sidecar deletions. Fix published at `wp/M2-45d` / `69bcd3e`. Release export+sidecar suite: 149 passed, zero failed, seven ignored; strict all-target Clippy, fmt and diff checks passed. | Integration with current main still required; gain-map JPEG remains incomplete and separate. See `M2-45D-REVIEW.md`. |
 | M5-31 | Recovery snapshot `8c8c130`, main integration `953204e`; inherited deadlock resolved by main M5-35 fix. Focused panorama/deadlock tests pass. Independent review identified explicit-font propagation/cache, live-shape precision, and preallocation-limit defects. | Fixes published at `wp/M5-31` / `9f922bf928dc02c42c5d4788db6c0e81245ccbe0`; compositor release 323 passed, zero failed, 13 ignored; strict Clippy/fmt pass. Machine B timing requested below; not READY for main. See `M5-31-REVIEW.md`. |
 
@@ -66,10 +66,23 @@ record. All three review findings have regression-tested fixes and independent
 source review; see `M5-31-REVIEW.md` and the candidate's
 `tools/orchestrate/wp/M5-31/INTEGRATION-2026-09-27.md`.
 
-M2-58 now owns Machine A's heavy slot for a headless before/after Auto Upright
-pixel comparison. It does not measure actual display presentation or P11
-latency; baseline per-frame residency is unavailable and will be recorded as
-such. No foreground app activation is involved.
+M2-58 headless before/after Auto Upright comparison is complete and published at
+`196005e2d28592f5e9aac43ccb40dec7cb321d91` (evidence only; product source remains
+`5ff2679`). Two controlled Sony ARW cases, exposures 0 and +1, each match all
+16,117,920 valid RGBA bytes, full histograms, normalized settings and dimensions:
+zero changed bytes, zero metadata differences. Four fresh captures exited 0;
+both pinned source trees remained unchanged and temporary harness files were
+removed. A first harness-only compile failure was corrected and retained as
+history. Full raw captures are preserved externally with verified SHA manifests;
+reports, metadata, commands, harness and logs are on the branch.
+
+This is bounded settled-output parity, not actual display presentation or P11
+latency. Baseline per-frame residency is unavailable; requested GPU/reported
+Metal is not route proof. No foreground app activation occurred. All Machine A
+subagent builds/tests are now finished; performance and remaining acceptance
+holds are unchanged. The recovered branches and evidence are preserved, and
+Machine A remains the sole main integrator. No unfinished feature was merged
+into main in this wave.
 
 The sections below preserve earlier recovery checkpoints; the table above
 supersedes their in-progress states.
