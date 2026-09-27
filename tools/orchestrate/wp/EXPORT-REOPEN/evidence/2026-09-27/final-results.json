@@ -1,0 +1,72 @@
+[
+  {
+    "name": "metadata_policy",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "export",
+      "--test",
+      "metadata_policy"
+    ],
+    "exit": 0,
+    "timed_out": false,
+    "seconds": 3.294922113418579
+  },
+  {
+    "name": "hdr_output",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "export",
+      "--test",
+      "hdr_output"
+    ],
+    "exit": 0,
+    "timed_out": false,
+    "seconds": 1.7262320518493652
+  },
+  {
+    "name": "original",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "export",
+      "--test",
+      "original"
+    ],
+    "exit": 0,
+    "timed_out": false,
+    "seconds": 0.2628169059753418
+  },
+  {
+    "name": "dng",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "export",
+      "--test",
+      "dng"
+    ],
+    "exit": 0,
+    "timed_out": false,
+    "seconds": 0.2990710735321045
+  },
+  {
+    "name": "sidecar_selection",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "sidecar",
+      "--test",
+      "selection"
+    ],
+    "exit": 0,
+    "timed_out": false,
+    "seconds": 0.19813299179077148
+  }
+]
