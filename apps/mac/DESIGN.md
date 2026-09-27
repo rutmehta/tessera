@@ -268,6 +268,17 @@ with the 1 pt shadow and a `textPrimary` dot, the others a `textTertiary` dot (n
 **placement preview** is a 240 × 160 scope well (`plotWell`, radius 4, `plotGuide` hairline frame) with the watermark
 drawn in its own font and colour, or the engine's 480 px render once requested, and an on-image scrim chip naming which.
 
+**Photo Merge and Enhance sheets** (M2-50): no new colour, size or font. Both are `SheetScaffold` sheets. Photo
+Merge puts a 400 × 300 **merge preview well** (`plotWell`, radius 4, `plotGuide` hairline frame while empty, the
+engine's ≤ 512 px JPEG fitted inside, an on-image scrim chip `Engine preview · W × H`, 60 % opacity while re-rendering
+with a small spinner in the header) left of a vertical hairline and the options column: `SubHeader` groups, native
+checkboxes, 24 pt `SegmentedPicker`s for Deghost, Projection and frames per bracket, a sheet `ValueSlider` for Boundary
+Warp. Engine and exposure-spread warnings are warning `StatusLine`s under the preview; the engine's notes (approximate
+preview, chosen projection) are `Hint`s. The footer's leading slot says why Merge is dimmed, else names the output.
+Enhance is a single column in the same grammar; Raw Details is a disabled checkbox with its reason, and the missing
+model error is an error `StatusLine`. A running job is a `ProgressStrip` above the status bar (indeterminate while a
+model downloads, because the engine reports only start and ready).
+
 **Transform / Lens Blur panels** (M2-48): the Upright bar (`UprightModeBar`) is a 20 pt
 `SegmentedPicker`-look track with six icon segments; the chosen segment adds its name (the only way six
 modes fit the 288 pt inspector). Per-group resets are borderless 20 pt **Reset** buttons on the

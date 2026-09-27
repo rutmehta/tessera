@@ -1616,3 +1616,73 @@ PASS when steps 500–509 meet their expectations. Disabled controls with their 
 | `export-watermark-graphic` · `export-watermark-choose` · `export-watermark-scale` | Graphic watermark file, Choose…, Scale |
 | `export-watermark-opacity` · `export-watermark-anchor` · `export-watermark-anchor-<top_left…bottom_right>` · `export-watermark-inset` | Shared: Opacity, Position grid and its nine cells, Inset |
 | `export-watermark-preview` · `export-watermark-render` · `export-watermark-problem` | Preview well, Render with Engine, problem line |
+
+## AB. Photo Merge (HDR, Panorama, HDR Panorama) and Enhance (M2-50)
+
+Continues section O (engine backend, a fresh `--app-dir`, `$SCR/raw3` open in the grid). For the merges you also need
+one real bracket and one real panorama from a single camera: `$BRACKETS` (3 exposures of one scene, ±2 EV) and
+`$PANO` (3 overlapping frames). Engine limits (preview is a camera-channel approximation, stage-level model download
+progress, no Raw Details, no enhance preview call): tools/orchestrate/wp/M2-50/REPORT.md.
+
+540. **Tests.**
+     ```sh
+     (cd apps/mac && swift test --filter 'PhotoMergeEnhanceTests|ThemeLintTests' 2>&1 | grep Executed)
+     ```
+     Expect `Executed 12 tests, with 0 failures` and `Executed 1 test, with 0 failures`. The last PhotoMergeEnhanceTests
+     case writes three bracketed LinearRaw DNGs, merges them through the app into `bracket-1-HDR.dng`, checks it is
+     selected in the grid, stacked with its three sources, and opens in Develop.
+541. **Menu and shortcuts.** 📸 The menu bar has **Photo** between Library and Develop: **Photo Merge ▸ HDR… ⌃H ·
+     Panorama… ⌃M · HDR Panorama…**, **Enhance… ⌃⌥I**, and a dimmed **Cancel Photo Merge**. With one photo selected:
+     HDR and Panorama are dimmed, Enhance is enabled. Select all three (⌘A): HDR and Panorama enable; HDR Panorama stays
+     dimmed until four or more are selected. In Layered Documents, the People view or a stub library every item is dimmed.
+542. **Warnings.** With the three `raw3` photos (different cameras and scenes) selected, press **⌃M**. 📸 The sheet
+     `Panorama Merge Preview` (subtitle `3 photos · …`) shows the preview well on the left (a spinner in the header while
+     the engine works) and, under it, the engine's warning that the frames could not be registered (insufficient
+     overlap / no geometry) with no image. Options: Projection **Auto · Spherical · Cylindrical · Perspective**,
+     Boundary Warp (0–100), Fill Edges, Auto Settings, Create Stack. Choose **Spherical**: a Focal length field appears
+     and the footer reads `Spherical needs the focal length in pixels`, Merge dimmed. **Cancel**.
+543. **HDR.** Open `$BRACKETS`, select its three photos, **⌃H**. 📸 `HDR Merge Preview`: the merged preview (≤ 512 px,
+     chip `Engine preview · W × H`), options Auto Align, Deghost Amount **None · Low · Medium · High** (Medium), Auto
+     Settings, Create Stack (both on), and the hint that the preview is an approximation. Change Deghost to High: the
+     preview re-renders (dimmed while it works). Select three frames with the *same* exposure instead: a warning
+     `Exposures differ by 0.0 EV: HDR adds little range…`.
+544. **Merge in the background.** With the bracket, click **Merge**. The sheet closes at once; above the status bar a
+     strip `HDR · <name> and 2 more` shows the stage (Reading photos → Merging → Writing DNG) with counts and **Cancel**.
+     The grid stays usable. When it ends: the toast `HDR merge: created <first>-HDR.dng` with `Stacked with 3 source
+     photos`; the new DNG appears in the grid, selected (also when a filter would have hidden it). Press **E**: it
+     opens in Develop and responds to Exposure. The file sits next to the first source; a second merge makes `-HDR-2.dng`.
+545. **Cancel.** Start another HDR merge and click **Cancel** in the strip (or Photo ▸ Cancel HDR merge): the strip
+     disappears, the toast reads `HDR merge cancelled`, and no new file appears in the folder.
+546. **Panorama.** Open `$PANO`, select the frames, **⌃M**: the preview shows the stitched panorama and the hint
+     `Projection chosen: …`. Set Boundary Warp 60 and tick Fill Edges: the preview edges change. Merge: `<first>-Pano.dng`
+     appears selected. Untick **Create Stack** before a second merge: the toast has no `Stacked with…` line.
+547. **HDR Panorama.** Select six frames (two brackets of three, in order), Photo ▸ Photo Merge ▸ **HDR Panorama…**:
+     `Frames per bracket` offers **2 · 3** with `2 brackets of 3, in selection order…`; choose 2 with a count that does
+     not divide and the footer explains why Merge is dimmed. Merge with 3: `<first>-HDR-Pano.dng`.
+548. **Enhance, offline.** Select two `raw3` photos, **⌃⌥I**. 📸 `Enhance`: Denoise (on) with Amount 50, Super
+     Resolution (off), a dimmed **Raw Details** with `Not available…`, **Download missing models** (off) with the model
+     note, and the Preview note that the engine has no before / after preview call. Click **Enhance** with downloads off
+     on a fresh app dir: the strip appears, then the toast `Enhance failed: The enhancement model … is not on this Mac
+     and downloads are off. Turn on “Download missing models”…`. Reopen Enhance: the same message shows as `Last run: …`.
+     Untick both Denoise and Super Resolution: Enhance dims with `Choose Denoise, Super Resolution or both`.
+549. **Enhance with download.** Tick **Download missing models**, Enhance: the strip shows `Downloading denoise model…`
+     (an indeterminate bar: the engine reports only start and verified-ready), then Denoising per photo with counts.
+     Each photo gets `<name>-Enhanced-NR.dng`, stacked with it, and the results are selected; select one with its source
+     and press **C** to compare. Amount 0 writes an unchanged copy without loading a model.
+
+## Verdict (Photo Merge and Enhance)
+
+PASS when steps 540–549 meet their expectations. Engine warnings, dimmed options with their reason and the missing-model
+error with downloads off are expected, not failures.
+
+## Appendix: accessibility identifiers (M2-50)
+
+| Identifier | Element |
+| --- | --- |
+| `photo-merge-sheet` · `photo-merge-preview` · `photo-merge-preview-busy` · `photo-merge-preview-error` · `photo-merge-warnings` | Merge sheet, preview well, header spinner, preview problem, warning list |
+| `photo-merge-auto-align` · `photo-merge-deghost` · `photo-merge-auto-tone` · `photo-merge-create-stack` | HDR options, Auto Settings, Create Stack |
+| `photo-merge-projection` · `photo-merge-focal` · `photo-merge-boundary-warp` · `photo-merge-fill-edges` · `photo-merge-bracket-size` | Panorama options, HDR Panorama bracket size |
+| `photo-merge-problem` · `photo-merge-error` · `photo-merge-output` · `photo-merge-cancel` · `photo-merge-start` | Footer: why Merge is dimmed, start error, output name, Cancel, Merge |
+| `enhance-sheet` · `enhance-denoise` · `enhance-denoise-amount` · `enhance-super-resolution` · `enhance-raw-details` · `enhance-allow-download` | Enhance sheet and options |
+| `enhance-preview-note` · `enhance-last-error` · `enhance-problem` · `enhance-error` · `enhance-output` · `enhance-cancel` · `enhance-start` | Notes, errors, footer and actions |
+| `photo-job-progress` · `photo-job-cancel` | Activity strip for a running merge / enhance and its Cancel |
