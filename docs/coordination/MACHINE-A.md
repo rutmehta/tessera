@@ -4,6 +4,95 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## Active validation and new B candidates — 2026-09-27 22:08 UTC
+
+Review persistence passed 47 focused tests after independent review corrected
+stale failed-row group actions and saved ordinal overflow. Luna packages evidence
+and reconciles final UI wording; no merge or GUI relaunch acceptance yet. The
+viewport candidate `fb4d7df8` now owns A's serialized compiler slot.
+
+B frame `f518c03c` and image-cache `755ac31e` results were received with exact A
+chat targets and accepted in Git before review. Engine Sol owns independent
+source review and isolated candidate preparation; their 5 and 7 new tests remain
+unrun. B request completion confirms publication, not A validation. B workloads
+and heartbeat remain held. Current-source combined FFI/Swift application testing
+is still needed after these bounded slices; retained Swift archive `19f` is older.
+
+## Native cancellation and outline merged — 2026-09-27 22:00 UTC
+
+Main1fb7e983 contains the exact tested native preview/bake cancellation from
+cd07b435/7971a771. Five private tests,12 small mixed-backend integration tests and
+strict FFI Clippy passed;20MP benchmark ignored. Resultb69c56ca completed. Main
+5fa0faea contains bounded outline scheduling after12 focused tests; result674d7f3e
+completed. Neither slice establishes global memory limits or all host cancellation.
+
+Viewport correction candidatefb4d7df8 is frozen and unrun. Luna owns next Review
+persistence compiler slot; Sol independently reviews its revision/ownership logic.
+B accepted CPU-frame requestaa0a9692. Next source-only cache request04e1a883 has
+SSH queue01a0e4e0 transport acceptance; peer receipt pending. It adds a512MiB
+per-session retained-image cache allowance and skips oversized cache-only clones,
+not total working-memory admission. B workloads/heartbeat remain paused.
+
+## Region API integrated; B callers queued — 2026-09-27 21:51 UTC
+
+Maina1d51f6b integrates cancellable CPU region rendering, exact8585478b Rust/Cargo.
+19focused/strict pass. B native preview/bake d9974d7 acceptedb69c56ca, isolated
+A candidatecd07b435 merges current region API; no compile claim yet. Tiny private
+CPU cases and mixed-backend document_filters (20MP benchmark ignored) planned.
+B weak-controller teardown correctionb2f8d85 accepted4b930939; A will validate
+four ownership tests separately after current outline gate.
+
+A compiler currently resource Sol outline session88242; Luna fixes Review store
+raw-read/explicit-restore after retained4pass1fail and signal11 recursion failures.
+No Review persistence main merge. Next compiler slots Luna then native FFI Sol.
+B CPU frame wiring authorized source-only in requestaa0a9692, queue01a0e4d9
+accepted transport; peer receipt pending. Readback/PSD/GPU preemption separate.
+B hold and paused heartbeat unchanged. No B workload requested or started.
+
+## Mask reuse integrated — 2026-09-27 21:41 UTC
+
+Main7d58ceff merges masked-pass reuse plus cancellation, byte-identical Rust/Cargo
+to420826ac. Combined predecessor passed48CPU/strict; final per-tile produced-byte
+counter fix passed15focused/strict. Behavioral RED compiled and failed0vs4096;
+exact final GREEN bytes restored after RED and hashes checked. Raw evidence logs
+and patches retain original whitespace; product diff-check passes. This is per-pass
+retained payload admission, not total memory/GPU protection or incident closure.
+
+A next engine lane: Sol prepares cancellable region API from reviewed plan4c6b3b72.
+Luna owns compiler for UX02b persistence. Resource Sol prepares separate blocked
+outline integration tests. B viewport63a06a2 has a weak-nil controller early-return
+cleanup blocker; request37c3461b queued01a0e4cf with source-only correction scope.
+B native preview/bake cancellation request1a0330c4 received accepted peer receipt;
+SSH queue01a0e4cc is confirmed delivery. B remains on source-only work/paused
+heartbeat. Timer merged and validated scope stays261a585f/1c5e16c1.
+
+## Timer integrated; combined engine review — 2026-09-27 21:36 UTC
+
+Main261a585f integrates exact tested timer source079092e8 (B correction7a58b48).
+19 focused tests passed. Tiny isolated GUI retained a60x60 selection through
+hide/return, switching tiny documents and Library detach/return; other documents
+had no inherited selection. No timer cadence/CPU/memory claim. Retained FFI19f
+predates current Rust changes. First Swift6 compile failure and copied-package
+Sparkle rpath failure remain preserved; only the disposable copy was repaired.
+Evidence: tools/orchestrate/wp/RES-B-TIMERS/evidence/2026-09-27/.
+
+Compositor caller cancellation merged main0d627023 after31 CPU tests/strict.
+Combined mask+cancel55d1dea1 passed48CPU/strict; root review found partial-cancel
+produced-tile accounting omission. Sol owns compiler for correction/new freeze.
+No main mask merge yet. Memory allowance remains per-pass retained results, not
+process/GPU limit; host copy-operation cancellation remains a separate route.
+
+B056daf87 read. Outline2429de2 and viewport63a06a2 results accepted after exact A
+UUID validation; resource Sol now reviews them before A bounded tests. B accepted
+source-only cancellation plan request7e842a6c; plan received, no product permission
+yet. SSH queue01a0e4c5 is confirmed by peer Git receipt, not just acceptance.
+B resource hold/paused heartbeat stay in force. No B workload requested.
+
+UX02b plan reviewed; Luna implements latest same-path library queue persistence,
+no auto-replay/prompts, recipe-authoritative statuses and fresh runtime ownership.
+Move/rename identity contract is an explicit separate limitation. Compiler wait
+is source work, not idle or an unobserved build.
+
 ## Loupe integrated; timer correction returned — 2026-09-27 21:22 UTC
 
 Mainb18ab0bb merges Loupe display/shortcut disclosures and scoped Escape callback.

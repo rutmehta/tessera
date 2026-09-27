@@ -136,9 +136,18 @@ final class DocumentTools {
     @ObservationIgnored private var strokeOpen = false
     @ObservationIgnored private var strokeTimes: [Double] = []
     @ObservationIgnored private var opacityKeys = BrushHUDMath.OpacityKeys()
-    /// Outline requests are generation-counted (B5-09): a clear or a newer request makes older results stale.
-    @ObservationIgnored private var outlineGate = OutlineRequestGate()
+    private struct OutlineInput: Sendable {
+        let backend: any DocumentToolsBackend
+        let documentID: String
+        let level: UInt8
+    }
+    /// Bound work as well as result publication: one engine call plus newest pending input.
+    @ObservationIgnored private var outlineRequests = LatestRequestBuffer<OutlineInput>()
     @ObservationIgnored private var outlineKey: (String, UInt64, Int)?
+    // Nil in production. Tests may hold a fetch and observe its main-actor
+    // completion without depending on a large engine contour or a timer.
+    @ObservationIgnored var outlineFetchForTesting: (@Sendable (any DocumentToolsBackend, UInt8) throws -> [SelectionOutline])?
+    @ObservationIgnored var outlineCompletionForTesting: (@MainActor (UInt64, Bool, String) -> Void)?
     @ObservationIgnored private var transformPush = (inFlight: false, dirty: false)
     @ObservationIgnored private var busy = 0
     @ObservationIgnored private var magneticToken = 0
@@ -150,6 +159,25 @@ final class DocumentTools {
     func attach(_ workspace: DocumentWorkspace) {
         guard self.workspace !== workspace else { return }
         self.workspace = workspace
+        invalidateOutline()
+        if let doc = workspace.current { refreshOutline(doc) }
+    }
+
+    func activeDocumentChanged(in workspace: DocumentWorkspace) {
+        guard self.workspace === workspace else { return }
+        invalidateOutline()
+    }
+
+    func documentClosing(_ doc: DocumentController) {
+        guard document === doc else { return }
+        invalidateOutline()
+    }
+
+    private func invalidateOutline() {
+        outlineRequests.invalidate()
+        outlineKey = nil
+        outline = []
+        redraw()
     }
 
     private func backend(_ doc: DocumentController) -> (any DocumentToolsBackend)? {
@@ -680,27 +708,42 @@ final class DocumentTools {
 
     /// Fetches the marching ants for the selection shown (off the main thread, newest wins).
     func refreshOutline(_ doc: DocumentController, level: Int? = nil) {
-        guard let t = backend(doc) else { return }
+        guard document === doc, let t = backend(doc) else { return }
         let lvl = level ?? doc.viewport?.viewLevel ?? 0
         let key = (doc.id, doc.info.epoch, lvl)
         if let k = outlineKey, k == key { return }
         outlineKey = key
-        // Every refresh starts a generation, the clear included, so a request still in flight when the
-        // selection is cleared can no longer bring its ants back.
-        let token = outlineGate.begin()
         guard doc.marquee != nil else {
+            outlineRequests.invalidate()
             if !outline.isEmpty { outline = [] }
             redraw()
             return
         }
+        let input = OutlineInput(backend: t, documentID: doc.id, level: UInt8(max(0, min(lvl, 6))))
+        if let request = outlineRequests.submit(input) { startOutline(request) }
+    }
+
+    private func startOutline(_ request: LatestRequestBuffer<OutlineInput>.Request) {
+        let fetch = outlineFetchForTesting
+        let observeCompletion = outlineCompletionForTesting
         outlineQueue.async {
-            let o = (try? t.selectionOutline(level: UInt8(max(0, min(lvl, 6))))) ?? []
+            let o: [SelectionOutline]
+            if let fetch {
+                o = (try? fetch(request.value.backend, request.value.level)) ?? []
+            } else {
+                o = (try? request.value.backend.selectionOutline(level: request.value.level)) ?? []
+            }
             DispatchQueue.main.async {
                 MainActor.assumeIsolated {
                     let tools = DocumentTools.shared
-                    guard tools.outlineGate.accepts(token) else { return }
-                    tools.outline = o
-                    tools.redraw()
+                    let completion = tools.outlineRequests.finish(request.generation)
+                    let published = completion.accept && tools.document?.id == request.value.documentID
+                    if published {
+                        tools.outline = o
+                        tools.redraw()
+                    }
+                    if let next = completion.next { tools.startOutline(next) }
+                    observeCompletion?(request.generation, published, request.value.documentID)
                 }
             }
         }

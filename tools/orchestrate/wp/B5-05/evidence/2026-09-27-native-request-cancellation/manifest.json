@@ -1,0 +1,53 @@
+{
+  "head": "cd07b43559d5cd7e59c7193c096e0fdb995d9231",
+  "tree": "35ada171ba0b7c27fede64f6d497a735fdd6ea51",
+  "base": "a1d51f6bdd0a223284252127db37244828479470",
+  "scope": "Native preview/bake cancellation, imported B product plus current main CPU region API. Existing 711f9ada freeze was pre-region and unrun.",
+  "files": [
+    {
+      "path": "Cargo.toml",
+      "sha256": "ba0d86eceaca41d9210bcafe2c5b39d889453a561db0794fb6c9da0bff706a25",
+      "bytes": 1902
+    },
+    {
+      "path": "Cargo.lock",
+      "sha256": "9ef23f19fd6cb3fb848ecbea8bc3fb6cabc9891f192bf4be63fc1ceab46f87fd",
+      "bytes": 157406
+    },
+    {
+      "path": "crates/tessera-ffi/Cargo.toml",
+      "sha256": "3d44fb1fc0c21eff4d7a2de2cad0a3c65e2599855087eee380716fc65e83a0d4",
+      "bytes": 2297
+    },
+    {
+      "path": "crates/tessera-ffi/src/document/filters.rs",
+      "sha256": "8b4a23aaab6a03faf2b26cc0d621ff3576792e54b7b8f7ce1113259ee64693b4",
+      "bytes": 117929
+    },
+    {
+      "path": "crates/tessera-ffi/src/document/render.rs",
+      "sha256": "39e7fa942fcf24f1937bccd5d5e13a40b95cbfca83751b214b8841f6376ce8d4",
+      "bytes": 44967
+    },
+    {
+      "path": "crates/tessera-ffi/tests/document_filters.rs",
+      "sha256": "ab46511e506aee51e78e9c89ef652c765ff2de41a2993a501699f2ab2e6c96be",
+      "bytes": 27853
+    },
+    {
+      "path": "crates/compositor/src/render/mod.rs",
+      "sha256": "c7883a539bec172895b92d0a9eae184197ae5eb42373497b65c8d9e56158705b",
+      "bytes": 38181
+    },
+    {
+      "path": "crates/compositor/src/render/smart_filters.rs",
+      "sha256": "e3e05d6f2c0f506dd7312ff4c389c70ab158e3e3a85d965868db846511b36441",
+      "bytes": 38985
+    },
+    {
+      "path": "crates/compositor/tests/render_region.rs",
+      "sha256": "81b42831314d1095cbcaa821b5565be1441f7da0e0b944cf2d88d4a05825186c",
+      "bytes": 7187
+    }
+  ]
+}
