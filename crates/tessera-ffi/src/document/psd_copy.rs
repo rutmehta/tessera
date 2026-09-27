@@ -248,9 +248,13 @@ impl RasterizedPsdCopyOperation {
         let copy = rasterize_layers(&snapshot, &ids, &self.state, |layer| {
             filtering::rasterize_smart_stack_with_cancel(&snapshot, layer, &self.state.cancel)
         })?;
-        io::save_psd_copy_checked(&Document::new(copy), path, &|| self.state.check(), &|| {
-            self.shared.copies.admit_commit(&self.state)
-        })
+        io::save_psd_copy_checked(
+            &Document::new(copy),
+            path,
+            self.state.cancel.native_token(),
+            &|| self.state.check(),
+            &|| self.shared.copies.admit_commit(&self.state),
+        )
     }
 }
 fn rasterize_layers(
@@ -290,6 +294,90 @@ fn collect_layers(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn session_close_signals_running_copy_before_waiting_for_backend_state() {
+        let dir = tempfile::tempdir().unwrap();
+        let engine =
+            crate::Engine::open(dir.path().join("support").to_string_lossy().into_owned()).unwrap();
+        let extent = engine_api::tile::Extent::new(2, 2);
+        let session = engine.adopt_document(
+            Document::new(compositor::DocState::new(extent, compositor::Depth::U8)),
+            "tiny copy".into(),
+        );
+        let operation = session.prepare_rasterized_psd_copy().unwrap();
+        let destination = dir.path().join("copy.psd");
+        std::fs::write(&destination, b"sentinel").unwrap();
+
+        let state_guard = session.shared.state.lock().unwrap();
+        let worker_operation = operation.clone();
+        let worker_path = destination.to_string_lossy().into_owned();
+        let worker = std::thread::spawn(move || worker_operation.run(worker_path));
+        fn wait_until(mut condition: impl FnMut() -> bool) -> bool {
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+            loop {
+                if condition() {
+                    return true;
+                }
+                if std::time::Instant::now() >= deadline {
+                    return false;
+                }
+                std::thread::yield_now();
+            }
+        }
+        let running = wait_until(|| operation.state.life().phase == Phase::Running);
+        let close_session = session.clone();
+        let closer = std::thread::spawn(move || close_session.close());
+        let signalled = wait_until(|| operation.state.cancel.is_cancelled());
+        // A broken shutdown ordering must be able to unwind before asserting.
+        drop(state_guard);
+        closer.join().unwrap();
+        let result = worker.join().unwrap().unwrap();
+        assert!(running, "copy worker never reached the backend lock");
+        assert!(
+            signalled,
+            "close waited for backend state before cancelling"
+        );
+        assert_eq!(result, RasterizedPsdCopyOutcome::Cancelled);
+        assert_eq!(std::fs::read(&destination).unwrap(), b"sentinel");
+    }
+
+    #[test]
+    fn close_cancels_blocked_worker_and_holds_admission_until_unwind() {
+        let registry = Arc::new(CopyRegistry::default());
+        let state = registry.prepare().unwrap();
+        let (started_tx, started_rx) = std::sync::mpsc::channel();
+        let (release_tx, release_rx) = std::sync::mpsc::channel();
+        let worker_registry = registry.clone();
+        let worker_state = state.clone();
+        let worker = std::thread::spawn(move || {
+            worker_state.start().unwrap();
+            let _drain = Drain {
+                registry: &worker_registry,
+                state: &worker_state,
+            };
+            started_tx.send(()).unwrap();
+            release_rx
+                .recv_timeout(std::time::Duration::from_secs(5))
+                .unwrap();
+            worker_state.finish_result(worker_state.check())
+        });
+        started_rx
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .unwrap();
+        registry.close();
+        assert!(state.cancel.is_cancelled());
+        assert!(state.holds_admission(), "running worker has not unwound");
+        assert!(
+            registry.prepare().is_err(),
+            "closed document cannot admit work"
+        );
+        release_tx.send(()).unwrap();
+        assert_eq!(
+            worker.join().unwrap().unwrap(),
+            RasterizedPsdCopyOutcome::Cancelled
+        );
+        assert!(!state.holds_admission());
+    }
     #[test]
     fn genuine_failure_wins_cancel_between_work_and_finalization() {
         for message in [

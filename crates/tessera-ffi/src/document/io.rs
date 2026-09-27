@@ -7,7 +7,10 @@ use compositor::{
     BlendMode, ColorProfile, DocOp, DocState, Document, Knockout, Layer, LayerId, LayerKind,
     Raster, Rect, document::selection,
 };
-use engine_api::tile::{Extent, TileCoord};
+use engine_api::{
+    jobs::CancellationToken,
+    tile::{Extent, TileCoord},
+};
 use std::{
     io::Write,
     path::{Path, PathBuf},
@@ -363,11 +366,12 @@ pub(crate) fn save(doc: &Document, path: &Path) -> Result<()> {
     }
 }
 
-/// Copy-only transaction. Conversion and encoder internals remain opaque;
-/// A's compositor follow-up will replace the conversion boundary below.
+/// Copy-only transaction. Conversion uses the operation's live native token;
+/// the encoded PSD writer remains opaque and boundary-checked.
 pub(super) fn save_psd_copy_checked(
     doc: &Document,
     path: &Path,
+    cancel: &CancellationToken,
     check: &impl Fn() -> super::psd_copy::CopyResult<()>,
     admit_commit: &impl Fn() -> super::psd_copy::CopyResult<()>,
 ) -> super::psd_copy::CopyResult<()> {
@@ -376,7 +380,7 @@ pub(super) fn save_psd_copy_checked(
     if kind == SaveKind::Native {
         return Err(failure("copy requires PSD or PSB").into());
     }
-    let mut psd = compositor::psd::to_psd(doc)?;
+    let mut psd = compositor::psd::to_psd_with_cancel(doc, cancel)?;
     check()?;
     psd.version = if kind == SaveKind::Psb {
         ::psd::Version::Psb
@@ -416,15 +420,38 @@ fn write_copy_atomic(
 
 #[cfg(test)]
 mod copy_transaction_tests {
+    use super::super::psd_copy::CopyError;
     use super::*;
     use std::cell::Cell;
+    #[test]
+    fn copy_conversion_uses_the_requests_live_native_token() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("copy.psd");
+        std::fs::write(&path, b"sentinel").unwrap();
+        let doc = Document::new(DocState::new(Extent::new(2, 2), compositor::Depth::U8));
+        let request = super::super::filtering::RequestCancellation::default();
+        request.cancel();
+        // The transaction's boundary check deliberately succeeds; the
+        // compositor must observe the very same native request token.
+        let result =
+            save_psd_copy_checked(&doc, &path, request.native_token(), &|| Ok(()), &|| {
+                panic!("cancelled conversion must not enter commit")
+            });
+        assert!(matches!(result, Err(CopyError::Cancelled)));
+        assert_eq!(std::fs::read(&path).unwrap(), b"sentinel");
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
+
+        let fresh = super::super::filtering::RequestCancellation::default();
+        save_psd_copy_checked(&doc, &path, fresh.native_token(), &|| Ok(()), &|| Ok(())).unwrap();
+        assert!(std::fs::read(&path).unwrap().starts_with(b"8BPS"));
+    }
     #[test]
     fn cancelled_before_commit_preserves_destination_and_removes_temp() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("copy.psd");
         std::fs::write(&path, b"sentinel").unwrap();
         let result = write_copy_atomic(&path, b"replacement", &|| Ok(()), &|| {
-            Err(super::psd_copy::CopyError::Cancelled)
+            Err(CopyError::Cancelled)
         });
         assert!(result.is_err());
         assert_eq!(std::fs::read(&path).unwrap(), b"sentinel");
@@ -444,7 +471,7 @@ mod copy_transaction_tests {
             &|| {
                 checks.set(checks.get() + 1);
                 if checks.get() == 3 {
-                    Err(super::psd_copy::CopyError::Cancelled)
+                    Err(CopyError::Cancelled)
                 } else {
                     Ok(())
                 }

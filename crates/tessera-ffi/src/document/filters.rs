@@ -77,6 +77,10 @@ impl RequestCancellation {
     pub(super) fn is_cancelled(&self) -> bool {
         self.native.is_cancelled() || self.effect.load(Ordering::Acquire)
     }
+
+    pub(super) fn native_token(&self) -> &CancellationToken {
+        &self.native
+    }
 }
 
 // ─────────────────────────────── records ───────────────────────────────
