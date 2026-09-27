@@ -1166,5 +1166,13 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M2-49",
+    "owner": "astra",
+    "title": "Engine: Upright in loupe, AI Denoise + Lens Blur end to end",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
