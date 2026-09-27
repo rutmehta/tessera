@@ -1,6 +1,6 @@
 # Tessera task board — Machine A coordinator
 
-Updated: 2026-09-27 22:52 UTC
+Updated: 2026-09-27 23:00 UTC
 
 User mandate: autonomously advance UI/UX redesign **and** the recovered engine
 queue, using parallel GPT-6 Astra/Luna agents; coordinate Machine B and keep
@@ -38,29 +38,32 @@ Machine A as sole main integrator. Do useful work while other tasks wait.
 
 ## Ready / next
 
-1. **Luna — desktop / editing readiness:** Review persistence merged main7adc4fa2
-   after494XCTest/1skip/0failure+5SwiftTesting on16cb6ce5/currentFFI99ba and tiny
-   JPEG quit/relaunch GUI. Evidence1b0f5283 includes source/log/exit/sidecars/record;
-   UI observations are narrative, not a saved screenshot/AX transcript. Exact
-   tested executable remains the isolated validation bundle. Per user request
-   relayed by B7be2fbaf, now prioritize fresh tiny JPEG open/basic adjustments/
-   save-reopen/export smoke and a concrete usable-build assessment. Full project
-   date and large RAW/resource readiness are not established.
-2. **Resource Sol — compiler:** pure UX03 draft REDa988b710 then approved frozen
-   model/focused tests. No batch writer/UI/undo implementation in this slice.
-3. **Engine Sol — source:** PSD primitive DONE mainebe7b043, exact745cf77e
-   crates/Cargo;66tests/strict pass, both compile failures preserved. Now prepare
-   isolated operation integration B7240948+typed correction0df02c4, same native
-   token, known nested test module-path repair, targeted native/bindings/Swift
-   validation. Wait for UX03 compiler release before builds.
-4. **B — source only:** audit remaining legacy effect cancellation type erasure
-   requestab6dceee has accepted peer receipt. Resultb7294f0e correction accepted
-   for A integration; no compile acceptance yet. B workload/heartbeat hold stays.
+1. **Luna — exclusive desktop/heavy slot:** exact16cb6ce5/currentFFI99ba preview
+   passed tiny JPEG open/exposure+0.10/WB7007K/save-reopen/export-reopen. Evidence
+   4cd53973 merged main87cce4c0; root verified persisted values and exported image.
+   2048px preset upscaled fixture; displayed0.2s is not a benchmark. User editing
+   assessment7be2fbaf completed with this narrow scope, result9e0b4c6a published,
+   SSH queue01a0e514 accepted; peer receipt not yet observed. Now one disposable
+   SonyRAW~16.2MP basic-edit smoke, no compiler overlap, PSD/AI/batch or user files.
+   All available camera RAW fixtures exceeded initial6MP preflight; root approved
+   this single next step after host check and exclusive-slot handoff.
+2. **Resource Sol — evidence:** UX03 pure draft final10focused+8adjacent pass;
+   missingmodelRED and firstGREEN malformed-test-JSON failure retained. Package
+   exact source/evidence and push for root merge. FFI19f retained, pureSwift scope;
+   batch writer/UI/undo are not implemented.
+3. **Engine Sol — source only:** operation integration branch includes B7240948,
+   typed error0df02c4, A same-token bridge and blocked-state close test, plus typed
+   effects463922c. Native/bindings/Swift tests still pending. Wait for Luna RAW
+   release. Keep historical export-integration FFI19f untouched; build new FFI
+   only in an independent safe validation checkout after native gate.
+4. **B — source only / hold:** typed-effect requestd20e6e9b completed publication;
+   A resultccb9e8f1 accepted and under review. Correctionb7294f0e likewise waits
+   actual A validation. No B workload or heartbeat restart.
 
-A alone merges main. Current app validation99ba predates the newly merged PSD
-primitive; do not represent it as rebuilt from latest main. PSD admission proposal
-is modeled-work design, not a memory cap. Ten initially copied global test records
-were later audited as11; all use absent UUID fixture paths, originals preserved.
+Review persistence DONE main7adc4fa2 (494XCTest/1skip/0fail+5 and tinyGUI).
+PSD primitive DONE mainebe7b043 (66tests/strict); current preview99ba predates it.
+A alone merges main. PSD admission proposal is modeled work, not a memory cap.
+All11 global test records are preserved evidence; original records left intact.
 
 Current integrated product checkpoints:
 

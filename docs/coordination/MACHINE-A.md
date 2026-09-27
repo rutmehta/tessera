@@ -4,6 +4,23 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## JPEG readiness and next single RAW check — 2026-09-27 23:00 UTC
+
+Main87cce4c0 preserves exact editing evidence4cd53973: preview16cb6ce5/FFI99ba
+opened generated320x240JPEG, exposure+0.10EV/WB7007K survived relaunch, ordinary
+sRGBJPEGexport reopened. Root verified sidecar values and output image. 2048px
+preset upscaled; app toast0.2s is not benchmark. This is an isolated ad-hoc preview,
+not installed release/fullproject/largeRAW acceptance. Result9e0b4c6a published for
+B/user assessment, SSHqueue01a0e514 accepted; no peer receipt observed yet.
+
+UX03 pure draft10focused+8adjacent pass after preserved missingmodelRED and one
+malformedtestJSON failure. Compiler released. Luna now owns sole heavy/desktop
+slot for one smallestSonyRAW16.2MP fixture copy; no user data, PSD/AI/batch.
+A host snapshot24GiBRAM,45%reportedfree,5.97GiBhostswap not attributedtoTessera.
+Engine Sol prepares Boperation plus463922c typed-effects; allcombinedgatesunrun,
+no duplicatecompile. IndependentFFIvalidationcheckout must preserve old19farchive.
+B hold remains; corrected/result receipts remainaccepted until actualvalidation.
+
 ## Review and PSD primitive merged — 2026-09-27 22:52 UTC
 
 Main7adc4fa2 integrates exact tested Review16cb6ce5 with evidence1b0f5283:
