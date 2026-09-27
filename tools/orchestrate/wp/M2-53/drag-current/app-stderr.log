@@ -1,3 +1,0 @@
-2026-09-27 04:28:10.093 Tessera[66520:89742054] Sparkle updates not configured for this build
-develop L2 calibration [first, tone, WB] ms: CPU [666.252916, 259.18087499999996, 280.44012499999997]; GPU [376.08950000000004, 1.656333, 7.682333000000001]
-develop-selftest: 120 tone frames at L2, engine sink median 2.4 ms, p90 3.4 ms, max 17.8 ms (not app input-to-display); backend Metal (Apple M4); residency unavailable; history: Exposure +1.50

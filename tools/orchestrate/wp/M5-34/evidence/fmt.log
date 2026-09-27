@@ -1,2 +1,0 @@
-CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/M5-34 cargo fmt --check
-Exit 0
