@@ -1,10 +1,10 @@
 # M2-58 results
 
-RESULT: PARTIAL — resumed correctness validation passes after the current main merge and a test-fixture correction. The full Swift Auto Upright setter meets P10 timing limits in three recorded runs. Full P10 pixel-parity, P11 presentation/performance, and P01 actual input-to-present acceptance remain unverified. The historical failures below are preserved; the final resumption section supersedes their current status.
+RESULT: PARTIAL — resumed correctness validation passes after the current main merge and a test-fixture correction. The full Swift Auto Upright setter meets P10 timing limits in three recorded runs, and controlled Sony ARW before/after captures show exact pixel parity at exposure 0 and +1. P11 presentation/performance and P01 actual input-to-present acceptance remain unverified. The historical failures below are preserved; the final sections supersede their current status.
 
 ## Scope
 
-Read `tools/orchestrate/audits/perf/REPORT.md` in full and M2-53 RESULTS. The relevant audit acceptance definitions are REPORT.md:187,196-198. Work is confined to the M2-58 worktree and allowlist; no Document, jobs, or previews implementation was edited. No commits or foreground activation.
+Read `tools/orchestrate/audits/perf/REPORT.md` in full and M2-53 RESULTS. The relevant audit acceptance definitions are REPORT.md:187,196-198. Implementation work is confined to the M2-58 worktree and allowlist; no Document, jobs, or previews implementation was edited. The historical checkpoints below preceded recovery commits; the September 27 sections record subsequent recovery, integration and evidence commits on `wp/M2-58`. The controlled parity diagnostic temporarily installed its identical untracked test in main as well, then removed only that owned file after verifying its hash. No foreground activation occurred, and this worker never merged or pushed main.
 
 ## Implementation
 
@@ -140,3 +140,30 @@ Median of the three run medians: **0.021875 ms**. Worst p95: **0.044125 ms**; wo
 ### Acceptance still open
 
 No new app was launched or window activated/raised during this resumption. The retained earlier background traces still have no actual presentation timestamps. P01 input-to-present p50/p95 therefore remain unavailable; GPU completion or callback latency is not substituted. P11's <=200 ms actual final-detail presentation and <=10% open-versus-closed drag-p95 comparison remain unmeasured. A controlled before/after Auto-Upright pixel-parity comparison is also not established by the passing correctness suites. The full M2-58 performance acceptance is consequently **PARTIAL**, despite passing final correctness/build stages and observed P10 setter thresholds.
+
+
+## Controlled P10 settled-output parity
+
+The parent granted a serialized heavy slot after M5-31 finished. An identical temporary Rust integration harness was installed exclusively in the existing main and M2-58 checkouts, compiled against their separate release targets, and removed only after its SHA-256 matched the installed source. No tracked product source was edited, no additional worktree was created, and no UI was launched or activated.
+
+- Before product source: `c0d45355f7ff97254f5f847bc8bdc5063be1fd1e`; observed main HEAD `503bc4635961963cda6098bbaa6f588d9e7a18bf` differed only outside the checked Rust product paths.
+- After product source: `5ff267933be108494d78eab55181288258253e16`.
+- Cargo manifest/lockfile, `.cargo` and all tracked crate source were checked against each pin before and after; the runner retained complete source hashes. Both unchanged checks passed, and both owned temporary-test paths were absent after cleanup.
+- Both builds used `cargo test --locked --release -p tessera-ffi --test m2_58_upright_parity_capture --no-run --message-format=json`, `MACOSX_DEPLOYMENT_TARGET=15.0` and the existing external `main` / `M2-58` targets. No Swift or binding regeneration was needed.
+
+The first attempt stopped at a harness-only compile error: an incorrect `is_empty()` assertion on the unit return from `set_settings` (E0599). No captures ran; cleanup and both source checks passed. That evidence remains in `parity-capture/`. Removing that assertion retained `unwrap()` success and did not change any equality criteria. The corrected identical harness compiled for both revisions, and all four capture processes exited zero. `parity-capture-retry/report.json` contains exact commands, executable/harness/fixture/source hashes, process durations, load averages and comparisons.
+
+Each process used a fresh engine, support directory and copied Sony ARW with no inherited sidecars. Settings were native process revision 2, Auto Upright, exposure 0 or +1, noninteractive final rendering, a 1280×900 requested viewport and RGBA8 output. The initial frame settled before the update. The newer final callback synchronously copied every valid pixel row while producer serialization protected the surface; row padding was excluded. Histograms were read within the callback and required matching frame generation. Filesystem and driver caches were not purged.
+
+| Auto Upright exposure | Valid frame | Level | Compared bytes per frame | Changed bytes | Metadata differences |
+|---|---|---:|---:|---:|---:|
+| 0 | 2460×1638 RGBA8 | 1 | 16,117,920 | 0 | 0 |
+| +1 | 2460×1638 RGBA8 | 1 | 16,117,920 | 0 | 0 |
+
+Exposure 0 bytes hash: `110ae9e8e7235eec70f99d45fa75caf8a2c9600efcb8b2e6644fe662dd81e63e`.
+Exposure +1 bytes hash: `82e4f850e1397b73df995e139a8569d9ca9405586e5357b1dc86e3d2f1b5ad29`.
+Both sides also matched full RGB/luminance histograms, normalized settings, process version, valid/display/surface dimensions, final level and reported `Metal (Apple M4)` backend. The four one-minute load samples before execution were 7.9253, 7.3706, 7.3706 and 7.3408; process durations are diagnostic capture durations, not performance comparisons.
+
+Full raw pixel blobs were preserved outside Git under `/Volumes/betterSSD/tessera-cache/evidence/M2-58-parity-20260927-151311/`. Every copied blob was SHA-256 verified before removing only its owned in-checkout copy; `parity-capture-retry/pixel-artifacts.json` records all exact locations, sizes and hashes. Reports, complete histogram metadata, build/run logs and the reusable diagnostic are committed.
+
+This establishes **bounded P10 settled-output pixel parity for these two controlled fixture cases**, alongside the earlier full Swift setter threshold evidence. Baseline `FrameInfo` lacks actual-residency metadata; both capture records explicitly leave residency null. Requested GPU and reported Metal do not prove the per-frame rendering route. No all-image parity, actual P01 presentation latency, or P11 <=200 ms / <=10% performance result is inferred. Overall acceptance remains **PARTIAL**.

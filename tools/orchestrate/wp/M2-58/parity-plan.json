@@ -1,0 +1,71 @@
+{
+  "status": "prepared_only",
+  "harness_sha256": "6f8272c53f79c0200d6b02623b7de8acda1987298b19caa80c656de4af81ff38",
+  "fixture_sha256": "bf4c6d21136aa4fd626212fe72b962b6404e3fca45cdc3b6afbed8e73fee2cf8",
+  "settings": {
+    "exposures": [
+      0,
+      1
+    ],
+    "upright": "auto",
+    "process": {
+      "family": "native",
+      "revision": 2
+    },
+    "viewport": [
+      1280,
+      900
+    ],
+    "output": "RGBA8",
+    "interactive": false
+  },
+  "trees": [
+    {
+      "name": "before",
+      "root": "/Users/rutmehta/Developer/tessera",
+      "pin": "c0d4535",
+      "resolved_pin": "c0d45355f7ff97254f5f847bc8bdc5063be1fd1e",
+      "observed_head": "503bc4635961963cda6098bbaa6f588d9e7a18bf",
+      "target": "/Volumes/betterSSD/tessera-cache/target/main",
+      "temporary_test": "/Users/rutmehta/Developer/tessera/crates/tessera-ffi/tests/m2_58_upright_parity_capture.rs",
+      "build_command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--release",
+        "-p",
+        "tessera-ffi",
+        "--test",
+        "m2_58_upright_parity_capture",
+        "--no-run",
+        "--message-format=json"
+      ]
+    },
+    {
+      "name": "after",
+      "root": "/Users/rutmehta/Developer/tessera/.worktrees/M2-58",
+      "pin": "5ff2679",
+      "resolved_pin": "5ff267933be108494d78eab55181288258253e16",
+      "observed_head": "5ff267933be108494d78eab55181288258253e16",
+      "target": "/Volumes/betterSSD/tessera-cache/target/M2-58",
+      "temporary_test": "/Users/rutmehta/Developer/tessera/.worktrees/M2-58/crates/tessera-ffi/tests/m2_58_upright_parity_capture.rs",
+      "build_command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--release",
+        "-p",
+        "tessera-ffi",
+        "--test",
+        "m2_58_upright_parity_capture",
+        "--no-run",
+        "--message-format=json"
+      ]
+    }
+  ],
+  "limits": [
+    "actual baseline per-frame residency unavailable",
+    "fresh processes and fresh engine/cache state; OS/driver caches not purged",
+    "settled output pixel parity only; no presentation or P11 latency measurement"
+  ]
+}

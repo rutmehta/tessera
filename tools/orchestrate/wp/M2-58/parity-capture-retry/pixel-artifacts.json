@@ -1,0 +1,30 @@
+{
+  "external_directory": "/Volumes/betterSSD/tessera-cache/evidence/M2-58-parity-20260927-151311",
+  "artifacts": [
+    {
+      "capture": "after-exposure-0",
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/M2-58-parity-20260927-151311/after-exposure-0/pixels.rgba",
+      "bytes": 16117920,
+      "sha256": "110ae9e8e7235eec70f99d45fa75caf8a2c9600efcb8b2e6644fe662dd81e63e"
+    },
+    {
+      "capture": "after-exposure-1",
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/M2-58-parity-20260927-151311/after-exposure-1/pixels.rgba",
+      "bytes": 16117920,
+      "sha256": "82e4f850e1397b73df995e139a8569d9ca9405586e5357b1dc86e3d2f1b5ad29"
+    },
+    {
+      "capture": "before-exposure-0",
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/M2-58-parity-20260927-151311/before-exposure-0/pixels.rgba",
+      "bytes": 16117920,
+      "sha256": "110ae9e8e7235eec70f99d45fa75caf8a2c9600efcb8b2e6644fe662dd81e63e"
+    },
+    {
+      "capture": "before-exposure-1",
+      "path": "/Volumes/betterSSD/tessera-cache/evidence/M2-58-parity-20260927-151311/before-exposure-1/pixels.rgba",
+      "bytes": 16117920,
+      "sha256": "82e4f850e1397b73df995e139a8569d9ca9405586e5357b1dc86e3d2f1b5ad29"
+    }
+  ],
+  "verified": true
+}
