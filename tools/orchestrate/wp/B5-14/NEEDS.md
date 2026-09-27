@@ -16,11 +16,18 @@ frame then cannot use the resident damage log (`resident::damage`: `last.key == 
 - CPU-compositor tiles keyed by `doc.key()` are recomputed (styled documents already key root tiles by
   revision, so they lose nothing extra).
 
+- composite thumbnails of styled documents (or without Metal) use a persistent CPU compositor whose mip
+  cache is keyed by `doc.key()`: a drag's scratch (`Document::clone`) starts cold, so its first thumbnail
+  re-reduces every layer from level 0 (215 ms for 10 × 6 MP layers; seconds for 60 × 18 MP). Unstyled
+  documents take the resident renderer, whose pages are content-addressed, and are warm.
+
 The FFI keeps the window short (the snapshot is dropped before the GPU wait), so this only happens when an
 edit races the CPU side of a frame or a CPU (style) frame. Wanted: `Document::fork_same_lineage(&self) -> Document`
 (same key, history, epoch and damage log; documented as "for immutable snapshots of one session"), or making
 `Document` internally `Arc`-backed so a cheap snapshot shares the key. Either lets the FFI replace
-`Arc::make_mut` with a lineage-preserving copy.
+`Arc::make_mut` (and the scratch's `st.doc.clone()`) with a lineage-preserving copy. Alternatively, keying
+raster mips by raster identity + footprint revision instead of `(doc key, layer id)` would make thumbnails
+and the CPU style fallback independent of document keys.
 
 ## 2. A public interactive-pressure guard (jobs)
 

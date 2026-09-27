@@ -717,6 +717,28 @@ impl Renderer {
         }
     }
 
+    /// B5-14: the whole of `level` of `doc` rendered by the resident renderer
+    /// and read back (straight RGBA f32); `None` without Metal or for
+    /// documents it refuses (layer styles).
+    fn resident_level(&self, doc: &Document, level: u8) -> Result<Option<(Extent, Vec<f32>)>> {
+        fn styled(l: &Layer) -> bool {
+            !l.props.styles.effects.is_empty()
+                || l.children().is_some_and(|c| c.iter().any(|l| styled(l)))
+        }
+        if doc.state().root.iter().any(|l| styled(l)) {
+            return Ok(None);
+        }
+        let mut backend = self.backend.lock().map_err(failure)?;
+        let Backend::Gpu(g) = &mut *backend else {
+            return Ok(None);
+        };
+        match g.resident.render(doc, level) {
+            Ok(_) => Ok(Some(g.resident.read_level(level, false)?)),
+            Err(EngineError::Unsupported { .. }) => Ok(None),
+            Err(e) => Err(e.into()),
+        }
+    }
+
     pub(crate) fn thumbnail_renders(&self) -> u64 {
         self.thumb_renders.load(Ordering::SeqCst)
     }
@@ -1080,12 +1102,12 @@ pub(crate) fn thumbnail(shared: &Shared, kind: ThumbKind, max_px: u32) -> Result
                     false,
                 )
             }
-            // B5-14: without smart filters the live document is rendered as
-            // is: its cache key is stable (the committed document, or one
-            // drag's scratch), so an edit recomposites the tiny thumbnail
-            // level from cached mips instead of re-reducing every layer from
-            // level 0 (seconds on the main thread for 60 × 18 MP layers, per
-            // edit). A drag's first thumbnail is still cold (NEEDS.md 1).
+            // B5-14: the live document itself when it has no smart filters.
+            // The resident renderer (below) keeps its mip pages across
+            // edits; without Metal or with layer styles the persistent CPU
+            // compositor reuses mips while the document key is stable. Before,
+            // every call re-reduced every layer from level 0 (seconds on the
+            // main thread per edit for 60 × 18 MP layers).
             ThumbKind::Composite => {
                 if has_smart_filters(s) {
                     let d = Document::new(super::filtering::unfiltered_state(s));
@@ -1109,42 +1131,70 @@ pub(crate) fn thumbnail(shared: &Shared, kind: ThumbKind, max_px: u32) -> Result
             e.width.max(e.height) <= max_px
         })
         .unwrap_or(MAX_VIEW_LEVEL - 1);
-    let tiles = if stable {
-        // B5-14: persistent, so mips survive between calls.
-        r.thumb_comp
-            .get_or_init(|| super::fonts::compositor(128 << 20))
-            .render_level(&doc, level, &CancellationToken::new())?
-    } else {
-        super::fonts::compositor(64 << 20).render_level(&doc, level, &CancellationToken::new())? // B5-10
-    };
     let e = canvas.at_level(level);
     let surface = Surface::create_rgba8(e.width, e.height).map_err(failure)?;
-    let mask = matches!(kind, ThumbKind::Mask(_));
-    surface
-        .with_pixels(|px, stride| -> EngineResult<()> {
-            for t in &tiles {
-                let (ox, oy) = t.coord().pixel_origin(TILE_SIZE);
-                let l = t.layout();
-                let n = l.plane_len();
-                let s = t.samples::<f32>()?;
-                for y in 0..l.extent.height as usize {
-                    for x in 0..l.extent.width as usize {
-                        let i = y * l.stride() + x;
-                        let o = (oy as usize + y) * stride + (ox as usize + x) * 4;
-                        if mask {
-                            let v = quantize(s[3 * n + i]);
-                            px[o..o + 4].copy_from_slice(&[v, v, v, 255]);
-                        } else {
-                            for c in 0..4 {
-                                px[o + c] = quantize(s[c * n + i]);
+    // B5-14: a composite without styles comes from the resident renderer,
+    // whose mip pages are content-addressed (they survive edits, drags and
+    // document keys); the CPU compositors below re-reduce layers per key.
+    let resident = if matches!(kind, ThumbKind::Composite) {
+        r.resident_level(&doc, level)?
+    } else {
+        None
+    };
+    if let Some((re, rgba)) = resident {
+        let w = re.width as usize;
+        surface
+            .with_pixels(|px, stride| {
+                for y in 0..re.height as usize {
+                    for x in 0..w {
+                        let (i, o) = ((y * w + x) * 4, y * stride + x * 4);
+                        for c in 0..4 {
+                            px[o + c] = quantize(rgba[i + c]);
+                        }
+                    }
+                }
+            })
+            .map_err(failure)?;
+    } else {
+        let tiles = if stable {
+            // B5-14: persistent, so mips survive between calls (styled documents).
+            r.thumb_comp
+                .get_or_init(|| super::fonts::compositor(128 << 20))
+                .render_level(&doc, level, &CancellationToken::new())?
+        } else {
+            super::fonts::compositor(64 << 20).render_level(
+                &doc,
+                level,
+                &CancellationToken::new(),
+            )? // B5-10
+        };
+        let mask = matches!(kind, ThumbKind::Mask(_));
+        surface
+            .with_pixels(|px, stride| -> EngineResult<()> {
+                for t in &tiles {
+                    let (ox, oy) = t.coord().pixel_origin(TILE_SIZE);
+                    let l = t.layout();
+                    let n = l.plane_len();
+                    let s = t.samples::<f32>()?;
+                    for y in 0..l.extent.height as usize {
+                        for x in 0..l.extent.width as usize {
+                            let i = y * l.stride() + x;
+                            let o = (oy as usize + y) * stride + (ox as usize + x) * 4;
+                            if mask {
+                                let v = quantize(s[3 * n + i]);
+                                px[o..o + 4].copy_from_slice(&[v, v, v, 255]);
+                            } else {
+                                for c in 0..4 {
+                                    px[o + c] = quantize(s[c * n + i]);
+                                }
                             }
                         }
                     }
                 }
-            }
-            Ok(())
-        })
-        .map_err(failure)??;
+                Ok(())
+            })
+            .map_err(failure)??;
+    }
     r.thumb_renders.fetch_add(1, Ordering::SeqCst);
     let id = surface.id();
     r.thumbs
