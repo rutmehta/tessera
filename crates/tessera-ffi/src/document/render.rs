@@ -112,6 +112,17 @@ pub struct DocRenderRecord {
     pub total_ms: f64,
 }
 
+/// Smart objects with filters (the compositor never evaluates them).
+fn has_smart_filters(state: &DocState) -> bool {
+    fn go(v: &[Arc<Layer>]) -> bool {
+        v.iter().any(|l| match &l.kind {
+            LayerKind::SmartObject(so) => !so.filters.is_empty(),
+            _ => l.children().is_some_and(go),
+        })
+    }
+    go(&state.root)
+}
+
 /// Needs a full-level halo: the resident program runs spatial passes over
 /// the whole level (COMPOSITOR.md §4.3), as `resident::render_region`
 /// decides for positive-radius Shadows/Highlights and HDR Toning.
@@ -503,6 +514,8 @@ pub(crate) struct Renderer {
     counts: [AtomicU64; 4],
     last_path: Mutex<Option<DocRenderPath>>,
     last_resources: Mutex<Option<Instant>>,
+    /// Composite thumbnails of the committed document (cache kept).
+    thumb_comp: OnceLock<Compositor>,
     // B5-14 end
 }
 
@@ -550,6 +563,7 @@ impl Renderer {
             counts: Default::default(),
             last_path: Mutex::new(None),
             last_resources: Mutex::new(None),
+            thumb_comp: OnceLock::new(),
             // B5-14 end
         }
     }
@@ -1042,7 +1056,9 @@ pub(crate) fn thumbnail(shared: &Shared, kind: ThumbKind, max_px: u32) -> Result
         return Err(failure("max_px must be 1…4096"));
     }
     let r = &shared.render;
-    let (rev, doc) = {
+    // B5-14: `stable` documents keep their cache key across calls, so the
+    // persistent thumbnail compositor reuses their layers' mips.
+    let (rev, doc, stable) = {
         let st: std::sync::MutexGuard<'_, State> = shared.lock()?;
         st.open()?;
         let live = st.live();
@@ -1050,7 +1066,7 @@ pub(crate) fn thumbnail(shared: &Shared, kind: ThumbKind, max_px: u32) -> Result
         match kind {
             ThumbKind::Layer(id) => {
                 let l = find(s, id)?;
-                (layer_revision(l), solo(s, l))
+                (layer_revision(l), Arc::new(solo(s, l)), false)
             }
             ThumbKind::Mask(id) => {
                 let l = find(s, id)?;
@@ -1058,9 +1074,27 @@ pub(crate) fn thumbnail(shared: &Shared, kind: ThumbKind, max_px: u32) -> Result
                     .mask
                     .as_ref()
                     .ok_or_else(|| failure(format!("layer {id} has no mask")))?;
-                (m.raster.max_rev().max(l.content_rev), mask_doc(s, l)?)
+                (
+                    m.raster.max_rev().max(l.content_rev),
+                    Arc::new(mask_doc(s, l)?),
+                    false,
+                )
             }
-            ThumbKind::Composite => (s.rev, Document::new(super::filtering::unfiltered_state(s))),
+            // B5-14: the committed document (a drag's scratch shows on the
+            // canvas; the thumbnail follows on commit). Without smart
+            // filters it is rendered as is: a stable key, so a property edit
+            // recomposites the tiny thumbnail level from cached mips instead
+            // of re-reducing every layer from level 0 (seconds on the main
+            // thread for 60 × 18 MP layers, per edit).
+            ThumbKind::Composite => {
+                let s = st.doc.state();
+                if has_smart_filters(s) {
+                    let d = Document::new(super::filtering::unfiltered_state(s));
+                    (s.rev, Arc::new(d), false)
+                } else {
+                    (s.rev, st.doc.share(), true)
+                }
+            }
         }
     };
     let key = (kind, max_px);
@@ -1076,8 +1110,14 @@ pub(crate) fn thumbnail(shared: &Shared, kind: ThumbKind, max_px: u32) -> Result
             e.width.max(e.height) <= max_px
         })
         .unwrap_or(MAX_VIEW_LEVEL - 1);
-    let tiles =
-        super::fonts::compositor(64 << 20).render_level(&doc, level, &CancellationToken::new())?; // B5-10
+    let tiles = if stable {
+        // B5-14: persistent, so mips survive between calls.
+        r.thumb_comp
+            .get_or_init(|| super::fonts::compositor(128 << 20))
+            .render_level(&doc, level, &CancellationToken::new())?
+    } else {
+        super::fonts::compositor(64 << 20).render_level(&doc, level, &CancellationToken::new())? // B5-10
+    };
     let e = canvas.at_level(level);
     let surface = Surface::create_rgba8(e.width, e.height).map_err(failure)?;
     let mask = matches!(kind, ThumbKind::Mask(_));

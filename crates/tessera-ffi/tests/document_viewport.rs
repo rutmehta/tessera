@@ -659,3 +659,35 @@ fn save_render_undo_races_keep_history_and_surfaces_valid() {
     assert!(worst <= 1, "surface differs from the state by {worst}");
     s.close();
 }
+
+/// The composite thumbnail (Channels panel, per edit on the main thread)
+/// reuses its layers' mips after a property edit instead of reducing every
+/// layer from level 0 again; during a drag it shows the committed state.
+#[test]
+fn composite_thumbnails_reuse_mips_across_edits() {
+    let (_d, engine) = engine();
+    let e = Extent::new(3072, 2048);
+    let (doc, ids) = small_document(e);
+    let s = engine.adopt_document(doc, "thumbs".into());
+    let t = Instant::now();
+    let first = s.composite_thumbnail(48).unwrap();
+    let cold = t.elapsed();
+    let layer = ids[5].0;
+    s.set_opacity(layer, 0.4, false).unwrap();
+    let t = Instant::now();
+    let second = s.composite_thumbnail(48).unwrap();
+    let warm = t.elapsed();
+    assert_ne!(first, second, "a committed edit renders a new thumbnail");
+    eprintln!("composite thumbnail: cold {cold:?}, after an opacity edit {warm:?}");
+    assert!(warm * 4 < cold, "cold {cold:?} vs warm {warm:?}");
+    // An interactive drag keeps the committed thumbnail (no render per tick).
+    let n = s.thumbnail_renders();
+    for i in 0..5 {
+        s.set_opacity(layer, 0.1 * i as f32, true).unwrap();
+        assert_eq!(s.composite_thumbnail(48).unwrap(), second);
+    }
+    assert_eq!(s.thumbnail_renders(), n);
+    s.commit("Opacity".into()).unwrap();
+    assert_ne!(s.composite_thumbnail(48).unwrap(), second);
+    s.close();
+}
