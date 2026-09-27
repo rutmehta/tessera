@@ -1,0 +1,52 @@
+{
+  "build": {
+    "archive_sha256": "2f241fe71c0216118ede2e1f1de70e6b1b64e68c8d5dcf8fb368de2426dca211",
+    "c_header_sha256": "6439d9239cee419564b81f8eff1f4d93ae79db81de79d7664c3827778c343fb2",
+    "ffi_exit": 0,
+    "ffi_log": "build-ffi.log",
+    "modulemap_sha256": "efda206de8cf8eb6c092c29fd32f286b9a46d9d7c4c150e6e9b66941dc43d6bd",
+    "rust_library_sha256": "2b2e4bea41c73525c0a6171ee7ba3d6d1324e40c8e1b06628180c2c4d3042490",
+    "swift_binding_sha256": "0ece5bfe1e7ed612395296b17723e24accedf88079240bec9a1946d7c2fa3cc3",
+    "swift_exit": 0,
+    "swift_log": "swift-test.log",
+    "swift_result": "504 XCTest, 1 skipped, 0 failures; 5 Swift Testing passed",
+    "tested_suite_executable_path": "/Volumes/betterSSD/tessera-cache/swift/editing-export-preview/arm64-apple-macosx/release/Tessera",
+    "tested_suite_executable_sha256": "0d856addedab2ef136119a2e13ed229e678398636c997a01e141a3637cf16e6d"
+  },
+  "gui": {
+    "jpeg_input_sha256": "7ea9ae26e75949e577d8a441b555e2ee4364a014ec034e7598e2a841d282b86e",
+    "jpeg_output_sha256": "d3b81a974b608955683b2f181fd25eba7858cac77234a2701a7eff0f171ae245",
+    "jpeg_output_xmp_sha256": "e7cbe480020b977b2917ba0ef053e98b2c49040ce6260a818ec1520d274123d2",
+    "raw_input_sha256": "bf4c6d21136aa4fd626212fe72b962b6404e3fca45cdc3b6afbed8e73fee2cf8",
+    "raw_recipe_sha256": "eb68dfcecebfff63ebc94b9822813e6bca23459f8c0551e4aa1bb0e884179436",
+    "raw_relaunch_observed_controls": {
+      "exposure_ev": 0.1,
+      "temperature_kelvin": 5132
+    },
+    "raw_xmp_sha256": "3922d6b4a0780fdadcd4e2f08fdcbfc8427a8c46171d7538c98b04e3f5d6551f"
+  },
+  "packages": {
+    "user_preview": {
+      "app_support": "/Users/rutmehta/Library/Application Support/Tessera Editing Preview",
+      "bundle_id": "dev.tessera.preview.editing.65fa6a33",
+      "bundle_tree_sha256": "cb1116e8d06cf6c87835dead757aa23b99b68c997a891b28e80ff09216d3a8d9",
+      "executable_sha256": "b88f8a4247a29d91e9d94e75689b88c2475fb5dd4d1df412365fdb9a8ebd6db6",
+      "path": "/Volumes/betterSSD/tessera-validation/editing-export-preview/Tessera-Editing-Preview-65fa6a33.app",
+      "signature_verified": "codesign --verify --deep --strict passed"
+    },
+    "validation": {
+      "app_support": "/tmp/tessera-editing-preview-validation-20260927/support",
+      "bundle_id": "dev.tessera.validation.editingpreview.65fa6a33",
+      "bundle_tree_sha256": "896b26d011ac67a902e00340143ac7cf95e60e8a1565645cc2dea2957e4feed4",
+      "closed_after_validation": true,
+      "executable_sha256": "d89e12afd3fa5c9d61cb25335af5679e4a2b38426c3f877712563b68e9e248e1",
+      "path": "/Volumes/betterSSD/tessera-validation/editing-export-preview/Tessera-Editing-Preview-Validation-65fa6a33.app",
+      "signature_verified": "codesign --verify --deep --strict passed"
+    }
+  },
+  "source": {
+    "branch": "codex/editing-export-preview",
+    "commit": "65fa6a33bb0f64e4db329c2e261275e495da07ba",
+    "tracked_tree_sha256": "d841381e7ef82a2a4f81295d7bab524c658cd0f13e8bb74cc53a4429542ef91d"
+  }
+}
