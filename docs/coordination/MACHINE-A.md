@@ -4,6 +4,20 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## Live checkpoint — 2026-09-27 20:05 UTC
+
+Masks focused layout+ThemeLint passed2/2; root visually verified full action labels
+at288points. Source/evidence commit pending, then combined Review integration.
+Sol gainmap_gate_review owns the next heavy slot for the supplemental/host gates.
+No duplicate process was found after interruption; prior failures remain intact.
+
+Isolated dev-test app is running from betterSSD with disposable generated photos
+and its own app-support directory. Computer-use binding timed out; no hands-on
+candidate success is claimed. Its process sample shows an idle main event loop,
+so source/packaging investigation continues without changing the user's app.
+B latest note72d8756 retains its six-pass/three-fail strict suite and repair queue.
+Mailbox has no unprocessed messages or accepted work needing replay.
+
 ## Current work — 2026-09-27 20:00 UTC
 
 B result e6634ca4 reconciles its original runner: aggregate failure, six packaged
