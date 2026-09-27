@@ -4,11 +4,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
-use engine_api::{
-    EngineError, EngineResult,
-    jobs::CancellationToken,
-    tile::{TILE_SIZE, TileCoord},
-};
+use engine_api::{EngineError, EngineResult};
 use serde::{Deserialize, Serialize};
 
 use super::{Compositor, DocRef};
@@ -91,28 +87,6 @@ pub trait SmartFilterEvaluator: Send + Sync {
         filter: &SmartFilter,
         context: &FilterContext,
     ) -> EngineResult<Raster>;
-
-    /// Evaluate with a caller token. Existing evaluators receive boundary
-    /// checks; implementations may override this to check inside their work.
-    fn evaluate_with_cancel(
-        &self,
-        input: &Raster,
-        filter: &SmartFilter,
-        context: &FilterContext,
-        cancel: &CancellationToken,
-    ) -> EngineResult<Raster> {
-        cancel.check()?;
-        let result = self.evaluate(input, filter, context)?;
-        cancel.check()?;
-        Ok(result)
-    }
-}
-
-pub(super) fn check_render_cancel(cancel: Option<&CancellationToken>) -> EngineResult<()> {
-    if let Some(cancel) = cancel {
-        cancel.check()?;
-    }
-    Ok(())
 }
 
 /// Shared-device smart-filter bridge. Buffers are tightly interleaved straight
@@ -222,72 +196,46 @@ fn gaussian(input: &Raster, params: &serde_json::Value) -> EngineResult<Raster> 
 
 // Transform kernels require premultiplied planes. Evaluate at native child
 // resolution; the existing smart-object resampler selects output mip levels.
-fn map_transform_result<T>(result: transform::Result<T>) -> EngineResult<T> {
-    result.map_err(|error| match error {
-        transform::Error::Cancelled => EngineError::Cancelled,
-        transform::Error::Invalid(_) => EngineError::invalid("transform", error.to_string()),
-    })
-}
-
-fn evaluate_transform(
-    input: &Raster,
-    op: &transform::TransformOp,
-    cancel: Option<&CancellationToken>,
-) -> EngineResult<Raster> {
-    check_render_cancel(cancel)?;
+fn evaluate_transform(input: &Raster, op: &transform::TransformOp) -> EngineResult<Raster> {
     let e = input.extent();
     let (w, h) = (e.width as usize, e.height as usize);
     let mut planes: [Vec<f32>; 4] = std::array::from_fn(|_| Vec::with_capacity(w * h));
     for y in 0..e.height {
-        check_render_cancel(cancel)?;
         for x in 0..e.width {
-            if x & 1023 == 0 {
-                check_render_cancel(cancel)?;
-            }
             let p = input.pixel(x, y);
             for c in 0..4 {
                 planes[c].push(if c == 3 { p[3] } else { p[c] * p[3] });
             }
         }
     }
-    let image = map_transform_result(transform::Image::new(w, h, planes))?;
-    check_render_cancel(cancel)?;
+    let image = transform::Image::new(w, h, planes)
+        .map_err(|e| EngineError::invalid("transform", e.to_string()))?;
     // A content-aware resize changes content bounds, not the child canvas.
     // Keep stack masks/blends in the original canvas, clipping or padding at origin.
     let (rw, rh) = match &op.operation {
         transform::Operation::ContentAwareScale(p) => (p.target_width, p.target_height),
         _ => (w, h),
     };
-    let result = map_transform_result(if let Some(cancel) = cancel {
-        op.apply_with_cancel(&image, rw, rh, 0, cancel)
-    } else {
-        op.apply(&image, rw, rh, 0)
-    })?;
-    check_render_cancel(cancel)?;
+    let result = op
+        .apply(&image, rw, rh, 0)
+        .map_err(|e| EngineError::invalid("transform", e.to_string()))?;
     let mut out = Raster::new(e, 4, Depth::F32, 0.0);
-    let (cols, rows) = e.tile_grid(TILE_SIZE);
-    for ty in 0..rows {
-        for tx in 0..cols {
-            check_render_cancel(cancel)?;
-            out.edit_region(Rect::of_tile(TileCoord::new(0, tx, ty), e), 1, |x, y, p| {
-                if x as usize >= rw || y as usize >= rh {
-                    *p = [0.; 4];
-                    return;
-                }
-                let i = y as usize * rw + x as usize;
-                let a = result.planes[3][i];
-                for (c, channel) in p.iter_mut().enumerate().take(3) {
-                    *channel = if a > 0.0 {
-                        result.planes[c][i] / a
-                    } else {
-                        0.0
-                    };
-                }
-                p[3] = a;
-            })?;
+    out.edit_region(Rect::of_extent(e), 1, |x, y, p| {
+        if x as usize >= rw || y as usize >= rh {
+            *p = [0.; 4];
+            return;
         }
-    }
-    check_render_cancel(cancel)?;
+        let i = y as usize * rw + x as usize;
+        let a = result.planes[3][i];
+        for (c, channel) in p.iter_mut().enumerate().take(3) {
+            *channel = if a > 0.0 {
+                result.planes[c][i] / a
+            } else {
+                0.0
+            };
+        }
+        p[3] = a;
+    })?;
     Ok(out)
 }
 
@@ -559,9 +507,7 @@ impl Compositor {
         &self,
         so: &SmartObject,
         pass: Option<&FilterPass>,
-        cancel: Option<&CancellationToken>,
     ) -> EngineResult<Option<FilteredSource>> {
-        check_render_cancel(cancel)?;
         if !so.filters.iter().any(|f| f.enabled) {
             return Ok(None);
         }
@@ -578,7 +524,6 @@ impl Compositor {
         );
         let rt = &self.filter_runtime;
         let bytes = entry_bytes(so)?;
-        check_render_cancel(cancel)?;
         let pass_cached = pass.and_then(|p| p.get(&key));
         let cached = if let Some(cached) = pass_cached {
             cached
@@ -601,7 +546,6 @@ impl Compositor {
                 // Reserve before source_raster: nested smart objects need their own
                 // simultaneous charge, and errors release this one by RAII.
                 let reservation = pass.map(|p| p.reserve(bytes)).transpose()?;
-                check_render_cancel(cancel)?;
                 // Nested smart objects can recurse into this runtime: never hold its
                 // cache lock while compositing the input document.
                 let _active = rt.begin_stack();
@@ -609,9 +553,7 @@ impl Compositor {
                     state: &so.state,
                     key: so.key,
                     pass,
-                    cancel,
                 })?;
-                check_render_cancel(cancel)?;
                 let cached = rt
                     .cache
                     .lock()
@@ -628,7 +570,6 @@ impl Compositor {
                     let mut result = source.clone();
                     let mut evaluations = 0;
                     for filter in so.filters.iter().filter(|f| f.enabled) {
-                        check_render_cancel(cancel)?;
                         if !filter.blend.opacity.is_finite()
                             || !(0.0..=1.0).contains(&filter.blend.opacity)
                         {
@@ -642,17 +583,11 @@ impl Compositor {
                         }
                         let next = if let Some(op) = filter.transform_op()? {
                             rt.attempted_stages.fetch_add(1, Ordering::Relaxed);
-                            evaluate_transform(&result, &op, cancel)?
+                            evaluate_transform(&result, &op)?
                         } else {
                             rt.attempted_stages.fetch_add(1, Ordering::Relaxed);
-                            if let Some(cancel) = cancel {
-                                rt.evaluator
-                                    .evaluate_with_cancel(&result, filter, &context, cancel)?
-                            } else {
-                                rt.evaluator.evaluate(&result, filter, &context)?
-                            }
+                            rt.evaluator.evaluate(&result, filter, &context)?
                         };
-                        check_render_cancel(cancel)?;
                         if next.extent() != source.extent()
                             || next.channels() != 4
                             || next.depth() != Depth::F32
@@ -693,7 +628,6 @@ impl Compositor {
                         }
                         evaluations += 1;
                     }
-                    check_render_cancel(cancel)?;
                     let entry = Arc::new(Cached {
                         source,
                         result,
@@ -702,7 +636,6 @@ impl Compositor {
                     // Publish only complete, validated results. A concurrent miss
                     // may have finished first; reuse it without charging bytes twice.
                     {
-                        check_render_cancel(cancel)?;
                         let mut cache = rt.cache.lock().unwrap_or_else(|e| e.into_inner());
                         if let Some(cached) = cache.get(&key) {
                             rt.duplicate_stacks.fetch_add(1, Ordering::Relaxed);
@@ -728,14 +661,12 @@ impl Compositor {
                     }
                 };
                 if let Some(reservation) = reservation {
-                    check_render_cancel(cancel)?;
                     reservation.commit(key, published)
                 } else {
                     published
                 }
             }
         };
-        check_render_cancel(cancel)?;
         let mut raster = cached.result.clone();
         if let Some(mask) = so.filter_mask.as_ref().filter(|m| m.enabled) {
             if mask.raster.extent() != raster.extent()
@@ -777,7 +708,6 @@ impl Compositor {
                 ));
             }
         }
-        check_render_cancel(cancel)?;
         let mut state = DocState::new(raster.extent(), Depth::F32);
         state.profile = context.profile;
         state.rev = so.state.rev;

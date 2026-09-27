@@ -1,0 +1,21 @@
+{
+  "name": "strict-clippy",
+  "cmd": [
+    "cargo",
+    "clippy",
+    "-p",
+    "compositor",
+    "--all-targets",
+    "--",
+    "-D",
+    "warnings"
+  ],
+  "exit_code": 0,
+  "timed_out": false,
+  "elapsed_s": 77.904,
+  "pid": 1495,
+  "CARGO_BUILD_JOBS": "2",
+  "RAYON_NUM_THREADS": "2",
+  "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/main",
+  "source_manifest": "/tmp/tessera-transform-bridge-20260927/green-source-v5-manifest.json"
+}

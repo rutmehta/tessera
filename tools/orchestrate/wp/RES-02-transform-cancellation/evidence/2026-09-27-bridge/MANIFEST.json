@@ -1,0 +1,479 @@
+{
+  "files": [
+    {
+      "path": "RESULTS.md",
+      "sha256": "2d98ab83e7553a33f9e2cc456eef8fb1e6990344584d57a63e502a5b5a66395c",
+      "bytes": 4011
+    },
+    {
+      "path": "bridge-green-public-v3.json",
+      "sha256": "8635401392c13aef4f239560fdc865510fd189734f616dab417480102a852ad6",
+      "bytes": 412
+    },
+    {
+      "path": "bridge-green-public-v3.log",
+      "sha256": "eee08d404c7b8888da5d2daa600b002493aa216fdf40aa989877cf0740b6ab54",
+      "bytes": 104310
+    },
+    {
+      "path": "bridge-green-public-v4.json",
+      "sha256": "017a91f760b605f387e1d70cbf60b5cebd57797c4dc1ba16dc81b4bc6dec91f4",
+      "bytes": 411
+    },
+    {
+      "path": "bridge-green-public-v4.log",
+      "sha256": "d93d3293b3ae305d9097a12d6233b89c518acab6b174807337dfd93931f969a2",
+      "bytes": 104082
+    },
+    {
+      "path": "bridge-green-public.json",
+      "sha256": "955348e077d40f5372721c13b551ab30e81ded937db8b454eb96342201367738",
+      "bytes": 413
+    },
+    {
+      "path": "bridge-green-public.log",
+      "sha256": "b7af9cfede29368aa4b3a164714fd00e932bdc86c062d53ec9fdcb53ed346e47",
+      "bytes": 104520
+    },
+    {
+      "path": "bridge-red-map.json",
+      "sha256": "2a54e63f5c6e96618b5c7fef0884086c008ac1b35cdf3112d01c46fea43b634f",
+      "bytes": 348
+    },
+    {
+      "path": "bridge-red-map.log",
+      "sha256": "a06607e1ca0013d7064e4533365c638e51bee9e40d1085fad0f782b8b01c6b1c",
+      "bytes": 103924
+    },
+    {
+      "path": "bridge-red-public.json",
+      "sha256": "3f3ebf06dc166352fb1166236751412e08bbe3db91780a03fba62bf926a568b1",
+      "bytes": 322
+    },
+    {
+      "path": "bridge-red-public.log",
+      "sha256": "96304fa9a1caa4360267043702de806b67bd4206cacf946f32b4e62b8d04a58e",
+      "bytes": 115463
+    },
+    {
+      "path": "bridge-v5-deadlock.json",
+      "sha256": "4871cab3b207b208988fee60b023a1050c65e93749c0bee05e2d0b42950cff9b",
+      "bytes": 432
+    },
+    {
+      "path": "bridge-v5-deadlock.log",
+      "sha256": "414ddb6af834192104ab08a5001dd16a59c6b2b8164df36b18c89bd4b1ef9008",
+      "bytes": 104575
+    },
+    {
+      "path": "bridge-v5-focused.json",
+      "sha256": "8e2eeee9df71445e586b19b15ceb6b54dc419c2fe1b170f37e1553385101387c",
+      "bytes": 432
+    },
+    {
+      "path": "bridge-v5-focused.log",
+      "sha256": "86bf73f19b1843aaafa34176f0b74e860c4fd8b1b635f9964d8d8babef0e8348",
+      "bytes": 104298
+    },
+    {
+      "path": "bridge-v5-layer-styles.json",
+      "sha256": "82f05c4f77628be195c3f416daa36364d71b7b6f4f0088a895d6e5a76d12145b",
+      "bytes": 427
+    },
+    {
+      "path": "bridge-v5-layer-styles.log",
+      "sha256": "0035e51dd03d21a242e5ec6af78802dbfe2c1512f7694fe5380ef2a9ca92ae02",
+      "bytes": 104110
+    },
+    {
+      "path": "bridge-v5-live-frame.json",
+      "sha256": "ec7c70f4880dacf758d71373f3802f44a380f4d2b9e1c1d392ceae4c9327a7e0",
+      "bytes": 421
+    },
+    {
+      "path": "bridge-v5-live-frame.log",
+      "sha256": "313ac1242dc05fd6c25ec1c7a63d98d84354b435f78053ae0caf04aca3de03fd",
+      "bytes": 103929
+    },
+    {
+      "path": "bridge-v5-live-style-damage.json",
+      "sha256": "030e2fbd3315ec8754a84b48a901090e83d7a0184919945c15ed1a41e3f1b002",
+      "bytes": 438
+    },
+    {
+      "path": "bridge-v5-live-style-damage.log",
+      "sha256": "8e7467777dbb0256fea3997b429530592757787da6834b806906a5be3e636714",
+      "bytes": 104067
+    },
+    {
+      "path": "bridge-v5-private-mapper.json",
+      "sha256": "43c8e8358e4e0300336fe48b8309365f7a54300cbc22f1760f04bf90e9e840f1",
+      "bytes": 468
+    },
+    {
+      "path": "bridge-v5-private-mapper.log",
+      "sha256": "3e59eb29e173b7e31214554f067c9e6459c1636fb7b2e20a4edf69aacdfa9b99",
+      "bytes": 103908
+    },
+    {
+      "path": "bridge-v5-smart-filters.json",
+      "sha256": "aedc514516b6e144f416ec251a29d0e75c63804aa15fcb821392b4b226d19dd8",
+      "bytes": 429
+    },
+    {
+      "path": "bridge-v5-smart-filters.log",
+      "sha256": "26b7f778e074958db1aab2e10d441d03729ad757146a4e7eed02b593762dcc25",
+      "bytes": 103977
+    },
+    {
+      "path": "bridge-v5-strict-clippy.json",
+      "sha256": "09b834f948e5752ff2650a2315df5e3366f6d7a7438573c944fbd1f7f9f875ea",
+      "bytes": 453
+    },
+    {
+      "path": "bridge-v5-strict-clippy.log",
+      "sha256": "67c919d66d3f5e5bcaa9eeb07756fc559c2b80fe929987db2ec4284a6489ab33",
+      "bytes": 109579
+    },
+    {
+      "path": "bridge-v5-transform-content.json",
+      "sha256": "4ad86480756941bb6ff9baf7b22c443d1d034a85ca6b5470a1fc9130025380b5",
+      "bytes": 437
+    },
+    {
+      "path": "bridge-v5-transform-content.log",
+      "sha256": "caeb394dc7b0d2e232a947659411a296e81c8cbba8f05c3022da9883422629a1",
+      "bytes": 103874
+    },
+    {
+      "path": "bridge-v5-transforms.json",
+      "sha256": "5d344d5db72d4bbc0e4ca40c623ffb4ebbb6fd459ca97642a936225fdd9d2eae",
+      "bytes": 421
+    },
+    {
+      "path": "bridge-v5-transforms.log",
+      "sha256": "eb274713633a4b126639670d5923f48c43ae8e1ddbc94ec5054bcbd98a205042",
+      "bytes": 104085
+    },
+    {
+      "path": "green-source/Cargo.lock",
+      "sha256": "9ef23f19fd6cb3fb848ecbea8bc3fb6cabc9891f192bf4be63fc1ceab46f87fd",
+      "bytes": 157406
+    },
+    {
+      "path": "green-source/crates/compositor/src/gpu.rs",
+      "sha256": "c707da71a8d957fbb7b51a8c926dbb8d919255d3824b1fdc459ddae033e57020",
+      "bytes": 12682
+    },
+    {
+      "path": "green-source/crates/compositor/src/render/effects.rs",
+      "sha256": "1a3d00d1cd96d302286b55b448f9d286e5c8ffa05c0b27fd772dc4d2aabb41f7",
+      "bytes": 6651
+    },
+    {
+      "path": "green-source/crates/compositor/src/render/exec.rs",
+      "sha256": "26bc7408b92522a73fe4b38ad028285d261f1b53e901007605c256a342d5fbfc",
+      "bytes": 31128
+    },
+    {
+      "path": "green-source/crates/compositor/src/render/mod.rs",
+      "sha256": "1d0024c4a8a6ac99ec6588e7deba2fcaa4cb28ad68de1ec888d6b03b39081dad",
+      "bytes": 35956
+    },
+    {
+      "path": "green-source/crates/compositor/src/render/smart_filters.rs",
+      "sha256": "60c3d5403b51bb169d91f8905dd971e31f969041d7a0a940231d8353f71a6d76",
+      "bytes": 30156
+    },
+    {
+      "path": "green-source/crates/compositor/src/resident/filters.rs",
+      "sha256": "88e29974f855b942039d8183237f17aa60e655e02bf319d6ff54911b5ae75edf",
+      "bytes": 16399
+    },
+    {
+      "path": "green-source/crates/compositor/src/resident/mod.rs",
+      "sha256": "1b11da82ee84629ec67c31c2036670b9965d2986304bd94a5ccb0ec512a75d3c",
+      "bytes": 76306
+    },
+    {
+      "path": "green-source/crates/compositor/src/text_vector/damage.rs",
+      "sha256": "a5cd706ae0014cbb11c56b3939008aa2a8efd2370df70d54c9fbcf81cdf78223",
+      "bytes": 12428
+    },
+    {
+      "path": "green-source/crates/compositor/tests/transform_cancellation.rs",
+      "sha256": "1a4b18ea45798e8a8dcace3016d27ad32869fbbbc2f02a2c11086a9bc46be5c1",
+      "bytes": 3551
+    },
+    {
+      "path": "green-source-manifest.json",
+      "sha256": "6c5d32584081c1af9687faa2689f43286a77514e2e58ebd6ad2502625d908788",
+      "bytes": 1840
+    },
+    {
+      "path": "green-source-v2/Cargo.lock",
+      "sha256": "9ef23f19fd6cb3fb848ecbea8bc3fb6cabc9891f192bf4be63fc1ceab46f87fd",
+      "bytes": 157406
+    },
+    {
+      "path": "green-source-v2/crates/compositor/src/gpu.rs",
+      "sha256": "c707da71a8d957fbb7b51a8c926dbb8d919255d3824b1fdc459ddae033e57020",
+      "bytes": 12682
+    },
+    {
+      "path": "green-source-v2/crates/compositor/src/render/effects.rs",
+      "sha256": "1a3d00d1cd96d302286b55b448f9d286e5c8ffa05c0b27fd772dc4d2aabb41f7",
+      "bytes": 6651
+    },
+    {
+      "path": "green-source-v2/crates/compositor/src/render/exec.rs",
+      "sha256": "26bc7408b92522a73fe4b38ad028285d261f1b53e901007605c256a342d5fbfc",
+      "bytes": 31128
+    },
+    {
+      "path": "green-source-v2/crates/compositor/src/render/mod.rs",
+      "sha256": "1d0024c4a8a6ac99ec6588e7deba2fcaa4cb28ad68de1ec888d6b03b39081dad",
+      "bytes": 35956
+    },
+    {
+      "path": "green-source-v2/crates/compositor/src/render/smart_filters.rs",
+      "sha256": "60c3d5403b51bb169d91f8905dd971e31f969041d7a0a940231d8353f71a6d76",
+      "bytes": 30156
+    },
+    {
+      "path": "green-source-v2/crates/compositor/src/resident/filters.rs",
+      "sha256": "88e29974f855b942039d8183237f17aa60e655e02bf319d6ff54911b5ae75edf",
+      "bytes": 16399
+    },
+    {
+      "path": "green-source-v2/crates/compositor/src/resident/mod.rs",
+      "sha256": "1b11da82ee84629ec67c31c2036670b9965d2986304bd94a5ccb0ec512a75d3c",
+      "bytes": 76306
+    },
+    {
+      "path": "green-source-v2/crates/compositor/src/text_vector/damage.rs",
+      "sha256": "a5cd706ae0014cbb11c56b3939008aa2a8efd2370df70d54c9fbcf81cdf78223",
+      "bytes": 12428
+    },
+    {
+      "path": "green-source-v2/crates/compositor/tests/transform_cancellation.rs",
+      "sha256": "8fc8bef0a63b88c971c7e3bfe18e666174a27ff11ea8a3a4f2e958a2c441178b",
+      "bytes": 5849
+    },
+    {
+      "path": "green-source-v2-manifest.json",
+      "sha256": "5ec371d248f65b13c5fdcada67388a018a22402b38a1b61d42e459941ff06c7c",
+      "bytes": 1840
+    },
+    {
+      "path": "green-source-v3/Cargo.lock",
+      "sha256": "9ef23f19fd6cb3fb848ecbea8bc3fb6cabc9891f192bf4be63fc1ceab46f87fd",
+      "bytes": 157406
+    },
+    {
+      "path": "green-source-v3/crates/compositor/src/gpu.rs",
+      "sha256": "c707da71a8d957fbb7b51a8c926dbb8d919255d3824b1fdc459ddae033e57020",
+      "bytes": 12682
+    },
+    {
+      "path": "green-source-v3/crates/compositor/src/render/effects.rs",
+      "sha256": "1a3d00d1cd96d302286b55b448f9d286e5c8ffa05c0b27fd772dc4d2aabb41f7",
+      "bytes": 6651
+    },
+    {
+      "path": "green-source-v3/crates/compositor/src/render/exec.rs",
+      "sha256": "26bc7408b92522a73fe4b38ad028285d261f1b53e901007605c256a342d5fbfc",
+      "bytes": 31128
+    },
+    {
+      "path": "green-source-v3/crates/compositor/src/render/mod.rs",
+      "sha256": "1d0024c4a8a6ac99ec6588e7deba2fcaa4cb28ad68de1ec888d6b03b39081dad",
+      "bytes": 35956
+    },
+    {
+      "path": "green-source-v3/crates/compositor/src/render/smart_filters.rs",
+      "sha256": "60c3d5403b51bb169d91f8905dd971e31f969041d7a0a940231d8353f71a6d76",
+      "bytes": 30156
+    },
+    {
+      "path": "green-source-v3/crates/compositor/src/resident/filters.rs",
+      "sha256": "88e29974f855b942039d8183237f17aa60e655e02bf319d6ff54911b5ae75edf",
+      "bytes": 16399
+    },
+    {
+      "path": "green-source-v3/crates/compositor/src/resident/mod.rs",
+      "sha256": "1b11da82ee84629ec67c31c2036670b9965d2986304bd94a5ccb0ec512a75d3c",
+      "bytes": 76306
+    },
+    {
+      "path": "green-source-v3/crates/compositor/src/text_vector/damage.rs",
+      "sha256": "a5cd706ae0014cbb11c56b3939008aa2a8efd2370df70d54c9fbcf81cdf78223",
+      "bytes": 12428
+    },
+    {
+      "path": "green-source-v3/crates/compositor/tests/transform_cancellation.rs",
+      "sha256": "1c80ee53aee208a4b1aa0464ba7790ea0e86e8f4c8e432c8e41aeb99a671f9e3",
+      "bytes": 5852
+    },
+    {
+      "path": "green-source-v3-manifest.json",
+      "sha256": "d2d6f8020d9b115c8fe61062ea72adb81558e6ca07c8277481387dd7178e442d",
+      "bytes": 1840
+    },
+    {
+      "path": "green-source-v4/Cargo.lock",
+      "sha256": "9ef23f19fd6cb3fb848ecbea8bc3fb6cabc9891f192bf4be63fc1ceab46f87fd",
+      "bytes": 157406
+    },
+    {
+      "path": "green-source-v4/crates/compositor/src/gpu.rs",
+      "sha256": "c707da71a8d957fbb7b51a8c926dbb8d919255d3824b1fdc459ddae033e57020",
+      "bytes": 12682
+    },
+    {
+      "path": "green-source-v4/crates/compositor/src/render/effects.rs",
+      "sha256": "1a3d00d1cd96d302286b55b448f9d286e5c8ffa05c0b27fd772dc4d2aabb41f7",
+      "bytes": 6651
+    },
+    {
+      "path": "green-source-v4/crates/compositor/src/render/exec.rs",
+      "sha256": "26bc7408b92522a73fe4b38ad028285d261f1b53e901007605c256a342d5fbfc",
+      "bytes": 31128
+    },
+    {
+      "path": "green-source-v4/crates/compositor/src/render/mod.rs",
+      "sha256": "1d0024c4a8a6ac99ec6588e7deba2fcaa4cb28ad68de1ec888d6b03b39081dad",
+      "bytes": 35956
+    },
+    {
+      "path": "green-source-v4/crates/compositor/src/render/smart_filters.rs",
+      "sha256": "60c3d5403b51bb169d91f8905dd971e31f969041d7a0a940231d8353f71a6d76",
+      "bytes": 30156
+    },
+    {
+      "path": "green-source-v4/crates/compositor/src/resident/filters.rs",
+      "sha256": "88e29974f855b942039d8183237f17aa60e655e02bf319d6ff54911b5ae75edf",
+      "bytes": 16399
+    },
+    {
+      "path": "green-source-v4/crates/compositor/src/resident/mod.rs",
+      "sha256": "1b11da82ee84629ec67c31c2036670b9965d2986304bd94a5ccb0ec512a75d3c",
+      "bytes": 76306
+    },
+    {
+      "path": "green-source-v4/crates/compositor/src/text_vector/damage.rs",
+      "sha256": "a5cd706ae0014cbb11c56b3939008aa2a8efd2370df70d54c9fbcf81cdf78223",
+      "bytes": 12428
+    },
+    {
+      "path": "green-source-v4/crates/compositor/tests/transform_cancellation.rs",
+      "sha256": "6cc361bf0c66f45afb355867aa8a74d06d3816a6f08eac679878c0d32ebb8808",
+      "bytes": 5873
+    },
+    {
+      "path": "green-source-v4-manifest.json",
+      "sha256": "652c3d723914704f317d2f3ec008b9679df22a9e8663d26173e9bcc4d0847c89",
+      "bytes": 1840
+    },
+    {
+      "path": "green-source-v5/Cargo.lock",
+      "sha256": "9ef23f19fd6cb3fb848ecbea8bc3fb6cabc9891f192bf4be63fc1ceab46f87fd",
+      "bytes": 157406
+    },
+    {
+      "path": "green-source-v5/crates/compositor/src/gpu.rs",
+      "sha256": "c707da71a8d957fbb7b51a8c926dbb8d919255d3824b1fdc459ddae033e57020",
+      "bytes": 12682
+    },
+    {
+      "path": "green-source-v5/crates/compositor/src/render/effects.rs",
+      "sha256": "1a3d00d1cd96d302286b55b448f9d286e5c8ffa05c0b27fd772dc4d2aabb41f7",
+      "bytes": 6651
+    },
+    {
+      "path": "green-source-v5/crates/compositor/src/render/exec.rs",
+      "sha256": "26bc7408b92522a73fe4b38ad028285d261f1b53e901007605c256a342d5fbfc",
+      "bytes": 31128
+    },
+    {
+      "path": "green-source-v5/crates/compositor/src/render/mod.rs",
+      "sha256": "894119966ac4e2426abeda1476116f7daf2ece93160d3095b09c0c3b405801de",
+      "bytes": 35981
+    },
+    {
+      "path": "green-source-v5/crates/compositor/src/render/smart_filters.rs",
+      "sha256": "60c3d5403b51bb169d91f8905dd971e31f969041d7a0a940231d8353f71a6d76",
+      "bytes": 30156
+    },
+    {
+      "path": "green-source-v5/crates/compositor/src/resident/filters.rs",
+      "sha256": "88e29974f855b942039d8183237f17aa60e655e02bf319d6ff54911b5ae75edf",
+      "bytes": 16399
+    },
+    {
+      "path": "green-source-v5/crates/compositor/src/resident/mod.rs",
+      "sha256": "1b11da82ee84629ec67c31c2036670b9965d2986304bd94a5ccb0ec512a75d3c",
+      "bytes": 76306
+    },
+    {
+      "path": "green-source-v5/crates/compositor/src/text_vector/damage.rs",
+      "sha256": "a5cd706ae0014cbb11c56b3939008aa2a8efd2370df70d54c9fbcf81cdf78223",
+      "bytes": 12428
+    },
+    {
+      "path": "green-source-v5/crates/compositor/tests/transform_cancellation.rs",
+      "sha256": "6cc361bf0c66f45afb355867aa8a74d06d3816a6f08eac679878c0d32ebb8808",
+      "bytes": 5873
+    },
+    {
+      "path": "green-source-v5-manifest.json",
+      "sha256": "d336cbb3df26b3d9ad397031009321caa7690903a873b944f192503493caa943",
+      "bytes": 1840
+    },
+    {
+      "path": "red-source/Cargo.lock",
+      "sha256": "9ef23f19fd6cb3fb848ecbea8bc3fb6cabc9891f192bf4be63fc1ceab46f87fd",
+      "bytes": 157406
+    },
+    {
+      "path": "red-source/crates/compositor/src/render/smart_filters.rs",
+      "sha256": "7ef3a84d28c3849e997d1cbf4b2e231b72dc4686f9f729c1d1b439410b79c87f",
+      "bytes": 27651
+    },
+    {
+      "path": "red-source/crates/compositor/tests/transform_cancellation.rs",
+      "sha256": "1a4b18ea45798e8a8dcace3016d27ad32869fbbbc2f02a2c11086a9bc46be5c1",
+      "bytes": 3551
+    },
+    {
+      "path": "red-source/crates/transform/Cargo.toml",
+      "sha256": "1320656f5330865bcce385558d4dab28e6436773a7564bdc393c2ad5e6321480",
+      "bytes": 381
+    },
+    {
+      "path": "red-source/crates/transform/src/lib.rs",
+      "sha256": "3d776e16ce0297d9f92fd0a86b29a896a7a49123d9edc980de58009fb9335a88",
+      "bytes": 1902
+    },
+    {
+      "path": "red-source/crates/transform/src/op.rs",
+      "sha256": "fce4975884569e48bb2091532f6ec2629523d753b2cb69ad5908dcbb5d6f1e01",
+      "bytes": 9669
+    },
+    {
+      "path": "red-source/crates/transform/src/seam.rs",
+      "sha256": "d6043e54267a387a3a681ebbb89a4a150a1703445c221e7f03e350f1c826c135",
+      "bytes": 16836
+    },
+    {
+      "path": "red-source/crates/transform/tests/cancellation.rs",
+      "sha256": "f360b92ebc2e1c6ec8c483a713a6ed513b6f3cbc05020bda0b85c94107097a73",
+      "bytes": 2130
+    },
+    {
+      "path": "red-source-manifest.json",
+      "sha256": "9224714a3cf4dbccb2b4f5aa623c89ec546e6ff3fb9deba7ddb8e2c2dca6c954",
+      "bytes": 1451
+    }
+  ]
+}

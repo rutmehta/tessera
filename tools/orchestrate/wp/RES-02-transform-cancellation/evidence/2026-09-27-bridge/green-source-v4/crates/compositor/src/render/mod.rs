@@ -785,7 +785,6 @@ impl Compositor {
         cancel.check()?;
         let e = doc.state().canvas.at_level(level);
         let tiles = self.render_level_premultiplied(doc, level, cancel)?;
-        cancel.check()?;
         // Fuse straight-alpha conversion and assembly. A warm viewport otherwise
         // allocates/copies a second entire frame just to interleave it immediately.
         let mut out = vec![0.; e.width as usize * e.height as usize * 4];

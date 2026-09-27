@@ -1,0 +1,46 @@
+{
+  "head": "bfa0aba3f852e7f2cfc7baee773d909c957649d8",
+  "branch": "codex/transform-cancellation",
+  "files": [
+    {
+      "path": "Cargo.lock",
+      "sha256": "9ef23f19fd6cb3fb848ecbea8bc3fb6cabc9891f192bf4be63fc1ceab46f87fd",
+      "bytes": 157406
+    },
+    {
+      "path": "crates/transform/Cargo.toml",
+      "sha256": "1320656f5330865bcce385558d4dab28e6436773a7564bdc393c2ad5e6321480",
+      "bytes": 381
+    },
+    {
+      "path": "crates/transform/src/lib.rs",
+      "sha256": "3d776e16ce0297d9f92fd0a86b29a896a7a49123d9edc980de58009fb9335a88",
+      "bytes": 1902
+    },
+    {
+      "path": "crates/transform/src/op.rs",
+      "sha256": "fce4975884569e48bb2091532f6ec2629523d753b2cb69ad5908dcbb5d6f1e01",
+      "bytes": 9669
+    },
+    {
+      "path": "crates/transform/src/seam.rs",
+      "sha256": "d6043e54267a387a3a681ebbb89a4a150a1703445c221e7f03e350f1c826c135",
+      "bytes": 16836
+    },
+    {
+      "path": "crates/transform/tests/cancellation.rs",
+      "sha256": "f360b92ebc2e1c6ec8c483a713a6ed513b6f3cbc05020bda0b85c94107097a73",
+      "bytes": 2130
+    },
+    {
+      "path": "crates/compositor/src/render/smart_filters.rs",
+      "sha256": "7ef3a84d28c3849e997d1cbf4b2e231b72dc4686f9f729c1d1b439410b79c87f",
+      "bytes": 27651
+    },
+    {
+      "path": "crates/compositor/tests/transform_cancellation.rs",
+      "sha256": "1a4b18ea45798e8a8dcace3016d27ad32869fbbbc2f02a2c11086a9bc46be5c1",
+      "bytes": 3551
+    }
+  ]
+}
