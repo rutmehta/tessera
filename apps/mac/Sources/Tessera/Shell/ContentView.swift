@@ -636,7 +636,9 @@ struct LoupeOverlay: View {
             .frame(height: Theme.Height.sectionHeader)
             Spacer()
                 .allowsHitTesting(false)
-            Text(model.isPhotoEditing
+            Text(model.isReviewEditing
+                 ? "← → previous / next review photo  ·  D Develop  ·  M masks  ·  ⌘Z photo undo  ·  Esc tool / Back to Review"
+                 : model.isPhotoEditing
                  ? "← → previous / next photo  ·  D Develop  ·  M masks  ·  ⌘Z photo undo  ·  Esc tool / Back to Library"
                  : "← → group  ·  ↑ ↓ frame in group  ·  X U P decide  ·  1 2 3 grade  ·  K keep best  ·  C compare  ·  Y N suggestions  ·  ⌘Z undo  ·  D Edit photo  ·  Esc grid")
                 .font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary)
