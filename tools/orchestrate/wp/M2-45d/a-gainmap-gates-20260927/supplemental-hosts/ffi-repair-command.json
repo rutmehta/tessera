@@ -1,0 +1,23 @@
+{
+  "start_utc": "2026-09-27T20:13:03.014851+00:00",
+  "cwd": "/Users/rutmehta/.codex/worktrees/tessera-mailbox/tessera",
+  "command": [
+    "cargo",
+    "test",
+    "--locked",
+    "-p",
+    "tessera-ffi",
+    "--release",
+    "--test",
+    "gain_map_hosts",
+    "--",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "environment": {
+    "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/M2-45d",
+    "CARGO_BUILD_JOBS": "2",
+    "MACOSX_DEPLOYMENT_TARGET": "15.0"
+  },
+  "source_manifest": "/tmp/tessera-gainmap-a-supplemental-hosts-20260927/repair-source-manifest.json"
+}

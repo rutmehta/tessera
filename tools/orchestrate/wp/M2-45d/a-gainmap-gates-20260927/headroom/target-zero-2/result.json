@@ -1,0 +1,121 @@
+[
+  {
+    "apple_aux_present" : 0,
+    "iso_aux_present" : 1,
+    "image_count" : 1,
+    "hdr" : {
+      "context_target_before" : 0,
+      "provider_bytes" : 5120,
+      "rgb_min" : 0,
+      "alpha_min" : 1,
+      "alpha_max" : 1,
+      "rgb_mean" : 2.0013182617258281,
+      "context_target_after" : 0,
+      "context_target_set" : true,
+      "headroom" : 4,
+      "pixels_decoded" : 1,
+      "image_created" : true,
+      "color_space" : "unknown",
+      "bits_per_component" : 10,
+      "nonfinite_rgb" : 0,
+      "height" : 16,
+      "samples_above_one" : 1920,
+      "width" : 80,
+      "bits_per_pixel" : 32,
+      "patch_centers" : [
+        [
+          0,
+          0,
+          0,
+          1
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ],
+        [
+          4.0030903816223145,
+          4.0030903816223145,
+          4.0030903816223145,
+          1
+        ],
+        [
+          4.0030903816223145,
+          4.0030903816223145,
+          4.0030903816223145,
+          1
+        ],
+        [
+          4.0030903816223145,
+          4.0030903816223145,
+          4.0030903816223145,
+          1
+        ]
+      ],
+      "bitmap_info" : 204806,
+      "rgb_max" : 4.0030903816223145,
+      "nonzero_rgb_samples" : 1968,
+      "bytes_per_row" : 320
+    },
+    "path" : "\/tmp\/tessera-gainmap-a-headroom\/artifacts\/headroom-2-stops.jpg",
+    "sdr" : {
+      "context_target_before" : 0,
+      "provider_bytes" : 5120,
+      "rgb_min" : 0,
+      "alpha_min" : 1,
+      "alpha_max" : 1,
+      "rgb_mean" : 0.50021972656250002,
+      "context_target_after" : 0,
+      "context_target_set" : true,
+      "headroom" : 1,
+      "pixels_decoded" : 1,
+      "image_created" : true,
+      "color_space" : "kCGColorSpaceSRGB",
+      "bits_per_component" : 8,
+      "nonfinite_rgb" : 0,
+      "height" : 16,
+      "samples_above_one" : 0,
+      "width" : 80,
+      "bits_per_pixel" : 32,
+      "patch_centers" : [
+        [
+          0,
+          0,
+          0,
+          1
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ],
+        [
+          1,
+          1,
+          1,
+          1
+        ],
+        [
+          1,
+          1,
+          1,
+          1
+        ],
+        [
+          1,
+          1,
+          1,
+          1
+        ]
+      ],
+      "bitmap_info" : 5,
+      "rgb_max" : 1,
+      "nonzero_rgb_samples" : 1968,
+      "bytes_per_row" : 320
+    },
+    "max_sdr_hdr_delta" : 3.0030903816223145
+  }
+]

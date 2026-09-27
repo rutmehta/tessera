@@ -1,0 +1,36 @@
+#import <Foundation/Foundation.h>
+#import <CoreImage/CoreImage.h>
+#import <CoreGraphics/CoreGraphics.h>
+#include <math.h>
+static NSDictionary *render(CIContext *context, CIImage *image, CGColorSpaceRef space, NSString *name, NSString *directory) {
+    if(!image) return @{@"image_created":@NO};
+    CGRect extent=image.extent; size_t w=extent.size.width,h=extent.size.height;
+    if(w!=80||h!=16) return @{@"invalid_dimensions":@YES};
+    float *pixels=calloc(w*h*4,sizeof(float));
+    [context render:image toBitmap:pixels rowBytes:w*16 bounds:extent format:kCIFormatRGBAf colorSpace:space];
+    double peak=-INFINITY,lo=INFINITY,alphaLo=INFINITY,alphaHi=-INFINITY;size_t nonfinite=0,nonzero=0;
+    for(size_t i=0;i<w*h;i++) {alphaLo=fmin(alphaLo,pixels[4*i+3]);alphaHi=fmax(alphaHi,pixels[4*i+3]);for(size_t c=0;c<3;c++){float v=pixels[4*i+c];if(!isfinite(v)){nonfinite++;continue;}lo=fmin(lo,v);peak=fmax(peak,v);nonzero+=v!=0;}}
+    NSMutableArray *patches=[NSMutableArray array];
+    for(size_t x=8;x<80;x+=16){size_t i=(8*w+x)*4;[patches addObject:@[@(pixels[i]),@(pixels[i+1]),@(pixels[i+2]),@(pixels[i+3])]];}
+    [[NSData dataWithBytes:pixels length:w*h*16] writeToFile:[directory stringByAppendingPathComponent:[name stringByAppendingString:@".rgba-f32le"]] atomically:YES];free(pixels);
+    return @{@"image_created":@YES,@"content_headroom":@(image.contentHeadroom),@"peak":@(peak),@"min":@(lo),@"nonfinite":@(nonfinite),@"nonzero":@(nonzero),@"alpha_min":@(alphaLo),@"alpha_max":@(alphaHi),@"patches":patches,@"valid_pixels":@(nonfinite==0&&alphaLo>.99&&nonzero>0)};
+}
+int main(int argc,char **argv){@autoreleasepool {
+    if(argc!=3)return 2;
+    NSString *directory=[NSString stringWithUTF8String:argv[1]],*artifacts=[NSString stringWithUTF8String:argv[2]];
+    CGColorSpaceRef linear=CGColorSpaceCreateWithName(kCGColorSpaceExtendedLinearSRGB);
+    CIContext *context=[CIContext contextWithOptions:@{kCIContextUseSoftwareRenderer:@YES,kCIContextWorkingColorSpace:(__bridge id)linear,kCIContextOutputColorSpace:(__bridge id)linear,kCIContextWorkingFormat:@(kCIFormatRGBAf)}];
+    NSMutableArray *records=[NSMutableArray array];
+    for(NSNumber *n in @[@1,@2,@4]) {
+        int stops=n.intValue; float headroom=powf(2,stops);
+        NSURL *url=[NSURL fileURLWithPath:[artifacts stringByAppendingPathComponent:[NSString stringWithFormat:@"headroom-%d-stops.jpg",stops]]];
+        CIImage *base=[CIImage imageWithContentsOfURL:url options:@{kCIImageExpandToHDR:@NO}];
+        CIImage *gain=[CIImage imageWithContentsOfURL:url options:@{kCIImageAuxiliaryHDRGainMap:@YES}];
+        CIImage *expanded=[CIImage imageWithContentsOfURL:url options:@{kCIImageExpandToHDR:@YES}];
+        CIImage *applied=(base&&gain)?[base imageByApplyingGainMap:gain headroom:headroom]:nil;
+        NSString *prefix=[NSString stringWithFormat:@"%d-stop",stops];
+        if(gain) [[gain.properties description] writeToFile:[directory stringByAppendingPathComponent:[prefix stringByAppendingString:@"-gain-properties.txt"]] atomically:YES encoding:NSUTF8StringEncoding error:nil];
+        [records addObject:@{@"stops":n,@"requested_headroom":@(headroom),@"base_created":@(base!=nil),@"gain_created":@(gain!=nil),@"default_expand":render(context,expanded,linear,[prefix stringByAppendingString:@"-default"],directory),@"explicit_gain":render(context,applied,linear,[prefix stringByAppendingString:@"-explicit"],directory)}];
+    }
+    NSData *json=[NSJSONSerialization dataWithJSONObject:records options:NSJSONWritingPrettyPrinted error:nil];fwrite(json.bytes,1,json.length,stdout);puts("");CGColorSpaceRelease(linear);
+}}

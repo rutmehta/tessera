@@ -1,0 +1,27 @@
+{
+  "created_utc": "2026-09-27T19:59:36.308438+00:00",
+  "worktree": "/Users/rutmehta/.codex/worktrees/tessera-mailbox/tessera",
+  "head": "ae19820166b63aa7f75a6238add488513a5c8de6",
+  "branch": "codex/gainmap-restoration",
+  "macos": "26.6.2",
+  "status": " M apps/tessera-cli/src/export.rs\n M crates/engine-api/src/tools.rs\n M crates/export/src/hdr.rs\n M crates/export/src/lib.rs\n M crates/tessera-ffi/src/export.rs\n M crates/tessera-mcp/src/exports.rs\n?? apps/tessera-cli/tests/gain_map_hosts.rs\n?? crates/export/src/gain_map.rs\n?? crates/export/tests/gain_map.rs\n?? crates/export/tests/support/gain_map_coreimage.m\n?? crates/export/tests/support/gain_map_coreimage.rs\n?? crates/export/tests/support/gain_map_fixture.rs\n?? crates/export/tests/support/gain_map_imageio.rs\n?? crates/tessera-ffi/tests/gain_map_hosts.rs\n?? crates/tessera-mcp/tests/gain_map_hosts.rs\n?? tools/coordination/\n?? tools/orchestrate/wp/M2-45d/GAINMAP-PLAN.md\n",
+  "engine_api_tools_old_sha256": "343c897939ee5f00e01c1466a8f927f37dbb9316efbe66d32c38b5ae90e04d36",
+  "edit": "Only moved RecipeHash import to rustfmt order; no semantic edit or test assertion change.",
+  "sha256": {
+    "apps/tessera-cli/src/export.rs": "9d3c37bfe43e8e8ceb7368ac1d1a370ed2f19d3345c75008c6e541eb8eb82db5",
+    "apps/tessera-cli/tests/gain_map_hosts.rs": "dcc4c4d4ea8ddcef20a8ad610891ad2c156902afd2c2271eaffcd526ef221113",
+    "crates/engine-api/src/tools.rs": "74e51be92828520f241e98ed910961abdfe9230c7a09adc537d09d35b734dc8e",
+    "crates/export/src/gain_map.rs": "ca69cbb41b8e5901bdb1f5286a36ca7c2b3f0c81b4018c5ab6442d319fbb3dec",
+    "crates/export/src/hdr.rs": "9492bfd3d345ca6eb02cfba6b3eecd7db58d2b09c6e89e6fc7773d4fa1ff3c42",
+    "crates/export/src/lib.rs": "ee8deaa4b0eea1c0437b3ccde7d9e5c813cc7edfbc19151c611544b11eabbf71",
+    "crates/export/tests/gain_map.rs": "d6b9f73b5633ee1cfd0b57f54190a507a5b02b18414a8a315ef4a758d3e261cd",
+    "crates/export/tests/support/gain_map_coreimage.m": "86268e10a1f19d4d6a66c88977fb5b97d4575b6d3e44b0fcecdf98cad0727522",
+    "crates/export/tests/support/gain_map_coreimage.rs": "303f80a01454f7b8cc17f0a05a2c499fb15a28cc080c21f185357b8a12f28912",
+    "crates/export/tests/support/gain_map_fixture.rs": "914e4ee45c347f4a057aa036a647af69cf3a27c00352c99e89368a2da60d4674",
+    "crates/export/tests/support/gain_map_imageio.rs": "38c3169a8b4267b14158acce7da7bc0368be08d6a4f529903daf9ff790b648f4",
+    "crates/tessera-ffi/src/export.rs": "90ae22e4a7403ec10559f24a5ffc0241faf0c75dcb3a60abb108c1b5eec4ed82",
+    "crates/tessera-ffi/tests/gain_map_hosts.rs": "979258d6a61166053ad17e79bd93d0edfb4e6d6fb1b1c5ac7229ba59987d6b23",
+    "crates/tessera-mcp/src/exports.rs": "16f1705dc060bffc9658de89c66a04c6fea5191d0e897b2524616b246c71219a",
+    "crates/tessera-mcp/tests/gain_map_hosts.rs": "1e9d91c887a917e87485b436a3abfa438301b3b48d2cc93f2bcf6ac1c6587ec8"
+  }
+}

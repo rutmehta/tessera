@@ -1,0 +1,5 @@
+{
+  "crates/export/tests/gain_map.rs": "d6b9f73b5633ee1cfd0b57f54190a507a5b02b18414a8a315ef4a758d3e261cd",
+  "crates/export/tests/support/gain_map_coreimage.rs": "303f80a01454f7b8cc17f0a05a2c499fb15a28cc080c21f185357b8a12f28912",
+  "crates/export/tests/support/gain_map_coreimage.m": "86268e10a1f19d4d6a66c88977fb5b97d4575b6d3e44b0fcecdf98cad0727522"
+}

@@ -1,0 +1,15 @@
+--- a/crates/export/tests/gain_map.rs
++++ b/crates/export/tests/gain_map.rs
+@@ -543,6 +543,12 @@
+         )
+         .unwrap();
+         let bytes = fs::read(path).unwrap();
++        // Separate diagnostic capture; original native assertion remains below.
++        if let Some(directory) = std::env::var_os("TESSERA_GAINMAP_HEADROOM_CAPTURE") {
++            let directory = std::path::PathBuf::from(directory);
++            std::fs::create_dir_all(&directory).unwrap();
++            std::fs::write(directory.join(format!("headroom-{stops:.0}-stops.jpg")), &bytes).unwrap();
++        }
+         let (base, aux) = images(&bytes);
+         let base = image::load_from_memory(base).unwrap().to_rgb8();
+         let map = image::load_from_memory(aux).unwrap().to_luma8();

@@ -1,0 +1,326 @@
+[
+  {
+    "variant": "default",
+    "stops": 1,
+    "provider_sha256": "a3cb33b326170f3175d3cd319a6c8e19a694085c08d4ca0b88bad56461803f6a",
+    "provider_bytes": 5120,
+    "packed_10bit_fields_minmax": [
+      [
+        0,
+        669
+      ],
+      [
+        0,
+        669
+      ],
+      [
+        0,
+        669
+      ]
+    ],
+    "reported_image_headroom": 2,
+    "drawn_peak": 1.99593186378479,
+    "format_bits_per_component": 10,
+    "format_bits_per_pixel": 32,
+    "bitmap_info": 204806,
+    "context_target_before": 0,
+    "context_target_after": 0
+  },
+  {
+    "variant": "default",
+    "stops": 2,
+    "provider_sha256": "759d5d60be3f0ca0baa8a5026f85fa4f8741adeee30a054f8cf07ddc3d1e1310",
+    "provider_bytes": 5120,
+    "packed_10bit_fields_minmax": [
+      [
+        0,
+        746
+      ],
+      [
+        0,
+        746
+      ],
+      [
+        0,
+        746
+      ]
+    ],
+    "reported_image_headroom": 4,
+    "drawn_peak": 4.0030903816223145,
+    "format_bits_per_component": 10,
+    "format_bits_per_pixel": 32,
+    "bitmap_info": 204806,
+    "context_target_before": 0,
+    "context_target_after": 0
+  },
+  {
+    "variant": "default",
+    "stops": 4,
+    "provider_sha256": "e9e0ecdf187610420f92017b900bc2ac4cdb879027fba83cc4ed55d0ef5d2c58",
+    "provider_bytes": 5120,
+    "packed_10bit_fields_minmax": [
+      [
+        0,
+        823
+      ],
+      [
+        0,
+        823
+      ],
+      [
+        0,
+        823
+      ]
+    ],
+    "reported_image_headroom": 8,
+    "drawn_peak": 7.983762264251709,
+    "format_bits_per_component": 10,
+    "format_bits_per_pixel": 32,
+    "bitmap_info": 204806,
+    "context_target_before": 0,
+    "context_target_after": 0
+  },
+  {
+    "variant": "target-zero",
+    "stops": 1,
+    "provider_sha256": "a3cb33b326170f3175d3cd319a6c8e19a694085c08d4ca0b88bad56461803f6a",
+    "provider_bytes": 5120,
+    "packed_10bit_fields_minmax": [
+      [
+        0,
+        669
+      ],
+      [
+        0,
+        669
+      ],
+      [
+        0,
+        669
+      ]
+    ],
+    "reported_image_headroom": 2,
+    "drawn_peak": 1.99593186378479,
+    "format_bits_per_component": 10,
+    "format_bits_per_pixel": 32,
+    "bitmap_info": 204806,
+    "context_target_before": 0,
+    "context_target_after": 0
+  },
+  {
+    "variant": "target-zero",
+    "stops": 2,
+    "provider_sha256": "759d5d60be3f0ca0baa8a5026f85fa4f8741adeee30a054f8cf07ddc3d1e1310",
+    "provider_bytes": 5120,
+    "packed_10bit_fields_minmax": [
+      [
+        0,
+        746
+      ],
+      [
+        0,
+        746
+      ],
+      [
+        0,
+        746
+      ]
+    ],
+    "reported_image_headroom": 4,
+    "drawn_peak": 4.0030903816223145,
+    "format_bits_per_component": 10,
+    "format_bits_per_pixel": 32,
+    "bitmap_info": 204806,
+    "context_target_before": 0,
+    "context_target_after": 0
+  },
+  {
+    "variant": "target-zero",
+    "stops": 4,
+    "provider_sha256": "e9e0ecdf187610420f92017b900bc2ac4cdb879027fba83cc4ed55d0ef5d2c58",
+    "provider_bytes": 5120,
+    "packed_10bit_fields_minmax": [
+      [
+        0,
+        823
+      ],
+      [
+        0,
+        823
+      ],
+      [
+        0,
+        823
+      ]
+    ],
+    "reported_image_headroom": 8,
+    "drawn_peak": 7.983762264251709,
+    "format_bits_per_component": 10,
+    "format_bits_per_pixel": 32,
+    "bitmap_info": 204806,
+    "context_target_before": 0,
+    "context_target_after": 0
+  },
+  {
+    "variant": "luma-off",
+    "stops": 1,
+    "provider_sha256": "a3cb33b326170f3175d3cd319a6c8e19a694085c08d4ca0b88bad56461803f6a",
+    "provider_bytes": 5120,
+    "packed_10bit_fields_minmax": [
+      [
+        0,
+        669
+      ],
+      [
+        0,
+        669
+      ],
+      [
+        0,
+        669
+      ]
+    ],
+    "reported_image_headroom": 2,
+    "drawn_peak": 1.99593186378479,
+    "format_bits_per_component": 10,
+    "format_bits_per_pixel": 32,
+    "bitmap_info": 204806,
+    "context_target_before": 0,
+    "context_target_after": 0
+  },
+  {
+    "variant": "luma-off",
+    "stops": 2,
+    "provider_sha256": "759d5d60be3f0ca0baa8a5026f85fa4f8741adeee30a054f8cf07ddc3d1e1310",
+    "provider_bytes": 5120,
+    "packed_10bit_fields_minmax": [
+      [
+        0,
+        746
+      ],
+      [
+        0,
+        746
+      ],
+      [
+        0,
+        746
+      ]
+    ],
+    "reported_image_headroom": 4,
+    "drawn_peak": 4.0030903816223145,
+    "format_bits_per_component": 10,
+    "format_bits_per_pixel": 32,
+    "bitmap_info": 204806,
+    "context_target_before": 0,
+    "context_target_after": 0
+  },
+  {
+    "variant": "luma-off",
+    "stops": 4,
+    "provider_sha256": "e9e0ecdf187610420f92017b900bc2ac4cdb879027fba83cc4ed55d0ef5d2c58",
+    "provider_bytes": 5120,
+    "packed_10bit_fields_minmax": [
+      [
+        0,
+        823
+      ],
+      [
+        0,
+        823
+      ],
+      [
+        0,
+        823
+      ]
+    ],
+    "reported_image_headroom": 8,
+    "drawn_peak": 7.983762264251709,
+    "format_bits_per_component": 10,
+    "format_bits_per_pixel": 32,
+    "bitmap_info": 204806,
+    "context_target_before": 0,
+    "context_target_after": 0
+  },
+  {
+    "variant": "allow-float",
+    "stops": 1,
+    "provider_sha256": "a3cb33b326170f3175d3cd319a6c8e19a694085c08d4ca0b88bad56461803f6a",
+    "provider_bytes": 5120,
+    "packed_10bit_fields_minmax": [
+      [
+        0,
+        669
+      ],
+      [
+        0,
+        669
+      ],
+      [
+        0,
+        669
+      ]
+    ],
+    "reported_image_headroom": 2,
+    "drawn_peak": 1.99593186378479,
+    "format_bits_per_component": 10,
+    "format_bits_per_pixel": 32,
+    "bitmap_info": 204806,
+    "context_target_before": 0,
+    "context_target_after": 0
+  },
+  {
+    "variant": "allow-float",
+    "stops": 2,
+    "provider_sha256": "759d5d60be3f0ca0baa8a5026f85fa4f8741adeee30a054f8cf07ddc3d1e1310",
+    "provider_bytes": 5120,
+    "packed_10bit_fields_minmax": [
+      [
+        0,
+        746
+      ],
+      [
+        0,
+        746
+      ],
+      [
+        0,
+        746
+      ]
+    ],
+    "reported_image_headroom": 4,
+    "drawn_peak": 4.0030903816223145,
+    "format_bits_per_component": 10,
+    "format_bits_per_pixel": 32,
+    "bitmap_info": 204806,
+    "context_target_before": 0,
+    "context_target_after": 0
+  },
+  {
+    "variant": "allow-float",
+    "stops": 4,
+    "provider_sha256": "e9e0ecdf187610420f92017b900bc2ac4cdb879027fba83cc4ed55d0ef5d2c58",
+    "provider_bytes": 5120,
+    "packed_10bit_fields_minmax": [
+      [
+        0,
+        823
+      ],
+      [
+        0,
+        823
+      ],
+      [
+        0,
+        823
+      ]
+    ],
+    "reported_image_headroom": 8,
+    "drawn_peak": 7.983762264251709,
+    "format_bits_per_component": 10,
+    "format_bits_per_pixel": 32,
+    "bitmap_info": 204806,
+    "context_target_before": 0,
+    "context_target_after": 0
+  }
+]

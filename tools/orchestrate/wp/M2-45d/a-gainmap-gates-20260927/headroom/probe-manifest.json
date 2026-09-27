@@ -1,0 +1,176 @@
+[
+  {
+    "variant": "default",
+    "stops": 1,
+    "command": [
+      "/tmp/tessera-gainmap-a-headroom/probe",
+      "/tmp/tessera-gainmap-a-headroom/artifacts/headroom-1-stops.jpg"
+    ],
+    "env": {
+      "PROBE_OPTIONS": "none",
+      "PROBE_DUMP": "/tmp/tessera-gainmap-a-headroom/default-1",
+      "PROBE_RAW": "/tmp/tessera-gainmap-a-headroom/default-1/provider"
+    },
+    "exit": 0
+  },
+  {
+    "variant": "default",
+    "stops": 2,
+    "command": [
+      "/tmp/tessera-gainmap-a-headroom/probe",
+      "/tmp/tessera-gainmap-a-headroom/artifacts/headroom-2-stops.jpg"
+    ],
+    "env": {
+      "PROBE_OPTIONS": "none",
+      "PROBE_DUMP": "/tmp/tessera-gainmap-a-headroom/default-2",
+      "PROBE_RAW": "/tmp/tessera-gainmap-a-headroom/default-2/provider"
+    },
+    "exit": 0
+  },
+  {
+    "variant": "default",
+    "stops": 4,
+    "command": [
+      "/tmp/tessera-gainmap-a-headroom/probe",
+      "/tmp/tessera-gainmap-a-headroom/artifacts/headroom-4-stops.jpg"
+    ],
+    "env": {
+      "PROBE_OPTIONS": "none",
+      "PROBE_DUMP": "/tmp/tessera-gainmap-a-headroom/default-4",
+      "PROBE_RAW": "/tmp/tessera-gainmap-a-headroom/default-4/provider"
+    },
+    "exit": 0
+  },
+  {
+    "variant": "target-zero",
+    "stops": 1,
+    "command": [
+      "/tmp/tessera-gainmap-a-headroom/probe",
+      "/tmp/tessera-gainmap-a-headroom/artifacts/headroom-1-stops.jpg"
+    ],
+    "env": {
+      "PROBE_OPTIONS": "none",
+      "PROBE_DUMP": "/tmp/tessera-gainmap-a-headroom/target-zero-1",
+      "PROBE_RAW": "/tmp/tessera-gainmap-a-headroom/target-zero-1/provider",
+      "PROBE_TARGET_ZERO": "1"
+    },
+    "exit": 0
+  },
+  {
+    "variant": "target-zero",
+    "stops": 2,
+    "command": [
+      "/tmp/tessera-gainmap-a-headroom/probe",
+      "/tmp/tessera-gainmap-a-headroom/artifacts/headroom-2-stops.jpg"
+    ],
+    "env": {
+      "PROBE_OPTIONS": "none",
+      "PROBE_DUMP": "/tmp/tessera-gainmap-a-headroom/target-zero-2",
+      "PROBE_RAW": "/tmp/tessera-gainmap-a-headroom/target-zero-2/provider",
+      "PROBE_TARGET_ZERO": "1"
+    },
+    "exit": 0
+  },
+  {
+    "variant": "target-zero",
+    "stops": 4,
+    "command": [
+      "/tmp/tessera-gainmap-a-headroom/probe",
+      "/tmp/tessera-gainmap-a-headroom/artifacts/headroom-4-stops.jpg"
+    ],
+    "env": {
+      "PROBE_OPTIONS": "none",
+      "PROBE_DUMP": "/tmp/tessera-gainmap-a-headroom/target-zero-4",
+      "PROBE_RAW": "/tmp/tessera-gainmap-a-headroom/target-zero-4/provider",
+      "PROBE_TARGET_ZERO": "1"
+    },
+    "exit": 0
+  },
+  {
+    "variant": "luma-off",
+    "stops": 1,
+    "command": [
+      "/tmp/tessera-gainmap-a-headroom/probe",
+      "/tmp/tessera-gainmap-a-headroom/artifacts/headroom-1-stops.jpg"
+    ],
+    "env": {
+      "PROBE_OPTIONS": "none",
+      "PROBE_DUMP": "/tmp/tessera-gainmap-a-headroom/luma-off-1",
+      "PROBE_RAW": "/tmp/tessera-gainmap-a-headroom/luma-off-1/provider",
+      "PROBE_LUMA_OFF": "1"
+    },
+    "exit": 0
+  },
+  {
+    "variant": "luma-off",
+    "stops": 2,
+    "command": [
+      "/tmp/tessera-gainmap-a-headroom/probe",
+      "/tmp/tessera-gainmap-a-headroom/artifacts/headroom-2-stops.jpg"
+    ],
+    "env": {
+      "PROBE_OPTIONS": "none",
+      "PROBE_DUMP": "/tmp/tessera-gainmap-a-headroom/luma-off-2",
+      "PROBE_RAW": "/tmp/tessera-gainmap-a-headroom/luma-off-2/provider",
+      "PROBE_LUMA_OFF": "1"
+    },
+    "exit": 0
+  },
+  {
+    "variant": "luma-off",
+    "stops": 4,
+    "command": [
+      "/tmp/tessera-gainmap-a-headroom/probe",
+      "/tmp/tessera-gainmap-a-headroom/artifacts/headroom-4-stops.jpg"
+    ],
+    "env": {
+      "PROBE_OPTIONS": "none",
+      "PROBE_DUMP": "/tmp/tessera-gainmap-a-headroom/luma-off-4",
+      "PROBE_RAW": "/tmp/tessera-gainmap-a-headroom/luma-off-4/provider",
+      "PROBE_LUMA_OFF": "1"
+    },
+    "exit": 0
+  },
+  {
+    "variant": "allow-float",
+    "stops": 1,
+    "command": [
+      "/tmp/tessera-gainmap-a-headroom/probe",
+      "/tmp/tessera-gainmap-a-headroom/artifacts/headroom-1-stops.jpg"
+    ],
+    "env": {
+      "PROBE_OPTIONS": "float",
+      "PROBE_DUMP": "/tmp/tessera-gainmap-a-headroom/allow-float-1",
+      "PROBE_RAW": "/tmp/tessera-gainmap-a-headroom/allow-float-1/provider"
+    },
+    "exit": 0
+  },
+  {
+    "variant": "allow-float",
+    "stops": 2,
+    "command": [
+      "/tmp/tessera-gainmap-a-headroom/probe",
+      "/tmp/tessera-gainmap-a-headroom/artifacts/headroom-2-stops.jpg"
+    ],
+    "env": {
+      "PROBE_OPTIONS": "float",
+      "PROBE_DUMP": "/tmp/tessera-gainmap-a-headroom/allow-float-2",
+      "PROBE_RAW": "/tmp/tessera-gainmap-a-headroom/allow-float-2/provider"
+    },
+    "exit": 0
+  },
+  {
+    "variant": "allow-float",
+    "stops": 4,
+    "command": [
+      "/tmp/tessera-gainmap-a-headroom/probe",
+      "/tmp/tessera-gainmap-a-headroom/artifacts/headroom-4-stops.jpg"
+    ],
+    "env": {
+      "PROBE_OPTIONS": "float",
+      "PROBE_DUMP": "/tmp/tessera-gainmap-a-headroom/allow-float-4",
+      "PROBE_RAW": "/tmp/tessera-gainmap-a-headroom/allow-float-4/provider"
+    },
+    "exit": 0
+  }
+]

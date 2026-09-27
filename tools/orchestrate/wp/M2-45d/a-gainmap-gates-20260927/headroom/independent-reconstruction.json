@@ -1,0 +1,140 @@
+[
+  {
+    "stops": 1,
+    "jpeg_sha256": "5c5a295a950b72348d3b3c25f2e5c15fd947faeac048f89fc02fb773aed45f12",
+    "aux_sha256": "17f9403e886e3bea596d56d8c8f6943910095ce15e2199452bdb388026c77d50",
+    "iso_metadata_rationals": [
+      [
+        0,
+        1
+      ],
+      [
+        1000000,
+        1000000
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        1000000,
+        1000000
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        0,
+        1
+      ]
+    ],
+    "iso_metadata_values_baseheadroom_altheadroom_min_max_gamma_offsets": [
+      0.0,
+      1.0,
+      0.0,
+      1.0,
+      1.0,
+      0.0,
+      0.0
+    ],
+    "independent_reconstruction_min": 0.0,
+    "independent_reconstruction_peak": 2.0
+  },
+  {
+    "stops": 2,
+    "jpeg_sha256": "7d45ffa0a091a1d8356117edea43d0e2b3d9d5708ae5e84615baf180e925ea7a",
+    "aux_sha256": "9ef9333b06ecce488df08326c953e42c75f4bd8123d321d4d160d1a8a53159f1",
+    "iso_metadata_rationals": [
+      [
+        0,
+        1
+      ],
+      [
+        2000000,
+        1000000
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        2000000,
+        1000000
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        0,
+        1
+      ]
+    ],
+    "iso_metadata_values_baseheadroom_altheadroom_min_max_gamma_offsets": [
+      0.0,
+      2.0,
+      0.0,
+      2.0,
+      1.0,
+      0.0,
+      0.0
+    ],
+    "independent_reconstruction_min": 0.0,
+    "independent_reconstruction_peak": 4.0
+  },
+  {
+    "stops": 4,
+    "jpeg_sha256": "bb08f44df33f9426999edc116adc9fecd61a4f70a9fc351318071c155d2c413b",
+    "aux_sha256": "4d9d66cd12750911c93a19a65ddadc3a08df28a0d9f50282a1be79c672d84fcd",
+    "iso_metadata_rationals": [
+      [
+        0,
+        1
+      ],
+      [
+        4000000,
+        1000000
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        4000000,
+        1000000
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        0,
+        1
+      ]
+    ],
+    "iso_metadata_values_baseheadroom_altheadroom_min_max_gamma_offsets": [
+      0.0,
+      4.0,
+      0.0,
+      4.0,
+      1.0,
+      0.0,
+      0.0
+    ],
+    "independent_reconstruction_min": 0.0,
+    "independent_reconstruction_peak": 16.0
+  }
+]
