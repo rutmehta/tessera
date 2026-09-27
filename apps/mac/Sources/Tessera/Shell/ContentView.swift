@@ -96,9 +96,11 @@ struct ContentView: View {
                     DocumentStatusBar(model: model, workspace: model.documents)
                 } else if model.isReviewing {
                     HStack {
-                        Text(model.agent.queue.summary)
+                        Text(model.statusMessage ?? model.agent.queue.summary)
+                            .lineLimit(1).truncationMode(.tail)
+                            .help(model.statusMessage ?? model.agent.queue.summary)
                         Spacer(minLength: Theme.Space.m)
-                        Text("↑ ↓ Browse · D Edit · Esc Back")
+                        Text("↑ ↓ Browse · D Edit · Esc Back").fixedSize()
                     }
                     .font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
                     .padding(.horizontal, Theme.Space.gutter).frame(height: Theme.Height.statusBar)

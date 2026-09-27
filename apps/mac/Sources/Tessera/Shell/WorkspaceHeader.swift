@@ -52,6 +52,11 @@ struct WorkspaceHeader: View {
 struct LayeredCopyRequest: Identifiable {
     let id = UUID()
     let item: PhotoItem
+    let library: EngineLibrary?
+    init(item: PhotoItem, library: EngineLibrary? = nil) {
+        self.item = item
+        self.library = library
+    }
 }
 
 /// The existing engine handoff is a rendered copy, not a live RAW layer.

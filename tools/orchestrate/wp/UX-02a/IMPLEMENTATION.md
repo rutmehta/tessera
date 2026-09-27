@@ -61,3 +61,12 @@ evidence. The background harness cannot materialize SwiftUI's drawn-button AX tr
 without an assistive client. Busy labels/value are present in the view; containment,
 spinner/disabled styling and screenshots are the bounded visual checks. A live
 screen-reader traversal is not claimed.
+
+The A-side rendered-copy handoff now captures the request/owner/source, closes a
+matching session, awaits its pending save, and rechecks owner, request token,
+Library context and selection before invoking the unchanged Document workspace.
+A current agent mutation refuses that same target. Tests use a tiny real JPEG:
+pending brightening must affect first-copy pixels; a later photo adjustment must
+leave an already-open copy's pixels unchanged as disclosed. Selection/folder
+changes during the save wait must cancel navigation. No B Document/FFI source is
+modified.

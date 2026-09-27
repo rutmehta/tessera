@@ -1,5 +1,6 @@
 import AppKit
 import ImageIO
+import IOSurface
 import UniformTypeIdentifiers
 import XCTest
 @testable import Tessera
@@ -124,11 +125,16 @@ final class AgentReviewNavigationTests: XCTestCase {
         try await settle { model.developStatus == .ready }
         let firstController = try XCTUnwrap(model.develop)
         XCTAssertEqual(firstController.imageID, selected.imageID)
+        firstController.onNeedsFlush = {}
+        firstController.set(.exposure, 1.25, interactive: true)
         model.returnFromPhotoEdit()
+        let previewBarrier = model.pendingDevelopSaveBarrier(imageID: selected.imageID, library: try XCTUnwrap(model.engineLibrary))
+        await previewBarrier.value
         model.editReviewedPhoto() // Same native loupe/shown ID must reopen the closed session.
         try await settle { model.developStatus == .ready }
         XCTAssertEqual(model.develop?.imageID, selected.imageID)
         XCTAssertFalse(model.develop === firstController)
+        XCTAssertEqual(model.develop?.value(.exposure), 1.25, "Preview/edit return must await the pending manual save")
         model.returnFromPhotoEdit()
         XCTAssertTrue(model.isReviewing)
         XCTAssertEqual(model.reviewNavigation.instruction, "Keep the sky")
@@ -205,6 +211,87 @@ final class AgentReviewNavigationTests: XCTestCase {
         assertEditRejected()
         try await settle { model.agent.busy.isEmpty }
         XCTAssertTrue(model.canEnterPhotoEdit)
+    }
+
+    func testFirstLayeredCopyIncludesPendingPhotoAdjustment() async throws {
+        let model = try await reviewedModel()
+        model.select(position: 0) // This photo was not part of the scripted run.
+        let item = try XCTUnwrap(model.focusedItem)
+        let owner = try XCTUnwrap(model.engineLibrary)
+        let imageID = try XCTUnwrap(item.engineImage?.imageID)
+        let baseline = try EngineDocumentEngine.for(owner.engine).openDocumentFromImage(imageId: imageID, developed: false)
+        let before = try meanRGB(baseline)
+        model.enterPhotoEdit()
+        model.openDevelop(for: item)
+        try await settle { model.develop != nil }
+        let controller = try XCTUnwrap(model.develop)
+        controller.onNeedsFlush = {}
+        controller.set(.exposure, 1.25, interactive: true)
+        model.requestLayeredCopy()
+        model.createRequestedLayeredCopy()
+        try await settle { model.viewMode == .document }
+        let document = try XCTUnwrap(model.documents.current)
+        XCTAssertEqual(model.viewMode, .document)
+        let firstPixels = try meanRGB(document.backend)
+        XCTAssertGreaterThan(firstPixels, before + 10,
+                             "The first rendered copy must include the pending brightening, not the previously saved pixels")
+        await controller.close()
+        model.viewMode = .grid
+        model.enterPhotoEdit()
+        model.openDevelop(for: item)
+        try await settle { model.develop != nil }
+        let later = try XCTUnwrap(model.develop)
+        later.onNeedsFlush = {}
+        later.set(.exposure, -1.0, interactive: true)
+        model.requestLayeredCopy()
+        model.createRequestedLayeredCopy()
+        try await settle { model.viewMode == .document }
+        XCTAssertEqual(model.documents.current?.backend.id(), document.backend.id())
+        XCTAssertEqual(try meanRGB(try XCTUnwrap(model.documents.current).backend), firstPixels,
+                       "The disclosure promises that an existing layered copy reopens without refreshing its pixels")
+        await later.close()
+    }
+
+    func testLayeredHandoffCancelsWhenSelectionOrOwnerChangesBeforeSaveWaitReturns() async throws {
+        for changeOwner in [false, true] {
+            let model = try await reviewedModel()
+            model.select(position: 0)
+            let item = try XCTUnwrap(model.focusedItem)
+            let owner = try XCTUnwrap(model.engineLibrary)
+            model.enterPhotoEdit()
+            model.openDevelop(for: item)
+            try await settle { model.develop != nil }
+            let controller = try XCTUnwrap(model.develop)
+            controller.onNeedsFlush = {}
+            controller.set(.exposure, 1.25, interactive: true)
+            model.requestLayeredCopy()
+            model.createRequestedLayeredCopy()
+            if changeOwner { model.loadStubItems(count: 2) }
+            else { model.select(position: 1) }
+            await model.pendingDevelopSaveBarrier(imageID: try XCTUnwrap(item.engineImage?.imageID), library: owner).value
+            // Drain the handoff continuation after its captured barrier settles.
+            try await Task.sleep(for: .milliseconds(40))
+            XCTAssertTrue(model.documents.documents.isEmpty)
+            XCTAssertNotEqual(model.viewMode, .document)
+            await controller.close()
+        }
+    }
+
+    private func meanRGB(_ backend: any DocumentBackend) throws -> Double {
+        let surface = try XCTUnwrap(IOSurfaceLookup(try backend.compositeThumbnail(maxPx: 120)))
+        XCTAssertEqual(IOSurfaceGetBytesPerElement(surface), 4)
+        IOSurfaceLock(surface, .readOnly, nil)
+        defer { IOSurfaceUnlock(surface, .readOnly, nil) }
+        let bytes = try XCTUnwrap(IOSurfaceGetBaseAddress(surface)).assumingMemoryBound(to: UInt8.self)
+        let width = IOSurfaceGetWidth(surface), height = IOSurfaceGetHeight(surface), stride = IOSurfaceGetBytesPerRow(surface)
+        var sum = 0.0
+        for y in 0..<height {
+            for x in 0..<width {
+                let offset = y * stride + x * 4
+                sum += Double(bytes[offset]) + Double(bytes[offset + 1]) + Double(bytes[offset + 2])
+            }
+        }
+        return sum / Double(width * height * 3)
     }
 
     private func reviewedModel() async throws -> AppModel {

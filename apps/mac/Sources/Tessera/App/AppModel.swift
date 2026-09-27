@@ -185,6 +185,7 @@ final class AppModel {
     private(set) var editingFromReview = false
     var photoInspectorTab: PhotoInspectorTab = .develop
     var layeredCopyRequest: LayeredCopyRequest?
+    @ObservationIgnored private var pendingLayeredCopyRequestID: UUID?
     @ObservationIgnored private var workspaceTransition = false
     @ObservationIgnored private var libraryReturnState: LibraryReturnState?
     private struct LibraryReturnState {
@@ -446,6 +447,7 @@ final class AppModel {
         editingFromReview = false
         libraryReturnState = nil
         layeredCopyRequest = nil
+        pendingLayeredCopyRequestID = nil
         if viewMode == .review {
             workspaceTransition = true
             viewMode = .grid
@@ -865,14 +867,48 @@ final class AppModel {
 
     func requestLayeredCopy() {
         guard !isReviewing, source != .people, viewMode != .document, let item = focusedItem else { return }
-        layeredCopyRequest = LayeredCopyRequest(item: item)
+        if let owner = engineLibrary, let imageID = item.engineImage?.imageID,
+           agent.isMutating(imageID: imageID, library: owner) {
+            statusMessage = "This photo is being updated; open it in Layers after the operation finishes"
+            return
+        }
+        pendingLayeredCopyRequestID = nil
+        layeredCopyRequest = LayeredCopyRequest(item: item, library: engineLibrary)
     }
 
     func createRequestedLayeredCopy() {
-        guard let item = layeredCopyRequest?.item else { return }
+        guard let request = layeredCopyRequest else { return }
         layeredCopyRequest = nil
+        guard request.library === engineLibrary else { return }
+        if let owner = request.library, let imageID = request.item.engineImage?.imageID,
+           agent.isMutating(imageID: imageID, library: owner) { return }
+        pendingLayeredCopyRequestID = request.id
         returnToLibrary()
-        documents.editInLayers(item)
+        guard let owner = request.library, let imageID = request.item.engineImage?.imageID else {
+            pendingLayeredCopyRequestID = nil
+            documents.editInLayers(request.item)
+            return
+        }
+        if developLibrary === owner, develop?.imageID == imageID { closeDevelop() }
+        let selected = selection
+        let focusedKey = focusedItem.map { workspaceKey(for: $0) }
+        let source = self.source
+        let view = viewMode
+        let barrier = pendingDevelopSaveBarrier(imageID: imageID, library: owner)
+        statusMessage = "Saving photo before opening Layers…"
+        Task { [weak self] in
+            await barrier.value
+            guard let self else { return }
+            defer {
+                if self.pendingLayeredCopyRequestID == request.id { self.pendingLayeredCopyRequestID = nil }
+            }
+            guard self.pendingLayeredCopyRequestID == request.id, self.engineLibrary === owner,
+                  !self.agent.isMutating(imageID: imageID, library: owner),
+                  self.isLibraryWorkspace, self.source == source, self.viewMode == view,
+                  self.selection == selected,
+                  self.focusedItem.map({ self.workspaceKey(for: $0) }) == focusedKey else { return }
+            self.documents.editInLayers(request.item)
+        }
     }
 
     private func rememberLibraryPlace() {
@@ -965,6 +1001,18 @@ final class AppModel {
         return reviewTargetItem == nil ? "This photo is no longer available in the open library." : nil
     }
 
+    /// Read saved pixels only after the captured session tasks finish. Observing this
+    /// barrier neither cancels nor opens a session (Review previews and Layers handoff).
+    func pendingDevelopSaveBarrier(imageID: String, library owner: EngineLibrary) -> Task<Void, Never> {
+        let key = DevelopCloseKey(owner: ObjectIdentifier(owner), imageID: imageID)
+        let opening = pendingDevelopOpens[key]?.task
+        let closing = pendingDevelopCloses[key]?.task
+        return Task {
+            await opening?.value
+            await closing?.value
+        }
+    }
+
     func reconcileReviewNavigation() {
         reviewNavigation.reconcile(queue: agent.queue, generation: agent.reviewGeneration)
     }
@@ -978,6 +1026,7 @@ final class AppModel {
         liveObservers.forEach { $0.workspaceWillEnterReview() }
         closeDevelop()
         reconcileReviewNavigation()
+        statusMessage = nil
         workspaceTransition = true
         documents.columnVisibility = .detailOnly
         showInspector = true

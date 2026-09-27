@@ -83,6 +83,9 @@ private struct ReviewCurrentPreview: View {
     let model: AppModel
     @State private var image: CGImage?
     @State private var request: PreviewRequest?
+    @State private var loadTask: Task<Void, Never>?
+    @State private var loadToken = UUID()
+    @State private var loading = false
     private var identity: String {
         "\(model.agent.reviewGeneration):\(model.reviewNavigation.selectedID ?? ""): \(model.libraryRevision):\(model.agentRevision)"
     }
@@ -95,30 +98,47 @@ private struct ReviewCurrentPreview: View {
                 Image(decorative: image, scale: 1).resizable().aspectRatio(contentMode: .fit)
                     .accessibilityLabel(model.selectedReviewEntry?.name ?? "Current photo")
             } else {
-                Text("Preview unavailable").font(Theme.Fonts.label).foregroundStyle(Theme.textSecondary)
+                Text(loading ? "Loading current preview…" : "Preview unavailable")
+                    .font(Theme.Fonts.label).foregroundStyle(Theme.textSecondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            Text("Current recipe preview · no before/after baseline")
+            Text("Current saved photo adjustments")
                 .font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary)
         }
         .padding(Theme.Space.gutter)
         .accessibilityIdentifier("review-current-preview")
         .onChange(of: identity, initial: true) { _, _ in load() }
-        .onDisappear { request?.cancel(); request = nil }
+        .onDisappear { request?.cancel(); request = nil; loadTask?.cancel(); loadTask = nil; loadToken = UUID() }
     }
 
     private func load() {
         request?.cancel(); request = nil; image = nil
-        guard let item = model.reviewTargetItem else { return }
-        let selected = model.reviewNavigation.selectedID
+        loadTask?.cancel(); loadTask = nil
+        let token = UUID()
+        loadToken = token
+        guard let item = model.reviewTargetItem, let owner = model.engineLibrary,
+              let selected = model.reviewNavigation.selectedID, model.selectedReviewEntry?.error == nil else {
+            loading = false
+            return
+        }
+        loading = true
         let generation = model.agent.reviewGeneration
-        image = model.loader.cached(item, tier: .preview)
-        if image == nil {
+        let barrier = model.pendingDevelopSaveBarrier(imageID: selected, library: owner)
+        loadTask = Task {
+            await barrier.value
+            guard !Task.isCancelled, loadToken == token, model.engineLibrary === owner,
+                  model.reviewNavigation.selectedID == selected, model.agent.reviewGeneration == generation else { return }
+            // A just-closed session may have saved after this item's previous preview was cached.
+            model.loader.invalidate(item)
             request = model.loader.request(item, tier: .preview, priority: .veryHigh) { next in
-                guard model.reviewNavigation.selectedID == selected, model.agent.reviewGeneration == generation,
-                      model.reviewTargetItem?.engineImage === item.engineImage else { return }
+                guard loadToken == token, model.engineLibrary === owner,
+                      model.reviewNavigation.selectedID == selected, model.agent.reviewGeneration == generation else { return }
                 image = next
+                loading = false
             }
+            // ThumbnailLoader reports successful delivery only; a failed decode must not spin forever.
+            try? await Task.sleep(for: .seconds(30))
+            if !Task.isCancelled, loadToken == token { loading = false }
         }
     }
 }
