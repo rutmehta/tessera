@@ -10,6 +10,14 @@ GUI sequence and result: the scripted run completed for both fixture photos; `01
 
 This verifies deterministic fake-planner relaunch behavior for a tiny generated JPEG library. It does not cover RAW decoding, network providers, or larger libraries.
 
+## Disposable JPEG editing-readiness smoke
+
+Using the same source freeze, current FFI archive, and validation executable, I opened a separate generated 320×240 JPEG at `/tmp/tessera-editing-smoke-20260927/library/Editing readiness test.jpg` with an independent `/tmp/tessera-editing-smoke-20260927/app-support`. In Edit Photo, I changed Exposure from +0.00 to +0.10 EV and Temperature from 6507 K to 7007 K. I quit and relaunched the app with the same arguments; both values were present after reopening the editor. I then exported JPEG, quality 85, sRGB, using the visible default/custom output setting of 2048 px long edge, into `/tmp/tessera-editing-smoke-20260927/export/`. The UI reported “Exported 1 photo to export in 0.2 s”; that is the app's displayed message, not a performance measurement. `sips` confirmed the output is a 2048×1536 JPEG, and opening the export folder in Tessera loaded the exported photo successfully. This preset upscaled the 320×240 fixture; it does not demonstrate source-resolution-preserving export.
+
+The isolated validation app is `/Volumes/betterSSD/tessera-validation/loupe-review-candidate/Tessera-UX02b-16cb6ce5.app` (bundle ID `dev.tessera.validation.ux02b.16cb6ce5`), not an installed or standard user app. The package manifest and executable hash are in `evidence/ux02b-validation-package.sha256`. Source and exported JPEGs and their XMP sidecars are retained under `evidence/ux02b-editing-smoke-*`. This is a narrow start-editing check on one generated JPEG. RAW decoding, large catalogs, PSD, and resource-heavy workflows remain unverified; it does not establish general readiness for arbitrary personal photos.
+
+The initial full current-FFI gate failure is preserved without rewriting in `evidence/ux02b-full-swift-first-failure.log`, its source manifest, results summary, and exit file. The wrapper's exit file is blank because it mishandled zsh `PIPESTATUS`; the retained XCTest output clearly shows 493 tests, 1 skipped, and 4 assertion failures, all from the obsolete same-path-is-foreign expectation. The corrected full suite is the separate direct-exit-0 run above. The earlier global ReviewRuns audit and all eleven test-owned records are preserved under `evidence/previous-global-test-records/`; originals in Application Support were left untouched. They map to absent UUID temporary fixture folders and are currently inert for ordinary library paths, but could be adopted if an identical temp path were deliberately recreated.
+
 The final focused gate ran on the source state represented by `evidence/ux02b-group-validation-freeze.sha256`:
 
 ```sh
