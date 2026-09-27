@@ -1211,7 +1211,7 @@
     "id": "M2-46",
     "owner": "opus",
     "title": "Export dialog: AVIF/JXL/DNG, size limit, watermark",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
