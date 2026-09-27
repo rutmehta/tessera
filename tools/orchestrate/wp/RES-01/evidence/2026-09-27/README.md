@@ -1,6 +1,6 @@
 # RES-01 CPU smart-filter resource evidence — 2026-09-27
 
-The source branch is `codex/render-resource-bounds`. The implemented checkpoint is `0e58792db7d5c204d4e43c619ce68566b05e7a2c` on base `3825d78e89173d5a01dce5f2ec935816a38b33b9`. The unrun two-case test addition is preserved separately in [`extra-cases/`](extra-cases/); it is not part of that checkpoint.
+The source branch is `codex/render-resource-bounds`. The implemented checkpoint is `0e58792db7d5c204d4e43c619ce68566b05e7a2c` on base `3825d78e89173d5a01dce5f2ec935816a38b33b9`. The initial two-case test source is preserved in [`extra-cases/`](extra-cases/), and its corrected version plus focused and broader gates are in [`followup/README.md`](followup/README.md). Neither test version is part of the original implementation checkpoint.
 
 The prior resource audit and design are in [`notes/source-audit.md`](notes/source-audit.md), [`notes/regression-plan.md`](notes/regression-plan.md), and [`notes/mitigation-report-original.md`](notes/mitigation-report-original.md). The last report records development-era absolute paths; this directory is the portable evidence package. [`freeze-2/MANIFEST.txt`](freeze-2/MANIFEST.txt) SHA-256 identifies the exact source bytes for the successful focused gate. Its full source copies are under [`freeze-2/source/`](freeze-2/source/), and [`freeze-2/worktree.patch`](freeze-2/worktree.patch) reproduces the source change against the base. The later two-test source and its patch are in [`extra-cases/`](extra-cases/), with its own SHA-256 manifest.
 

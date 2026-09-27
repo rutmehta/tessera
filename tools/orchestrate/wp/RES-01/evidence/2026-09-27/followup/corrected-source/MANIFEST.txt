@@ -1,0 +1,4 @@
+Base HEAD: c10b4eea653dcd63f7949eb06ce97d59717c3efa
+Previous extra focused gate exit 101: fixture ID collision, 7/8 passed; log /tmp/tessera-resource-extra-focused-gate.log.
+5473942572deaaa165a950b9384078af5b2074a36ca652d6ad6104c609d40a24  crates/compositor/tests/smart_filter_deadlock.rs
+787c2c31f3a03a6b10fb14c875ec9785b023b20e4ecd44f27d00378e734be382  extra-cases.patch
