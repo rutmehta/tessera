@@ -43,6 +43,7 @@ struct ContentView: View {
                     ZStack {
                         // Both stay alive so grid scroll position and loupe texture survive mode switches.
                         ThumbnailBrowser(model: model, style: .grid)
+                            .onAppear { PerformanceTrace.shared.record("grid_appeared") }
                             .opacity(model.viewMode == .grid ? 1 : 0)
                             .allowsHitTesting(model.viewMode == .grid)
                         LoupeView(model: model)

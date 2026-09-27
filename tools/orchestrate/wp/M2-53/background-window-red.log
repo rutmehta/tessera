@@ -1,0 +1,41 @@
+[0/1] Planning build
+Building for production...
+[0/5] Write sources
+[2/5] Write swift-version--58304C5D6DBC2206.txt
+[4/6] Compiling TesseraFFI TesseraFFI.swift
+[4/8] Write Objects.LinkFileList
+[5/8] Linking Tessera
+[7/9] Compiling TesseraCoreTests AssistTests.swift
+/Users/rutmehta/Developer/tessera/.worktrees/M2-53/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+/Users/rutmehta/Developer/tessera/.worktrees/M2-53/apps/mac/Tests/TesseraCoreTests/LazyLoupeTests.swift:9:21: error: cannot find 'BackgroundAuditWindow' in scope
+ 7 | final class LazyLoupeTests: XCTestCase {
+ 8 |     func testBackgroundAuditWindowCannotBecomeKeyOrMain() {
+ 9 |         let panel = BackgroundAuditWindow(model: AppModel())
+   |                     `- error: cannot find 'BackgroundAuditWindow' in scope
+10 |         XCTAssertFalse(panel.canBecomeKey)
+11 |         XCTAssertFalse(panel.canBecomeMain)
+
+/Users/rutmehta/Developer/tessera/.worktrees/M2-53/apps/mac/Tests/TesseraCoreTests/LazyLoupeTests.swift:12:49: error: cannot infer contextual base in reference to member 'nonactivatingPanel'
+10 |         XCTAssertFalse(panel.canBecomeKey)
+11 |         XCTAssertFalse(panel.canBecomeMain)
+12 |         XCTAssertTrue(panel.styleMask.contains(.nonactivatingPanel))
+   |                                                 `- error: cannot infer contextual base in reference to member 'nonactivatingPanel'
+13 |         XCTAssertNotNil(panel.contentView)
+14 |         XCTAssertFalse(panel.isVisible, "construction must not order or activate the window")
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+error: fatalError

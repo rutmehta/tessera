@@ -434,7 +434,7 @@ final class DevelopTools: LibraryObserver {
         if selfTestFrames != nil {
             selfTestFrames?.append(frame)
             if ProcessInfo.processInfo.environment["TESSERA_SELFTEST_VERBOSE"] == "1" {
-                FileHandle.standardError.write(Data("frame g\(frame.generation) L\(frame.level) \(frame.renderMs) final=\(frame.isFinal)\n".utf8))
+                FileHandle.standardError.write(Data("frame g\(frame.generation) L\(frame.level) engine sink \(frame.renderMs) ms (not input-to-display) final=\(frame.isFinal) backend=\(controller.info.backend) residency=unavailable\n".utf8))
             }
         }
         guard frame.isFinal, !frame.isOverlay, controller === develop else { return }
@@ -480,7 +480,7 @@ final class DevelopTools: LibraryObserver {
             }
             self.selfTestFrames = nil
             self.revision += 1
-            let line = "develop-panels-selftest: " + lines.joined(separator: "; ") + "; backend \(d.info.backend)"
+            let line = "develop-panels-selftest engine sink time (not app input-to-display): " + lines.joined(separator: "; ") + "; backend \(d.info.backend); residency unavailable"
             FileHandle.standardError.write(Data((line + "\n").utf8))
             self.model.statusMessage = line
             // TESSERA_SELFTEST_CROP=1 leaves the crop tool open on a straightened 3:2 crop;

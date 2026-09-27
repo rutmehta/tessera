@@ -365,6 +365,8 @@ final class AppModel {
     }
 
     private func rememberFolder(_ url: URL) {
+        // A background audit's copied fixture is not a new personal recent-folder preference.
+        guard !ProcessInfo.processInfo.arguments.contains("--nonactivating") else { return }
         UserDefaults.standard.set(url.path, forKey: Self.lastFolderKey)
         var recents = recentFolders.filter { $0.standardizedFileURL != url.standardizedFileURL }
         recents.insert(url, at: 0)
@@ -1347,8 +1349,12 @@ final class AppModel {
             guard let self, self.develop === controller else { return }
             self.selfTestFrames = []
             let id = controller.itemID
-            for i in 0...60 {
-                self.setAdjustment(.exposure, 1.5 * Double(i) / 60, final: i == 60, for: id)
+            let steps = ProcessInfo.processInfo.arguments.contains("--timing-selftest") ? 120 : 60
+            for i in 0...steps {
+                self.setAdjustment(.exposure, 1.5 * Double(i) / Double(steps), final: i == steps, for: id)
+                if ProcessInfo.processInfo.arguments.contains("--timing-selftest") {
+                    controller.flushPending() // background windows may pause their display link
+                }
                 try? await Task.sleep(for: .milliseconds(16))
             }
             try? await Task.sleep(for: .seconds(1))
@@ -1359,7 +1365,7 @@ final class AppModel {
             guard !drag.isEmpty else { FileHandle.standardError.write(Data("develop-selftest: no frames\n".utf8)); return }
             let q = { (p: Double) in drag[Int(Double(drag.count - 1) * p)] }
             let level = frames.last.map { "L\($0.level)" } ?? "?"
-            let line = String(format: "develop-selftest: %d tone frames at %@, render median %.1f ms, p90 %.1f ms, max %.1f ms; backend %@; history: %@",
+            let line = String(format: "develop-selftest: %d tone frames at %@, engine sink median %.1f ms, p90 %.1f ms, max %.1f ms (not app input-to-display); backend %@; residency unavailable; history: %@",
                               drag.count, level, q(0.5), q(0.9), q(1), controller.info.backend,
                               controller.history.headLabel ?? "-")
             FileHandle.standardError.write(Data((line + "\n").utf8))

@@ -1,0 +1,36 @@
+Verified release 84fc6f23abeea5365394bb1dff0449c2ac85f33b: /Users/rutmehta/Developer/tessera/.worktrees/M2-53/apps/mac/build/Tessera.app
+{
+  "input_updates": 0,
+  "presented_generations": 0,
+  "main_instrumented_span_p95_ms": null,
+  "main_span_p95_by_name_ms": {},
+  "callback_to_present_p50_ms": null,
+  "callback_to_present_p95_ms": null,
+  "input_to_present_p50_ms": null,
+  "input_to_present_p95_ms": null,
+  "engine_sink_p95_ms": null,
+  "loupe_resource_spans": [],
+  "dropped": 0,
+  "p01_complete": false,
+  "limitations": [
+    "FFI does not expose causal input/generation mapping, job dequeue or actual residency.",
+    "Instrumented main spans include nested spans, not all main-thread tasks.",
+    "Occluded background windows may not present. Sink time is not input-to-display."
+  ],
+  "provenance": {
+    "commit": "84fc6f23abeea5365394bb1dff0449c2ac85f33b",
+    "configuration": "release",
+    "source_sha256": "444c879b6d6372d6a54a2620b9f49950ed296bdf018f3d14c91446185b4b0682",
+    "archive_sha256": "826ff444b41cdc5af63b700aadf4ca92dfd8e512093ed1b8aadcca9e0709f8a6",
+    "bindings": {
+      "CTesseraFFI.h": "991212f867622ad001d46bedfe9bc38e5d2ff75854031d5938bff89bca037752",
+      "CTesseraFFI.modulemap": "efda206de8cf8eb6c092c29fd32f286b9a46d9d7c4c150e6e9b66941dc43d6bd",
+      "TesseraFFI.swift": "2ba9019a06f2cf5b990e101cf2d8e20469b7f540a4ca39c2efc4a3b214bc40ef"
+    }
+  },
+  "foreground_unchanged": true,
+  "selftest_complete": false,
+  "grid_only": false,
+  "grid_appeared": false,
+  "frame_logging_enabled": false
+}
