@@ -606,7 +606,7 @@ fn native_stack(
 ) -> Result<Img> {
     let cancel = cancel.cloned().unwrap_or_default();
     cancel.native.check()?;
-    native_stack_with_evaluator(
+    Ok(native_stack_with_evaluator(
         base,
         layer,
         nodes,
@@ -615,7 +615,7 @@ fn native_stack(
         Arc::new(NativeFilterEvaluator {
             cancel: cancel.clone(),
         }),
-    )
+    )?)
 }
 
 fn native_stack_with_evaluator(
@@ -625,13 +625,16 @@ fn native_stack_with_evaluator(
     level: u8,
     cancel: &Arc<RequestCancellation>,
     evaluator: Arc<dyn compositor::render::smart_filters::SmartFilterEvaluator>,
-) -> Result<Img> {
+) -> engine_api::EngineResult<Img> {
     cancel.native.check()?;
     let neutral = solo(base, layer);
     let mut l = (*neutral.state().root[0]).clone();
     l.kind = layer.kind.clone();
     let LayerKind::SmartObject(so) = &mut l.kind else {
-        return Err(failure("transform stages require a smart object"));
+        return Err(engine_api::EngineError::invalid(
+            "smart filter",
+            "transform stages require a smart object",
+        ));
     };
     so.filters = nodes.iter().map(Node::store).collect();
     let mut state = DocState::new(base.canvas, compositor::Depth::F32);
@@ -656,13 +659,27 @@ pub(super) fn rasterize_smart_stack_with_cancel(
     base: &DocState,
     layer: &Layer,
     cancel: &Arc<RequestCancellation>,
-) -> Result<Raster> {
-    let check = || cancel.native.check().map_err(crate::BridgeError::from);
+) -> super::psd_copy::CopyResult<Raster> {
+    let check = || {
+        cancel
+            .native
+            .check()
+            .map_err(super::psd_copy::CopyError::from)
+    };
     check()?;
     let LayerKind::SmartObject(so) = &layer.kind else {
-        return Err(failure("not a smart object"));
+        return Err(failure("not a smart object").into());
     };
-    let img = native_stack(base, layer, &nodes_of(so)?, 0, Some(cancel))?;
+    let img = native_stack_with_evaluator(
+        base,
+        layer,
+        &nodes_of(so)?,
+        0,
+        cancel,
+        Arc::new(NativeFilterEvaluator {
+            cancel: cancel.clone(),
+        }),
+    )?;
     super::raster_from_rgba_checked(base.canvas, base.depth, &img.px, true, check)
 }
 
@@ -1632,17 +1649,14 @@ impl compositor::render::smart_filters::SmartFilterEvaluator for NativeFilterEva
     ) -> engine_api::EngineResult<Raster> {
         self.cancel.native.check()?;
         if adapter_id(&filter.name) && filter.params.get("filter").is_none() {
-            let result = filters::CompositorFilters.evaluate(input, filter, context);
+            let result = filters::CompositorFilters.evaluate(input, filter, context)?;
             self.cancel.native.check()?;
-            return result;
+            return Ok(result);
         }
-        let convert = |e: crate::BridgeError| {
-            if self.cancel.is_cancelled() {
-                engine_api::EngineError::Cancelled
-            } else {
-                engine_api::EngineError::invalid("smart filter", e.to_string())
-            }
-        };
+        // Legacy bridge errors have erased their original type. Preserve them
+        // as failures: a concurrently set flag is not proof of cancellation.
+        let convert =
+            |e: crate::BridgeError| engine_api::EngineError::invalid("smart filter", e.to_string());
         let mut node = Node::of(filter).map_err(convert)?;
         node.opacity = 1.0;
         node.blend = BlendMode::Normal;

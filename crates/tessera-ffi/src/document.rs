@@ -2428,13 +2428,16 @@ pub(crate) fn raster_from_rgba(
     raster_from_rgba_checked(extent, depth, rgba, skip_transparent, || Ok(()))
 }
 
-pub(crate) fn raster_from_rgba_checked(
+pub(crate) fn raster_from_rgba_checked<E>(
     extent: Extent,
     depth: compositor::Depth,
     rgba: &[f32],
     skip_transparent: bool,
-    check: impl Fn() -> Result<()>,
-) -> Result<Raster> {
+    check: impl Fn() -> std::result::Result<(), E>,
+) -> std::result::Result<Raster, E>
+where
+    E: From<crate::BridgeError> + From<engine_api::EngineError>,
+{
     check()?;
     let mut r = Raster::new(extent, 4, depth, 0.0);
     let (cols, rows) = extent.tile_grid(TILE_SIZE);
