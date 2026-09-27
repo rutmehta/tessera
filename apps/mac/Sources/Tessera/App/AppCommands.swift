@@ -320,6 +320,9 @@ struct LayerMenu: View {
                 .disabled(primary?.hasMask != true)
         }
         .disabled(!on)
+        // B5-07 begin
+        LayerStyleMenu(doc: doc)
+        // B5-07 end
         Divider()
         Button("Merge Down") { doc?.mergeDown() }
             .shortcut(doc != nil, "e", .command)   // ⌘E is Edit in Layers outside document mode (B5-06)

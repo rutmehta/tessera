@@ -61,6 +61,12 @@ pub use filtering::{
 #[path = "document/retouch.rs"]
 mod retouch;
 pub use retouch::*;
+// Layer styles and Global Light (WP B5-07).
+#[path = "document/styles.rs"]
+mod styles;
+pub use styles::{
+    GlobalLightRecord, LayerStyleSummary, StyleEffectSummary, style_effects_schema_json,
+};
 
 use crate::{Engine, Result, failure, surface::Surface};
 use compositor::{
