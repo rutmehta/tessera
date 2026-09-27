@@ -280,3 +280,21 @@ on B, including the released-owner case that exercises this branch.
 Local verification: source diff review and git diff --check only. Compilation
 and all test outcomes for the correction remain pending A validation. The
 original failed compile is retained, not replaced by a claimed pass.
+
+## Outline backlog source candidate — user continuation
+
+User explicitly requested continued work while the workload hold stays. Added
+`LatestRequestBuffer<Value>` with one running slot and one replaceable pending
+value. DocumentTools submits only returned requests to the serial engine queue,
+and completion starts only the newest pending request. Clear/switch/close
+invalidate publication and drop pending references without freeing the running
+slot prematurely. Refresh ignores inactive documents; workspace attachment
+refreshes the current document. Already-running engine work is not cancelled.
+
+Four deterministic source tests simulate a blocked first request: 100-request
+burst collapses to first+latest; clear does not start a concurrent call; close
+rejects late output and drops pending work; duplicate completion cannot release
+another running slot. All UNRUN; compilation pending A. These cover scheduling
+state, not live backend/UI wiring. A should additionally validate selection
+clear, document switching and close with a blocked fake backend before accepting
+the integration. No B build/test/app/heartbeat restart.

@@ -326,3 +326,10 @@ A4797b2a compile failed before tests (SendingRisksDataRace); evidence main6544a1
 Source correction keeps callback Timer invalidation outside assumeIsolated and
 captures only live MainActor self within it. Tests unchanged, UNRUN on B; A owns
 compile/focused validation. No B workloads or heartbeat restart.
+
+### Continued source work: outline backlog
+
+Per direct user instruction to continue, drafted one-running/one-newest outline
+scheduler with clear/switch/close invalidation. Four deterministic tests UNRUN;
+compilation and integrated backend checks pending A. Timer correction7a58b48 is
+accepted for A validation, not yet reported passed. B resource hold remains.

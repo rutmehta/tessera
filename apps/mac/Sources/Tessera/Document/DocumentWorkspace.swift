@@ -62,7 +62,11 @@ final class DocumentWorkspace {
     private(set) var opening: String?
 
     private(set) var documents: [DocumentController] = []
-    private(set) var current: DocumentController?
+    private(set) var current: DocumentController? {
+        didSet {
+            if oldValue !== current { DocumentTools.shared.activeDocumentChanged(in: self) }
+        }
+    }
     var showNewDocument = false
     var showExportFlat = false
     /// Tab: sidebar and inspector hidden.
@@ -341,6 +345,7 @@ final class DocumentWorkspace {
         guard let i = documents.firstIndex(where: { $0 === doc }) else { return }
         documents.remove(at: i)
         DocumentText.shared.documentClosing(doc)   // B5-10: no stale caret or draft
+        DocumentTools.shared.documentClosing(doc)
         doc.close()
         if current === doc {
             current = documents.isEmpty ? nil : documents[min(i, documents.count - 1)]
