@@ -4,6 +4,21 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## Review rerun and PSD operation received — 2026-09-27 22:40 UTC
+
+Latest checkpoint: corrected Review test freeze `16cb6ce5` is running against
+unchanged current archive99ba. Original failure log is retained; its shell wrapper
+lost the direct exit code, so the rerun captures it without a pipeline. Ten
+fixture-owned global ReviewRuns records were copied as evidence and left intact;
+fixtures now inject isolated app support. GUI acceptance remains pending.
+
+B source `7240948` arrived as exact-target result339d5538; A published an accepted
+receipt before independent lifecycle/host review. All12 B tests and regenerated
+bindings are still pending A. No B load or heartbeat restart. A PSD primitive
+snapshot4aa71a620bb7 is separately frozen/uncompiled. Resource Sol completed a
+source-only PSD admission proposal and now reviews B's operation. UX03 pure draft
+RED is at `a988b710`, still unrun. These are separate from product acceptance.
+
 ## Current-FFI application gate: navigation contract mismatch — 2026-09-27 22:32 UTC
 
 Candidate `edde5c4c` rebuilt current FFI successfully; archive SHA is
