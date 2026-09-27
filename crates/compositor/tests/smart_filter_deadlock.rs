@@ -1,9 +1,9 @@
 //! Run the deadlock probe in a child process so a regression cannot strand the
 //! test runner (or leave blocked Rayon workers behind in other tests).
 use compositor::document::{Fill, SmartFilter, SmartObject};
-use compositor::render::smart_filters::{FilterContext, SmartFilterEvaluator};
+use compositor::render::smart_filters::{FilterContext, FilterPassLimits, SmartFilterEvaluator};
 use compositor::{Affine, Compositor, Depth, DocState, Document, Layer, LayerKind, Raster};
-use engine_api::{EngineResult, tile::Extent, tile::TileCoord};
+use engine_api::{EngineError, EngineResult, tile::Extent, tile::TileCoord};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Barrier, OnceLock, Weak};
 use std::time::{Duration, Instant};
@@ -106,10 +106,221 @@ fn same_key_cold_race() {
     });
     assert_eq!(evaluator.calls.load(Ordering::Relaxed), 2);
     assert_eq!(compositor.filter_evaluations(), 1);
+    let stats = compositor.filter_evaluation_stats();
+    assert_eq!(stats.attempted_stacks, 2);
+    assert_eq!(stats.attempted_stages, 2);
+    assert_eq!(stats.duplicate_stacks, 1);
+    assert_eq!(stats.active_stacks, 0);
+    assert_eq!(stats.peak_active_stacks, 2);
     compositor.clear_composites();
     assert_pixels(&compositor.render_level_rgba(&doc, 0).unwrap().1);
     assert_eq!(evaluator.calls.load(Ordering::Relaxed), 2);
     assert_eq!(compositor.filter_evaluations(), 1);
+    assert_eq!(compositor.filter_evaluation_stats().attempted_stacks, 2);
+}
+
+/// Red regression: a result just above the persistent cache budget is currently
+/// recomputed for every tile. The persistent cache budget is not an admission
+/// limit: one successful frame must evaluate this whole-image stack once.
+#[test]
+fn oversized_filtered_source_is_evaluated_once_per_frame() {
+    struct Counting(AtomicUsize);
+    impl SmartFilterEvaluator for Counting {
+        fn evaluate(
+            &self,
+            input: &Raster,
+            _: &SmartFilter,
+            _: &FilterContext,
+        ) -> EngineResult<Raster> {
+            self.0.fetch_add(1, Ordering::Relaxed);
+            Ok(input.clone())
+        }
+    }
+    let evaluator = Arc::new(Counting(AtomicUsize::new(0)));
+    // 257 pixels × 32 bytes (source + result) = 8,224 bytes.
+    let mut compositor = Compositor::new(8_223);
+    compositor.set_filter_evaluator(evaluator.clone());
+    let doc = document("count");
+    let pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(2)
+        .build()
+        .unwrap();
+    let rendered = pool.install(|| compositor.render_level_rgba(&doc, 0));
+    let stats = compositor.filter_evaluation_stats();
+    assert_eq!(stats.active_stacks, 0);
+    assert_pixels(&rendered.unwrap().1);
+    assert_eq!(stats.attempted_stacks, 1, "one whole-image stack per frame");
+    assert_eq!(stats.attempted_stages, 1);
+    assert_eq!(stats.oversized_stacks, 1);
+    assert_eq!(evaluator.0.load(Ordering::Relaxed), 1);
+}
+
+#[test]
+fn pass_limit_rejects_a_cold_result_before_source_work() {
+    let mut compositor = Compositor::new(8_223);
+    compositor.set_filter_pass_limits(FilterPassLimits {
+        retained_bytes: 8_223,
+        entries: 1,
+    });
+    assert!(matches!(
+        compositor.render_level_rgba(&document("invert"), 0),
+        Err(EngineError::ResourceExhausted { .. })
+    ));
+    let stats = compositor.filter_evaluation_stats();
+    assert_eq!(stats.attempted_stacks, 0);
+    assert_eq!(stats.attempted_stages, 0);
+}
+
+#[test]
+fn pass_limit_is_separate_from_persistent_cache_and_releases_nested_reservations() {
+    let mut inner = document("invert").state().as_ref().clone();
+    let inner_smart = inner.root.pop().unwrap();
+    let mut outer_child = DocState::new(Extent::new(257, 1), Depth::F32);
+    outer_child.root.push(inner_smart);
+    let mut outer = SmartObject::new(outer_child, Affine::IDENTITY);
+    outer.filters.push(SmartFilter {
+        name: "invert".into(),
+        enabled: true,
+        ..Default::default()
+    });
+    let mut state = DocState::new(Extent::new(257, 1), Depth::F32);
+    state
+        .root
+        .push(Arc::new(Layer::new("outer", LayerKind::SmartObject(outer))));
+    let doc = Document::new(state);
+    let mut compositor = Compositor::new(0);
+    compositor.set_filter_pass_limits(FilterPassLimits {
+        retained_bytes: 8_224,
+        entries: 2,
+    });
+    assert!(matches!(
+        compositor.render_level_rgba(&doc, 0),
+        Err(EngineError::ResourceExhausted { .. })
+    ));
+    let stats = compositor.filter_evaluation_stats();
+    assert_eq!(
+        stats.attempted_stacks, 1,
+        "inner admission must fail before source work"
+    );
+    assert_eq!(stats.attempted_stages, 0);
+    assert_eq!(stats.active_stacks, 0);
+    // The failed frame's outer reservation cannot consume the next frame's cap.
+    compositor.set_filter_pass_limits(FilterPassLimits {
+        retained_bytes: 16_448,
+        entries: 2,
+    });
+    let rendered = compositor.render_level_rgba(&doc, 0).unwrap().1;
+    assert_eq!(rendered.len(), 257 * 4);
+    let stats = compositor.filter_evaluation_stats();
+    assert_eq!(stats.attempted_stacks, 3);
+    assert_eq!(stats.attempted_stages, 2);
+    assert_eq!(stats.active_stacks, 0);
+}
+
+#[test]
+fn hidden_disabled_and_offscreen_filters_do_not_consume_pass_admission() {
+    let extent = Extent::new(257, 1);
+    let make_smart = |name: &str, enabled: bool, transform: Affine| {
+        let mut child = DocState::new(extent, Depth::F32);
+        child.root.push(Arc::new(Layer::new(
+            "source",
+            LayerKind::Fill(Fill::Solid {
+                color: [0.25, 0.5, 0.75],
+            }),
+        )));
+        let mut smart = SmartObject::new(child, transform);
+        smart.filters.push(SmartFilter {
+            name: name.into(),
+            enabled,
+            ..Default::default()
+        });
+        Layer::new(name, LayerKind::SmartObject(smart))
+    };
+    let mut hidden = make_smart("invalid", true, Affine::IDENTITY);
+    hidden.props.visible = false;
+    let disabled = make_smart("invalid", false, Affine::IDENTITY);
+    let offscreen = make_smart("invalid", true, Affine::scale_translate(1., 1., 1000., 0.));
+    let mut hidden_base = Layer::new(
+        "hidden base",
+        LayerKind::Fill(Fill::Solid {
+            color: [1., 0., 0.],
+        }),
+    );
+    hidden_base.props.visible = false;
+    let mut clipped = make_smart("invalid", true, Affine::IDENTITY);
+    clipped.props.clipped = true;
+    let mut state = DocState::new(extent, Depth::F32);
+    state
+        .root
+        .extend([hidden, disabled, offscreen, hidden_base, clipped].map(Arc::new));
+    let mut compositor = Compositor::new(0);
+    compositor.set_filter_pass_limits(FilterPassLimits {
+        retained_bytes: 0,
+        entries: 0,
+    });
+    assert_eq!(
+        compositor
+            .render_level_rgba(&Document::new(state), 0)
+            .unwrap()
+            .1
+            .len(),
+        257 * 4
+    );
+    assert_eq!(compositor.filter_evaluation_stats().attempted_stacks, 0);
+}
+
+#[test]
+fn live_scene_and_styled_smart_keep_full_level_pixels_and_one_evaluation() {
+    use compositor::render::styles::{Overlay, StyleEffect};
+    let extent = Extent::new(257, 1);
+    let path = vector::Shape::Rectangle {
+        rect: vector::Rect::new(0., 0., 2., 1.),
+        radii: [0.; 4],
+    }
+    .path()
+    .unwrap();
+    let shape = Layer::new(
+        "live shape",
+        LayerKind::Shape {
+            model: vector::ShapeModel {
+                path,
+                fill: Some(vector::Fill::Solid([0.8, 0.2, 0.1, 0.7])),
+                ..Default::default()
+            },
+            transform: Affine::IDENTITY,
+        },
+    );
+    let mut child = DocState::new(extent, Depth::F32);
+    child.root.push(Arc::new(Layer::new(
+        "source",
+        LayerKind::Fill(Fill::Solid {
+            color: [0.25, 0.5, 0.75],
+        }),
+    )));
+    let mut smart = SmartObject::new(child, Affine::IDENTITY);
+    smart.filters.push(SmartFilter {
+        name: "invert".into(),
+        enabled: true,
+        ..Default::default()
+    });
+    let mut styled = Layer::new("styled smart", LayerKind::SmartObject(smart));
+    styled
+        .props
+        .styles
+        .effects
+        .push(StyleEffect::ColorOverlay(Overlay::default()));
+    let mut state = DocState::new(extent, Depth::F32);
+    state.root.extend([Arc::new(shape), Arc::new(styled)]);
+    let doc = Document::new(state);
+    let direct = Compositor::new(8_223);
+    let tiles = [0, 1].map(|x| direct.render_tile(&doc, TileCoord::new(0, x, 0)).unwrap());
+    let expected = compositor::render::interleave(extent, &tiles).unwrap();
+    let compositor = Compositor::new(8_223);
+    let actual = compositor.render_level_rgba(&doc, 0).unwrap().1;
+    assert_eq!(actual, expected);
+    let stats = compositor.filter_evaluation_stats();
+    assert_eq!(stats.attempted_stacks, 1);
+    assert_eq!(stats.attempted_stages, 1);
 }
 
 #[test]

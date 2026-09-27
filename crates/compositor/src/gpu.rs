@@ -148,6 +148,7 @@ impl GpuCompositor {
         let dref = DocRef {
             state: doc.state(),
             key: doc.key(),
+            pass: None,
         };
         let mut job = comp.job(dref, coord)?;
         job.full = false; // never publish group caches from here

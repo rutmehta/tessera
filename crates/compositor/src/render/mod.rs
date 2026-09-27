@@ -13,15 +13,15 @@ pub mod smart_filters;
 pub mod styles;
 
 use std::collections::HashMap;
-use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 
 use engine_api::jobs::CancellationToken;
 use engine_api::tile::{Extent, Pyramid, TILE_SIZE, Tile, TileCoord, TileFormat, TileLayout};
 use engine_api::{EngineError, EngineResult};
 use rayon::prelude::*;
 
-use crate::document::{DocState, Layer, SmartObject};
+use crate::document::{DocState, Layer, LayerKind, SmartObject};
 use crate::edit::Document;
 use crate::geom::Rect;
 use crate::raster::{Raster, load_normalized, tile_from_normalized};
@@ -33,11 +33,24 @@ use exec::{Region, TileJob};
 /// minification); every level is at least 1×1.
 pub const MAX_LEVEL: u8 = 24;
 
+// Scheduling only: actual tile traversal still decides visibility and reachability.
+fn has_enabled_smart_filters(layers: &[Arc<Layer>]) -> bool {
+    layers.iter().any(|layer| match &layer.kind {
+        LayerKind::SmartObject(so) => {
+            so.filters.iter().any(|filter| filter.enabled)
+                || has_enabled_smart_filters(&so.state.root)
+        }
+        LayerKind::Group { children, .. } => has_enabled_smart_filters(children),
+        _ => false,
+    })
+}
+
 /// A document state plus its cache namespace.
 #[derive(Clone, Copy)]
 pub(crate) struct DocRef<'a> {
     pub state: &'a DocState,
     pub key: u64,
+    pub pass: Option<&'a smart_filters::FilterPass>,
 }
 
 #[derive(Default)]
@@ -105,6 +118,7 @@ pub struct CompositorStats {
 pub struct Compositor {
     live: live::LiveRuntime,
     filter_runtime: smart_filters::FilterRuntime,
+    filter_pass_limits: smart_filters::FilterPassLimits,
     cache: RenderCache,
     pub(crate) stats: Counters,
     latest: Mutex<HashMap<(u64, TileCoord), (u64, u64)>>,
@@ -118,11 +132,19 @@ impl Compositor {
         Self {
             live: live::LiveRuntime::new(cache_budget),
             filter_runtime: smart_filters::FilterRuntime::new(cache_budget),
+            filter_pass_limits: smart_filters::FilterPassLimits::default(),
             cache: RenderCache::new(cache_budget),
             stats: Counters::default(),
             latest: Mutex::new(HashMap::new()),
             partial_updates: true,
         }
+    }
+
+    /// Sets the per-full-level CPU filter result retention allowance.
+    /// This is separate from the persistent cache and does not cap transient
+    /// transform allocations or memory used by other compositor instances.
+    pub fn set_filter_pass_limits(&mut self, limits: smart_filters::FilterPassLimits) {
+        self.filter_pass_limits = limits;
     }
 
     /// Current counters.
@@ -408,15 +430,17 @@ impl Compositor {
             .transform
             .inverse()
             .ok_or_else(|| EngineError::invalid("transform", "singular"))?;
-        let filtered = self.filtered_source(so)?;
+        let filtered = self.filtered_source(so, doc.pass)?;
         let child = filtered.as_ref().map_or(
             DocRef {
                 state: &so.state,
                 key: so.key,
+                pass: doc.pass,
             },
             |s| DocRef {
                 state: &s.state,
                 key: s.key,
+                pass: doc.pass,
             },
         );
         let ce0 = so.state.canvas;
@@ -581,16 +605,26 @@ impl Compositor {
         doc: &Document,
         coord: TileCoord,
     ) -> EngineResult<Tile> {
+        self.render_tile_premultiplied_in_pass(doc, coord, None)
+    }
+
+    fn render_tile_premultiplied_in_pass<'a>(
+        &self,
+        doc: &'a Document,
+        coord: TileCoord,
+        pass: Option<&'a smart_filters::FilterPass>,
+    ) -> EngineResult<Tile> {
         let state = doc.state();
         let dref = DocRef {
             state,
             key: doc.key(),
+            pass,
         };
         if has_local_adjustments(state) {
             return self.composite_premult(dref, coord);
         }
         if live_damage::has_live(&state.root) {
-            return self.render_live_scene(doc, coord);
+            return self.render_live_scene(doc, coord, pass);
         }
         if effects::has_styles(state) {
             return self.composite_premult(dref, coord);
@@ -697,18 +731,24 @@ impl Compositor {
         let coords: Vec<TileCoord> = (0..rows)
             .flat_map(|y| (0..cols).map(move |x| TileCoord::new(level, x, y)))
             .collect();
+        // A full-image smart stack must be touched by one top-level tile at a
+        // time. Its pass keeps the unmasked result even when the persistent
+        // cache is smaller than that result. Nested kernels may still use Rayon.
+        let filtered = has_enabled_smart_filters(&doc.state().root);
+        let pass = filtered.then(|| smart_filters::FilterPass::new(self.filter_pass_limits));
         let render = |c: &TileCoord| {
             cancel.check()?;
-            self.render_tile_premultiplied(doc, *c)
+            self.render_tile_premultiplied_in_pass(doc, *c, pass.as_ref())
         };
         // Up to ~2MP of output: almost all tiles are completed cache hits after
         // a live edit, and geometry preparation is shared. Waking a worker for
         // every cached tile creates lock/scheduling tails larger than the work.
         // Keep cold photo mip generation and larger export frames parallel.
-        let tiles = if coords.len() <= 32
-            && coords
-                .first()
-                .is_some_and(|c| self.warm_live_viewport(doc, *c))
+        let tiles = if filtered
+            || (coords.len() <= 32
+                && coords
+                    .first()
+                    .is_some_and(|c| self.warm_live_viewport(doc, *c)))
         {
             coords
                 .iter()

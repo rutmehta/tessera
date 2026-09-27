@@ -82,6 +82,7 @@ impl<'a> TileJob<'a> {
         let raster = self.comp.source_raster(DocRef {
             state: &state,
             key: next_doc_key(),
+            pass: self.doc.pass,
         })?;
         let planes = styles::render(&raster, &layer.props.styles, self.doc.state.global_light)?;
         let source = self.comp.effect_samples(&raster, self.coord)?;

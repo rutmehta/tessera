@@ -902,6 +902,7 @@ impl ResidentRenderer {
                                 crate::render::DocRef {
                                     state: doc.state(),
                                     key: doc.key(),
+                                    pass: None,
                                 },
                                 layer,
                                 coord,

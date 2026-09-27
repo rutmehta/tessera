@@ -231,10 +231,16 @@ impl Compositor {
         Ok(())
     }
 
-    pub(super) fn render_live_scene(&self, doc: &Document, coord: TileCoord) -> EngineResult<Tile> {
+    pub(super) fn render_live_scene(
+        &self,
+        doc: &Document,
+        coord: TileCoord,
+        pass: Option<&super::smart_filters::FilterPass>,
+    ) -> EngineResult<Tile> {
         let dref = DocRef {
             state: doc.state(),
             key: doc.key(),
+            pass,
         };
         // Validate before level scaling or tile-origin arithmetic.
         let mut job = self.job(dref, coord)?;

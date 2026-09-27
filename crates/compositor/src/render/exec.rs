@@ -39,6 +39,7 @@ impl Compositor {
             DocRef {
                 state: doc.state(),
                 key: doc.key(),
+                pass: None,
             },
             coord,
         )?;

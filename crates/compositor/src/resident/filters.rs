@@ -276,7 +276,7 @@ impl ResidentRenderer {
                     what: "CPU-only smart-filter stacks require bilinear smart quality".into(),
                 });
             }
-            let filtered = self.stack.cpu.filtered_source(so)?;
+            let filtered = self.stack.cpu.filtered_source(so, None)?;
             let doc = Document::new(filtered.map_or_else(|| (*so.state).clone(), |f| f.state));
             let (extent, pixels) = self.stack.cpu.render_level_rgba(&doc, level)?;
             let straight = self
