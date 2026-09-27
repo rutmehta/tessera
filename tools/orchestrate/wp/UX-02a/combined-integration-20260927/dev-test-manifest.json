@@ -1,0 +1,33 @@
+{
+  "kind": "DEV-TEST REUSED EXECUTABLE \u2014 NOT RELEASE ACCEPTANCE",
+  "created_utc": "2026-09-27T19:59:47.113402+00:00",
+  "source_head": "a54044fbefdbae56229f74053402d513c92674ef",
+  "source_digest": "432fff1dae551112cf435e2b24e8d72e9cf052f964e0e5a579bdb9d6f4ed9e15",
+  "source_hash_manifest": "/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/tools/orchestrate/wp/UX-02a/status-ready-source.json",
+  "source_original_executable": "/Volumes/betterSSD/tessera-cache/swift/workspace-redesign/arm64-apple-macosx/release/Tessera",
+  "original_executable_sha256": "6dcd0b58edbc96e4f820c5c19c7d30151306d58d658b5436a9b60e8238925b4b",
+  "after_rpath_before_sign_sha256": "0fa05a21d8c04ae76b88539084fbbc8b35245a5120aa5b6367a985c8a350d4be",
+  "packaged_executable_sha256": "4433ba5150f448785a2be9d88a93054089df8e3275df622c9013b49dac746549",
+  "ffi_archive_sha256": "417f990ad8a3e6ce9cacb484411341f16aca90199e15b8fa0a0f05becff5cab7",
+  "ffi_limit": "Older pre-export-integration archive from this checkpoint; future current-main combined validation must use its source-matched FFI. Standard make-app not run.",
+  "framework_source": "/Volumes/betterSSD/tessera-cache/swift/workspace-redesign/arm64-apple-macosx/release/Sparkle.framework",
+  "framework_packaged_sha256": "b57162032b569fce26c8ba162a54c55740da362822f80eac72dbad41d6edc374",
+  "app": "/Volumes/betterSSD/tessera-validation/ux02a/a54044f/Tessera-UX02a-DevTest.app",
+  "launch_arguments": [
+    "--folder",
+    "/Volumes/betterSSD/tessera-validation/ux02a/a54044f/fixtures",
+    "--app-dir",
+    "/Volumes/betterSSD/tessera-validation/ux02a/a54044f/app-support",
+    "--fake-planner"
+  ],
+  "fixtures": {
+    "05-Review-return-target.jpg": "736b453672e0d4c9ef241d7c7faadb1a53dffa4394d4fc21789feb88fcf54188",
+    "04-Long-photo-name-with-location-client-reference-and-delivery-version-0123456789.jpg": "950d3a2dc701f6803081c902ce1c581c7ec278ad957aecd1d6f6f59095f3a1c9",
+    "06-Red-diagonal.jpg": "5902fd689fda1f7fbadfbdffe62ea4c49e0030044ac06aff7fe0e8e3c852fb3e",
+    "02-Blue-checkerboard.jpg": "736b453672e0d4c9ef241d7c7faadb1a53dffa4394d4fc21789feb88fcf54188",
+    "01-Amber-gradient.jpg": "950d3a2dc701f6803081c902ce1c581c7ec278ad957aecd1d6f6f59095f3a1c9",
+    "03-Green-stripes.jpg": "5902fd689fda1f7fbadfbdffe62ea4c49e0030044ac06aff7fe0e8e3c852fb3e"
+  },
+  "signing": "Ad-hoc inside-out; codesign --verify --deep --strict passed",
+  "launched": false
+}

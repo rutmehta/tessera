@@ -1,0 +1,46 @@
+[0/1] Planning build
+Building for production...
+[0/4] Write sources
+[1/4] Write swift-version--58304C5D6DBC2206.txt
+[3/4] Compiling TesseraCoreTests AgentReviewOwnershipTests.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[3/5] Write Objects.LinkFileList
+ld: warning: object file (/Users/rutmehta/.codex/worktrees/export-integration/tessera/apps/mac/build/ffi/libtessera_ffi.a[2845](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[4/5] Linking TesseraPackageTests
+Build complete! (24.24s)
+Test Suite 'Selected tests' started at 2026-09-27 16:02:05.662.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-27 16:02:05.664.
+Test Suite 'MasksPanelLayoutTests' started at 2026-09-27 16:02:05.664.
+Test Case '-[TesseraCoreTests.MasksPanelLayoutTests testPopulatedInspectorKeepsComponentActionsReadableAtMinimumWidth]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [17.652583, 0.342833, 0.39337500000000003]; GPU [20.095875, 0.836167, 0.9700000000000001]
+Test Case '-[TesseraCoreTests.MasksPanelLayoutTests testPopulatedInspectorKeepsComponentActionsReadableAtMinimumWidth]' passed (2.970 seconds).
+Test Suite 'MasksPanelLayoutTests' passed at 2026-09-27 16:02:08.634.
+	 Executed 1 test, with 0 failures (0 unexpected) in 2.970 (2.970) seconds
+Test Suite 'ThemeLintTests' started at 2026-09-27 16:02:08.634.
+Test Case '-[TesseraCoreTests.ThemeLintTests testViewsUseThemeTokensOnly]' started.
+Test Case '-[TesseraCoreTests.ThemeLintTests testViewsUseThemeTokensOnly]' passed (0.223 seconds).
+Test Suite 'ThemeLintTests' passed at 2026-09-27 16:02:08.858.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.223 (0.223) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-09-27 16:02:08.858.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 3.194 (3.194) seconds
+Test Suite 'Selected tests' passed at 2026-09-27 16:02:08.858.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 3.194 (3.196) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

@@ -1,0 +1,13 @@
+{
+  "base": "6e1e7b85985b0396ddec36228c33bb5f7abd9d71",
+  "archive_source_head": "3796e1c174d248068b662d76c7b4550d7392172a",
+  "archive": "/Users/rutmehta/.codex/worktrees/export-integration/tessera/apps/mac/build/ffi/libtessera_ffi.a",
+  "archive_sha256": "19f9f5487752e2588c6febe99d126905cad7d9986285d2aebf633dfaeba2b427",
+  "bindings_sha256": {
+    "Sources/TesseraFFI/TesseraFFI.swift": "0ece5bfe1e7ed612395296b17723e24accedf88079240bec9a1946d7c2fa3cc3",
+    "Sources/CTesseraFFI/CTesseraFFI.h": "6439d9239cee419564b81f8eff1f4d93ae79db81de79d7664c3827778c343fb2",
+    "Sources/CTesseraFFI/module.modulemap": "efda206de8cf8eb6c092c29fd32f286b9a46d9d7c4c150e6e9b66941dc43d6bd"
+  },
+  "verification": "Tracked crates and Cargo manifests identical; generated binding bytes identical. Existing link replaced only; no Rust generation.",
+  "previous_link": "/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/build/ffi/libtessera_ffi.a"
+}

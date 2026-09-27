@@ -144,9 +144,10 @@ struct MasksPanel: View {
     private func detail(_ g: MaskGroupInfo) -> some View {
         VStack(alignment: .leading, spacing: Theme.Space.xs) {
             Hairline().padding(.vertical, Theme.Space.xs)
+            Text("Components").font(Theme.Fonts.captionMedium).foregroundStyle(Theme.textSecondary)
+                .lineLimit(1)
+                .accessibilityAddTraits(.isHeader)
             HStack(spacing: Theme.Space.xs) {
-                Text("Components").font(Theme.Fonts.captionMedium).foregroundStyle(Theme.textSecondary)
-                Spacer()
                 ForEach([MaskCombineMode.add, .subtract, .intersect], id: \.self) { mode in
                     Menu {
                         Section("AI") {
@@ -163,6 +164,7 @@ struct MasksPanel: View {
                         Text(mode.title)
                     }
                     .menuStyle(ThemeMenuStyle(height: Theme.Height.small))
+                    .accessibilityLabel("\(mode.title) component \(mode == .add ? "to" : mode == .subtract ? "from" : "with") selected mask")
                     .help("\(mode.title) a component \(mode == .add ? "to" : mode == .subtract ? "from" : "with") this mask")
                 }
             }

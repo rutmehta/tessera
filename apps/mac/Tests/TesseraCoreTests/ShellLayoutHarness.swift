@@ -57,7 +57,7 @@ enum ShellHarness {
 
     /// The app's window (unified toolbar, full-size content) at `size` outer points.
     static func window(_ model: AppModel, size: CGSize, dark: Bool) -> (NSWindow, NSView) {
-        model.documents.columnVisibility = model.isPhotoEditing ? .detailOnly : .all
+        model.documents.columnVisibility = model.isPhotoEditing || model.isReviewing ? .detailOnly : .all
         let appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
         let controller = NSHostingController(rootView: ContentView.root(model: model))
         let window = NSWindow(contentRect: NSRect(origin: .zero, size: size),

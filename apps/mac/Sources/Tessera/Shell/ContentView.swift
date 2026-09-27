@@ -34,7 +34,7 @@ struct ContentView: View {
         } detail: {
             VStack(spacing: 0) {
                 if model.viewMode != .document { WorkspaceHeader(model: model) }
-                if model.isEngineBacked, model.source != .people, model.viewMode != .document, !model.isPhotoEditing {
+                if model.isEngineBacked, model.source != .people, model.isLibraryWorkspace {
                     FilterBar(library: model.collections, model: model)
                 }
                 if model.tether.showPanel {
@@ -59,7 +59,9 @@ struct ContentView: View {
                         }
                         if model.viewMode == .document {
                             DocumentView(workspace: model.documents)
-                        } else if model.source == .people {
+                        } else if model.isReviewing {
+                            AgentReviewWorkspace(model: model)
+                        } else if model.source == .people && !model.isPhotoEditing {
                             PeopleView(model: model)
                         } else if model.library.items.isEmpty {
                             EmptyStateView(model: model)
@@ -92,6 +94,17 @@ struct ContentView: View {
                 PhotoJobProgressBar(jobs: model.photoJobs)   // M2-50
                 if model.viewMode == .document {
                     DocumentStatusBar(model: model, workspace: model.documents)
+                } else if model.isReviewing {
+                    HStack {
+                        Text(model.statusMessage ?? model.agent.queue.summary)
+                            .lineLimit(1).truncationMode(.tail)
+                            .help(model.statusMessage ?? model.agent.queue.summary)
+                        Spacer(minLength: Theme.Space.m)
+                        Text("↑ ↓ Browse · D Edit · Esc Back").fixedSize()
+                    }
+                    .font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
+                    .padding(.horizontal, Theme.Space.gutter).frame(height: Theme.Height.statusBar)
+                    .background(Theme.panel)
                 } else {
                     StatusBar(model: model)
                 }
@@ -138,9 +151,6 @@ struct ContentView: View {
         .sheet(isPresented: $model.showAutoEdit) {
             AutoEditSheet(agent: model.agent, model: model)
         }
-        .sheet(isPresented: Binding(get: { model.agent.showReview }, set: { model.agent.showReview = $0 })) {
-            AgentReviewSheet(agent: model.agent, model: model)
-        }
         .sheet(isPresented: $model.showLightroomImport) {
             LightroomImportSheet(importer: model.lightroomImport)
         }
@@ -159,6 +169,9 @@ struct ContentView: View {
             Group {
                 if model.viewMode == .document {
                     DocumentInspector(workspace: model.documents)
+                } else if model.isReviewing {
+                    AgentReviewInspector(model: model, busy: model.agent.isRunning || !model.agent.busy.isEmpty,
+                                         canEdit: model.canEnterPhotoEdit)
                 } else if model.isPhotoEditing {
                     PhotoEditInspectorView(model: model)
                 } else {
@@ -176,6 +189,8 @@ struct ContentView: View {
         .tint(Theme.accent)
         .background(WindowToolbarConfigurator())
         .onChange(of: sidebarFits, initial: true) { _, fits in applySidebarBudget(fits: fits) }
+        .onChange(of: model.agent.queue) { _, _ in model.reconcileReviewNavigation() }
+        .onChange(of: model.agent.reviewGeneration) { _, _ in model.reconcileReviewNavigation() }
     }
 
     /// M2-56 yield order, step 1: the sidebar collapses while the window is too narrow for it beside
@@ -192,8 +207,8 @@ struct ContentView: View {
     }
 
     private var columnVisibility: Binding<NavigationSplitViewVisibility> {
-        Binding(get: { model.isPhotoEditing ? .detailOnly : model.documents.columnVisibility }, set: { value in
-            guard !model.isPhotoEditing else { return }
+        Binding(get: { (model.isPhotoEditing || model.isReviewing) ? .detailOnly : model.documents.columnVisibility }, set: { value in
+            guard !model.isPhotoEditing, !model.isReviewing else { return }
             // The person's own choice; showing the sidebar in a narrow window keeps it shown.
             if value != .detailOnly { sidebarAutoCollapsed = nil }
             model.documents.columnVisibility = value
@@ -203,7 +218,7 @@ struct ContentView: View {
     /// Applies step 1 when the window crosses the threshold: collapse (remembering the choice),
     /// and restore that choice once the sidebar fits again.
     private func applySidebarBudget(fits: Bool) {
-        guard !model.isPhotoEditing else { return }
+        guard !model.isPhotoEditing, !model.isReviewing else { return }
         var t = Transaction(); t.disablesAnimations = true
         withTransaction(t) {
             if !fits, sidebarAutoCollapsed == nil, model.documents.columnVisibility != .detailOnly {
@@ -222,7 +237,7 @@ struct ContentView: View {
     /// M2-56 yield order, step 3: the filmstrip hides when the canvas above it would be shorter than
     /// `ShellBudget.canvasMinHeight`. Decided from the height without the strip, so it cannot flicker.
     private var showsFilmstrip: Bool {
-        guard model.showFilmstrip, !model.library.items.isEmpty, model.viewMode != .document else { return false }
+        guard model.showFilmstrip, !model.isReviewing, !model.isReviewEditing, !model.library.items.isEmpty, model.viewMode != .document else { return false }
         guard canvasBase > 0 else { return true }
         return ShellBudget.filmstripFits(detailHeight: canvasBase, chrome: 0)
     }
@@ -255,20 +270,26 @@ struct ContentView: View {
                     .buttonStyle(ToolbarButtonStyle())
                     .help("Return to Library; open documents stay available")
             } else {
-                SegmentedPicker(selection: Binding(get: { model.isPhotoEditing }, set: { edit in
-                    if edit { model.enterPhotoEdit() } else { model.returnToLibrary() }
+                SegmentedPicker(selection: Binding(get: {
+                    model.isReviewing ? "review" : model.isPhotoEditing ? "edit" : "library"
+                }, set: { destination in
+                    switch destination {
+                    case "review": model.enterReview()
+                    case "edit": model.enterPhotoEdit()
+                    default: model.returnToLibrary()
+                    }
                 }), segments: [
-                    .init(value: false, title: "Library", symbol: "square.grid.2x2"),
-                    .init(value: true, title: "Edit photo", symbol: "slider.horizontal.3"),
+                    .init(value: "library", title: "Library", symbol: "square.grid.2x2"),
+                    .init(value: "edit", title: "Edit photo", symbol: "slider.horizontal.3"),
+                    .init(value: "review", title: "Review", symbol: "checklist"),
                 ], fill: false)
                 .accessibilityLabel("Workspace")
-                .disabled(!model.canEnterPhotoEdit && !model.isPhotoEditing)
-                .help(model.canEnterPhotoEdit ? "Library inspection or Photo Edit" : "Choose a photo to edit")
+                .help("Library, one-photo editing, or the agent review queue")
             }
         }
         .flatToolbarItem()
         ToolbarItem(id: "library-view", placement: .primaryAction) {
-            if !model.isPhotoEditing, model.viewMode != .document {
+            if model.isLibraryWorkspace {
                 SegmentedPicker(selection: $model.viewMode, segments: [
                     .init(value: ViewMode.grid, title: "Grid", symbol: "square.grid.2x2", help: "Grid (G)"),
                     .init(value: ViewMode.loupe, title: "Loupe", symbol: "photo", help: "Loupe (E or Return)"),
@@ -313,7 +334,7 @@ struct ContentView: View {
     @ToolbarContentBuilder
     private var libraryActionToolbar: some ToolbarContent {
         ToolbarItem(id: "assist", placement: .primaryAction) {
-            if !model.isPhotoEditing, model.viewMode != .document {
+            if model.isLibraryWorkspace {
             HStack(spacing: Theme.Space.xxs) {
                 Toggle(isOn: Binding(get: { model.assist.enabled }, set: { model.assist.setEnabled($0) })) {
                     Label("Assist", systemImage: "sparkles")
@@ -346,7 +367,7 @@ struct ContentView: View {
         }
         .flatToolbarItem()
         ToolbarItem(id: "peopleMerge", placement: .primaryAction) {
-            if model.source == .people {
+            if model.source == .people, model.isLibraryWorkspace {
                 Button { model.people.mergeSelection(); model.peopleDidChange() } label: {
                     Label("Merge", systemImage: "person.2.badge.plus")
                 }
@@ -358,7 +379,7 @@ struct ContentView: View {
         }
         .flatToolbarItem()
         ToolbarItem(id: "autoEdit", placement: .primaryAction) {
-            if !model.isPhotoEditing, model.viewMode != .document {
+            if model.isLibraryWorkspace {
             Button { model.agent.present() } label: {
                 Label(model.agent.isRunning ? "Editing…" : "Auto Edit", systemImage: "wand.and.stars")
             }
@@ -370,20 +391,18 @@ struct ContentView: View {
         }
         .flatToolbarItem()
         ToolbarItem(id: "review", placement: .primaryAction) {
-            if !model.isPhotoEditing, model.viewMode != .document {
-            if !model.agent.queue.isEmpty {
-                Button { model.agent.showReview = true } label: {
+            if model.viewMode != .document {
+                Button { model.enterReview() } label: {
                     Label("Review \(model.agent.queue.pendingCount)", systemImage: "checklist")
                 }
                 .buttonStyle(ToolbarButtonStyle())
                 .help("Agent review queue, least confident first")
                 .accessibilityIdentifier("toolbar-agent-review")
             }
-            }
         }
         .flatToolbarItem()
         ToolbarItem(id: "autoAdvance", placement: .primaryAction) {
-            if !model.isPhotoEditing, model.viewMode != .document {
+            if model.isLibraryWorkspace {
             Toggle(isOn: $model.autoAdvance) {
                 Label("Auto-advance", systemImage: "arrow.right.to.line")
             }
@@ -617,7 +636,9 @@ struct LoupeOverlay: View {
             .frame(height: Theme.Height.sectionHeader)
             Spacer()
                 .allowsHitTesting(false)
-            Text(model.isPhotoEditing
+            Text(model.isReviewEditing
+                 ? "← → previous / next review photo  ·  D Develop  ·  M masks  ·  ⌘Z photo undo  ·  Esc tool / Back to Review"
+                 : model.isPhotoEditing
                  ? "← → previous / next photo  ·  D Develop  ·  M masks  ·  ⌘Z photo undo  ·  Esc tool / Back to Library"
                  : "← → group  ·  ↑ ↓ frame in group  ·  X U P decide  ·  1 2 3 grade  ·  K keep best  ·  C compare  ·  Y N suggestions  ·  ⌘Z undo  ·  D Edit photo  ·  Esc grid")
                 .font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary)

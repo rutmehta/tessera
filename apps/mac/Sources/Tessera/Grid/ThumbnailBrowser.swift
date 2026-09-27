@@ -72,7 +72,7 @@ final class BrowserController: NSObject, NSCollectionViewDataSource, NSCollectio
     private var restoringAnchor = false
 
     private var loadingVisible: Bool {
-        model.source != .people && (style == .filmstrip || model.viewMode == .grid)
+        !model.isReviewing && !model.isReviewEditing && model.source != .people && (style == .filmstrip || model.viewMode == .grid)
     }
 
     func visibilityDidChange() {
@@ -303,6 +303,8 @@ final class BrowserController: NSObject, NSCollectionViewDataSource, NSCollectio
             scrollToVisible(f)
         }
     }
+
+    func workspaceWillEnterReview() { workspaceWillEnterPhotoEdit() }
 
     func workspaceWillEnterPhotoEdit() {
         returnedAnchor = nil

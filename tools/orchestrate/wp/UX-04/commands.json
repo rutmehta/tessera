@@ -1,0 +1,77 @@
+{
+  "working_directory": "/Users/rutmehta/.codex/worktrees/review-ownership/tessera",
+  "red": {
+    "arguments": [
+      "swift",
+      "test",
+      "--package-path",
+      "apps/mac",
+      "--scratch-path",
+      "/Volumes/betterSSD/tessera-cache/swift/review-ownership",
+      "-c",
+      "release",
+      "-Xswiftc",
+      "-enable-testing",
+      "--filter",
+      "MasksPanelLayoutTests"
+    ],
+    "environment": {
+      "TESSERA_LAYOUT_CAPTURE": "/tmp/tessera-ux04-red-captures"
+    },
+    "log": "swift-red.log",
+    "exit_code": 1,
+    "tests": 1,
+    "failures": 7,
+    "note": "Six layout failures plus one OCR Add-chevron artifact."
+  },
+  "intermediate": {
+    "arguments": [
+      "swift",
+      "test",
+      "--package-path",
+      "apps/mac",
+      "--scratch-path",
+      "/Volumes/betterSSD/tessera-cache/swift/review-ownership",
+      "-c",
+      "release",
+      "-Xswiftc",
+      "-enable-testing",
+      "--filter",
+      "MasksPanelLayoutTests|ThemeLintTests"
+    ],
+    "environment": {
+      "TESSERA_LAYOUT_CAPTURE": "/tmp/tessera-ux04-green-captures"
+    },
+    "log": "swift-green-ocr-artifact.log",
+    "exit_code": 1,
+    "tests": 2,
+    "failures": 3,
+    "note": "Layout corrected; remaining failures OCR-joined Addv glyph only."
+  },
+  "green": {
+    "arguments": [
+      "swift",
+      "test",
+      "--package-path",
+      "apps/mac",
+      "--scratch-path",
+      "/Volumes/betterSSD/tessera-cache/swift/review-ownership",
+      "-c",
+      "release",
+      "-Xswiftc",
+      "-enable-testing",
+      "--filter",
+      "MasksPanelLayoutTests|ThemeLintTests"
+    ],
+    "environment": {
+      "TESSERA_LAYOUT_CAPTURE": "/tmp/tessera-ux04-final-captures"
+    },
+    "log": "swift-focused-green.log",
+    "exit_code": 0,
+    "tests": 2,
+    "failures": 0,
+    "test_seconds": 3.194,
+    "build_seconds": 24.24
+  },
+  "full_suite": "Deferred to coordinator combined Review/Masks integration gate; no independent full build."
+}
