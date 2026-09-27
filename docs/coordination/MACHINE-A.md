@@ -4,6 +4,20 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## Active validation and new B candidates — 2026-09-27 22:08 UTC
+
+Review persistence passed 47 focused tests after independent review corrected
+stale failed-row group actions and saved ordinal overflow. Luna packages evidence
+and reconciles final UI wording; no merge or GUI relaunch acceptance yet. The
+viewport candidate `fb4d7df8` now owns A's serialized compiler slot.
+
+B frame `f518c03c` and image-cache `755ac31e` results were received with exact A
+chat targets and accepted in Git before review. Engine Sol owns independent
+source review and isolated candidate preparation; their 5 and 7 new tests remain
+unrun. B request completion confirms publication, not A validation. B workloads
+and heartbeat remain held. Current-source combined FFI/Swift application testing
+is still needed after these bounded slices; retained Swift archive `19f` is older.
+
 ## Native cancellation and outline merged — 2026-09-27 22:00 UTC
 
 Main1fb7e983 contains the exact tested native preview/bake cancellation from

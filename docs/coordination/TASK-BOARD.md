@@ -1,6 +1,6 @@
 # Tessera task board — Machine A coordinator
 
-Updated: 2026-09-27 22:00 UTC
+Updated: 2026-09-27 22:08 UTC
 
 User mandate: autonomously advance UI/UX redesign **and** the recovered engine
 queue, using parallel GPT-6 Astra/Luna agents; coordinate Machine B and keep
@@ -38,13 +38,16 @@ Machine A as sole main integrator. Do useful work while other tasks wait.
 
 ## Ready / next
 
-A compiler slot: Luna repaired Review persistence gate; viewport Swift gate is next. Native FFI candidate cd07b435 passed and merged as 1fb7e983. Sol independently reviews persistence source while waiting for B frame candidate.
-Luna implements reviewed UX02b latest-queue relaunch persistence. Initial store4pass1fail and recursive recovery crash preserved; source repair separates raw read from explicit restore. No persistence main merge.
-Resource Sol prepares blocked-outline integration tests on isolated B outline2429de2 candidate. B corrected weak-controller-nil teardown atb2f8d85; result4b930939 accepted. Separate clean candidatefb4d7df8 is frozen for16 focused ownership/outline/timer tests plus adjacent document cases; unrun.
-Timer correction7a58b48 integrated as main261a585f after19focused/0 and tiny GUI checks.
-GUI retained FFI19f predates Rust resource work; no combined-app performance claim.
-B cancellation plan056daf87 reviewed; native preview/bake source implementation request1a0330c4 peer accepted. Queue01a0e4cc verified via Git receipt. Region/frame/PSD handles remain separate.
-No B builds/tests/app launches or heartbeat restart.
+A compiler slot: resource Sol is validating frozen viewport candidate `fb4d7df8`.
+Luna's Review persistence candidate passed 47 focused tests after provenance and
+ordinal corrections; evidence packaging and final source review are active. It is
+not merged and GUI relaunch is unverified. Earlier failed gates remain preserved.
+Engine Sol independently reviews B frame `f518c03c` and cache `755ac31e` in an
+isolated A candidate; neither has compiled yet. These are next in the build queue.
+Timer, outline, region, masked reuse and native preview/bake slices are merged as
+listed below. Swift gates retain FFI archive `19f`, which predates current Rust
+resource changes; a combined current-source application gate remains necessary.
+B remains source-only, with no builds/tests/app launches or heartbeat restart.
 
 Current integrated product checkpoints:
 
@@ -80,7 +83,7 @@ notes. Existing-chat SSH queues and peer Git receipts remain distinct states.
 
 ## Machine B / integration dependencies
 
-Last peer note read: `056daf87`. B's resource hold supersedes its older queue.
+Last peer note read: `755ac31e`. B's resource hold supersedes its older queue.
 Channels and Text targeted reruns passed with actual exit0; Transform was stopped
 at rasterized PSD after986%CPU and7.0GiB footprint (7.5GiB peak). Host43GiBswap
 is not all Tessera. B heartbeat and runner remain held. A accepted hold7cf0f7e2
@@ -96,7 +99,8 @@ B retains Document/frontend remediation. Main B5-16 integration stays held.
 | RES-B-OUTLINE | Bound pending selection outline work | B2429de2 source; A resource Sol candidate/tests | DONE main5fa0faea, exact tested398acb76/f2309eec Swift bytes.12 tests passed:3 blocked-fetch lifecycle,4 buffer,5 timers. Receipt674d7f3e completed. Already-running synchronous work remains uncancellable. |
 | RES-B-VIEWPORT | Ownership-safe viewport teardown | B63a06a2 source | Accepted9dc8db44; root review blocker: weak controller nil causes attach(nil) to skip local cleanup. Correctionb2f8d85 received/accepted4b930939; exact source review okay, four tiny ownership tests UNRUN pending A slot. |
 | RES-B-CANCEL | Native preview/bake caller cancellation | B source-only request1a0330c4 | DONE main1fb7e983; exact testedcd07b435/7971a771 Rust/Cargo.5 private plus12 mixed-backend integration tests passed,1 ignored benchmark; strict FFI Clippy passed. Receiptb69c56ca completed. Frame/readback/PSD handles and large-image latency remain separate. |
-| RES-B-CACHE | Byte-bound FFI image cache retention | B source-only request04e1a883 | Named512MiB plus4entry cap, skip oversize retention and preflight before prefix deep copy. Queue01a0e4e0 accepted by transport; peer receipt pending. Tiny64-byte/zero-budget tests required on A. Not a process/GPU cap. |
+| RES-B-FRAME | CPU frame request cancellation | B f518c03c; A engine Sol | Accepted resultb1b6b4dc. Five tests UNRUN; reviewing token lifecycle, callback acceptance and region/copy behavior before A gate. No GPU preemption or readback/PSD claim. |
+| RES-B-CACHE | Byte-bound FFI image cache retention | B source-only request04e1a883 | B source755ac31e received and accepted resultc65a3f7e; seven tiny tests UNRUN. Independent A review and serialized validation pending. Named512MiB plus4entry cap, prefix-copy preflight. Not a process/GPU cap. |
 | B5-15 | Export App Nap fix / performance | B published `aec242f`; export-only improvement does not clear main-thread maxima35.93/58.00ms vs8ms, AppKit layout exception, P19 or memory gates. B owns app fixes; A engine optimization only with explicit evidence/split. |
 | B5-12b | Transform acceptance | Interrupted for resource hold; not accepted. No rerun. |
 | B5-13 | Liquify / move / extend | B owns preserved work and current acceptance. |
