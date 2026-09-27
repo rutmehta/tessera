@@ -1366,5 +1366,29 @@
     "status": "merged",
     "attempts": 0,
     "notes": "machine B; wp/B5-12 merged with wp/B5-10c + main cf9dc6f; document/transform.rs; 343 XCTest; deadlock workaround until M5-35"
+  },
+  {
+    "id": "M2-57",
+    "owner": "astra",
+    "title": "Thumbnails and scheduler: the photo on screen always has a worker",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-58",
+    "owner": "astra",
+    "title": "Develop never blocks the main thread; input-to-screen timing is real",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-45d",
+    "owner": "astra",
+    "title": "Export completeness, final part: metadata policy, DNG 1.6 and embedded raw, HDR output",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
