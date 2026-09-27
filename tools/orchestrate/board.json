@@ -1262,5 +1262,13 @@
     "status": "merged",
     "attempts": 0,
     "notes": "machine B; wp/B5-07 merged with main c1f95e1; document/styles.rs + CPU style fallback in render.rs; 254 XCTest; styled frames slow/failing >=16 MP until M5-31"
+  },
+  {
+    "id": "B5-10",
+    "owner": "opus",
+    "title": "Editable Type tool, Character/Paragraph, 1440-pt inspector fix",
+    "status": "pass",
+    "attempts": 0,
+    "notes": "machine B; wp/B5-10 merged with main 1cd02b3; document/text.rs; 295 XCTest; typing 1.07 s median at 20 MP until M5-34"
   }
 ]
