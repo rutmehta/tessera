@@ -240,9 +240,9 @@ final class TransformSessionTests: XCTestCase {
         XCTAssertEqual(c.number(at: TransformControls.vertical.path), 0)
         XCTAssertEqual(UprightControls.mode(in: try engineSettings(c)), .guided, "the Transform reset leaves Upright alone")
 
-        // Engine gap (REPORT.md): the develop viewport keeps Upright/Transform in the recipe but does
-        // not draw them; the Transform panel shows its note from this list. Update both when it lands.
-        XCTAssertTrue(c.ignores("/geometry/upright"), "\(c.ignoredSettings)")
+        // M2-49: the viewport now draws Upright/Transform; Constrain Crop is still not rendered
+        // and is reported as ignored rather than failing frames.
+        XCTAssertFalse(c.ignores("/geometry/upright"), "\(c.ignoredSettings)")
         XCTAssertTrue(c.ignores("/geometry/constrain_crop"), "\(c.ignoredSettings)")
         // The session keeps rendering (the settings never fail a frame).
         c.apply(patch: ["tone": ["exposure": 0.25]], interactive: false)

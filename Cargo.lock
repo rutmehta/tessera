@@ -2851,6 +2851,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "mask-store"
+version = "0.1.0"
+dependencies = [
+ "blake3",
+ "tempfile",
+]
+
+[[package]]
 name = "matrixmultiply"
 version = "0.3.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3070,6 +3078,7 @@ dependencies = [
  "blake3",
  "engine-api",
  "image",
+ "mask-store",
  "ml-runtime",
  "previews",
  "serde",
@@ -3801,6 +3810,7 @@ dependencies = [
  "engine-api",
  "image",
  "image-core",
+ "mask-store",
  "pipeline-cpu",
  "raw-decode",
  "tempfile",

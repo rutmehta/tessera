@@ -674,6 +674,11 @@ pub fn renderable_with(s: &DevelopSettings, geometry: bool) -> DevelopSettings {
         let mut composed = r.clone();
         composed.geometry = s.geometry.clone();
         composed.geometry.crop = r.geometry.crop.clone();
+        // Constrain Crop and EXIF-orientation overrides are not implemented by
+        // the scalar geometry operator; keep them out of the rendered recipe so
+        // they are reported by `ignored_settings` instead of failing frames.
+        composed.geometry.constrain_crop = false;
+        composed.geometry.orientation = 1;
         if pipeline_cpu::validate_settings(&composed).is_ok() {
             r.geometry = composed.geometry;
         }

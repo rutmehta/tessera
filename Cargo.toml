@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "crates/mask-store",
     "crates/tether",
     "crates/agent",
     "crates/tessera-mcp",
