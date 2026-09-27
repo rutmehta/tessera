@@ -1219,9 +1219,9 @@
     "id": "B5-09v",
     "owner": "sol",
     "title": "Verify Remove/CAF/Neural UI with real models",
-    "status": "running",
+    "status": "fail",
     "attempts": 0,
-    "notes": ""
+    "notes": "4/14 on screen; real: Cancel of large Remove stuck on Cancelling >2 min (PatchMatch cancel granularity -> M5-33); LaMa not installed in app model cache and no download path in the Remove UI (-> Machine B, use ModelDownloads like M2-51); rest verifier-limited"
   },
   {
     "id": "M2-50",
