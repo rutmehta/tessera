@@ -1,6 +1,6 @@
 # Tessera task board — Machine A coordinator
 
-Updated: 2026-09-27 17:34 UTC
+Updated: 2026-09-27 17:35 UTC
 
 User mandate: autonomously advance UI/UX redesign **and** the recovered engine
 queue, using parallel GPT-6 Astra/Luna agents; coordinate Machine B and keep
@@ -28,15 +28,16 @@ Machine A as sole main integrator. Do useful work while other tasks wait.
 | ID | Work | Owner / location | Next action and acceptance |
 | --- | --- | --- | --- |
 | UX-01 | Resume coherent Library / Photo Edit workspace and split inspector | A `develop_resume`; `codex/workspace-redesign`, `/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera` | Concrete first-slice plan reviewed by coordinator; implementation assigned. Implement navigation/target clarity while preserving Library selection/filter/order/zoom and truthful rendered-copy Document boundary. Default provisional direction: Precision Graphite, retaining amber identity; historical palette approval is not claimed. Review changes, run targeted behavior/layout/accessibility checks and strict Swift gate. |
-| ENG-31 | M5-31 first-process cold resident failure | A `b516_review`; existing `.worktrees/M5-31` | Diagnose B's exact `9f922bf` results: cold 125.855125 FAIL /43.970875/33.298750 ms; all warm pass. Stage profiling currently owns A’s heavy slot. Profile cause, fix with evidence, rerun unchanged <100 ms gate in fresh processes. Never discard failed samples. |
+| ENG-31 | M5-31 first-process cold resident failure | A `b516_review`; existing `.worktrees/M5-31` | Diagnose B's exact `9f922bf` results: cold 125.855125 FAIL /43.970875/33.298750 ms; all warm pass. Source reuse and non-Dissolve seed canonicalization prepared; realistic distinct-ID tests and a separate timing companion await validation. UX-01 owns the heavy slot. Rerun unchanged <100 ms gate in fresh processes. Never discard failed samples. |
 | COM-01 | Establish usable authenticated Machine A ↔ B communication | A `cross_machine_research` +root | Native UI inspection blocked; only local app host exposed. Bonjour MacBook SSH refused, B identity unverified. Mailbox integrated067261e,9tests pass; A heartbeat polls it. Handshake1c60b6fd-49d0-43e5-8f6d-81d0766f272f published on codex/coordination-a0c6479d; B receipt/heartbeat unconfirmed. Root polls/bootstrap; agent advancing EXP-45 while waiting. Avoid a second agent server owning active desktop chat. Implement durable deduped Git fallback where needed. No exposed unauthenticated listeners. |
 | OPS-01 | Persistent autonomous coordinator | Root; current chat | Heartbeat `tessera-machine-a-coordinator` ACTIVE every5minutes, created2026-09-27. Check running work before duplicate launches. Read/advance board; stay quiet unless meaningful outcome/blocker. Local execution requires awake host/app and available service limits. |
 
 ## Ready / next
 
-Current review checkpoint: UX-01 source and behavior tests are implemented but
-have not compiled yet; review requires disarming all pointer tools on workspace
-exit and verifying Library Loupe zoom restoration. ENG-31's new guard exposed
+Current review checkpoint: UX-01 first compilation found a SwiftUI toolbar builder
+limit; the agent is fixing it and browser reflow findings before rerunning. Pointer
+tools now have workspace exit hooks. Existing Library Loupe is fit-only; only
+Compare has a separate zoom state to restore. ENG-31's new guard exposed
 duplicate layer IDs in the inherited timing fixture. The proposed source reuse
 must demonstrate benefit with valid distinct IDs before shipping; the original
 cold failure remains open. EXP-45 is actively assigned, not waiting for B.
@@ -53,12 +54,14 @@ wait for the build slot; no main merge yet.
 EXP-45 diagnostic progress: independently sourced Skia ISO fixtures and the
 preserved Tessera prototype now yield actual SDR/HDR pixels in a small ImageIO
 probe. The agent is isolating decode options and verifying reconstruction before
-proposing a production change. This is diagnostic evidence, not completed export
-interoperability or a shipped feature.
+restoration in a separate managed branch. Root authorized narrow restoration with
+the original tolerance preserved; whole-frame edge error remains separately
+reported. This is diagnostic evidence, not completed export interoperability or
+a shipped feature.
 
 | ID | Work | Owner / branch | Entry condition / acceptance |
 | --- | --- | --- | --- |
-| DEV-58 | Complete remaining Develop performance acceptance | A; `wp/M2-58` `196005e` product `5ff2679` | P01 actual input-to-present and P11 detail settle<=200ms /drag p95 regression<=10% remain unverified. Design nonactivating evidence path; report limitations honestly. Existing correctness/parity evidence preserved. |
+| DEV-58 | Complete remaining Develop performance acceptance | A; `wp/M2-58` `196005e` product `5ff2679` | P01 actual input-to-present and P11 detail settle<=200ms /drag p95 regression<=10% remain unverified. Read M2-58-PRESENTATION-PLAN.md: actual Loupe scanout requires a non-occluded surface and detail CALayer publication lacks a display-time oracle. Keep acceptance pending; do not substitute callbacks or transaction completion. Existing correctness/parity evidence preserved. |
 | EXP-45 | Gain-map JPEG reference interoperability and implementation | A `cross_machine_research`; `wp/M2-45d` `69bcd3e` | Establish independently valid ISO HDR reference and actual decoded pixel control before changing encoder; distinguish Apple gain-map fixtures from ISO. Finish only with required interoperable output evidence. |
 | INT-45 | Review/integrate validated DNG/PQ-HLG/native metadata slice | A root; `wp/M2-45d` | Current main merge-tree clean. Determine explicit partial-slice readiness, run resolved-tree gates; do not call absent gain-map complete. |
 | UX-02 | Durable review destination and explicit action scope | A; after UX-01 | Existing modal review queue/order safety must be retained. Implement navigable review with named target/count, reversible actions and keyboard-safe scope; avoid implying unbuilt persistence. |

@@ -4,9 +4,9 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
-## Active implementation review — 17:28 UTC
+## Active implementation review — latest checkpoint
 
-17:34 update: UX has the heavy build slot; engine work continues source-only.
+Current checkpoint: UX has the heavy build slot; engine work continues source-only.
 Root prepared an isolated, uncommitted clean M2-45d integration on
 `codex/export-integration` (managed worktree of that name), with formatting and
 source whitespace checks passed. Full integration gates remain queued. EXP-45
@@ -14,6 +14,13 @@ obtained independent ISO fixtures and actual SDR/HDR decode pixels, including
 the preserved Tessera prototype; decode-option and numerical reconstruction
 checks are underway before any restoration of the encoder. No product merge or
 gain-map acceptance is claimed.
+
+Independent UX review also found that the document-open API can reopen an
+existing rendered copy without refreshing pixels. A will make the disclosure
+truthful without changing B-owned document APIs. EXP-45 now has independently
+decoded controls, a passing original patch-center tolerance on the retained
+prototype and a separately reported edge discrepancy. A authorized isolated
+encoder restoration with the existing threshold retained, pending full gates.
 
 Three parallel Astra agents are active: UX-01 implementation, ENG-31 real-document
 source reuse investigation, and EXP-45 independent ISO gain-map controls. UX source
