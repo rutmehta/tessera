@@ -78,6 +78,10 @@ final class KeyRouter {
     }
 
     func handle(_ event: NSEvent) -> Bool {
+        // B5-10c begin: ⌘Return / keypad Enter / Esc reach an active text session whichever view of the
+        // document window has the keyboard (e.g. the viewport after a box handle drag).
+        if model.viewMode == .document, DocumentText.shared.routeSessionKey(event) { return true }
+        // B5-10c end
         if handleEditInLayers(event) { return true }
         if shouldIgnore(event) { return false }
         if model.viewMode == .document { return handleDocument(event) }

@@ -1846,8 +1846,9 @@ Properties, Layers, Channels and History sections expanded. Fonts are the instal
 341. **Point text.** Press T (or click the palette's Aa): the options bar shows the font, size, alignment and the hint.
      Click the canvas: a caret appears with its baseline at the click; type `Hello World`; Enter (keypad) or ⌘Return
      applies: one History row `Add Text`, a `Hello World` text row (Aa glyph) selected.
-342. **Area text.** Drag a rectangle: a dashed box with eight handles; typed text wraps inside its width.
-343. **Selection and mixed runs.** Click into text to resume editing; drag across words selects them (accent
+342. **Area text.** Drag a rectangle: a dashed box with eight handles; typed text wraps inside its width. The status
+     bar hint reads `Area text: …` here and `Point text: …` while editing point text (B5-10c).
+343. **Selection and mixed runs.** Click into text (or just right of its last glyph, B5-10c) to resume editing; drag across words selects them (accent
      highlight following the glyphs); typing replaces the selection; ⌫ / ⌦ delete across differently styled runs.
 344. **Character.** With a selection, change Font, Style (weight / italic), Size and Color in Properties ▸ Character:
      only the selected characters change; one History row per change (`Font: …`, `Font Style`, `Font Size`,
@@ -1858,7 +1859,8 @@ Properties, Layers, Channels and History sections expanded. Fonts are the instal
 346. **Paragraph.** Alignment (left / center / right / justify), indents and space before / after update the layout;
      run styles and the point / area geometry are unchanged.
 347. **Resize the box.** Drag an area box handle: the text rewraps (overflow when too short), glyphs keep their size
-     (no bitmap stretching); release adds `Resize Text Box`.
+     (no bitmap stretching); release adds `Resize Text Box`. Then type and press ⌘Return: it applies (B5-10c; the
+     handle drag no longer leaves the keyboard on the canvas), as do keypad Enter and Esc whichever view has focus.
 348. **Caret alignment.** At Fit, 100 % and 200 % with panning, and after ⌘-dragging outside the frame to rotate the
      layer (⌘-drag inside moves it), the caret and selection sit on the rendered glyph edges.
 349. **Clusters.** Type `office` (the ffi ligature is one caret stop), `e` + combining acute, `𝐀` (U+1D400) and a
