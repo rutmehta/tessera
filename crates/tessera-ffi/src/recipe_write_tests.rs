@@ -22,16 +22,33 @@ fn raw_revision_includes_unknown_envelope_and_xmp_bytes_and_presence() {
     let image = dir.path().join("one.jpg");
     tiny_jpeg(&image);
     let paths = Sidecar::paths(&image);
-    fs::create_dir_all(paths.recipe.parent().unwrap()).unwrap();
-    fs::write(&paths.recipe, br#"{"recipe":{},"future_envelope":1}"#).unwrap();
+    let mut original = sidecar::RecipeDocument::default();
+    original.recipe = engine_api::recipe::Recipe::new(engine_api::id::ImageId(1));
+    let render_hash = original.recipe.recipe_hash();
+    Sidecar::write_recipe(&paths.recipe, &original).unwrap();
     let gate = gate_for(&image).unwrap();
     let first = gate.capture_revision(&image).unwrap();
     assert!(gate.matches_revision(&first, &image).unwrap());
 
-    // The engine's render hash excludes this future envelope field. The raw
-    // write revision must still change, even though the field is not decoded.
-    fs::write(&paths.recipe, br#"{"recipe":{},"future_envelope":2}"#).unwrap();
+    // Both documents are valid and have equal actual render hashes. Selection,
+    // history, sync metadata, and a future envelope field still alter the
+    // write revision. Current RecipeDocument reads but does not retain that
+    // unknown envelope member; this test does not claim lossless persistence.
+    let mut changed = original.clone();
+    changed.recipe.selection = engine_api::recipe::Selection::keep(None);
+    changed.recipe.create_snapshot("checkpoint", 1).unwrap();
+    changed.record_write("test", 1).unwrap();
+    assert_eq!(render_hash, changed.recipe.recipe_hash());
+    let mut changed_json = serde_json::to_value(&changed).unwrap();
+    changed_json["future_envelope"] = serde_json::json!({"unknown": true});
+    fs::write(&paths.recipe, serde_json::to_vec(&changed_json).unwrap()).unwrap();
+    let decoded = Sidecar::read_recipe(&paths.recipe).unwrap();
     assert!(!gate.matches_revision(&first, &image).unwrap());
+    let with_unknown = gate.capture_revision(&image).unwrap();
+    changed_json["future_envelope"] = serde_json::json!({"unknown": false});
+    fs::write(&paths.recipe, serde_json::to_vec(&changed_json).unwrap()).unwrap();
+    assert_eq!(decoded, Sidecar::read_recipe(&paths.recipe).unwrap());
+    assert!(!gate.matches_revision(&with_unknown, &image).unwrap());
     let second = gate.capture_revision(&image).unwrap();
     fs::write(&paths.xmp, b"<xmp>one</xmp>").unwrap();
     assert!(!gate.matches_revision(&second, &image).unwrap());
@@ -102,22 +119,36 @@ fn two_engine_writers_wait_for_the_same_destination_gate() {
     let photos = dir.path().join("photos");
     fs::create_dir(&photos).unwrap();
     let image = photos.join("one.jpg");
+    let other = photos.join("two.jpg");
     tiny_jpeg(&image);
+    tiny_jpeg(&other);
     let support = dir.path().join("support").to_string_lossy().into_owned();
     let first = Engine::open(support.clone()).unwrap();
     first
         .index_folder(photos.to_string_lossy().into_owned())
         .unwrap();
     let second = Engine::open(support).unwrap();
-    let id = first.list_images(ImageQuery::default()).unwrap()[0]
+    let rows = first.list_images(ImageQuery::default()).unwrap();
+    let id = rows
+        .iter()
+        .find(|r| r.path.ends_with("one.jpg"))
+        .unwrap()
+        .id
+        .clone();
+    let other_id = rows
+        .iter()
+        .find(|r| r.path.ends_with("two.jpg"))
+        .unwrap()
         .id
         .clone();
     let gate = gate_for(&image).unwrap();
     let held = gate.begin_write().unwrap();
-    let (started_tx, started_rx) = mpsc::channel();
+    // Installed after `held`, so this can only be signaled after the Engine
+    // actually reaches this gate and observes its mutex is contended. A
+    // test-only try_lock probe in begin_write supplies that handshake.
+    let contended = gate.observe_next_contended_write_attempt();
     let (done_tx, done_rx) = mpsc::channel();
     let worker = thread::spawn(move || {
-        started_tx.send(()).unwrap();
         let result = second.set_selection(
             id,
             Selection {
@@ -128,11 +159,29 @@ fn two_engine_writers_wait_for_the_same_destination_gate() {
         );
         done_tx.send(result).unwrap();
     });
-    started_rx.recv_timeout(Duration::from_secs(2)).unwrap();
-    assert!(matches!(
-        done_rx.recv_timeout(Duration::from_millis(100)),
-        Err(mpsc::RecvTimeoutError::Timeout)
-    ));
+    contended.recv_timeout(Duration::from_secs(2)).unwrap();
+    assert!(matches!(done_rx.try_recv(), Err(mpsc::TryRecvError::Empty)));
+    // A different recipe destination can make progress while `one.jpg` is
+    // held. This also catches an Engine that waits while holding its catalog.
+    let (other_tx, other_rx) = mpsc::channel();
+    let unrelated_engine = first.clone();
+    let unrelated = thread::spawn(move || {
+        other_tx
+            .send(unrelated_engine.set_selection(
+                other_id,
+                Selection {
+                    decision: Decision::Keep,
+                    grade: None,
+                    mark: None,
+                },
+            ))
+            .unwrap();
+    });
+    other_rx
+        .recv_timeout(Duration::from_secs(5))
+        .unwrap()
+        .unwrap();
+    unrelated.join().unwrap();
     drop(held);
     done_rx
         .recv_timeout(Duration::from_secs(5))
@@ -159,17 +208,13 @@ fn set_recipe_json_waits_for_the_same_destination_gate() {
     let json = first.get_recipe(id.clone()).unwrap();
     let gate = gate_for(&image).unwrap();
     let held = gate.begin_write().unwrap();
-    let (started_tx, started_rx) = mpsc::channel();
+    let contended = gate.observe_next_contended_write_attempt();
     let (done_tx, done_rx) = mpsc::channel();
     let worker = thread::spawn(move || {
-        started_tx.send(()).unwrap();
         done_tx.send(second.set_recipe_json(id, json)).unwrap();
     });
-    started_rx.recv_timeout(Duration::from_secs(2)).unwrap();
-    assert!(matches!(
-        done_rx.recv_timeout(Duration::from_millis(100)),
-        Err(mpsc::RecvTimeoutError::Timeout)
-    ));
+    contended.recv_timeout(Duration::from_secs(2)).unwrap();
+    assert!(matches!(done_rx.try_recv(), Err(mpsc::TryRecvError::Empty)));
     drop(held);
     done_rx
         .recv_timeout(Duration::from_secs(5))

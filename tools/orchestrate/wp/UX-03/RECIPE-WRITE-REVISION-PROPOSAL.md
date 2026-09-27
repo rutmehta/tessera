@@ -14,7 +14,7 @@ The key resolves the existing destination path. `.edits/<stem>.json` is shared b
 
 ## Proposed regressions
 
-`crates/tessera-ffi/src/recipe_write_tests.rs` supplies five tiny tests: raw future-envelope/XMP bytes and selected-path changes; retained-token weak-key ABA after table churn; same-stem destination and existing image-ID rejection; and one held-gate serialization case for each of the two Engine writers. The JPEGs are 2×2. The worker tests signal start and have bounded channel waits; no sleeps, RAW decoding, GPU, or large catalog fixture.
+`crates/tessera-ffi/src/recipe_write_tests.rs` supplies five tiny tests: valid documents with equal actual render hashes but different selection/history/sync bytes, then an unknown-envelope-only byte change with equal decoded `RecipeDocument`, plus XMP bytes and selected-path changes; retained-token weak-key ABA after table churn; same-stem destination and existing image-ID rejection; and one held-gate serialization case for each of the two Engine writers. The JPEGs are 2×2. A `#[cfg(test)]` one-shot observer on the destination gate is signaled only after a test-only `try_lock` probe inside `begin_write` confirms that the actual destination mutex is contended, just before the blocking acquisition. Tests install it after holding the gate and wait for that deterministic contention handshake; an unrelated destination must finish while the first is held. The observer must not acquire the write mutex, delay the caller, or change production behavior. Channel timeouts are watchdogs, not evidence of reaching the gate. No sleeps, RAW decoding, GPU, or large catalog fixture.
 
 First focused RED command after the compiler slot is released:
 
