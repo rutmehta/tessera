@@ -1,0 +1,44 @@
+[0/1] Planning build
+Building for production...
+[0/4] Write sources
+[1/4] Write swift-version--58304C5D6DBC2206.txt
+[3/4] Compiling TesseraCoreTests AgentReviewLayoutTests.swift
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[3/5] Write Objects.LinkFileList
+ld: warning: object file (/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/build/ffi/libtessera_ffi.a[2845](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[4/5] Linking TesseraPackageTests
+Build complete! (21.24s)
+Test Suite 'Selected tests' started at 2026-09-27 14:58:41.099.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-27 14:58:41.099.
+Test Suite 'AgentReviewNavigationTests' started at 2026-09-27 14:58:41.099.
+Test Case '-[TesseraCoreTests.AgentReviewNavigationTests testLayeredHandoffCancelsWhenSelectionOrOwnerChangesBeforeSaveWaitReturns]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [13.431042000000001, 0.3865, 0.469584]; GPU [15.59075, 0.868208, 0.9692909999999999]
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/AgentReviewNavigationTests.swift:278: error: -[TesseraCoreTests.AgentReviewNavigationTests testLayeredHandoffCancelsWhenSelectionOrOwnerChangesBeforeSaveWaitReturns] : XCTAssertNotEqual failed: ("Optional("Saving photo before opening Layers…")") is equal to ("Optional("Saving photo before opening Layers…")")
+develop L2 calibration [first, tone, WB] ms: CPU [13.340375, 0.3765, 0.459834]; GPU [14.906834, 0.785833, 0.6653330000000001]
+develop L2 calibration [first, tone, WB] ms: CPU [13.359041, 0.386916, 0.43720800000000004]; GPU [13.591041, 0.839, 0.887]
+Test Case '-[TesseraCoreTests.AgentReviewNavigationTests testLayeredHandoffCancelsWhenSelectionOrOwnerChangesBeforeSaveWaitReturns]' failed (2.701 seconds).
+Test Suite 'AgentReviewNavigationTests' failed at 2026-09-27 14:58:43.801.
+	 Executed 1 test, with 1 failure (0 unexpected) in 2.701 (2.702) seconds
+Test Suite 'TesseraPackageTests.xctest' failed at 2026-09-27 14:58:43.801.
+	 Executed 1 test, with 1 failure (0 unexpected) in 2.701 (2.702) seconds
+Test Suite 'Selected tests' failed at 2026-09-27 14:58:43.801.
+	 Executed 1 test, with 1 failure (0 unexpected) in 2.701 (2.702) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

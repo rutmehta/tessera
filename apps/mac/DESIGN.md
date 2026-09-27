@@ -549,3 +549,31 @@ is implied. Machine B owns Document internals.
 Use the existing M2-56 containment/yield rules at all four declared sizes and both
 appearances. The target header truncates long names with full help/accessibility
 labels and remains outside the photo pixels. No target label performs engine work.
+
+## 12. Navigable Review (UX-02a)
+
+Review is a session-local destination beside Library and Photo Edit. The Review
+count and Develop menu remain available for empty and all-reviewed queues. Auto
+Edit completion updates the queue and toast without presenting a modal or changing
+the workspace. Queue relaunch persistence belongs to UX-02b and is not shipped by
+this navigation slice.
+
+The queue retains its existing failed-first/confidence order. A stable image ID
+owns list selection and scroll anchor; a generation-scoped instruction draft
+survives Review → Edit photo → Review. The inspector names one photo, distinguishes
+user review status from the critic's result, and exposes Accept, Accept & next,
+Redo with instruction, Revert group and Edit photo. Accept & next waits for a
+successful current-target callback before using the queue's next-pending rule.
+The preview is labelled Current preview; there is no before/after baseline.
+
+Review owns selection without changing the Library source, filter or multi-photo
+selection. Edit photo resolves the queued image independently of visible Library
+rows. Back unwinds Edit → Review → Library, restoring the original native browser
+anchor after layout. A deliberate folder/source change leaves this navigation.
+Actions resolve stable image IDs only in the captured EngineLibrary instance;
+a queue from another library session stays visible with unavailable actions.
+
+Review consumes cull letters and owns its arrows after text, numeric, sheet and
+Document guards. Escape cancels a draft before leaving Review. Undo/Redo in Review
+do not consume Library history; the inspector directs the user to Edit photo for
+recipe history. Accept's learned feedback is not advertised as undoable.

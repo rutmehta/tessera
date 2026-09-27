@@ -68,9 +68,20 @@ final class LoupeController: LibraryObserver {
     func itemsDidChange(_ positions: IndexSet) {}
 
     func selectionDidChange(scrollToFocus: Bool) {
-        guard model.viewMode == .loupe, let f = model.focus, f < model.visibleCount else { return }
-        let item = model.item(at: f)
+        guard model.viewMode == .loupe else { return }
+        guard let item = model.focusedItem else {
+            shownID = nil
+            engineShown = false
+            request?.cancel()
+            prefetch.forEach { $0.cancel() }
+            prefetch.removeAll()
+            view.attach(develop: nil)
+            view.present(image: nil, isFinal: false)
+            return
+        }
         guard item.id != shownID else {
+            // Review closes the session while retaining this native view and its last texture.
+            if model.develop == nil, model.developStatus != .loading { model.openDevelop(for: item) }
             developDidChange()
             return
         }
@@ -91,9 +102,11 @@ final class LoupeController: LibraryObserver {
                 self.view.present(image: image, isFinal: true)
             }
         }
-        for n in [f + 1, f - 1, f + 2] where n >= 0 && n < model.visibleCount {
-            if let r = model.loader.request(model.item(at: n), tier: .preview, priority: .low, completion: { _ in }) {
-                prefetch.append(r)
+        if !model.isReviewEditing, let f = model.focusedPosition {
+            for n in [f + 1, f - 1, f + 2] where n >= 0 && n < model.visibleCount {
+                if let r = model.loader.request(model.item(at: n), tier: .preview, priority: .low, completion: { _ in }) {
+                    prefetch.append(r)
+                }
             }
         }
         model.openDevelop(for: item)

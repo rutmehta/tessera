@@ -1,0 +1,45 @@
+[0/1] Planning build
+Building for production...
+[0/5] Write sources
+[1/5] Write swift-version--58304C5D6DBC2206.txt
+[3/5] Compiling TesseraCoreTests AgentReviewNavigationTests.swift
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[4/6] Compiling TesseraPackageTests runner.swift
+[4/6] Write Objects.LinkFileList
+ld: warning: object file (/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/build/ffi/libtessera_ffi.a[2845](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[5/6] Linking TesseraPackageTests
+Build complete! (23.29s)
+Test Suite 'Selected tests' started at 2026-09-27 14:09:17.076.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-27 14:09:17.077.
+Test Suite 'AgentReviewNavigationTests' started at 2026-09-27 14:09:17.077.
+Test Case '-[TesseraCoreTests.AgentReviewNavigationTests testOpeningReviewedPhotoOutsideFilterPreservesLibraryPlace]' started.
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/AgentReviewNavigationTests.swift:20: error: -[TesseraCoreTests.AgentReviewNavigationTests testOpeningReviewedPhotoOutsideFilterPreservesLibraryPlace] : XCTAssertEqual failed: ("all") is not equal to ("decision(TesseraCore.Decision.keep)") - Review Edit must not redefine the Library source
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/AgentReviewNavigationTests.swift:21: error: -[TesseraCoreTests.AgentReviewNavigationTests testOpeningReviewedPhotoOutsideFilterPreservesLibraryPlace] : XCTAssertEqual failed: ("[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]") is not equal to ("[0, 1]")
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/AgentReviewNavigationTests.swift:22: error: -[TesseraCoreTests.AgentReviewNavigationTests testOpeningReviewedPhotoOutsideFilterPreservesLibraryPlace] : XCTAssertEqual failed: ("1 indexes") is not equal to ("2 indexes")
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/AgentReviewNavigationTests.swift:23: error: -[TesseraCoreTests.AgentReviewNavigationTests testOpeningReviewedPhotoOutsideFilterPreservesLibraryPlace] : XCTAssertEqual failed: ("Optional(5)") is not equal to ("Optional(1)")
+Test Case '-[TesseraCoreTests.AgentReviewNavigationTests testOpeningReviewedPhotoOutsideFilterPreservesLibraryPlace]' failed (0.589 seconds).
+Test Suite 'AgentReviewNavigationTests' failed at 2026-09-27 14:09:17.666.
+	 Executed 1 test, with 4 failures (0 unexpected) in 0.589 (0.589) seconds
+Test Suite 'TesseraPackageTests.xctest' failed at 2026-09-27 14:09:17.666.
+	 Executed 1 test, with 4 failures (0 unexpected) in 0.589 (0.589) seconds
+Test Suite 'Selected tests' failed at 2026-09-27 14:09:17.666.
+	 Executed 1 test, with 4 failures (0 unexpected) in 0.589 (0.590) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

@@ -1,0 +1,241 @@
+[0/1] Planning build
+Building for production...
+[0/8] Write sources
+[3/8] Write swift-version--58304C5D6DBC2206.txt
+[5/9] Compiling TesseraCore AppDefaultsIsolation.swift
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:860:30: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 858 |         DispatchQueue.concurrentPerform(iterations: bands) { band in
+ 859 |             for r in (rows * band / bands)..<(rows * (band + 1) / bands) {
+ 860 |                 let ty = r * step
+     |                              `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 861 |                 let cy = (Float(y0 + ty) + 0.5 * Float(step)) * scale
+ 862 |                 var tx = 0
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:861:56: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 859 |             for r in (rows * band / bands)..<(rows * (band + 1) / bands) {
+ 860 |                 let ty = r * step
+ 861 |                 let cy = (Float(y0 + ty) + 0.5 * Float(step)) * scale
+     |                                                        `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 862 |                 var tx = 0
+ 863 |                 while tx < rw {
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:864:71: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 862 |                 var tx = 0
+ 863 |                 while tx < rw {
+ 864 |                     let c = comp.sample((Float(x0 + tx) + 0.5 * Float(step)) * scale, cy)
+     |                                                                       `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 865 |                     for dy in 0..<min(step, rh - ty) {
+ 866 |                         let line = bytes + (ty + dy) * stride
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:865:39: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 863 |                 while tx < rw {
+ 864 |                     let c = comp.sample((Float(x0 + tx) + 0.5 * Float(step)) * scale, cy)
+ 865 |                     for dy in 0..<min(step, rh - ty) {
+     |                                       `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 866 |                         let line = bytes + (ty + dy) * stride
+ 867 |                         for dx in 0..<min(step, rw - tx) { Self.store(c, line + (tx + dx) * 4) }
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:867:43: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 865 |                     for dy in 0..<min(step, rh - ty) {
+ 866 |                         let line = bytes + (ty + dy) * stride
+ 867 |                         for dx in 0..<min(step, rw - tx) { Self.store(c, line + (tx + dx) * 4) }
+     |                                           `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 868 |                     }
+ 869 |                     tx += step
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:869:27: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 867 |                         for dx in 0..<min(step, rw - tx) { Self.store(c, line + (tx + dx) * 4) }
+ 868 |                     }
+ 869 |                     tx += step
+     |                           `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 870 |                 }
+ 871 |             }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[6/10] Compiling Tessera AISettingsView.swift
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/Tessera/Document/AdjustmentEditors.swift:55:55: warning: passing non-Sendable parameter 'change' to function expecting a '@Sendable' closure
+ 52 |     }
+ 53 | 
+ 54 |     private func checkbox(_ title: String, _ on: Bool, _ key: String, _ change: @escaping (Bool) -> Void) -> some View {
+    |                                                                         `- note: parameter 'change' is implicitly non-Sendable
+ 55 |         Toggle(title, isOn: Binding(get: { on }, set: change))
+    |                                                       `- warning: passing non-Sendable parameter 'change' to function expecting a '@Sendable' closure
+ 56 |             .toggleStyle(.checkbox)
+ 57 |             .font(Theme.Fonts.caption)
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/Tessera/Document/Transforms/DocumentTransforms.swift:676:21: warning: 'where' only applies to the second pattern match in this 'case'
+674 |         let mods = e.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.numericPad, .function, .capsLock])
+675 |         switch e.keyCode {
+676 |         case 36, 76 where mods.isEmpty || mods == [.command]: apply(); return true
+    |              |   |  `- warning: 'where' only applies to the second pattern match in this 'case'
+    |              |   `- note: disambiguate by adding a line break between them if this is desired
+    |              `- note: duplicate the 'where' on both patterns to check both patterns
+677 |         case 53 where mods.isEmpty: cancel(); return true
+678 |         case 51, 117 where mods.isEmpty:
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/Tessera/Document/Transforms/DocumentTransforms.swift:678:22: warning: 'where' only applies to the second pattern match in this 'case'
+676 |         case 36, 76 where mods.isEmpty || mods == [.command]: apply(); return true
+677 |         case 53 where mods.isEmpty: cancel(); return true
+678 |         case 51, 117 where mods.isEmpty:
+    |              |   |   `- warning: 'where' only applies to the second pattern match in this 'case'
+    |              |   `- note: disambiguate by adding a line break between them if this is desired
+    |              `- note: duplicate the 'where' on both patterns to check both patterns
+679 |             if case .puppet = session?.op, selectedPin != nil { removeSelectedPin(); return true }
+680 |             return false
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/Tessera/Document/Transforms/TransformSelfTest.swift:460:16: warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+458 | 
+459 |         // 395: position lock rejects geometry.
+460 |         if let id = doc?.primary?.id {
+    |                `- warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+461 |             doc?.toggleLock(.position)
+462 |             await settle()
+[6/10] Write Objects.LinkFileList
+ld: warning: object file (/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/build/ffi/libtessera_ffi.a[2845](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[7/10] Linking Tessera
+[9/11] Compiling TesseraCoreTests AgentReviewLayoutTests.swift
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[10/12] Compiling TesseraPackageTests runner.swift
+[10/12] Write Objects.LinkFileList
+ld: warning: object file (/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/build/ffi/libtessera_ffi.a[2845](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[11/12] Linking TesseraPackageTests
+Build complete! (121.02s)
+Test Suite 'Selected tests' started at 2026-09-27 14:53:54.660.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-27 14:53:54.660.
+Test Suite 'AgentReviewNavigationStateTests' started at 2026-09-27 14:53:54.660.
+Test Case '-[TesseraCoreTests.AgentReviewNavigationStateTests testAcceptAndNextRequiresSuccessfulCurrentSelectionAndSkipsFailedReviewed]' started.
+Test Case '-[TesseraCoreTests.AgentReviewNavigationStateTests testAcceptAndNextRequiresSuccessfulCurrentSelectionAndSkipsFailedReviewed]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewNavigationStateTests testRedoReorderKeepsSelectedIdentityAndInvalidatesOldDraft]' started.
+Test Case '-[TesseraCoreTests.AgentReviewNavigationStateTests testRedoReorderKeepsSelectedIdentityAndInvalidatesOldDraft]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewNavigationStateTests testStatusUpdateKeepsDraftButSelectingAnotherPhotoClearsIt]' started.
+Test Case '-[TesseraCoreTests.AgentReviewNavigationStateTests testStatusUpdateKeepsDraftButSelectingAnotherPhotoClearsIt]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewNavigationStateTests testUserSelectionChangeDoesNotAdvanceOnLateAcceptCompletion]' started.
+Test Case '-[TesseraCoreTests.AgentReviewNavigationStateTests testUserSelectionChangeDoesNotAdvanceOnLateAcceptCompletion]' passed (0.000 seconds).
+Test Suite 'AgentReviewNavigationStateTests' passed at 2026-09-27 14:53:54.662.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.002 (0.002) seconds
+Test Suite 'AgentReviewNavigationTests' started at 2026-09-27 14:53:54.662.
+Test Case '-[TesseraCoreTests.AgentReviewNavigationTests testEmptyReviewIsReachableAndDoesNotConsumeLibraryUndoOrSelection]' started.
+Test Case '-[TesseraCoreTests.AgentReviewNavigationTests testEmptyReviewIsReachableAndDoesNotConsumeLibraryUndoOrSelection]' passed (0.002 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewNavigationTests testExplicitReviewEditBackUnwindsBeforeLibraryAndSourceChangeClearsIt]' started.
+Test Case '-[TesseraCoreTests.AgentReviewNavigationTests testExplicitReviewEditBackUnwindsBeforeLibraryAndSourceChangeClearsIt]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewNavigationTests testFirstLayeredCopyIncludesPendingPhotoAdjustment]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [13.046208, 0.39970799999999995, 0.470708]; GPU [13.89425, 0.59175, 0.678833]
+Test Case '-[TesseraCoreTests.AgentReviewNavigationTests testFirstLayeredCopyIncludesPendingPhotoAdjustment]' passed (0.908 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewNavigationTests testForeignQueueCannotEditAcceptOrAdvanceAndAllReviewedRemainsReachable]' started.
+Test Case '-[TesseraCoreTests.AgentReviewNavigationTests testForeignQueueCannotEditAcceptOrAdvanceAndAllReviewedRemainsReachable]' passed (0.773 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewNavigationTests testLayeredHandoffCancelsWhenSelectionOrOwnerChangesBeforeSaveWaitReturns]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [12.558583, 0.366792, 0.461416]; GPU [14.562833000000001, 0.615208, 0.9818749999999999]
+develop L2 calibration [first, tone, WB] ms: CPU [12.50525, 0.351667, 0.42874999999999996]; GPU [13.355625, 0.866542, 1.278708]
+Test Case '-[TesseraCoreTests.AgentReviewNavigationTests testLayeredHandoffCancelsWhenSelectionOrOwnerChangesBeforeSaveWaitReturns]' passed (1.299 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewNavigationTests testLegacyPeopleAndTetherInspectionKeepsLibraryLoupe]' started.
+Test Case '-[TesseraCoreTests.AgentReviewNavigationTests testLegacyPeopleAndTetherInspectionKeepsLibraryLoupe]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewNavigationTests testNewFolderRestoresLibraryInspectorPreferenceWhenLeavingReview]' started.
+Test Case '-[TesseraCoreTests.AgentReviewNavigationTests testNewFolderRestoresLibraryInspectorPreferenceWhenLeavingReview]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewNavigationTests testOpeningReviewedPhotoOutsideFilterPreservesLibraryPlace]' started.
+Test Case '-[TesseraCoreTests.AgentReviewNavigationTests testOpeningReviewedPhotoOutsideFilterPreservesLibraryPlace]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewNavigationTests testRealQueueFilteredEditRoundTripDraftAndSuccessfulAcceptNext]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [12.806667000000001, 0.373458, 0.5060830000000001]; GPU [14.749208, 0.766791, 0.978667]
+Test Case '-[TesseraCoreTests.AgentReviewNavigationTests testRealQueueFilteredEditRoundTripDraftAndSuccessfulAcceptNext]' passed (0.818 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewNavigationTests testReviewEditKeysAndMenuCannotOpenTargetDuringRunOrAcceptance]' started.
+Test Case '-[TesseraCoreTests.AgentReviewNavigationTests testReviewEditKeysAndMenuCannotOpenTargetDuringRunOrAcceptance]' passed (0.978 seconds).
+Test Suite 'AgentReviewNavigationTests' passed at 2026-09-27 14:53:59.443.
+	 Executed 10 tests, with 0 failures (0 unexpected) in 4.780 (4.780) seconds
+Test Suite 'DocumentKeyRoutingTests' started at 2026-09-27 14:53:59.443.
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testCommandEInGridDisclosesRenderedCopyBeforeExistingHandoff]' started.
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testCommandEInGridDisclosesRenderedCopyBeforeExistingHandoff]' passed (0.025 seconds).
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testControllerGroupsAndDragsAsOneStepEach]' started.
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testControllerGroupsAndDragsAsOneStepEach]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testCullingKeysDoNotFireInDocumentMode]' started.
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testCullingKeysDoNotFireInDocumentMode]' passed (0.004 seconds).
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testDocumentKeys]' started.
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testDocumentKeys]' passed (0.012 seconds).
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testUndoRoutesToTheDocumentInDocumentMode]' started.
+Test Case '-[TesseraCoreTests.DocumentKeyRoutingTests testUndoRoutesToTheDocumentInDocumentMode]' passed (0.000 seconds).
+Test Suite 'DocumentKeyRoutingTests' passed at 2026-09-27 14:53:59.484.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.041 (0.042) seconds
+Test Suite 'KeyFocusTests' started at 2026-09-27 14:53:59.484.
+Test Case '-[TesseraCoreTests.KeyFocusTests testFocusedCurveOwnsArrowsWithoutSelectedPoint]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testFocusedCurveOwnsArrowsWithoutSelectedPoint]' passed (0.003 seconds).
+Test Case '-[TesseraCoreTests.KeyFocusTests testFocusedSliderOwnsArrows]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testFocusedSliderOwnsArrows]' passed (0.003 seconds).
+Test Case '-[TesseraCoreTests.KeyFocusTests testPhotoEditConsumesCullKeysWithoutChangingDecisions]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testPhotoEditConsumesCullKeysWithoutChangingDecisions]' passed (0.005 seconds).
+Test Case '-[TesseraCoreTests.KeyFocusTests testPhotoEditTextFieldStillOwnsLetters]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testPhotoEditTextFieldStillOwnsLetters]' passed (0.004 seconds).
+Test Case '-[TesseraCoreTests.KeyFocusTests testReviewOwnsCullKeysAndEscapeCancelsDraftBeforeReturn]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testReviewOwnsCullKeysAndEscapeCancelsDraftBeforeReturn]' passed (0.003 seconds).
+Test Case '-[TesseraCoreTests.KeyFocusTests testReviewTextAndNumericControlsKeepTheirInputAndDocumentWins]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testReviewTextAndNumericControlsKeepTheirInputAndDocumentWins]' passed (0.004 seconds).
+Test Case '-[TesseraCoreTests.KeyFocusTests testSearchFieldOwnsCullKeys]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testSearchFieldOwnsCullKeys]' passed (0.021 seconds).
+Test Case '-[TesseraCoreTests.KeyFocusTests testSliderModifiersBoundsAndBlurCommit]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testSliderModifiersBoundsAndBlurCommit]' passed (0.003 seconds).
+Test Case '-[TesseraCoreTests.KeyFocusTests testUnfocusedLoupeReceivesArrows]' started.
+Test Case '-[TesseraCoreTests.KeyFocusTests testUnfocusedLoupeReceivesArrows]' passed (0.003 seconds).
+Test Suite 'KeyFocusTests' passed at 2026-09-27 14:53:59.533.
+	 Executed 9 tests, with 0 failures (0 unexpected) in 0.048 (0.048) seconds
+Test Suite 'ThemeLintTests' started at 2026-09-27 14:53:59.533.
+Test Case '-[TesseraCoreTests.ThemeLintTests testViewsUseThemeTokensOnly]' started.
+Test Case '-[TesseraCoreTests.ThemeLintTests testViewsUseThemeTokensOnly]' passed (0.207 seconds).
+Test Suite 'ThemeLintTests' passed at 2026-09-27 14:53:59.740.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.207 (0.207) seconds
+Test Suite 'WorkspaceBrowserRestoreTests' started at 2026-09-27 14:53:59.740.
+Test Case '-[TesseraCoreTests.WorkspaceBrowserRestoreTests testReturnRestoresGridAnchorWithoutFocusSnap]' started.
+Test Case '-[TesseraCoreTests.WorkspaceBrowserRestoreTests testReturnRestoresGridAnchorWithoutFocusSnap]' passed (0.032 seconds).
+Test Case '-[TesseraCoreTests.WorkspaceBrowserRestoreTests testReviewEditRoundTripRestoresNativeAnchorAfterColumnResize]' started.
+Test Case '-[TesseraCoreTests.WorkspaceBrowserRestoreTests testReviewEditRoundTripRestoresNativeAnchorAfterColumnResize]' passed (0.017 seconds).
+Test Suite 'WorkspaceBrowserRestoreTests' passed at 2026-09-27 14:53:59.789.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.049 (0.049) seconds
+Test Suite 'WorkspaceNavigationTests' started at 2026-09-27 14:53:59.789.
+Test Case '-[TesseraCoreTests.WorkspaceNavigationTests testChangingSourceExitsEditWithoutRestoringOldSource]' started.
+Test Case '-[TesseraCoreTests.WorkspaceNavigationTests testChangingSourceExitsEditWithoutRestoringOldSource]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.WorkspaceNavigationTests testCompareReturnRestoresPairAndActiveSide]' started.
+Test Case '-[TesseraCoreTests.WorkspaceNavigationTests testCompareReturnRestoresPairAndActiveSide]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.WorkspaceNavigationTests testEditTargetsOnePhotoAndReturnsOriginalSelection]' started.
+Test Case '-[TesseraCoreTests.WorkspaceNavigationTests testEditTargetsOnePhotoAndReturnsOriginalSelection]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.WorkspaceNavigationTests testEveryExitDisarmsModelOwnedPointerTools]' started.
+Test Case '-[TesseraCoreTests.WorkspaceNavigationTests testEveryExitDisarmsModelOwnedPointerTools]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.WorkspaceNavigationTests testInspectorTabKeepsTargetAndReturnState]' started.
+Test Case '-[TesseraCoreTests.WorkspaceNavigationTests testInspectorTabKeepsTargetAndReturnState]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.WorkspaceNavigationTests testInstallingDifferentLibraryDiscardsBookmark]' started.
+Test Case '-[TesseraCoreTests.WorkspaceNavigationTests testInstallingDifferentLibraryDiscardsBookmark]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.WorkspaceNavigationTests testPhotoEditUndoCannotConsumeCullHistory]' started.
+Test Case '-[TesseraCoreTests.WorkspaceNavigationTests testPhotoEditUndoCannotConsumeCullHistory]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.WorkspaceNavigationTests testRenderedCopyRequestCapturesTargetAndCancelHasNoSideEffect]' started.
+Test Case '-[TesseraCoreTests.WorkspaceNavigationTests testRenderedCopyRequestCapturesTargetAndCancelHasNoSideEffect]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.WorkspaceNavigationTests testScopeUsesCompareCandidateRatherThanOriginalSelection]' started.
+Test Case '-[TesseraCoreTests.WorkspaceNavigationTests testScopeUsesCompareCandidateRatherThanOriginalSelection]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.WorkspaceNavigationTests testUnavailablePhotoExplainsItsActualStateInEdit]' started.
+Test Case '-[TesseraCoreTests.WorkspaceNavigationTests testUnavailablePhotoExplainsItsActualStateInEdit]' passed (0.000 seconds).
+Test Suite 'WorkspaceNavigationTests' passed at 2026-09-27 14:53:59.792.
+	 Executed 10 tests, with 0 failures (0 unexpected) in 0.003 (0.003) seconds
+Test Suite 'WorkspaceSelectionTests' started at 2026-09-27 14:53:59.792.
+Test Case '-[TesseraCoreTests.WorkspaceSelectionTests testEmptyDestinationHasNoAccidentalTarget]' started.
+Test Case '-[TesseraCoreTests.WorkspaceSelectionTests testEmptyDestinationHasNoAccidentalTarget]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.WorkspaceSelectionTests testRestorationUsesStableKeysAfterInsertionAndRemoval]' started.
+Test Case '-[TesseraCoreTests.WorkspaceSelectionTests testRestorationUsesStableKeysAfterInsertionAndRemoval]' passed (0.000 seconds).
+Test Suite 'WorkspaceSelectionTests' passed at 2026-09-27 14:53:59.792.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-09-27 14:53:59.792.
+	 Executed 43 tests, with 0 failures (0 unexpected) in 5.129 (5.132) seconds
+Test Suite 'Selected tests' passed at 2026-09-27 14:53:59.792.
+	 Executed 43 tests, with 0 failures (0 unexpected) in 5.129 (5.132) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
