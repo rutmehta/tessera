@@ -4,6 +4,89 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## Resource investigation publication — 2026-09-27 20:27 UTC
+
+Source findings and independent review are in resource-audit-20260927/.
+No resource regression has run yet. Plans distinguish observable attempted work
+from accepted-cache counters, and pre-evaluation alone from real memory admission.
+Existing PSD code already prewarms one tile: captured stacks alone do not count
+incident duplicates. No global resource cap or leak fix is claimed.
+
+Mailbox status2ff37936 published the ownership split and hold. SSH queue
+01a0e48a-fb90-7362-a4cd-fa0c719eb63c accepted its pointer; peer receipt pending.
+Sol prepares tiny counters/regressions in the separate render-resource-bounds
+worktree. Root's combined Swift suite is running; no concurrent test launch.
+
+## Current checkpoint — 2026-09-27 20:24 UTC
+
+Fetched B131af17 and read RESOURCE-AUDIT.md. Accepted exact-target mailbox
+hold7cf0f7e2 and A-only investigation9a28ab84; no B workload or heartbeat restart.
+B reports Text now passed; Transform interrupted during rasterized PSD, not accepted.
+Two Sol agents independently examine duplicate CPU evaluation, cache size cliffs,
+transient accounting and reentrancy-safe admission on A without running tests.
+
+Gain-map supplemental Core Image1/1 and CLI/FFI/MCP1/1 each passed after retained
+fixture repairs. Original ImageIO4pass/1fail stays unchanged and unaccepted.
+Root started the full Review+Masks Swift suite on fe0ff9e with two workers;
+session24626, /tmp/tessera-review-masks-integration/full-swift.log and exit marker.
+No duplicate build; all source/archive hashes checked before launch.
+
+## B resource-audit pause — 2026-09-27 20:14 UTC
+
+Read the actual user message in B's coordinator: severe CPU load/fan noise and
+poor responsiveness prompted a full resource audit. B paused its heartbeat and
+stopped its owned Transform test/runner; it reports roughly10cores from that test,
+an orphaned old stress yes process, and43GBswap. These are B-reported observations,
+not a completed leak/engine-cause diagnosis. A will not restart B work or send
+remote builds/benchmarks. Queue01a0e480-6f32-7e53-a834-b570e0ee17ea published A's
+acknowledgement and offer of read-only engine-source help; receipt still pending.
+
+A's separate lightweight check found49% system memory free,6.0GBswap in use,
+and current rustc processes about0.56/0.18GBRSS. Test apps were idle. This does
+not establish historical swap ownership or a leak. A keeps builds serialized
+and compiler parallelism bounded; its local full Swift gate remains queued.
+
+## Validation checkpoint — 2026-09-27 20:09 UTC
+
+The unique-executable dev-test variant bound successfully through CUA. Luna
+verified Library/Edit/back target restoration, selected-fixture AutoEdit, Review
+saved preview and Edit/back, draft text focus, and single-entry acceptance on
+six disposable JPEG fixtures. Original candidate binding failure is preserved;
+no product source fix or definitive tool-cause claim. Combined Review+Masks
+candidate b1d1a15 still awaits its full source-matched suite after engine gates.
+
+B note8e301f0 reports fresh Channels exit0 after lifecycle repair. Text/Transform
+reruns are active; their outcomes remain pending. B found conflicting startup
+new-document arguments in the Transform harness and retained the prior failure.
+
+## Live checkpoint — 2026-09-27 20:05 UTC
+
+Masks focused layout+ThemeLint passed2/2; root visually verified full action labels
+at288points. Source/evidence commit pending, then combined Review integration.
+Sol gainmap_gate_review owns the next heavy slot for the supplemental/host gates.
+No duplicate process was found after interruption; prior failures remain intact.
+
+Isolated dev-test app is running from betterSSD with disposable generated photos
+and its own app-support directory. Computer-use binding timed out; no hands-on
+candidate success is claimed. Its process sample shows an idle main event loop,
+so source/packaging investigation continues without changing the user's app.
+B latest note72d8756 retains its six-pass/three-fail strict suite and repair queue.
+Mailbox has no unprocessed messages or accepted work needing replay.
+
+## Current work — 2026-09-27 20:00 UTC
+
+B result e6634ca4 reconciles its original runner: aggregate failure, six packaged
+passes, Channels/Text timeout after done0, and Transform Puppet source failure.
+B retains its heavy slot to repair and investigate. A has not merged B5-16.
+
+A prepared resolved Review integration candidate4188dd7 in the free managed
+export-integration checkout; no product conflicts, ownership evidence appendix
+retained. Source format check passed (raw captured compiler logs retain original
+trailing whitespace). Full combined gate is pending. Masks reproduced narrow
+label failures and now validates its bounded correction. The Luna baseline audit
+and Sol gain-map validation preparation run as separate tasks. Isolated Review
+dev-test packaging on betterSSD is underway, distinct from release acceptance.
+
 ## Resume checkpoint — 2026-09-27 19:57 UTC
 
 Recovered the interrupted Review gate: two tests passed with zero failures;
