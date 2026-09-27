@@ -154,3 +154,80 @@ unverified; never convert it to an acceptance pass. No test runs during a hold.
 No claim that all memory leaks are found or fixed. Full runtime GPU/leak closure
 is pending these bounded checks. This audit establishes real defects and a safe
 sequence to resolve them, rather than rerunning the workload that froze the host.
+
+## Source-only follow-up: A result fbe21798 (2026-09-27)
+
+Reviewed A product `0e58792d` and evidence `c10b4eea`, with coordination main
+`bc9a8cc`. No B build, test, app launch or heartbeat restart. The three incident
+PIDs are absent and the local resource-hold file remains present. This update
+changes documentation only.
+
+### A mitigation review
+
+The pass propagates through nested source rendering, reserves source/result bytes
+before cold evaluation, and releases failed reservations through RAII. Persistent
+cache hits are pinned in the same pass. Top-level filtered frame tiles execute
+serially without holding the pass/cache mutex through nested evaluator calls.
+This addresses the reported within-frame oversized-result recomputation path
+without adding a blocking per-key wait. A reports six integration and one
+reservation tests; B inspected their evidence, did not independently execute them.
+The recorded RED-source archive gap and explicit 1/2/4-worker deadlock tests are
+retained limitations. This is not approval for main integration or incident closure.
+
+**Residual whole-image mask work:** at A `smart_filters.rs:656–689`, every
+`filtered_source` call clones the cached unmasked raster then calls
+`edit_region(Rect::of_extent(...))` when a filter mask is enabled.
+`Raster::render_region` (`raster.rs:379–421`) materializes replacement tiles for
+the entire region before `edit_region` installs them. Thus pass-cache reuse does
+not prevent repeated full-image mask blending/allocation for successive output
+tiles. The filter-stage attempt counter does not count this work. This behavior
+predates A's patch; it is a remaining resource hotspot, not a new correctness
+regression. A owns the fix/design: count masked pixels/allocations in a tiny
+multi-tile case; preserve distinct masks on objects sharing the unmasked key.
+Do not cache final masked results by the unmasked key alone.
+
+Direct tile calls, simultaneous independent frames, transient allocations, GPU
+residency and inner transform cancellation remain outside this pass bound, as A
+already reports. Default 1 GiB/256 entries is per pass, not a host admission cap.
+
+### Additional B frontend findings
+
+1. **Second orphan-timer path (P2):** `Tools/ToolOverlayView.swift:19–36` has the
+   same repeating timer/nil-weak-self issue as `MarchingAntsView`. Its animation
+   predicate reads global outline/gesture state, and `draw` calls `updateTimer`
+   before checking whether the viewport owns the active document (lines65–67).
+   A stale overlay can therefore animate because another document has a selection.
+   Neither implementation stops for detached/hidden/occluded windows. These are
+   source-proven lifecycle defects, not a measured explanation for ten busy cores.
+   Regression requirements: remove view with active selection, release last view
+   reference, switch document ownership, hide/unhide, occlude/unocclude; require
+   zero recurring ticks while inactive and one timer when active again.
+
+2. **Obsolete outline computation is not coalesced (P2):**
+   `Tools/DocumentTools.swift:682–709` enqueues every changed epoch/level on a
+   serial dispatch queue. The generation check occurs only after
+   `selectionOutline` returns, on the main queue. Newest-result-wins protects UI
+   correctness but does not skip obsolete queued engine calls or bound queue
+   length. Closures retain the backend until executed. Use one running request
+   plus one replaceable newest pending request; invalidation must also handle
+   selection clear/document close. A deterministic fake backend blocked on its
+   first request should prove a burst executes at most first plus latest. No
+   queue growth measurement or live leak claim is made.
+
+3. **Viewport destruction lacks explicit backend release (P2 risk):**
+   `DocumentViewportRepresentable` defines make/update but no dismantle hook.
+   `attach(nil)` performs detachment, yet no dismantle path invokes it. Removing
+   a SwiftUI viewport while its document remains open can leave the backend's
+   surface ring registered until document switch/close/replacement. The Rust
+   `detach_surfaces` clears that registry (`document.rs:2056`); normal
+   `DocumentController.close` already calls it and then closes the session, so
+   this is specifically retained-open-document view removal, not every close.
+   Add teardown with ownership guards: an obsolete view must not clear a newer
+   view's callback/surface registration. A two-view replacement regression must
+   accompany a simple dismantle regression. Runtime surface retention remains
+   unmeasured.
+
+The existing model/history synchronous refresh concern remains an unmeasured
+contention risk. Coalescing those notifications requires event-order tests; it
+should not be changed blindly alongside the timer repair. This review introduces
+no product changes under the current source-review-only request.

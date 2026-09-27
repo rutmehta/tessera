@@ -302,3 +302,11 @@ budgets and a repeating-timer lifecycle issue. Original/failed evidence retained
 Nine lightweight runner tests pass for the new hold; no expensive verification
 was run. Only low-impact audit/fixes may proceed; don't resume the old queue or
 heartbeat until resource protections and bounded validation are established.
+
+### Source-only resource continuation
+
+Read A mailbox fbe21798 and reviewed product0e58792d/evidencec10b4eea; latest
+coordination mainbc9a8cc. RESOURCE-AUDIT.md now records remaining per-tile whole-image
+mask work for A, plus B's second orphan timer, obsolete outline queue work and
+viewport dismantle/surface ownership gap. No product mutation/build/test/app
+launch; resource hold and paused heartbeat remain. A retains sole main merges.
