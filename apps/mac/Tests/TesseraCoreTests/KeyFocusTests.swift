@@ -1,5 +1,6 @@
 import AppKit
 import XCTest
+import SwiftUI
 @testable import Tessera
 @testable import TesseraCore
 
@@ -129,6 +130,45 @@ final class KeyFocusTests: XCTestCase {
                               styleMask: .titled, backing: .buffered, defer: false)
         XCTAssertTrue(KeyRouter(model: model).handle(key(124, "\u{F703}", window: window)))
         XCTAssertNotNil(model.focusedPosition)
+    }
+
+    func testLoupeDisclosureLeavesKeysToPopoverWithoutWorkspaceRouting() {
+        let model = AppModel()
+        model.loadStubItems(count: 10)
+        model.viewMode = .loupe
+        model.loupeDisclosurePresented = true
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 100),
+                              styleMask: .titled, backing: .buffered, defer: false)
+        let router = KeyRouter(model: model)
+        let originalPosition = model.focusedPosition
+        let originalDecision = model.focusedState.decision
+
+        for (code, character) in [(UInt16(123), "\u{F702}"), (UInt16(7), "x"), (UInt16(2), "d")] {
+            XCTAssertFalse(router.handle(key(code, character, window: window)))
+        }
+        XCTAssertFalse(router.handle(key(48, "\t", window: window)), "Tab remains available to native popover focus")
+        XCTAssertFalse(router.handle(key(12, "q", window: window, modifiers: .command)), "Command shortcuts remain native input")
+        XCTAssertEqual(model.viewMode, .loupe)
+        XCTAssertEqual(model.focusedPosition, originalPosition)
+        XCTAssertEqual(model.focusedState.decision, originalDecision)
+        XCTAssertFalse(model.isPhotoEditing)
+
+        var displayInfoPresented = true
+        var shortcutsPresented = false
+        let displayInfoBinding = Binding(get: { displayInfoPresented }, set: { displayInfoPresented = $0 })
+        let shortcutsBinding = Binding(get: { shortcutsPresented }, set: { shortcutsPresented = $0 })
+        model.dismissLoupeDisclosure = LoupeOverlay.makeDismissAction(
+            displayInfo: displayInfoBinding, shortcuts: shortcutsBinding
+        )
+        XCTAssertTrue(router.handle(key(53, "\u{1b}", window: window)), "Escape dismisses the active disclosure")
+        XCTAssertFalse(displayInfoPresented)
+        XCTAssertFalse(shortcutsPresented)
+        XCTAssertEqual(model.viewMode, .loupe)
+        XCTAssertFalse(model.loupeDisclosurePresented, "the active disclosure is cleared after Escape")
+        XCTAssertNil(model.dismissLoupeDisclosure)
+
+        XCTAssertTrue(router.handle(key(53, "\u{1b}", window: window)))
+        XCTAssertEqual(model.viewMode, .grid)
     }
 
     func testSliderModifiersBoundsAndBlurCommit() {

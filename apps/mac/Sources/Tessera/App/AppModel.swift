@@ -239,6 +239,9 @@ final class AppModel {
     var statusMessage: String?
     /// Set by the loupe view: colour space and EDR headroom of the current screen.
     var loupeInfo = ""
+    /// A Loupe disclosure owns workspace keys while open; Escape dismisses the active disclosure.
+    @ObservationIgnored var loupeDisclosurePresented = false
+    @ObservationIgnored var dismissLoupeDisclosure: (@MainActor () -> Void)?
     private(set) var developStatus: DevelopStatus = .none
     /// Bumped when develop values change outside a slider drag (open, undo, reset, snapshot).
     private(set) var developRevision = 0
