@@ -1,0 +1,13 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "compositor",
+    "--test",
+    "transform_psd"
+  ],
+  "exit": 0,
+  "started_unix": 1790549282.700064,
+  "elapsed_seconds": 1.2506072521209717
+}

@@ -1,0 +1,15 @@
+{
+  "command": [
+    "cargo",
+    "clippy",
+    "-p",
+    "compositor",
+    "--all-targets",
+    "--",
+    "-D",
+    "warnings"
+  ],
+  "exit": 0,
+  "started_unix": 1790549285.861357,
+  "elapsed_seconds": 63.54526114463806
+}

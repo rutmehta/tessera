@@ -1,0 +1,13 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "compositor",
+    "--test",
+    "psd_cancellation"
+  ],
+  "exit": 101,
+  "started_unix": 1790549200.528186,
+  "elapsed_seconds": 0.503058910369873
+}

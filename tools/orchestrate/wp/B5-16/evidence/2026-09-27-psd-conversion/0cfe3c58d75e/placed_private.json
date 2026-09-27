@@ -1,0 +1,13 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "compositor",
+    "--lib",
+    "psd::placed::tests"
+  ],
+  "exit": 0,
+  "started_unix": 1790549199.906542,
+  "elapsed_seconds": 0.5623791217803955
+}

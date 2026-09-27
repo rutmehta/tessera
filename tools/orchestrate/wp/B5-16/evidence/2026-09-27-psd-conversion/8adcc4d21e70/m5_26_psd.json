@@ -1,0 +1,13 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "compositor",
+    "--test",
+    "m5_26_psd"
+  ],
+  "exit": 0,
+  "started_unix": 1790549280.184957,
+  "elapsed_seconds": 1.1926419734954834
+}

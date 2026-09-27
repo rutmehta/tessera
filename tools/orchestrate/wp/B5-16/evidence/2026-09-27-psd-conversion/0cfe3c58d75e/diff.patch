@@ -1,0 +1,729 @@
+diff --git a/crates/compositor/src/psd.rs b/crates/compositor/src/psd.rs
+index 2f7eb0e5..399dc018 100644
+--- a/crates/compositor/src/psd.rs
++++ b/crates/compositor/src/psd.rs
+@@ -9,7 +9,7 @@ mod vector;
+ use crate::channels::{ChannelId, ChannelKind, DocumentChannel};
+ use crate::{Depth, DocState, Layer, LayerId, LayerKind, Raster, Rect};
+ use ::psd::{Channel, ColorMode, Compression, PsdDocument};
+-use engine_api::{EngineError, EngineResult, tile::Extent};
++use engine_api::{EngineError, EngineResult, jobs::CancellationToken, tile::Extent};
+ use std::{
+     collections::BTreeMap,
+     ops::{Deref, DerefMut},
+@@ -100,6 +100,28 @@ impl DerefMut for ImportedPsd {
+ fn error(message: impl ToString) -> EngineError {
+     EngineError::invalid("PSD adapter", message.to_string())
+ }
++fn checked_len(a: usize, b: usize) -> EngineResult<usize> {
++    a.checked_mul(b)
++        .ok_or_else(|| error("PSD output size overflow"))
++}
++fn check_pixel(cancel: &CancellationToken, x: usize) -> EngineResult<()> {
++    if x & 1023 == 0 {
++        cancel.check()?;
++    }
++    Ok(())
++}
++fn checked_rows(
++    start: u32,
++    end: u32,
++    cancel: &CancellationToken,
++    mut row: impl FnMut(u32) -> EngineResult<()>,
++) -> EngineResult<()> {
++    for y in start..end {
++        cancel.check()?;
++        row(y)?;
++    }
++    cancel.check()
++}
+ fn depth(bits: u16) -> EngineResult<Depth> {
+     match bits {
+         8 => Ok(Depth::U8),
+@@ -230,7 +252,18 @@ fn export_channels(
+     imported: &ImportedPsd,
+     source: &mut PsdDocument,
+     plane: usize,
++    cancel: &CancellationToken,
++) -> EngineResult<()> {
++    export_channels_with_checkpoint(imported, source, plane, cancel, &|_| {})
++}
++fn export_channels_with_checkpoint(
++    imported: &ImportedPsd,
++    source: &mut PsdDocument,
++    plane: usize,
++    cancel: &CancellationToken,
++    before_channel: &impl Fn(usize),
+ ) -> EngineResult<()> {
++    cancel.check()?;
+     let channels = &imported.state.channels;
+     // Rebuild all owned channel metadata; unrelated resources stay byte-for-byte.
+     source
+@@ -246,6 +279,9 @@ fn export_channels(
+     let mut legacy = Vec::new();
+     let base = 3 + usize::from(source.layer_section.merged_alpha);
+     for (i, channel) in channels.iter().enumerate() {
++        cancel.check()?;
++        before_channel(i);
++        cancel.check()?;
+         let (color, solidity, mode) = match &channel.kind {
+             ChannelKind::Alpha => ([1.0, 0.0, 0.0], 0.5, 0),
+             ChannelKind::AlphaDisplay {
+@@ -276,11 +312,13 @@ fn export_channels(
+             return Err(error("saved channel must be a single canvas-sized plane"));
+         }
+         let mut bytes = Vec::with_capacity(plane);
+-        for y in 0..source.height {
++        checked_rows(0, source.height, cancel, |y| {
+             for x in 0..source.width {
++                check_pixel(cancel, x as usize)?;
+                 encode(channel.raster.pixel(x, y)[0], imported.depth, &mut bytes);
+             }
+-        }
++            Ok(())
++        })?;
+         source.composite[(base + i) * plane..(base + i + 1) * plane].copy_from_slice(&bytes);
+     }
+     if !channels.is_empty() {
+@@ -291,7 +329,7 @@ fn export_channels(
+             .resources
+             .push(::psd::ImageResource::new(1077, modern));
+     }
+-    Ok(())
++    cancel.check()
+ }
+ 
+ /// Import RGB layers; PSD file order is top-first, compositor order bottom-first.
+@@ -1551,7 +1589,9 @@ fn export_mask(
+     layer: &mut ::psd::Layer,
+     canvas: Extent,
+     depth: Depth,
++    cancel: &CancellationToken,
+ ) -> EngineResult<()> {
++    cancel.check()?;
+     let Some(mask) = mask else {
+         layer.mask_data.clear();
+         layer.channels.retain(|c| c.id != -2 && c.id != -3);
+@@ -1634,9 +1674,15 @@ fn export_mask(
+     }
+     let channel = layer.channels.iter_mut().find(|c| c.id == id).unwrap();
+     let old = std::mem::take(&mut channel.data);
+-    let (w, _) = b.dimensions().map_err(error)?;
++    let (w, h) = b.dimensions().map_err(error)?;
++    cancel.check()?;
++    channel
++        .data
++        .reserve(checked_len(checked_len(w, h)?, depth.bytes())?);
+     for y in b.top..b.bottom {
++        cancel.check()?;
+         for x in b.left..b.right {
++            check_pixel(cancel, (i64::from(x) - i64::from(b.left)) as usize)?;
+             if x >= 0 && y >= 0 && x < canvas.width as i32 && y < canvas.height as i32 {
+                 let v = mask.raster.pixel(x as u32, y as u32)[0];
+                 encode(
+@@ -1656,7 +1702,7 @@ fn export_mask(
+             }
+         }
+     }
+-    Ok(())
++    cancel.check()
+ }
+ fn section(layer: &::psd::Layer) -> EngineResult<(u32, Option<[u8; 4]>)> {
+     let Some(b) = layer.info(b"lsct").or_else(|| layer.info(b"lsdk")) else {
+@@ -2370,19 +2416,32 @@ pub trait PsdExport {
+ }
+ impl PsdExport for ImportedPsd {
+     fn export_psd(&self) -> EngineResult<PsdDocument> {
+-        export_imported(self)
++        export_imported(self, &CancellationToken::new())
+     }
+ }
+ impl PsdExport for crate::Document {
+     fn export_psd(&self) -> EngineResult<PsdDocument> {
+-        let mut imported = match &self.psd_source {
+-            Some(source) => source.as_ref().clone(),
+-            None => ImportedPsd::from_state((**self.state()).clone())?,
+-        };
+-        imported.state = (**self.state()).clone();
+-        export_imported(&imported)
++        to_psd_with_cancel(self, &CancellationToken::new())
+     }
+ }
++/// Export a document to PSD with caller cancellation through live rendering,
++/// node traversal, and raster/channel assembly. Metadata clones, vector/text
++/// rasterization, placed-raster copies, and PSD encoding are boundary-checked
++/// opaque operations; serialization of the returned PSD remains separate.
++pub fn to_psd_with_cancel(
++    document: &crate::Document,
++    cancel: &CancellationToken,
++) -> EngineResult<PsdDocument> {
++    cancel.check()?;
++    let mut imported = match &document.psd_source {
++        Some(source) => source.as_ref().clone(),
++        None => ImportedPsd::from_state((**document.state()).clone())?,
++    };
++    cancel.check()?;
++    imported.state = (**document.state()).clone();
++    cancel.check()?;
++    export_imported(&imported, cancel)
++}
+ impl crate::Document {
+     /// Import RGB PSD with original records retained across edits and history.
+     /// Native tessera-doc serialization currently does not retain these records.
+@@ -2393,8 +2452,13 @@ impl crate::Document {
+         Ok(document)
+     }
+ }
+-fn export_imported(imported: &ImportedPsd) -> EngineResult<PsdDocument> {
++fn export_imported(
++    imported: &ImportedPsd,
++    cancel: &CancellationToken,
++) -> EngineResult<PsdDocument> {
++    cancel.check()?;
+     let mut source = imported.source.clone();
++    cancel.check()?;
+     if imported.canvas.width != source.width
+         || imported.canvas.height != source.height
+         || imported.depth != depth(source.depth)?
+@@ -2424,16 +2488,22 @@ fn export_imported(imported: &ImportedPsd) -> EngineResult<PsdDocument> {
+             ));
+         }
+     }
++    let pixels = checked_len(source.width as usize, source.height as usize)?;
++    let plane = checked_len(pixels, imported.depth.bytes())?;
+     let mut linked = Vec::new();
+-    source.layer_section.layers = export_nodes(&imported.root, imported, &mut linked)?;
++    source.layer_section.layers = export_nodes(&imported.root, imported, &mut linked, cancel)?;
++    cancel.check()?;
+     placed::append_linked(&mut source.layer_section.additional, &linked)?;
++    cancel.check()?;
+     let document = crate::Document::new(imported.state.clone());
+-    let (_, rgba) = crate::Compositor::new(64 << 20).render_level_rgba(&document, 0)?;
+-    let plane = source.width as usize * source.height as usize * imported.depth.bytes();
++    let (_, rgba) =
++        crate::Compositor::new(64 << 20).render_level_rgba_with_cancel(&document, 0, cancel)?;
++    cancel.check()?;
+     // The only standard merged-alpha signal is a negative layer count. An
+     // empty native canvas therefore needs a transparent placeholder layer;
+     // negative zero cannot carry that signal through serialization.
+     if source.layer_section.layers.is_empty() {
++        cancel.check()?;
+         source.layer_section.layers.push(::psd::Layer {
+             name: b"Empty canvas".to_vec(),
+             bounds: ::psd::Rect {
+@@ -2453,7 +2523,18 @@ fn export_imported(imported: &ImportedPsd) -> EngineResult<PsdDocument> {
+             ..Default::default()
+         });
+     }
+-    source.layer_section.merged_alpha |= rgba.as_chunks::<4>().0.iter().any(|p| p[3] != 1.0);
++    let mut has_alpha = false;
++    'alpha: for y in 0..source.height {
++        cancel.check()?;
++        for x in 0..source.width {
++            check_pixel(cancel, x as usize)?;
++            if rgba[(y as usize * source.width as usize + x as usize) * 4 + 3] != 1.0 {
++                has_alpha = true;
++                break 'alpha;
++            }
++        }
++    }
++    source.layer_section.merged_alpha |= has_alpha;
+     source.channels = u16::try_from(
+         3 + usize::from(source.layer_section.merged_alpha) + imported.state.channels.len(),
+     )
+@@ -2461,16 +2542,28 @@ fn export_imported(imported: &ImportedPsd) -> EngineResult<PsdDocument> {
+     if source.channels > 56 {
+         return Err(error("PSD supports at most 56 composite channels"));
+     }
++    let composite_len = checked_len(plane, source.channels as usize)?;
++    cancel.check()?;
+     source.composite.clear();
+-    source.composite.resize(plane * source.channels as usize, 0);
++    source.composite.resize(composite_len, 0);
+     for c in 0..(3 + usize::from(source.layer_section.merged_alpha)) {
++        cancel.check()?;
+         let mut bytes = Vec::with_capacity(plane);
+-        for p in rgba.as_chunks::<4>().0 {
+-            encode(p[c], imported.depth, &mut bytes);
+-        }
++        checked_rows(0, source.height, cancel, |y| {
++            for x in 0..source.width {
++                check_pixel(cancel, x as usize)?;
++                encode(
++                    rgba[(y as usize * source.width as usize + x as usize) * 4 + c],
++                    imported.depth,
++                    &mut bytes,
++                );
++            }
++            Ok(())
++        })?;
+         source.composite[c * plane..(c + 1) * plane].copy_from_slice(&bytes);
+     }
+-    export_channels(imported, &mut source, plane)?;
++    export_channels(imported, &mut source, plane, cancel)?;
++    cancel.check()?;
+     if let Some(profile) = &imported.profile {
+         if let Some(bytes) = &profile.icc {
+             if let Some(r) = source.resources.iter_mut().find(|r| r.id == 1039) {
+@@ -2506,6 +2599,7 @@ fn export_imported(imported: &ImportedPsd) -> EngineResult<PsdDocument> {
+             source.resources.push(r);
+         }
+     }
++    cancel.check()?;
+     Ok(source)
+ }
+ fn export_raster(
+@@ -2513,12 +2607,16 @@ fn export_raster(
+     layer: &mut ::psd::Layer,
+     canvas: Extent,
+     depth: Depth,
++    cancel: &CancellationToken,
+ ) -> EngineResult<()> {
++    cancel.check()?;
+     let old_bounds = layer.bounds;
+     let (old_w, _) = old_bounds.dimensions().map_err(error)?;
+     let mut bounds = old_bounds;
+     for y in 0..canvas.height {
++        cancel.check()?;
+         for x in 0..canvas.width {
++            check_pixel(cancel, x as usize)?;
+             let p = r.pixel(x, y);
+             if p.iter().any(|v| *v != 0.0) {
+                 bounds.left = bounds.left.min(x as i32);
+@@ -2533,10 +2631,20 @@ fn export_raster(
+             continue;
+         }
+         let default = if id == -1 { 1.0 } else { 0.0 };
+-        let needs = (bounds.top.max(0)..bounds.bottom.min(canvas.height as i32)).any(|y| {
+-            (bounds.left.max(0)..bounds.right.min(canvas.width as i32))
+-                .any(|x| r.pixel(x as u32, y as u32)[component] != default)
+-        });
++        let mut needs = false;
++        for y in bounds.top.max(0)..bounds.bottom.min(canvas.height as i32) {
++            cancel.check()?;
++            for x in bounds.left.max(0)..bounds.right.min(canvas.width as i32) {
++                check_pixel(cancel, (x - bounds.left.max(0)) as usize)?;
++                if r.pixel(x as u32, y as u32)[component] != default {
++                    needs = true;
++                    break;
++                }
++            }
++            if needs {
++                break;
++            }
++        }
+         if needs {
+             layer.channels.push(Channel {
+                 id,
+@@ -2546,6 +2654,7 @@ fn export_raster(
+         }
+     }
+     for channel in &mut layer.channels {
++        cancel.check()?;
+         if channel.id < -1 {
+             continue;
+         }
+@@ -2555,8 +2664,15 @@ fn export_raster(
+             _ => None,
+         };
+         let old = std::mem::take(&mut channel.data);
++        let (width, height) = bounds.dimensions().map_err(error)?;
++        cancel.check()?;
++        channel
++            .data
++            .reserve(checked_len(checked_len(width, height)?, depth.bytes())?);
+         for y in bounds.top..bounds.bottom {
++            cancel.check()?;
+             for x in bounds.left..bounds.right {
++                check_pixel(cancel, (i64::from(x) - i64::from(bounds.left)) as usize)?;
+                 if let Some(c) = component.filter(|_| {
+                     x >= 0 && y >= 0 && x < canvas.width as i32 && y < canvas.height as i32
+                 }) {
+@@ -2585,15 +2701,29 @@ fn export_raster(
+         }
+     }
+     layer.bounds = bounds;
+-    Ok(())
++    cancel.check()
+ }
+ fn export_nodes(
+     nodes: &[Arc<Layer>],
+     imported: &ImportedPsd,
+     linked: &mut Vec<u8>,
++    cancel: &CancellationToken,
+ ) -> EngineResult<Vec<::psd::Layer>> {
++    export_nodes_with_checkpoint(nodes, imported, linked, cancel, &|_| {})
++}
++fn export_nodes_with_checkpoint(
++    nodes: &[Arc<Layer>],
++    imported: &ImportedPsd,
++    linked: &mut Vec<u8>,
++    cancel: &CancellationToken,
++    before_node: &impl Fn(usize),
++) -> EngineResult<Vec<::psd::Layer>> {
++    cancel.check()?;
+     let mut records = Vec::new();
+-    for layer in nodes.iter().rev() {
++    for (index, layer) in nodes.iter().rev().enumerate() {
++        cancel.check()?;
++        before_node(index);
++        cancel.check()?;
+         let mut original = imported
+             .originals
+             .get(&layer.id)
+@@ -2627,14 +2757,24 @@ fn export_nodes(
+             &mut original,
+             imported.canvas,
+             imported.depth,
++            cancel,
++        )?;
++        cancel.check()?;
++        vector::export_bridge(
++            layer,
++            &mut original,
++            imported.canvas,
++            imported.depth,
++            cancel,
+         )?;
+-        vector::export_bridge(layer, &mut original, imported.canvas, imported.depth)?;
++        cancel.check()?;
+         vector::export_mask(
+             layer.vector_mask.as_ref(),
+             &mut original,
+             imported.canvas,
+             matches!(layer.kind, LayerKind::Shape { .. }),
+         )?;
++        cancel.check()?;
+         if let LayerKind::Group { mode, children } = &layer.kind {
+             let key = if *mode == crate::GroupMode::PassThrough {
+                 *b"pass"
+@@ -2662,7 +2802,13 @@ fn export_nodes(
+                 set_tag(&mut original, tag_key, data);
+             }
+             records.push(original);
+-            records.extend(export_nodes(children, imported, linked)?);
++            records.extend(export_nodes_with_checkpoint(
++                children,
++                imported,
++                linked,
++                cancel,
++                before_node,
++            )?);
+             let end = imported.endings.get(&layer.id).cloned().unwrap_or_else(|| {
+                 let mut e = ::psd::Layer::default();
+                 set_tag(&mut e, *b"lsct", 3u32.to_be_bytes().to_vec());
+@@ -2676,12 +2822,16 @@ fn export_nodes(
+             LayerKind::Pixel(r) => r,
+             LayerKind::Text { model, transform } => {
+                 text::export(model, *transform, &mut original)?;
++                cancel.check()?;
+                 rendered = crate::rasterize_layer(layer, imported.canvas, 0)?;
++                cancel.check()?;
+                 &rendered
+             }
+             LayerKind::Shape { model, transform } => {
+                 vector::export_shape(model, *transform, &mut original, imported.canvas)?;
++                cancel.check()?;
+                 rendered = crate::rasterize_layer(layer, imported.canvas, 0)?;
++                cancel.check()?;
+                 &rendered
+             }
+             LayerKind::SmartObject(so) => {
+@@ -2703,7 +2853,8 @@ fn export_nodes(
+                         .raster()
+                         .ok_or_else(|| error("smart object proxy is not a raster"))?
+                 } else {
+-                    rendered = placed::export(so, &mut original, imported.canvas, imported.depth)?;
++                    rendered =
++                        placed::export(so, &mut original, imported.canvas, imported.depth, cancel)?;
+                     if let Some(i) = original.additional.iter().position(|b| b.key == *b"lnk2") {
+                         linked.extend(original.additional.remove(i).data);
+                     }
+@@ -2730,9 +2881,115 @@ fn export_nodes(
+                     .collect::<Vec<_>>(),
+             );
+         }
+-        export_raster(r, &mut original, imported.canvas, imported.depth)?;
++        export_raster(r, &mut original, imported.canvas, imported.depth, cancel)?;
++        cancel.check()?;
+         export_props(&layer.props, &mut original)?;
+         records.push(original);
+     }
++    cancel.check()?;
+     Ok(records)
+ }
++
++#[cfg(test)]
++mod cancellation_tests {
++    use super::*;
++
++    #[test]
++    fn row_checkpoint_stops_before_later_rows_and_retry_is_independent() {
++        let cancel = CancellationToken::new();
++        let mut visited = Vec::new();
++        let result = checked_rows(0, 3, &cancel, |y| {
++            visited.push(y);
++            cancel.cancel();
++            Ok(())
++        });
++        assert_eq!(result, Err(EngineError::Cancelled));
++        assert_eq!(visited, [0]);
++
++        let mut retry = Vec::new();
++        checked_rows(0, 3, &CancellationToken::new(), |y| {
++            retry.push(y);
++            Ok(())
++        })
++        .unwrap();
++        assert_eq!(retry, [0, 1, 2]);
++    }
++
++    #[test]
++    fn output_capacity_arithmetic_is_checked() {
++        assert!(checked_len(usize::MAX, 2).is_err());
++        assert_eq!(checked_len(3, 4).unwrap(), 12);
++    }
++
++    #[test]
++    fn node_traversal_stops_before_later_node_and_retry_succeeds() {
++        let extent = Extent::new(2, 1);
++        let mut state = DocState::new(extent, Depth::U8);
++        state
++            .root
++            .push(Arc::new(Layer::pixel("first", extent, Depth::U8)));
++        state
++            .root
++            .push(Arc::new(Layer::pixel("second", extent, Depth::U8)));
++        let imported = ImportedPsd::from_state(state).unwrap();
++        let cancel = CancellationToken::new();
++        let visited = std::cell::RefCell::new(Vec::new());
++        let result = export_nodes_with_checkpoint(
++            &imported.root,
++            &imported,
++            &mut Vec::new(),
++            &cancel,
++            &|index| {
++                visited.borrow_mut().push(index);
++                if index == 1 {
++                    cancel.cancel();
++                }
++            },
++        );
++        assert_eq!(result, Err(EngineError::Cancelled));
++        assert_eq!(*visited.borrow(), [0, 1]);
++        assert_eq!(
++            export_nodes(
++                &imported.root,
++                &imported,
++                &mut Vec::new(),
++                &CancellationToken::new()
++            )
++            .unwrap()
++            .len(),
++            2
++        );
++    }
++
++    #[test]
++    fn saved_channel_traversal_stops_before_later_channel() {
++        let extent = Extent::new(2, 1);
++        let mut state = DocState::new(extent, Depth::U8);
++        state.channels = (0..2)
++            .map(|i| DocumentChannel {
++                id: ChannelId(i + 1),
++                name: format!("saved {i}"),
++                kind: ChannelKind::Alpha,
++                raster: Raster::new(extent, 1, Depth::U8, 0.5),
++            })
++            .collect();
++        let imported = ImportedPsd::from_state(state).unwrap();
++        let mut source = imported.source.clone();
++        let plane = 2;
++        source.composite.resize(plane * 6, 0);
++        let cancel = CancellationToken::new();
++        let visited = std::cell::RefCell::new(Vec::new());
++        let result =
++            export_channels_with_checkpoint(&imported, &mut source, plane, &cancel, &|index| {
++                visited.borrow_mut().push(index);
++                if index == 1 {
++                    cancel.cancel();
++                }
++            });
++        assert_eq!(result, Err(EngineError::Cancelled));
++        assert_eq!(*visited.borrow(), [0, 1]);
++        let mut retry = imported.source.clone();
++        retry.composite.resize(plane * 6, 0);
++        export_channels(&imported, &mut retry, plane, &CancellationToken::new()).unwrap();
++    }
++}
+diff --git a/crates/compositor/src/psd/placed.rs b/crates/compositor/src/psd/placed.rs
+index d670e7e7..34806a27 100644
+--- a/crates/compositor/src/psd/placed.rs
++++ b/crates/compositor/src/psd/placed.rs
+@@ -154,24 +154,49 @@ pub(super) fn append_linked(
+     Ok(())
+ }
+ 
+-fn render(state: DocState, depth: Depth) -> EngineResult<Raster> {
++fn render(state: DocState, depth: Depth, cancel: &CancellationToken) -> EngineResult<Raster> {
++    cancel.check()?;
+     let e = state.canvas;
+-    let (_, rgba) =
+-        crate::Compositor::new(64 << 20).render_level_rgba(&crate::Document::new(state), 0)?;
++    let (_, rgba) = crate::Compositor::new(64 << 20).render_level_rgba_with_cancel(
++        &crate::Document::new(state),
++        0,
++        cancel,
++    )?;
++    cancel.check()?;
+     let mut raster = Raster::new(e, 4, depth, 0.);
++    // Raster::edit_region has no fallible pixel callback; this copy remains
++    // boundary-cancellable until that API supports cooperative interruption.
+     raster.edit_region(Rect::of_extent(e), 1, |x, y, p| {
+         let i = (y as usize * e.width as usize + x as usize) * 4;
+         p.copy_from_slice(&rgba[i..i + 4]);
+     })?;
++    cancel.check()?;
+     Ok(raster)
+ }
+ 
++fn embedded_bytes(
++    flat: DocState,
++    cancel: &CancellationToken,
++    before_conversion: impl FnOnce(),
++) -> EngineResult<Vec<u8>> {
++    before_conversion();
++    let bytes = to_psd_with_cancel(&crate::Document::new(flat), cancel)?
++        .write()
++        .map_err(error)?;
++    // The writer is opaque, but a cancellation accepted during it must not
++    // yield a completed embedded export.
++    cancel.check()?;
++    Ok(bytes)
++}
++
+ pub(super) fn export(
+     so: &crate::SmartObject,
+     layer: &mut ::psd::Layer,
+     canvas: Extent,
+     depth: Depth,
++    cancel: &CancellationToken,
+ ) -> EngineResult<Raster> {
++    cancel.check()?;
+     if so.filters.iter().any(|f| f.enabled) {
+         return Err(error(
+             "smart filters and TransformOp stages are native-only; rasterize explicitly for PSD",
+@@ -181,7 +206,8 @@ pub(super) fn export(
+         return Err(error("invalid placed affine"));
+     }
+     let e = so.state.canvas;
+-    let raster = render((*so.state).clone(), so.state.depth)?;
++    let raster = render((*so.state).clone(), so.state.depth, cancel)?;
++    cancel.check()?;
+     let mut flat = DocState::new(e, so.state.depth);
+     flat.ppi = so.state.ppi;
+     flat.profile = so.state.profile.clone();
+@@ -189,9 +215,7 @@ pub(super) fn export(
+         "Embedded source",
+         LayerKind::Pixel(raster),
+     )));
+-    let bytes = to_psd(&crate::Document::new(flat))?
+-        .write()
+-        .map_err(error)?;
++    let bytes = embedded_bytes(flat, cancel, || {})?;
+     let digest = blake3::hash(&bytes).to_hex().to_string();
+     let id = format!(
+         "{}-{}-{}-{}-{}",
+@@ -354,18 +378,35 @@ pub(super) fn export(
+         "Proxy",
+         LayerKind::SmartObject(so.clone()),
+     )));
+-    render(parent, depth)
++    render(parent, depth, cancel)
+ }
+ 
+ #[cfg(test)]
+ mod tests {
+     use super::*;
+     #[test]
++    fn recursive_embedded_conversion_uses_live_token() {
++        let cancel = CancellationToken::new();
++        let e = Extent::new(2, 2);
++        assert_eq!(
++            embedded_bytes(DocState::new(e, Depth::U8), &cancel, || cancel.cancel()),
++            Err(EngineError::Cancelled)
++        );
++        assert!(
++            embedded_bytes(
++                DocState::new(e, Depth::U8),
++                &CancellationToken::new(),
++                || {}
++            )
++            .is_ok()
++        );
++    }
++    #[test]
+     fn retains_unknown_descriptor_fields_on_affine_export() {
+         let e = Extent::new(2, 2);
+         let so = crate::SmartObject::new(DocState::new(e, Depth::U8), crate::Affine::IDENTITY);
+         let mut layer = ::psd::Layer::default();
+-        export(&so, &mut layer, e, Depth::U8).unwrap();
++        export(&so, &mut layer, e, Depth::U8, &CancellationToken::new()).unwrap();
+         let mut d = ::psd::metadata::parse_smart_object(&layer.info(b"SoLd").unwrap().data)
+             .unwrap()
+             .descriptor;
+@@ -378,7 +419,7 @@ mod tests {
+         .concat();
+         super::super::style_interop::descriptor(&d, &mut data);
+         set_tag(&mut layer, *b"SoLd", data);
+-        export(&so, &mut layer, e, Depth::U8).unwrap();
++        export(&so, &mut layer, e, Depth::U8, &CancellationToken::new()).unwrap();
+         let d = ::psd::metadata::parse_smart_object(&layer.info(b"SoLd").unwrap().data)
+             .unwrap()
+             .descriptor;
+diff --git a/crates/compositor/src/psd/vector.rs b/crates/compositor/src/psd/vector.rs
+index 707ce6b1..3ab2f79c 100644
+--- a/crates/compositor/src/psd/vector.rs
++++ b/crates/compositor/src/psd/vector.rs
+@@ -854,7 +854,9 @@ pub(super) fn export_bridge(
+     layer: &mut ::psd::Layer,
+     canvas: Extent,
+     depth: Depth,
++    cancel: &engine_api::jobs::CancellationToken,
+ ) -> EngineResult<()> {
++    cancel.check()?;
+     if !matches!(node.kind, LayerKind::Shape { .. }) {
+         return Ok(());
+     }
+@@ -879,7 +881,9 @@ pub(super) fn export_bridge(
+     let tile_size = engine_api::tile::TILE_SIZE;
+     let (cols, rows) = canvas.tile_grid(tile_size);
+     for y in 0..rows {
++        cancel.check()?;
+         for x in 0..cols {
++            cancel.check()?;
+             let tile = if mask.enabled {
+                 Some(comp.vector_mask_tile(
+                     node,
+@@ -917,6 +921,7 @@ pub(super) fn export_bridge(
+                     p[0] = coverage * user;
+                 },
+             )?;
++            cancel.check()?;
+         }
+     }
+     // Reset bounds so the combined plane covers the full document.
+@@ -932,10 +937,12 @@ pub(super) fn export_bridge(
+         layer,
+         canvas,
+         depth,
++        cancel,
+     )?;
++    cancel.check()?;
+     bridge.fingerprint = mask_fingerprint(layer);
+     set_tag(layer, *b"tvMk", serde_json::to_vec(&bridge).map_err(error)?);
+-    Ok(())
++    cancel.check()
+ }
+ 
+ #[derive(serde::Serialize, serde::Deserialize)]

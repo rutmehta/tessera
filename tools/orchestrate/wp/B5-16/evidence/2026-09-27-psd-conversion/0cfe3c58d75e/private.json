@@ -1,0 +1,13 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "compositor",
+    "--lib",
+    "cancellation_tests"
+  ],
+  "exit": 0,
+  "started_unix": 1790549177.197834,
+  "elapsed_seconds": 22.607333183288574
+}
