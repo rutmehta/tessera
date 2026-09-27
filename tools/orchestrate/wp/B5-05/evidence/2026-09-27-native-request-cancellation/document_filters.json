@@ -1,0 +1,21 @@
+{
+  "cmd": [
+    "cargo",
+    "test",
+    "-p",
+    "tessera-ffi",
+    "--test",
+    "document_filters",
+    "--",
+    "--nocapture"
+  ],
+  "exit_code": 0,
+  "timed_out": false,
+  "elapsed_s": 29.065,
+  "pid": 65644,
+  "source_manifest": "/Volumes/betterSSD/tessera-validation/native-preview-cancellation/cd07b435/manifest.json",
+  "head": "cd07b43559d5cd7e59c7193c096e0fdb995d9231",
+  "CARGO_BUILD_JOBS": "2",
+  "RAYON_NUM_THREADS": "2",
+  "CARGO_TARGET_DIR": "/Volumes/betterSSD/tessera-cache/target/main"
+}
