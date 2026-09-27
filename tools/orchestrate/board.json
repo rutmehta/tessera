@@ -1214,5 +1214,13 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "B5-09v",
+    "owner": "sol",
+    "title": "Verify Remove/CAF/Neural UI with real models",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
