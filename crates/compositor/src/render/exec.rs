@@ -55,6 +55,7 @@ pub(crate) enum Src<'a> {
     /// CPU neighbourhood-effects program; the GPU port rejects this source.
     Styled(super::effects::StyledTile),
     Raster(&'a Layer),
+    Live(&'a Layer),
     Fill(&'a Fill),
     Smart(&'a Layer, &'a SmartObject),
     /// A cached isolated-group composite (premultiplied f32).
@@ -224,7 +225,8 @@ impl<'a> TileJob<'a> {
             return self.emit_styles(layer, params, ops);
         }
         let src = match &layer.kind {
-            LayerKind::Pixel(_) | LayerKind::Text(_) => Src::Raster(layer),
+            LayerKind::Pixel(_) => Src::Raster(layer),
+            LayerKind::Text { .. } | LayerKind::Shape { .. } => Src::Live(layer),
             LayerKind::Fill(f) => Src::Fill(f),
             LayerKind::SmartObject(so) => Src::Smart(layer, so),
             LayerKind::Adjustment(_) => return Err(EngineError::internal("adjustment as source")),
@@ -280,6 +282,16 @@ impl<'a> TileJob<'a> {
             Src::Styled(_) => Err(EngineError::Unsupported {
                 what: "layer styles require CPU compositing".into(),
             }),
+            Src::Live(layer) => {
+                let tile = self.comp.live_tile(
+                    layer,
+                    self.doc.state.canvas,
+                    self.doc.state.depth,
+                    self.coord,
+                )?;
+                load_normalized_region(&tile, out, (r.x0, r.y0, r.x1, r.y1))?;
+                Ok(true)
+            }
             Src::Raster(layer) => {
                 let raster = layer
                     .raster()
@@ -355,6 +367,21 @@ impl<'a> TileJob<'a> {
     /// Loads the effective mask (`1 − d(1 − m)`) of `layer` into `out`
     /// (one plane). Returns false when the layer has no active mask.
     pub fn load_mask(&self, layer: &Layer, out: &mut [f32]) -> EngineResult<bool> {
+        if layer.vector_mask.as_ref().is_some_and(|m| m.enabled) {
+            let tile = self
+                .comp
+                .effective_vector_mask(self.doc, layer, self.coord)?;
+            let r = self.region;
+            load_normalized_region(&tile, out, (r.x0, r.y0, r.x1, r.y1))?;
+            // Resident mask pages use the ordinary density=1 mask ABI.
+            // Preserve its f32 rounding for combined raster/vector coverage.
+            for y in r.y0..r.y1 {
+                for value in &mut out[y * self.w + r.x0..y * self.w + r.x1] {
+                    *value = 1.0 - (1.0 - *value);
+                }
+            }
+            return Ok(true);
+        }
         let Some(m) = layer.mask.as_ref().filter(|m| m.enabled) else {
             return Ok(false);
         };

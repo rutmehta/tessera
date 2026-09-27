@@ -80,11 +80,11 @@ preview remains independent, and engine-api/tool schemas are unchanged.
 
 ## Layered documents (spec 02) and Actions
 
-The fifteen `DocumentToolCall` tools (`open_document`, `add_layer`,
+The `DocumentToolCall` tools (`open_document`, `add_layer`,
 `set_layer_props`, `paint_stroke`, `set_pixel_selection`,
 `apply_adjustment_layer`, `transform_layer`, `merge_down`, `export_document`,
 `list_layers`, `add_channel`, `delete_channel`, `rename_channel`, `edit_channel`,
-`load_channel_as_selection`) are listed with schemas derived by `build.rs` from engine-api's
+`load_channel_as_selection`, plus document filters and editable text/vector tools) are listed with schemas derived by `build.rs` from engine-api's
 serde declarations plus the `DocumentToolRequest` envelope (`rationale`,
 `group`, `expect_head`). Extra tools: `describe_document`,
 `render_document_preview`, `actions_record`, `actions_stop`, `actions_play`
@@ -151,8 +151,21 @@ requests; engine-api is unchanged.
 
 Known gaps: `merge_down` needs a pixel layer below and keeps the lower layer's mask and
 properties; `transform_layer` handles pixel layers (content and mask) and
-smart objects only. Saved selections are persistent alpha channels; their
+smart objects, editable text and vector shapes. Saved selections are persistent alpha channels; their
 SelectionId is the alpha ChannelId's numeric value.
+
+### Editable text and vectors (engine-api 1.5)
+
+`add_text`/`edit_text` carry a typed `TextModel`; `edit_text_runs` replaces a
+half-open range of run indexes while retaining paragraph properties.
+`add_shape`/`edit_shape` carry a `ShapeModel` with path, fill, stroke and optional
+live construction parameters. Add calls accept `name`, `parent`, `above`, and
+an identity-default `transform`; full-model edits replace the transform too.
+`set_vector_mask`/`remove_vector_mask` attach or remove a document-space mask.
+`convert_to_pixels` rasterizes editable content while retaining common properties
+and masks. All eight calls are undoable and replayable Actions, including symbolic
+references to newly created layers. `list_layers` adds optional text preview/font
+and shape-kind summaries plus `has_vector_mask`.
 
 ### Channel staging (engine-api 1.3)
 

@@ -35,6 +35,38 @@ final class DocumentKeyRoutingTests: XCTestCase {
         XCTAssertEqual(model.focusedPosition, 0)
     }
 
+    /// B5-v step 144: ⌘E in the grid runs Library ▸ Edit in Layers on the focused photo, also after a
+    /// round trip through document mode (where ⌘E is Merge Down and the router leaves it to the menu).
+    func testCommandEInGridRunsEditInLayers() throws {
+        let model = AppModel()
+        model.loadStubItems(count: 5)
+        model.documents.engine = StubDocumentEngine()
+        let router = KeyRouter(model: model)
+        let window = makeWindow()
+        let cmdE = key(14, "e", window: window, modifiers: .command)
+        model.viewMode = .grid
+        XCTAssertNotNil(model.focusedItem)
+        XCTAssertTrue(router.handle(cmdE), "⌘E is handled in the grid")
+        XCTAssertEqual(model.statusMessage, "Edit in Layers needs a photo file (stub items have none)",
+                       "the route reached editInLayers with the grid's focused photo")
+
+        model.documents.newDocument(NewDocumentSettings(width: 400, height: 300))
+        XCTAssertEqual(model.viewMode, .document)
+        XCTAssertFalse(router.handle(cmdE), "in document mode ⌘E is the menu's Merge Down")
+        model.viewMode = .grid
+        model.statusMessage = nil
+        XCTAssertTrue(router.handle(cmdE), "back in the grid ⌘E is Edit in Layers again")
+        XCTAssertEqual(model.statusMessage, "Edit in Layers needs a photo file (stub items have none)")
+        model.viewMode = .loupe
+        XCTAssertTrue(router.handle(cmdE), "the loupe too")
+
+        XCTAssertFalse(router.handle(key(14, "e", window: window, modifiers: [.command, .shift])), "⇧⌘E is not Edit in Layers")
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 100, height: 20))
+        window.contentView?.addSubview(field)
+        window.makeFirstResponder(field)
+        XCTAssertFalse(router.handle(cmdE), "a focused text field keeps ⌘E")
+    }
+
     func testDocumentKeys() throws {
         let model = AppModel()
         model.documents.engine = StubDocumentEngine()

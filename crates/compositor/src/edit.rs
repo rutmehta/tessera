@@ -20,7 +20,7 @@ use crate::raster::{Raster, buffer_addr};
 /// Which raster of a layer a paint op writes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PaintTarget {
-    /// The layer's pixels (or text proxy).
+    /// The layer's raster pixels (convert live text/shape content first).
     Content,
     /// The layer mask.
     Mask,
@@ -48,6 +48,72 @@ pub type ContentAwareFill = fn(&Raster, &[f32], u64) -> EngineResult<Raster>;
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone)]
 pub enum DocOp {
+    /// Add an editable text layer in one history entry.
+    AddText {
+        /// Group parent; `None` is the document root.
+        parent: Option<LayerId>,
+        /// Insertion index, bottom first.
+        index: usize,
+        /// Display name.
+        name: String,
+        /// Editable source.
+        model: typography::TextModel,
+        /// Local-to-document map.
+        transform: Affine,
+    },
+    /// Replace the editable text source and transform.
+    EditText {
+        /// Layer identity.
+        id: LayerId,
+        /// Replacement source.
+        model: typography::TextModel,
+        /// Local-to-document map.
+        transform: Affine,
+    },
+    /// Add an editable shape layer in one history entry.
+    AddShape {
+        /// Group parent; `None` is the document root.
+        parent: Option<LayerId>,
+        /// Insertion index, bottom first.
+        index: usize,
+        /// Display name.
+        name: String,
+        /// Editable source.
+        model: vector::ShapeModel,
+        /// Local-to-document map.
+        transform: Affine,
+    },
+    /// Replace the editable shape source and transform.
+    EditShape {
+        /// Layer identity.
+        id: LayerId,
+        /// Replacement source.
+        model: vector::ShapeModel,
+        /// Local-to-document map.
+        transform: Affine,
+    },
+    /// Replace a half-open range of run indexes, retaining paragraph properties.
+    EditTextRuns {
+        /// Layer identity.
+        id: LayerId,
+        /// Run indexes, not character or byte offsets; empty inserts runs.
+        range: std::ops::Range<usize>,
+        /// Replacement runs.
+        runs: Vec<typography::TextRun>,
+    },
+    /// Replace or remove a document-space vector mask.
+    SetVectorMask {
+        /// Layer identity.
+        id: LayerId,
+        /// Mask, or `None` to remove it.
+        mask: Option<crate::VectorMask>,
+    },
+    /// Rasterize editable text/shape content at level zero, retaining masks/properties.
+    ConvertToPixels {
+        /// Layer identity.
+        id: LayerId,
+    },
+
     /// Register root pixel layers, retain their sources and extend the canvas.
     AutoAlignLayers {
         /// Ordered unique root layer IDs. First is the default reference.
@@ -229,6 +295,12 @@ impl DocOp {
     /// Short label for the history panel.
     pub fn label(&self) -> String {
         match self {
+            DocOp::AddText { .. } => "Add Text".into(),
+            DocOp::EditText { .. } | DocOp::EditTextRuns { .. } => "Edit Text".into(),
+            DocOp::AddShape { .. } => "Add Shape".into(),
+            DocOp::EditShape { .. } => "Edit Shape".into(),
+            DocOp::SetVectorMask { .. } => "Vector Mask".into(),
+            DocOp::ConvertToPixels { .. } => "Convert to Pixels".into(),
             DocOp::AutoAlignLayers { .. } => "Auto-Align Layers".into(),
             DocOp::AutoBlendLayers { .. } => "Auto-Blend Layers".into(),
             DocOp::Photomerge { .. } => "Photomerge".into(),
@@ -293,6 +365,153 @@ fn apply_op(
     let full = Rect::of_extent(s.canvas);
     let styled_before = s.has_layer_styles();
     let damage: EngineResult<Rect> = match op {
+        DocOp::AddText {
+            parent,
+            index,
+            name,
+            model,
+            transform,
+        } => {
+            crate::text_vector::validate_text(&model, transform)?;
+            if let Some(parent) = parent {
+                let layer = s.find(parent).ok_or_else(|| not_found(parent))?;
+                if layer.props.locks.all {
+                    return Err(EngineError::invalid("layer", "parent is locked"));
+                }
+            }
+            apply_op(
+                s,
+                DocOp::AddLayer {
+                    parent,
+                    index,
+                    layer: Layer::new(name, LayerKind::Text { model, transform }),
+                },
+                rev,
+                created,
+            )
+        }
+        DocOp::EditText {
+            id,
+            model,
+            transform,
+        } => {
+            crate::text_vector::validate_text(&model, transform)?;
+            let layer = s.find(id).ok_or_else(|| not_found(id))?;
+            let LayerKind::Text { transform: old, .. } = &layer.kind else {
+                return Err(EngineError::invalid("layer", "wrong editable layer kind"));
+            };
+            crate::text_vector::check_editable(layer, Some((*old, transform)))?;
+            s.layer_mut(id, |layer| {
+                layer.kind = LayerKind::Text { model, transform };
+                layer.content_rev = rev;
+            });
+            Ok(full)
+        }
+        DocOp::AddShape {
+            parent,
+            index,
+            name,
+            mut model,
+            transform,
+        } => {
+            if let Some(shape) = &model.live_shape {
+                model.path = shape
+                    .path()
+                    .map_err(|e| EngineError::invalid("shape", e.to_string()))?;
+            }
+            crate::text_vector::validate_shape(&model, transform)?;
+            if let Some(parent) = parent {
+                let layer = s.find(parent).ok_or_else(|| not_found(parent))?;
+                if layer.props.locks.all {
+                    return Err(EngineError::invalid("layer", "parent is locked"));
+                }
+            }
+            apply_op(
+                s,
+                DocOp::AddLayer {
+                    parent,
+                    index,
+                    layer: Layer::new(name, LayerKind::Shape { model, transform }),
+                },
+                rev,
+                created,
+            )
+        }
+        DocOp::EditShape {
+            id,
+            mut model,
+            transform,
+        } => {
+            if let Some(shape) = &model.live_shape {
+                model.path = shape
+                    .path()
+                    .map_err(|e| EngineError::invalid("shape", e.to_string()))?;
+            }
+            crate::text_vector::validate_shape(&model, transform)?;
+            let layer = s.find(id).ok_or_else(|| not_found(id))?;
+            let LayerKind::Shape { transform: old, .. } = &layer.kind else {
+                return Err(EngineError::invalid("layer", "wrong editable layer kind"));
+            };
+            crate::text_vector::check_editable(layer, Some((*old, transform)))?;
+            s.layer_mut(id, |layer| {
+                layer.kind = LayerKind::Shape { model, transform };
+                layer.content_rev = rev;
+            });
+            Ok(full)
+        }
+        DocOp::EditTextRuns { id, range, runs } => {
+            let layer = s.find(id).ok_or_else(|| not_found(id))?;
+            let LayerKind::Text { model, transform } = &layer.kind else {
+                return Err(EngineError::invalid("layer", "not a text layer"));
+            };
+            if range.start > range.end || range.end > model.runs.len() {
+                return Err(EngineError::invalid("range", "invalid run index range"));
+            }
+            let mut model = model.clone();
+            model.runs.splice(range, runs);
+            let transform = *transform;
+            apply_op(
+                s,
+                DocOp::EditText {
+                    id,
+                    model,
+                    transform,
+                },
+                rev,
+                created,
+            )
+        }
+        DocOp::SetVectorMask { id, mask } => {
+            let layer = s.find(id).ok_or_else(|| not_found(id))?;
+            crate::text_vector::check_editable(layer, None)?;
+            if let Some(mask) = &mask {
+                crate::text_vector::validate_mask(mask)?;
+            }
+            s.layer_mut(id, |layer| {
+                layer.vector_mask = mask;
+                layer.content_rev = rev;
+            });
+            Ok(full)
+        }
+        DocOp::ConvertToPixels { id } => {
+            let layer = s.find(id).ok_or_else(|| not_found(id))?;
+            crate::text_vector::check_editable(layer, None)?;
+            if !matches!(layer.kind, LayerKind::Text { .. } | LayerKind::Shape { .. }) {
+                return Err(EngineError::invalid(
+                    "layer",
+                    "only editable text and shape layers can be converted",
+                ));
+            }
+            let source = crate::render::rasterize_layer(layer, s.canvas, 0)?;
+            let mut raster = Raster::new(s.canvas, 4, s.depth, 0.0);
+            raster.edit_region(full, rev, |x, y, pixel| *pixel = source.pixel(x, y))?;
+            s.layer_mut(id, |layer| {
+                layer.kind = LayerKind::Pixel(raster);
+                layer.content_rev = rev;
+            });
+            Ok(full)
+        }
+
         DocOp::AutoAlignLayers { ids, options } => {
             align_document_layers(s, &ids, &options, rev)?;
             Ok(full.union(&Rect::of_extent(s.canvas)))
@@ -738,7 +957,10 @@ fn merge_indices(s: &DocState, ids: &[LayerId]) -> EngineResult<Vec<usize>> {
         if l.props.clipped
             || !matches!(
                 l.kind,
-                LayerKind::Pixel(_) | LayerKind::SmartObject(_) | LayerKind::Text(_)
+                LayerKind::Pixel(_)
+                    | LayerKind::SmartObject(_)
+                    | LayerKind::Text { .. }
+                    | LayerKind::Shape { .. }
             )
         {
             return Err(merge_error(
@@ -1076,7 +1298,6 @@ fn stamp_new(layer: &mut Layer, rev: u64) {
     }
     match &mut layer.kind {
         LayerKind::Pixel(r) => restamp(r, rev),
-        LayerKind::Text(t) => restamp(&mut t.proxy, rev),
         LayerKind::Group { children, .. } => {
             for c in children.iter_mut() {
                 stamp_new(Arc::make_mut(c), rev);
@@ -1164,7 +1385,10 @@ impl Document {
         for arc in &mut state.root {
             if !matches!(
                 arc.kind,
-                LayerKind::Pixel(_) | LayerKind::SmartObject(_) | LayerKind::Text(_)
+                LayerKind::Pixel(_)
+                    | LayerKind::SmartObject(_)
+                    | LayerKind::Text { .. }
+                    | LayerKind::Shape { .. }
             ) {
                 return Err(merge_error(
                     "layer rasterization supports root image layers only".into(),

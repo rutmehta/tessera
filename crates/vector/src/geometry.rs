@@ -6,13 +6,13 @@ use i_overlay::{
 pub use kurbo::{Affine, Point, Rect, Vec2};
 use kurbo::{BezPath, PathEl, Shape as KurboShape};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
 pub enum FillRule {
     EvenOdd,
     #[default]
     NonZero,
 }
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Anchor {
     pub point: Point,
     pub incoming: Point,
@@ -27,17 +27,17 @@ impl Anchor {
         }
     }
 }
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Subpath {
     pub anchors: Vec<Anchor>,
     pub closed: bool,
 }
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Path {
     pub subpaths: Vec<Subpath>,
     pub fill_rule: FillRule,
 }
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Operation {
     Combine,
     Subtract,
@@ -251,7 +251,7 @@ impl Path {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Shape {
     Rectangle {
         rect: Rect,

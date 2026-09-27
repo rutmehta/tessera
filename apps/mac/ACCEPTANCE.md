@@ -1144,7 +1144,10 @@ Hue/Saturation 1), rendered on the CPU. Part 1 runs on the stub; part 2 repeats 
 139. **History and snapshots.** Click **New Snapshot…** (`document.history.newSnapshot`), keep `Snapshot 1`, Save: it is
      listed under Snapshots. Make two edits, click **Restore** on the snapshot: the document returns to it and History
      gains `Snapshot “Snapshot 1”` (undoable). The memory line reads `<n> states · <size>`.
-140. **Save, reopen, close.** ⌘S on the new document opens Save As; save `Poster.tessera-doc` into `$SCR`. The tab title
+140. **Save, reopen, close.** ⌘S on the new document opens the **Save As** sheet (B5-06: Tessera's own sheet, so it can
+     be scripted): the name field (`document.saveAs.name`) already has the keyboard and reads `Untitled-1.tessera-doc`;
+     select all, type `Poster.tessera-doc`, click **Choose…** (`document.saveAs.choose`) and pick `$SCR`, then **Save**
+     (`document.saveAs.save`, or Return). The Format pop-up (`document.saveAs.format`) follows the name's extension. The tab title
      becomes `Poster.tessera-doc`, the dirty dot goes. Choose **Save As…** with a `.psd` name: the status bar reads
      `Save As: Saving as PSD / PSB needs the engine (B5-03); save as .tessera-doc`. **File ▸ Export Flat…** (⇧⌘E): format
      PNG / JPEG / TIFF, quality for JPEG, colour space; export `Poster.png` into `$SCR` and check it opens in Preview with
@@ -1159,9 +1162,14 @@ Hue/Saturation 1), rendered on the CPU. Part 1 runs on the stub; part 2 repeats 
      one pixel layer named `Poster`.
 142. **Tests.**
      ```sh
-     (cd apps/mac && swift test --filter "Document|ThemeLint" 2>&1 | grep "Executed")
+     (cd apps/mac && swift test --filter "Document|ThemeLint" 2>&1 | grep "Executed" | tail -1)
      ```
-     Expect `Executed 41 tests, with 0 failures` (32 from B5-02, 9 engine-adapter tests from B5-03).
+     Expect `Executed <n> tests, with 0 failures` (the count grows with every work package; do not compare it). The
+     filter runs the XCTest suites DocumentAdjustmentAnalysisTests, DocumentAdjustmentJSONTests,
+     DocumentAdjustmentModelTests, DocumentBlendModeTests, DocumentFiltersTests, DocumentKeyMapTests,
+     DocumentKeyRoutingTests, DocumentOutlineTests, DocumentToolsTests, DocumentViewportMathTests,
+     EngineDocumentBackendTests, StubDocumentBackendTests and ThemeLintTests (and any later `Document…` suite);
+     `grep "Test Suite '.*' failed"` prints nothing. At B5-06 the count was 101.
 
 ### Part 2: over the real engine (B5-03)
 
@@ -1172,7 +1180,8 @@ sidecars next to photos; never point it at `fixtures/raw`). Turn on **Debug ▸ 
      `open -n apps/mac/build/Tessera.app --args --app-dir "$SCR/appdir-doc" --folder "$SCR/shoot"`. ⌘N, **Create**: the
      sheet has no stub footer; one transparent pixel layer `Layer 1` (checkerboard over the whole canvas), selected,
      Properties `Pixel`, History `Opened` only, subtitle `1 layer`, status bar without `(stub backend: sample layers)`.
-144. **Edit in Layers.** In the grid select `sample.dng`, press ⌘E. The status bar reads `Edit sample.dng in Layers…`
+144. **Edit in Layers.** In the grid select `sample.dng`, press ⌘E (also right after step 143: click **Grid** in the
+     toolbar first; ⌘E is Edit in Layers outside document mode and Merge Down inside it). The status bar reads `Edit sample.dng in Layers…`
      while the engine develops it (about 1.5–3 s), then a tab `sample` with one pixel layer `sample`, Properties
      `Bounds 0, 0 · 5212 × 3468 px`, status bar `5,212 × 3,468 px · 16-bit · sRGB IEC61966-2.1` and
      `render: L1 <w> × <h>, <ms>` (📸 `evidence/engine-01-edit-in-layers.png`).
@@ -1240,9 +1249,51 @@ Same scratch copy as part 2 (`$SCR/shoot/sample.dng`). In the grid select `sampl
      Expect every `check … ok`, `gaussian preview latency (value → frame, viewport 5212 × 3468 at L1): n 12, median …`
      and `done, 0 failure(s)`.
 
+### Part 4: the M5-26 / M5-28 adjustment layers (B5-06)
+
+Same scratch copy (`$SCR/shoot/sample.dng`), engine backend. Select `sample.dng` in the grid, ⌘E. The Layer ▸ New ▸
+Adjustment Layer menu and the Layers footer's adjustment menu (`document.layers.addAdjustment`) list, in Photoshop's
+order and groups: Brightness/Contrast, Levels, Curves, Exposure | Vibrance, Hue/Saturation, Color Balance, Black & White,
+Photo Filter, Channel Mixer, Color Lookup | Invert, Posterize, Threshold, Gradient Map, Selective Color | then the kinds
+Photoshop offers only as Image ▸ Adjustments commands, here native adjustment layers: Shadows/Highlights, HDR Toning,
+Desaturate, Match Color, Replace Color, Equalize, Auto. Image ▸ Adjustments lists Photoshop's five groups (Desaturate
+⇧⌘U, Equalize and Invert apply at once), followed by Image ▸ Auto Tone (⇧⌘L), Auto Contrast (⌥⇧⌘L), Auto Color (⇧⌘B).
+
+161. **Color Balance.** Footer adjustment menu ▸ **Color Balance**: `Color Balance 1` above `sample`, History
+     `New Layer Color Balance 1`; Properties shows Shadows | Midtones | Highlights (`document.properties.colorBalance.tone`,
+     on Midtones), three sliders Cyan – Red, Magenta – Green, Yellow – Blue (`….colorBalance.red|green|blue`) and
+     **Preserve Luminosity** ticked. Drag Cyan – Red to +60: the photo warms live; one `Color Balance` row on release
+     (📸 `tools/orchestrate/wp/B5-06/evidence/adj-01-color-balance.png`). Switch to Highlights, drag Yellow – Blue to
+     +40: the highlights turn blue. ⌘Z twice: both return; ⇧⌘Z re-applies one.
+162. **Gradient Map.** Footer menu ▸ **Gradient Map**: the photo maps black → white (a monochrome image). Properties
+     shows the gradient preview, two stops with colour wells and positions (`document.properties.gradientMap.stop.<i>.*`),
+     **Add Stop**, Method Perceptual | Linear | Classic (`….gradientMap.method`), **Dither** and **Reverse**. Pick a dark
+     blue for stop 1 and an orange for stop 2: the picture turns duotone (📸 `adj-02-gradient-map.png`); tick Reverse: the
+     mapping inverts; drag stop 2's position to 60 %: live, one `Gradient Map` row on release. ⌘Z: the position returns.
+163. **Black & White.** Footer menu ▸ **Black & White**: the photo turns gray with Photoshop's default mix (Reds 40,
+     Yellows 60, Greens 40, Cyans 60, Blues 20, Magentas 80, `….blackWhite.reds` …). Drag **Yellows** to 150: the warm
+     wall brightens live; one `Black & White` row on release. **Auto** (`….blackWhite.auto`) sets a mix measured from the
+     image; tick **Tint** (`….blackWhite.tint`): a sepia tint with a colour well (📸 `adj-03-black-white.png`). ⌘Z: the tint
+     goes.
+164. **Save and reopen.** ⌘S → the Save As sheet, `Adjustments.tessera-doc` into `$SCR`, Save. ⌘W, **Open Document…** it:
+     `Black & White 1`, `Gradient Map 1` and `Color Balance 1` come back over `sample` with the same settings and the same
+     look (📸 `adj-04-reopened.png`). Saving as PSD keeps Color Balance, Gradient Map and Black & White as Photoshop
+     adjustment layers (`blnc`, `grdm`, `blwh`); Shadows/Highlights, HDR Toning, Desaturate, Equalize, Auto, Match Color and
+     Replace Color are native-only and need a `.tessera-doc` (the status bar shows the engine's message).
+165. **The other editors.** Each new layer's Properties editor drags live and records one row on release: Brightness /
+     Contrast (**Use Legacy**), Vibrance, Photo Filter (Filter pop-up with the 20 engine swatches, colour, Density,
+     Preserve Luminosity), Selective Color (Colors pop-up Reds … Blacks, Cyan / Magenta / Yellow / Black, Relative |
+     Absolute), Desaturate (no settings), Equalize and Auto (measured from the image below the layer when added; **Analyze
+     Again**; Auto's Tone | Contrast | Color and Clip %), Match Color (Source pop-up of pixel layers, Luminance, Color
+     Intensity, Fade, Neutralize), Replace Color (colour well, **Use Foreground** after picking with the Eyedropper,
+     Fuzziness, Hue / Saturation / Lightness), Color Lookup (**Load 3D LUT…** for `.cube` / `.3dl`; the file name shows
+     for the session, the samples are stored in the document), Shadows/Highlights (Amount / Tone / Radius for shadows and
+     highlights, Color, Midtone, Black / White Clip) and HDR Toning (Method pop-up; Local Adaptation: Radius, Strength,
+     Gamma, Exposure, Detail, Shadow, Highlight, Vibrance, Saturation and a toning curve).
+
 ## Verdict (document mode)
 
-PASS when steps 130–142 (stub), 143–150 (engine) and 151–156 (filters) meet their expectations. Record the stub render time on a
+PASS when steps 130–142 (stub), 143–150 (engine), 151–156 (filters) and 161–165 (new adjustment layers) meet their expectations. Record the stub render time on a
 large window (drag Opacity on `Landscape` at 100 %) as an observation; the stub renders on the CPU and is not held to the
 engine's budget.
 
@@ -1311,6 +1362,8 @@ PASS when steps 151–160 meet their expectations and the brush frames' median r
 | `document.tools` · `document.tool.<tool>` · `document.colors` · `document.optionsBar` · `document.option.*` · `document.transform.commit` · `document.colorPanel` · `document.color.{foreground,background}` · `document.brushes` · `document.brushes.import` · `document.brush.*` · `document.status.stroke` | Tools palette, options bar, Color and Brushes (B5-04) |
 | `document.filter.<id>.<key>` (e.g. `document.filter.gaussian_blur.radius`, `.dial` for angles) · `document.filter.<id>.detail` · `.preview` · `.reset` · `.cancel` · `.ok` | Filter dialogs (B5-05) |
 | `document.adjustment.<kind>` · `.preview` · `.reset` · `.cancel` · `.ok` | Image ▸ Adjustments sheets (the editor inside keeps its `document.properties.*` identifiers) |
+| `document.saveAs.name` (first responder when the sheet opens) · `document.saveAs.format` · `document.saveAs.folder` · `document.saveAs.choose` · `document.saveAs.save` · `document.saveAs.cancel` | File ▸ Save As… sheet (B5-06) |
+| `document.properties.<kind>.<control>`: `brightnessContrast.{brightness,contrast,legacy}` · `vibrance.{vibrance,saturation}` · `colorBalance.{tone,red,green,blue,preserveLuminosity}` · `blackWhite.{auto,default,reds,yellows,greens,cyans,blues,magentas,tint,tintColor}` · `photoFilter.{preset,color,density,preserveLuminosity}` · `gradientMap.{gradientPreview,stop.<i>.{color,position,remove},addStop,method,dither,reverse}` · `selectiveColor.{colors,cyan,magenta,yellow,black,method}` · `equalize.analyze` · `auto.{mode,clip,black,white,gamma,analyze}` · `matchColor.{source,luminance,colorIntensity,fade,neutralize}` · `replaceColor.{color,useForeground,fuzziness,hue,saturation,lightness}` · `colorLookup.{file,load,reset}` · `shadowsHighlights.{shadowsAmount,shadowsTone,shadowsRadius,highlightsAmount,highlightsTone,highlightsRadius,color,midtone,blackClip,whiteClip}` · `hdrToning.{method,radius,strength,gamma,exposure,detail,shadows,highlights,vibrance,saturation,curve,analyze}` | Properties editors of the M5-26 / M5-28 adjustments (B5-06) |
 | `document.layers.smartFilter.<layer>.<index>` · `.visibility` · `.mask` · `.name` · `.blending` · `document.smartFilter.blending.{mode,opacity,ok}` | Smart filter rows and their blending options |
 
 ## X. Develop: AI Denoise, Transform / Upright, Lens Blur (M2-48)
@@ -1321,22 +1374,22 @@ and LENS BLUR (after Effects). Known engine gaps (tools/orchestrate/wp/M2-48/REP
 draw Upright/Transform (export does), and AI Denoise and Lens Blur cannot be rendered or exported by this engine build,
 so their controls are shown disabled with the reason. Screenshots of each panel: `tools/orchestrate/wp/M2-48/evidence/`.
 
-161. **Detail ▸ AI Denoise.** Open DETAIL. 📸 Expect under **Noise Reduction** an **AI Denoise** checkbox and an **Amount**
+170. **Detail ▸ AI Denoise.** Open DETAIL. 📸 Expect under **Noise Reduction** an **AI Denoise** checkbox and an **Amount**
      slider (both dimmed) with a warning line starting `AI Denoise needs an engine denoiser this build does not install`;
      the classic Luminance / Detail / Contrast and Color / Color Detail / Smoothness sliders below are unchanged and still
      work (Luminance 40 smooths the 1:1 preview; History `Luminance NR 40`). If the photo's recipe already has AI Denoise
      (e.g. from another build) the checkbox is enabled and ticked, and unticking it records `AI Denoise Off`.
-162. **Upright buttons.** Open TRANSFORM. 📸 Expect an **Upright** sub-header with a borderless **Reset**, a six-segment bar
+171. **Upright buttons.** Open TRANSFORM. 📸 Expect an **Upright** sub-header with a borderless **Reset**, a six-segment bar
      (Off · Auto · Guided · Level · Vertical · Full; the chosen one shows its name, the others their icon, help tags name
      each), a one-line description of the chosen mode, then **Transform** with its own **Reset**, the sliders Vertical,
      Horizontal, Rotate, Aspect, Scale (100%), Offset X, Offset Y and a **Constrain Crop** checkbox. Click **Auto**: History
      lists `Upright: Auto` and a warning line reads `The loupe does not draw Upright or Transform yet (engine); they are
      saved and applied on export.` Click **Vertical**, then **Off**: one history step each (`Upright: Vertical`, `Upright: Off`).
-163. **Manual transform.** Drag **Vertical** to +20 and release: exactly one History row `Transform Vertical +20` (not one
+172. **Manual transform.** Drag **Vertical** to +20 and release: exactly one History row `Transform Vertical +20` (not one
      per drag frame). Drag **Rotate** (one decimal, `°`) and **Scale** (`%`, 50–150); double-click a slider to reset it.
      Click the Transform **Reset**: all seven sliders return to neutral in one step `Reset Transform`; Upright is untouched.
      Tick **Constrain Crop**: History `Constrain Crop On`. ⌘Z undoes each step.
-164. **Guided Upright.** Click **Guided** (the loupe must be showing the photo). Expect a hint at the bottom of the loupe
+173. **Guided Upright.** Click **Guided** (the loupe must be showing the photo). Expect a hint at the bottom of the loupe
      `Guided Upright · draw 2 more guides …`, the panel line `0 of 4 guides` with **Clear** and **Done**, and a crosshair
      cursor over the photo. Drag along a vertical edge: a white guide with square ends appears (dashed while drawing).
      Nothing is recorded yet. Draw a second guide: History lists `Upright: Guided (2 guides)` and the hint reads
@@ -1344,21 +1397,21 @@ so their controls are shown disabled with the reason. Screenshots of each panel:
      Click a guide's line: it turns amber (selected); press **⌫**: it disappears and, with one guide left, History records
      `Upright: Off`. A fifth guide is refused with a status message. **Return** (or **Done**/**Esc**) leaves the tool;
      culling keys do nothing while it is armed, ⌘Z still works. Reopening Guided shows the stored guides.
-165. **Lens Blur.** Open LENS BLUR. 📸 Expect the warning `Lens Blur needs a depth map the engine does not compute here yet…`,
+174. **Lens Blur.** Open LENS BLUR. 📸 Expect the warning `Lens Blur needs a depth map the engine does not compute here yet…`,
      a dimmed **Apply** checkbox, **Blur Amount** slider, **Bokeh** segmented control (Circle · Hexagon · Octagon), the
      **Focal Range** strip (dark scope well, near → far ramp, `Near` / `Far` labels, the in-focus band with two handles),
      the hint `No depth map from the engine yet: …`, dimmed **Visualize Depth** and **Subject-aware focus** checkboxes and
      a **Refine** row with Focus / Blur brush buttons and a `Later` chip. Nothing in the panel is clickable, except Apply
      when a recipe already carries a lens blur (unticking records `Lens Blur Off`).
-166. **Keyboard focus (M2-27 rules).** Tab to a Transform slider: amber focus outline, arrows nudge it without moving the
+175. **Keyboard focus (M2-27 rules).** Tab to a Transform slider: amber focus outline, arrows nudge it without moving the
      loupe selection, Return/Esc commit and blur (one history step per burst).
-167. **Export applies Upright.** With Upright **Auto** set, export the ARW (File ▸ Export…, PNG, long edge 640) and
+176. **Export applies Upright.** With Upright **Auto** set, export the ARW (File ▸ Export…, PNG, long edge 640) and
      compare with an export at **Off**: the Auto file's verticals are corrected (the Swift test
      `TransformSessionTests.testUprightAutoChangesTheRenderedFrame` asserts the frames differ).
 
 ## Verdict (AI Denoise, Transform, Lens Blur)
 
-PASS when steps 161–167 meet their expectations. Record the engine gaps listed in the M2-48 report as known limitations,
+PASS when steps 170–176 meet their expectations. Record the engine gaps listed in the M2-48 report as known limitations,
 not failures.
 
 ## Appendix: accessibility identifiers (M2-48)
@@ -1373,7 +1426,62 @@ not failures.
 | `lensblur-unavailable` · `lensblur-apply` · `lensblur-amount` · `lensblur-bokeh` · `lensblur-focal-range` | Lens Blur ▸ engine-gap line, Apply, Blur Amount, Bokeh picker, Focal Range strip |
 | `lensblur-visualize-depth` · `lensblur-subject` · `lensblur-refine-focus` · `lensblur-refine-blur` | Visualize Depth, Subject-aware focus, Refine brushes (disabled: engine gaps) |
 
-## Y. Remove tool, Content-Aware Fill and neural filters (B5-09)
+## Y. Persistent alpha and spot channels (B5-08)
+
+Engine backend (not `--stub-library`), a scratch copy of `fixtures/raw/sample.dng` in `$SCR/shoot`, opened with
+Library ▸ Edit in Layers (⌘E). Open the inspector's **Channels** section (between Layers and History).
+
+168. **Panel.** Channels lists RGB, Red, Green, Blue (read-only: lock glyph, thumbnails from the composite) and nothing
+     else for a new document. Hiding RGB turns the canvas to the ink backdrop; hiding only Green shows the composite
+     without green; hiding two components shows the remaining one as grey. Showing RGB again restores the photo.
+169. **Save a selection.** Rectangular Marquee over the top of the photo, Select ▸ Save Selection…: the sheet offers
+     Channel `New`, Name `Alpha 1` (type `Sky`) and the single operation `New Channel`; OK adds a `Sky` row with a
+     black / white thumbnail and one History row `Save Selection`. Choosing an existing channel in the sheet
+     disables Name and offers Replace / Add to / Subtract from / Intersect with Channel.
+170. **Close and reopen.** File ▸ Save As… `Channels.tessera-doc`, close the tab, File ▸ Open Document… the file:
+     the `Sky` row is back (same name and thumbnail). Repeat with `Channels.psd`: Photoshop-compatible alpha channel.
+171. **Load it back.** Select ▸ Deselect (⌘D), then Select ▸ Load Selection…: Channel `Sky`, Invert off, New
+     Selection, OK: the marching ants trace the saved rectangle and History adds `Load Selection`. ⌘-click the `Sky`
+     row does the same (⇧⌘ adds, ⌥⌘ subtracts, ⇧⌥⌘ intersects); the row's context menu lists the four loads,
+     Duplicate Channel, Rename…, Channel Options…, Delete Channel. Double-click the name renames it (one
+     `Rename Channel` row); names may repeat, and the sheets tell duplicates apart by position.
+172. **Spot channel.** Marquee a second area, Channels footer `+` ▸ New Spot Channel…: name `Spot Color 1`, an ink
+     colour, Solidity, From the selection; the sheet shows the note that spot colour is preview-only. OK adds a row
+     with the ink swatch and History `New Spot Channel`. Click its eye: the ink appears over the area at its
+     solidity; the alpha eye shows red over the masked areas (Channel Options ▸ Selected Areas flips it).
+173. **Undo.** ⌘Z removes the spot channel row (and its overlay), ⇧⌘Z restores it; every channel edit (save, rename,
+     duplicate, options, delete) is one History row that undoes the same way.
+174. **RGB export unchanged.** With the spot and alpha channels present and visible, File ▸ Export… PNG; compare with an
+     export made before adding them: the pixels are identical (the Rust test
+     `spot_channels_do_not_change_the_rgb_composite` asserts it byte for byte, also after a PSD round trip).
+175. **Quick Mask.** With a selection press Q: a `Quick Mask` row with a `Temporary` chip appears, the Quick Mask
+     footer button is on and the canvas shows red over the unselected area. Save Selection into `Quick Mask` with
+     Add / Subtract edits it. Press Q again: the mask becomes the selection and the temporary row disappears.
+     Select ▸ Edit in Quick Mask Mode does the same.
+176. **Scripted run.**
+     ```sh
+     TESSERA_CHANNELS_SELFTEST="$SCR/out" apps/mac/build/Tessera.app/Contents/MacOS/Tessera --folder "$SCR/shoot" \
+       --app-dir "$SCR/appdir" --open-document "$SCR/photo.png" --front 2>&1 | grep channels-selftest
+     ```
+     (`photo.png`: `sips -s format png sample.dng --out photo.png`.) Expect every `check … ok` and
+     `done, 0 failure(s)`; each `step` line gives the window rectangle for `screencapture -R`.
+
+## Verdict (channels)
+
+PASS when steps 168–176 meet their expectations. Known limitations: painting directly into a channel (and so into
+Quick Mask) needs brush support for channel targets; Quick Mask is edited with Save Selection into it. Alpha overlay
+colour / opacity and channel visibility are session preferences, not saved.
+
+## Appendix: accessibility identifiers (B5-08)
+
+| Identifier | Element |
+| --- | --- |
+| `document.channels` · `document.channels.list` | Channels section, its row list |
+| `document.channels.rgb` · `document.channels.component.{0,1,2}` · `document.channels.channel.<id>` | Rows (`….eye`, `….swatch`, `….rename`) |
+| `document.channels.load` · `document.channels.save` · `document.channels.quickMask` · `document.channels.add` · `document.channels.delete` | Footer |
+| `document.channels.save.{channel,name,operation}` · `document.channels.load.{channel,invert,operation}` | Save / Load Selection sheets |
+| `document.channels.options.{name,kind,indicates,color,opacity}` · `document.channels.spot.{name,color,solidity,fromSelection}` · `document.channels.spotNote` · `document.channels.sheet.ok` | Channel Options, New Spot Channel |
+## Z. Remove tool, Content-Aware Fill and neural filters (B5-09)
 
 Engine backend (not `--stub-library`), a scratch copy of `fixtures/raw/sample.dng` in `$SCR/shoot`, opened with
 Library ▸ Edit in Layers (⌘E), the photo layer selected. Model weights are never downloaded by these steps: with no

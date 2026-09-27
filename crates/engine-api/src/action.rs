@@ -62,7 +62,7 @@ const fn cmd(name: &'static str, domain: CommandDomain, effect: CommandEffect) -
 
 /// The command-name registry. Names are stable once shipped (invariant 11):
 /// rows are only ever appended, never renamed or removed.
-pub const COMMANDS: [CommandInfo; 42] = {
+pub const COMMANDS: [CommandInfo; 50] = {
     use CommandDomain::{Document as D, Library as L, Recipe as R};
     use CommandEffect::{Edit, Effect, Query};
     [
@@ -103,6 +103,14 @@ pub const COMMANDS: [CommandInfo; 42] = {
         cmd("neural_skin_smoothing", D, Edit),
         cmd("neural_colorize", D, Edit),
         cmd("neural_jpeg_artifact_removal", D, Edit),
+        cmd("add_text", D, Edit),
+        cmd("edit_text", D, Edit),
+        cmd("edit_text_runs", D, Edit),
+        cmd("add_shape", D, Edit),
+        cmd("edit_shape", D, Edit),
+        cmd("set_vector_mask", D, Edit),
+        cmd("remove_vector_mask", D, Edit),
+        cmd("convert_to_pixels", D, Edit),
         cmd("assign_person", L, Effect),
         cmd("confirm_person", L, Effect),
         cmd("merge_people", L, Effect),
@@ -117,6 +125,9 @@ pub fn command(name: &str) -> Option<&'static CommandInfo> {
 }
 
 /// A decoded action.
+// Keep the existing by-value public constructors; calls are transient and the
+// live model payload is consumed as one action, not stored in a dense array.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum ActionCall {
     /// A recipe/library tool call.

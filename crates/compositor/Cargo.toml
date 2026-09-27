@@ -9,6 +9,9 @@ description = "Layered document model and tiled compositor (spec 02 §1–2, spe
 path = "src/lib.rs"
 
 [dependencies]
+lyon_path = "1"
+typography = { path = "../typography" }
+vector = { path = "../vector" }
 color-mgmt = { path = "../color-mgmt" }
 merge = { path = "../merge" }
 transform = { path = "../transform" }

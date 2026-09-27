@@ -28,7 +28,7 @@ Branch `wp/M2-48`. No Rust was edited. `build-ffi.sh` regenerated identical bind
 - **`DevelopController`**: `ignoredSettings` is refreshed after each recorded commit, plus a new `ignores(prefix)` helper.
 - **`ControlSlider` fix**: it now honours SwiftUI `.disabled`. Before this, disabled develop sliders stayed draggable, including HDR headroom.
 - **Documentation**:
-  - `ACCEPTANCE.md` section X: steps 161–167, a verdict and "Appendix: accessibility identifiers (M2-48)".
+  - `ACCEPTANCE.md` section X: steps 170–176 (renumbered from 161–167 on merge with B5-06), a verdict and "Appendix: accessibility identifiers (M2-48)".
   - `DESIGN.md` §5 notes.
 - **Screenshot aid**: `TESSERA_SELFTEST_UPRIGHT=guided`.
 
@@ -59,6 +59,6 @@ Branch `wp/M2-48`. No Rust was edited. `build-ffi.sh` regenerated identical bind
 ## Not verified
 - Hand interaction in the running app (guide drawing and dragging, ⌫/Esc/Return, Tab focus) was not exercised by a person or computer-use pass. It is covered at model and session level, and the guided screenshot comes from the screenshot aid.
 - The light appearance was not captured.
-- ACCEPTANCE steps 161–167 have not been run by a verifier.
+- ACCEPTANCE steps 170–176 (renumbered from 161–167 on merge with B5-06) have not been run by a verifier.
 - The Upright export test takes about 70–100 s.
 - Launching the app for screenshots added scratch folders to `dev.tessera.app` RecentFolderPaths/LastFolderPath. These were restored to the previous single `shoot` entry.

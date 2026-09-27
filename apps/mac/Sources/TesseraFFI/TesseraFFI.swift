@@ -4102,6 +4102,66 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
     func ungroupLayer(id: UInt64) throws  -> DocumentUpdate
     
     /**
+     * Channel `id` as a grey RGBA8 IOSurface (white = selected / full ink),
+     * at most `max_px` on the long edge (box-filtered). Cached per channel
+     * samples: the id stays valid until a newer thumbnail of the same
+     * channel and size replaces it or the session closes.
+     */
+    func channelThumbnail(id: UInt64, maxPx: UInt32) throws  -> UInt32
+    
+    func deleteDocumentChannel(id: UInt64) throws  -> DocumentUpdate
+    
+    /**
+     * Saved alpha and spot channels in panel / PSD order.
+     */
+    func documentChannels() throws  -> [ChannelRecord]
+    
+    /**
+     * A copy of channel `id` named "<name> copy", appended last.
+     */
+    func duplicateDocumentChannel(id: UInt64) throws  -> ChannelUpdate
+    
+    /**
+     * Select ▸ Load Selection: channel `id` (inverted when `invert`)
+     * combined with the current selection by `op`. One history node.
+     */
+    func loadSelectionChannel(id: UInt64, op: SelectionOp, invert: Bool) throws  -> DocumentUpdate
+    
+    /**
+     * A new empty alpha channel: all masked (black), or all selected
+     * (white) when `selected` (Quick Mask without a selection).
+     */
+    func newAlphaChannel(name: String, selected: Bool) throws  -> ChannelUpdate
+    
+    /**
+     * New Spot Channel: an ink plane from the selection (`from_selection`)
+     * or empty. Preview metadata only: the RGB composite is unchanged.
+     */
+    func newSpotChannel(name: String, color: PaintColor, solidity: Float, fromSelection: Bool) throws  -> ChannelUpdate
+    
+    func renameDocumentChannel(id: UInt64, name: String) throws  -> DocumentUpdate
+    
+    /**
+     * Select ▸ Save Selection: the selection as a new alpha channel `name`
+     * (`target` `None`; `op` is then ignored), or combined by `op` into
+     * existing channel `target` (Replace, Add, Subtract, Intersect). One
+     * history node; fails without a selection.
+     */
+    func saveSelectionChannel(name: String, target: UInt64?, op: SelectionOp) throws  -> ChannelUpdate
+    
+    /**
+     * Shows or hides channel `id` in the host's preview overlay (session
+     * state: not saved, not a history node).
+     */
+    func setChannelVisible(id: UInt64, visible: Bool) throws 
+    
+    /**
+     * Channel Options for a spot channel (an alpha channel becomes one):
+     * display colour and solidity, each within 0…1. Preview metadata only.
+     */
+    func setSpotChannel(id: UInt64, color: PaintColor, solidity: Float) throws  -> DocumentUpdate
+    
+    /**
      * Image ▸ Adjustments: `adjustment_json` (`compositor::Adjustment`, the
      * JSON of the adjustment layer of the same kind) applied to a pixel
      * layer's pixels inside the selection, as one history node.
@@ -4202,81 +4262,6 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
     func smartFilters(layer: UInt64) throws  -> [SmartFilterRecord]
     
     /**
-     * Starts a Remove stroke on `layer` with a hard round brush of
-     * diameter `size` (canvas pixels). A stroke already open is dropped.
-     */
-    func beginRemoveStroke(layer: UInt64, size: Float, backend: RemoveBackend) throws 
-    
-    /**
-     * Drops the open Remove stroke (no history).
-     */
-    func cancelRemoveStroke() 
-    
-    /**
-     * Cancels a running retouch or neural apply (and any filter apply).
-     */
-    func cancelRetouch() 
-    
-    /**
-     * Forgets the suggestions of the last scan.
-     */
-    func clearDistractionSuggestions() 
-    
-    /**
-     * Edit ▸ Content-Aware Fill: fills the selection of `layer` (one node).
-     * `params_json` is the adapter's `fill` object (`{}` for defaults).
-     */
-    func contentAwareFillSelection(layer: UInt64, paramsJson: String) throws  -> RetouchResult
-    
-    /**
-     * Runs the geometric distraction detector on `layer` and keeps its
-     * suggestions for review (no history). `params_json`: `{"wires":bool,
-     * "faces_as_people":bool,"faces":[[x,y,w,h]]}`, all optional; without
-     * `faces`, the face detector's boxes when its weights are installed.
-     */
-    func detectDistractions(layer: UInt64, paramsJson: String) throws  -> DistractionScan
-    
-    /**
-     * Removes what the stroke covered (inside the selection, if any): one
-     * node. `params_json` as for `remove_with_selection`. Blocking.
-     */
-    func endRemoveStroke(paramsJson: String) throws  -> RetouchResult
-    
-    /**
-     * Applies a neural filter (one node). `params_json` uses the keys of
-     * `neural_filters()`; Skin Smoothing's `faces` default to the face
-     * detector's boxes (installed weights) or the selection's bounds.
-     */
-    func neuralFilter(layer: UInt64, kind: NeuralFilterKind, paramsJson: String, destination: NeuralDestination) throws  -> RetouchResult
-    
-    /**
-     * Removes the accepted suggestions of the last scan (one node).
-     */
-    func removeDistractionSuggestions(layer: UInt64, accepted: [UInt32], backend: RemoveBackend, paramsJson: String) throws  -> RetouchResult
-    
-    /**
-     * Bounds of the open Remove stroke's mask (canvas pixels).
-     */
-    func removeStrokeBounds()  -> DocRect?
-    
-    /**
-     * Adds points (level-0 canvas pixels) to the Remove stroke; returns the
-     * canvas rectangle the new dabs covered.
-     */
-    func removeStrokePoints(points: [ToolPoint]) throws  -> DocRect?
-    
-    /**
-     * Remove inside the selection (one node). `params_json`: the adapter's
-     * Remove options (`dilation`, `fill`); `backend` picks the inpainter.
-     */
-    func removeWithSelection(layer: UInt64, backend: RemoveBackend, paramsJson: String) throws  -> RetouchResult
-    
-    /**
-     * Model files retouching can use, and whether each is installed.
-     */
-    func retouchModels() throws  -> [RetouchModel]
-    
-    /**
      * Starts a stroke of `tool` on `layer`'s pixels or mask with `brush` and
      * `color` (the foreground colour; a mask takes its luminance). Commits a
      * pending drag first; a stroke already open is committed. The selection
@@ -4331,7 +4316,7 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
     func fillSelection(layer: UInt64, fill: SelectionFill, opacity: Float) throws  -> DocumentUpdate
     
     /**
-     * Select ▸ Load Selection from channel `name`, combined by `op`.
+     * Select ▸ Load Selection from the first channel named `name`, combined by `op`.
      */
     func loadSelection(name: String, op: SelectionOp) throws  -> DocumentUpdate
     
@@ -4363,8 +4348,8 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
     func sampleColor(x: Float, y: Float, sampleAll: Bool, layer: UInt64?, radius: UInt32) throws  -> PaintColor
     
     /**
-     * Select ▸ Save Selection as channel `name` (replacing one of that
-     * name). Session state: channels are not written to files yet.
+     * Select ▸ Save Selection as alpha channel `name` (replacing the first
+     * alpha channel of that name). Saved with the document.
      */
     func saveSelection(name: String) throws 
     
@@ -4431,7 +4416,7 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
     func selectWand(x: Float, y: Float, tolerance: Float, contiguous: Bool, sampleAll: Bool, antialias: Bool, op: SelectionOp) throws  -> DocumentUpdate
     
     /**
-     * Saved selection channels, by name.
+     * Saved channel names in panel order (see `document_channels` for ids).
      */
     func selectionChannels() throws  -> [String]
     
@@ -5239,6 +5224,165 @@ open func ungroupLayer(id: UInt64)throws  -> DocumentUpdate  {
 }
     
     /**
+     * Channel `id` as a grey RGBA8 IOSurface (white = selected / full ink),
+     * at most `max_px` on the long edge (box-filtered). Cached per channel
+     * samples: the id stays valid until a newer thumbnail of the same
+     * channel and size replaces it or the session closes.
+     */
+open func channelThumbnail(id: UInt64, maxPx: UInt32)throws  -> UInt32  {
+    return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_channel_thumbnail(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),
+        FfiConverterUInt32.lower(maxPx),uniffiCallStatus
+    )
+})
+}
+    
+open func deleteDocumentChannel(id: UInt64)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_delete_document_channel(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Saved alpha and spot channels in panel / PSD order.
+     */
+open func documentChannels()throws  -> [ChannelRecord]  {
+    return try  FfiConverterSequenceTypeChannelRecord.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_document_channels(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * A copy of channel `id` named "<name> copy", appended last.
+     */
+open func duplicateDocumentChannel(id: UInt64)throws  -> ChannelUpdate  {
+    return try  FfiConverterTypeChannelUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_duplicate_document_channel(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Select ▸ Load Selection: channel `id` (inverted when `invert`)
+     * combined with the current selection by `op`. One history node.
+     */
+open func loadSelectionChannel(id: UInt64, op: SelectionOp, invert: Bool)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_load_selection_channel(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),
+        FfiConverterTypeSelectionOp_lower(op),
+        FfiConverterBool.lower(invert),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * A new empty alpha channel: all masked (black), or all selected
+     * (white) when `selected` (Quick Mask without a selection).
+     */
+open func newAlphaChannel(name: String, selected: Bool)throws  -> ChannelUpdate  {
+    return try  FfiConverterTypeChannelUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_new_alpha_channel(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(name),
+        FfiConverterBool.lower(selected),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * New Spot Channel: an ink plane from the selection (`from_selection`)
+     * or empty. Preview metadata only: the RGB composite is unchanged.
+     */
+open func newSpotChannel(name: String, color: PaintColor, solidity: Float, fromSelection: Bool)throws  -> ChannelUpdate  {
+    return try  FfiConverterTypeChannelUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_new_spot_channel(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(name),
+        FfiConverterTypePaintColor_lower(color),
+        FfiConverterFloat.lower(solidity),
+        FfiConverterBool.lower(fromSelection),uniffiCallStatus
+    )
+})
+}
+    
+open func renameDocumentChannel(id: UInt64, name: String)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_rename_document_channel(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),
+        FfiConverterString.lower(name),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Select ▸ Save Selection: the selection as a new alpha channel `name`
+     * (`target` `None`; `op` is then ignored), or combined by `op` into
+     * existing channel `target` (Replace, Add, Subtract, Intersect). One
+     * history node; fails without a selection.
+     */
+open func saveSelectionChannel(name: String, target: UInt64?, op: SelectionOp)throws  -> ChannelUpdate  {
+    return try  FfiConverterTypeChannelUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_save_selection_channel(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(name),
+        FfiConverterOptionUInt64.lower(target),
+        FfiConverterTypeSelectionOp_lower(op),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Shows or hides channel `id` in the host's preview overlay (session
+     * state: not saved, not a history node).
+     */
+open func setChannelVisible(id: UInt64, visible: Bool)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_set_channel_visible(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),
+        FfiConverterBool.lower(visible),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Channel Options for a spot channel (an alpha channel becomes one):
+     * display colour and solidity, each within 0…1. Preview metadata only.
+     */
+open func setSpotChannel(id: UInt64, color: PaintColor, solidity: Float)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_set_spot_channel(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),
+        FfiConverterTypePaintColor_lower(color),
+        FfiConverterFloat.lower(solidity),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * Image ▸ Adjustments: `adjustment_json` (`compositor::Adjustment`, the
      * JSON of the adjustment layer of the same kind) applied to a pixel
      * layer's pixels inside the selection, as one history node.
@@ -5479,188 +5623,6 @@ open func smartFilters(layer: UInt64)throws  -> [SmartFilterRecord]  {
 }
     
     /**
-     * Starts a Remove stroke on `layer` with a hard round brush of
-     * diameter `size` (canvas pixels). A stroke already open is dropped.
-     */
-open func beginRemoveStroke(layer: UInt64, size: Float, backend: RemoveBackend)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_begin_remove_stroke(
-            self.uniffiCloneHandle(),
-        FfiConverterUInt64.lower(layer),
-        FfiConverterFloat.lower(size),
-        FfiConverterTypeRemoveBackend_lower(backend),uniffiCallStatus
-    )
-}
-}
-    
-    /**
-     * Drops the open Remove stroke (no history).
-     */
-open func cancelRemoveStroke()  {try! rustCall() {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_cancel_remove_stroke(
-            self.uniffiCloneHandle(),uniffiCallStatus
-    )
-}
-}
-    
-    /**
-     * Cancels a running retouch or neural apply (and any filter apply).
-     */
-open func cancelRetouch()  {try! rustCall() {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_cancel_retouch(
-            self.uniffiCloneHandle(),uniffiCallStatus
-    )
-}
-}
-    
-    /**
-     * Forgets the suggestions of the last scan.
-     */
-open func clearDistractionSuggestions()  {try! rustCall() {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_clear_distraction_suggestions(
-            self.uniffiCloneHandle(),uniffiCallStatus
-    )
-}
-}
-    
-    /**
-     * Edit ▸ Content-Aware Fill: fills the selection of `layer` (one node).
-     * `params_json` is the adapter's `fill` object (`{}` for defaults).
-     */
-open func contentAwareFillSelection(layer: UInt64, paramsJson: String)throws  -> RetouchResult  {
-    return try  FfiConverterTypeRetouchResult_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_content_aware_fill_selection(
-            self.uniffiCloneHandle(),
-        FfiConverterUInt64.lower(layer),
-        FfiConverterString.lower(paramsJson),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * Runs the geometric distraction detector on `layer` and keeps its
-     * suggestions for review (no history). `params_json`: `{"wires":bool,
-     * "faces_as_people":bool,"faces":[[x,y,w,h]]}`, all optional; without
-     * `faces`, the face detector's boxes when its weights are installed.
-     */
-open func detectDistractions(layer: UInt64, paramsJson: String)throws  -> DistractionScan  {
-    return try  FfiConverterTypeDistractionScan_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_detect_distractions(
-            self.uniffiCloneHandle(),
-        FfiConverterUInt64.lower(layer),
-        FfiConverterString.lower(paramsJson),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * Removes what the stroke covered (inside the selection, if any): one
-     * node. `params_json` as for `remove_with_selection`. Blocking.
-     */
-open func endRemoveStroke(paramsJson: String)throws  -> RetouchResult  {
-    return try  FfiConverterTypeRetouchResult_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_end_remove_stroke(
-            self.uniffiCloneHandle(),
-        FfiConverterString.lower(paramsJson),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * Applies a neural filter (one node). `params_json` uses the keys of
-     * `neural_filters()`; Skin Smoothing's `faces` default to the face
-     * detector's boxes (installed weights) or the selection's bounds.
-     */
-open func neuralFilter(layer: UInt64, kind: NeuralFilterKind, paramsJson: String, destination: NeuralDestination)throws  -> RetouchResult  {
-    return try  FfiConverterTypeRetouchResult_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_neural_filter(
-            self.uniffiCloneHandle(),
-        FfiConverterUInt64.lower(layer),
-        FfiConverterTypeNeuralFilterKind_lower(kind),
-        FfiConverterString.lower(paramsJson),
-        FfiConverterTypeNeuralDestination_lower(destination),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * Removes the accepted suggestions of the last scan (one node).
-     */
-open func removeDistractionSuggestions(layer: UInt64, accepted: [UInt32], backend: RemoveBackend, paramsJson: String)throws  -> RetouchResult  {
-    return try  FfiConverterTypeRetouchResult_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_remove_distraction_suggestions(
-            self.uniffiCloneHandle(),
-        FfiConverterUInt64.lower(layer),
-        FfiConverterSequenceUInt32.lower(accepted),
-        FfiConverterTypeRemoveBackend_lower(backend),
-        FfiConverterString.lower(paramsJson),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * Bounds of the open Remove stroke's mask (canvas pixels).
-     */
-open func removeStrokeBounds() -> DocRect?  {
-    return try!  FfiConverterOptionTypeDocRect.lift(try! rustCall() {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_remove_stroke_bounds(
-            self.uniffiCloneHandle(),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * Adds points (level-0 canvas pixels) to the Remove stroke; returns the
-     * canvas rectangle the new dabs covered.
-     */
-open func removeStrokePoints(points: [ToolPoint])throws  -> DocRect?  {
-    return try  FfiConverterOptionTypeDocRect.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_remove_stroke_points(
-            self.uniffiCloneHandle(),
-        FfiConverterSequenceTypeToolPoint.lower(points),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * Remove inside the selection (one node). `params_json`: the adapter's
-     * Remove options (`dilation`, `fill`); `backend` picks the inpainter.
-     */
-open func removeWithSelection(layer: UInt64, backend: RemoveBackend, paramsJson: String)throws  -> RetouchResult  {
-    return try  FfiConverterTypeRetouchResult_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_remove_with_selection(
-            self.uniffiCloneHandle(),
-        FfiConverterUInt64.lower(layer),
-        FfiConverterTypeRemoveBackend_lower(backend),
-        FfiConverterString.lower(paramsJson),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * Model files retouching can use, and whether each is installed.
-     */
-open func retouchModels()throws  -> [RetouchModel]  {
-    return try  FfiConverterSequenceTypeRetouchModel.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_retouch_models(
-            self.uniffiCloneHandle(),uniffiCallStatus
-    )
-})
-}
-    
-    /**
      * Starts a stroke of `tool` on `layer`'s pixels or mask with `brush` and
      * `color` (the foreground colour; a mask takes its luminance). Commits a
      * pending drag first; a stroke already open is committed. The selection
@@ -5788,7 +5750,7 @@ open func fillSelection(layer: UInt64, fill: SelectionFill, opacity: Float)throw
 }
     
     /**
-     * Select ▸ Load Selection from channel `name`, combined by `op`.
+     * Select ▸ Load Selection from the first channel named `name`, combined by `op`.
      */
 open func loadSelection(name: String, op: SelectionOp)throws  -> DocumentUpdate  {
     return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
@@ -5868,8 +5830,8 @@ open func sampleColor(x: Float, y: Float, sampleAll: Bool, layer: UInt64?, radiu
 }
     
     /**
-     * Select ▸ Save Selection as channel `name` (replacing one of that
-     * name). Session state: channels are not written to files yet.
+     * Select ▸ Save Selection as alpha channel `name` (replacing the first
+     * alpha channel of that name). Saved with the document.
      */
 open func saveSelection(name: String)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
         uniffiCallStatus in
@@ -6052,7 +6014,7 @@ open func selectWand(x: Float, y: Float, tolerance: Float, contiguous: Bool, sam
 }
     
     /**
-     * Saved selection channels, by name.
+     * Saved channel names in panel order (see `document_channels` for ids).
      */
 open func selectionChannels()throws  -> [String]  {
     return try  FfiConverterSequenceString.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
@@ -10702,6 +10664,188 @@ public func FfiConverterTypeChangedFields_lower(_ value: ChangedFields) -> RustB
 
 
 /**
+ * One saved channel, as the Channels panel lists it.
+ */
+public struct ChannelRecord: Equatable, Hashable {
+    /**
+     * Stable within the document (and across save / reopen).
+     */
+    public var id: UInt64
+    public var kind: DocChannelKind
+    /**
+     * Display name; names may repeat (as in PSD).
+     */
+    public var name: String
+    /**
+     * Spot: the ink's display colour. Alpha: the default overlay colour
+     * (red), which PSD also records for alpha channels.
+     */
+    public var color: PaintColor
+    /**
+     * Spot: solidity. Alpha: the default overlay opacity (0.5).
+     */
+    public var opacity: Float
+    /**
+     * Shown by the host's preview overlay (session state, not saved).
+     */
+    public var visible: Bool
+    /**
+     * Position in the panel and in the PSD channel list (0 = first).
+     */
+    public var index: UInt32
+    /**
+     * Changes whenever the channel's samples change (thumbnail cache key).
+     */
+    public var revision: UInt64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Stable within the document (and across save / reopen).
+         */id: UInt64, kind: DocChannelKind, 
+        /**
+         * Display name; names may repeat (as in PSD).
+         */name: String, 
+        /**
+         * Spot: the ink's display colour. Alpha: the default overlay colour
+         * (red), which PSD also records for alpha channels.
+         */color: PaintColor, 
+        /**
+         * Spot: solidity. Alpha: the default overlay opacity (0.5).
+         */opacity: Float, 
+        /**
+         * Shown by the host's preview overlay (session state, not saved).
+         */visible: Bool, 
+        /**
+         * Position in the panel and in the PSD channel list (0 = first).
+         */index: UInt32, 
+        /**
+         * Changes whenever the channel's samples change (thumbnail cache key).
+         */revision: UInt64) {
+        self.id = id
+        self.kind = kind
+        self.name = name
+        self.color = color
+        self.opacity = opacity
+        self.visible = visible
+        self.index = index
+        self.revision = revision
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ChannelRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeChannelRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ChannelRecord {
+        return
+            try ChannelRecord(
+                id: FfiConverterUInt64.read(from: &buf), 
+                kind: FfiConverterTypeDocChannelKind.read(from: &buf), 
+                name: FfiConverterString.read(from: &buf), 
+                color: FfiConverterTypePaintColor.read(from: &buf), 
+                opacity: FfiConverterFloat.read(from: &buf), 
+                visible: FfiConverterBool.read(from: &buf), 
+                index: FfiConverterUInt32.read(from: &buf), 
+                revision: FfiConverterUInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ChannelRecord, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.id, into: &buf)
+        FfiConverterTypeDocChannelKind.write(value.kind, into: &buf)
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterTypePaintColor.write(value.color, into: &buf)
+        FfiConverterFloat.write(value.opacity, into: &buf)
+        FfiConverterBool.write(value.visible, into: &buf)
+        FfiConverterUInt32.write(value.index, into: &buf)
+        FfiConverterUInt64.write(value.revision, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeChannelRecord_lift(_ buf: RustBuffer) throws -> ChannelRecord {
+    return try FfiConverterTypeChannelRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeChannelRecord_lower(_ value: ChannelRecord) -> RustBuffer {
+    return FfiConverterTypeChannelRecord.lower(value)
+}
+
+
+/**
+ * A channel edit that names the channel it made or changed.
+ */
+public struct ChannelUpdate: Equatable, Hashable {
+    public var channelId: UInt64
+    public var update: DocumentUpdate
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(channelId: UInt64, update: DocumentUpdate) {
+        self.channelId = channelId
+        self.update = update
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ChannelUpdate: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeChannelUpdate: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ChannelUpdate {
+        return
+            try ChannelUpdate(
+                channelId: FfiConverterUInt64.read(from: &buf), 
+                update: FfiConverterTypeDocumentUpdate.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ChannelUpdate, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.channelId, into: &buf)
+        FfiConverterTypeDocumentUpdate.write(value.update, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeChannelUpdate_lift(_ buf: RustBuffer) throws -> ChannelUpdate {
+    return try FfiConverterTypeChannelUpdate.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeChannelUpdate_lower(_ value: ChannelUpdate) -> RustBuffer {
+    return FfiConverterTypeChannelUpdate.lower(value)
+}
+
+
+/**
  * Burst / near-duplicate group. Members follow queue order.
  */
 public struct CullGroup: Equatable, Hashable {
@@ -11239,156 +11383,6 @@ public func FfiConverterTypeDistractionRemovalResult_lift(_ buf: RustBuffer) thr
 #endif
 public func FfiConverterTypeDistractionRemovalResult_lower(_ value: DistractionRemovalResult) -> RustBuffer {
     return FfiConverterTypeDistractionRemovalResult.lower(value)
-}
-
-
-/**
- * Result of `detect_distractions`.
- */
-public struct DistractionScan: Equatable, Hashable {
-    public var suggestions: [DistractionSuggestion]
-    /**
-     * Where face boxes came from (`caller`, `face detector`, or why none).
-     */
-    public var faces: String
-    /**
-     * What the detector is (and is not).
-     */
-    public var limitation: String
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(suggestions: [DistractionSuggestion], 
-        /**
-         * Where face boxes came from (`caller`, `face detector`, or why none).
-         */faces: String, 
-        /**
-         * What the detector is (and is not).
-         */limitation: String) {
-        self.suggestions = suggestions
-        self.faces = faces
-        self.limitation = limitation
-    }
-
-    
-
-    
-}
-
-#if compiler(>=6)
-extension DistractionScan: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeDistractionScan: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DistractionScan {
-        return
-            try DistractionScan(
-                suggestions: FfiConverterSequenceTypeDistractionSuggestion.read(from: &buf), 
-                faces: FfiConverterString.read(from: &buf), 
-                limitation: FfiConverterString.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: DistractionScan, into buf: inout [UInt8]) {
-        FfiConverterSequenceTypeDistractionSuggestion.write(value.suggestions, into: &buf)
-        FfiConverterString.write(value.faces, into: &buf)
-        FfiConverterString.write(value.limitation, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeDistractionScan_lift(_ buf: RustBuffer) throws -> DistractionScan {
-    return try FfiConverterTypeDistractionScan.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeDistractionScan_lower(_ value: DistractionScan) -> RustBuffer {
-    return FfiConverterTypeDistractionScan.lower(value)
-}
-
-
-/**
- * One suggestion of `detect_distractions`.
- */
-public struct DistractionSuggestion: Equatable, Hashable {
-    public var id: UInt32
-    public var kind: DistractionKind
-    /**
-     * Bounds in level-0 canvas pixels.
-     */
-    public var bounds: DocRect
-    /**
-     * Pixels the suggestion covers.
-     */
-    public var pixels: UInt64
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(id: UInt32, kind: DistractionKind, 
-        /**
-         * Bounds in level-0 canvas pixels.
-         */bounds: DocRect, 
-        /**
-         * Pixels the suggestion covers.
-         */pixels: UInt64) {
-        self.id = id
-        self.kind = kind
-        self.bounds = bounds
-        self.pixels = pixels
-    }
-
-    
-
-    
-}
-
-#if compiler(>=6)
-extension DistractionSuggestion: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeDistractionSuggestion: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DistractionSuggestion {
-        return
-            try DistractionSuggestion(
-                id: FfiConverterUInt32.read(from: &buf), 
-                kind: FfiConverterTypeDistractionKind.read(from: &buf), 
-                bounds: FfiConverterTypeDocRect.read(from: &buf), 
-                pixels: FfiConverterUInt64.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: DistractionSuggestion, into buf: inout [UInt8]) {
-        FfiConverterUInt32.write(value.id, into: &buf)
-        FfiConverterTypeDistractionKind.write(value.kind, into: &buf)
-        FfiConverterTypeDocRect.write(value.bounds, into: &buf)
-        FfiConverterUInt64.write(value.pixels, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeDistractionSuggestion_lift(_ buf: RustBuffer) throws -> DistractionSuggestion {
-    return try FfiConverterTypeDistractionSuggestion.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeDistractionSuggestion_lower(_ value: DistractionSuggestion) -> RustBuffer {
-    return FfiConverterTypeDistractionSuggestion.lower(value)
 }
 
 
@@ -17182,166 +17176,6 @@ public func FfiConverterTypeMetadataField_lower(_ value: MetadataField) -> RustB
 }
 
 
-/**
- * A neural filter of the Neural Filters panel.
- */
-public struct NeuralFilterInfo: Equatable, Hashable {
-    public var kind: NeuralFilterKind
-    /**
-     * Adapter id (`neural/colorize`).
-     */
-    public var filterId: String
-    public var name: String
-    public var params: [NeuralParam]
-    public var requiresWeights: Bool
-    public var limitation: String?
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(kind: NeuralFilterKind, 
-        /**
-         * Adapter id (`neural/colorize`).
-         */filterId: String, name: String, params: [NeuralParam], requiresWeights: Bool, limitation: String?) {
-        self.kind = kind
-        self.filterId = filterId
-        self.name = name
-        self.params = params
-        self.requiresWeights = requiresWeights
-        self.limitation = limitation
-    }
-
-    
-
-    
-}
-
-#if compiler(>=6)
-extension NeuralFilterInfo: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeNeuralFilterInfo: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NeuralFilterInfo {
-        return
-            try NeuralFilterInfo(
-                kind: FfiConverterTypeNeuralFilterKind.read(from: &buf), 
-                filterId: FfiConverterString.read(from: &buf), 
-                name: FfiConverterString.read(from: &buf), 
-                params: FfiConverterSequenceTypeNeuralParam.read(from: &buf), 
-                requiresWeights: FfiConverterBool.read(from: &buf), 
-                limitation: FfiConverterOptionString.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: NeuralFilterInfo, into buf: inout [UInt8]) {
-        FfiConverterTypeNeuralFilterKind.write(value.kind, into: &buf)
-        FfiConverterString.write(value.filterId, into: &buf)
-        FfiConverterString.write(value.name, into: &buf)
-        FfiConverterSequenceTypeNeuralParam.write(value.params, into: &buf)
-        FfiConverterBool.write(value.requiresWeights, into: &buf)
-        FfiConverterOptionString.write(value.limitation, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeNeuralFilterInfo_lift(_ buf: RustBuffer) throws -> NeuralFilterInfo {
-    return try FfiConverterTypeNeuralFilterInfo.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeNeuralFilterInfo_lower(_ value: NeuralFilterInfo) -> RustBuffer {
-    return FfiConverterTypeNeuralFilterInfo.lower(value)
-}
-
-
-/**
- * One control of a neural filter.
- */
-public struct NeuralParam: Equatable, Hashable {
-    /**
-     * JSON key (`strength`).
-     */
-    public var key: String
-    /**
-     * Label (`Strength`).
-     */
-    public var label: String
-    public var min: Float
-    public var max: Float
-    public var defaultValue: Float
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(
-        /**
-         * JSON key (`strength`).
-         */key: String, 
-        /**
-         * Label (`Strength`).
-         */label: String, min: Float, max: Float, defaultValue: Float) {
-        self.key = key
-        self.label = label
-        self.min = min
-        self.max = max
-        self.defaultValue = defaultValue
-    }
-
-    
-
-    
-}
-
-#if compiler(>=6)
-extension NeuralParam: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeNeuralParam: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NeuralParam {
-        return
-            try NeuralParam(
-                key: FfiConverterString.read(from: &buf), 
-                label: FfiConverterString.read(from: &buf), 
-                min: FfiConverterFloat.read(from: &buf), 
-                max: FfiConverterFloat.read(from: &buf), 
-                defaultValue: FfiConverterFloat.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: NeuralParam, into buf: inout [UInt8]) {
-        FfiConverterString.write(value.key, into: &buf)
-        FfiConverterString.write(value.label, into: &buf)
-        FfiConverterFloat.write(value.min, into: &buf)
-        FfiConverterFloat.write(value.max, into: &buf)
-        FfiConverterFloat.write(value.defaultValue, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeNeuralParam_lift(_ buf: RustBuffer) throws -> NeuralParam {
-    return try FfiConverterTypeNeuralParam.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeNeuralParam_lower(_ value: NeuralParam) -> RustBuffer {
-    return FfiConverterTypeNeuralParam.lower(value)
-}
-
-
 public struct OcrRegionInfo: Equatable, Hashable {
     public var text: String
     /**
@@ -18805,188 +18639,6 @@ public func FfiConverterTypeRefineEdgeParams_lift(_ buf: RustBuffer) throws -> R
 #endif
 public func FfiConverterTypeRefineEdgeParams_lower(_ value: RefineEdgeParams) -> RustBuffer {
     return FfiConverterTypeRefineEdgeParams.lower(value)
-}
-
-
-/**
- * A model file retouching can use, and whether it is installed locally.
- */
-public struct RetouchModel: Equatable, Hashable {
-    /**
-     * Registry id (`remove/lama`).
-     */
-    public var modelId: String
-    /**
-     * What needs it (`Remove (LaMa)`).
-     */
-    public var usedBy: String
-    public var installed: Bool
-    /**
-     * Where the verified file is (or would be) cached.
-     */
-    public var cachePath: String
-    /**
-     * Where the file comes from (never fetched implicitly).
-     */
-    public var sourceUrl: String
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(
-        /**
-         * Registry id (`remove/lama`).
-         */modelId: String, 
-        /**
-         * What needs it (`Remove (LaMa)`).
-         */usedBy: String, installed: Bool, 
-        /**
-         * Where the verified file is (or would be) cached.
-         */cachePath: String, 
-        /**
-         * Where the file comes from (never fetched implicitly).
-         */sourceUrl: String) {
-        self.modelId = modelId
-        self.usedBy = usedBy
-        self.installed = installed
-        self.cachePath = cachePath
-        self.sourceUrl = sourceUrl
-    }
-
-    
-
-    
-}
-
-#if compiler(>=6)
-extension RetouchModel: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeRetouchModel: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RetouchModel {
-        return
-            try RetouchModel(
-                modelId: FfiConverterString.read(from: &buf), 
-                usedBy: FfiConverterString.read(from: &buf), 
-                installed: FfiConverterBool.read(from: &buf), 
-                cachePath: FfiConverterString.read(from: &buf), 
-                sourceUrl: FfiConverterString.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: RetouchModel, into buf: inout [UInt8]) {
-        FfiConverterString.write(value.modelId, into: &buf)
-        FfiConverterString.write(value.usedBy, into: &buf)
-        FfiConverterBool.write(value.installed, into: &buf)
-        FfiConverterString.write(value.cachePath, into: &buf)
-        FfiConverterString.write(value.sourceUrl, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeRetouchModel_lift(_ buf: RustBuffer) throws -> RetouchModel {
-    return try FfiConverterTypeRetouchModel.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeRetouchModel_lower(_ value: RetouchModel) -> RustBuffer {
-    return FfiConverterTypeRetouchModel.lower(value)
-}
-
-
-/**
- * What one retouch apply did.
- */
-public struct RetouchResult: Equatable, Hashable {
-    public var update: DocumentUpdate
-    /**
-     * The backend that actually ran: `PatchMatch`, `LaMa`, `Content-Aware
-     * Fill`, `Skin Smoothing (CPU)`, `DDColor`, `DRUNet`, or `none` (an
-     * empty mask).
-     */
-    public var backend: String
-    /**
-     * Why the backend differs from the request (Auto without LaMa), how
-     * face boxes were found, …
-     */
-    public var note: String?
-    /**
-     * Engine time, milliseconds.
-     */
-    public var millis: Double
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(update: DocumentUpdate, 
-        /**
-         * The backend that actually ran: `PatchMatch`, `LaMa`, `Content-Aware
-         * Fill`, `Skin Smoothing (CPU)`, `DDColor`, `DRUNet`, or `none` (an
-         * empty mask).
-         */backend: String, 
-        /**
-         * Why the backend differs from the request (Auto without LaMa), how
-         * face boxes were found, …
-         */note: String?, 
-        /**
-         * Engine time, milliseconds.
-         */millis: Double) {
-        self.update = update
-        self.backend = backend
-        self.note = note
-        self.millis = millis
-    }
-
-    
-
-    
-}
-
-#if compiler(>=6)
-extension RetouchResult: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeRetouchResult: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RetouchResult {
-        return
-            try RetouchResult(
-                update: FfiConverterTypeDocumentUpdate.read(from: &buf), 
-                backend: FfiConverterString.read(from: &buf), 
-                note: FfiConverterOptionString.read(from: &buf), 
-                millis: FfiConverterDouble.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: RetouchResult, into buf: inout [UInt8]) {
-        FfiConverterTypeDocumentUpdate.write(value.update, into: &buf)
-        FfiConverterString.write(value.backend, into: &buf)
-        FfiConverterOptionString.write(value.note, into: &buf)
-        FfiConverterDouble.write(value.millis, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeRetouchResult_lift(_ buf: RustBuffer) throws -> RetouchResult {
-    return try FfiConverterTypeRetouchResult.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeRetouchResult_lower(_ value: RetouchResult) -> RustBuffer {
-    return FfiConverterTypeRetouchResult.lower(value)
 }
 
 
@@ -21431,19 +21083,19 @@ public func FfiConverterTypeDecision_lower(_ value: Decision) -> RustBuffer {
 
 
 /**
- * Kind of distraction suggestion.
+ * What a saved channel is.
  */
 
-public enum DistractionKind: Equatable, Hashable {
+public enum DocChannelKind: Equatable, Hashable {
     
     /**
-     * A thin straight ridge or valley (geometric wire proxy).
+     * A saved selection or general-purpose mask.
      */
-    case wire
+    case alpha
     /**
-     * A face box dilated by half its size on each side (not a person mask).
+     * A spot ink plane (preview metadata only: never in the RGB composite).
      */
-    case faceBox
+    case spot
 
 
 
@@ -21452,36 +21104,36 @@ public enum DistractionKind: Equatable, Hashable {
 }
 
 #if compiler(>=6)
-extension DistractionKind: Sendable {}
+extension DocChannelKind: Sendable {}
 #endif
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public struct FfiConverterTypeDistractionKind: FfiConverterRustBuffer {
-    typealias SwiftType = DistractionKind
+public struct FfiConverterTypeDocChannelKind: FfiConverterRustBuffer {
+    typealias SwiftType = DocChannelKind
 
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DistractionKind {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DocChannelKind {
         let variant: Int32 = try readInt(&buf)
         switch variant {
         
-        case 1: return .wire
+        case 1: return .alpha
         
-        case 2: return .faceBox
+        case 2: return .spot
         
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
 
-    public static func write(_ value: DistractionKind, into buf: inout [UInt8]) {
+    public static func write(_ value: DocChannelKind, into buf: inout [UInt8]) {
         switch value {
         
         
-        case .wire:
+        case .alpha:
             writeInt(&buf, Int32(1))
         
         
-        case .faceBox:
+        case .spot:
             writeInt(&buf, Int32(2))
         
         }
@@ -21492,15 +21144,15 @@ public struct FfiConverterTypeDistractionKind: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeDistractionKind_lift(_ buf: RustBuffer) throws -> DistractionKind {
-    return try FfiConverterTypeDistractionKind.lift(buf)
+public func FfiConverterTypeDocChannelKind_lift(_ buf: RustBuffer) throws -> DocChannelKind {
+    return try FfiConverterTypeDocChannelKind.lift(buf)
 }
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeDistractionKind_lower(_ value: DistractionKind) -> RustBuffer {
-    return FfiConverterTypeDistractionKind.lower(value)
+public func FfiConverterTypeDocChannelKind_lower(_ value: DocChannelKind) -> RustBuffer {
+    return FfiConverterTypeDocChannelKind.lower(value)
 }
 
 
@@ -22997,168 +22649,6 @@ public func FfiConverterTypeMaskInit_lower(_ value: MaskInit) -> RustBuffer {
 
 
 /**
- * Where a neural filter's result goes.
- */
-
-public enum NeuralDestination: Equatable, Hashable {
-    
-    /**
-     * The layer's own pixels (inside the selection); on a smart object, a
-     * smart filter (the adapter's behaviour).
-     */
-    case currentLayer
-    /**
-     * A new pixel layer above a pixel layer (the layer is unchanged).
-     */
-    case newLayer
-    /**
-     * A smart filter; a pixel layer becomes a smart object in the same step.
-     */
-    case smartFilter
-
-
-
-
-
-}
-
-#if compiler(>=6)
-extension NeuralDestination: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeNeuralDestination: FfiConverterRustBuffer {
-    typealias SwiftType = NeuralDestination
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NeuralDestination {
-        let variant: Int32 = try readInt(&buf)
-        switch variant {
-        
-        case 1: return .currentLayer
-        
-        case 2: return .newLayer
-        
-        case 3: return .smartFilter
-        
-        default: throw UniffiInternalError.unexpectedEnumCase
-        }
-    }
-
-    public static func write(_ value: NeuralDestination, into buf: inout [UInt8]) {
-        switch value {
-        
-        
-        case .currentLayer:
-            writeInt(&buf, Int32(1))
-        
-        
-        case .newLayer:
-            writeInt(&buf, Int32(2))
-        
-        
-        case .smartFilter:
-            writeInt(&buf, Int32(3))
-        
-        }
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeNeuralDestination_lift(_ buf: RustBuffer) throws -> NeuralDestination {
-    return try FfiConverterTypeNeuralDestination.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeNeuralDestination_lower(_ value: NeuralDestination) -> RustBuffer {
-    return FfiConverterTypeNeuralDestination.lower(value)
-}
-
-
-
-/**
- * Neural filters M5-29 exposes (adapter ids `neural/skin_smoothing`, …).
- */
-
-public enum NeuralFilterKind: Equatable, Hashable {
-    
-    case skinSmoothing
-    case colorize
-    case jpegArtifactRemoval
-
-
-
-
-
-}
-
-#if compiler(>=6)
-extension NeuralFilterKind: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeNeuralFilterKind: FfiConverterRustBuffer {
-    typealias SwiftType = NeuralFilterKind
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NeuralFilterKind {
-        let variant: Int32 = try readInt(&buf)
-        switch variant {
-        
-        case 1: return .skinSmoothing
-        
-        case 2: return .colorize
-        
-        case 3: return .jpegArtifactRemoval
-        
-        default: throw UniffiInternalError.unexpectedEnumCase
-        }
-    }
-
-    public static func write(_ value: NeuralFilterKind, into buf: inout [UInt8]) {
-        switch value {
-        
-        
-        case .skinSmoothing:
-            writeInt(&buf, Int32(1))
-        
-        
-        case .colorize:
-            writeInt(&buf, Int32(2))
-        
-        
-        case .jpegArtifactRemoval:
-            writeInt(&buf, Int32(3))
-        
-        }
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeNeuralFilterKind_lift(_ buf: RustBuffer) throws -> NeuralFilterKind {
-    return try FfiConverterTypeNeuralFilterKind.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeNeuralFilterKind_lower(_ value: NeuralFilterKind) -> RustBuffer {
-    return FfiConverterTypeNeuralFilterKind.lower(value)
-}
-
-
-
-/**
  * New layer content for [`DocumentSession::add_layer`].
  */
 
@@ -23639,91 +23129,6 @@ public func FfiConverterTypeRasterFilterOperation_lift(_ buf: RustBuffer) throws
 #endif
 public func FfiConverterTypeRasterFilterOperation_lower(_ value: RasterFilterOperation) -> RustBuffer {
     return FfiConverterTypeRasterFilterOperation.lower(value)
-}
-
-
-
-/**
- * Which inpainting backend Remove asks for.
- */
-
-public enum RemoveBackend: Equatable, Hashable {
-    
-    /**
-     * LaMa when its weights are installed, PatchMatch otherwise.
-     */
-    case auto
-    /**
-     * CPU PatchMatch (no weights).
-     */
-    case patchMatch
-    /**
-     * LaMa only; an error when its weights are not installed.
-     */
-    case lama
-
-
-
-
-
-}
-
-#if compiler(>=6)
-extension RemoveBackend: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeRemoveBackend: FfiConverterRustBuffer {
-    typealias SwiftType = RemoveBackend
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RemoveBackend {
-        let variant: Int32 = try readInt(&buf)
-        switch variant {
-        
-        case 1: return .auto
-        
-        case 2: return .patchMatch
-        
-        case 3: return .lama
-        
-        default: throw UniffiInternalError.unexpectedEnumCase
-        }
-    }
-
-    public static func write(_ value: RemoveBackend, into buf: inout [UInt8]) {
-        switch value {
-        
-        
-        case .auto:
-            writeInt(&buf, Int32(1))
-        
-        
-        case .patchMatch:
-            writeInt(&buf, Int32(2))
-        
-        
-        case .lama:
-            writeInt(&buf, Int32(3))
-        
-        }
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeRemoveBackend_lift(_ buf: RustBuffer) throws -> RemoveBackend {
-    return try FfiConverterTypeRemoveBackend.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeRemoveBackend_lower(_ value: RemoveBackend) -> RustBuffer {
-    return FfiConverterTypeRemoveBackend.lower(value)
 }
 
 
@@ -25993,6 +25398,31 @@ fileprivate struct FfiConverterSequenceTypeBrushTipInfo: FfiConverterRustBuffer 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeChannelRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [ChannelRecord]
+
+    public static func write(_ value: [ChannelRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeChannelRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ChannelRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ChannelRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeChannelRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeCullGroup: FfiConverterRustBuffer {
     typealias SwiftType = [CullGroup]
 
@@ -26085,31 +25515,6 @@ fileprivate struct FfiConverterSequenceTypeDefectThreshold: FfiConverterRustBuff
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeDefectThreshold.read(from: &buf))
-        }
-        return seq
-    }
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-fileprivate struct FfiConverterSequenceTypeDistractionSuggestion: FfiConverterRustBuffer {
-    typealias SwiftType = [DistractionSuggestion]
-
-    public static func write(_ value: [DistractionSuggestion], into buf: inout [UInt8]) {
-        let len = Int32(value.count)
-        writeInt(&buf, len)
-        for item in value {
-            FfiConverterTypeDistractionSuggestion.write(item, into: &buf)
-        }
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [DistractionSuggestion] {
-        let len: Int32 = try readInt(&buf)
-        var seq = [DistractionSuggestion]()
-        seq.reserveCapacity(Int(len))
-        for _ in 0 ..< len {
-            seq.append(try FfiConverterTypeDistractionSuggestion.read(from: &buf))
         }
         return seq
     }
@@ -27018,56 +26423,6 @@ fileprivate struct FfiConverterSequenceTypeMetadataField: FfiConverterRustBuffer
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-fileprivate struct FfiConverterSequenceTypeNeuralFilterInfo: FfiConverterRustBuffer {
-    typealias SwiftType = [NeuralFilterInfo]
-
-    public static func write(_ value: [NeuralFilterInfo], into buf: inout [UInt8]) {
-        let len = Int32(value.count)
-        writeInt(&buf, len)
-        for item in value {
-            FfiConverterTypeNeuralFilterInfo.write(item, into: &buf)
-        }
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [NeuralFilterInfo] {
-        let len: Int32 = try readInt(&buf)
-        var seq = [NeuralFilterInfo]()
-        seq.reserveCapacity(Int(len))
-        for _ in 0 ..< len {
-            seq.append(try FfiConverterTypeNeuralFilterInfo.read(from: &buf))
-        }
-        return seq
-    }
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-fileprivate struct FfiConverterSequenceTypeNeuralParam: FfiConverterRustBuffer {
-    typealias SwiftType = [NeuralParam]
-
-    public static func write(_ value: [NeuralParam], into buf: inout [UInt8]) {
-        let len = Int32(value.count)
-        writeInt(&buf, len)
-        for item in value {
-            FfiConverterTypeNeuralParam.write(item, into: &buf)
-        }
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [NeuralParam] {
-        let len: Int32 = try readInt(&buf)
-        var seq = [NeuralParam]()
-        seq.reserveCapacity(Int(len))
-        for _ in 0 ..< len {
-            seq.append(try FfiConverterTypeNeuralParam.read(from: &buf))
-        }
-        return seq
-    }
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
 fileprivate struct FfiConverterSequenceTypeOcrRegionInfo: FfiConverterRustBuffer {
     typealias SwiftType = [OcrRegionInfo]
 
@@ -27235,31 +26590,6 @@ fileprivate struct FfiConverterSequenceTypePrinterProfile: FfiConverterRustBuffe
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypePrinterProfile.read(from: &buf))
-        }
-        return seq
-    }
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-fileprivate struct FfiConverterSequenceTypeRetouchModel: FfiConverterRustBuffer {
-    typealias SwiftType = [RetouchModel]
-
-    public static func write(_ value: [RetouchModel], into buf: inout [UInt8]) {
-        let len = Int32(value.count)
-        writeInt(&buf, len)
-        for item in value {
-            FfiConverterTypeRetouchModel.write(item, into: &buf)
-        }
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [RetouchModel] {
-        let len: Int32 = try readInt(&buf)
-        var seq = [RetouchModel]()
-        seq.reserveCapacity(Int(len))
-        for _ in 0 ..< len {
-            seq.append(try FfiConverterTypeRetouchModel.read(from: &buf))
         }
         return seq
     }
@@ -27536,16 +26866,6 @@ public func listFilters() -> [FilterInfo]  {
 })
 }
 /**
- * The neural filters M5-29 registers, with their controls.
- */
-public func neuralFilters() -> [NeuralFilterInfo]  {
-    return try!  FfiConverterSequenceTypeNeuralFilterInfo.lift(try! rustCall() {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_func_neural_filters(uniffiCallStatus
-    )
-})
-}
-/**
  * A preview of tip `id` (or the computed round tip of `hardness` for
  * `round:<hardness>`) at most `max_px` on the long edge.
  */
@@ -27659,9 +26979,6 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_func_list_filters() != 15632) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_func_neural_filters() != 17162) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_func_brush_tip_preview() != 21691) {
@@ -28309,6 +27626,39 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_documentsession_ungroup_layer() != 16163) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_channel_thumbnail() != 33848) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_delete_document_channel() != 25172) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_document_channels() != 11113) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_duplicate_document_channel() != 42170) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_load_selection_channel() != 62039) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_new_alpha_channel() != 35156) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_new_spot_channel() != 26033) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_rename_document_channel() != 51295) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_save_selection_channel() != 16390) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_set_channel_visible() != 38870) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_set_spot_channel() != 59239) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_tessera_ffi_checksum_method_documentsession_apply_adjustment() != 62065) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -28357,45 +27707,6 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_documentsession_smart_filters() != 21975) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_begin_remove_stroke() != 41520) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_cancel_remove_stroke() != 46597) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_cancel_retouch() != 4599) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_clear_distraction_suggestions() != 64743) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_content_aware_fill_selection() != 63614) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_detect_distractions() != 50030) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_end_remove_stroke() != 24853) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_neural_filter() != 16222) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_remove_distraction_suggestions() != 10060) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_remove_stroke_bounds() != 40469) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_remove_stroke_points() != 53278) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_remove_with_selection() != 40234) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_retouch_models() != 9959) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_tessera_ffi_checksum_method_documentsession_begin_stroke() != 7153) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -28423,7 +27734,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_documentsession_fill_selection() != 4888) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_load_selection() != 11776) {
+    if (uniffi_tessera_ffi_checksum_method_documentsession_load_selection() != 46299) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_magnetic_path() != 59164) {
@@ -28438,7 +27749,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_documentsession_sample_color() != 13847) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_save_selection() != 20804) {
+    if (uniffi_tessera_ffi_checksum_method_documentsession_save_selection() != 43148) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_select_all() != 13304) {
@@ -28474,7 +27785,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_documentsession_select_wand() != 8868) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_selection_channels() != 23976) {
+    if (uniffi_tessera_ffi_checksum_method_documentsession_selection_channels() != 40011) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_selection_outline() != 17836) {

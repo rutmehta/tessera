@@ -3,7 +3,7 @@ pub type Color = [f32; 4];
 fn valid_color(c: Color) -> bool {
     c.iter().all(|v| v.is_finite() && (0.0..=1.0).contains(v))
 }
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum GradientKind {
     Linear,
     Radial,
@@ -11,18 +11,18 @@ pub enum GradientKind {
     Reflected,
     Diamond,
 }
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Stop {
     pub position: f64,
     pub color: Color,
 }
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Gradient {
-    kind: GradientKind,
-    start: Point,
-    end: Point,
-    stops: Vec<Stop>,
-    dither: bool,
+    pub kind: GradientKind,
+    pub start: Point,
+    pub end: Point,
+    pub stops: Vec<Stop>,
+    pub dither: bool,
 }
 impl Gradient {
     pub fn new(
@@ -92,7 +92,7 @@ impl Gradient {
         color
     }
 }
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Pattern {
     width: u32,
     height: u32,
@@ -129,7 +129,7 @@ impl Pattern {
         self.pixels[y * self.width as usize + x]
     }
 }
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Fill {
     Solid(Color),
     Gradient(Gradient),
@@ -143,11 +143,26 @@ impl Fill {
             Self::Pattern(t) => t.sample(p),
         }
     }
-    pub(crate) fn validate(&self) -> Result<()> {
-        if matches!(self,Self::Solid(c) if !valid_color(*c)) {
-            Err(Error::Invalid("color"))
-        } else {
-            Ok(())
+    pub fn validate(&self) -> Result<()> {
+        match self {
+            Self::Solid(c) if !valid_color(*c) => Err(Error::Invalid("color")),
+            Self::Solid(_) => Ok(()),
+            Self::Gradient(g) => {
+                Gradient::new(g.kind, g.start, g.end, g.stops.clone(), g.dither).map(|_| ())
+            }
+            Self::Pattern(p) => {
+                if p.width == 0
+                    || p.height == 0
+                    || u64::from(p.width) * u64::from(p.height) != p.pixels.len() as u64
+                    || p.pixels.iter().any(|c| !valid_color(*c))
+                    || !p.document_to_tile.as_coeffs().iter().all(|v| v.is_finite())
+                    || p.document_to_tile.determinant().abs() < 1e-12
+                {
+                    Err(Error::Invalid("pattern"))
+                } else {
+                    Ok(())
+                }
+            }
         }
     }
 }

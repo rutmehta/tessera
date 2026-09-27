@@ -115,6 +115,8 @@ impl TextModel {
             ..Self::default()
         }
     }
+    /// Native versioned JSON model envelope; not Adobe PSD EngineData.
+    /// Use `export_engine_data` for the Adobe dictionary grammar.
     pub fn to_engine_data(&self) -> Result<String> {
         self.validate()?;
         Ok(serde_json::to_string(&Envelope {
@@ -122,6 +124,7 @@ impl TextModel {
             model: self.clone(),
         })?)
     }
+    /// Read the native JSON model envelope (not Adobe PSD EngineData).
     pub fn from_engine_data(json: &str) -> Result<Self> {
         let envelope: Envelope = serde_json::from_str(json)?;
         if envelope.version != 1 {

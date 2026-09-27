@@ -7,7 +7,7 @@ description = "Editable text, shaping, outline geometry and unhinted rasterizati
 
 [dependencies]
 serde = { workspace = true }
-serde_json = { workspace = true }
+serde_json = { workspace = true, features = ["float_roundtrip"] }
 thiserror = { workspace = true }
 fontdb = "0.23"
 rustybuzz = "0.20"

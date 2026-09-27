@@ -5,8 +5,9 @@ edition = "2024"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-kurbo = "0.11"
-lyon = "1"
+serde.workspace = true
+kurbo = { version = "0.11", features = ["serde"] }
+lyon = { version = "1", features = ["serialization"] }
 i_overlay = "4"
 thiserror.workspace = true
 quick-xml.workspace = true

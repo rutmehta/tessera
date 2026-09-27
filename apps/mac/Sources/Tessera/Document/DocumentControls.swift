@@ -93,6 +93,7 @@ struct DocCurveEditor: NSViewRepresentable {
     let points: [[Double]]
     let channel: CurveChannel
     let revision: Int
+    var identifier = "document.properties.curves.editor"
     let onChange: ([[Double]], Bool) -> Void
 
     final class Coordinator { var onChange: (([[Double]], Bool) -> Void)? }
@@ -103,7 +104,7 @@ struct DocCurveEditor: NSViewRepresentable {
         v.mode = .point
         let c = context.coordinator
         v.onCurve = { curve, final in c.onChange?(curve.knots.map { [$0.x, $0.y] }, final) }
-        v.setAccessibilityIdentifier("document.properties.curves.editor")
+        v.setAccessibilityIdentifier(identifier)
         return v
     }
 

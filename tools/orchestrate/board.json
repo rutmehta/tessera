@@ -1139,7 +1139,7 @@
     "id": "M5-30",
     "owner": "astra",
     "title": "Editable text + vector layers contract (engine-api 1.5)",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
@@ -1174,5 +1174,21 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "B5-06",
+    "owner": "opus",
+    "title": "B5-v fixes and editors for the new adjustment layers",
+    "status": "merged",
+    "attempts": 0,
+    "notes": "machine B; wp/B5-06 merged with main 923aad8; 224 XCTest; grid \u2318E hardened (not reproduced); own Save As sheet with document.saveAs.name"
+  },
+  {
+    "id": "B5-08",
+    "owner": "opus",
+    "title": "Persistent alpha and spot Channels panel",
+    "status": "merged",
+    "attempts": 0,
+    "notes": "machine B; wp/B5-08 on main 923aad8; channels persist native+PSD; 193 XCTest; Quick Mask not paintable yet"
   }
 ]
