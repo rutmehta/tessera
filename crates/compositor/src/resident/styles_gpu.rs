@@ -1,4 +1,4 @@
-//! Native-resolution GPU counterpart of `render::styles`.
+//! Region-local GPU counterpart of `render::styles` at the requested level.
 //!
 //! Geometry stays resident: padded alpha, separable square morphology, Gaussian
 //! convolution, bilinear offsets, and bevel lighting are compute passes. Gaussian
@@ -16,7 +16,7 @@ use crate::{
 use engine_api::{EngineError, EngineResult, tile::Extent};
 use wgpu::util::DeviceExt;
 
-/// A full-canvas straight RGBA effect. Opacity is NOT baked into its pixels.
+/// A region-local straight RGBA effect. Opacity is NOT baked into its pixels.
 pub(super) struct GpuStylePlane {
     pub pixels: wgpu::Buffer,
     pub mode: BlendMode,
@@ -89,6 +89,7 @@ impl StylesGpu {
     }
 
     #[allow(clippy::too_many_arguments)]
+    #[cfg(test)]
     pub(super) fn render(
         &self,
         device: &wgpu::Device,
@@ -98,6 +99,21 @@ impl StylesGpu {
         styles: &LayerStyles,
         light: GlobalLight,
         origin: [u32; 2],
+    ) -> EngineResult<Vec<GpuStylePlane>> {
+        self.render_at(device, queue, input, extent, styles, light, origin, 0)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn render_at(
+        &self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        input: &wgpu::Buffer,
+        extent: Extent,
+        styles: &LayerStyles,
+        light: GlobalLight,
+        origin: [u32; 2],
+        level: u8,
     ) -> EngineResult<Vec<GpuStylePlane>> {
         styles.validate()?;
         light.validate()?;
@@ -115,11 +131,12 @@ impl StylesGpu {
             .height
             .checked_add(2 * pad)
             .ok_or_else(|| invalid("padded height overflow"))?;
-        // Keep the reference's padded-canvas bound and avoid overflowing shader
-        // indexing, including on devices with unusually large storage limits.
+
+        // Bound only the region actually computed, never the document canvas.
         if u64::from(w) * u64::from(h) > 16_777_216 {
-            return Err(invalid("style alpha canvas exceeds pixel limit"));
+            return Err(invalid("style alpha region exceeds pixel limit"));
         }
+
         let canvas_bytes = extent
             .area()
             .checked_mul(16)
@@ -148,7 +165,7 @@ impl StylesGpu {
             lighting: [0.0; 4],
             relief: [0.0; 4],
             paint: [0.0; 4],
-            origin: [origin[0], origin[1], 0, 0],
+            origin: [origin[0], origin[1], 0, 1u32 << level],
         };
         let mut run = Render {
             gpu: self,

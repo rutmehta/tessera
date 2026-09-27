@@ -660,10 +660,13 @@ the shared filter mask, with defaults for older manifests.
 
 ### Layer effects
 
-`render/styles.rs` derives full-canvas effect planes from masked source alpha.
-`render/effects.rs` integrates them with the CPU tile executor. The source is
-evaluated at level zero before effects and pyramid reduction, so neighbouring
-tiles do not manufacture transparent halos. Styles on pixel, fill, text-proxy,
+`render/styles.rs` derives region-local effect planes from masked source alpha.
+`render/effects.rs` integrates them with the CPU tile executor. Round 2 samples
+the source at the requested level, scales effect geometry by `2^-L`, and fetches
+a real source halo before evaluating effects. This intentionally replaces the
+old style-at-L0-then-downsample definition: nonlinear morphology and mip reduction
+do not commute. Full-canvas reference crops must use the same requested-level
+definition, not downsample an L0 styled composite. Styles on pixel, fill, text-proxy,
 smart-object, and isolated-group layers are supported. Styles on adjustment or
 pass-through groups return `Unsupported`; isolate those groups first.
 
@@ -693,9 +696,14 @@ morphology has a square footprint, bevel uses a blurred-alpha rather than a
 distance-field height, and contour/jitter controls are preserved placeholders.
 Bevel texture is not evaluated. Scaled kernel support is limited to 256 pixels,
 offset to 16384, and padded working alpha to 16,777,216 samples. Invalid/nonfinite
-controls fail instead of silently clamping. CPU styles recompute their
-whole-source planes per uncached output tile, a correctness-first path rather
-than an interactive-performance claim. Styled documents use whole-document
+controls fail instead of silently clamping. The alpha cap applies to the computed
+tile/viewport plus halo and padding, never the document's L0 canvas. CPU source
+tiles, cropped planes and plane descriptors share the existing byte-budgeted
+render LRU. Keys include layer source revision, style settings, global light,
+canvas/depth and requested level/tile. A bounded identity registry contains no
+pixels. Missing/partially evicted plane sets are recomputed safely. Neighbouring
+jobs share source tiles; each distinct output tile computes only its own halo.
+Styled documents still use whole-document
 revision stamps, full damage, and no partial CPU updates, including nested
 styles. Unstyled documents retain the existing local-cache/dirty-rect path.
 
@@ -771,17 +779,18 @@ transcendental constants match the CPU. Contour/jitter and bevel texture remain
 unevaluated, exactly as in the CPU reference. Additional Adobe technique, noise,
 or range controls not represented/evaluated by M5-14 are not invented here.
 
-`styles_runtime.rs` renders the masked source at L0 using a temporary resident
-child. Its properties are neutralized just like `render/effects.rs`. Native
-storage depth is retained for page uploads while adjustment intermediates use
-the CPU style-source F32 policy. Source and effect planes are independently
-alpha-weighted downsampled through the existing smart-filter mip machinery.
+`styles_runtime.rs` renders the masked source at the requested level using a
+temporary resident child shared by the batch. Its properties are neutralized
+just like `render/effects.rs`. Native storage depth is retained for page uploads
+while adjustment intermediates use the CPU style-source F32 policy. Effects
+operate directly on this level's alpha with scaled radii/offsets. Paint samples
+use `(level_origin + local_pixel + 0.5) * 2^L` in native canvas units.
 There is no source/effect GPU readback or CPU pixel composition on this path.
 
-The viewport source rectangle includes a real L0 halo. Support is the sum of
+The viewport source rectangle includes a real requested-level halo. Support is the sum of
 rounded morphology and blur radii, plus displacement and a bilinear sample for
-shadows/satin, or the extra gradient sample for bevel. Two guard pixels cover
-padding, and boundaries align to both the resident block and requested mip grid.
+shadows/satin, or the extra gradient sample for bevel. The child resolver rounds
+the rectangle outward to resident blocks; transparent padding is separate.
 The existing resident viewport/page resolver fetches those neighbouring tiles.
 Offset interpolation retains absolute padded coordinates before subtracting the
 crop origin, avoiding tile-dependent fractional rounding. Fill coordinates also
@@ -797,6 +806,9 @@ The CPU's padded-alpha sample cap still applies per rendered region. Large full
 frames or many effect planes may require smaller viewports rather than silently
 switching to CPU. `style_evaluations()` and `style_cache_bytes()` expose the cache.
 Unchanged valid styled viewports return before reconstructing auxiliary storage.
+GPU planes reserve device-only auxiliary ranges: CPU storage/upload/shadow copies
+contain metadata only, not zero-filled placeholders for every plane. Spatial
+adjustment ranges likewise stay device-only and are written by their GPU passes.
 
 `styles_compose.wgsl` is shared by interpreter and specialized document kernels.
 It preserves the CPU's exterior/interior/stroke order, unit-coverage interior,
@@ -823,11 +835,52 @@ Ignored synchronized benchmark:
 cargo test -p compositor --release --test resident_styles_semantics benchmark_4k_twenty_styled_layers_l2_tile -- --ignored --nocapture
 ```
 
-Measured in this worktree: 3840×2160 document, 20 sparse styled layers, one
+Historical round-1 measurement: 3840×2160 document, 20 sparse styled layers, one
 256×256 L2 viewport (not the full L2 canvas). CPU cold tile: 48.006 s; resident
 cold viewport: 435.410 ms. Unchanged warm calls: CPU 185.875 µs, resident 1.875 µs,
 with zero dispatched blocks. These are single-run cold/idle timings, not an
 interactive edit-throughput claim. The benchmark also verifies pixel parity.
+
+Round-2 rerun of that same 4K-document/small-viewport benchmark on Apple M4:
+CPU cold 294.991 ms, resident cold 320.760 ms; unchanged cached/idle calls
+46.5 µs and 4.541 µs respectively. Pixel parity passes. The resident idle call
+still dispatches zero blocks and is not the full-recomposite timing below.
+
+Round-2 regression `resident_styles_large` exercises 20 MP and 50 MP documents
+with five non-overlay styles at L0/L1/L2 without the old full-canvas pixel-limit
+failure. CPU unit tests compare halo crops against full-canvas requested-level
+planes at L0/L1/L2 within `1e-4`, including both tile and canvas edges.
+
+Explicit timing gate (run alone):
+
+```
+cargo test -p compositor --release --test resident_styles_large twenty_mp_five_styles_1368x912_l1_timing -- --ignored --nocapture
+```
+
+Measured on this machine's Apple M4 (not Machine B's M4 Max), 5000×4000 sparse
+document, five styled layers, 1368×912 L1 viewport, GPU submission plus wait:
+CPU cold 405.943 ms, CPU recomposite 443.110 ms; resident cold 175.719 ms,
+resident cached-plane full recomposite 11.796 ms. Both renderers were constructed
+before timing. Warm GPU measurement waits for specialization, invalidates the
+output, and really dispatches a frame; it is not an idle-frame result. CPU clears
+composites (including cached style planes) for its second measurement.
+The strict cold resident `<100 ms` assertion still FAILS on this machine. Warm
+resident and both CPU timings meet their thresholds; round 2 is not claimed
+fully accepted. Full-canvas resident allocations remain subject to device
+binding limits; large documents are supported through bounded viewports, not an
+unbounded single-buffer L0 full-canvas allocation.
+
+Revalidation on Apple M4 found substantial timing variation: four fresh-process
+runs passed with cold resident 59.902–75.624 ms and CPU 201.424–261.333 ms, but
+the rebuilt benchmark recorded a cold resident failure at 212.620 ms (CPU
+208.043 ms, cached-plane GPU recomposite 11.405 ms). These are fresh renderer
+caches, not cleared Metal driver caches. A diagnostic run measured style pipeline
+creation at 1.459 ms; that passing run does not explain the slow outlier. Other
+builds were active on the host. No unverified cause or latency fix is claimed.
+The benchmark additionally asserts nonzero cold/warm dispatch, exactly five
+style evaluations with warm reuse, no filter fallbacks, and bounded style cache.
+The strict timing assertion remains unchanged; performance acceptance remains
+open rather than choosing only the passing samples.
 
 ## 10. CPU bench
 

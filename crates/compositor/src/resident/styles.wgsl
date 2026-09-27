@@ -10,7 +10,7 @@ struct Params {
     lighting: vec4<f32>,   // lx, ly, sin(elevation), strength
     relief: vec4<f32>,     // direction, unused
     paint: vec4<f32>,
-    origin: vec4<u32>,     // crop origin, stop count, unused
+    origin: vec4<u32>,     // level-local crop origin, stop count, level scale
 }
 @group(0) @binding(0) var<storage, read> a: array<f32>;
 @group(0) @binding(1) var<storage, read> b: array<f32>;
@@ -26,8 +26,8 @@ fn paint_rgba(o: u32) -> vec4<f32> {
     return vec4<f32>(auxiliary[o], auxiliary[o + 1u], auxiliary[o + 2u], auxiliary[o + 3u]);
 }
 fn paint_sample(pos: vec2<u32>) -> vec4<f32> {
-    let x = f32(pos.x + p.origin.x) + 0.5;
-    let y = f32(pos.y + p.origin.y) + 0.5;
+    let x = (f32(pos.x + p.origin.x) + 0.5) * f32(p.origin.w);
+    let y = (f32(pos.y + p.origin.y) + 0.5) * f32(p.origin.w);
     let g = p.paint;
     if p.flags.x == 1u {
         let w = i32(g.x); let h = i32(g.y);

@@ -1215,10 +1215,10 @@ impl ResidentRenderer {
             .sum::<usize>();
         let samples = pixels
             .checked_mul(bases)
-            .and_then(|n| n.checked_add(program.aux.len()))
+            .and_then(|n| n.checked_add(style_copies.words))
             .ok_or_else(|| EngineError::invalid("canvas", "spatial auxiliary size overflow"))?;
         adjustment_limits::validate_aux(samples, &self.device.limits())?;
-        let mut offset = program.aux.len();
+        let mut offset = style_copies.words;
         for step in &mut program.steps {
             for (axis, radius) in radii(step).iter().enumerate() {
                 if *radius > 0.0 {
@@ -1227,7 +1227,6 @@ impl ResidentRenderer {
                 }
             }
         }
-        program.aux.resize(samples, 0.0);
 
         // Phase 1: resolve the page tables of the tiles under the viewport
         // to content-addressed nodes (nothing outside it is interned,
@@ -1393,9 +1392,13 @@ impl ResidentRenderer {
             self.steps.write(&device, &queue, steps);
             self.tables
                 .write(&device, &queue, bytemuck::cast_slice(&pages));
-            self.aux
-                .write(&device, &queue, bytemuck::cast_slice(&program.aux));
-            for (buffer, offset) in &style_copies {
+            self.aux.write_prefix(
+                &device,
+                &queue,
+                bytemuck::cast_slice(&program.aux),
+                samples as u64 * 4,
+            );
+            for (buffer, offset) in &style_copies.copies {
                 encoder.copy_buffer_to_buffer(
                     buffer,
                     0,

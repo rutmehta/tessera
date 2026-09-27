@@ -1,4 +1,4 @@
-//! CPU layer effects. All planes are full-canvas, straight RGBA, and must
+//! CPU layer effects. All planes are region-local, straight RGBA, and must
 //! be composited in returned order within their `outside` group. Geometry
 //! comes from source alpha, never source RGB or fill opacity.
 //!
@@ -374,12 +374,12 @@ impl Default for Stroke {
     }
 }
 
-/// Full-canvas effect buffer. Opacity is separate, not baked into alpha.
+/// Region-local effect buffer. Opacity is separate, not baked into alpha.
 #[derive(Clone, Debug)]
 pub(crate) struct StylePlane {
     /// Stroke coverage straddles the shape and is applied after the interior.
     pub stroke: bool,
-    /// Full-canvas straight RGBA pixels with effect coverage baked into alpha.
+    /// Region-local straight RGBA pixels with effect coverage baked into alpha.
     pub raster: Raster,
     /// Blend mode to use when compositing this plane.
     pub mode: BlendMode,
@@ -726,10 +726,63 @@ fn support(e: &StyleEffect) -> f32 {
     }
 }
 
+/// Scale effect geometry to a pyramid level, leaving native-canvas fills intact.
+pub(crate) fn at_level(styles: &LayerStyles, level: u8) -> LayerStyles {
+    let mut scaled = styles.clone();
+    scaled.scale /= 2.0f32.powi(i32::from(level));
+    scaled
+}
+
+/// Conservative source halo in the geometry's pixel space. Each separable
+/// kernel rounds its own support up; offsets also need bilinear support.
+/// Call after `at_level` when rendering a pyramid tile.
+pub(crate) fn halo(styles: &LayerStyles) -> i64 {
+    let radius = |v: f32| (v * styles.scale).ceil() as i64;
+    styles
+        .effects
+        .iter()
+        .map(|effect| match effect {
+            StyleEffect::DropShadow(s) | StyleEffect::InnerShadow(s) if s.enabled => {
+                radius(s.size) + radius(s.spread) + radius(s.distance) + 1
+            }
+            StyleEffect::OuterGlow(s) | StyleEffect::InnerGlow(s) if s.enabled => {
+                radius(s.size) + radius(s.spread)
+            }
+            StyleEffect::Bevel(s) if s.enabled => radius(s.size) + radius(s.soften) + 1,
+            StyleEffect::Satin(s) if s.enabled => radius(s.size) + radius(s.distance) + 1,
+            StyleEffect::Stroke(s) if s.enabled => radius(s.size),
+            _ => 0,
+        })
+        .max()
+        .unwrap_or(0)
+}
+
+fn alpha_pixel_count(w: usize, h: usize) -> EngineResult<usize> {
+    w.checked_mul(h)
+        .filter(|n| *n <= MAX_PIXELS)
+        .ok_or_else(|| {
+            EngineError::invalid("layer styles", "style alpha region exceeds pixel limit")
+        })
+}
+
+// Retain the native full-input reference entry point for callers and tests.
+#[allow(dead_code)]
 pub(crate) fn render(
     input: &Raster,
     styles: &LayerStyles,
     light: GlobalLight,
+) -> EngineResult<Vec<StylePlane>> {
+    render_at(input, styles, light, [0, 0], 0)
+}
+
+/// Render a region already sampled at `level`, using already-scaled geometry.
+/// `origin` is in level pixels; paints are sampled in native canvas coordinates.
+pub(crate) fn render_at(
+    input: &Raster,
+    styles: &LayerStyles,
+    light: GlobalLight,
+    origin: [u32; 2],
+    level: u8,
 ) -> EngineResult<Vec<StylePlane>> {
     styles.validate()?;
     light.validate()?;
@@ -752,12 +805,7 @@ pub(crate) fn render(
         extent.width as usize + 2 * pad,
         extent.height as usize + 2 * pad,
     );
-    let count = w
-        .checked_mul(h)
-        .filter(|n| *n <= MAX_PIXELS)
-        .ok_or_else(|| {
-            EngineError::invalid("layer styles", "style alpha canvas exceeds CPU pixel limit")
-        })?;
+    let count = alpha_pixel_count(w, h)?;
     let mut alpha = Mask {
         w,
         h,
@@ -846,9 +894,10 @@ pub(crate) fn render(
                 if s.enabled =>
             {
                 emit(s.mode, s.opacity, false, false, &|x, y| {
-                    let mut c = s
-                        .fill
-                        .sample((x - pad) as f32 + 0.5, (y - pad) as f32 + 0.5);
+                    let mut c = s.fill.sample(
+                        (origin[0] as f32 + (x - pad) as f32 + 0.5) * 2.0f32.powi(i32::from(level)),
+                        (origin[1] as f32 + (y - pad) as f32 + 0.5) * 2.0f32.powi(i32::from(level)),
+                    );
                     c[3] *= alpha.data[y * w + x];
                     c
                 })?;
@@ -869,9 +918,12 @@ pub(crate) fn render(
                     s.position == StrokePosition::Outside,
                     true,
                     &|x, y| {
-                        let mut c = s
-                            .fill
-                            .sample((x - pad) as f32 + 0.5, (y - pad) as f32 + 0.5);
+                        let mut c = s.fill.sample(
+                            (origin[0] as f32 + (x - pad) as f32 + 0.5)
+                                * 2.0f32.powi(i32::from(level)),
+                            (origin[1] as f32 + (y - pad) as f32 + 0.5)
+                                * 2.0f32.powi(i32::from(level)),
+                        );
                         c[3] *= (outer.data[y * w + x] - inner.data[y * w + x]).max(0.0);
                         c
                     },
@@ -966,6 +1018,59 @@ pub(crate) fn render(
 mod tests {
     use super::*;
     use engine_api::tile::Extent;
+    #[test]
+    fn region_level_preserves_native_fill_coordinates_and_scales_only_geometry() {
+        let fill = Fill::Pattern {
+            width: 3,
+            height: 1,
+            rgba: vec![1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0],
+            origin: [0.0; 2],
+        };
+        let original = LayerStyles {
+            effects: vec![StyleEffect::Overlay(Overlay {
+                fill: fill.clone(),
+                ..Overlay::default()
+            })],
+            scale: 2.0,
+        };
+        let scaled = at_level(&original, 2);
+        assert_eq!(scaled.scale, 0.5);
+        assert_eq!(scaled.effects, original.effects);
+        let planes = render_at(&dot(), &scaled, GlobalLight::default(), [11, 7], 2).unwrap();
+        assert_eq!(planes[0].raster.pixel(3, 3), fill.sample(58.0, 42.0));
+    }
+
+    #[test]
+    fn region_halo_includes_offsets_and_each_rounded_kernel() {
+        let s = LayerStyles {
+            effects: vec![StyleEffect::DropShadow(Shadow {
+                size: 0.2,
+                spread: 0.2,
+                distance: 13.5,
+                ..Shadow::default()
+            })],
+            scale: 1.0,
+        };
+        assert!(halo(&s) >= 16);
+        let bevel = LayerStyles {
+            effects: vec![StyleEffect::Bevel(Bevel {
+                size: 0.2,
+                soften: 0.2,
+                ..Bevel::default()
+            })],
+            scale: 1.0,
+        };
+        assert!(halo(&bevel) >= 3);
+    }
+
+    #[test]
+    fn pixel_limit_applies_to_computed_region_not_document_extent() {
+        assert_eq!(alpha_pixel_count(1400, 1000).unwrap(), 1_400_000);
+        assert!(alpha_pixel_count(5000, 4000).is_err());
+        assert!(alpha_pixel_count(10000, 5000).is_err());
+        assert!(alpha_pixel_count(usize::MAX, 2).is_err());
+    }
+
     fn dot() -> Raster {
         let mut r = Raster::new(Extent::new(7, 7), 4, Depth::F32, 0.0);
         r.edit_region(Rect::new(3, 3, 4, 4), 1, |_, _, p| {

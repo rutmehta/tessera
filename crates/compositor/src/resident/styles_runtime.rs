@@ -1,6 +1,5 @@
-//! Native-resolution style barrier with a real source halo around the viewport.
-//! Source and effects are independently reduced as straight RGBA, never by
-//! styling a mip. Halo boundaries align to the mip grid before reduction.
+//! Level-local style barrier with a source halo around the requested viewport.
+//! Geometry scales at the requested level; paints retain canvas coordinates.
 use std::{collections::HashMap, sync::Arc};
 
 use super::{
@@ -11,11 +10,39 @@ use super::{
 use crate::{
     Document, Rect,
     document::LayerProps,
-    render::styles::{LayerStyles, StyleEffect},
+    render::styles::{self, LayerStyles},
 };
 use engine_api::{EngineError, EngineResult, tile::Extent};
 
 type Key = [u8; 32];
+
+pub(super) struct PreparedStyles {
+    pub copies: Vec<(wgpu::Buffer, u64)>,
+    pub words: usize,
+}
+
+impl super::Persistent {
+    // GPU plane storage has no CPU shadow. Only upload the metadata prefix.
+    pub(super) fn write_prefix(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        bytes: &[u8],
+        total_bytes: u64,
+    ) {
+        let len = total_bytes.max(256);
+        if self.buffer.as_ref().is_none_or(|b| b.size() < len) {
+            self.buffer = Some(device.create_buffer(&wgpu::BufferDescriptor {
+                label: Some(self.label),
+                size: len,
+                usage: self.usage,
+                mapped_at_creation: false,
+            }));
+            self.shadow.clear();
+        }
+        self.write(device, queue, bytes);
+    }
+}
 
 struct Cached {
     source: wgpu::Buffer,
@@ -105,7 +132,7 @@ impl ResidentRenderer {
             && st.require_valid(region).is_ok()
     }
 
-    /// Native-resolution style stacks evaluated; cache hits do not increment it.
+    /// Level-local style stacks evaluated; cache hits do not increment it.
     pub fn style_evaluations(&self) -> u64 {
         self.styles.evaluations
     }
@@ -123,8 +150,15 @@ impl ResidentRenderer {
         level: u8,
         viewport: Rect,
         program: &mut Program,
-    ) -> EngineResult<Vec<(wgpu::Buffer, u64)>> {
+    ) -> EngineResult<PreparedStyles> {
         let mut copies = Vec::new();
+        let mut pending = Vec::new();
+        // Validate cumulative data plus the growing metadata prefix before
+        // retaining each pending style. Final offsets are assigned below.
+        let mut reserved_words = program.aux.len();
+        // One temporary page resolver per batch, not one per styled layer.
+        // Shared raster tiles can then share their GPU uploads and mip pages.
+        let mut source_renderer = None;
         let state = doc.state();
         let extent = state.canvas;
         let limit = self.device.limits().max_storage_buffer_binding_size;
@@ -154,6 +188,12 @@ impl ResidentRenderer {
             .map_err(|e| EngineError::invalid("style cache key", e.to_string()))?;
             let key = *blake3::hash(&bytes).as_bytes();
             let cached = if let Some(cached) = self.styles.get(&key) {
+                reserve_words(&mut reserved_words, cached.source.size(), limit)?;
+                reserve_plane_words(
+                    &mut reserved_words,
+                    cached.planes.iter().map(|plane| plane.pixels.size()),
+                    limit,
+                )?;
                 cached
             } else {
                 // Match render::effects exactly: neutralize only properties,
@@ -164,42 +204,49 @@ impl ResidentRenderer {
 
                 source_state.root = vec![Arc::new(source)];
                 let source_doc = Document::new(source_state);
-                let mut child = Self::with_budget(&self.gpu, self.budget)?;
-                // Keep the page pool in the source storage depth, but evaluate
-                // adjustment intermediates like the CPU F32 style-source state.
-                child.float_adjustments = true;
-                child.set_smart_quality(self.smart_quality)?;
-                if let Some(evaluator) = self.stack.evaluator.clone() {
-                    child.set_filter_evaluator(evaluator)?;
+                if source_renderer.is_none() {
+                    let mut child = Self::with_budget(&self.gpu, self.budget)?;
+                    // Keep source storage depth but F32 adjustment intermediates.
+                    child.float_adjustments = true;
+                    child.set_smart_quality(self.smart_quality)?;
+                    if let Some(evaluator) = self.stack.evaluator.clone() {
+                        child.set_filter_evaluator(evaluator)?;
+                    }
+                    source_renderer = Some(child);
                 }
-                child.render_viewport(&source_doc, 0, region, 0)?;
-                let region = child.levels[&0].region;
+                let child = source_renderer
+                    .as_mut()
+                    .expect("source renderer initialized");
+                child.render_viewport(&source_doc, level, region, 0)?;
+                let region = child.levels[&level].region;
                 let local = Extent::new(region.width() as u32, region.height() as u32);
-                let native = self.convert(&child.levels[&0].out, local, 0)?;
-                // Drop the temporary renderer before allocating effect fields.
-                drop(child);
+                let source = self.convert(&child.levels[&level].out, local, 0)?;
+                reserve_words(&mut reserved_words, source.size(), limit)?;
+
                 if self.styles.gpu.is_none() {
                     self.styles.gpu = Some(StylesGpu::new(&self.device)?);
                 }
-                let mut planes = self
+                let settings = styles::at_level(&layer.props.styles, level);
+                let planes = self
                     .styles
                     .gpu
                     .as_ref()
                     .expect("initialized styles")
-                    .render(
+                    .render_at(
                         &self.device,
                         &self.queue,
-                        &native,
+                        &source,
                         local,
-                        &layer.props.styles,
+                        &settings,
                         state.global_light,
                         [region.x0 as u32, region.y0 as u32],
+                        level,
                     )?;
-                // StylesGpu's stable CPU-compatible ordering must survive here.
-                let source = self.style_mip(native, local, level)?;
-                for plane in &mut planes {
-                    plane.pixels = self.style_mip(plane.pixels.clone(), local, level)?;
-                }
+                reserve_plane_words(
+                    &mut reserved_words,
+                    planes.iter().map(|plane| plane.pixels.size()),
+                    limit,
+                )?;
                 let value = Arc::new(Cached {
                     source,
                     planes,
@@ -210,12 +257,16 @@ impl ResidentRenderer {
                 value
             };
 
-            let source_offset = reserve_aux(&mut program.aux, cached.source.size(), limit)?;
-            copies.push((cached.source.clone(), u64::from(source_offset) * 4));
             let metadata_bytes = (cached.planes.len() as u64) * 16;
             let metadata_offset = reserve_aux(&mut program.aux, metadata_bytes, limit)?;
+            pending.push((*step_index, cached, metadata_offset));
+        }
+        let mut words = program.aux.len();
+        for (step_index, cached, metadata_offset) in pending {
+            let source_offset = reserve_words(&mut words, cached.source.size(), limit)?;
+            copies.push((cached.source.clone(), u64::from(source_offset) * 4));
             for (i, plane) in cached.planes.iter().enumerate() {
-                let offset = reserve_aux(&mut program.aux, plane.pixels.size(), limit)?;
+                let offset = reserve_words(&mut words, plane.pixels.size(), limit)?;
                 let metadata = plane_metadata(
                     offset,
                     plane.mode.index(),
@@ -227,97 +278,61 @@ impl ResidentRenderer {
                 program.aux[start..start + 4].copy_from_slice(&metadata);
                 copies.push((plane.pixels.clone(), u64::from(offset) * 4));
             }
-            let step = &mut program.steps[*step_index];
+            let step = &mut program.steps[step_index];
             step.table = source_offset;
             step.aux = metadata_offset;
             step.aux_n = cached.planes.len() as u32;
-            let scale = 1u32 << level;
             step.p[0] = [
-                (cached.region.x0 as u32 / scale) as f32,
-                (cached.region.y0 as u32 / scale) as f32,
-                (cached.region.width() as u32).div_ceil(scale) as f32,
+                cached.region.x0 as f32,
+                cached.region.y0 as f32,
+                cached.region.width() as f32,
                 0.0,
             ];
         }
-        Ok(copies)
-    }
-
-    fn style_mip(
-        &mut self,
-        mut pixels: wgpu::Buffer,
-        extent: Extent,
-        level: u8,
-    ) -> EngineResult<wgpu::Buffer> {
-        // render::Compositor::mip_float: y-major 2x2 traversal, ignore missing
-        // edge samples, sum premultiplied RGB/alpha, then return straight RGB.
-        // Each level repeats this reduction (not a single large box average).
-        for l in 1..=level {
-            let input = extent.at_level(l - 1);
-            let output = extent.at_level(l);
-            pixels = self.stack_op(
-                &pixels,
-                &pixels,
-                [
-                    4,
-                    input.width,
-                    input.height,
-                    0,
-                    0,
-                    output.width,
-                    output.height,
-                    0,
-                ],
-            )?;
-        }
-        Ok(pixels)
+        Ok(PreparedStyles { copies, words })
     }
 }
 
+fn reserve_plane_words(
+    words: &mut usize,
+    plane_bytes: impl IntoIterator<Item = u64>,
+    limit: u64,
+) -> EngineResult<()> {
+    for bytes in plane_bytes {
+        reserve_words(words, 16, limit)?;
+        reserve_words(words, bytes, limit)?;
+    }
+    Ok(())
+}
+
 fn reserve_aux(aux: &mut Vec<f32>, bytes: u64, limit: u64) -> EngineResult<u32> {
+    let mut words = aux.len();
+    let start = reserve_words(&mut words, bytes, limit)?;
+    aux.try_reserve(words - aux.len())
+        .map_err(|_| EngineError::ResourceExhausted {
+            resource: "style metadata allocation".into(),
+        })?;
+    aux.resize(words, 0.0);
+    Ok(start)
+}
+
+fn reserve_words(words: &mut usize, bytes: u64, limit: u64) -> EngineResult<u32> {
     let exhausted = || EngineError::ResourceExhausted {
         resource: "style auxiliary storage exceeds device or host limits".into(),
     };
-    let start = u32::try_from(aux.len()).map_err(|_| exhausted())?;
-    let words = usize::try_from(bytes / 4).map_err(|_| exhausted())?;
-    let end = aux.len().checked_add(words).ok_or_else(exhausted)?;
+    let start = u32::try_from(*words).map_err(|_| exhausted())?;
+    let count = usize::try_from(bytes / 4).map_err(|_| exhausted())?;
+    let end = words.checked_add(count).ok_or_else(exhausted)?;
     if !bytes.is_multiple_of(4) || end as u64 > limit / 4 || end > u32::MAX as usize {
         return Err(exhausted());
     }
-    aux.try_reserve(words).map_err(|_| exhausted())?;
-    aux.resize(end, 0.0);
+    *words = end;
     Ok(start)
 }
 
 fn halo_region(view: Rect, canvas: Extent, level: u8, styles: &LayerStyles) -> Rect {
-    let sc = styles.scale;
-    let radius = styles
-        .effects
-        .iter()
-        .map(|e| match e {
-            StyleEffect::DropShadow(s) | StyleEffect::InnerShadow(s) => {
-                (s.size * sc).ceil() + (s.spread * sc).ceil() + (s.distance * sc).ceil() + 1.0
-            }
-            StyleEffect::OuterGlow(s) | StyleEffect::InnerGlow(s) => {
-                (s.size * sc).ceil() + (s.spread * sc).ceil()
-            }
-            StyleEffect::Bevel(s) => (s.size * sc).ceil() + (s.soften * sc).ceil() + 1.0,
-            StyleEffect::Satin(s) => (s.size * sc).ceil() + (s.distance * sc).ceil() + 1.0,
-            StyleEffect::Stroke(s) => (s.size * sc).ceil(),
-            _ => 0.0,
-        })
-        .fold(0.0, f32::max) as i64
-        + 2;
-    let scale = 1i64 << level;
-    let alignment = scale.max(16);
-    let down = |v: i64| v.max(0) / alignment * alignment;
-    let up = |v: i64| (v.max(0) + alignment - 1) / alignment * alignment;
-    Rect::new(
-        down(view.x0 * scale - radius),
-        down(view.y0 * scale - radius),
-        up(view.x1 * scale + radius),
-        up(view.y1 * scale + radius),
-    )
-    .intersect(&Rect::of_extent(canvas))
+    view.inflate(styles::halo(&styles::at_level(styles, level)))
+        .intersect(&Rect::of_extent(canvas.at_level(level)))
 }
 
 fn plane_metadata(offset: u32, mode: u32, opacity: f32, outside: bool, stroke: bool) -> [f32; 4] {
@@ -332,6 +347,32 @@ fn plane_metadata(offset: u32, mode: u32, opacity: f32, outside: bool, stroke: b
 #[cfg(test)]
 mod tests {
     use super::plane_metadata;
+
+    #[test]
+    fn pending_style_reservations_include_cumulative_data_and_metadata() {
+        use super::{reserve_plane_words, reserve_words};
+
+        // Existing metadata prefix, then the first style's source and plane.
+        let mut words = 4;
+        reserve_words(&mut words, 16, 96).unwrap();
+        reserve_plane_words(&mut words, [16], 96).unwrap();
+        assert_eq!(words, 16);
+
+        // Each style fits alone, but their cumulative data does not.
+        let mut cumulative = words;
+        reserve_words(&mut cumulative, 32, 96).unwrap();
+        assert!(reserve_plane_words(&mut cumulative, [16], 96).is_err());
+
+        // The second style's data fits exactly; its metadata must also count.
+        let mut metadata_overflow = words;
+        reserve_words(&mut metadata_overflow, 16, 96).unwrap();
+        assert!(reserve_plane_words(&mut metadata_overflow, [16], 96).is_err());
+
+        // Include both planes' metadata at the exact binding-size boundary.
+        reserve_words(&mut words, 16, 112).unwrap();
+        reserve_plane_words(&mut words, [16], 112).unwrap();
+        assert_eq!(words, 28);
+    }
 
     #[test]
     fn metadata_preserves_integer_bits_and_plane_flags() {
