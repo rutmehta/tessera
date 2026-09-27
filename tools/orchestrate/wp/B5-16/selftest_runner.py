@@ -18,7 +18,9 @@ TESTS = {
     'channels': (900, ['--new-document', 'ENV:TESSERA_CHANNELS_SELFTEST=@OUT@', 'ENV:TESSERA_CHANNELS_SELFTEST_HOLD=0.3']),
     'text': (1500, ['--new-document', 'ENV:TESSERA_TEXT_SELFTEST=@OUT@']),
     'vector': (1800, ['--new-document', '--vector-selftest=@OUT@']),
-    'transform': (1800, ['--new-document', '--transform-selftest=@OUT@']),
+    # Transform opens its own card. A delayed --new-document startup can replace
+    # that selection with an empty 2400x1600 document while the test awaits a view.
+    'transform': (1800, ['--transform-selftest=@OUT@']),
 }
 
 
