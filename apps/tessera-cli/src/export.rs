@@ -54,10 +54,10 @@ pub struct Options {
     ppi: Option<u32>,
     #[arg(long, default_value = "all", value_parser = ["all", "copyright", "copyright-and-contact", "all-except-camera", "none"])]
     metadata: String,
-    /// Remove XMP face regions and their associated person keywords.
+    /// Remove face regions and identified person keywords from native metadata and XMP.
     #[arg(long)]
     remove_person_info: bool,
-    /// Remove XMP GPS and IPTC location properties.
+    /// Remove native and XMP GPS and IPTC image locations.
     #[arg(long)]
     remove_location: bool,
     /// Retain Lightroom keyword paths, or omit the hierarchy with false.
@@ -399,6 +399,11 @@ pub fn run(index: &Index, app_dir: &Path, options: &Options) -> Result<Value> {
     for (wave, chunk) in paths.chunks(jobs).enumerate() {
         let settings = ExportSettings {
             original_raw: options.embed_original_raw.then(|| chunk[0].clone()),
+            metadata_sources: chunk
+                .iter()
+                .enumerate()
+                .map(|(i, p)| (wave * jobs + i + 1, p.clone()))
+                .collect(),
             ..settings.clone()
         };
         if cancel.is_cancelled() {

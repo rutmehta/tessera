@@ -1274,3 +1274,39 @@ fn raw_export_with_the_web_preset_and_a_binned_print_render() {
     assert_eq!(print.width.max(print.height), 300);
     assert_eq!(print.height > print.width, row.orientation >= 5);
 }
+
+#[path = "../../export/tests/support/native_fixture.rs"]
+mod native_fixture;
+#[test]
+fn ffi_extracts_native_metadata_per_source_and_filters() {
+    let f = fixture();
+    for name in ["a", "b"] {
+        native_fixture::stamp(&f.dir.path().join(format!("photos/{name}.jpg")), name);
+    }
+    for policy in ["all", "copyright"] {
+        let out = f.dir.path().join(policy);
+        let report = f
+            .engine
+            .export_batch(
+                ExportTarget::Images {
+                    image_ids: f.ids[..2].to_vec(),
+                },
+                settings(&out, serde_json::json!({"format":"png","metadata":policy})),
+                None,
+                None,
+            )
+            .unwrap();
+        assert_eq!((report.exported, report.failed), (2, 0), "{report:?}");
+        for name in ["a", "b"] {
+            let path = out.join(format!("{name}.png"));
+            assert_eq!(
+                native_fixture::tags(&path, &["-s3", "-EXIF:Copyright"]).trim(),
+                name
+            );
+            assert_eq!(
+                native_fixture::tags(&path, &["-s3", "-EXIF:Make"]).contains("Private Camera"),
+                policy == "all"
+            );
+        }
+    }
+}

@@ -1,0 +1,17 @@
+   Compiling sidecar v0.1.0 (/Users/rutmehta/Developer/tessera/.worktrees/M2-45d/crates/sidecar)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.09s
+     Running tests/native_keywords.rs (/Volumes/betterSSD/tessera-cache/target/M2-45d/debug/deps/native_keywords-f286cd8dab5ac893)
+
+running 2 tests
+test overlay_retains_language_alternatives_qualifiers_and_namespace_shadowing ... ok
+test native_keyword_merge_preserves_qualified_xmp_and_person_filtering ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/native_review_merge.rs (/Volumes/betterSSD/tessera-cache/target/M2-45d/debug/deps/native_review_merge-84f2b72be7b1c343)
+
+running 1 test
+test overrides_match_expanded_names_preserving_qualified_values_and_empty_overrides ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

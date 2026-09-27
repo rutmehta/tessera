@@ -390,6 +390,7 @@ impl ExportOptions {
             max_file_bytes: self.max_file_bytes,
             watermark: self.watermark.clone(),
             original_raw: None,
+            metadata_sources: Default::default(),
         })
     }
 }
@@ -1200,6 +1201,7 @@ impl Engine {
                 let settings = export::ExportSettings {
                     naming,
                     original_raw: options.embed_original_raw.then(|| item.path.clone()),
+                    metadata_sources: [(image.sequence, item.path.clone())].into(),
                     // Always develop at full resolution and resize afterwards: rendering at a
                     // reduced pyramid level fails the exactness gate (tone/detail differ when
                     // applied before the downsample; see M2-21c RESULTS). Opt back in with

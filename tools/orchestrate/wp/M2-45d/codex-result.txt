@@ -1,0 +1,8 @@
+Implemented native metadata policies, carriers, and CLI/FFI/MCP source wiring.
+
+- 40 focused tests passed, including the 240-case policy matrix.
+- Clippy and formatting passed; regenerated bindings were unchanged.
+- Gain-map JPEG remains incomplete after failed ImageIO interoperability.
+- No commits; changes stayed within the allowlist.
+
+[Progress report and remaining work](/Users/rutmehta/Developer/tessera/.worktrees/M2-45d/tools/orchestrate/wp/M2-45d/METADATA-PROGRESS.md). Concurrent changes still require parent verification.

@@ -10,6 +10,7 @@ pub(crate) fn encode(
     rgb: &image::Rgb32FImage,
     bits: u8,
     xmp: Option<&str>,
+    native: Option<&crate::native::Native>,
     cancel: &CancellationToken,
 ) -> EngineResult<()> {
     cancel.check()?;
@@ -57,6 +58,12 @@ pub(crate) fn encode(
     // codestream; XML boxes carry the already-filtered XMP verbatim.
     write_box(writer, b"JXL ", &[13, 10, 135, 10])?;
     write_box(writer, b"ftyp", b"jxl \0\0\0\0jxl ")?;
+    if let Some(native) = native {
+        let exif = native.tiff_bytes(true)?;
+        if !exif.is_empty() {
+            write_box(writer, b"Exif", &[&[0; 4], exif.as_slice()].concat())?;
+        }
+    }
     if let Some(xmp) = xmp {
         write_box(writer, b"xml ", xmp.as_bytes())?;
     }

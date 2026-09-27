@@ -65,7 +65,12 @@ impl Console {
             return Err(EngineError::invalid("images", "must not be empty"));
         }
         if settings.embed_original_raw
-            && (!matches!(settings.format, ExportFormat::Dng) || !settings.embed_metadata)
+            && (!matches!(settings.format, ExportFormat::Dng)
+                || !settings.embed_metadata
+                || settings.metadata != engine_api::tools::ExportMetadata::All
+                || settings.remove_person_info
+                || settings.remove_location
+                || !settings.keywords_as_hierarchy)
         {
             return Err(EngineError::invalid(
                 "embed_original_raw",
@@ -187,8 +192,21 @@ impl Console {
             dpi: settings.ppi,
             naming: settings.name_template.clone(),
             output_dir: settings.destination.clone().into(),
+            remove_person_info: settings.remove_person_info,
+            remove_location: settings.remove_location,
+            keywords_as_hierarchy: settings.keywords_as_hierarchy,
             metadata: if settings.embed_metadata {
-                export::Metadata::All
+                match settings.metadata {
+                    engine_api::tools::ExportMetadata::All => export::Metadata::All,
+                    engine_api::tools::ExportMetadata::Copyright => export::Metadata::CopyrightOnly,
+                    engine_api::tools::ExportMetadata::CopyrightAndContact => {
+                        export::Metadata::CopyrightAndContact
+                    }
+                    engine_api::tools::ExportMetadata::AllExceptCamera => {
+                        export::Metadata::AllExceptCamera
+                    }
+                    engine_api::tools::ExportMetadata::None => export::Metadata::None,
+                }
             } else {
                 export::Metadata::None
             },
@@ -226,7 +244,17 @@ impl Console {
             let source = Source::open(&path)?;
             let options = export::ExportSettings {
                 original_raw: settings.embed_original_raw.then(|| path.clone()),
+                metadata_sources: [(sequence + 1, path.clone())].into(),
                 ..options.clone()
+            };
+            let side_path = sidecar::Sidecar::paths(&path).xmp;
+            let packet = if side_path
+                .try_exists()
+                .map_err(|e| EngineError::io_at(&side_path, &e))?
+            {
+                Some(sidecar::Sidecar::read_xmp(&side_path)?)
+            } else {
+                None
             };
             let output = export::export_one(
                 &export::ExportImage {
@@ -234,7 +262,7 @@ impl Console {
                     name: &name,
                     sequence: sequence + 1,
                     date: "",
-                    metadata: None,
+                    metadata: packet.as_ref(),
                 },
                 &doc.recipe,
                 &options,

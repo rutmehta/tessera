@@ -1,0 +1,22 @@
+   Compiling sidecar v0.1.0 (/Users/rutmehta/Developer/tessera/.worktrees/M2-45d/crates/sidecar)
+    Finished `release` profile [optimized] target(s) in 0.71s
+     Running tests/native_keywords.rs (/Volumes/betterSSD/tessera-cache/target/M2-45d/release/deps/native_keywords-407d3f706442f733)
+
+running 1 test
+test native_keyword_merge_preserves_qualified_xmp_and_person_filtering ... FAILED
+
+failures:
+
+---- native_keyword_merge_preserves_qualified_xmp_and_person_filtering stdout ----
+
+thread 'native_keyword_merge_preserves_qualified_xmp_and_person_filtering' (91606487) panicked at crates/sidecar/tests/native_keywords.rs:6:5:
+assertion failed: merged.serialize().contains("retain qualifier")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    native_keyword_merge_preserves_qualified_xmp_and_person_filtering
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p sidecar --test native_keywords`

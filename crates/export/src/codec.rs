@@ -21,17 +21,18 @@ pub(crate) fn profile(registry: &mut Registry, space: ColorSpace) -> EngineResul
 
 /// Container choices for one encode.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct Encoding {
+pub(crate) struct Encoding<'a> {
     pub format: Format,
     pub space: ColorSpace,
     /// Pixel density to record (metadata only).
     pub dpi: Option<u32>,
+    pub native: Option<&'a crate::native::Native>,
 }
 
 pub(crate) fn encode(
     writer: &mut (impl Write + Seek),
     rgb: &image::Rgb32FImage,
-    encoding: Encoding,
+    encoding: Encoding<'_>,
     xmp: Option<&str>,
     cancel: &CancellationToken,
 ) -> EngineResult<()> {
@@ -51,7 +52,7 @@ pub(crate) fn encode(
 pub(crate) fn encode_limited(
     writer: &mut (impl Write + Seek),
     rgb: &image::Rgb32FImage,
-    encoding: Encoding,
+    encoding: Encoding<'_>,
     xmp: Option<&str>,
     cancel: &CancellationToken,
     limit: Option<u64>,
@@ -135,11 +136,16 @@ impl<W: Seek> Seek for CancelWriter<'_, W> {
 fn encode_inner(
     writer: &mut (impl Write + Seek),
     rgb: &image::Rgb32FImage,
-    encoding: Encoding,
+    encoding: Encoding<'_>,
     xmp: Option<&str>,
     cancel: &CancellationToken,
 ) -> EngineResult<()> {
-    let Encoding { format, space, dpi } = encoding;
+    let Encoding {
+        format,
+        space,
+        dpi,
+        native,
+    } = encoding;
     if matches!(format, Format::Dng) {
         // Unlike document codecs, the DNG render supplies linear Rec.2020.
         // ColorMatrix1 maps XYZ D65 into these already-white-balanced primaries.
@@ -162,7 +168,7 @@ fn encode_inner(
                 "lossless JPEG XL currently supports only sRGB",
             ));
         }
-        return crate::jxl::encode(writer, rgb, bits, xmp, cancel);
+        return crate::jxl::encode(writer, rgb, bits, xmp, native, cancel);
     }
     let dpi = dpi.filter(|d| (1..=u32::from(u16::MAX)).contains(d));
     // render_full supplies destination-encoded float RGB. Quantize only here;
@@ -172,7 +178,13 @@ fn encode_inner(
     if let Format::Jpeg { quality } = format
         && let Some(stitched) = jpeg_stripes(rgb, quality, dpi, profile.icc_bytes(), xmp, cancel)?
     {
-        return writer.write_all(&stitched).map_err(encode_error);
+        writer.write_all(&stitched[..2]).map_err(encode_error)?;
+        if let Some(native) = native {
+            writer
+                .write_all(&crate::native::jpeg_segments(native)?)
+                .map_err(encode_error)?;
+        }
+        return writer.write_all(&stitched[2..]).map_err(encode_error);
     }
     let mut pixels = vec![[0u16; 3]; (rgb.width() as usize) * (rgb.height() as usize)];
     for (src, dst) in rgb
@@ -202,7 +214,9 @@ fn encode_inner(
                 image::Rgba([r, g, b, 1.0])
             });
             writer
-                .write_all(&crate::encode_avif(&rgba, options, space, xmp, cancel)?)
+                .write_all(&crate::avif::encode_native(
+                    &rgba, options, space, None, xmp, native, cancel,
+                )?)
                 .map_err(encode_error)?;
         }
         Format::Jpeg { quality } => {
@@ -212,6 +226,17 @@ fn encode_inner(
                 encoder.set_density(jpeg_encoder::Density::Inch { x: dpi, y: dpi });
             }
             encoder.add_icc_profile(&icc).map_err(encode_error)?;
+            if let Some(native) = native {
+                let segments = crate::native::jpeg_segments(native)?;
+                let mut at = 0;
+                while at < segments.len() {
+                    let len = u16::from_be_bytes([segments[at + 2], segments[at + 3]]) as usize;
+                    encoder
+                        .add_app_segment(segments[at + 1] - 0xe0, &segments[at + 4..at + 2 + len])
+                        .map_err(encode_error)?;
+                    at += 2 + len;
+                }
+            }
             if let Some(text) = xmp {
                 let mut packet = b"http://ns.adobe.com/xap/1.0/\0".to_vec();
                 packet.extend_from_slice(text.as_bytes());
@@ -247,6 +272,14 @@ fn encode_inner(
                     .map_err(encode_error)?;
             }
             let mut writer = encoder.write_header().map_err(encode_error)?;
+            if let Some(native) = native {
+                let exif = native.tiff_bytes(true)?;
+                if !exif.is_empty() {
+                    writer
+                        .write_chunk(png::chunk::ChunkType(*b"eXIf"), &exif)
+                        .map_err(encode_error)?;
+                }
+            }
             writer.write_image_data(&bytes()).map_err(encode_error)?;
             writer.finish().map_err(encode_error)?;
         }

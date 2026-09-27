@@ -1,0 +1,24 @@
+Diff in /Users/rutmehta/Developer/tessera/.worktrees/M2-45d/crates/engine-api/src/tools.rs:36:
+     ChannelId, DocumentId, HistoryEntryId, HistoryGroupId, ImageId, JobId, LayerId, MaskId,
+     PersonId, SelectionId, SimilarityGroupId, StyleId,
+ };
+-use crate::recipe::RecipeHash;
+ use crate::recipe::mask::{LocalParams, MaskComponent};
+ use crate::recipe::selection::{Decision, Grade, Mark};
+ use crate::recipe::settings::NormalizedRect;
+Diff in /Users/rutmehta/Developer/tessera/.worktrees/M2-45d/crates/engine-api/src/tools.rs:43:
++use crate::recipe::RecipeHash;
+ 
+ /// Partial update of global tone and colour controls. `None` leaves a
+ /// control unchanged. Units as in [`crate::recipe::settings`].
+Diff in /Users/rutmehta/Developer/tessera/.worktrees/M2-45d/crates/export/src/native.rs:191:
+                                     }
+                                 }
+                                 b"Raw profile type xmp" => result.set_xmp(&data)?,
+-                                _ => result.tiff(data.strip_prefix(b"Exif\0\0").unwrap_or(&data))?,
++                                _ => {
++                                    result.tiff(data.strip_prefix(b"Exif\0\0").unwrap_or(&data))?
++                                }
+                             }
+                         }
+                     } else {

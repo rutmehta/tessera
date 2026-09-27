@@ -163,6 +163,7 @@ pub(crate) fn encode(
     writer: &mut (impl Write + Seek),
     rgb: &image::Rgb32FImage,
     settings: &ExportSettings,
+    native: &crate::native::Native,
     xmp: Option<&str>,
     cancel: &CancellationToken,
 ) -> EngineResult<()> {
@@ -202,6 +203,12 @@ pub(crate) fn encode(
                     ],
                 )
                 .map_err(encode_error)?;
+            let exif = native.tiff_bytes(true)?;
+            if !exif.is_empty() {
+                writer
+                    .write_chunk(png::chunk::ChunkType(*b"eXIf"), &exif)
+                    .map_err(encode_error)?;
+            }
             let mut stream = writer.stream_writer().map_err(encode_error)?;
             let mut row = Vec::with_capacity(rgb.width() as usize * 6);
             for pixels in rgb.as_raw().chunks(rgb.width() as usize * 3) {
@@ -222,7 +229,12 @@ pub(crate) fn encode(
             });
             writer
                 .write_all(&crate::avif::encode_hdr(
-                    &rgba, options, transfer, xmp, cancel,
+                    &rgba,
+                    options,
+                    transfer,
+                    xmp,
+                    Some(native),
+                    cancel,
                 )?)
                 .map_err(encode_error)?;
         }

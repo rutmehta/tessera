@@ -188,6 +188,23 @@ pub enum HdrTransfer {
     Hlg,
 }
 
+/// Descriptive metadata retained by developed exports.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExportMetadata {
+    /// All supported portable metadata.
+    #[default]
+    All,
+    /// Copyright, credit and source.
+    Copyright,
+    /// Copyright plus creator/contact fields.
+    CopyrightAndContact,
+    /// Descriptive fields excluding camera and development information.
+    AllExceptCamera,
+    /// No source metadata.
+    None,
+}
+
 /// Export settings.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ExportSettings {
@@ -216,7 +233,19 @@ pub struct ExportSettings {
     /// Omitted uses 300 ppi for sharpening without adding a density tag.
     #[serde(default)]
     pub ppi: Option<u32>,
-    /// Embed XMP metadata (ratings, keywords, IPTC).
+    /// Policy for EXIF, IPTC and XMP. `embed_metadata=false` overrides it.
+    #[serde(default)]
+    pub metadata: ExportMetadata,
+    /// Remove face regions and identified person keywords across carriers.
+    #[serde(default)]
+    pub remove_person_info: bool,
+    /// Remove capture GPS and IPTC image locations.
+    #[serde(default)]
+    pub remove_location: bool,
+    /// Preserve/construct Lightroom keyword hierarchy in XMP.
+    #[serde(default = "yes")]
+    pub keywords_as_hierarchy: bool,
+    /// Embed native EXIF/IPTC and XMP metadata.
     #[serde(default = "yes")]
     pub embed_metadata: bool,
     /// Embed the source byte stream in a developed DNG. Retains all original
@@ -1523,6 +1552,10 @@ pub(crate) mod tests {
                     sharpening: None,
                     sharpening_amount: None,
                     ppi: None,
+                    metadata: ExportMetadata::All,
+                    remove_person_info: false,
+                    remove_location: false,
+                    keywords_as_hierarchy: true,
                     embed_metadata: true,
                     embed_original_raw: false,
                     hdr: false,

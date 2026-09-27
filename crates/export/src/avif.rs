@@ -50,7 +50,7 @@ pub fn encode_avif(
     xmp: Option<&str>,
     cancel: &CancellationToken,
 ) -> EngineResult<Vec<u8>> {
-    encode_inner(rgba, options, space, None, xmp, cancel)
+    encode_native(rgba, options, space, None, xmp, None, cancel)
 }
 
 pub(crate) fn encode_hdr(
@@ -58,24 +58,27 @@ pub(crate) fn encode_hdr(
     options: AvifOptions,
     transfer: crate::HdrTransfer,
     xmp: Option<&str>,
+    native: Option<&crate::native::Native>,
     cancel: &CancellationToken,
 ) -> EngineResult<Vec<u8>> {
-    encode_inner(
+    encode_native(
         rgba,
         options,
         ColorSpace::Rec2020,
         Some(transfer),
         xmp,
+        native,
         cancel,
     )
 }
 
-fn encode_inner(
+pub(crate) fn encode_native(
     rgba: &image::Rgba32FImage,
     options: AvifOptions,
     space: ColorSpace,
     hdr: Option<crate::HdrTransfer>,
     xmp: Option<&str>,
+    native: Option<&crate::native::Native>,
     cancel: &CancellationToken,
 ) -> EngineResult<Vec<u8>> {
     cancel.check()?;
@@ -123,6 +126,11 @@ fn encode_inner(
     } else {
         color_space_icc(space)?
     };
+    let exif = native
+        .map(|n| n.tiff_bytes(true))
+        .transpose()?
+        .unwrap_or_default();
+    let exif = (!exif.is_empty()).then(|| [&[0; 4], exif.as_slice()].concat());
     mux(
         w,
         h,
@@ -132,6 +140,7 @@ fn encode_inner(
         &color,
         alpha.as_deref(),
         xmp,
+        exif.as_deref(),
     )
 }
 
@@ -234,6 +243,7 @@ fn mux(
     color: &[u8],
     alpha: Option<&[u8]>,
     xmp: Option<&str>,
+    exif: Option<&[u8]>,
 ) -> EngineResult<Vec<u8>> {
     let ftyp = box_bytes(b"ftyp", b"avif\0\0\0\0avifmif1")?;
     let mut items = vec![(b"av01", color)];
@@ -242,6 +252,9 @@ fn mux(
     }
     if let Some(x) = xmp {
         items.push((b"mime", x.as_bytes()));
+    }
+    if let Some(exif) = exif {
+        items.push((b"Exif", exif));
     }
     let mut meta = full_box(b"hdlr", 0, b"\0\0\0\0pict\0\0\0\0\0\0\0\0\0\0\0\0Tessera\0")?;
     meta.extend(full_box(b"pitm", 0, &1u16.to_be_bytes())?);
@@ -325,10 +338,12 @@ fn mux(
         ]);
         refs.extend(box_bytes(b"auxl", &[0, 2, 0, 1, 0, 1])?);
     }
-    if xmp.is_some() {
-        let mut r = (items.len() as u16).to_be_bytes().to_vec();
-        r.extend([0, 1, 0, 1]);
-        refs.extend(box_bytes(b"cdsc", &r)?);
+    for (index, (kind, _)) in items.iter().enumerate() {
+        if *kind == b"mime" || *kind == b"Exif" {
+            let mut r = ((index + 1) as u16).to_be_bytes().to_vec();
+            r.extend([0, 1, 0, 1]);
+            refs.extend(box_bytes(b"cdsc", &r)?);
+        }
     }
     let mut iprp = box_bytes(b"ipco", &props)?;
     iprp.extend(full_box(b"ipma", 0, &associations)?);
