@@ -1195,7 +1195,7 @@
     "id": "B5-09",
     "owner": "opus",
     "title": "Remove tool and neural filters in the app",
-    "status": "pass",
+    "status": "merged",
     "attempts": 0,
     "notes": "machine B; wp/B5-09 merged with main 9a6f25f; document/retouch.rs; 240 XCTest; no weights on this Mac, missing-model paths verified; Remove 7.3 s on 18 MP (PatchMatch)"
   }
