@@ -3,7 +3,9 @@
 # thrown errors, not assertion failures. Fail on any "error: -[" line or any "with N failures"
 # where N>0 that is not an XCTExpectFailure (expected failures do not print "error: -[").
 set -uo pipefail
-cd "$(git rev-parse --show-toplevel)/apps/mac"
+root="$(git rev-parse --show-toplevel)"
+[ -e "$root/fixtures/raw/sample.dng" ] || { echo "fixtures/raw missing in $root: symlink it (ln -s <main>/fixtures/raw fixtures/raw) or run fixtures/fetch.sh; raw-based tests would fail with 'file raw couldn't be opened'"; exit 2; }
+cd "$root/apps/mac"
 ./build-ffi.sh >/dev/null 2>&1 || { echo "build-ffi failed"; exit 1; }
 swift build 2>&1 | grep -E "error:|Build complete" | tail -3
 log=$(mktemp); swift test -c release -Xswiftc -enable-testing >"$log" 2>&1; rc=$?
