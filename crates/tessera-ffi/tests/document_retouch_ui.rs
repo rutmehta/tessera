@@ -454,3 +454,63 @@ fn distraction_suggestions_are_reviewed_then_only_accepted_ones_removed() {
         .is_err()
     );
 }
+
+/// B5-09b: the app downloads retouch weights with `ModelDownloads` into
+/// `<support>/models/cache` (the manifest at `<support>/models/models.toml`).
+/// Retouching must report and read exactly that file: same pinned version,
+/// same path, and a file placed there is the one verified (a corrupt one is
+/// an integrity error, never "not installed" nor a silent fallback).
+#[test]
+fn retouch_models_are_looked_up_where_model_downloads_put_them() {
+    let (dir, engine) = engine();
+    let support = dir.path().join("support");
+    let s = open(&engine, &png(dir.path(), "m.png", 32, 32));
+    let layer = s.layers().unwrap()[0].id;
+    let models = s.retouch_models().unwrap();
+    // The downloader's registry: the app's manifest and cache.
+    let reg = ml_runtime::ModelRegistry::open(
+        support.join("models").join("models.toml"),
+        support.join("models").join("cache"),
+    )
+    .unwrap();
+    for id in ["remove/lama", "filters/ddcolor", "enhance/drunet-color"] {
+        let m = models.iter().find(|m| m.model_id == id).unwrap();
+        let spec = reg.models().iter().find(|s| s.id == id).unwrap();
+        assert_eq!(
+            m.version, spec.version,
+            "{id}: the version ModelDownloads is asked for"
+        );
+        assert!(!m.installed, "{id}");
+        let expected = support
+            .join("models")
+            .join("cache")
+            .join(format!("{}.onnx", spec.sha256));
+        assert_eq!(Path::new(&m.cache_path), expected, "{id}");
+        // With downloads off the downloader reports it missing from that cache.
+        let r = engine_api::id::ModelRef {
+            id: id.into(),
+            version: m.version.clone(),
+        };
+        let e = reg.download(&r, false, |_, _| {}).unwrap_err().to_string();
+        assert!(e.contains("not cached"), "{e}");
+    }
+    // A file where the downloader would put LaMa is the one retouching reads.
+    let lama = models.iter().find(|m| m.model_id == "remove/lama").unwrap();
+    std::fs::write(&lama.cache_path, b"not a model").unwrap();
+    s.set_selection_rect(10, 10, 6, 6, 0.0).unwrap();
+    let n = history(&s);
+    let e = s
+        .remove_with_selection(layer, RemoveBackend::Lama, "{}".into())
+        .unwrap_err()
+        .to_string();
+    assert!(e.contains("SHA-256 mismatch"), "{e}");
+    assert!(e.contains(&lama.cache_path), "{e}");
+    assert_eq!(history(&s), n);
+    let r = engine_api::id::ModelRef {
+        id: "remove/lama".into(),
+        version: lama.version.clone(),
+    };
+    let e = reg.download(&r, false, |_, _| {}).unwrap_err().to_string();
+    assert!(e.contains("SHA-256 mismatch"), "{e}");
+    s.close();
+}
