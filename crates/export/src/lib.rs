@@ -16,7 +16,7 @@ mod filter;
 mod gpu;
 use engine_api::{EngineError, EngineResult};
 use engine_api::{jobs::CancellationToken, recipe::Recipe};
-pub use filter::{Resize, SharpenFor};
+pub use filter::{Resize, SharpenAmount, SharpenFor, sharpen_output};
 use pipeline_cpu::RenderSource;
 use sidecar::{MarkPreset, Sidecar, XmpPacket};
 use std::{fs, io::Write, path::PathBuf};
@@ -95,10 +95,12 @@ pub struct ExportSettings {
     pub metadata: Metadata,
     pub resize: Resize,
     pub sharpen_for: SharpenFor,
+    pub sharpen_amount: SharpenAmount,
     pub naming: String,
     pub output_dir: PathBuf,
     /// Pixel density recorded in the file (JFIF, PNG pHYs, TIFF resolution
-    /// tags). Metadata only: it never resamples. None records no density.
+    /// tags). Also controls paper sharpening radius; never resamples.
+    /// None records no density and uses 300 ppi for paper sharpening.
     pub dpi: Option<u32>,
     /// Rotate/flip RAW renders from sensor orientation into the EXIF
     /// orientation (what a viewer shows). Off by default: existing callers
@@ -123,6 +125,7 @@ impl Default for ExportSettings {
             metadata: Metadata::All,
             resize: Resize::None,
             sharpen_for: SharpenFor::None,
+            sharpen_amount: SharpenAmount::Standard,
             naming: "{name}-{seq}".into(),
             output_dir: ".".into(),
             dpi: None,
@@ -546,7 +549,13 @@ pub fn render_one_cancellable(
     } else {
         filter::resize(rgb, settings.resize, cancel)?
     };
-    let mut rgb = filter::sharpen(rgb, settings.sharpen_for, cancel)?;
+    let mut rgb = sharpen_output(
+        rgb,
+        settings.sharpen_for,
+        settings.sharpen_amount,
+        settings.dpi.unwrap_or(300),
+        cancel,
+    )?;
     if let Some(mark) = &settings.watermark {
         apply_watermark(&mut rgb, mark, cancel)?;
     }

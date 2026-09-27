@@ -154,6 +154,7 @@ pub struct ExportOptions {
     /// Recorded in the file; converts inch/cm sizes to pixels.
     pub dpi: u32,
     pub sharpening: OutputSharpening,
+    pub sharpening_amount: export::SharpenAmount,
     pub metadata: MetadataPolicy,
     /// Tokens: `{name}` file name without extension, `{seq}` 1-based position,
     /// `{date}` capture date `YYYY-MM-DD`.
@@ -179,6 +180,7 @@ impl Default for ExportOptions {
             resize: ResizeOptions::default(),
             dpi: 72,
             sharpening: OutputSharpening::None,
+            sharpening_amount: export::SharpenAmount::Standard,
             metadata: MetadataPolicy::All,
             naming: "{name}".into(),
             upscale: 1,
@@ -311,6 +313,7 @@ impl ExportOptions {
             },
             resize: self.pixel_resize()?,
             sharpen_for: self.sharpening.into(),
+            sharpen_amount: self.sharpening_amount,
             naming: self.naming.clone(),
             output_dir,
             dpi: Some(self.dpi),

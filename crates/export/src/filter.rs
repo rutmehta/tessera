@@ -23,6 +23,14 @@ pub enum SharpenFor {
     Matte,
     Glossy,
 }
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SharpenAmount {
+    Low,
+    #[default]
+    Standard,
+    High,
+}
 impl Resize {
     pub fn dimensions(self, width: u32, height: u32) -> EngineResult<(u32, u32)> {
         if width == 0 || height == 0 {
@@ -150,12 +158,44 @@ pub(crate) fn sharpen(
     preset: SharpenFor,
     cancel: &CancellationToken,
 ) -> EngineResult<Rgb32FImage> {
+    sharpen_output(src, preset, SharpenAmount::Standard, 300, cancel)
+}
+
+/// Deterministic output-sized Gaussian unsharp mask. Low/standard/high scale
+/// the amount by 0.5/1/1.5. Paper radii scale with ppi relative to 300 ppi
+/// (bounded to 0.3–8 pixels); screen radii stay in pixels regardless of ppi.
+/// Call after resize, before watermarking. Does not resample the image.
+pub fn sharpen_output(
+    src: Rgb32FImage,
+    preset: SharpenFor,
+    strength: SharpenAmount,
+    ppi: u32,
+    cancel: &CancellationToken,
+) -> EngineResult<Rgb32FImage> {
+    cancel.check()?;
+    if !(1..=9600).contains(&ppi) {
+        return Err(EngineError::invalid("ppi", "must be 1–9600"));
+    }
+    if src.width() == 0 || src.height() == 0 {
+        return Err(EngineError::invalid("sharpen", "empty image"));
+    }
     let (sigma, amount): (f32, f32) = match preset {
         SharpenFor::None => return Ok(src),
         SharpenFor::Screen => (0.6, 0.5),
         SharpenFor::Matte => (1.2, 1.0),
         SharpenFor::Glossy => (0.8, 0.7),
     };
+    let sigma = if matches!(preset, SharpenFor::Screen) {
+        sigma
+    } else {
+        (sigma * ppi as f32 / 300.0).clamp(0.3, 8.0)
+    };
+    let amount = amount
+        * match strength {
+            SharpenAmount::Low => 0.5,
+            SharpenAmount::Standard => 1.0,
+            SharpenAmount::High => 1.5,
+        };
     let radius = (sigma * 3.0).ceil() as i32;
     let mut kernel: Vec<f32> = (-radius..=radius)
         .map(|x| (-(x * x) as f32 / (2.0 * sigma * sigma)).exp())

@@ -43,6 +43,12 @@ pub struct Options {
     color_space: String,
     #[arg(long, value_parser = ["screen", "matte", "glossy"])]
     sharpen: Option<String>,
+    /// Output sharpening strength (after resize, before watermark).
+    #[arg(long, default_value = "standard", value_parser = ["low", "standard", "high"])]
+    sharpen_amount: String,
+    /// Output pixel density; paper sharpening uses 300 ppi when omitted.
+    #[arg(long, value_parser = clap::value_parser!(u32).range(1..=9600))]
+    ppi: Option<u32>,
     #[arg(long, default_value = "all", value_parser = ["all", "copyright", "none"])]
     metadata: String,
     #[arg(long, default_value = "{name}-{seq}")]
@@ -167,6 +173,12 @@ fn settings(options: &Options) -> Result<ExportSettings> {
             _ => SharpenFor::None,
         },
         naming: options.name.clone(),
+        sharpen_amount: match options.sharpen_amount.as_str() {
+            "low" => export::SharpenAmount::Low,
+            "high" => export::SharpenAmount::High,
+            _ => export::SharpenAmount::Standard,
+        },
+        dpi: options.ppi,
         output_dir: options.out.clone(),
         max_file_bytes: options.max_file_bytes,
         watermark: options
@@ -417,6 +429,33 @@ fn load(path: &Path) -> Result<Loaded> {
 #[cfg(test)]
 mod tests {
     use clap::Parser;
+
+    #[test]
+    fn sharpening_strength_and_density_flags() {
+        let parsed = crate::Cli::try_parse_from([
+            "tessera",
+            "export",
+            "input.png",
+            "--out",
+            "out",
+            "--format",
+            "png",
+            "--sharpen",
+            "matte",
+            "--sharpen-amount",
+            "high",
+            "--ppi",
+            "240",
+        ])
+        .unwrap();
+        let crate::Command::Export(options) = parsed.command else {
+            panic!("export")
+        };
+        let settings = super::settings(&options).unwrap();
+        assert!(matches!(settings.sharpen_for, export::SharpenFor::Matte));
+        assert_eq!(settings.sharpen_amount, export::SharpenAmount::High);
+        assert_eq!(settings.dpi, Some(240));
+    }
 
     #[test]
     fn dng_flags_select_float_linear_export() {

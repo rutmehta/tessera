@@ -5,6 +5,22 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use tessera_ffi::*;
 
+#[test]
+fn sharpening_amount_json_defaults_and_roundtrip() {
+    let defaults: serde_json::Value =
+        serde_json::from_str(&normalize_export_settings("{}".into()).unwrap()).unwrap();
+    assert_eq!(defaults["sharpening_amount"], "standard");
+    for amount in ["low", "standard", "high"] {
+        let json =
+            serde_json::json!({"sharpening": "matte", "sharpening_amount": amount, "dpi": 240});
+        let normalized: serde_json::Value =
+            serde_json::from_str(&normalize_export_settings(json.to_string()).unwrap()).unwrap();
+        assert_eq!(normalized["sharpening_amount"], amount);
+        assert_eq!(normalized["dpi"], 240);
+    }
+    assert!(normalize_export_settings(r#"{"sharpening_amount":"extreme"}"#.into()).is_err());
+}
+
 struct Fixture {
     dir: tempfile::TempDir,
     support: String,
@@ -304,6 +320,52 @@ fn presets_ship_defaults_and_persist_crud() {
     engine.restore_default_export_presets().unwrap();
     assert_eq!(names(&engine).len(), 6);
     let _ = &f.dir;
+}
+
+#[test]
+fn sharpening_amount_reaches_exported_pixels_and_preset() {
+    let f = fixture();
+    let mut outputs = Vec::new();
+    for amount in ["low", "standard", "high"] {
+        let out = f.dir.path().join(amount);
+        let json = settings(
+            &out,
+            serde_json::json!({
+                "format": "tiff", "bit_depth": 16, "metadata": "none",
+                "sharpening": "matte", "sharpening_amount": amount, "dpi": 300
+            }),
+        );
+        f.engine
+            .save_export_preset(amount.into(), json.clone())
+            .unwrap();
+        let preset = f
+            .engine
+            .export_presets()
+            .unwrap()
+            .into_iter()
+            .find(|p| p.name == amount)
+            .unwrap();
+        let saved: serde_json::Value = serde_json::from_str(&preset.settings_json).unwrap();
+        assert_eq!(saved["sharpening_amount"], amount);
+        let report = f
+            .engine
+            .export_batch(
+                ExportTarget::Images {
+                    image_ids: vec![f.ids[0].clone()],
+                },
+                json,
+                None,
+                None,
+            )
+            .unwrap();
+        assert_eq!((report.exported, report.failed), (1, 0));
+        outputs.push(
+            image::open(report.items[0].output_path.as_ref().unwrap())
+                .unwrap()
+                .to_rgb16(),
+        );
+    }
+    assert!(outputs.windows(2).all(|p| p[0] != p[1]));
 }
 
 #[test]
