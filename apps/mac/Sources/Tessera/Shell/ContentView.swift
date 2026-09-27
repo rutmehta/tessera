@@ -4,6 +4,8 @@ import SwiftUI
 /// Window layout: sidebar | (grid or loupe) + status bar + filmstrip | inspector.
 struct ContentView: View {
     @Bindable var model: AppModel
+    /// B5-10: document mode's detail minimum (see the frame below and DocumentInspectorLayoutTests).
+    static let documentDetailMinWidth = Theme.Width.labelWide * 4
 
     var body: some View {
         NavigationSplitView(columnVisibility: Binding(get: { model.documents.columnVisibility },
@@ -19,15 +21,19 @@ struct ContentView: View {
                 if model.tether.showPanel {
                     TetherPanel(model: model, tether: model.tether)
                 }
+                let hide = ProcessInfo.processInfo.environment["PROBE_HIDE"] ?? ""
+                if hide == "geo" { Color.clear } else {
                 GeometryReader { area in
                     ZStack {
                         // Both stay alive so grid scroll position and loupe texture survive mode switches.
+                        if hide != "bl" {
                         ThumbnailBrowser(model: model, style: .grid)
                             .opacity(model.viewMode == .grid ? 1 : 0)
                             .allowsHitTesting(model.viewMode == .grid)
                         LoupeView(model: model)
                             .opacity(model.viewMode == .loupe ? 1 : 0)
                             .allowsHitTesting(model.viewMode == .loupe)
+                        }
                         if model.viewMode == .loupe {
                             LoupeOverlay(model: model)
                             MaskToolbar(model: model, masks: .shared)
@@ -35,7 +41,7 @@ struct ContentView: View {
                         if model.viewMode == .compare, model.compare != nil {
                             CompareView(model: model)
                         }
-                        if model.viewMode == .document {
+                        if model.viewMode == .document, hide != "doc" {
                             DocumentView(workspace: model.documents)
                         } else if model.source == .people {
                             PeopleView(model: model)
@@ -53,6 +59,7 @@ struct ContentView: View {
                         .animation(Theme.Motion.appear, value: model.toast)
                     }
                     .frame(width: area.size.width, height: area.size.height)
+                }
                 }
                 if model.viewMode == .loupe, model.source != .people, !model.assist.faces.isEmpty {
                     FaceStrip(model: model)
@@ -75,6 +82,17 @@ struct ContentView: View {
                 }
             }
             .background(Theme.canvas)
+            // B5-10 begin: document mode's detail column has a small, explicit minimum and ideal width.
+            // On macOS 26 the floating sidebar and the inspector overlay the detail, and the split
+            // view counts the detail's minimum PLUS both overlays, then adds the inspector column
+            // again: with the detail's own minimum taken from its ideal width (the status bar's full
+            // message and fixed labels, ~800 pt) the content needed ~1450 pt, so at 1440 pt and below
+            // the sidebar and the document inspector were pushed past the window edges (clipped
+            // right edges of Properties and Layers). The canvas and its bars shrink instead (the
+            // options bar scrolls, the status bar truncates). Library modes are unchanged.
+            .frame(minWidth: model.viewMode == .document ? Self.documentDetailMinWidth : nil,
+                   idealWidth: model.viewMode == .document ? Self.documentDetailMinWidth : nil, maxWidth: .infinity)
+            // B5-10 end
             .navigationTitle(model.viewMode == .document ? (model.documents.current?.title ?? "Tessera")
                              : model.library.items.isEmpty ? "Tessera" : model.library.title)
             .navigationSubtitle(subtitle)

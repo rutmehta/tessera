@@ -81,7 +81,9 @@ final class DocumentText {
     private init() {}
 
     func attach(_ workspace: DocumentWorkspace) {
+        guard self.workspace !== workspace else { return }
         self.workspace = workspace
+        TextSelfTest.startIfRequested(workspace)
     }
 
     var isEditing: Bool { session != nil }
