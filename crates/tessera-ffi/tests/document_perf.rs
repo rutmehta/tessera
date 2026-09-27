@@ -532,3 +532,303 @@ fn bench_p17_document_frames_during_photo_export() {
     );
     s.close();
 }
+
+// ─────────────────────────── B5-15 (P16, P19) ───────────────────────────
+//
+// `bench_p16_*` and `bench_p19_*` use only calls that exist before B5-15
+// (the baseline build runs the same file without the `b515_*` benches).
+
+/// Physical footprint of this process (MiB), `proc_pid_rusage` V2.
+fn footprint_mib() -> f64 {
+    unsafe extern "C" {
+        fn proc_pid_rusage(pid: i32, flavor: i32, buffer: *mut u64) -> i32;
+    }
+    let mut buf = [0u64; 32];
+    // SAFETY: RUSAGE_INFO_V2 is 20 u64-sized fields (uuid = 2); the buffer is larger.
+    let r = unsafe { proc_pid_rusage(std::process::id() as i32, 2, buf.as_mut_ptr()) };
+    if r != 0 {
+        return f64::NAN;
+    }
+    // uuid[16], user, system, pkg_idle, interrupt, pageins, wired, resident, phys_footprint.
+    buf[9] as f64 / (1 << 20) as f64
+}
+
+/// An opaque 8-bit noise layer with smooth structure (a photo stand-in).
+fn photo_layer(name: &str, e: Extent) -> Layer {
+    let mut l = Layer::pixel(name.to_owned(), e, Depth::U8);
+    let r = l.raster_mut().unwrap();
+    let (cols, rows) = r.grid();
+    for ty in 0..rows {
+        for tx in 0..cols {
+            let layout = r.layout(tx, ty);
+            let n = layout.plane_len();
+            let mut v = vec![255u8; 4 * n];
+            let mut x = 0x2545_f491u32 ^ (tx << 16) ^ ty;
+            for py in 0..layout.extent.height as usize {
+                for px in 0..layout.extent.width as usize {
+                    x ^= x << 13;
+                    x ^= x >> 17;
+                    x ^= x << 5;
+                    let (gx, gy) = (tx as usize * 256 + px, ty as usize * 256 + py);
+                    let i = py * layout.stride() + px;
+                    v[i] = ((gx / 3) % 256) as u8 ^ (x as u8 >> 3);
+                    v[n + i] = ((gy / 2) % 256) as u8 ^ ((x >> 8) as u8 >> 3);
+                    v[2 * n + i] = (((gx + gy) / 5) % 256) as u8;
+                }
+            }
+            r.set_slot(
+                tx,
+                ty,
+                Some(Tile::from_samples(TileCoord::new(0, tx, ty), layout, v).unwrap()),
+                1,
+            )
+            .unwrap();
+        }
+    }
+    l
+}
+
+/// A 5472×3648 8-bit document: an opaque photo layer, a smart object of a
+/// second photo layer with a Gaussian Blur smart filter at 70 %, and a text
+/// layer with a drop shadow and an outer glow (a "styled" document: the
+/// CPU compositor renders it).
+fn styled_20mp(engine: &Arc<Engine>) -> Arc<DocumentSession> {
+    let e = Extent::new(5472, 3648);
+    let mut d = Document::new(DocState::new(e, Depth::U8));
+    for name in ["photo", "detail"] {
+        d.apply(DocOp::AddLayer {
+            parent: None,
+            index: usize::MAX,
+            layer: photo_layer(name, e),
+        })
+        .unwrap();
+    }
+    let s = engine.adopt_document(d, "styled 20 MP".into());
+    let detail = s.layers().unwrap()[0].id;
+    s.convert_for_smart_filters(detail).unwrap();
+    s.apply_filter(detail, r#"{"id":"gaussian_blur","params":{"radius":6}}"#.into())
+        .unwrap();
+    s.set_opacity(detail, 0.7, false).unwrap();
+    let text = serde_json::json!({"runs": [{"text": "Tessera export", "family": "Noto Sans", "size": 220.0}]});
+    let t = s
+        .add_text_layer(
+            "caption".into(),
+            None,
+            None,
+            text.to_string(),
+            TransformMatrix {
+                a: 1.0,
+                b: 0.0,
+                c: 600.0,
+                d: 0.0,
+                e: 1.0,
+                f: 2600.0,
+            },
+            false,
+        )
+        .unwrap()
+        .created[0];
+    let styles = serde_json::json!({"effects": [
+        {"kind": "drop_shadow", "settings": {"distance": 30.0, "size": 40.0}},
+        {"kind": "outer_glow", "settings": {"size": 30.0}},
+    ], "scale": 1.0});
+    s.set_layer_styles_json(t, styles.to_string(), false).unwrap();
+    s
+}
+
+/// P16 before/after: Export Flat of the styled 20 MP document through the
+/// synchronous call (what the app's main thread ran before B5-15: its
+/// duration is the main-thread span), PNG sRGB.
+#[test]
+#[ignore]
+fn bench_p16_export_flat_20mp_styled_sync() {
+    let (dir, engine) = engine();
+    let s = styled_20mp(&engine);
+    let mut v = Vec::new();
+    for i in 0..3 {
+        let out = dir.path().join(format!("flat{i}.png"));
+        let t = Instant::now();
+        s.export_flat(
+            out.to_string_lossy().into_owned(),
+            ExportFormat::Png,
+            90,
+            ExportColor::Srgb,
+        )
+        .unwrap();
+        v.push(t.elapsed().as_secs_f64() * 1000.0);
+        eprintln!("export {i}: {:.0} ms, footprint {:.0} MiB", v[i], footprint_mib());
+    }
+    summary("p16 20 MP styled Export Flat (sync call)", &v);
+    s.close();
+}
+
+/// P16 parity: writes PNG / TIFF / JPEG exports of the styled document in
+/// three colour choices to `$B515_PARITY_DIR` (compare the files of two
+/// builds byte for byte).
+#[test]
+#[ignore]
+fn bench_p16_export_parity_files() {
+    let Some(out) = std::env::var_os("B515_PARITY_DIR") else {
+        eprintln!("set B515_PARITY_DIR");
+        return;
+    };
+    let out = std::path::PathBuf::from(out);
+    std::fs::create_dir_all(&out).unwrap();
+    let (_dir, engine) = engine();
+    let s = styled_20mp(&engine);
+    for (format, ext) in [
+        (ExportFormat::Png, "png"),
+        (ExportFormat::Tiff, "tif"),
+        (ExportFormat::Jpeg, "jpg"),
+    ] {
+        for (color, name) in [
+            (ExportColor::Document, "document"),
+            (ExportColor::Srgb, "srgb"),
+            (ExportColor::DisplayP3, "p3"),
+        ] {
+            let p = out.join(format!("styled-{name}.{ext}"));
+            s.export_flat(p.to_string_lossy().into_owned(), format, 85, color)
+                .unwrap();
+        }
+    }
+    s.close();
+}
+
+/// P19 before/after: a Gaussian Blur smart filter drag on a 20 MP smart
+/// object (opaque photo layer converted for smart filters, radius 8), fit
+/// view (level 2) and 100 % in a 4K viewport: preview call → completed
+/// frame, sequential ticks at display rate; the footprint around it.
+/// `TESSERA_DOC_CPU_SMART_FILTERS=1` forces the CPU bake in B5-15 builds.
+#[test]
+#[ignore]
+fn bench_p19_smart_filter_drag_20mp() {
+    let (_dir, engine) = engine();
+    let e = Extent::new(5472, 3648);
+    let mut d = Document::new(DocState::new(e, Depth::U8));
+    d.apply(DocOp::AddLayer {
+        parent: None,
+        index: usize::MAX,
+        layer: photo_layer("photo", e),
+    })
+    .unwrap();
+    let s = engine.adopt_document(d, "smart 20 MP".into());
+    let id = s.layers().unwrap()[0].id;
+    s.convert_for_smart_filters(id).unwrap();
+    s.apply_filter(id, r#"{"id":"gaussian_blur","params":{"radius":8}}"#.into())
+        .unwrap();
+    let rec = Arc::new(Recorder::default());
+    s.set_listener(Some(rec.clone()));
+    let start_mib = footprint_mib();
+    for (label, level, w, h) in [("fit L2", 2u8, 1368u32, 912u32), ("100% 4K L0", 0, 3840, 2160)] {
+        let plan = s.plan_surface(w, h).unwrap();
+        attach(&s, plan.width.max(w), plan.height.max(h));
+        s.set_viewport(level, 512, 512, w, h, 1.0 / f64::from(1u32 << level))
+            .unwrap();
+        s.wait_filters_idle();
+        s.wait_idle();
+        s.wait_filters_idle();
+        s.wait_idle();
+        let warm_mib = footprint_mib();
+        let mut calls = Vec::new();
+        let mut v = Vec::new();
+        let mut peak = warm_mib;
+        for i in 0..32 {
+            let r = 6.0 + (i % 9) as f32;
+            let json = format!(r#"{{"id":"gaussian_blur","params":{{"radius":{r}}}}}"#);
+            let t = Instant::now();
+            s.preview_smart_filter(id, 0, json, None).unwrap();
+            calls.push(t.elapsed().as_secs_f64() * 1000.0);
+            s.wait_filters_idle();
+            s.wait_idle();
+            if i >= 2 {
+                v.push(t.elapsed().as_secs_f64() * 1000.0);
+            }
+            peak = peak.max(footprint_mib());
+            std::thread::sleep(Duration::from_millis(16));
+        }
+        summary(&format!("p19 {label} preview call"), &calls);
+        summary(&format!("p19 {label} filter drag tick → completed frame"), &v);
+        s.clear_preview().unwrap();
+        s.wait_idle();
+        eprintln!(
+            "RESULT p19 {label} footprint: start {start_mib:.0} MiB, warm {warm_mib:.0}, peak during drag {peak:.0}, after {:.0} MiB",
+            footprint_mib()
+        );
+        eprintln!("resources: {}", s.render_resources());
+        s.detach_surfaces();
+    }
+    assert!(rec.failures.lock().unwrap().is_empty());
+    s.close();
+}
+
+/// P16 after: the background export (`begin_export_flat` + `run` on a
+/// worker) of the styled 20 MP document while a "main thread" keeps making
+/// edits: begin (the main-thread part), run, edit call spans, cancel
+/// latency. B5-15 builds only.
+#[test]
+#[ignore]
+fn b515_bench_p16_background_export_20mp_styled() {
+    let (dir, engine) = engine();
+    let s = styled_20mp(&engine);
+    let top = s.layers().unwrap()[1].id;
+    let mut begins = Vec::new();
+    let mut runs = Vec::new();
+    let mut edits = Vec::new();
+    for i in 0..3 {
+        let out = dir.path().join(format!("bg{i}.png"));
+        let t = Instant::now();
+        let job = s
+            .begin_export_flat(
+                out.to_string_lossy().into_owned(),
+                ExportFormat::Png,
+                90,
+                ExportColor::Srgb,
+            )
+            .unwrap();
+        begins.push(t.elapsed().as_secs_f64() * 1000.0);
+        let t = Instant::now();
+        let runner = std::thread::spawn(move || job.run(None));
+        while !runner.is_finished() {
+            let c = Instant::now();
+            s.set_opacity(top, 0.5 + (edits.len() % 5) as f32 * 0.1, true)
+                .unwrap();
+            edits.push(c.elapsed().as_secs_f64() * 1000.0);
+            std::thread::sleep(Duration::from_millis(16));
+        }
+        runner.join().unwrap().unwrap();
+        runs.push(t.elapsed().as_secs_f64() * 1000.0);
+        s.commit("Opacity".into()).unwrap();
+    }
+    summary("p16 begin_export_flat (main thread)", &begins);
+    summary("p16 background run (worker)", &runs);
+    summary("p16 edit calls during the export", &edits);
+    // Cancel latency at ~30 %.
+    struct At(Arc<DocFlatExport>, Mutex<Option<Instant>>);
+    impl DocExportListener for At {
+        fn on_progress(&self, fraction: f32, _: String) {
+            if fraction >= 0.3 && self.1.lock().unwrap().is_none() {
+                *self.1.lock().unwrap() = Some(Instant::now());
+                self.0.cancel();
+            }
+        }
+    }
+    let mut lat = Vec::new();
+    for i in 0..3 {
+        let out = dir.path().join(format!("cancel{i}.png"));
+        let job = s
+            .begin_export_flat(
+                out.to_string_lossy().into_owned(),
+                ExportFormat::Png,
+                90,
+                ExportColor::Srgb,
+            )
+            .unwrap();
+        let at = Arc::new(At(job.clone(), Mutex::new(None)));
+        assert!(job.run(Some(at.clone())).is_err());
+        let when = at.1.lock().unwrap().expect("reached 30 %");
+        lat.push(when.elapsed().as_secs_f64() * 1000.0);
+        assert!(!out.exists());
+    }
+    summary("p16 cancel → run returns", &lat);
+    s.close();
+}
