@@ -307,6 +307,10 @@ struct Node {
     blend: BlendMode,
     /// Canvas-sized 8-bit grey PNG, base64.
     mask_png: Option<String>,
+    // B5-12 begin: a reserved compositor `transform` stage, kept verbatim
+    // (never parsed by the Spec parser or re-baked into another schema).
+    raw: Option<Arc<serde_json::Value>>,
+    // B5-12 end
 }
 
 impl Node {
@@ -317,11 +321,29 @@ impl Node {
             opacity: 1.0,
             blend: BlendMode::Normal,
             mask_png: None,
+            raw: None, // B5-12
         }
     }
 
     fn of(sf: &SmartFilter) -> Result<Self> {
         let p = &sf.params;
+        // B5-12 begin: reserved transform stages pass through untouched.
+        if reserved_transform(&sf.name) {
+            return Ok(Self {
+                spec: Spec {
+                    id: TRANSFORM_STAGE.into(),
+                    values: BTreeMap::new(),
+                    json: serde_json::json!({ "id": TRANSFORM_STAGE, "params": stripped_transform(p) })
+                        .to_string(),
+                },
+                enabled: sf.enabled,
+                opacity: sf.blend.opacity,
+                blend: sf.blend.mode,
+                mask_png: None,
+                raw: Some(Arc::new(p.clone())),
+            });
+        }
+        // B5-12 end
         if adapter_id(&sf.name) && p.get("filter").is_none() {
             return Ok(Self {
                 spec: Spec::from_value(&serde_json::json!({"id":sf.name,"params":p}))?,
@@ -329,6 +351,7 @@ impl Node {
                 opacity: sf.blend.opacity,
                 blend: sf.blend.mode,
                 mask_png: None,
+                raw: None, // B5-12
             });
         }
         let spec = Spec::from_value(
@@ -352,10 +375,24 @@ impl Node {
                 .get("mask_png")
                 .and_then(|v| v.as_str())
                 .map(str::to_owned),
+            raw: None, // B5-12
         })
     }
 
     fn store(&self) -> SmartFilter {
+        // B5-12 begin
+        if let Some(raw) = &self.raw {
+            return SmartFilter {
+                name: TRANSFORM_STAGE.into(),
+                enabled: self.enabled,
+                blend: compositor::render::smart_filters::FilterBlend {
+                    mode: self.blend,
+                    opacity: self.opacity.clamp(0.0, 1.0),
+                },
+                params: (**raw).clone(),
+            };
+        }
+        // B5-12 end
         let filter: serde_json::Value =
             serde_json::from_str(&self.spec.json).unwrap_or(serde_json::Value::Null);
         if adapter_id(&self.spec.id) && self.mask_png.is_none() {
@@ -390,6 +427,17 @@ impl Node {
 
     /// Everything that changes the result (the key of bakes).
     fn key(&self) -> String {
+        // B5-12 begin: a transform's geometry by digest (protect masks can be large).
+        if let Some(raw) = &self.raw {
+            return format!(
+                "transform|{}|{}|{:?}|{}",
+                self.enabled,
+                self.opacity,
+                self.blend,
+                transform_digest(&self.spec.json, raw)
+            );
+        }
+        // B5-12 end
         format!(
             "{}|{}|{}|{:?}|{}",
             self.spec.json,
@@ -413,6 +461,225 @@ fn full_resolution(nodes: &[Node]) -> bool {
 fn nodes_of(so: &SmartObject) -> Result<Vec<Node>> {
     so.filters.iter().map(Node::of).collect()
 }
+
+// B5-12 begin: reserved compositor `transform` stages (document/transform.rs).
+//
+// Transform stages are the compositor's own nodes (`SmartFilter::transform`):
+// they are never fed through the Spec parser or baker, never rewritten by an
+// edit of another node, and never dropped when unrelated filters change.
+// Stacks made only of geometric stages (Free / Warp / Perspective / Puppet /
+// Displacement) are not baked here at all: the session renderer evaluates
+// them itself (the resident GPU route of M5-23, or the CPU compositor).
+// Stacks mixing them with menu filters, and content-aware scale (a CPU-only,
+// potentially slow stage), are baked on this worker through the compositor
+// with the menu filters bridged by `NativeFilterEvaluator`.
+
+pub(super) const TRANSFORM_STAGE: &str = "transform";
+
+fn reserved_transform(id: &str) -> bool {
+    id == TRANSFORM_STAGE
+}
+
+/// `op` without a content-aware protect mask (records and keys stay small).
+pub(super) fn stripped_transform(op: &serde_json::Value) -> serde_json::Value {
+    let Some(cas) = op
+        .get("operation")
+        .and_then(|o| o.get("ContentAwareScale"))
+        .and_then(|c| c.as_object())
+    else {
+        return op.clone();
+    };
+    let mut c = serde_json::Map::new();
+    for (k, v) in cas {
+        c.insert(
+            k.clone(),
+            if k == "protect" {
+                serde_json::Value::Null
+            } else {
+                v.clone()
+            },
+        );
+    }
+    let mut out = serde_json::Map::new();
+    if let Some(o) = op.as_object() {
+        for (k, v) in o {
+            if k != "operation" {
+                out.insert(k.clone(), v.clone());
+            }
+        }
+    }
+    out.insert(
+        "operation".into(),
+        serde_json::json!({ "ContentAwareScale": serde_json::Value::Object(c) }),
+    );
+    serde_json::Value::Object(out)
+}
+
+/// A content-aware protect mask of `op`, if any.
+pub(super) fn transform_protect(op: &serde_json::Value) -> Option<&Vec<serde_json::Value>> {
+    op.get("operation")?
+        .get("ContentAwareScale")?
+        .get("protect")?
+        .as_array()
+}
+
+/// Geometry digest: the stripped JSON plus the protect mask's length and a
+/// strided sample of it (cheap enough to recompute for every frame).
+fn transform_digest(stripped: &str, raw: &serde_json::Value) -> String {
+    let mut h = blake3::Hasher::new();
+    h.update(stripped.as_bytes());
+    if let Some(p) = transform_protect(raw) {
+        h.update(&(p.len() as u64).to_le_bytes());
+        let step = (p.len() / 4096).max(1);
+        for v in p.iter().step_by(step) {
+            h.update(&v.as_f64().unwrap_or(f64::NAN).to_le_bytes());
+        }
+    }
+    h.finalize().to_hex()[..32].to_owned()
+}
+
+/// Menu title of a transform stage (`Warp`, `Perspective Warp`, …).
+pub(super) fn transform_title(op: &serde_json::Value) -> &'static str {
+    let kind = op
+        .get("operation")
+        .and_then(|o| o.as_object())
+        .and_then(|o| o.keys().next().map(String::as_str));
+    match kind {
+        Some("Warp") => "Warp",
+        Some("Perspective") => "Perspective Warp",
+        Some("Puppet") => "Puppet Warp",
+        Some("ContentAwareScale") => "Content-Aware Scale",
+        Some("Free") => "Transform",
+        Some("Displacement") => "Displacement",
+        _ => "Transform",
+    }
+}
+
+/// Whether the session renderer evaluates `l`'s stack itself (no bake): a
+/// smart object whose enabled stages are all geometric transform stages.
+pub(super) fn compositor_stack(l: &Layer) -> bool {
+    let LayerKind::SmartObject(so) = &l.kind else {
+        return false;
+    };
+    let mut enabled = so.filters.iter().filter(|f| f.enabled).peekable();
+    enabled.peek().is_some()
+        && enabled.all(|f| {
+            reserved_transform(&f.name)
+                && f.params
+                    .get("operation")
+                    .and_then(|o| o.get("ContentAwareScale"))
+                    .is_none()
+        })
+}
+
+/// The layer rendered alone at `level` through the compositor, its stack
+/// `nodes` evaluated natively (transform stages by the compositor, menu
+/// filters through `NativeFilterEvaluator`), placed in the parent canvas.
+fn native_stack(base: &DocState, layer: &Layer, nodes: &[Node], level: u8) -> Result<Img> {
+    let neutral = solo(base, layer);
+    let mut l = (*neutral.state().root[0]).clone();
+    l.kind = layer.kind.clone();
+    let LayerKind::SmartObject(so) = &mut l.kind else {
+        return Err(failure("transform stages require a smart object"));
+    };
+    so.filters = nodes.iter().map(Node::store).collect();
+    let mut state = DocState::new(base.canvas, compositor::Depth::F32);
+    state.profile = base.profile.clone();
+    state.next_id = base.next_id;
+    state.root.push(Arc::new(l));
+    let mut comp = super::fonts::compositor(64 << 20); // B5-10b
+    comp.set_filter_evaluator(Arc::new(NativeFilterEvaluator));
+    let doc = Document::new(state);
+    // Evaluate the stack once from this (non-rayon) thread before the parallel
+    // tile render: the compositor holds its filter-cache lock while a stack
+    // evaluates (itself on rayon), and tile workers blocking on that lock can
+    // deadlock the pool (NEEDS.md). One tile touching the layer warms the cache.
+    if let Some(b) = doc.state().root[0]
+        .affected_bounds()
+        .map(|b| b.intersect(&Rect::of_extent(base.canvas)))
+        .filter(|b| !b.is_empty())
+    {
+        let ts = i64::from(TILE_SIZE) << level;
+        comp.render_tile(
+            &doc,
+            TileCoord::new(level, (b.x0 / ts) as u32, (b.y0 / ts) as u32),
+        )?;
+    }
+    let (e, px) = comp.render_level_rgba(&doc, level)?;
+    Ok(Img {
+        rect: Rect::of_extent(e),
+        px,
+    })
+}
+
+/// A smart object's whole stack rasterized at level 0 into a document-sized
+/// raster at `depth` (the explicit rasterized-PSD path).
+pub(super) fn rasterize_smart_stack(base: &DocState, layer: &Layer) -> Result<Raster> {
+    let LayerKind::SmartObject(so) = &layer.kind else {
+        return Err(failure("not a smart object"));
+    };
+    let img = native_stack(base, layer, &nodes_of(so)?, 0)?;
+    raster_from_rgba(base.canvas, base.depth, &img.px, true)
+}
+
+/// What a whole-stack edit may not change under a position lock: every
+/// transform stage with its stack index, enabled state, blending and geometry.
+fn transform_signature(
+    nodes: &[Node],
+) -> Vec<(usize, bool, u32, BlendMode, Arc<serde_json::Value>)> {
+    nodes
+        .iter()
+        .enumerate()
+        .filter_map(|(i, n)| {
+            n.raw
+                .clone()
+                .map(|r| (i, n.enabled, n.opacity.to_bits(), n.blend, r))
+        })
+        .collect()
+}
+
+/// `l` wrapped in a smart object holding it at identity (same id, name,
+/// properties, layer styles, raster and vector masks: each exactly once, on
+/// the wrapper; the child keeps the pixels / live source with default
+/// properties). Shared by Filter ▸ Convert for Smart Filters and the B5-12
+/// transform tools' explicit conversion.
+pub(super) fn smart_wrapper(s: &DocState, l: &Layer) -> Result<Layer> {
+    if matches!(l.kind, LayerKind::SmartObject(_)) {
+        return Err(failure("the layer is already a smart object"));
+    }
+    if matches!(l.kind, LayerKind::Adjustment(_)) {
+        return Err(failure("adjustment layers cannot become smart objects"));
+    }
+    let mut child = DocState::new(s.canvas, s.depth);
+    child.profile = s.profile.clone();
+    let mut inner = l.clone();
+    inner.props = compositor::LayerProps {
+        name: l.props.name.clone(),
+        ..Default::default()
+    };
+    inner.mask = None;
+    inner.vector_mask = None;
+    inner.id = LayerId(1);
+    child.next_id = 2;
+    if let LayerKind::Group { children, .. } = &mut inner.kind {
+        // Children keep their ids inside the child document.
+        let max = children.iter().map(|c| max_id(c)).max().unwrap_or(1);
+        inner.id = LayerId(max + 1);
+        child.next_id = max + 2;
+    }
+    child.root = vec![Arc::new(inner)];
+    let mut outer = Layer::new(
+        l.props.name.clone(),
+        LayerKind::SmartObject(SmartObject::new(child, Affine::IDENTITY)),
+    );
+    outer.id = l.id;
+    outer.props = l.props.clone();
+    outer.props.background = false;
+    outer.mask = l.mask.clone();
+    outer.vector_mask = l.vector_mask.clone();
+    Ok(outer)
+}
+// B5-12 end
 
 // ─────────────────────────────── images ───────────────────────────────
 
@@ -1266,6 +1533,20 @@ fn filtered(
         }
         return Ok(image.crop(region));
     }
+    // B5-12 begin: stacks with transform stages render through the compositor.
+    if nodes.iter().any(|n| n.enabled && n.raw.is_some())
+        && matches!(layer.kind, LayerKind::SmartObject(_))
+    {
+        if cancel.load(Ordering::Relaxed) {
+            return Err(failure("cancelled"));
+        }
+        let image = native_stack(base, layer, nodes, level)?;
+        if cancel.load(Ordering::Relaxed) {
+            return Err(failure("cancelled"));
+        }
+        return Ok(image.crop(region));
+    }
+    // B5-12 end
     let full = Rect::of_extent(base.canvas.at_level(level));
     let region = region.intersect(&full);
     let need = match stack_halo(nodes, level)? {
@@ -1329,6 +1610,7 @@ fn edited_stack(layer: &Layer, edit: &StackEdit) -> Result<Vec<Node>> {
                 .ok_or_else(|| failure(format!("no smart filter {i}")))?;
             n.spec = s.clone();
             n.enabled = true;
+            n.raw = None; // B5-12: a previewed menu filter is not a transform stage
         }
     }
     Ok(nodes)
@@ -1364,6 +1646,9 @@ fn worker_loop(q: Arc<Queue>, comp: Arc<Compositor>, shared: Weak<Shared>) {
             }
         };
         q.lock().busy = true;
+        // B5-14 (P17): previews and bakes count as interactive pressure, so
+        // photo export yields to them (bounded by its maximum yield).
+        let _pressure = super::render::Pressure::begin(super::render::PressureKind::Filters);
         match job {
             Job::Preview(p, cancel) => {
                 let result = find(&p.base, p.layer)
@@ -1548,6 +1833,8 @@ pub(crate) fn presented(
     let fs = &shared.filters;
     let state = live.state();
     let sos = filtered_smart_objects(state);
+    // B5-12: geometric transform stacks are rendered by the session renderer.
+    let sos: Vec<&Layer> = sos.into_iter().filter(|l| !compositor_stack(l)).collect();
     let mut i = fs.q.lock();
     if sos.is_empty() && i.preview.is_none() {
         i.presented = None;
@@ -1952,7 +2239,17 @@ impl DocumentSession {
             return Err(failure(format!("layer {layer} is not a smart object")));
         };
         let mut nodes = nodes_of(so)?;
+        // B5-12 begin: transform stages keep the engine's position-lock rule.
+        let transforms_before = transform_signature(&nodes);
+        // B5-12 end
         f(&mut nodes)?;
+        // B5-12 begin
+        if (l.props.locks.position || l.props.locks.all)
+            && transform_signature(&nodes) != transforms_before
+        {
+            return Err(failure("transform is locked"));
+        }
+        // B5-12 end
         // Validate with actual pixels/context before changing history. In particular,
         // unavailable neural weights must never leave an unrenderable smart node.
         if full_resolution(&nodes) {
@@ -2380,7 +2677,11 @@ impl DocumentSession {
                 Ok(SmartFilterRecord {
                     index: i as u32,
                     filter_id: n.spec.id.clone(),
-                    name: n.spec.name(),
+                    // B5-12: transform stages by operation.
+                    name: n
+                        .raw
+                        .as_ref()
+                        .map_or_else(|| n.spec.name(), |r| transform_title(r).to_owned()),
                     enabled: n.enabled,
                     filter_json: n.spec.json.clone(),
                     opacity: n.opacity,
@@ -2412,6 +2713,13 @@ impl DocumentSession {
             match edit {
                 SmartFilterEdit::Enabled { enabled } => n.enabled = enabled,
                 SmartFilterEdit::Params { filter_json } => {
+                    // B5-12 begin
+                    if n.raw.is_some() {
+                        return Err(failure(
+                            "edit a transform stage with Edit ▸ Transform (Warp, Perspective Warp, Puppet Warp or Content-Aware Scale)",
+                        ));
+                    }
+                    // B5-12 end
                     let spec = Spec::parse(&filter_json)?;
                     if spec.id != n.spec.id {
                         return Err(failure(
@@ -2518,37 +2826,7 @@ impl DocumentSession {
         self.commit_pending(&mut st, None)?;
         let s = st.doc.state().clone();
         let l = find(&s, layer)?;
-        if matches!(l.kind, LayerKind::SmartObject(_)) {
-            return Err(failure("the layer is already a smart object"));
-        }
-        if matches!(l.kind, LayerKind::Adjustment(_)) {
-            return Err(failure("adjustment layers cannot become smart objects"));
-        }
-        let mut child = DocState::new(s.canvas, s.depth);
-        child.profile = s.profile.clone();
-        let mut inner = l.clone();
-        inner.props = compositor::LayerProps {
-            name: l.props.name.clone(),
-            ..Default::default()
-        };
-        inner.mask = None;
-        inner.id = LayerId(1);
-        child.next_id = 2;
-        if let LayerKind::Group { children, .. } = &mut inner.kind {
-            // Children keep their ids inside the child document.
-            let max = children.iter().map(|c| max_id(c)).max().unwrap_or(1);
-            inner.id = LayerId(max + 1);
-            child.next_id = max + 2;
-        }
-        child.root = vec![Arc::new(inner)];
-        let mut outer = Layer::new(
-            l.props.name.clone(),
-            LayerKind::SmartObject(SmartObject::new(child, Affine::IDENTITY)),
-        );
-        outer.id = l.id;
-        outer.props = l.props.clone();
-        outer.props.background = false;
-        outer.mask = l.mask.clone();
+        let outer = smart_wrapper(&s, l)?; // B5-12: the shared wrapper (masks once)
         let (parent, index) = s
             .locate(LayerId(layer))
             .ok_or_else(|| failure("layer not found"))?;

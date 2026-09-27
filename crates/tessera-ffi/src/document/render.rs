@@ -10,16 +10,16 @@ use compositor::{
 };
 use engine_api::{
     EngineError, EngineResult,
-    jobs::CancellationToken,
+    jobs::{CancellationToken, Job, JobContext, Priority, Scheduler},
     tile::{Extent, TILE_SIZE, TileCoord},
 };
 use std::{
-    collections::{BTreeSet, HashMap},
+    collections::{BTreeSet, HashMap, VecDeque},
     sync::{
-        Arc, Condvar, Mutex,
-        atomic::{AtomicU64, Ordering},
+        Arc, Condvar, Mutex, OnceLock,
+        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
     },
-    time::Instant,
+    time::{Duration, Instant},
 };
 use wgpu::util::DeviceExt;
 
@@ -44,6 +44,9 @@ pub(crate) struct View {
     pub next: usize,
     pub viewport: Option<Viewport>,
     pub display_headroom: f32,
+    /// B5-14: bumped when the surface ring changes; a frame rendered for an
+    /// older ring is dropped instead of published.
+    pub generation: u64,
 }
 
 impl Default for View {
@@ -53,9 +56,195 @@ impl Default for View {
             next: 0,
             viewport: None,
             display_headroom: 1.0,
+            generation: 0,
         }
     }
 }
+
+// B5-14 begin: viewport-only composition, frame records, resource policy.
+
+/// Level pixels composited around the visible region on the viewport path
+/// (one 16² resident block, the compositor's granularity; COMPOSITOR.md
+/// §12.2). Pointwise programs need no halo for correctness; spatial ones
+/// (positive-radius Shadows/Highlights, HDR Toning) take the full level.
+pub(crate) const VIEWPORT_HALO: u32 = 16;
+
+/// How a frame was composited.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum DocRenderPath {
+    /// `ResidentRenderer::render_viewport`: the visible region plus
+    /// [`VIEWPORT_HALO`].
+    Viewport,
+    /// `ResidentRenderer::render`: the whole level (spatial adjustments need
+    /// a full-level halo, or viewport rendering is off).
+    FullLevel,
+    /// The CPU compositor (layer styles, or no Metal).
+    Cpu,
+}
+
+/// One frame of the render thread (tests, benches and `TESSERA_DOC_RENDER_LOG`).
+#[derive(Clone, Debug)]
+pub struct DocRenderRecord {
+    pub path: DocRenderPath,
+    pub level: u8,
+    /// Presented region, level coordinates.
+    pub visible: Rect,
+    /// Region handed to the compositor (visible + halo, clipped), level
+    /// coordinates; the whole level on the full-level path.
+    pub requested: Rect,
+    /// Union of the resident blocks dispatched (empty: nothing changed).
+    pub dispatched: Rect,
+    pub blocks: u32,
+    pub epoch: u64,
+    /// The document changed while the frame was rendered (a newer frame is
+    /// queued; this one was still published).
+    pub superseded: bool,
+    /// Dropped: its surface ring was replaced or the session closed.
+    pub dropped: bool,
+    /// Spans (ms): waiting for the live-state lock, holding it (snapshot),
+    /// filter preparation, composition (CPU side, or the whole CPU
+    /// fallback), GPU presentation until completion, and the frame total.
+    pub lock_wait_ms: f64,
+    pub lock_held_ms: f64,
+    pub prep_ms: f64,
+    pub composite_ms: f64,
+    pub gpu_ms: f64,
+    pub total_ms: f64,
+}
+
+/// Smart objects with filters (the compositor never evaluates them).
+fn has_smart_filters(state: &DocState) -> bool {
+    fn go(v: &[Arc<Layer>]) -> bool {
+        v.iter().any(|l| match &l.kind {
+            LayerKind::SmartObject(so) => !so.filters.is_empty(),
+            _ => l.children().is_some_and(go),
+        })
+    }
+    go(&state.root)
+}
+
+/// Needs a full-level halo: the resident program runs spatial passes over
+/// the whole level (COMPOSITOR.md §4.3), as `resident::render_region`
+/// decides for positive-radius Shadows/Highlights and HDR Toning.
+fn needs_full_halo(state: &DocState) -> bool {
+    fn spatial(l: &Layer) -> bool {
+        match &l.kind {
+            LayerKind::Adjustment(compositor::Adjustment::ShadowsHighlights { settings }) => {
+                settings.needs_neighbourhood()
+            }
+            LayerKind::Adjustment(compositor::Adjustment::HdrToning { settings }) => {
+                settings.needs_neighbourhood()
+            }
+            _ => l.children().is_some_and(|c| c.iter().any(|l| spatial(l))),
+        }
+    }
+    state.root.iter().any(|l| spatial(l))
+}
+
+/// What document work registers with the process-wide interactive pressure.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum PressureKind {
+    Render = 0,
+    Filters = 1,
+}
+
+static PRESSURE_ACTIVE: [AtomicUsize; 2] = [AtomicUsize::new(0), AtomicUsize::new(0)];
+
+/// A process-wide pool whose Viewport-priority "hold" jobs stand for
+/// document work in `jobs::pressure` (the only public way to register it;
+/// NEEDS.md asks for a direct guard). Replaced after `RECYCLE` holds because
+/// a scheduler keeps every completed job's status for its lifetime.
+struct HoldPool {
+    pool: Arc<jobs::ThreadPoolScheduler>,
+    submitted: usize,
+}
+
+const RECYCLE: usize = 4096;
+
+fn hold_pool() -> Arc<jobs::ThreadPoolScheduler> {
+    static POOL: OnceLock<Mutex<HoldPool>> = OnceLock::new();
+    let m = POOL.get_or_init(|| {
+        Mutex::new(HoldPool {
+            pool: Arc::new(jobs::ThreadPoolScheduler::new(4)),
+            submitted: 0,
+        })
+    });
+    let mut p = m.lock().unwrap_or_else(|e| e.into_inner());
+    p.submitted += 1;
+    if p.submitted > RECYCLE {
+        // The old pool is dropped (joined) with its last hold.
+        p.pool = Arc::new(jobs::ThreadPoolScheduler::new(4));
+        p.submitted = 1;
+    }
+    p.pool.clone()
+}
+
+type Gate = Arc<(Mutex<bool>, Condvar)>;
+
+struct Hold(Gate, PressureKind);
+
+impl Job for Hold {
+    fn label(&self) -> &str {
+        match self.1 {
+            PressureKind::Render => "document frame",
+            PressureKind::Filters => "document filters",
+        }
+    }
+    fn priority(&self) -> Priority {
+        Priority::Viewport
+    }
+    fn run(self: Box<Self>, ctx: &JobContext) -> EngineResult<()> {
+        let (m, cv) = &*self.0;
+        let mut done = m.lock().unwrap_or_else(|e| e.into_inner());
+        while !*done {
+            ctx.check_cancelled()?;
+            done = cv
+                .wait_timeout(done, Duration::from_millis(50))
+                .unwrap_or_else(|e| e.into_inner())
+                .0;
+        }
+        Ok(())
+    }
+}
+
+/// Registers document work with `jobs::pressure` while alive: photo export
+/// bands wait for it (`jobs::yield_to_interactive`, bounded by the export's
+/// maximum yield so export keeps progressing). Separate GPU queues stay
+/// separate; only scheduling order changes.
+pub(crate) struct Pressure {
+    gate: Gate,
+    token: CancellationToken,
+    kind: PressureKind,
+    // Keeps the pool alive until the hold ends (recycling).
+    _pool: Arc<jobs::ThreadPoolScheduler>,
+}
+
+impl Pressure {
+    pub(crate) fn begin(kind: PressureKind) -> Self {
+        let gate: Gate = Arc::new((Mutex::new(false), Condvar::new()));
+        let pool = hold_pool();
+        let handle = pool.submit(Box::new(Hold(gate.clone(), kind)), None);
+        PRESSURE_ACTIVE[kind as usize].fetch_add(1, Ordering::Relaxed);
+        Self {
+            gate,
+            token: handle.cancellation,
+            kind,
+            _pool: pool,
+        }
+    }
+}
+
+impl Drop for Pressure {
+    fn drop(&mut self) {
+        let (m, cv) = &*self.gate;
+        *m.lock().unwrap_or_else(|e| e.into_inner()) = true;
+        cv.notify_all();
+        // A hold still queued ends without running.
+        self.token.cancel();
+        PRESSURE_ACTIVE[self.kind as usize].fetch_sub(1, Ordering::Relaxed);
+    }
+}
+// B5-14 end
 
 /// `(level, region in level coordinates, zoom)` to present into a surface of
 /// `sw × sh`: the requested viewport clipped to the level and the surface,
@@ -160,12 +349,19 @@ struct GpuBackend {
 impl GpuBackend {
     /// Renders `level` on the GPU, or `None` when the resident program does
     /// not support the document (layer styles need the CPU compositor).
+    /// B5-14: `visible` (level coordinates) renders only that region plus
+    /// [`VIEWPORT_HALO`] (`render_viewport`); `None` renders the whole level.
     fn render_or_refuse(
         &mut self,
         doc: &Document,
         level: u8,
+        visible: Option<Rect>,
     ) -> EngineResult<Option<compositor::resident::FrameReport>> {
-        let cpu = match self.resident.render(doc, level) {
+        let rendered = match visible {
+            Some(v) => self.resident.render_viewport(doc, level, v, VIEWPORT_HALO),
+            None => self.resident.render(doc, level),
+        };
+        let cpu = match rendered {
             Ok(report) => Some(report),
             Err(EngineError::Unsupported { what }) => {
                 if !self.cpu_frames {
@@ -311,6 +507,16 @@ pub(crate) struct Renderer {
     cv: Condvar,
     thumbs: Mutex<ThumbCache>,
     thumb_renders: AtomicU64,
+    // B5-14 begin
+    records: Mutex<VecDeque<DocRenderRecord>>,
+    viewport_rendering: AtomicBool,
+    /// Frames per path (Viewport, FullLevel, Cpu) and dropped frames.
+    counts: [AtomicU64; 4],
+    last_path: Mutex<Option<DocRenderPath>>,
+    last_resources: Mutex<Option<Instant>>,
+    /// Composite thumbnails of the committed document (cache kept).
+    thumb_comp: OnceLock<Compositor>,
+    // B5-14 end
 }
 
 impl Renderer {
@@ -349,8 +555,129 @@ impl Renderer {
             cv: Condvar::new(),
             thumbs: Mutex::new(HashMap::new()),
             thumb_renders: AtomicU64::new(0),
+            // B5-14 begin
+            records: Mutex::new(VecDeque::new()),
+            viewport_rendering: AtomicBool::new(
+                std::env::var_os("TESSERA_DOC_FULL_LEVEL").is_none(),
+            ),
+            counts: Default::default(),
+            last_path: Mutex::new(None),
+            last_resources: Mutex::new(None),
+            thumb_comp: OnceLock::new(),
+            // B5-14 end
         }
     }
+
+    // B5-14 begin
+    pub(crate) fn records(&self) -> Vec<DocRenderRecord> {
+        self.records
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .iter()
+            .cloned()
+            .collect()
+    }
+
+    pub(crate) fn set_viewport_rendering(&self, enabled: bool) {
+        self.viewport_rendering.store(enabled, Ordering::SeqCst);
+    }
+
+    /// GPU pages/bytes, CPU cache, pressure registrations and frame counts.
+    pub(crate) fn resources(&self) -> String {
+        let backend = match self.backend.try_lock() {
+            Ok(b) => match &*b {
+                Backend::Gpu(g) => {
+                    let st = g.resident.stats();
+                    let cpu = g.cpu.as_ref().map(|c| c.stats());
+                    format!(
+                        "GPU {} live pages, {:.1} MiB resident; CPU fallback {}",
+                        st.live_pages,
+                        st.resident_bytes as f64 / (1 << 20) as f64,
+                        cpu.map_or("unused".into(), |c| format!(
+                            "{} cache hits / {} misses",
+                            c.cache_hits, c.cache_misses
+                        ))
+                    )
+                }
+                Backend::Cpu(c) => {
+                    let c = c.stats();
+                    format!(
+                        "CPU {} cache hits / {} misses",
+                        c.cache_hits, c.cache_misses
+                    )
+                }
+                Backend::Stopped => "stopped".into(),
+            },
+            Err(_) => "backend busy".into(),
+        };
+        let n = |i: usize| self.counts[i].load(Ordering::Relaxed);
+        format!(
+            "{backend}; pressure render {} filters {} (interactive jobs {}); frames viewport {} full-level {} cpu {} dropped {}",
+            PRESSURE_ACTIVE[0].load(Ordering::Relaxed),
+            PRESSURE_ACTIVE[1].load(Ordering::Relaxed),
+            jobs::interactive_pending(),
+            n(0),
+            n(1),
+            n(2),
+            n(3),
+        )
+    }
+
+    fn record(&self, rec: DocRenderRecord) {
+        let i = if rec.dropped { 3 } else { rec.path as usize };
+        self.counts[i].fetch_add(1, Ordering::Relaxed);
+        {
+            let mut last = self.last_path.lock().unwrap_or_else(|e| e.into_inner());
+            if *last != Some(rec.path) {
+                eprintln!(
+                    "document: frames on the {:?} path (L{}, requested {:?})",
+                    rec.path, rec.level, rec.requested
+                );
+                *last = Some(rec.path);
+            }
+        }
+        if log_frames() {
+            eprintln!(
+                "doc-render: {:?} L{} visible {}x{} requested {}x{} dispatched {}x{} blocks {} epoch {}{}{} lock wait {:.2} held {:.2} prep {:.2} composite {:.2} gpu {:.2} total {:.2} ms",
+                rec.path,
+                rec.level,
+                rec.visible.width(),
+                rec.visible.height(),
+                rec.requested.width(),
+                rec.requested.height(),
+                rec.dispatched.width(),
+                rec.dispatched.height(),
+                rec.blocks,
+                rec.epoch,
+                if rec.superseded { " superseded" } else { "" },
+                if rec.dropped { " DROPPED" } else { "" },
+                rec.lock_wait_ms,
+                rec.lock_held_ms,
+                rec.prep_ms,
+                rec.composite_ms,
+                rec.gpu_ms,
+                rec.total_ms,
+            );
+        }
+        let mut r = self.records.lock().unwrap_or_else(|e| e.into_inner());
+        if r.len() >= 512 {
+            r.pop_front();
+        }
+        r.push_back(rec);
+        drop(r);
+        if log_resources() {
+            let mut last = self
+                .last_resources
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            if last.is_none_or(|t| t.elapsed() >= Duration::from_secs(2)) {
+                *last = Some(Instant::now());
+                drop(last);
+                eprintln!("document-resources: {}", self.resources());
+            }
+        }
+    }
+    // B5-14 end
 
     pub(crate) fn backend_name(&self) -> String {
         self.name.clone()
@@ -390,6 +717,28 @@ impl Renderer {
         }
     }
 
+    /// B5-14: the whole of `level` of `doc` rendered by the resident renderer
+    /// and read back (straight RGBA f32); `None` without Metal or for
+    /// documents it refuses (layer styles).
+    fn resident_level(&self, doc: &Document, level: u8) -> Result<Option<(Extent, Vec<f32>)>> {
+        fn styled(l: &Layer) -> bool {
+            !l.props.styles.effects.is_empty()
+                || l.children().is_some_and(|c| c.iter().any(|l| styled(l)))
+        }
+        if doc.state().root.iter().any(|l| styled(l)) {
+            return Ok(None);
+        }
+        let mut backend = self.backend.lock().map_err(failure)?;
+        let Backend::Gpu(g) = &mut *backend else {
+            return Ok(None);
+        };
+        match g.resident.render(doc, level) {
+            Ok(_) => Ok(Some(g.resident.read_level(level, false)?)),
+            Err(EngineError::Unsupported { .. }) => Ok(None),
+            Err(e) => Err(e.into()),
+        }
+    }
+
     pub(crate) fn thumbnail_renders(&self) -> u64 {
         self.thumb_renders.load(Ordering::SeqCst)
     }
@@ -400,7 +749,7 @@ impl Renderer {
         let (e, v) = match &mut *backend {
             Backend::Gpu(g) => {
                 // B5-07 begin: styled documents read back from the CPU compositor.
-                if g.render_or_refuse(doc, level)?.is_none() {
+                if g.render_or_refuse(doc, level, None)?.is_none() {
                     g.cpu().render_level_rgba(doc, level)?
                 } else {
                     g.resident.read_level(level, false)?
@@ -466,62 +815,150 @@ pub(crate) fn worker_loop(shared: Arc<Shared>) {
     r.cv.notify_all();
 }
 
-/// Renders and presents one frame of the live state into the next surface
-/// of the ring. `None` without a surface.
+// B5-14 begin
+fn log_frames() -> bool {
+    static ON: OnceLock<bool> = OnceLock::new();
+    *ON.get_or_init(|| std::env::var_os("TESSERA_DOC_RENDER_LOG").is_some())
+}
+
+fn log_resources() -> bool {
+    static ON: OnceLock<bool> = OnceLock::new();
+    *ON.get_or_init(|| log_frames() || std::env::var_os("TESSERA_DOC_PERF_LOG").is_some())
+}
+
+fn ms(d: Duration) -> f64 {
+    d.as_secs_f64() * 1000.0
+}
+
+fn union_of(rects: &[Rect]) -> Rect {
+    rects.iter().fold(Rect::default(), |a, r| a.union(r))
+}
+
+/// Renders and presents one frame into the next surface of the ring (WP
+/// B5-14, P13/P14/P17). The live-state lock is held only to snapshot the
+/// document (an `Arc`, copy-on-write) and the view; filter preparation,
+/// composition (GPU or the CPU style fallback) and presentation run from
+/// the snapshot. The result is published only if its surface ring is still
+/// the session's. `None` without a surface, or when dropped.
 fn present_frame(shared: &Arc<Shared>, since: Instant) -> Result<Option<DocFrameInfo>> {
     let r = &shared.render;
+    let started = Instant::now();
     let st = shared.lock()?;
+    let locked = Instant::now();
     if st.closed || st.view.surfaces.is_empty() {
         return Ok(None);
     }
     let index = st.view.next % st.view.surfaces.len();
     let surface = st.view.surfaces[index].clone();
     let attached: Vec<u32> = st.view.surfaces.iter().map(|s| s.id()).collect();
-    let canvas = st.live().state().canvas;
+    let snapshot = st.live_shared();
+    let canvas = snapshot.state().canvas;
     let (level, src, zoom) = resolve(st.view.viewport, canvas, surface.width(), surface.height());
     let epoch = st.epoch;
+    let generation = st.view.generation;
+    drop(st);
+    let unlocked = Instant::now();
     let le = canvas.at_level(level);
     let mut report = compositor::resident::FrameReport::default();
+    let mut rec = DocRenderRecord {
+        path: DocRenderPath::Cpu,
+        level,
+        visible: src,
+        requested: src,
+        dispatched: Rect::default(),
+        blocks: 0,
+        epoch,
+        superseded: false,
+        dropped: false,
+        lock_wait_ms: ms(locked - started),
+        lock_held_ms: ms(unlocked - locked),
+        prep_ms: 0.0,
+        composite_ms: 0.0,
+        gpu_ms: 0.0,
+        total_ms: 0.0,
+    };
     if !src.is_empty() {
+        let _pressure = Pressure::begin(PressureKind::Render);
         // Smart filters baked and a filter preview shown (WP B5-05).
-        let overlay = super::filtering::presented(shared, st.live(), level, src);
-        let doc: &Document = overlay.as_deref().unwrap_or(st.live());
+        let t = Instant::now();
+        let doc: Arc<Document> =
+            super::filtering::presented(shared, &snapshot, level, src).unwrap_or(snapshot);
+        rec.prep_ms = ms(t.elapsed());
         let mut backend = r.backend.lock().map_err(failure)?;
         match &mut *backend {
             Backend::Gpu(g) => {
                 g.targets.retain(|id, _| attached.contains(id));
-                // B5-07 begin: frames the resident program refuses (layer
-                // styles) are composited on the CPU, as the Cpu arm does.
-                match g.render_or_refuse(doc, level)? {
-                    Some(r) => {
-                        report = r;
-                        drop(st);
+                let viewport =
+                    r.viewport_rendering.load(Ordering::Relaxed) && !needs_full_halo(doc.state());
+                let t = Instant::now();
+                // B5-07: frames the resident program refuses (layer styles)
+                // are composited on the CPU, as the Cpu arm does.
+                match g.render_or_refuse(&doc, level, viewport.then_some(src))? {
+                    Some(fr) => {
+                        rec.composite_ms = ms(t.elapsed());
+                        // The GPU mirror holds what it needs: release the
+                        // snapshot before waiting, so edits during the GPU
+                        // work do not copy the document.
+                        drop(doc);
+                        rec.path = if viewport {
+                            DocRenderPath::Viewport
+                        } else {
+                            DocRenderPath::FullLevel
+                        };
+                        let m = i64::from(VIEWPORT_HALO);
+                        rec.requested = if viewport {
+                            Rect::new(src.x0 - m, src.y0 - m, src.x1 + m, src.y1 + m)
+                                .intersect(&Rect::of_extent(le))
+                        } else {
+                            Rect::of_extent(le)
+                        };
+                        rec.dispatched = union_of(&fr.damage);
+                        rec.blocks = fr.blocks;
+                        report = fr;
+                        let t = Instant::now();
                         g.present(level, src, &surface)?;
                         g.resident.wait()?;
+                        rec.gpu_ms = ms(t.elapsed());
                     }
                     None => {
-                        cpu_present(g.cpu(), doc, level, src, &surface)?;
+                        cpu_present(g.cpu(), &doc, level, src, &surface)?;
+                        rec.composite_ms = ms(t.elapsed());
                         report.full = true;
-                        drop(st);
                     }
                 }
-                // B5-07 end
             }
             Backend::Cpu(c) => {
-                cpu_present(c, doc, level, src, &surface)?;
+                let t = Instant::now();
+                cpu_present(c, &doc, level, src, &surface)?;
+                rec.composite_ms = ms(t.elapsed());
                 report.full = true;
-                drop(st);
             }
             Backend::Stopped => return Ok(None),
         }
-    } else {
-        drop(st);
     }
-    if let Ok(mut st) = shared.lock()
-        && st.view.surfaces.iter().any(|s| s.id() == surface.id())
+    // Publish only into the ring this frame was rendered for.
     {
+        let mut st = shared.lock()?;
+        if st.closed
+            || st.view.generation != generation
+            || !st.view.surfaces.iter().any(|s| s.id() == surface.id())
+        {
+            let current = !st.closed && !st.view.surfaces.is_empty();
+            drop(st);
+            rec.dropped = true;
+            rec.total_ms = ms(started.elapsed());
+            r.record(rec);
+            if current {
+                // The ring that replaced this frame's gets a frame of its own.
+                r.request(Vec::new(), false, epoch);
+            }
+            return Ok(None);
+        }
         st.view.next = index + 1;
+        rec.superseded = st.epoch != epoch;
     }
+    rec.total_ms = ms(started.elapsed());
+    r.record(rec);
     let canvas_rect = src.to_level0(level).intersect(&Rect::of_extent(canvas));
     Ok(Some(DocFrameInfo {
         surface_id: surface.id(),
@@ -545,6 +982,7 @@ fn present_frame(shared: &Arc<Shared>, since: Instant) -> Result<Option<DocFrame
         blocks: report.blocks,
     }))
 }
+// B5-14 end
 
 fn quantize(v: f32) -> u8 {
     (v.clamp(0.0, 1.0) * 255.0 + 0.5) as u8
@@ -640,7 +1078,9 @@ pub(crate) fn thumbnail(shared: &Shared, kind: ThumbKind, max_px: u32) -> Result
         return Err(failure("max_px must be 1…4096"));
     }
     let r = &shared.render;
-    let (rev, doc) = {
+    // B5-14: `stable` documents keep their cache key across calls, so the
+    // persistent thumbnail compositor reuses their layers' mips.
+    let (rev, doc, stable) = {
         let st: std::sync::MutexGuard<'_, State> = shared.lock()?;
         st.open()?;
         let live = st.live();
@@ -648,7 +1088,7 @@ pub(crate) fn thumbnail(shared: &Shared, kind: ThumbKind, max_px: u32) -> Result
         match kind {
             ThumbKind::Layer(id) => {
                 let l = find(s, id)?;
-                (layer_revision(l), solo(s, l))
+                (layer_revision(l), Arc::new(solo(s, l)), false)
             }
             ThumbKind::Mask(id) => {
                 let l = find(s, id)?;
@@ -656,9 +1096,26 @@ pub(crate) fn thumbnail(shared: &Shared, kind: ThumbKind, max_px: u32) -> Result
                     .mask
                     .as_ref()
                     .ok_or_else(|| failure(format!("layer {id} has no mask")))?;
-                (m.raster.max_rev().max(l.content_rev), mask_doc(s, l)?)
+                (
+                    m.raster.max_rev().max(l.content_rev),
+                    Arc::new(mask_doc(s, l)?),
+                    false,
+                )
             }
-            ThumbKind::Composite => (s.rev, Document::new(super::filtering::unfiltered_state(s))),
+            // B5-14: the live document itself when it has no smart filters.
+            // The resident renderer (below) keeps its mip pages across
+            // edits; without Metal or with layer styles the persistent CPU
+            // compositor reuses mips while the document key is stable. Before,
+            // every call re-reduced every layer from level 0 (seconds on the
+            // main thread per edit for 60 × 18 MP layers).
+            ThumbKind::Composite => {
+                if has_smart_filters(s) {
+                    let d = Document::new(super::filtering::unfiltered_state(s));
+                    (s.rev, Arc::new(d), false)
+                } else {
+                    (s.rev, st.live_shared(), true)
+                }
+            }
         }
     };
     let key = (kind, max_px);
@@ -674,36 +1131,70 @@ pub(crate) fn thumbnail(shared: &Shared, kind: ThumbKind, max_px: u32) -> Result
             e.width.max(e.height) <= max_px
         })
         .unwrap_or(MAX_VIEW_LEVEL - 1);
-    let tiles =
-        super::fonts::compositor(64 << 20).render_level(&doc, level, &CancellationToken::new())?; // B5-10
     let e = canvas.at_level(level);
     let surface = Surface::create_rgba8(e.width, e.height).map_err(failure)?;
-    let mask = matches!(kind, ThumbKind::Mask(_));
-    surface
-        .with_pixels(|px, stride| -> EngineResult<()> {
-            for t in &tiles {
-                let (ox, oy) = t.coord().pixel_origin(TILE_SIZE);
-                let l = t.layout();
-                let n = l.plane_len();
-                let s = t.samples::<f32>()?;
-                for y in 0..l.extent.height as usize {
-                    for x in 0..l.extent.width as usize {
-                        let i = y * l.stride() + x;
-                        let o = (oy as usize + y) * stride + (ox as usize + x) * 4;
-                        if mask {
-                            let v = quantize(s[3 * n + i]);
-                            px[o..o + 4].copy_from_slice(&[v, v, v, 255]);
-                        } else {
-                            for c in 0..4 {
-                                px[o + c] = quantize(s[c * n + i]);
+    // B5-14: a composite without styles comes from the resident renderer,
+    // whose mip pages are content-addressed (they survive edits, drags and
+    // document keys); the CPU compositors below re-reduce layers per key.
+    let resident = if matches!(kind, ThumbKind::Composite) {
+        r.resident_level(&doc, level)?
+    } else {
+        None
+    };
+    if let Some((re, rgba)) = resident {
+        let w = re.width as usize;
+        surface
+            .with_pixels(|px, stride| {
+                for y in 0..re.height as usize {
+                    for x in 0..w {
+                        let (i, o) = ((y * w + x) * 4, y * stride + x * 4);
+                        for c in 0..4 {
+                            px[o + c] = quantize(rgba[i + c]);
+                        }
+                    }
+                }
+            })
+            .map_err(failure)?;
+    } else {
+        let tiles = if stable {
+            // B5-14: persistent, so mips survive between calls (styled documents).
+            r.thumb_comp
+                .get_or_init(|| super::fonts::compositor(128 << 20))
+                .render_level(&doc, level, &CancellationToken::new())?
+        } else {
+            super::fonts::compositor(64 << 20).render_level(
+                &doc,
+                level,
+                &CancellationToken::new(),
+            )? // B5-10
+        };
+        let mask = matches!(kind, ThumbKind::Mask(_));
+        surface
+            .with_pixels(|px, stride| -> EngineResult<()> {
+                for t in &tiles {
+                    let (ox, oy) = t.coord().pixel_origin(TILE_SIZE);
+                    let l = t.layout();
+                    let n = l.plane_len();
+                    let s = t.samples::<f32>()?;
+                    for y in 0..l.extent.height as usize {
+                        for x in 0..l.extent.width as usize {
+                            let i = y * l.stride() + x;
+                            let o = (oy as usize + y) * stride + (ox as usize + x) * 4;
+                            if mask {
+                                let v = quantize(s[3 * n + i]);
+                                px[o..o + 4].copy_from_slice(&[v, v, v, 255]);
+                            } else {
+                                for c in 0..4 {
+                                    px[o + c] = quantize(s[c * n + i]);
+                                }
                             }
                         }
                     }
                 }
-            }
-            Ok(())
-        })
-        .map_err(failure)??;
+                Ok(())
+            })
+            .map_err(failure)??;
+    }
     r.thumb_renders.fetch_add(1, Ordering::SeqCst);
     let id = surface.id();
     r.thumbs

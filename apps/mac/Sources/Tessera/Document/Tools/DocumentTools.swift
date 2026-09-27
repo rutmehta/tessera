@@ -217,6 +217,7 @@ final class DocumentTools {
     func select(_ tool: DocumentTool) {
         guard let doc = document else { return }
         DocumentRetouch.shared.toolSelected(tool)   // B5-09: another tool ends the Remove tool
+        DocumentTransforms.shared.toolSelected()   // B5-12: another tool ends Warp & co.
         if transform != nil, tool != doc.tool { commitTransform() }
         if case .polygon = gesture { gesture = nil }
         if case .magnetic = gesture { gesture = nil }
@@ -232,7 +233,7 @@ final class DocumentTools {
 
     func cursor(for doc: DocumentController?) -> NSCursor {
         guard let doc else { return .arrow }
-        if transform != nil { return .arrow }
+        if transform != nil || DocumentTransforms.shared.isActive(doc) { return .arrow }   // B5-12
         switch doc.tool {
         case .move: return .arrow
         case .hand: return .openHand
@@ -285,6 +286,8 @@ final class DocumentTools {
         let c = CanvasPoint(p)
         let flags = e.modifierFlags
         pointer = v.convert(e.locationInWindow, from: nil)
+        // B5-12: an advanced transform session takes the canvas.
+        if DocumentTransforms.shared.isActive(doc) { return DocumentTransforms.shared.mouseDown(e, in: v) }
         if transform != nil { return transformMouseDown(e, in: v) }
         // B5-09 begin: the Remove tool takes the canvas while it is on.
         if DocumentRetouch.shared.removeActive { return DocumentRetouch.shared.mouseDown(e, in: v) }
@@ -348,6 +351,7 @@ final class DocumentTools {
 
     func mouseDragged(_ e: NSEvent, in v: DocumentViewportView) {
         guard let doc = document else { return }
+        if DocumentTransforms.shared.isActive(doc) { _ = DocumentTransforms.shared.mouseDragged(e, in: v); return }   // B5-12
         if gesture == nil, DocumentRetouch.shared.mouseDragged(e, in: v) { return }   // B5-09
         // B5-10 begin
         if doc.tool == .type, gesture == nil, transform == nil { DocumentText.shared.mouseDragged(e, in: v); return }
@@ -406,6 +410,7 @@ final class DocumentTools {
 
     func mouseUp(_ e: NSEvent, in v: DocumentViewportView) {
         guard let doc = document else { gesture = nil; return }
+        if DocumentTransforms.shared.isActive(doc) { _ = DocumentTransforms.shared.mouseUp(e, in: v); return }   // B5-12
         if gesture == nil, DocumentRetouch.shared.mouseUp(e, in: v) { return }   // B5-09
         // B5-10 begin
         if doc.tool == .type, gesture == nil, transform == nil { DocumentText.shared.mouseUp(e, in: v); return }
@@ -943,6 +948,7 @@ final class DocumentTools {
     /// whether the key was used.
     func handleKey(_ event: NSEvent) -> Bool {
         guard let doc = document else { return false }
+        if DocumentTransforms.shared.handleKey(event) { return true }   // B5-12: Return / Esc / ⌫ pin
         if DocumentRetouch.shared.handleKey(event) { return true }   // B5-09: ⇧J, and Remove's keys
         if DocumentVector.shared.handleKey(event) { return true }   // B5-11: Return / Esc / ⌫ of the vector tools
         if event.keyCode == 51 || event.keyCode == 117 {

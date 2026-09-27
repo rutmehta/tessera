@@ -2,6 +2,7 @@ import AppKit
 import ImageIO
 import SwiftUI
 import TesseraCore
+import TesseraFFI
 
 /// `--document-selftest <dir>` (test aid, WP B5-03): ACCEPTANCE §U part 2 through the same controller
 /// calls the UI makes. After the library loads it focuses `sample.dng` (or the first RAW), runs Edit in
@@ -80,7 +81,7 @@ final class DocumentSelfTest {
         // Let SwiftUI and the viewport settle, then report the window for the screenshot.
         await pause(0.8)
         var frame = ""
-        if let w = model.mainWindow, let screen = NSScreen.screens.first {
+        if !perfMode, let w = model.mainWindow, let screen = NSScreen.screens.first {
             // Above other apps' windows while the test runs, so `screencapture -R` sees only Tessera
             // (not in a background run: B5-16).
             if !BackgroundRun.active {
@@ -137,6 +138,7 @@ final class DocumentSelfTest {
         check("source image", doc.info.sourceImageId == item.engineImage?.imageID, "\(doc.info.sourceImageId ?? "nil")")
         log("document \(doc.info.width) × \(doc.info.height) px, \(doc.info.depth.title), \(doc.info.backend), title \(doc.title)")
         check("first frame", doc.lastFrame != nil)
+        if perfMode { await perf(doc, item: item); return finish() }   // B5-14
         await mark("edit-in-layers")
 
         // B5-16: the inspector's sub-tabs switch with ⌃1 / ⌃2 / ⌃3 (the window's key equivalents), and
@@ -307,5 +309,177 @@ final class DocumentSelfTest {
         if let r = restoreReadout { model.showRenderReadout = r }
         log("done, \(failures) failure(s)")
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) { NSApp.terminate(nil) }
+    }
+}
+
+// MARK: - B5-14 perf scenarios
+
+/// `TESSERA_DOC_PERF=1` with `--document-selftest <dir>` (WP B5-14): instead of the acceptance steps, builds a
+/// 60-layer document from the developed photo, sizes the window so the viewport is 3840 × 2160 device pixels,
+/// and measures (1) 100 % pans and edits to the completed frame (P13), (2) synchronous mutation calls while slow
+/// 4K frames are in flight (P14), (3) input → presented frame while a photo export runs, against idle
+/// (P17). Lines start with `document-perf:`; nothing is saved. The window is never raised or made key.
+extension DocumentSelfTest {
+    var perfMode: Bool { ProcessInfo.processInfo.environment["TESSERA_DOC_PERF"] != nil }
+
+    private func plog(_ s: String) { FileHandle.standardError.write(Data("document-perf: \(s)\n".utf8)) }
+
+    private static func pct(_ v: [Double], _ p: Double) -> Double {
+        guard !v.isEmpty else { return .nan }
+        let s = v.sorted()
+        return s[min(s.count - 1, Int((Double(s.count - 1) * p).rounded()))]
+    }
+
+    private func report(_ name: String, _ v: [Double]) {
+        plog(String(format: "RESULT %@: n %d p50 %.2f ms p95 %.2f ms max %.2f ms", name, v.count, Self.pct(v, 0.5),
+                    Self.pct(v, 0.95), v.max() ?? .nan))
+    }
+
+    /// Physical footprint of this process (MiB).
+    private func footprintMiB() -> Double {
+        var info = task_vm_info_data_t()
+        var count = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<natural_t>.size)
+        let kr = withUnsafeMutablePointer(to: &info) {
+            $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) { task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &count) }
+        }
+        return kr == KERN_SUCCESS ? Double(info.phys_footprint) / 1_048_576 : .nan
+    }
+
+    /// Waits for the first frame accepted by `match` after `since` (frame count); returns its arrival time.
+    private func nextFrame(_ doc: DocumentController, after count: Int, frames: () -> [(Date, DocFrame)],
+                           timeout: Double = 5, _ match: (DocFrame) -> Bool) async -> Date? {
+        let end = Date().addingTimeInterval(timeout)
+        while Date() < end {
+            let f = frames()
+            if f.count > count, let hit = f[count...].first(where: { match($0.1) }) { return hit.0 }
+            try? await Task.sleep(for: .microseconds(500))
+        }
+        return nil
+    }
+
+    func perf(_ doc: DocumentController, item: PhotoItem) async {
+        plog("start: document \(doc.info.width) × \(doc.info.height) \(doc.info.depth.title), backend \(doc.info.backend), footprint \(String(format: "%.0f", footprintMiB())) MiB")
+        guard let photo = doc.layers.first(where: { $0.kind == .pixel })?.id else { plog("FAIL no pixel layer"); return }
+        var frames: [(Date, DocFrame)] = []
+        doc.frameObserver = { f in frames.append((Date(), f)) }
+        let b = doc.backend
+        // 1. 60 layers: duplicates of the photo (copy-on-write) in varied modes at 50 %.
+        let modes = ["multiply", "screen", "overlay", "soft_light", "darken", "lighten", "difference", "color_dodge"]
+        var ids = [photo]
+        for i in 0..<59 {
+            guard let c = try? b.duplicateLayer(id: ids[ids.count - 1]), let n = c.created.first else { break }
+            _ = try? b.setBlendMode(id: n, mode: modes[i % modes.count])
+            _ = try? b.setOpacity(id: n, value: 0.5, interactive: false)
+            ids.append(n)
+        }
+        doc.reloadModel(); doc.reloadHistory()
+        plog("layers \(doc.layers.count)")
+        // 2. A 3840 × 2160 device-pixel viewport (content size in points), window stays where it is and in the back.
+        if let w = model.mainWindow, let v = doc.viewport {
+            let scale = w.backingScaleFactor
+            let extraW = w.frame.width - v.bounds.width, extraH = w.frame.height - v.bounds.height
+            let size = NSSize(width: 3840 / scale + extraW, height: 2160 / scale + extraH)
+            w.setFrame(NSRect(origin: w.frame.origin, size: size), display: true)
+            await pause(1.0)
+            plog(String(format: "viewport %.0f × %.0f pt @%.0fx, window %.0f × %.0f", v.bounds.width, v.bounds.height, scale,
+                        w.frame.width, w.frame.height))
+        }
+        guard let view = doc.viewport else { plog("FAIL no viewport"); return }
+        view.zoomActual()
+        _ = await wait(20) { doc.lastFrame?.level == 0 }
+        await pause(4)   // specialized kernel compiles in the background
+        if let f = doc.lastFrame { plog("100 %: L\(f.level) \(f.width) × \(f.height)") }
+
+        // P13: pans at 100 % (input → completed frame showing the new region).
+        var pan: [Double] = []
+        for i in 0..<40 {
+            let before = frames.count
+            let old = doc.lastFrame.map { ($0.x, $0.y) }
+            let t = Date()
+            view.panBy(dx: i % 2 == 0 ? 97 : -61, dy: i % 3 == 0 ? 53 : -29)
+            if let at = await nextFrame(doc, after: before, frames: { frames }, { f in old.map { $0 != (f.x, f.y) } ?? true }) {
+                pan.append(at.timeIntervalSince(t) * 1000)
+            }
+            await pause(1.0 / 60)
+        }
+        report("p13 100% 4K pan input→frame", pan)
+        // P13: opacity edits at 100 % (UI path: run + reloads).
+        func edits(_ n: Int, _ label: String) async -> [Double] {
+            var v: [Double] = []
+            for i in 0..<n {
+                let before = frames.count
+                let t = Date()
+                guard let c = doc.run("Opacity", { try b.setOpacity(id: ids[ids.count / 2], value: Float(0.3 + Double(i % 10) * 0.05), interactive: true) })
+                else { continue }
+                if let at = await nextFrame(doc, after: before, frames: { frames }, { $0.epoch >= c.epoch }) {
+                    v.append(at.timeIntervalSince(t) * 1000)
+                }
+                await pause(1.0 / 60)
+            }
+            return v
+        }
+        _ = await edits(5, "warm")
+        let idle = await edits(60, "idle")
+        report("p13 100% 4K opacity input→frame", idle)
+        let render = frames.suffix(100).map(\.1.renderMs)
+        report("p13 100% 4K engine render_ms", render)
+        _ = try? b.commit(label: "Opacity")
+
+        // P17: the same edits while a photo export (Web preset, full-resolution develop) runs.
+        if let lib = model.engineLibrary, let imageId = item.engineImage?.imageID,
+           let preset = try? lib.engine.exportPresets().first,
+           var json = (try? JSONSerialization.jsonObject(with: Data(preset.settingsJson.utf8))) as? [String: Any] {
+            let out = dir.appendingPathComponent("perf-export")
+            try? FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
+            json["destination"] = out.path
+            json["on_conflict"] = "unique"
+            let settings = String(decoding: (try? JSONSerialization.data(withJSONObject: json)) ?? Data(), as: UTF8.self)
+            let engine = lib.engine
+            let stop = CancelFlag()
+            final class Box: @unchecked Sendable { var done = 0; var secs: [Double] = []; let lock = NSLock() }
+            let box = Box()
+            let task = Task.detached(priority: .userInitiated) {
+                while !stop.isCancelled() {
+                    let t = Date()
+                    let r = try? engine.exportBatch(target: .images(imageIds: [imageId]), settingsJson: settings, listener: nil, cancel: nil)
+                    box.lock.withLock { if r?.exported == 1 { box.done += 1; box.secs.append(Date().timeIntervalSince(t)) } }
+                }
+            }
+            await pause(1.5)
+            let busy = await edits(120, "export")
+            stop.cancel()
+            await task.value
+            report("p17 100% 4K opacity input→frame during export", busy)
+            let (done, secs) = box.lock.withLock { (box.done, box.secs) }
+            plog(String(format: "RESULT p17 ratio p95 export/idle %.2f (target ≤ 1.25); exports completed %d (%.2f–%.2f s)",
+                        Self.pct(busy, 0.95) / Self.pct(idle, 0.95), done, secs.min() ?? .nan, secs.max() ?? .nan))
+        } else {
+            plog("p17 skipped: no export preset or image")
+        }
+        plog(String(format: "footprint %.0f MiB", footprintMiB()))
+
+        // P14: synchronous calls while 100 % 4K frames are in flight (each tick of another layer's opacity
+        // requests a frame; the calls below race it). Styled (CPU) frames of a 20 MP layer take minutes per
+        // frame (perf audit hotspot 4, P15), so the slow-style case is measured by the Rust bench instead.
+        var calls: [String: [Double]] = [:]
+        let driver = ids[ids.count / 2], target = ids[ids.count - 1]
+        for i in 0..<150 {
+            _ = try? b.setOpacity(id: driver, value: Float(0.3 + Double(i % 10) * 0.05), interactive: true)
+            await pause(0.004)
+            let t = Date()
+            let name: String
+            switch i % 3 {
+            case 0: name = "opacity"; _ = try? b.setOpacity(id: target, value: Float(0.3 + Double(i % 7) * 0.1), interactive: true)
+            case 1: name = "rename"; _ = try? b.renameLayer(id: target, name: "perf \(i)")
+            default: name = "visibility"; _ = try? b.setVisible(id: target, visible: i % 6 != 2)
+            }
+            calls[name, default: []].append(Date().timeIntervalSince(t) * 1000)
+            await pause(0.012)
+        }
+        for (k, v) in calls.sorted(by: { $0.key < $1.key }) { report("p14 \(k) call during 4K frames", v) }
+        report("p14 all mutation calls during 4K frames", calls.values.flatMap { $0 })
+        _ = try? b.commit(label: "perf")
+        doc.frameObserver = nil
+        plog(String(format: "done, footprint %.0f MiB", footprintMiB()))
     }
 }

@@ -277,8 +277,10 @@ impl Compositor {
         self.filter_runtime.evaluator = evaluator;
     }
 
-    /// Number of enabled filter evaluations since this compositor was created.
+    /// Enabled, nonzero-opacity stages in accepted stack results since creation.
     /// Warm source/parameter cache hits and mask-only edits do not increment it.
+    /// Concurrent cold misses may compute duplicate results; discarded duplicates
+    /// and failed stacks do not increment this counter. Uncached results do.
     pub fn filter_evaluations(&self) -> u64 {
         self.filter_runtime.evaluations.load(Ordering::Relaxed)
     }
@@ -314,11 +316,21 @@ impl Compositor {
                 state: &so.state,
                 key: so.key,
             })?;
-            let mut cache = rt.cache.lock().unwrap_or_else(|e| e.into_inner());
-            if let Some(cached) = cache.get(&key) {
-                cached.clone()
+            let cached = rt
+                .cache
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .get(&key)
+                .cloned();
+            if let Some(cached) = cached {
+                cached
             } else {
+                // Evaluators and transforms can use Rayon or re-enter this cache.
+                // Never hold the mutex (or wait for per-key initialization) here:
+                // a worker may steal another tile that needs the same entry.
+                // Duplicate cold work is safe because evaluators are deterministic.
                 let mut result = source.clone();
+                let mut evaluations = 0;
                 for filter in so.filters.iter().filter(|f| f.enabled) {
                     if !filter.blend.opacity.is_finite()
                         || !(0.0..=1.0).contains(&filter.blend.opacity)
@@ -371,7 +383,7 @@ impl Compositor {
                     if !finite {
                         return Err(EngineError::invalid("smart filter", "nonfinite result"));
                     }
-                    rt.evaluations.fetch_add(1, Ordering::Relaxed);
+                    evaluations += 1;
                 }
                 let bytes = source.extent().area() as usize * 32;
                 let entry = Arc::new(Cached {
@@ -379,19 +391,27 @@ impl Compositor {
                     result,
                     bytes,
                 });
-                if bytes <= rt.budget {
-                    if cache
-                        .values()
-                        .map(|v| v.bytes)
-                        .sum::<usize>()
-                        .saturating_add(bytes)
-                        > rt.budget
-                    {
-                        cache.clear();
+                // Publish only complete, validated results. A concurrent miss
+                // may have finished first; reuse it without charging bytes twice.
+                let mut cache = rt.cache.lock().unwrap_or_else(|e| e.into_inner());
+                if let Some(cached) = cache.get(&key) {
+                    cached.clone()
+                } else {
+                    rt.evaluations.fetch_add(evaluations, Ordering::Relaxed);
+                    if bytes <= rt.budget {
+                        if cache
+                            .values()
+                            .map(|v| v.bytes)
+                            .sum::<usize>()
+                            .saturating_add(bytes)
+                            > rt.budget
+                        {
+                            cache.clear();
+                        }
+                        cache.insert(key, entry.clone());
                     }
-                    cache.insert(key, entry.clone());
+                    entry
                 }
-                entry
             }
         };
         let mut raster = cached.result.clone();
