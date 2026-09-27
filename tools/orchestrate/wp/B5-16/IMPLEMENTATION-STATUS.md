@@ -53,23 +53,20 @@ Accessibility identifiers: every identifier used by the existing ACCEPTANCE step
 - `DocumentInspectorLayoutTests` (the width check for every layer kind at 288, 296, 320 and 380 pt) and
   `ThemeLintTests` pass.
 
-Final `swift test --jobs 2` run:
+Final Swift gate (`tools/orchestrate/swift-gate.sh` from origin/main 1354b13, run on this branch after the
+adjustment-model follow-up below; it fails on any `error: -[` line):
 
 ```
-Test Case '-[TesseraCoreTests.ShellLayoutTests testDocumentInspectorEveryTabAndHistoryStateAtEverySize]' passed (36.662 seconds).
-Test Case '-[TesseraCoreTests.ShellLayoutTests testInspectorTabShortcuts]' passed (2.080 seconds).
-Test Case '-[TesseraCoreTests.ShellLayoutTests testManyDocumentTabsStayCapped]' passed (3.039 seconds).
-Test Case '-[TesseraCoreTests.ShellLayoutTests testShellContainedAtEverySizeStateAndAppearance]' passed (37.043 seconds).
-	 Executed 377 tests, with 1 test skipped and 6 failures (0 unexpected) in 161.966 (161.994) seconds
-✔ Test run with 5 tests in 2 suites passed after 0.045 seconds.
+Build complete! (25.92s)
+	 Executed 393 tests, with 1 test skipped and 0 failures (0 unexpected) in 139.102 (139.138) seconds
+✔ Test run with 5 tests in 2 suites passed after 0.024 seconds.
+SWIFT GATE OK
 ```
 
-The 6 failures are the 4 `DocumentAdjustmentJSONTests` cases (`testAuto`, `testColorLookup`, `testMatchColor`,
-`testFixtureCoversEveryKindAndRoundTrips`). They are outside this package: neither the tests nor the code they exercise changed here, and I did not re-run them on the base. The cause is that the engine JSON from M5-32
-(`highlight_clip`, `shadow_clip`, `dither`, `source_filename`, `color_intensity` …) has keys that the Swift adjustment
-models do not round-trip yet. They are unrelated to layout, so this package does not touch them. The run contains no
-`XCTExpectFailure`. `swift build` succeeded, and `xcodebuild -scheme Tessera -configuration Debug …` ended with
-`** BUILD SUCCEEDED **`.
+The run contains no `XCTExpectFailure`. The four `DocumentAdjustmentJSONTests` cases that failed in the first round
+(`testAuto`, `testColorLookup`, `testMatchColor`, `testFixtureCoversEveryKindAndRoundTrips`) now pass; see "Follow-up:
+adjustment models and M5-32 fields". `xcodebuild -scheme Tessera -configuration Debug …` ended with
+`** BUILD SUCCEEDED **` (first round).
 
 ### Layout matrix (document window, dark; `evidence/after/inspector-document-<size>-<tab>-history-<open|closed>.png`)
 
@@ -141,3 +138,45 @@ it is not run here.
   harness checks SwiftUI regions.
 - No change to `Shell/**` or the shared components. `SheetScaffold` keeps its content unscrolled, so the scrolling
   body is added per document sheet. No NEEDS.md was required.
+
+## Follow-up: adjustment models and M5-32 fields (after the origin/main 4d68f45 merge, e8500af)
+
+M5-32 added fields to `compositor::Adjustment` that `AdjustmentModel` did not round-trip. This work is split into two
+commits, so the model fix can be cherry-picked onto main on its own.
+
+1. **`132cba3` wp(B5-16): adjustment models round-trip M5-32 fields.** The Swift models now read and write every
+   engine field under its exact serde name and default:
+   - Auto: `shadow_clip` and `highlight_clip`, in percent, default 0.5.
+   - Match Color: `neutralize`, default false.
+   - Color Lookup: `source_filename` (written as `null` when unknown) and `dither`, default false.
+
+   `AdjustmentAnalysis.auto` takes separate shadow and highlight clips and stores the clips it used.
+   `AdjustmentAnalysis.matchColor(neutralize:)` now sets `neutralize` and keeps the real source mean; before, it zeroed
+   the source chroma as a stand-in, which gives the same render.
+
+   The fixture `crates/tessera-ffi/tests/fixtures/adjustments.json` gains one object with non-default values for each
+   changed variant. The new Rust test `fixture_carries_m5_32_fields_with_non_default_values` keeps those objects in the
+   fixture. `cargo test -p tessera-ffi --test adjustment_json` passes 3 of 3, and the Swift gate passes (393 tests,
+   0 failures).
+
+   The only changes outside the model are for compile compatibility:
+   - The Color Lookup case in `AdjustmentEditors.swift` binds the two new payload fields (one line).
+   - `MatchColorModel.neutralized` is kept as an alias until the next commit.
+
+   These files are identical on origin/main 1354b13, so the commit cherry-picks cleanly.
+2. **Editor commit: the Properties editors use the persisted fields.**
+   - Auto: the session-only `AdjustmentEditorState.autoClip` is replaced by **Shadows Clip** and **Highlights Clip**
+     sliders (`document.properties.auto.shadowClip` / `.highlightClip`). Releasing either slider re-analyses and
+     stores the clips.
+   - New Auto layers and Image ▸ Auto analyse with Photoshop's 0.1 % (`AutoAdjustmentModel.fresh`). Documents that
+     have no clips decode with the engine's default of 0.5 %.
+   - Match Color: **Neutralize** toggles `neutralize` directly. The engine applies it, so there is no re-analysis.
+   - Color Lookup: the loaded file name (`source_filename`, from `url.lastPathComponent`) is shown and saved instead of
+     the session-only `AdjustmentEditorState.lookupFile`. There is a new **Dither** checkbox
+     (`document.properties.colorLookup.dither`).
+   - `AdjustmentEditorState` keeps only the tone range and colour row.
+   - ACCEPTANCE step 165 and the B5-06 identifier list are updated.
+
+   After this commit: Swift gate `SWIFT GATE OK` (393 tests, 0 failures) and `document-selftest: done, 0 failure(s)`
+   (background run, `run-selftests.sh document`).
+
