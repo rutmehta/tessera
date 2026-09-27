@@ -1,0 +1,24 @@
+Processes: 3911 total, 11 running, 3900 sleeping, 15829 threads 
+2026/09/27 16:13:44
+Load Avg: 47.79, 144.09, 111.96 
+CPU usage: 20.26% user, 26.7% sys, 53.65% idle 
+SharedLibs: 655M resident, 106M data, 80M linkedit.
+MemRegions: 1916082 total, 11G resident, 560M private, 3876M shared.
+PhysMem: 46G used (18G wired, 9902M compressor), 655M unused.
+VM: 1633T vsize, 5226M framework vsize, 14686186(0) swapins, 19488315(0) swapouts.
+Networks: packets: 89114675/85G in, 72505595/66G out.
+Disks: 654683797/5612G read, 93027958/2383G written.
+
+PID    COMMAND          MEM   %CPU
+61055  Resolve          5724M 0.0 
+399    WindowServer     4896M 0.0 
+674    Adobe Lightroom  3144M 0.0 
+25446  com.apple.Virtua 1831M 0.0 
+46575  Claude Helper (R 1366M 0.0 
+53104  DaisyDisk        871M  0.0 
+18100  Codex (Service)  846M  0.0 
+90614  Arc              838M  0.0 
+18187  Codex (Renderer) 797M  0.0 
+54300  Slashy Helper (R 765M  0.0 
+30977  BetterX V3 Deskt 751M  0.0 
+46556  Claude Helper    672M  0.0 

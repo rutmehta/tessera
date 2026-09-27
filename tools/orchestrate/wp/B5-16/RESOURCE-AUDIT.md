@@ -1,0 +1,156 @@
+# Tessera Machine B resource audit — 2026-09-27
+
+## Immediate outcome and scope
+
+The user's laptop became barely usable during the Transform self-test. Paused
+`tessera-machine-b-coordinator`, froze the owned app12083 and runner9344, captured
+their state, then killed only those owned test processes. Terminated orphaned
+`yes`27454 after `lsof` established cwdB5-15/crates/tessera-ffi and stderr in the
+old Claude coordinator's taskb93weupjl output. It had run over8hours at91%CPU.
+No other user app was closed. Dirty B5-16a gain-map snapshot remains untouched.
+
+A local `~/.local/state/tessera-resource-hold.json` now blocks this self-test
+runner before any app launch. Nine lightweight runner tests pass, including the
+hold. **No further builds, benchmarks, app tests or automatic queue advancement
+on B until a bounded resource plan is established.** A was notified through Git
+mailbox7cf0f7e2. No main merge. The interrupted Transform run is not accepted.
+
+Audited product72d8756 and current local B source713de4a; checked the key duplicate
+cache and soft GPU budget behavior also exists in fetched origin/main550e09a.
+This is a live incident capture plus source audit of scheduling, transform,
+CPU caches, GPU resident allocations, viewport/lifetimes, observation and test
+orchestration. It is **not** a completed allocation-lifetime/Metal Instruments
+study. No new stress load was used to investigate the user's overloaded laptop.
+
+## Measurements and attribution
+
+| Observation | Evidence / limit |
+| --- | --- |
+| Tessera986%CPU before stop | `ps`, approximately ten CPU cores; not GPU utilization. Rasterized PSD copy was the current self-test step. |
+| Tessera7.0GiB footprint, peak7.5GiB | `transform-vmmap.txt`; about6.9GiB writable data swapped out, default malloc ~2.9GiB allocated and3.6GiB owned-unmapped memory. Unmapped ownership cannot be assigned to Metal solely from this report. |
+| Rayon workers in full-image stack evaluation | `transform-sample.txt`: save_psd_rasterizing_transforms → render_level → smart/filtered_source → evaluate_transform/TransformOp/seam. Frozen stack captured after SIGSTOP; identifies concurrent call stacks, not a statistical CPU profile. |
+| Main thread in AppKit event loop | Same frozen capture; no evidence of a main-thread busy loop at capture time. Does not exclude earlier UI stalls. |
+| Host ~43GiB swap; high wired/compressed memory | System totals, not all Tessera. After termination, host still had Resolve~5.7GiB, WindowServer~4.9GiB, Lightroom~3.1GiB plus many other apps. Do not kill those or attribute their memory to Tessera. |
+| CPU recovered to48–54%idle in subsequent snapshots | `host-after-stop.txt`; whole host still busy, not proof all responsiveness issues are solved. |
+| GPU after Tessera termination | IOAccelerator reported42%device usage,28.53GB allocated-system-memory counter and4.41GB in-use-system-memory counter. Global counters with different meanings, not a Tessera leak measurement. |
+
+## Findings, ordered by urgency
+
+### P1: duplicate full-image work on concurrent tile cache misses
+
+`crates/compositor/src/render/smart_filters.rs:288–415` explicitly allows duplicate
+cold computations to avoid a Rayon re-entrancy deadlock. `render/mod.rs:691–723`
+feeds tile requests through `par_iter`. Every miss can render the complete child
+and run every transform again. Only final publication deduplicates the result.
+A mutex or per-key blocking wait added naively would reintroduce the documented
+deadlock; this needs orchestration above parallel tile work or a re-entrant-safe
+shared evaluation design. The frozen live stacks support this path's involvement.
+
+The `filter_evaluations` metric explicitly excludes discarded duplicates
+(lines279–285), so it understates actual work. Count attempted computations,
+duplicate discard, temporary bytes, and peak simultaneous evaluations separately.
+
+### P1: cache limits omit working memory and create a size cliff
+
+`smart_filters.rs:199–240` allocates full planar RGBA input, transformed output and
+another Raster, with additional old/next stage data at347–375. Cache bytes at390
+count only source+result at32bytes/pixel. Temporary allocations, protection masks,
+parameter serialization and concurrent duplicates are outside this budget.
+At399–411, oversized entries are never retained; overflow clears the entire map.
+Repeated tile requests can therefore rerun oversized stacks indefinitely across
+the frame. `filters.rs:590` constructs a64MiB compositor for rasterized PSD copies:
+32bytes/pixel reaches that budget at2,097,152pixels; a20MP source+result needs640MB
+before temporary memory. The captured1.6MP input is below this individual cutoff,
+so the cutoff alone is not established as the cause of this specific incident.
+
+`render/mod.rs:117–122` gives separate live, filter and tile caches the same
+nominal budget; it is not a total per-document/process memory cap. Nested caches
+and active evaluation memory need one admission controller, not larger constants.
+
+### P1: expensive transforms lack useful in-flight cancellation
+
+`transform/seam.rs:152–159` removes seams one at a time; each `find_seam` at242
+recomputes a full energy field plus cost/parent arrays, followed by image copying.
+The work grows with pixels times removed seams. No cancellation token is passed
+into this loop or `evaluate_transform`. `render_level_rgba` creates a fresh token
+at `render/mod.rs:729`; checking between tiles does not interrupt a long stack.
+`save_psd_rasterizing_transforms` at `document/transform.rs:1093` exposes neither
+progress nor cancellation. Swift uses a detached task, which avoids synchronous
+main-thread work but does not bound CPU or working memory. Cancellation must
+reach the inner kernels, with progress and checks between seams/stages.
+
+### P1: GPU budget is soft and multiplied across renderers
+
+`resident/mod.rs:529–536` defaults to2GiB per renderer. `ensure` at1015–1053 first
+tries eviction then explicitly grows beyond the budget. Nested smart children at
+827 receive independent default renderers; stack buffers, page pools, CPU fallback
+and child renderers have separate accounting. `resident/filters.rs:302` likewise
+creates children with the parent's budget. This is a confirmed policy weakness,
+not proof that these GPU allocations caused the captured CPU-heavy incident.
+Use a shared hard admission budget with controlled fallback/eviction; count
+in-flight command-buffer references and transient buffers as well as cache bytes.
+
+### P2: frontend timer lifecycle leak and unnecessary hidden work
+
+`DocumentViewport.swift:512–533` installs a repeating30Hz marching-ants timer.
+Its callback captures the view weakly, preventing a strong view-retain cycle, but
+the run loop retains the timer and the nil-self branch never invalidates it.
+There is no teardown invalidation or hidden/detached-window policy in this class.
+Thus losing a view with an active selection can leave a repeating timer behind.
+This is a source-proven timer-lifetime issue; its contribution to host load is
+unmeasured and cannot explain986%CPU by itself. Add explicit ownership cleanup,
+stop on detach/occlusion and restart only when visible with an active selection.
+
+### P2: synchronous model refresh amplifies engine contention
+
+`DocumentController.swift:70–94` synchronously reloads layer/info/history data on
+MainActor. Listener callbacks at478–479 schedule a full refresh per notification,
+without coalescing. Engine locks under heavy transform work can make UI refresh
+wait; repeated updates can rebuild outline/history unnecessarily. The captured
+main thread was idle, so this is an audit risk, not a proven cause of this stall.
+Use dirty categories, bounded coalescing and immutable snapshots; measure input
+latency on a small fixture before increasing workload.
+
+### P1: orchestration protected correctness, not host responsiveness
+
+One heavy process still used~ten cores and7GiB. Runner deadlines900–1800seconds
+are far too long as a responsiveness guard; they have no CPU/footprint/pressure
+budget. No Rayon/OpenMP ceiling was set. Transform enables its20MP stress section
+by default (`TransformSelfTest.swift:554`), and the CPU-intensive PSD copy is
+unbounded until the outer deadline. The orphaned `yes` process proves stress
+process cleanup was incomplete. Background/nonactivating does not mean low impact.
+
+Required changes: opt-in stress mode, small smoke fixtures by default,2-worker
+ceiling for laptop checks, low priority, wall/CPU-time limits, process-group/child
+ownership cleanup and a memory-pressure abort. Report aborted/skipped stress as
+unverified; never convert it to an acceptance pass. No test runs during a hold.
+
+## Existing protections that should be retained
+
+- Tile cache has a byte-bounded LRU. ThumbnailLoader has explicit cost-bounded
+  caches, request cancellation and queue limits; no blanket claim of unbounded
+  frontend image caching is supported.
+- Document viewport retains a three-IOSurface ring and replaces/detaches it on
+  resize; it avoids repeated identical viewport requests. These are useful
+  controls, though they do not prove every surface is released on all lifecycles.
+- Document listener uses a weak controller; viewport is weak. No clear strong
+  cycle was found there in this pass.
+- The strict runner caught incomplete tests instead of trusting zero-failure
+  summaries. Keep that behavior; add resource controls rather than weakening it.
+
+## Verification still required, without overloading B
+
+1. A owns a bounded compositor regression: tiny image, parallel cold requests,
+   count true evaluation attempts and peak active allocations. Include nested
+   stacks and a cache smaller than the result; avoid blocking re-entrancy fixes.
+2. Add cancellation and memory-admission unit tests. Validate at2workers on A or
+   another idle host; no B benchmark needed. Benchmark only after small tests pass.
+3. Add a frontend timer teardown regression and repeated open/close snapshot
+   check. Then use allocation lifetimes/Metal resource capture on a small fixture
+   to distinguish leaks from caches/driver-retained allocations.
+4. Only after resource protections exist: short, bounded B responsiveness check
+   with explicit headroom; stop on pressure. The heartbeat remains paused.
+
+No claim that all memory leaks are found or fixed. Full runtime GPU/leak closure
+is pending these bounded checks. This audit establishes real defects and a safe
+sequence to resolve them, rather than rerunning the workload that froze the host.

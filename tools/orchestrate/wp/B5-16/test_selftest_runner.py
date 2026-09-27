@@ -5,10 +5,24 @@ import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
-from selftest_runner import validate_log, run_test, capture_requests, TESTS, main
+from selftest_runner import validate_log, run_test, capture_requests, enforce_resource_hold, TESTS, main
 
 
 class SelfTestRunnerTests(unittest.TestCase):
+    def test_resource_hold_blocks_work_before_launch(self):
+        with tempfile.TemporaryDirectory() as temp, patch('selftest_runner.Path.home', return_value=Path(temp)):
+            enforce_resource_hold()
+            hold = Path(temp) / '.local/state/tessera-resource-hold.json'
+            hold.parent.mkdir(parents=True)
+            hold.write_text('{"reason":"user machine responsiveness"}')
+            with self.assertRaises(RuntimeError):
+                enforce_resource_hold()
+            with patch('selftest_runner.run_test') as run, patch('sys.stderr'):
+                with self.assertRaises(SystemExit) as error:
+                    main([])
+                self.assertEqual(error.exception.code, 2)
+                run.assert_not_called()
+
     def test_exact_success(self):
         self.assertEqual(validate_log('document-selftest: check opened ok\ndocument-selftest: done, 0 failure(s)\n', 'document-selftest', 0), [])
 
@@ -63,7 +77,8 @@ class SelfTestRunnerTests(unittest.TestCase):
             binary.parent.mkdir(parents=True); binary.touch()
             fixture = root / 'fixtures/raw/sample.dng'
             fixture.parent.mkdir(parents=True); fixture.touch()
-            with patch.dict(os.environ, {'SP': str(root / 'scratch'), 'EV': str(root / 'evidence')}), \
+            with patch('selftest_runner.enforce_resource_hold'), \
+                 patch.dict(os.environ, {'SP': str(root / 'scratch'), 'EV': str(root / 'evidence')}), \
                  patch('selftest_runner.run_test', return_value=['fixture failure']) as run, patch('builtins.print'):
                 self.assertEqual(main(['--root', str(root)]), 1)
                 self.assertEqual(run.call_count, len(TESTS))

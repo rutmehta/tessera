@@ -285,3 +285,20 @@ document-switch cancellation and native save/PSD refusal. It is still running
 (runnerPID9344, appPID12083) at rasterized-copy/reopen, with the20MP step afterward.
 No final Transform or whole-suite pass is claimed. Keep the heavy slot reserved;
 collect the same runner/log rather than restarting. A remains sole main merger.
+
+## USER RESOURCE HOLD — supersedes all queue/build instructions above
+
+2026-09-27: user reports barely usable laptop and requests full resource audit.
+Heartbeat is PAUSED; local ~/.local/state/tessera-resource-hold.json blocks the
+app runner. Stopped app12083/runner9344 and inherited B5-15 yes27454. Transform
+is INTERRUPTED, not accepted. No new B tests, builds, GPU workloads or benchmarks.
+Dirty B5-16a remains preserved. A request7cf0f7e2 asks it not to remotely use B.
+
+Read RESOURCE-AUDIT.md for CPU, memory, GPU, frontend lifecycle and orchestration
+findings. Captured986%CPU,7.0GiB footprint/7.5GiB peak for the stopped app. Whole
+host~43GiB swap is not all Tessera. Source audit confirms duplicate full-image
+work, cache-working-set gaps, uncancellable seam work, soft per-renderer GPU
+budgets and a repeating-timer lifecycle issue. Original/failed evidence retained.
+Nine lightweight runner tests pass for the new hold; no expensive verification
+was run. Only low-impact audit/fixes may proceed; don't resume the old queue or
+heartbeat until resource protections and bounded validation are established.

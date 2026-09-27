@@ -24,6 +24,12 @@ TESTS = {
 }
 
 
+def enforce_resource_hold():
+    hold = Path.home() / '.local/state/tessera-resource-hold.json'
+    if hold.exists():
+        raise RuntimeError(f'Tessera workload hold is active: {hold}. Resolve the resource audit before launching app tests.')
+
+
 def validate_log(text, prefix, returncode, timed_out=False):
     errors = []
     if timed_out:
@@ -145,6 +151,10 @@ def main(argv=None):
     parser.add_argument('--root', type=Path, default=Path(__file__).resolve().parents[4])
     parser.add_argument('tests', nargs='*', choices=list(TESTS))
     args = parser.parse_args(argv)
+    try:
+        enforce_resource_hold()
+    except RuntimeError as error:
+        parser.error(str(error))
     root = args.root.resolve()
     binary = root / 'apps/mac/build/Tessera.app/Contents/MacOS/Tessera'
     if not binary.is_file():

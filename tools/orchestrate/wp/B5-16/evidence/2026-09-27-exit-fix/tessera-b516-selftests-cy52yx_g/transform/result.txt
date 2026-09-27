@@ -1,0 +1,1 @@
+INTERRUPTED — user reported severe host unresponsiveness. Owned app12083 and runner9344 stopped after diagnostic capture. No final Transform acceptance.
