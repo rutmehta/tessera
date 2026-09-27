@@ -1,5 +1,10 @@
 # M2-45b checkpoint: output sharpening
 
+Subsequent workflow checkpoint: see `WORKFLOW.md` for persisted Previous,
+multi-preset UniFFI export and host post-actions. The notes below describe the
+earlier sharpening-only checkpoint; its item 5 status is historical. Overall
+M2-45b remains incomplete until metadata, DNG enhancements and HDR are done.
+
 Overall WP result: FAIL until the remaining items below are delivered. This
 checkpoint implements item 2 only, using the brief's permission to stop after
 a green item. It does not claim metadata/DNG/HDR/workflow completeness.

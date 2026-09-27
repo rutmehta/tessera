@@ -166,6 +166,8 @@ pub struct ExportOptions {
     pub on_conflict: OnConflict,
     /// App hint: reveal the files in Finder afterwards.
     pub open_in_finder: bool,
+    /// Explicit host actions. Not inferred from the legacy Finder UI hint.
+    pub after_export: export::AfterExportActions,
 }
 impl Default for ExportOptions {
     fn default() -> Self {
@@ -187,6 +189,7 @@ impl Default for ExportOptions {
             destination: String::new(),
             on_conflict: OnConflict::Unique,
             open_in_finder: false,
+            after_export: export::AfterExportActions::default(),
         }
     }
 }
@@ -213,6 +216,7 @@ impl ExportOptions {
     }
     /// Everything but the destination (checked when a batch runs).
     pub fn validate(&self) -> Result<()> {
+        self.after_export.validate()?;
         if self.format == FileFormat::JpegXl && self.color_space != DocumentSpace::Srgb {
             return Err(failure("lossless JPEG XL currently supports only sRGB"));
         }
@@ -421,8 +425,31 @@ pub fn default_export_presets() -> Vec<(String, ExportOptions)> {
 
 const PRESET_DIR: &str = "ExportPresets";
 const SEEDED: &str = ".defaults-installed";
+const LAST_EXPORT: &str = "LastExport.json";
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct PreviousExport {
+    version: u32,
+    settings: Vec<ExportOptions>,
+}
 
 impl Engine {
+    fn remember_export(&self, settings: Vec<ExportOptions>) -> Result<()> {
+        let dir = self.support_dir()?;
+        let bytes = serde_json::to_vec_pretty(&PreviousExport {
+            version: 1,
+            settings,
+        })
+        .map_err(failure)?;
+        let mut temp = tempfile::NamedTempFile::new_in(dir)?;
+        std::io::Write::write_all(&mut temp, &bytes)?;
+        temp.as_file().sync_all()?;
+        temp.persist(dir.join(LAST_EXPORT))
+            .map_err(|e| failure(e.error))?;
+        Ok(())
+    }
+
     pub(crate) fn support_dir(&self) -> Result<&Path> {
         self.db
             .parent()
@@ -648,6 +675,8 @@ pub struct ExportReport {
     pub failed: u32,
     pub cancelled: bool,
     pub seconds: f64,
+    /// Host action / last-settings persistence failures. Exported files remain valid.
+    pub workflow_errors: Vec<String>,
 }
 
 struct Pending {
@@ -790,6 +819,110 @@ fn file_name(path: &Path) -> String {
 
 #[uniffi::export]
 impl Engine {
+    /// Reuses the last fully successful export's settings on a NEW selection.
+    /// The saved document contains settings only, never source IDs or recipes.
+    pub fn export_with_previous(
+        &self,
+        target: ExportTarget,
+        listener: Option<Arc<dyn ExportProgressListener>>,
+        cancel: Option<Arc<CancelFlag>>,
+    ) -> Result<Vec<ExportReport>> {
+        let bytes = std::fs::read(self.support_dir()?.join(LAST_EXPORT))
+            .map_err(|e| failure(format!("previous export: {e}")))?;
+        let previous: PreviousExport = serde_json::from_slice(&bytes).map_err(failure)?;
+        if previous.version != 1 {
+            return Err(failure("unsupported previous export document"));
+        }
+        self.export_multiple(
+            target,
+            previous
+                .settings
+                .iter()
+                .map(ExportOptions::to_json)
+                .collect(),
+            listener,
+            cancel,
+        )
+    }
+
+    /// Run 1–32 preset settings documents over the same resolved selection.
+    /// JSON and destination paths are validated before any output. Execution
+    /// is serial by preset, with a per-preset progress stream and report.
+    /// Cancellation stops before the next preset; already published files stay.
+    pub fn export_multiple(
+        &self,
+        target: ExportTarget,
+        settings_jsons: Vec<String>,
+        listener: Option<Arc<dyn ExportProgressListener>>,
+        cancel: Option<Arc<CancelFlag>>,
+    ) -> Result<Vec<ExportReport>> {
+        if settings_jsons.is_empty() || settings_jsons.len() > 32 {
+            return Err(failure("choose 1–32 export presets"));
+        }
+        let settings = settings_jsons
+            .iter()
+            .map(|json| ExportOptions::from_json(json))
+            .collect::<Result<Vec<_>>>()?;
+        for options in &settings {
+            if !Path::new(options.destination.trim()).is_absolute() {
+                return Err(failure("choose an export folder (an absolute path)"));
+            }
+        }
+        let ids = self.resolve_target(target)?;
+        if ids.is_empty() {
+            return Err(failure("nothing to export"));
+        }
+        let pending = self.pending(&ids)?;
+        let mut reports = Vec::new();
+        for options in &settings {
+            if !reports.is_empty() && cancel.as_ref().is_some_and(|c| c.is_cancelled()) {
+                break;
+            }
+            // Preserve reports from earlier presets if a later destination or
+            // name plan fails (multi-export is not an all-or-nothing transaction).
+            let report = self
+                .export_batch_unremembered(
+                    ExportTarget::Images {
+                        image_ids: ids.clone(),
+                    },
+                    options.to_json(),
+                    listener.clone(),
+                    cancel.clone(),
+                )
+                .unwrap_or_else(|error| ExportReport {
+                    destination: options.destination.clone(),
+                    items: pending
+                        .iter()
+                        .map(|p| ExportItemResult {
+                            image_id: p.id.clone(),
+                            name: file_name(&p.path),
+                            output_path: None,
+                            error: Some(error.to_string()),
+                        })
+                        .collect(),
+                    exported: 0,
+                    failed: pending.len() as u32,
+                    cancelled: cancel.as_ref().is_some_and(|c| c.is_cancelled()),
+                    seconds: 0.0,
+                    workflow_errors: Vec::new(),
+                });
+            reports.push(report);
+        }
+        if reports.len() == settings.len()
+            && reports.iter().all(|r| {
+                !r.cancelled && r.failed == 0 && r.exported > 0 && r.workflow_errors.is_empty()
+            })
+            && let Err(error) = self.remember_export(settings)
+        {
+            reports
+                .last_mut()
+                .expect("nonempty settings")
+                .workflow_errors
+                .push(format!("save previous export: {error}"));
+        }
+        Ok(reports)
+    }
+
     /// Exports `target` with `settings_json` (`ExportOptions`) into its
     /// destination. Blocking: call off the main thread. Per-image failures
     /// (unreadable source, existing file with `on_conflict: skip`, …) are
@@ -797,6 +930,30 @@ impl Engine {
     /// whole call before anything is written. After a cancel the report lists
     /// the images already written; nothing half-written is left behind.
     pub fn export_batch(
+        &self,
+        target: ExportTarget,
+        settings_json: String,
+        listener: Option<Arc<dyn ExportProgressListener>>,
+        cancel: Option<Arc<CancelFlag>>,
+    ) -> Result<ExportReport> {
+        let options = ExportOptions::from_json(&settings_json)?;
+        let mut report = self.export_batch_unremembered(target, settings_json, listener, cancel)?;
+        if !report.cancelled
+            && report.failed == 0
+            && report.exported > 0
+            && report.workflow_errors.is_empty()
+            && let Err(error) = self.remember_export(vec![options])
+        {
+            report
+                .workflow_errors
+                .push(format!("save previous export: {error}"));
+        }
+        Ok(report)
+    }
+}
+
+impl Engine {
+    fn export_batch_unremembered(
         &self,
         target: ExportTarget,
         settings_json: String,
@@ -871,6 +1028,7 @@ impl Engine {
             failed: 0,
             cancelled: false,
             seconds: 0.0,
+            workflow_errors: Vec::new(),
         };
         let notify = |report: &ExportReport, current: String| {
             if let Some(l) = &listener {
@@ -994,6 +1152,19 @@ impl Engine {
         }
         report.seconds = started.elapsed().as_secs_f64();
         notify(&report, String::new());
+        // This is the host layer, after every encoder has joined. Neither
+        // engine export calls nor preset normalization can execute programs.
+        if !cancel.is_cancelled() && report.failed == 0 && report.exported > 0 {
+            let outputs = report
+                .items
+                .iter()
+                .filter_map(|i| i.output_path.as_ref().map(PathBuf::from))
+                .collect::<Vec<_>>();
+            report.workflow_errors =
+                export::run_after_export(&options.after_export, &outputs, &cancel);
+        }
+        report.cancelled |= cancel.is_cancelled();
+        report.seconds = started.elapsed().as_secs_f64();
         Ok(report)
     }
 }

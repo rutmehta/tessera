@@ -21,6 +21,252 @@ fn sharpening_amount_json_defaults_and_roundtrip() {
     assert!(normalize_export_settings(r#"{"sharpening_amount":"extreme"}"#.into()).is_err());
 }
 
+#[test]
+fn workflow_previous_survives_reopen_and_uses_the_new_selection() {
+    let f = fixture();
+    let target = |id: &String| ExportTarget::Images {
+        image_ids: vec![id.clone()],
+    };
+    assert!(
+        f.engine
+            .export_with_previous(target(&f.ids[0]), None, None)
+            .is_err()
+    );
+    let out = f.dir.path().join("previous");
+    let options = settings(&out, serde_json::json!({"format":"png"}));
+    let first = f
+        .engine
+        .export_batch(target(&f.ids[0]), options, None, None)
+        .unwrap();
+    assert_eq!((first.exported, first.failed), (1, 0));
+    let reopened = Engine::open(f.support.clone()).unwrap();
+    let reports = reopened
+        .export_with_previous(target(&f.ids[1]), None, None)
+        .unwrap();
+    assert_eq!(reports.len(), 1);
+    assert_eq!((reports[0].exported, reports[0].failed), (1, 0));
+    assert_eq!(image::open(out.join("b.png")).unwrap().width(), 16);
+    assert!(!out.join("a-2.png").exists());
+}
+
+#[test]
+fn workflow_multiple_settings_are_preflighted_and_remembered_together() {
+    let f = fixture();
+    let target = || ExportTarget::Images {
+        image_ids: vec![f.ids[0].clone()],
+    };
+    let out = f.dir.path().join("multiple");
+    let jpeg = settings(&out, serde_json::json!({}));
+    let png = settings(&out, serde_json::json!({"format":"png"}));
+    assert!(
+        f.engine
+            .export_multiple(
+                target(),
+                vec![jpeg.clone(), "{\"quality\":0}".into()],
+                None,
+                None
+            )
+            .is_err()
+    );
+    assert!(
+        !out.exists(),
+        "later invalid settings must prevent earlier exports"
+    );
+    let reports = f
+        .engine
+        .export_multiple(target(), vec![jpeg, png], None, None)
+        .unwrap();
+    assert_eq!(reports.len(), 2);
+    assert!(reports.iter().all(|r| r.exported == 1 && r.failed == 0));
+    assert!(out.join("a.jpg").is_file());
+    assert!(out.join("a.png").is_file());
+    let saved = std::fs::read(Path::new(&f.support).join("LastExport.json")).unwrap();
+    let saved_json: serde_json::Value = serde_json::from_slice(&saved).unwrap();
+    assert_eq!(saved_json["settings"].as_array().unwrap().len(), 2);
+    let cancel = CancelFlag::new();
+    cancel.cancel();
+    let cancelled = f
+        .engine
+        .export_with_previous(target(), None, Some(cancel))
+        .unwrap();
+    assert!(cancelled[0].cancelled);
+    assert_eq!(
+        std::fs::read(Path::new(&f.support).join("LastExport.json")).unwrap(),
+        saved
+    );
+    let reopened = Engine::open(f.support.clone()).unwrap();
+    let again = reopened
+        .export_with_previous(
+            ExportTarget::Images {
+                image_ids: vec![f.ids[1].clone()],
+            },
+            None,
+            None,
+        )
+        .unwrap();
+    assert_eq!(again.len(), 2);
+    assert!(out.join("b.jpg").is_file());
+    assert!(out.join("b.png").is_file());
+}
+
+#[test]
+#[cfg(unix)]
+fn workflow_script_runs_in_host_only_after_successful_export() {
+    use std::os::unix::fs::PermissionsExt;
+    let f = fixture();
+    let out = f.dir.path().join("with spaces;not-shell");
+    let script = f.dir.path().join("post export.sh");
+    std::fs::write(&script, "#!/bin/sh\nfor file do\n  test -f \"$file\" || exit 42\n  printf '%s\\n' \"$file\" > \"$file.receipt\"\ndone\n").unwrap();
+    std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o700)).unwrap();
+    let options = settings(
+        &out,
+        serde_json::json!({"after_export":{"run_script":script}}),
+    );
+    let report = f
+        .engine
+        .export_batch(
+            ExportTarget::Images {
+                image_ids: vec![f.ids[0].clone()],
+            },
+            options.clone(),
+            None,
+            None,
+        )
+        .unwrap();
+    assert_eq!((report.exported, report.failed), (1, 0));
+    assert!(report.workflow_errors.is_empty(), "{report:?}");
+    assert_eq!(
+        std::fs::read_to_string(out.join("a.jpg.receipt")).unwrap(),
+        format!("{}\n", out.join("a.jpg").display())
+    );
+    let previous = std::fs::read(Path::new(&f.support).join("LastExport.json")).unwrap();
+    // A host failure must retain the output and previous settings, not report
+    // the already-published image as a failed render or discard its path.
+    std::fs::write(&script, "#!/bin/sh\nexit 23\n").unwrap();
+    let report = f
+        .engine
+        .export_batch(
+            ExportTarget::Images {
+                image_ids: vec![f.ids[1].clone()],
+            },
+            options,
+            None,
+            None,
+        )
+        .unwrap();
+    assert_eq!((report.exported, report.failed), (1, 0));
+    assert_eq!(report.workflow_errors.len(), 1);
+    assert!(report.workflow_errors[0].contains("23"));
+    assert!(out.join("b.jpg").exists());
+    assert_eq!(
+        std::fs::read(Path::new(&f.support).join("LastExport.json")).unwrap(),
+        previous
+    );
+    assert!(
+        normalize_export_settings(r#"{"after_export":{"run_script":"relative.sh"}}"#.into())
+            .is_err()
+    );
+}
+
+#[test]
+fn workflow_failures_preserve_previous_and_earlier_preset_reports() {
+    let f = fixture();
+    let target = || ExportTarget::Images {
+        image_ids: vec![f.ids[0].clone()],
+    };
+    let out = f.dir.path().join("good");
+    let options = settings(&out, serde_json::json!({}));
+    f.engine
+        .export_batch(target(), options.clone(), None, None)
+        .unwrap();
+    let last = Path::new(&f.support).join("LastExport.json");
+    let saved = std::fs::read(&last).unwrap();
+    let blocked = f.dir.path().join("not-a-directory");
+    std::fs::write(&blocked, "not a directory").unwrap();
+    let reports = f
+        .engine
+        .export_multiple(
+            target(),
+            vec![options, settings(&blocked, serde_json::json!({}))],
+            None,
+            None,
+        )
+        .unwrap();
+    assert_eq!(reports.len(), 2);
+    assert_eq!((reports[0].exported, reports[1].failed), (1, 1));
+    assert!(Path::new(reports[0].items[0].output_path.as_ref().unwrap()).is_file());
+    assert!(reports[1].items[0].error.is_some());
+    assert_eq!(std::fs::read(&last).unwrap(), saved);
+    let invalid = settings(&out, serde_json::json!({"on_conflict":"skip"}));
+    assert_eq!(
+        f.engine
+            .export_batch(target(), invalid, None, None)
+            .unwrap()
+            .failed,
+        1
+    );
+    assert_eq!(std::fs::read(&last).unwrap(), saved);
+    for corrupt in [
+        "not json",
+        r#"{"version":2,"settings":[]}"#,
+        r#"{"version":1,"settings":[]}"#,
+    ] {
+        std::fs::write(&last, corrupt).unwrap();
+        assert!(f.engine.export_with_previous(target(), None, None).is_err());
+        assert_eq!(std::fs::read_to_string(&last).unwrap(), corrupt);
+    }
+}
+
+#[test]
+#[cfg(unix)]
+fn workflow_does_not_run_scripts_after_cancel_or_partial_failure() {
+    use std::os::unix::fs::PermissionsExt;
+    let f = fixture();
+    let script = f.dir.path().join("mark.sh");
+    std::fs::write(
+        &script,
+        "#!/bin/sh\nfor file do touch \"$file.receipt\"; done\n",
+    )
+    .unwrap();
+    std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o700)).unwrap();
+    let out = f.dir.path().join("partial");
+    std::fs::create_dir(&out).unwrap();
+    std::fs::write(out.join("a.jpg"), "existing").unwrap();
+    let options = settings(
+        &out,
+        serde_json::json!({"on_conflict":"skip","after_export":{"run_script":script}}),
+    );
+    let report = f
+        .engine
+        .export_batch(
+            ExportTarget::Images {
+                image_ids: f.ids.clone(),
+            },
+            options.clone(),
+            None,
+            None,
+        )
+        .unwrap();
+    assert_eq!((report.exported, report.failed), (2, 1));
+    assert!(!out.join("b.jpg.receipt").exists());
+    assert!(!Path::new(&f.support).join("LastExport.json").exists());
+    let cancel = CancelFlag::new();
+    cancel.cancel();
+    let report = f
+        .engine
+        .export_batch(
+            ExportTarget::Images {
+                image_ids: f.ids.clone(),
+            },
+            options,
+            None,
+            Some(cancel),
+        )
+        .unwrap();
+    assert!(report.cancelled);
+    assert!(!out.join("b.jpg.receipt").exists());
+}
+
 struct Fixture {
     dir: tempfile::TempDir,
     support: String,

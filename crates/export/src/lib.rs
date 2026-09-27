@@ -8,10 +8,12 @@ mod codec;
 mod jxl;
 pub use avif::{AvifOptions, encode_avif};
 mod watermark;
+mod workflow;
 pub use batch::{
     BatchReport, ExportItem, Progress, export_batch, export_batch_upscaled, export_batch_with_jobs,
 };
 pub use watermark::{Anchor, Watermark, apply_watermark};
+pub use workflow::{AfterExportActions, AfterExportCommand, run_after_export};
 mod filter;
 mod gpu;
 use engine_api::{EngineError, EngineResult};
