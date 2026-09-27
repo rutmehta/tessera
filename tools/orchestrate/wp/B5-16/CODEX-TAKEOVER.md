@@ -425,3 +425,14 @@ mapping; legacy erased BridgeErrors remain failures rather than guesses.
 Running-drain admission and commit semantics retained. Two deterministic source
 tests added UNRUN; see PSD-COPY-ERROR-PRECEDENCE.md, including ambiguous legacy
 effect cancellation limitation. No B workloads or heartbeat restart.
+
+## Legacy effect audit — ab6dceee (2026-09-27)
+
+Validated/accepted source-only request. LEGACY-EFFECT-CANCELLATION-AUDIT.md traces
+EngineError::Cancelled erased in run_effect and proposes private typed results
+through Spec::run/eval_stack with explicit native/legacy exit conversions.
+Receiver first-error return can hide later genuine parallel failures; proposal
+drains and prioritizes observed failures. No implementation/tests/workloads.
+User now asks when they can edit photos; requested A assess a concrete validated
+editing build and exact blockers separately from full-feature completion via
+mailbox7be2fbaf. This does not lift B hold or restart heartbeat.
