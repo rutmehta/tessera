@@ -1,6 +1,6 @@
 # Tessera task board — Machine A coordinator
 
-Updated: 2026-09-27 19:57 UTC
+Updated: 2026-09-27 20:00 UTC
 
 User mandate: autonomously advance UI/UX redesign **and** the recovered engine
 queue, using parallel GPT-6 Astra/Luna agents; coordinate Machine B and keep
@@ -43,8 +43,10 @@ Full provenance lives in tools/orchestrate/wp/INT-45/evidence/2026-09-27-integra
 A resumed after a usage-limit interruption; no duplicate tests were launched.
 UX02a's completed status/ready-preview gate passed two tests with zero failures,
 and its source digest matched the retained manifest. Root inspected real saved
-pixels at minimum width; 34 captures include ready states. Masks now owns the
-heavy slot for its populated narrow-width regression and refinement. A Luna
+pixels at minimum width; 34 captures include ready states. Masks reproduced six real narrow-label failures plus one OCR punctuation mismatch.
+Its bounded two-row correction and focused verification now own the heavy slot.
+Review integration candidate4188dd7 is prepared in the reused export-integration
+checkout, retaining main export source and ownership evidence; full gate pending. A Luna
 agent inspected the old packaged baseline and prepares hands-on candidate checks.
 The user authorizes multiple isolated builds on betterSSD and computer-use tests;
 keep catalogs separate and serialize UI control as well as heavy builds.
@@ -76,11 +78,11 @@ separate evidence; no threshold was weakened or failed sample replaced.
 ## Machine B / integration dependencies
 
 Last peer note read: `8f32f51`; latest published A status acknowledged by B:
-`6e1e7b8` via mailbox bd919fed. B reports424XCTest/one skip/zero failures +5SwiftTesting, Xcode and package provenance passed. First packaged Document test passed; eight others awaited runner reconciliation after interruption. No final acceptance inferred. A acknowledges B5-15 checkpoint `aec242f` and failed M5-31 timing.
+`6e1e7b8` via mailbox bd919fed. B reports424XCTest/one skip/zero failures +5SwiftTesting, Xcode and package provenance passed. Runner reconciled: six packaged passes (Document/Tools/Filter/Retouch/Styles/Vector), three failures (Channels/Text timeout despite done0, Transform empty Puppet source). B fixes lifecycle and investigates Transform without waivers. No final acceptance inferred. A acknowledges B5-15 checkpoint `aec242f` and failed M5-31 timing.
 
 | ID | Work | State / next action |
 | --- | --- | --- |
-| B5-16 | Tabbed Document inspector / persisted editors | B accepted A's legacy Neutralize and runner failure-accounting findings. Fixes and interactive acceptance pending; hold merge. Resolve documented conflicts preserving B5-16a. |
+| B5-16 | Tabbed Document inspector / persisted editors | Review fixes published8184da1; strict packaged runner six passes/three failures retained. B repairs Channels/Text termination and investigates Transform. Hold main merge; new-main integration and interactive acceptance remain pending. |
 | B5-15 | Export App Nap fix / performance | B published `aec242f`; export-only improvement does not clear main-thread maxima35.93/58.00ms vs8ms, AppKit layout exception, P19 or memory gates. B owns app fixes; A engine optimization only with explicit evidence/split. |
 | B5-12b | Transform acceptance | Incomplete early-exit/failure accounting; B continues. |
 | B5-13 | Liquify / move / extend | B owns preserved work and current acceptance. |

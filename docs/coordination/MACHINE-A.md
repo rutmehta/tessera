@@ -4,6 +4,20 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## Current work — 2026-09-27 20:00 UTC
+
+B result e6634ca4 reconciles its original runner: aggregate failure, six packaged
+passes, Channels/Text timeout after done0, and Transform Puppet source failure.
+B retains its heavy slot to repair and investigate. A has not merged B5-16.
+
+A prepared resolved Review integration candidate4188dd7 in the free managed
+export-integration checkout; no product conflicts, ownership evidence appendix
+retained. Source format check passed (raw captured compiler logs retain original
+trailing whitespace). Full combined gate is pending. Masks reproduced narrow
+label failures and now validates its bounded correction. The Luna baseline audit
+and Sol gain-map validation preparation run as separate tasks. Isolated Review
+dev-test packaging on betterSSD is underway, distinct from release acceptance.
+
 ## Resume checkpoint — 2026-09-27 19:57 UTC
 
 Recovered the interrupted Review gate: two tests passed with zero failures;
