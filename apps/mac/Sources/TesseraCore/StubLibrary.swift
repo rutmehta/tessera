@@ -1,6 +1,16 @@
 import Foundation
 import ImageIO
 
+/// Synthetic library loading is a diagnostic aid, not a normal Library action.
+/// Enable its UI entry points only in an explicitly marked diagnostic launch.
+public enum StubLibraryDiagnostics {
+    public static var isEnabled: Bool {
+        let process = ProcessInfo.processInfo
+        return process.arguments.contains("--enable-stub-library")
+            || process.environment["TESSERA_ENABLE_STUB_LIBRARY"] == "1"
+    }
+}
+
 /// Stand-in for the Rust index until `crates/index` + UniFFI land. Lists the JPEG / RAW files of one
 /// folder (non-recursive), reads capture time and size from their metadata via ImageIO, sorts by
 /// capture time and assigns stub groups. Can also generate N synthetic items for performance testing.
