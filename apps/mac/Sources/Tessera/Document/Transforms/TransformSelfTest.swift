@@ -30,6 +30,7 @@ final class TransformSelfTest {
             path = args[i + 1]
         } else { return }
         started = true
+        DocumentTransforms.shared.workspace = workspace
         let test = TransformSelfTest(workspace: workspace, dir: URL(fileURLWithPath: (path as NSString).expandingTildeInPath))
         Task { @MainActor in await test.run() }
     }
@@ -218,8 +219,17 @@ final class TransformSelfTest {
         d.select(photo)
 
         // 380: Edit ▸ Transform exposes the four commands.
+        // SwiftUI fills menus lazily: ask each one to update, as opening it would.
+        func refresh(_ m: NSMenu?) {
+            guard let m else { return }
+            m.delegate?.menuNeedsUpdate?(m)
+            m.update()
+            for i in m.items { refresh(i.submenu) }
+        }
+        refresh(NSApp.mainMenu?.item(withTitle: "Edit")?.submenu)
         let transformMenu = NSApp.mainMenu?.item(withTitle: "Edit")?.submenu?.item(withTitle: "Transform")?.submenu
         let titles = transformMenu?.items.map(\.title) ?? []
+        if titles.isEmpty { log("Edit menu: " + (NSApp.mainMenu?.item(withTitle: "Edit")?.submenu?.items.map(\.title).joined(separator: " | ") ?? "-")) }
         check("380 Edit ▸ Transform items", ["Warp", "Perspective Warp", "Puppet Warp", "Content-Aware Scale"].allSatisfy(titles.contains),
               titles.joined(separator: ", "))
 
@@ -393,7 +403,38 @@ final class TransformSelfTest {
         viewport?.zoomToFit()
         await pause(0.4)
 
-        // 389–390: content-aware scale with amount 0 / 1 and a saved alpha channel.
+        // 389–390 on a fresh single-layer document (amount 0 / 1, then a protection channel).
+        if let casURL = writeCard("cas.png", width: 800, height: 500), let dc = await open(casURL),
+           let l = dc.layers.first(where: { $0.kind == .pixel })?.id {
+            dc.select(l)
+            viewport?.zoomToFit()
+            if let s = engine {
+                _ = try? s.setSelectionRect(x: 300, y: 0, width: 220, height: 500, feather: 0)
+                _ = try? s.saveSelectionChannel(name: "Protect rings", target: nil, op: .replace)
+                _ = try? s.clearSelection()
+                dc.reloadModel()
+            }
+            if await began(.contentAwareScale) {
+                t.setScale(width: 560, amount: 0)
+                await settle(4)
+                await shot("389-cas-amount-0")
+                t.setScale(amount: 1)
+                await settle(8)
+                await shot("389-cas-amount-1")
+                if let c = t.channels.first(where: { $0.name == "Protect rings" }) {
+                    t.setScale(protect: .some(c.id))
+                    await settle(8)
+                    await shot("390-cas-protected-channel")
+                }
+                _ = await finished { t.cancel() }
+                check("389 fresh CAS cancelled to Pixel", dc.node(l)?.kind == .pixel)
+            }
+            workspace.close(dc)
+            await pause(0.5)
+            workspace.select(d)
+            await settle(1)
+        }
+        // 389–390 on the stacked smart object: content-aware scale above three geometric stages.
         if let s = engine {
             _ = try? s.setSelectionRect(x: 0, y: 0, width: Int64(W * 0.3), height: Int64(H), feather: 0)
             _ = try? s.saveSelectionChannel(name: "Protect left", target: nil, op: .replace)
@@ -404,16 +445,9 @@ final class TransformSelfTest {
         check("390 channel offered, no skin option", t.channels.contains { $0.name == "Protect left" } && !(t.session?.start.limitations.joined().contains("skin detector") ?? true),
               t.channels.map(\.name).joined(separator: ","))
         t.setScale(width: UInt32(W * 0.7), amount: 0)
-        await settle(1.5)
-        await shot("389-cas-amount-0")
         t.setScale(amount: 1)
+        if let c = t.channels.first(where: { $0.name == "Protect left" }) { t.setScale(protect: .some(c.id)) }
         await settle(3)
-        await shot("389-cas-amount-1")
-        if let c = t.channels.first(where: { $0.name == "Protect left" }) {
-            t.setScale(protect: .some(c.id))
-            await settle(3)
-            await shot("390-cas-protected")
-        }
         if case .contentAwareScale(let c) = t.session?.op, let s = t.session {
             // Drag the right handle back to 80 %.
             await drag(view(c.point(.right)), view(CGPoint(x: Double(s.start.childWidth) * 0.8, y: Double(c.point(.right).y))), steps: 6)
@@ -460,7 +494,8 @@ final class TransformSelfTest {
         t.applyWarpPreset("Wave")
         guard let url2 = writeCard("second.png", width: 800, height: 500), let d2 = await open(url2) else { return finish() }
         await pause(1)
-        check("393 switch ended the session", t.session == nil)
+        check("393 switch ended the session", t.session == nil,
+              "current \(workspace.current?.id ?? "-") session \(t.session?.doc?.id ?? "-") d2 \(d2.id) d \(d.id)")
         workspace.select(d)
         await settle(1)
         check("393 no late history node", history() == hBeforeSwitch, "\(history()) vs \(hBeforeSwitch)")
@@ -485,9 +520,13 @@ final class TransformSelfTest {
         }
         if let tb = d.backend as? any DocumentTransformsBackend {
             let copy = dir.appendingPathComponent("transforms-rasterized.psd")
-            do { try tb.savePSDRasterizingTransforms(path: copy.path); check("398 rasterized copy", FileManager.default.fileExists(atPath: copy.path)) } catch {
-                check("398 rasterized copy", false, error.localizedDescription)
+            let started = Date()
+            let r = await Task.detached { Result { try tb.savePSDRasterizingTransforms(path: copy.path) } }.value
+            switch r {
+            case .success: check("398 rasterized copy", FileManager.default.fileExists(atPath: copy.path))
+            case .failure(let e): check("398 rasterized copy", false, e.localizedDescription)
             }
+            log(String(format: "398 rasterized copy took %.0f ms", Date().timeIntervalSince(started) * 1000))
         }
         if let reopened = await open(native) {
             let stages = reopened.layers.filter { $0.kind == .smartObject }.flatMap {
@@ -549,5 +588,8 @@ final class TransformSelfTest {
     private func finish() {
         log("done, \(failures) failure(s)")
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) { NSApp.terminate(nil) }
+        // Documents left dirty by the run may hold termination at a save prompt: a test aid just exits.
+        let code: Int32 = failures == 0 ? 0 : 1
+        DispatchQueue.main.asyncAfter(deadline: .now() + 6) { exit(code) }
     }
 }

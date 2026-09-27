@@ -585,7 +585,23 @@ fn native_stack(base: &DocState, layer: &Layer, nodes: &[Node], level: u8) -> Re
     state.root.push(Arc::new(l));
     let mut comp = super::fonts::compositor(64 << 20); // B5-10b
     comp.set_filter_evaluator(Arc::new(NativeFilterEvaluator));
-    let (e, px) = comp.render_level_rgba(&Document::new(state), level)?;
+    let doc = Document::new(state);
+    // Evaluate the stack once from this (non-rayon) thread before the parallel
+    // tile render: the compositor holds its filter-cache lock while a stack
+    // evaluates (itself on rayon), and tile workers blocking on that lock can
+    // deadlock the pool (NEEDS.md). One tile touching the layer warms the cache.
+    if let Some(b) = doc.state().root[0]
+        .affected_bounds()
+        .map(|b| b.intersect(&Rect::of_extent(base.canvas)))
+        .filter(|b| !b.is_empty())
+    {
+        let ts = i64::from(TILE_SIZE) << level;
+        comp.render_tile(
+            &doc,
+            TileCoord::new(level, (b.x0 / ts) as u32, (b.y0 / ts) as u32),
+        )?;
+    }
+    let (e, px) = comp.render_level_rgba(&doc, level)?;
     Ok(Img {
         rect: Rect::of_extent(e),
         px,

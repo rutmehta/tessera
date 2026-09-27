@@ -21,7 +21,8 @@ final class DocumentTransforms {
     // MARK: Session
 
     struct Session {
-        let docID: String
+        /// The document (by identity: ids are per engine and can repeat across engines).
+        weak var doc: DocumentController?
         let start: AdvancedTransformStart
         var op: TransformOperationModel
         var kernel: TransformKernel
@@ -81,7 +82,7 @@ final class DocumentTransforms {
     }
 
     var isActive: Bool { session != nil }
-    func isActive(_ doc: DocumentController?) -> Bool { doc != nil && session?.docID == doc?.id }
+    func isActive(_ doc: DocumentController?) -> Bool { doc != nil && session?.doc === doc }
     var tag: AdvancedTransformTag? { session?.op.tag }
 
     private func backend(_ doc: DocumentController) -> (any DocumentTransformsBackend)? { doc.backend as? any DocumentTransformsBackend }
@@ -203,7 +204,8 @@ final class DocumentTransforms {
             }
         }
         if case .puppet = op, mesh == nil { puppetNote = nil }
-        session = Session(docID: doc.id, start: start, op: op, kernel: kernel, accepted: op)
+        session = Session(doc: doc, start: start, op: op, kernel: kernel, accepted: op)
+        watchDocument()
         warpPreset = "Custom"
         _ = ensureOverlay(doc)
         doc.viewport?.cursorDidChange()
@@ -231,7 +233,7 @@ final class DocumentTransforms {
     }
 
     private func commit(convert: Bool) {
-        guard let s = session, let doc = document, doc.id == s.docID, let t = backend(doc) else { return }
+        guard let s = session, let doc = document, s.doc === doc, let t = backend(doc) else { return }
         flushPreviewThen { [weak self] in
             guard let self else { return }
             let token = s.start.token
@@ -255,8 +257,7 @@ final class DocumentTransforms {
 
     /// Esc / Cancel: no history change.
     func cancel() {
-        guard let s = session, let doc = workspace?.documents.first(where: { $0.id == s.docID }) ?? document,
-              doc.id == s.docID, let t = backend(doc) else { end(); return }
+        guard let s = session, let doc = s.doc, let t = backend(doc) else { end(); return }
         let token = s.start.token
         end()
         enqueue("Cancel") {
@@ -284,6 +285,19 @@ final class DocumentTransforms {
     func toolSelected() {
         guard let s = session else { return }
         if s.start.needsConversion { say("\(s.op.tag.title) cancelled: applying it converts the layer (use Apply)"); cancel() } else { apply() }
+    }
+
+    /// Cancels the session when the workspace switches to another document (tab, open, close).
+    private func watchDocument() {
+        withObservationTracking {
+            _ = workspace?.current
+        } onChange: {
+            Task { @MainActor in
+                let me = DocumentTransforms.shared
+                guard let s = me.session else { return }
+                if me.workspace?.current !== s.doc { me.cancel() } else { me.watchDocument() }
+            }
+        }
     }
 
     /// The document is switching or closing: never apply into another document.
@@ -323,7 +337,7 @@ final class DocumentTransforms {
     }
 
     private func pumpPreview() {
-        guard previewDirty, !previewInFlight, let s = session, let doc = document, doc.id == s.docID, let t = backend(doc) else { return }
+        guard previewDirty, !previewInFlight, let s = session, let doc = document, s.doc === doc, let t = backend(doc) else { return }
         previewDirty = false
         previewInFlight = true
         let op = s.op, kernel = s.kernel, token = s.start.token

@@ -48,7 +48,7 @@ struct DocumentView: View {
         .onAppear { DocumentText.shared.attach(workspace) }   // B5-10: the Type tool
         // B5-12 begin: Warp / Perspective / Puppet / Content-Aware Scale (Document/Transforms).
         .onAppear { DocumentTransforms.shared.attach(workspace) }
-        .onChange(of: workspace.current?.id) { _, _ in DocumentTransforms.shared.documentWillChange() }
+        .onChange(of: workspace.current.map(ObjectIdentifier.init)) { _, _ in DocumentTransforms.shared.documentWillChange() }
         .modifier(TransformSheets(t: DocumentTransforms.shared))
         // B5-12 end
     }
