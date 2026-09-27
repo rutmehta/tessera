@@ -9,6 +9,8 @@ final class LoupeOverlayPresentationTests: XCTestCase {
             LoupeOverlay.proofBadgeText(enabled: true, profileName: "Studio Matte", status: "", gamutWarning: true),
             "Proof · Studio Matte · gamut warning"
         )
+        XCTAssertEqual(LoupeOverlay.proofHeading(profileName: "Studio Matte"), "Soft proof · Studio Matte")
+        XCTAssertEqual(LoupeOverlay.proofHeading(profileName: nil), "Soft proof")
         XCTAssertEqual(
             LoupeOverlay.proofBadgeText(enabled: true, profileName: nil, status: "Preparing proof…", gamutWarning: false),
             "Preparing proof…"
@@ -35,7 +37,17 @@ final class LoupeOverlayPresentationTests: XCTestCase {
         XCTAssertTrue(model.isReviewEditing)
         let shortcuts = LoupeOverlay(model: model).shortcutText
         XCTAssertTrue(shortcuts.contains("previous / next review photo"))
-        XCTAssertTrue(shortcuts.contains("Esc Back to Review"))
+        XCTAssertTrue(shortcuts.contains("Esc tool / Back to Review"))
         XCTAssertFalse(shortcuts.contains("Back to Library"))
+    }
+
+    func testDisplayInfoCarriesFullLibraryNameAndPhotoEditUsesHeaderInstead() {
+        let model = AppModel()
+        model.loadStubItems(count: 1)
+        let libraryName = LoupeOverlay(model: model).photoNameDisclosure
+        XCTAssertEqual(libraryName, model.focusedItem?.name)
+
+        model.enterPhotoEdit()
+        XCTAssertNil(LoupeOverlay(model: model).photoNameDisclosure)
     }
 }

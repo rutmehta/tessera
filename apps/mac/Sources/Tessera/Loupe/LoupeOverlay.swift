@@ -27,9 +27,18 @@ struct LoupeOverlay: View {
         return status + (proof.gamutWarning ? " · Gamut warning is on." : "")
     }
 
+    static func proofHeading(profileName: String?) -> String {
+        profileName.map { "Soft proof · \($0)" } ?? "Soft proof"
+    }
+
+    var photoNameDisclosure: String? {
+        guard !model.isPhotoEditing else { return nil }
+        return model.focusedItem?.name
+    }
+
     var shortcutText: String {
         if model.isReviewEditing {
-            return "← → previous / next review photo\nD Develop · M masks\n⌘Z photo undo · Esc Back to Review"
+            return "← → previous / next review photo\nD Develop · M masks\n⌘Z photo undo · Esc tool / Back to Review"
         }
         if model.isPhotoEditing {
             return "← → previous / next photo\nD Develop · M masks\n⌘Z photo undo · Esc tool / Back to Library"
@@ -46,7 +55,6 @@ struct LoupeOverlay: View {
                         .foregroundStyle(Color(nsColor: Theme.Palette.OnImage.text))
                         .lineLimit(1)
                         .truncationMode(.middle)
-                        .help(item.name)
                         .accessibilityLabel("Photo: \(item.name)")
                         .padding(.horizontal, Theme.Space.s)
                         .background(Capsule().fill(Color(nsColor: Theme.Palette.OnImage.scrim)))
@@ -142,6 +150,19 @@ struct LoupeOverlay: View {
             Text("Display info")
                 .font(Theme.Fonts.labelSemibold)
                 .foregroundStyle(Theme.textPrimary)
+            if let photoName = photoNameDisclosure {
+                VStack(alignment: .leading, spacing: Theme.Space.xs) {
+                    Text("Photo")
+                        .font(Theme.Fonts.labelMedium)
+                        .foregroundStyle(Theme.textPrimary)
+                    Text(photoName)
+                        .font(Theme.Fonts.caption)
+                        .foregroundStyle(Theme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityLabel("Photo: \(photoName)")
+                        .accessibilityIdentifier("loupe-display-photo-name")
+                }
+            }
             Text(model.loupeInfo.isEmpty ? "Display information is unavailable." : model.loupeInfo)
                 .font(Theme.Fonts.caption)
                 .foregroundStyle(Theme.textSecondary)
@@ -149,7 +170,7 @@ struct LoupeOverlay: View {
                 .accessibilityIdentifier("loupe-display-info-details")
             if proof.enabled {
                 VStack(alignment: .leading, spacing: Theme.Space.xs) {
-                    Text("Soft proof · \(proof.lut?.profileName ?? "Preparing")")
+                    Text(Self.proofHeading(profileName: proof.lut?.profileName))
                         .font(Theme.Fonts.labelMedium)
                         .foregroundStyle(Theme.textPrimary)
                     Text(proofDetails)
