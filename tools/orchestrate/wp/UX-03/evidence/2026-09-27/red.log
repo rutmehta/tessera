@@ -1,0 +1,404 @@
+Fetching https://github.com/sparkle-project/Sparkle from cache
+Fetched https://github.com/sparkle-project/Sparkle from cache (0.43s)
+Computing version for https://github.com/sparkle-project/Sparkle
+Computed https://github.com/sparkle-project/Sparkle at 2.10.0 (0.96s)
+Creating working copy for https://github.com/sparkle-project/Sparkle
+Working copy of https://github.com/sparkle-project/Sparkle resolved at 2.10.0
+Fetching binary artifact https://github.com/sparkle-project/Sparkle/releases/download/2.10.0/Sparkle-for-Swift-Package-Manager.zip from cache
+Fetched https://github.com/sparkle-project/Sparkle/releases/download/2.10.0/Sparkle-for-Swift-Package-Manager.zip from cache (0.49s)
+Building for production...
+[0/12] /Volumes/betterSSD/tessera-cache/swift/batch-settings-a988-red/arm64-apple-macosx/release/TesseraPackageTests.derived/runner.swift
+[1/12] Write sources
+[6/12] Copying Sparkle.framework
+[7/12] Write swift-version--58304C5D6DBC2206.txt
+[9/13] Compiling TesseraFFI TesseraFFI.swift
+[10/14] Compiling TesseraCore AppDefaultsIsolation.swift
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:860:30: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 858 |         DispatchQueue.concurrentPerform(iterations: bands) { band in
+ 859 |             for r in (rows * band / bands)..<(rows * (band + 1) / bands) {
+ 860 |                 let ty = r * step
+     |                              `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 861 |                 let cy = (Float(y0 + ty) + 0.5 * Float(step)) * scale
+ 862 |                 var tx = 0
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:861:56: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 859 |             for r in (rows * band / bands)..<(rows * (band + 1) / bands) {
+ 860 |                 let ty = r * step
+ 861 |                 let cy = (Float(y0 + ty) + 0.5 * Float(step)) * scale
+     |                                                        `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 862 |                 var tx = 0
+ 863 |                 while tx < rw {
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:864:71: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 862 |                 var tx = 0
+ 863 |                 while tx < rw {
+ 864 |                     let c = comp.sample((Float(x0 + tx) + 0.5 * Float(step)) * scale, cy)
+     |                                                                       `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 865 |                     for dy in 0..<min(step, rh - ty) {
+ 866 |                         let line = bytes + (ty + dy) * stride
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:865:39: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 863 |                 while tx < rw {
+ 864 |                     let c = comp.sample((Float(x0 + tx) + 0.5 * Float(step)) * scale, cy)
+ 865 |                     for dy in 0..<min(step, rh - ty) {
+     |                                       `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 866 |                         let line = bytes + (ty + dy) * stride
+ 867 |                         for dx in 0..<min(step, rw - tx) { Self.store(c, line + (tx + dx) * 4) }
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:867:43: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 865 |                     for dy in 0..<min(step, rh - ty) {
+ 866 |                         let line = bytes + (ty + dy) * stride
+ 867 |                         for dx in 0..<min(step, rw - tx) { Self.store(c, line + (tx + dx) * 4) }
+     |                                           `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 868 |                     }
+ 869 |                     tx += step
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Sources/TesseraCore/Document/StubDocumentBackend.swift:869:27: warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 867 |                         for dx in 0..<min(step, rw - tx) { Self.store(c, line + (tx + dx) * 4) }
+ 868 |                     }
+ 869 |                     tx += step
+     |                           `- warning: reference to captured var 'step' in concurrently-executing code [#SendableClosureCaptures]
+ 870 |                 }
+ 871 |             }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[11/15] Compiling Tessera AISettingsView.swift
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Sources/Tessera/Document/AdjustmentEditors.swift:55:55: warning: passing non-Sendable parameter 'change' to function expecting a '@Sendable' closure
+ 52 |     }
+ 53 | 
+ 54 |     private func checkbox(_ title: String, _ on: Bool, _ key: String, _ change: @escaping (Bool) -> Void) -> some View {
+    |                                                                         `- note: parameter 'change' is implicitly non-Sendable
+ 55 |         Toggle(title, isOn: Binding(get: { on }, set: change))
+    |                                                       `- warning: passing non-Sendable parameter 'change' to function expecting a '@Sendable' closure
+ 56 |             .toggleStyle(.checkbox)
+ 57 |             .font(Theme.Fonts.caption)
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Sources/Tessera/Document/Transforms/DocumentTransforms.swift:676:21: warning: 'where' only applies to the second pattern match in this 'case'
+674 |         let mods = e.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.numericPad, .function, .capsLock])
+675 |         switch e.keyCode {
+676 |         case 36, 76 where mods.isEmpty || mods == [.command]: apply(); return true
+    |              |   |  `- warning: 'where' only applies to the second pattern match in this 'case'
+    |              |   `- note: disambiguate by adding a line break between them if this is desired
+    |              `- note: duplicate the 'where' on both patterns to check both patterns
+677 |         case 53 where mods.isEmpty: cancel(); return true
+678 |         case 51, 117 where mods.isEmpty:
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Sources/Tessera/Document/Transforms/DocumentTransforms.swift:678:22: warning: 'where' only applies to the second pattern match in this 'case'
+676 |         case 36, 76 where mods.isEmpty || mods == [.command]: apply(); return true
+677 |         case 53 where mods.isEmpty: cancel(); return true
+678 |         case 51, 117 where mods.isEmpty:
+    |              |   |   `- warning: 'where' only applies to the second pattern match in this 'case'
+    |              |   `- note: disambiguate by adding a line break between them if this is desired
+    |              `- note: duplicate the 'where' on both patterns to check both patterns
+679 |             if case .puppet = session?.op, selectedPin != nil { removeSelectedPin(); return true }
+680 |             return false
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Sources/Tessera/Document/Transforms/TransformSelfTest.swift:460:16: warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+458 | 
+459 |         // 395: position lock rejects geometry.
+460 |         if let id = doc?.primary?.id {
+    |                `- warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+461 |             doc?.toggleLock(.position)
+462 |             await settle()
+[11/15] Write Objects.LinkFileList
+ld: warning: object file (/Users/rutmehta/.codex/worktrees/export-integration/tessera/apps/mac/build/ffi/libtessera_ffi.a[2845](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[12/15] Linking Tessera
+[14/16] Compiling TesseraCoreTests AgentReviewLayoutTests.swift
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/BatchSettingsDraftTests.swift:18:33: error: cannot find type 'BatchSettingsDraft' in scope
+ 16 |     """
+ 17 | 
+ 18 |     private func patch(_ draft: BatchSettingsDraft) throws -> [String: Any] {
+    |                                 `- error: cannot find type 'BatchSettingsDraft' in scope
+ 19 |         try XCTUnwrap(JSONSerialization.jsonObject(with: Data(draft.settingsJSON.utf8)) as? [String: Any])
+ 20 |     }
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/BatchSettingsDraftTests.swift:23:34: error: cannot find 'BatchSettingsDraft' in scope
+ 21 | 
+ 22 |     func testReferenceMustBeInExplicitSelection() {
+ 23 |         XCTAssertThrowsError(try BatchSettingsDraft(libraryID: "lib-1", focusedImageID: "other",
+    |                                  `- error: cannot find 'BatchSettingsDraft' in scope
+ 24 |                                                     selectedImageIDs: ["a", "b"],
+ 25 |                                                     sourceSettingsJSON: sourceSettings)) {
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/BatchSettingsDraftTests.swift:26:35: error: cannot find type 'BatchSettingsDraftError' in scope
+ 24 |                                                     selectedImageIDs: ["a", "b"],
+ 25 |                                                     sourceSettingsJSON: sourceSettings)) {
+ 26 |             XCTAssertEqual($0 as? BatchSettingsDraftError, .referenceNotSelected)
+    |                                   `- error: cannot find type 'BatchSettingsDraftError' in scope
+ 27 |         }
+ 28 |         XCTAssertThrowsError(try BatchSettingsDraft(libraryID: "lib-1", focusedImageID: nil,
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/BatchSettingsDraftTests.swift:28:34: error: cannot find 'BatchSettingsDraft' in scope
+ 26 |             XCTAssertEqual($0 as? BatchSettingsDraftError, .referenceNotSelected)
+ 27 |         }
+ 28 |         XCTAssertThrowsError(try BatchSettingsDraft(libraryID: "lib-1", focusedImageID: nil,
+    |                                  `- error: cannot find 'BatchSettingsDraft' in scope
+ 29 |                                                     selectedImageIDs: ["a", "b"],
+ 30 |                                                     sourceSettingsJSON: sourceSettings)) {
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/BatchSettingsDraftTests.swift:31:35: error: cannot find type 'BatchSettingsDraftError' in scope
+ 29 |                                                     selectedImageIDs: ["a", "b"],
+ 30 |                                                     sourceSettingsJSON: sourceSettings)) {
+ 31 |             XCTAssertEqual($0 as? BatchSettingsDraftError, .referenceNotSelected)
+    |                                   `- error: cannot find type 'BatchSettingsDraftError' in scope
+ 32 |         }
+ 33 |     }
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/BatchSettingsDraftTests.swift:28:89: error: 'nil' requires a contextual type
+ 26 |             XCTAssertEqual($0 as? BatchSettingsDraftError, .referenceNotSelected)
+ 27 |         }
+ 28 |         XCTAssertThrowsError(try BatchSettingsDraft(libraryID: "lib-1", focusedImageID: nil,
+    |                                                                                         `- error: 'nil' requires a contextual type
+ 29 |                                                     selectedImageIDs: ["a", "b"],
+ 30 |                                                     sourceSettingsJSON: sourceSettings)) {
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/BatchSettingsDraftTests.swift:37:25: error: cannot find 'BatchSettingsDraft' in scope
+ 35 |     func testTargetsAreFrozenDeduplicatedAndNeverIncludeReference() throws {
+ 36 |         var selected = ["source", "target-b", "target-a", "target-b", "source"]
+ 37 |         let draft = try BatchSettingsDraft(libraryID: "lib-1", focusedImageID: "source",
+    |                         `- error: cannot find 'BatchSettingsDraft' in scope
+ 38 |                                            selectedImageIDs: selected, sourceSettingsJSON: sourceSettings)
+ 39 |         selected = ["source", "new-arrival"]
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/BatchSettingsDraftTests.swift:47:34: error: cannot find 'BatchSettingsDraft' in scope
+ 45 | 
+ 46 |     func testOnlyReferenceOrDuplicatesCannotApply() {
+ 47 |         XCTAssertThrowsError(try BatchSettingsDraft(libraryID: "lib-1", focusedImageID: "source",
+    |                                  `- error: cannot find 'BatchSettingsDraft' in scope
+ 48 |                                                     selectedImageIDs: ["source", "source"],
+ 49 |                                                     sourceSettingsJSON: sourceSettings)) {
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/BatchSettingsDraftTests.swift:50:35: error: cannot find type 'BatchSettingsDraftError' in scope
+ 48 |                                                     selectedImageIDs: ["source", "source"],
+ 49 |                                                     sourceSettingsJSON: sourceSettings)) {
+ 50 |             XCTAssertEqual($0 as? BatchSettingsDraftError, .noTargets)
+    |                                   `- error: cannot find type 'BatchSettingsDraftError' in scope
+ 51 |         }
+ 52 |     }
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/BatchSettingsDraftTests.swift:55:25: error: cannot find 'BatchSettingsDraft' in scope
+ 53 | 
+ 54 |     func testDefaultPatchCopiesToneAndColorButExcludesImageSpecificWork() throws {
+ 55 |         let draft = try BatchSettingsDraft(libraryID: "lib-1", focusedImageID: "source",
+    |                         `- error: cannot find 'BatchSettingsDraft' in scope
+ 56 |                                            selectedImageIDs: ["source", "target"],
+ 57 |                                            sourceSettingsJSON: sourceSettings)
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/BatchSettingsDraftTests.swift:66:47: error: cannot infer contextual base in reference to member 'crop'
+ 64 |         XCTAssertNil(values["geometry"])
+ 65 |         XCTAssertNil(values["masks"])
+ 66 |         XCTAssertFalse(draft.groups.contains(.crop))
+    |                                               `- error: cannot infer contextual base in reference to member 'crop'
+ 67 |     }
+ 68 | 
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/BatchSettingsDraftTests.swift:70:27: error: cannot find 'BatchSettingsDraft' in scope
+ 68 | 
+ 69 |     func testChangingGroupsRebuildsPreviewWithoutChangingSourceOrTargets() throws {
+ 70 |         let initial = try BatchSettingsDraft(libraryID: "lib-1", focusedImageID: "source",
+    |                           `- error: cannot find 'BatchSettingsDraft' in scope
+ 71 |                                              selectedImageIDs: ["source", "target"],
+ 72 |                                              sourceSettingsJSON: sourceSettings)
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/BatchSettingsDraftTests.swift:73:46: error: reference to member 'detail' cannot be resolved without a contextual type
+ 71 |                                              selectedImageIDs: ["source", "target"],
+ 72 |                                              sourceSettingsJSON: sourceSettings)
+ 73 |         let detail = try initial.selecting([.detail])
+    |                                              `- error: reference to member 'detail' cannot be resolved without a contextual type
+ 74 |         let values = try patch(detail)
+ 75 |         XCTAssertEqual((values["detail"] as? [String: Any])?["sharpening"] as? Int, 20)
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/BatchSettingsDraftTests.swift:83:25: error: cannot find 'BatchSettingsDraft' in scope
+ 81 | 
+ 82 |     func testPatchLeavesExcludedAndUnselectedNestedTargetValuesIntact() throws {
+ 83 |         let draft = try BatchSettingsDraft(libraryID: "lib-1", focusedImageID: "source",
+    |                         `- error: cannot find 'BatchSettingsDraft' in scope
+ 84 |                                            selectedImageIDs: ["source", "target"],
+ 85 |                                            sourceSettingsJSON: sourceSettings)
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/BatchSettingsDraftTests.swift:105:25: error: cannot find 'BatchSettingsDraft' in scope
+103 | 
+104 |     func testCropAndEmptyFieldsAreRejected() throws {
+105 |         let draft = try BatchSettingsDraft(libraryID: "lib-1", focusedImageID: "source",
+    |                         `- error: cannot find 'BatchSettingsDraft' in scope
+106 |                                            selectedImageIDs: ["source", "target"],
+107 |                                            sourceSettingsJSON: sourceSettings)
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/BatchSettingsDraftTests.swift:109:35: error: cannot find type 'BatchSettingsDraftError' in scope
+107 |                                            sourceSettingsJSON: sourceSettings)
+108 |         XCTAssertThrowsError(try draft.selecting([.crop])) {
+109 |             XCTAssertEqual($0 as? BatchSettingsDraftError, .unsupportedGroup)
+    |                                   `- error: cannot find type 'BatchSettingsDraftError' in scope
+110 |         }
+111 |         XCTAssertThrowsError(try draft.selecting([])) {
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/BatchSettingsDraftTests.swift:108:52: error: reference to member 'crop' cannot be resolved without a contextual type
+106 |                                            selectedImageIDs: ["source", "target"],
+107 |                                            sourceSettingsJSON: sourceSettings)
+108 |         XCTAssertThrowsError(try draft.selecting([.crop])) {
+    |                                                    `- error: reference to member 'crop' cannot be resolved without a contextual type
+109 |             XCTAssertEqual($0 as? BatchSettingsDraftError, .unsupportedGroup)
+110 |         }
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/BatchSettingsDraftTests.swift:112:35: error: cannot find type 'BatchSettingsDraftError' in scope
+110 |         }
+111 |         XCTAssertThrowsError(try draft.selecting([])) {
+112 |             XCTAssertEqual($0 as? BatchSettingsDraftError, .noSettings)
+    |                                   `- error: cannot find type 'BatchSettingsDraftError' in scope
+113 |         }
+114 |     }
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/BatchSettingsDraftTests.swift:117:34: error: cannot find 'BatchSettingsDraft' in scope
+115 | 
+116 |     func testInvalidSourceSettingsCannotCreateMisleadingPreview() {
+117 |         XCTAssertThrowsError(try BatchSettingsDraft(libraryID: "lib-1", focusedImageID: "source",
+    |                                  `- error: cannot find 'BatchSettingsDraft' in scope
+118 |                                                     selectedImageIDs: ["source", "target"],
+119 |                                                     sourceSettingsJSON: "not JSON")) {
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/BatchSettingsDraftTests.swift:120:35: error: cannot find type 'BatchSettingsDraftError' in scope
+118 |                                                     selectedImageIDs: ["source", "target"],
+119 |                                                     sourceSettingsJSON: "not JSON")) {
+120 |             XCTAssertEqual($0 as? BatchSettingsDraftError, .invalidSourceSettings)
+    |                                   `- error: cannot find type 'BatchSettingsDraftError' in scope
+121 |         }
+122 |         XCTAssertThrowsError(try BatchSettingsDraft(libraryID: "lib-1", focusedImageID: "source",
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/BatchSettingsDraftTests.swift:122:34: error: cannot find 'BatchSettingsDraft' in scope
+120 |             XCTAssertEqual($0 as? BatchSettingsDraftError, .invalidSourceSettings)
+121 |         }
+122 |         XCTAssertThrowsError(try BatchSettingsDraft(libraryID: "lib-1", focusedImageID: "source",
+    |                                  `- error: cannot find 'BatchSettingsDraft' in scope
+123 |                                                     selectedImageIDs: ["source", "target"],
+124 |                                                     sourceSettingsJSON: "[]")) {
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/BatchSettingsDraftTests.swift:125:35: error: cannot find type 'BatchSettingsDraftError' in scope
+123 |                                                     selectedImageIDs: ["source", "target"],
+124 |                                                     sourceSettingsJSON: "[]")) {
+125 |             XCTAssertEqual($0 as? BatchSettingsDraftError, .invalidSourceSettings)
+    |                                   `- error: cannot find type 'BatchSettingsDraftError' in scope
+126 |         }
+127 |     }
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/BatchSettingsDraftTests.swift:131:38: error: cannot find 'BatchSettingsDraft' in scope
+129 |     func testValidSourceWithoutSelectedPathsCannotClaimASettingsCopy() throws {
+130 |         for json in ["{}", "{\"geometry\":{\"crop\":{\"left\":0.2}},\"masks\":[{\"id\":\"person\"}]"] {
+131 |             XCTAssertThrowsError(try BatchSettingsDraft(libraryID: "lib-1", focusedImageID: "source",
+    |                                      `- error: cannot find 'BatchSettingsDraft' in scope
+132 |                                                         selectedImageIDs: ["source", "target"],
+133 |                                                         sourceSettingsJSON: json)) {
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/BatchSettingsDraftTests.swift:134:39: error: cannot find type 'BatchSettingsDraftError' in scope
+132 |                                                         selectedImageIDs: ["source", "target"],
+133 |                                                         sourceSettingsJSON: json)) {
+134 |                 XCTAssertEqual($0 as? BatchSettingsDraftError, .noSettings)
+    |                                       `- error: cannot find type 'BatchSettingsDraftError' in scope
+135 |             }
+136 |         }
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/BatchSettingsDraftTests.swift:137:25: error: cannot find 'BatchSettingsDraft' in scope
+135 |             }
+136 |         }
+137 |         let draft = try BatchSettingsDraft(libraryID: "lib-1", focusedImageID: "source",
+    |                         `- error: cannot find 'BatchSettingsDraft' in scope
+138 |                                            selectedImageIDs: ["source", "target"],
+139 |                                            sourceSettingsJSON: "{\"tone\":{\"exposure\":0.2}}")
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/BatchSettingsDraftTests.swift:141:35: error: cannot find type 'BatchSettingsDraftError' in scope
+139 |                                            sourceSettingsJSON: "{\"tone\":{\"exposure\":0.2}}")
+140 |         XCTAssertThrowsError(try draft.selecting([.detail])) {
+141 |             XCTAssertEqual($0 as? BatchSettingsDraftError, .noSettings)
+    |                                   `- error: cannot find type 'BatchSettingsDraftError' in scope
+142 |         }
+143 |     }
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/BatchSettingsDraftTests.swift:140:52: error: reference to member 'detail' cannot be resolved without a contextual type
+138 |                                            selectedImageIDs: ["source", "target"],
+139 |                                            sourceSettingsJSON: "{\"tone\":{\"exposure\":0.2}}")
+140 |         XCTAssertThrowsError(try draft.selecting([.detail])) {
+    |                                                    `- error: reference to member 'detail' cannot be resolved without a contextual type
+141 |             XCTAssertEqual($0 as? BatchSettingsDraftError, .noSettings)
+142 |         }
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/BatchSettingsDraftTests.swift:146:34: error: cannot find 'BatchSettingsDraft' in scope
+144 | 
+145 |     func testEmptyOpaqueIDsAreRejectedAtDraftBoundary() {
+146 |         XCTAssertThrowsError(try BatchSettingsDraft(libraryID: "", focusedImageID: "source",
+    |                                  `- error: cannot find 'BatchSettingsDraft' in scope
+147 |                                                     selectedImageIDs: ["source", "target"],
+148 |                                                     sourceSettingsJSON: sourceSettings)) {
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/BatchSettingsDraftTests.swift:149:35: error: cannot find type 'BatchSettingsDraftError' in scope
+147 |                                                     selectedImageIDs: ["source", "target"],
+148 |                                                     sourceSettingsJSON: sourceSettings)) {
+149 |             XCTAssertEqual($0 as? BatchSettingsDraftError, .invalidIdentity)
+    |                                   `- error: cannot find type 'BatchSettingsDraftError' in scope
+150 |         }
+151 |         XCTAssertThrowsError(try BatchSettingsDraft(libraryID: "lib-1", focusedImageID: "",
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/BatchSettingsDraftTests.swift:151:34: error: cannot find 'BatchSettingsDraft' in scope
+149 |             XCTAssertEqual($0 as? BatchSettingsDraftError, .invalidIdentity)
+150 |         }
+151 |         XCTAssertThrowsError(try BatchSettingsDraft(libraryID: "lib-1", focusedImageID: "",
+    |                                  `- error: cannot find 'BatchSettingsDraft' in scope
+152 |                                                     selectedImageIDs: ["", "target"],
+153 |                                                     sourceSettingsJSON: sourceSettings)) {
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/BatchSettingsDraftTests.swift:154:35: error: cannot find type 'BatchSettingsDraftError' in scope
+152 |                                                     selectedImageIDs: ["", "target"],
+153 |                                                     sourceSettingsJSON: sourceSettings)) {
+154 |             XCTAssertEqual($0 as? BatchSettingsDraftError, .invalidIdentity)
+    |                                   `- error: cannot find type 'BatchSettingsDraftError' in scope
+155 |         }
+156 |         XCTAssertThrowsError(try BatchSettingsDraft(libraryID: "lib-1", focusedImageID: "source",
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/BatchSettingsDraftTests.swift:156:34: error: cannot find 'BatchSettingsDraft' in scope
+154 |             XCTAssertEqual($0 as? BatchSettingsDraftError, .invalidIdentity)
+155 |         }
+156 |         XCTAssertThrowsError(try BatchSettingsDraft(libraryID: "lib-1", focusedImageID: "source",
+    |                                  `- error: cannot find 'BatchSettingsDraft' in scope
+157 |                                                     selectedImageIDs: ["source", ""],
+158 |                                                     sourceSettingsJSON: sourceSettings)) {
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/BatchSettingsDraftTests.swift:159:35: error: cannot find type 'BatchSettingsDraftError' in scope
+157 |                                                     selectedImageIDs: ["source", ""],
+158 |                                                     sourceSettingsJSON: sourceSettings)) {
+159 |             XCTAssertEqual($0 as? BatchSettingsDraftError, .invalidIdentity)
+    |                                   `- error: cannot find type 'BatchSettingsDraftError' in scope
+160 |         }
+161 |     }
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentOverlayAnimationTests.swift:72:18: warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 70 |     func testReleasedOwnerInvalidatesRetainedTimerWithoutTicks() {
+ 71 |         var view: Overlay? = makeOverlay()
+ 72 |         weak var weakView = view
+    |                  `- warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 73 |         view?.updateAnimation()
+ 74 |         let timer = view?.animationTimer
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentViewportOwnershipTests.swift:32:18: warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+30 |     func testControllerReleasedBeforeDismantleStillClearsLocalResources() throws {
+31 |         var doc: DocumentController? = try document()
+32 |         weak var released = doc
+   |                  `- warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+33 |         let view = DocumentViewportView(frame: .zero)
+34 |         view.attach(doc)
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[#WeakMutability]: <https://docs.swift.org/compiler/documentation/diagnostics/weak-mutability>
+error: fatalError

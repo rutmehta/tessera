@@ -1,0 +1,15 @@
+{
+  "utc": "2026-09-27T22:58:10.314194+00:00",
+  "head": "a988b710271ac103d8ee1d957a3078a98a7bb29a",
+  "status": " M apps/mac/Tests/TesseraCoreTests/BatchSettingsDraftTests.swift\n?? apps/mac/Sources/TesseraCore/Develop/BatchSettingsDraft.swift\n",
+  "archive_sha256": "19f9f5487752e2588c6febe99d126905cad7d9986285d2aebf633dfaeba2b427",
+  "files": {
+    "apps/mac/Package.swift": "61b355d8cb436723616d0ee60579a6ff38f13dc0fa5786be5ac3e92369521c86",
+    "apps/mac/Sources/CTesseraFFI/CTesseraFFI.h": "6439d9239cee419564b81f8eff1f4d93ae79db81de79d7664c3827778c343fb2",
+    "apps/mac/Sources/TesseraFFI/TesseraFFI.swift": "0ece5bfe1e7ed612395296b17723e24accedf88079240bec9a1946d7c2fa3cc3",
+    "apps/mac/Sources/TesseraCore/Develop/PresetStore.swift": "fb8c8350f2ae97132f00af79b3a1f6599f7fed5e71535deedf34c2edde103b2b",
+    "apps/mac/Sources/TesseraCore/DevelopController.swift": "9b922e113f8bcdcef41a09ae5cff1f21ed37b11c5cbe6a73ead3fcf2e3b6fa8e",
+    "apps/mac/Sources/TesseraCore/Develop/BatchSettingsDraft.swift": "78132e9e2b1e2abb6e8b5d6bd00ea1f4ed5dfd14a91878df7cf610374e9b6d99",
+    "apps/mac/Tests/TesseraCoreTests/BatchSettingsDraftTests.swift": "066161b9b46e9005723c0b2770f55afe5911b473976729292f96f6d619d4680f"
+  }
+}
