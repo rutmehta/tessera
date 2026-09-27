@@ -12,7 +12,8 @@ planar full tiles in raster order, only the tiles intersecting the clipped regio
 The half-open region is in pixels at the requested level (not level-zero pixels).
 Clip signed coordinates to the level extent before converting to tile indices;
 empty/outside regions return an empty vector after checking cancellation. Reject
-levels above MAX_LEVEL consistently. Individual output tile extents stay equal
+levels greater than or equal to MAX_LEVEL, matching the existing tile job guard
+(valid levels 0 through 23). Individual output tile extents stay equal
 to their existing canvas-edge layout, not the cropped region. The caller copies
 only its requested pixels as today.
 
