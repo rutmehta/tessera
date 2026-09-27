@@ -113,3 +113,63 @@ fn twenty_mp_five_styles_1368x912_l1_timing() {
     assert!(cpu_warm.as_secs_f64() < 2.0, "warm CPU {cpu_warm:?}");
     assert!(gpu_warm.as_secs_f64() < 0.1, "warm resident {gpu_warm:?}");
 }
+
+#[test]
+#[ignore = "hardware timing gate: run alone in release mode"]
+fn twenty_mp_five_styles_1368x912_l1_unique_ids_timing() {
+    let gpu = GpuCompositor::new().expect("M5-31 requires a GPU");
+    // Keep the original requested fixture unchanged; this companion uses the
+    // document edit API to assign real unique layer IDs and revisions.
+    let fixture = document(Extent::new(5000, 4000));
+    let mut doc = Document::new(DocState::new(Extent::new(5000, 4000), Depth::F32));
+    for layer in &fixture.state().root {
+        doc.apply(DocOp::AddLayer {
+            parent: None,
+            index: usize::MAX,
+            layer: (**layer).clone(),
+        })
+        .unwrap();
+    }
+    let ids: std::collections::HashSet<_> = doc.state().root.iter().map(|l| l.id).collect();
+    assert_eq!(ids.len(), 5);
+    assert!(!ids.contains(&LayerId(0)));
+    let view = Rect::new(100, 100, 1468, 1012);
+    let cpu = Compositor::new(512 << 20);
+    let mut resident = ResidentRenderer::with_budget(&gpu, 512 << 20).unwrap();
+    let start = Instant::now();
+    cpu_view(&cpu, &doc, 1, view);
+    let cpu_cold = start.elapsed();
+    let start = Instant::now();
+    let cold_frame = resident.render_viewport(&doc, 1, view, 0).unwrap();
+    resident.wait().unwrap();
+    let gpu_cold = start.elapsed();
+    assert!(cold_frame.blocks > 0, "cold measurement must dispatch work");
+    assert_eq!(resident.style_evaluations(), 5);
+    assert_eq!(resident.filter_fallbacks(), 0);
+    assert!(resident.style_cache_bytes() <= 512 << 20);
+    resident.wait_for_specializations();
+    // Neither measurement below is an unchanged-document idle frame.
+    cpu.clear_composites();
+    resident.invalidate();
+    let start = Instant::now();
+    cpu_view(&cpu, &doc, 1, view);
+    let cpu_warm = start.elapsed();
+    let start = Instant::now();
+    let warm_frame = resident.render_viewport(&doc, 1, view, 0).unwrap();
+    resident.wait().unwrap();
+    let gpu_warm = start.elapsed();
+    assert!(warm_frame.blocks > 0, "warm measurement must dispatch work");
+    assert_eq!(
+        resident.style_evaluations(),
+        5,
+        "reuse cached effect planes"
+    );
+    assert_eq!(resident.filter_fallbacks(), 0);
+    eprintln!(
+        "20MP 5 styles unique IDs L1 1368x912 CPU cold={cpu_cold:?} warm={cpu_warm:?}; resident cold={gpu_cold:?} warm={gpu_warm:?}"
+    );
+    assert!(cpu_cold.as_secs_f64() < 2.0, "cold CPU {cpu_cold:?}");
+    assert!(gpu_cold.as_secs_f64() < 0.1, "cold resident {gpu_cold:?}");
+    assert!(cpu_warm.as_secs_f64() < 2.0, "warm CPU {cpu_warm:?}");
+    assert!(gpu_warm.as_secs_f64() < 0.1, "warm resident {gpu_warm:?}");
+}

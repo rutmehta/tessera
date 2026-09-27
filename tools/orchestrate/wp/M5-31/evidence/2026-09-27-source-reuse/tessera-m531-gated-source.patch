@@ -1,0 +1,440 @@
+diff --git a/crates/compositor/src/resident/program.rs b/crates/compositor/src/resident/program.rs
+index d8e9018..08f05d7 100644
+--- a/crates/compositor/src/resident/program.rs
++++ b/crates/compositor/src/resident/program.rs
+@@ -91,7 +91,13 @@ impl Step {
+         self.mode = p.mode.index();
+         self.opacity = p.opacity;
+         self.fill = p.fill;
+-        self.seed = p.seed;
++        // Only Dissolve consumes the seed. Canonicalize unused layer identity so
++        // semantically identical Normal sources share resident damage validity.
++        self.seed = if p.mode == crate::BlendMode::Dissolve {
++            p.seed
++        } else {
++            0
++        };
+         self.flags |= u32::from(p.atop)
+             | match p.knockout {
+                 Knockout::None => 0,
+@@ -756,6 +762,25 @@ impl Compiler<'_> {
+ #[cfg(test)]
+ mod spatial_tests {
+     use super::*;
++    #[test]
++    fn only_dissolve_retains_layer_seed_in_program_identity() {
++        let mut layer = Layer::new("source", LayerKind::Fill(Fill::Solid { color: [0.4; 3] }));
++        layer.id = crate::LayerId(1);
++        let normal = Program::compile(&[Arc::new(layer.clone())], 1).unwrap();
++        layer.id = crate::LayerId(2);
++        let same_normal = Program::compile(&[Arc::new(layer.clone())], 1).unwrap();
++        assert_eq!(normal.bytes(), same_normal.bytes());
++        layer.props.blend_mode = crate::BlendMode::Dissolve;
++        let dissolve = Program::compile(&[Arc::new(layer.clone())], 1).unwrap();
++        assert_eq!(dissolve.steps[0].seed, Params::of(&layer, false).seed);
++        layer.id = crate::LayerId(3);
++        let other_dissolve = Program::compile(&[Arc::new(layer.clone())], 1).unwrap();
++        assert_ne!(dissolve.bytes(), other_dissolve.bytes());
++        layer.kind = LayerKind::Adjustment(Adjustment::Invert);
++        let adjustment = Program::compile(&[Arc::new(layer.clone())], 1).unwrap();
++        assert_eq!(adjustment.steps[0].seed, Params::of(&layer, false).seed);
++    }
++
+     #[test]
+     fn compiles_positive_radius() {
+         let layer = Layer::new(
+diff --git a/crates/compositor/src/resident/styles_runtime.rs b/crates/compositor/src/resident/styles_runtime.rs
+index 0c61f19..1c2efa3 100644
+--- a/crates/compositor/src/resident/styles_runtime.rs
++++ b/crates/compositor/src/resident/styles_runtime.rs
+@@ -44,6 +44,14 @@ impl super::Persistent {
+     }
+ }
+ 
++// Batch-local witness of the last immutable straight-alpha conversion.
++struct ConvertedSource {
++    level: u8,
++    region: Rect,
++    output: wgpu::Buffer,
++    source: wgpu::Buffer,
++}
++
+ struct Cached {
+     source: wgpu::Buffer,
+     planes: Vec<GpuStylePlane>,
+@@ -156,6 +164,8 @@ impl ResidentRenderer {
+         // Validate cumulative data plus the growing metadata prefix before
+         // retaining each pending style. Final offsets are assigned below.
+         let mut reserved_words = program.aux.len();
++        let mut reserved_sources = Vec::new();
++        let mut previous_source: Option<ConvertedSource> = None;
+         // One temporary page resolver per batch, not one per styled layer.
+         // Shared raster tiles can then share their GPU uploads and mip pages.
+         let mut source_renderer = None;
+@@ -188,7 +198,10 @@ impl ResidentRenderer {
+             .map_err(|e| EngineError::invalid("style cache key", e.to_string()))?;
+             let key = *blake3::hash(&bytes).as_bytes();
+             let cached = if let Some(cached) = self.styles.get(&key) {
+-                reserve_words(&mut reserved_words, cached.source.size(), limit)?;
++                if !reserved_sources.contains(&cached.source) {
++                    reserve_words(&mut reserved_words, cached.source.size(), limit)?;
++                    reserved_sources.push(cached.source.clone());
++                }
+                 reserve_plane_words(
+                     &mut reserved_words,
+                     cached.planes.iter().map(|plane| plane.pixels.size()),
+@@ -220,20 +233,44 @@ impl ResidentRenderer {
+                 let child = source_renderer
+                     .as_mut()
+                     .expect("source renderer initialized");
+-                child.render_viewport(&source_doc, level, region, 0)?;
++                let frame = child.render_viewport(&source_doc, level, region, 0)?;
+                 let region = child.levels[&level].region;
+                 let local = Extent::new(region.width() as u32, region.height() as u32);
+                 // Reserve the complete expansion before converting the source or
+                 // creating any effect planes, including earlier pending layers.
+                 let settings = styles::at_level(&layer.props.styles, level);
+                 let source_bytes = plane_bytes(local)?;
+-                reserve_words(&mut reserved_words, source_bytes, limit)?;
++                let output = &child.levels[&level].out;
++                // Existing damage tracking has checked content, masks, transforms
++                // and child nodes. Zero dispatch cannot mutate an existing output;
++                // viewport overlap copies always target a newly allocated buffer.
++                let reusable = previous_source.as_ref().filter(|last| {
++                    frame.blocks == 0
++                        && last.level == level
++                        && last.region == region
++                        && last.output == *output
++                });
++                if reusable.is_none() {
++                    reserve_words(&mut reserved_words, source_bytes, limit)?;
++                }
+                 reserve_plane_words(
+                     &mut reserved_words,
+                     std::iter::repeat_n(source_bytes, StylesGpu::plane_count(&settings)),
+                     limit,
+                 )?;
+-                let source = self.convert(&child.levels[&level].out, local, 0)?;
++                let source = if let Some(last) = reusable {
++                    last.source.clone()
++                } else {
++                    let source = self.convert(output, local, 0)?;
++                    reserved_sources.push(source.clone());
++                    previous_source = Some(ConvertedSource {
++                        level,
++                        region,
++                        output: output.clone(),
++                        source: source.clone(),
++                    });
++                    source
++                };
+ 
+                 if self.styles.gpu.is_none() {
+                     self.styles.gpu = Some(StylesGpu::new(&self.device)?);
+@@ -269,9 +306,21 @@ impl ResidentRenderer {
+             pending.push((*step_index, cached, metadata_offset));
+         }
+         let mut words = program.aux.len();
++        let mut source_offsets: Vec<(wgpu::Buffer, u32)> = Vec::new();
+         for (step_index, cached, metadata_offset) in pending {
+-            let source_offset = reserve_words(&mut words, cached.source.size(), limit)?;
+-            copies.push((cached.source.clone(), u64::from(source_offset) * 4));
++            // Equality is GPU buffer identity, never matching dimensions/content
++            // guesses. Converted sources are immutable after queue submission.
++            let source_offset = if let Some((_, offset)) = source_offsets
++                .iter()
++                .find(|(source, _)| *source == cached.source)
++            {
++                *offset
++            } else {
++                let offset = reserve_words(&mut words, cached.source.size(), limit)?;
++                copies.push((cached.source.clone(), u64::from(offset) * 4));
++                source_offsets.push((cached.source.clone(), offset));
++                offset
++            };
+             for (i, plane) in cached.planes.iter().enumerate() {
+                 let offset = reserve_words(&mut words, plane.pixels.size(), limit)?;
+                 let metadata = plane_metadata(
+@@ -364,6 +413,214 @@ fn plane_metadata(offset: u32, mode: u32, opacity: f32, outside: bool, stroke: b
+ mod tests {
+     use super::plane_metadata;
+ 
++    #[test]
++    fn unchanged_neutralized_sources_share_conversion_and_auxiliary_copy() {
++        use crate::{gpu::GpuCompositor, render::styles::*, *};
++        use engine_api::tile::Extent;
++        use std::sync::Arc;
++
++        let extent = Extent::new(64, 48);
++        let mut raster = Raster::new(extent, 4, Depth::F32, 0.0);
++        raster
++            .edit_region(Rect::of_extent(extent), 1, |x, y, p| {
++                *p = [0.6, 0.2, 0.4, if (x + y) % 7 < 4 { 0.7 } else { 0.3 }];
++            })
++            .unwrap();
++        let mut state = DocState::new(extent, Depth::F32);
++        for i in 0..3 {
++            let mut layer = Layer::new("shared source", LayerKind::Pixel(raster.clone()));
++            layer
++                .props
++                .styles
++                .effects
++                .push(StyleEffect::ColorOverlay(Overlay {
++                    opacity: 0.1 + i as f32 * 0.1,
++                    ..Default::default()
++                }));
++            state.assign_ids(&mut layer, true);
++            state.root.push(Arc::new(layer));
++        }
++        let doc = Document::new(state);
++        let gpu = GpuCompositor::new().unwrap();
++        let mut resident = super::ResidentRenderer::with_budget(&gpu, 8 << 20).unwrap();
++        for level in [0, 1, 2] {
++            let extent = extent.at_level(level);
++            let mut program = super::Program::compile(&doc.state().root, 1).unwrap();
++            let prepared = resident
++                .prepare_styles(&doc, level, Rect::of_extent(extent), &mut program)
++                .unwrap();
++            assert_eq!(
++                prepared.copies.len(),
++                4,
++                "one immutable source plus three effect planes"
++            );
++            let offsets: Vec<_> = program
++                .styles
++                .iter()
++                .map(|(i, _)| program.steps[*i].table)
++                .collect();
++            assert!(offsets.windows(2).all(|pair| pair[0] == pair[1]));
++            let frame = resident.render(&doc, level).unwrap();
++            assert!(frame.blocks > 0);
++            let (_, actual) = resident.read_level(level, false).unwrap();
++            let (_, expected) = Compositor::new(8 << 20)
++                .render_level_rgba(&doc, level)
++                .unwrap();
++            assert_eq!(actual.len(), expected.len());
++            assert!(
++                actual
++                    .iter()
++                    .zip(expected)
++                    .all(|(a, b)| (a - b).abs() <= 1e-4)
++            );
++            let evaluations = resident.style_evaluations();
++            resident.invalidate();
++            assert!(resident.render(&doc, level).unwrap().blocks > 0);
++            assert_eq!(resident.style_evaluations(), evaluations);
++        }
++    }
++
++    #[test]
++    fn changed_pixels_masks_children_and_transforms_never_alias_style_sources() {
++        use crate::{gpu::GpuCompositor, render::styles::*, *};
++        use engine_api::tile::Extent;
++        use std::sync::Arc;
++
++        let extent = Extent::new(64, 48);
++        let pixel = |color: f32| {
++            let mut raster = Raster::new(extent, 4, Depth::F32, 0.0);
++            raster
++                .edit_region(Rect::new(3, 5, 51, 39), 1, |_, _, p| {
++                    *p = [color, 0.2, 0.4, 0.6];
++                })
++                .unwrap();
++            Layer::new("source", LayerKind::Pixel(raster))
++        };
++        let original = pixel(0.6);
++        let mut masked = original.clone();
++        masked.mask = Some(Mask::hide_all(extent, Depth::F32));
++        masked.mask.as_mut().unwrap().density = 0.4;
++        let child = |mut layer: Layer| {
++            let mut state = DocState::new(extent, Depth::F32);
++            state.assign_ids(&mut layer, true);
++            state.root.push(Arc::new(layer));
++            // Smart cache identity includes a real child document revision.
++            Document::new(state).state().as_ref().clone()
++        };
++        let smart = SmartObject::new(child(original.clone()), Affine::IDENTITY);
++        let mut changed_child = smart.clone();
++        changed_child.state = Arc::new(child(pixel(0.9)));
++        let mut translated = smart.clone();
++        translated.transform = Affine::scale_translate(1.0, 1.0, 7.0, 3.0);
++        let group = |layer: Layer| {
++            let mut group = Layer::group("isolated", GroupMode::Isolated);
++            let LayerKind::Group { children, .. } = &mut group.kind else {
++                unreachable!()
++            };
++            children.push(Arc::new(layer));
++            group
++        };
++        let mut dissolve = original.clone();
++        dissolve.props.blend_mode = BlendMode::Dissolve;
++        let pairs = [
++            (original.clone(), pixel(0.9)),
++            (original.clone(), masked),
++            (group(original), group(pixel(0.9))),
++            (
++                Layer::new("smart", LayerKind::SmartObject(smart.clone())),
++                Layer::new("changed child", LayerKind::SmartObject(changed_child)),
++            ),
++            (
++                Layer::new("smart", LayerKind::SmartObject(smart)),
++                Layer::new("translated", LayerKind::SmartObject(translated)),
++            ),
++            // Distinct child IDs must retain their distinct Dissolve patterns.
++            (group(dissolve.clone()), group(dissolve)),
++        ];
++        let gpu = GpuCompositor::new().unwrap();
++        for (case, (first, second)) in pairs.into_iter().enumerate() {
++            let mut state = DocState::new(extent, Depth::F32);
++            for mut layer in [first, second] {
++                layer
++                    .props
++                    .styles
++                    .effects
++                    .push(StyleEffect::ColorOverlay(Overlay {
++                        opacity: 0.2,
++                        ..Default::default()
++                    }));
++                state.assign_ids(&mut layer, true);
++                state.root.push(Arc::new(layer));
++            }
++            let mut doc = Document::new(state);
++            let cpu = Compositor::new(8 << 20);
++            let mut resident = super::ResidentRenderer::with_budget(&gpu, 8 << 20).unwrap();
++            for level in [0, 1, 2] {
++                let mut program = super::Program::compile(&doc.state().root, 1).unwrap();
++                let prepared = resident
++                    .prepare_styles(
++                        &doc,
++                        level,
++                        Rect::of_extent(extent.at_level(level)),
++                        &mut program,
++                    )
++                    .unwrap();
++                assert_eq!(
++                    prepared.copies.len(),
++                    4,
++                    "case {case} L{level}: two distinct sources and planes"
++                );
++                let indices: Vec<_> = program.styles.iter().map(|(i, _)| *i).collect();
++                assert_ne!(
++                    program.steps[indices[0]].table, program.steps[indices[1]].table,
++                    "case {case} L{level}"
++                );
++                resident.render(&doc, level).unwrap();
++                let (_, actual) = resident.read_level(level, false).unwrap();
++                let (_, expected) = cpu.render_level_rgba(&doc, level).unwrap();
++                assert_eq!(actual.len(), expected.len());
++                for (i, (a, b)) in actual.iter().zip(expected).enumerate() {
++                    assert!(
++                        (a - b).abs() <= 1e-4,
++                        "case {case} L{level} sample {i}: {a} != {b}"
++                    );
++                }
++            }
++            // Reuse the same document/renderer across a real edit. Smart cases
++            // change their child through the edit API so revision propagation is
++            // exercised, rather than replacing state with an unchanged stamp.
++            let target = &doc.state().root[1];
++            let mask = Some(Mask::hide_all(extent, Depth::F32));
++            let op = if let LayerKind::SmartObject(smart) = &target.kind {
++                DocOp::EditSmartObject {
++                    id: target.id,
++                    op: Box::new(DocOp::SetMask {
++                        id: smart.state.root[0].id,
++                        mask,
++                    }),
++                }
++            } else {
++                DocOp::SetMask {
++                    id: target.id,
++                    mask,
++                }
++            };
++            let evaluations = resident.style_evaluations();
++            doc.apply(op).unwrap();
++            assert!(resident.render(&doc, 0).unwrap().blocks > 0);
++            assert!(resident.style_evaluations() > evaluations);
++            let (_, actual) = resident.read_level(0, false).unwrap();
++            let (_, expected) = cpu.render_level_rgba(&doc, 0).unwrap();
++            assert_eq!(actual.len(), expected.len());
++            for (i, (a, b)) in actual.iter().zip(expected).enumerate() {
++                assert!(
++                    (a - b).abs() <= 1e-4,
++                    "edited case {case} sample {i}: {a} != {b}"
++                );
++            }
++        }
++    }
++
+     #[test]
+     fn oversized_effect_stack_is_rejected_before_creating_style_pipeline() {
+         use crate::{gpu::GpuCompositor, render::styles::*, *};
+diff --git a/crates/compositor/tests/resident_styles_large.rs b/crates/compositor/tests/resident_styles_large.rs
+index faebc64..9e6f030 100644
+--- a/crates/compositor/tests/resident_styles_large.rs
++++ b/crates/compositor/tests/resident_styles_large.rs
+@@ -113,3 +113,63 @@ fn twenty_mp_five_styles_1368x912_l1_timing() {
+     assert!(cpu_warm.as_secs_f64() < 2.0, "warm CPU {cpu_warm:?}");
+     assert!(gpu_warm.as_secs_f64() < 0.1, "warm resident {gpu_warm:?}");
+ }
++
++#[test]
++#[ignore = "hardware timing gate: run alone in release mode"]
++fn twenty_mp_five_styles_1368x912_l1_unique_ids_timing() {
++    let gpu = GpuCompositor::new().expect("M5-31 requires a GPU");
++    // Keep the original requested fixture unchanged; this companion uses the
++    // document edit API to assign real unique layer IDs and revisions.
++    let fixture = document(Extent::new(5000, 4000));
++    let mut doc = Document::new(DocState::new(Extent::new(5000, 4000), Depth::F32));
++    for layer in &fixture.state().root {
++        doc.apply(DocOp::AddLayer {
++            parent: None,
++            index: usize::MAX,
++            layer: (**layer).clone(),
++        })
++        .unwrap();
++    }
++    let ids: std::collections::HashSet<_> = doc.state().root.iter().map(|l| l.id).collect();
++    assert_eq!(ids.len(), 5);
++    assert!(!ids.contains(&LayerId(0)));
++    let view = Rect::new(100, 100, 1468, 1012);
++    let cpu = Compositor::new(512 << 20);
++    let mut resident = ResidentRenderer::with_budget(&gpu, 512 << 20).unwrap();
++    let start = Instant::now();
++    cpu_view(&cpu, &doc, 1, view);
++    let cpu_cold = start.elapsed();
++    let start = Instant::now();
++    let cold_frame = resident.render_viewport(&doc, 1, view, 0).unwrap();
++    resident.wait().unwrap();
++    let gpu_cold = start.elapsed();
++    assert!(cold_frame.blocks > 0, "cold measurement must dispatch work");
++    assert_eq!(resident.style_evaluations(), 5);
++    assert_eq!(resident.filter_fallbacks(), 0);
++    assert!(resident.style_cache_bytes() <= 512 << 20);
++    resident.wait_for_specializations();
++    // Neither measurement below is an unchanged-document idle frame.
++    cpu.clear_composites();
++    resident.invalidate();
++    let start = Instant::now();
++    cpu_view(&cpu, &doc, 1, view);
++    let cpu_warm = start.elapsed();
++    let start = Instant::now();
++    let warm_frame = resident.render_viewport(&doc, 1, view, 0).unwrap();
++    resident.wait().unwrap();
++    let gpu_warm = start.elapsed();
++    assert!(warm_frame.blocks > 0, "warm measurement must dispatch work");
++    assert_eq!(
++        resident.style_evaluations(),
++        5,
++        "reuse cached effect planes"
++    );
++    assert_eq!(resident.filter_fallbacks(), 0);
++    eprintln!(
++        "20MP 5 styles unique IDs L1 1368x912 CPU cold={cpu_cold:?} warm={cpu_warm:?}; resident cold={gpu_cold:?} warm={gpu_warm:?}"
++    );
++    assert!(cpu_cold.as_secs_f64() < 2.0, "cold CPU {cpu_cold:?}");
++    assert!(gpu_cold.as_secs_f64() < 0.1, "cold resident {gpu_cold:?}");
++    assert!(cpu_warm.as_secs_f64() < 2.0, "warm CPU {cpu_warm:?}");
++    assert!(gpu_warm.as_secs_f64() < 0.1, "warm resident {gpu_warm:?}");
++}

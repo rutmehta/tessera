@@ -91,7 +91,13 @@ impl Step {
         self.mode = p.mode.index();
         self.opacity = p.opacity;
         self.fill = p.fill;
-        self.seed = p.seed;
+        // Only Dissolve consumes the seed. Canonicalize unused layer identity so
+        // semantically identical Normal sources share resident damage validity.
+        self.seed = if p.mode == crate::BlendMode::Dissolve {
+            p.seed
+        } else {
+            0
+        };
         self.flags |= u32::from(p.atop)
             | match p.knockout {
                 Knockout::None => 0,
@@ -756,6 +762,25 @@ impl Compiler<'_> {
 #[cfg(test)]
 mod spatial_tests {
     use super::*;
+    #[test]
+    fn only_dissolve_retains_layer_seed_in_program_identity() {
+        let mut layer = Layer::new("source", LayerKind::Fill(Fill::Solid { color: [0.4; 3] }));
+        layer.id = crate::LayerId(1);
+        let normal = Program::compile(&[Arc::new(layer.clone())], 1).unwrap();
+        layer.id = crate::LayerId(2);
+        let same_normal = Program::compile(&[Arc::new(layer.clone())], 1).unwrap();
+        assert_eq!(normal.bytes(), same_normal.bytes());
+        layer.props.blend_mode = crate::BlendMode::Dissolve;
+        let dissolve = Program::compile(&[Arc::new(layer.clone())], 1).unwrap();
+        assert_eq!(dissolve.steps[0].seed, Params::of(&layer, false).seed);
+        layer.id = crate::LayerId(3);
+        let other_dissolve = Program::compile(&[Arc::new(layer.clone())], 1).unwrap();
+        assert_ne!(dissolve.bytes(), other_dissolve.bytes());
+        layer.kind = LayerKind::Adjustment(Adjustment::Invert);
+        let adjustment = Program::compile(&[Arc::new(layer.clone())], 1).unwrap();
+        assert_eq!(adjustment.steps[0].seed, Params::of(&layer, false).seed);
+    }
+
     #[test]
     fn compiles_positive_radius() {
         let layer = Layer::new(
