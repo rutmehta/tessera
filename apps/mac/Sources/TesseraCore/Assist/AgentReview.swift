@@ -40,14 +40,17 @@ public struct AgentReviewEntry: Sendable, Equatable, Identifiable {
     public var steps: [Step]
     public var status: Status
     public var error: String?
+    /// Non-actionable restore conflict (missing photo, superseded group, or interrupted target).
+    public var unavailableReason: String?
     public var id: String { imageID }
 
     public init(imageID: String, itemID: Int? = nil, name: String, groupID: UInt32? = nil, accepted: Bool = false,
                 confidence: Double, stopReason: String = "", criticReasons: [String] = [], steps: [Step] = [],
-                status: Status = .needsReview, error: String? = nil) {
+                status: Status = .needsReview, error: String? = nil, unavailableReason: String? = nil) {
         self.imageID = imageID; self.itemID = itemID; self.name = name; self.groupID = groupID
         self.accepted = accepted; self.confidence = confidence; self.stopReason = stopReason
         self.criticReasons = criticReasons; self.steps = steps; self.status = status; self.error = error
+        self.unavailableReason = unavailableReason
     }
 
     public init(_ item: AgentReviewItem, itemID: Int?) {
@@ -60,6 +63,7 @@ public struct AgentReviewEntry: Sendable, Equatable, Identifiable {
 
     /// "Low · 32 %", "Medium · 55 %", "High · 84 %".
     public var confidenceText: String {
+        if unavailableReason != nil { return "Unavailable" }
         if error != nil { return "Failed" }
         let pct = Int((confidence * 100).rounded())
         return "\(AgentReviewQueue.band(confidence)) · \(pct) %"
@@ -68,8 +72,12 @@ public struct AgentReviewEntry: Sendable, Equatable, Identifiable {
     /// The first rationale, as the row's one-line explanation.
     public var summary: String {
         if let error { return error }
+        if let unavailableReason { return unavailableReason }
         return steps.first?.rationale ?? (stopReason.isEmpty ? "No edit was needed" : stopReason)
     }
+
+    public var canBeTargeted: Bool { unavailableReason == nil && itemID != nil }
+    public var isActionable: Bool { canBeTargeted && error == nil && groupID != nil }
 }
 
 /// The review queue: failures first, then least confident first; statuses change in place so
@@ -106,9 +114,10 @@ public struct AgentReviewQueue: Sendable, Equatable {
     public func entry(_ imageID: String) -> AgentReviewEntry? { entries.first { $0.imageID == imageID } }
 
     /// Photos still waiting for accept / redo / revert (failures excluded).
-    public var pendingCount: Int { entries.filter { $0.status == .needsReview && $0.error == nil }.count }
+    public var pendingCount: Int { entries.filter { $0.status == .needsReview && $0.error == nil && $0.unavailableReason == nil }.count }
     public func count(_ status: AgentReviewEntry.Status) -> Int { entries.filter { $0.status == status && $0.error == nil }.count }
     public var failedCount: Int { entries.filter { $0.error != nil }.count }
+    public var unavailableCount: Int { entries.filter { $0.unavailableReason != nil }.count }
 
     /// "3 to review · 1 accepted · 1 reverted · 1 failed" (zero counts omitted, except to review).
     public var summary: String {
@@ -116,6 +125,7 @@ public struct AgentReviewQueue: Sendable, Equatable {
         if count(.accepted) > 0 { parts.append("\(count(.accepted)) accepted") }
         if count(.reverted) > 0 { parts.append("\(count(.reverted)) reverted") }
         if failedCount > 0 { parts.append("\(failedCount) failed") }
+        if unavailableCount > 0 { parts.append("\(unavailableCount) unavailable") }
         return parts.joined(separator: " · ")
     }
 

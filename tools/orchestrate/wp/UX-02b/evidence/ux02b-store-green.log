@@ -1,0 +1,200 @@
+Building for debugging...
+[0/7] Write sources
+[3/7] Write swift-version--58304C5D6DBC2206.txt
+[5/9] Compiling TesseraCore AgentReview.swift
+[6/9] Emitting module TesseraCore
+[7/11] Compiling TesseraCore ReviewNavigationState.swift
+[8/11] Compiling TesseraCore ReviewResumeStore.swift
+[9/19] Compiling Tessera AISettingsView.swift
+[10/19] Compiling Tessera AgentController.swift
+[11/19] Compiling Tessera AgentPanels.swift
+[12/19] Compiling Tessera AgentReviewSheet.swift
+[13/19] Compiling Tessera AgentReviewWorkspace.swift
+[14/24] Emitting module Tessera
+[15/24] Compiling Tessera AutoEditSheet.swift
+[16/24] Compiling Tessera AppModel.swift
+[17/24] Compiling Tessera InspectorView.swift
+[18/24] Compiling Tessera ContentView.swift
+[19/24] Compiling Tessera WorkspaceHeader.swift
+[19/24] Write Objects.LinkFileList
+ld: warning: object file (/Users/rutmehta/.codex/worktrees/export-integration/tessera/apps/mac/build/ffi/libtessera_ffi.a[2845](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[20/24] Linking Tessera
+[21/33] Applying Tessera
+[23/33] Compiling TesseraCoreTests AgentReviewLayoutTests.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[24/33] Compiling TesseraCoreTests AgentReviewNavigationStateTests.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[25/33] Compiling TesseraCoreTests AgentReviewNavigationTests.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[26/33] Compiling TesseraCoreTests AgentReviewOwnershipTests.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[27/33] Compiling TesseraCoreTests AssistTests.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[28/33] Compiling TesseraCoreTests DocumentVectorVerifyFixesTests.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[29/33] Compiling TesseraCoreTests EngineDocumentBackendTests.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[30/33] Compiling TesseraCoreTests IncrementalLibraryTests.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[31/33] Emitting module TesseraCoreTests
+[32/40] Compiling TesseraCoreTests KeyFocusTests.swift
+[33/40] Compiling TesseraCoreTests LayoutContractTests.swift
+[34/40] Compiling TesseraCoreTests LazyLoupeTests.swift
+[35/40] Compiling TesseraCoreTests LibraryResponsivenessTests.swift
+[36/40] Compiling TesseraCoreTests LibraryTests.swift
+[37/40] Compiling TesseraCoreTests LoupeOverlayPresentationTests.swift
+[38/40] Compiling TesseraCoreTests ReviewResumeStoreTests.swift
+[38/40] Write Objects.LinkFileList
+ld: warning: object file (/Users/rutmehta/.codex/worktrees/export-integration/tessera/apps/mac/build/ffi/libtessera_ffi.a[2845](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[39/40] Linking TesseraPackageTests
+Build complete! (19.22s)
+error: Process '/Applications/Xcode.app/Contents/Developer/usr/bin/xctest -XCTest TesseraCoreTests.AgentReviewQueueTests/testOrdersFailuresThenLeastConfidentFirst,TesseraCoreTests.AgentReviewQueueTests/testRedoMergeReplacesOnlyThosePhotos,TesseraCoreTests.AgentReviewQueueTests/testStatusesChangeInPlaceAndNextSkipsReviewed,TesseraCoreTests.AgentReviewQueueTests/testUnavailableResumeRowsStayVisibleButDoNotCountAsActionableFailures,TesseraCoreTests.ReviewResumeStoreTests/testDifferentCanonicalPathDoesNotAdoptAnotherLibraryQueue,TesseraCoreTests.ReviewResumeStoreTests/testDuplicateTargetIdentityIsRejectedAsCorrupt,TesseraCoreTests.ReviewResumeStoreTests/testFutureSchemaIsPreservedAndReportedWithoutDecodingAsCurrent,TesseraCoreTests.ReviewResumeStoreTests/testRevisionCannotOverflow,TesseraCoreTests.ReviewResumeStoreTests/testRoundTripsOnlySafeQueueMembershipAndCursorForCanonicalLibraryPath,TesseraCoreTests.ReviewResumeStoreTests/testRunningRecordCanBeMarkedInterruptedWithoutChangingTargetsOrReplaying,TesseraCoreTests.ReviewResumeStoreTests/testStaleRevisionCannotOverwriteNewerQueueRecord /Volumes/betterSSD/tessera-ux02b-review-resume/arm64-apple-macosx/debug/TesseraPackageTests.xctest' exited with unexpected signal code 11
+Test Suite 'Selected tests' started at 2026-09-27 17:45:52.121.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-27 17:45:52.121.
+Test Suite 'AgentReviewQueueTests' started at 2026-09-27 17:45:52.121.
+Test Case '-[TesseraCoreTests.AgentReviewQueueTests testOrdersFailuresThenLeastConfidentFirst]' started.
+Test Case '-[TesseraCoreTests.AgentReviewQueueTests testOrdersFailuresThenLeastConfidentFirst]' passed (0.002 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewQueueTests testRedoMergeReplacesOnlyThosePhotos]' started.
+Test Case '-[TesseraCoreTests.AgentReviewQueueTests testRedoMergeReplacesOnlyThosePhotos]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewQueueTests testStatusesChangeInPlaceAndNextSkipsReviewed]' started.
+Test Case '-[TesseraCoreTests.AgentReviewQueueTests testStatusesChangeInPlaceAndNextSkipsReviewed]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewQueueTests testUnavailableResumeRowsStayVisibleButDoNotCountAsActionableFailures]' started.
+Test Case '-[TesseraCoreTests.AgentReviewQueueTests testUnavailableResumeRowsStayVisibleButDoNotCountAsActionableFailures]' passed (0.000 seconds).
+Test Suite 'AgentReviewQueueTests' passed at 2026-09-27 17:45:52.125.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.003 (0.003) seconds
+Test Suite 'ReviewResumeStoreTests' started at 2026-09-27 17:45:52.125.
+Test Case '-[TesseraCoreTests.ReviewResumeStoreTests testDifferentCanonicalPathDoesNotAdoptAnotherLibraryQueue]' started.
+Test Case '-[TesseraCoreTests.ReviewResumeStoreTests testDifferentCanonicalPathDoesNotAdoptAnotherLibraryQueue]' passed (0.003 seconds).
+Test Case '-[TesseraCoreTests.ReviewResumeStoreTests testDuplicateTargetIdentityIsRejectedAsCorrupt]' started.
+Test Case '-[TesseraCoreTests.ReviewResumeStoreTests testDuplicateTargetIdentityIsRejectedAsCorrupt]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.ReviewResumeStoreTests testFutureSchemaIsPreservedAndReportedWithoutDecodingAsCurrent]' started.
+Test Case '-[TesseraCoreTests.ReviewResumeStoreTests testFutureSchemaIsPreservedAndReportedWithoutDecodingAsCurrent]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.ReviewResumeStoreTests testRevisionCannotOverflow]' started.
+Test Case '-[TesseraCoreTests.ReviewResumeStoreTests testRevisionCannotOverflow]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.ReviewResumeStoreTests testRoundTripsOnlySafeQueueMembershipAndCursorForCanonicalLibraryPath]' started.
+Test Case '-[TesseraCoreTests.ReviewResumeStoreTests testRoundTripsOnlySafeQueueMembershipAndCursorForCanonicalLibraryPath]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.ReviewResumeStoreTests testRunningRecordCanBeMarkedInterruptedWithoutChangingTargetsOrReplaying]' started.
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

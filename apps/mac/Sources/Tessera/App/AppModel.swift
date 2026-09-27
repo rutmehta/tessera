@@ -170,7 +170,7 @@ final class AppModel {
     /// Thumbnails behind the People view's face crops.
     let faceThumbnails = FaceThumbnails()
     /// Auto Edit, Settings ▸ AI and the agent's review queue (WP M3-11).
-    let agent = AgentController()
+    let agent: AgentController
     var showAutoEdit = false
     // M2-50 begin: Photo ▸ Photo Merge / Enhance (Photo/AppModel+Photo.swift)
     let photoJobs = PhotoJobController()
@@ -309,7 +309,8 @@ final class AppModel {
     private static let basketTargetKey = "BasketTarget"
     static let renderReadoutKey = "ShowRenderReadout"
 
-    init() {
+    init(agent: AgentController = AgentController()) {
+        self.agent = agent
         recentFolders = (UserDefaults.standard.stringArray(forKey: Self.recentFoldersKey) ?? [])
             .map { URL(fileURLWithPath: $0) }
         basketTarget = UserDefaults.standard.string(forKey: Self.basketTargetKey) ?? EngineLibrary.defaultBasketTarget
@@ -485,6 +486,7 @@ final class AppModel {
             // Changes committed between the scan and now (a tether frame in flight).
             syncLibrary()
         }
+        agent.libraryInstalled(lib)
     }
 
     /// `keeping`: an in-place update. Those items stay whatever the filters say now (filters
@@ -1003,7 +1005,8 @@ final class AppModel {
     }
 
     var reviewUnavailableReason: String? {
-        guard selectedReviewEntry != nil else { return nil }
+        guard let entry = selectedReviewEntry else { return nil }
+        if let reason = entry.unavailableReason { return reason }
         guard let owner = agent.reviewLibrary else { return "This review has no available library owner." }
         guard engineLibrary === owner else {
             return "This queue belongs to another library session. Its actions are unavailable here."
@@ -1042,16 +1045,19 @@ final class AppModel {
         showInspector = true
         viewMode = .review
         workspaceTransition = false
+        agent.persistReviewCursor()
         notifySelection(scroll: false)
     }
 
     func selectReviewPhoto(_ imageID: String) {
         reviewNavigation.select(imageID, queue: agent.queue)
+        agent.persistReviewCursor()
     }
 
     func moveReviewSelection(_ delta: Int) {
         if isReviewEditing { liveObservers.forEach { $0.workspaceWillLeavePhotoEdit() } }
         reviewNavigation.move(delta, queue: agent.queue)
+        agent.persistReviewCursor()
         if isReviewEditing {
             explicitEditKey = reviewTargetItem.map { workspaceKey(for: $0) }
             // Missing rows must return to Review, never edit the underlying Library focus.

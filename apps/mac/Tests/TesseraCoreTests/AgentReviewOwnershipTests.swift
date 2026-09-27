@@ -15,6 +15,7 @@ final class AgentReviewOwnershipTests: XCTestCase {
         let b: EngineLibrary
         let model: AppModel
         let agent: AgentController
+        let support: URL
     }
 
     private func fixture(photosPerFolder: Int = 1, useModelAgent: Bool = false) throws -> Fixture {
@@ -55,15 +56,17 @@ final class AgentReviewOwnershipTests: XCTestCase {
         XCTAssertEqual(a.items.count, photosPerFolder)
         XCTAssertEqual(b.items.count, photosPerFolder)
         XCTAssertNotEqual(a.imageIDs[0], b.imageIDs[0])
-        let model = AppModel()
+        let modelAgent = AgentController(arguments: ["--fake-planner"], supportDirectory: support)
+        let model = AppModel(agent: modelAgent)
         model.install(a)
-        let agent = useModelAgent ? model.agent : AgentController(arguments: ["--fake-planner"])
+        let agent = useModelAgent ? model.agent
+            : AgentController(arguments: ["--fake-planner"], supportDirectory: support)
         agent.provider = .scripted
         agent.preferences = AIPreferences()
         agent.preferences.sceneConsistency = false
         agent.preferences.personConsistency = false
         agent.app = model
-        return Fixture(a: a, b: b, model: model, agent: agent)
+        return Fixture(a: a, b: b, model: model, agent: agent, support: support)
     }
 
     private func settle(_ predicate: () -> Bool, file: StaticString = #filePath, line: UInt = #line) async throws {
@@ -192,7 +195,7 @@ final class AgentReviewOwnershipTests: XCTestCase {
         let f = try fixture()
         let old = try await run(f)
         f.model.install(f.b)
-        let other = AgentController(arguments: ["--fake-planner"])
+        let other = AgentController(arguments: ["--fake-planner"], supportDirectory: f.support)
         other.preferences = f.agent.preferences
         other.app = f.model
         other.start(itemIDs: [0], provider: .scripted)
@@ -497,6 +500,165 @@ final class AgentReviewOwnershipTests: XCTestCase {
         let controller = try XCTUnwrap(f.model.develop)
         f.model.closeDevelop()
         await controller.close()
+    }
+
+    func testCompletedQueueRestoresRecipeStatusAndCursorWithFreshOwner() async throws {
+        let f = try fixture(useModelAgent: true)
+        let entry = try await run(f)
+        let target = try XCTUnwrap(f.agent.queueTarget(entry))
+        f.agent.accept(target)
+        try await settle { f.agent.busy.isEmpty && f.agent.queue.entry(entry.imageID)?.status == .accepted }
+        f.model.reviewNavigation.restoreCursor(selectedID: entry.imageID, anchorID: entry.imageID,
+                                               queue: f.agent.queue)
+        f.agent.persistReviewCursor()
+
+        let reopened = try EngineLibrary.scan(folder: try XCTUnwrap(f.a.folder), appSupport: f.support)
+        let resumedAgent = AgentController(arguments: ["--fake-planner"], supportDirectory: f.support)
+        let resumedModel = AppModel(agent: resumedAgent)
+        resumedModel.install(reopened)
+
+        let restored = try XCTUnwrap(resumedAgent.queue.entry(entry.imageID))
+        XCTAssertEqual(restored.status, .accepted, "recipe review status remains authoritative")
+        XCTAssertEqual(restored.groupID, entry.groupID)
+        XCTAssertTrue(resumedAgent.reviewLibrary === reopened)
+        XCTAssertNotEqual(resumedAgent.reviewGeneration, f.agent.reviewGeneration)
+        XCTAssertEqual(resumedModel.reviewNavigation.selectedID, entry.imageID)
+        XCTAssertEqual(resumedModel.reviewNavigation.anchorID, entry.imageID)
+        XCTAssertEqual(resumedModel.viewMode, .grid, "restoring a queue does not switch away from Library")
+        let restoredTarget = try XCTUnwrap(resumedAgent.queueTarget(restored))
+        XCTAssertEqual(resumedAgent.currentItem(for: restoredTarget), reopened.itemOfImage[entry.imageID])
+    }
+
+    func testMissingAndSupersededTargetsStayVisibleButDisabledAfterRestore() async throws {
+        let f = try fixture(useModelAgent: true)
+        let entry = try await run(f)
+        let store = ReviewResumeStore(directory: f.support)
+        let original = try XCTUnwrap(store.load(libraryFolder: try XCTUnwrap(f.a.folder)))
+        let failedTargets = original.targets.map { target -> ReviewResumeRecord.Target in
+            var target = target
+            if target.imageID == entry.imageID { target.error = "Auto edit did not produce a review result." }
+            return target
+        }
+        let failedRecord = try original.advanced(targets: failedTargets)
+        try store.save(failedRecord)
+        let matchedLibrary = try EngineLibrary.scan(folder: try XCTUnwrap(f.a.folder), appSupport: f.support)
+        let matchedAgent = AgentController(arguments: ["--fake-planner"], supportDirectory: f.support)
+        let matchedModel = AppModel(agent: matchedAgent)
+        matchedModel.install(matchedLibrary)
+        let failedButCurrent = try XCTUnwrap(matchedAgent.queue.entry(entry.imageID))
+        XCTAssertNotNil(failedButCurrent.error)
+        XCTAssertNil(failedButCurrent.unavailableReason)
+        XCTAssertFalse(failedButCurrent.isActionable, "Accept is still unavailable for a failed result")
+        XCTAssertNotNil(matchedAgent.queueTarget(failedButCurrent), "a matching saved group remains a valid redo/revert target")
+
+        let staleTargets = failedRecord.targets.map { target -> ReviewResumeRecord.Target in
+            var target = target
+            target.expectedGroupID = (target.imageID == entry.imageID) ? UInt32.max : target.expectedGroupID
+            return target
+        }
+        try store.save(try failedRecord.advanced(targets: staleTargets))
+        let supersededLibrary = try EngineLibrary.scan(folder: try XCTUnwrap(f.a.folder), appSupport: f.support)
+        let supersededAgent = AgentController(arguments: ["--fake-planner"], supportDirectory: f.support)
+        let supersededModel = AppModel(agent: supersededAgent)
+        supersededModel.install(supersededLibrary)
+        let superseded = try XCTUnwrap(supersededAgent.queue.entry(entry.imageID))
+        XCTAssertNotNil(superseded.unavailableReason)
+        XCTAssertNil(supersededAgent.queueTarget(superseded))
+        XCTAssertEqual(supersededAgent.queue.unavailableCount, 1)
+        XCTAssertEqual(supersededAgent.queue.failedCount, 0)
+
+        try FileManager.default.removeItem(at: try XCTUnwrap(f.a.items[0].url))
+        let missingLibrary = try EngineLibrary.scan(folder: try XCTUnwrap(f.a.folder), appSupport: f.support)
+        let missingAgent = AgentController(arguments: ["--fake-planner"], supportDirectory: f.support)
+        let missingModel = AppModel(agent: missingAgent)
+        missingModel.install(missingLibrary)
+        let missing = try XCTUnwrap(missingAgent.queue.entry(entry.imageID))
+        XCTAssertNotNil(missing.unavailableReason)
+        XCTAssertNil(missingAgent.queueTarget(missing))
+    }
+
+    func testSamePathReopenDuringLiveRunDoesNotMarkItInterrupted() async throws {
+        let f = try fixture(useModelAgent: true)
+        f.agent.start(itemIDs: [0], provider: .scripted)
+        XCTAssertTrue(f.agent.isRunning)
+        let reopened = try EngineLibrary.scan(folder: try XCTUnwrap(f.a.folder), appSupport: f.support)
+        f.model.install(reopened)
+        let store = ReviewResumeStore(directory: f.support)
+        XCTAssertEqual(try store.load(libraryFolder: try XCTUnwrap(f.a.folder))?.state, .running,
+                       "installing another engine owner in the same session is not a relaunch")
+        XCTAssertTrue(f.agent.resumeMessage?.contains("still running") == true)
+
+        try await settle { !f.agent.isRunning }
+
+        XCTAssertTrue(f.agent.reviewLibrary === reopened, "completed work rebinds to the newly installed owner")
+        XCTAssertEqual(try store.load(libraryFolder: try XCTUnwrap(f.a.folder))?.state, .completed)
+        XCTAssertEqual(f.agent.queue.unavailableCount, 0)
+        XCTAssertEqual(f.agent.queue.entries.first?.imageID, reopened.imageIDs[0])
+    }
+
+    func testInterruptedIntentRestoresUnknownTargetWithoutReplaying() throws {
+        let f = try fixture()
+        let folder = try XCTUnwrap(f.a.folder)
+        let target = ReviewResumeRecord.Target(imageID: f.a.imageIDs[0], name: f.a.items[0].name, ordinal: 0)
+        let record = ReviewResumeRecord(recordRevision: 1, libraryPath: ReviewResumeStore.canonicalPath(folder),
+            queueID: UUID(), provider: "scripted planner", scope: "selection", sourceDescription: "Selection · 1 photo",
+            state: .running, startedAt: Date(), updatedAt: Date(), targets: [target])
+        try ReviewResumeStore(directory: f.support).save(record)
+        let reopened = try EngineLibrary.scan(folder: folder, appSupport: f.support)
+        let resumedAgent = AgentController(arguments: ["--fake-planner"], supportDirectory: f.support)
+        let resumedModel = AppModel(agent: resumedAgent)
+        resumedModel.install(reopened)
+
+        let restoredRecord = try XCTUnwrap(ReviewResumeStore(directory: f.support).load(libraryFolder: folder))
+        XCTAssertEqual(restoredRecord.state, .interrupted)
+        XCTAssertFalse(resumedAgent.isRunning, "reopening never replays an AI request")
+        let restored = try XCTUnwrap(resumedAgent.queue.entry(target.imageID))
+        XCTAssertNotNil(restored.unavailableReason)
+        XCTAssertNil(resumedAgent.queueTarget(restored))
+        XCTAssertNil(try reopened.engine.agentProvenance(imageId: target.imageID))
+    }
+
+    func testResumeSaveFailureKeepsInMemoryQueueAndExposesWarningState() async throws {
+        let f = try fixture(useModelAgent: true)
+        let folder = try XCTUnwrap(f.a.folder)
+        let store = ReviewResumeStore(directory: f.support)
+        let file = store.fileURL(for: folder)
+        try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let future = Data(#"{"schemaVersion":999,"keep":"untouched"}"#.utf8)
+        try future.write(to: file)
+
+        f.agent.start(itemIDs: [0], provider: .scripted)
+        try await settle { !f.agent.isRunning }
+
+        XCTAssertFalse(f.agent.queue.isEmpty, "a persistence error must not discard current in-memory results")
+        XCTAssertTrue(f.agent.resumeMessage?.contains("newer format") == true)
+        XCTAssertEqual(try Data(contentsOf: file), future, "unknown future history stays untouched")
+    }
+
+    func testCursorUpdateDuringRedoIsMergedIntoCompletionRevision() async throws {
+        let f = try fixture(photosPerFolder: 2, useModelAgent: true)
+        f.agent.start(itemIDs: [0, 1], provider: .scripted)
+        try await settle { !f.agent.isRunning }
+        let first = try XCTUnwrap(f.agent.queue.entries.first(where: { $0.itemID == 0 }))
+        let second = try XCTUnwrap(f.agent.queue.entries.first(where: { $0.itemID == 1 }))
+        let store = ReviewResumeStore(directory: f.support)
+
+        f.model.reviewNavigation.restoreCursor(selectedID: first.imageID, anchorID: first.imageID,
+                                               queue: f.agent.queue)
+        f.agent.persistReviewCursor()
+        f.agent.start(itemIDs: [try XCTUnwrap(first.itemID)], instruction: "warmer", provider: .scripted)
+        f.model.reviewNavigation.restoreCursor(selectedID: second.imageID, anchorID: second.imageID,
+                                               queue: f.agent.queue)
+        f.agent.persistReviewCursor()
+        try await settle { !f.agent.isRunning }
+
+        let record = try XCTUnwrap(store.load(libraryFolder: try XCTUnwrap(f.a.folder)))
+        XCTAssertEqual(record.state, .completed)
+        XCTAssertEqual(record.selectedImageID, second.imageID)
+        XCTAssertEqual(record.anchorImageID, second.imageID)
+        XCTAssertEqual(record.targets.count, 2)
+        XCTAssertNotNil(record.targets.first(where: { $0.imageID == first.imageID })?.expectedGroupID)
+        XCTAssertNotNil(record.targets.first(where: { $0.imageID == second.imageID })?.expectedGroupID)
     }
 
 }

@@ -10,6 +10,13 @@ public struct ReviewNavigationState: Equatable, Sendable {
 
     public init() {}
 
+    /// Restores only the user's stable photo identities. Draft text is intentionally session-only.
+    public mutating func restoreCursor(selectedID: String?, anchorID: String?, queue: AgentReviewQueue) {
+        self.selectedID = selectedID.flatMap { queue.entry($0) == nil ? nil : $0 } ?? queue.entries.first?.imageID
+        self.anchorID = anchorID.flatMap { queue.entry($0) == nil ? nil : $0 } ?? self.selectedID
+        cancelRedo()
+    }
+
     public mutating func reconcile(queue: AgentReviewQueue, generation: UUID) {
         if self.generation != generation { cancelRedo() }
         self.generation = generation

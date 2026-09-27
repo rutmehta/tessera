@@ -2,14 +2,15 @@ import AppKit
 import SwiftUI
 import TesseraCore
 
-/// Navigable, session-local review. All mutations go through the captured-owner controller API.
+/// Navigable review. All mutations go through the captured-owner controller API.
 struct AgentReviewWorkspace: View {
     @Bindable var model: AppModel
 
     var body: some View {
         if model.agent.queue.isEmpty {
             EmptyStateContent(symbol: "checklist", title: "Nothing to review",
-                              message: "Auto Edit results appear here. This review queue is available during this app session.") {
+                              message: model.agent.resumeMessage
+                                ?? "Auto Edit results appear here. Review queues resume when you reopen this library.") {
                 Button("Back to Library") { model.returnToLibrary() }
                     .buttonStyle(.theme(.bordered, height: Theme.Height.regular))
             }
@@ -21,6 +22,15 @@ struct AgentReviewWorkspace: View {
                     Text(model.agent.queue.summary)
                         .font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
                         .padding(Theme.Space.m).fixedSize(horizontal: false, vertical: true)
+                    if let warning = model.agent.resumeMessage {
+                        Label(warning, systemImage: "exclamationmark.triangle.fill")
+                            .font(Theme.Fonts.caption)
+                            .foregroundStyle(Theme.reject)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.horizontal, Theme.Space.m)
+                            .padding(.bottom, Theme.Space.m)
+                            .accessibilityIdentifier("review-persistence-warning")
+                    }
                     Hairline()
                     ScrollView {
                         LazyVStack(spacing: Theme.Space.xxs) {
@@ -39,6 +49,7 @@ struct AgentReviewWorkspace: View {
                         .padding(Theme.Space.s)
                     }
                     .scrollPosition(id: $model.reviewNavigation.anchorID, anchor: .top)
+                    .onChange(of: model.reviewNavigation.anchorID) { _, _ in model.agent.persistReviewCursor() }
                     .accessibilityIdentifier("agent-review-list")
                 }
                 .frame(width: 220)
@@ -66,8 +77,9 @@ struct ReviewDestinationRow: View {
                         .accessibilityIdentifier("review-row-busy")
                 }
             }
-            Text(entry.error == nil ? entry.status.title : "Failed")
-                .font(Theme.Fonts.captionMedium).foregroundStyle(entry.error == nil ? Theme.textSecondary : Theme.reject)
+            Text(entry.unavailableReason != nil ? "Unavailable" : entry.error == nil ? entry.status.title : "Failed")
+                .font(Theme.Fonts.captionMedium)
+                .foregroundStyle(entry.error != nil ? Theme.reject : Theme.textSecondary)
             Text(entry.confidenceText).font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -207,22 +219,22 @@ struct AgentReviewInspector: View {
                 Button("Accept & next") { model.acceptReviewedPhoto(advance: true) }
                     .accessibilityIdentifier("review-accept-next")
             }
-            .disabled(busy || model.reviewTargetItem == nil || entry.error != nil || entry.groupID == nil || entry.status == .accepted)
+            .disabled(busy || model.reviewTargetItem == nil || entry.error != nil || entry.unavailableReason != nil || entry.groupID == nil || entry.status == .accepted)
             if model.reviewNavigation.isDrafting {
                 TextField("Instruction for this photo", text: $model.reviewNavigation.instruction, axis: .vertical)
                     .textFieldStyle(.roundedBorder).lineLimit(2...5)
                     .accessibilityIdentifier("agent-review-instruction")
                 HStack {
                     Button("Redo") { model.redoReviewedPhoto() }
-                        .disabled(busy || model.reviewTargetItem == nil || model.reviewNavigation.instruction.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(busy || model.reviewTargetItem == nil || entry.unavailableReason != nil || model.reviewNavigation.instruction.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     Button("Cancel") { model.reviewNavigation.cancelRedo() }
                 }
             } else {
                 Button("Redo with instruction…") { model.reviewNavigation.beginRedo() }
-                    .disabled(busy || model.reviewTargetItem == nil)
+                    .disabled(busy || model.reviewTargetItem == nil || entry.unavailableReason != nil)
             }
             Button("Revert group") { model.revertReviewedPhoto() }
-                .disabled(busy || model.reviewTargetItem == nil || entry.groupID == nil || entry.status == .reverted)
+                .disabled(busy || model.reviewTargetItem == nil || entry.unavailableReason != nil || entry.groupID == nil || entry.status == .reverted)
                 .accessibilityIdentifier("review-revert")
         }
         .buttonStyle(.theme(.bordered, height: Theme.Height.regular))

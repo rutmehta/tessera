@@ -16,8 +16,10 @@ final class AgentReviewLayoutTests: XCTestCase {
         addTeardownBlock { try? FileManager.default.removeItem(at: scratch) }
         let names = ["Library-return.jpg", "A-long-photo-name-with-location-and-client-reference-0123456789.jpg", "B-ready.jpg", "C-missing.jpg"]
         for (i, name) in names.enumerated() { try ShellHarness.writeJPEG(folder.appendingPathComponent(name), shade: 30 + i * 30) }
-        let model = AppModel()
-        model.install(try EngineLibrary.scan(folder: folder, appSupport: scratch.appendingPathComponent("support")))
+        let support = scratch.appendingPathComponent("support")
+        let agent = AgentController(arguments: ["--fake-planner"], supportDirectory: support)
+        let model = AppModel(agent: agent)
+        model.install(try EngineLibrary.scan(folder: folder, appSupport: support))
         let preferences = model.agent.preferences
         defer { model.agent.preferences = preferences; model.closeDevelop() }
         model.enterReview()

@@ -16,6 +16,7 @@ final class AgentController {
 
     @ObservationIgnored weak var app: AppModel?
     @ObservationIgnored let store: AISettingsStore
+    @ObservationIgnored private let resumeStore: ReviewResumeStore
     var preferences: AIPreferences
     /// Hidden `--fake-planner` test aid: offers (and preselects) the scripted FakePlanner.
     let scriptedAvailable: Bool
@@ -29,6 +30,8 @@ final class AgentController {
     private(set) var progress: AgentRunProgress?
     private(set) var runningTitle = ""
     private(set) var queue = AgentReviewQueue()
+    private(set) var resumeMessage: String?
+    private var resumeRecord: ReviewResumeRecord?
     private var queueOwner: EngineLibrary?
     private var queueGeneration = UUID()
     @ObservationIgnored private var runID: UUID?
@@ -56,7 +59,9 @@ final class AgentController {
     }
 
     func queueTarget(_ entry: AgentReviewEntry) -> ReviewTarget? {
-        guard let queueOwner, let stored = queue.entry(entry.imageID), stored.groupID == entry.groupID else { return nil }
+        guard entry.canBeTargeted, let queueOwner, let stored = queue.entry(entry.imageID),
+              stored.groupID == entry.groupID, stored.unavailableReason == nil,
+              queueOwner.itemOfImage[entry.imageID] != nil else { return nil }
         return ReviewTarget(entry: entry, library: queueOwner, generation: queueGeneration)
     }
 
@@ -122,8 +127,10 @@ final class AgentController {
         clearSourceKeysIfIdle()
     }
 
-    init(arguments: [String] = ProcessInfo.processInfo.arguments) {
-        store = AISettingsStore(directory: EngineLibrary.defaultSupportDirectory)
+    init(arguments: [String] = ProcessInfo.processInfo.arguments, supportDirectory: URL? = nil) {
+        let support = supportDirectory ?? EngineLibrary.supportDirectory(arguments: arguments)
+        store = AISettingsStore(directory: support)
+        resumeStore = ReviewResumeStore(directory: support)
         let prefs = store.load()
         preferences = prefs
         scriptedAvailable = arguments.contains("--fake-planner")
@@ -134,6 +141,105 @@ final class AgentController {
 
     func savePreferences() {
         do { try store.save(preferences) } catch { app?.statusMessage = "AI settings not saved: \(error.localizedDescription)" }
+    }
+
+    /// Rehydrates only the manifest captured for this exact canonical library path.
+    /// Recipe provenance supplies the current per-photo detail and remains authoritative.
+    func libraryInstalled(_ installedLibrary: any PhotoLibrary) {
+        guard let library = installedLibrary as? EngineLibrary else { clearReviewQueue(); return }
+        guard let folder = library.folder else { clearReviewQueue(); return }
+        if isRunning, let runningFolder = runningLibrary?.folder,
+           ReviewResumeStore.canonicalPath(runningFolder) == ReviewResumeStore.canonicalPath(folder) {
+            resumeMessage = "Auto Edit is still running for this library. Its results will appear when it finishes."
+            return
+        }
+        do {
+            guard let record = try resumeStore.restore(libraryFolder: folder) else {
+                clearReviewQueue()
+                return
+            }
+            let entries = record.targets.sorted { $0.ordinal < $1.ordinal }.map { target -> AgentReviewEntry in
+                let itemID = library.itemOfImage[target.imageID]
+                guard let expectedGroup = target.expectedGroupID else {
+                    if let error = target.error {
+                        return AgentReviewEntry(imageID: target.imageID, itemID: itemID, name: target.name,
+                                                confidence: 0, error: error)
+                    }
+                    return unavailableEntry(target, itemID: itemID,
+                                            reason: record.state == .interrupted
+                                                ? "This target may not have completed before Tessera closed."
+                                                : "This target has no saved review result.")
+                }
+                guard let itemID,
+                      let provenance = try? library.engine.agentProvenance(imageId: target.imageID) else {
+                    return unavailableEntry(target, itemID: itemID,
+                                            reason: "This photo or its saved review result is unavailable.")
+                }
+                guard provenance.item.groupId == expectedGroup else {
+                    return unavailableEntry(target, itemID: itemID,
+                                            reason: "A newer agent edit replaced this review result.")
+                }
+                var entry = AgentReviewEntry(provenance.item, itemID: itemID)
+                if let error = target.error { entry.error = error }
+                return entry
+            }
+            queue = AgentReviewQueue(entries: entries, provider: record.provider)
+            queueOwner = library
+            queueGeneration = UUID()
+            resumeRecord = record
+            resumeMessage = nil
+            showReview = false
+            app?.reviewNavigation.restoreCursor(selectedID: record.selectedImageID,
+                                                anchorID: record.anchorImageID, queue: queue)
+            app?.reconcileReviewNavigation()
+        } catch {
+            clearReviewQueue()
+            resumeMessage = "Review history unavailable: \(error.localizedDescription)"
+            app?.statusMessage = resumeMessage
+        }
+    }
+
+    private func clearReviewQueue() {
+        queue = AgentReviewQueue()
+        queueOwner = nil
+        queueGeneration = UUID()
+        resumeRecord = nil
+        resumeMessage = nil
+        showReview = false
+    }
+
+    private func unavailableEntry(_ target: ReviewResumeRecord.Target, itemID: Int?, reason: String) -> AgentReviewEntry {
+        AgentReviewEntry(imageID: target.imageID, itemID: itemID, name: target.name,
+                         groupID: target.expectedGroupID, confidence: 0, unavailableReason: reason)
+    }
+
+    private func writeResumeRecord(_ record: ReviewResumeRecord, for library: EngineLibrary) {
+        do {
+            try resumeStore.save(record)
+            if queueOwner === library || app?.engineLibrary === library {
+                resumeRecord = record
+                resumeMessage = nil
+            }
+        } catch {
+            if queueOwner === library || app?.engineLibrary === library {
+                resumeMessage = "Review history could not be saved: \(error.localizedDescription)"
+                if app?.engineLibrary === library, let app { app.statusMessage = resumeMessage }
+            }
+        }
+    }
+
+    func persistReviewCursor() {
+        guard let record = resumeRecord, let library = queueOwner,
+              app?.engineLibrary === library,
+              library.folder.map(ReviewResumeStore.canonicalPath) == record.libraryPath else { return }
+        do {
+            let updated = try record.updatingCursor(selectedID: app?.reviewNavigation.selectedID,
+                                                    anchorID: app?.reviewNavigation.anchorID)
+            writeResumeRecord(updated, for: library)
+        } catch {
+            resumeMessage = "Review history could not be saved: \(error.localizedDescription)"
+            if let app { app.statusMessage = resumeMessage }
+        }
     }
 
     /// Key state for a provider, for the sheet and Settings (masked; never the key).
@@ -255,6 +361,56 @@ final class AgentController {
         }
         let request = AgentRunRequest(images: inputs, libraryFolder: folder.path, provider: provider,
                                       guardrails: prefs.guardrails, instruction: instruction)
+        let images = inputs.map(\.imageId)
+        let canonicalPath = ReviewResumeStore.canonicalPath(folder)
+        let displayProvider = Self.providerName(kind, preferences: prefs)
+        let shouldMerge = queueOwner === lib && !queue.isEmpty
+            && (instruction != nil || queue.provider == displayProvider)
+        let storedBeforeRun: ReviewResumeRecord?
+        do {
+            storedBeforeRun = resumeRecord?.libraryPath == canonicalPath
+                ? resumeRecord : try resumeStore.load(libraryFolder: folder)
+        } catch {
+            storedBeforeRun = nil
+            resumeMessage = "Review history could not be read: \(error.localizedDescription)"
+        }
+        var capturedTargets: [ReviewResumeRecord.Target] = shouldMerge
+            ? (storedBeforeRun?.targets ?? queue.entries.enumerated().map {
+                ReviewResumeRecord.Target(imageID: $0.element.imageID, name: $0.element.name,
+                                          ordinal: $0.offset, expectedGroupID: $0.element.groupID,
+                                          error: $0.element.error == nil ? nil : "Auto edit did not produce a review result.")
+            }) : []
+        capturedTargets = ReviewResumeRecord.reindexedTargets(capturedTargets)
+        var nextOrdinal = capturedTargets.count
+        for imageID in images {
+            let name = lib.itemOfImage[imageID].flatMap { lib.items.indices.contains($0) ? lib.items[$0].name : nil } ?? imageID
+            if let existing = capturedTargets.firstIndex(where: { $0.imageID == imageID }) {
+                capturedTargets[existing].name = name
+                capturedTargets[existing].error = nil
+            } else {
+                capturedTargets.append(.init(imageID: imageID, name: name,
+                                             ordinal: nextOrdinal))
+                nextOrdinal += 1
+            }
+        }
+        let now = Date()
+        let priorRevision = storedBeforeRun?.recordRevision ?? 0
+        let intent = ReviewResumeRecord(
+            recordRevision: priorRevision < UInt64.max ? priorRevision + 1 : priorRevision,
+            libraryPath: canonicalPath,
+            queueID: shouldMerge ? storedBeforeRun?.queueID ?? UUID() : UUID(),
+            provider: shouldMerge ? storedBeforeRun?.provider ?? displayProvider : displayProvider,
+            scope: shouldMerge ? storedBeforeRun?.scope ?? scope.rawValue : scope.rawValue,
+            sourceDescription: shouldMerge ? storedBeforeRun?.sourceDescription
+                ?? "\(title(scope)) · \(images.count) photo\(images.count == 1 ? "" : "s")"
+                : "\(title(scope)) · \(images.count) photo\(images.count == 1 ? "" : "s")",
+            state: .running,
+            startedAt: shouldMerge ? storedBeforeRun?.startedAt ?? now : now,
+            updatedAt: now,
+            targets: capturedTargets,
+            selectedImageID: app.reviewNavigation.selectedID,
+            anchorImageID: app.reviewNavigation.anchorID)
+        writeResumeRecord(intent, for: lib)
         let cancel = CancelFlag()
         cancelFlag = cancel
         error = nil
@@ -265,7 +421,6 @@ final class AgentController {
         let relay = AgentRelay { [weak self] p in
             Task { @MainActor in if self?.runID == job { self?.progress = p } }
         }
-        let images = inputs.map(\.imageId)
         runningLibrary = lib
         runningImages = Set(images)
         runningSources = Set(images.compactMap { sourceKey(imageID: $0, library: lib) })
@@ -285,8 +440,15 @@ final class AgentController {
             self.runningSources.removeAll()
             self.clearSourceKeysIfIdle()
             switch result {
-            case .success(let report): self.didFinish(report, library: lib, redo: instruction != nil)
+            case .success(let report):
+                let completed = self.recording(report: report, base: intent, runImageIDs: images,
+                                               redo: instruction != nil, library: lib)
+                self.writeResumeRecord(completed, for: lib)
+                self.didFinish(report, library: lib, redo: instruction != nil, resumeRecord: completed,
+                               runImageIDs: images)
             case .failure(let e):
+                self.writeResumeRecord(self.recordingFailure(base: intent, runImageIDs: images,
+                                                             redo: instruction != nil, library: lib), for: lib)
                 if app.engineLibrary === lib {
                     self.error = e.localizedDescription
                     app.statusMessage = "Auto edit failed: \(e.localizedDescription)"
@@ -296,6 +458,11 @@ final class AgentController {
             // Item ids may have moved while the run was going (frames arriving, an import).
             if app.engineLibrary === lib {
                 app.agentDidEdit(images.compactMap { lib.itemOfImage[$0] })
+            }
+            if let current = app.engineLibrary, current !== lib,
+               let currentFolder = current.folder,
+               ReviewResumeStore.canonicalPath(currentFolder) == ReviewResumeStore.canonicalPath(folder) {
+                self.libraryInstalled(current)
             }
         }
     }
@@ -308,8 +475,69 @@ final class AgentController {
         queue.relink { lib.itemOfImage[$0] }
     }
 
-    private func didFinish(_ report: AgentRunReport, library lib: EngineLibrary, redo: Bool) {
-        let entries = report.items.map { AgentReviewEntry($0, itemID: lib.itemOfImage[$0.imageId]) }
+    private static func providerName(_ kind: AIProviderKind, preferences: AIPreferences) -> String {
+        switch kind {
+        case .styleProfile: "style profile"
+        case .anthropic: "Anthropic \(preferences.anthropicModel)"
+        case .openAI: "OpenAI \(preferences.openAIModel)"
+        case .ollama: "Ollama \(preferences.ollamaModel)"
+        case .scripted: "scripted planner"
+        }
+    }
+
+    private func recording(report: AgentRunReport, base: ReviewResumeRecord,
+                           runImageIDs: [String], redo: Bool, library: EngineLibrary) -> ReviewResumeRecord {
+        let returned = Dictionary(report.items.map { ($0.imageId, $0) }, uniquingKeysWith: { _, last in last })
+        let current = latestRecord(matching: base, library: library)
+        var targets = current.targets
+        for imageID in runImageIDs {
+            guard let index = targets.firstIndex(where: { $0.imageID == imageID }) else { continue }
+            if let item = returned[imageID] {
+                targets[index].expectedGroupID = item.groupId
+                targets[index].error = item.error == nil ? nil : "Auto edit did not produce a review result."
+            } else {
+                targets[index].expectedGroupID = nil
+                targets[index].error = nil // Cancelled/unreported targets stay explicitly unknown.
+            }
+        }
+        let state: ReviewResumeRecord.RunState = report.cancelled ? .cancelled
+            : targets.contains(where: { runImageIDs.contains($0.imageID) && $0.error != nil }) ? .partial : .completed
+        guard var result = try? current.advanced(state: state, targets: targets) else { return current }
+        if !redo { result.provider = report.provider }
+        return result
+    }
+
+    private func latestRecord(matching base: ReviewResumeRecord, library: EngineLibrary) -> ReviewResumeRecord {
+        if let latest = resumeRecord,
+           latest.libraryPath == base.libraryPath, latest.queueID == base.queueID { return latest }
+        if let folder = library.folder,
+           let latest = try? resumeStore.load(libraryFolder: folder),
+           latest.libraryPath == base.libraryPath, latest.queueID == base.queueID { return latest }
+        return base
+    }
+
+    private func recordingFailure(base: ReviewResumeRecord, runImageIDs: [String], redo: Bool,
+                                  library: EngineLibrary) -> ReviewResumeRecord {
+        let current = latestRecord(matching: base, library: library)
+        let targets = current.targets.map { target -> ReviewResumeRecord.Target in
+            var target = target
+            if runImageIDs.contains(target.imageID), !redo || target.expectedGroupID == nil {
+                target.error = "Auto edit did not produce a review result."
+            }
+            return target
+        }
+        return (try? current.advanced(state: .failed, targets: targets)) ?? current
+    }
+
+    private func didFinish(_ report: AgentRunReport, library lib: EngineLibrary, redo: Bool,
+                           resumeRecord: ReviewResumeRecord, runImageIDs: [String]) {
+        guard app?.engineLibrary === lib else { return }
+        var entries = report.items.map { AgentReviewEntry($0, itemID: lib.itemOfImage[$0.imageId]) }
+        let returned = Set(report.items.map(\.imageId))
+        for target in resumeRecord.targets where runImageIDs.contains(target.imageID) && !returned.contains(target.imageID) {
+            entries.append(unavailableEntry(target, itemID: lib.itemOfImage[target.imageID],
+                                            reason: "The run stopped before saving a review result for this photo."))
+        }
         if queueOwner === lib && (redo || !queue.isEmpty && queue.provider == report.provider) {
             queue.merge(entries)
         } else {
@@ -317,7 +545,6 @@ final class AgentController {
         }
         queueOwner = lib
         queueGeneration = UUID()
-        guard app?.engineLibrary === lib else { return }
         let failed = entries.filter { $0.error != nil }
         let done = entries.count - failed.count
         var headline = report.cancelled ? "Auto edit cancelled: \(done) edited" : redo
@@ -335,7 +562,8 @@ final class AgentController {
         let entry = target.entry
         guard let app, currentItem(for: target) != nil,
               let folder = target.library.folder, entry.groupID != nil,
-              entry.error == nil, !isRunning, !busy.contains(entry.imageID) else { completion(false); return }
+              entry.error == nil, entry.unavailableReason == nil,
+              !isRunning, !busy.contains(entry.imageID) else { completion(false); return }
         let lib = target.library
         busy.insert(entry.imageID)
         mutationOwners[entry.imageID] = lib
@@ -373,7 +601,7 @@ final class AgentController {
     func revert(_ target: ReviewTarget) {
         let entry = target.entry
         guard let app, currentItem(for: target) != nil, let group = entry.groupID,
-              !isRunning, !busy.contains(entry.imageID) else { return }
+              entry.unavailableReason == nil, !isRunning, !busy.contains(entry.imageID) else { return }
         let lib = target.library
         busy.insert(entry.imageID)
         mutationOwners[entry.imageID] = lib

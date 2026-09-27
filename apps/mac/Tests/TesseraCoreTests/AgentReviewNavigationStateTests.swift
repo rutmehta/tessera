@@ -71,4 +71,17 @@ final class AgentReviewNavigationStateTests: XCTestCase {
         XCTAssertFalse(state.isDrafting)
         XCTAssertTrue(state.instruction.isEmpty)
     }
+
+    func testRestoredCursorUsesStableIDsAndFallsBackWhenTheyAreMissing() {
+        let queue = queue()
+        var state = ReviewNavigationState()
+        state.restoreCursor(selectedID: "b", anchorID: "a", queue: queue)
+        XCTAssertEqual(state.selectedID, "b")
+        XCTAssertEqual(state.anchorID, "a")
+        XCTAssertFalse(state.isDrafting)
+
+        state.restoreCursor(selectedID: "gone", anchorID: "gone", queue: queue)
+        XCTAssertEqual(state.selectedID, queue.entries.first?.imageID)
+        XCTAssertEqual(state.anchorID, state.selectedID)
+    }
 }

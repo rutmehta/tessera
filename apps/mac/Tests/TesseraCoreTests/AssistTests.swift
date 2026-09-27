@@ -106,6 +106,25 @@ final class AgentReviewQueueTests: XCTestCase {
         XCTAssertEqual(q.entry("i1")?.status, .accepted, "others keep their review state")
         XCTAssertEqual(q.count, 2)
     }
+
+    func testUnavailableResumeRowsStayVisibleButDoNotCountAsActionableFailures() {
+        var missing = entry("i5", 0.2)
+        missing.unavailableReason = "This photo is no longer available in the open library."
+        let queue = AgentReviewQueue(entries: [missing, entry("i2", 0.4)])
+
+        XCTAssertEqual(queue.count, 2)
+        XCTAssertEqual(queue.pendingCount, 1)
+        XCTAssertEqual(queue.failedCount, 0)
+        XCTAssertEqual(queue.unavailableCount, 1)
+        XCTAssertFalse(queue.entry("i5")!.isActionable)
+        XCTAssertEqual(queue.entry("i5")?.confidenceText, "Unavailable")
+        XCTAssertEqual(queue.entry("i5")?.summary, "This photo is no longer available in the open library.")
+
+        let failed = AgentReviewEntry(imageID: "failed", itemID: 3, name: "failed.jpg",
+                                      confidence: 0, error: "Planner failed")
+        XCTAssertTrue(failed.canBeTargeted, "failed rows can still create a fresh scoped retry target")
+        XCTAssertFalse(failed.isActionable, "a failed row cannot Accept or Revert without a recipe group")
+    }
 }
 
 final class AISettingsTests: XCTestCase {

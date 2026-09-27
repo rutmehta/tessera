@@ -1,0 +1,4 @@
+43e4a31c4c7eb42512eb9579a357a3872b14d2b14db66fb18f901aa56db01b79  apps/mac/Tests/TesseraCoreTests/ReviewResumeStoreTests.swift
+05787f5c2e1b1f46b3bb60d85dfe06c98a4246c6e5570657196ef3951072bc54  apps/mac/Sources/TesseraCore/Assist/AgentReview.swift
+80fca67d0976520baabf17a7c050aa13c99c2400997e7af733e9156b77e76718  apps/mac/Sources/Tessera/Agent/AgentController.swift
+2eb8d5a64e62b49406bf97aa4b429ef327c12455582585b5b718ea2ace117bb3  apps/mac/Sources/Tessera/App/AppModel.swift

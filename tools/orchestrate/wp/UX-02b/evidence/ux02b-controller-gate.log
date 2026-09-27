@@ -1,0 +1,621 @@
+Building for debugging...
+[0/7] Write sources
+[3/7] Write swift-version--58304C5D6DBC2206.txt
+[5/9] Emitting module TesseraCore
+[6/9] Compiling TesseraCore AgentReview.swift
+[7/10] Compiling TesseraCore ReviewNavigationState.swift
+[8/24] Compiling Tessera AISettingsView.swift
+[9/24] Compiling Tessera AgentController.swift
+[10/24] Compiling Tessera AgentPanels.swift
+[11/24] Compiling Tessera AgentReviewSheet.swift
+[12/24] Compiling Tessera AgentReviewWorkspace.swift
+[13/24] Compiling Tessera AppCommands.swift
+[14/24] Compiling Tessera AppModel+Output.swift
+[15/24] Compiling Tessera AppModel.swift
+[16/24] Compiling Tessera DevelopTools.swift
+[17/24] Compiling Tessera KeyRouter.swift
+[18/24] Compiling Tessera MaskTools.swift
+[19/24] Emitting module Tessera
+[20/56] Compiling Tessera TesseraApp.swift
+[21/56] Compiling Tessera TimingSelfTest.swift
+[22/56] Compiling Tessera CompareView.swift
+[23/56] Compiling Tessera AssistController.swift
+[24/56] Compiling Tessera AssistPanels.swift
+[25/56] Compiling Tessera DefectSweepSheet.swift
+[26/56] Compiling Tessera FaceStripView.swift
+[27/56] Compiling Tessera DocumentSelfTest.swift
+[28/56] Compiling Tessera FilterSelfTest.swift
+[29/56] Compiling Tessera InspectorView.swift
+[30/56] Compiling Tessera WorkspaceHeader.swift
+[31/76] Compiling Tessera AutoEditSheet.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Document/Transforms/TransformSelfTest.swift:460:16: warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+458 | 
+459 |         // 395: position lock rejects geometry.
+460 |         if let id = doc?.primary?.id {
+    |                `- warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+461 |             doc?.toggleLock(.position)
+462 |             await settle()
+[32/76] Compiling Tessera DocumentSheets.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Document/Transforms/TransformSelfTest.swift:460:16: warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+458 | 
+459 |         // 395: position lock rejects geometry.
+460 |         if let id = doc?.primary?.id {
+    |                `- warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+461 |             doc?.toggleLock(.position)
+462 |             await settle()
+[33/76] Compiling Tessera DocumentView.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Document/Transforms/TransformSelfTest.swift:460:16: warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+458 | 
+459 |         // 395: position lock rejects geometry.
+460 |         if let id = doc?.primary?.id {
+    |                `- warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+461 |             doc?.toggleLock(.position)
+462 |             await settle()
+[34/76] Compiling Tessera DocumentWorkspace.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Document/Transforms/TransformSelfTest.swift:460:16: warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+458 | 
+459 |         // 395: position lock rejects geometry.
+460 |         if let id = doc?.primary?.id {
+    |                `- warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+461 |             doc?.toggleLock(.position)
+462 |             await settle()
+[35/76] Compiling Tessera RetouchSelfTest.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Document/Transforms/TransformSelfTest.swift:460:16: warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+458 | 
+459 |         // 395: position lock rejects geometry.
+460 |         if let id = doc?.primary?.id {
+    |                `- warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+461 |             doc?.toggleLock(.position)
+462 |             await settle()
+[36/76] Compiling Tessera DocumentStyles.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Document/Transforms/TransformSelfTest.swift:460:16: warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+458 | 
+459 |         // 395: position lock rejects geometry.
+460 |         if let id = doc?.primary?.id {
+    |                `- warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+461 |             doc?.toggleLock(.position)
+462 |             await settle()
+[37/76] Compiling Tessera StylesSelfTest.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Document/Transforms/TransformSelfTest.swift:460:16: warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+458 | 
+459 |         // 395: position lock rejects geometry.
+460 |         if let id = doc?.primary?.id {
+    |                `- warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+461 |             doc?.toggleLock(.position)
+462 |             await settle()
+[38/76] Compiling Tessera DocumentText.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Document/Transforms/TransformSelfTest.swift:460:16: warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+458 | 
+459 |         // 395: position lock rejects geometry.
+460 |         if let id = doc?.primary?.id {
+    |                `- warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+461 |             doc?.toggleLock(.position)
+462 |             await settle()
+[39/76] Compiling Tessera TextSelfTest.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Document/Transforms/TransformSelfTest.swift:460:16: warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+458 | 
+459 |         // 395: position lock rejects geometry.
+460 |         if let id = doc?.primary?.id {
+    |                `- warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+461 |             doc?.toggleLock(.position)
+462 |             await settle()
+[40/76] Compiling Tessera ToolsSelfTest.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Document/Transforms/TransformSelfTest.swift:460:16: warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+458 | 
+459 |         // 395: position lock rejects geometry.
+460 |         if let id = doc?.primary?.id {
+    |                `- warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+461 |             doc?.toggleLock(.position)
+462 |             await settle()
+[41/76] Compiling Tessera TransformSelfTest.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Document/Transforms/TransformSelfTest.swift:460:16: warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+458 | 
+459 |         // 395: position lock rejects geometry.
+460 |         if let id = doc?.primary?.id {
+    |                `- warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+461 |             doc?.toggleLock(.position)
+462 |             await settle()
+[42/76] Compiling Tessera VectorSelfTest.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Document/Transforms/TransformSelfTest.swift:460:16: warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+458 | 
+459 |         // 395: position lock rejects geometry.
+460 |         if let id = doc?.primary?.id {
+    |                `- warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+461 |             doc?.toggleLock(.position)
+462 |             await settle()
+[43/76] Compiling Tessera ThumbnailBrowser.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Document/Transforms/TransformSelfTest.swift:460:16: warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+458 | 
+459 |         // 395: position lock rejects geometry.
+460 |         if let id = doc?.primary?.id {
+    |                `- warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+461 |             doc?.toggleLock(.position)
+462 |             await settle()
+[44/76] Compiling Tessera DetailPreviewView.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Document/Transforms/TransformSelfTest.swift:460:16: warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+458 | 
+459 |         // 395: position lock rejects geometry.
+460 |         if let id = doc?.primary?.id {
+    |                `- warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+461 |             doc?.toggleLock(.position)
+462 |             await settle()
+[45/76] Compiling Tessera DevelopPanels.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Document/Transforms/TransformSelfTest.swift:460:16: warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+458 | 
+459 |         // 395: position lock rejects geometry.
+460 |         if let id = doc?.primary?.id {
+    |                `- warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+461 |             doc?.toggleLock(.position)
+462 |             await settle()
+[46/76] Compiling Tessera HistogramView.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Document/Transforms/TransformSelfTest.swift:460:16: warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+458 | 
+459 |         // 395: position lock rejects geometry.
+460 |         if let id = doc?.primary?.id {
+    |                `- warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+461 |             doc?.toggleLock(.position)
+462 |             await settle()
+[47/76] Compiling Tessera LensBlurPanel.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Document/Transforms/TransformSelfTest.swift:460:16: warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+458 | 
+459 |         // 395: position lock rejects geometry.
+460 |         if let id = doc?.primary?.id {
+    |                `- warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+461 |             doc?.toggleLock(.position)
+462 |             await settle()
+[48/76] Compiling Tessera LibraryPanels.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Document/Transforms/TransformSelfTest.swift:460:16: warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+458 | 
+459 |         // 395: position lock rejects geometry.
+460 |         if let id = doc?.primary?.id {
+    |                `- warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+461 |             doc?.toggleLock(.position)
+462 |             await settle()
+[49/76] Compiling Tessera MasksPanel.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Document/Transforms/TransformSelfTest.swift:460:16: warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+458 | 
+459 |         // 395: position lock rejects geometry.
+460 |         if let id = doc?.primary?.id {
+    |                `- warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+461 |             doc?.toggleLock(.position)
+462 |             await settle()
+[50/76] Compiling Tessera PhotoEditInspectorView.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Document/Transforms/TransformSelfTest.swift:460:16: warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+458 | 
+459 |         // 395: position lock rejects geometry.
+460 |         if let id = doc?.primary?.id {
+    |                `- warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+461 |             doc?.toggleLock(.position)
+462 |             await settle()
+[51/76] Compiling Tessera TransformPanel.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Sources/Tessera/Document/Transforms/TransformSelfTest.swift:460:16: warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+458 | 
+459 |         // 395: position lock rejects geometry.
+460 |         if let id = doc?.primary?.id {
+    |                `- warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+461 |             doc?.toggleLock(.position)
+462 |             await settle()
+[52/76] Compiling Tessera UnderstandingPanels.swift
+[53/76] Compiling Tessera FilterBar.swift
+[54/76] Compiling Tessera LibraryModel.swift
+[55/76] Compiling Tessera SmartAlbumSheet.swift
+[56/76] Compiling Tessera UnderstandingController.swift
+[57/76] Compiling Tessera LoupeMaskTools.swift
+[58/76] Compiling Tessera LoupeOverlay.swift
+[59/76] Compiling Tessera LoupeToolOverlay.swift
+[60/76] Compiling Tessera LoupeUprightGuides.swift
+[61/76] Compiling Tessera LoupeView.swift
+[62/76] Compiling Tessera MaskToolbar.swift
+[63/76] Compiling Tessera MetalLoupeView.swift
+[64/76] Compiling Tessera PeopleView.swift
+[65/76] Compiling Tessera AppModel+Photo.swift
+[66/76] Compiling Tessera PhotoMenu.swift
+[67/76] Compiling Tessera PrintSheet.swift
+[68/76] Compiling Tessera ContentView.swift
+[69/76] Compiling Tessera SidebarView.swift
+[70/76] Compiling Tessera TetherController.swift
+[71/76] Compiling Tessera TetherPanel.swift
+[71/76] Write Objects.LinkFileList
+ld: warning: object file (/Users/rutmehta/.codex/worktrees/export-integration/tessera/apps/mac/build/ffi/libtessera_ffi.a[2845](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[72/76] Linking Tessera
+[73/92] Applying Tessera
+[75/92] Compiling TesseraCoreTests AgentReviewLayoutTests.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[76/92] Compiling TesseraCoreTests AgentReviewNavigationStateTests.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[77/92] Compiling TesseraCoreTests AgentReviewNavigationTests.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[78/92] Compiling TesseraCoreTests AgentReviewOwnershipTests.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[79/92] Compiling TesseraCoreTests AssistTests.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[80/92] Compiling TesseraCoreTests DevelopTests.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[81/92] Compiling TesseraCoreTests DocumentInspectorLayoutTests.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[82/92] Compiling TesseraCoreTests DocumentKeyRoutingTests.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[83/92] Compiling TesseraCoreTests DocumentTextSessionTests.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[84/92] Compiling TesseraCoreTests DocumentVectorVerifyFixesTests.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[85/92] Compiling TesseraCoreTests EngineDocumentBackendTests.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[86/92] Compiling TesseraCoreTests IncrementalLibraryTests.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[87/92] Compiling TesseraCoreTests KeyFocusTests.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[88/92] Compiling TesseraCoreTests LayoutContractTests.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[89/92] Compiling TesseraCoreTests LazyLoupeTests.swift
+/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[90/92] Emitting module TesseraCoreTests
+[91/106] Compiling TesseraCoreTests LibraryResponsivenessTests.swift
+[92/106] Compiling TesseraCoreTests LibraryTests.swift
+[93/106] Compiling TesseraCoreTests LoupeOverlayPresentationTests.swift
+[94/106] Compiling TesseraCoreTests MasksPanelLayoutTests.swift
+[95/106] Compiling TesseraCoreTests PeopleLayoutTests.swift
+[96/106] Compiling TesseraCoreTests PhotoMergeEnhanceTests.swift
+[97/106] Compiling TesseraCoreTests ReviewResumeStoreTests.swift
+[98/106] Compiling TesseraCoreTests ShellLayoutHarness.swift
+[99/106] Compiling TesseraCoreTests ShellLayoutTests.swift
+[100/106] Compiling TesseraCoreTests TetherTests.swift
+[101/106] Compiling TesseraCoreTests ThumbnailViewportTests.swift
+[102/106] Compiling TesseraCoreTests WorkspaceBrowserRestoreTests.swift
+[103/106] Compiling TesseraCoreTests WorkspaceNavigationTests.swift
+[104/106] Compiling TesseraCoreTests WorkspaceReadyPhotoTests.swift
+[104/106] Write Objects.LinkFileList
+ld: warning: object file (/Users/rutmehta/.codex/worktrees/export-integration/tessera/apps/mac/build/ffi/libtessera_ffi.a[2845](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[105/106] Linking TesseraPackageTests
+Build complete! (33.15s)
+Test Suite 'Selected tests' started at 2026-09-27 18:01:20.224.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-27 18:01:20.225.
+Test Suite 'AgentReviewNavigationStateTests' started at 2026-09-27 18:01:20.225.
+Test Case '-[TesseraCoreTests.AgentReviewNavigationStateTests testAcceptAndNextRequiresSuccessfulCurrentSelectionAndSkipsFailedReviewed]' started.
+Test Case '-[TesseraCoreTests.AgentReviewNavigationStateTests testAcceptAndNextRequiresSuccessfulCurrentSelectionAndSkipsFailedReviewed]' passed (0.002 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewNavigationStateTests testRedoReorderKeepsSelectedIdentityAndInvalidatesOldDraft]' started.
+Test Case '-[TesseraCoreTests.AgentReviewNavigationStateTests testRedoReorderKeepsSelectedIdentityAndInvalidatesOldDraft]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewNavigationStateTests testRestoredCursorUsesStableIDsAndFallsBackWhenTheyAreMissing]' started.
+Test Case '-[TesseraCoreTests.AgentReviewNavigationStateTests testRestoredCursorUsesStableIDsAndFallsBackWhenTheyAreMissing]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewNavigationStateTests testStatusUpdateKeepsDraftButSelectingAnotherPhotoClearsIt]' started.
+Test Case '-[TesseraCoreTests.AgentReviewNavigationStateTests testStatusUpdateKeepsDraftButSelectingAnotherPhotoClearsIt]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewNavigationStateTests testUserSelectionChangeDoesNotAdvanceOnLateAcceptCompletion]' started.
+Test Case '-[TesseraCoreTests.AgentReviewNavigationStateTests testUserSelectionChangeDoesNotAdvanceOnLateAcceptCompletion]' passed (0.000 seconds).
+Test Suite 'AgentReviewNavigationStateTests' passed at 2026-09-27 18:01:20.227.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.002 (0.003) seconds
+Test Suite 'AgentReviewOwnershipTests' started at 2026-09-27 18:01:20.227.
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testAcceptAlreadyInFlightCannotPublishStatusInNewLibrary]' started.
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testAcceptAlreadyInFlightCannotPublishStatusInNewLibrary]' passed (0.562 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testAcceptWaitsForAlreadyClosingDevelopSave]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [25.637292, 0.537292, 0.628667]; GPU [31.653040999999998, 0.7471249999999999, 0.8265]
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testAcceptWaitsForAlreadyClosingDevelopSave]' passed (0.847 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testAlreadyClosingDevelopSavePrecedesCapturedRun]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [25.754833, 0.490292, 0.642333]; GPU [31.180375, 1.555, 0.851625]
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testAlreadyClosingDevelopSavePrecedesCapturedRun]' passed (0.424 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testCancelledRunReleasesMutationExclusion]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [25.656208, 0.475542, 0.6237499999999999]; GPU [28.524542, 0.5550830000000001, 0.724416]
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testCancelledRunReleasesMutationExclusion]' passed (0.118 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testCapturedOwnerBarrierDoesNotCancelNewLibraryPendingOpen]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [25.749000000000002, 0.510916, 0.639792]; GPU [27.856209, 0.96925, 0.953375]
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testCapturedOwnerBarrierDoesNotCancelNewLibraryPendingOpen]' passed (0.093 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testClosePersistsCoalescedMaskParametersAndAmount]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [25.495334, 0.509167, 0.65625]; GPU [30.486791, 0.685416, 0.7983330000000001]
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testClosePersistsCoalescedMaskParametersAndAmount]' passed (0.128 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testCompletedQueueRestoresRecipeStatusAndCursorWithFreshOwner]' started.
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testCompletedQueueRestoresRecipeStatusAndCursorWithFreshOwner]' passed (0.753 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testConcurrentCloseWaitsForOneActualSessionFlush]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [27.908834, 0.49549999999999994, 0.631542]; GPU [29.65825, 0.661083, 0.880792]
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testConcurrentCloseWaitsForOneActualSessionFlush]' passed (0.173 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testCurrentOwnerAcceptCompletesAndPreservesQueuePosition]' started.
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testCurrentOwnerAcceptCompletesAndPreservesQueuePosition]' passed (0.714 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testCurrentPhotoContextWorksWhileQueueBelongsToAnotherLibrary]' started.
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testCurrentPhotoContextWorksWhileQueueBelongsToAnotherLibrary]' passed (1.192 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testCursorUpdateDuringRedoIsMergedIntoCompletionRevision]' started.
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testCursorUpdateDuringRedoIsMergedIntoCompletionRevision]' passed (1.342 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testDirtyDevelopSavePrecedesCapturedRunAfterFolderSwitch]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [27.578333, 0.491, 0.62225]; GPU [29.07475, 0.6168750000000001, 0.6439590000000001]
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testDirtyDevelopSavePrecedesCapturedRunAfterFolderSwitch]' passed (0.437 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testForeignRedoAndShowRejectCapturedQueueTarget]' started.
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testForeignRedoAndShowRejectCapturedQueueTarget]' passed (0.623 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testInterruptedIntentRestoresUnknownTargetWithoutReplaying]' started.
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testInterruptedIntentRestoresUnknownTargetWithoutReplaying]' passed (0.017 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testMissingAndSupersededTargetsStayVisibleButDisabledAfterRestore]' started.
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testMissingAndSupersededTargetsStayVisibleButDisabledAfterRestore]' passed (0.518 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testPendingDevelopOpenSettlesBeforeAcceptAndRevert]' started.
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testPendingDevelopOpenSettlesBeforeAcceptAndRevert]' passed (0.756 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testPendingDevelopOpenSettlesBeforeRun]' started.
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testPendingDevelopOpenSettlesBeforeRun]' passed (0.500 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRedoInvalidatesOldTargetAndCurrentRevertStillWorks]' started.
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRedoInvalidatesOldTargetAndCurrentRevertStillWorks]' passed (0.851 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testReopenedOwnerAndFileAliasesCannotOpenAcrossCapturedMutation]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [25.970667, 0.566042, 0.604875]; GPU [31.98675, 0.7967500000000001, 1.260875]
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testReopenedOwnerAndFileAliasesCannotOpenAcrossCapturedMutation]' passed (0.622 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRetainedQueueAcceptCannotTrainNewLibraryProfile]' started.
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRetainedQueueAcceptCannotTrainNewLibraryProfile]' passed (0.511 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRetainedQueueRevertCannotRefreshNewLibraryOrMutateOldRecipe]' started.
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRetainedQueueRevertCannotRefreshNewLibraryOrMutateOldRecipe]' passed (0.530 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRevertWaitsForAlreadyClosingDevelopSave]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [26.54475, 0.551459, 0.637583]; GPU [29.740792, 0.6515829999999999, 0.91525]
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRevertWaitsForAlreadyClosingDevelopSave]' passed (0.662 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testReviewMutationsRejectNewTargetDevelopOpenAndReleaseOnCompletion]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [27.118583, 0.512, 0.6538339999999999]; GPU [29.963458, 1.152833, 1.172333]
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testReviewMutationsRejectNewTargetDevelopOpenAndReleaseOnCompletion]' passed (0.844 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRunCompletionAfterFolderSwitchDoesNotRefreshNewLibrary]' started.
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRunCompletionAfterFolderSwitchDoesNotRefreshNewLibrary]' passed (0.520 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRunningOwnerDoesNotBlockAnotherLibraryDevelopOpen]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [25.704166999999998, 0.51125, 0.626375]; GPU [28.571334, 0.708, 6.235708000000001]
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRunningOwnerDoesNotBlockAnotherLibraryDevelopOpen]' passed (0.578 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRunOnAnotherPhotoWaitsForAcceptAndRevertCompletion]' started.
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRunOnAnotherPhotoWaitsForAcceptAndRevertCompletion]' passed (0.747 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRunRejectsNewTargetDevelopOpenAndCompletionOpensFreshRecipe]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [25.729292, 0.5509999999999999, 0.5974160000000001]; GPU [32.461417, 1.9945000000000002, 1.804041]
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testRunRejectsNewTargetDevelopOpenAndCompletionOpensFreshRecipe]' passed (0.582 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testSamePathReopenDuringLiveRunDoesNotMarkItInterrupted]' started.
+Test Case '-[TesseraCoreTests.AgentReviewOwnershipTests testSamePathReopenDuringLiveRunDoesNotMarkItInterrupted]' passed (0.530 seconds).
+Test Suite 'AgentReviewOwnershipTests' passed at 2026-09-27 18:01:36.404.
+	 Executed 28 tests, with 0 failures (0 unexpected) in 16.174 (16.176) seconds
+Test Suite 'AgentReviewQueueTests' started at 2026-09-27 18:01:36.404.
+Test Case '-[TesseraCoreTests.AgentReviewQueueTests testOrdersFailuresThenLeastConfidentFirst]' started.
+Test Case '-[TesseraCoreTests.AgentReviewQueueTests testOrdersFailuresThenLeastConfidentFirst]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewQueueTests testRedoMergeReplacesOnlyThosePhotos]' started.
+Test Case '-[TesseraCoreTests.AgentReviewQueueTests testRedoMergeReplacesOnlyThosePhotos]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewQueueTests testStatusesChangeInPlaceAndNextSkipsReviewed]' started.
+Test Case '-[TesseraCoreTests.AgentReviewQueueTests testStatusesChangeInPlaceAndNextSkipsReviewed]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.AgentReviewQueueTests testUnavailableResumeRowsStayVisibleButDoNotCountAsActionableFailures]' started.
+Test Case '-[TesseraCoreTests.AgentReviewQueueTests testUnavailableResumeRowsStayVisibleButDoNotCountAsActionableFailures]' passed (0.000 seconds).
+Test Suite 'AgentReviewQueueTests' passed at 2026-09-27 18:01:36.405.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'ReviewResumeStoreTests' started at 2026-09-27 18:01:36.405.
+Test Case '-[TesseraCoreTests.ReviewResumeStoreTests testCompletingRunningIntentDoesNotTreatItAsAnInterruptedRestore]' started.
+Test Case '-[TesseraCoreTests.ReviewResumeStoreTests testCompletingRunningIntentDoesNotTreatItAsAnInterruptedRestore]' passed (0.002 seconds).
+Test Case '-[TesseraCoreTests.ReviewResumeStoreTests testDifferentCanonicalPathDoesNotAdoptAnotherLibraryQueue]' started.
+Test Case '-[TesseraCoreTests.ReviewResumeStoreTests testDifferentCanonicalPathDoesNotAdoptAnotherLibraryQueue]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.ReviewResumeStoreTests testDuplicateTargetIdentityIsRejectedAsCorrupt]' started.
+Test Case '-[TesseraCoreTests.ReviewResumeStoreTests testDuplicateTargetIdentityIsRejectedAsCorrupt]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.ReviewResumeStoreTests testFailureAdvancesNewestCursorRevisionAndKeepsCapturedTargets]' started.
+Test Case '-[TesseraCoreTests.ReviewResumeStoreTests testFailureAdvancesNewestCursorRevisionAndKeepsCapturedTargets]' passed (0.002 seconds).
+Test Case '-[TesseraCoreTests.ReviewResumeStoreTests testFutureSchemaIsPreservedAndReportedWithoutDecodingAsCurrent]' started.
+Test Case '-[TesseraCoreTests.ReviewResumeStoreTests testFutureSchemaIsPreservedAndReportedWithoutDecodingAsCurrent]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.ReviewResumeStoreTests testRevisionCannotOverflow]' started.
+Test Case '-[TesseraCoreTests.ReviewResumeStoreTests testRevisionCannotOverflow]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.ReviewResumeStoreTests testRoundTripsOnlySafeQueueMembershipAndCursorForCanonicalLibraryPath]' started.
+Test Case '-[TesseraCoreTests.ReviewResumeStoreTests testRoundTripsOnlySafeQueueMembershipAndCursorForCanonicalLibraryPath]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.ReviewResumeStoreTests testRunningRecordCanBeMarkedInterruptedWithoutChangingTargetsOrReplaying]' started.
+Test Case '-[TesseraCoreTests.ReviewResumeStoreTests testRunningRecordCanBeMarkedInterruptedWithoutChangingTargetsOrReplaying]' passed (0.002 seconds).
+Test Case '-[TesseraCoreTests.ReviewResumeStoreTests testStaleRevisionCannotOverwriteNewerQueueRecord]' started.
+Test Case '-[TesseraCoreTests.ReviewResumeStoreTests testStaleRevisionCannotOverwriteNewerQueueRecord]' passed (0.001 seconds).
+Test Suite 'ReviewResumeStoreTests' passed at 2026-09-27 18:01:36.416.
+	 Executed 9 tests, with 0 failures (0 unexpected) in 0.011 (0.011) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-09-27 18:01:36.416.
+	 Executed 46 tests, with 0 failures (0 unexpected) in 16.188 (16.192) seconds
+Test Suite 'Selected tests' passed at 2026-09-27 18:01:36.416.
+	 Executed 46 tests, with 0 failures (0 unexpected) in 16.188 (16.192) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
