@@ -75,10 +75,38 @@ impl Console {
         if settings.ppi.is_some_and(|ppi| !(1..=9600).contains(&ppi)) {
             return Err(EngineError::invalid("ppi", "must be 1–9600"));
         }
-        if settings.profile.is_some() || settings.hdr {
+        if settings.profile.is_some() {
             return Err(unsupported(
-                "custom ICC handles and HDR export need a registry/output mapping; only sRGB SDR is supported",
+                "custom ICC handles need a registry/output mapping",
             ));
+        }
+        if !settings.hdr && settings.hdr_transfer.is_some() {
+            return Err(EngineError::invalid("hdr_transfer", "requires hdr=true"));
+        }
+        if settings.avif_bit_depth.is_some()
+            && !matches!(settings.format, ExportFormat::Avif { .. })
+        {
+            return Err(EngineError::invalid("avif_bit_depth", "requires AVIF"));
+        }
+        let avif_bits = settings
+            .avif_bit_depth
+            .unwrap_or(if settings.hdr { 10 } else { 8 });
+        if !matches!(avif_bits, 8 | 10 | 12) {
+            return Err(EngineError::invalid(
+                "avif_bit_depth",
+                "expected 8, 10 or 12",
+            ));
+        }
+        if settings.hdr
+            && !matches!(
+                settings.format,
+                ExportFormat::Png { bit_depth: 16 } | ExportFormat::Avif { .. }
+            )
+        {
+            return Err(unsupported("HDR requires PNG16 or AVIF10/12"));
+        }
+        if settings.hdr && avif_bits == 8 {
+            return Err(unsupported("HDR AVIF requires 10/12 bits"));
         }
         let format = match settings.format {
             ExportFormat::Dng => export::Format::Dng,
@@ -87,6 +115,7 @@ impl Console {
                 quality: quality @ 1..=100,
             } => export::Format::Avif(export::AvifOptions {
                 quality,
+                bits: avif_bits,
                 ..Default::default()
             }),
             ExportFormat::Jpeg { quality: 1..=100 } => {
@@ -97,6 +126,7 @@ impl Console {
                 }
             }
             ExportFormat::Png { bit_depth: 8 } => export::Format::Png,
+            ExportFormat::Png { bit_depth: 16 } if settings.hdr => export::Format::Png,
             ExportFormat::Tiff { bit_depth: 8 | 16 } => {
                 if let ExportFormat::Tiff { bit_depth } = settings.format {
                     export::Format::Tiff { bits: bit_depth }
@@ -122,6 +152,14 @@ impl Console {
         };
         let options = export::ExportSettings {
             format,
+            hdr: settings
+                .hdr
+                .then_some(settings.hdr_transfer.unwrap_or(export::HdrTransfer::Pq)),
+            color_space: if settings.hdr {
+                export::ColorSpace::Rec2020
+            } else {
+                export::ColorSpace::Srgb
+            },
             resize,
             sharpen_for: match settings.sharpening.as_deref() {
                 None | Some("none") => export::SharpenFor::None,

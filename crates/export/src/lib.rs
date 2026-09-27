@@ -7,6 +7,8 @@ pub use mask_ai;
 mod avif;
 mod codec;
 mod dng;
+mod hdr;
+pub use engine_api::tools::HdrTransfer;
 mod jxl;
 pub use avif::{AvifOptions, encode_avif};
 mod watermark;
@@ -99,6 +101,8 @@ pub enum Metadata {
 #[derive(Clone, Debug)]
 pub struct ExportSettings {
     pub format: Format,
+    /// HDR PNG uses 16-bit samples; HDR AVIF requires 10/12 bits. None is SDR.
+    pub hdr: Option<HdrTransfer>,
     pub color_space: ColorSpace,
     pub metadata: Metadata,
     /// Remove named regions and their associated person keywords from XMP.
@@ -138,6 +142,7 @@ impl Default for ExportSettings {
     fn default() -> Self {
         Self {
             format: Format::Jpeg { quality: 90 },
+            hdr: None,
             color_space: ColorSpace::Srgb,
             metadata: Metadata::All,
             remove_person_info: false,
@@ -477,6 +482,16 @@ pub fn render_one_cancellable(
     recipe.validate()?;
     settings.format.validate()?;
     dng::validate(settings)?;
+    hdr::validate(settings)?;
+    if settings.hdr.is_some()
+        && (upscale.is_some()
+            || ai_masks::active(&recipe.settings)
+            || depth::active(&image.source, &recipe.settings))
+    {
+        return Err(encode_error(
+            "HDR export does not support SDR enhancement hooks",
+        ));
+    }
     if matches!(settings.format, Format::Dng) && settings.watermark.is_some() {
         return Err(encode_error(
             "DNG watermark compositing in linear colour is not supported",
@@ -518,7 +533,8 @@ pub fn render_one_cancellable(
     }
     let needs_hooks = depth::active(&image.source, &recipe.settings);
     let mut warnings = Vec::new();
-    let gpu_pixels = if !matches!(settings.format, Format::Dng)
+    let gpu_pixels = if settings.hdr.is_none()
+        && !matches!(settings.format, Format::Dng)
         && upscale.is_none()
         && !needs_hooks
         && !ai_masks::active(&recipe.settings)
@@ -547,7 +563,9 @@ pub fn render_one_cancellable(
     let already_resized = gpu_pixels.is_some();
     let mut used_gpu = already_resized;
     let started = std::time::Instant::now();
-    let rgb = if matches!(settings.format, Format::Dng) {
+    let rgb = if settings.hdr.is_some() {
+        hdr::render(image, recipe, settings, cancel)?
+    } else if matches!(settings.format, Format::Dng) {
         let rgb = if ai_masks::active(&recipe.settings) {
             ai_masks::render(&image.source, &recipe.settings, segmenter)?
         } else {
@@ -631,6 +649,9 @@ pub fn render_one_cancellable(
         settings.dpi.unwrap_or(300),
         cancel,
     )?;
+    if settings.hdr.is_some() {
+        hdr::finalize(&mut rgb, recipe, settings, cancel)?;
+    }
     if let Some(mark) = &settings.watermark {
         apply_watermark(&mut rgb, mark, cancel)?;
     }
@@ -671,18 +692,28 @@ fn encode_rendered(
     fs::create_dir_all(&settings.output_dir)
         .map_err(|e| EngineError::io_at(&settings.output_dir, &e))?;
     let mut temp = new_output_temp(&settings.output_dir)?;
-    codec::encode_limited(
-        temp.as_file_mut(),
-        &rgb,
-        codec::Encoding {
-            format: settings.format,
-            space: settings.color_space,
-            dpi: settings.dpi,
-        },
-        packet.as_ref().map(XmpPacket::serialize),
-        cancel,
-        settings.max_file_bytes,
-    )?;
+    if settings.hdr.is_some() {
+        hdr::encode(
+            temp.as_file_mut(),
+            &rgb,
+            &settings,
+            packet.as_ref().map(XmpPacket::serialize),
+            cancel,
+        )?;
+    } else {
+        codec::encode_limited(
+            temp.as_file_mut(),
+            &rgb,
+            codec::Encoding {
+                format: settings.format,
+                space: settings.color_space,
+                dpi: settings.dpi,
+            },
+            packet.as_ref().map(XmpPacket::serialize),
+            cancel,
+            settings.max_file_bytes,
+        )?;
+    }
     if matches!(settings.format, Format::Dng) {
         dng::finish(temp.as_file_mut(), settings.original_raw.as_deref(), cancel)?;
     }

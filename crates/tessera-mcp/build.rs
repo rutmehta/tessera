@@ -135,6 +135,7 @@ fn main() {
                 "HistogramSpace",
                 "CompareMetric",
                 "ExportFormat",
+                "HdrTransfer",
                 "Resize",
                 "ExportSettings",
             ],

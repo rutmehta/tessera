@@ -14,7 +14,7 @@ The renderer integration is `render_full` in `src/lib.rs`. It calls `pipeline_cp
 
 Processing order: float render including shared `color_mgmt::Transform` (relative colorimetric, BPC enabled) → row-parallel separable Lanczos-3 (anti-alias support expands when reducing) → Gaussian unsharp mask → final quantization and encode. Filters operate on destination-encoded floats. Screen/matte/glossy use (sigma, amount) of (.6,.5), (1.2,1), (.8,.7). `color_mgmt::Registry` supplies all built-in ICC profiles; this crate no longer constructs profiles or invokes lcms2 transforms itself. The codec receives already-converted pixels and must not convert them a second time. Float samples are clamped/rounded to u16 before 8/16-bit encoding; destination ICC bytes are embedded in JPEG APP2, PNG iCCP and TIFF tag 34675. Direct lcms2 remains only as a dev dependency for independent ICC parsing tests.
 
-The TIFF16 integration regression checks exact equality to the managed float render followed by final quantization, including a saturated wide-gamut sample and distinguishable sub-8-bit differences. ExportSettings still has no custom ICC/intent fields and does not claim printer/CMYK or HDR export. Shared transforms are built per render; cross-export registry/transform caching is not implemented.
+The TIFF16 integration regression checks exact equality to the managed float render followed by final quantization, including a saturated wide-gamut sample and distinguishable sub-8-bit differences. ExportSettings still has no custom ICC/intent fields and does not claim printer/CMYK export. HDR uses the separate path below. Shared transforms are built per render; cross-export registry/transform caching is not implemented.
 
 ## Output sharpening (M2-45b)
 
@@ -92,6 +92,58 @@ them and rejects unsupported DNG backward versions.
 Original + XMP copy mode is separate and remains byte-preserving. No lossy DNG
 or 16-bit DNG option is exposed. Native EXIF/IPTC metadata policy and HDR output
 are not completed by this DNG slice.
+
+## PQ/HLG output (partial M2-45d HDR slice)
+
+`ExportSettings::hdr = Some(HdrTransfer::Pq | HdrTransfer::Hlg)` requires
+`ColorSpace::Rec2020` and either `Format::Png` (16-bit in HDR) or AVIF with
+10/12-bit samples. `None` retains the existing SDR behavior and PNG8 output.
+PQ uses ST 2084 with 203 cd/m² diffuse white. HLG includes the BT.2100 inverse
+OOTF for a 1000-nit reference display and system gamma 1.2, not independent
+per-channel gamma. Recipe `output.hdr` and `hdr_headroom_stops` select the
+tone-curve ceiling: `203 * 2^stops` nits, capped at 10,000 for PQ or 1000 for
+HLG. HDR off or zero stops uses a 203-nit ceiling. Invalid/nonfinite headroom
+is rejected. The sigmoid preserves 18% mid-grey, matching the viewport's
+headroom-dependent curve, in Rec.2020 rather than display sRGB.
+
+The CPU scene-linear renderer supplies full-precision samples. Tone mapping
+and gamut mapping produce display-linear RGB normalized to the selected peak.
+Orientation, resize and sharpening run in that representation. PQ/HLG encoding
+and HLG's transfer-dependent gamut bound are applied after the filters, so
+filter overshoot cannot raise the selected ceiling. Perceptual mapping
+compresses chroma at constant luminance; clip mapping clips components.
+No SDR ICC is embedded: PNG carries cICP `[9,16/18,0,1]`; AVIF carries matching
+Rec.2020 PQ/HLG/full-range identity signaling in nclx and the AV1 stream.
+Existing XMP policies, density metadata, cancellation and no-clobber publication
+remain in effect. Watermarks, super-resolution and SDR-only enhancement hooks
+(including AI masks/depth/AI denoise) are rejected for HDR rather than clipped
+through an SDR intermediate. Other unsupported CPU recipe operators still fail.
+
+CLI examples:
+
+```
+tessera export input.nef --out /absolute/out --format png --bit-depth 16 --color-space rec2020 --hdr pq
+tessera export input.nef --out /absolute/out --format avif --bit-depth 12 --color-space rec2020 --hdr hlg
+```
+
+FFI/preset JSON adds `"hdr":"pq"` or `"hlg"`, with `"color_space":"rec2020"`
+and the corresponding `bit_depth`. These remain JSON fields, not a new binary
+record layout or UI. MCP retains `hdr: true`, adds optional `hdr_transfer`
+(defaults to PQ) and `avif_bit_depth` (defaults to 10 in HDR, 8 in SDR).
+MCP requires PNG `bit_depth:16` for HDR and selects Rec.2020 automatically.
+`hdr_transfer` without `hdr:true`, AVIF depth on a non-AVIF format, and HDR
+AVIF8 are rejected.
+
+Tests parse PNG chunks and AVIF property associations, decode AVIF10/12 through
+ImageIO on macOS, independently reconstruct PQ/HLG radiance from file samples,
+and check black, mid-grey, colored/saturated/negative values and recipe headroom.
+PNG reconstruction tolerance is 0.003 SDR-white units; lossy quality-100 AVIF
+tolerances are 0.015 (10-bit) / 0.004 (12-bit) times `max(expected,1)` because
+PQ's inverse becomes steep at the high end. Edge regressions check resize,
+sharpening and both together stay within 812.1 nits for a two-stop PQ recipe.
+
+This does **not** implement ISO 21496-1 gain-map JPEG or native EXIF/IPTC
+policy/carriers. M2-45d remains incomplete despite this verified subset.
 
 ## AI local masks
 

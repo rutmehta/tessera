@@ -24,6 +24,9 @@ pub struct Options {
     /// AVIF 8/10/12, TIFF/JPEG XL 8/16, DNG 32-bit float per channel.
     #[arg(long, default_value_t = 8)]
     bit_depth: u8,
+    /// HDR transfer. Requires Rec.2020 PNG16 or AVIF10/12; headroom comes from the recipe.
+    #[arg(long, value_parser = ["pq", "hlg"])]
+    hdr: Option<String>,
     /// AVIF encoding speed, 1 (slow) through 10 (fast).
     #[arg(long, default_value_t = 6, value_parser = clap::value_parser!(u8).range(1..=10))]
     avif_speed: u8,
@@ -132,6 +135,18 @@ fn is_image(path: &Path) -> bool {
 }
 
 fn settings(options: &Options) -> Result<ExportSettings> {
+    if options.hdr.is_some() {
+        ensure!(
+            options.color_space == "rec2020"
+                && ((options.format == "png" && options.bit_depth == 16)
+                    || (options.format == "avif" && matches!(options.bit_depth, 10 | 12))),
+            "--hdr requires Rec.2020 PNG16 or AVIF10/12"
+        );
+        ensure!(
+            options.watermark.is_none() && options.upscale.is_none(),
+            "HDR does not support SDR watermark or upscaling"
+        );
+    }
     ensure!(
         !options.embed_original_raw
             || (options.format == "dng"
@@ -164,6 +179,7 @@ fn settings(options: &Options) -> Result<ExportSettings> {
         match options.format.as_str() {
             "avif" => matches!(options.bit_depth, 8 | 10 | 12),
             "dng" => options.bit_depth == 32,
+            "png" if options.hdr.is_some() => options.bit_depth == 16,
             "tiff" | "jxl" => matches!(options.bit_depth, 8 | 16),
             _ => options.bit_depth == 8,
         },
@@ -184,6 +200,13 @@ fn settings(options: &Options) -> Result<ExportSettings> {
         Resize::None
     };
     Ok(ExportSettings {
+        hdr: options.hdr.as_deref().map(|v| {
+            if v == "pq" {
+                export::HdrTransfer::Pq
+            } else {
+                export::HdrTransfer::Hlg
+            }
+        }),
         format: match options.format.as_str() {
             "jpeg" => Format::Jpeg {
                 quality: options.quality,

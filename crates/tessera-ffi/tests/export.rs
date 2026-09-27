@@ -6,6 +6,50 @@ use std::sync::{Arc, Mutex};
 use tessera_ffi::*;
 
 #[test]
+fn hdr_options_roundtrip_and_export() {
+    for transfer in ["pq", "hlg"] {
+        let options = serde_json::json!({"format":"png", "bit_depth":16, "hdr":transfer, "color_space":"rec2020"});
+        let normalized: serde_json::Value =
+            serde_json::from_str(&normalize_export_settings(options.to_string()).unwrap()).unwrap();
+        assert_eq!(normalized["hdr"], transfer);
+        let f = fixture();
+        let out = f.dir.path().join("hdr");
+        let report = f
+            .engine
+            .export_batch(
+                ExportTarget::Images {
+                    image_ids: vec![f.ids[0].clone()],
+                },
+                settings(&out, options),
+                None,
+                None,
+            )
+            .unwrap();
+        assert_eq!((report.exported, report.failed), (1, 0), "{report:?}");
+        let bytes = std::fs::read(out.join("a.png")).unwrap();
+        assert!(bytes.windows(8).any(|v| v
+            == [
+                b'c',
+                b'I',
+                b'C',
+                b'P',
+                9,
+                if transfer == "pq" { 16 } else { 18 },
+                0,
+                1
+            ]));
+    }
+    for bad in [
+        r#"{"format":"png","bit_depth":8,"hdr":"pq","color_space":"rec2020"}"#,
+        r#"{"format":"jpeg","hdr":"pq","color_space":"rec2020"}"#,
+        r#"{"format":"original","hdr":"pq"}"#,
+        r#"{"format":"avif","bit_depth":10,"hdr":"pq","color_space":"srgb"}"#,
+    ] {
+        assert!(normalize_export_settings(bad.into()).is_err());
+    }
+}
+
+#[test]
 fn dng_embedded_original_option_roundtrips_and_exports() {
     let input = r#"{"format":"dng","bit_depth":32,"embed_original_raw":true}"#;
     let normalized: serde_json::Value =

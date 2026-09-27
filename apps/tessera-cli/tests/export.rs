@@ -4,6 +4,56 @@ use serde_json::Value;
 use std::path::Path;
 
 #[test]
+fn hdr_cli_exports_png_and_rejects_invalid_combinations() {
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("source.png");
+    image::RgbImage::from_pixel(32, 32, image::Rgb([100; 3]))
+        .save(&source)
+        .unwrap();
+    for transfer in ["pq", "hlg"] {
+        let out = temp.path().join(transfer);
+        cli(&temp.path().join("app"))
+            .arg("export")
+            .arg(&source)
+            .arg("--out")
+            .arg(&out)
+            .args([
+                "--format",
+                "png",
+                "--bit-depth",
+                "16",
+                "--hdr",
+                transfer,
+                "--color-space",
+                "rec2020",
+            ])
+            .assert()
+            .success();
+        let bytes = std::fs::read(out.join("source-1.png")).unwrap();
+        assert!(bytes.windows(8).any(|v| v
+            == [
+                b'c',
+                b'I',
+                b'C',
+                b'P',
+                9,
+                if transfer == "pq" { 16 } else { 18 },
+                0,
+                1
+            ]));
+    }
+    cli(&temp.path().join("app"))
+        .arg("export")
+        .arg(&source)
+        .arg("--out")
+        .arg(temp.path().join("bad"))
+        .args(["--format", "original", "--hdr", "pq"])
+        .assert()
+        .failure();
+    assert!(!temp.path().join("bad").exists());
+}
+
+#[test]
 fn dng_cli_embeds_each_original() {
     let temp = tempfile::tempdir().unwrap();
     let app = temp.path().join("app");

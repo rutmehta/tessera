@@ -178,6 +178,16 @@ pub enum Resize {
     },
 }
 
+/// HDR file transfer, with Rec.2020 primaries and 203 cd/m² diffuse white.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HdrTransfer {
+    /// Absolute ST 2084, limited to 10,000 cd/m².
+    Pq,
+    /// BT.2100 HLG, 1000 cd/m² reference display, system gamma 1.2.
+    Hlg,
+}
+
 /// Export settings.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ExportSettings {
@@ -216,6 +226,12 @@ pub struct ExportSettings {
     /// Write HDR (gain map or PQ/HLG, format permitting).
     #[serde(default)]
     pub hdr: bool,
+    /// PQ by default when HDR is enabled. Must be omitted for SDR.
+    #[serde(default)]
+    pub hdr_transfer: Option<HdrTransfer>,
+    /// AVIF sample precision. Defaults to 10 in HDR, 8 in SDR; allowed 8/10/12.
+    #[serde(default)]
+    pub avif_bit_depth: Option<u8>,
 }
 
 fn default_template() -> String {
@@ -1510,6 +1526,8 @@ pub(crate) mod tests {
                     embed_metadata: true,
                     embed_original_raw: false,
                     hdr: false,
+                    hdr_transfer: None,
+                    avif_bit_depth: None,
                 },
             },
         ]
