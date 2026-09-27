@@ -1067,9 +1067,9 @@
     "id": "M2-45",
     "owner": "astra",
     "title": "Export completeness (AVIF/JXL/DNG/watermark/HDR)",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
-    "notes": ""
+    "notes": "merged: AVIF 8/10/12, lossless JXL, float DNG, size limit, watermark; rest -> M2-45b"
   },
   {
     "id": "M5-28",
