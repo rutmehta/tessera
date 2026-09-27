@@ -206,8 +206,11 @@ impl ResidentRenderer {
                 let source_doc = Document::new(source_state);
                 if source_renderer.is_none() {
                     let mut child = Self::with_budget(&self.gpu, self.budget)?;
-                    // Keep source storage depth but F32 adjustment intermediates.
-                    child.float_adjustments = true;
+                    if let Some(fonts) = self.live.text_renderer_snapshot() {
+                        child.set_text_renderer(fonts);
+                    }
+                    // Preserve native raster storage while generating F32 intermediates.
+                    child.float_intermediates = true;
                     child.set_smart_quality(self.smart_quality)?;
                     if let Some(evaluator) = self.stack.evaluator.clone() {
                         child.set_filter_evaluator(evaluator)?;
@@ -220,13 +223,21 @@ impl ResidentRenderer {
                 child.render_viewport(&source_doc, level, region, 0)?;
                 let region = child.levels[&level].region;
                 let local = Extent::new(region.width() as u32, region.height() as u32);
+                // Reserve the complete expansion before converting the source or
+                // creating any effect planes, including earlier pending layers.
+                let settings = styles::at_level(&layer.props.styles, level);
+                let source_bytes = plane_bytes(local)?;
+                reserve_words(&mut reserved_words, source_bytes, limit)?;
+                reserve_plane_words(
+                    &mut reserved_words,
+                    std::iter::repeat_n(source_bytes, StylesGpu::plane_count(&settings)),
+                    limit,
+                )?;
                 let source = self.convert(&child.levels[&level].out, local, 0)?;
-                reserve_words(&mut reserved_words, source.size(), limit)?;
 
                 if self.styles.gpu.is_none() {
                     self.styles.gpu = Some(StylesGpu::new(&self.device)?);
                 }
-                let settings = styles::at_level(&layer.props.styles, level);
                 let planes = self
                     .styles
                     .gpu
@@ -242,11 +253,7 @@ impl ResidentRenderer {
                         [region.x0 as u32, region.y0 as u32],
                         level,
                     )?;
-                reserve_plane_words(
-                    &mut reserved_words,
-                    planes.iter().map(|plane| plane.pixels.size()),
-                    limit,
-                )?;
+                debug_assert_eq!(planes.len(), StylesGpu::plane_count(&settings));
                 let value = Arc::new(Cached {
                     source,
                     planes,
@@ -291,6 +298,15 @@ impl ResidentRenderer {
         }
         Ok(PreparedStyles { copies, words })
     }
+}
+
+fn plane_bytes(extent: Extent) -> EngineResult<u64> {
+    extent
+        .area()
+        .checked_mul(16)
+        .ok_or_else(|| EngineError::ResourceExhausted {
+            resource: "style source byte size overflow".into(),
+        })
 }
 
 fn reserve_plane_words(
@@ -349,6 +365,56 @@ mod tests {
     use super::plane_metadata;
 
     #[test]
+    fn oversized_effect_stack_is_rejected_before_creating_style_pipeline() {
+        use crate::{gpu::GpuCompositor, render::styles::*, *};
+        use engine_api::{EngineError, tile::Extent};
+        use std::sync::Arc;
+
+        // A 1 MiB binding limit makes 64 four-plane bevels exceed the aggregate
+        // limit on a 16x16 image; the regression never allocates giant buffers.
+        let mut descriptor = wgpu::InstanceDescriptor::new_without_display_handle();
+        descriptor.backends = wgpu::Backends::METAL;
+        let instance = wgpu::Instance::new(descriptor);
+        let adapter = pollster::block_on(instance.request_adapter(&Default::default())).unwrap();
+        let mut limits = gpu_core::limits(&adapter.limits());
+        limits.max_storage_buffer_binding_size = 1 << 20;
+        let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
+            required_features: adapter.features() & wgpu::Features::PASSTHROUGH_SHADERS,
+            required_limits: limits,
+            ..Default::default()
+        }))
+        .unwrap();
+        let gpu = GpuCompositor::from_device(device, queue, adapter.get_info().name).unwrap();
+        let mut state = DocState::new(Extent::new(16, 16), Depth::F32);
+        let mut layer = Layer::new(
+            "many bevels",
+            LayerKind::Fill(Fill::Solid { color: [0.5; 3] }),
+        );
+        layer.props.styles.effects = vec![
+            StyleEffect::Bevel(Bevel {
+                kind: BevelKind::Emboss,
+                size: 0.0,
+                soften: 0.0,
+                ..Default::default()
+            });
+            64
+        ];
+        state.root.push(Arc::new(layer));
+        let doc = Document::new(state);
+        let mut resident = super::ResidentRenderer::with_budget(&gpu, 1 << 20).unwrap();
+        assert!(matches!(
+            resident.render(&doc, 0),
+            Err(EngineError::ResourceExhausted { .. })
+        ));
+        assert!(
+            resident.styles.gpu.is_none(),
+            "must reject before allocating any effect plane"
+        );
+        assert_eq!(resident.style_evaluations(), 0);
+        assert_eq!(resident.style_cache_bytes(), 0);
+    }
+
+    #[test]
     fn pending_style_reservations_include_cumulative_data_and_metadata() {
         use super::{reserve_plane_words, reserve_words};
 
@@ -372,6 +438,18 @@ mod tests {
         reserve_words(&mut words, 16, 112).unwrap();
         reserve_plane_words(&mut words, [16], 112).unwrap();
         assert_eq!(words, 28);
+    }
+
+    #[test]
+    fn auxiliary_size_overflow_is_rejected_without_allocating() {
+        use super::{plane_bytes, reserve_plane_words, reserve_words};
+        assert!(plane_bytes(engine_api::tile::Extent::new(u32::MAX, u32::MAX)).is_err());
+        let mut overflowing_words = usize::MAX;
+        assert!(reserve_words(&mut overflowing_words, 16, u64::MAX).is_err());
+        assert!(reserve_words(&mut 0, u64::MAX - 3, u64::MAX).is_err());
+        assert!(reserve_plane_words(&mut 0, [u64::MAX - 3], u64::MAX).is_err());
+        let mut words = 0;
+        assert!(reserve_plane_words(&mut words, [16, 16], 63).is_err());
     }
 
     #[test]

@@ -196,6 +196,9 @@ struct Px {
 // page in this tile).
 fn mask_at(k: u32, page: u32, density: f32, q: Px) -> f32 {
     if (page == NONE) { return steps[k].g.x; }
+    if ((steps[k].h.z & 128u) != 0u) {
+        return 1.0 - density * (1.0 - smart[(page & 0x1fffffffu) * 262144u + q.i]);
+    }
     return 1.0 - density * (1.0 - norm(page, q.i));
 }
 

@@ -306,6 +306,9 @@ impl ResidentRenderer {
                 .is_none_or(|(state, _)| !Arc::ptr_eq(state, &so.state))
             {
                 let mut child = Self::with_budget(&self.gpu, self.budget)?;
+                if let Some(fonts) = self.live.text_renderer_snapshot() {
+                    child.set_text_renderer(fonts);
+                }
                 child.set_smart_quality(self.smart_quality)?;
                 if let Some(adapter) = self.stack.evaluator.clone() {
                     child.set_filter_evaluator(adapter)?;

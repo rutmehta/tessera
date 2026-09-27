@@ -276,6 +276,7 @@ struct SmartKey {
 #[derive(Debug, Clone, Copy)]
 enum NodeKey {
     L0(usize),
+    FloatLive(usize),
     Mip(MipKey),
     Smart(SmartKey),
 }
@@ -288,7 +289,7 @@ struct Node {
 
 impl Node {
     fn smart(&self) -> bool {
-        matches!(self.key, NodeKey::Smart(_))
+        matches!(self.key, NodeKey::Smart(_) | NodeKey::FloatLive(_))
     }
 }
 
@@ -492,7 +493,7 @@ pub struct ResidentRenderer {
     smart_quality: SmartQuality,
     stack: filters::StackRuntime,
     styles: styles_runtime::StyleRuntime,
-    float_adjustments: bool,
+    float_intermediates: bool,
 }
 
 fn page_bytes(depth: Depth) -> u64 {
@@ -590,7 +591,7 @@ impl ResidentRenderer {
             smart_quality: SmartQuality::default(),
             stack: filters::StackRuntime::new(budget),
             styles: styles_runtime::StyleRuntime::default(),
-            float_adjustments: false,
+            float_intermediates: false,
             live: crate::Compositor::new((budget / 8) as usize),
         })
     }
@@ -607,6 +608,7 @@ impl ResidentRenderer {
         let smart = Pool::new(&self.device, F32_PAGE_WORDS * 4, "resident smart pages", 1)?;
         self.smart = smart;
         self.nodes.retain(|_, node| !node.smart());
+        self.l0.retain(|_, (id, _)| self.nodes.contains_key(id));
         self.smarts.clear();
         self.pending_smart.clear();
         self.children.clear();
@@ -623,6 +625,14 @@ impl ResidentRenderer {
     /// Install explicit fonts for live text and invalidate rendered output.
     pub fn set_text_renderer(&mut self, renderer: typography::TextRenderer) {
         self.live.set_text_renderer(renderer);
+        self.stack
+            .cpu
+            .set_text_renderer(self.live.text_renderer_snapshot().expect("installed fonts"));
+        self.stack.clear();
+        self.styles.clear();
+        self.children.clear();
+        self.smarts.clear();
+        self.layers.clear();
         self.invalidate();
     }
 
@@ -712,12 +722,22 @@ impl ResidentRenderer {
     }
 
     fn intern_l0(&mut self, t: &Tile) -> u64 {
+        self.intern_tile(t, false)
+    }
+
+    // Generated live pixels and effective vector masks need F32 intermediates
+    // inside style sources. Keep native raster pages/mips in their exact depth.
+    fn intern_tile(&mut self, t: &Tile, float_live: bool) -> u64 {
         let addr = buffer_addr(t);
         if let Some(&(id, _)) = self.l0.get(&addr) {
             self.touch(id);
             return id;
         }
-        let id = self.id(NodeKey::L0(addr));
+        let id = self.id(if float_live {
+            NodeKey::FloatLive(addr)
+        } else {
+            NodeKey::L0(addr)
+        });
         self.l0.insert(addr, (id, t.clone()));
         self.pending_l0.push((id, t.clone()));
         id
@@ -829,7 +849,7 @@ impl ResidentRenderer {
                 self.smarts.insert(key, 0);
                 return Ok(0);
             }
-            let source = if so.filters.iter().any(|f| f.enabled) || so.state.has_layer_styles() {
+            let source = if so.filters.iter().any(|f| f.enabled) {
                 self.filtered_buffer(layer, plan.child_level())?
             } else {
                 if self
@@ -838,6 +858,9 @@ impl ResidentRenderer {
                     .is_none_or(|(state, _)| !Arc::ptr_eq(state, &so.state))
                 {
                     let mut child = ResidentRenderer::new(&self.gpu)?;
+                    if let Some(fonts) = self.live.text_renderer_snapshot() {
+                        child.set_text_renderer(fonts);
+                    }
                     child.set_smart_quality(self.smart_quality)?;
                     if let Some(adapter) = self.stack.evaluator.clone() {
                         child.set_filter_evaluator(adapter)?;
@@ -900,26 +923,27 @@ impl ResidentRenderer {
             let levels = match t.part {
                 Part::Live | Part::VectorMask => {
                     let mut pages = vec![UNRESOLVED; (cols * rows) as usize];
+                    let float_live = self.float_intermediates && self.depth != Some(Depth::F32);
+                    let mut source_state = (**doc.state()).clone();
+                    if float_live {
+                        source_state.depth = Depth::F32;
+                    }
                     for (tx, ty) in tiles() {
                         let coord = TileCoord::new(level, tx, ty);
                         let tile = if t.part == Part::Live {
-                            self.live.live_tile(
-                                layer,
-                                self.canvas,
-                                self.depth.unwrap_or_default(),
-                                coord,
-                            )?
+                            self.live
+                                .live_tile(layer, self.canvas, source_state.depth, coord)?
                         } else {
                             self.live.effective_vector_mask(
                                 crate::render::DocRef {
-                                    state: doc.state(),
+                                    state: &source_state,
                                     key: doc.key(),
                                 },
                                 layer,
                                 coord,
                             )?
                         };
-                        pages[(ty * cols + tx) as usize] = self.intern_l0(&tile);
+                        pages[(ty * cols + tx) as usize] = self.intern_tile(&tile, float_live);
                     }
                     return Ok(pages);
                 }
@@ -1000,7 +1024,7 @@ impl ResidentRenderer {
                 continue;
             };
             match n.key {
-                NodeKey::L0(addr) => {
+                NodeKey::L0(addr) | NodeKey::FloatLive(addr) => {
                     self.l0.remove(&addr);
                 }
                 NodeKey::Mip(k) => {
@@ -1188,6 +1212,9 @@ impl ResidentRenderer {
         let (cols, rows) = le.tile_grid(TILE_SIZE);
         let grid = (cols * rows) as usize;
         let mut program = Program::compile(&state.root, grid)?;
+        if self.float_intermediates && state.depth != Depth::F32 {
+            program.float_live_sources(grid);
+        }
 
         let radii = |s: &program::Step| -> [f32; 2] {
             match s.adj {
@@ -1451,7 +1478,7 @@ impl ResidentRenderer {
                 blocks: if full { 0 } else { nblocks },
                 bcols,
                 brows,
-                clamp: u32::from(!self.float_adjustments && !state.depth.is_float()),
+                clamp: u32::from(!self.float_intermediates && !state.depth.is_float()),
                 level: u32::from(level),
                 ox: region.x0 as u32,
                 oy: region.y0 as u32,
@@ -1578,7 +1605,7 @@ impl ResidentRenderer {
         {
             if let Some(n) = self.nodes.remove(&id) {
                 match n.key {
-                    NodeKey::L0(a) => {
+                    NodeKey::L0(a) | NodeKey::FloatLive(a) => {
                         self.l0.remove(&a);
                     }
                     NodeKey::Mip(k) => {
@@ -1596,8 +1623,13 @@ impl ResidentRenderer {
     /// Allocates pages for pending nodes, queues their uploads and records
     /// the mip passes (level by level) into a new encoder.
     fn materialize(&mut self) -> EngineResult<wgpu::CommandEncoder> {
-        let main_need = (self.pending_l0.len() + self.pending_mips.len()) as u32;
-        let smart_need = self.pending_smart.len() as u32;
+        let float_need = self
+            .pending_l0
+            .iter()
+            .filter(|(id, _)| self.nodes[id].smart())
+            .count();
+        let main_need = (self.pending_l0.len() - float_need + self.pending_mips.len()) as u32;
+        let smart_need = (self.pending_smart.len() + float_need) as u32;
         self.ensure(false, main_need)?;
         self.ensure(true, smart_need)?;
         let (device, queue) = (self.device.clone(), self.queue.clone());
@@ -1606,12 +1638,24 @@ impl ResidentRenderer {
         for batch in pending.chunks(512) {
             let bytes: Vec<EngineResult<Vec<u8>>> = {
                 use rayon::prelude::*;
-                batch.par_iter().map(|(_, t)| page_bytes_of(t)).collect()
+                batch
+                    .par_iter()
+                    .map(|(id, t)| {
+                        if self.nodes[id].smart() {
+                            // Smart storage is planar F32, also for one-channel masks.
+                            Ok(bytemuck::cast_slice(t.samples::<f32>()?).to_vec())
+                        } else {
+                            page_bytes_of(t)
+                        }
+                    })
+                    .collect()
             };
             for ((id, _), bytes) in batch.iter().zip(bytes) {
                 let bytes = bytes?;
-                let page = self.assign(*id, false)?;
-                let (buf, off) = self.main.locate(page);
+                let float_live = self.nodes[id].smart();
+                let page = self.assign(*id, float_live)?;
+                let pool = if float_live { &self.smart } else { &self.main };
+                let (buf, off) = pool.locate(page);
                 queue.write_buffer(buf, off, &bytes);
                 self.report.uploaded_pages += 1;
                 self.report.uploaded_bytes += bytes.len() as u64;

@@ -190,6 +190,21 @@ impl Compositor {
         *self.live.fonts.lock().unwrap_or_else(|e| e.into_inner()) = Some(renderer);
         self.clear();
     }
+    /// Independent shaping caches with the same font selection, including an
+    /// explicitly empty database. None preserves lazy system discovery.
+    pub(crate) fn text_renderer_snapshot(&self) -> Option<typography::TextRenderer> {
+        self.live
+            .fonts
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .as_ref()
+            .map(|fonts| {
+                let mut snapshot = typography::TextRenderer::new();
+                *snapshot.fonts_mut() = fonts.fonts().clone();
+                snapshot
+            })
+    }
+
     pub(super) fn prepare_live(&self, layer: &Layer) -> EngineResult<Arc<Prepared>> {
         let bytes = match &layer.kind {
             LayerKind::Text { model, transform } => serde_json::to_vec(&("text", model, transform)),

@@ -56,6 +56,35 @@ struct Render<'a> {
 }
 
 impl StylesGpu {
+    /// Exact retained output expansion. Enabled zero-opacity/zero-size effects
+    /// still emit planes; only disabled effects are absent from the GPU stack.
+    pub(super) fn plane_count(styles: &LayerStyles) -> usize {
+        styles
+            .effects
+            .iter()
+            .map(|effect| match effect {
+                StyleEffect::DropShadow(s) | StyleEffect::InnerShadow(s) => usize::from(s.enabled),
+                StyleEffect::OuterGlow(s) | StyleEffect::InnerGlow(s) => usize::from(s.enabled),
+                StyleEffect::Overlay(s)
+                | StyleEffect::ColorOverlay(s)
+                | StyleEffect::GradientOverlay(s)
+                | StyleEffect::PatternOverlay(s) => usize::from(s.enabled),
+                StyleEffect::Stroke(s) => usize::from(s.enabled),
+                StyleEffect::Satin(s) => usize::from(s.enabled),
+                StyleEffect::Bevel(s) => {
+                    if !s.enabled {
+                        0
+                    } else {
+                        match s.kind {
+                            BevelKind::Inner | BevelKind::Outer => 2,
+                            BevelKind::Emboss | BevelKind::Pillow => 4,
+                        }
+                    }
+                }
+            })
+            .sum()
+    }
+
     pub(super) fn new(device: &wgpu::Device) -> EngineResult<Self> {
         let entries = (0..6)
             .map(|binding| wgpu::BindGroupLayoutEntry {

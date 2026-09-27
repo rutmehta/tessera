@@ -95,7 +95,69 @@ fn effects() -> Vec<StyleEffect> {
             ..Default::default()
         }));
     }
+    let disabled: Vec<_> = effects
+        .iter()
+        .cloned()
+        .map(|mut effect| {
+            let enabled = match &mut effect {
+                StyleEffect::DropShadow(s) | StyleEffect::InnerShadow(s) => &mut s.enabled,
+                StyleEffect::OuterGlow(s) | StyleEffect::InnerGlow(s) => &mut s.enabled,
+                StyleEffect::Overlay(s)
+                | StyleEffect::ColorOverlay(s)
+                | StyleEffect::GradientOverlay(s)
+                | StyleEffect::PatternOverlay(s) => &mut s.enabled,
+                StyleEffect::Stroke(s) => &mut s.enabled,
+                StyleEffect::Satin(s) => &mut s.enabled,
+                StyleEffect::Bevel(s) => &mut s.enabled,
+            };
+            *enabled = false;
+            effect
+        })
+        .collect();
+    effects.extend(disabled);
+    effects.push(StyleEffect::Bevel(Bevel {
+        kind: BevelKind::Emboss,
+        size: 0.0,
+        soften: 0.0,
+        highlight_opacity: 0.0,
+        shadow_opacity: 0.0,
+        ..Default::default()
+    }));
+    effects.push(StyleEffect::OuterGlow(Glow {
+        size: 0.0,
+        opacity: 0.0,
+        ..Default::default()
+    }));
     effects
+}
+
+#[test]
+fn bevel_plane_count_includes_both_lighting_planes_per_enabled_side() {
+    for (kind, count) in [
+        (BevelKind::Inner, 2),
+        (BevelKind::Outer, 2),
+        (BevelKind::Emboss, 4),
+        (BevelKind::Pillow, 4),
+    ] {
+        for enabled in [true, false] {
+            let styles = LayerStyles {
+                effects: vec![StyleEffect::Bevel(Bevel {
+                    kind,
+                    enabled,
+                    size: 0.0,
+                    soften: 0.0,
+                    highlight_opacity: 0.0,
+                    shadow_opacity: 0.0,
+                    ..Default::default()
+                })],
+                ..Default::default()
+            };
+            assert_eq!(
+                StylesGpu::plane_count(&styles),
+                if enabled { count } else { 0 }
+            );
+        }
+    }
 }
 
 fn raster(e: Extent) -> Raster {
@@ -162,6 +224,7 @@ fn exact_style_planes_and_fractional_geometry() {
                 )
                 .unwrap();
             assert_eq!(got.len(), cpu.len());
+            assert_eq!(got.len(), StylesGpu::plane_count(&styles));
             for (got, want) in got.iter().zip(cpu) {
                 assert_eq!(
                     (got.mode, got.opacity, got.outside, got.stroke),

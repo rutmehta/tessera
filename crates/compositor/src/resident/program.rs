@@ -27,6 +27,7 @@ const F_BLEND_IF: u32 = 8;
 const F_MASK: u32 = 16;
 const F_SKIP_ABSENT: u32 = 32;
 const F_PLAIN: u32 = 64;
+const F_FLOAT_MASK: u32 = 128;
 
 pub(super) const S_RASTER: u32 = 0;
 const S_SOLID: u32 = 1;
@@ -133,6 +134,26 @@ pub(super) struct Program {
 }
 
 impl Program {
+    pub(super) fn float_live_sources(&mut self, grid_len: usize) {
+        for step in &mut self.steps {
+            if step.kind == K_BLEND
+                && step.src == S_RASTER
+                && self
+                    .tables
+                    .get(step.table as usize / grid_len)
+                    .is_some_and(|t| t.part == Part::Live)
+            {
+                step.src = S_SMART;
+                step.flags &= !F_PLAIN;
+            }
+            if step.flags & F_MASK != 0
+                && self.tables[step.mask_table as usize / grid_len].part == Part::VectorMask
+            {
+                step.flags |= F_FLOAT_MASK;
+            }
+        }
+    }
+
     pub fn compile(root: &[Arc<Layer>], grid_len: usize) -> EngineResult<Self> {
         // aux[0..256]: the CPU's 8-bit normalization table (`i / 255`).
         let mut p = Program {
