@@ -4,12 +4,13 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
+use engine_api::tile::TileFormat;
 use engine_api::{EngineError, EngineResult};
 use serde::{Deserialize, Serialize};
 
 use super::{Compositor, DocRef};
 use crate::blend::{BlendMode, blend_pixel, dissolve_threshold};
-use crate::document::{DocState, Layer, LayerKind, SmartFilter, SmartObject};
+use crate::document::{DocState, Layer, LayerKind, Mask, SmartFilter, SmartObject};
 use crate::geom::{Rect, next_doc_key};
 use crate::raster::{Depth, Raster};
 
@@ -240,17 +241,19 @@ fn evaluate_transform(input: &Raster, op: &transform::TransformOp) -> EngineResu
 }
 
 type CacheKey = (u64, u64, [u8; 32], [u8; 32]);
+type MaskedKey = (CacheKey, [u8; 32]);
 struct Cached {
     source: Raster,
     result: Raster,
     bytes: usize,
 }
 
-/// Retained unmasked filter results allowed during one full-level CPU render.
+/// Retained filter results allowed during one full-level CPU render.
 /// This excludes temporary rasters, evaluator allocations, tile caches and GPU memory.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct FilterPassLimits {
-    /// Maximum combined `source + result` charge of live pass entries.
+    /// Maximum combined unmasked source/result and masked-output tile charge
+    /// of live pass entries.
     /// Zero rejects every filtered source reached by the frame.
     pub retained_bytes: usize,
     /// Maximum number of live pass entries, including in-progress reservations.
@@ -270,6 +273,7 @@ impl Default for FilterPassLimits {
 #[derive(Default)]
 struct PassState {
     entries: HashMap<CacheKey, Arc<Cached>>,
+    masked: HashMap<MaskedKey, Arc<Raster>>,
     reserved_bytes: usize,
     reserved_entries: usize,
 }
@@ -299,6 +303,15 @@ impl FilterPass {
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .entries
+            .get(key)
+            .cloned()
+    }
+
+    fn get_masked(&self, key: &MaskedKey) -> Option<Arc<Raster>> {
+        self.state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .masked
             .get(key)
             .cloned()
     }
@@ -336,6 +349,19 @@ impl PassReservation<'_> {
         state.entries.insert(key, entry.clone());
         self.active = false;
         entry
+    }
+
+    fn commit_masked(mut self, key: MaskedKey, raster: Arc<Raster>) -> Arc<Raster> {
+        let mut state = self.pass.state.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(existing) = state.masked.get(&key).cloned() {
+            state.reserved_bytes -= self.bytes;
+            state.reserved_entries -= 1;
+            self.active = false;
+            return existing;
+        }
+        state.masked.insert(key, raster.clone());
+        self.active = false;
+        raster
     }
 }
 
@@ -385,6 +411,80 @@ fn entry_bytes(so: &SmartObject) -> EngineResult<usize> {
         })
 }
 
+fn masked_entry_bytes(raster: &Raster) -> EngineResult<usize> {
+    usize::try_from(raster.extent().area())
+        .ok()
+        .and_then(|area| area.checked_mul(16))
+        .ok_or_else(|| EngineError::ResourceExhausted {
+            resource: "CPU smart-filter masked result size overflow".into(),
+        })
+}
+
+// Hash semantic mask data rather than layer IDs, revisions or temporary style
+// object addresses. Dense masks still require a full stored-byte scan on each
+// lookup; the counter makes that residual work visible.
+fn mask_digest(mask: &Mask) -> EngineResult<([u8; 32], u64)> {
+    let mut hash = blake3::Hasher::new();
+    hash.update(b"tessera-smart-filter-mask-v1");
+    hash.update(&[u8::from(mask.enabled)]);
+    hash.update(&mask.density.to_bits().to_le_bytes());
+    hash.update(&mask.feather.to_bits().to_le_bytes());
+    let raster = &mask.raster;
+    let extent = raster.extent();
+    hash.update(&extent.width.to_le_bytes());
+    hash.update(&extent.height.to_le_bytes());
+    hash.update(&[raster.channels()]);
+    hash.update(&[match raster.depth() {
+        Depth::U8 => 1,
+        Depth::U16 => 2,
+        Depth::F32 => 4,
+    }]);
+    hash.update(&raster.default_value().to_bits().to_le_bytes());
+    let mut visited = 0u64;
+    for ((tx, ty), slot) in raster.slots() {
+        hash.update(&tx.to_le_bytes());
+        hash.update(&ty.to_le_bytes());
+        let Some(tile) = &slot.tile else {
+            hash.update(&[0]);
+            continue;
+        };
+        hash.update(&[1]);
+        let layout = tile.layout();
+        hash.update(&layout.extent.width.to_le_bytes());
+        hash.update(&layout.extent.height.to_le_bytes());
+        hash.update(&layout.halo.to_le_bytes());
+        hash.update(&[layout.channels]);
+        hash.update(&[match tile.format() {
+            TileFormat::U8 => 1,
+            TileFormat::U16 => 2,
+            TileFormat::F16Planar => 3,
+            TileFormat::F32Planar => 4,
+        }]);
+        visited = visited.saturating_add(u64::try_from(tile.byte_len()).unwrap_or(u64::MAX));
+        match tile.format() {
+            TileFormat::U8 => {
+                hash.update(tile.samples::<u8>()?);
+            }
+            TileFormat::U16 => {
+                for sample in tile.samples::<u16>()? {
+                    hash.update(&sample.to_le_bytes());
+                }
+            }
+            TileFormat::F16Planar => {
+                for sample in tile.samples::<half::f16>()? {
+                    hash.update(&sample.to_bits().to_le_bytes());
+                }
+            }
+            TileFormat::F32Planar => {
+                for sample in tile.samples::<f32>()? {
+                    hash.update(&sample.to_bits().to_le_bytes());
+                }
+            }
+        }
+    }
+    Ok((*hash.finalize().as_bytes(), visited))
+}
+
 /// Whole-image CPU filter work, including source work discarded after a cold race.
 /// Relaxed atomics give a non-transactional snapshot; active counts refer to
 /// stack attempts, not threads. These are not process-memory or GPU counters.
@@ -411,8 +511,8 @@ pub struct FilterEvaluationStats {
     /// Payload bytes of materialized masked output tiles. This
     /// excludes scratch buffers, retained copies, and allocator overhead.
     pub mask_tile_bytes_produced: u64,
-    /// Mask tile payload bytes scanned to form a reuse key. The current path
-    /// does no digest scan, so this is zero before masked-result reuse.
+    /// Mask tile payload bytes scanned to form frame-local reuse keys. Dense
+    /// masks are rescanned on each lookup; this is not all mask-related work.
     pub mask_digest_bytes_visited: u64,
 }
 
@@ -675,9 +775,8 @@ impl Compositor {
                 }
             }
         };
-        let mut raster = cached.result.clone();
-        if let Some(mask) = so.filter_mask.as_ref().filter(|m| m.enabled) {
-            if mask.raster.extent() != raster.extent()
+        let raster = if let Some(mask) = so.filter_mask.as_ref().filter(|m| m.enabled) {
+            if mask.raster.extent() != cached.result.extent()
                 || mask.raster.channels() != 1
                 || !mask.density.is_finite()
                 || !(0.0..=1.0).contains(&mask.density)
@@ -692,43 +791,71 @@ impl Compositor {
                     what: "smart-filter mask feather".into(),
                 });
             }
-            let mut valid = true;
-            let mut visited = 0u64;
-            rt.mask_compositions.fetch_add(1, Ordering::Relaxed);
-            let edit = raster.edit_region(Rect::of_extent(raster.extent()), 1, |x, y, p| {
-                visited = visited.saturating_add(1);
-                let m = mask.raster.pixel(x, y)[0];
-                valid &= m.is_finite() && (0.0..=1.0).contains(&m);
-                let t = 1.0 - mask.density * (1.0 - m);
-                let a = cached.source.pixel(x, y);
-                let b = *p;
-                let alpha = a[3] + t * (b[3] - a[3]);
-                for c in 0..3 {
-                    p[c] = if alpha > 0.0 {
-                        (a[c] * a[3] * (1.0 - t) + b[c] * b[3] * t) / alpha
-                    } else {
-                        0.0
-                    };
-                }
-                p[3] = alpha;
-            });
-            rt.mask_pixels_visited.fetch_add(visited, Ordering::Relaxed);
-            edit?;
-            let produced = raster
-                .slots()
-                .filter_map(|(_, slot)| slot.tile.as_ref())
-                .fold(0u64, |sum, tile| {
-                    sum.saturating_add(u64::try_from(tile.byte_len()).unwrap_or(u64::MAX))
+            let masked_key = if pass.is_some() {
+                let (digest, visited) = mask_digest(mask)?;
+                rt.mask_digest_bytes_visited
+                    .fetch_add(visited, Ordering::Relaxed);
+                Some((key, digest))
+            } else {
+                None
+            };
+            if let Some(hit) =
+                pass.and_then(|pass| masked_key.as_ref().and_then(|key| pass.get_masked(key)))
+            {
+                hit.as_ref().clone()
+            } else {
+                let reservation = pass
+                    .map(|pass| pass.reserve(masked_entry_bytes(&cached.result)?))
+                    .transpose()?;
+                let mut raster = cached.result.clone();
+                let mut valid = true;
+                let mut visited = 0u64;
+                rt.mask_compositions.fetch_add(1, Ordering::Relaxed);
+                let edit = raster.edit_region(Rect::of_extent(raster.extent()), 1, |x, y, p| {
+                    visited = visited.saturating_add(1);
+                    let m = mask.raster.pixel(x, y)[0];
+                    valid &= m.is_finite() && (0.0..=1.0).contains(&m);
+                    let t = 1.0 - mask.density * (1.0 - m);
+                    let a = cached.source.pixel(x, y);
+                    let b = *p;
+                    let alpha = a[3] + t * (b[3] - a[3]);
+                    for c in 0..3 {
+                        p[c] = if alpha > 0.0 {
+                            (a[c] * a[3] * (1.0 - t) + b[c] * b[3] * t) / alpha
+                        } else {
+                            0.0
+                        };
+                    }
+                    p[3] = alpha;
                 });
-            rt.mask_tile_bytes_produced
-                .fetch_add(produced, Ordering::Relaxed);
-            if !valid {
-                return Err(EngineError::invalid(
-                    "smart filter mask",
-                    "expected finite [0,1] samples",
-                ));
+                rt.mask_pixels_visited.fetch_add(visited, Ordering::Relaxed);
+                edit?;
+                let produced = raster
+                    .slots()
+                    .filter_map(|(_, slot)| slot.tile.as_ref())
+                    .fold(0u64, |sum, tile| {
+                        sum.saturating_add(u64::try_from(tile.byte_len()).unwrap_or(u64::MAX))
+                    });
+                rt.mask_tile_bytes_produced
+                    .fetch_add(produced, Ordering::Relaxed);
+                if !valid {
+                    return Err(EngineError::invalid(
+                        "smart filter mask",
+                        "expected finite [0,1] samples",
+                    ));
+                }
+                if let (Some(reservation), Some(key)) = (reservation, masked_key) {
+                    reservation
+                        .commit_masked(key, Arc::new(raster))
+                        .as_ref()
+                        .clone()
+                } else {
+                    raster
+                }
             }
-        }
+        } else {
+            cached.result.clone()
+        };
         let mut state = DocState::new(raster.extent(), Depth::F32);
         state.profile = context.profile;
         state.rev = so.state.rev;
