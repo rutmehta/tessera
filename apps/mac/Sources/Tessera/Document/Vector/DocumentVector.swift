@@ -51,6 +51,8 @@ final class DocumentVector {
     /// Path Selection's affine box (document pixels) and the transform it started from.
     private(set) var affine: FreeTransformModel?
     @ObservationIgnored private var affineBase: AffineTransform2D = .identity
+    /// The layer the box belongs to (the box is rebuilt when the primary layer changes).
+    @ObservationIgnored private(set) var affineLayer: DocLayerID?
 
     // MARK: Engine plumbing
 
@@ -64,6 +66,11 @@ final class DocumentVector {
     /// from the event to the first frame showing it.
     @ObservationIgnored private var pendingEpochs: [(epoch: UInt64, start: TimeInterval)] = []
     @ObservationIgnored private(set) var latencies: [Double] = []
+    @ObservationIgnored private(set) var previewsSent = 0
+    @ObservationIgnored private(set) var framesSeen = 0
+    /// Engine call durations of previews (ms) and the frames' own render times (ms).
+    @ObservationIgnored private(set) var previewCallMs: [Double] = []
+    @ObservationIgnored private(set) var frameRenderMs: [Double] = []
     @ObservationIgnored var onFinished: ((String, Bool) -> Void)?
 
     private init() {}
@@ -82,11 +89,13 @@ final class DocumentVector {
         while busy > 0 || inFlight { try? await Task.sleep(for: .milliseconds(10)) }
     }
 
-    func resetLatencies() { latencies.removeAll(); pendingEpochs.removeAll() }
+    func resetLatencies() { latencies.removeAll(); pendingEpochs.removeAll(); previewsSent = 0; framesSeen = 0; previewCallMs.removeAll(); frameRenderMs.removeAll() }
 
     /// Frame arrival (self-test hook through `DocumentController.frameObserver`).
     func frameArrived(_ f: DocFrame) {
         let now = ProcessInfo.processInfo.systemUptime
+        framesSeen += 1
+        frameRenderMs.append(f.renderMs)
         let done = pendingEpochs.filter { $0.epoch <= f.epoch }
         guard !done.isEmpty else { return }
         pendingEpochs.removeAll { $0.epoch <= f.epoch }
@@ -147,14 +156,18 @@ final class DocumentVector {
         }
         if inFlight { waiting = body; return }
         inFlight = true
+        previewsSent += 1
         let gen = generation
         let t0 = start ?? ProcessInfo.processInfo.systemUptime
         queue.async {
+            let c0 = ProcessInfo.processInfo.systemUptime
             let r = Result { try body() }
+            let callMs = (ProcessInfo.processInfo.systemUptime - c0) * 1000
             DispatchQueue.main.async {
                 MainActor.assumeIsolated {
                     let v = DocumentVector.shared
                     v.inFlight = false
+                    v.previewCallMs.append(callMs)
                     switch r {
                     case .success(let c): v.pendingEpochs.append((c.epoch, t0))
                     case .failure(let e): v.say("\(label): \(e.localizedDescription)")
@@ -219,6 +232,7 @@ final class DocumentVector {
         guard let b = i.bounds, b.width > 0 || b.height > 0 else { affine = nil; return }
         affine = FreeTransformModel(bounds: b.insetBy(dx: b.width == 0 ? -0.5 : 0, dy: b.height == 0 ? -0.5 : 0))
         affineBase = i.transform
+        affineLayer = i.layer
     }
 
     // MARK: Mouse
@@ -456,7 +470,7 @@ final class DocumentVector {
     // MARK: Path Selection (affine)
 
     private func pathSelectDown(_ doc: DocumentController, _ e: NSEvent, at p: CGPoint, in v: DocumentViewportView) {
-        if let t = affine, doc.primary?.kind == .shape {
+        if let t = affine, let id = affineLayer, id == doc.primary?.id, info(for: doc, layer: id) != nil {
             let vp = v.viewPoint(canvas: p)
             if let h = FreeTransformModel.Handle.allCases.first(where: { h in
                 let q = v.viewPoint(canvas: t.transformed(h))
@@ -473,30 +487,27 @@ final class DocumentVector {
             gesture = .affineMove(last: p)
             return
         }
-        if let t = affine, doc.primary?.kind == .shape {
+        if let t = affine, let id = affineLayer, id == doc.primary?.id, info(for: doc, layer: id) != nil {
             gesture = .affineRotate(start: p, angle: t.angle)
         }
     }
 
     private func pushAffine(_ doc: DocumentController, final: Bool, start: TimeInterval?) {
-        guard let b = backend(doc), let i = info, let t = affine else { return }
+        guard let b = backend(doc), let id = affineLayer, let i = info, i.layer == id, let t = affine else { return }
         if final, t.isIdentity {
             send(doc, final: true, label: "Transform") { try b.cancelShapePreview() }
             return
         }
         let m = t.matrix.concatenating(after: affineBase)
         guard m.isFiniteAndInvertible else { return }
-        let id = i.layer, source = i.source, linked = moveMaskWithShape && i.vectorMask != nil
+        let source = i.source, linked = moveMaskWithShape && i.vectorMask != nil
         let label = linked ? "Transform Shape and Vector Mask" : "Transform Shape"
         send(doc, final: final, label: label, start: start) {
             linked ? try b.transformShapeWithMask(id, transform: m, interactive: !final)
                 : try b.setShapeLayer(id, source: source, transform: m, interactive: !final)
         }
-        if final { affine = nil; affineAfterCommit = true }
+        if final { affine = nil }
     }
-
-    /// After a committed affine drag the box is rebuilt from the new geometry.
-    @ObservationIgnored private var affineAfterCommit = false
 
     // MARK: Inspector edits
 
@@ -597,9 +608,13 @@ final class DocumentVector {
 
     func draw(in v: DocumentViewportView) {
         guard let doc = v.controller, doc === document else { return }
-        if affineAfterCommit, gesture == nil, doc.tool == .pathSelect, let i = selectedShape, busy == 0 {
-            affineAfterCommit = false
-            beginAffine(i)
+        // Path Selection's box follows the primary shape (rebuilt after a committed drag or a new selection).
+        if doc.tool == .pathSelect, gesture == nil, busy == 0, !inFlight {
+            if let i = selectedShape {
+                if affine == nil || affineLayer != i.layer { beginAffine(i) }
+            } else {
+                affine = nil
+            }
         }
         let tool = doc.tool
         // The shape being dragged out.
@@ -629,7 +644,7 @@ final class DocumentVector {
                 }
             }
         }
-        if tool == .pathSelect, let t = affine { drawAffine(t, in: v) }
+        if tool == .pathSelect, let t = affine, affineLayer == doc.primary?.id { drawAffine(t, in: v) }
         // The Pen path in progress, with the rubber band to the pointer.
         if tool == .pen, !pen.isEmpty {
             var path = pen.path

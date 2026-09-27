@@ -1,0 +1,103 @@
+2026-09-27 02:11:42.737 Tessera[99066:21066064] Sparkle updates not configured for this build
+vector-selftest: window 1440 × 900 pt
+vector-selftest: document 5472 × 3648 px, 8-bit, Metal (Apple M4 Max)
+vector-selftest: check U selects the Rectangle tool ok
+vector-selftest: check ⇧U cycles to Ellipse ok
+vector-selftest: check the U key reaches the tool ok
+vector-selftest: check rectangle row is a Shape ok
+vector-selftest: check history 'Rectangle Tool' ok
+vector-selftest: step 01-360-shape-row window-id 17002
+vector-selftest: check independent corner radii ok
+vector-selftest: check radius edit is one 'Edit Shape' node ok
+vector-selftest: step 02-361-rounded-rectangle-radii window-id 17002
+vector-selftest: check ellipse centred on the press ok
+vector-selftest: check ⇧ makes a circle ok
+vector-selftest: step 03-362-ellipse-constraints window-id 17002
+vector-selftest: check star has 12 points ok
+vector-selftest: check 8 sides with inset regenerate 16 points ok
+vector-selftest: step 04-363-polygon-star window-id 17002
+vector-selftest: check line is stroke-only ok
+vector-selftest: check click on the line's outline selects it ok
+vector-selftest: step 05-364-line-stroke-hit window-id 17002
+vector-selftest: check gradient paint set ok
+vector-selftest: check move changes the transform, not the paint coordinates ok
+vector-selftest: step 06-365-gradient-document-anchored window-id 17002
+vector-selftest: check stroke settings preserved ok
+vector-selftest: step 07-366-stroke-settings window-id 17002
+vector-selftest: step 08-367-pen-drafting window-id 17002
+vector-selftest: check Pen makes one closed custom shape ok
+vector-selftest: check drag built cubic handles ok
+vector-selftest: step 09-367-pen-closed window-id 17002
+vector-selftest: check anchor moved ok
+vector-selftest: check anchor drag is one node ok
+vector-selftest: check ⌥ handle drag is independent ok
+vector-selftest: step 10-368-direct-selection window-id 17002
+vector-selftest: check ⌥-click inserts an anchor ok
+vector-selftest: check ⌫ deletes the selected anchor ok
+vector-selftest: check custom edit drops the live rectangle ok
+vector-selftest: check later edits keep the custom path ok
+vector-selftest: step 11-369-anchors-custom-path window-id 17002
+vector-selftest: check Combine Shapes is one node ok
+vector-selftest: check Combine Shapes removes the front shape ok
+vector-selftest: check undo restores both shapes ok
+vector-selftest: check Subtract Front Shape is one node ok
+vector-selftest: check Subtract Front Shape removes the front shape ok
+vector-selftest: check undo restores both shapes ok
+vector-selftest: check Intersect Shape Areas is one node ok
+vector-selftest: check Intersect Shape Areas removes the front shape ok
+vector-selftest: check undo restores both shapes ok
+vector-selftest: check Exclude Overlapping Shapes is one node ok
+vector-selftest: check Exclude Overlapping Shapes removes the front shape ok
+vector-selftest: step 12-370-path-operation-exclude window-id 17002
+vector-selftest: check undo restores both shapes ok
+vector-selftest: step 13-370-path-operation-subtract window-id 17002
+vector-selftest: check stroke-only hit at 100 % ok
+vector-selftest: step 14-371-hit-zoom-100 window-id 17002
+vector-selftest: check skewed shape hit through its inverse affine ok
+vector-selftest: step 15-371-hit-skew-overlay window-id 17002
+vector-selftest: check fill-only drag previews coalesce to frames ok
+vector-selftest: fill-only affine drag on 20 MP: previews 51, frames 50, latency n 49 median 516.8 ms p90 581.4 ms max 859.9 ms
+vector-selftest: fill-only preview engine calls (ms): ["0.3", "184.5", "0.3", "202.6", "0.3", "0.3", "0.3", "0.3", "0.3", "0.3", "0.3", "0.3", "0.3", "0.3", "0.3", "0.3", "0.3", "0.3", "0.3", "0.3", "0.3", "0.3", "0.3", "0.4", "0.3", "0.3", "0.3", "0.3", "0.3", "0.3", "0.3", "0.3", "0.3", "0.3", "0.3", "0.3", "0.3", "0.3", "0.3", "0.3", "0.3", "0.3", "0.3", "0.3", "0.3", "0.3", "0.3", "0.3", "0.3", "0.3", "0.3"]; frame render (ms): ["204.0", "207.3", "210.5", "210.5", "215.2", "212.2", "215.3", "239.8", "220.1", "226.0", "225.4", "224.6", "227.0", "224.5", "230.7", "227.2", "231.5", "232.4", "234.5", "244.9", "252.7", "234.8", "242.0", "241.8", "242.5", "241.0", "244.7", "250.4", "250.4", "248.6", "249.3", "249.9", "251.4", "257.9", "252.0", "257.3", "258.9", "267.9", "261.7", "264.7", "262.4", "265.5", "267.2", "270.4", "271.4", "279.1", "278.6", "277.1", "277.9", "3.3"]
+vector-selftest: check affine drag is one node ok
+vector-selftest: stroked-dashed affine drag latency on 20 MP: n 1, median 5518.0 ms, p90 5518.0 ms, max 5518.0 ms
+vector-selftest: preview engine calls (ms): ["0.3", "5335.1"]; frame render (ms): ["5517.4"]
+vector-selftest: step 16-372-affine-esc-mid-drag window-id 17002
+vector-selftest: check Esc: history unchanged ok
+vector-selftest: check Esc: transform unchanged ok
+vector-selftest: check raster mask kept ok
+vector-selftest: check vector mask added ok
+vector-selftest: step 17-373-vector-and-raster-mask window-id 17002
+vector-selftest: check density drag + feather are two nodes ok
+vector-selftest: check mask values ok
+vector-selftest: step 18-374-mask-density-feather window-id 17002
+vector-selftest: check mask disabled ok
+vector-selftest: step 19-374-mask-disabled window-id 17002
+vector-selftest: check plain move keeps the mask in place ok
+vector-selftest: step 20-375-mask-fixed-move window-id 17002
+vector-selftest: check linked move is one node ok
+vector-selftest: check linked move moves the mask ok
+vector-selftest: step 21-375-mask-linked-move window-id 17002
+vector-selftest: check one undo restores shape and mask ok
+vector-selftest: check pixel lock rejects content edits ok
+vector-selftest: step 22-376-locked-error window-id 17002
+vector-selftest: check open path Outside stroke explained ok
+vector-selftest: step 23-376-open-path-alignment-error window-id 17002
+vector-selftest: check converted to pixels ok
+vector-selftest: step 24-377-converted window-id 17002
+vector-selftest: check undo restores the live shape ok
+vector-selftest: check save .tessera-doc ok
+vector-selftest: check .tessera-doc: shapes reopen as Shape rows ok
+vector-selftest: check .tessera-doc: rectangle source and mask intact ok
+vector-selftest: check save .psd-with-raster-mask ok
+vector-selftest: known engine limitation (NEEDS.md): psd-with-raster-mask reopen: invalid argument `PSD adapter`: vector mask bridge exceeds limit
+vector-selftest: check save .psd ok
+vector-selftest: check .psd: shapes reopen as Shape rows ok
+vector-selftest: check .psd: rectangle source and mask intact ok
+vector-selftest: check pattern limitation stated ok
+vector-selftest: check PSD save refuses the pattern fill explicitly ok
+vector-selftest: step 25-378-pattern-and-mask-notes window-id 17002
+vector-selftest: step 26-378-psd-reopened window-id 17002
+vector-selftest: check window is 1440 pt wide ok
+vector-selftest: check Remove tool still selectable ok
+vector-selftest: step 27-379-inspector-1440 window-id 17002
+vector-selftest: done, 0 failure(s)

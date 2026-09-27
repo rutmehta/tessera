@@ -13,7 +13,8 @@ struct ShapeInspector: View {
     @Bindable var vector: DocumentVector
     let layer: DocLayerID
     @State private var dashText = ""
-    @State private var linkRadii = true
+    /// nil: linked while all four radii are equal.
+    @State private var linkOverride: Bool?
 
     private var revision: Int { document.revision }
 
@@ -135,7 +136,8 @@ struct ShapeInspector: View {
         slider("Height", r.height, 0...max(8000, r.height * 2), r.height, "%.1f px", 0.5, "rect.height") { v, f in
             edit(info, final: f) { $0.liveShape = .rectangle(rect: ShapeRect(x0: r.x0, y0: r.y0, x1: r.x1, y1: r.y0 + v), radii: radii) }
         }
-        Toggle("Same radius for all corners", isOn: $linkRadii)
+        let linkRadii = linkOverride ?? (Set(radii).count <= 1)
+        Toggle("Same radius for all corners", isOn: Binding(get: { linkRadii }, set: { linkOverride = $0 }))
             .toggleStyle(.checkbox).controlSize(.small).font(Theme.Fonts.caption)
             .accessibilityIdentifier("document.shape.rect.linkRadii")
         let maxR = max(min(r.width, r.height) / 2, 1)
@@ -220,7 +222,7 @@ struct ShapeInspector: View {
             }
             Hint("Gradients are anchored to the document: moving the shape does not move its paint.")
         case .pattern?:
-            StatusLine(text: "Imported pattern: kept as-is in Tessera documents; PSD export does not write pattern shape fills yet.", kind: .warning)
+            StatusLine(text: "Imported pattern: kept as-is in Tessera documents. PSD save does not support pattern shape fills yet and fails while this layer has one.", kind: .warning)
         case nil:
             EmptyView()
         }

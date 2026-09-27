@@ -1297,8 +1297,21 @@ fn psd_standard_tags_cached_pixels_and_raster_mask_fallback() {
     assert!(
         notes
             .iter()
-            .any(|n| n.contains("Pattern") && n.contains("does not write")),
+            .any(|n| n.contains("Pattern") && n.contains("does not support")),
         "{notes:?}"
     );
     assert_eq!(model(&s, p).fill, pm.fill, "pattern paint is preserved");
+    // The stated limitation is real: PSD save refuses the pattern fill, native save keeps it.
+    let err = s
+        .save_as(d.path().join("pattern.psd").to_string_lossy().into_owned())
+        .unwrap_err()
+        .to_string();
+    assert!(err.contains("pattern"), "{err}");
+    s.save_as(
+        d.path()
+            .join("pattern.tessera-doc")
+            .to_string_lossy()
+            .into_owned(),
+    )
+    .unwrap();
 }

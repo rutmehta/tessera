@@ -294,9 +294,9 @@ fn notes_for(s: &DocState, l: &Layer, model: &ShapeModel, transform: Affine) -> 
     let mut notes = Vec::new();
     if has_pattern(model) {
         notes.push(
-            "Pattern paint is kept in Tessera documents, but PSD export does not write pattern \
-             shape fills yet (engine limitation): the PSD keeps the rendered pixels and other \
-             apps lose the editable pattern."
+            "Pattern paint is kept in Tessera documents, but the PSD writer does not support \
+             pattern shape fills yet (engine limitation): saving as PSD fails while this layer \
+             has one. Rasterize the shape or change its paint to save a PSD."
                 .into(),
         );
     }
