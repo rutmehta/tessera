@@ -6,6 +6,110 @@ use std::sync::{Arc, Mutex};
 use tessera_ffi::*;
 
 #[test]
+fn original_export_keeps_embedded_only_dng_edits() {
+    let dir = tempfile::tempdir().unwrap();
+    let photos = dir.path().join("photos");
+    std::fs::create_dir(&photos).unwrap();
+    let source = photos.join("edited.dng");
+    let image = merge::LinearImage {
+        width: 32,
+        height: 32,
+        pixels: vec![[0.2; 3]; 32 * 32],
+        color_matrix: [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+        as_shot_neutral: [1.0; 3],
+    };
+    let packet = r#"<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description xmlns:crs="http://ns.adobe.com/camera-raw-settings/1.0/" xmlns:xmp="http://ns.adobe.com/xap/1.0/" crs:Exposure2012="1.25" xmp:Rating="4"/></rdf:RDF>"#;
+    merge::dng::write(&mut std::fs::File::create(&source).unwrap(), &image, packet).unwrap();
+    let engine = Engine::open(dir.path().join("support").to_string_lossy().into_owned()).unwrap();
+    engine
+        .index_folder(photos.to_string_lossy().into_owned())
+        .unwrap();
+    let report = engine
+        .export_batch(
+            ExportTarget::Query {
+                query: ImageQuery::default(),
+            },
+            settings(
+                &dir.path().join("out"),
+                serde_json::json!({"format":"original","resize":{"mode":"none"}}),
+            ),
+            None,
+            None,
+        )
+        .unwrap();
+    assert_eq!((report.exported, report.failed), (1, 0), "{report:?}");
+    let output = raw_decode::linear_dng::read(
+        &mut std::fs::File::open(report.items[0].output_path.as_ref().unwrap()).unwrap(),
+    )
+    .unwrap();
+    let imported = sidecar::XmpPacket::parse(output.xmp)
+        .unwrap()
+        .to_recipe()
+        .unwrap()
+        .recipe;
+    assert_eq!(imported.settings.tone.exposure, 1.25);
+    assert_eq!(
+        imported.selection,
+        sidecar::XmpPacket::parse(packet)
+            .unwrap()
+            .selection()
+            .unwrap()
+    );
+}
+
+#[test]
+fn original_export_copies_bytes_and_is_remembered() {
+    let f = fixture();
+    let out = f.dir.path().join("originals");
+    let options = settings(
+        &out,
+        serde_json::json!({"format":"original", "resize":{"mode":"none"}}),
+    );
+    let report = f
+        .engine
+        .export_batch(
+            ExportTarget::Images {
+                image_ids: vec![f.ids[0].clone()],
+            },
+            options,
+            None,
+            None,
+        )
+        .unwrap();
+    assert_eq!((report.exported, report.failed), (1, 0), "{report:?}");
+    assert_eq!(
+        std::fs::read(out.join("a.jpg")).unwrap(),
+        std::fs::read(f.dir.path().join("photos/a.jpg")).unwrap()
+    );
+    assert!(sidecar::Sidecar::paths(out.join("a.jpg")).xmp.exists());
+    let again = f
+        .engine
+        .export_with_previous(
+            ExportTarget::Images {
+                image_ids: vec![f.ids[1].clone()],
+            },
+            None,
+            None,
+        )
+        .unwrap();
+    assert_eq!((again[0].exported, again[0].failed), (1, 0));
+    assert_eq!(
+        std::fs::read(out.join("b.jpg")).unwrap(),
+        std::fs::read(f.dir.path().join("photos/b.jpg")).unwrap()
+    );
+    for extra in [
+        serde_json::json!({"remove_location":true}),
+        serde_json::json!({"metadata":"none"}),
+        serde_json::json!({"resize":{"mode":"long_edge"}}),
+        serde_json::json!({"sharpening":"screen"}),
+    ] {
+        let mut value = extra;
+        value["format"] = "original".into();
+        assert!(normalize_export_settings(value.to_string()).is_err());
+    }
+}
+
+#[test]
 fn sharpening_amount_json_defaults_and_roundtrip() {
     let defaults: serde_json::Value =
         serde_json::from_str(&normalize_export_settings("{}".into()).unwrap()).unwrap();

@@ -4,6 +4,52 @@ use serde_json::Value;
 use std::path::Path;
 
 #[test]
+fn original_cli_copies_without_decoding_and_merges_recipe() {
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("source.nef");
+    let bytes = b"opaque original bytes\0\xff";
+    std::fs::write(&source, bytes).unwrap();
+    let packet = r#"<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description xmlns:crs="http://ns.adobe.com/camera-raw-settings/1.0/" crs:Exposure2012="1.25"/></rdf:RDF>"#;
+    std::fs::write(sidecar::Sidecar::paths(&source).xmp, packet).unwrap();
+    let out = temp.path().join("out");
+    let result = cli(&temp.path().join("app"))
+        .args(["--json", "export"])
+        .arg(&source)
+        .arg("--out")
+        .arg(&out)
+        .args(["--format", "original"])
+        .assert()
+        .success()
+        .get_output()
+        .clone();
+    let summary: Value = serde_json::from_slice(&result.stdout).unwrap();
+    assert_eq!(summary["completed"], 1);
+    let dest = out.join("source-1.nef");
+    assert_eq!(std::fs::read(&dest).unwrap(), bytes);
+    assert_eq!(
+        sidecar::Sidecar::read_xmp(sidecar::Sidecar::paths(dest).xmp)
+            .unwrap()
+            .to_recipe()
+            .unwrap()
+            .recipe
+            .settings
+            .tone
+            .exposure,
+        1.25
+    );
+    // Date-based naming must read RAW metadata, not silently substitute an empty date.
+    cli(&temp.path().join("app"))
+        .arg("export")
+        .arg(&source)
+        .arg("--out")
+        .arg(temp.path().join("dated"))
+        .args(["--format", "original", "--name", "{date}-{name}"])
+        .assert()
+        .failure();
+    assert!(!temp.path().join("dated").exists());
+}
+
+#[test]
 fn cached_models_cli_upscale_smoke() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let cache = std::env::var_os("TESSERA_ENHANCE_MODEL_CACHE")
