@@ -48,6 +48,11 @@ pub use tools::*;
 // Filters, Image ▸ Adjustments and smart filters (WP B5-05).
 #[path = "document/filters.rs"]
 mod filtering;
+// B5-08 begin: persistent alpha and spot channels.
+#[path = "document/channels.rs"]
+mod channels;
+pub use channels::{ChannelRecord, ChannelUpdate, DocChannelKind};
+// B5-08 end
 pub use filtering::{
     DistractionRemovalResult, FilterDetail, FilterInfo, RasterFilterOperation, RasterFilterRequest,
     SmartFilterEdit, SmartFilterRecord, list_filters,

@@ -1425,3 +1425,59 @@ not failures.
 | `transform-constrain-crop` · `transform-preview-note` | Constrain Crop checkbox; the "loupe does not draw Upright/Transform yet" warning |
 | `lensblur-unavailable` · `lensblur-apply` · `lensblur-amount` · `lensblur-bokeh` · `lensblur-focal-range` | Lens Blur ▸ engine-gap line, Apply, Blur Amount, Bokeh picker, Focal Range strip |
 | `lensblur-visualize-depth` · `lensblur-subject` · `lensblur-refine-focus` · `lensblur-refine-blur` | Visualize Depth, Subject-aware focus, Refine brushes (disabled: engine gaps) |
+
+## Y. Persistent alpha and spot channels (B5-08)
+
+Engine backend (not `--stub-library`), a scratch copy of `fixtures/raw/sample.dng` in `$SCR/shoot`, opened with
+Library ▸ Edit in Layers (⌘E). Open the inspector's **Channels** section (between Layers and History).
+
+168. **Panel.** Channels lists RGB, Red, Green, Blue (read-only: lock glyph, thumbnails from the composite) and nothing
+     else for a new document. Hiding RGB turns the canvas to the ink backdrop; hiding only Green shows the composite
+     without green; hiding two components shows the remaining one as grey. Showing RGB again restores the photo.
+169. **Save a selection.** Rectangular Marquee over the top of the photo, Select ▸ Save Selection…: the sheet offers
+     Channel `New`, Name `Alpha 1` (type `Sky`) and the single operation `New Channel`; OK adds a `Sky` row with a
+     black / white thumbnail and one History row `Save Selection`. Choosing an existing channel in the sheet
+     disables Name and offers Replace / Add to / Subtract from / Intersect with Channel.
+170. **Close and reopen.** File ▸ Save As… `Channels.tessera-doc`, close the tab, File ▸ Open Document… the file:
+     the `Sky` row is back (same name and thumbnail). Repeat with `Channels.psd`: Photoshop-compatible alpha channel.
+171. **Load it back.** Select ▸ Deselect (⌘D), then Select ▸ Load Selection…: Channel `Sky`, Invert off, New
+     Selection, OK: the marching ants trace the saved rectangle and History adds `Load Selection`. ⌘-click the `Sky`
+     row does the same (⇧⌘ adds, ⌥⌘ subtracts, ⇧⌥⌘ intersects); the row's context menu lists the four loads,
+     Duplicate Channel, Rename…, Channel Options…, Delete Channel. Double-click the name renames it (one
+     `Rename Channel` row); names may repeat, and the sheets tell duplicates apart by position.
+172. **Spot channel.** Marquee a second area, Channels footer `+` ▸ New Spot Channel…: name `Spot Color 1`, an ink
+     colour, Solidity, From the selection; the sheet shows the note that spot colour is preview-only. OK adds a row
+     with the ink swatch and History `New Spot Channel`. Click its eye: the ink appears over the area at its
+     solidity; the alpha eye shows red over the masked areas (Channel Options ▸ Selected Areas flips it).
+173. **Undo.** ⌘Z removes the spot channel row (and its overlay), ⇧⌘Z restores it; every channel edit (save, rename,
+     duplicate, options, delete) is one History row that undoes the same way.
+174. **RGB export unchanged.** With the spot and alpha channels present and visible, File ▸ Export… PNG; compare with an
+     export made before adding them: the pixels are identical (the Rust test
+     `spot_channels_do_not_change_the_rgb_composite` asserts it byte for byte, also after a PSD round trip).
+175. **Quick Mask.** With a selection press Q: a `Quick Mask` row with a `Temporary` chip appears, the Quick Mask
+     footer button is on and the canvas shows red over the unselected area. Save Selection into `Quick Mask` with
+     Add / Subtract edits it. Press Q again: the mask becomes the selection and the temporary row disappears.
+     Select ▸ Edit in Quick Mask Mode does the same.
+176. **Scripted run.**
+     ```sh
+     TESSERA_CHANNELS_SELFTEST="$SCR/out" apps/mac/build/Tessera.app/Contents/MacOS/Tessera --folder "$SCR/shoot" \
+       --app-dir "$SCR/appdir" --open-document "$SCR/photo.png" --front 2>&1 | grep channels-selftest
+     ```
+     (`photo.png`: `sips -s format png sample.dng --out photo.png`.) Expect every `check … ok` and
+     `done, 0 failure(s)`; each `step` line gives the window rectangle for `screencapture -R`.
+
+## Verdict (channels)
+
+PASS when steps 168–176 meet their expectations. Known limitations: painting directly into a channel (and so into
+Quick Mask) needs brush support for channel targets; Quick Mask is edited with Save Selection into it. Alpha overlay
+colour / opacity and channel visibility are session preferences, not saved.
+
+## Appendix: accessibility identifiers (B5-08)
+
+| Identifier | Element |
+| --- | --- |
+| `document.channels` · `document.channels.list` | Channels section, its row list |
+| `document.channels.rgb` · `document.channels.component.{0,1,2}` · `document.channels.channel.<id>` | Rows (`….eye`, `….swatch`, `….rename`) |
+| `document.channels.load` · `document.channels.save` · `document.channels.quickMask` · `document.channels.add` · `document.channels.delete` | Footer |
+| `document.channels.save.{channel,name,operation}` · `document.channels.load.{channel,invert,operation}` | Save / Load Selection sheets |
+| `document.channels.options.{name,kind,indicates,color,opacity}` · `document.channels.spot.{name,color,solidity,fromSelection}` · `document.channels.spotNote` · `document.channels.sheet.ok` | Channel Options, New Spot Channel |

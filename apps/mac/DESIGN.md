@@ -363,3 +363,14 @@ Layered documents reuse the system above; nothing here adds a colour, size or fo
   eye (tertiary when off, name tertiary too), a 20 pt mask thumbnail on the checkerboard, 11 pt
   name (with mode and opacity when not Normal 100 %), and a blending-options glyph; double-click
   re-opens the filter dialog. They are not selectable as layers.
+* **Channels (WP B5-08)** is a collapsible `PanelSection` between Layers and History. Rows are 32 pt like layer rows:
+  eye (secondary; slashed and tertiary when hidden), a 24 pt thumbnail at radius 4 with a `hairlineStrong` outline
+  (grey planes; the RGB row shows the composite), 12 pt name (double-click renames in place), and on the right a
+  tertiary lock glyph on the read-only RGB / Red / Green / Blue rows or, on spot rows, a 12 pt ink swatch (the user's
+  colour, radius 4, `hairlineStrong`). The highlighted channel is the list-row fill (`accentSubtle`, radius 6); the
+  Quick Mask channel carries an outlined `Temporary` chip. Footer (28 pt): load as selection, save selection, Quick
+  Mask (an `IconButton`, on while active), then new channel / spot channel and delete. The Save / Load Selection,
+  Channel Options and New Spot Channel sheets are `SheetScaffold` forms with the 72 pt label column, a small native
+  channel pop-up and native radio groups for the operation; spot controls always carry the `Hint` that spot colour is
+  preview-only. The canvas preview uses the user's channel colours (alpha default red 50 % over masked areas, spot
+  ink at its solidity) and `OnImage.ink` behind a single visible channel when the colour components are hidden.

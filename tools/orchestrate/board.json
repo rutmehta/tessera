@@ -1182,5 +1182,13 @@
     "status": "merged",
     "attempts": 0,
     "notes": "machine B; wp/B5-06 merged with main 923aad8; 224 XCTest; grid \u2318E hardened (not reproduced); own Save As sheet with document.saveAs.name"
+  },
+  {
+    "id": "B5-08",
+    "owner": "opus",
+    "title": "Persistent alpha and spot Channels panel",
+    "status": "pass",
+    "attempts": 0,
+    "notes": "machine B; wp/B5-08 on main 923aad8; channels persist native+PSD; 193 XCTest; Quick Mask not paintable yet"
   }
 ]
