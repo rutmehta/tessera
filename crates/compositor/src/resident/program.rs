@@ -112,6 +112,8 @@ pub(super) enum Part {
     Content,
     Mask,
     Smart,
+    Live,
+    VectorMask,
 }
 
 /// A page table the steps reference: table `i` starts at `i · grid_len`.
@@ -193,6 +195,13 @@ impl Compiler<'_> {
     }
 
     fn mask(&mut self, s: &mut Step, layer: &Arc<Layer>) -> EngineResult<()> {
+        if layer.vector_mask.as_ref().is_some_and(|m| m.enabled) {
+            s.flags |= F_MASK;
+            s.density = 1.0;
+            s.mask_default = 1.0;
+            s.mask_table = self.table(layer, Part::VectorMask)?;
+            return Ok(());
+        }
         if let Some(m) = layer.mask.as_ref().filter(|m| m.enabled) {
             let d = m.density.clamp(0.0, 1.0);
             s.flags |= F_MASK;
@@ -272,7 +281,12 @@ impl Compiler<'_> {
     fn emit_with(&mut self, layer: &Arc<Layer>, params: Params, mask: bool) -> EngineResult<()> {
         let mut s = Step::new(K_BLEND);
         match &layer.kind {
-            LayerKind::Pixel(_) | LayerKind::Text(_) => {
+            LayerKind::Text { .. } | LayerKind::Shape { .. } => {
+                s.src = S_RASTER;
+                s.flags |= F_SKIP_ABSENT;
+                s.table = self.table(layer, Part::Live)?;
+            }
+            LayerKind::Pixel(_) => {
                 let raster = layer
                     .raster()
                     .ok_or_else(|| EngineError::internal("no raster"))?;

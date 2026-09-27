@@ -209,6 +209,24 @@ fn description(name: &str) -> &str {
         "add_layer" => {
             "Add a pixel layer, group or solid-colour fill layer. One Agent history entry."
         }
+        "add_text" => {
+            "Add editable text with styled runs, paragraph layout and a canvas transform. One Agent history entry."
+        }
+        "edit_text" => "Replace an editable text model and transform. One Agent history entry.",
+        "edit_text_runs" => {
+            "Replace a half-open range of text run indexes, retaining paragraph layout and transform. One Agent history entry."
+        }
+        "add_shape" => {
+            "Add an editable vector path with fill, stroke and optional live shape parameters. One Agent history entry."
+        }
+        "edit_shape" => "Replace an editable vector model and transform. One Agent history entry.",
+        "set_vector_mask" => {
+            "Set a document-space vector mask with enable, feather and density controls. One Agent history entry."
+        }
+        "remove_vector_mask" => "Remove a layer's vector mask. One Agent history entry.",
+        "convert_to_pixels" => {
+            "Rasterize editable text or shape content, retaining layer properties and masks. One Agent history entry."
+        }
         "set_layer_props" => {
             "Change name, visibility, opacity, fill, blend mode, clipping or colour tag. One Agent history entry."
         }
@@ -222,7 +240,7 @@ fn description(name: &str) -> &str {
             "Add a non-destructive adjustment layer (levels, curves, hue/saturation, exposure, invert, posterize, threshold, channel mixer), masked by the selection by default. One Agent history entry."
         }
         "transform_layer" => {
-            "Affine-transform a pixel layer (resampled) or a smart object (placement). One Agent history entry."
+            "Affine-transform a pixel layer (resampled), smart object, editable text or vector shape (placement). One Agent history entry."
         }
         "merge_down" => "Merge a layer into the pixel layer below it. One Agent history entry.",
         "export_document" => {
@@ -355,6 +373,40 @@ pub(crate) fn validate(name: &str, input: &Value) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn editable_model_schemas_and_validation_are_typed() {
+        let index = engine_api::tools::DocumentToolCall::NAMES
+            .iter()
+            .position(|n| *n == "add_text")
+            .unwrap();
+        let schema = &wire::document_schemas()[index];
+        assert!(schema["$defs"]["TextModel"]["properties"]["runs"].is_object());
+        assert!(schema["$defs"]["TextRun"]["properties"]["family"].is_object());
+        let args = json!({"document":1,"model":{"runs":[{"text":"Hello","size":24}]}});
+        validate("add_text", &args).unwrap();
+        assert!(
+            validate(
+                "add_text",
+                &json!({"document":1,"model":{"runs":[{"text":"Hi","szie":24}]}})
+            )
+            .is_err()
+        );
+        assert!(
+            validate(
+                "edit_text_runs",
+                &json!({"document":1,"layer":2,"range":{"start":0,"end":1},"runs":[]})
+            )
+            .is_ok()
+        );
+        let index = engine_api::tools::DocumentToolCall::NAMES
+            .iter()
+            .position(|n| *n == "add_shape")
+            .unwrap();
+        let schema = &wire::document_schemas()[index];
+        assert!(schema["$defs"]["ShapeModel"]["properties"]["path"].is_object());
+        assert!(schema["$defs"]["Stroke"]["properties"]["dashes"].is_object());
+    }
 
     #[test]
     fn people_wire_requires_explicit_name_and_confirmation() {

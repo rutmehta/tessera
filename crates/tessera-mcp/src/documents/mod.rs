@@ -31,7 +31,7 @@ use std::sync::Arc;
 
 use compositor::resident::ResidentRenderer;
 use compositor::{
-    Adjustment, BlendMode, DocOp, DocState, Document, Fill, GroupMode, Layer, LayerKind,
+    Adjustment, Affine, BlendMode, DocOp, DocState, Document, Fill, GroupMode, Layer, LayerKind,
     LayerProps, Mask, PaintTarget, Raster, Rect,
 };
 use engine_api::action::Action;
@@ -466,6 +466,105 @@ impl Documents {
             | DocumentToolCall::LoadChannelAsSelection { .. } => {
                 (self.channel_op(state, call)?, None, None)
             }
+            DocumentToolCall::AddText {
+                model,
+                name,
+                parent,
+                above,
+                transform,
+                ..
+            } => (
+                DocOp::AddText {
+                    parent: *parent,
+                    index: insert_index(state, *parent, *above)?,
+                    name: name.clone().unwrap_or_else(|| "Text".into()),
+                    model: model.clone(),
+                    transform: Affine { m: transform.0 },
+                },
+                None,
+                None,
+            ),
+            DocumentToolCall::EditText {
+                layer,
+                model,
+                transform,
+                ..
+            } => (
+                DocOp::EditText {
+                    id: *layer,
+                    model: model.clone(),
+                    transform: Affine { m: transform.0 },
+                },
+                Some(*layer),
+                None,
+            ),
+            DocumentToolCall::AddShape {
+                model,
+                name,
+                parent,
+                above,
+                transform,
+                ..
+            } => (
+                DocOp::AddShape {
+                    parent: *parent,
+                    index: insert_index(state, *parent, *above)?,
+                    name: name.clone().unwrap_or_else(|| "Shape".into()),
+                    model: model.clone(),
+                    transform: Affine { m: transform.0 },
+                },
+                None,
+                None,
+            ),
+            DocumentToolCall::EditShape {
+                layer,
+                model,
+                transform,
+                ..
+            } => (
+                DocOp::EditShape {
+                    id: *layer,
+                    model: model.clone(),
+                    transform: Affine { m: transform.0 },
+                },
+                Some(*layer),
+                None,
+            ),
+            DocumentToolCall::EditTextRuns {
+                layer, range, runs, ..
+            } => (
+                DocOp::EditTextRuns {
+                    id: *layer,
+                    range: range.clone(),
+                    runs: runs.clone(),
+                },
+                Some(*layer),
+                None,
+            ),
+            DocumentToolCall::SetVectorMask { layer, mask, .. } => (
+                DocOp::SetVectorMask {
+                    id: *layer,
+                    mask: Some(compositor::VectorMask {
+                        path: mask.path.clone(),
+                        enabled: mask.enabled,
+                        feather: mask.feather,
+                        density: mask.density,
+                    }),
+                },
+                Some(*layer),
+                None,
+            ),
+            DocumentToolCall::RemoveVectorMask { layer, .. } => (
+                DocOp::SetVectorMask {
+                    id: *layer,
+                    mask: None,
+                },
+                Some(*layer),
+                None,
+            ),
+            DocumentToolCall::ConvertToPixels { layer, .. } => {
+                (DocOp::ConvertToPixels { id: *layer }, Some(*layer), None)
+            }
             DocumentToolCall::AddLayer {
                 layer,
                 name,
@@ -611,11 +710,22 @@ impl Documents {
                         id: *layer,
                         transform: transform::compose(&t, &so.transform),
                     },
-                    LayerKind::Text(_) => {
-                        return Err(crate::unsupported(
-                            "transforming text layers needs the type engine",
-                        ));
-                    }
+                    LayerKind::Text {
+                        model,
+                        transform: original,
+                    } => DocOp::EditText {
+                        id: *layer,
+                        model: model.clone(),
+                        transform: transform::compose(&t, original),
+                    },
+                    LayerKind::Shape {
+                        model,
+                        transform: original,
+                    } => DocOp::EditShape {
+                        id: *layer,
+                        model: model.clone(),
+                        transform: transform::compose(&t, original),
+                    },
                     LayerKind::Pixel(r) => {
                         let mut ops = vec![DocOp::PaintTiles {
                             id: *layer,
@@ -1145,7 +1255,8 @@ fn kind_tag(l: &Layer) -> LayerKindTag {
         LayerKind::Fill(_) => LayerKindTag::Fill,
         LayerKind::Group { .. } => LayerKindTag::Group,
         LayerKind::SmartObject(_) => LayerKindTag::SmartObject,
-        LayerKind::Text(_) => LayerKindTag::Text,
+        LayerKind::Text { .. } => LayerKindTag::Text,
+        LayerKind::Shape { .. } => LayerKindTag::Shape,
     }
 }
 
@@ -1161,7 +1272,7 @@ fn canvas_rect(r: Rect) -> CanvasRect {
 fn layer_bounds(l: &Layer) -> EngineResult<Option<Rect>> {
     Ok(match &l.kind {
         LayerKind::Pixel(r) => dense::content_bounds(r, 3)?,
-        LayerKind::Text(t) => dense::content_bounds(&t.proxy, 3)?,
+        LayerKind::Text { .. } | LayerKind::Shape { .. } => None,
         LayerKind::SmartObject(so) => Some(so.bounds()),
         LayerKind::Group { children, .. } => {
             let mut out: Option<Rect> = None;
@@ -1198,6 +1309,52 @@ pub(crate) fn list_layers(state: &DocState) -> EngineResult<Vec<LayerInfo>> {
                 },
                 clipped: l.props.clipped,
                 has_mask: l.mask.is_some(),
+                has_vector_mask: l.vector_mask.is_some(),
+                text: match &l.kind {
+                    LayerKind::Text { model, .. } => {
+                        let mut fonts = Vec::new();
+                        for run in &model.runs {
+                            if !fonts.contains(&run.family) {
+                                fonts.push(run.family.clone());
+                            }
+                        }
+                        Some(engine_api::document::TextSummary {
+                            preview: model
+                                .runs
+                                .iter()
+                                .flat_map(|r| r.text.chars())
+                                .take(256)
+                                .collect(),
+                            fonts,
+                        })
+                    }
+                    _ => None,
+                },
+                shape: match &l.kind {
+                    LayerKind::Shape { model, .. } => Some(engine_api::document::ShapeSummary {
+                        kind: model
+                            .live_shape
+                            .as_ref()
+                            .and_then(|shape| serde_json::to_value(shape).ok())
+                            .and_then(|v| {
+                                let (kind, params) = v.as_object()?.iter().next()?;
+                                Some(match kind.as_str() {
+                                    "Rectangle"
+                                        if params["radii"].as_array().is_some_and(|r| {
+                                            r.iter().any(|v| v.as_f64().is_some_and(|v| v > 0.0))
+                                        }) =>
+                                    {
+                                        "rounded_rectangle".into()
+                                    }
+                                    "Polygon" if !params["inner_radius"].is_null() => "star".into(),
+                                    "Custom" => "path".into(),
+                                    _ => kind.to_lowercase(),
+                                })
+                            })
+                            .unwrap_or_else(|| "path".into()),
+                    }),
+                    _ => None,
+                },
                 bounds: layer_bounds(l)?.map(canvas_rect),
             });
             if let Some(c) = l.children() {

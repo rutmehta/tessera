@@ -52,9 +52,12 @@ supported. Unknown families return an error, not an arbitrary substitution.
 - Engine JSON is `{ "version": 1, "model": ... }`. BTreeMaps make tag order
   stable, defaults allow additive model fields, unknown fields/versions and
   non-finite metrics are rejected. Source remains editable after rasterizing.
-- `import_tysh` maps string/font/size ranges and retains original engine bytes,
-  affine and bounds, using the existing PSD crate. It is not an Adobe EngineData
-  writer. Details in [NEEDS.md](../../tools/orchestrate/wp/M5-12/NEEDS.md).
+- `import_tysh` maps modeled character and paragraph fields and retains original
+  engine bytes, affine and bounds. `export_engine_data` updates Adobe EngineData
+  dictionaries while preserving unmodeled fields. This is distinct from the
+  native JSON `TextModel::to_engine_data` envelope. The compositor owns TySh
+  records and cached layer pixels. See its [host contract](../compositor/TEXT_VECTOR.md)
+  for interchange details and limitations.
 
 ## Deliberate limits
 
@@ -64,8 +67,8 @@ shared across the model's paragraphs. This is a greedy line composer, not
 Knuth–Plass. There is no automatic font fallback or Adobe Fonts activation;
 unsupported characters use the selected face's .notdef glyph. Script guessing
 is per directional/style span. Shape-bound wrapping, colour emoji/SVG glyphs,
-faux styles, font matching and the Character/Paragraph UI are outside this
-package. No engine-api or compositor source files were changed.
+faux-style synthesis, font matching and the Character/Paragraph UI are outside
+this package. The compositor and engine-api integrate these models as of M5-30.
 
 ## Verification
 

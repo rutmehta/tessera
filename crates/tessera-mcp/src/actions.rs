@@ -32,7 +32,7 @@
 //!   (`0 ≤ i < inputs`);
 //! - `{"$doc": k}`: the document opened by step `k`;
 //! - `{"$layer": k}`: the layer created by step `k` (`add_layer`,
-//!   `apply_adjustment_layer`);
+//!   `apply_adjustment_layer`, `add_text`, `add_shape`);
 //! - `{"$selection": k}`: the selection saved by step `k` (`save_as`).
 //! - `{"$channel": k}`: the channel created by step `k` (`add_channel` or `save_as`).
 //!
@@ -182,7 +182,12 @@ impl ActionFile {
                         ));
                     }
                     "$doc" => producer(&["open_document"])?,
-                    "$layer" => producer(&["add_layer", "apply_adjustment_layer"])?,
+                    "$layer" => producer(&[
+                        "add_layer",
+                        "apply_adjustment_layer",
+                        "add_text",
+                        "add_shape",
+                    ])?,
                     "$channel" => producer(&["add_channel", "set_pixel_selection"])?,
                     _ => producer(&["set_pixel_selection", "add_channel"])?,
                 }
@@ -315,6 +320,8 @@ impl Recorder {
                 if matches!(
                     request.call,
                     DocumentToolCall::AddLayer { .. }
+                        | DocumentToolCall::AddText { .. }
+                        | DocumentToolCall::AddShape { .. }
                         | DocumentToolCall::ApplyAdjustmentLayer { .. }
                 ) && let Some(l) = layer
                 {

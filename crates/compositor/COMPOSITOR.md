@@ -68,7 +68,7 @@ Verification and benchmark evidence are in `../../tools/orchestrate/wp/M5-24/`.
 
 | Module | Contents |
 |---|---|
-| `document` | `DocState`, `Layer`, `LayerKind`, `LayerProps`, `Mask`, `Fill`, `SmartObject`, `TextLayer`, selections |
+| `document` | `DocState`, `Layer`, `LayerKind`, `LayerProps`, `Mask`, `Fill`, `SmartObject`, live text/shape models, selections |
 | `raster` | `Raster`: tiled COW storage with per-tile revisions; `Depth` |
 | `edit` | `DocOp`, `Document` (history tree, damage log), `paint_op` |
 | `blend` | blend modes, Blend If, dissolve hash: the scalar CPU reference |
@@ -263,7 +263,7 @@ transparent backdrop and does nothing. In a pass-through group it reaches
 through to the backdrop.
 
 **Fill layers** are sampled at pixel centres in level-0 coordinates
-(`(x + ½)·2^level`). **Text layers** render their rasterized proxy.
+(`(x + ½)·2^level`). **Text and shape layers** rasterize their source geometry at the output level. See [TEXT_VECTOR.md](TEXT_VECTOR.md) for font ownership, edits and caches.
 
 ## 4. Adjustments
 
@@ -632,8 +632,8 @@ Content-aware scaling remains a layer-local CPU fallback. See
 `../transform/TRANSFORM.md` for geometry formulas and implementation limits.
 
 - The fill-opacity behaviour of Photoshop's "special eight" modes (§2.4).
-- Mask feather (stored only), vector-mask rasterization (payload stored only), and the
-  translation op and position lock semantics.
+- Raster-mask feather is stored only. Vector-mask feather and density are rendered
+  on CPU and resident paths; see [TEXT_VECTOR.md](TEXT_VECTOR.md).
 - Layer-style approximation limits and CPU routing requirements are in §9.1.
 - "Blend RGB colours using gamma 1.0" and colour conversion between
   profiles. The profile is stored and resolved by `color-mgmt`, and the
