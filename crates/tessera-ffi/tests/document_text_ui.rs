@@ -1052,3 +1052,78 @@ fn typing_preview_latency_20mp() {
         total.len()
     );
 }
+
+fn name_of(s: &DocumentSession, id: u64) -> String {
+    s.layers()
+        .unwrap()
+        .into_iter()
+        .find(|n| n.id == id)
+        .unwrap()
+        .name
+}
+
+/// B5-11b item 13: an auto-named text layer's name follows its first line
+/// (in the same history node as the text edit) until the user renames it.
+#[test]
+fn auto_named_text_layer_follows_its_first_line_until_renamed() {
+    let (_d, e) = engine();
+    let s = doc(&e);
+    let base = point(vec![run("Hi", NOTO, 24.0)]);
+    let id = add(&s, &base, at(10.0, 40.0));
+    assert_eq!(name_of(&s, id), "Hi");
+    // A typing group (draft, then commit) renames with the edit: one node.
+    let n0 = history_len(&s);
+    let mut typed = base.clone();
+    typed.runs[0].text = "HiZQ\nsecond line".into();
+    s.set_text_layer(id, json(&typed), at(10.0, 40.0), true, None)
+        .unwrap();
+    s.commit("Edit Text".into()).unwrap();
+    assert_eq!(history_len(&s), n0 + 1, "text and name are one node");
+    assert_eq!(name_of(&s, id), "HiZQ", "the name follows the first line");
+    s.undo().unwrap();
+    assert_eq!(name_of(&s, id), "Hi", "undo restores the old name");
+    s.redo().unwrap();
+    assert_eq!(name_of(&s, id), "HiZQ");
+    // A final (non-interactive) edit and a run-range edit follow too.
+    let mut more = typed.clone();
+    more.runs[0].text = "Hello".into();
+    s.set_text_layer(id, json(&more), at(10.0, 40.0), false, None)
+        .unwrap();
+    assert_eq!(name_of(&s, id), "Hello");
+    let runs = serde_json::to_string(&vec![run("Howdy", NOTO, 24.0)]).unwrap();
+    s.edit_text_runs(id, 0, 1, runs, None).unwrap();
+    assert_eq!(name_of(&s, id), "Howdy");
+    // Emptied text falls back to "Text" and still follows afterwards.
+    let mut empty = more.clone();
+    empty.runs[0].text = String::new();
+    s.set_text_layer(id, json(&empty), at(10.0, 40.0), false, None)
+        .unwrap();
+    assert_eq!(name_of(&s, id), "Text");
+    s.set_text_layer(id, json(&more), at(10.0, 40.0), false, None)
+        .unwrap();
+    assert_eq!(name_of(&s, id), "Hello");
+    // A user rename sticks.
+    s.rename_layer(id, "Title".into()).unwrap();
+    let mut after = more.clone();
+    after.runs[0].text = "Changed".into();
+    s.set_text_layer(id, json(&after), at(10.0, 40.0), false, None)
+        .unwrap();
+    assert_eq!(name_of(&s, id), "Title", "a user rename sticks");
+    // A layer added with an explicit name keeps it.
+    let named = s
+        .add_text_layer(
+            "Caption".into(),
+            None,
+            None,
+            json(&point(vec![run("Body", NOTO, 24.0)])),
+            at(10.0, 90.0),
+            false,
+        )
+        .unwrap()
+        .created[0];
+    let mut body = point(vec![run("Body text", NOTO, 24.0)]);
+    body.runs[0].text = "Other".into();
+    s.set_text_layer(named, json(&body), at(10.0, 90.0), false, None)
+        .unwrap();
+    assert_eq!(name_of(&s, named), "Caption");
+}

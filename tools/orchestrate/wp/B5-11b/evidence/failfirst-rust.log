@@ -1,0 +1,17 @@
+---- auto_named_text_layer_follows_its_first_line_until_renamed stdout ----
+
+thread 'auto_named_text_layer_follows_its_first_line_until_renamed' (22975280) panicked at crates/tessera-ffi/tests/document_text_ui.rs:1082:5:
+assertion `left == right` failed: the name follows the first line
+  left: "Hi"
+ right: "HiZQ"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    auto_named_text_layer_follows_its_first_line_until_renamed
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 19 filtered out; finished in 0.22s
+
+error: test failed, to rerun pass `-p tessera-ffi --test document_text_ui`
+
+[exited with code 0]

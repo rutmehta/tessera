@@ -63,6 +63,9 @@ struct ShapeInspector: View {
             label(title)
             DocColorWell(rgb: rgba, identifier: "document.shape.\(key)") { rgb in set(rgb + [rgba.count > 3 ? rgba[3] : 1]) }
                 .frame(width: Theme.Height.large * 2, height: Theme.Height.regular)
+                // B5-11b: a rejected edit (a locked layer) rebuilds the well from the model, which also
+                // ends its link to the colour panel still showing the rejected colour.
+                .id("\(key).\(vector.rejections)")
             Spacer()
         }
     }
@@ -72,8 +75,11 @@ struct ShapeInspector: View {
     @ViewBuilder private func shape(_ info: ShapeLayerInfo) -> some View {
         SubHeader(info.liveKind.map { "Live " + $0.capitalized } ?? "Custom Path")
         let t = info.transform
-        InfoRow(label: "Position", value: String(format: "%.1f, %.1f px", t.c, t.f))
-        if let b = info.bounds { InfoRow(label: "Size", value: String(format: "%.1f × %.1f px", b.width, b.height)) }
+        // B5-11b: the shape's real document bounds (live during Path / Direct Selection drags), not the
+        // transform's translation (0, 0 for shapes drawn in document coordinates).
+        let bounds = vector.displayBounds(document, layer: layer)
+        InfoRow(label: "Position", value: Self.positionText(bounds))
+        if let b = bounds { InfoRow(label: "Size", value: String(format: "%.1f × %.1f px", b.width, b.height)) }
         if !t.isSimilarity || abs(t.rotationDegrees) > 1e-9 {
             InfoRow(label: "Transform", value: String(format: "%.1f° · %.0f × %.0f %%", t.rotationDegrees, t.axisScales.x * 100, t.axisScales.y * 100))
         }
@@ -184,10 +190,10 @@ struct ShapeInspector: View {
     }
 
     @ViewBuilder private func paintEditor(_ info: ShapeLayerInfo, _ paint: ShapePaint?, key: String, allowNone: Bool,
-                                          set: @escaping (ShapePaint?, Bool) -> Void) -> some View {
+                                          newColor: [Double]? = nil, set: @escaping (ShapePaint?, Bool) -> Void) -> some View {
         let k = kind(paint)
         SegmentedPicker(selection: Binding(get: { k }, set: { new in
-            let base = paint?.representativeColor ?? vector.options.fillColor
+            let base = paint?.representativeColor ?? newColor ?? vector.options.fillColor
             switch new {
             case .none: set(nil, true)
             case .solid: set(.solid(base), true)
@@ -240,7 +246,8 @@ struct ShapeInspector: View {
     @ViewBuilder private func stroke(_ info: ShapeLayerInfo) -> some View {
         SubHeader("Stroke")
         let pair = info.source.stroke
-        paintEditor(info, pair?.1, key: "stroke", allowNone: true) { p, final in
+        // B5-11b: a stroke enabled from None takes the foreground (or a contrasting) colour, not the fill's.
+        paintEditor(info, pair?.1, key: "stroke", allowNone: true, newColor: vector.newStrokePaint(for: info).representativeColor) { p, final in
             edit(info, final: final) { s in
                 if let p { s.stroke = (s.stroke?.0 ?? ShapeStroke(width: vector.options.strokeWidth, alignment: info.hasOpenSubpaths ? .center : .center), p) }
                 else { s.stroke = nil }
@@ -299,6 +306,12 @@ struct ShapeInspector: View {
                 slider("Dash offset", st.dashOffset, -200...200, 0, "%.1f px", 0.5, "stroke.dashOffset") { v, f in set(f) { $0.dashOffset = v } }
             }
         }
+    }
+
+    /// B5-11b: the Position row (the bounds' top-left corner in document pixels).
+    static func positionText(_ b: CGRect?) -> String {
+        guard let b else { return "—" }
+        return String(format: "%.1f, %.1f px", b.minX, b.minY)
     }
 
     static func dashString(_ d: [Double]) -> String { d.map { String(format: "%g", $0) }.joined(separator: ", ") }

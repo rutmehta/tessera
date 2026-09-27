@@ -506,3 +506,7 @@ Layered documents reuse the system above; nothing here adds a colour, size or fo
   tertiary latency readout, then borderless Reset and Cancel and bordered Apply (`Apply…` when Apply converts the
   layer, which asks in a standard alert). Transform stages appear as ordinary smart filter rows named after the
   operation; double-click re-opens the editor.
+* **B5-11b** adds no colour, size or font. The Layers row gets a vector-mask thumbnail (the layer mask's checker tile
+  size; white inside the path, mid-grey outside, crossed when disabled). The status bar always shows the current
+  tool's idle hint (`DocumentTool.idleHint`) or its session hint (text session, Pen path), replacing the previous
+  tool's message on every tool change.

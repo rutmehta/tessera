@@ -20,7 +20,8 @@ import TesseraCore
 ///   ⇧[ ⇧] hardness, 0–9 opacity, X swap / D default colours, Return / Esc, ⌫ clears the selection.
 ///   Channels (B5-08): Q toggles Quick Mask.
 ///   Vector tools (B5-11): U shapes (⇧ cycles rectangle / ellipse / polygon / line) · P Pen · A Path / Direct
-///   Selection; Return finishes a Pen path, Esc cancels a drag or path, ⌫ deletes selected anchors.
+///   Selection (A again or ⇧A cycles, B5-11b); Return finishes a Pen path, Esc cancels a drag or path, ⌫ deletes
+///   selected anchors. B5-11b: tool letters also work while a slider or the Layers list has the keyboard.
 /// First responders that own their keyboard input. The local monitor must leave their events
 /// untouched even when they do not handle a particular key themselves.
 @MainActor protocol KeyOwningControl: AnyObject {}
@@ -83,6 +84,8 @@ final class KeyRouter {
         if model.viewMode == .document, DocumentText.shared.routeSessionKey(event) { return true }
         // B5-10c end
         if handleEditInLayers(event) { return true }
+        // B5-11b: a focused slider, curve or the Layers list does not swallow single-key tool shortcuts.
+        if model.viewMode == .document, handleToolLetterOverKeyOwner(event) { return true }
         if shouldIgnore(event) { return false }
         if model.viewMode == .document { return handleDocument(event) }
         // The People view owns its keys (name fields, Esc); culling keys would act on a hidden photo.
@@ -143,6 +146,27 @@ final class KeyRouter {
         return true
     }
 
+    /// B5-11b: in document mode a tool letter (U, ⇧U, Z, A …) chooses its tool while a key-owning control
+    /// that is not text input has the keyboard (a Properties slider, the curve editor, the Layers list:
+    /// their own keys are arrows, Return / Esc and ⌫). Text fields and the Type tool's input keep letters.
+    private func handleToolLetterOverKeyOwner(_ event: NSEvent) -> Bool {
+        guard event.type == .keyDown, let window = event.window, !(window is NSPanel), window.attachedSheet == nil,
+              window.sheetParent == nil, NSApp.modalWindow == nil,
+              let owner = window.firstResponder, owner is KeyOwningControl, !(owner is TextInputView),
+              let doc = model.documents.current else { return false }
+        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        guard flags.intersection([.command, .control, .option]).isEmpty else { return false }
+        guard case .tool(let t)? = ToolKeyMap.action(keyCode: event.keyCode, characters: event.charactersIgnoringModifiers ?? "",
+                                                     mods: flags.contains(.shift) ? .shift : [], current: doc.tool) else { return false }
+        if DocumentTools.shared.document === doc {
+            DocumentTools.shared.select(t)
+        } else {
+            doc.tool = t
+            doc.viewport?.cursorDidChange()
+        }
+        return true
+    }
+
     /// Document mode: only the document key map; culling, develop and mask keys never fire here.
     private func handleDocument(_ event: NSEvent) -> Bool {
         // WP B5-04: tool letters (⇧ cycles a group), [ ] / ⇧[ ⇧] brush size and hardness, 0–9 opacity,
@@ -167,6 +191,7 @@ final class KeyRouter {
         case .tool(let t):
             docs.current?.tool = t
             docs.current?.viewport?.cursorDidChange()
+            DocumentTools.shared.publishHint()   // B5-11b
         case .panHold:
             if !docs.spaceHeld {
                 docs.spaceHeld = true

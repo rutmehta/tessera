@@ -50,19 +50,26 @@ final class DocumentText {
     /// an earlier session): point / area text, a limitation of a layer without a canvas caret, nil idle.
     var hint: String? {
         guard let s = session else { return nil }
+        return Self.hint(s)
+    }
+
+    /// B5-11b: the session hint for `doc` (nil without a session there: the Type tool's idle hint).
+    func hint(for doc: DocumentController) -> String? {
+        guard let s = session, s.docID == doc.id else { return nil }
+        return Self.hint(s)
+    }
+
+    private static func hint(_ s: Session) -> String {
         if !s.caretEditable { return "Type: " + (s.limitations.first ?? "canvas editing is unavailable") }
         return s.edit.model.textBox.isParagraph
             ? "Area text: type to wrap inside the box; Enter (keypad) or ⌘Return applies, Esc cancels"
             : "Point text: type, then Enter (keypad) or ⌘Return applies, Esc cancels"
     }
-    @ObservationIgnored private var shownHint: String?
-
-    /// Shows `hint` when it changed (an error said during the same state stays until the state changes).
+    /// Shows the hint when it changed (an error said during the same state stays until the state
+    /// changes). B5-11b: through `DocumentTools.publishHint`, which also returns to the idle Type hint
+    /// when the session ends (an applied area text no longer leaves "Area text: …").
     private func publishHint() {
-        let h = hint
-        guard h != shownHint else { return }
-        shownHint = h
-        if let h { say(h) }
+        DocumentTools.shared.publishHint()
     }
     /// The engine layout of the draft (the caret oracle).
     @ObservationIgnored private(set) var index: TextLayoutIndex?
@@ -192,6 +199,8 @@ final class DocumentText {
     /// `end`, the session ends; otherwise it continues from the committed model.
     private func commitDraft(_ label: String, end: Bool, selectCreated: Bool = true, force: Bool = false) {
         guard let s = session, let doc = document, doc.id == s.docID, let t = backend(doc) else { return }
+        // B5-11b: the node that adds a new layer is "Add Text", whatever flushed it (an inspector edit).
+        let label = s.layer == nil && label == "Typing" ? "Add Text" : label
         previewDirty = false
         let (model, transform, parent, index) = (s.edit.model, s.transform, s.parent, s.insertIndex)
         let changed = force || s.edit.isChanged || s.previewed
@@ -624,8 +633,9 @@ final class DocumentText {
         let p = v.canvasPoint(e)
         let cmd = e.modifierFlags.contains(.command)
         if let s = session, s.docID == doc.id, let l = local(p) {
-            if handleHit(p, in: v) != nil || cmd {
-                // Box and affine gestures are their own history nodes: record the typing first.
+            // Box and affine gestures of an existing layer are their own history nodes: record the typing
+            // first. B5-11b: on a new layer (not added yet) they fold into its first apply ("Add Text").
+            if handleHit(p, in: v) != nil || cmd, s.layer != nil {
                 if s.edit.isChanged || s.previewed { commitDraft("Typing", end: false, selectCreated: true) }
             }
             if let h = handleHit(p, in: v), let box = s.edit.model.textBox.size {

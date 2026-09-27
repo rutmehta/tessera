@@ -1398,5 +1398,13 @@
     "status": "merged",
     "attempts": 0,
     "notes": "machine B; wp/B5-14 merged with main 1650de5; app edit-to-frame 3520 -> 28 ms (18 MP, 60 layers); engine needs -> M5-37"
+  },
+  {
+    "id": "B5-11b",
+    "owner": "opus",
+    "title": "Shapes, Pen and document-mode fixes from on-screen verification",
+    "status": "merged",
+    "attempts": 0,
+    "notes": "machine B; wp/B5-11b merged with main 1650de5; 13 fixes incl. tool keys under slider focus, derived hints, auto-named text layers; 369 XCTest (6 expected M2-56)"
   }
 ]

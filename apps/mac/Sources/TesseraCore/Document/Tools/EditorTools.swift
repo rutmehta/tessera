@@ -105,6 +105,42 @@ extension DocumentTool {
         }
     }
 
+    /// B5-11b: pressing the key again (without ⇧) cycles the group too — Path ↔ Direct Selection
+    /// (spec: "A twice or ⇧A"). Other groups keep the current tool on a repeated key.
+    public var keyRepeatCycles: Bool { self == .pathSelect || self == .directSelect }
+
+    /// B5-11b: the status hint while the tool is chosen and idle (DocumentTools publishes it on every
+    /// tool change, so another tool's message never lingers).
+    public var idleHint: String {
+        switch self {
+        case .move: "Move: drag to move the selected layers"
+        case .marquee, .ellipseMarquee: "\(title): drag to select (⇧ adds, ⌥ subtracts; ⇧ while dragging constrains)"
+        case .lasso: "Lasso: drag to draw a freehand selection"
+        case .polygonLasso: "Polygonal Lasso: click corners, double-click or click the first point to close, Return finishes, Esc cancels"
+        case .magneticLasso: "Magnetic Lasso: click to start, move along an edge, double-click to close"
+        case .quickSelect: "Quick Selection: paint over the area to select ([ ] size, ⌥ subtracts)"
+        case .wand: "Magic Wand: click a colour to select it (⇧ adds, ⌥ subtracts)"
+        case .objectSelect: "Object Selection: click an object to select it"
+        case .crop: "Crop: a placeholder in this build (arrives with a later work package)"
+        case .eyedropper: "Eyedropper: click to pick the foreground colour (⌥ the background)"
+        case .heal: "Healing Brush: ⌥-click a source, then paint"
+        case .brush: "Brush: paint with the foreground colour ([ ] size, ⇧[ ⇧] hardness, 0–9 opacity)"
+        case .cloneStamp: "Clone Stamp: ⌥-click a source, then paint"
+        case .eraser: "Eraser: paint to erase ([ ] size)"
+        case .gradient: "Gradient: fills the selection with the foreground colour (gradients arrive later)"
+        case .type: "Type: click to add point text, drag for area text, or click a text layer to edit it"
+        case .hand: "Hand: drag to pan (Space-drag with any tool)"
+        case .zoom: "Zoom: click to zoom in, ⌥-click to zoom out"
+        case .rectangleShape: "Rectangle: drag to draw (⇧ square, ⌥ from the centre); ⇧U cycles the shape tools"
+        case .ellipseShape: "Ellipse: drag to draw (⇧ circle, ⌥ from the centre); ⇧U cycles the shape tools"
+        case .polygonShape: "Polygon: drag from the centre (⇧ snaps the angle); ⇧U cycles the shape tools"
+        case .lineShape: "Line: drag to draw (⇧ snaps to 45°); ⇧U cycles the shape tools"
+        case .pen: "Pen: click to start a path; on a selected shape, click an anchor to delete it or a segment to add one"
+        case .pathSelect: "Path Selection: click a shape to select it, drag to move; handles scale, outside rotates; click empty canvas to deselect; A for Direct Selection"
+        case .directSelect: "Direct Selection: click an anchor (⇧ adds), drag anchors or handles (⌥ breaks a handle), ⌥-click a segment adds a point, ⌫ deletes; A for Path Selection"
+        }
+    }
+
     /// One tool per palette slot, in Photoshop's order.
     public static let paletteSlots: [DocumentTool] = [
         .move, .marquee, .lasso, .quickSelect, .crop, .eyedropper, .heal, .brush, .cloneStamp, .eraser, .gradient,
@@ -179,7 +215,7 @@ public enum ToolKeyMap {
         guard let first = DocumentTool.allCases.first(where: { $0.key.lowercased() == ch }) else { return nil }
         let group = first.group
         if let i = group.firstIndex(of: current) {
-            return .tool(shift ? group[(i + 1) % group.count] : current)
+            return .tool(shift || current.keyRepeatCycles ? group[(i + 1) % group.count] : current)
         }
         return .tool(first)
     }
