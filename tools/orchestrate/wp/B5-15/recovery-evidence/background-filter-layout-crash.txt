@@ -1,0 +1,25 @@
+Nonactivating full filter performance run, source 34a394d.
+Terminated before any export measurement.
+{"codes": "0x0000000000000001, 0x000000019ea314d4", "rawCodes": [1, 6956455124], "type": "EXC_BREAKPOINT", "signal": "SIGTRAP"}
+{"flags": 0, "code": 5, "namespace": "SIGNAL", "indicator": "Trace/BPT trap: 5", "byProc": "exc handler", "byPid": 68248}
+Faulting thread:
++[NSApplication _crashOnException:]
+<unresolved>
+<unresolved>
+___NSViewLayout_block_invoke
+NSPerformVisuallyAtomicChange
+_NSViewLayout
+__36-[NSView _layoutSubtreeWithOldSize:]_block_invoke
+NSPerformVisuallyAtomicChange
+-[NSView _layoutSubtreeWithOldSize:]
+__36-[NSView _layoutSubtreeWithOldSize:]_block_invoke
+NSPerformVisuallyAtomicChange
+-[NSView _layoutSubtreeWithOldSize:]
+__36-[NSView _layoutSubtreeWithOldSize:]_block_invoke
+NSPerformVisuallyAtomicChange
+-[NSView _layoutSubtreeWithOldSize:]
+__56-[NSView _layoutSubtreeIfNeededAndAllowTemporaryEngine:]_block_invoke
+NSPerformVisuallyAtomicChange
+-[NSView _layoutSubtreeIfNeededAndAllowTemporaryEngine:]
+NSPerformVisuallyAtomicChange
+-[NSView layoutSubtreeIfNeeded]

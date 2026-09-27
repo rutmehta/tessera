@@ -1,0 +1,14 @@
+2026-09-27 11:24:21.451 Tessera[68248:25245452] Sparkle updates not configured for this build
+document: frames on the Viewport path (L1, requested Rect { x0: 0, y0: 0, x1: 2606, y1: 1734 })
+document-resources: GPU 371 live pages, 300.5 MiB resident; smart filters 0 GPU stages, 0 CPU fallbacks, 0.0 MiB stage cache; CPU fallback unused; pressure render 0 filters 0 (interactive jobs 0); frames viewport 1 full-level 0 cpu 0 dropped 0
+filter-selftest: document 5212 × 3468 px, 16-bit, Metal (Apple M4 Max)
+filter-selftest: check filter menu ok
+filter-perf: start: document 5212 × 3468 16-bit, backend Metal (Apple M4 Max), footprint 3272 MiB
+filter-perf: smart filter applied, footprint 4383 MiB
+document-resources: GPU 602 live pages, 1305.0 MiB resident; smart filters 1 GPU stages, 0 CPU fallbacks, 620.6 MiB stage cache; CPU fallback unused; pressure render 0 filters 0 (interactive jobs 1); frames viewport 6 full-level 0 cpu 0 dropped 0
+document-resources: GPU 1064 live pages, 3068.0 MiB resident; smart filters 5 GPU stages, 0 CPU fallbacks, 1999.6 MiB stage cache; CPU fallback unused; pressure render 0 filters 0 (interactive jobs 1); frames viewport 12 full-level 0 cpu 0 dropped 0
+document-resources: GPU 2065 live pages, 4348.0 MiB resident; smart filters 18 GPU stages, 0 CPU fallbacks, 1999.6 MiB stage cache; CPU fallback unused; pressure render 0 filters 0 (interactive jobs 0); frames viewport 25 full-level 0 cpu 0 dropped 0
+filter-perf: RESULT p19 fit (L1) smart filter drag value→frame: n 30 p50 66.10 ms p95 302.81 ms max 570.38 ms
+filter-perf: RESULT p19 fit footprint before 5045 MiB, peak 10117 MiB, 2 s after 6643 MiB
+filter-perf: viewport 916 × 907 pt @2x
+document-resources: GPU 2419 live pages, 2951.3 MiB resident; smart filters 33 GPU stages, 0 CPU fallbacks, 620.6 MiB stage cache; CPU fallback unused; pressure render 0 filters 0 (interactive jobs 1); frames viewport 41 full-level 0 cpu 0 dropped 0

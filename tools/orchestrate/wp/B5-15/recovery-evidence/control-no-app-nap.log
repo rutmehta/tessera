@@ -1,0 +1,46 @@
+2026-09-27 10:57:53.788 Tessera[48963:25062612] Sparkle updates not configured for this build
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 5212, y1: 3468 })
+document-resources: GPU 406 live pages, 529.3 MiB resident; smart filters 0 GPU stages, 0 CPU fallbacks, 0.0 MiB stage cache; CPU fallback unused; pressure render 0 filters 0 (interactive jobs 0); frames viewport 1 full-level 0 cpu 0 dropped 0
+filter-selftest: document 5212 × 3468 px, 16-bit, Metal (Apple M4 Max)
+filter-selftest: check filter menu ok
+filter-perf: start: document 5212 × 3468 16-bit, backend Metal (Apple M4 Max), footprint 3917 MiB
+filter-perf: smart filter applied, footprint 5019 MiB
+document-resources: GPU 996 live pages, 2090.7 MiB resident; smart filters 1 GPU stages, 0 CPU fallbacks, 827.4 MiB stage cache; CPU fallback unused; pressure render 0 filters 0 (interactive jobs 1); frames viewport 5 full-level 0 cpu 0 dropped 0
+document-resources: GPU 1290 live pages, 2824.7 MiB resident; smart filters 1 GPU stages, 0 CPU fallbacks, 827.4 MiB stage cache; CPU fallback unused; pressure render 0 filters 0 (interactive jobs 1); frames viewport 6 full-level 0 cpu 0 dropped 0
+document-resources: GPU 2454 live pages, 4508.0 MiB resident; smart filters 6 GPU stages, 0 CPU fallbacks, 1930.6 MiB stage cache; CPU fallback unused; pressure render 0 filters 0 (interactive jobs 0); frames viewport 12 full-level 0 cpu 0 dropped 0
+document-resources: GPU 2454 live pages, 4508.0 MiB resident; smart filters 14 GPU stages, 0 CPU fallbacks, 1930.6 MiB stage cache; CPU fallback unused; pressure render 0 filters 0 (interactive jobs 0); frames viewport 20 full-level 0 cpu 0 dropped 0
+document-resources: GPU 2454 live pages, 4508.0 MiB resident; smart filters 22 GPU stages, 0 CPU fallbacks, 1930.6 MiB stage cache; CPU fallback unused; pressure render 0 filters 0 (interactive jobs 1); frames viewport 28 full-level 0 cpu 0 dropped 0
+document-resources: GPU 2454 live pages, 4508.0 MiB resident; smart filters 30 GPU stages, 0 CPU fallbacks, 1930.6 MiB stage cache; CPU fallback unused; pressure render 0 filters 0 (interactive jobs 1); frames viewport 36 full-level 0 cpu 0 dropped 0
+filter-perf: RESULT p19 fit (L0) smart filter drag value→frame: n 30 p50 209.60 ms p95 357.48 ms max 803.10 ms
+filter-perf: RESULT p19 fit footprint before 8154 MiB, peak 9763 MiB, 2 s after 6716 MiB
+filter-perf: viewport 1920 × 1080 pt @2x
+document-resources: GPU 2454 live pages, 3259.9 MiB resident; smart filters 33 GPU stages, 0 CPU fallbacks, 827.4 MiB stage cache; CPU fallback unused; pressure render 0 filters 0 (interactive jobs 0); frames viewport 40 full-level 0 cpu 0 dropped 0
+document-resources: GPU 2454 live pages, 3259.9 MiB resident; smart filters 33 GPU stages, 0 CPU fallbacks, 827.4 MiB stage cache; CPU fallback unused; pressure render 0 filters 0 (interactive jobs 1); frames viewport 41 full-level 0 cpu 0 dropped 0
+document-resources: GPU 2454 live pages, 4363.2 MiB resident; smart filters 39 GPU stages, 0 CPU fallbacks, 1930.6 MiB stage cache; CPU fallback unused; pressure render 0 filters 0 (interactive jobs 1); frames viewport 48 full-level 0 cpu 0 dropped 0
+document-resources: GPU 2454 live pages, 4363.2 MiB resident; smart filters 52 GPU stages, 0 CPU fallbacks, 1930.6 MiB stage cache; CPU fallback unused; pressure render 0 filters 0 (interactive jobs 1); frames viewport 61 full-level 0 cpu 0 dropped 0
+document-resources: GPU 2454 live pages, 3259.9 MiB resident; smart filters 65 GPU stages, 0 CPU fallbacks, 827.4 MiB stage cache; CPU fallback unused; pressure render 0 filters 0 (interactive jobs 1); frames viewport 74 full-level 0 cpu 0 dropped 0
+filter-perf: RESULT p19 100% 4K (L0) smart filter drag value→frame: n 30 p50 128.65 ms p95 169.96 ms max 181.73 ms
+filter-perf: RESULT p19 100% 4K footprint before 6964 MiB, peak 8487 MiB, 2 s after 5840 MiB
+document-resources: GPU 2454 live pages, 3404.7 MiB resident; smart filters 65 GPU stages, 0 CPU fallbacks, 827.4 MiB stage cache; CPU fallback unused; pressure render 0 filters 0 (interactive jobs 1); frames viewport 75 full-level 0 cpu 0 dropped 0
+filter-perf: 18 MP smart filter export 0: ok in 1.84 s, 149 main-thread spans (Exported perf-flat-0.png (PNG, sRGB))
+filter-perf: RESULT p16 18 MP smart filter main-thread spans during Export Flat 0: n 149 p50 0.02 ms p95 1.13 ms max 43.60 ms; export 1.84 s
+filter-selftest: check 18 MP smart filter export 0 ok
+filter-perf: 18 MP smart filter export 1: ok in 1.80 s, 151 main-thread spans (Exported perf-flat-1.png (PNG, sRGB))
+filter-perf: RESULT p16 18 MP smart filter main-thread spans during Export Flat 1: n 151 p50 0.01 ms p95 1.06 ms max 22.46 ms; export 1.80 s
+filter-selftest: check 18 MP smart filter export 1 ok
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 4608, y1: 3072 })
+document-resources: GPU 0 live pages, 216.0 MiB resident; smart filters 0 GPU stages, 0 CPU fallbacks, 0.0 MiB stage cache; CPU fallback unused; pressure render 0 filters 0 (interactive jobs 0); frames viewport 1 full-level 0 cpu 0 dropped 0
+filter-perf: styled document 4608 × 3072, layers ["caption", "Layer 1"]
+document: frames composited on the CPU (styles in the resident document program require CPU composition)
+filter-perf: styled 14 MP export 0: ok in 100.12 s, 4881 main-thread spans (Exported perf-flat-0.png (PNG, sRGB))
+filter-perf: RESULT p16 styled 14 MP main-thread spans during Export Flat 0: n 4881 p50 0.01 ms p95 0.03 ms max 55.32 ms; export 100.12 s
+filter-selftest: check styled 14 MP export 0 ok
+filter-perf: styled 14 MP export 1: ok in 99.37 s, 4839 main-thread spans (Exported perf-flat-1.png (PNG, sRGB))
+filter-perf: RESULT p16 styled 14 MP main-thread spans during Export Flat 1: n 4839 p50 0.01 ms p95 0.03 ms max 39.79 ms; export 99.37 s
+filter-selftest: check styled 14 MP export 1 ok
+filter-selftest: cancel at 31 % → finished in 4728 ms
+filter-selftest: check cancelled ok
+filter-selftest: check destination kept ok
+filter-selftest: check no temporary file ok
+filter-perf: done, footprint 19017 MiB
+filter-selftest: done, 0 failure(s)
