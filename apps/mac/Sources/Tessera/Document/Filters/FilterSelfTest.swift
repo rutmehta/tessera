@@ -1,4 +1,5 @@
 import AppKit
+import Darwin
 import TesseraCore
 
 /// `--filter-selftest <dir>` (test aid, WP B5-05): ACCEPTANCE §U part 3 through the same controller
@@ -97,11 +98,11 @@ final class FilterSelfTest {
         let filters = ws.filters
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         guard await wait(60, { !model.isLoading && !model.library.items.isEmpty }) else {
-            log("FAIL the library did not load"); return finish()
+            check("library loaded", false); return finish()
         }
         let items = model.library.items
         guard let item = items.first(where: { $0.name == "sample.dng" }) ?? items.first(where: { $0.kind == .raw }) else {
-            log("FAIL no RAW in the library"); return finish()
+            check("RAW fixture available", false); return finish()
         }
         model.select(id: item.id)
         let restore = model.showRenderReadout
@@ -110,16 +111,16 @@ final class FilterSelfTest {
 
         ws.editInLayers(model.focusedItem)
         guard await wait(120, { ws.current != nil && ws.opening == nil }), let doc = ws.current else {
-            log("FAIL Edit in Layers opened nothing: \(model.statusMessage ?? "")"); return finish()
+            check("Edit in Layers opened document", false, model.statusMessage ?? ""); return finish()
         }
         _ = await wait(10) { doc.lastFrame != nil }
         log("document \(doc.info.width) × \(doc.info.height) px, \(doc.info.depth.title), \(doc.info.backend)")
-        guard let photo = doc.layers.first(where: { $0.kind == .pixel })?.id else { return finish() }
+        guard let photo = doc.layers.first(where: { $0.kind == .pixel })?.id else { check("pixel layer available", false); return finish() }
         doc.select(photo)
         let catalogue = filters.catalogue(doc)
         check("filter menu", FilterCatalogEntry.grouped(catalogue).map(\.group) == FilterCatalogEntry.groupOrder,
               "\(catalogue.map(\.group))")
-        guard let gaussian = catalogue.first(where: { $0.id == "gaussian_blur" }) else { return finish() }
+        guard let gaussian = catalogue.first(where: { $0.id == "gaussian_blur" }) else { check("Gaussian Blur available", false); return finish() }
         if perfMode { await perf(doc, photo: photo, gaussian: gaussian); return finish() }   // B5-15
 
         // 1. Gaussian Blur dialog: preview latency over a radius drag.
@@ -255,12 +256,12 @@ extension FilterSelfTest {
         // P19: Gaussian Blur smart filter on the converted photo.
         filters.convertForSmartFilters(doc)
         filters.open(gaussian, doc)
-        guard let add = filters.filterSheet else { plog("FAIL no dialog"); return }
+        guard let add = filters.filterSheet else { check("filter dialog available", false); return }
         add.set(gaussian.params[0], .number(8))
         add.ok()
         _ = await idle(filters)
         await pause(3)
-        guard let row = filters.smartFilters(doc, layer: photo).first else { plog("FAIL no smart filter"); return }
+        guard let row = filters.smartFilters(doc, layer: photo).first else { check("smart filter available", false); return }
         plog(String(format: "smart filter applied, footprint %.0f MiB", footprintMiB()))
         for (label, actual) in [("fit", false), ("100% 4K", true)] {
             if actual, let w = model.mainWindow, let v = doc.viewport {
@@ -277,7 +278,7 @@ extension FilterSelfTest {
             await pause(3)
             let level = doc.lastFrame?.level ?? 255
             filters.editSmartFilter(doc, layer: photo, row: row)
-            guard let sheet = filters.filterSheet else { plog("FAIL no smart filter dialog"); return }
+            guard let sheet = filters.filterSheet else { check("smart filter dialog available", false); return }
             await pause(1)
             let before = footprintMiB()
             var peak = before
@@ -306,7 +307,7 @@ extension FilterSelfTest {
         // style margin (compositor styles.rs MAX_PIXELS), so it is 4608 × 3072 (14 MP): a gradient fill and a
         // text layer with a drop shadow and an outer glow.
         ws.newDocument(NewDocumentSettings(width: 4608, height: 3072, depth: .u8, profile: "sRGB IEC61966-2.1"))
-        guard let styled = ws.current, styled !== doc else { plog("FAIL no new document"); return }
+        guard let styled = ws.current, styled !== doc else { check("styled document created", false); return }
         _ = await wait(20) { styled.lastFrame != nil }
         _ = try? styled.backend.addLayer(kind: .fill(json: #"{"kind":"linear_gradient","stops":[{"position":0,"color":[1,0.5,0],"opacity":1},{"position":1,"color":[0,0.3,1],"opacity":1}],"angle":30}"#),
                                          name: "gradient", parent: nil, index: nil)
@@ -322,7 +323,7 @@ extension FilterSelfTest {
             styled.reloadModel()
             plog("styled document \(styled.info.width) × \(styled.info.height), layers \(styled.layers.map(\.name))")
         } else {
-            plog("FAIL could not add the styled layer")
+            check("styled layer created", false)
         }
         _ = await wait(120) { styled.lastFrame != nil }
         await pause(3)
@@ -363,9 +364,29 @@ extension FilterSelfTest {
     fileprivate func exportUnderTest(_ ws: DocumentWorkspace, _ doc: DocumentController, _ s: ExportFlatSettings,
                                      _ url: URL) async -> Bool {
         var outcome: FlatExportTask.Outcome?
-        guard ws.startExportFlat(doc, s, to: url, then: { outcome = $0 }) != nil else { return false }
-        _ = await wait(900) { outcome != nil }
-        return outcome == .exported
+        guard let task = ws.startExportFlat(doc, s, to: url, then: { outcome = $0 }) else { return false }
+        var suppressed = false
+        var activitySamples = 0
+        let finished = await wait(900) {
+            if outcome != nil { return true }
+            // Exercise the actual covered-window export. Ordinary XCTest processes do not undergo
+            // App Nap, so unit tests alone cannot catch this background-export regression.
+            var info = proc_bsdinfo()
+            let size = Int32(MemoryLayout<proc_bsdinfo>.size)
+            if task.phase != "Preparing", proc_pidinfo(getpid(), PROC_PIDTBSDINFO, 0, &info, size) == size {
+                activitySamples += 1
+                suppressed = suppressed || info.pbi_flags & UInt32(PROC_FLAG_SUPPRESSED) != 0
+            }
+            return false
+        }
+        check("Export Flat avoids App Nap", activitySamples > 0 && !suppressed)
+        if !finished {
+            // Attempt to stop a timed-out export before further measurements.
+            ws.cancelExportFlat(task)
+            let stopped = await wait(60) { outcome != nil }
+            check("timed-out export stopped", stopped)
+        }
+        return finished && outcome == .exported
     }
 
     /// Cancel at 30 %: the file already at the destination is kept byte for byte, no temporary file is left.

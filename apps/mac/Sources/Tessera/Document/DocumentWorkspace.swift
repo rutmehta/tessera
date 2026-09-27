@@ -682,7 +682,15 @@ final class DocumentWorkspace {
         }
         group.enter()
         Task.detached(priority: .userInitiated) {
-            let result = Result { try run { f, phase in Task { @MainActor in onProgress(f, phase) } } }
+            let result = Result {
+                // Task priority alone does not prevent App Nap when the document window is covered.
+                // Keep this user-requested export active only until the worker finishes (including
+                // cancellation/errors), without preventing the Mac from sleeping.
+                let activity = ProcessInfo.processInfo.beginActivity(
+                    options: .userInitiatedAllowingIdleSystemSleep, reason: "Exporting document")
+                defer { ProcessInfo.processInfo.endActivity(activity) }
+                try run { f, phase in Task { @MainActor in onProgress(f, phase) } }
+            }
             group.leave()
             await onDone(result)
         }
@@ -927,9 +935,9 @@ private struct FlatExportBar: View {
     let workspace: DocumentWorkspace
 
     var body: some View {
-        VStack(spacing: 2) {
+        VStack(spacing: Theme.Space.xxs) {
             ForEach(workspace.flatExports) { t in
-                HStack(spacing: 8) {
+                HStack(spacing: Theme.Space.s) {
                     Text("Exporting \(t.fileName)")
                         .lineLimit(1)
                         .truncationMode(.middle)
@@ -938,7 +946,7 @@ private struct FlatExportBar: View {
                         .frame(minWidth: 120, maxWidth: 260)
                     Text("\(t.phase) \(Int((t.fraction * 100).rounded())) %")
                         .monospacedDigit()
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSecondary)
                         .frame(minWidth: 150, alignment: .leading)
                     Button("Cancel") { workspace.cancelExportFlat(t) }
                         .controlSize(.small)
@@ -947,8 +955,8 @@ private struct FlatExportBar: View {
                 .font(.callout)
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 4)
+        .padding(.horizontal, Theme.Space.m)
+        .padding(.vertical, Theme.Space.xs)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

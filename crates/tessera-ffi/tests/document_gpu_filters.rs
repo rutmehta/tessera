@@ -18,7 +18,11 @@ fn engine() -> (tempfile::TempDir, Arc<Engine>) {
 /// A PNG with detail at every scale; `alpha` < 255 somewhere when `holes`.
 fn png(dir: &Path, name: &str, w: u32, h: u32, sixteen: bool, holes: bool) -> PathBuf {
     let f = |x: u32, y: u32| -> [f64; 4] {
-        let checker = if (x / 7 + y / 5) % 2 == 0 { 0.8 } else { 0.15 };
+        let checker = if (x / 7 + y / 5).is_multiple_of(2) {
+            0.8
+        } else {
+            0.15
+        };
         let n = ((x.wrapping_mul(73856093) ^ y.wrapping_mul(19349663)) % 97) as f64 / 97.0;
         let a = if holes && x > w / 3 && x < w / 2 {
             0.3
