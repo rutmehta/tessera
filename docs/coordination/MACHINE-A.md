@@ -4,43 +4,46 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
-## Current coordinator checkpoint — 2026-09-27 18:30 UTC
+## Current coordinator checkpoint — 2026-09-27 18:44 UTC
 
-A is validating combined integration commit26099ce in the isolated
-export-integration worktree. The accepted DNG/PQ-HLG/native metadata slice passed
-564 Rust tests, strict Clippy, workspace/license/format checks, FFI generation and
-Swift build. Review ownership/save-order fixes at e886888 passed21focused Swift
-tests. The combined full Swift release suite now runs in A session19525; main
-integration remains pending this result. The first missing-fixture Rust failure
-is preserved alongside the successful retry.
+Published main **fb7c604670a197e2c663d0b47448956e7336dff0**. It integrates the
+bounded DNG1.6/original embedding, PQ-HLG/native metadata export slice and Review
+ownership/save-order safety. Validation:564Rust tests/0fail/21ignored; strict
+Clippy/workspace/license/format checks; FFI build; final436XCTest cases with one
+existing skip and zero failures, plus5SwiftTesting. All23ownership regressions
+are included. Root verified merged product source identical to tested source.
+First fixture/setup and obsolete DNG expectation failures remain in evidence:
+tools/orchestrate/wp/INT-45/evidence/2026-09-27-integration/.
 
-UX01 remains shipped on main4925677. UX02a navigation is source-ready in the UI
-worktree, with an independent behavior review and offscreen harness preparation
-in progress. It builds on the settled ownership API and owner/image save barriers.
-Queue relaunch persistence remains a later UX02b task. Develop close now flushes
-queued slider/mask edits and coalesces actual backend close completion; matching
-pending opens are cancelled and awaited without touching another library.
+UX02a navigation is separate, still awaiting its focused gate. A is also fixing
+preview and first rendered-copy handoff save ordering. No B Document/FFI edits;
+existing-copy disclosure remains truthful. UX02b relaunch persistence is pending.
+The third A agent audits narrow overlay/Masks label layout without global theme
+or Document changes.
 
-M5-31 remains unmerged. A’s six timings passed, but direct B verification of
-441da3e failed its first original cold sample106.084084ms/100ms. All six samples
-are published at wp/M5-31 97eb4ca. Passive diagnostics on B did not reproduce the
-outlier or establish its cause; they are separate on codex/m531-cold-diagnostics
-2f46d97 and do not replace acceptance. No speculative production fix was made.
+Fresh gain-map validation now runs on A(session89001). B core compilation passed,
+but four native auxiliary-discovery assertions failed. Both independent Skia ISO
+controls also lack HDR reconstruction through the same B macOS26.1 path; this is
+a tested-host limitation, not proof of encoder acceptance or a blanket OS claim.
+Independent libjpeg reconstruction passes the five4%patch criteria. Fresh JPEG,
+SDR/HDR float buffers, controls and all failures are preserved in gain-map branch
+ae19820. Dirty B5-16a snapshot/capture is preserved; do not reset/reuse it.
 
-B’s free completed B5-16a checkout is now allocated to gain-map validation of an
-immutable13-file snapshot based on69bcd3e. Snapshot archive SHA256:
-0c94c47d11d8375e07c4827ad0ae1c069981e6c5ede91786734409e166a853a6.
-B: preserve this checkout and cache until the ownership note marks completion.
-Its active Document branches and original B5-16a branch reference remain intact.
-Core and host tests will retain every failure and require native ImageIO pixels,
-not just metadata. Gain-map JPEG remains unvalidated and unmerged.
+M5-31 remains unmerged after B’s106.084084ms/100ms first cold failure. All six
+samples are retained at97eb4ca. Passive diagnostics2f46d97 did not establish the
+cause and do not replace acceptance. No speculative production fix was made.
 
-SSH read and command execution work. Native send still fails with an active-writer conflict, but the installed
-existing-session `codex queue` command successfully delivered to B’s desktop
-chat. B replied and published an accepted bootstrap receipt at94dd36b. Its
-heartbeat setup is in progress; completion is not yet confirmed.
-A’s five-minute heartbeat is active and records the verified remote host/chat
-identity. Git mailbox and status notes remain durable coordination fallback.
+Coordination is now confirmed: existing-session `codex queue` over SSH reached
+B’s original desktop writer; B replied and completed bootstrap receipts. Both
+five-minute heartbeat configurations are ACTIVE; B’s first scheduled wakeup has
+not yet been observed. Native direct-send still conflicts with that writer and
+its separate SSH-host live status is unreliable for desktop activity. Use exact
+chat UUIDs, durable receipts and recorded queue IDs; no duplicate enqueues.
+
+B reports its B5-16 Document integration owns its heavy slot. A acknowledges this
+reservation and will not launch more B builds/benchmarks until released. B keeps
+Document/UI FFI ownership; A alone merges main. B message43c9df6c was accepted
+before reconciliation; its bootstrap/status/slot report is now incorporated.
 
 ## Direct SSH verification outcome — 2026-09-27 18:13 UTC
 
