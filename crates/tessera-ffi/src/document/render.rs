@@ -11,7 +11,7 @@ use compositor::{
 use engine_api::{
     EngineError, EngineResult,
     jobs::{CancellationToken, Job, JobContext, Priority, Scheduler},
-    tile::{Extent, TILE_SIZE, Tile, TileCoord},
+    tile::{Extent, TILE_SIZE, Tile},
 };
 use std::{
     collections::{BTreeSet, HashMap, VecDeque},
@@ -99,7 +99,8 @@ pub struct DocRenderRecord {
     /// The document changed while the frame was rendered (a newer frame is
     /// queued; this one was still published).
     pub superseded: bool,
-    /// Dropped: its surface ring was replaced or the session closed.
+    /// Dropped before publication: cancelled, superseded, or its surface ring
+    /// was replaced or the session closed.
     pub dropped: bool,
     /// Spans (ms): waiting for the live-state lock, holding it (snapshot),
     /// filter preparation, composition (CPU side, or the whole CPU
@@ -800,6 +801,30 @@ impl Renderer {
     }
 }
 
+struct FrameAttempt<T> {
+    result: Result<Option<T>>,
+    record: Option<DocRenderRecord>,
+}
+
+/// The Signal decision happens before this call. Record exactly once, then let
+/// the worker invoke accepted callbacks without holding the Signal lock.
+fn finalize_frame<T>(
+    renderer: &Renderer,
+    attempt: FrameAttempt<T>,
+    accepted: bool,
+) -> Option<Result<Option<T>>> {
+    let completed = accepted && matches!(&attempt.result, Ok(Some(_)));
+    if let Some(mut record) = attempt.record {
+        record.dropped |= !accepted;
+        // Preserve the old policy for ordinary render errors and an idle
+        // backend: neither produced a frame record. Cancelled work does.
+        if completed || record.dropped {
+            renderer.record(record);
+        }
+    }
+    accepted.then_some(attempt.result)
+}
+
 pub(crate) fn worker_loop(shared: Arc<Shared>) {
     let r = &shared.render;
     loop {
@@ -822,16 +847,20 @@ pub(crate) fn worker_loop(shared: Arc<Shared>) {
                 cancel,
             )
         };
-        let result = if let Some(cancel) = &cancel {
+        let attempt = if let Some(cancel) = &cancel {
             present_frame(&shared, since.unwrap_or_else(Instant::now), cancel)
         } else {
-            Ok(None)
+            FrameAttempt {
+                result: Ok(None),
+                record: None,
+            }
         };
         let publish = cancel
             .as_ref()
             .is_some_and(|cancel| r.signal().finish_frame(cancel));
+        let result = finalize_frame(r, attempt, publish);
         if let Some(listener) = shared.listener() {
-            if publish {
+            if let Some(result) = result {
                 match result {
                     Ok(Some(info)) => listener.on_frame(info),
                     Ok(None) => {}
@@ -888,14 +917,30 @@ fn present_frame(
     shared: &Arc<Shared>,
     since: Instant,
     cancel: &CancellationToken,
-) -> Result<Option<DocFrameInfo>> {
-    cancel.check()?;
+) -> FrameAttempt<DocFrameInfo> {
+    if let Err(error) = cancel.check() {
+        return FrameAttempt {
+            result: Err(error.into()),
+            record: None,
+        };
+    }
     let r = &shared.render;
     let started = Instant::now();
-    let st = shared.lock()?;
+    let st = match shared.lock() {
+        Ok(st) => st,
+        Err(error) => {
+            return FrameAttempt {
+                result: Err(error),
+                record: None,
+            };
+        }
+    };
     let locked = Instant::now();
     if st.closed || st.view.surfaces.is_empty() {
-        return Ok(None);
+        return FrameAttempt {
+            result: Ok(None),
+            record: None,
+        };
     }
     let index = st.view.next % st.view.surfaces.len();
     let surface = st.view.surfaces[index].clone();
@@ -926,118 +971,129 @@ fn present_frame(
         gpu_ms: 0.0,
         total_ms: 0.0,
     };
-    if !src.is_empty() {
-        let _pressure = Pressure::begin(PressureKind::Render);
-        // Smart filters baked and a filter preview shown (WP B5-05).
-        let t = Instant::now();
-        let doc: Arc<Document> =
-            super::filtering::presented(shared, &snapshot, level, src).unwrap_or(snapshot);
-        rec.prep_ms = ms(t.elapsed());
-        cancel.check()?;
-        let mut backend = r.backend.lock().map_err(failure)?;
-        cancel.check()?;
-        match &mut *backend {
-            Backend::Gpu(g) => {
-                g.targets.retain(|id, _| attached.contains(id));
-                let viewport =
-                    r.viewport_rendering.load(Ordering::Relaxed) && !needs_full_halo(doc.state());
-                let t = Instant::now();
-                // B5-07: frames the resident program refuses (layer styles)
-                // are composited on the CPU, as the Cpu arm does.
-                match g.render_or_refuse(&doc, level, viewport.then_some(src))? {
-                    Some(fr) => {
-                        rec.composite_ms = ms(t.elapsed());
-                        // The GPU mirror holds what it needs: release the
-                        // snapshot before waiting, so edits during the GPU
-                        // work do not copy the document.
-                        drop(doc);
-                        rec.path = if viewport {
-                            DocRenderPath::Viewport
-                        } else {
-                            DocRenderPath::FullLevel
-                        };
-                        let m = i64::from(VIEWPORT_HALO);
-                        rec.requested = if viewport {
-                            Rect::new(src.x0 - m, src.y0 - m, src.x1 + m, src.y1 + m)
-                                .intersect(&Rect::of_extent(le))
-                        } else {
-                            Rect::of_extent(le)
-                        };
-                        rec.dispatched = union_of(&fr.damage);
-                        rec.blocks = fr.blocks;
-                        report = fr;
-                        let t = Instant::now();
-                        cancel.check()?;
-                        g.present(level, src, &surface)?;
-                        g.resident.wait()?;
-                        cancel.check()?;
-                        rec.gpu_ms = ms(t.elapsed());
-                    }
-                    None => {
-                        cpu_present(g.cpu(), &doc, level, src, &surface, cancel)?;
-                        rec.composite_ms = ms(t.elapsed());
-                        report.full = true;
+    let result = (|| -> Result<Option<DocFrameInfo>> {
+        if !src.is_empty() {
+            let _pressure = Pressure::begin(PressureKind::Render);
+            // Smart filters baked and a filter preview shown (WP B5-05).
+            let t = Instant::now();
+            let doc: Arc<Document> =
+                super::filtering::presented(shared, &snapshot, level, src).unwrap_or(snapshot);
+            rec.prep_ms = ms(t.elapsed());
+            cancel.check()?;
+            let mut backend = r.backend.lock().map_err(failure)?;
+            cancel.check()?;
+            match &mut *backend {
+                Backend::Gpu(g) => {
+                    g.targets.retain(|id, _| attached.contains(id));
+                    let viewport = r.viewport_rendering.load(Ordering::Relaxed)
+                        && !needs_full_halo(doc.state());
+                    rec.path = if viewport {
+                        DocRenderPath::Viewport
+                    } else {
+                        DocRenderPath::FullLevel
+                    };
+                    let m = i64::from(VIEWPORT_HALO);
+                    rec.requested = if viewport {
+                        Rect::new(src.x0 - m, src.y0 - m, src.x1 + m, src.y1 + m)
+                            .intersect(&Rect::of_extent(le))
+                    } else {
+                        Rect::of_extent(le)
+                    };
+                    let t = Instant::now();
+                    // B5-07: frames the resident program refuses (layer styles)
+                    // are composited on the CPU, as the Cpu arm does.
+                    let rendered = g.render_or_refuse(&doc, level, viewport.then_some(src));
+                    rec.composite_ms = ms(t.elapsed());
+                    match rendered? {
+                        Some(fr) => {
+                            // The GPU mirror holds what it needs: release the
+                            // snapshot before waiting, so edits during the GPU
+                            // work do not copy the document.
+                            drop(doc);
+                            rec.dispatched = union_of(&fr.damage);
+                            rec.blocks = fr.blocks;
+                            report = fr;
+                            let t = Instant::now();
+                            cancel.check()?;
+                            let presented = g.present(level, src, &surface);
+                            rec.gpu_ms = ms(t.elapsed());
+                            presented?;
+                            let waited = g.resident.wait();
+                            rec.gpu_ms = ms(t.elapsed());
+                            waited?;
+                            cancel.check()?;
+                        }
+                        None => {
+                            rec.path = DocRenderPath::Cpu;
+                            rec.requested = src;
+                            let copied = cpu_present(g.cpu(), &doc, level, src, &surface, cancel);
+                            rec.composite_ms = ms(t.elapsed());
+                            copied?;
+                            report.full = true;
+                        }
                     }
                 }
+                Backend::Cpu(c) => {
+                    let t = Instant::now();
+                    let copied = cpu_present(c, &doc, level, src, &surface, cancel);
+                    rec.composite_ms = ms(t.elapsed());
+                    copied?;
+                    report.full = true;
+                }
+                Backend::Stopped => return Ok(None),
             }
-            Backend::Cpu(c) => {
-                let t = Instant::now();
-                cpu_present(c, &doc, level, src, &surface, cancel)?;
-                rec.composite_ms = ms(t.elapsed());
-                report.full = true;
-            }
-            Backend::Stopped => return Ok(None),
         }
-    }
-    // Cancelled partial CPU output is not published. Its ring slot is reused;
-    // cpu_present clears aborted copies and successful copies overwrite all src.
-    cancel.check()?;
-    // Publish only into the ring this frame was rendered for.
-    {
-        let mut st = shared.lock()?;
+        // Cancelled partial CPU output is not published. Its ring slot is reused;
+        // cpu_present clears aborted copies and successful copies overwrite all src.
         cancel.check()?;
-        if st.closed
-            || st.view.generation != generation
-            || !st.view.surfaces.iter().any(|s| s.id() == surface.id())
+        // Publish only into the ring this frame was rendered for.
         {
-            let current = !st.closed && !st.view.surfaces.is_empty();
-            drop(st);
-            rec.dropped = true;
-            rec.total_ms = ms(started.elapsed());
-            r.record(rec);
-            if current {
-                // The ring that replaced this frame's gets a frame of its own.
-                r.request(Vec::new(), false, epoch);
+            let mut st = shared.lock()?;
+            cancel.check()?;
+            if st.closed
+                || st.view.generation != generation
+                || !st.view.surfaces.iter().any(|s| s.id() == surface.id())
+            {
+                let current = !st.closed && !st.view.surfaces.is_empty();
+                drop(st);
+                rec.dropped = true;
+                if current {
+                    // The ring that replaced this frame's gets a frame of its own.
+                    r.request(Vec::new(), false, epoch);
+                }
+                return Ok(None);
             }
-            return Ok(None);
+            st.view.next = index + 1;
+            rec.superseded = st.epoch != epoch;
         }
-        st.view.next = index + 1;
-        rec.superseded = st.epoch != epoch;
-    }
+        let canvas_rect = src.to_level0(level).intersect(&Rect::of_extent(canvas));
+        Ok(Some(DocFrameInfo {
+            surface_id: surface.id(),
+            level,
+            x: src.x0.max(0) as u32,
+            y: src.y0.max(0) as u32,
+            width: src.width() as u32,
+            height: src.height() as u32,
+            canvas_rect: DocRect::of(canvas_rect).unwrap_or(DocRect {
+                x: 0,
+                y: 0,
+                width: 0,
+                height: 0,
+            }),
+            level_width: le.width,
+            level_height: le.height,
+            zoom,
+            epoch,
+            render_ms: since.elapsed().as_secs_f64() * 1000.0,
+            full_recomposite: report.full,
+            blocks: report.blocks,
+        }))
+    })();
     rec.total_ms = ms(started.elapsed());
-    r.record(rec);
-    let canvas_rect = src.to_level0(level).intersect(&Rect::of_extent(canvas));
-    Ok(Some(DocFrameInfo {
-        surface_id: surface.id(),
-        level,
-        x: src.x0.max(0) as u32,
-        y: src.y0.max(0) as u32,
-        width: src.width() as u32,
-        height: src.height() as u32,
-        canvas_rect: DocRect::of(canvas_rect).unwrap_or(DocRect {
-            x: 0,
-            y: 0,
-            width: 0,
-            height: 0,
-        }),
-        level_width: le.width,
-        level_height: le.height,
-        zoom,
-        epoch,
-        render_ms: since.elapsed().as_secs_f64() * 1000.0,
-        full_recomposite: report.full,
-        blocks: report.blocks,
-    }))
+    FrameAttempt {
+        result,
+        record: Some(rec),
+    }
 }
 // B5-14 end
 
@@ -1306,6 +1362,81 @@ pub(crate) fn composite_raster(
 #[cfg(test)]
 mod frame_cancellation_tests {
     use super::*;
+
+    fn sample_record() -> DocRenderRecord {
+        DocRenderRecord {
+            path: DocRenderPath::Cpu,
+            level: 0,
+            visible: Rect::new(0, 0, 2, 2),
+            requested: Rect::new(0, 0, 2, 2),
+            dispatched: Rect::default(),
+            blocks: 0,
+            epoch: 1,
+            superseded: false,
+            dropped: false,
+            lock_wait_ms: 0.0,
+            lock_held_ms: 0.0,
+            prep_ms: 0.0,
+            composite_ms: 1.0,
+            gpu_ms: 0.0,
+            total_ms: 1.0,
+        }
+    }
+
+    #[test]
+    fn cancelled_in_progress_attempt_records_one_drop_and_no_publication() {
+        let renderer = Renderer::new(None);
+        let cancel = renderer.signal().begin_frame();
+        cancel.cancel();
+        let accepted = renderer.signal().finish_frame(&cancel);
+        let attempt: FrameAttempt<()> = FrameAttempt {
+            result: Err(EngineError::Cancelled.into()),
+            record: Some(sample_record()),
+        };
+        assert!(finalize_frame(&renderer, attempt, accepted).is_none());
+        let records = renderer.records();
+        assert_eq!(records.len(), 1);
+        assert!(records[0].dropped);
+        assert_eq!(records[0].composite_ms, 1.0);
+        assert_eq!(renderer.counts[3].load(Ordering::Relaxed), 1);
+    }
+
+    #[test]
+    fn final_owner_gate_records_exactly_once_and_callbacks_remain_unlocked() {
+        let renderer = Renderer::new(None);
+        let old = renderer.signal().begin_frame();
+        let old_attempt = FrameAttempt {
+            result: Ok(Some(())),
+            record: Some(sample_record()),
+        };
+        renderer.request(Vec::new(), false, 0);
+        let old_accepted = renderer.signal().finish_frame(&old);
+        assert!(!old_accepted);
+        assert!(finalize_frame(&renderer, old_attempt, old_accepted).is_none());
+
+        let fresh = renderer.signal().begin_frame();
+        let fresh_accepted = renderer.signal().finish_frame(&fresh);
+        assert!(fresh_accepted);
+        // A request after acceptance cannot retroactively revoke this callback.
+        renderer.request(Vec::new(), false, 0);
+        let fresh_attempt = FrameAttempt {
+            result: Ok(Some(())),
+            record: Some(sample_record()),
+        };
+        assert!(matches!(
+            finalize_frame(&renderer, fresh_attempt, fresh_accepted),
+            Some(Ok(Some(())))
+        ));
+        let records = renderer.records();
+        assert_eq!(records.len(), 2);
+        assert!(records[0].dropped);
+        assert!(!records[1].dropped);
+        assert_eq!(renderer.counts[3].load(Ordering::Relaxed), 1);
+        assert_eq!(
+            renderer.counts[DocRenderPath::Cpu as usize].load(Ordering::Relaxed),
+            1
+        );
+    }
 
     #[test]
     fn supersession_and_late_completion_preserve_fresh_frame_owner() {
