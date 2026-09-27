@@ -3,10 +3,11 @@ import SwiftUI
 import TesseraCore
 import TesseraFFI
 
-/// File ▸ Export… (⇧⌘E; docs/01 §2.22): a preset picker over editable settings — format and
-/// quality, colour space, sizing, output sharpening, metadata, a naming template with a live
-/// example, 2×/4× upscale, destination and "Show in Finder" — for the selection or the current
-/// album. Export runs non-modally (progress in the main window).
+/// File ▸ Export… (⇧⌘E; docs/01 §2.22): a preset picker over editable settings — format (JPEG with
+/// an optional size limit, PNG, TIFF, AVIF, lossless JPEG XL, developed DNG), quality and bit depth,
+/// colour space, sizing, output sharpening, metadata, a text or graphic watermark (M2-46), a naming
+/// template with a live example, 2×/4× upscale, destination and "Show in Finder" — for the
+/// selection or the current album. Export runs non-modally (progress in the main window).
 struct ExportSheet: View {
     @Bindable var exporter: ExportController
     @Environment(\.dismiss) private var dismiss
@@ -57,6 +58,7 @@ struct ExportSheet: View {
                     namingSection
                     fileSection
                     sizingSection
+                    watermarkSection
                     Section("Output") {
                         Picker("Sharpen for", selection: $exporter.settings.sharpening) {
                             ForEach(ExportSettings.Sharpening.allCases) { Text($0.title).tag($0) }
@@ -93,7 +95,7 @@ struct ExportSheet: View {
             .disabled(exporter.target == nil || exporter.isRunning || !exporter.namingIsValid)
             .accessibilityIdentifier("export-start")
         }
-        .frame(width: 620, height: 720)
+        .frame(width: 640, height: 760)
         .alert("Save Export Preset", isPresented: $namingPreset) {
             TextField("Name", text: $newPresetName)
             Button("Save") { exporter.savePreset(named: newPresetName) }
@@ -142,32 +144,243 @@ struct ExportSheet: View {
     private var fileSection: some View {
         Section("File Settings") {
             LabeledContent("Format") {
-                SegmentedPicker(selection: Binding(get: { exporter.settings.format }, set: {
-                    exporter.settings.format = $0
-                    exporter.settings.normalizeForFormat()
-                }), segments: ExportSettings.FileFormat.allCases.map { .init(value: $0, title: $0.title) }, fill: false)
+                SegmentedPicker(selection: Binding(get: { exporter.settings.format }, set: { exporter.setFormat($0) }),
+                                segments: ExportSettings.OutputFormat.allCases.map { .init(value: $0, title: $0.title) }, fill: false)
                 .fixedSize()
+                .accessibilityIdentifier("export-format")
             }
-            if exporter.settings.format == .jpeg {
-                LabeledContent("Quality") {
+            switch exporter.settings.format {
+            case .jpeg:
+                qualityRow
+                sizeLimitRow
+            case .png:
+                EmptyView()
+            case .tiff:
+                bitDepthRow
+            case .avif:
+                qualityRow
+                bitDepthRow
+                LabeledContent("Speed") {
                     HStack {
-                        Slider(value: Binding(get: { Double(exporter.settings.quality) },
-                                              set: { exporter.settings.quality = Int($0.rounded()) }), in: 1...100)
-                        Text("\(exporter.settings.quality)").font(Theme.Fonts.labelNumeric).frame(width: 28, alignment: .trailing)
+                        Slider(value: Binding(get: { Double(exporter.settings.avifSpeed) },
+                                              set: { exporter.settings.avifSpeed = Int($0.rounded()) }), in: 1...10, step: 1)
+                        Text("\(exporter.settings.avifSpeed)").font(Theme.Fonts.labelNumeric).frame(width: 28, alignment: .trailing)
                     }
+                    .help("1 is slowest with the smallest files; 10 is fastest")
                 }
-            }
-            if exporter.settings.format == .tiff {
-                LabeledContent("Bit depth") {
-                    SegmentedPicker(selection: $exporter.settings.bitDepth,
-                                    segments: [.init(value: 8, title: "8-bit"), .init(value: 16, title: "16-bit")], fill: false)
-                    .fixedSize()
+                .accessibilityIdentifier("export-avif-speed")
+            case .jpegXl:
+                LabeledContent("Compression") {
+                    Text("Lossless").foregroundStyle(Theme.textPrimary)
+                        .accessibilityIdentifier("export-jxl-lossless")
                 }
+                bitDepthRow
+                Hint(ExportSettings.lossyJpegXLReason)
+            case .dng:
+                LabeledContent("Data") {
+                    Text("Linear 32-bit float").foregroundStyle(Theme.textPrimary)
+                }
+                Hint(ExportSettings.dngExplanation)
+                    .accessibilityIdentifier("export-dng-note")
             }
             Picker("Colour space", selection: $exporter.settings.colorSpace) {
                 ForEach(ExportSettings.ColorSpace.allCases) { Text($0.title).tag($0) }
             }
+            .disabled(exporter.settings.colorSpaceLockedReason != nil)
+            .accessibilityIdentifier("export-color-space")
+            if let reason = exporter.settings.colorSpaceLockedReason {
+                Hint(reason).accessibilityIdentifier("export-color-space-note")
+            }
+            if exporter.settings.format == .avif || exporter.settings.format == .jpegXl {
+                Toggle("HDR output", isOn: .constant(false))
+                    .disabled(true)
+                    .help(ExportSettings.hdrReason)
+                    .accessibilityIdentifier("export-hdr")
+                Hint(ExportSettings.hdrReason)
+            }
         }
+    }
+
+    private var qualityRow: some View {
+        LabeledContent("Quality") {
+            HStack {
+                Slider(value: Binding(get: { Double(exporter.settings.quality) },
+                                      set: { exporter.settings.quality = Int($0.rounded()) }), in: 1...100)
+                Text("\(exporter.settings.quality)").font(Theme.Fonts.labelNumeric).frame(width: 28, alignment: .trailing)
+            }
+        }
+        .accessibilityIdentifier("export-quality")
+    }
+
+    private var bitDepthRow: some View {
+        LabeledContent("Bit depth") {
+            SegmentedPicker(selection: $exporter.settings.bitDepth,
+                            segments: exporter.settings.format.bitDepths.map { .init(value: $0, title: "\($0)-bit") }, fill: false)
+            .fixedSize()
+            .accessibilityIdentifier("export-bit-depth")
+        }
+    }
+
+    /// JPEG only: "Limit file size to [ ] KB" (the engine searches the quality that fits).
+    private var sizeLimitRow: some View {
+        HStack {
+            Toggle("Limit file size to", isOn: Binding(get: { exporter.settings.maxFileBytes != nil },
+                                                       set: { exporter.setSizeLimit($0) }))
+                .accessibilityIdentifier("export-size-limit")
+            TextField("Kilobytes", value: Binding(get: { exporter.settings.maxFileKilobytes ?? exporter.sizeLimitDraftKB },
+                                                  set: { exporter.settings.maxFileKilobytes = max($0, 1) }), format: .number)
+                .labelsHidden()
+                .frame(width: Theme.Width.label)
+                .disabled(exporter.settings.maxFileBytes == nil)
+                .accessibilityIdentifier("export-size-limit-kb")
+            Text("KB").foregroundStyle(Theme.textSecondary)
+            Spacer()
+        }
+        .help("Lowers the JPEG quality until the file, with its colour profile and metadata, fits (1 KB = 1,000 bytes)")
+    }
+
+    // MARK: Watermark
+
+    private var watermarkSection: some View {
+        Section("Watermark") {
+            let unavailable = exporter.settings.watermarkUnavailableReason
+            LabeledContent("Watermark") {
+                SegmentedPicker(selection: Binding<ExportWatermark.Kind?>(get: { exporter.settings.watermark?.kind },
+                                                                          set: { exporter.setWatermarkKind($0) }),
+                                segments: [.init(value: nil, title: "None"), .init(value: .text, title: "Text"),
+                                           .init(value: .graphic, title: "Graphic")], fill: false)
+                .fixedSize()
+                .disabled(unavailable != nil)
+                .accessibilityIdentifier("export-watermark-kind")
+            }
+            if let unavailable {
+                StatusLine(text: unavailable, kind: .warning).accessibilityIdentifier("export-watermark-unavailable")
+            }
+            if let mark = exporter.settings.watermark {
+                switch mark.kind {
+                case .text: textWatermarkRows
+                case .graphic: graphicWatermarkRows(mark)
+                }
+                percentRow("Opacity", \.opacity, 0...1, id: "export-watermark-opacity")
+                LabeledContent("Position") {
+                    AnchorPicker(selection: markBinding(\.anchor))
+                }
+                .accessibilityIdentifier("export-watermark-anchor")
+                percentRow("Inset", \.inset, 0...0.25, id: "export-watermark-inset", help: "Distance from the edges, as a percentage of the short edge")
+                LabeledContent("Preview") {
+                    VStack(alignment: .trailing, spacing: Theme.Space.s) {
+                        WatermarkPlacementPreview(mark: mark,
+                                                  engineImage: exporter.enginePreviewMark == mark ? exporter.enginePreview : nil)
+                        HStack(spacing: Theme.Space.s) {
+                            if exporter.isRenderingPreview { ProgressView().controlSize(.small) }
+                            Button("Render with Engine") { exporter.renderWatermarkPreview() }
+                                .buttonStyle(.theme(.bordered, height: Theme.Height.small))
+                                .disabled(exporter.isRenderingPreview || exporter.previewImageID == nil || mark.problem != nil)
+                                .help(exporter.previewImageID == nil
+                                      ? "Select photos to preview: album exports resolve their photos in the engine"
+                                      : "Exports the first photo at 480 px with this watermark, through the engine")
+                                .accessibilityIdentifier("export-watermark-render")
+                        }
+                        if let problem = exporter.previewError ?? mark.problem {
+                            StatusLine(text: problem, kind: .error).accessibilityIdentifier("export-watermark-problem")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var textWatermarkRows: some View {
+        Group {
+            TextField("Text", text: markBinding(\.text))
+                .accessibilityIdentifier("export-watermark-text")
+            LabeledContent("Font") {
+                HStack {
+                    Picker("Font", selection: markBinding(\.font)) {
+                        let current = exporter.settings.watermark?.font ?? ""
+                        if !current.isEmpty, !ExportWatermark.installedFonts.contains(where: { $0.path == current }) {
+                            Text(ExportWatermark.fontName(path: current)).tag(current)
+                            Divider()
+                        }
+                        ForEach(ExportWatermark.installedFonts) { f in Text(f.name).tag(f.path) }
+                    }
+                    .labelsHidden()
+                    .accessibilityIdentifier("export-watermark-font")
+                    Button("Other…") { exporter.chooseWatermarkFile(font: true, in: NSApp.keyWindow) }
+                        .buttonStyle(.theme(.bordered, height: Theme.Height.small))
+                        .help("A TrueType or OpenType font file (.ttf, .otf)")
+                }
+            }
+            percentRow("Size", \.size, 0.01...0.5, id: "export-watermark-size", help: "Text height as a percentage of the short edge")
+            LabeledContent("Colour") {
+                ColorPicker("Colour", selection: colorBinding, supportsOpacity: false).labelsHidden()
+            }
+            .help("In the export colour space")
+            .accessibilityIdentifier("export-watermark-color")
+            LabeledContent("Rotation") {
+                HStack {
+                    Slider(value: markBinding(\.rotation), in: -180...180, step: 1)
+                    Text("\(Int(exporter.settings.watermark?.rotation ?? 0))°").font(Theme.Fonts.labelNumeric)
+                        .frame(width: 40, alignment: .trailing)
+                }
+                .help("Degrees, clockwise")
+            }
+            .accessibilityIdentifier("export-watermark-rotation")
+        }
+    }
+
+    private func graphicWatermarkRows(_ mark: ExportWatermark) -> some View {
+        Group {
+            LabeledContent("Graphic") {
+                HStack {
+                    Text(mark.path.isEmpty ? "No PNG chosen" : URL(fileURLWithPath: mark.path).lastPathComponent)
+                        .lineLimit(1).truncationMode(.middle)
+                        .foregroundStyle(mark.path.isEmpty ? Theme.textSecondary : Theme.textPrimary)
+                        .help(mark.path)
+                        .accessibilityIdentifier("export-watermark-graphic")
+                    Button("Choose…") { exporter.chooseWatermarkFile(font: false, in: NSApp.keyWindow) }
+                        .buttonStyle(.themeBordered)
+                        .accessibilityIdentifier("export-watermark-choose")
+                }
+            }
+            percentRow("Scale", \.scale, 0.01...1, id: "export-watermark-scale", help: "Width as a percentage of the short edge")
+        }
+    }
+
+    private func markBinding<T>(_ path: WritableKeyPath<ExportWatermark, T>) -> Binding<T> {
+        Binding(get: { (exporter.settings.watermark ?? exporter.watermarkDraft)[keyPath: path] },
+                set: { value in
+                    guard var mark = exporter.settings.watermark else { return }
+                    mark[keyPath: path] = value
+                    exporter.settings.watermark = mark
+                })
+    }
+
+    private var colorBinding: Binding<Color> {
+        Binding(get: {
+            let c = (exporter.settings.watermark ?? exporter.watermarkDraft).color + [1, 1, 1]
+            return Color(.sRGB, red: c[0], green: c[1], blue: c[2]) // lint:allow (user watermark colour)
+        }, set: { color in
+            guard let rgb = NSColor(color).usingColorSpace(.sRGB) else { return }
+            let round = { (v: CGFloat) in (min(max(Double(v), 0), 1) * 1000).rounded() / 1000 }
+            markBinding(\.color).wrappedValue = [round(rgb.redComponent), round(rgb.greenComponent), round(rgb.blueComponent)]
+        })
+    }
+
+    /// A 0–1 fraction as a whole-percent slider.
+    private func percentRow(_ title: String, _ path: WritableKeyPath<ExportWatermark, Double>, _ range: ClosedRange<Double>,
+                            id: String, help: String? = nil) -> some View {
+        let value = markBinding(path)
+        return LabeledContent(title) {
+            HStack {
+                Slider(value: Binding(get: { value.wrappedValue * 100 }, set: { value.wrappedValue = ($0.rounded()) / 100 }),
+                       in: (range.lowerBound * 100)...(range.upperBound * 100), step: 1)
+                Text("\(Int((value.wrappedValue * 100).rounded()))%").font(Theme.Fonts.labelNumeric)
+                    .frame(width: 40, alignment: .trailing)
+            }
+            .help(help ?? title)
+        }
+        .accessibilityIdentifier(id)
     }
 
     private var sizingSection: some View {

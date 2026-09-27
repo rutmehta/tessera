@@ -1,14 +1,59 @@
 import Foundation
 
-/// File ▸ Export… settings (WP M2-20). Mirrors the engine's `ExportOptions` JSON exactly (snake_case
-/// keys, unknown keys rejected by the engine), so a preset file, the sheet and `export_batch` share
-/// one document.
+/// File ▸ Export… settings (WP M2-20, M2-46). Mirrors the engine's `ExportOptions` JSON exactly
+/// (snake_case keys, unknown keys rejected by the engine), so a preset file, the sheet and
+/// `export_batch` share one document.
 public struct ExportSettings: Codable, Equatable, Sendable {
+    /// The flat document codecs (JPEG / PNG / TIFF), shared with File ▸ Export Flat… in document
+    /// mode. Batch export uses `OutputFormat`, which adds the engine's AVIF, JPEG XL and DNG writers.
     public enum FileFormat: String, Codable, CaseIterable, Sendable, Identifiable {
         case jpeg, png, tiff
         public var id: String { rawValue }
-        public var title: String { switch self { case .jpeg: "JPEG"; case .png: "PNG"; case .tiff: "TIFF" } }
-        public var fileExtension: String { switch self { case .jpeg: "jpg"; case .png: "png"; case .tiff: "tif" } }
+        public var title: String { OutputFormat(self).title }
+        public var fileExtension: String { OutputFormat(self).fileExtension }
+    }
+    /// Every format `export_batch` writes (the engine's `FileFormat`).
+    public enum OutputFormat: String, Codable, CaseIterable, Sendable, Identifiable {
+        case jpeg, png, tiff, avif, jpegXl = "jpeg_xl", dng
+        public init(_ flat: FileFormat) {
+            switch flat {
+            case .jpeg: self = .jpeg
+            case .png: self = .png
+            case .tiff: self = .tiff
+            }
+        }
+        public var id: String { rawValue }
+        public var title: String {
+            switch self {
+            case .jpeg: "JPEG"
+            case .png: "PNG"
+            case .tiff: "TIFF"
+            case .avif: "AVIF"
+            case .jpegXl: "JPEG XL"
+            case .dng: "DNG"
+            }
+        }
+        public var fileExtension: String {
+            switch self {
+            case .jpeg: "jpg"
+            case .png: "png"
+            case .tiff: "tif"
+            case .avif: "avif"
+            case .jpegXl: "jxl"
+            case .dng: "dng"
+            }
+        }
+        /// Bit depths the engine writes for this format, the first being the default.
+        public var bitDepths: [Int] {
+            switch self {
+            case .jpeg, .png: [8]
+            case .tiff, .jpegXl: [8, 16]
+            case .avif: [8, 10, 12]
+            case .dng: [32]
+            }
+        }
+        /// JPEG and AVIF are lossy with a 1–100 quality; JPEG XL is written lossless only.
+        public var usesQuality: Bool { self == .jpeg || self == .avif }
     }
     public enum ColorSpace: String, Codable, CaseIterable, Sendable, Identifiable {
         case srgb, displayP3 = "display_p3", rec2020, prophoto
@@ -91,8 +136,15 @@ public struct ExportSettings: Codable, Equatable, Sendable {
         }
     }
 
-    public var format: FileFormat = .jpeg
+    public var format: OutputFormat = .jpeg
+    /// JPEG / AVIF quality 1–100.
     public var quality: Int = 90
+    /// AVIF encoder speed 1 (slow, smaller) – 10 (fast).
+    public var avifSpeed: Int = 6
+    /// JPEG only: the engine lowers the quality until the file (with ICC and XMP) fits.
+    public var maxFileBytes: Int?
+    /// Burned in after resizing and sharpening (not for DNG).
+    public var watermark: ExportWatermark?
     public var bitDepth: Int = 8
     public var colorSpace: ColorSpace = .srgb
     public var resize = Resize()
@@ -108,7 +160,8 @@ public struct ExportSettings: Codable, Equatable, Sendable {
     public init() {}
 
     enum CodingKeys: String, CodingKey {
-        case format, quality, bitDepth = "bit_depth", colorSpace = "color_space", resize, dpi, sharpening,
+        case format, quality, avifSpeed = "avif_speed", maxFileBytes = "max_file_bytes", watermark,
+             bitDepth = "bit_depth", colorSpace = "color_space", resize, dpi, sharpening,
              metadata, naming, upscale, destination, onConflict = "on_conflict", openInFinder = "open_in_finder"
     }
 
@@ -116,8 +169,11 @@ public struct ExportSettings: Codable, Equatable, Sendable {
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let d = ExportSettings()
-        format = try c.decodeIfPresent(FileFormat.self, forKey: .format) ?? d.format
+        format = try c.decodeIfPresent(OutputFormat.self, forKey: .format) ?? d.format
         quality = try c.decodeIfPresent(Int.self, forKey: .quality) ?? d.quality
+        avifSpeed = try c.decodeIfPresent(Int.self, forKey: .avifSpeed) ?? d.avifSpeed
+        maxFileBytes = try c.decodeIfPresent(Int.self, forKey: .maxFileBytes)
+        watermark = try c.decodeIfPresent(ExportWatermark.self, forKey: .watermark)
         bitDepth = try c.decodeIfPresent(Int.self, forKey: .bitDepth) ?? d.bitDepth
         colorSpace = try c.decodeIfPresent(ColorSpace.self, forKey: .colorSpace) ?? d.colorSpace
         resize = try c.decodeIfPresent(Resize.self, forKey: .resize) ?? d.resize
@@ -143,11 +199,45 @@ public struct ExportSettings: Codable, Equatable, Sendable {
 
     // MARK: Derived
 
-    /// Format constraints the sheet enforces as the user switches formats.
+    /// Format constraints the sheet enforces as the user switches formats (the engine rejects the
+    /// rest): a bit depth the format writes, sRGB for JPEG XL, a size limit only for JPEG and no
+    /// watermark on DNG.
     public mutating func normalizeForFormat() {
-        if format != .tiff { bitDepth = 8 }
+        if !format.bitDepths.contains(bitDepth) { bitDepth = format.bitDepths[0] }
+        if format == .jpegXl { colorSpace = .srgb }
+        if format != .jpeg { maxFileBytes = nil }
+        if format == .dng { watermark = nil }
+        if let limit = maxFileBytes, limit <= 0 { maxFileBytes = nil }
         quality = min(max(quality, 1), 100)
+        avifSpeed = min(max(avifSpeed, 1), 10)
         if ![1, 2, 4].contains(upscale) { upscale = 1 }
+    }
+
+    // MARK: What this engine cannot do (shown disabled, with the reason)
+
+    public static let lossyJpegXLReason = "Lossy JPEG XL is not available yet: the engine writes JPEG XL lossless only."
+    public static let hdrReason = "HDR output (PQ / HLG, gain maps) is not available yet: every format is written as SDR."
+    public static let dngExplanation = "Baked edits: the DNG holds the developed picture as linear 32-bit float "
+        + "(Rec. 2020 primaries), not the original raw data. Other raw editors open it without re-applying these edits."
+
+    /// Why the colour-space choice does not apply, or nil when it does.
+    public var colorSpaceLockedReason: String? {
+        switch format {
+        case .jpegXl: "Lossless JPEG XL is written in sRGB only."
+        case .dng: "DNG is always linear Rec. 2020; the colour space does not apply."
+        default: nil
+        }
+    }
+
+    /// Why no watermark can be added, or nil when one can.
+    public var watermarkUnavailableReason: String? {
+        format == .dng ? "Watermarks are not available for DNG: the engine cannot composite into linear data yet." : nil
+    }
+
+    /// The JPEG size limit in kilobytes (1 KB = 1,000 bytes), for the sheet's field.
+    public var maxFileKilobytes: Int? {
+        get { maxFileBytes.map { $0 / 1000 } }
+        set { maxFileBytes = newValue.map { max($0, 1) * 1000 } }
     }
 
     private func pixels(_ value: Double) -> Double {
@@ -185,14 +275,18 @@ public struct ExportSettings: Codable, Equatable, Sendable {
         }
         parts.append(size)
         let file: String = switch format {
-        case .jpeg: "JPEG \(quality)"
+        case .jpeg: "JPEG \(quality)" + (maxFileKilobytes.map { " ≤ \($0) KB" } ?? "")
         case .png: "PNG"
         case .tiff: "TIFF \(bitDepth)-bit"
+        case .avif: "AVIF \(quality) \(bitDepth)-bit"
+        case .jpegXl: "JPEG XL lossless \(bitDepth)-bit"
+        case .dng: "DNG linear float"
         }
         parts.append(file)
-        parts.append(colorSpace.title)
+        parts.append(format == .dng ? "Linear Rec. 2020" : colorSpace.title)
         if resize.unit != .px || format != .png { parts.append("\(dpi) dpi") }
         if upscale > 1 { parts.append("\(upscale)× upscale") }
+        if let mark = watermark { parts.append(mark.kind == .text ? "Text watermark" : "Graphic watermark") }
         return parts.joined(separator: " · ")
     }
 

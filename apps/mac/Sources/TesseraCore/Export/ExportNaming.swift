@@ -55,7 +55,7 @@ public enum ExportNaming {
     }
 
     /// The sheet's live example: the first photo's output name, or the problem.
-    public static func example(template: String, firstName: String, date: Date, format: ExportSettings.FileFormat,
+    public static func example(template: String, firstName: String, date: Date, format: ExportSettings.OutputFormat,
                                count: Int) -> String {
         switch fileName(template: template, name: firstName, sequence: 1, date: dateToken(date), extension: format.fileExtension) {
         case .success(let name):

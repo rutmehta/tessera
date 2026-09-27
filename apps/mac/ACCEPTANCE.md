@@ -1559,3 +1559,60 @@ unchanged, missing models are named with their source, and nothing is downloaded
 | `document.remove.review.summary` · `document.remove.review.apply` · `document.remove.review.cancel` | Distraction review bar |
 | `document.neural.filter.<kind>` · `document.neural.<kind>.<key>` · `document.neural.output` | Neural Filters list rows, sliders, Output picker |
 | `document.neural.missing` · `document.neural.error` · `document.neural.apply` · `document.neural.cancel` · `document.neural.reset` | Missing-model block, error block, footer buttons |
+
+## AA. Export: AVIF, JPEG XL, DNG, file size limit and watermarks (M2-46)
+
+Continues section O (engine backend, `$SCR/raw3` open, three photos selected, File ▸ Export… open). Only what the
+engine writes today is offered; the rest is shown disabled with the reason. Known gaps: tools/orchestrate/wp/M2-46/REPORT.md.
+
+500. **Tests.**
+     ```sh
+     (cd apps/mac && swift test --filter 'ExportFormatsWatermarkTests|ExportPrintTests|ThemeLintTests' 2>&1 | grep Executed)
+     ```
+     Expect `Executed 7 tests, with 0 failures`, `Executed 9 tests, with 0 failures` and `Executed 1 test, with 0 failures`
+     (real AVIF / JPEG XL / DNG exports, size-limit convergence, text and graphic watermarks, preset round trips).
+501. **Formats.** 📸 File Settings ▸ Format shows six segments: **JPEG · PNG · TIFF · AVIF · JPEG XL · DNG**. Choose
+     **AVIF**: Quality, Bit depth **8-bit · 10-bit · 12-bit** and Speed (1–10) appear; a dimmed **HDR output** checkbox
+     with the hint `HDR output (PQ / HLG, gain maps) is not available yet…`. The summary reads `… AVIF <q> 8-bit …`.
+502. **JPEG XL.** Choose **JPEG XL**: Compression reads **Lossless** (no Quality slider), Bit depth **8-bit · 16-bit**, the
+     hint `Lossy JPEG XL is not available yet…`; Colour space is dimmed on **sRGB** with `Lossless JPEG XL is written in
+     sRGB only.`
+503. **DNG.** Choose **DNG**: Data reads **Linear 32-bit float** with the *baked edits* explanation; Colour space is
+     dimmed (`DNG is always linear Rec. 2020…`); the Watermark control is dimmed with the warning `Watermarks are not
+     available for DNG…`. Summary: `… DNG linear float · Linear Rec. 2020 …`.
+504. **JPEG size limit.** Choose **JPEG**: under Quality, tick **Limit file size to** and type `300` **KB**. The summary
+     shows `JPEG <q> ≤ 300 KB`. Switch to PNG and back: the limit is off (only JPEG has one), and ticking it again restores 300. Choose a folder `$SCR/m246`
+     and export: every `.jpg` is at most 300,000 bytes (`stat -f %z "$SCR"/m246/*.jpg`).
+505. **Text watermark.** Watermark ▸ **Text**. 📸 Expect Text (`© `), Font (a pop-up of installed .ttf / .otf fonts,
+     Arial by default, and **Other…**), Size %, Colour, Rotation °, then Opacity %, Position (3 × 3 grid, bottom right
+     chosen), Inset %, and the **Preview** well: a 3:2 placement preview with the chip `Placement preview`. Type
+     `© Tessera`, set Size 10 %, move Position to top left, Rotation −20: the preview text follows each change.
+506. **Engine preview.** Click **Render with Engine**: a spinner, then the well shows the first photo rendered by the
+     engine at 480 px with the watermark (chip `Rendered by the engine`). Change the opacity: the well returns to the
+     placement preview until rendered again.
+507. **Graphic watermark.** Watermark ▸ **Graphic**, **Choose…** a PNG (e.g. a logo with transparency), Scale 25 %,
+     Position centre. Switch to **Text** and back: both kinds keep their fields. Export PNG to `$SCR/m246-mark`: the
+     graphic is burned into the centre of every file, the same size relative to the short edge.
+508. **Presets.** Preset menu ▸ **Save as Preset…** `Marked AVIF` (AVIF 10-bit, text watermark). Choose **Web 2048
+     sRGB**, then **Marked AVIF**: every field returns. Quit and relaunch: still there. The four shipped presets and any
+     preset saved before M2-46 load unchanged (no watermark, no size limit).
+509. **Other formats on disk.** Export once each as AVIF, JPEG XL and DNG to `$SCR/m246-fmt`. Expect `.avif`, `.jxl`
+     and `.dng` files; Preview.app opens the AVIF and the JPEG XL; the DNG opens in a raw editor such as Lightroom or
+     darktable (Apple's Preview cannot decode this linear float DNG).
+
+## Verdict (export formats and watermarks)
+
+PASS when steps 500–509 meet their expectations. Disabled controls with their reasons are expected, not failures.
+
+## Appendix: accessibility identifiers (M2-46)
+
+| Identifier | Element |
+| --- | --- |
+| `export-format` · `export-quality` · `export-bit-depth` · `export-avif-speed` · `export-jxl-lossless` · `export-dng-note` | File Settings: format bar, Quality, Bit depth, AVIF Speed, JPEG XL "Lossless", DNG explanation |
+| `export-color-space` · `export-color-space-note` · `export-hdr` | Colour space pop-up, its "does not apply" hint, the disabled HDR checkbox |
+| `export-size-limit` · `export-size-limit-kb` | JPEG "Limit file size to" checkbox and KB field |
+| `export-watermark-kind` · `export-watermark-unavailable` | None / Text / Graphic control; the DNG warning |
+| `export-watermark-text` · `export-watermark-font` · `export-watermark-size` · `export-watermark-color` · `export-watermark-rotation` | Text watermark fields |
+| `export-watermark-graphic` · `export-watermark-choose` · `export-watermark-scale` | Graphic watermark file, Choose…, Scale |
+| `export-watermark-opacity` · `export-watermark-anchor` · `export-watermark-anchor-<top_left…bottom_right>` · `export-watermark-inset` | Shared: Opacity, Position grid and its nine cells, Inset |
+| `export-watermark-preview` · `export-watermark-render` · `export-watermark-problem` | Preview well, Render with Engine, problem line |

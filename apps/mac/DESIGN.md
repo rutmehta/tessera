@@ -258,6 +258,16 @@ channel colours composited additively. The Lens Blur **focal range strip** (`Foc
 too: `plotWell`, a near → far ramp from `plotGuide` to `plotGrid`, the in-focus band in `accentSubtle`
 (it is a selection) between two 2 pt `plotLine` handles, `Near` / `Far` in 11 pt `plotText`.
 
+**Export sheet additions** (M2-46): no new colour, size or font. The format bar is the sheet's 24 pt
+`SegmentedPicker` with six segments; format-specific rows (Quality, Bit depth, AVIF Speed, JPEG XL "Lossless", DNG
+"Linear 32-bit float") follow it, and anything the engine cannot do is a disabled native control with a `Hint` giving
+the reason (HDR, lossy JPEG XL, colour space for JPEG XL / DNG) or a warning `StatusLine` (no watermark on DNG). The
+Watermark section uses a None / Text / Graphic `SegmentedPicker`, native fields, `ColorPicker` (the user's colour is
+data) and the **anchor grid** (`AnchorPicker`): a `well` track with a hairline, 3 × 3 cells, the chosen cell raised
+with the 1 pt shadow and a `textPrimary` dot, the others a `textTertiary` dot (neutral, like segmented controls). The
+**placement preview** is a 240 × 160 scope well (`plotWell`, radius 4, `plotGuide` hairline frame) with the watermark
+drawn in its own font and colour, or the engine's 480 px render once requested, and an on-image scrim chip naming which.
+
 **Transform / Lens Blur panels** (M2-48): the Upright bar (`UprightModeBar`) is a 20 pt
 `SegmentedPicker`-look track with six icon segments; the chosen segment adds its name (the only way six
 modes fit the 288 pt inspector). Per-group resets are borderless 20 pt **Reset** buttons on the
