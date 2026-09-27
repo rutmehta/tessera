@@ -4,46 +4,41 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
-## Current coordinator checkpoint — 2026-09-27 17:53 UTC
+## Current coordinator checkpoint — 2026-09-27 18:30 UTC
 
-Published M5-31 candidate **441da3e3f83f46ee04536fa8b6248c2519d6d619** on
-wp/M5-31. Zero-dispatch/identity-based source reuse, non-Dissolve seed
-canonicalization and valid-ID regressions passed326compositor tests,0failures,
-14ignored plus focused6+1+5guards and strict Clippy/fmt. All six separately run
-fresh-process timings passed unchanged limits on A (AppleM4,10cores,24GiB).
-Original fixture resident cold48.938917/40.873750/43.386083ms; unique-ID
-companion44.990791/41.301125/37.710209ms. All warm values pass100ms.
-Evidence: wp/M5-31 tools/orchestrate/wp/M5-31/evidence/2026-09-27-source-reuse/.
-The corrected invalid smart-child fixture failure is preserved with the retry.
+A is validating combined integration commit26099ce in the isolated
+export-integration worktree. The accepted DNG/PQ-HLG/native metadata slice passed
+564 Rust tests, strict Clippy, workspace/license/format checks, FFI generation and
+Swift build. Review ownership/save-order fixes at e886888 passed21focused Swift
+tests. The combined full Swift release suite now runs in A session19525; main
+integration remains pending this result. The first missing-fixture Rust failure
+is preserved alongside the successful retry.
 
-B: repeat both exact timing names three times on441da3e when your heavy slot is
-free. Prior125.855125ms failure is not waived by A's results. Full command and
-request published in mailbox4820486e-d71c-4fb1-a88f-6919f34d0eaa, following the
-bootstrap handshake. No B receipt or automatic wakeup is yet confirmed; do not
-merge main. Retain active B5 Document ownership.
+UX01 remains shipped on main4925677. UX02a navigation is source-ready in the UI
+worktree, with an independent behavior review and offscreen harness preparation
+in progress. It builds on the settled ownership API and owner/image save barriers.
+Queue relaunch persistence remains a later UX02b task. Develop close now flushes
+queued slider/mask edits and coalesces actual backend close completion; matching
+pending opens are cancelled and awaited without touching another library.
 
-UX-01 full Swift checkpoint:411XCTest/1opt-in skip/0failures plus5SwiftTesting.
-Final hint/copy repairs:28targeted tests and40offscreen layouts pass. Additional
-ready Sony RAW check:1test passes, populated Develop/Masks controls, stable
-controller/target/history across tabs, no geometry/overlap finding. Root inspected
-Library dark/light, narrow Library/Mask, ready RAW Develop/Mask screenshots.
-Existing dense overlay hints and Masks Components wrapping remain UX-04 polish.
-UX-01 sourcec417229 is now merged/pushed on main4925677. Root verified
-merged Sources/Tests byte-identical to the gated commit. UI agent advances UX02a
-navigation-only Review; ownership fix remains separately scoped. B should use
-this new shared AppModel/KeyRouter/Shell baseline when resolving integration.
+M5-31 remains unmerged. A’s six timings passed, but direct B verification of
+441da3e failed its first original cold sample106.084084ms/100ms. All six samples
+are published at wp/M5-31 97eb4ca. Passive diagnostics on B did not reproduce the
+outlier or establish its cause; they are separate on codex/m531-cold-diagnostics
+2f46d97 and do not replace acceptance. No speculative production fix was made.
 
-Review-ownership RED reproduced all four hazards with6expected assertions, no
-setup failures. The agent now fixes source-only; root owns the heavy slot for
-export integration gate session25483. Gain-map encoder core/host restoration is source
-ready on codex/gainmap-restoration but fresh live-output tests are pending. Root
-independently reproduced retained-prototype and Skia ISO SDR/HDR pixel decoding;
-original4%center criterion and separate boundary discrepancy are preserved.
+B’s free completed B5-16a checkout is now allocated to gain-map validation of an
+immutable13-file snapshot based on69bcd3e. Snapshot archive SHA256:
+0c94c47d11d8375e07c4827ad0ae1c069981e6c5ede91786734409e166a853a6.
+B: preserve this checkout and cache until the ownership note marks completion.
+Its active Document branches and original B5-16a branch reference remain intact.
+Core and host tests will retain every failure and require native ImageIO pixels,
+not just metadata. Gain-map JPEG remains unvalidated and unmerged.
 
-INT-45 pending merge remains isolated in export-integration; formatting/license
-checks passed. M2-58 actual presentation acceptance remains pending the measurement
-conditions in M2-58-PRESENTATION-PLAN.md. A's five-minute heartbeat is active and
-polls the durable mailbox; SSH now exposes B’s coordinator for reading; direct messaging currently returns an active-writer conflict (see checkpoint below).
+SSH read and command execution work. Sending to B’s existing desktop chat still
+fails with an active-writer conflict; no B chat receipt or heartbeat is claimed.
+A’s five-minute heartbeat is active and records the verified remote host/chat
+identity. Git mailbox and status notes remain durable coordination fallback.
 
 ## Direct SSH verification outcome — 2026-09-27 18:13 UTC
 

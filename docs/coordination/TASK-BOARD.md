@@ -1,6 +1,6 @@
 # Tessera task board — Machine A coordinator
 
-Updated: 2026-09-27 18:05 UTC
+Updated: 2026-09-27 18:30 UTC
 
 User mandate: autonomously advance UI/UX redesign **and** the recovered engine
 queue, using parallel GPT-6 Astra/Luna agents; coordinate Machine B and keep
@@ -54,16 +54,16 @@ late Accept overwrote new-folder status, and old-run completion updated/presente
 foreign queue state. INT-45 first gate stopped at a missing ignored RAW fixture in its new worktree;
 source fixture symlink and SHA-256 manifest are now restored, failure retained.
 UX02a RED compiled and failed its four expected Library-preservation assertions.
-Root INT-45 retry passed564tests/0fail/21ignored, strictClippy andworkspace checks.
-FFI/Swift gates now own A’s heavy slot (session39983).
-Gain-map source is ready and waits for live-output/host validation. B mailbox remains absent. Benchmark repeat request4820486e and exact-UUID SSH status70405bbf are published; receipt remains unconfirmed.
+INT-45 retry passed564tests/0fail/21ignored, strictClippy/workspace/license checks,
+FFI generation and Swift build. Ownershipfix e886888 passed21focused Swift tests.
+Combined source26099ce now runs the full Swift release suite on A(session19525).
+Gain-map immutable snapshot is now allocated to B’s free checkout for live-output/host validation, in parallel with A’s Swift gate. B mailbox remains absent. Benchmark repeat request4820486e and exact-UUID SSH status70405bbf are published; receipt remains unconfirmed.
 Root prepared INT-45 in the managed worktree
 `/Users/rutmehta/.codex/worktrees/export-integration/tessera`, branch
-`codex/export-integration`: main d5366d7 plus a clean **uncommitted merge** of
-wp/M2-45d69bcd3e. Candidate tree9fe7a245e2bc070e65fb3f4c0a4301f233ee473d;
-formatting and source whitespace checks pass. Preserve the merge state. Full
-five-package Rust/strict checks, licenses, workspace and FFI/Swift validation
-are running serially after fixture correction; no main merge yet.
+`codex/export-integration`: resolved export merge5e5593c, current-main merge
+d11c523 and ownership merge26099ce. Rust source matches the validated export
+tree; Swift source matches focused-tested ownershipe886888. Full combined Swift
+regressions pending; no main merge yet.
 
 EXP-45 diagnostic progress: independently sourced Skia ISO fixtures and the
 preserved Tessera prototype now yield actual SDR/HDR pixels in a small ImageIO
