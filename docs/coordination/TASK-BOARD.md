@@ -1,6 +1,6 @@
 # Tessera task board — Machine A coordinator
 
-Updated: 2026-09-27 22:44 UTC
+Updated: 2026-09-27 22:52 UTC
 
 User mandate: autonomously advance UI/UX redesign **and** the recovered engine
 queue, using parallel GPT-6 Astra/Luna agents; coordinate Machine B and keep
@@ -38,29 +38,29 @@ Machine A as sole main integrator. Do useful work while other tasks wait.
 
 ## Ready / next
 
-1. **Luna — desktop:** current-source Review candidate `16cb6ce5` passed full
-   Swift gate (494 XCTest, one skip, zero failures, plus five Swift Testing;
-   direct exit0). Root verified final source manifest and current FFI archive
-   `99ba9017`. Package the exact linked executable, then complete disposable
-   two-photo quit/relaunch GUI acceptance. No Review main merge yet. Original
-   failed gate is preserved; corrected fixtures inject isolated support. The
-   global record audit found11 test-owned records, all absent UUID fixture paths;
-   originals remain intact and evidence is being reconciled.
-2. **Engine Sol — compiler:** run frozen PSD conversion snapshot `4aa71a620bb7`
-   with two workers and bounded watchdog. Independent source review found no
-   blocker; compiler/tests are not yet accepted. Preserve any failed gate.
-3. **Resource Sol — next compiler:** pure UX03 draft RED candidate `a988b710`,
-   then approved immutable model and focused tests. No UI, batch writes or undo
-   implementation in this slice. Engine Sol releases compiler first.
-4. **B — source only:** operation7240948 review found a real-error/cancel race.
-   Result339d5538 failed review; correction requestfbd39d94 has a confirmed peer
-   accepted receipt (SSH queue01a0e507). Await separate typed-error correction,
-   then A integrates the same native token with the compositor primitive and
-   regenerates bindings. No B workload or heartbeat restart.
+1. **Luna — desktop / editing readiness:** Review persistence merged main7adc4fa2
+   after494XCTest/1skip/0failure+5SwiftTesting on16cb6ce5/currentFFI99ba and tiny
+   JPEG quit/relaunch GUI. Evidence1b0f5283 includes source/log/exit/sidecars/record;
+   UI observations are narrative, not a saved screenshot/AX transcript. Exact
+   tested executable remains the isolated validation bundle. Per user request
+   relayed by B7be2fbaf, now prioritize fresh tiny JPEG open/basic adjustments/
+   save-reopen/export smoke and a concrete usable-build assessment. Full project
+   date and large RAW/resource readiness are not established.
+2. **Resource Sol — compiler:** pure UX03 draft REDa988b710 then approved frozen
+   model/focused tests. No batch writer/UI/undo implementation in this slice.
+3. **Engine Sol — source:** PSD primitive DONE mainebe7b043, exact745cf77e
+   crates/Cargo;66tests/strict pass, both compile failures preserved. Now prepare
+   isolated operation integration B7240948+typed correction0df02c4, same native
+   token, known nested test module-path repair, targeted native/bindings/Swift
+   validation. Wait for UX03 compiler release before builds.
+4. **B — source only:** audit remaining legacy effect cancellation type erasure
+   requestab6dceee has accepted peer receipt. Resultb7294f0e correction accepted
+   for A integration; no compile acceptance yet. B workload/heartbeat hold stays.
 
-Frame/cache main78492f7f and viewport main1c0f36b8 are integrated with exact
-passing evidence. PSD admission source proposal remains a modeled-work design,
-not a process memory cap or measured safe default. See resource-audit-20260927.
+A alone merges main. Current app validation99ba predates the newly merged PSD
+primitive; do not represent it as rebuilt from latest main. PSD admission proposal
+is modeled-work design, not a memory cap. Ten initially copied global test records
+were later audited as11; all use absent UUID fixture paths, originals preserved.
 
 Current integrated product checkpoints:
 
@@ -89,14 +89,14 @@ notes. Existing-chat SSH queues and peer Git receipts remain distinct states.
 | DEV-58 | Complete remaining Develop performance acceptance | A; `wp/M2-58` `196005e` product `5ff2679` | P01 actual input-to-present and P11 detail settle<=200ms /drag p95 regression<=10% remain unverified. Read M2-58-PRESENTATION-PLAN.md: actual Loupe scanout requires a non-occluded surface and detail CALayer publication lacks a display-time oracle. Keep acceptance pending; do not substitute callbacks or transaction completion. Existing correctness/parity evidence preserved. |
 | EXP-45 | Gain-map JPEG reference interoperability and implementation | A root; preserved codex/gainmap-restoration | A core gate FAILED:4passed/1failed; four-stop native peak7.9837623 vs16. Captured outputs preserved. ImageIO options tested unchanged; software CoreImage reconstructs the same four-stop file to16, ImageIO path still8. Supplemental software CoreImage and targetedCLI/FFI/MCP passed, evidencec716460; original failed assertion retained, no tolerance changes. B frozen core1pass/4fail; independent ISO controls also yield no native HDR on B macOS26.1, documented as tested-host limitation, not encoder acceptance. Independent libjpeg reconstruction passes5patches. B snapshot/capture preserved; no new B runs while its slot is reserved. |
 | INT-45 | Integrate validated DNG/PQ-HLG/native metadata slice | A root; main fb7c604 | DONE bounded slice. 564Rust/0fail/21ignored, strictchecks, FFI, final436XCTest/1existing skip/0fail +5SwiftTesting. DNG1.6/backward1.4 contract verified. Gain-map JPEG separate. |
-| UX-02 | Navigable Review and resume persistence | A root; Review workspace merged b2757c7 | Ownership/save barriers and mutation exclusion DONE:23regressions included in full436+5 gate. UX02a source4fcb802 passed43focused tests; 34captures include real ready pixels; recovered2-test status/ready gate passed. Checkpoint a54044f and isolated hands-on checks passed; fe0ff9e full455+5 passed and merged mainb2757c7. UX02b plan reviewed: latest queue, canonical same-path library/app-support, no prompts or auto-replay, recipe-authoritative status, fresh owner/generation. Candidate16cb6ce5 full494/1skip/0 plus5 passes against current FFI99ba; Luna GUI relaunch pending. Move/rename identity remains outside contract. |
+| UX-02 | Navigable Review and resume persistence | A root; Review workspace merged b2757c7 | Ownership/save barriers and mutation exclusion DONE:23regressions included in full436+5 gate. UX02a source4fcb802 passed43focused tests; 34captures include real ready pixels; recovered2-test status/ready gate passed. Checkpoint a54044f and isolated hands-on checks passed; fe0ff9e full455+5 passed and merged mainb2757c7. UX02b plan reviewed: latest queue, canonical same-path library/app-support, no prompts or auto-replay, recipe-authoritative status, fresh owner/generation. DONE bounded persistence slice main7adc4fa2:16cb6ce5 full494/1skip/0 plus5 and tiny JPEG GUI relaunch pass, evidence1b0f5283. Move/rename identity remains outside contract. |
 | UX-03 | Selective batch editing and source/target clarity | A resource Sol; codex/batch-settings-draft | Pure immutable draft REDa988b710 waits compiler; frozen source/targets, safe field groups and partial merge tests. Executor/UI blocked on complete recipe revision, shared writer exclusion and durable run/revert contract. No hidden batch shortcut. |
 | UX-04 | Visual/accessibility refinement | A b516_review implementation; B agreed split | Masks slice041778b passed populated 288/380-point light/dark checks and ThemeLint (2/2), with root visual review; merged mainb2757c7 after full455+5 gate. Loupe bounded disclosure/keyboard slice merged mainb18ab0bb after final14/0 and GUI: both popovers Escape→dismiss/stayLoupe, nextEscape→Grid, Right/D/X noleak, narrowlongname disclosure. RAW pointer/liveproof and syntheticCmdQ remain unverified. No Document/global-theme edits. |
 | UX-05 | True live-RAW/layer continuity | A engine+B document contract | Separate substantial dependency: current transition is rendered copy. Define graph/persistence/version contract and release scenario before making live-raw claims. |
 
 ## Machine B / integration dependencies
 
-Last peer note read: `7240948`. B's resource hold supersedes its older queue.
+Last peer note read: `0df02c4`. B's resource hold supersedes its older queue.
 Channels and Text targeted reruns passed with actual exit0; Transform was stopped
 at rasterized PSD after986%CPU and7.0GiB footprint (7.5GiB peak). Host43GiBswap
 is not all Tessera. B heartbeat and runner remain held. A accepted hold7cf0f7e2

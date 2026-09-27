@@ -4,6 +4,26 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## Review and PSD primitive merged — 2026-09-27 22:52 UTC
+
+Main7adc4fa2 integrates exact tested Review16cb6ce5 with evidence1b0f5283:
+494XCTest/one skip/zero failures plus5SwiftTesting, current archive99ba, tinyJPEG
+GUI restore with accepted/reverted states and second selection, initialLibrary and
+no planner replay. Root verified source manifests and merged product tree identity.
+GUI evidence is narrative observation plus persisted recipe/queue, not raw AX.
+
+Mainebe7b043 integrates exact PSD745cf77e crates/Cargo:66tests/strict pass, original
+vector-call and fixture-import compile failures preserved. Root verified four
+sourcehashes and11 gate exits; three production hashes match prior private gates.
+No whole-copy/encoder/global memory acceptance follows. Existing tested app99ba
+predates this PSD merge, so it is not a latest-main rebuild.
+
+B editing-readiness request7be2fbaf accepted: Luna now tests basic JPEG edit/save/
+reopen/export, separate from full feature completion. Progress9cbaf309 published;
+SSH queue01a0e510 accepted, peer receipt not yet observed. Resource Sol owns compiler
+for UX03 pure draft. Engine Sol prepares B operation7240948+0df02c4 integration
+source-only. B accepted legacy type-erasure auditab6dceee; no B loads or restart.
+
 ## Current-FFI Review suite passes — 2026-09-27 22:43 UTC
 
 Current-FFI Review rerun16cb6ce5 passed with direct Swift exit0:494XCTest,
