@@ -436,3 +436,13 @@ drains and prioritizes observed failures. No implementation/tests/workloads.
 User now asks when they can edit photos; requested A assess a concrete validated
 editing build and exact blockers separately from full-feature completion via
 mailbox7be2fbaf. This does not lift B hold or restart heartbeat.
+
+## Typed legacy effect candidate — d20e6e9b (2026-09-27)
+
+Validated/accepted implementation request. Only filters.rs product helpers,
+evaluator and tests changed; RequestCancellation struct/accessor left for A.
+Typed errors now survive run_effect/Spec::run/eval_stack to explicit native or
+legacy exit. Production collector drains all results; first genuine failure wins
+cancellation. Six tiny tests added UNRUN; details in
+LEGACY-EFFECT-TYPED-IMPLEMENTATION.md. Formatting/diff checks only. B hold and
+paused heartbeat preserved; A owns compilation/main and editing-readiness smoke.

@@ -220,25 +220,95 @@ fn adapter_id(id: &str) -> bool {
     )
 }
 
+/// Private evaluation errors remain typed until the native or legacy boundary.
+#[derive(Debug)]
+enum FilterEvalError {
+    Cancelled,
+    Failed(crate::BridgeError),
+}
+type FilterEvalResult<T> = std::result::Result<T, FilterEvalError>;
+impl From<crate::BridgeError> for FilterEvalError {
+    fn from(error: crate::BridgeError) -> Self {
+        Self::Failed(error)
+    }
+}
+impl From<engine_api::EngineError> for FilterEvalError {
+    fn from(error: engine_api::EngineError) -> Self {
+        match error {
+            engine_api::EngineError::Cancelled => Self::Cancelled,
+            other => Self::Failed(other.into()),
+        }
+    }
+}
+impl FilterEvalError {
+    fn into_bridge(self) -> crate::BridgeError {
+        match self {
+            Self::Cancelled => failure("cancelled"),
+            Self::Failed(error) => error,
+        }
+    }
+    fn into_engine(self) -> engine_api::EngineError {
+        match self {
+            Self::Cancelled => engine_api::EngineError::Cancelled,
+            Self::Failed(error) => {
+                engine_api::EngineError::invalid("smart filter", error.to_string())
+            }
+        }
+    }
+}
+fn effect_checkpoint(cancel: &AtomicBool) -> FilterEvalResult<()> {
+    if cancel.load(Ordering::Relaxed) {
+        Err(FilterEvalError::Cancelled)
+    } else {
+        Ok(())
+    }
+}
+
+/// Drain every already-running result, even after cancellation. A real failure
+/// from any worker wins cancellation; first received real failure is retained.
+fn collect_effect_results<T>(
+    results: impl IntoIterator<Item = FilterEvalResult<T>>,
+    mut accept: impl FnMut(T),
+) -> FilterEvalResult<()> {
+    let mut failure = None;
+    let mut cancelled = false;
+    for result in results {
+        match result {
+            Err(FilterEvalError::Failed(error)) => {
+                if failure.is_none() {
+                    failure = Some(error);
+                }
+            }
+            Err(FilterEvalError::Cancelled) => cancelled = true,
+            Ok(value) if failure.is_none() && !cancelled => accept(value),
+            Ok(_) => {}
+        }
+    }
+    if let Some(error) = failure {
+        Err(FilterEvalError::Failed(error))
+    } else if cancelled {
+        Err(FilterEvalError::Cancelled)
+    } else {
+        Ok(())
+    }
+}
+
 impl Spec {
     fn run(
         &self,
         img: &Img,
         context: &compositor::render::smart_filters::FilterContext,
         cancel: &AtomicBool,
-    ) -> Result<Img> {
+    ) -> FilterEvalResult<Img> {
+        effect_checkpoint(cancel)?;
         if !adapter_id(&self.id) {
             let (effect, params) = self.at(context.level as u8)?;
             return run_effect(effect, &params, img, cancel);
         }
         if context.level != 0 || img.rect != Rect::of_extent(context.canvas) {
-            return Err(failure(
-                "retouch filters require the complete level-0 canvas",
-            ));
+            return Err(failure("retouch filters require the complete level-0 canvas").into());
         }
-        if cancel.load(Ordering::Relaxed) {
-            return Err(failure("cancelled"));
-        }
+        effect_checkpoint(cancel)?;
         let v: serde_json::Value = serde_json::from_str(&self.json).map_err(failure)?;
         let input = raster_from_rgba(context.canvas, compositor::Depth::F32, &img.px, false)?;
         use compositor::render::smart_filters::SmartFilterEvaluator;
@@ -251,9 +321,7 @@ impl Spec {
             },
             context,
         )?;
-        if cancel.load(Ordering::Relaxed) {
-            return Err(failure("cancelled"));
-        }
+        effect_checkpoint(cancel)?;
         Ok(Img {
             rect: img.rect,
             px: raster_rgba(&output)?,
@@ -1011,7 +1079,13 @@ fn premultiplied(e: Effect) -> bool {
 /// `effect` over `img`. Neighbourhood filters run in parallel blocks with
 /// real-neighbour halos (clamped at the image edge, as the crate clamps at
 /// the canvas); whole-image filters run once over the image.
-fn run_effect(effect: Effect, p: &FilterParams, img: &Img, cancel: &AtomicBool) -> Result<Img> {
+fn run_effect(
+    effect: Effect,
+    p: &FilterParams,
+    img: &Img,
+    cancel: &AtomicBool,
+) -> FilterEvalResult<Img> {
+    effect_checkpoint(cancel)?;
     let (w, h) = (img.w(), img.h());
     if w == 0 || h == 0 {
         return Ok(img.clone());
@@ -1039,14 +1113,18 @@ fn run_effect(effect: Effect, p: &FilterParams, img: &Img, cancel: &AtomicBool) 
             }
         }
     };
-    let filter_block = |block: Rect| -> Result<Vec<f32>> {
+    let filter_block = |block: Rect| -> FilterEvalResult<Vec<f32>> {
+        effect_checkpoint(cancel)?;
         let mut src = img.crop(block);
         prep(&mut src.px);
         let e = Extent::new(src.w() as u32, src.h() as u32);
+        effect_checkpoint(cancel)?;
         let raster = raster_from_rgba(e, compositor::Depth::F32, &src.px, false)?;
         let out = effect.apply(&raster, p, cancel)?;
+        effect_checkpoint(cancel)?;
         let mut px = raster_rgba(&out)?;
         unprep(&mut px);
+        effect_checkpoint(cancel)?;
         Ok(px)
     };
     let halo = match effect.halo(p) {
@@ -1073,9 +1151,10 @@ fn run_effect(effect: Effect, p: &FilterParams, img: &Img, cancel: &AtomicBool) 
         }
         y += block;
     }
+    effect_checkpoint(cancel)?;
     let mut out = img.clone();
     let next = std::sync::atomic::AtomicUsize::new(0);
-    let (tx, rx) = std::sync::mpsc::channel::<Result<(Rect, Rect, Vec<f32>)>>();
+    let (tx, rx) = std::sync::mpsc::channel::<FilterEvalResult<(Rect, Rect, Vec<f32>)>>();
     std::thread::scope(|s| {
         for _ in 0..threads().min(blocks.len()) {
             let tx = tx.clone();
@@ -1095,8 +1174,7 @@ fn run_effect(effect: Effect, p: &FilterParams, img: &Img, cancel: &AtomicBool) 
         }
         drop(tx);
         let w = out.w();
-        for msg in rx.iter() {
-            let (b, ext, px) = msg?;
+        collect_effect_results(rx, |(b, ext, px)| {
             let ew = ext.width() as usize;
             for y in b.y0..b.y1 {
                 let src = ((y - ext.y0) as usize * ew + (b.x0 - ext.x0) as usize) * 4;
@@ -1104,12 +1182,9 @@ fn run_effect(effect: Effect, p: &FilterParams, img: &Img, cancel: &AtomicBool) 
                 let n = b.width() as usize * 4;
                 out.px[dst..dst + n].copy_from_slice(&px[src..src + n]);
             }
-        }
-        Ok::<(), crate::BridgeError>(())
+        })
     })?;
-    if cancel.load(Ordering::Relaxed) {
-        return Err(failure("cancelled"));
-    }
+    effect_checkpoint(cancel)?;
     Ok(out)
 }
 
@@ -1174,7 +1249,8 @@ fn eval_stack(
     canvas: Extent,
     profile: Option<compositor::document::ColorProfile>,
     cancel: &AtomicBool,
-) -> Result<Img> {
+) -> FilterEvalResult<Img> {
+    effect_checkpoint(cancel)?;
     let mut cur = src;
     for n in nodes.iter().filter(|n| n.enabled) {
         let f = n.spec.run(
@@ -1186,6 +1262,7 @@ fn eval_stack(
             },
             cancel,
         )?;
+        effect_checkpoint(cancel)?;
         let mask = n
             .mask_png
             .as_deref()
@@ -1211,6 +1288,7 @@ fn eval_stack(
             b[3] += k * (s[3] - b[3]);
         }
     }
+    effect_checkpoint(cancel)?;
     Ok(cur)
 }
 
@@ -1653,8 +1731,8 @@ impl compositor::render::smart_filters::SmartFilterEvaluator for NativeFilterEva
             self.cancel.native.check()?;
             return Ok(result);
         }
-        // Legacy bridge errors have erased their original type. Preserve them
-        // as failures: a concurrently set flag is not proof of cancellation.
+        // Parsing/raster bridge failures stay failures; typed evaluation below
+        // preserves cancellation without inferring it from a later flag.
         let convert =
             |e: crate::BridgeError| engine_api::EngineError::invalid("smart filter", e.to_string());
         let mut node = Node::of(filter).map_err(convert)?;
@@ -1672,7 +1750,8 @@ impl compositor::render::smart_filters::SmartFilterEvaluator for NativeFilterEva
             context.profile.clone(),
             &self.cancel.effect,
         )
-        .map_err(convert)?;
+        .map_err(FilterEvalError::into_engine)?;
+        self.cancel.native.check()?;
         raster_from_rgba(input.extent(), compositor::Depth::F32, &out.px, false).map_err(convert)
     }
 }
@@ -1810,7 +1889,8 @@ fn filtered_with_cancel(
             base.canvas,
             base.profile.clone(),
             cancel,
-        )?;
+        )
+        .map_err(FilterEvalError::into_bridge)?;
         // Cache the prefix below the top filter (what previews re-run on).
         if k + 2 == nodes.len() {
             store_prefix_with(q, prefix_key(k + 1), &cur, Img::clone);
@@ -3562,5 +3642,173 @@ mod image_cache_tests {
                 .any(|entry| entry.key.starts_with("stack:"))
         );
         assert!(disabled.lock().imgs.entries.is_empty());
+    }
+}
+
+/// Source-only candidate: UNRUN on B; A owns bounded compilation and execution.
+#[cfg(test)]
+mod legacy_effect_cancellation_tests {
+    use super::*;
+    use std::cell::Cell;
+    use std::time::Duration;
+
+    fn tiny() -> Img {
+        Img {
+            rect: Rect::of_extent(Extent::new(2, 2)),
+            px: vec![0.25; 16],
+        }
+    }
+
+    #[test]
+    fn tiny_gaussian_keeps_typed_precancel_and_fresh_success() {
+        let image = tiny();
+        let cancelled = AtomicBool::new(true);
+        assert!(matches!(
+            run_effect(
+                Effect::Gaussian,
+                &FilterParams::default(),
+                &image,
+                &cancelled
+            ),
+            Err(FilterEvalError::Cancelled)
+        ));
+        let fresh = AtomicBool::new(false);
+        assert!(run_effect(Effect::Gaussian, &FilterParams::default(), &image, &fresh).is_ok());
+        let empty = Img {
+            rect: Rect::new(0, 0, 0, 0),
+            px: Vec::new(),
+        };
+        assert!(run_effect(Effect::Gaussian, &FilterParams::default(), &empty, &fresh).is_ok());
+        assert!(matches!(
+            run_effect(
+                Effect::Gaussian,
+                &FilterParams::default(),
+                &empty,
+                &cancelled
+            ),
+            Err(FilterEvalError::Cancelled)
+        ));
+    }
+
+    #[test]
+    fn native_evaluator_receives_typed_legacy_effect_cancellation() {
+        let cancel = Arc::new(RequestCancellation::default());
+        // Deliberately exercise the effect path, not the native entry checkpoint.
+        cancel.effect.store(true, Ordering::Release);
+        let evaluator = NativeFilterEvaluator { cancel };
+        let input = Raster::new(Extent::new(2, 2), 4, compositor::Depth::F32, 0.25);
+        let filter =
+            Node::new(Spec::parse(r#"{"id":"gaussian_blur","params":{"radius":1}}"#).unwrap())
+                .store();
+        let context = compositor::render::smart_filters::FilterContext {
+            profile: None,
+            level: 0,
+            canvas: input.extent(),
+        };
+        use compositor::render::smart_filters::SmartFilterEvaluator;
+        assert!(matches!(
+            evaluator.evaluate(&input, &filter, &context),
+            Err(engine_api::EngineError::Cancelled)
+        ));
+    }
+
+    #[test]
+    fn collector_drains_and_real_failure_wins_both_arrival_orders() {
+        for cancel_first in [false, true] {
+            let cancellation = Err(FilterEvalError::Cancelled);
+            let genuine = Err(FilterEvalError::from(failure("genuine")));
+            let mut results = if cancel_first {
+                vec![cancellation, genuine]
+            } else {
+                vec![genuine, cancellation]
+            };
+            results.push(Ok(7));
+            results.push(Err(FilterEvalError::from(failure("later"))));
+            let seen = Cell::new(0);
+            let accepted = Cell::new(0);
+            let result = collect_effect_results(
+                results.into_iter().inspect(|_| seen.set(seen.get() + 1)),
+                |_| accepted.set(accepted.get() + 1),
+            );
+            assert_eq!(seen.get(), 4, "must drain after either error");
+            assert_eq!(accepted.get(), 0, "no copying after an error");
+            match result {
+                Err(FilterEvalError::Failed(error)) => assert_eq!(error.to_string(), "genuine"),
+                _ => panic!("first real error must win"),
+            }
+        }
+        let mut scratch = Vec::new();
+        let result =
+            collect_effect_results([Ok(1), Err(FilterEvalError::Cancelled), Ok(2)], |value| {
+                scratch.push(value)
+            });
+        assert_eq!(scratch, [1]); // Private scratch only; Err prevents image return/publication.
+        assert!(matches!(result, Err(FilterEvalError::Cancelled)));
+    }
+
+    #[test]
+    fn gated_real_engine_error_is_not_reclassified_after_cancel() {
+        let cancel = Arc::new(RequestCancellation::default());
+        let (entered_tx, entered_rx) = std::sync::mpsc::channel();
+        let (release_tx, release_rx) = std::sync::mpsc::channel();
+        let request = cancel.clone();
+        let worker = std::thread::spawn(move || {
+            let error = engine_api::EngineError::invalid("effect test", "genuine");
+            entered_tx.send(()).unwrap();
+            release_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+            assert!(request.is_cancelled());
+            let result = collect_effect_results::<()>(
+                [
+                    Err(FilterEvalError::from(error)),
+                    effect_checkpoint(&request.effect),
+                ],
+                |_| {},
+            );
+            result.map_err(FilterEvalError::into_engine)
+        });
+        entered_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        cancel.cancel();
+        release_tx.send(()).unwrap();
+        let result = worker.join().unwrap();
+        assert!(result.is_err());
+        assert!(!matches!(result, Err(engine_api::EngineError::Cancelled)));
+    }
+
+    #[test]
+    fn malformed_mask_failure_survives_later_cancel() {
+        let mut node =
+            Node::new(Spec::parse(r#"{"id":"gaussian_blur","params":{"radius":1}}"#).unwrap());
+        node.mask_png = Some("not-base64".into());
+        let cancel = AtomicBool::new(false);
+        let result = eval_stack(tiny(), &[node], 0, Extent::new(2, 2), None, &cancel);
+        assert!(matches!(result, Err(FilterEvalError::Failed(_))));
+        cancel.store(true, Ordering::Release);
+        assert!(matches!(result.map_err(FilterEvalError::into_engine),
+            Err(error) if !matches!(error, engine_api::EngineError::Cancelled)));
+    }
+
+    #[test]
+    fn compatibility_preserves_failures_without_string_or_flag_inference() {
+        let error = FilterEvalError::from(failure("cancelled"));
+        assert!(matches!(error, FilterEvalError::Failed(_)));
+        assert_eq!(error.into_bridge().to_string(), "cancelled");
+        assert!(matches!(
+            FilterEvalError::from(engine_api::EngineError::Cancelled).into_engine(),
+            engine_api::EngineError::Cancelled
+        ));
+        assert_eq!(
+            FilterEvalError::Cancelled.into_bridge().to_string(),
+            "cancelled"
+        );
+        let cancel = AtomicBool::new(false);
+        let invalid = FilterParams {
+            radius: f32::NAN,
+            ..Default::default()
+        };
+        let result = run_effect(Effect::Gaussian, &invalid, &tiny(), &cancel);
+        assert!(matches!(result, Err(FilterEvalError::Failed(_))));
+        // Setting the flag after a genuine result cannot change its variant.
+        cancel.store(true, Ordering::Release);
+        assert!(matches!(result, Err(FilterEvalError::Failed(_))));
     }
 }
