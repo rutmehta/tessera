@@ -38,6 +38,14 @@ Machine A as sole main integrator. Do useful work while other tasks wait.
 
 ## Ready / next
 
+PSD operation review7240948 found a blocking error/cancel race: real precommit
+errors can be hidden as Cancelled. Original result339d5538 has a failed receipt;
+source-only correction requestfbd39d94 is published. SSH queue01a0e507-a9a6-7603-b513-eeb952533ed6
+accepted transport; peer receipt not yet observed. Review and separate modeled
+admission proposal are preserved under resource-audit-20260927. Neither establishes
+whole-operation acceptance or a process memory cap. B workload hold continues.
+
+
 Latest checkpoint: corrected Review test freeze `16cb6ce5` is running against
 unchanged current archive99ba. Original failure log is retained; its shell wrapper
 lost the direct exit code, so the rerun captures it without a pipeline. Ten

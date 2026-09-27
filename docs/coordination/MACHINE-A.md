@@ -4,6 +4,15 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## PSD review correction requested
+
+PSD operation review7240948 found a blocking error/cancel race: real precommit
+errors can be hidden as Cancelled. Original result339d5538 has a failed receipt;
+source-only correction requestfbd39d94 is published. SSH queue01a0e507-a9a6-7603-b513-eeb952533ed6
+accepted transport; peer receipt not yet observed. Review and separate modeled
+admission proposal are preserved under resource-audit-20260927. Neither establishes
+whole-operation acceptance or a process memory cap. B workload hold continues.
+
 ## Review rerun and PSD operation received — 2026-09-27 22:40 UTC
 
 Latest checkpoint: corrected Review test freeze `16cb6ce5` is running against
