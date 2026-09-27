@@ -23,7 +23,7 @@ bridge compilation uses external target. No user data cleanup performed.
 Main d2ac1226 contains per-frame smart-filter reuse and retained-result admission.
 Merged crates/Cargo bytes match reviewed/tested resource head e5bfbd5c. Final gates:
 8 focused,60 library (1 ignored benchmark; small Metal tests exercised),48 selected
-CPU integration, strict Clippy/format. Initial fixture-ID failure and repair retained.
+integration (including a GPU-capable live case), strict Clippy/format. Initial fixture-ID failure and repair retained.
 Evidence: tools/orchestrate/wp/RES-01/evidence/2026-09-27/followup/README.md.
 This bounds retained unmasked results per frame, not total memory or GPU use.
 B source review673e2a7/result0926ae38 confirms receipt and identifies remaining
