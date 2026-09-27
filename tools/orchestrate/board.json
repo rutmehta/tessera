@@ -1355,7 +1355,7 @@
     "id": "M5-35",
     "owner": "astra",
     "title": "URGENT: smart-filter cache deadlock",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
