@@ -418,97 +418,6 @@ fn write_copy_atomic(
     Ok(())
 }
 
-#[cfg(test)]
-mod copy_transaction_tests {
-    use super::super::psd_copy::CopyError;
-    use super::*;
-    use std::cell::Cell;
-    #[test]
-    fn copy_conversion_uses_the_requests_live_native_token() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("copy.psd");
-        std::fs::write(&path, b"sentinel").unwrap();
-        let doc = Document::new(DocState::new(Extent::new(2, 2), compositor::Depth::U8));
-        let request = super::super::filtering::RequestCancellation::default();
-        request.cancel();
-        // The transaction's boundary check deliberately succeeds; the
-        // compositor must observe the very same native request token.
-        let result =
-            save_psd_copy_checked(&doc, &path, request.native_token(), &|| Ok(()), &|| {
-                panic!("cancelled conversion must not enter commit")
-            });
-        assert!(matches!(result, Err(CopyError::Cancelled)));
-        assert_eq!(std::fs::read(&path).unwrap(), b"sentinel");
-        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
-
-        let fresh = super::super::filtering::RequestCancellation::default();
-        save_psd_copy_checked(&doc, &path, fresh.native_token(), &|| Ok(()), &|| Ok(())).unwrap();
-        assert!(std::fs::read(&path).unwrap().starts_with(b"8BPS"));
-    }
-    #[test]
-    fn cancelled_before_commit_preserves_destination_and_removes_temp() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("copy.psd");
-        std::fs::write(&path, b"sentinel").unwrap();
-        let result = write_copy_atomic(&path, b"replacement", &|| Ok(()), &|| {
-            Err(CopyError::Cancelled)
-        });
-        assert!(result.is_err());
-        assert_eq!(std::fs::read(&path).unwrap(), b"sentinel");
-        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
-        write_copy_atomic(&path, b"retry", &|| Ok(()), &|| Ok(())).unwrap();
-        assert_eq!(std::fs::read(&path).unwrap(), b"retry");
-    }
-    #[test]
-    fn cancellation_during_chunked_write_removes_temporary_output() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("copy.psd");
-        std::fs::write(&path, b"sentinel").unwrap();
-        let checks = Cell::new(0);
-        let result = write_copy_atomic(
-            &path,
-            &vec![0; 64 * 1024 + 1],
-            &|| {
-                checks.set(checks.get() + 1);
-                if checks.get() == 3 {
-                    Err(CopyError::Cancelled)
-                } else {
-                    Ok(())
-                }
-            },
-            &|| panic!("cancelled write must never reach commit admission"),
-        );
-        assert!(result.is_err());
-        assert_eq!(std::fs::read(&path).unwrap(), b"sentinel");
-        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
-    }
-    #[test]
-    fn no_cancellation_check_after_commit_and_persist_errors_remain_errors() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("copy.psd");
-        let committed = Cell::new(false);
-        write_copy_atomic(
-            &path,
-            b"saved",
-            &|| {
-                assert!(!committed.get());
-                Ok(())
-            },
-            &|| {
-                committed.set(true);
-                Ok(())
-            },
-        )
-        .unwrap();
-        assert_eq!(std::fs::read(&path).unwrap(), b"saved");
-        let occupied = dir.path().join("directory.psd");
-        std::fs::create_dir(&occupied).unwrap();
-        assert!(write_copy_atomic(&occupied, b"bytes", &|| Ok(()), &|| Ok(())).is_err());
-        assert!(occupied.is_dir());
-        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 2);
-    }
-}
-
 // ─────────────────────────────── export ───────────────────────────────
 
 pub(crate) fn export_flat(
@@ -829,4 +738,95 @@ pub(crate) fn flatten_op(s: &DocState) -> Result<DocOp> {
         layer: bg,
     });
     Ok(DocOp::Batch(ops))
+}
+
+#[cfg(test)]
+mod copy_transaction_tests {
+    use super::super::psd_copy::CopyError;
+    use super::*;
+    use std::cell::Cell;
+    #[test]
+    fn copy_conversion_uses_the_requests_live_native_token() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("copy.psd");
+        std::fs::write(&path, b"sentinel").unwrap();
+        let doc = Document::new(DocState::new(Extent::new(2, 2), compositor::Depth::U8));
+        let request = super::super::filtering::RequestCancellation::default();
+        request.cancel();
+        // The transaction's boundary check deliberately succeeds; the
+        // compositor must observe the very same native request token.
+        let result =
+            save_psd_copy_checked(&doc, &path, request.native_token(), &|| Ok(()), &|| {
+                panic!("cancelled conversion must not enter commit")
+            });
+        assert!(matches!(result, Err(CopyError::Cancelled)));
+        assert_eq!(std::fs::read(&path).unwrap(), b"sentinel");
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
+
+        let fresh = super::super::filtering::RequestCancellation::default();
+        save_psd_copy_checked(&doc, &path, fresh.native_token(), &|| Ok(()), &|| Ok(())).unwrap();
+        assert!(std::fs::read(&path).unwrap().starts_with(b"8BPS"));
+    }
+    #[test]
+    fn cancelled_before_commit_preserves_destination_and_removes_temp() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("copy.psd");
+        std::fs::write(&path, b"sentinel").unwrap();
+        let result = write_copy_atomic(&path, b"replacement", &|| Ok(()), &|| {
+            Err(CopyError::Cancelled)
+        });
+        assert!(result.is_err());
+        assert_eq!(std::fs::read(&path).unwrap(), b"sentinel");
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
+        write_copy_atomic(&path, b"retry", &|| Ok(()), &|| Ok(())).unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), b"retry");
+    }
+    #[test]
+    fn cancellation_during_chunked_write_removes_temporary_output() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("copy.psd");
+        std::fs::write(&path, b"sentinel").unwrap();
+        let checks = Cell::new(0);
+        let result = write_copy_atomic(
+            &path,
+            &vec![0; 64 * 1024 + 1],
+            &|| {
+                checks.set(checks.get() + 1);
+                if checks.get() == 3 {
+                    Err(CopyError::Cancelled)
+                } else {
+                    Ok(())
+                }
+            },
+            &|| panic!("cancelled write must never reach commit admission"),
+        );
+        assert!(result.is_err());
+        assert_eq!(std::fs::read(&path).unwrap(), b"sentinel");
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
+    }
+    #[test]
+    fn no_cancellation_check_after_commit_and_persist_errors_remain_errors() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("copy.psd");
+        let committed = Cell::new(false);
+        write_copy_atomic(
+            &path,
+            b"saved",
+            &|| {
+                assert!(!committed.get());
+                Ok(())
+            },
+            &|| {
+                committed.set(true);
+                Ok(())
+            },
+        )
+        .unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), b"saved");
+        let occupied = dir.path().join("directory.psd");
+        std::fs::create_dir(&occupied).unwrap();
+        assert!(write_copy_atomic(&occupied, b"bytes", &|| Ok(()), &|| Ok(())).is_err());
+        assert!(occupied.is_dir());
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 2);
+    }
 }
