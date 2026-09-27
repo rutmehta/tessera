@@ -50,17 +50,20 @@ User preview is open empty at
 `/Volumes/betterSSD/tessera-validation/editing-export-preview/Tessera-Editing-Preview-65fa6a33.app`
 with separate `~/Library/Application Support/Tessera Editing Preview`, no test
 arguments. Earlier preview remains unfixed historical evidence. Report/manifest
-in the new package parent/evidence; portable Git evidence is being packaged.
+in the new package parent/evidence; portable82dc4902 evidence merged mainf09a66ff.
 B result45d3595b published; SSHqueue01a0e53c-917e-76c2-b216-56ee3b2c0d3a accepted,
-peer receipt pending. Earlier export-fix update confirmed at peer cursor13.
+peer receipt confirmed by existing-chat reply at cursor14. Earlier update cursor13.
 
-1. **Engine Sol — exclusive heavy slot:** current-main PSD operation5326f2f
-   native gate running, exact25file freeze. Preserve prior compilefailure and
-   correction99f. Only after native pass build independent FFI/bindings/Swift;
-   never overwrite historical19f archive in export-integration.
-2. **Luna — source/evidence only:** publish portable preview evidence, then hide
-   fresh-Library Load20,000StubItems affordance unless explicit diagnostic mode.
-   Preserve open user preview; validation app is closed. No compiler overlap.
+1. **Engine Sol — exclusive heavy slot:** native5326f2f passed45 tests across
+   five groups; strict initially failed test-module layout. Module moved unchanged
+   (production differs only blank separators), repaired1cb strict passed. Root
+   verified25file hashes/exits. Reused clean workspace-redesign with historical
+   archive preserved; current FFI0a9b build passed. Generated ABI plus stub-hide
+   source729962d9 now in fullSwift gate. No PSDapp acceptance yet.
+2. **Luna — source/preparation only:** preview evidence82dc merged mainf09a66ff.
+   Stub UI source8dd1e2a9 is included in729962d9 gate, not current openpreview.
+   Prepare tinyPSD save/reopen and normal/diagnostic visibility GUI checks after
+   fullSwift passes; no activation/compiler overlap. Preserve userpreview.
 3. **Resource Sol — waiting RED slot:** UNRUN102bce66 tests for raw complete
    revision and shared destination gate, only two Engine writer adopters. Uses
    valid equal render hashes and deterministic contention observer. Batch Apply

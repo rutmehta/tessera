@@ -16,7 +16,7 @@ no test args; fixture app closed. Not fullproject/performance/broadcamera/macOS1
 acceptance. Portable evidence pending publication; report/manifest already local.
 
 B result45d3595b and SSHqueue01a0e53c-917e-76c2-b216-56ee3b2c0d3a published,
-new peer receipt pending. Previous update confirmed peer cursor13. Engine Sol
+peer receipt confirmed by existing-chat cursor14. Previous update confirmed peer cursor13. Engine Sol
 now runs exact5326f2f PSDnativegate, preserving firstfailure; resource Sol102bce66
 UX03 tests remain UNRUN waitingRED. Luna packages evidence and follows up visible
 Load20,000StubItems diagnostic affordance in ordinary emptyLibrary. Bhold remains.
