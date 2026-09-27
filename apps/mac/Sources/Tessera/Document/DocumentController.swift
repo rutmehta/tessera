@@ -451,7 +451,11 @@ final class DocumentController: Identifiable {
         zoomChangedAt = Date()
     }
 
+    private(set) var isClosed = false
+
     func close() {
+        isClosed = true
+        DocumentTransforms.shared.closeCopies(for: self)
         fillDebounce?.cancel()
         backend.setListener(listener: nil)
         backend.detachSurfaces()

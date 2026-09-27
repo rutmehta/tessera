@@ -363,6 +363,125 @@ pub(crate) fn save(doc: &Document, path: &Path) -> Result<()> {
     }
 }
 
+/// Copy-only transaction. Conversion and encoder internals remain opaque;
+/// A's compositor follow-up will replace the conversion boundary below.
+pub(super) fn save_psd_copy_checked(
+    doc: &Document,
+    path: &Path,
+    check: &impl Fn() -> Result<()>,
+    admit_commit: &impl Fn() -> Result<()>,
+) -> Result<()> {
+    check()?;
+    let kind = save_kind(path)?;
+    if kind == SaveKind::Native {
+        return Err(failure("copy requires PSD or PSB"));
+    }
+    let mut psd = compositor::psd::to_psd(doc)?;
+    check()?;
+    psd.version = if kind == SaveKind::Psb {
+        ::psd::Version::Psb
+    } else {
+        ::psd::Version::Psd
+    };
+    let bytes = psd.write().map_err(failure)?;
+    check()?;
+    write_copy_atomic(path, &bytes, check, admit_commit)
+}
+
+fn write_copy_atomic(
+    path: &Path,
+    bytes: &[u8],
+    check: &impl Fn() -> Result<()>,
+    admit_commit: &impl Fn() -> Result<()>,
+) -> Result<()> {
+    check()?;
+    let dir = path
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
+    let mut tmp = tempfile::NamedTempFile::new_in(dir)?;
+    for chunk in bytes.chunks(64 * 1024) {
+        check()?;
+        tmp.write_all(chunk)?;
+    }
+    check()?;
+    tmp.as_file().sync_all()?;
+    check()?;
+    // Linearization point: cancel can no longer win after admission. Never
+    // report Cancelled after replacement, even if close races this syscall.
+    admit_commit()?;
+    tmp.persist(path).map_err(|e| failure(e.error))?;
+    Ok(())
+}
+
+#[cfg(test)]
+mod copy_transaction_tests {
+    use super::*;
+    use std::cell::Cell;
+    #[test]
+    fn cancelled_before_commit_preserves_destination_and_removes_temp() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("copy.psd");
+        std::fs::write(&path, b"sentinel").unwrap();
+        let result = write_copy_atomic(&path, b"replacement", &|| Ok(()), &|| {
+            Err(failure("cancelled"))
+        });
+        assert!(result.is_err());
+        assert_eq!(std::fs::read(&path).unwrap(), b"sentinel");
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
+        write_copy_atomic(&path, b"retry", &|| Ok(()), &|| Ok(())).unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), b"retry");
+    }
+    #[test]
+    fn cancellation_during_chunked_write_removes_temporary_output() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("copy.psd");
+        std::fs::write(&path, b"sentinel").unwrap();
+        let checks = Cell::new(0);
+        let result = write_copy_atomic(
+            &path,
+            &vec![0; 64 * 1024 + 1],
+            &|| {
+                checks.set(checks.get() + 1);
+                if checks.get() == 3 {
+                    Err(failure("cancelled before second chunk"))
+                } else {
+                    Ok(())
+                }
+            },
+            &|| panic!("cancelled write must never reach commit admission"),
+        );
+        assert!(result.is_err());
+        assert_eq!(std::fs::read(&path).unwrap(), b"sentinel");
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
+    }
+    #[test]
+    fn no_cancellation_check_after_commit_and_persist_errors_remain_errors() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("copy.psd");
+        let committed = Cell::new(false);
+        write_copy_atomic(
+            &path,
+            b"saved",
+            &|| {
+                assert!(!committed.get());
+                Ok(())
+            },
+            &|| {
+                committed.set(true);
+                Ok(())
+            },
+        )
+        .unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), b"saved");
+        let occupied = dir.path().join("directory.psd");
+        std::fs::create_dir(&occupied).unwrap();
+        assert!(write_copy_atomic(&occupied, b"bytes", &|| Ok(()), &|| Ok(())).is_err());
+        assert!(occupied.is_dir());
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 2);
+    }
+}
+
 // ─────────────────────────────── export ───────────────────────────────
 
 pub(crate) fn export_flat(

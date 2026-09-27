@@ -1,0 +1,375 @@
+//! One host-owned rasterized copy. Cancellation is cooperative; PSD conversion
+//! and encoding currently check only at their boundaries (A-owned follow-up).
+use super::{DocumentSession, Shared, filtering, find, io};
+use crate::{Result, failure};
+use compositor::{Document, Layer, LayerId, LayerKind};
+use std::sync::{Arc, Mutex, MutexGuard, Weak};
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, uniffi::Enum)]
+pub enum RasterizedPsdCopyOutcome {
+    Saved,
+    Cancelled,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Phase {
+    Prepared,
+    Running,
+    Committing,
+    Finished,
+}
+struct Lifecycle {
+    phase: Phase,
+    claimed: bool,
+    cancelled: bool,
+}
+struct CopyState {
+    life: Mutex<Lifecycle>,
+    cancel: Arc<filtering::RequestCancellation>,
+}
+impl CopyState {
+    fn new() -> Self {
+        Self {
+            life: Mutex::new(Lifecycle {
+                phase: Phase::Prepared,
+                claimed: false,
+                cancelled: false,
+            }),
+            cancel: Arc::default(),
+        }
+    }
+    fn life(&self) -> MutexGuard<'_, Lifecycle> {
+        self.life.lock().unwrap_or_else(|e| e.into_inner())
+    }
+    fn cancel(&self) -> bool {
+        let mut life = self.life();
+        if life.cancelled {
+            return true;
+        }
+        if matches!(life.phase, Phase::Committing | Phase::Finished) {
+            return false;
+        }
+        life.cancelled = true;
+        self.cancel.cancel();
+        true
+    }
+    fn start(&self) -> Result<bool> {
+        let mut life = self.life();
+        if life.claimed {
+            return Err(failure("rasterized copy operation is single-use"));
+        }
+        life.claimed = true;
+        if life.cancelled {
+            life.phase = Phase::Finished;
+            return Ok(false);
+        }
+        life.phase = Phase::Running;
+        Ok(true)
+    }
+    fn check(&self) -> Result<()> {
+        if self.cancel.is_cancelled() {
+            Err(failure("rasterized copy cancelled"))
+        } else {
+            Ok(())
+        }
+    }
+    fn holds_admission(&self) -> bool {
+        let life = self.life();
+        // A running cancellation retains admission until its RAII guard drains.
+        life.phase != Phase::Finished && !(life.phase == Phase::Prepared && life.cancelled)
+    }
+}
+#[derive(Default)]
+struct RegistryState {
+    closed: bool,
+    active: Weak<CopyState>,
+}
+#[derive(Default)]
+pub(super) struct CopyRegistry {
+    inner: Mutex<RegistryState>,
+}
+impl CopyRegistry {
+    fn lock(&self) -> MutexGuard<'_, RegistryState> {
+        self.inner.lock().unwrap_or_else(|e| e.into_inner())
+    }
+    fn prepare(&self) -> Result<Arc<CopyState>> {
+        let mut registry = self.lock();
+        if registry.closed {
+            return Err(failure("document is closed"));
+        }
+        if registry
+            .active
+            .upgrade()
+            .is_some_and(|s| s.holds_admission())
+        {
+            return Err(failure("a rasterized copy is still running or draining"));
+        }
+        let state = Arc::new(CopyState::new());
+        registry.active = Arc::downgrade(&state);
+        Ok(state)
+    }
+    pub(super) fn close(&self) {
+        let mut registry = self.lock();
+        registry.closed = true;
+        if let Some(state) = registry.active.upgrade() {
+            state.cancel();
+        }
+    }
+    fn admit_commit(&self, state: &Arc<CopyState>) -> Result<()> {
+        let registry = self.lock();
+        let mut life = state.life();
+        if registry.closed || life.cancelled || life.phase != Phase::Running {
+            return Err(failure("rasterized copy cancelled before commit"));
+        }
+        if !registry.active.ptr_eq(&Arc::downgrade(state)) {
+            return Err(failure("rasterized copy lost ownership"));
+        }
+        life.phase = Phase::Committing;
+        // Neither gate is held during persist, evaluation, copying or callbacks.
+        Ok(())
+    }
+    fn finish(&self, state: &Arc<CopyState>) {
+        state.life().phase = Phase::Finished;
+        let mut registry = self.lock();
+        if registry.active.ptr_eq(&Arc::downgrade(state)) {
+            registry.active = Weak::new();
+        }
+    }
+}
+struct Drain<'a> {
+    registry: &'a CopyRegistry,
+    state: &'a Arc<CopyState>,
+}
+impl Drop for Drain<'_> {
+    fn drop(&mut self) {
+        self.registry.finish(self.state);
+    }
+}
+
+#[derive(uniffi::Object)]
+pub struct RasterizedPsdCopyOperation {
+    shared: Arc<Shared>,
+    state: Arc<CopyState>,
+}
+#[uniffi::export]
+impl DocumentSession {
+    /// Cheap handle preparation: no snapshot, evaluation or IO. One live copy
+    /// per document, including cancelled work that has not finished unwinding.
+    pub fn prepare_rasterized_psd_copy(&self) -> Result<Arc<RasterizedPsdCopyOperation>> {
+        let state = self.shared.copies.prepare()?;
+        Ok(Arc::new(RasterizedPsdCopyOperation {
+            shared: self.shared.clone(),
+            state,
+        }))
+    }
+}
+#[uniffi::export]
+impl RasterizedPsdCopyOperation {
+    /// False once output commit was admitted. Never waits on backend state/IO.
+    pub fn cancel(&self) -> bool {
+        self.state.cancel()
+    }
+
+    pub fn run(&self, path: String) -> Result<RasterizedPsdCopyOutcome> {
+        let started = self.state.start()?;
+        let _drain = Drain {
+            registry: &self.shared.copies,
+            state: &self.state,
+        };
+        if !started {
+            return Ok(RasterizedPsdCopyOutcome::Cancelled);
+        }
+        let result = self.run_inner(std::path::Path::new(&path));
+        // Before commit cancellation wins outcome publication. The same lifecycle
+        // gate excludes cancel after a successful result or non-cancel failure.
+        let mut life = self.state.life();
+        let cancelled = life.cancelled;
+        life.phase = Phase::Finished;
+        if cancelled {
+            Ok(RasterizedPsdCopyOutcome::Cancelled)
+        } else {
+            result.map(|()| RasterizedPsdCopyOutcome::Saved)
+        }
+    }
+}
+impl RasterizedPsdCopyOperation {
+    fn run_inner(&self, path: &std::path::Path) -> Result<()> {
+        self.state.check()?;
+        let kind = io::save_kind(path)?;
+        if kind == io::SaveKind::Native {
+            return Err(failure("the rasterized copy is a .psd or .psb file"));
+        }
+        let snapshot = {
+            let st = self.shared.lock()?;
+            st.open()?;
+            st.doc.state().clone()
+        };
+        self.state.check()?;
+        if kind == io::SaveKind::Psd
+            && (snapshot.canvas.width > 30_000 || snapshot.canvas.height > 30_000)
+        {
+            return Err(failure("PSD is limited to 30000 pixels: save as .psb"));
+        }
+        let mut ids = Vec::new();
+        collect_layers(&snapshot.root, &mut ids, &|| self.state.check())?;
+        let copy = rasterize_layers(&snapshot, &ids, &self.state, |layer| {
+            filtering::rasterize_smart_stack_with_cancel(&snapshot, layer, &self.state.cancel)
+        })?;
+        io::save_psd_copy_checked(&Document::new(copy), path, &|| self.state.check(), &|| {
+            self.shared.copies.admit_commit(&self.state)
+        })
+    }
+}
+fn rasterize_layers(
+    snapshot: &compositor::DocState,
+    ids: &[u64],
+    state: &CopyState,
+    mut rasterize: impl FnMut(&Layer) -> Result<compositor::Raster>,
+) -> Result<compositor::DocState> {
+    state.check()?;
+    let mut copy = snapshot.clone();
+    for &id in ids {
+        state.check()?;
+        let raster = rasterize(find(snapshot, id)?)?;
+        state.check()?;
+        copy.layer_mut(LayerId(id), |l| l.kind = LayerKind::Pixel(raster));
+    }
+    Ok(copy)
+}
+fn collect_layers(
+    layers: &[Arc<Layer>],
+    out: &mut Vec<u64>,
+    check: &impl Fn() -> Result<()>,
+) -> Result<()> {
+    for layer in layers {
+        check()?;
+        match &layer.kind {
+            LayerKind::SmartObject(so) if so.filters.iter().any(|f| f.enabled) => {
+                out.push(layer.id.0)
+            }
+            LayerKind::Group { children, .. } => collect_layers(children, out, check)?,
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn cancelled_first_layer_prevents_next_and_preserves_source() {
+        let extent = engine_api::tile::Extent::new(2, 2);
+        let mut snapshot = compositor::DocState::new(extent, compositor::Depth::U8);
+        for id in [1, 2] {
+            let mut layer = Layer::new(
+                "tiny",
+                LayerKind::Pixel(compositor::Raster::new(
+                    extent,
+                    4,
+                    compositor::Depth::U8,
+                    0.0,
+                )),
+            );
+            layer.id = LayerId(id);
+            snapshot.root.push(Arc::new(layer));
+        }
+        let original = snapshot.root.clone();
+        let state = CopyState::new();
+        state.start().unwrap();
+        let mut calls = 0;
+        let result = rasterize_layers(&snapshot, &[1, 2], &state, |_| {
+            calls += 1;
+            state.cancel();
+            Ok(compositor::Raster::new(
+                extent,
+                4,
+                compositor::Depth::U8,
+                0.0,
+            ))
+        });
+        assert!(result.is_err());
+        assert_eq!(calls, 1);
+        assert!(
+            snapshot
+                .root
+                .iter()
+                .zip(&original)
+                .all(|(a, b)| Arc::ptr_eq(a, b))
+        );
+        let fresh = CopyState::new();
+        let copied = rasterize_layers(&snapshot, &[1, 2], &fresh, |_| {
+            Ok(compositor::Raster::new(
+                extent,
+                4,
+                compositor::Depth::U8,
+                0.0,
+            ))
+        })
+        .unwrap();
+        assert_eq!(copied.root.len(), 2);
+    }
+    #[test]
+    fn prepared_cancel_is_single_use_and_late_cleanup_preserves_replacement() {
+        let registry = CopyRegistry::default();
+        let old = registry.prepare().unwrap();
+        assert!(old.cancel());
+        let fresh = registry.prepare().unwrap();
+        assert!(!old.start().unwrap());
+        registry.finish(&old);
+        assert!(old.start().is_err());
+        assert!(registry.prepare().is_err());
+        assert!(fresh.start().unwrap());
+        registry.admit_commit(&fresh).unwrap();
+        assert!(!fresh.cancel());
+        registry.finish(&fresh);
+        assert!(registry.prepare().is_ok());
+    }
+    #[test]
+    fn running_cancel_holds_admission_until_gated_unwind() {
+        let registry = Arc::new(CopyRegistry::default());
+        let state = registry.prepare().unwrap();
+        let (started_tx, started_rx) = std::sync::mpsc::channel();
+        let (exit_tx, exit_rx) = std::sync::mpsc::channel();
+        let r = registry.clone();
+        let s = state.clone();
+        let worker = std::thread::spawn(move || {
+            assert!(s.start().unwrap());
+            let _drain = Drain {
+                registry: &r,
+                state: &s,
+            };
+            started_tx.send(()).unwrap();
+            exit_rx
+                .recv_timeout(std::time::Duration::from_secs(5))
+                .unwrap();
+            assert!(s.check().is_err());
+        });
+        started_rx
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .unwrap();
+        assert!(state.cancel());
+        assert!(registry.prepare().is_err());
+        assert!(registry.admit_commit(&state).is_err());
+        exit_tx.send(()).unwrap();
+        worker.join().unwrap();
+        assert!(registry.prepare().is_ok());
+    }
+    #[test]
+    fn close_and_commit_have_explicit_ordering() {
+        let registry = CopyRegistry::default();
+        let state = registry.prepare().unwrap();
+        state.start().unwrap();
+        registry.close();
+        assert!(state.check().is_err());
+        assert!(registry.admit_commit(&state).is_err());
+        assert!(registry.prepare().is_err());
+        let registry = CopyRegistry::default();
+        let state = registry.prepare().unwrap();
+        state.start().unwrap();
+        registry.admit_commit(&state).unwrap();
+        registry.close();
+        assert!(!state.cancel());
+        assert!(state.check().is_ok());
+    }
+}

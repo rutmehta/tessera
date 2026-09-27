@@ -63,18 +63,18 @@ use std::{
 /// One request's live cancellation sources. Effects retain their existing atomic
 /// API; native compositor work receives the same request's clonable token.
 #[derive(Default)]
-struct RequestCancellation {
+pub(super) struct RequestCancellation {
     effect: AtomicBool,
     native: CancellationToken,
 }
 
 impl RequestCancellation {
-    fn cancel(&self) {
+    pub(super) fn cancel(&self) {
         self.native.cancel();
         self.effect.store(true, Ordering::Release);
     }
 
-    fn is_cancelled(&self) -> bool {
+    pub(super) fn is_cancelled(&self) -> bool {
         self.native.is_cancelled() || self.effect.load(Ordering::Acquire)
     }
 }
@@ -652,12 +652,18 @@ fn native_stack_with_evaluator(
 
 /// A smart object's whole stack rasterized at level 0 into a document-sized
 /// raster at `depth` (the explicit rasterized-PSD path).
-pub(super) fn rasterize_smart_stack(base: &DocState, layer: &Layer) -> Result<Raster> {
+pub(super) fn rasterize_smart_stack_with_cancel(
+    base: &DocState,
+    layer: &Layer,
+    cancel: &Arc<RequestCancellation>,
+) -> Result<Raster> {
+    let check = || cancel.native.check().map_err(crate::BridgeError::from);
+    check()?;
     let LayerKind::SmartObject(so) = &layer.kind else {
         return Err(failure("not a smart object"));
     };
-    let img = native_stack(base, layer, &nodes_of(so)?, 0, None)?;
-    raster_from_rgba(base.canvas, base.depth, &img.px, true)
+    let img = native_stack(base, layer, &nodes_of(so)?, 0, Some(cancel))?;
+    super::raster_from_rgba_checked(base.canvas, base.depth, &img.px, true, check)
 }
 
 /// What a whole-stack edit may not change under a position lock: every

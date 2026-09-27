@@ -403,3 +403,15 @@ whole-image allocations, followed by an opaque in-memory encoder. Cancellation
 at these boundaries is not internal interruption or a peak-memory bound.
 A must review the contract before product edits and own bindings/validation.
 No B builds/tests/apps/benchmarks or heartbeat restart; all tests remain proposals.
+
+## PSD operation / host candidate — request 547433be (2026-09-27)
+
+Implemented approved source-only slice with the mandatory draining-cancel
+correction: Running cancellation retains admission until actual evaluation/IO
+unwinds; cancelled Prepared handles can yield admission but never evaluate later.
+Added typed handle, shutdown signalling before backend lock, native layer/raster
+checks, temp-file commit gate, Swift origin ownership and File-menu Cancel action.
+See PSD-COPY-IMPLEMENTATION.md for exact scope, compositor token handoff and all
+12 UNRUN tests. Bindings are intentionally stale until A regenerates; no compile
+or end-to-end cancellation acceptance. A owns compositor follow-up and telemetry;
+no edits there, no B workload/heartbeat restart, dirty snapshots preserved.
