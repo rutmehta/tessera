@@ -728,6 +728,72 @@ struct Img {
     px: Vec<f32>,
 }
 
+/// Retained source/prefix images only; excludes active results and other caches.
+const FILTER_IMAGE_CACHE_BYTES: usize = 512 * 1024 * 1024;
+const FILTER_IMAGE_CACHE_ENTRIES: usize = 4;
+
+struct CachedImg {
+    key: String,
+    image: Arc<Img>,
+    bytes: usize,
+}
+
+struct ImgCache {
+    entries: Vec<CachedImg>,
+    retained_bytes: usize,
+    budget: usize,
+}
+
+impl Default for ImgCache {
+    fn default() -> Self {
+        Self::new(FILTER_IMAGE_CACHE_BYTES)
+    }
+}
+
+impl ImgCache {
+    fn new(budget: usize) -> Self {
+        Self {
+            entries: Vec::new(),
+            retained_bytes: 0,
+            budget,
+        }
+    }
+
+    fn capacity_bytes(capacity: usize) -> Option<usize> {
+        capacity.checked_mul(std::mem::size_of::<f32>())
+    }
+
+    fn can_retain(&self, image: &Img) -> bool {
+        self.budget != 0
+            && Self::capacity_bytes(image.px.capacity()).is_some_and(|bytes| bytes <= self.budget)
+    }
+
+    fn remove(&mut self, key: &str) {
+        if let Some(index) = self.entries.iter().position(|entry| entry.key == key) {
+            self.retained_bytes -= self.entries.remove(index).bytes;
+        }
+    }
+
+    fn insert(&mut self, key: String, image: Arc<Img>) {
+        // Replacement is newest; an oversized replacement removes the old key.
+        self.remove(&key);
+        if !self.can_retain(&image) {
+            return;
+        }
+        let bytes = Self::capacity_bytes(image.px.capacity()).expect("preflight checked capacity");
+        while self.entries.len() >= FILTER_IMAGE_CACHE_ENTRIES
+            || self
+                .retained_bytes
+                .checked_add(bytes)
+                .is_none_or(|total| total > self.budget)
+        {
+            self.retained_bytes -= self.entries.remove(0).bytes;
+        }
+        self.retained_bytes += bytes;
+        self.entries.push(CachedImg { key, image, bytes });
+    }
+}
+
 impl Img {
     fn w(&self) -> usize {
         self.rect.width() as usize
@@ -1354,7 +1420,7 @@ struct Inner {
     /// Bake generation (part of the presented key).
     bake_serial: u64,
     /// Sources and stack prefixes, newest last.
-    imgs: Vec<(String, Arc<Img>)>,
+    imgs: ImgCache,
     presented: Option<(String, Arc<Document>)>,
     last_error: Option<String>,
 }
@@ -1482,18 +1548,27 @@ impl FilterState {
 fn cached_img(q: &Queue, key: &str) -> Option<Arc<Img>> {
     q.lock()
         .imgs
+        .entries
         .iter()
-        .find(|(k, _)| k == key)
-        .map(|(_, i)| i.clone())
+        .find(|entry| entry.key == key)
+        .map(|entry| entry.image.clone())
 }
 
 fn store_img(q: &Queue, key: String, img: Arc<Img>) {
-    let mut i = q.lock();
-    i.imgs.retain(|(k, _)| *k != key);
-    i.imgs.push((key, img));
-    // Sources are up to a level's worth of f32 RGBA; keep a few.
-    while i.imgs.len() > 4 {
-        i.imgs.remove(0);
+    q.lock().imgs.insert(key, img);
+}
+
+/// Check retention before a deep prefix copy; copying never holds the queue lock.
+/// Insertion rechecks capacity/budget because copied Vec capacity may differ.
+fn store_prefix_with(q: &Queue, key: String, image: &Img, copy: impl FnOnce(&Img) -> Img) {
+    let retain = {
+        let mut state = q.lock();
+        state.imgs.remove(&key);
+        state.imgs.can_retain(image)
+    };
+    if retain {
+        let cloned = Arc::new(copy(image));
+        store_img(q, key, cloned);
     }
 }
 
@@ -1718,7 +1793,7 @@ fn filtered_with_cancel(
         )?;
         // Cache the prefix below the top filter (what previews re-run on).
         if k + 2 == nodes.len() {
-            store_img(q, prefix_key(k + 1), Arc::new(cur.clone()));
+            store_prefix_with(q, prefix_key(k + 1), &cur, Img::clone);
         }
     }
     Ok(cur.crop(region))
@@ -3309,5 +3384,163 @@ mod request_cancellation_tests {
         assert!(!inner.finish_preview(1, &preview));
         assert!(!inner.finish_bake(&job, &bake));
         assert!(inner.last_error.is_none());
+    }
+}
+
+/// SOURCE-ONLY cache policy regressions: UNRUN on B; budgets are bytes, not MB.
+#[cfg(test)]
+mod image_cache_tests {
+    use super::*;
+    use std::cell::Cell;
+
+    fn image(pixels: usize) -> Arc<Img> {
+        Arc::new(Img {
+            rect: Rect::new(0, 0, pixels as i64, 1),
+            px: vec![0.25; pixels * 4],
+        })
+    }
+
+    fn queue(budget: usize) -> Queue {
+        Queue {
+            m: Mutex::new(Inner {
+                imgs: ImgCache::new(budget),
+                ..Default::default()
+            }),
+            cv: Condvar::new(),
+        }
+    }
+
+    #[test]
+    fn byte_budget_evicts_oldest_without_mutating_current_result() {
+        let q = queue(64);
+        let first = image(4);
+        let second = image(4);
+        store_img(&q, "first".into(), first.clone());
+        assert!(Arc::ptr_eq(&cached_img(&q, "first").unwrap(), &first));
+        store_img(&q, "second".into(), second.clone());
+        assert!(cached_img(&q, "first").is_none());
+        assert!(Arc::ptr_eq(&cached_img(&q, "second").unwrap(), &second));
+        assert_eq!(q.lock().imgs.retained_bytes, 64);
+        assert_eq!(first.px, vec![0.25; 16]);
+    }
+
+    #[test]
+    fn replacement_is_charged_once_and_oversize_removes_old_key() {
+        let q = queue(64);
+        store_img(&q, "same".into(), image(4));
+        store_img(&q, "same".into(), image(2));
+        assert_eq!(q.lock().imgs.retained_bytes, 32);
+        assert_eq!(q.lock().imgs.entries.len(), 1);
+        let oversized = image(5);
+        store_img(&q, "same".into(), oversized.clone());
+        assert!(cached_img(&q, "same").is_none());
+        assert_eq!(q.lock().imgs.retained_bytes, 0);
+        assert_eq!(oversized.px, vec![0.25; 20]);
+    }
+
+    #[test]
+    fn capacity_not_length_is_charged_and_overflow_is_rejected() {
+        let q = queue(64);
+        let mut px = Vec::with_capacity(20);
+        px.extend([0.25; 4]);
+        let img = Arc::new(Img {
+            rect: Rect::new(0, 0, 1, 1),
+            px,
+        });
+        store_img(&q, "spare-capacity".into(), img);
+        assert!(cached_img(&q, "spare-capacity").is_none());
+        assert_eq!(q.lock().imgs.retained_bytes, 0);
+        assert!(ImgCache::capacity_bytes(usize::MAX).is_none());
+    }
+
+    #[test]
+    fn entry_cap_and_zero_budget_both_apply() {
+        let q = queue(1024);
+        for n in 0..5 {
+            store_img(&q, n.to_string(), image(1));
+        }
+        assert_eq!(q.lock().imgs.entries.len(), 4);
+        assert_eq!(q.lock().imgs.retained_bytes, 64);
+        assert!(cached_img(&q, "0").is_none());
+        let disabled = queue(0);
+        store_img(&disabled, "empty".into(), image(0));
+        store_img(&disabled, "nonempty".into(), image(1));
+        assert!(disabled.lock().imgs.entries.is_empty());
+    }
+
+    #[test]
+    fn oversized_prefix_skips_deep_copy_and_keeps_pixels() {
+        for budget in [0, 64] {
+            let q = queue(budget);
+            let img = image(5);
+            let copies = Cell::new(0);
+            store_prefix_with(&q, "prefix".into(), &img, |value| {
+                copies.set(copies.get() + 1);
+                value.clone()
+            });
+            assert_eq!(copies.get(), 0);
+            assert!(cached_img(&q, "prefix").is_none());
+            assert_eq!(img.px, vec![0.25; 20]);
+        }
+    }
+
+    #[test]
+    fn prefix_copy_is_unlocked_and_insertion_rechecks_policy() {
+        let q = queue(64);
+        let img = image(4);
+        let copies = Cell::new(0);
+        store_prefix_with(&q, "prefix".into(), &img, |value| {
+            copies.set(copies.get() + 1);
+            q.m.try_lock()
+                .expect("cache lock must not span image copy")
+                .imgs
+                .budget = 0;
+            value.clone()
+        });
+        assert_eq!(copies.get(), 1);
+        assert!(cached_img(&q, "prefix").is_none());
+        assert_eq!(q.lock().imgs.retained_bytes, 0);
+    }
+
+    #[test]
+    fn source_and_prefix_cache_policy_preserves_tiny_filter_pixels() {
+        let extent = Extent::new(2, 2);
+        let raster = raster_from_rgba(
+            extent,
+            compositor::Depth::F32,
+            &[0.2, 0.4, 0.6, 1.0].repeat(4),
+            false,
+        )
+        .unwrap();
+        let layer = Layer::new("pixels", LayerKind::Pixel(raster));
+        let mut base = DocState::new(extent, compositor::Depth::F32);
+        base.root.push(Arc::new(layer.clone()));
+        let comp = Compositor::new(1 << 20);
+        let region = Rect::of_extent(extent);
+        let retained = queue(64);
+        let disabled = queue(0);
+        let first = source(&retained, &comp, &base, &layer, 0, region).unwrap();
+        let hit = source(&retained, &comp, &base, &layer, 0, region).unwrap();
+        assert!(Arc::ptr_eq(&first, &hit));
+        let node =
+            Node::new(Spec::parse(r#"{"id":"gaussian_blur","params":{"radius":1}}"#).unwrap());
+        let nodes = [node.clone(), node];
+        let cancel = AtomicBool::new(false);
+        let expected =
+            filtered(&disabled, &comp, &base, &layer, &nodes, 0, region, &cancel).unwrap();
+        let actual = filtered(&retained, &comp, &base, &layer, &nodes, 0, region, &cancel).unwrap();
+        let again = filtered(&retained, &comp, &base, &layer, &nodes, 0, region, &cancel).unwrap();
+        assert_eq!(actual.px, expected.px);
+        assert_eq!(again.px, expected.px);
+        let cache = retained.lock();
+        assert!(cache.imgs.retained_bytes <= 64);
+        assert!(
+            cache
+                .imgs
+                .entries
+                .iter()
+                .any(|entry| entry.key.starts_with("stack:"))
+        );
+        assert!(disabled.lock().imgs.entries.is_empty());
     }
 }

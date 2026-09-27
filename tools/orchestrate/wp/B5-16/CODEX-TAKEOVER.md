@@ -380,3 +380,13 @@ gate rejects obsolete frame/error callbacks. Five UNRUN tests; A compilation
 pending. CPU-FRAME-CANCELLATION.md records publication ordering and limits.
 Public readback/PSD/apply/engine-api and A outline test file remain untouched.
 B workload hold and paused heartbeat remain.
+
+### FFI image-cache retention bound — 04e1a883
+
+Validated/accepted mainb1b6af5a contract. Separate filters.rs slice afterf518c03
+adds named512MiB/four-entry cache payload bound, checked Vec capacity accounting,
+oldest eviction and defined replacement. Oversized prefixes skip deep clone
+before allocation; no lock across copy, insert rechecks. Seven tiny tests UNRUN
+and uncompiled; source formatted/diff checked only. FFI-IMAGE-CACHE-BOUND.md has
+exact semantics, validation requirements and non-global memory limits. B hold
+and paused heartbeat remain; A-owned outline source/tests untouched.
