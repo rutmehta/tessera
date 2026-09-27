@@ -155,6 +155,8 @@ pub enum LayerKindTag {
     SmartObject,
     /// Text layer.
     Text,
+    /// Editable vector shape.
+    Shape,
 }
 
 /// The kind of layer `add_layer` creates. Adjustment layers are created by
@@ -278,6 +280,8 @@ pub enum StrokeTarget {
     Pixels,
     /// The layer's raster mask (created reveal-all if absent).
     Mask,
+    /// Saved alpha/spot plane. The call's layer ID is ignored for this target.
+    Channel(ChannelId),
 }
 
 /// The region a selection change describes.
@@ -540,6 +544,15 @@ pub struct LayerInfo {
     /// Bounds of non-transparent content, if known and non-empty.
     #[serde(default)]
     pub bounds: Option<CanvasRect>,
+    /// Editable text content, if applicable.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub text: Option<TextSummary>,
+    /// Editable vector shape kind, if applicable.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shape: Option<ShapeSummary>,
+    /// Whether this layer has a vector mask.
+    #[serde(default)]
+    pub has_vector_mask: bool,
 }
 
 /// An immutable document history entry: the [`Action`] that produced the
@@ -733,6 +746,16 @@ pub enum ChannelKind {
     /// Saved selection mask.
     #[default]
     Alpha,
+    /// Saved selection with explicit display metadata (1.6). Legacy alpha is
+    /// red at 50% opacity showing masked areas. Display does not alter samples.
+    AlphaDisplay {
+        /// Finite normalized display RGB.
+        display_rgb: [f32; 3],
+        /// Finite normalized overlay opacity.
+        opacity: f32,
+        /// Show selected areas rather than masked areas.
+        selected: bool,
+    },
     /// Spot ink mask.
     Spot {
         /// Finite normalized RGB display colour.
@@ -958,4 +981,42 @@ mod tests {
         bad.entries.swap(0, 1);
         assert!(bad.validate().is_err());
     }
+}
+
+/// Editable text source shared with the type engine.
+pub use typography::{TextModel, TextRun};
+/// Editable vector source shared with the vector engine.
+pub use vector::ShapeModel;
+
+/// Text-specific layer summary.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TextSummary {
+    /// Plain text preview in run order.
+    pub preview: String,
+    /// Distinct requested font families in run order.
+    pub fonts: Vec<String>,
+}
+/// Shape-specific layer summary.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ShapeSummary {
+    /// Live shape kind, or `path` for a freeform path.
+    pub kind: String,
+}
+/// Layer summary returned by `list_layers`.
+pub type LayerSummary = LayerInfo;
+
+/// Editable vector mask in level-0 document coordinates.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct VectorMask {
+    /// Closed path geometry.
+    pub path: vector::Path,
+    /// Whether to apply the mask.
+    #[serde(default = "yes")]
+    pub enabled: bool,
+    /// Feather radius in pixels.
+    #[serde(default)]
+    pub feather: f32,
+    /// Mask density, from zero to one.
+    #[serde(default = "one")]
+    pub density: f32,
 }

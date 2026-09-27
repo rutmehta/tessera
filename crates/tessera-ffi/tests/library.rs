@@ -68,6 +68,28 @@ fn count(list: &[FacetCount], value: &str) -> u32 {
 }
 
 #[test]
+fn facets_only_preserves_counts_without_collecting_matches() {
+    let f = fixture();
+    for text in ["", "a", "decision:keep", "rating>bad"] {
+        let full = f
+            .store
+            .search(request(text, vec![], SearchScope::All, &f.folder))
+            .unwrap();
+        let counts = f
+            .store
+            .search_facets(request(text, vec![], SearchScope::All, &f.folder))
+            .unwrap();
+        assert!(counts.image_ids.is_empty());
+        assert_eq!(format!("{:?}", counts.facets), format!("{:?}", full.facets));
+        assert_eq!(
+            format!("{:?}", counts.diagnostic),
+            format!("{:?}", full.diagnostic)
+        );
+        assert_eq!(counts.rule, full.rule);
+    }
+}
+
+#[test]
 fn albums_groups_and_smart_albums_are_ordered_nested_and_safely_deleted() {
     let f = fixture();
     let s = &f.store;
@@ -343,6 +365,83 @@ fn rule_checks_report_positions_and_items_round_trip() {
     let d = s.check_rule("(beach".into()).unwrap().diagnostic.unwrap();
     assert_eq!((d.start, d.end), (6, 6));
     assert!(s.check_rule("   ".into()).unwrap().diagnostic.is_some());
+}
+
+#[test]
+fn metadata_batch_matches_individual_reads_in_requested_order() {
+    let f = fixture();
+    f.store.add_keyword("Places".into(), None).unwrap();
+    f.store
+        .add_keyword("France".into(), Some("Places".into()))
+        .unwrap();
+    f.store
+        .set_iptc(
+            vec![f.ids[0].clone()],
+            IptcEdit {
+                title: Some("Harbour".into()),
+                caption: Some("Boats & sea".into()),
+                copyright: Some("© Photographer".into()),
+                creator: Some("First; Second".into()),
+                keywords: Some(vec!["France".into()]),
+                alt_text: Some("Boats at dawn".into()),
+            },
+        )
+        .unwrap();
+    // Include an unedited photo and a duplicate; neither sorting nor deduping
+    // is permitted at the FFI boundary.
+    let ids = vec![f.ids[2].clone(), f.ids[0].clone(), f.ids[2].clone()];
+    let expected: Vec<_> = ids
+        .iter()
+        .map(|id| f.store.metadata(id.clone()).unwrap())
+        .collect();
+    assert_eq!(f.store.metadata_batch(ids).unwrap(), expected);
+    assert_eq!(
+        f.store.metadata_batch(vec![f.ids[0].clone()]).unwrap(),
+        vec![expected[1].clone()]
+    );
+    assert!(f.store.metadata_batch(vec![]).unwrap().is_empty());
+}
+
+#[test]
+fn metadata_batch_returns_the_first_individual_error() {
+    let f = fixture();
+    let missing = "00000000000000000000000000000000".to_owned();
+    let malformed = "not-an-image-id".to_owned();
+    // A missing catalog row before a malformed ID must not be masked by
+    // eagerly validating the entire batch.
+    for invalid in [
+        vec![missing.clone(), malformed.clone()],
+        vec![malformed, missing],
+    ] {
+        let expected = f.store.metadata(invalid[0].clone()).unwrap_err();
+        let ids = std::iter::once(f.ids[0].clone())
+            .chain(invalid)
+            .chain(std::iter::once(f.ids[1].clone()))
+            .collect();
+        let actual = f.store.metadata_batch(ids).unwrap_err();
+        assert_eq!(
+            std::mem::discriminant(&actual),
+            std::mem::discriminant(&expected)
+        );
+        assert_eq!(actual.to_string(), expected.to_string());
+    }
+}
+
+#[test]
+fn metadata_batch_propagates_sidecar_read_errors() {
+    let f = fixture();
+    let rows = f.engine.list_images(ImageQuery::default()).unwrap();
+    let row = rows.iter().find(|row| row.id == f.ids[1]).unwrap();
+    // A directory at the XMP path reliably causes a read error even when
+    // tests run with permissions that would bypass a chmod-based fixture.
+    std::fs::create_dir(format!("{}.xmp", row.path)).unwrap();
+    let expected = f.store.metadata(f.ids[1].clone()).unwrap_err();
+    let actual = f.store.metadata_batch(f.ids.clone()).unwrap_err();
+    assert_eq!(
+        std::mem::discriminant(&actual),
+        std::mem::discriminant(&expected)
+    );
+    assert_eq!(actual.to_string(), expected.to_string());
 }
 
 #[test]

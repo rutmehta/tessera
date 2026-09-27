@@ -136,7 +136,8 @@ final class DocumentTools {
     @ObservationIgnored private var strokeOpen = false
     @ObservationIgnored private var strokeTimes: [Double] = []
     @ObservationIgnored private var opacityKeys = BrushHUDMath.OpacityKeys()
-    @ObservationIgnored private var outlineToken = 0
+    /// Outline requests are generation-counted (B5-09): a clear or a newer request makes older results stale.
+    @ObservationIgnored private var outlineGate = OutlineRequestGate()
     @ObservationIgnored private var outlineKey: (String, UInt64, Int)?
     @ObservationIgnored private var transformPush = (inFlight: false, dirty: false)
     @ObservationIgnored private var busy = 0
@@ -191,24 +192,54 @@ final class DocumentTools {
 
     // MARK: Tools
 
+    /// B5-11b: the status hint, derived from the current tool and its session (the Type tool's text
+    /// session, the Pen's path in progress) — generalising B5-10c's text hint. nil while the Remove
+    /// tool is on (it states its own).
+    func hint(for doc: DocumentController) -> String? {
+        if DocumentRetouch.shared.removeActive { return nil }
+        switch doc.tool {
+        case .type: return DocumentText.shared.hint(for: doc) ?? DocumentTool.type.idleHint
+        case .pen: return DocumentVector.shared.penHint ?? DocumentTool.pen.idleHint
+        default: return doc.tool.idleHint
+        }
+    }
+    @ObservationIgnored private var shownHint: (doc: String, hint: String)?
+
+    /// Shows `hint(for:)` when it changed, on every tool / session change (a message said during the
+    /// same state — an error, "Pen path discarded" — stays until the state changes).
+    func publishHint() {
+        guard let doc = document, let h = hint(for: doc) else { return }
+        if let s = shownHint, s.doc == doc.id, s.hint == h { return }
+        shownHint = (doc.id, h)
+        say(h)
+    }
+
     func select(_ tool: DocumentTool) {
         guard let doc = document else { return }
+        DocumentRetouch.shared.toolSelected(tool)   // B5-09: another tool ends the Remove tool
+        DocumentTransforms.shared.toolSelected()   // B5-12: another tool ends Warp & co.
         if transform != nil, tool != doc.tool { commitTransform() }
         if case .polygon = gesture { gesture = nil }
         if case .magnetic = gesture { gesture = nil }
+        // B5-10 begin: leaving the Type tool applies the text being edited.
+        if tool != .type, DocumentText.shared.isEditing(doc) { DocumentText.shared.apply() }
+        // B5-10 end
+        DocumentVector.shared.toolSelected(tool)   // B5-11: finishes a Pen path, drops Path Selection's box
         doc.tool = tool
-        if tool.isPlaceholder { say("\(tool.title): a placeholder in this build (arrives with a later work package)") }
+        publishHint()   // B5-11b: the new tool's hint replaces the previous tool's (placeholders say so)
         doc.viewport?.cursorDidChange()
         redraw()
     }
 
     func cursor(for doc: DocumentController?) -> NSCursor {
         guard let doc else { return .arrow }
-        if transform != nil { return .arrow }
+        if transform != nil || DocumentTransforms.shared.isActive(doc) { return .arrow }   // B5-12
         switch doc.tool {
         case .move: return .arrow
         case .hand: return .openHand
         case .brush, .eraser, .cloneStamp, .heal, .quickSelect: return .crosshair
+        case .type: return .iBeam   // B5-10
+        case let t where t.isVector: return DocumentVector.shared.cursor   // B5-11
         default: return .crosshair
         }
     }
@@ -222,6 +253,7 @@ final class DocumentTools {
 
     func mouseMoved(_ e: NSEvent, in v: DocumentViewportView) {
         pointer = v.convert(e.locationInWindow, from: nil)
+        DocumentVector.shared.mouseMoved(e, in: v)   // B5-11: the Pen's rubber band
         let c = CanvasPoint(v.canvasPoint(e))
         switch gesture {
         case .polygon(let pts, let op, _): gesture = .polygon(points: pts, op: op, hover: c)
@@ -254,7 +286,12 @@ final class DocumentTools {
         let c = CanvasPoint(p)
         let flags = e.modifierFlags
         pointer = v.convert(e.locationInWindow, from: nil)
+        // B5-12: an advanced transform session takes the canvas.
+        if DocumentTransforms.shared.isActive(doc) { return DocumentTransforms.shared.mouseDown(e, in: v) }
         if transform != nil { return transformMouseDown(e, in: v) }
+        // B5-09 begin: the Remove tool takes the canvas while it is on.
+        if DocumentRetouch.shared.removeActive { return DocumentRetouch.shared.mouseDown(e, in: v) }
+        // B5-09 end
         // ⌃-click with a painting tool: the brush HUD (size ↔, hardness ↕).
         if flags.contains(.control), doc.tool.paints || doc.tool == .quickSelect {
             let b = currentBrush
@@ -297,8 +334,16 @@ final class DocumentTools {
         case .gradient:
             fillSelection(.color(colors.foreground), opacity: 1)
             say("Gradient: a placeholder that fills the selection with the foreground colour (gradients arrive later)")
-        case .crop, .type:
+        // B5-10 begin: the Type tool (Document/Text/DocumentText.swift).
+        case .type:
+            DocumentText.shared.mouseDown(e, in: v)
+        // B5-10 end
+        case .crop:
             say("\(doc.tool.title): a placeholder in this build (arrives with a later work package)")
+        // B5-11 begin: shape tools, Pen, Path / Direct Selection (Document/Vector/DocumentVector.swift).
+        case .rectangleShape, .ellipseShape, .polygonShape, .lineShape, .pen, .pathSelect, .directSelect:
+            DocumentVector.shared.mouseDown(e, in: v)
+        // B5-11 end
         }
         v.toolOverlay.needsDisplay = true
         return true
@@ -306,6 +351,12 @@ final class DocumentTools {
 
     func mouseDragged(_ e: NSEvent, in v: DocumentViewportView) {
         guard let doc = document else { return }
+        if DocumentTransforms.shared.isActive(doc) { _ = DocumentTransforms.shared.mouseDragged(e, in: v); return }   // B5-12
+        if gesture == nil, DocumentRetouch.shared.mouseDragged(e, in: v) { return }   // B5-09
+        // B5-10 begin
+        if doc.tool == .type, gesture == nil, transform == nil { DocumentText.shared.mouseDragged(e, in: v); return }
+        // B5-10 end
+        if doc.tool.isVector, gesture == nil, transform == nil { DocumentVector.shared.mouseDragged(e, in: v); return }   // B5-11
         let p = v.canvasPoint(e)
         let c = CanvasPoint(p)
         pointer = v.convert(e.locationInWindow, from: nil)
@@ -359,6 +410,12 @@ final class DocumentTools {
 
     func mouseUp(_ e: NSEvent, in v: DocumentViewportView) {
         guard let doc = document else { gesture = nil; return }
+        if DocumentTransforms.shared.isActive(doc) { _ = DocumentTransforms.shared.mouseUp(e, in: v); return }   // B5-12
+        if gesture == nil, DocumentRetouch.shared.mouseUp(e, in: v) { return }   // B5-09
+        // B5-10 begin
+        if doc.tool == .type, gesture == nil, transform == nil { DocumentText.shared.mouseUp(e, in: v); return }
+        // B5-10 end
+        if doc.tool.isVector, gesture == nil, transform == nil { DocumentVector.shared.mouseUp(e, in: v); return }   // B5-11
         let p = v.canvasPoint(e)
         switch gesture {
         case .marquee(let start, _, let op, let ellipse, let s, let o):
@@ -628,19 +685,20 @@ final class DocumentTools {
         let key = (doc.id, doc.info.epoch, lvl)
         if let k = outlineKey, k == key { return }
         outlineKey = key
+        // Every refresh starts a generation, the clear included, so a request still in flight when the
+        // selection is cleared can no longer bring its ants back.
+        let token = outlineGate.begin()
         guard doc.marquee != nil else {
             if !outline.isEmpty { outline = [] }
             redraw()
             return
         }
-        outlineToken += 1
-        let token = outlineToken
         outlineQueue.async {
             let o = (try? t.selectionOutline(level: UInt8(max(0, min(lvl, 6))))) ?? []
             DispatchQueue.main.async {
                 MainActor.assumeIsolated {
                     let tools = DocumentTools.shared
-                    guard token == tools.outlineToken else { return }
+                    guard tools.outlineGate.accepts(token) else { return }
                     tools.outline = o
                     tools.redraw()
                 }
@@ -752,6 +810,7 @@ final class DocumentTools {
 
     /// ⌘T.
     func beginFreeTransform() {
+        if DocumentVector.shared.beginFreeTransform() { return }   // B5-11: a shape layer gets its affine handles
         guard let d = document, let t = backend(d), transform == nil else { return }
         let ids = transformable
         guard !ids.isEmpty else { say("Free Transform: select a pixel layer"); return }
@@ -889,6 +948,9 @@ final class DocumentTools {
     /// whether the key was used.
     func handleKey(_ event: NSEvent) -> Bool {
         guard let doc = document else { return false }
+        if DocumentTransforms.shared.handleKey(event) { return true }   // B5-12: Return / Esc / ⌫ pin
+        if DocumentRetouch.shared.handleKey(event) { return true }   // B5-09: ⇧J, and Remove's keys
+        if DocumentVector.shared.handleKey(event) { return true }   // B5-11: Return / Esc / ⌫ of the vector tools
         if event.keyCode == 51 || event.keyCode == 117 {
             let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
             return mods.isEmpty && clearSelection()
@@ -901,6 +963,13 @@ final class DocumentTools {
         if flags.contains(.control) { mods.insert(.control) }
         guard let action = ToolKeyMap.action(keyCode: event.keyCode, characters: event.charactersIgnoringModifiers ?? "",
                                              mods: mods, current: doc.tool) else { return false }
+        // B5-10 begin: Return / Esc apply or cancel a text session whose keys reach the tools
+        // (focus left the canvas); while the canvas has focus TextInputView owns every key.
+        if DocumentText.shared.isEditing(doc) {
+            if action == .commit { DocumentText.shared.apply(); return true }
+            if action == .cancel { DocumentText.shared.cancel(); return true }
+        }
+        // B5-10 end
         switch action {
         case .tool(let t): select(t)
         case .brushSize(let larger):

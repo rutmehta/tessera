@@ -27,6 +27,37 @@ impl SuperResolution {
             id: id.into(),
             version: SR_VERSION.into(),
         })?;
+        Self::from_handle(handle, factor, sha, options)
+    }
+
+    /// Strict cache-only load, including if the cache disappears during loading.
+    pub fn load_cached(
+        registry: &ModelRegistry,
+        factor: usize,
+        options: SessionOptions,
+    ) -> Result<Self> {
+        let (id, sha) = match factor {
+            2 => ("enhance/realesrgan-x2", SR_X2_SHA256),
+            4 => ("enhance/realesrgan-x4", SR_X4_SHA256),
+            _ => anyhow::bail!("upscale must be 2 or 4"),
+        };
+        let handle = registry
+            .resolve_cached_ref(&ModelRef {
+                id: id.into(),
+                version: SR_VERSION.into(),
+            })?
+            .ok_or_else(|| {
+                anyhow::anyhow!("missing Real-ESRGAN weights (offline); enable model downloads")
+            })?;
+        Self::from_handle(handle, factor, sha, options)
+    }
+
+    fn from_handle(
+        handle: ml_runtime::ModelHandle,
+        factor: usize,
+        sha: &str,
+        options: SessionOptions,
+    ) -> Result<Self> {
         ensure!(
             handle.spec().sha256 == sha,
             "unexpected Real-ESRGAN weights"

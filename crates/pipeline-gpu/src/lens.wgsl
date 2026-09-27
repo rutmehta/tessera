@@ -106,11 +106,11 @@ fn vignette(@builtin(global_invocation_id) gid: vec3<u32>) {
 
 // ── composed inverse map + normalized Lanczos-3: geometry_mapped ──
 // p: iw, ih, first, source rows, w, h, row0, rows, flags (1 transform,
-//    2 lens, 4 sample), warps | crop cw, ch, cx, cy, sin, cos (10..15),
+//    2 lens, 4 sample, 8 upright), warps | crop cw, ch, cx, cy, sin, cos (10..15),
 //    transform offset[2], rotate sin/cos, scale[2], perspective h/v (16..23),
 //    manual k1 (24), sample k[3], p[2], centre[2], distortion scale,
 //    odd[2], coordinate scale[2], amount (25..37), embedded distortion (38),
-//    embedded crop[4] (39..42), per warp k[6], centre[2], radius (43 + 9i).
+//    embedded crop[4] (39..42), upright[9] (43..51), per warp k[6], centre[2], radius (52 + 9i).
 fn lanczos3(x: f32) -> f32 {
     if abs(x) < 1e-12 { return 1.; }
     if abs(x) >= 3. { return 0.; }
@@ -143,7 +143,7 @@ fn lens_map(p0: vec2<f32>) -> vec2<f32> {
     }
     let crop = vec4<f32>(f(39u), f(40u), f(41u), f(42u));
     for (var k = 0u; k < p[9]; k++) {
-        let b = 43u + k * 9u;
+        let b = 52u + k * 9u;
         let centre = vec2<f32>(f(b + 6u), f(b + 7u));
         let radius = f(b + 8u);
         let pixel = crop.xy + (q + 1.) * crop.zw / 2.;
@@ -178,7 +178,7 @@ fn remap(@builtin(global_invocation_id) gid: vec3<u32>) {
     var sx = fma(fma(cosine, dx, 0.), 1., f(12u)) + fma(sine, dy, 0.) - 0.5;
     var sy = fma(-fma(sine, dx, 0.), 1., f(13u)) + fma(cosine, dy, 0.) - 0.5;
     var valid = true;
-    if (p[8] & 3u) != 0u {
+    if (p[8] & 11u) != 0u {
         var q = vec2<f32>(2. * (sx + 0.5) / f32(iw) - 1., 2. * (sy + 0.5) / f32(ih) - 1.);
         if (p[8] & 1u) != 0u {
             q = q - vec2<f32>(f(16u), f(17u));
@@ -191,6 +191,13 @@ fn remap(@builtin(global_invocation_id) gid: vec3<u32>) {
             let d = 1. - f(22u) * q.x - f(23u) * q.y;
             if abs(d) < 1e-8 { valid = false; }
             q = q / d;
+        }
+        if (p[8] & 8u) != 0u {
+            let v = vec3<f32>(q, 1.);
+            let z = dot(vec3<f32>(f(49u), f(50u), f(51u)), v);
+            if abs(z) < 1e-8 { valid = false; }
+            q = vec2<f32>(dot(vec3<f32>(f(43u), f(44u), f(45u)), v),
+                          dot(vec3<f32>(f(46u), f(47u), f(48u)), v)) / z;
         }
         if (p[8] & 2u) != 0u {
             q = lens_map(q);

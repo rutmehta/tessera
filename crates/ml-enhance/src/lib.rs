@@ -1,12 +1,15 @@
 //! On-device image enhancement.
+mod color;
+pub use color::CameraSrgb;
 mod cfa;
 mod packing;
 pub use cfa::{CfaDenoiser, CfaNoise, denoise_cfa_with};
 pub use packing::BayerPacking;
 mod denoise;
 pub use denoise::{
-    DENOISE_ADAPTER_VERSION, DENOISE_MODEL_ID, DENOISE_SHA256, DENOISE_SIGMA, DENOISE_VERSION,
-    Denoiser,
+    DENOISE_ADAPTER_VERSION, DENOISE_AUTO_ADAPTER_VERSION, DENOISE_AUTO_MAX_SIGMA,
+    DENOISE_MODEL_ID, DENOISE_SHA256, DENOISE_SIGMA, DENOISE_VERSION, Denoiser,
+    denoise_automatic_with, estimate_drunet_sigma,
 };
 mod sr;
 mod tiling;

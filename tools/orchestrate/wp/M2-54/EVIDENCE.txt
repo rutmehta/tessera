@@ -1,0 +1,31 @@
+Required gate: cargo test -p tessera-ffi --release --lib && cargo clippy -p tessera-ffi --all-targets -- -D warnings && cargo fmt --check && (cd apps/mac && ./build-ffi.sh && swift build && swift test -c release -Xswiftc -enable-testing)
+Observed exit: 0
+CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/M2-54
+MACOSX_DEPLOYMENT_TARGET=15.0
+
+test result: ok. 52 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.60s
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.108 (0.108) seconds
+	 Executed 1 test, with 0 failures (0 unexpected) in 1.775 (1.776) seconds
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'IncrementalLibraryTests' passed at 2026-09-27 04:12:53.147.
+	 Executed 1 test, with 0 failures (0 unexpected) in 14.353 (14.353) seconds
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.055 (0.055) seconds
+	 Executed 1 test, with 0 failures (0 unexpected) in 1.985 (1.986) seconds
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.182 (0.182) seconds
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+	 Executed 288 tests, with 1 test skipped and 0 failures (0 unexpected) in 74.850 (74.886) seconds
+Test Suite 'All tests' passed at 2026-09-27 04:13:50.180.
+	 Executed 288 tests, with 1 test skipped and 0 failures (0 unexpected) in 74.850 (74.887) seconds
+M2-54 lookup count=1000 before_ms=0.053670406341552734 after_ms=0.0025200843811035156
+M2-54 lookup count=20000 before_ms=0.9586489200592041 after_ms=0.004570484161376953
+M2-54 core_install_ms=0.1480579376220703 select_all_ms=0.008940696716308594
+M2-54 warm_bottom_100 count=1000 before_median_ms=0.11599063873291016 median_ms=0.09000301361083984 max_ms=0.10895729064941406
+M2-54 warm_bottom_100 count=20000 before_median_ms=0.6339550018310547 median_ms=0.09202957153320312 max_ms=0.09691715240478516
+M2-54 warm_bottom_100 ratio=1.0225165562913907 target=1.2
+✔ Test run with 5 tests in 2 suites passed after 0.025 seconds.
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s
+	 Executed 1 test, with 0 failures (0 unexpected) in 22.969 (22.969) seconds
+	 Executed 1 test, with 0 failures (0 unexpected) in 22.969 (22.969) seconds
+	 Executed 1 test, with 0 failures (0 unexpected) in 22.969 (22.970) seconds
+M2-54 engine_20k install_ms=0.8689165115356445 search_submit_ms=0.013947486877441406 query_wall_ms=60.81104278564453 select_all_ms=0.08606910705566406

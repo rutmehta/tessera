@@ -5,6 +5,372 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use tessera_ffi::*;
 
+#[test]
+fn original_export_keeps_embedded_only_dng_edits() {
+    let dir = tempfile::tempdir().unwrap();
+    let photos = dir.path().join("photos");
+    std::fs::create_dir(&photos).unwrap();
+    let source = photos.join("edited.dng");
+    let image = merge::LinearImage {
+        width: 32,
+        height: 32,
+        pixels: vec![[0.2; 3]; 32 * 32],
+        color_matrix: [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+        as_shot_neutral: [1.0; 3],
+    };
+    let packet = r#"<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description xmlns:crs="http://ns.adobe.com/camera-raw-settings/1.0/" xmlns:xmp="http://ns.adobe.com/xap/1.0/" crs:Exposure2012="1.25" xmp:Rating="4"/></rdf:RDF>"#;
+    merge::dng::write(&mut std::fs::File::create(&source).unwrap(), &image, packet).unwrap();
+    let engine = Engine::open(dir.path().join("support").to_string_lossy().into_owned()).unwrap();
+    engine
+        .index_folder(photos.to_string_lossy().into_owned())
+        .unwrap();
+    let report = engine
+        .export_batch(
+            ExportTarget::Query {
+                query: ImageQuery::default(),
+            },
+            settings(
+                &dir.path().join("out"),
+                serde_json::json!({"format":"original","resize":{"mode":"none"}}),
+            ),
+            None,
+            None,
+        )
+        .unwrap();
+    assert_eq!((report.exported, report.failed), (1, 0), "{report:?}");
+    let output = raw_decode::linear_dng::read(
+        &mut std::fs::File::open(report.items[0].output_path.as_ref().unwrap()).unwrap(),
+    )
+    .unwrap();
+    let imported = sidecar::XmpPacket::parse(output.xmp)
+        .unwrap()
+        .to_recipe()
+        .unwrap()
+        .recipe;
+    assert_eq!(imported.settings.tone.exposure, 1.25);
+    assert_eq!(
+        imported.selection,
+        sidecar::XmpPacket::parse(packet)
+            .unwrap()
+            .selection()
+            .unwrap()
+    );
+}
+
+#[test]
+fn original_export_copies_bytes_and_is_remembered() {
+    let f = fixture();
+    let out = f.dir.path().join("originals");
+    let options = settings(
+        &out,
+        serde_json::json!({"format":"original", "resize":{"mode":"none"}}),
+    );
+    let report = f
+        .engine
+        .export_batch(
+            ExportTarget::Images {
+                image_ids: vec![f.ids[0].clone()],
+            },
+            options,
+            None,
+            None,
+        )
+        .unwrap();
+    assert_eq!((report.exported, report.failed), (1, 0), "{report:?}");
+    assert_eq!(
+        std::fs::read(out.join("a.jpg")).unwrap(),
+        std::fs::read(f.dir.path().join("photos/a.jpg")).unwrap()
+    );
+    assert!(sidecar::Sidecar::paths(out.join("a.jpg")).xmp.exists());
+    let again = f
+        .engine
+        .export_with_previous(
+            ExportTarget::Images {
+                image_ids: vec![f.ids[1].clone()],
+            },
+            None,
+            None,
+        )
+        .unwrap();
+    assert_eq!((again[0].exported, again[0].failed), (1, 0));
+    assert_eq!(
+        std::fs::read(out.join("b.jpg")).unwrap(),
+        std::fs::read(f.dir.path().join("photos/b.jpg")).unwrap()
+    );
+    for extra in [
+        serde_json::json!({"remove_location":true}),
+        serde_json::json!({"metadata":"none"}),
+        serde_json::json!({"resize":{"mode":"long_edge"}}),
+        serde_json::json!({"sharpening":"screen"}),
+    ] {
+        let mut value = extra;
+        value["format"] = "original".into();
+        assert!(normalize_export_settings(value.to_string()).is_err());
+    }
+}
+
+#[test]
+fn sharpening_amount_json_defaults_and_roundtrip() {
+    let defaults: serde_json::Value =
+        serde_json::from_str(&normalize_export_settings("{}".into()).unwrap()).unwrap();
+    assert_eq!(defaults["sharpening_amount"], "standard");
+    for amount in ["low", "standard", "high"] {
+        let json =
+            serde_json::json!({"sharpening": "matte", "sharpening_amount": amount, "dpi": 240});
+        let normalized: serde_json::Value =
+            serde_json::from_str(&normalize_export_settings(json.to_string()).unwrap()).unwrap();
+        assert_eq!(normalized["sharpening_amount"], amount);
+        assert_eq!(normalized["dpi"], 240);
+    }
+    assert!(normalize_export_settings(r#"{"sharpening_amount":"extreme"}"#.into()).is_err());
+}
+
+#[test]
+fn workflow_previous_survives_reopen_and_uses_the_new_selection() {
+    let f = fixture();
+    let target = |id: &String| ExportTarget::Images {
+        image_ids: vec![id.clone()],
+    };
+    assert!(
+        f.engine
+            .export_with_previous(target(&f.ids[0]), None, None)
+            .is_err()
+    );
+    let out = f.dir.path().join("previous");
+    let options = settings(&out, serde_json::json!({"format":"png"}));
+    let first = f
+        .engine
+        .export_batch(target(&f.ids[0]), options, None, None)
+        .unwrap();
+    assert_eq!((first.exported, first.failed), (1, 0));
+    let reopened = Engine::open(f.support.clone()).unwrap();
+    let reports = reopened
+        .export_with_previous(target(&f.ids[1]), None, None)
+        .unwrap();
+    assert_eq!(reports.len(), 1);
+    assert_eq!((reports[0].exported, reports[0].failed), (1, 0));
+    assert_eq!(image::open(out.join("b.png")).unwrap().width(), 16);
+    assert!(!out.join("a-2.png").exists());
+}
+
+#[test]
+fn workflow_multiple_settings_are_preflighted_and_remembered_together() {
+    let f = fixture();
+    let target = || ExportTarget::Images {
+        image_ids: vec![f.ids[0].clone()],
+    };
+    let out = f.dir.path().join("multiple");
+    let jpeg = settings(&out, serde_json::json!({}));
+    let png = settings(&out, serde_json::json!({"format":"png"}));
+    assert!(
+        f.engine
+            .export_multiple(
+                target(),
+                vec![jpeg.clone(), "{\"quality\":0}".into()],
+                None,
+                None
+            )
+            .is_err()
+    );
+    assert!(
+        !out.exists(),
+        "later invalid settings must prevent earlier exports"
+    );
+    let reports = f
+        .engine
+        .export_multiple(target(), vec![jpeg, png], None, None)
+        .unwrap();
+    assert_eq!(reports.len(), 2);
+    assert!(reports.iter().all(|r| r.exported == 1 && r.failed == 0));
+    assert!(out.join("a.jpg").is_file());
+    assert!(out.join("a.png").is_file());
+    let saved = std::fs::read(Path::new(&f.support).join("LastExport.json")).unwrap();
+    let saved_json: serde_json::Value = serde_json::from_slice(&saved).unwrap();
+    assert_eq!(saved_json["settings"].as_array().unwrap().len(), 2);
+    let cancel = CancelFlag::new();
+    cancel.cancel();
+    let cancelled = f
+        .engine
+        .export_with_previous(target(), None, Some(cancel))
+        .unwrap();
+    assert!(cancelled[0].cancelled);
+    assert_eq!(
+        std::fs::read(Path::new(&f.support).join("LastExport.json")).unwrap(),
+        saved
+    );
+    let reopened = Engine::open(f.support.clone()).unwrap();
+    let again = reopened
+        .export_with_previous(
+            ExportTarget::Images {
+                image_ids: vec![f.ids[1].clone()],
+            },
+            None,
+            None,
+        )
+        .unwrap();
+    assert_eq!(again.len(), 2);
+    assert!(out.join("b.jpg").is_file());
+    assert!(out.join("b.png").is_file());
+}
+
+#[test]
+#[cfg(unix)]
+fn workflow_script_runs_in_host_only_after_successful_export() {
+    use std::os::unix::fs::PermissionsExt;
+    let f = fixture();
+    let out = f.dir.path().join("with spaces;not-shell");
+    let script = f.dir.path().join("post export.sh");
+    std::fs::write(&script, "#!/bin/sh\nfor file do\n  test -f \"$file\" || exit 42\n  printf '%s\\n' \"$file\" > \"$file.receipt\"\ndone\n").unwrap();
+    std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o700)).unwrap();
+    let options = settings(
+        &out,
+        serde_json::json!({"after_export":{"run_script":script}}),
+    );
+    let report = f
+        .engine
+        .export_batch(
+            ExportTarget::Images {
+                image_ids: vec![f.ids[0].clone()],
+            },
+            options.clone(),
+            None,
+            None,
+        )
+        .unwrap();
+    assert_eq!((report.exported, report.failed), (1, 0));
+    assert!(report.workflow_errors.is_empty(), "{report:?}");
+    assert_eq!(
+        std::fs::read_to_string(out.join("a.jpg.receipt")).unwrap(),
+        format!("{}\n", out.join("a.jpg").display())
+    );
+    let previous = std::fs::read(Path::new(&f.support).join("LastExport.json")).unwrap();
+    // A host failure must retain the output and previous settings, not report
+    // the already-published image as a failed render or discard its path.
+    std::fs::write(&script, "#!/bin/sh\nexit 23\n").unwrap();
+    let report = f
+        .engine
+        .export_batch(
+            ExportTarget::Images {
+                image_ids: vec![f.ids[1].clone()],
+            },
+            options,
+            None,
+            None,
+        )
+        .unwrap();
+    assert_eq!((report.exported, report.failed), (1, 0));
+    assert_eq!(report.workflow_errors.len(), 1);
+    assert!(report.workflow_errors[0].contains("23"));
+    assert!(out.join("b.jpg").exists());
+    assert_eq!(
+        std::fs::read(Path::new(&f.support).join("LastExport.json")).unwrap(),
+        previous
+    );
+    assert!(
+        normalize_export_settings(r#"{"after_export":{"run_script":"relative.sh"}}"#.into())
+            .is_err()
+    );
+}
+
+#[test]
+fn workflow_failures_preserve_previous_and_earlier_preset_reports() {
+    let f = fixture();
+    let target = || ExportTarget::Images {
+        image_ids: vec![f.ids[0].clone()],
+    };
+    let out = f.dir.path().join("good");
+    let options = settings(&out, serde_json::json!({}));
+    f.engine
+        .export_batch(target(), options.clone(), None, None)
+        .unwrap();
+    let last = Path::new(&f.support).join("LastExport.json");
+    let saved = std::fs::read(&last).unwrap();
+    let blocked = f.dir.path().join("not-a-directory");
+    std::fs::write(&blocked, "not a directory").unwrap();
+    let reports = f
+        .engine
+        .export_multiple(
+            target(),
+            vec![options, settings(&blocked, serde_json::json!({}))],
+            None,
+            None,
+        )
+        .unwrap();
+    assert_eq!(reports.len(), 2);
+    assert_eq!((reports[0].exported, reports[1].failed), (1, 1));
+    assert!(Path::new(reports[0].items[0].output_path.as_ref().unwrap()).is_file());
+    assert!(reports[1].items[0].error.is_some());
+    assert_eq!(std::fs::read(&last).unwrap(), saved);
+    let invalid = settings(&out, serde_json::json!({"on_conflict":"skip"}));
+    assert_eq!(
+        f.engine
+            .export_batch(target(), invalid, None, None)
+            .unwrap()
+            .failed,
+        1
+    );
+    assert_eq!(std::fs::read(&last).unwrap(), saved);
+    for corrupt in [
+        "not json",
+        r#"{"version":2,"settings":[]}"#,
+        r#"{"version":1,"settings":[]}"#,
+    ] {
+        std::fs::write(&last, corrupt).unwrap();
+        assert!(f.engine.export_with_previous(target(), None, None).is_err());
+        assert_eq!(std::fs::read_to_string(&last).unwrap(), corrupt);
+    }
+}
+
+#[test]
+#[cfg(unix)]
+fn workflow_does_not_run_scripts_after_cancel_or_partial_failure() {
+    use std::os::unix::fs::PermissionsExt;
+    let f = fixture();
+    let script = f.dir.path().join("mark.sh");
+    std::fs::write(
+        &script,
+        "#!/bin/sh\nfor file do touch \"$file.receipt\"; done\n",
+    )
+    .unwrap();
+    std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o700)).unwrap();
+    let out = f.dir.path().join("partial");
+    std::fs::create_dir(&out).unwrap();
+    std::fs::write(out.join("a.jpg"), "existing").unwrap();
+    let options = settings(
+        &out,
+        serde_json::json!({"on_conflict":"skip","after_export":{"run_script":script}}),
+    );
+    let report = f
+        .engine
+        .export_batch(
+            ExportTarget::Images {
+                image_ids: f.ids.clone(),
+            },
+            options.clone(),
+            None,
+            None,
+        )
+        .unwrap();
+    assert_eq!((report.exported, report.failed), (2, 1));
+    assert!(!out.join("b.jpg.receipt").exists());
+    assert!(!Path::new(&f.support).join("LastExport.json").exists());
+    let cancel = CancelFlag::new();
+    cancel.cancel();
+    let report = f
+        .engine
+        .export_batch(
+            ExportTarget::Images {
+                image_ids: f.ids.clone(),
+            },
+            options,
+            None,
+            Some(cancel),
+        )
+        .unwrap();
+    assert!(report.cancelled);
+    assert!(!out.join("b.jpg.receipt").exists());
+}
+
 struct Fixture {
     dir: tempfile::TempDir,
     support: String,
@@ -75,6 +441,101 @@ fn files(dir: &Path) -> Vec<String> {
 }
 
 #[test]
+fn dng_settings_select_float_linear_export() {
+    let json = normalize_export_settings(r#"{"format":"dng","bit_depth":32}"#.into()).unwrap();
+    let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(value["format"], "dng");
+    assert_eq!(value["bit_depth"], 32);
+    assert!(normalize_export_settings(r#"{"format":"dng","bit_depth":16}"#.into()).is_err());
+}
+
+#[test]
+fn jpeg_xl_settings_support_lossless_depths_and_reject_false_profiles() {
+    for bits in [8, 16] {
+        let json = format!(r#"{{"format":"jpeg_xl","bit_depth":{bits}}}"#);
+        let value: serde_json::Value =
+            serde_json::from_str(&normalize_export_settings(json).unwrap()).unwrap();
+        assert_eq!(value["format"], "jpeg_xl");
+        assert_eq!(value["bit_depth"], bits);
+    }
+    for extra in [r#""bit_depth":12"#, r#""color_space":"display_p3""#] {
+        assert!(normalize_export_settings(format!(r#"{{"format":"jpeg_xl",{extra}}}"#)).is_err());
+    }
+}
+
+#[test]
+fn avif_settings_are_backward_compatible_and_validate_depth_and_speed() {
+    for bits in [8, 10, 12] {
+        let json = format!(r#"{{"format":"avif","bit_depth":{bits},"avif_speed":8}}"#);
+        let value: serde_json::Value =
+            serde_json::from_str(&normalize_export_settings(json).unwrap()).unwrap();
+        assert_eq!(value["bit_depth"], bits);
+        assert_eq!(value["avif_speed"], 8);
+    }
+    for json in [
+        r#"{"format":"avif","bit_depth":16}"#,
+        r#"{"format":"avif","avif_speed":0}"#,
+        r#"{"format":"avif","avif_speed":11}"#,
+        r#"{"format":"avif","max_file_bytes":1000}"#,
+    ] {
+        assert!(normalize_export_settings(json.into()).is_err(), "{json}");
+    }
+    assert!(normalize_export_settings("{}".into()).is_ok());
+}
+
+#[test]
+fn jpeg_xl_batch_encodes_each_depth_and_keeps_metadata_sidecar() {
+    let f = fixture();
+    for bits in [8, 16] {
+        let out = f.dir.path().join(format!("jxl-{bits}"));
+        let report = f
+            .engine
+            .export_batch(
+                ExportTarget::Images {
+                    image_ids: vec![f.ids[0].clone()],
+                },
+                settings(
+                    &out,
+                    serde_json::json!({"format":"jpeg_xl", "bit_depth":bits}),
+                ),
+                None,
+                None,
+            )
+            .unwrap();
+        assert_eq!((report.exported, report.failed), (1, 0), "{report:?}");
+        let data = std::fs::read(out.join("a.jxl")).unwrap();
+        assert_eq!(&data[4..12], b"JXL \r\n\x87\n");
+        assert!(out.join("a.jxl.xmp").is_file());
+    }
+}
+
+#[test]
+fn avif_batch_encodes_each_depth_and_keeps_metadata_sidecar() {
+    let f = fixture();
+    for bits in [8, 10, 12] {
+        let out = f.dir.path().join(format!("avif-{bits}"));
+        let report = f
+            .engine
+            .export_batch(
+                ExportTarget::Images {
+                    image_ids: vec![f.ids[0].clone()],
+                },
+                settings(
+                    &out,
+                    serde_json::json!({"format":"avif", "bit_depth":bits, "avif_speed":10}),
+                ),
+                None,
+                None,
+            )
+            .unwrap();
+        assert_eq!((report.exported, report.failed), (1, 0), "{report:?}");
+        let data = std::fs::read(out.join("a.avif")).unwrap();
+        assert_eq!(&data[4..12], b"ftypavif");
+        assert!(out.join("a.avif.xmp").is_file());
+    }
+}
+
+#[test]
 fn settings_json_is_validated_and_normalized() {
     let normalized =
         normalize_export_settings(r#"{"format":"tiff","bit_depth":16}"#.into()).unwrap();
@@ -83,6 +544,14 @@ fn settings_json_is_validated_and_normalized() {
     assert_eq!(value["color_space"], "srgb");
     assert_eq!(value["resize"]["mode"], "none");
     assert_eq!(value["on_conflict"], "unique");
+    assert!(value["max_file_bytes"].is_null());
+    assert!(value["watermark"].is_null());
+    let options = ExportOptions::from_json(r#"{"max_file_bytes":4096,"watermark":{"kind":"text","text":"Copyright","font":"font.ttf","size":0.05,"color":[1,1,1],"opacity":0.5,"anchor":"bottom_right","inset":0.02,"rotation":0}}"#).unwrap();
+    assert_eq!(options.max_file_bytes, Some(4096));
+    assert_eq!(
+        ExportOptions::from_json(&options.to_json()).unwrap(),
+        options
+    );
     for bad in [
         r#"{"quality":0}"#,
         r#"{"format":"jpeg","bit_depth":16}"#,
@@ -91,6 +560,9 @@ fn settings_json_is_validated_and_normalized() {
         r#"{"naming":"{unknown}"}"#,
         r#"{"resize":{"mode":"long_edge","long_edge":0}}"#,
         r#"{"surprise":true}"#,
+        r#"{"max_file_bytes":0}"#,
+        r#"{"format":"png","max_file_bytes":4096}"#,
+        r#"{"watermark":{"kind":"graphic","path":"a.png","scale":0,"opacity":1,"anchor":"center","inset":0}}"#,
     ] {
         assert!(normalize_export_settings(bad.into()).is_err(), "{bad}");
     }
@@ -198,6 +670,52 @@ fn presets_ship_defaults_and_persist_crud() {
     engine.restore_default_export_presets().unwrap();
     assert_eq!(names(&engine).len(), 6);
     let _ = &f.dir;
+}
+
+#[test]
+fn sharpening_amount_reaches_exported_pixels_and_preset() {
+    let f = fixture();
+    let mut outputs = Vec::new();
+    for amount in ["low", "standard", "high"] {
+        let out = f.dir.path().join(amount);
+        let json = settings(
+            &out,
+            serde_json::json!({
+                "format": "tiff", "bit_depth": 16, "metadata": "none",
+                "sharpening": "matte", "sharpening_amount": amount, "dpi": 300
+            }),
+        );
+        f.engine
+            .save_export_preset(amount.into(), json.clone())
+            .unwrap();
+        let preset = f
+            .engine
+            .export_presets()
+            .unwrap()
+            .into_iter()
+            .find(|p| p.name == amount)
+            .unwrap();
+        let saved: serde_json::Value = serde_json::from_str(&preset.settings_json).unwrap();
+        assert_eq!(saved["sharpening_amount"], amount);
+        let report = f
+            .engine
+            .export_batch(
+                ExportTarget::Images {
+                    image_ids: vec![f.ids[0].clone()],
+                },
+                json,
+                None,
+                None,
+            )
+            .unwrap();
+        assert_eq!((report.exported, report.failed), (1, 0));
+        outputs.push(
+            image::open(report.items[0].output_path.as_ref().unwrap())
+                .unwrap()
+                .to_rgb16(),
+        );
+    }
+    assert!(outputs.windows(2).all(|p| p[0] != p[1]));
 }
 
 #[test]
@@ -481,7 +999,8 @@ fn print_renders_fit_the_box_in_the_chosen_colour_handling() {
     assert!(managed.icc.len() > 100);
 
     let profile_path = f.dir.path().join("printer.icc");
-    std::fs::write(&profile_path, output_profile()).unwrap();
+    let profile_bytes = output_profile();
+    std::fs::write(&profile_path, &profile_bytes).unwrap();
     let described = describe_printer_profile(profile_path.to_string_lossy().into_owned()).unwrap();
     assert_eq!(described.color_space, "RGB");
     let app = f
@@ -502,7 +1021,9 @@ fn print_renders_fit_the_box_in_the_chosen_colour_handling() {
         )
         .unwrap();
     assert_eq!((app.width, app.height, app.channels), (40, 60, 3));
-    assert_eq!(app.icc, output_profile());
+    // Creating another profile can cross a second boundary and change its
+    // ICC creation timestamp. Require the exact bytes of the input fixture.
+    assert_eq!(app.icc, profile_bytes);
 
     let cmyk = PathBuf::from("/System/Library/ColorSync/Profiles/Generic CMYK Profile.icc");
     if cmyk.exists() {

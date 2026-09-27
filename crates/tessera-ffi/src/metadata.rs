@@ -87,6 +87,118 @@ fn clean(s: &str) -> String {
 }
 
 impl LibraryStore {
+    fn metadata_from_catalog(
+        c: &crate::Catalog,
+        image_id: String,
+        id: ImageId,
+    ) -> Result<ImageMetadata> {
+        let path = PathBuf::from(Engine::path(c, &image_id)?);
+        let mut out = ImageMetadata {
+            image_id: image_id.clone(),
+            ..Default::default()
+        };
+        let xmp = catalog::xmp_path(&path);
+        if xmp.exists() {
+            let meta = Sidecar::read_xmp(&xmp)?.metadata()?;
+            out.title = meta.title;
+            out.caption = meta.description;
+            out.copyright = meta.copyright;
+            out.creator = meta.creators.join("; ");
+            out.keywords = meta.keywords;
+            out.hierarchical_keywords = meta.hierarchical_keywords;
+            out.alt_text = meta.alt_text;
+        }
+        // Accepted suggestions kept in the catalog only (XMP opt-in off).
+        for name in c
+            .index
+            .accepted_keyword_names(id)
+            .map_err(|e| failure(format!("{e:#}")))?
+        {
+            if !out.keywords.contains(&name) {
+                out.keywords.push(name);
+            }
+        }
+        let mut push = |group: &str, name: &str, value: String| {
+            if !value.trim().is_empty() {
+                out.fields.push(MetadataField {
+                    group: group.into(),
+                    name: name.into(),
+                    value,
+                });
+            }
+        };
+        push(
+            "File",
+            "Name",
+            path.file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_default(),
+        );
+        push(
+            "File",
+            "Folder",
+            path.parent()
+                .map(|p| p.to_string_lossy().into_owned())
+                .unwrap_or_default(),
+        );
+        if let Ok(md) = std::fs::metadata(&path) {
+            let bytes = md.len() as f64;
+            push(
+                "File",
+                "Size",
+                if bytes >= 1e6 {
+                    format!("{:.1} MB", bytes / 1e6)
+                } else {
+                    format!("{:.0} KB", (bytes / 1e3).max(1.0))
+                },
+            );
+        }
+        let row: Option<(Option<String>, Option<String>, Option<String>)> = c
+            .reader
+            .query_row(
+                "SELECT datetime(capture_time,'auto'),camera,lens FROM image WHERE id=?",
+                [&image_id],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            )
+            .optional()?;
+        if let Some((captured, camera, lens)) = row {
+            push("Camera", "Captured", captured.unwrap_or_default());
+            push("Camera", "Camera", camera.unwrap_or_default());
+            push("Camera", "Lens", lens.unwrap_or_default());
+        }
+        let mut stmt = c
+            .reader
+            .prepare("SELECT key,value FROM metadata WHERE image_id=?")?;
+        let mut exif: Vec<(String, String)> = stmt
+            .query_map([id.to_string()], |r| Ok((r.get(0)?, r.get(1)?)))?
+            .collect::<rusqlite::Result<_>>()?;
+        exif.retain(|(k, v)| !k.starts_with("thumbnail:") && v.len() <= 200);
+        let name = |k: &str| k.rsplit_once(':').map_or(k, |(_, n)| n).to_owned();
+        exif.sort_by_cached_key(|(k, _)| {
+            let n = name(k);
+            (
+                EXIF_ORDER
+                    .iter()
+                    .position(|o| *o == n)
+                    .unwrap_or(EXIF_ORDER.len()),
+                n,
+            )
+        });
+        let mut seen = BTreeSet::new();
+        for (key, value) in exif {
+            let n = name(&key);
+            let n = if n == "orientation" {
+                "Orientation".to_owned()
+            } else {
+                n
+            };
+            if seen.insert(n.clone()) {
+                push("EXIF", &n, value);
+            }
+        }
+        Ok(out)
+    }
+
     /// Applies `edit` to each image's XMP metadata and rescans the touched
     /// folders so search and facets see the change.
     pub(crate) fn edit_xmp(
@@ -292,109 +404,25 @@ impl LibraryStore {
     pub fn metadata(&self, image_id: String) -> Result<ImageMetadata> {
         let id = parse_id(&image_id)?;
         let c = self.engine.lock()?;
-        let path = PathBuf::from(Engine::path(&c, &image_id)?);
-        let mut out = ImageMetadata {
-            image_id: image_id.clone(),
-            ..Default::default()
+        Self::metadata_from_catalog(&c, image_id, id)
+    }
+
+    /// Reads metadata in input order, preserving duplicates, under one catalog
+    /// lock. Empty input returns an empty list. The first failed individual
+    /// read fails the batch; no partial result is returned.
+    pub fn metadata_batch(&self, image_ids: Vec<String>) -> Result<Vec<ImageMetadata>> {
+        let mut image_ids = image_ids.into_iter();
+        let Some(first) = image_ids.next() else {
+            return Ok(Vec::new());
         };
-        let xmp = catalog::xmp_path(&path);
-        if xmp.exists() {
-            let meta = Sidecar::read_xmp(&xmp)?.metadata()?;
-            out.title = meta.title;
-            out.caption = meta.description;
-            out.copyright = meta.copyright;
-            out.creator = meta.creators.join("; ");
-            out.keywords = meta.keywords;
-            out.hierarchical_keywords = meta.hierarchical_keywords;
-            out.alt_text = meta.alt_text;
-        }
-        // Accepted suggestions kept in the catalog only (XMP opt-in off).
-        for name in c
-            .index
-            .accepted_keyword_names(id)
-            .map_err(|e| failure(format!("{e:#}")))?
-        {
-            if !out.keywords.contains(&name) {
-                out.keywords.push(name);
-            }
-        }
-        let mut push = |group: &str, name: &str, value: String| {
-            if !value.trim().is_empty() {
-                out.fields.push(MetadataField {
-                    group: group.into(),
-                    name: name.into(),
-                    value,
-                });
-            }
-        };
-        push(
-            "File",
-            "Name",
-            path.file_name()
-                .map(|n| n.to_string_lossy().into_owned())
-                .unwrap_or_default(),
-        );
-        push(
-            "File",
-            "Folder",
-            path.parent()
-                .map(|p| p.to_string_lossy().into_owned())
-                .unwrap_or_default(),
-        );
-        if let Ok(md) = std::fs::metadata(&path) {
-            let bytes = md.len() as f64;
-            push(
-                "File",
-                "Size",
-                if bytes >= 1e6 {
-                    format!("{:.1} MB", bytes / 1e6)
-                } else {
-                    format!("{:.0} KB", (bytes / 1e3).max(1.0))
-                },
-            );
-        }
-        let row: Option<(Option<String>, Option<String>, Option<String>)> = c
-            .reader
-            .query_row(
-                "SELECT datetime(capture_time,'auto'),camera,lens FROM image WHERE id=?",
-                [&image_id],
-                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
-            )
-            .optional()?;
-        if let Some((captured, camera, lens)) = row {
-            push("Camera", "Captured", captured.unwrap_or_default());
-            push("Camera", "Camera", camera.unwrap_or_default());
-            push("Camera", "Lens", lens.unwrap_or_default());
-        }
-        let mut stmt = c
-            .reader
-            .prepare("SELECT key,value FROM metadata WHERE image_id=?")?;
-        let mut exif: Vec<(String, String)> = stmt
-            .query_map([id.to_string()], |r| Ok((r.get(0)?, r.get(1)?)))?
-            .collect::<rusqlite::Result<_>>()?;
-        exif.retain(|(k, v)| !k.starts_with("thumbnail:") && v.len() <= 200);
-        let name = |k: &str| k.rsplit_once(':').map_or(k, |(_, n)| n).to_owned();
-        exif.sort_by_cached_key(|(k, _)| {
-            let n = name(k);
-            (
-                EXIF_ORDER
-                    .iter()
-                    .position(|o| *o == n)
-                    .unwrap_or(EXIF_ORDER.len()),
-                n,
-            )
-        });
-        let mut seen = BTreeSet::new();
-        for (key, value) in exif {
-            let n = name(&key);
-            let n = if n == "orientation" {
-                "Orientation".to_owned()
-            } else {
-                n
-            };
-            if seen.insert(n.clone()) {
-                push("EXIF", &n, value);
-            }
+        // Match metadata's validation-before-lock behavior for the first ID;
+        // validate later IDs only when reached, preserving first-error order.
+        let id = parse_id(&first)?;
+        let c = self.engine.lock()?;
+        let mut out = vec![Self::metadata_from_catalog(&c, first, id)?];
+        for image_id in image_ids {
+            let id = parse_id(&image_id)?;
+            out.push(Self::metadata_from_catalog(&c, image_id, id)?);
         }
         Ok(out)
     }

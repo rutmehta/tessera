@@ -7,10 +7,13 @@ mod changes;
 mod collections;
 mod develop;
 mod document;
+mod enhance;
 mod export;
 mod lrcat;
 mod lrcat_fidelity;
+mod merge;
 mod metadata;
+mod models;
 mod preview;
 mod proof;
 mod session;
@@ -25,9 +28,11 @@ pub use collections::*;
 pub use develop::*;
 pub use document::*;
 use engine_api::{id::ImageId, recipe as core};
+pub use enhance::*;
 pub use export::*;
 pub use lrcat::*;
 pub use lrcat_fidelity::*;
+pub use merge::*;
 pub use metadata::*;
 pub use preview::PreviewResponse;
 pub use proof::*;
@@ -304,7 +309,7 @@ impl Engine {
             db,
             catalog: Mutex::new(Catalog { index, reader }),
             previews,
-            jobs: jobs::ThreadPoolScheduler::new(3),
+            jobs: jobs::ThreadPoolScheduler::with_interactive_reservation(3),
             renderer: std::sync::OnceLock::new(),
             segmenter: Default::default(),
             faces: Mutex::new(None),
@@ -444,7 +449,6 @@ impl Engine {
         image_id: String,
         max_px: u32,
     ) -> Result<PreviewResponse> {
-        use previews::Codec;
         if max_px == 0 || max_px > 8192 {
             return Err(failure("max_px must be 1...8192"));
         }
@@ -467,28 +471,15 @@ impl Engine {
         if !matches!(ext.as_str(), "jpg" | "jpeg") {
             return self.request_raw(image_id, path, max_px, recipe_hash);
         }
-        let jpeg = std::fs::read(&path)?;
-        // Bound the pyramid work to the requested tier, not the full camera JPEG.
-        let decoded = previews::Jpeg.decode(&jpeg).map_err(failure)?;
-        let scaled = image::DynamicImage::ImageRgb8(decoded)
-            .thumbnail(max_px, max_px)
-            .to_rgb8();
-        let jpeg = previews::Jpeg.encode(&scaled).map_err(failure)?;
-        let bytes = {
-            let store = &self.previews;
-            let recipe_hash = core::Recipe::default().recipe_hash().0.0;
-            let key = previews::PreviewKey::new(&jpeg, orientation, recipe_hash);
-            if let Some(bytes) = store.get(&key, previews::Level::Full) {
-                bytes
-            } else {
-                let key = store
-                    .from_embedded_jpeg(&jpeg, orientation, recipe_hash)
-                    .map_err(failure)?;
-                store
-                    .get(&key, previews::Level::Full)
-                    .ok_or_else(|| failure("preview was evicted"))?
-            }
-        };
+        let bytes = self
+            .previews
+            .jpeg_preview(
+                Path::new(&path),
+                max_px,
+                orientation,
+                *blake3::hash(recipe_hash.as_bytes()).as_bytes(),
+            )
+            .map_err(failure)?;
         self.emit(EngineEvent::PreviewReady { image_id, max_px });
         Ok(PreviewResponse {
             bytes: Some(bytes),
@@ -500,6 +491,45 @@ impl Engine {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn jpeg_preview_reopen_uses_revision_cache_without_source_work() {
+        let dir = tempfile::tempdir().unwrap();
+        let photos = dir.path().join("photos");
+        std::fs::create_dir(&photos).unwrap();
+        let path = photos.join("one.jpg");
+        image::RgbImage::new(768, 512).save(&path).unwrap();
+        let support = dir.path().join("support").to_string_lossy().into_owned();
+        let engine = Engine::open(support.clone()).unwrap();
+        engine
+            .index_folder(photos.to_string_lossy().into_owned())
+            .unwrap();
+        let id = engine.list_images(ImageQuery::default()).unwrap()[0]
+            .id
+            .clone();
+        let first = engine.clone().embedded_preview(id.clone(), 384).unwrap();
+        assert!(!first.pending);
+        assert_eq!(engine.previews.source_work_count(), 1);
+        drop(engine);
+        let engine = Engine::open(support).unwrap();
+        let hit = engine.clone().embedded_preview(id.clone(), 384).unwrap();
+        assert!(!hit.pending);
+        assert_eq!(first.bytes, hit.bytes);
+        assert_eq!(engine.previews.source_work_count(), 0);
+        // Same size replacement, with mtime restored, must not return the hit.
+        let metadata = std::fs::metadata(&path).unwrap();
+        let replacement = photos.join("replacement");
+        std::fs::write(&replacement, vec![0; metadata.len() as usize]).unwrap();
+        std::fs::File::options()
+            .write(true)
+            .open(&replacement)
+            .unwrap()
+            .set_modified(metadata.modified().unwrap())
+            .unwrap();
+        std::fs::rename(replacement, path).unwrap();
+        assert!(engine.clone().embedded_preview(id, 384).is_err());
+        assert_eq!(engine.previews.source_work_count(), 1);
+    }
 
     #[test]
     fn selection_survives_reopen_and_incremental_scan() {

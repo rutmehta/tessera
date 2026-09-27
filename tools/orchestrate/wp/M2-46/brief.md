@@ -1,0 +1,9 @@
+# WP M2-46 — Export dialog: new formats, size limit, watermark
+
+Read the current export FFI records (crates/tessera-ffi/src/export.rs: ExportSettings/options JSON incl. format Avif/JpegXl/Dng, bit depth, AVIF quality/speed, max_file_bytes, watermark text/graphic with anchor/inset/opacity/size/rotation), apps/mac/Sources/Tessera/Export/** and TesseraCore export model (presets, sheet, ACCEPTANCE §Export steps and identifiers), apps/mac/DESIGN.md + Theme.swift + Components.swift (ThemeLint must stay green).
+Expose ONLY what the engine verifiably supports today:
+1. File Settings: format picker adds AVIF (bit depth 8/10/12, quality, speed), JPEG XL (lossless only — label it), DNG (developed linear float; explain "baked edits"); JPEG "Limit file size to [ ] KB".
+2. Watermark section: None / Text / Graphic; text (font, size % of short edge, colour, opacity, anchor 3×3, inset, rotation) and graphic (choose PNG, scale, opacity, anchor, inset) with a live preview thumbnail rendered through the engine if an API exists (else a clear static placement preview).
+3. Presets: new fields persist in user presets; older presets load unchanged (round-trip tests); unsupported combinations disabled with a reason (e.g. lossy JXL, HDR — not available yet).
+4. Tests: settings→FFI JSON, preset round trip, and a real small-file export for AVIF, JXL and DNG through the engine (check extension, decodability where Apple ImageIO can read it, and size limit convergence for JPEG). Accessibility identifiers + ACCEPTANCE steps numbered from 500 (Machine A range).
+Gate: `(cd apps/mac && ./build-ffi.sh && swift build && swift test -c release -Xswiftc -enable-testing)`. Allowed: apps/mac/Sources/Tessera/Export/**,apps/mac/Sources/TesseraCore/Export/**,apps/mac/Sources/TesseraCore/Export*.swift,apps/mac/Tests/TesseraCoreTests/Export*Tests.swift,apps/mac/ACCEPTANCE.md,apps/mac/DESIGN.md,tools/orchestrate/wp/M2-46/**. Commit on wp/M2-46; do not merge.

@@ -37,14 +37,16 @@ struct SelectMenuItems: View {
         }
         .disabled(!hasSelection)
         Divider()
-        Button("Save Selection…") { tools.sheet = .saveSelection }
+        // B5-08 begin: persistent channels (Channels/ChannelSheets.swift) and Quick Mask.
+        Button("Save Selection…") { DocumentChannels.shared.sheet = .save }
             .disabled(!hasSelection)
-        Menu("Load Selection") {
-            ForEach(tools.channels(), id: \.self) { name in
-                Button(name) { tools.loadSelection(name) }
-            }
+        Button("Load Selection…") { DocumentChannels.shared.sheet = .load }
+            .disabled(!on)
+        Button(DocumentChannels.shared.isQuickMask(doc) ? "Exit Quick Mask Mode    (Q)" : "Edit in Quick Mask Mode    (Q)") {
+            DocumentChannels.shared.toggleQuickMask()
         }
         .disabled(!on)
+        // B5-08 end
         Divider()
         ForEach([DocumentTool.marquee, .ellipseMarquee, .lasso, .polygonLasso, .magneticLasso, .quickSelect, .wand, .objectSelect],
                 id: \.self) { t in
@@ -62,6 +64,7 @@ struct EditToolsMenuItems: View {
 
     var body: some View {
         let pixel = doc?.primary?.kind == .pixel
+        let advanced = DocumentTransforms.shared.canBegin(doc)   // B5-12
         Button("Fill…") { tools.sheet = .fill }
             .disabled(!pixel)
         Button("Clear    (⌫)") { _ = tools.clearSelection() }
@@ -71,6 +74,7 @@ struct EditToolsMenuItems: View {
             .shortcut(docMode, "t", .command)
             .disabled(!pixel)
         Menu("Transform") {
+            Group {
             Button("Rotate 180°") {
                 tools.quickTransform("Rotate 180°") { r in
                     .translation(r.midX, r.midY).concatenating(after: .rotation(degrees: 180))
@@ -96,7 +100,11 @@ struct EditToolsMenuItems: View {
             Button("Flip Vertical") {
                 tools.quickTransform("Flip Vertical") { r in AffineTransform2D(a: 1, b: 0, c: 0, d: 0, e: -1, f: 2 * r.midY) }
             }
+            }
+            .disabled(!pixel)
+            // B5-12: non-destructive Warp, Perspective Warp, Puppet Warp and Content-Aware Scale.
+            AdvancedTransformMenuItems(doc: doc)
         }
-        .disabled(!pixel)
+        .disabled(!pixel && !advanced)
     }
 }

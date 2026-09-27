@@ -1,0 +1,8 @@
+      AXGroup   FOCUSED
+       AXTextField document.saveAs.name sample.tessera-doc FOCUSED
+       AXPopUpButton document.saveAs.format Tessera Document 
+       AXStaticText document.saveAs.folder /private/tmp/claude-501/-Users-rutmehta- 
+       AXButton document.saveAs.choose  
+     AXButton document.saveAs.cancel  
+     AXButton document.saveAs.save  
+app focused: AXTextField document.saveAs.name

@@ -54,12 +54,23 @@ pub(crate) fn render(
     settings: &DevelopSettings,
     segmenter: Option<&mut dyn MaskSegmenter>,
 ) -> EngineResult<image::Rgb32FImage> {
+    render_with_hooks(source, settings, segmenter, None, None, &mut Vec::new())
+}
+
+pub(crate) fn render_with_hooks(
+    source: &RenderSource<'_>,
+    settings: &DevelopSettings,
+    segmenter: Option<&mut dyn MaskSegmenter>,
+    denoiser: Option<&dyn pipeline_cpu::PostDemosaicDenoise>,
+    depth: Option<&image_core::depth::DepthProvider>,
+    warnings: &mut Vec<String>,
+) -> EngineResult<image::Rgb32FImage> {
     let mut pre = settings.clone();
     pre.output.proof_profile = None;
-    pipeline_cpu::validate_settings(&pre)?;
     pre.locals = Default::default();
     pre.effects = Default::default();
     pre.geometry = Default::default();
+    pipeline_cpu::validate_settings(&pre)?;
     // The public reference API has no mask callback before its private lens
     // warp. Reject that combination instead of applying sensor-space masks to
     // already warped pixels. Ordinary (non-AI) exports retain the full path.
@@ -71,7 +82,7 @@ pub(crate) fn render(
             Some(*metadata),
         ),
     };
-    let input = pipeline_cpu::render_linear_scaled(&pre, source, 1)?;
+    let input = pipeline_cpu::render_linear_before_geometry(&pre, source, denoiser)?;
     let lens = pipeline_cpu::resolve_lens(&input, &pre.lens, metadata, &Default::default())?;
     if pre.lens.manual_distortion != 0.0
         || lens.sample().is_some()
@@ -170,15 +181,18 @@ pub(crate) fn render(
         }
     }
     let mut rgb = Image::new(input.width(), input.height(), planes)?;
+    if let Some(blur) = &settings.effects.lens_blur {
+        let provider = depth.ok_or_else(|| error("Lens Blur depth provider is missing"))?;
+        if let Some(plane) = crate::depth::estimate(provider, &rgb, warnings)? {
+            rgb = pipeline_cpu::lens_blur(&rgb, &plane, blur, Default::default())?;
+        }
+    }
+    let mut point_effects = settings.effects.clone();
+    point_effects.lens_blur = None;
     let extent = engine_api::tile::Extent::new(rgb.width(), rgb.height());
     for coord in rgb.coords() {
         let mut tile = rgb.tile(coord, 0, 1)?;
-        pipeline_cpu::effects_in_crop(
-            &mut tile,
-            &settings.effects,
-            extent,
-            &settings.geometry.crop,
-        )?;
+        pipeline_cpu::effects_in_crop(&mut tile, &point_effects, extent, &settings.geometry.crop)?;
         rgb.put(&tile)?;
     }
     let rgb = pipeline_cpu::geometry(&rgb, &settings.geometry)?;

@@ -5,13 +5,13 @@ use lyon::{
     path::Path as LyonPath,
     tessellation::{BuffersBuilder, StrokeOptions, StrokeTessellator, StrokeVertex, VertexBuffers},
 };
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Alignment {
     Inside,
     Center,
     Outside,
 }
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Stroke {
     pub width: f64,
     pub alignment: Alignment,
@@ -35,7 +35,7 @@ impl Default for Stroke {
     }
 }
 impl Stroke {
-    fn validate(&self) -> Result<()> {
+    pub fn validate(&self) -> Result<()> {
         if !self.width.is_finite()
             || self.width < 0.
             || self.width > f64::from(f32::MAX) / 2.

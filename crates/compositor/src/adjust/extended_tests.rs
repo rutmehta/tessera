@@ -133,6 +133,8 @@ fn validate_rejects_nonfinite_direct_controls() {
         Adjustment::ColorLookup {
             size: 2,
             data: vec![[f32::NAN; 3]; 8],
+            source_filename: None,
+            dither: false,
         },
         Adjustment::Exposure {
             exposure: 0.0,
@@ -223,7 +225,12 @@ fn versioned_lookup_rejects_invalid_shape() {
         (2, vec![[0.0; 3]; 7]),
         (u32::MAX, vec![]),
     ] {
-        let a = Adjustment::ColorLookup { size, data };
+        let a = Adjustment::ColorLookup {
+            size,
+            data,
+            source_filename: None,
+            dither: false,
+        };
         assert!(a.validate().is_err());
         assert!(Adjustment::from_versioned_json(&a.to_versioned_json().unwrap()).is_err());
     }

@@ -28,10 +28,10 @@ public struct DevelopFrame: Sendable, Equatable {
         displayWidth = Int(f.displayWidth); displayHeight = Int(f.displayHeight); isOverlay = f.isOverlay
     }
 
-    /// "L3 → L2, 7.8 ms" (the status bar's debug readout).
+    /// Engine sink time, not app input-to-display latency.
     public var readout: String {
         let levels = firstLevel == level ? "L\(level)" : "L\(firstLevel) → L\(level)"
-        return String(format: "render: %@, %.1f ms", levels, renderMs)
+        return String(format: "engine sink: %@, %.1f ms (not input-to-display)", levels, renderMs)
     }
 }
 
@@ -75,8 +75,12 @@ public final class DevelopController {
     public private(set) var lastFrame: DevelopFrame?
     public private(set) var histogram: Histogram?
     public private(set) var plan: SurfacePlan?
-    /// Settings not drawn by this pipeline version (kept in the recipe).
+    /// Settings not drawn by this pipeline version (kept in the recipe), as JSON pointers
+    /// (`/geometry/upright/mode`). Refreshed on open, history moves and each recorded commit.
     public private(set) var ignoredSettings: [String] = []
+
+    /// Whether the loupe skips any setting under `prefix` (e.g. `/geometry/transform`).
+    public func ignores(_ prefix: String) -> Bool { ignoredSettings.contains { $0.hasPrefix(prefix) } }
 
     public var onFrame: ((DevelopFrame) -> Void)?
     public var onSaved: ((String) -> Void)?
@@ -103,6 +107,8 @@ public final class DevelopController {
     private var lastView: (width: Int, height: Int)?
     private var reportedHeadroom: Double = 1
     private let events: Events
+    public let timingSession = UUID().uuidString
+    private var timingInput: UInt64 = 0
     private(set) var closed = false
 
     // Masking (see DevelopController+Masks.swift): changes coalesced like the sliders.
@@ -138,7 +144,7 @@ public final class DevelopController {
         self.imageID = imageID
         info = session.info()
         history = try session.historyState()
-        events = Events()
+        events = Events(session: timingSession)
         events.owner = self
         session.setListener(listener: events)
         session.setMaskListener(listener: events)
@@ -301,6 +307,8 @@ public final class DevelopController {
     /// Merges an RFC 7386 patch (nested objects merge, arrays and scalars replace, `NSNull`
     /// removes) into the live settings and queues it for the engine.
     public func apply(patch: [String: Any], interactive: Bool) {
+        timingInput &+= 1
+        PerformanceTrace.shared.record("input", session: timingSession, input: timingInput, backend: info.backend)
         pending = Self.merge(pending, patch, keepNulls: true)
         settings = Self.merge(settings, patch, keepNulls: false)
         pendingInteractive = interactive
@@ -359,10 +367,14 @@ public final class DevelopController {
     /// Sends the coalesced patch, if any. Returns whether something was sent.
     @discardableResult
     public func flushPending() -> Bool {
+        let span = PerformanceTrace.shared.begin("flush", session: timingSession, input: timingInput)
+        defer { PerformanceTrace.shared.end(span) }
         let masks = flushMaskPending()
         guard !pending.isEmpty, !closed, let json = Self.encode(pending) else { return masks }
         pending.removeAll()
         onPatchSent?(json)
+        let ffiSpan = PerformanceTrace.shared.begin("ffi", session: timingSession, input: timingInput)
+        defer { PerformanceTrace.shared.end(ffiSpan) }
         do {
             try session.setSettings(jsonPatch: json, interactive: pendingInteractive)
         } catch {
@@ -376,6 +388,7 @@ public final class DevelopController {
     public func commit(label: String) -> Bool {
         flushPending()
         let recorded = (try? session.commit(label: label)) ?? false
+        if recorded { ignoredSettings = (try? session.ignoredSettings()) ?? ignoredSettings }
         refreshHistory()
         return recorded
     }
@@ -481,6 +494,11 @@ public final class DevelopController {
     // MARK: Engine callbacks (main actor)
 
     fileprivate func didRender(_ info: FrameInfo) {
+        let span = PerformanceTrace.shared.begin("callback_drain", session: timingSession)
+        defer { PerformanceTrace.shared.end(span) }
+        PerformanceTrace.shared.record("callback_drain", session: timingSession, generation: info.generation,
+                                       width: Int(info.width), height: Int(info.height), level: Int(info.level),
+                                       backend: self.info.backend, engineSinkMs: info.renderMs)
         guard !closed else { return }
         let frame = DevelopFrame(info)
         lastFrame = frame
@@ -497,8 +515,13 @@ public final class DevelopController {
 
     /// Forwards engine worker-thread callbacks to the main actor. Holds its owner weakly.
     private final class Events: DevelopListener, MaskListener, @unchecked Sendable {
+        let timingSession: String
+        init(session: String) { timingSession = session }
         @MainActor weak var owner: DevelopController?
         func frameReady(frame: FrameInfo) {
+            PerformanceTrace.shared.record("callback_enqueue", session: timingSession, generation: frame.generation,
+                                           width: Int(frame.width), height: Int(frame.height), level: Int(frame.level),
+                                           engineSinkMs: frame.renderMs)
             DispatchQueue.main.async { MainActor.assumeIsolated { self.owner?.didRender(frame) } }
         }
         func renderFailed(message: String) {

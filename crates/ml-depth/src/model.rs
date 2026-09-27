@@ -7,6 +7,10 @@ use ml_runtime::{ModelRegistry, PartitionReport, Session, SessionOptions, Tensor
 pub const MODEL_VERSION: &str = "4472b7362082ad9968fee890ca0f1e5aca36b93d";
 pub const MODEL_SHA256: &str = "afb6a5c28f3b6bf1618c6e43f02073ef9dfdc70e937502d51603e57b0a1df10c";
 pub const MODEL_ID: &str = "depth/anything-v2-small";
+/// Stable classification for export's missing-weights fallback. Integrity,
+/// manifest and inference failures must not be classified as unavailable weights.
+pub const MISSING_MODEL_MESSAGE: &str =
+    "Lens Blur depth model is not cached; download depth/anything-v2-small in Models";
 
 pub struct DepthEstimator {
     session: Session,
@@ -30,6 +34,35 @@ impl DepthEstimator {
         Ok(Self {
             session: Session::load(model.path(), options)?,
             cache,
+        })
+    }
+    /// Load only verified cached weights. Never acquires weights from a URL or local source.
+    pub fn load_cached(
+        registry: &ModelRegistry,
+        options: SessionOptions,
+        cache: DepthStore,
+    ) -> Result<Self> {
+        Self::load_cached_retaining_store(registry, options, &mut Some(cache))
+    }
+    pub(crate) fn load_cached_retaining_store(
+        registry: &ModelRegistry,
+        options: SessionOptions,
+        cache: &mut Option<DepthStore>,
+    ) -> Result<Self> {
+        let model = registry
+            .resolve_cached_ref(&ModelRef {
+                id: MODEL_ID.into(),
+                version: MODEL_VERSION.into(),
+            })?
+            .context(MISSING_MODEL_MESSAGE)?;
+        ensure!(
+            model.spec().sha256 == MODEL_SHA256,
+            "unexpected depth weights"
+        );
+        let session = Session::load(model.path(), options)?;
+        Ok(Self {
+            session,
+            cache: cache.take().context("depth cache unavailable")?,
         })
     }
     pub fn estimate(&mut self, image: &RgbImage) -> Result<DepthMap> {

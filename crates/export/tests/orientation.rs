@@ -68,6 +68,39 @@ fn apply_orientation_rotates_raw_exports_only_when_asked() {
     )
     .unwrap();
     assert_eq!(image::image_dimensions(&path).unwrap(), (22, 26));
+    let jxl = export_one(
+        &image("oriented-jxl"),
+        &Recipe::default(),
+        &ExportSettings {
+            format: Format::JpegXl { bits: 16 },
+            ..oriented.clone()
+        },
+    )
+    .unwrap();
+    let data = std::fs::read(jxl).unwrap();
+    let decoder = jxl_oxide::JxlImage::read_with_defaults(data.as_slice()).unwrap();
+    assert_eq!((decoder.width(), decoder.height()), (22, 26));
+    decoder.render_frame(0).unwrap();
+    #[cfg(target_os = "macos")]
+    {
+        let avif = export_one(
+            &image("oriented-avif"),
+            &Recipe::default(),
+            &ExportSettings {
+                format: Format::Avif(AvifOptions {
+                    bits: 12,
+                    speed: 10,
+                    ..Default::default()
+                }),
+                ..oriented.clone()
+            },
+        )
+        .unwrap();
+        let tiff = color_mgmt::decode_to_tiff(&std::fs::read(avif).unwrap()).unwrap();
+        let mut decoder = tiff::decoder::Decoder::new(std::io::Cursor::new(tiff)).unwrap();
+        assert_eq!(decoder.dimensions().unwrap(), (22, 26));
+        decoder.read_image().unwrap();
+    }
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;

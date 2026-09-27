@@ -58,7 +58,6 @@ use engine_api::{
 };
 use selection::{Image, Mask};
 use std::{
-    collections::BTreeMap,
     sync::{
         Arc, Mutex, OnceLock, Weak,
         atomic::{AtomicUsize, Ordering},
@@ -342,8 +341,6 @@ pub(crate) struct ToolState {
     /// Clone source: `(source layer, dx, dy)`; the pixel painted at `p` is
     /// sampled at `p + (dx, dy)`.
     clone_source: Option<(u64, f32, f32)>,
-    /// Save / Load Selection channels (session state).
-    channels: BTreeMap<String, Arc<Raster>>,
     /// Selection before an interactive Refine Edge.
     refine_base: Option<Arc<Raster>>,
     /// Outline of the last selection asked for: `(selection, level, outline)`.
@@ -836,7 +833,8 @@ fn check_points(points: &[ToolPoint]) -> Result<()> {
 }
 
 /// Pixel-exact bounds of a layer raster's content (alpha > 0 for RGBA).
-fn content_bounds(r: &Raster) -> Option<Rect> {
+// B5-12: shared with document/transform.rs (content bounds of a pixel layer).
+pub(super) fn content_bounds(r: &Raster) -> Option<Rect> {
     if r.channels() != 4 {
         return r.bounds();
     }
@@ -1237,7 +1235,7 @@ impl DocumentSession {
     }
 
     /// Combines `new` into the current selection and records it.
-    fn apply_selection(
+    pub(super) fn apply_selection(
         &self,
         new: Option<Raster>,
         op: SelectionOp,
@@ -2057,42 +2055,23 @@ impl DocumentSession {
         Ok(out)
     }
 
-    /// Select ▸ Save Selection as channel `name` (replacing one of that
-    /// name). Session state: channels are not written to files yet.
+    // B5-08 begin: routed to the document's persistent channels (channels.rs).
+    /// Select ▸ Save Selection as alpha channel `name` (replacing the first
+    /// alpha channel of that name). Saved with the document.
     pub fn save_selection(&self, name: String) -> Result<()> {
-        if name.trim().is_empty() {
-            return Err(failure("channel name is empty"));
-        }
-        let mut st = self.shared.lock()?;
-        st.open()?;
-        let sel = st
-            .live()
-            .state()
-            .selection
-            .clone()
-            .ok_or_else(|| failure("there is no selection to save"))?;
-        st.tools.channels.insert(name, sel);
-        Ok(())
+        self.legacy_save_selection(name)
     }
 
-    /// Select ▸ Load Selection from channel `name`, combined by `op`.
+    /// Select ▸ Load Selection from the first channel named `name`, combined by `op`.
     pub fn load_selection(&self, name: String, op: SelectionOp) -> Result<DocumentUpdate> {
-        let ch = {
-            let st = self.shared.lock()?;
-            st.open()?;
-            st.tools
-                .channels
-                .get(&name)
-                .cloned()
-                .ok_or_else(|| failure(format!("no channel named {name:?}")))?
-        };
-        self.apply_selection(Some((*ch).clone()), op, "Load Selection")
+        self.legacy_load_selection(name, op)
     }
 
-    /// Saved selection channels, by name.
+    /// Saved channel names in panel order (see `document_channels` for ids).
     pub fn selection_channels(&self) -> Result<Vec<String>> {
-        Ok(self.shared.lock()?.tools.channels.keys().cloned().collect())
+        self.legacy_selection_channels()
     }
+    // B5-08 end
 
     // ─────────────────────────── transform ───────────────────────────
 
@@ -2364,7 +2343,7 @@ impl DocumentSession {
                 }
             }
             None => {
-                let comp = compositor::Compositor::new(16 << 20);
+                let comp = super::fonts::compositor(16 << 20); // B5-10b
                 let ts = i64::from(TILE_SIZE);
                 for ty in (win.y0 / ts)..=((win.y1 - 1) / ts) {
                     for tx in (win.x0 / ts)..=((win.x1 - 1) / ts) {

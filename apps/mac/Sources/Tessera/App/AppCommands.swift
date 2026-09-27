@@ -159,6 +159,7 @@ struct AppCommands: Commands {
                 .keyboardShortcut(.delete, modifiers: .command)
         }
         documentMenus
+        Group {   // M2-50: Library + Photo as one builder item (the builder takes at most 10)
         CommandMenu("Library") {
             Button("Edit in Layers") { docs.editInLayers(model.focusedItem) }
                 .shortcut(!docMode, "e", .command)
@@ -185,6 +186,10 @@ struct AppCommands: Commands {
             Button("Detect Text in Selection") { model.collections.understanding.detectText() }
                 .disabled(!model.collections.understanding.isAvailable)
         }
+        // M2-50 begin: Photo ▸ Photo Merge / Enhance
+        CommandMenu("Photo") { PhotoMenuItems(model: model) }
+        }
+        // M2-50 end
         CommandMenu("Develop") {
             Button("Auto Edit…") { model.agent.present() }
                 .keyboardShortcut("a", modifiers: [.command, .shift])
@@ -216,7 +221,7 @@ struct AppCommands: Commands {
             Button("Load 20,000 Stub Items") { model.loadStubItems(count: 20_000) }
                 .shortcut(!docMode, "n", [.command, .shift])
             Button("Run Grid Scroll Benchmark") { model.requestScrollBenchmark() }
-                .keyboardShortcut("b", modifiers: [.command, .shift])
+                .shortcut(!docMode, "b", [.command, .shift])   // ⇧⌘B is Image ▸ Auto Color in document mode (B5-06)
         }
     }
 
@@ -236,6 +241,10 @@ struct AppCommands: Commands {
             Button("Export Flat…") { docs.showExportFlat = true }
                 .shortcut(docMode, "e", [.command, .shift])
                 .disabled(doc == nil)
+            // B5-12: PSD refuses native-only transform / smart filter stacks; this copy rasterizes them.
+            Button("Save Rasterized PSD Copy…") { if let doc { DocumentTransforms.shared.saveRasterizedPSD(doc) } }
+                .disabled(doc == nil)
+            let _ = TransformSelfTest.startIfRequested(docs)   // --transform-selftest=<dir>
         }
         CommandMenu("Layer") { LayerMenu(doc: doc) }
         // Image ▸ Adjustments and Filter (WP B5-05).
@@ -252,6 +261,9 @@ struct AppCommands: Commands {
             if docMode {
                 Divider()
                 EditToolsMenuItems(doc: doc, docMode: docMode)
+                // B5-09 begin
+                RetouchEditMenuItems(doc: doc)
+                // B5-09 end
             }
         }
     }
@@ -269,7 +281,11 @@ struct LayerMenu: View {
                 .keyboardShortcut("n", modifiers: [.command, .shift])
             Button("Group") { doc?.addLayer(.group(mode: .passThrough)) }
             Menu("Adjustment Layer") {
-                ForEach(AdjustmentModel.Kind.allCases) { k in Button(k.title) { doc?.addAdjustment(k) } }
+                // Photoshop's order and groups, then the native-only kinds (WP B5-06).
+                ForEach(Array(AdjustmentModel.Kind.layerMenuSections.enumerated()), id: \.offset) { i, section in
+                    if i > 0 { Divider() }
+                    ForEach(section) { k in Button(k.title) { doc?.addAdjustment(k) } }
+                }
             }
             Menu("Fill Layer") {
                 ForEach(FillModel.Kind.allCases) { k in Button(k.title) { doc?.addFill(k) } }
@@ -308,9 +324,33 @@ struct LayerMenu: View {
                 .disabled(primary?.hasMask != true)
         }
         .disabled(!on)
+        // B5-07 begin
+        LayerStyleMenu(doc: doc)
+        // B5-07 end
+        // B5-10 begin: Layer ▸ Rasterize ▸ Type (one node; undo restores the editable text).
+        Divider()
+        Button("Convert Text to Pixels") { if let doc { DocumentText.shared.convertToPixels(doc) } }
+            .disabled(primary?.kind != .text)
+        // B5-10 end
+        // B5-11 begin: vector masks, path operations and rasterizing shapes.
+        Menu("Vector Mask") {
+            Button("Reveal All") { DocumentVector.shared.addVectorMask(fromSelection: false) }
+            Button("Current Selection") { DocumentVector.shared.addVectorMask(fromSelection: true) }
+                .disabled(doc?.marquee == nil)
+            Divider()
+            Button("Delete") { DocumentVector.shared.deleteVectorMask() }
+        }
+        .disabled(primary == nil)
+        Menu("Combine Shapes") {
+            ForEach(ShapeOperation.allCases) { op in Button(op.title) { DocumentVector.shared.combineSelected(op) } }
+        }
+        .disabled(!DocumentVector.shared.canCombine)
+        Button("Rasterize Shape") { DocumentVector.shared.convertToPixels() }
+            .disabled(primary?.kind != .shape)
+        // B5-11 end
         Divider()
         Button("Merge Down") { doc?.mergeDown() }
-            .keyboardShortcut("e", modifiers: .command)
+            .shortcut(doc != nil, "e", .command)   // ⌘E is Edit in Layers outside document mode (B5-06)
             .disabled(primary == nil)
         Button("Flatten Image") { doc?.flatten() }
             .disabled(!on)

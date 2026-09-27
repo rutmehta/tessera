@@ -76,6 +76,16 @@ final class ThumbnailCell: NSCollectionViewItem {
         }
     }
 
+    func stopLoading() {
+        request?.cancel()
+        request = nil
+    }
+
+    func resumeLoading(loader: ThumbnailLoader) {
+        guard request == nil || request?.isCancelled == true else { return }
+        refreshThumbnail(loader: loader)
+    }
+
     func update(state: CullState, status: ItemStatus, basketTarget: String, suggestion: Decision? = nil) {
         cellView.imageLayer.opacity = state.decision == .reject ? Theme.Opacity.rejectedImage : 1
         cellView.overlay.set(state: state, status: status, basketTarget: basketTarget)

@@ -26,9 +26,87 @@ fn envelope(items: &[Item], name: &str) -> Vec<Field> {
         .unwrap_or_else(|| panic!("engine-api has no {name}"))
 }
 
+// Schema-only mirrors preserve the model serde declarations without pulling
+// schema dependencies into typography or vector.
+fn model_mirrors(
+    root: &std::path::Path,
+    crate_name: &str,
+    files: &[&str],
+) -> proc_macro2::TokenStream {
+    let mut out = quote! {};
+    for file in files {
+        let path = root.join(format!("../../{crate_name}/src/{file}"));
+        println!("cargo:rerun-if-changed={}", path.display());
+        let source = fs::read_to_string(path)
+            .unwrap()
+            .replace("crate::PathText", "PathText");
+        for item in syn::parse_file(&source).unwrap().items {
+            match item {
+                Item::Struct(mut s)
+                    if matches!(s.vis, syn::Visibility::Public(_))
+                        && s.attrs
+                            .iter()
+                            .any(|a| a.to_token_stream().to_string().contains("Serialize")) =>
+                {
+                    s.attrs.push(parse_quote!(#[derive(schemars::JsonSchema)]));
+                    out.extend(s.into_token_stream());
+                }
+                Item::Enum(mut e)
+                    if matches!(e.vis, syn::Visibility::Public(_))
+                        && e.attrs
+                            .iter()
+                            .any(|a| a.to_token_stream().to_string().contains("Serialize")) =>
+                {
+                    e.attrs.push(parse_quote!(#[derive(schemars::JsonSchema)]));
+                    out.extend(e.into_token_stream());
+                }
+                Item::Impl(i)
+                    if i.trait_
+                        .as_ref()
+                        .is_some_and(|(_, p, _)| p.is_ident("Default")) =>
+                {
+                    out.extend(i.into_token_stream())
+                }
+                _ => {}
+            }
+        }
+    }
+    out
+}
+
 fn main() {
     let root = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap()).join("../engine-api/src");
+    let text = model_mirrors(&root, "typography", &["model.rs", "path_data.rs"]);
+    let vector = model_mirrors(
+        &root,
+        "vector",
+        &["lib.rs", "geometry.rs", "fill.rs", "stroke.rs"],
+    );
     let mut output = quote! {
+        mod vector {
+            use serde::{Serialize, Deserialize};
+            type Color = [f32; 4];
+            type Affine = [f64; 6];
+            #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
+            pub struct Point { pub x: f64, pub y: f64 }
+            type Vec2 = Point;
+            #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
+            pub struct Rect { pub x0: f64, pub y0: f64, pub x1: f64, pub y1: f64 }
+            #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
+            pub enum LineCap { Butt, Square, Round }
+            #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
+            pub enum LineJoin { Miter, MiterClip, Round, Bevel }
+            #vector
+        }
+        use vector::ShapeModel;
+
+        mod typography {
+            use serde::{Serialize, Deserialize};
+            use std::collections::BTreeMap;
+            #text
+        }
+        use typography::{TextModel,TextRun};
+
         use serde::{Serialize,Deserialize};
         type ImageId=String; type RecipeHash=String; type IccProfileHandle=String;
         type MaskId=u64; type PersonId=u64; type HistoryGroupId=u64;
@@ -85,6 +163,7 @@ fn main() {
                 "ChannelKind",
                 "ChannelRasterRef",
                 "ChannelSummary",
+                "VectorMask",
             ],
         ),
         (

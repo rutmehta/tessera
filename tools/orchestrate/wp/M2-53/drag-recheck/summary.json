@@ -1,0 +1,49 @@
+{
+  "input_updates": 121,
+  "presented_generations": 0,
+  "main_instrumented_span_p95_ms": 1.5574167482554913,
+  "main_span_p95_by_name_ms": {
+    "drawable_encode_end": 0.2992497757077217,
+    "callback_drain_end": 1.6537918709218502,
+    "ffi_end": 1.225207932293415,
+    "flush_end": 1.3123746030032635
+  },
+  "callback_to_present_p50_ms": null,
+  "callback_to_present_p95_ms": null,
+  "input_to_present_p50_ms": null,
+  "input_to_present_p95_ms": null,
+  "engine_sink_p95_ms": 4.935292,
+  "loupe_resource_spans": [
+    {
+      "durationMs": 0.676250085234642,
+      "mainThread": false,
+      "name": "loupe_resources_end",
+      "residency": "unavailable",
+      "span": "604C43C0-B232-4E08-B759-49E89B2236C3",
+      "time": 2551822.030802584
+    }
+  ],
+  "dropped": 0,
+  "p01_complete": false,
+  "limitations": [
+    "FFI does not expose causal input/generation mapping, job dequeue or actual residency.",
+    "Instrumented main spans include nested spans, not all main-thread tasks.",
+    "Occluded background windows may not present. Sink time is not input-to-display."
+  ],
+  "provenance": {
+    "commit": "84fc6f23abeea5365394bb1dff0449c2ac85f33b",
+    "configuration": "release",
+    "source_sha256": "f00141db836f69d5e04626c481b33df2d2c77c8c9ebada7e11c212efad29dff7",
+    "archive_sha256": "826ff444b41cdc5af63b700aadf4ca92dfd8e512093ed1b8aadcca9e0709f8a6",
+    "bindings": {
+      "CTesseraFFI.h": "991212f867622ad001d46bedfe9bc38e5d2ff75854031d5938bff89bca037752",
+      "CTesseraFFI.modulemap": "efda206de8cf8eb6c092c29fd32f286b9a46d9d7c4c150e6e9b66941dc43d6bd",
+      "TesseraFFI.swift": "2ba9019a06f2cf5b990e101cf2d8e20469b7f540a4ca39c2efc4a3b214bc40ef"
+    }
+  },
+  "foreground_unchanged": true,
+  "selftest_complete": true,
+  "grid_only": false,
+  "grid_appeared": true,
+  "frame_logging_enabled": false
+}

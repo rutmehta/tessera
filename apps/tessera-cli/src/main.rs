@@ -39,7 +39,7 @@ enum Command {
     Import(Import),
     #[command(subcommand)]
     Ml(Ml),
-    Export(export::Options),
+    Export(Box<export::Options>),
     Render {
         image: PathBuf,
         #[arg(long)]

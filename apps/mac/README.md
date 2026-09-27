@@ -7,7 +7,7 @@ Thumbnails and camera previews come from the Rust embedded-JPEG fast path. RAWs 
 developed by the engine (`DevelopSession`), which writes into IOSurfaces the Metal loupe presents;
 no pixel buffers cross UniFFI.
 
-Requirements: macOS 15+, Xcode 26 / Swift 6.3. `xcodegen` is not installed on this machine, so the
+Requirements: macOS 15+, Xcode 26.3+ / Swift 6.2.4+ (CI and the primary machine use Xcode 26.6 / Swift 6.3; the second development machine builds with 26.3, so code must compile on both — in particular, keep `CGFloat` vs `Double` explicit in arithmetic and trig calls, which Swift 6.2.4 cannot disambiguate). `xcodegen` is not installed on this machine, so the
 project is a Swift package (Xcode opens `Package.swift` directly; there is no checked-in `.xcodeproj`).
 
 ## Build
@@ -27,7 +27,8 @@ swift build
 swift test
 
 # Runnable app bundle: build/Tessera.app (bundle id dev.tessera.app)
-Support/make-app.sh            # debug
+Support/make-app.sh            # release, fresh FFI + Swift link with provenance
+Support/make-app.sh debug      # explicit debug bundle (not benchmark eligible)
 Support/make-app.sh release    # use this for performance checks
 open build/Tessera.app
 ```
@@ -35,6 +36,47 @@ open build/Tessera.app
 Keep `-derivedDataPath` outside the repository. Xcode's dependency (`.d`) files can fail when
 the checkout path contains a colon. The default DerivedData location
 (`~/Library/Developer/Xcode/DerivedData`) and SwiftPM's `.build/` both work.
+
+### Background performance diagnostics (M2-53)
+
+Never time an unverified old bundle. `Support/make-app.sh release` regenerates FFI/bindings,
+links in a fresh Swift scratch tree, and records commit, configuration and content hashes.
+Run `python3 Support/provenance.py verify --app build/Tessera.app` before measurements.
+Retain the `.app.provenance.json` sidecar and build scratch directory. See
+`Support/PROVENANCE.md` for the verification boundary and explicit debug usage.
+
+From the repository root, with frame logging unset:
+
+```sh
+python3 tools/bench/app_timing.py --grid-only --output tools/orchestrate/wp/M2-53/grid-run
+python3 tools/bench/app_timing.py --fixture fixtures/raw/sony-arw.ARW \
+  --output tools/orchestrate/wp/M2-53/drag-run
+```
+
+The script uses only `open -g -n ... --nonactivating`, checks foreground PID before/during/after,
+and refuses verbose frame logging. The flag uses accessory activation policy, suppresses explicit
+activation, and ignores `--front`. Use an unused output directory. RAW input is copied into it;
+edits and app caches stay there. `--timing-output <file>` is the opt-in trace switch; ordinary
+runs do not collect timing events. A bounded buffer records dropped events, exports once off-main,
+and captures 121 exposure updates with explicit background flushes.
+
+The current Swift trace records input sequence, flush/FFI spans, callback enqueue/drain, and actual
+drawable presentation timestamps keyed by session/generation/level. Main-thread p95 describes
+instrumented spans only (nested spans are included), not every main-thread task. Engine sink time
+is separate and is **not app input-to-display**. Backend is session configuration, not residency.
+The current FFI exposes neither causal input-to-generation IDs, job dequeue timestamps nor
+per-frame resident/fallback status. These are explicitly unavailable, never estimated by subtracting
+sink time or matching the latest input. The drag script therefore prints null input-to-present
+p50/p95 and exits 2: diagnostic output, **not a P01 acceptance pass**. Occluded windows may have
+no presented callbacks; that is unavailable, not zero latency. Grid-only exits 0 only with unchanged
+foreground, successful self-test, no dropped events and no loupe-resource initialization.
+
+Loupe Metal resources now start lazily on a worker only when real content is presented and are
+retained across views. The first loupe shows “Preparing loupe…” while compilation is outstanding
+and an explicit failure label if Metal fails. The latest frame/proof/overlay is applied when ready.
+Grid construction does not compile a Metal source library. Repeated process launches do not prove
+a cold shader cache: report process-cold and shader-cache state separately, and never purge the
+user's driver cache as part of the background script.
 
 `build-ffi.sh` builds `libtessera_ffi.a`, generates Swift into `Sources/TesseraFFI/` and a C
 header/module map into `Sources/CTesseraFFI/`. SwiftPM's system-library target imports the

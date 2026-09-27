@@ -2,6 +2,10 @@
 //! level, per-layer tile caches, dirty-rect recompositing.
 
 mod cache;
+mod live;
+#[path = "../text_vector/damage.rs"]
+mod live_damage;
+pub use live::rasterize_layer;
 mod effects;
 pub(crate) mod exec;
 pub(crate) mod pixel;
@@ -46,6 +50,9 @@ pub(crate) struct Counters {
     root_partial: AtomicU64,
     root_reused: AtomicU64,
     smart: AtomicU64,
+    live: AtomicU64,
+    live_preparations: AtomicU64,
+    live_coverages: AtomicU64,
     blends: AtomicU64,
 }
 
@@ -77,6 +84,12 @@ pub struct CompositorStats {
     pub root_reused: u64,
     /// Smart-object tiles resampled.
     pub smart_tiles: u64,
+    /// Live text/shape source tiles rasterized after a source-cache miss.
+    pub live_tiles: u64,
+    /// Live models whose positioned geometry was prepared after a cache miss.
+    pub live_preparations: u64,
+    /// Glyph or shape coverage tiles rasterized after a coverage-cache miss.
+    pub live_coverages: u64,
     /// Layer blend operations executed (one per layer per tile/region).
     pub blends: u64,
     /// Resident cache bytes.
@@ -90,6 +103,7 @@ pub struct CompositorStats {
 /// Renders documents tile by tile with caching. Thread-safe; share one per
 /// process (or per window).
 pub struct Compositor {
+    live: live::LiveRuntime,
     filter_runtime: smart_filters::FilterRuntime,
     cache: RenderCache,
     pub(crate) stats: Counters,
@@ -102,6 +116,7 @@ impl Compositor {
     /// A compositor with a cache budget in bytes.
     pub fn new(cache_budget: usize) -> Self {
         Self {
+            live: live::LiveRuntime::new(cache_budget),
             filter_runtime: smart_filters::FilterRuntime::new(cache_budget),
             cache: RenderCache::new(cache_budget),
             stats: Counters::default(),
@@ -123,6 +138,9 @@ impl Compositor {
             root_partial: l(&s.root_partial),
             root_reused: l(&s.root_reused),
             smart_tiles: l(&s.smart),
+            live_tiles: l(&s.live),
+            live_preparations: l(&s.live_preparations),
+            live_coverages: l(&s.live_coverages),
             blends: l(&s.blends),
             cache_bytes: self.cache.bytes(),
             cache_entries: self.cache.len(),
@@ -142,6 +160,9 @@ impl Compositor {
             &s.root_partial,
             &s.root_reused,
             &s.smart,
+            &s.live,
+            &s.live_preparations,
+            &s.live_coverages,
             &s.blends,
         ] {
             a.store(0, Ordering::Relaxed);
@@ -150,6 +171,11 @@ impl Compositor {
 
     /// Drops composites (root, groups, smart objects) but keeps layer mips.
     pub fn clear_composites(&self) {
+        self.live
+            .frames
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
         self.cache
             .retain(|k| matches!(k.part, Part::Content | Part::Mask));
         self.latest
@@ -160,6 +186,7 @@ impl Compositor {
 
     /// Drops everything.
     pub fn clear(&self) {
+        self.live.clear();
         self.filter_runtime.clear();
         self.cache.retain(|_| false);
         self.latest
@@ -559,7 +586,13 @@ impl Compositor {
             state,
             key: doc.key(),
         };
-        if effects::has_styles(state) || has_local_adjustments(state) {
+        if has_local_adjustments(state) {
+            return self.composite_premult(dref, coord);
+        }
+        if live_damage::has_live(&state.root) {
+            return self.render_live_scene(doc, coord);
+        }
+        if effects::has_styles(state) {
             return self.composite_premult(dref, coord);
         }
         let stamp = state.root_stamp(coord.level, coord.x, coord.y);
@@ -640,8 +673,21 @@ impl Compositor {
         unpremultiply(&self.render_tile_premultiplied(doc, coord)?)
     }
 
-    /// Every tile of `level`, rendered in parallel, in raster order.
+    /// Every tile of `level`, in raster order. Cold and large frames render in
+    /// parallel; small warm live viewports avoid thread-pool fanout contention.
     pub fn render_level(
+        &self,
+        doc: &Document,
+        level: u8,
+        cancel: &CancellationToken,
+    ) -> EngineResult<Vec<Tile>> {
+        self.render_level_premultiplied(doc, level, cancel)?
+            .iter()
+            .map(unpremultiply)
+            .collect()
+    }
+
+    fn render_level_premultiplied(
         &self,
         doc: &Document,
         level: u8,
@@ -651,23 +697,64 @@ impl Compositor {
         let coords: Vec<TileCoord> = (0..rows)
             .flat_map(|y| (0..cols).map(move |x| TileCoord::new(level, x, y)))
             .collect();
-        coords
-            .par_iter()
-            .map(|c| {
-                cancel.check()?;
-                self.render_tile_premultiplied(doc, *c)
-            })
-            .collect::<EngineResult<Vec<_>>>()?
-            .iter()
-            .map(unpremultiply)
-            .collect()
+        let render = |c: &TileCoord| {
+            cancel.check()?;
+            self.render_tile_premultiplied(doc, *c)
+        };
+        // Up to ~2MP of output: almost all tiles are completed cache hits after
+        // a live edit, and geometry preparation is shared. Waking a worker for
+        // every cached tile creates lock/scheduling tails larger than the work.
+        // Keep cold photo mip generation and larger export frames parallel.
+        let tiles = if coords.len() <= 32
+            && coords
+                .first()
+                .is_some_and(|c| self.warm_live_viewport(doc, *c))
+        {
+            coords
+                .iter()
+                .map(render)
+                .collect::<EngineResult<Vec<_>>>()?
+        } else {
+            coords
+                .par_iter()
+                .map(render)
+                .collect::<EngineResult<Vec<_>>>()?
+        };
+        Ok(tiles)
     }
 
     /// A whole level as interleaved straight RGBA (`width·height·4`).
     pub fn render_level_rgba(&self, doc: &Document, level: u8) -> EngineResult<(Extent, Vec<f32>)> {
         let e = doc.state().canvas.at_level(level);
-        let tiles = self.render_level(doc, level, &CancellationToken::new())?;
-        Ok((e, interleave(e, &tiles)?))
+        let tiles = self.render_level_premultiplied(doc, level, &CancellationToken::new())?;
+        // Fuse straight-alpha conversion and assembly. A warm viewport otherwise
+        // allocates/copies a second entire frame just to interleave it immediately.
+        let mut out = vec![0.; e.width as usize * e.height as usize * 4];
+        for tile in &tiles {
+            let (ox, oy) = tile.coord().pixel_origin(TILE_SIZE);
+            let layout = tile.layout();
+            let s = tile.samples::<f32>()?;
+            let n = layout.plane_len();
+            let width = layout.extent.width as usize;
+            for y in 0..layout.extent.height as usize {
+                let start = y * layout.stride();
+                let r = &s[start..start + width];
+                let g = &s[n + start..n + start + width];
+                let b = &s[2 * n + start..2 * n + start + width];
+                let a = &s[3 * n + start..3 * n + start + width];
+                let dst = ((oy as usize + y) * e.width as usize + ox as usize) * 4;
+                for (i, pixel) in out[dst..dst + width * 4]
+                    .as_chunks_mut::<4>()
+                    .0
+                    .iter_mut()
+                    .enumerate()
+                {
+                    let rgb = pixel::unpremul([r[i], g[i], b[i], a[i]]);
+                    pixel.copy_from_slice(&[rgb[0], rgb[1], rgb[2], a[i]]);
+                }
+            }
+        }
+        Ok((e, out))
     }
 
     /// A read-only [`Pyramid`] view of the composite (straight f32 RGBA).

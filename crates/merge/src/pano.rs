@@ -8,22 +8,29 @@
 //! This is a planar/pure-rotation model: parallax, large rotations, exposure
 //! changes, automatic ordering and full-360 seams are not solved here.
 //! Laplacian bands are blended with Gaussian feather masks. No tone/WB applied.
-//! `auto_crop` selects the largest entirely covered axis-aligned rectangle;
-//! otherwise `fill_edges` uses a simple nearest-covered flood-fill PLACEHOLDER,
-//! not content-aware inpainting. Coverage always records actual source support.
+//! Boundary warp deforms a separable ruled mesh before crop or synthesis.
+//! `auto_crop` selects the largest entirely covered axis-aligned rectangle.
+//! `panorama_with_fill` accepts a filters::caf adapter (the package graph prevents
+//! a direct dependency). Coverage records resampled source support, not synthesis.
 use crate::{
     LinearImage, Result,
-    blend::{Blender, extend},
+    blend::Blender,
     features::{self, H, ID},
 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Projection {
+    /// Perspective up to 100° horizontal / 80° vertical; cylindrical above
+    /// 100° horizontal, spherical above 80° vertical (vertical takes priority).
+    Auto,
     Perspective,
     Cylindrical,
     Spherical,
 }
 #[derive(Clone, Debug)]
 pub struct PanoramaOptions {
+    /// 0 is identity; 100 pulls the external boundary to the full canvas.
+    /// Applied before crop/fill. Values above 100 are rejected.
+    pub boundary_warp: u8,
     pub projection: Projection,
     pub focal_pixels: f64,
     pub auto_crop: bool,
@@ -33,6 +40,7 @@ pub struct PanoramaOptions {
 impl Default for PanoramaOptions {
     fn default() -> Self {
         Self {
+            boundary_warp: 0,
             projection: Projection::Perspective,
             focal_pixels: 1000.,
             auto_crop: true,
@@ -43,10 +51,14 @@ impl Default for PanoramaOptions {
 }
 #[derive(Debug)]
 pub struct PanoramaResult {
+    /// Resolved projection; never Auto.
+    pub projection: Projection,
     pub image: LinearImage,
     pub recipe: engine_api::recipe::Recipe,
     pub coverage: Vec<bool>,
-    /// Output pixel (0,0) in the projected first-view coordinate system.
+    /// Canvas origin in the projected first-view coordinate system, plus crop.
+    /// With boundary_warp > 0, interior pixels are nonlinearly deformed;
+    /// origin + homographies alone no longer map output pixels to inputs.
     pub origin: [f64; 2],
     /// Estimated input-to-first-view perspective homographies (before projection).
     pub transforms: Vec<[[f64; 3]; 3]>,
@@ -56,6 +68,7 @@ fn project(p: [f64; 2], c: [f64; 2], o: &PanoramaOptions) -> [f64; 2] {
     let y = (p[1] - c[1]) / o.focal_pixels;
     let r = (1. + x * x).sqrt();
     match o.projection {
+        Projection::Auto => unreachable!("projection is resolved before rendering"),
         Projection::Perspective => p,
         Projection::Cylindrical => [
             c[0] + o.focal_pixels * x.atan(),
@@ -83,6 +96,61 @@ fn unproject(p: [f64; 2], c: [f64; 2], o: &PanoramaOptions) -> [f64; 2] {
         c[1] + o.focal_pixels * y / theta.cos(),
     ]
 }
+/// Two separable ruled meshes: horizontal boundary vertices on every row,
+/// then vertical vertices on every column. Interior vertices interpolate the
+/// boundary displacement. Each nondegenerate cell has positive Jacobian;
+/// inverse rasterization avoids cracks and never invents support inside holes.
+fn boundary_mesh(
+    mut pixels: Vec<[f32; 3]>,
+    mut mask: Vec<bool>,
+    w: usize,
+    h: usize,
+    amount: u8,
+) -> (Vec<[f32; 3]>, Vec<bool>) {
+    if amount == 0 {
+        return (pixels, mask);
+    }
+    let strength = f64::from(amount) / 100.;
+    for vertical in [false, true] {
+        let (lines, length) = if vertical { (w, h) } else { (h, w) };
+        let mut dst = vec![[0.; 3]; w * h];
+        let mut covered = vec![false; w * h];
+        for line in 0..lines {
+            let index = |t: usize| if vertical { t * w + line } else { line * w + t };
+            let Some(left) = (0..length).find(|&t| mask[index(t)]) else {
+                continue;
+            };
+            let right = (left..length).rfind(|&t| mask[index(t)]).unwrap();
+            // A singleton has no area to stretch; leave it unchanged.
+            if left == right {
+                dst[index(left)] = pixels[index(left)];
+                covered[index(left)] = true;
+                continue;
+            }
+            let start = left as f64 * (1. - strength);
+            let end = right as f64 + strength * (length - 1 - right) as f64;
+            for t in start.ceil() as usize..=end.floor() as usize {
+                let source = (left as f64
+                    + (t as f64 - start) / (end - start) * (right - left) as f64)
+                    .clamp(left as f64, right as f64);
+                let a = source.floor() as usize;
+                let b = source.ceil() as usize;
+                if !mask[index(a)] || !mask[index(b)] {
+                    continue;
+                }
+                let f = (source - a as f64) as f32;
+                dst[index(t)] = std::array::from_fn(|c| {
+                    pixels[index(a)][c] * (1. - f) + pixels[index(b)][c] * f
+                });
+                covered[index(t)] = true;
+            }
+        }
+        pixels = dst;
+        mask = covered;
+    }
+    (pixels, mask)
+}
+
 fn rectangle(mask: &[bool], w: usize, h: usize) -> [usize; 4] {
     let mut heights = vec![0; w];
     let mut best = [0; 4];
@@ -136,10 +204,25 @@ fn safe_transform(h: H, im: &LinearImage) -> Result<()> {
     Ok(())
 }
 pub fn panorama(images: &[LinearImage], options: &PanoramaOptions) -> Result<PanoramaResult> {
+    panorama_with_fill(images, options, |_, _| {
+        Err("fill_edges requires a filters::caf adapter via panorama_with_fill".into())
+    })
+}
+
+/// Stitch with caller-supplied content-aware synthesis. This dependency-inverted
+/// adapter avoids the filters -> compositor -> merge package cycle.
+/// Called only for uncovered pixels after mesh warp, when crop is disabled.
+/// Return canvas-sized scene-linear RGB; covered samples are preserved here.
+pub fn panorama_with_fill(
+    images: &[LinearImage],
+    options: &PanoramaOptions,
+    fill: impl FnOnce(&LinearImage, &[bool]) -> Result<Vec<[f32; 3]>>,
+) -> Result<PanoramaResult> {
     if images.is_empty() || images.len() > 128 {
         return Err("panorama requires 1..128 ordered images".into());
     }
     if !options.focal_pixels.is_finite()
+        || options.boundary_warp > 100
         || options.focal_pixels <= 0.
         || !(1..=12).contains(&options.pyramid_levels)
     {
@@ -168,6 +251,42 @@ pub fn panorama(images: &[LinearImage], options: &PanoramaOptions) -> Result<Pan
         (first.width - 1) as f64 / 2.,
         (first.height - 1) as f64 / 2.,
     ];
+    let mut resolved = options.clone();
+    if resolved.projection == Projection::Auto {
+        let mut low = [f64::INFINITY; 2];
+        let mut high = [f64::NEG_INFINITY; 2];
+        for (im, transform) in images.iter().zip(&transforms) {
+            // Sample the boundary in ray space, not output aspect ratio or
+            // image count. Vertical elevation can peak between corners.
+            let steps = im.width.max(im.height);
+            for t in 0..=steps {
+                let s = t as f64 / steps as f64;
+                for (x, y) in [
+                    (s * (im.width - 1) as f64, 0.),
+                    (s * (im.width - 1) as f64, (im.height - 1) as f64),
+                    (0., s * (im.height - 1) as f64),
+                    ((im.width - 1) as f64, s * (im.height - 1) as f64),
+                ] {
+                    let p = features::apply(*transform, x, y);
+                    let x = (p[0] - center[0]) / options.focal_pixels;
+                    let y = (p[1] - center[1]) / options.focal_pixels;
+                    let angles = [x.atan(), (y / (1. + x * x).sqrt()).atan()];
+                    for k in 0..2 {
+                        low[k] = low[k].min(angles[k]);
+                        high[k] = high[k].max(angles[k]);
+                    }
+                }
+            }
+        }
+        resolved.projection = if (high[1] - low[1]).to_degrees() > 80. {
+            Projection::Spherical
+        } else if (high[0] - low[0]).to_degrees() > 100. {
+            Projection::Cylindrical
+        } else {
+            Projection::Perspective
+        };
+    }
+    let options = &resolved;
     let mut lo = [f64::INFINITY; 2];
     let mut hi = [f64::NEG_INFINITY; 2];
     for (im, h) in images.iter().zip(&transforms) {
@@ -229,6 +348,9 @@ pub fn panorama(images: &[LinearImage], options: &PanoramaOptions) -> Result<Pan
         blender.add(pixels, weights);
     }
     let mut pixels = blender.finish();
+    if options.boundary_warp > 0 {
+        (pixels, coverage) = boundary_mesh(pixels, coverage, w, h, options.boundary_warp);
+    }
     let (mut width, mut height) = (w, h);
     if options.auto_crop {
         let [x, y, cw, ch] = rectangle(&coverage, w, h);
@@ -245,8 +367,6 @@ pub fn panorama(images: &[LinearImage], options: &PanoramaOptions) -> Result<Pan
         height = ch;
         origin[0] += x as f64;
         origin[1] += y as f64;
-    } else if options.fill_edges {
-        extend(&mut pixels, &coverage, w, h);
     } else {
         for (p, covered) in pixels.iter_mut().zip(&coverage) {
             if !covered {
@@ -254,7 +374,7 @@ pub fn panorama(images: &[LinearImage], options: &PanoramaOptions) -> Result<Pan
             }
         }
     }
-    let image = LinearImage {
+    let mut image = LinearImage {
         width,
         height,
         pixels,
@@ -262,7 +382,19 @@ pub fn panorama(images: &[LinearImage], options: &PanoramaOptions) -> Result<Pan
         as_shot_neutral: first.as_shot_neutral,
     };
     image.validate()?;
+    if !options.auto_crop && options.fill_edges && coverage.iter().any(|v| !v) {
+        let filled = fill(&image, &coverage)?;
+        if filled.len() != image.pixels.len() || filled.iter().flatten().any(|v| !v.is_finite()) {
+            return Err("invalid content-aware fill output".into());
+        }
+        for ((pixel, covered), new) in image.pixels.iter_mut().zip(&coverage).zip(filled) {
+            if !covered {
+                *pixel = new;
+            }
+        }
+    }
     Ok(PanoramaResult {
+        projection: options.projection,
         recipe: crate::auto_recipe(&image)?,
         image,
         coverage,

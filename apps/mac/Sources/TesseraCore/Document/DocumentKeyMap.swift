@@ -8,6 +8,9 @@ public enum DocumentTool: String, CaseIterable, Sendable {
     // WP B5-04
     case ellipseMarquee, lasso, polygonLasso, magneticLasso, quickSelect, wand, objectSelect
     case brush, eraser, cloneStamp, heal, gradient, crop, type, eyedropper, hand, zoom
+    // B5-11 begin: live shapes (U), Pen (P), Path / Direct Selection (A).
+    case rectangleShape, ellipseShape, polygonShape, lineShape, pen, pathSelect, directSelect
+    // B5-11 end
 }
 
 /// What a key does in document mode. ⌘ shortcuts are menu items; they are listed here too so the

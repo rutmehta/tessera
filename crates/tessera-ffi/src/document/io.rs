@@ -376,7 +376,7 @@ pub(crate) fn export_flat(
         return Err(failure("JPEG quality must be 1–100"));
     }
     let state = doc.state();
-    let (e, mut rgba) = compositor::Compositor::new(256 << 20).render_level_rgba(doc, 0)?;
+    let (e, mut rgba) = super::fonts::compositor(256 << 20).render_level_rgba(doc, 0)?; // B5-10b
     // Colour: document profile (untagged = sRGB) → target.
     let source = match &state.profile {
         Some(ColorProfile { icc: Some(b), .. }) => b.as_ref().clone(),

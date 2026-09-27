@@ -392,3 +392,138 @@ fn unknown_required_opcode_is_not_silently_ignored() {
         .is_ok()
     );
 }
+
+#[test]
+fn guided_upright_has_composed_resident_plan() {
+    use engine_api::recipe::settings::{GuideLine, UprightMode};
+    let mut s = DevelopSettings::default();
+    s.lens.profile = engine_api::recipe::settings::LensProfileSource::None;
+    s.lens.remove_chromatic_aberration = false;
+    s.geometry.upright.mode = UprightMode::Guided;
+    s.geometry.upright.guides = vec![
+        GuideLine {
+            start: [0.2, 0.1],
+            end: [0.3, 0.9],
+        },
+        GuideLine {
+            start: [0.8, 0.1],
+            end: [0.7, 0.9],
+        },
+    ];
+    let analysis = Image::new(32, 24, vec![vec![0.1; 768]; 3]).unwrap();
+    let m = metadata(vec![0; 4]);
+    let resolved = resolve_lens(&analysis, &s.lens, Some(&m), &LensContext::default()).unwrap();
+    assert!(
+        resolved.plan(&s, &m).unwrap().is_some(),
+        "Guided geometry must have a resident map"
+    );
+}
+
+#[test]
+fn automatic_upright_resident_analysis_and_manual_edits_share_decision() {
+    use engine_api::recipe::settings::UprightMode;
+    let mut s = DevelopSettings::default();
+    s.lens.profile = engine_api::recipe::settings::LensProfileSource::None;
+    s.lens.remove_chromatic_aberration = false;
+    let analysis = Image::new(32, 24, vec![vec![0.1; 768]; 3]).unwrap();
+    let m = metadata(vec![0; 4]);
+    let resolved = resolve_lens(&analysis, &s.lens, Some(&m), &LensContext::default()).unwrap();
+    for mode in [
+        UprightMode::Auto,
+        UprightMode::Level,
+        UprightMode::Vertical,
+        UprightMode::Full,
+    ] {
+        s.geometry.upright.mode = mode;
+        let original = resolved
+            .plan_with_analysis(&s, &m, &analysis)
+            .unwrap()
+            .unwrap();
+        assert!(
+            original.is_identity(),
+            "no detected lines is an identity correction"
+        );
+        s.geometry.transform.rotate = 3.;
+        let cached = resolved
+            .plan_with_cached_upright(&s, &m, &original)
+            .unwrap()
+            .unwrap();
+        let fresh = resolved
+            .plan_with_analysis(&s, &m, &analysis)
+            .unwrap()
+            .unwrap();
+        for y in 0..24 {
+            for x in 0..32 {
+                assert_eq!(
+                    cached.map.as_ref().unwrap().source(x, y, 32, 24),
+                    fresh.map.as_ref().unwrap().source(x, y, 32, 24)
+                );
+            }
+        }
+        s.geometry.transform.rotate = 0.;
+    }
+}
+
+#[test]
+fn composed_plan_scalar_sampler_matches_geometry_reference_at_preview_extent() {
+    use engine_api::recipe::settings::{GuideLine, UprightMode};
+    let image = Image::new(
+        32,
+        24,
+        (0..3)
+            .map(|c| {
+                (0..768)
+                    .map(|i| 0.4 + 0.2 * ((i + c * 17) as f32 * 0.1).sin())
+                    .collect()
+            })
+            .collect(),
+    )
+    .unwrap();
+    let mut s = DevelopSettings::default();
+    s.lens.profile = engine_api::recipe::settings::LensProfileSource::None;
+    s.lens.remove_chromatic_aberration = false;
+    s.lens.manual_distortion = 18.;
+    s.geometry.transform.rotate = 2.;
+    s.geometry.crop.rect.left = 0.1;
+    s.geometry.crop.rect.right = 0.9;
+    s.geometry.upright.mode = UprightMode::Guided;
+    s.geometry.upright.guides = vec![
+        GuideLine {
+            start: [0.2, 0.1],
+            end: [0.3, 0.9],
+        },
+        GuideLine {
+            start: [0.8, 0.1],
+            end: [0.7, 0.9],
+        },
+    ];
+    let m = metadata(vec![0; 4]);
+    let lens = resolve_lens(&image, &s.lens, Some(&m), &Default::default()).unwrap();
+    for mode in [
+        UprightMode::Guided,
+        UprightMode::Auto,
+        UprightMode::Level,
+        UprightMode::Vertical,
+        UprightMode::Full,
+    ] {
+        s.geometry.upright.mode = mode;
+        if mode != UprightMode::Guided {
+            s.geometry.upright.guides.clear();
+        }
+        let plan = lens.plan_with_analysis(&s, &m, &image).unwrap().unwrap();
+        let actual = plan.map.unwrap().apply(&image).unwrap();
+        let expected = lens.apply_geometry(&image, &s).unwrap();
+        assert_eq!(
+            (actual.width(), actual.height()),
+            (expected.width(), expected.height())
+        );
+        let max = actual
+            .planes()
+            .iter()
+            .flatten()
+            .zip(expected.planes().iter().flatten())
+            .map(|(a, b)| (a - b).abs())
+            .fold(0f32, f32::max);
+        assert!(max < 1e-6, "{mode:?}: preview scalar map error {max}");
+    }
+}

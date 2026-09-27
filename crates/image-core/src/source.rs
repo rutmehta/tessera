@@ -51,7 +51,17 @@ impl RawImage {
 
     /// Opens and decodes a RAW, JPEG, PNG, TIFF or feature-enabled HEIC file.
     pub fn open(id: ImageId, path: impl AsRef<Path>) -> EngineResult<Self> {
-        if crate::RgbSource::recognizes(&path) {
+        let path = path.as_ref();
+        let mut file = std::fs::File::open(path).map_err(|e| EngineError::io_at(path, &e))?;
+        let decode_error = |e: std::io::Error| EngineError::Decode {
+            format: "LinearRaw DNG".into(),
+            message: e.to_string(),
+        };
+        if raw_decode::linear_dng::is_linear_dng(&mut file).map_err(decode_error)? {
+            let dng = raw_decode::linear_dng::read(&mut file).map_err(decode_error)?;
+            return Self::from_rgb(id, crate::RgbSource::from_linear_dng(dng)?);
+        }
+        if crate::RgbSource::recognizes(path) {
             return Self::from_rgb(id, crate::RgbSource::open(path)?);
         }
         let mut source = RawSource::open(path)?;

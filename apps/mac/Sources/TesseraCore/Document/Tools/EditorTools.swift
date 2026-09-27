@@ -26,6 +26,15 @@ extension DocumentTool {
         case .eyedropper: "Eyedropper"
         case .hand: "Hand"
         case .zoom: "Zoom"
+        // B5-11 begin
+        case .rectangleShape: "Rectangle"
+        case .ellipseShape: "Ellipse"
+        case .polygonShape: "Polygon"
+        case .lineShape: "Line"
+        case .pen: "Pen"
+        case .pathSelect: "Path Selection"
+        case .directSelect: "Direct Selection"
+        // B5-11 end
         }
     }
 
@@ -45,6 +54,9 @@ extension DocumentTool {
         case .eyedropper: "I"
         case .hand: "H"
         case .zoom: "Z"
+        case .rectangleShape, .ellipseShape, .polygonShape, .lineShape: "U"   // B5-11
+        case .pen: "P"   // B5-11
+        case .pathSelect, .directSelect: "A"   // B5-11
         }
     }
 
@@ -69,6 +81,15 @@ extension DocumentTool {
         case .eyedropper: "eyedropper"
         case .hand: "hand.raised"
         case .zoom: "magnifyingglass"
+        // B5-11 begin
+        case .rectangleShape: "rectangle"
+        case .ellipseShape: "circle"
+        case .polygonShape: "hexagon"
+        case .lineShape: "line.diagonal"
+        case .pen: "pencil.tip"
+        case .pathSelect: "cursorarrow"
+        case .directSelect: "cursorarrow.and.square.on.square.dashed"
+        // B5-11 end
         }
     }
 
@@ -78,14 +99,52 @@ extension DocumentTool {
         case .marquee, .ellipseMarquee: [.marquee, .ellipseMarquee]
         case .lasso, .polygonLasso, .magneticLasso: [.lasso, .polygonLasso, .magneticLasso]
         case .quickSelect, .wand, .objectSelect: [.quickSelect, .wand, .objectSelect]
+        case .rectangleShape, .ellipseShape, .polygonShape, .lineShape: [.rectangleShape, .ellipseShape, .polygonShape, .lineShape]   // B5-11
+        case .pathSelect, .directSelect: [.pathSelect, .directSelect]   // B5-11
         default: [self]
+        }
+    }
+
+    /// B5-11b: pressing the key again (without ⇧) cycles the group too — Path ↔ Direct Selection
+    /// (spec: "A twice or ⇧A"). Other groups keep the current tool on a repeated key.
+    public var keyRepeatCycles: Bool { self == .pathSelect || self == .directSelect }
+
+    /// B5-11b: the status hint while the tool is chosen and idle (DocumentTools publishes it on every
+    /// tool change, so another tool's message never lingers).
+    public var idleHint: String {
+        switch self {
+        case .move: "Move: drag to move the selected layers"
+        case .marquee, .ellipseMarquee: "\(title): drag to select (⇧ adds, ⌥ subtracts; ⇧ while dragging constrains)"
+        case .lasso: "Lasso: drag to draw a freehand selection"
+        case .polygonLasso: "Polygonal Lasso: click corners, double-click or click the first point to close, Return finishes, Esc cancels"
+        case .magneticLasso: "Magnetic Lasso: click to start, move along an edge, double-click to close"
+        case .quickSelect: "Quick Selection: paint over the area to select ([ ] size, ⌥ subtracts)"
+        case .wand: "Magic Wand: click a colour to select it (⇧ adds, ⌥ subtracts)"
+        case .objectSelect: "Object Selection: click an object to select it"
+        case .crop: "Crop: a placeholder in this build (arrives with a later work package)"
+        case .eyedropper: "Eyedropper: click to pick the foreground colour (⌥ the background)"
+        case .heal: "Healing Brush: ⌥-click a source, then paint"
+        case .brush: "Brush: paint with the foreground colour ([ ] size, ⇧[ ⇧] hardness, 0–9 opacity)"
+        case .cloneStamp: "Clone Stamp: ⌥-click a source, then paint"
+        case .eraser: "Eraser: paint to erase ([ ] size)"
+        case .gradient: "Gradient: fills the selection with the foreground colour (gradients arrive later)"
+        case .type: "Type: click to add point text, drag for area text, or click a text layer to edit it"
+        case .hand: "Hand: drag to pan (Space-drag with any tool)"
+        case .zoom: "Zoom: click to zoom in, ⌥-click to zoom out"
+        case .rectangleShape: "Rectangle: drag to draw (⇧ square, ⌥ from the centre); ⇧U cycles the shape tools"
+        case .ellipseShape: "Ellipse: drag to draw (⇧ circle, ⌥ from the centre); ⇧U cycles the shape tools"
+        case .polygonShape: "Polygon: drag from the centre (⇧ snaps the angle); ⇧U cycles the shape tools"
+        case .lineShape: "Line: drag to draw (⇧ snaps to 45°); ⇧U cycles the shape tools"
+        case .pen: "Pen: click to start a path; on a selected shape, click an anchor to delete it or a segment to add one"
+        case .pathSelect: "Path Selection: click a shape to select it, drag to move; handles scale, outside rotates; click empty canvas to deselect; A for Direct Selection"
+        case .directSelect: "Direct Selection: click an anchor (⇧ adds), drag anchors or handles (⌥ breaks a handle), ⌥-click a segment adds a point, ⌫ deletes; A for Path Selection"
         }
     }
 
     /// One tool per palette slot, in Photoshop's order.
     public static let paletteSlots: [DocumentTool] = [
         .move, .marquee, .lasso, .quickSelect, .crop, .eyedropper, .heal, .brush, .cloneStamp, .eraser, .gradient,
-        .type, .hand, .zoom,
+        .type, .pen, .pathSelect, .rectangleShape, .hand, .zoom,   // B5-11: Pen, selection and shape slots
     ]
 
     /// Painting tools (brush options, cursor outline, HUD).
@@ -94,8 +153,14 @@ extension DocumentTool {
     public var selects: Bool {
         [.marquee, .ellipseMarquee, .lasso, .polygonLasso, .magneticLasso, .quickSelect, .wand, .objectSelect].contains(self)
     }
-    /// Placeholders that explain themselves on click.
-    public var isPlaceholder: Bool { [.crop, .type].contains(self) }
+    /// Placeholders that explain themselves on click (Type is live since WP B5-10).
+    public var isPlaceholder: Bool { [.crop].contains(self) }
+
+    /// Live vector tools (WP B5-11): shape construction, Pen and path selection.
+    public var isVector: Bool {
+        [.rectangleShape, .ellipseShape, .polygonShape, .lineShape, .pen, .pathSelect, .directSelect].contains(self)
+    }
+    public var makesShapes: Bool { [.rectangleShape, .ellipseShape, .polygonShape, .lineShape].contains(self) }
 
     public var strokeKind: BrushToolKind? {
         switch self {
@@ -150,7 +215,7 @@ public enum ToolKeyMap {
         guard let first = DocumentTool.allCases.first(where: { $0.key.lowercased() == ch }) else { return nil }
         let group = first.group
         if let i = group.firstIndex(of: current) {
-            return .tool(shift ? group[(i + 1) % group.count] : current)
+            return .tool(shift || current.keyRepeatCycles ? group[(i + 1) % group.count] : current)
         }
         return .tool(first)
     }

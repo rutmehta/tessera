@@ -28,7 +28,11 @@ struct InspectorView: View {
                     PanelSection("HSL / Color", expanded: false) { HSLPanel(model: model, tools: tools) }
                     PanelSection("Color Grading", expanded: false) { ColorGradingPanel(model: model, tools: tools) }
                     PanelSection("Detail", expanded: false) { DetailPanel(model: model, tools: tools) }
+                    PanelSection("Transform", expanded: false) {
+                        TransformPanel(model: model, tools: tools, guideTool: .shared)
+                    }
                     PanelSection("Effects", expanded: false) { EffectsPanel(model: model, tools: tools) }
+                    PanelSection("Lens Blur", expanded: false) { LensBlurPanel(model: model, tools: tools) }
                     PanelSection("Crop & Straighten", expanded: false) { CropPanel(model: model, tools: tools) }
                     PanelSection("HDR", expanded: false) { HDRPanel(model: model, tools: tools) }
                     PanelSection("Soft Proofing", expanded: false) { SoftProofPanel(proof: .shared) }

@@ -89,8 +89,12 @@ The SIDD checkpoint is trained/evaluated in sRGB, not arbitrary unbounded camera
 linear RGB. Simply running stock weights over independent linear-RGB patches
 would not establish the requested PSNR/seam guarantees.
 
-The implemented alternative uses a 192-pixel halo, stride-8 alignment and
-fixed display-domain sigma 25/255. Sensor read/shot hints remain advisory.
+The implemented alternative uses a 192-pixel halo and stride-8 alignment.
+Legacy `denoise`/`denoise_masked` keep fixed display-domain sigma 25/255.
+`denoise_automatic` (used by the post-demosaic pipeline fallback) reuses M2-49
+noise estimation on linear RGB and maps variance through the sRGB derivative
+to one bounded display sigma. See DRUNET.md for the mapping and limitations.
+Sensor read/shot hints remain advisory in the legacy API.
 
 `denoise_with` currently provides amount (0..100) and M2-08-style raster mask
 blending in linear light, validates shape/finiteness/ranges, and bypasses the
@@ -137,6 +141,11 @@ model reference. Chroma-only is already present but is not implemented here.
 
 True CFA joint inference and learned Raw Details need separate trained models;
 capture-sharpening deconvolution is not supplied by these restoration weights.
+
+Raw Details is explicitly out of scope for M2-47: no supported Apache/MIT
+learned-demosaic model is available. The FFI retains `raw_details` for binding
+compatibility but rejects `true` with a clear error before scheduling work.
+Ordinary demosaic and restoration weights are not advertised as Raw Details.
 
 ## Tests
 

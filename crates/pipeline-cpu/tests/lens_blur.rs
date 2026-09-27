@@ -153,7 +153,7 @@ fn depth_render_runs_blur_before_effects_geometry_and_downsample() {
 }
 
 #[test]
-fn boost_increases_only_out_of_focus_highlights_and_cat_eye_is_explicitly_reserved() {
+fn boost_increases_only_out_of_focus_highlights_and_invalid_cat_eye_is_rejected() {
     let image = Image::new(3, 1, vec![vec![2., 0.5, 4.]; 3]).unwrap();
     let s = LensBlur {
         focus_range: [0., 0.2],
@@ -182,7 +182,7 @@ fn boost_increases_only_out_of_focus_highlights_and_cat_eye_is_explicitly_reserv
             ..Default::default()
         },
         LensBlurOptions {
-            cat_eye: 0.5,
+            cat_eye: 1.5,
             ..Default::default()
         },
         LensBlurOptions {
@@ -347,4 +347,111 @@ fn two_planes_keep_focus_exact_and_reduce_background_contrast() {
         contrast < 0.25,
         "background contrast {contrast} must drop >50%"
     );
+}
+
+#[test]
+fn extended_apertures_and_radial_cat_eye_preserve_focus_and_change_footprints() {
+    let (w, h) = (31, 31);
+    let mut values = vec![0.; w * h];
+    values[15 * w + 15] = 1.;
+    values[3 * w + 3] = 1.;
+    values[0] = -0.;
+    let image = Image::new(w as u32, h as u32, vec![values; 3]).unwrap();
+    let mut depth = vec![1.; w * h];
+    depth[0] = 0.;
+    let mut outputs = Vec::new();
+    for shape in ["circle", "bubble", "5-blade", "ring", "cat-eye", "oval"] {
+        let settings = LensBlur {
+            amount: 100.,
+            focus_range: [0., 0.],
+            bokeh: shape.into(),
+            ..Default::default()
+        };
+        let out = lens_blur(
+            &image,
+            &depth,
+            &settings,
+            LensBlurOptions {
+                max_radius: 6.,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(out.planes()[0][0].to_bits(), (-0.0f32).to_bits());
+        outputs.push(out.planes()[0].clone());
+    }
+    for a in 0..outputs.len() {
+        for b in a + 1..outputs.len() {
+            assert_ne!(outputs[a], outputs[b]);
+        }
+    }
+    let out = lens_blur(
+        &image,
+        &depth,
+        &LensBlur::default(),
+        LensBlurOptions {
+            cat_eye: 1.,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    assert!(out.planes().iter().flatten().all(|v| v.is_finite()));
+}
+
+#[test]
+fn documented_bokeh_aliases_are_identical() {
+    let image = Image::new(9, 9, vec![(0..81).map(|i| (i % 7) as f32).collect(); 3]).unwrap();
+    for aliases in [
+        vec!["circle", "disc"],
+        vec!["5-blade", "five-blade", "pentagon"],
+        vec!["cat-eye", "cat_eye", "cat eye"],
+        vec!["oval", "anamorphic"],
+    ] {
+        let render = |shape: &str| {
+            lens_blur(
+                &image,
+                &[1.; 81],
+                &LensBlur {
+                    bokeh: shape.into(),
+                    ..Default::default()
+                },
+                Default::default(),
+            )
+            .unwrap()
+        };
+        let first = render(aliases[0]);
+        for alias in &aliases[1..] {
+            assert_eq!(first.planes(), render(alias).planes());
+        }
+    }
+}
+
+#[test]
+fn all_apertures_preserve_constant_hdr_at_edges_with_radial_clipping() {
+    for shape in [
+        "circle", "hexagon", "octagon", "bubble", "5-blade", "ring", "cat-eye", "oval",
+    ] {
+        for value in [-2., 2., f32::MAX] {
+            let image = Image::new(9, 7, vec![vec![value; 63]; 3]).unwrap();
+            let depth: Vec<_> = (0..63).map(|i| if i % 9 < 2 { 0.2 } else { 1. }).collect();
+            let settings = LensBlur {
+                amount: 100.,
+                focus_range: [0.2, 0.2],
+                bokeh: shape.into(),
+                ..Default::default()
+            };
+            let out = lens_blur(
+                &image,
+                &depth,
+                &settings,
+                LensBlurOptions {
+                    max_radius: 6.,
+                    cat_eye: 1.,
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+            assert_eq!(image.planes(), out.planes(), "{shape}, {value}");
+        }
+    }
 }

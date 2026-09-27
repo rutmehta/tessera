@@ -29,7 +29,9 @@ GPU suite (local Metal, separate baseline):
 
 - `tessera-ffi/tests/develop.rs::bench_panel_latency`, Sony ARW, only tone
   exposure, only GPU. Uses the existing warmup and 16 retained drag frames.
-  Records median and p90. Verifies Metal in the report and puts the adaptive
+  Records median and p90 **engine sink time, not app input-to-display**. It excludes
+  Swift input/coalescing, synchronous settings preflight, callback backlog and presentation.
+  Verifies Metal in the report and puts the adaptive
   drag level into the fixture ID: a level change cannot masquerade as a speedup.
 - `export/tests/gpu_bench.rs::fixture_export_worker`, Sony ARW Web, GPU required,
   lens enabled and full-resolution development (`TESSERA_BENCH_WEB_SCALE=1`).
@@ -75,3 +77,25 @@ This is a curated regression suite, not proof that every docs/08 target is met.
 In particular it does not test 1M-image searches, 45 MP RAW processing, 100-image
 export throughput, app startup, memory limits or AI masks/denoise. M2-17b and
 M2-21c measurements provide historical context, not interchangeable baselines.
+
+## App diagnostics (M2-53)
+
+`app_timing.py` uses a freshly verified `Support/make-app.sh release` bundle and
+launches only with `open -g` and `--nonactivating`. See `apps/mac/README.md` for
+the commands, output schema limits and exit codes. Do not interpret its nested
+instrumented-main-span p95 as a whole-main-thread occupancy percentile. Input and
+generation identity remain separate until the Rust FFI exposes the missing causal
+join, dequeue timestamp and per-frame residency; null metrics are not performance
+passes. Background occlusion can prevent presentation entirely.
+
+On accessory launches macOS may suppress SwiftUI's initial window. Timing mode
+therefore hosts the real `ContentView` in a nonactivating, non-key/main `NSPanel`,
+ordered behind other windows. This measures a background diagnostic host, not a
+foreground-drag equivalent. The runner requires `grid_appeared`; loaded model rows
+without a mounted view are a failed run, not a zero-cost first grid.
+
+`test_app_timing.py`, `test_provenance.py`, and `test_performance_foundations.py`
+are standard-library Python tests. `TraceChecks.swift` exercises the real trace
+buffer without linking FFI, and `LoupeResourceChecks.swift` exercises the actual
+renderer resource initialization and retained reuse without creating an app window.
+The corresponding XCTest coverage runs with the full Swift test suite.

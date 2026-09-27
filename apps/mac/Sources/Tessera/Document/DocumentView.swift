@@ -40,6 +40,23 @@ struct DocumentView: View {
         .onAppear { DocumentTools.shared.attach(workspace) }
         .modifier(ToolSheetsModifier(tools: DocumentTools.shared))
         .modifier(DocumentFilterSheets(filters: workspace.filters))   // WP B5-05
+        // B5-08 begin: Channels (sheets, Quick Mask, preview overlay).
+        .onAppear { DocumentChannels.shared.attach(workspace) }
+        // B5-11 begin: shapes, Pen and vector masks; `--vector-selftest=<dir>` starts here.
+        .onAppear {
+            DocumentVector.shared.attach(workspace)
+            VectorSelfTest.startIfRequested()
+        }
+        // B5-11 end
+        .modifier(ChannelSheetsModifier(channels: DocumentChannels.shared))
+        // B5-08 end
+        .modifier(RetouchSheets(retouch: DocumentRetouch.shared))   // B5-09
+        .onAppear { DocumentText.shared.attach(workspace) }   // B5-10: the Type tool
+        // B5-12 begin: Warp / Perspective / Puppet / Content-Aware Scale (Document/Transforms).
+        .onAppear { DocumentTransforms.shared.attach(workspace) }
+        .onChange(of: workspace.current.map(ObjectIdentifier.init)) { _, _ in DocumentTransforms.shared.documentWillChange() }
+        .modifier(TransformSheets(t: DocumentTransforms.shared))
+        // B5-12 end
     }
 }
 
@@ -84,7 +101,7 @@ struct ZoomHUD: View {
     }
 }
 
-/// The inspector in document mode: Properties, Layers, History.
+/// The inspector in document mode: Properties, Layers, Channels (B5-08), History.
 struct DocumentInspector: View {
     let workspace: DocumentWorkspace
 
@@ -107,6 +124,10 @@ struct DocumentInspector: View {
                 .frame(minHeight: Theme.Height.sectionHeader * 8, maxHeight: .infinity)
                 .layoutPriority(1)
                 Hairline()
+                // B5-08 begin: saved alpha and spot channels.
+                PanelSection("Channels", expanded: false) { ChannelsPanel(document: doc, channels: DocumentChannels.shared) }
+                    .accessibilityIdentifier("document.channels")
+                // B5-08 end
                 PanelSection("History") { DocumentHistoryPanel(document: doc, workspace: workspace) }
                     .accessibilityIdentifier("document.history")
             } else {
@@ -215,13 +236,14 @@ struct DocumentStatusBar: View {
                 if let doc = workspace.current {
                     let i = doc.info
                     Text("\(i.width) × \(i.height) px · \(i.depth.title) · \(i.profileName ?? "Untagged (sRGB)")")
-                        .foregroundStyle(Theme.textPrimary).fixedSize()
+                        .foregroundStyle(Theme.textPrimary)
+                        .lineLimit(1).truncationMode(.middle).layoutPriority(1)   // B5-10: truncates in narrow windows
                         .accessibilityIdentifier("document.status.canvas")
                     separator
                     Text(DocumentViewportMath.percentText(doc.zoom)).fixedSize()
                         .accessibilityIdentifier("document.status.zoom")
                     separator
-                    Text("\(doc.tool.title) (\(doc.tool.key))").fixedSize()
+                    Text(DocumentRetouch.shared.removeActive ? "Remove (⇧J)" : "\(doc.tool.title) (\(doc.tool.key))").fixedSize()   // B5-09
                     if let r = DocumentTools.shared.strokeReadout, model.showRenderReadout {   // WP B5-04
                         separator
                         Text(r).lineLimit(1).truncationMode(.tail).accessibilityIdentifier("document.status.stroke")

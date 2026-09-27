@@ -78,6 +78,7 @@ final class DocumentController: Identifiable {
             revision += 1
             onLayersReload?(old, outline)
             viewport?.selectionDidChange()
+            DocumentText.shared.layersDidReload(self)   // B5-10
         } catch {
             report?("Layers: \(error.localizedDescription)")
         }
@@ -109,6 +110,7 @@ final class DocumentController: Identifiable {
         lastFrame = f
         onFrame?(f)
         frameObserver?(f)
+        DocumentText.shared.frameArrived(f, doc: self)   // B5-10: typing latency
         if logFrames {
             FileHandle.standardError.write(Data(String(format: "doc-frame: epoch %llu L%u %u×%u render %.2f ms%@\n", f.epoch,
                                                        UInt32(f.level), f.width, f.height, f.renderMs,
@@ -171,7 +173,7 @@ final class DocumentController: Identifiable {
         }
     }
 
-    func addAdjustment(_ kind: AdjustmentModel.Kind) { addLayer(.adjustment(json: kind.neutral.json)) }
+    func addAdjustment(_ kind: AdjustmentModel.Kind) { addLayer(.adjustment(json: initialAdjustment(kind).json)) }
 
     func addFill(_ kind: FillModel.Kind) {
         addLayer(.fill(json: FillModel.neutral(kind, width: Double(info.width), height: Double(info.height)).json))
@@ -382,13 +384,26 @@ final class DocumentController: Identifiable {
         viewport?.selectionDidChange()
     }
 
-    func selectAll() { setMarquee(CanvasRect(x: 0, y: 0, width: Int64(info.width), height: Int64(info.height))) }
+    func selectAll() {
+        // B5-10 begin: ⌘A while editing text selects the text.
+        if DocumentText.shared.isEditing(self) { DocumentText.shared.selectAll(); return }
+        // B5-10 end
+        setMarquee(CanvasRect(x: 0, y: 0, width: Int64(info.width), height: Int64(info.height)))
+    }
     func deselect() { setMarquee(nil) }
 
     // MARK: History
 
-    func undo() { historyMove("Undo") { try backend.undo() } }
-    func redo() { historyMove("Redo") { try backend.redo() } }
+    func undo() {
+        // B5-10 begin: ⌘Z while editing text reverts the typing first.
+        if DocumentText.shared.isEditing(self) { DocumentText.shared.undo(); return }
+        // B5-10 end
+        historyMove("Undo") { try backend.undo() }
+    }
+    func redo() {
+        if DocumentText.shared.isEditing(self) { DocumentText.shared.redo(); return }   // B5-10
+        historyMove("Redo") { try backend.redo() }
+    }
 
     private func historyMove(_ verb: String, _ body: () throws -> DocumentChange) {
         let before = info.historyHead
@@ -422,6 +437,7 @@ final class DocumentController: Identifiable {
     }
 
     private func reloadAfterHistoryMove() {
+        DocumentText.shared.historyDidMove(self)   // B5-10: the engine flushed a text draft
         liveAdjustment.removeAll()
         reloadModel()
         reloadHistory()

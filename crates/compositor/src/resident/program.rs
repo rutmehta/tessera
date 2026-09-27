@@ -113,6 +113,8 @@ pub(super) enum Part {
     Content,
     Mask,
     Smart,
+    Live,
+    VectorMask,
 }
 
 /// A page table the steps reference: table `i` starts at `i · grid_len`.
@@ -196,6 +198,13 @@ impl Compiler<'_> {
     }
 
     fn mask(&mut self, s: &mut Step, layer: &Arc<Layer>) -> EngineResult<()> {
+        if layer.vector_mask.as_ref().is_some_and(|m| m.enabled) {
+            s.flags |= F_MASK;
+            s.density = 1.0;
+            s.mask_default = 1.0;
+            s.mask_table = self.table(layer, Part::VectorMask)?;
+            return Ok(());
+        }
         if let Some(m) = layer.mask.as_ref().filter(|m| m.enabled) {
             let d = m.density.clamp(0.0, 1.0);
             s.flags |= F_MASK;
@@ -297,7 +306,12 @@ impl Compiler<'_> {
         }
         let mut s = Step::new(K_BLEND);
         match &layer.kind {
-            LayerKind::Pixel(_) | LayerKind::Text(_) => {
+            LayerKind::Text { .. } | LayerKind::Shape { .. } => {
+                s.src = S_RASTER;
+                s.flags |= F_SKIP_ABSENT;
+                s.table = self.table(layer, Part::Live)?;
+            }
+            LayerKind::Pixel(_) => {
                 let raster = layer
                     .raster()
                     .ok_or_else(|| EngineError::internal("no raster"))?;
@@ -394,6 +408,7 @@ impl Compiler<'_> {
 
     fn adjustment(&mut self, s: &mut Step, adj: &Adjustment) -> EngineResult<()> {
         adj.validate()?;
+
         if matches!(adj, Adjustment::BrightnessContrast { legacy: false, .. })
             && let Compiled::Channels(ch) = adj.compile()
         {
@@ -484,6 +499,7 @@ impl Compiler<'_> {
                 luminance,
                 color_intensity,
                 fade,
+                neutralize,
                 ..
             } => {
                 s.adj = 18;
@@ -498,10 +514,12 @@ impl Compiler<'_> {
                     (luminance / 100.0).clamp(0.0, 2.0),
                     (color_intensity / 100.0).clamp(0.0, 2.0),
                     (fade / 100.0).clamp(0.0, 1.0),
-                    0.0,
+                    if *neutralize { 1.0 } else { 0.0 },
                 ];
             }
-            Adjustment::ColorLookup { size, data } => {
+            Adjustment::ColorLookup {
+                size, data, dither, ..
+            } => {
                 if !(2..=256).contains(size)
                     || (*size as usize).checked_pow(3) != Some(data.len())
                     || data.iter().flatten().any(|v| !v.is_finite())
@@ -509,6 +527,7 @@ impl Compiler<'_> {
                     return Err(EngineError::invalid("color_lookup", "invalid cube"));
                 }
                 s.adj = 19;
+                s.p[0][0] = if *dither { 1.0 } else { 0.0 };
                 s.aux = self.aux_offset();
                 s.aux_n = *size;
                 for row in data {

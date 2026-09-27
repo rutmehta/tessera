@@ -1,7 +1,7 @@
 //! Layered document model and tiled compositor (spec 02 §1–2, spec 04 §4).
 //!
 //! - [`DocState`]/[`Layer`]: the document tree — pixel, adjustment, fill,
-//!   group (pass-through or isolated), smart object and text-placeholder
+//!   group (pass-through or isolated), smart object, live text and shape
 //!   layers with opacity, fill, blend mode, Blend If, knockout, masks,
 //!   clipping, visibility and locks; selections are float tiled rasters.
 //! - [`Raster`]: tiled copy-on-write storage with per-tile revisions.
@@ -30,14 +30,15 @@ pub mod psd;
 pub mod raster;
 pub mod render;
 pub mod resident;
+pub mod text_vector;
 
 pub use adjust::{Adjustment, Curve, LevelsChannel};
 pub use blend::{BlendIf, BlendIfChannel, BlendMode};
 pub use document::{
     ColorProfile, DocState, Fill, GradientKind, GradientStop, GroupMode, Knockout, Layer, LayerId,
-    LayerKind, LayerProps, Locks, Mask, SmartFilter, SmartObject, TextLayer, VectorMask,
+    LayerKind, LayerProps, Locks, Mask, SmartFilter, SmartObject, VectorMask,
 };
 pub use edit::{Applied, DocOp, Document, History, HistoryNode, PaintTarget, TileDelta, paint_op};
 pub use geom::{Affine, Rect};
 pub use raster::{Depth, Raster};
-pub use render::{CompositePyramid, Compositor, CompositorStats};
+pub use render::{CompositePyramid, Compositor, CompositorStats, rasterize_layer};

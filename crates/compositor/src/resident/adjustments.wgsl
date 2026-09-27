@@ -194,6 +194,7 @@ fn extended_adjustment(k: u32, c: vec3<f32>, position: vec2<u32>) -> vec3<f32> {
             let a=steps[k].p[0];let f=a.z;if(f==1.0){return c;}
             let off=steps[k].t.w;let o=off+12u;let lab=adj_lab(o,c);var mapped=lab;
             for(var i=0u;i<3u;i++) {mapped[i]=pdiv((lab[i]-aux[off+6u+i])*max(aux[off+3u+i],0.0),max(aux[off+9u+i],1e-6))+aux[off+i];}
+            if(a.w!=0.0){mapped.y=mapped.y-aux[off+1u];mapped.z=mapped.z-aux[off+2u];}
             mapped.x=mapped.x*a.x;mapped.y=mapped.y*a.y;mapped.z=mapped.z*a.y;
             let out=clamp(adj_from_lab(o,mapped),vec3<f32>(0.0),vec3<f32>(1.0));
             return out*(1.0-f)+c*f;
@@ -207,6 +208,12 @@ fn extended_adjustment(k: u32, c: vec3<f32>, position: vec2<u32>) -> vec3<f32> {
                 let p=off+3u*(lo.x+r+n*(lo.y+g+n*(lo.z+b)));
                 out=out+w*vec3<f32>(aux[p],aux[p+1u],aux[p+2u]);
             }}}
+            if(steps[k].p[0].x!=0.0){
+                var h=position.x ^ (position.y*0x9e3779b9u);
+                h=(h^(h>>16u))*0x7feb352du;h=(h^(h>>15u))*0x846ca68bu;h=h^(h>>16u);
+                let noise=pdiv(pdiv(f32(h&65535u),65535.0)-0.5,255.0);
+                out=clamp(out+vec3<f32>(noise),vec3<f32>(0.0),vec3<f32>(1.0));
+            }
             return out;
         }
         case 20u: {

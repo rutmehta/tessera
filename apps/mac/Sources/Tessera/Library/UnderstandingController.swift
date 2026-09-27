@@ -33,6 +33,8 @@ final class UnderstandingController {
     @ObservationIgnored private var captionWanted: String?
     @ObservationIgnored private var lastProgress: [UInt64: UInt32] = [:]
     @ObservationIgnored private var announced: Set<UInt64> = []
+    @ObservationIgnored private var reloadGeneration = LibraryRequestGeneration()
+    @ObservationIgnored private var installGeneration = LibraryRequestGeneration()
 
     private var engine: Engine? { library?.app?.engineLibrary?.engine }
     private var catalog: LibraryCatalog? { library?.catalog }
@@ -44,6 +46,8 @@ final class UnderstandingController {
 
     /// A folder opened: settings, the hidden `--fake-captioner` aid, then auto-suggest.
     func install() {
+        let generation = installGeneration.next()
+        _ = reloadGeneration.next()
         poll?.cancel()
         poll = nil
         chips = SuggestionChips(threshold: chips.threshold)
@@ -51,34 +55,55 @@ final class UnderstandingController {
         draft = nil
         captionWanted = nil
         guard let engine, let catalog else { return }
-        if ProcessInfo.processInfo.arguments.contains("--fake-captioner") {
-            try? engine.useTestUnderstanding()
-        }
-        if let s = try? engine.aiMetadataSettings() { settings = s }
-        modelStatus = try? engine.understandingModelStatus()
-        refreshJobs()
-        do {
-            if try engine.autoSuggest(imageIds: catalog.imageIDs(for: Array(library?.app?.library.items.indices ?? 0..<0))) != nil {
-                startPolling()
+        let items = library?.app?.library.items.indices ?? 0..<0
+        let fake = ProcessInfo.processInfo.arguments.contains("--fake-captioner")
+        Task { [weak self] in
+            let result = await Task.detached {
+                if fake { try? engine.useTestUnderstanding() }
+                let settings = try? engine.aiMetadataSettings()
+                let status = try? engine.understandingModelStatus()
+                let jobs = (try? engine.understandingJobs()) ?? []
+                let started = try? engine.autoSuggest(imageIds: catalog.imageIDs(for: Array(items)))
+                return (settings, status, jobs, started != nil)
+            }.value
+            guard let self, self.installGeneration.accepts(generation), self.catalog === catalog else { return }
+            if let settings = result.0 { self.settings = settings }
+            self.modelStatus = result.1
+            self.jobs = result.2
+            if result.3 || !self.activeJobs.isEmpty {
+                self.startPolling()
             }
-        } catch {
-            library?.app?.statusMessage = "Keyword suggestions: \(error.localizedDescription)"
         }
     }
 
     /// Focus or selection changed (or a panel needs fresh data).
     func reload() {
+        let generation = reloadGeneration.next()
         guard let engine, let catalog, let app = library?.app, let item = app.focusedItem,
               let id = catalog.imageID(of: item.id) else {
             info = nil
             chips.replace(with: [])
             return
         }
-        info = try? engine.imageUnderstanding(imageId: id)
+        info = nil
+        chips.replace(with: [])
         if let d = draft, d.imageID != id { draft = nil }
-        let ids = catalog.imageIDs(for: Array(app.targetIDs.prefix(500)))
-        let fresh = (try? catalog.store.suggestions(imageIds: ids.isEmpty ? [id] : ids)) ?? []
-        chips.replace(with: fresh.map(SuggestedKeyword.init))
+        let items = app.targetIDs(limit: 500)
+        Task { [weak self] in
+            let result = await Task.detached(priority: .userInitiated) {
+                let info = try? engine.imageUnderstanding(imageId: id)
+                let ids = catalog.imageIDs(for: items)
+                let fresh = (try? catalog.store.suggestions(imageIds: ids.isEmpty ? [id] : ids)) ?? []
+                return (info, fresh)
+            }.value
+            guard let self, self.reloadGeneration.accepts(generation), self.catalog === catalog else { return }
+            self.info = result.0
+            self.chips.replace(with: result.1.map(SuggestedKeyword.init))
+            if self.captionWanted == id, let info = result.0, info.hasCaption {
+                self.draft = CaptionDraft(imageID: id, caption: info.caption, altText: info.altText)
+                self.captionWanted = nil
+            }
+        }
     }
 
     // MARK: Jobs

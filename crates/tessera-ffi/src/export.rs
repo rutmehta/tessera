@@ -25,6 +25,11 @@ pub enum FileFormat {
     Jpeg,
     Png,
     Tiff,
+    Avif,
+    JpegXl,
+    Dng,
+    /// Copy original bytes and merge the recipe into XMP, without rendering.
+    Original,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -118,6 +123,8 @@ pub enum MetadataPolicy {
     #[default]
     All,
     Copyright,
+    CopyrightAndContact,
+    AllExceptCamera,
     None,
 }
 
@@ -137,16 +144,25 @@ pub enum OnConflict {
 #[serde(default, deny_unknown_fields)]
 pub struct ExportOptions {
     pub format: FileFormat,
-    /// JPEG quality 1–100.
+    /// JPEG/AVIF quality 1–100. JPEG XL is always lossless, ignoring quality.
     pub quality: u8,
-    /// TIFF 8 or 16 (PNG and JPEG are 8-bit).
+    /// AVIF encoding speed: 1 (slow) through 10 (fast).
+    pub avif_speed: u8,
+    /// JPEG byte budget including the embedded ICC and XMP packets.
+    pub max_file_bytes: Option<u64>,
+    pub watermark: Option<export::Watermark>,
+    /// AVIF 8/10/12, TIFF/JPEG XL 8/16, DNG 32-bit float (linear Rec.2020).
     pub bit_depth: u8,
     pub color_space: DocumentSpace,
     pub resize: ResizeOptions,
     /// Recorded in the file; converts inch/cm sizes to pixels.
     pub dpi: u32,
     pub sharpening: OutputSharpening,
+    pub sharpening_amount: export::SharpenAmount,
     pub metadata: MetadataPolicy,
+    pub remove_person_info: bool,
+    pub remove_location: bool,
+    pub keywords_as_hierarchy: bool,
     /// Tokens: `{name}` file name without extension, `{seq}` 1-based position,
     /// `{date}` capture date `YYYY-MM-DD`.
     pub naming: String,
@@ -157,23 +173,33 @@ pub struct ExportOptions {
     pub on_conflict: OnConflict,
     /// App hint: reveal the files in Finder afterwards.
     pub open_in_finder: bool,
+    /// Explicit host actions. Not inferred from the legacy Finder UI hint.
+    pub after_export: export::AfterExportActions,
 }
 impl Default for ExportOptions {
     fn default() -> Self {
         Self {
             format: FileFormat::Jpeg,
             quality: 90,
+            avif_speed: 6,
+            max_file_bytes: None,
+            watermark: None,
             bit_depth: 8,
             color_space: DocumentSpace::Srgb,
             resize: ResizeOptions::default(),
             dpi: 72,
             sharpening: OutputSharpening::None,
+            sharpening_amount: export::SharpenAmount::Standard,
             metadata: MetadataPolicy::All,
+            remove_person_info: false,
+            remove_location: false,
+            keywords_as_hierarchy: true,
             naming: "{name}".into(),
             upscale: 1,
             destination: String::new(),
             on_conflict: OnConflict::Unique,
             open_in_finder: false,
+            after_export: export::AfterExportActions::default(),
         }
     }
 }
@@ -193,18 +219,57 @@ impl ExportOptions {
             FileFormat::Jpeg => "jpg",
             FileFormat::Png => "png",
             FileFormat::Tiff => "tif",
+            FileFormat::Avif => "avif",
+            FileFormat::JpegXl => "jxl",
+            FileFormat::Dng => "dng",
+            // Placeholder for template validation only. Real names use the source suffix.
+            FileFormat::Original => "raw",
         }
     }
     /// Everything but the destination (checked when a batch runs).
     pub fn validate(&self) -> Result<()> {
+        self.after_export.validate()?;
+        if self.format == FileFormat::Original
+            && (self.metadata != MetadataPolicy::All
+                || self.remove_person_info
+                || self.remove_location
+                || !self.keywords_as_hierarchy
+                || self.resize.mode != ResizeMode::None
+                || self.sharpening != OutputSharpening::None
+                || self.watermark.is_some()
+                || self.upscale != 1
+                || self.max_file_bytes.is_some())
+        {
+            return Err(failure(
+                "original + XMP retains original metadata and pixels; privacy filters and output transforms are not supported",
+            ));
+        }
+        if self.format == FileFormat::JpegXl && self.color_space != DocumentSpace::Srgb {
+            return Err(failure("lossless JPEG XL currently supports only sRGB"));
+        }
+        if let Some(mark) = &self.watermark {
+            mark.validate()?;
+        }
+        if self.max_file_bytes.is_some()
+            && (self.format != FileFormat::Jpeg || self.max_file_bytes == Some(0))
+        {
+            return Err(failure(
+                "file size limit must be positive and requires JPEG",
+            ));
+        }
         if !(1..=100).contains(&self.quality) {
             return Err(failure("JPEG quality must be 1–100"));
         }
-        if !matches!(self.bit_depth, 8 | 16) {
-            return Err(failure("bit depth must be 8 or 16"));
+        if !(1..=10).contains(&self.avif_speed) {
+            return Err(failure("AVIF speed must be 1–10"));
         }
-        if self.bit_depth == 16 && self.format != FileFormat::Tiff {
-            return Err(failure("16-bit output needs TIFF"));
+        if !match self.format {
+            FileFormat::Avif => matches!(self.bit_depth, 8 | 10 | 12),
+            FileFormat::Dng => self.bit_depth == 32,
+            FileFormat::Tiff | FileFormat::JpegXl => matches!(self.bit_depth, 8 | 16),
+            _ => self.bit_depth == 8,
+        } {
+            return Err(failure("unsupported bit depth for format"));
         }
         if !(1..=9600).contains(&self.dpi) {
             return Err(failure("resolution must be 1–9600 dpi"));
@@ -258,6 +323,16 @@ impl ExportOptions {
                     quality: self.quality,
                 },
                 FileFormat::Png => export::Format::Png,
+                // Original is handled before rendering in export_batch_unremembered.
+                FileFormat::Dng | FileFormat::Original => export::Format::Dng,
+                FileFormat::JpegXl => export::Format::JpegXl {
+                    bits: self.bit_depth,
+                },
+                FileFormat::Avif => export::Format::Avif(export::AvifOptions {
+                    quality: self.quality,
+                    bits: self.bit_depth,
+                    speed: self.avif_speed,
+                }),
                 FileFormat::Tiff => export::Format::Tiff {
                     bits: self.bit_depth,
                 },
@@ -266,15 +341,23 @@ impl ExportOptions {
             metadata: match self.metadata {
                 MetadataPolicy::All => export::Metadata::All,
                 MetadataPolicy::Copyright => export::Metadata::CopyrightOnly,
+                MetadataPolicy::CopyrightAndContact => export::Metadata::CopyrightAndContact,
+                MetadataPolicy::AllExceptCamera => export::Metadata::AllExceptCamera,
                 MetadataPolicy::None => export::Metadata::None,
             },
+            remove_person_info: self.remove_person_info,
+            remove_location: self.remove_location,
+            keywords_as_hierarchy: self.keywords_as_hierarchy,
             resize: self.pixel_resize()?,
             sharpen_for: self.sharpening.into(),
+            sharpen_amount: self.sharpening_amount,
             naming: self.naming.clone(),
             output_dir,
             dpi: Some(self.dpi),
             apply_orientation: true,
             render_scale: 1,
+            max_file_bytes: self.max_file_bytes,
+            watermark: self.watermark.clone(),
         })
     }
 }
@@ -375,8 +458,31 @@ pub fn default_export_presets() -> Vec<(String, ExportOptions)> {
 
 const PRESET_DIR: &str = "ExportPresets";
 const SEEDED: &str = ".defaults-installed";
+const LAST_EXPORT: &str = "LastExport.json";
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct PreviousExport {
+    version: u32,
+    settings: Vec<ExportOptions>,
+}
 
 impl Engine {
+    fn remember_export(&self, settings: Vec<ExportOptions>) -> Result<()> {
+        let dir = self.support_dir()?;
+        let bytes = serde_json::to_vec_pretty(&PreviousExport {
+            version: 1,
+            settings,
+        })
+        .map_err(failure)?;
+        let mut temp = tempfile::NamedTempFile::new_in(dir)?;
+        std::io::Write::write_all(&mut temp, &bytes)?;
+        temp.as_file().sync_all()?;
+        temp.persist(dir.join(LAST_EXPORT))
+            .map_err(|e| failure(e.error))?;
+        Ok(())
+    }
+
     pub(crate) fn support_dir(&self) -> Result<&Path> {
         self.db
             .parent()
@@ -602,6 +708,8 @@ pub struct ExportReport {
     pub failed: u32,
     pub cancelled: bool,
     pub seconds: f64,
+    /// Host action / last-settings persistence failures. Exported files remain valid.
+    pub workflow_errors: Vec<String>,
 }
 
 struct Pending {
@@ -744,6 +852,110 @@ fn file_name(path: &Path) -> String {
 
 #[uniffi::export]
 impl Engine {
+    /// Reuses the last fully successful export's settings on a NEW selection.
+    /// The saved document contains settings only, never source IDs or recipes.
+    pub fn export_with_previous(
+        &self,
+        target: ExportTarget,
+        listener: Option<Arc<dyn ExportProgressListener>>,
+        cancel: Option<Arc<CancelFlag>>,
+    ) -> Result<Vec<ExportReport>> {
+        let bytes = std::fs::read(self.support_dir()?.join(LAST_EXPORT))
+            .map_err(|e| failure(format!("previous export: {e}")))?;
+        let previous: PreviousExport = serde_json::from_slice(&bytes).map_err(failure)?;
+        if previous.version != 1 {
+            return Err(failure("unsupported previous export document"));
+        }
+        self.export_multiple(
+            target,
+            previous
+                .settings
+                .iter()
+                .map(ExportOptions::to_json)
+                .collect(),
+            listener,
+            cancel,
+        )
+    }
+
+    /// Run 1–32 preset settings documents over the same resolved selection.
+    /// JSON and destination paths are validated before any output. Execution
+    /// is serial by preset, with a per-preset progress stream and report.
+    /// Cancellation stops before the next preset; already published files stay.
+    pub fn export_multiple(
+        &self,
+        target: ExportTarget,
+        settings_jsons: Vec<String>,
+        listener: Option<Arc<dyn ExportProgressListener>>,
+        cancel: Option<Arc<CancelFlag>>,
+    ) -> Result<Vec<ExportReport>> {
+        if settings_jsons.is_empty() || settings_jsons.len() > 32 {
+            return Err(failure("choose 1–32 export presets"));
+        }
+        let settings = settings_jsons
+            .iter()
+            .map(|json| ExportOptions::from_json(json))
+            .collect::<Result<Vec<_>>>()?;
+        for options in &settings {
+            if !Path::new(options.destination.trim()).is_absolute() {
+                return Err(failure("choose an export folder (an absolute path)"));
+            }
+        }
+        let ids = self.resolve_target(target)?;
+        if ids.is_empty() {
+            return Err(failure("nothing to export"));
+        }
+        let pending = self.pending(&ids)?;
+        let mut reports = Vec::new();
+        for options in &settings {
+            if !reports.is_empty() && cancel.as_ref().is_some_and(|c| c.is_cancelled()) {
+                break;
+            }
+            // Preserve reports from earlier presets if a later destination or
+            // name plan fails (multi-export is not an all-or-nothing transaction).
+            let report = self
+                .export_batch_unremembered(
+                    ExportTarget::Images {
+                        image_ids: ids.clone(),
+                    },
+                    options.to_json(),
+                    listener.clone(),
+                    cancel.clone(),
+                )
+                .unwrap_or_else(|error| ExportReport {
+                    destination: options.destination.clone(),
+                    items: pending
+                        .iter()
+                        .map(|p| ExportItemResult {
+                            image_id: p.id.clone(),
+                            name: file_name(&p.path),
+                            output_path: None,
+                            error: Some(error.to_string()),
+                        })
+                        .collect(),
+                    exported: 0,
+                    failed: pending.len() as u32,
+                    cancelled: cancel.as_ref().is_some_and(|c| c.is_cancelled()),
+                    seconds: 0.0,
+                    workflow_errors: Vec::new(),
+                });
+            reports.push(report);
+        }
+        if reports.len() == settings.len()
+            && reports.iter().all(|r| {
+                !r.cancelled && r.failed == 0 && r.exported > 0 && r.workflow_errors.is_empty()
+            })
+            && let Err(error) = self.remember_export(settings)
+        {
+            reports
+                .last_mut()
+                .expect("nonempty settings")
+                .workflow_errors
+                .push(format!("save previous export: {error}"));
+        }
+        Ok(reports)
+    }
+
     /// Exports `target` with `settings_json` (`ExportOptions`) into its
     /// destination. Blocking: call off the main thread. Per-image failures
     /// (unreadable source, existing file with `on_conflict: skip`, …) are
@@ -751,6 +963,30 @@ impl Engine {
     /// whole call before anything is written. After a cancel the report lists
     /// the images already written; nothing half-written is left behind.
     pub fn export_batch(
+        &self,
+        target: ExportTarget,
+        settings_json: String,
+        listener: Option<Arc<dyn ExportProgressListener>>,
+        cancel: Option<Arc<CancelFlag>>,
+    ) -> Result<ExportReport> {
+        let options = ExportOptions::from_json(&settings_json)?;
+        let mut report = self.export_batch_unremembered(target, settings_json, listener, cancel)?;
+        if !report.cancelled
+            && report.failed == 0
+            && report.exported > 0
+            && report.workflow_errors.is_empty()
+            && let Err(error) = self.remember_export(vec![options])
+        {
+            report
+                .workflow_errors
+                .push(format!("save previous export: {error}"));
+        }
+        Ok(report)
+    }
+}
+
+impl Engine {
+    fn export_batch_unremembered(
         &self,
         target: ExportTarget,
         settings_json: String,
@@ -779,12 +1015,19 @@ impl Engine {
         let mut plans = Vec::with_capacity(pending.len());
         for (i, item) in pending.iter().enumerate() {
             let name = stem(&item.path)?;
+            let extension = if options.format == FileFormat::Original {
+                item.path
+                    .extension()
+                    .and_then(|s| s.to_str())
+                    .ok_or_else(|| failure("original source requires an extension"))?
+            } else {
+                options.extension()
+            };
             let sequence = i + 1;
             let mut naming = options.naming.clone();
             let mut n = 1;
             let plan = loop {
-                let file =
-                    export::filename(&naming, &name, sequence, &item.date, options.extension())?;
+                let file = export::filename(&naming, &name, sequence, &item.date, extension)?;
                 let key = file.to_lowercase();
                 let path = destination.join(&file);
                 let exists = path.exists() || sidecar::Sidecar::paths(&path).xmp.exists();
@@ -825,6 +1068,7 @@ impl Engine {
             failed: 0,
             cancelled: false,
             seconds: 0.0,
+            workflow_errors: Vec::new(),
         };
         let notify = |report: &ExportReport, current: String| {
             if let Some(l) = &listener {
@@ -873,6 +1117,34 @@ impl Engine {
                 break;
             }
             notify(&report, file_name(&item.path));
+            if options.format == FileFormat::Original {
+                let result = plan.map_err(failure).and_then(|naming| {
+                    let (recipe, packet) = self.recipe_and_xmp(item)?;
+                    let extension = item
+                        .path
+                        .extension()
+                        .and_then(|s| s.to_str())
+                        .ok_or_else(|| failure("original source requires an extension"))?;
+                    let path = destination.join(export::filename(
+                        &naming,
+                        &name,
+                        i + 1,
+                        &item.date,
+                        extension,
+                    )?);
+                    Ok(export::export_original(
+                        &item.path,
+                        &path,
+                        (sidecar::Sidecar::paths(&item.path).recipe.try_exists()?
+                            || packet.is_some())
+                        .then_some(&recipe),
+                        packet.as_ref(),
+                        &cancel,
+                    )?)
+                });
+                complete(&mut report, i, result);
+                continue;
+            }
             let result = plan.map_err(failure).and_then(|naming| {
                 let (recipe, packet) = self.recipe_and_xmp(item)?;
                 let source = Source::open(&item.path, item.orientation)?;
@@ -948,6 +1220,19 @@ impl Engine {
         }
         report.seconds = started.elapsed().as_secs_f64();
         notify(&report, String::new());
+        // This is the host layer, after every encoder has joined. Neither
+        // engine export calls nor preset normalization can execute programs.
+        if !cancel.is_cancelled() && report.failed == 0 && report.exported > 0 {
+            let outputs = report
+                .items
+                .iter()
+                .filter_map(|i| i.output_path.as_ref().map(PathBuf::from))
+                .collect::<Vec<_>>();
+            report.workflow_errors =
+                export::run_after_export(&options.after_export, &outputs, &cancel);
+        }
+        report.cancelled |= cancel.is_cancelled();
+        report.seconds = started.elapsed().as_secs_f64();
         Ok(report)
     }
 }

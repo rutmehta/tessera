@@ -4,11 +4,31 @@ import SwiftUI
 /// Window layout: sidebar | (grid or loupe) + status bar + filmstrip | inspector.
 struct ContentView: View {
     @Bindable var model: AppModel
+    /// B5-10: document mode's detail minimum (see the frame below and DocumentInspectorLayoutTests).
+    static let documentDetailMinWidth = ShellBudget.detailMinWidth
+    /// M2-56: the window's content size (from `root`; zero when hosted directly), for the yield
+    /// order (ShellBudget).
+    var windowSize: CGSize = .zero
+    /// The canvas height without the filmstrip (0 before the first layout).
+    @State private var canvasBase: CGFloat = 0
+    /// The sidebar visibility the person had when the window became too narrow for the sidebar
+    /// (nil when the sidebar was not collapsed by the budget).
+    @State private var sidebarAutoCollapsed: NavigationSplitViewVisibility?
+
+    /// The window's root view: the shell at the declared minimum window size (WP M2-56).
+    /// The GeometryReader reports the window's size (not the split view's), and places an
+    /// oversized shell at the top-leading corner instead of centring it at negative origins.
+    static func root(model: AppModel) -> some View {
+        GeometryReader { window in
+            ContentView(model: model, windowSize: window.size)
+        }
+        .frame(minWidth: ShellBudget.minWindow.width, minHeight: ShellBudget.minWindow.height)
+    }
 
     var body: some View {
-        NavigationSplitView(columnVisibility: Binding(get: { model.documents.columnVisibility },
-                                                      set: { model.documents.columnVisibility = $0 })) {
+        NavigationSplitView(columnVisibility: columnVisibility) {
             SidebarView(model: model)
+                .containedColumn()
                 .navigationSplitViewColumnWidth(min: Theme.Width.sidebarMin, ideal: Theme.Width.sidebarIdeal,
                                                 max: Theme.Width.sidebarMax)
         } detail: {
@@ -23,6 +43,7 @@ struct ContentView: View {
                     ZStack {
                         // Both stay alive so grid scroll position and loupe texture survive mode switches.
                         ThumbnailBrowser(model: model, style: .grid)
+                            .onAppear { PerformanceTrace.shared.record("grid_appeared") }
                             .opacity(model.viewMode == .grid ? 1 : 0)
                             .allowsHitTesting(model.viewMode == .grid)
                         LoupeView(model: model)
@@ -53,6 +74,10 @@ struct ContentView: View {
                         .animation(Theme.Motion.appear, value: model.toast)
                     }
                     .frame(width: area.size.width, height: area.size.height)
+                    .clipped()
+                }
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
+                    canvasBase = height + (showsFilmstrip ? Self.filmstripSpan : 0)
                 }
                 if model.viewMode == .loupe, model.source != .people, !model.assist.faces.isEmpty {
                     FaceStrip(model: model)
@@ -63,18 +88,33 @@ struct ContentView: View {
                 LightroomImportProgressBar(importer: model.lightroomImport)
                 ExportProgressBar(exporter: model.exporter)
                 PrintProgressBar(printing: model.printing)
+                PhotoJobProgressBar(jobs: model.photoJobs)   // M2-50
                 if model.viewMode == .document {
                     DocumentStatusBar(model: model, workspace: model.documents)
                 } else {
                     StatusBar(model: model)
                 }
-                if model.showFilmstrip, !model.library.items.isEmpty, model.viewMode != .document {
+                if showsFilmstrip {
                     Hairline()
                     ThumbnailBrowser(model: model, style: .filmstrip)
                         .frame(height: Theme.Height.filmstrip)
                 }
             }
             .background(Theme.canvas)
+            .containedColumn()
+            // B5-10 begin: document mode's detail column has a small, explicit minimum and ideal width.
+            // On macOS 26 the floating sidebar and the inspector overlay the detail, and the split
+            // view counts the detail's minimum PLUS both overlays, then adds the inspector column
+            // again: with the detail's own minimum taken from its ideal width (the status bar's full
+            // message and fixed labels, ~800 pt) the content needed ~1450 pt, so at 1440 pt and below
+            // the sidebar and the document inspector were pushed past the window edges (clipped
+            // right edges of Properties and Layers). The canvas and its bars shrink instead (the
+            // options bar scrolls, the status bar truncates). Library modes are unchanged.
+            // M2-56: every mode now has this minimum; the contained column no longer takes its minimum
+            // from its content, so library modes need the explicit one too.
+            .frame(minWidth: Self.documentDetailMinWidth,
+                   idealWidth: model.viewMode == .document ? Self.documentDetailMinWidth : nil, maxWidth: .infinity)
+            // B5-10 end
             .navigationTitle(model.viewMode == .document ? (model.documents.current?.title ?? "Tessera")
                              : model.library.items.isEmpty ? "Tessera" : model.library.title)
             .navigationSubtitle(subtitle)
@@ -84,6 +124,9 @@ struct ContentView: View {
         }
         .sheet(isPresented: Binding(get: { model.documents.showExportFlat }, set: { model.documents.showExportFlat = $0 })) {
             ExportFlatSheet(workspace: model.documents)
+        }
+        .sheet(item: Binding(get: { model.documents.saveAsRequest }, set: { model.documents.saveAsRequest = $0 })) { r in
+            SaveAsSheet(workspace: model.documents, request: r)
         }
         .sheet(isPresented: $model.showDefectSweep) {
             DefectSweepSheet(model: model)
@@ -103,6 +146,7 @@ struct ContentView: View {
         .sheet(isPresented: $model.showPrint) {
             PrintSheet(printing: model.printing, model: model)
         }
+        .photoJobSheets(model)   // M2-50: Photo Merge / Enhance
         .sheet(isPresented: Binding(get: { model.collections.editor != nil },
                                     set: { if !$0 { model.collections.editor = nil } })) {
             SmartAlbumSheet(library: model.collections)
@@ -115,13 +159,67 @@ struct ContentView: View {
                     InspectorView(model: model)
                 }
             }
-                .inspectorColumnWidth(min: Theme.Width.inspectorMin, ideal: Theme.Width.inspectorIdeal,
-                                      max: Theme.Width.inspectorMax)
+                .containedColumn()
+                // M2-56 yield order, step 2: in a narrow window the inspector's ideal and maximum
+                // drop to what fits beside the detail minimum (down to its minimum width).
+                .inspectorColumnWidth(min: Theme.Width.inspectorMin, ideal: min(Theme.Width.inspectorIdeal, inspectorFit),
+                                      max: inspectorFit)
         }
         .toolbar { toolbar }
+        .environment(\.toolbarCompact, windowSize.width > 0 && windowSize.width < ShellBudget.compactToolbarWidth)
         .tint(Theme.accent)
         .background(WindowToolbarConfigurator())
+        .onChange(of: sidebarFits, initial: true) { _, fits in applySidebarBudget(fits: fits) }
     }
+
+    /// M2-56 yield order, step 1: the sidebar collapses while the window is too narrow for it beside
+    /// the detail minimum and the inspector; the person's own choice returns when it fits again
+    /// (they can still show it themselves while narrow).
+    private var sidebarFits: Bool {
+        windowSize.width <= 0 || ShellBudget.sidebarFits(windowWidth: windowSize.width, inspector: model.showInspector)
+    }
+
+    private var inspectorFit: CGFloat {
+        guard windowSize.width > 0 else { return Theme.Width.inspectorMax }
+        let sidebarShown = columnVisibility.wrappedValue != .detailOnly
+        return ShellBudget.inspectorFit(windowWidth: windowSize.width, sidebar: sidebarShown)
+    }
+
+    private var columnVisibility: Binding<NavigationSplitViewVisibility> {
+        Binding(get: { model.documents.columnVisibility }, set: { value in
+            // The person's own choice; showing the sidebar in a narrow window keeps it shown.
+            if value != .detailOnly { sidebarAutoCollapsed = nil }
+            model.documents.columnVisibility = value
+        })
+    }
+
+    /// Applies step 1 when the window crosses the threshold: collapse (remembering the choice),
+    /// and restore that choice once the sidebar fits again.
+    private func applySidebarBudget(fits: Bool) {
+        var t = Transaction(); t.disablesAnimations = true
+        withTransaction(t) {
+            if !fits, sidebarAutoCollapsed == nil, model.documents.columnVisibility != .detailOnly {
+                sidebarAutoCollapsed = model.documents.columnVisibility
+                model.documents.columnVisibility = .detailOnly
+            } else if fits, let restore = sidebarAutoCollapsed {
+                sidebarAutoCollapsed = nil
+                // Not while the person has hidden all panels (Tab / full screen without panels).
+                if model.documents.columnVisibility == .detailOnly, !model.documents.panelsHidden {
+                    model.documents.columnVisibility = restore
+                }
+            }
+        }
+    }
+
+    /// M2-56 yield order, step 3: the filmstrip hides when the canvas above it would be shorter than
+    /// `ShellBudget.canvasMinHeight`. Decided from the height without the strip, so it cannot flicker.
+    private var showsFilmstrip: Bool {
+        guard model.showFilmstrip, !model.library.items.isEmpty, model.viewMode != .document else { return false }
+        guard canvasBase > 0 else { return true }
+        return ShellBudget.filmstripFits(detailHeight: canvasBase, chrome: 0)
+    }
+
+    private static let filmstripSpan = Theme.Height.filmstrip + Theme.Space.hairline
 
     private var subtitle: String {
         if model.viewMode == .document {
@@ -162,18 +260,18 @@ struct ContentView: View {
         }
         .flatToolbarItem()
         ToolbarItem(id: "size", placement: .primaryAction) {
-            // Grid only; in the loupe and compare the space stays empty so the toggles do not move.
-            HStack(spacing: Theme.Space.xs) {
-                Image(systemName: "square.grid.3x3").font(Theme.Fonts.iconSmall).foregroundStyle(Theme.textTertiary)
-                Slider(value: $model.thumbnailSize, in: 110...360)
-                    .controlSize(.mini)
-                    .frame(width: Theme.Width.thumbnailSlider)
-                Image(systemName: "square.grid.2x2").font(Theme.Fonts.iconSmall).foregroundStyle(Theme.textTertiary)
+            // Grid only. M2-56: removed (not transparent) in the other modes, so its 130 pt slot
+            // goes back to the toolbar instead of pushing items into the overflow menu.
+            if model.viewMode == .grid {
+                HStack(spacing: Theme.Space.xs) {
+                    Image(systemName: "square.grid.3x3").font(Theme.Fonts.iconSmall).foregroundStyle(Theme.textTertiary)
+                    Slider(value: $model.thumbnailSize, in: 110...360)
+                        .controlSize(.mini)
+                        .frame(width: Theme.Width.thumbnailSlider)
+                    Image(systemName: "square.grid.2x2").font(Theme.Fonts.iconSmall).foregroundStyle(Theme.textTertiary)
+                }
+                .help("Thumbnail size")
             }
-            .opacity(model.viewMode == .grid ? 1 : 0)
-            .disabled(model.viewMode != .grid)
-            .accessibilityHidden(model.viewMode != .grid)
-            .help("Thumbnail size")
         }
         .flatToolbarItem()
         ToolbarItem(id: "assist", placement: .primaryAction) {
@@ -277,7 +375,6 @@ struct ToolbarToggleStyle: ToggleStyle {
     func makeBody(configuration: Configuration) -> some View {
         Button { configuration.isOn.toggle() } label: {
             configuration.label
-                .labelStyle(.titleAndIcon)
         }
         .buttonStyle(ToolbarButtonStyle(on: configuration.isOn))
         .accessibilityAddTraits(configuration.isOn ? .isSelected : [])
@@ -296,9 +393,16 @@ private struct ToolbarButtonBody: View {
     let configuration: ButtonStyle.Configuration
     let on: Bool
     @State private var hovering = false
+    /// M2-56: icons only in a narrow window (the title stays the help / accessibility label).
+    @Environment(\.toolbarCompact) private var compact
     var body: some View {
-        configuration.label
-            .labelStyle(.titleAndIcon)
+        Group {
+            if compact {
+                configuration.label.labelStyle(.iconOnly)
+            } else {
+                configuration.label.labelStyle(.titleAndIcon)
+            }
+        }
             .font(Theme.Fonts.label)
             .foregroundStyle(on ? Theme.textPrimary : Theme.textSecondary)
             .padding(.horizontal, Theme.Space.s)
@@ -331,63 +435,12 @@ struct StatusBar: View {
     var body: some View {
         VStack(spacing: 0) {
             Hairline()
-            HStack(spacing: Theme.Space.m) {
-                if let item = model.focusedItem, let p = model.focusedPosition {
-                    HStack(spacing: Theme.Space.s) {
-                        Text("\((p + 1).formatted()) of \(model.visibleCount.formatted())")
-                            .foregroundStyle(Theme.textPrimary)
-                        Text("G\(item.groupID + 1) · \(model.indexInGroup(of: item) + 1)/\(model.groupSize(of: item))"
-                             + (model.focusedIsBest ? " · suggested best" : ""))
-                        HStack(spacing: Theme.Space.xs) {
-                            Circle().fill(Color(nsColor: model.focusedState.decision.color))
-                                .frame(width: Theme.Space.s - Theme.Space.xxs, height: Theme.Space.s - Theme.Space.xxs)
-                            Text(stateText)
-                        }
-                        if model.selectionCount > 1 {
-                            Text("\(model.selectionCount.formatted()) selected").foregroundStyle(Theme.accent)
-                        }
-                    }
-                    .fixedSize()
-                    separator
-                }
-                if let person = model.assist.personFilterTitle {
-                    Button { model.assist.clearPersonFilter() } label: {
-                        HStack(spacing: Theme.Space.xs) {
-                            Text(person)
-                            Image(systemName: "xmark.circle.fill").font(Theme.Fonts.iconSmall)
-                        }
-                    }
-                    .buttonStyle(.theme(.borderless, height: Theme.Height.small))
-                    .foregroundStyle(Theme.accent)
-                    .help("Showing frames with this person only. Click to show all.")
-                    .accessibilityIdentifier("status-person-filter")
-                    separator
-                }
-                if let msg = model.statusMessage {
-                    Text(msg).lineLimit(1).truncationMode(.tail).foregroundStyle(Theme.textTertiary)
-                        .help(msg)
-                }
-                Spacer(minLength: Theme.Space.s)
-                if model.showRenderReadout, let readout = model.renderReadout {
-                    Text(readout)
-                        .foregroundStyle(Theme.textTertiary)
-                        .help("Settings change → frame in the loupe surface (Debug ▸ Show Render Timing)")
-                        .accessibilityIdentifier("renderReadout")
-                    separator
-                }
-                HStack(spacing: Theme.Space.s) {
-                    Text("Keep \(model.counts.keep.formatted())")
-                    Text("Reject \(model.counts.reject.formatted())")
-                }
-                .fixedSize()
-                separator
-                HStack(spacing: Theme.Space.xs) {
-                    RoundedRectangle(cornerRadius: Theme.Space.xxs).fill(Theme.basket)
-                        .frame(width: Theme.Space.s, height: Theme.Space.s)
-                    Text("\(model.basketTarget) \(model.counts.basket.formatted())")
-                }
-                .fixedSize()
-                .help("Basket target: B adds to this album. Change it in Cull ▸ Basket Target or the sidebar.")
+            // M2-56 (L3): the full row when it fits, else a compact one (position, decision, counts
+            // as K / R, the basket's count without its name; every full string stays in help).
+            // The message never decides which fits: it takes whatever width is left and truncates.
+            ViewThatFits(in: .horizontal) {
+                row(compact: false)
+                row(compact: true)
             }
             .font(Theme.Fonts.captionNumeric)
             .foregroundStyle(Theme.textSecondary)
@@ -395,6 +448,80 @@ struct StatusBar: View {
             .frame(height: Theme.Height.statusBar)
         }
         .background(Theme.panel)
+    }
+
+    private func row(compact: Bool) -> some View {
+        HStack(spacing: Theme.Space.m) {
+            if let item = model.focusedItem, let p = model.focusedPosition {
+                HStack(spacing: Theme.Space.s) {
+                    Text("\((p + 1).formatted()) of \(model.visibleCount.formatted())")
+                        .foregroundStyle(Theme.textPrimary)
+                    if !compact {
+                        Text("G\(item.groupID + 1) · \(model.indexInGroup(of: item) + 1)/\(model.groupSize(of: item))"
+                             + (model.focusedIsBest ? " · suggested best" : ""))
+                    }
+                    HStack(spacing: Theme.Space.xs) {
+                        Circle().fill(Color(nsColor: model.focusedState.decision.color))
+                            .frame(width: Theme.Space.s - Theme.Space.xxs, height: Theme.Space.s - Theme.Space.xxs)
+                        Text(compact ? model.focusedState.decision.label : stateText)
+                    }
+                    .help(stateText)
+                    if model.selectionCount > 1 {
+                        Text(compact ? "+\((model.selectionCount - 1).formatted())" : "\(model.selectionCount.formatted()) selected")
+                            .foregroundStyle(Theme.accent)
+                            .help("\(model.selectionCount.formatted()) selected")
+                    }
+                }
+                .fixedSize()
+                separator
+            }
+            if let person = model.assist.personFilterTitle {
+                Button { model.assist.clearPersonFilter() } label: {
+                    HStack(spacing: Theme.Space.xs) {
+                        Text(person).lineLimit(1).truncationMode(.middle)
+                        Image(systemName: "xmark.circle.fill").font(Theme.Fonts.iconSmall)
+                    }
+                }
+                .buttonStyle(.theme(.borderless, height: Theme.Height.small))
+                .foregroundStyle(Theme.accent)
+                .help("Showing frames with \(person) only. Click to show all.")
+                .accessibilityIdentifier("status-person-filter")
+                .frame(maxWidth: compact ? Theme.Width.labelWide : nil)
+                separator
+            }
+            // Ideal width 0: the message fills what is left and truncates; it never makes a row "not fit".
+            Group {
+                if let msg = model.statusMessage {
+                    Text(msg).lineLimit(1).truncationMode(.tail).foregroundStyle(Theme.textTertiary)
+                        .help(msg)
+                } else {
+                    Color.clear
+                }
+            }
+            .frame(minWidth: 0, idealWidth: 0, maxWidth: .infinity, alignment: .leading)
+            if !compact, model.showRenderReadout, let readout = model.renderReadout {
+                Text(readout)
+                    .foregroundStyle(Theme.textTertiary)
+                    .help("Settings change → frame in the loupe surface (Debug ▸ Show Render Timing)")
+                    .accessibilityIdentifier("renderReadout")
+                    .fixedSize()
+                separator
+            }
+            HStack(spacing: Theme.Space.s) {
+                Text(compact ? "K \(model.counts.keep.formatted())" : "Keep \(model.counts.keep.formatted())")
+                Text(compact ? "R \(model.counts.reject.formatted())" : "Reject \(model.counts.reject.formatted())")
+            }
+            .fixedSize()
+            .help("Keep \(model.counts.keep.formatted()) · Reject \(model.counts.reject.formatted())")
+            separator
+            HStack(spacing: Theme.Space.xs) {
+                RoundedRectangle(cornerRadius: Theme.Space.xxs).fill(Theme.basket)
+                    .frame(width: Theme.Space.s, height: Theme.Space.s)
+                Text(compact ? model.counts.basket.formatted() : "\(model.basketTarget) \(model.counts.basket.formatted())")
+            }
+            .fixedSize()
+            .help("Basket target \(model.basketTarget): B adds to this album. Change it in Cull ▸ Basket Target or the sidebar.")
+        }
     }
 
     private var separator: some View {

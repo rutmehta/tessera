@@ -48,10 +48,53 @@ pub use tools::*;
 // Filters, Image ▸ Adjustments and smart filters (WP B5-05).
 #[path = "document/filters.rs"]
 mod filtering;
+// B5-08 begin: persistent alpha and spot channels.
+#[path = "document/channels.rs"]
+mod channels;
+pub use channels::{ChannelRecord, ChannelUpdate, DocChannelKind};
+// B5-08 end
+// B5-10 begin: editable text layers (Type tool).
+#[path = "document/text.rs"]
+mod text;
+pub use text::{
+    TextFontFace, TextFontFamily, TextGlyphRecord, TextLayerRecord, TextLayoutRecord,
+    TextLineRecord, TextRunSplice, available_text_fonts, layout_text, load_text_fonts_for_tests,
+    text_run_splice,
+};
+// B5-10 end
+// B5-10b: the shared font snapshot for every compositor constructed here.
+#[path = "document/fonts.rs"]
+mod fonts;
 pub use filtering::{
     DistractionRemovalResult, FilterDetail, FilterInfo, RasterFilterOperation, RasterFilterRequest,
     SmartFilterEdit, SmartFilterRecord, list_filters,
 };
+// Remove tool, Content-Aware Fill and neural filters for the app (WP B5-09).
+#[path = "document/retouch.rs"]
+mod retouch;
+pub use retouch::*;
+// B5-12 begin: non-destructive warp, perspective, puppet and content-aware scale.
+#[path = "document/transform.rs"]
+mod advanced_transform;
+pub use advanced_transform::{
+    AdvancedTransformInfo, AdvancedTransformKind, AdvancedTransformPreview, PuppetMeshRecord,
+    TransformStageRecord, warp_preset, warp_preset_names, warp_split, warp_subdivide,
+};
+// B5-12 end
+// Layer styles and Global Light (WP B5-07).
+#[path = "document/styles.rs"]
+mod styles;
+pub use styles::{
+    GlobalLightRecord, LayerStyleSummary, StyleEffectSummary, style_effects_schema_json,
+};
+// B5-11 begin: live shapes, Pen / Direct Selection and vector masks.
+#[path = "document/vector.rs"]
+mod vector_shapes;
+pub use vector_shapes::{
+    ShapeBounds, ShapeHitPart, ShapeHitRecord, ShapeLayerRecord, ShapePathOperation,
+    VectorMaskRecord, shape_primitive_path,
+};
+// B5-11 end
 
 use crate::{Engine, Result, failure, surface::Surface};
 use compositor::{
@@ -66,6 +109,7 @@ use std::{
 };
 
 pub use io::{ExportColor, ExportFormat};
+pub use render::{DocRenderPath, DocRenderRecord}; // B5-14 (tests and benches)
 
 // ─────────────────────────────── records ───────────────────────────────
 
@@ -106,6 +150,10 @@ pub enum DocLayerKind {
     Group,
     SmartObject,
     Text,
+    // B5-11 begin
+    /// An editable vector shape (`vector::ShapeModel` + affine).
+    Shape,
+    // B5-11 end
 }
 
 /// How a group composites its children.
@@ -642,12 +690,80 @@ enum Pending {
     Props(u64),
     Adjustment(u64),
     Fill(u64),
+    // B5-10 begin: a live-source draft (text; B5-11 adds its shape keys).
+    /// A text draft of a layer, or (`None`) of a layer the draft adds.
+    Text(Option<u64>),
+    // B5-10 end
+    // B5-11 begin: shape source and vector-mask drafts (document/vector.rs).
+    /// A shape model / transform draft of a layer.
+    Shape(u64),
+    /// A vector-mask draft of a layer.
+    VectorMask(u64),
+    // B5-11 end
 }
 
+// B5-10 begin: live-source drafts (shared by text and, with B5-11, shapes).
+impl Pending {
+    /// Drafts of editable live sources: `cancel_source_preview` drops only these.
+    fn is_source(self) -> bool {
+        // B5-11: shape and vector-mask drafts are live-source drafts too.
+        matches!(
+            self,
+            Pending::Text(_) | Pending::Shape(_) | Pending::VectorMask(_)
+        )
+    }
+}
+
+/// A live-source draft's ops: `preview` is the COMPLETE draft (idempotent,
+/// applied to a scratch rebuilt from the committed base on every call, so
+/// relative run edits are never replayed against moved indexes); `commit`
+/// is the one op the final call records (`None`: the draft equals its base).
+pub(crate) struct SourceOps {
+    pub(crate) preview: DocOp,
+    pub(crate) commit: Option<DocOp>,
+}
+// B5-10 end
+
+// B5-14 begin: copy-on-write live document.
+/// A document shared copy-on-write with the render thread (WP B5-14, P14).
+/// Reads deref to the document; the first mutation while a frame snapshot
+/// is alive clones it (`Arc::make_mut`), so an edit never waits for a frame
+/// and the frame never sees a half-applied edit. Cloning the wrapper shares
+/// the document (use `(*doc).clone()` for an independent copy).
+#[derive(Clone)]
+pub(crate) struct CowDoc(Arc<Document>);
+
+impl CowDoc {
+    /// The immutable snapshot the renderer and save work from.
+    pub(crate) fn share(&self) -> Arc<Document> {
+        self.0.clone()
+    }
+}
+
+impl From<Document> for CowDoc {
+    fn from(doc: Document) -> Self {
+        Self(Arc::new(doc))
+    }
+}
+
+impl std::ops::Deref for CowDoc {
+    type Target = Document;
+    fn deref(&self) -> &Document {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for CowDoc {
+    fn deref_mut(&mut self) -> &mut Document {
+        Arc::make_mut(&mut self.0)
+    }
+}
+// B5-14 end
+
 pub(crate) struct State {
-    doc: Document,
+    doc: CowDoc, // B5-14: shared with in-flight frames and saves
     /// The document plus the interactive edits since the last commit.
-    scratch: Option<Document>,
+    scratch: Option<CowDoc>, // B5-14
     pending: Vec<(Pending, DocOp)>,
     path: Option<PathBuf>,
     title: String,
@@ -667,6 +783,8 @@ pub(crate) struct State {
     )>,
     /// Strokes, transforms, clone source, channels (WP B5-04).
     tools: tools::ToolState,
+    // B5-12: the open Warp / Perspective / Puppet / Content-Aware Scale session.
+    advanced: advanced_transform::AdvancedState,
     closed: bool,
     pub(crate) view: render::View,
 }
@@ -674,7 +792,12 @@ pub(crate) struct State {
 impl State {
     /// What the viewport and `layers()` show: the scratch while dragging.
     fn live(&self) -> &Document {
-        self.scratch.as_ref().unwrap_or(&self.doc)
+        self.scratch.as_deref().unwrap_or(&self.doc)
+    }
+
+    /// B5-14: an immutable snapshot of what `live` shows (no pixel copy).
+    pub(crate) fn live_shared(&self) -> Arc<Document> {
+        self.scratch.as_ref().unwrap_or(&self.doc).share()
     }
 
     fn dirty(&self) -> bool {
@@ -698,6 +821,8 @@ pub(crate) struct Shared {
     listener: Mutex<Option<Arc<dyn DocumentListener>>>,
     /// Filter previews and smart filter bakes (WP B5-05).
     filters: filtering::FilterState,
+    /// B5-14: saves run in order, outside the live-state lock.
+    saving: Mutex<()>,
 }
 
 impl Shared {
@@ -766,7 +891,7 @@ fn layer_revision(l: &Layer) -> u64 {
     }
     match &l.kind {
         LayerKind::Pixel(raster) => r.max(raster.max_rev()),
-        LayerKind::Text(t) => r.max(t.proxy.max_rev()),
+        LayerKind::Text { .. } | LayerKind::Shape { .. } => r,
         LayerKind::Group { children, .. } => children
             .iter()
             .fold(r, |a, c| a.max(c.props_rev).max(layer_revision(c))),
@@ -782,7 +907,8 @@ fn kind_of(l: &Layer) -> DocLayerKind {
         LayerKind::Fill(_) => DocLayerKind::Fill,
         LayerKind::Group { .. } => DocLayerKind::Group,
         LayerKind::SmartObject(_) => DocLayerKind::SmartObject,
-        LayerKind::Text(_) => DocLayerKind::Text,
+        LayerKind::Text { .. } => DocLayerKind::Text,
+        LayerKind::Shape { .. } => DocLayerKind::Shape, // B5-11
     }
 }
 
@@ -895,7 +1021,7 @@ impl DocumentSession {
             id,
             engine: Arc::downgrade(engine),
             state: Mutex::new(State {
-                doc: open.doc,
+                doc: open.doc.into(), // B5-14
                 scratch: None,
                 pending: Vec::new(),
                 path: open.path,
@@ -908,12 +1034,14 @@ impl DocumentSession {
                 unlinked_masks: Default::default(),
                 selection_bounds: None,
                 tools: Default::default(),
+                advanced: Default::default(), // B5-12
                 closed: false,
                 view: Default::default(),
             }),
             render: render::Renderer::new(gpu),
             listener: Mutex::new(None),
             filters: Default::default(),
+            saving: Mutex::new(()), // B5-14
         });
         let worker = {
             let shared = shared.clone();
@@ -1084,6 +1212,70 @@ impl DocumentSession {
             .clone()
             .ok_or_else(|| failure(format!("layer {id} has no mask")))
     }
+
+    // B5-10 begin: live-source draft lifecycle (text now, shapes with B5-11).
+
+    /// A live-source draft under `key`. Only one gesture owns the scratch:
+    /// pending edits of other keys are committed first (their own node).
+    /// `make` sees the committed base and validates before anything changes.
+    ///
+    /// * `interactive`: the scratch is rebuilt from the committed document
+    ///   plus the complete `preview`; nothing is recorded. A draft equal to
+    ///   its base drops the pending entry.
+    /// * final: the `commit` op is recorded as one history node (none when
+    ///   the draft equals its base); the scratch goes. A failing final op
+    ///   restores the previous draft.
+    fn source_edit(
+        &self,
+        key: Pending,
+        interactive: bool,
+        make: impl FnOnce(&DocState) -> Result<SourceOps>,
+    ) -> Result<DocumentUpdate> {
+        let mut st = self.shared.lock()?;
+        st.open()?;
+        let before = st.live().state().clone();
+        if st.pending.iter().any(|(k, _)| *k != key) {
+            // Another control's drag is its own node; this draft is rebuilt
+            // from the new base below (every call carries the full draft).
+            st.pending.retain(|(k, _)| *k != key);
+            self.commit_pending(&mut st, None)?;
+        }
+        let ops = make(st.doc.state())?;
+        let had = st.pending.iter().any(|(k, _)| *k == key);
+        if interactive {
+            let Some(commit) = ops.commit else {
+                if had {
+                    st.pending.retain(|(k, _)| *k != key);
+                    st.scratch = None;
+                }
+                return Ok(self.update(&mut st, &before, None, false));
+            };
+            let mut scratch = st.doc.clone();
+            scratch.set_max_states(2);
+            let applied = scratch.apply(ops.preview)?;
+            st.scratch = Some(scratch);
+            st.pending.retain(|(k, _)| *k != key);
+            st.pending.push((key, commit));
+            let mut update = self.update(&mut st, &before, Some(&applied), false);
+            // A provisional layer id of the scratch is not a created layer.
+            update.created.clear();
+            return Ok(update);
+        }
+        let saved_scratch = st.scratch.take();
+        let saved_pending = std::mem::take(&mut st.pending);
+        let Some(op) = ops.commit else {
+            return Ok(self.update(&mut st, &before, None, had));
+        };
+        match st.doc.apply(op) {
+            Ok(applied) => Ok(self.update(&mut st, &before, Some(&applied), true)),
+            Err(e) => {
+                st.scratch = saved_scratch;
+                st.pending = saved_pending;
+                Err(e.into())
+            }
+        }
+    }
+    // B5-10 end
 }
 
 #[uniffi::export]
@@ -1599,6 +1791,66 @@ impl DocumentSession {
         Ok(update)
     }
 
+    // B5-10 begin: live-source drafts and conversion.
+
+    /// Drops a pending live-source draft (a text draft, and with B5-11 a shape
+    /// draft) with no history change; the viewport returns to the committed
+    /// state. Pending drags of other controls, strokes, style and filter
+    /// previews are untouched. Without a source draft nothing happens.
+    pub fn cancel_source_preview(&self) -> Result<DocumentUpdate> {
+        let mut st = self.shared.lock()?;
+        st.open()?;
+        if !st.pending.iter().any(|(k, _)| k.is_source()) {
+            return Ok(DocumentUpdate {
+                layers_changed: Vec::new(),
+                created: Vec::new(),
+                history_head: st.doc.history().current(),
+                dirty_rect: None,
+                epoch: st.epoch,
+                dirty: st.dirty(),
+            });
+        }
+        let before = st.live().state().clone();
+        st.pending.retain(|(k, _)| !k.is_source());
+        st.scratch = None;
+        if !st.pending.is_empty() {
+            // Other keys' ops are absolute (whole props / parameters): rebuild them.
+            let mut scratch = st.doc.clone();
+            scratch.set_max_states(2);
+            let mut kept = Vec::new();
+            for (k, op) in std::mem::take(&mut st.pending) {
+                if scratch.apply(op.clone()).is_ok() {
+                    kept.push((k, op));
+                }
+            }
+            st.pending = kept;
+            st.scratch = Some(scratch);
+        }
+        Ok(self.update(&mut st, &before, None, false))
+    }
+
+    /// Rasterizes an editable text (or shape) layer into a pixel layer at
+    /// document depth as one history node ("Convert to Pixels"), keeping its
+    /// id, name, properties, layer styles, raster and vector masks. Undo
+    /// restores the exact editable source. Pixel/all locks and other layer
+    /// kinds fail without change. A pending draft is committed first.
+    pub fn convert_to_pixels(&self, layer: u64) -> Result<DocumentUpdate> {
+        {
+            let st = self.shared.lock()?;
+            let l = find(st.live().state(), layer)?;
+            if !matches!(l.kind, LayerKind::Text { .. } | LayerKind::Shape { .. }) {
+                return Err(failure(format!(
+                    "layer {layer} is not an editable text or shape layer"
+                )));
+            }
+        }
+        self.edit(
+            DocOp::ConvertToPixels { id: LayerId(layer) },
+            Some("Convert to Pixels"),
+        )
+    }
+    // B5-10 end
+
     // ───────────────────────────── history ─────────────────────────────
 
     pub fn undo(&self) -> Result<DocumentUpdate> {
@@ -1715,6 +1967,7 @@ impl DocumentSession {
         let mut st = self.shared.lock()?;
         st.open()?;
         let view = &mut st.view;
+        let before = view.surfaces.len();
         if view
             .surfaces
             .first()
@@ -1725,6 +1978,9 @@ impl DocumentSession {
         view.surfaces.retain(|s| s.id() != surface.id());
         if view.surfaces.len() >= 3 {
             view.surfaces.remove(0);
+        }
+        if view.surfaces.len() < before {
+            view.generation += 1; // B5-14: frames for the replaced ring are dropped
         }
         let first = view.surfaces.is_empty();
         view.surfaces.push(surface);
@@ -1801,6 +2057,7 @@ impl DocumentSession {
         if let Ok(mut st) = self.shared.lock() {
             st.view.surfaces.clear();
             st.view.next = 0;
+            st.view.generation += 1; // B5-14
         }
     }
 
@@ -1830,13 +2087,16 @@ impl DocumentSession {
 
     /// Writes the document to its path (committing a pending drag first).
     pub fn save(&self) -> Result<()> {
-        let mut st = self.shared.lock()?;
-        st.open()?;
-        let path = st
-            .path
-            .clone()
-            .ok_or_else(|| failure("the document has no file yet: use save_as"))?;
-        self.save_locked(&mut st, &path)
+        // B5-14: the file is written from a snapshot, outside the lock.
+        let _order = self.shared.saving.lock().map_err(failure)?;
+        let path = {
+            let st = self.shared.lock()?;
+            st.open()?;
+            st.path
+                .clone()
+                .ok_or_else(|| failure("the document has no file yet: use save_as"))?
+        };
+        self.save_snapshot(&path)
     }
 
     /// Writes `.tessera-doc`, or PSD/PSB when the path ends in `.psd`/`.psb`
@@ -1845,13 +2105,14 @@ impl DocumentSession {
     pub fn save_as(&self, path: String) -> Result<()> {
         let path = PathBuf::from(path);
         io::save_kind(&path)?;
-        let mut st = self.shared.lock()?;
-        st.open()?;
-        self.save_locked(&mut st, &path)?;
+        // B5-14: the file is written from a snapshot, outside the lock.
+        let _order = self.shared.saving.lock().map_err(failure)?;
+        self.save_snapshot(&path)?;
         let title = path
             .file_name()
             .map(|n| n.to_string_lossy().into_owned())
             .unwrap_or_default();
+        let mut st = self.shared.lock()?;
         st.title = title;
         st.path = Some(path.clone());
         drop(st);
@@ -1900,14 +2161,23 @@ impl DocumentSession {
 }
 
 impl DocumentSession {
-    fn save_locked(&self, st: &mut State, path: &std::path::Path) -> Result<()> {
-        if self.commit_pending(st, None)?.is_some() {
-            st.epoch += 1;
-            let epoch = st.epoch;
-            self.shared.render.request(Vec::new(), true, epoch);
-        }
-        io::save(&st.doc, path)?;
-        st.saved_node = Some(st.doc.history().current());
+    /// B5-14 (P14): commits a pending drag and snapshots the document under
+    /// the lock, writes the file without it (edits, frames and undo go on),
+    /// then records the saved node. Callers hold `Shared::saving`.
+    fn save_snapshot(&self, path: &std::path::Path) -> Result<()> {
+        let (doc, node) = {
+            let mut st = self.shared.lock()?;
+            st.open()?;
+            if self.commit_pending(&mut st, None)?.is_some() {
+                st.epoch += 1;
+                let epoch = st.epoch;
+                self.shared.render.request(Vec::new(), true, epoch);
+            }
+            (st.doc.share(), st.doc.history().current())
+        };
+        io::save(&doc, path)?;
+        drop(doc);
+        self.shared.lock()?.saved_node = Some(node);
         Ok(())
     }
 }
@@ -1919,8 +2189,28 @@ impl DocumentSession {
     /// the CPU compositor without Metal).
     #[doc(hidden)]
     pub fn read_level(&self, level: u8) -> Result<(u32, u32, Vec<f32>)> {
-        let st = self.shared.lock()?;
-        self.shared.render.read_level(st.live(), level)
+        let doc = self.shared.lock()?.live_shared(); // B5-14: not under the lock
+        self.shared.render.read_level(&doc, level)
+    }
+
+    /// B5-14: the renderer's per-frame records (path, regions, spans), oldest
+    /// first; at most the last 512.
+    #[doc(hidden)]
+    pub fn render_records(&self) -> Vec<DocRenderRecord> {
+        self.shared.render.records()
+    }
+
+    /// B5-14: `false` forces the full-level path (the parity reference).
+    #[doc(hidden)]
+    pub fn set_viewport_rendering(&self, enabled: bool) {
+        self.shared.render.set_viewport_rendering(enabled);
+    }
+
+    /// B5-14: one line of render resources (GPU pages and bytes, CPU cache,
+    /// pressure registrations, frames per path).
+    #[doc(hidden)]
+    pub fn render_resources(&self) -> String {
+        self.shared.render.resources()
     }
 
     /// The live document state (tests compare against the CPU compositor).
@@ -2027,7 +2317,8 @@ fn adjustment_title(a: &Adjustment) -> &'static str {
         Adjustment::Auto { .. } => "Auto",
         Adjustment::MatchColor { .. } => "Match Color",
         Adjustment::ReplaceColor { .. } => "Replace Color",
-        _ => "Adjustment",
+        Adjustment::Desaturate => "Desaturate",
+        Adjustment::HdrToning { .. } => "HDR Toning",
     }
 }
 

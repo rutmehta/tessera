@@ -16,6 +16,62 @@ Processing order: float render including shared `color_mgmt::Transform` (relativ
 
 The TIFF16 integration regression checks exact equality to the managed float render followed by final quantization, including a saturated wide-gamut sample and distinguishable sub-8-bit differences. ExportSettings still has no custom ICC/intent fields and does not claim printer/CMYK or HDR export. Shared transforms are built per render; cross-export registry/transform caching is not implemented.
 
+## Output sharpening (M2-45b)
+
+`ExportSettings::sharpen_amount` selects `Low`, `Standard` (default), or `High`
+for every existing screen/matte/glossy medium. `sharpen_output` is the shared
+deterministic Gaussian unsharp-mask implementation. Amount multipliers are
+0.5/1/1.5. The existing sigma/amount pairs above are the standard 300-ppi
+baseline. Paper sigma scales by `ppi / 300`, bounded to 0.3–8 pixels to avoid
+degenerate kernels and unbounded work. Screen sigma is independent of ppi.
+These are Tessera's documented presets, not a claim of Lightroom pixel parity.
+
+Export uses the final output dimensions, after resize (CPU or GPU) and before
+watermarking. `dpi: None` uses 300 ppi for sharpening without adding a density
+tag. Explicit density must be 1–9600 ppi. The legacy `render_pixels` print API
+retains standard/300-ppi behavior; callers needing explicit controls can apply
+`sharpen_output` to an unsharpened render.
+
+CLI adds `--sharpen-amount low|standard|high` and `--ppi 1..9600` alongside
+`--sharpen screen|matte|glossy`. FFI/preset JSON adds `sharpening_amount`, default
+`"standard"`, using the existing `dpi` field for density. No Swift UI or ABI
+change is needed for this JSON extension. MCP's existing minimal export tool
+still has no sharpening controls and continues to export without sharpening.
+
+Tests cover all nine presets, constant preservation, edge enhancement ordered
+by strength, density dependence, repeatability, invalid density, cancellation,
+TIFF16 read-back against resize-then-sharpen, CLI parsing, and FFI JSON/preset
+round trips plus actual exported pixels.
+
+## Developed DNG (M2-45, partial DNG milestone)
+
+`Format::Dng` writes an uncompressed float32 LinearRaw DNG using
+`merge::dng::write`. The recipe is baked by the CPU full-resolution output-linear
+renderer, including its tone mapping, then orientation/resize/sharpening are
+applied. Samples are linear Rec.2020 D65, not ICC-encoded document RGB. The
+document colour-space and render-scale hints do not apply to this format.
+ColorMatrix1 describes XYZ D65 to Rec.2020; AsShotNeutral is unity because white
+balance is already baked. The writer retains its DNG 1.4 compatibility version
+and 64 Mi-pixel limit. This is not a scene-referred HDR export.
+
+CLI: `tessera export input.nef --out /absolute/out --format dng --bit-depth 32`.
+FFI settings JSON: `{"format":"dng","bit_depth":32}`. MCP's existing DNG format
+now selects the same codec. Unsupported bit depths are rejected. Watermarks are
+rejected for DNG until document-encoded watermark colours have a linear-space
+conversion. Descriptive XMP is rebuilt through the sidecar metadata model,
+discarding foreign/development properties so an editor cannot reapply baked
+Camera Raw adjustments. The selected metadata policy still applies.
+
+Tests check exact float pixel round trips through `raw_decode::linear_dng`,
+LibRaw open/unpack acceptance, metadata removal and CLI/FFI/MCP selection.
+LibRaw's current Rust wrapper exposes only CFA sample buffers, so these tests do
+not claim a pixel-by-pixel RGB round trip through LibRaw.
+
+Still pending for the full DNG milestone: original + XMP copy, embedded original,
+DNG 1.6 tags, and independent LibRaw RGB sample comparison. No lossy DNG or 16-bit
+DNG option is exposed. The separate metadata-policy, sharpening-strength, HDR,
+and export-workflow milestones are not completed by this slice.
+
 ## AI local masks
 
 Active Subject, Sky, Background and Object (box/click) components are segmented

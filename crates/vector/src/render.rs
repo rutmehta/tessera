@@ -85,17 +85,19 @@ impl VectorRenderer {
                 .ceil()
                 .max(0.)
                 .min(f64::from(view.height)) as u32;
-            for y in min_y..max_y {
-                for x in min_x..max_x {
-                    let mut clipped = points.clone();
-                    for (axis, edge, greater) in [
-                        (0, f64::from(x), true),
-                        (0, f64::from(x) + 1., false),
-                        (1, f64::from(y), true),
-                        (1, f64::from(y) + 1., false),
-                    ] {
-                        clipped = clip(&clipped, axis, edge, greater);
-                    }
+            // The first two clipping planes depend only on x. Reuse their
+            // exact results down the column, retaining the original x,x,y,y
+            // plane order and per-pixel area sum (including hole cancellation).
+            let mut left = Vec::new();
+            let mut column = Vec::new();
+            let mut top = Vec::new();
+            let mut clipped = Vec::new();
+            for x in min_x..max_x {
+                clip_into(&points, &mut left, 0, f64::from(x), true);
+                clip_into(&left, &mut column, 0, f64::from(x) + 1., false);
+                for y in min_y..max_y {
+                    clip_into(&column, &mut top, 1, f64::from(y), true);
+                    clip_into(&top, &mut clipped, 1, f64::from(y) + 1., false);
                     let area = clipped
                         .iter()
                         .zip(clipped.iter().cycle().skip(1))
@@ -170,7 +172,8 @@ impl VectorRenderer {
         Ok(output)
     }
 }
-fn clip(points: &[Point], axis: usize, edge: f64, greater: bool) -> Vec<Point> {
+fn clip_into(points: &[Point], result: &mut Vec<Point>, axis: usize, edge: f64, greater: bool) {
+    result.clear();
     let coord = |p: Point| if axis == 0 { p.x } else { p.y };
     let inside = |p: Point| {
         if greater {
@@ -179,7 +182,6 @@ fn clip(points: &[Point], axis: usize, edge: f64, greater: bool) -> Vec<Point> {
             coord(p) <= edge
         }
     };
-    let mut result = vec![];
     for (&a, &b) in points
         .iter()
         .zip(points.iter().cycle().skip(1))
@@ -195,5 +197,154 @@ fn clip(points: &[Point], axis: usize, edge: f64, greater: bool) -> Vec<Point> {
             result.push(b);
         }
     }
-    result
+}
+
+#[cfg(test)]
+mod parity_tests {
+    use super::*;
+    // Original per-pixel clipping, kept as an independent arithmetic reference.
+    fn clip(points: &[Point], axis: usize, edge: f64, greater: bool) -> Vec<Point> {
+        let coord = |p: Point| if axis == 0 { p.x } else { p.y };
+        let inside = |p: Point| {
+            if greater {
+                coord(p) >= edge
+            } else {
+                coord(p) <= edge
+            }
+        };
+        let mut result = vec![];
+        for (&a, &b) in points
+            .iter()
+            .zip(points.iter().cycle().skip(1))
+            .take(points.len())
+        {
+            let ai = inside(a);
+            let bi = inside(b);
+            if ai != bi {
+                result.push(a.lerp(b, (edge - coord(a)) / (coord(b) - coord(a))));
+            }
+            if bi {
+                result.push(b);
+            }
+        }
+        result
+    }
+    fn legacy_coverage(path: &Path, view: Viewport) -> Result<CoverageRaster> {
+        let count = view.validate()?;
+        let scale = view.pixel_size();
+        let path =
+            path.affine(Affine::scale(1. / scale) * Affine::translate(-view.origin.to_vec2()));
+        let normalized = path.boolean(&Path::default(), Operation::Combine, 0.02)?;
+        let contours = normalized.flattened(0.02)?;
+        let mut accum = vec![0.; count];
+        for (points, _) in contours {
+            if points.len() < 3 {
+                continue;
+            }
+            let min_x = points
+                .iter()
+                .map(|p| p.x)
+                .fold(f64::INFINITY, f64::min)
+                .floor()
+                .max(0.) as u32;
+            let max_x = points
+                .iter()
+                .map(|p| p.x)
+                .fold(f64::NEG_INFINITY, f64::max)
+                .ceil()
+                .max(0.)
+                .min(f64::from(view.width)) as u32;
+            let min_y = points
+                .iter()
+                .map(|p| p.y)
+                .fold(f64::INFINITY, f64::min)
+                .floor()
+                .max(0.) as u32;
+            let max_y = points
+                .iter()
+                .map(|p| p.y)
+                .fold(f64::NEG_INFINITY, f64::max)
+                .ceil()
+                .max(0.)
+                .min(f64::from(view.height)) as u32;
+            for y in min_y..max_y {
+                for x in min_x..max_x {
+                    let mut clipped = points.clone();
+                    for (axis, edge, greater) in [
+                        (0, f64::from(x), true),
+                        (0, f64::from(x) + 1., false),
+                        (1, f64::from(y), true),
+                        (1, f64::from(y) + 1., false),
+                    ] {
+                        clipped = clip(&clipped, axis, edge, greater);
+                    }
+                    let area = clipped
+                        .iter()
+                        .zip(clipped.iter().cycle().skip(1))
+                        .take(clipped.len())
+                        .map(|(a, b)| {
+                            (a.x - f64::from(x)) * (b.y - f64::from(y))
+                                - (b.x - f64::from(x)) * (a.y - f64::from(y))
+                        })
+                        .sum::<f64>()
+                        / 2.;
+                    accum[(y * view.width + x) as usize] += area;
+                }
+            }
+        }
+        Ok(Raster {
+            width: view.width,
+            height: view.height,
+            data: accum
+                .into_iter()
+                .map(|v| v.abs().clamp(0., 1.) as f32)
+                .collect(),
+        })
+    }
+
+    #[test]
+    fn column_clipping_is_bit_exact_to_legacy_pixel_clipping() {
+        let ellipse = Shape::Ellipse {
+            center: Point::new(64.25, 43.75),
+            radii: Vec2::new(53.2, 32.1),
+        }
+        .path()
+        .unwrap();
+        let polygon = Path::polyline(
+            &[
+                Point::new(5.25, 5.75),
+                Point::new(130.1, 19.3),
+                Point::new(90.2, 100.4),
+                Point::new(13.7, 90.1),
+            ],
+            true,
+        );
+        let stroke = Stroke {
+            width: 5.3,
+            ..Default::default()
+        }
+        .outline(&polygon, 0.02)
+        .unwrap();
+        let hole = polygon.boolean(&ellipse, Operation::Exclude, 0.02).unwrap();
+        for path in [ellipse, polygon, stroke, hole] {
+            for level in [0, 1, 3] {
+                for origin in [Point::ZERO, Point::new(-8.25, 11.5), Point::new(32., 64.)] {
+                    let view = Viewport {
+                        width: 96,
+                        height: 80,
+                        origin,
+                        level,
+                    };
+                    let a = VectorRenderer { tolerance: 0.02 }
+                        .coverage(&path, view)
+                        .unwrap();
+                    let b = legacy_coverage(&path, view).unwrap();
+                    assert_eq!(
+                        a.data.iter().map(|v| v.to_bits()).collect::<Vec<_>>(),
+                        b.data.iter().map(|v| v.to_bits()).collect::<Vec<_>>()
+                    );
+                }
+            }
+        }
+    }
 }

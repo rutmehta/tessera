@@ -1,4 +1,4 @@
-//! Opt-in CFA adapter. Calibration is explicit, never inferred from ISO alone.
+//! CFA adapter with measured calibration or automatic raw flat-region estimation.
 use engine_api::{
     EngineError, EngineResult,
     id::ModelRef,
@@ -21,7 +21,7 @@ pub struct MlCfaDenoise {
     registry: Arc<ModelRegistry>,
     options: SessionOptions,
     model: ModelRef,
-    noise: CfaNoise,
+    noise: Option<CfaNoise>,
     session: Mutex<Runtime>,
     fallback: crate::MlPostDemosaicDenoise,
     mask: Option<Image>,
@@ -49,12 +49,33 @@ impl MlCfaDenoise {
             registry,
             options,
             model,
-            noise,
+            noise: Some(noise),
             session: Mutex::new(Runtime::default()),
             mask: None,
             revision,
         }
     }
+    /// Estimate site-specific noise from the packed raw before the first model
+    /// invocation. Image identity and model/policy remain in the memo key.
+    pub fn automatic(
+        registry: Arc<ModelRegistry>,
+        options: SessionOptions,
+        model: ModelRef,
+    ) -> Self {
+        let mut adapter = Self::new(
+            registry,
+            options,
+            model,
+            CfaNoise {
+                shot: [0.; 4],
+                read: [0.; 4],
+            },
+        );
+        adapter.noise = None;
+        adapter.revision.push_str("/automatic-flat-difference-v1");
+        adapter
+    }
+
     /// M2-08 raster sampled at full sensor pixel centres before crop/lens warp.
     /// Every Bayer site retains its own mask coverage. No 2x2 averaging.
     pub fn with_mask(mut self, width: u32, height: u32, samples: Vec<f32>) -> EngineResult<Self> {
@@ -195,6 +216,10 @@ impl MlCfaDenoise {
                 mask,
             );
         }
+        let noise = match self.noise {
+            Some(noise) => noise,
+            None => CfaNoise::estimate(&packed).map_err(|e| err(e.to_string()))?,
+        };
         if guard.model.is_none() {
             guard.model = Some(
                 CfaDenoiser::load(&self.registry, &self.model, self.options.clone())
@@ -207,7 +232,7 @@ impl MlCfaDenoise {
             .expect("loaded")
             .apply(
                 &packed,
-                self.noise,
+                noise,
                 100.0,
                 None,
                 Tiling {

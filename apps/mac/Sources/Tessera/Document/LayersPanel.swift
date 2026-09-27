@@ -84,13 +84,17 @@ struct LayersPanel: View {
             .disabled(document.primary == nil || document.primary?.hasMask == true)
             .accessibilityIdentifier("document.layers.addMask")
             Menu {
-                ForEach(AdjustmentModel.Kind.allCases) { k in
-                    Button { document.addAdjustment(k) } label: { Label(k.title, systemImage: k.symbol) }
+                ForEach(Array(AdjustmentModel.Kind.layerMenuSections.enumerated()), id: \.offset) { i, section in
+                    if i > 0 { Divider() }
+                    ForEach(section) { k in
+                        Button { document.addAdjustment(k) } label: { Label(k.title, systemImage: k.symbol) }
+                    }
                 }
             } label: { Image(systemName: "circle.lefthalf.filled") }
                 .menuStyle(IconMenuStyle())
                 .help("New adjustment layer")
                 .accessibilityIdentifier("document.layers.addAdjustment")
+            LayerStyleFooterButton(document: document)   // B5-07
             Spacer(minLength: 0)
             IconButton(symbol: "folder.badge.plus", help: "Group the selected layers (⌘G)") { document.groupSelection() }
                 .accessibilityIdentifier("document.layers.group")

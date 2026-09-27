@@ -13,7 +13,8 @@ struct ToolsPalette: View {
         VStack(spacing: Theme.Space.xxs) {
             ForEach(DocumentTool.paletteSlots, id: \.self) { slot in
                 let shown = slot.group.contains(document.tool) ? document.tool : slot
-                IconButton(symbol: shown.symbol, help: "\(shown.title) (\(shown.key))", on: slot.group.contains(document.tool),
+                IconButton(symbol: shown.symbol, help: "\(shown.title) (\(shown.key))",
+                           on: slot.group.contains(document.tool) && !DocumentRetouch.shared.removeActive,   // B5-09
                            size: Theme.Height.large) { tools.select(shown) }
                     .contextMenu {
                         if slot.group.count > 1 {
@@ -23,6 +24,7 @@ struct ToolsPalette: View {
                         }
                     }
                     .accessibilityIdentifier("document.tool.\(shown.rawValue)")
+                if slot == .heal { RemoveToolSlot(retouch: DocumentRetouch.shared) }   // B5-09
             }
             Hairline().frame(width: Theme.Height.large).padding(.vertical, Theme.Space.xxs)
             ColorSwatches(tools: tools)
@@ -171,20 +173,34 @@ struct ToolOptionsBar: View {
 
     private var bar: some View {
         HStack(spacing: Theme.Space.s) {
-            Image(systemName: tools.transform != nil ? "arrow.up.left.and.arrow.down.right" : document.tool.symbol)
+            // B5-12 begin: an advanced transform session owns the bar while it is open.
+            if let tag = DocumentTransforms.shared.isActive(document) ? DocumentTransforms.shared.tag : nil {
+                Image(systemName: tag.symbol).font(Theme.Fonts.icon).foregroundStyle(Theme.textSecondary)
+                Text(tag.title).font(Theme.Fonts.labelMedium).foregroundStyle(Theme.textPrimary).fixedSize()
+                separator
+                TransformOptionsBar(document: document, t: DocumentTransforms.shared)
+            } else {
+            // B5-12 end
+            Image(systemName: tools.transform != nil ? "arrow.up.left.and.arrow.down.right"
+                  : DocumentRetouch.shared.removeActive ? "eraser.line.dashed" : document.tool.symbol)   // B5-09
                 .font(Theme.Fonts.icon).foregroundStyle(Theme.textSecondary)
-            Text(tools.transform != nil ? "Free Transform" : document.tool.title)
+            Text(tools.transform != nil ? "Free Transform" : DocumentRetouch.shared.removeActive ? "Remove" : document.tool.title)
                 .font(Theme.Fonts.labelMedium).foregroundStyle(Theme.textPrimary).fixedSize()
             separator
             if tools.transform != nil {
                 transformOptions
+            } else if DocumentRetouch.shared.removeActive {   // B5-09
+                RemoveOptionsBar(document: document, retouch: DocumentRetouch.shared)
             } else if document.tool.selects {
                 selectionOptions
             } else if document.tool.paints {
                 paintOptions
+            } else if document.tool.isVector {   // B5-11
+                ShapeOptionsBar(document: document, vector: DocumentVector.shared)
             } else {
                 otherOptions
             }
+            } // B5-12
         }
         .padding(.horizontal, Theme.Space.m)
         .frame(height: Theme.Height.large + Theme.Space.xs)
@@ -323,6 +339,10 @@ struct ToolOptionsBar: View {
         case .gradient:
             Text("Placeholder: a click fills the selection with the foreground colour").font(Theme.Fonts.caption)
                 .foregroundStyle(Theme.textTertiary).fixedSize()
+        // B5-10 begin: Type tool options (Document/Text/TextOptionsBar.swift).
+        case .type:
+            TextOptionsBar(document: document, text: DocumentText.shared)
+        // B5-10 end
         default:
             Text("Placeholder in this build").font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary).fixedSize()
         }

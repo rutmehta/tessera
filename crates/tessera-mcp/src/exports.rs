@@ -64,12 +64,23 @@ impl Console {
         if images.is_empty() {
             return Err(EngineError::invalid("images", "must not be empty"));
         }
+        if settings.ppi.is_some_and(|ppi| !(1..=9600).contains(&ppi)) {
+            return Err(EngineError::invalid("ppi", "must be 1–9600"));
+        }
         if settings.profile.is_some() || settings.hdr {
             return Err(unsupported(
                 "custom ICC handles and HDR export need a registry/output mapping; only sRGB SDR is supported",
             ));
         }
         let format = match settings.format {
+            ExportFormat::Dng => export::Format::Dng,
+            ExportFormat::JpegXl { quality: 100 } => export::Format::JpegXl { bits: 8 },
+            ExportFormat::Avif {
+                quality: quality @ 1..=100,
+            } => export::Format::Avif(export::AvifOptions {
+                quality,
+                ..Default::default()
+            }),
             ExportFormat::Jpeg { quality: 1..=100 } => {
                 if let ExportFormat::Jpeg { quality } = settings.format {
                     export::Format::Jpeg { quality }
@@ -87,7 +98,7 @@ impl Console {
             }
             _ => {
                 return Err(unsupported(
-                    "export supports JPEG quality 1..=100, PNG 8-bit, TIFF 8/16-bit",
+                    "export supports JPEG/AVIF quality 1..=100, PNG 8-bit, TIFF 8/16-bit, lossless JPEG XL quality 100, and developed float32 DNG",
                 ));
             }
         };
@@ -104,6 +115,30 @@ impl Console {
         let options = export::ExportSettings {
             format,
             resize,
+            sharpen_for: match settings.sharpening.as_deref() {
+                None | Some("none") => export::SharpenFor::None,
+                Some("screen") => export::SharpenFor::Screen,
+                Some("matte") => export::SharpenFor::Matte,
+                Some("glossy") => export::SharpenFor::Glossy,
+                _ => {
+                    return Err(EngineError::invalid(
+                        "sharpening",
+                        "expected none, screen, matte, or glossy",
+                    ));
+                }
+            },
+            sharpen_amount: match settings.sharpening_amount.as_deref() {
+                None | Some("standard") => export::SharpenAmount::Standard,
+                Some("low") => export::SharpenAmount::Low,
+                Some("high") => export::SharpenAmount::High,
+                _ => {
+                    return Err(EngineError::invalid(
+                        "sharpening_amount",
+                        "expected low, standard, or high",
+                    ));
+                }
+            },
+            dpi: settings.ppi,
             naming: settings.name_template.clone(),
             output_dir: settings.destination.clone().into(),
             metadata: if settings.embed_metadata {
@@ -113,11 +148,7 @@ impl Console {
             },
             ..Default::default()
         };
-        let extension = match format {
-            export::Format::Jpeg { .. } => "jpg",
-            export::Format::Png => "png",
-            export::Format::Tiff { .. } => "tif",
-        };
+        let extension = format.extension();
         let mut pending = Vec::new();
         let mut names = BTreeSet::new();
         for image in images.iter().copied().collect::<BTreeSet<_>>() {

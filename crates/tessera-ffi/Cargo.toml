@@ -29,6 +29,7 @@ brush = { path = "../brush" }
 selection = { path = "../selection" }
 export = { path = "../export" }
 ml-enhance = { path = "../ml-enhance" }
+merge = { path = "../merge" }
 ml-faces = { path = "../ml-faces" }
 ml-quality = { path = "../ml-quality" }
 ml-caption = { path = "../ml-caption" }
@@ -37,6 +38,8 @@ style-profile = { path = "../style-profile" }
 agent = { path = "../agent" }
 compositor = { path = "../compositor" }
 psd = { path = "../psd" }
+# Live shapes and vector masks (WP B5-11).
+vector = { path = "../vector" }
 gpu-core = { path = "../gpu-core" }
 wgpu.workspace = true
 bytemuck.workspace = true
@@ -57,6 +60,10 @@ kamadak-exif.workspace = true
 half.workspace = true
 # Filters and smart filters in document mode (WP B5-05).
 filters = { path = "../filters" }
+# Editable text layers: layout for the Type tool's caret (WP B5-10).
+typography = { path = "../typography" }
+# Non-destructive warp / perspective / puppet / content-aware scale stages (WP B5-12).
+transform = { path = "../transform" }
 
 [dev-dependencies]
 import-lrcat = { path = "../import-lrcat", features = ["fixture"] }

@@ -12,7 +12,7 @@
 //!    normalized Lanczos-3 after Effects, before Output ([`MapPlan`]).
 //!
 //! [`ResolvedLens::plan`] returns `None` for anything a resident backend does
-//! not implement (guided/auto Upright, defringe, embedded per-channel warps,
+//! not implement (automatic Upright without analysis, defringe, embedded per-channel warps,
 //! database CA on Bayer sensors); callers must then use the reference path.
 use crate::{CorrectionSource, ResolvedLens};
 use engine_api::{
@@ -25,6 +25,13 @@ use engine_api::{
 
 /// At most this many embedded DNG warps or gains are ported.
 pub const MAX_EMBEDDED: usize = 4;
+
+/// Image-derived inverse homography, independent of resident lens eligibility.
+/// Reuse only for the same source and analysis settings (manual Transform may change).
+#[derive(Clone, Copy, Debug)]
+pub struct UprightAnalysis {
+    inverse: lens::Homography,
+}
 
 #[derive(Clone, Debug)]
 pub struct LensPlan {
@@ -130,6 +137,8 @@ pub struct MapPlan {
     /// Straighten angle in degrees.
     pub angle: f32,
     pub transform: Option<TransformPlan>,
+    /// Inverse Upright homography, applied after manual transform and before lens lookup.
+    pub upright: lens::Homography,
     pub lens: Option<LensMap>,
     resolved: ResolvedLens,
     common: LensSettings,
@@ -183,6 +192,46 @@ pub struct EmbeddedWarp {
 }
 
 impl MapPlan {
+    /// Scalar sampling of a resolved map, including a previously analyzed Upright
+    /// decision. Preview levels must not estimate a different perspective.
+    pub fn apply(&self, image: &crate::Image) -> EngineResult<crate::Image> {
+        let (w, h) = self.output_extent(image.width(), image.height());
+        let mut planes = vec![vec![0.; w as usize * h as usize]; image.planes().len()];
+        let lanczos = |x: f32| {
+            if x.abs() < 1e-12 {
+                1.
+            } else if x.abs() >= 3. {
+                0.
+            } else {
+                let p = std::f32::consts::PI * x;
+                p.sin() / p * (p / 3.).sin() / (p / 3.)
+            }
+        };
+        for (src, dst) in image.planes().iter().zip(&mut planes) {
+            for y in 0..h {
+                for x in 0..w {
+                    let Some([sx, sy]) = self.source(x, y, image.width(), image.height()) else {
+                        continue;
+                    };
+                    let mut sum = 0.;
+                    let mut weights = 0.;
+                    for ky in sy.floor() as i64 - 2..=sy.floor() as i64 + 3 {
+                        for kx in sx.floor() as i64 - 2..=sx.floor() as i64 + 3 {
+                            let weight = lanczos(sx - kx as f32) * lanczos(sy - ky as f32);
+                            let ix = kx.clamp(0, image.width() as i64 - 1) as usize;
+                            let iy = ky.clamp(0, image.height() as i64 - 1) as usize;
+                            sum += src[iy * image.width() as usize + ix] * weight;
+                            weights += weight;
+                        }
+                    }
+                    dst[y as usize * w as usize + x as usize] =
+                        (sum / weights).clamp(-f32::MAX, f32::MAX);
+                }
+            }
+        }
+        crate::Image::new(w, h, planes)
+    }
+
     /// Output size for an input of `iw` × `ih` (the reference's rounding).
     pub fn output_extent(&self, iw: u32, ih: u32) -> (u32, u32) {
         let r = self.crop;
@@ -208,7 +257,10 @@ impl MapPlan {
             cx + cos * dx + sin * dy - 0.5,
             cy - sin * dx + cos * dy - 0.5,
         );
-        if self.transform.is_some() || self.lens.is_some() {
+        if self.transform.is_some()
+            || self.lens.is_some()
+            || self.upright != lens::Homography::IDENTITY
+        {
             let t = &self.geometry.transform;
             let mut p = [
                 2. * (sx as f64 + 0.5) / iwf as f64 - 1.,
@@ -232,6 +284,7 @@ impl MapPlan {
                 }
                 p = [p[0] / d, p[1] / d];
             }
+            let p = self.upright.map(p)?;
             let p = if self.lens.is_some() {
                 self.resolved.map(p, 1, &self.common)
             } else {
@@ -289,12 +342,110 @@ impl ResolvedLens {
         }
     }
 
+    /// Scalar composed geometry, using the same resolved correction as resident plans.
+    pub fn apply_geometry(
+        &self,
+        image: &crate::Image,
+        settings: &DevelopSettings,
+    ) -> EngineResult<crate::Image> {
+        let mut common = settings.lens.clone();
+        common.remove_chromatic_aberration = false;
+        crate::geometry_effects::geometry_mapped(
+            image,
+            &settings.geometry,
+            self.geometry_active(&common),
+            |p, c| Some(self.map(p, c, &common)),
+        )
+    }
+
+    /// Apply scalar optics/geometry with a previously analyzed Upright decision.
+    /// Unlike a resident plan, this supports embedded and per-channel corrections.
+    pub fn apply_geometry_with_upright(
+        &self,
+        image: &crate::Image,
+        settings: &DevelopSettings,
+        analyzed: &UprightAnalysis,
+    ) -> EngineResult<crate::Image> {
+        let mut common = settings.lens.clone();
+        common.remove_chromatic_aberration = false;
+        crate::geometry_effects::geometry_mapped_with_upright(
+            image,
+            &settings.geometry,
+            self.geometry_active(&common),
+            |p, c| Some(self.map(p, c, &common)),
+            Some(analyzed.inverse),
+        )
+    }
+
     /// Resident parameters for `settings`, or None when a stage is not
     /// portable (the caller must use the reference renderer).
     pub fn plan(
         &self,
         settings: &DevelopSettings,
         metadata: &raw_decode::RawMetadata,
+    ) -> EngineResult<Option<LensPlan>> {
+        self.plan_impl(settings, metadata, None)
+    }
+
+    /// Resolve automatic Upright from the developed image immediately before geometry.
+    pub fn plan_with_analysis(
+        &self,
+        settings: &DevelopSettings,
+        metadata: &raw_decode::RawMetadata,
+        image: &crate::Image,
+    ) -> EngineResult<Option<LensPlan>> {
+        let analyzed = self.analyze_upright(settings, image)?;
+        self.plan_with_upright(settings, metadata, &analyzed)
+    }
+
+    /// Analyze even when optical corrections cannot be represented by a resident plan.
+    pub fn analyze_upright(
+        &self,
+        settings: &DevelopSettings,
+        image: &crate::Image,
+    ) -> EngineResult<UprightAnalysis> {
+        let mut common = settings.lens.clone();
+        common.remove_chromatic_aberration = false;
+        let inverse = crate::upright::inverse(image, &settings.geometry, &|p, c| {
+            Some(self.map(p, c, &common))
+        })?;
+        Ok(UprightAnalysis { inverse })
+    }
+
+    /// Compose resident parameters without repeating image analysis.
+    pub fn plan_with_upright(
+        &self,
+        settings: &DevelopSettings,
+        metadata: &raw_decode::RawMetadata,
+        analyzed: &UprightAnalysis,
+    ) -> EngineResult<Option<LensPlan>> {
+        self.plan_impl(settings, metadata, Some(analyzed.inverse))
+    }
+
+    /// Reuse an analysis decision while changing only manual geometry controls.
+    pub fn plan_with_cached_upright(
+        &self,
+        settings: &DevelopSettings,
+        metadata: &raw_decode::RawMetadata,
+        cached: &LensPlan,
+    ) -> EngineResult<Option<LensPlan>> {
+        self.plan_impl(
+            settings,
+            metadata,
+            Some(
+                cached
+                    .map
+                    .as_ref()
+                    .map_or(lens::Homography::IDENTITY, |m| m.upright),
+            ),
+        )
+    }
+
+    fn plan_impl(
+        &self,
+        settings: &DevelopSettings,
+        metadata: &raw_decode::RawMetadata,
+        analyzed: Option<lens::Homography>,
     ) -> EngineResult<Option<LensPlan>> {
         let s = &settings.lens;
         let g = &settings.geometry;
@@ -303,8 +454,8 @@ impl ResolvedLens {
             || self.embedded.present()
             || s.defringe_purple.amount != 0.
             || s.defringe_green.amount != 0.
-            || g.upright.mode != UprightMode::Off
-            || !g.upright.guides.is_empty()
+            || (analyzed.is_none()
+                && !matches!(g.upright.mode, UprightMode::Off | UprightMode::Guided))
             || g.orientation != 1
             || g.constrain_crop
             || self.embedded.warps.len() > MAX_EMBEDDED
@@ -371,91 +522,112 @@ impl ResolvedLens {
         let mut common = s.clone();
         common.remove_chromatic_aberration = false;
         let lens_active = self.geometry_active(&common);
+        let upright = if let Some(upright) = analyzed {
+            upright
+        } else if g.upright.mode == UprightMode::Guided {
+            crate::upright::guided_inverse(
+                metadata.default_crop[2],
+                metadata.default_crop[3],
+                g,
+                &|p, c| Some(self.map(p, c, &common)),
+            )?
+        } else {
+            if !g.upright.guides.is_empty() {
+                return Err(engine_api::EngineError::invalid(
+                    "upright",
+                    "guides require Guided mode",
+                ));
+            }
+            lens::Homography::IDENTITY
+        };
         let t = &g.transform;
         let transform_active = *t != Default::default();
         let r = g.crop.rect;
-        let map =
-            if r == NormalizedRect::FULL && g.crop.angle == 0. && !lens_active && !transform_active
+        let map = if r == NormalizedRect::FULL
+            && g.crop.angle == 0.
+            && !lens_active
+            && !transform_active
+            && upright == lens::Homography::IDENTITY
+        {
+            None
+        } else {
+            if !r.is_valid()
+                || !g.crop.angle.is_finite()
+                || !(-45.0..=45.0).contains(&g.crop.angle)
+                || g.crop.aspect.is_some_and(|a| a.contains(&0))
+                || [
+                    t.vertical,
+                    t.horizontal,
+                    t.rotate,
+                    t.aspect,
+                    t.scale,
+                    t.offset_x,
+                    t.offset_y,
+                ]
+                .iter()
+                .any(|v| !v.is_finite())
+                || !(50.0..=150.0).contains(&t.scale)
             {
-                None
-            } else {
-                if !r.is_valid()
-                    || !g.crop.angle.is_finite()
-                    || !(-45.0..=45.0).contains(&g.crop.angle)
-                    || g.crop.aspect.is_some_and(|a| a.contains(&0))
-                    || [
-                        t.vertical,
-                        t.horizontal,
-                        t.rotate,
-                        t.aspect,
-                        t.scale,
-                        t.offset_x,
-                        t.offset_y,
-                    ]
-                    .iter()
-                    .any(|v| !v.is_finite())
-                    || !(50.0..=150.0).contains(&t.scale)
-                {
-                    // Invalid controls: the reference reports the error.
-                    return Ok(None);
+                // Invalid controls: the reference reports the error.
+                return Ok(None);
+            }
+            let transform = transform_active.then(|| {
+                let (sin, cos) = (t.rotate.clamp(-10., 10.) as f64).to_radians().sin_cos();
+                TransformPlan {
+                    offset: [
+                        t.offset_x.clamp(-100., 100.) as f64 / 50.,
+                        t.offset_y.clamp(-100., 100.) as f64 / 50.,
+                    ],
+                    rotate: [sin, cos],
+                    scale: [
+                        t.scale as f64 / 100. * (t.aspect.clamp(-100., 100.) as f64 / 100.).exp2(),
+                        t.scale as f64 / 100.,
+                    ],
+                    perspective: [
+                        t.horizontal.clamp(-100., 100.) as f64 / 200.,
+                        t.vertical.clamp(-100., 100.) as f64 / 200.,
+                    ],
                 }
-                let transform = transform_active.then(|| {
-                    let (sin, cos) = (t.rotate.clamp(-10., 10.) as f64).to_radians().sin_cos();
-                    TransformPlan {
-                        offset: [
-                            t.offset_x.clamp(-100., 100.) as f64 / 50.,
-                            t.offset_y.clamp(-100., 100.) as f64 / 50.,
-                        ],
-                        rotate: [sin, cos],
-                        scale: [
-                            t.scale as f64 / 100.
-                                * (t.aspect.clamp(-100., 100.) as f64 / 100.).exp2(),
-                            t.scale as f64 / 100.,
-                        ],
-                        perspective: [
-                            t.horizontal.clamp(-100., 100.) as f64 / 200.,
-                            t.vertical.clamp(-100., 100.) as f64 / 200.,
-                        ],
-                    }
-                });
-                let lens = lens_active.then(|| LensMap {
-                    manual_k1: s.manual_distortion.clamp(-100., 100.) as f64 / 200.,
-                    sample: self.sample.as_ref().map(|p| SampleMap {
-                        k: [p.distortion.k1, p.distortion.k2, p.distortion.k3],
-                        p: [p.distortion.p1, p.distortion.p2],
-                        center: [p.distortion.cx, p.distortion.cy],
-                        distortion_scale: p.distortion_scale,
-                        radial_odd: p.radial_odd,
-                        coordinate_scale: p.coordinate_scale,
-                        amount: s.distortion_scale.clamp(0., 200.) as f64 / 100.,
-                    }),
-                    embedded: self
-                        .embedded
-                        .warps
-                        .iter()
-                        .rev()
-                        .map(|w| {
-                            let (center, radius, _) = self.embedded.frame(w.center);
-                            EmbeddedWarp {
-                                k: w.coefficients[if w.coefficients.len() == 1 { 0 } else { 1 }],
-                                center,
-                                radius,
-                            }
-                        })
-                        .collect(),
-                    embedded_crop: self.embedded.frame([0.; 2]).2,
-                    distortion: s.distortion_scale.clamp(0., 200.) as f64 / 100.,
-                });
-                Some(MapPlan {
-                    crop: r,
-                    angle: g.crop.angle,
-                    transform,
-                    lens,
-                    resolved: self.clone(),
-                    common,
-                    geometry: g.clone(),
-                })
-            };
+            });
+            let lens = lens_active.then(|| LensMap {
+                manual_k1: s.manual_distortion.clamp(-100., 100.) as f64 / 200.,
+                sample: self.sample.as_ref().map(|p| SampleMap {
+                    k: [p.distortion.k1, p.distortion.k2, p.distortion.k3],
+                    p: [p.distortion.p1, p.distortion.p2],
+                    center: [p.distortion.cx, p.distortion.cy],
+                    distortion_scale: p.distortion_scale,
+                    radial_odd: p.radial_odd,
+                    coordinate_scale: p.coordinate_scale,
+                    amount: s.distortion_scale.clamp(0., 200.) as f64 / 100.,
+                }),
+                embedded: self
+                    .embedded
+                    .warps
+                    .iter()
+                    .rev()
+                    .map(|w| {
+                        let (center, radius, _) = self.embedded.frame(w.center);
+                        EmbeddedWarp {
+                            k: w.coefficients[if w.coefficients.len() == 1 { 0 } else { 1 }],
+                            center,
+                            radius,
+                        }
+                    })
+                    .collect(),
+                embedded_crop: self.embedded.frame([0.; 2]).2,
+                distortion: s.distortion_scale.clamp(0., 200.) as f64 / 100.,
+            });
+            Some(MapPlan {
+                crop: r,
+                angle: g.crop.angle,
+                transform,
+                upright,
+                lens,
+                resolved: self.clone(),
+                common,
+                geometry: g.clone(),
+            })
+        };
         Ok(Some(LensPlan { ca, vignette, map }))
     }
 }

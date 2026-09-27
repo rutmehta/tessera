@@ -28,7 +28,8 @@ use crate::color::IccProfileHandle;
 use crate::document::{
     AdjustmentSpec, AffineTransform, BrushParams, ChannelKind, ChannelRasterRef,
     DocumentExportSettings, DocumentSummary, Interpolation, LayerInfo, LayerPropsUpdate, NewLayer,
-    SelectionMode, SelectionShape, StrokePoint, StrokeTarget,
+    SelectionMode, SelectionShape, ShapeModel, StrokePoint, StrokeTarget, TextModel, TextRun,
+    VectorMask,
 };
 use crate::error::EngineError;
 use crate::id::{
@@ -193,6 +194,18 @@ pub struct ExportSettings {
     /// Resize, if any.
     #[serde(default)]
     pub resize: Option<Resize>,
+    /// Output sharpening after resize: `none`, `screen`, `matte`, or `glossy`.
+    /// Omitted means no output sharpening.
+    #[serde(default)]
+    pub sharpening: Option<String>,
+    /// Output sharpening strength: `low`, `standard`, or `high`.
+    /// Omitted means standard; has no effect when sharpening is disabled.
+    #[serde(default)]
+    pub sharpening_amount: Option<String>,
+    /// Output density, 1–9600 pixels/inch. Controls paper sharpening radius.
+    /// Omitted uses 300 ppi for sharpening without adding a density tag.
+    #[serde(default)]
+    pub ppi: Option<u32>,
     /// Embed XMP metadata (ratings, keywords, IPTC).
     #[serde(default = "yes")]
     pub embed_metadata: bool,
@@ -868,11 +881,107 @@ pub enum DocumentToolCall {
         #[serde(default)]
         smart: bool,
     },
+    /// AddText as one undoable document edit.
+    AddText {
+        /// Document.
+        document: DocumentId,
+        /// Editable source model.
+        model: TextModel,
+        /// Display name.
+        #[serde(default)]
+        name: Option<String>,
+        /// Enclosing group.
+        #[serde(default)]
+        parent: Option<LayerId>,
+        /// Sibling to insert above.
+        #[serde(default)]
+        above: Option<LayerId>,
+        /// Layer-local to canvas transform.
+        #[serde(default)]
+        transform: AffineTransform,
+    },
+    /// EditText as one undoable document edit.
+    EditText {
+        /// Document.
+        document: DocumentId,
+        /// Target layer.
+        layer: LayerId,
+        /// Replacement editable model.
+        model: TextModel,
+        /// Replacement transform.
+        #[serde(default)]
+        transform: AffineTransform,
+    },
+    /// EditTextRuns as one undoable document edit.
+    EditTextRuns {
+        /// Document.
+        document: DocumentId,
+        /// Target layer.
+        layer: LayerId,
+        /// Half-open range of run indexes to replace.
+        range: std::ops::Range<usize>,
+        /// Replacement runs.
+        runs: Vec<TextRun>,
+    },
+    /// AddShape as one undoable document edit.
+    AddShape {
+        /// Document.
+        document: DocumentId,
+        /// Editable source model.
+        model: ShapeModel,
+        /// Display name.
+        #[serde(default)]
+        name: Option<String>,
+        /// Enclosing group.
+        #[serde(default)]
+        parent: Option<LayerId>,
+        /// Sibling to insert above.
+        #[serde(default)]
+        above: Option<LayerId>,
+        /// Layer-local to canvas transform.
+        #[serde(default)]
+        transform: AffineTransform,
+    },
+    /// EditShape as one undoable document edit.
+    EditShape {
+        /// Document.
+        document: DocumentId,
+        /// Target layer.
+        layer: LayerId,
+        /// Replacement editable model.
+        model: ShapeModel,
+        /// Replacement transform.
+        #[serde(default)]
+        transform: AffineTransform,
+    },
+    /// SetVectorMask as one undoable document edit.
+    SetVectorMask {
+        /// Document.
+        document: DocumentId,
+        /// Target layer.
+        layer: LayerId,
+        /// Replacement vector mask.
+        mask: VectorMask,
+    },
+    /// RemoveVectorMask as one undoable document edit.
+    RemoveVectorMask {
+        /// Document.
+        document: DocumentId,
+        /// Target layer.
+        layer: LayerId,
+    },
+    /// ConvertToPixels as one undoable document edit.
+    ConvertToPixels {
+        /// Document.
+        document: DocumentId,
+        /// Target layer.
+        layer: LayerId,
+    },
 }
 
 impl DocumentToolCall {
     /// Every tool name, in declaration order.
-    pub const NAMES: [&'static str; 24] = [
+    pub const NAMES: [&'static str; 32] = [
         "open_document",
         "add_layer",
         "set_layer_props",
@@ -897,11 +1006,27 @@ impl DocumentToolCall {
         "neural_skin_smoothing",
         "neural_colorize",
         "neural_jpeg_artifact_removal",
+        "add_text",
+        "edit_text",
+        "edit_text_runs",
+        "add_shape",
+        "edit_shape",
+        "set_vector_mask",
+        "remove_vector_mask",
+        "convert_to_pixels",
     ];
 
     /// The tool (MCP) name.
     pub fn name(&self) -> &'static str {
         match self {
+            Self::AddText { .. } => "add_text",
+            Self::EditText { .. } => "edit_text",
+            Self::EditTextRuns { .. } => "edit_text_runs",
+            Self::AddShape { .. } => "add_shape",
+            Self::EditShape { .. } => "edit_shape",
+            Self::SetVectorMask { .. } => "set_vector_mask",
+            Self::RemoveVectorMask { .. } => "remove_vector_mask",
+            Self::ConvertToPixels { .. } => "convert_to_pixels",
             Self::OpenDocument { .. } => "open_document",
             Self::AddLayer { .. } => "add_layer",
             Self::SetLayerProps { .. } => "set_layer_props",
@@ -933,7 +1058,15 @@ impl DocumentToolCall {
     pub fn document(&self) -> Option<DocumentId> {
         match self {
             Self::OpenDocument { .. } => None,
-            Self::AddLayer { document, .. }
+            Self::AddText { document, .. }
+            | Self::EditText { document, .. }
+            | Self::EditTextRuns { document, .. }
+            | Self::AddShape { document, .. }
+            | Self::EditShape { document, .. }
+            | Self::SetVectorMask { document, .. }
+            | Self::RemoveVectorMask { document, .. }
+            | Self::ConvertToPixels { document, .. }
+            | Self::AddLayer { document, .. }
             | Self::SetLayerProps { document, .. }
             | Self::PaintStroke { document, .. }
             | Self::SetPixelSelection { document, .. }
@@ -1275,6 +1408,14 @@ pub(crate) mod tests {
                 params: serde_json::json!({}),
                 smart: false,
             },
+            serde_json::from_str(r#"{"tool":"add_text","document":1,"model":{}}"#).unwrap(),
+            serde_json::from_str(r#"{"tool":"edit_text","document":1,"layer":1,"model":{}}"#).unwrap(),
+            serde_json::from_str(r#"{"tool":"edit_text_runs","document":1,"layer":1,"range":{"start":0,"end":0},"runs":[]}"#).unwrap(),
+            serde_json::from_str(r#"{"tool":"add_shape","document":1,"model":{"path":{"subpaths":[],"fill_rule":"NonZero"}}}"#).unwrap(),
+            serde_json::from_str(r#"{"tool":"edit_shape","document":1,"layer":1,"model":{"path":{"subpaths":[],"fill_rule":"NonZero"}}}"#).unwrap(),
+            serde_json::from_str(r#"{"tool":"set_vector_mask","document":1,"layer":1,"mask":{"path":{"subpaths":[],"fill_rule":"NonZero"}}}"#).unwrap(),
+            serde_json::from_str(r#"{"tool":"remove_vector_mask","document":1,"layer":1}"#).unwrap(),
+            serde_json::from_str(r#"{"tool":"convert_to_pixels","document":1,"layer":1}"#).unwrap(),
         ]
     }
 
@@ -1359,6 +1500,9 @@ pub(crate) mod tests {
                     format: ExportFormat::Jpeg { quality: 90 },
                     profile: None,
                     resize: Some(Resize::LongEdge { pixels: 2048 }),
+                    sharpening: None,
+                    sharpening_amount: None,
+                    ppi: None,
                     embed_metadata: true,
                     hdr: false,
                 },
@@ -1507,6 +1651,9 @@ pub(crate) mod tests {
             DocumentToolOutput::LayerList {
                 document: DocumentId(1),
                 layers: vec![LayerInfo {
+                    text: None,
+                    shape: None,
+                    has_vector_mask: false,
                     id: LayerId(1),
                     parent: None,
                     name: "Background".into(),

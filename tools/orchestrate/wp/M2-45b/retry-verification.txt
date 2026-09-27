@@ -1,0 +1,50 @@
+M2-45b retry: sharpening MCP completion and gate verification
+
+Workspace: /Users/rutmehta/Developer/tessera/.worktrees/M2-45b
+Branch: wp/M2-45b
+CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/M2-45b
+
+Exact requested gate executed:
+cargo test -p export -p tessera-ffi -p tessera-cli -p tessera-mcp --release && cargo clippy -p export -p tessera-ffi -p tessera-cli -p tessera-mcp --all-targets -- -D warnings && cargo fmt --check && cargo deny check licenses && (cd apps/mac && ./build-ffi.sh && swift build)
+
+Final log: retry-final-gate.log (local ignored build log)
+Final exit: 0
+Parsed Rust test results: 66 summaries, 331 passed, 0 failed, 15 ignored.
+Ignored/optional-fixture-skipping tests are not claimed as exercised.
+The export_batch_does_not_starve_slider_drag test passed in the full gate.
+No assertion or environment setting was changed for that performance test.
+
+Selected actual output:
+    Finished `release` profile [optimized] target(s) in 3.09s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 12.22s
+licenses ok
+    Finished `release` profile [optimized] target(s) in 1m 39s
+    Finished `release` profile [optimized] target(s) in 0.63s
+Build complete! (8.81s)
+GATE_EXIT=0
+
+FFI regeneration produced no tracked binding diff. Existing native LibRaw
+warnings and the blake3_neon macOS deployment-target linker warning remain.
+
+Additional verification:
+- MCP sharpening suite: 3 passed, covering all nine combinations, ppi behavior,
+  legacy defaults, generated schema fields, and invalid-setting preflight.
+- cargo test -p engine-api --release tools::tests: 6 passed, 0 failed.
+- ICC clock-boundary test passes with an explicit 1.1-second separation.
+- git diff --check passed.
+
+Red/green evidence:
+- mcp-sharpen-red.log: low and standard initially exported identical pixels.
+- mcp-validation-red.log: invalid ppi reached decoding before preflight fix.
+- mcp-sharpen-green.log: 3 tests passed after wiring and validation.
+- retry-gate.log: first full gate failed byte equality in disabled-AI export.
+  Parsing both 1243-byte arrays showed only byte 73 differed (32 vs 33),
+  corresponding to ICC header byte 35, creation-time seconds.
+- icc-time-green.log: test compares every byte except ICC creation date,
+  verifying the single-segment ICC header before normalization. Passed.
+
+Scope: this completes only item 2's sharpening checkpoint, including MCP.
+Items 1 (metadata), 3 (DNG), 4 (HDR/gain maps), and 5 (workflow) remain as
+listed in CHECKPOINT.md. Full WP acceptance remains FAIL despite the green gate.
+No new dependency, GPL codec, UI control, or out-of-scope source change.
+No Kanban task ID was present; kanban_show could not resolve a board task.

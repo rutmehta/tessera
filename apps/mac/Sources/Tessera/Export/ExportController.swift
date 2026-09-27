@@ -2,6 +2,7 @@ import AppKit
 import Observation
 import TesseraCore
 import TesseraFFI
+import UniformTypeIdentifiers
 
 /// State of File ▸ Export… (WP M2-20, docs/01 §2.22). The sheet edits `settings` (starting from a
 /// preset) for a target (the selection or the current album); the export itself runs without a
@@ -29,9 +30,25 @@ final class ExportController {
     var targetID: String?
     var error: String?
 
+    /// The last watermark and JPEG size limit, so None ↔ Text ↔ Graphic and the limit's checkbox
+    /// (or a format that drops them) never lose what the user typed.
+    @ObservationIgnored var watermarkDraft = ExportWatermark()
+    @ObservationIgnored var sizeLimitDraftKB = 500
+
+    /// Watermark preview rendered by the engine (a small PNG export of the first photo).
+    private(set) var enginePreview: NSImage?
+    /// The watermark the engine preview was rendered with (stale once the settings differ).
+    private(set) var enginePreviewMark: ExportWatermark?
+    private(set) var isRenderingPreview = false
+    private(set) var previewError: String?
+
     /// Non-nil while an export runs (the sheet is closed meanwhile).
     private(set) var progress: ExportProgress?
     private(set) var lastReport: ExportReport?
+    /// Warnings of the last finished run (M2-51), shown in the completion toast.
+    private(set) var lastWarnings = ExportWarnings()
+    /// The last run's report with its warnings, for `ExportReport.toastLines`.
+    static var warningsByReport: (report: ExportReport, warnings: ExportWarnings)?
     private(set) var runningTitle = ""
 
     /// Called with the report when a run ends (toast, statuses, Finder).
@@ -64,6 +81,8 @@ final class ExportController {
 
     private func settingsChanged() {
         guard ready else { return }
+        if let mark = settings.watermark { watermarkDraft = mark }
+        if let kb = settings.maxFileKilobytes { sizeLimitDraftKB = kb }
         if !applyingPreset { presetName = nil }
         UserDefaults.standard.set(settings.json, forKey: Self.settingsKey)
         UserDefaults.standard.set(presetName, forKey: Self.presetKey)
@@ -144,6 +163,98 @@ final class ExportController {
                                     date: t.firstDate, format: settings.format, count: t.count)
     }
 
+    /// Switches the format, keeping every other field the engine accepts for it.
+    func setFormat(_ format: ExportSettings.OutputFormat) {
+        var s = settings
+        s.format = format
+        s.normalizeForFormat()
+        settings = s
+    }
+
+    /// None (nil), Text or Graphic, restoring the last-used fields of that kind.
+    func setWatermarkKind(_ kind: ExportWatermark.Kind?) {
+        guard let kind else { settings.watermark = nil; return }
+        var mark = watermarkDraft
+        mark.kind = kind
+        if kind == .text, mark.font.isEmpty { mark.font = ExportWatermark.defaultFontPath }
+        settings.watermark = mark
+    }
+
+    func setSizeLimit(_ on: Bool) {
+        settings.maxFileKilobytes = on ? max(sizeLimitDraftKB, 1) : nil
+    }
+
+    /// Opens a panel for a PNG (graphic) or a .ttf / .otf font file (text).
+    func chooseWatermarkFile(font: Bool, in window: NSWindow?) {
+        let panel = NSOpenPanel()
+        panel.title = font ? "Choose a Font File" : "Choose a Watermark Graphic"
+        panel.prompt = "Choose"
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowedContentTypes = font ? [UTType("public.truetype-ttf-font"), UTType("public.opentype-font")].compactMap { $0 } : [.png]
+        let handle: (NSApplication.ModalResponse) -> Void = { [weak self] response in
+            guard response == .OK, let url = panel.url else { return }
+            MainActor.assumeIsolated {
+                guard let self, var mark = self.settings.watermark else { return }
+                if font { mark.font = url.path } else { mark.path = url.path }
+                self.settings.watermark = mark
+            }
+        }
+        if let window { panel.beginSheetModal(for: window, completionHandler: handle) } else { handle(panel.runModal()) }
+    }
+
+    /// The first photo of a selection target (album targets resolve in the engine, so they have
+    /// no photo id here); the watermark preview renders it.
+    var previewImageID: String? {
+        let order = [target].compactMap { $0 } + targets
+        for t in order { if case .images(let ids) = t.target, let first = ids.first { return first } }
+        return nil
+    }
+
+    /// Renders the first photo through the engine as a 480 px PNG with the current watermark
+    /// (the exact compositor `export_batch` uses), into a temporary folder.
+    func renderWatermarkPreview() {
+        guard let engine, let id = previewImageID, let mark = settings.watermark, !isRenderingPreview else { return }
+        if let problem = mark.problem { previewError = problem; return }
+        var s = settings
+        s.format = .png
+        s.normalizeForFormat()
+        s.watermark = mark
+        s.colorSpace = .srgb
+        s.resize = .init()
+        s.resize.mode = .longEdge
+        s.resize.longEdge = 480
+        s.upscale = 1
+        s.metadata = .none
+        s.naming = "preview"
+        s.onConflict = .unique
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("tessera-watermark-\(UUID().uuidString)")
+        s.destination = folder.path
+        let json = s.json
+        isRenderingPreview = true
+        previewError = nil
+        Task.detached(priority: .userInitiated) {
+            let result = Result { try engine.exportBatch(target: .images(imageIds: [id]), settingsJson: json, listener: nil, cancel: nil) }
+            let image: NSImage?
+            var failure: String?
+            switch result {
+            case .success(let report):
+                image = report.items.first?.outputPath.flatMap { NSImage(contentsOfFile: $0) }
+                if image == nil { failure = report.items.first?.error ?? "The engine wrote no preview" }
+            case .failure(let e):
+                image = nil
+                failure = e.localizedDescription
+            }
+            try? FileManager.default.removeItem(at: folder)
+            await MainActor.run {
+                self.isRenderingPreview = false
+                self.enginePreview = image
+                self.enginePreviewMark = image == nil ? nil : mark
+                self.previewError = failure
+            }
+        }
+    }
+
     var namingIsValid: Bool {
         if case .success = ExportNaming.fileName(template: settings.naming, name: "IMG", sequence: 1, date: "2026-01-01",
                                                  extension: settings.format.fileExtension) { return true }
@@ -153,6 +264,7 @@ final class ExportController {
     /// Validates with the engine (the authority on every rule), or returns the problem.
     func validate() -> String? {
         if settings.destination.isEmpty || !settings.destination.hasPrefix("/") { return "Choose an export folder" }
+        if let problem = settings.watermark?.problem { return problem }
         do { _ = try normalizeExportSettings(json: settings.json); return nil } catch { return error.localizedDescription }
     }
 
@@ -165,6 +277,7 @@ final class ExportController {
         let cancel = CancelFlag()
         cancelFlag = cancel
         lastReport = nil
+        lastWarnings = ExportWarnings()
         runningTitle = target.title
         progress = ExportProgress(done: 0, total: UInt32(target.count), exported: 0, failed: 0, current: "")
         let relay = ExportRelay { [weak self] p in
@@ -174,12 +287,16 @@ final class ExportController {
         let json = settings.json
         Task.detached(priority: .userInitiated) {
             let result = Result { try engine.exportBatch(target: ffiTarget, settingsJson: json, listener: relay, cancel: cancel) }
+            // Recoverable omissions ("Lens Blur skipped: …") the engine wrote beside each file.
+            let warnings = (try? result.get()).map { ExportWarnings.read($0) } ?? ExportWarnings()
             await MainActor.run {
                 self.progress = nil
                 self.cancelFlag = nil
                 switch result {
                 case .success(let report):
                     self.lastReport = report
+                    self.lastWarnings = warnings
+                    Self.warningsByReport = (report, warnings)
                     self.onFinish(report, settings)
                 case .failure(let e):
                     self.error = e.localizedDescription
@@ -202,20 +319,11 @@ final class ExportRelay: ExportProgressListener, @unchecked Sendable {
 }
 
 extension ExportReport {
-    /// Toast headline and detail lines (failures listed by file).
-    var toastLines: (headline: String, details: [String]) {
-        let folder = URL(fileURLWithPath: destination).lastPathComponent
-        let photos = { (n: UInt32) in "\(n) photo\(n == 1 ? "" : "s")" }
-        var headline: String
-        if cancelled {
-            headline = "Export cancelled: \(photos(exported)) written to \(folder)"
-        } else if failed == 0 {
-            headline = "Exported \(photos(exported)) to \(folder) in \(String(format: "%.1f", seconds)) s"
-        } else {
-            headline = "Exported \(photos(exported)) to \(folder); \(failed) failed"
-        }
-        if exported == 0, failed == 0, !cancelled { headline = "Nothing was exported" }
-        let details = items.compactMap { item in item.error.map { "\(item.name): \($0)" } }
-        return (headline, details)
+    /// Toast headline and detail lines: failures listed by file, then the export warnings the
+    /// engine recorded (e.g. `Lens Blur skipped: depth model is not cached`).
+    @MainActor var toastLines: (headline: String, details: [String]) {
+        let warnings = ExportController.warningsByReport.flatMap { $0.report == self ? $0.warnings : nil }
+            ?? ExportWarnings.read(self)
+        return ExportWarnings.toastLines(self, warnings: warnings)
     }
 }

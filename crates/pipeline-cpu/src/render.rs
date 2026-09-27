@@ -93,6 +93,7 @@ pub fn render_linear_scaled_with_depth(
         Some((depth, options)),
         None,
         None,
+        false,
     )
 }
 
@@ -103,7 +104,7 @@ pub fn render_linear_scaled_with_lens(
     scale: u32,
     context: &crate::LensContext<'_>,
 ) -> EngineResult<Image> {
-    render_linear_impl(settings, source, scale, context, None, None, None)
+    render_linear_impl(settings, source, scale, context, None, None, None, false)
 }
 
 /// The reference render with an already-resolved lens correction (for
@@ -126,6 +127,7 @@ pub fn render_linear_scaled_resolved(
         None,
         None,
         Some(resolved),
+        false,
     )
 }
 
@@ -137,9 +139,45 @@ pub fn render_linear_scaled_with_denoise(
     context: &crate::LensContext<'_>,
     denoiser: Option<&dyn crate::PostDemosaicDenoise>,
 ) -> EngineResult<Image> {
-    render_linear_impl(settings, source, scale, context, None, denoiser, None)
+    render_linear_impl(
+        settings, source, scale, context, None, denoiser, None, false,
+    )
 }
 
+/// Reference render with both caller-owned denoise and pre-geometry depth.
+pub fn render_linear_scaled_with_hooks(
+    settings: &DevelopSettings,
+    source: &RenderSource<'_>,
+    scale: u32,
+    context: &crate::LensContext<'_>,
+    depth: Option<(&[f32], crate::LensBlurOptions)>,
+    denoiser: Option<&dyn crate::PostDemosaicDenoise>,
+) -> EngineResult<Image> {
+    render_linear_impl(
+        settings, source, scale, context, depth, denoiser, None, false,
+    )
+}
+
+/// The same reference operators before the composed lens/recipe geometry.
+/// Callers disable effects while preparing aligned depth inference input.
+pub fn render_linear_before_geometry(
+    settings: &DevelopSettings,
+    source: &RenderSource<'_>,
+    denoiser: Option<&dyn crate::PostDemosaicDenoise>,
+) -> EngineResult<Image> {
+    render_linear_impl(
+        settings,
+        source,
+        1,
+        &Default::default(),
+        None,
+        denoiser,
+        None,
+        true,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
 fn render_linear_impl(
     settings: &DevelopSettings,
     source: &RenderSource<'_>,
@@ -148,6 +186,7 @@ fn render_linear_impl(
     depth: Option<(&[f32], crate::LensBlurOptions)>,
     denoiser: Option<&dyn crate::PostDemosaicDenoise>,
     resolved: Option<&crate::ResolvedLens>,
+    before_geometry: bool,
 ) -> EngineResult<Image> {
     if depth.is_some() {
         let mut without_blur = settings.clone();
@@ -381,14 +420,16 @@ fn render_linear_impl(
             crate::effects_in_crop(&mut tile, &point_effects, extent, &settings.geometry.crop)?;
             rgb.put(&tile)?;
         }
-        let mut common = settings.lens.clone();
-        common.remove_chromatic_aberration = false;
-        rgb = crate::geometry_effects::geometry_mapped(
-            &rgb,
-            &settings.geometry,
-            correction.geometry_active(&common),
-            |p, _| Some(correction.map(p, 1, &common)),
-        )?;
+        if !before_geometry {
+            let mut common = settings.lens.clone();
+            common.remove_chromatic_aberration = false;
+            rgb = crate::geometry_effects::geometry_mapped(
+                &rgb,
+                &settings.geometry,
+                correction.geometry_active(&common),
+                |p, _| Some(correction.map(p, 1, &common)),
+            )?;
+        }
         rgb.downsample_crop([0, 0, rgb.width(), rgb.height()], scale)
     } else {
         rgb.downsample_crop(crop, scale)
