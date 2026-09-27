@@ -2342,7 +2342,7 @@ impl DocumentSession {
                 }
             }
             None => {
-                let comp = compositor::Compositor::new(16 << 20);
+                let comp = super::fonts::compositor(16 << 20); // B5-10b
                 let ts = i64::from(TILE_SIZE);
                 for ty in (win.y0 / ts)..=((win.y1 - 1) / ts) {
                     for tx in (win.x0 / ts)..=((win.x1 - 1) / ts) {

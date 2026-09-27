@@ -566,3 +566,82 @@ fn thumbnails_visibility_and_revisions() {
     s.set_channel_visible(a, false).unwrap();
     assert!(!s.document_channels().unwrap()[0].visible);
 }
+
+// B5-10b begin: Channels thumbnails after a PSD reopen (seen black once in
+// B5-10's evidence). Mask = left half (x < 200), Varnish = x ≥ 300.
+
+/// Grey level of thumbnail `sid` (`w × h`) at thumbnail pixel `(x, y)`.
+fn thumb_grey(sid: u32, w: u32, h: u32, x: u32, y: u32) -> u8 {
+    let surface = tessera_ffi::surface::Surface::lookup(sid, w, h).unwrap();
+    surface
+        .with_pixels(|px, stride| {
+            let o = y as usize * stride + x as usize * 4;
+            assert_eq!(px[o], px[o + 1]);
+            assert_eq!(px[o + 3], 255);
+            px[o]
+        })
+        .unwrap()
+}
+
+/// `[x=50, 150, 250, 350]` of channel thumbnail `id` at 64 px (step 7).
+fn thumb_row(s: &DocumentSession, id: u64) -> [u8; 4] {
+    let sid = s.channel_thumbnail(id, 64).unwrap();
+    let (w, h) = (W.div_ceil(7), H.div_ceil(7));
+    [50, 150, 250, 350].map(|x| thumb_grey(sid, w, h, x / 7, 10 / 7))
+}
+
+fn thumbnails_after_reopen(ext: &str, depth: DocDepth) {
+    let (d, e) = engine();
+    let s = e.clone().new_document(W, H, depth, None).unwrap();
+    marquee(&s, 0.0, 200.0, SelectionOp::Replace);
+    let mask = s
+        .save_selection_channel("Mask".into(), None, SelectionOp::Replace)
+        .unwrap()
+        .channel_id;
+    marquee(&s, 300.0, 100.0, SelectionOp::Replace);
+    let ink = PaintColor {
+        r: 1.0,
+        g: 0.8,
+        b: 0.0,
+    };
+    let spot = s
+        .new_spot_channel("Varnish".into(), ink, 0.4, true)
+        .unwrap()
+        .channel_id;
+    assert_eq!(thumb_row(&s, mask), [255, 255, 0, 0], "{ext} before save");
+    assert_eq!(thumb_row(&s, spot), [0, 0, 0, 255], "{ext} before save");
+    let path = d.path().join(format!("thumbs.{ext}"));
+    s.save_as(path.to_string_lossy().into_owned()).unwrap();
+    s.close();
+    drop(s);
+    let r = e
+        .clone()
+        .open_document(path.to_string_lossy().into_owned())
+        .unwrap();
+    let rows = r.document_channels().unwrap();
+    assert_eq!(rows.len(), 2, "{ext}");
+    assert_eq!(
+        chan_row(&r, rows[0].id),
+        [1.0, 1.0, 0.0, 0.0],
+        "{ext} samples"
+    );
+    assert_eq!(
+        thumb_row(&r, rows[0].id),
+        [255, 255, 0, 0],
+        "{ext} {depth:?} Mask"
+    );
+    assert_eq!(
+        thumb_row(&r, rows[1].id),
+        [0, 0, 0, 255],
+        "{ext} {depth:?} Varnish"
+    );
+}
+
+#[test]
+fn channel_thumbnails_survive_psd_reopen() {
+    for depth in [DocDepth::U8, DocDepth::U16, DocDepth::F32] {
+        thumbnails_after_reopen("psd", depth);
+        thumbnails_after_reopen("tessera-doc", depth);
+    }
+}
+// B5-10b end

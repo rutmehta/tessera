@@ -62,6 +62,9 @@ pub use text::{
     text_run_splice,
 };
 // B5-10 end
+// B5-10b: the shared font snapshot for every compositor constructed here.
+#[path = "document/fonts.rs"]
+mod fonts;
 pub use filtering::{
     DistractionRemovalResult, FilterDetail, FilterInfo, RasterFilterOperation, RasterFilterRequest,
     SmartFilterEdit, SmartFilterRecord, list_filters,

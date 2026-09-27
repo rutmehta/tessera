@@ -25,10 +25,10 @@
 //!   draft with no history change.
 //! * One font database snapshot (system fonts, discovered once) feeds the
 //!   layout calls here and every CPU, resident and thumbnail compositor the
-//!   session constructs (document/render.rs). Missing fonts are errors;
-//!   there is no fallback. `ConvertToPixels` and export rasterize through
-//!   the compositor's own system-font renderer, which sees the same
-//!   installed fonts.
+//!   session constructs (document/fonts.rs, B5-10b). Missing fonts are
+//!   errors; there is no fallback. `ConvertToPixels` and the PSD writer
+//!   rasterize through the engine's own system-font renderer, which sees
+//!   the same installed fonts.
 
 use super::{DocumentSession, DocumentUpdate, Pending, SourceOps, TransformMatrix, find};
 use crate::{Result, failure};
