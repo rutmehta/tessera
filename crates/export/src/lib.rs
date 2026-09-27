@@ -6,6 +6,7 @@ mod depth;
 pub use mask_ai;
 mod avif;
 mod codec;
+mod dng;
 mod jxl;
 pub use avif::{AvifOptions, encode_avif};
 mod watermark;
@@ -129,6 +130,9 @@ pub struct ExportSettings {
     pub max_file_bytes: Option<u64>,
     /// Composited in document-encoded RGB after output sharpening.
     pub watermark: Option<Watermark>,
+    /// Embed this source's byte stream in a developed DNG. Requires unrestricted
+    /// metadata because the original itself is not privacy-filtered.
+    pub original_raw: Option<PathBuf>,
 }
 impl Default for ExportSettings {
     fn default() -> Self {
@@ -149,6 +153,7 @@ impl Default for ExportSettings {
             render_scale: 1,
             max_file_bytes: None,
             watermark: None,
+            original_raw: None,
         }
     }
 }
@@ -471,6 +476,7 @@ pub fn render_one_cancellable(
     cancel.check()?;
     recipe.validate()?;
     settings.format.validate()?;
+    dng::validate(settings)?;
     if matches!(settings.format, Format::Dng) && settings.watermark.is_some() {
         return Err(encode_error(
             "DNG watermark compositing in linear colour is not supported",
@@ -677,6 +683,9 @@ fn encode_rendered(
         cancel,
         settings.max_file_bytes,
     )?;
+    if matches!(settings.format, Format::Dng) {
+        dng::finish(temp.as_file_mut(), settings.original_raw.as_deref(), cancel)?;
+    }
     temp.as_file().sync_all().map_err(encode_error)?;
     let side_temp = if let Some(packet) = &packet {
         let mut temp = new_output_temp(&settings.output_dir)?;

@@ -163,6 +163,9 @@ pub struct ExportOptions {
     pub remove_person_info: bool,
     pub remove_location: bool,
     pub keywords_as_hierarchy: bool,
+    /// Embed the source byte stream in a developed DNG. The original retains
+    /// private metadata, so metadata reduction/privacy options are incompatible.
+    pub embed_original_raw: bool,
     /// Tokens: `{name}` file name without extension, `{seq}` 1-based position,
     /// `{date}` capture date `YYYY-MM-DD`.
     pub naming: String,
@@ -194,6 +197,7 @@ impl Default for ExportOptions {
             remove_person_info: false,
             remove_location: false,
             keywords_as_hierarchy: true,
+            embed_original_raw: false,
             naming: "{name}".into(),
             upscale: 1,
             destination: String::new(),
@@ -229,6 +233,17 @@ impl ExportOptions {
     /// Everything but the destination (checked when a batch runs).
     pub fn validate(&self) -> Result<()> {
         self.after_export.validate()?;
+        if self.embed_original_raw
+            && (self.format != FileFormat::Dng
+                || self.metadata != MetadataPolicy::All
+                || self.remove_person_info
+                || self.remove_location
+                || !self.keywords_as_hierarchy)
+        {
+            return Err(failure(
+                "embed_original_raw requires DNG with unrestricted metadata",
+            ));
+        }
         if self.format == FileFormat::Original
             && (self.metadata != MetadataPolicy::All
                 || self.remove_person_info
@@ -358,6 +373,7 @@ impl ExportOptions {
             render_scale: 1,
             max_file_bytes: self.max_file_bytes,
             watermark: self.watermark.clone(),
+            original_raw: None,
         })
     }
 }
@@ -1167,6 +1183,7 @@ impl Engine {
                 let crop = recipe.settings.geometry.crop.rect;
                 let settings = export::ExportSettings {
                     naming,
+                    original_raw: options.embed_original_raw.then(|| item.path.clone()),
                     // Always develop at full resolution and resize afterwards: rendering at a
                     // reduced pyramid level fails the exactness gate (tone/detail differ when
                     // applied before the downsample; see M2-21c RESULTS). Opt back in with

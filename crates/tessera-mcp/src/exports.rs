@@ -64,6 +64,14 @@ impl Console {
         if images.is_empty() {
             return Err(EngineError::invalid("images", "must not be empty"));
         }
+        if settings.embed_original_raw
+            && (!matches!(settings.format, ExportFormat::Dng) || !settings.embed_metadata)
+        {
+            return Err(EngineError::invalid(
+                "embed_original_raw",
+                "requires DNG with unrestricted metadata",
+            ));
+        }
         if settings.ppi.is_some_and(|ppi| !(1..=9600).contains(&ppi)) {
             return Err(EngineError::invalid("ppi", "must be 1–9600"));
         }
@@ -178,6 +186,10 @@ impl Console {
         let count = pending.len() as u32;
         for (sequence, (image, path, mut doc, name)) in pending.into_iter().enumerate() {
             let source = Source::open(&path)?;
+            let options = export::ExportSettings {
+                original_raw: settings.embed_original_raw.then(|| path.clone()),
+                ..options.clone()
+            };
             let output = export::export_one(
                 &export::ExportImage {
                     source: source.borrowed(),

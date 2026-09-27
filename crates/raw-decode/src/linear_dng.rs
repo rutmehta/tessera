@@ -72,7 +72,7 @@ fn at<R: Read + Seek>(r: &mut R, offset: u64, n: usize, size: u64) -> io::Result
 
 /// Reads from stream start; leaves stream position unspecified.
 /// Supports classic II/MM TIFF, exactly one IFD and one uncompressed chunky
-/// float32 or uint16 RGB LinearRaw strip, DNG 1.4, D65 ColorMatrix1 and
+/// float32 or uint16 RGB LinearRaw strip, DNG 1.4–1.6, D65 ColorMatrix1 and
 /// AsShotNeutral. Integer samples are divided by per-channel WhiteLevel; float
 /// samples retain their scene-linear values. Orientation is returned unapplied.
 /// Limits: 128 entries, 64 Mi pixels, 1 MiB XMP, 2 MiB total tag payload.
@@ -133,6 +133,23 @@ pub fn read<R: Read + Seek>(reader: &mut R) -> io::Result<LinearDng> {
         let bytes = count
             .checked_mul(unit)
             .ok_or_else(|| invalid("tag size overflow"))?;
+        // An embedded original is opaque and unnecessary for rendering. Check
+        // its type/range and duplicate tags, but do not allocate/read a raw file
+        // into the metadata budget. The sample and XMP budgets stay unchanged.
+        if tag == 50828 {
+            if typ != 7
+                || bytes <= 4
+                || u64::from(u32v(&e[8..]))
+                    .checked_add(bytes as u64)
+                    .is_none_or(|end| end > size)
+            {
+                return Err(invalid("invalid OriginalRawFileData"));
+            }
+            if tags.insert(tag, (typ, count, Vec::new())).is_some() {
+                return Err(invalid("duplicate TIFF tag"));
+            }
+            continue;
+        }
         budget = budget
             .checked_add(bytes)
             .ok_or_else(|| invalid("tag budget overflow"))?;
@@ -159,7 +176,15 @@ pub fn read<R: Read + Seek>(reader: &mut R) -> io::Result<LinearDng> {
     };
     let short = |tag| -> io::Result<u16> { Ok(u16v(get(tag, 3, 1)?)) };
     let long = |tag| -> io::Result<u32> { Ok(u32v(get(tag, 4, 1)?)) };
-    if get(50706, 1, 4)? != [1, 4, 0, 0]
+    let backward = if tags.contains_key(&50707) {
+        get(50707, 1, 4)?
+    } else {
+        &[1, 0, 0, 0]
+    };
+    if backward[0] != 1 || backward > [1, 4, 0, 0].as_slice() {
+        return Err(invalid("unsupported DNG backward version"));
+    }
+    if !matches!(get(50706, 1, 4)?, [1, 4..=6, 0, 0])
         || short(259)? != 1
         || short(262)? != 34892
         || short(277)? != 3

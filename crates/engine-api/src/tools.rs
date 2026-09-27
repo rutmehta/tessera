@@ -209,6 +209,10 @@ pub struct ExportSettings {
     /// Embed XMP metadata (ratings, keywords, IPTC).
     #[serde(default = "yes")]
     pub embed_metadata: bool,
+    /// Embed the source byte stream in a developed DNG. Retains all original
+    /// metadata and is incompatible with disabling `embed_metadata`.
+    #[serde(default)]
+    pub embed_original_raw: bool,
     /// Write HDR (gain map or PQ/HLG, format permitting).
     #[serde(default)]
     pub hdr: bool,
@@ -1504,6 +1508,7 @@ pub(crate) mod tests {
                     sharpening_amount: None,
                     ppi: None,
                     embed_metadata: true,
+                    embed_original_raw: false,
                     hdr: false,
                 },
             },

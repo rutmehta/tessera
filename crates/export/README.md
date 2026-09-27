@@ -43,7 +43,7 @@ by strength, density dependence, repeatability, invalid density, cancellation,
 TIFF16 read-back against resize-then-sharpen, CLI parsing, and FFI JSON/preset
 round trips plus actual exported pixels.
 
-## Developed DNG (M2-45, partial DNG milestone)
+## Developed DNG (M2-45d)
 
 `Format::Dng` writes an uncompressed float32 LinearRaw DNG using
 `merge::dng::write`. The recipe is baked by the CPU full-resolution output-linear
@@ -51,8 +51,10 @@ renderer, including its tone mapping, then orientation/resize/sharpening are
 applied. Samples are linear Rec.2020 D65, not ICC-encoded document RGB. The
 document colour-space and render-scale hints do not apply to this format.
 ColorMatrix1 describes XYZ D65 to Rec.2020; AsShotNeutral is unity because white
-balance is already baked. The writer retains its DNG 1.4 compatibility version
-and 64 Mi-pixel limit. This is not a scene-referred HDR export.
+balance is already baked. Export finalization declares DNG 1.6 with a DNG 1.4
+backward compatibility version and the existing 64 Mi-pixel limit. The minimal
+LinearRaw tag set uses the specification's default crop, scale, black level and
+baseline exposure. This is not a scene-referred HDR export.
 
 CLI: `tessera export input.nef --out /absolute/out --format dng --bit-depth 32`.
 FFI settings JSON: `{"format":"dng","bit_depth":32}`. MCP's existing DNG format
@@ -62,15 +64,34 @@ conversion. Descriptive XMP is rebuilt through the sidecar metadata model,
 discarding foreign/development properties so an editor cannot reapply baked
 Camera Raw adjustments. The selected metadata policy still applies.
 
-Tests check exact float pixel round trips through `raw_decode::linear_dng`,
-LibRaw open/unpack acceptance, metadata removal and CLI/FFI/MCP selection.
-LibRaw's current Rust wrapper exposes only CFA sample buffers, so these tests do
-not claim a pixel-by-pixel RGB round trip through LibRaw.
+`ExportSettings::original_raw` optionally embeds a source file in
+OriginalRawFileData (tag 50828), with its basename in OriginalRawFileName (50827).
+The data fork is encoded as a big-endian length/offset table followed by
+independent 64 KiB zlib blocks. Resource forks and THM companions are not included.
+Input is streamed read-only, bounded to 1 GiB, with cancellation checks between
+blocks. Empty/non-regular files and non-ASCII basenames are rejected. The same
+synced temporary-file/no-clobber publication is used, never in-place source edits.
+The core accepts an opaque byte stream, not a claim to validate arbitrary RAWs.
 
-Still pending for the full DNG milestone: original + XMP copy, embedded original,
-DNG 1.6 tags, and independent LibRaw RGB sample comparison. No lossy DNG or 16-bit
-DNG option is exposed. The separate metadata-policy, sharpening-strength, HDR,
-and export-workflow milestones are not completed by this slice.
+CLI adds `--embed-original-raw` (alongside `--format dng --bit-depth 32`).
+FFI/preset and MCP export JSON add `embed_original_raw`, default false. Hosts
+select each image's own source, not a batch-wide filename. Embedding requires
+unrestricted metadata: copying the original preserves its private data, so
+privacy removal/reduced metadata modes are rejected instead of silently leaking.
+FFI options remain JSON, without a new binary record layout or UI.
+
+Tests audit all tag IDs/types/counts, preserve exact float samples, reconstruct
+the embedded original across block boundaries and beyond the metadata budget,
+and invoke ExifTool independently when installed. A separate vendored LibRaw
+C-API test processes the DNG into linear sRGB and compares non-neutral in-gamut
+ramps against the engine's linear Rec.2020 render transformed to the same space
+(maximum absolute channel error below 0.003, no fitted exposure or white balance).
+The bounded Tessera reader skips opaque original payloads without allocating
+them and rejects unsupported DNG backward versions.
+
+Original + XMP copy mode is separate and remains byte-preserving. No lossy DNG
+or 16-bit DNG option is exposed. Native EXIF/IPTC metadata policy and HDR output
+are not completed by this DNG slice.
 
 ## AI local masks
 

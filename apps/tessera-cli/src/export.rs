@@ -60,6 +60,9 @@ pub struct Options {
     /// Retain Lightroom keyword paths, or omit the hierarchy with false.
     #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
     keywords_as_hierarchy: bool,
+    /// Embed the source byte stream in a developed DNG (retains private metadata).
+    #[arg(long)]
+    embed_original_raw: bool,
     #[arg(long, default_value = "{name}-{seq}")]
     name: String,
     #[arg(long, value_parser = clap::value_parser!(u32).range(1..))]
@@ -129,6 +132,15 @@ fn is_image(path: &Path) -> bool {
 }
 
 fn settings(options: &Options) -> Result<ExportSettings> {
+    ensure!(
+        !options.embed_original_raw
+            || (options.format == "dng"
+                && options.metadata == "all"
+                && !options.remove_person_info
+                && !options.remove_location
+                && options.keywords_as_hierarchy),
+        "--embed-original-raw requires DNG with unrestricted metadata"
+    );
     if options.format == "original" {
         ensure!(
             options.metadata == "all"
@@ -355,12 +367,17 @@ pub fn run(index: &Index, app_dir: &Path, options: &Options) -> Result<Value> {
     let mut errors = Vec::new();
     // Decode only one wave at a time; the export crate bounds render/encode workers.
     let cores = std::thread::available_parallelism().map_or(1, |n| n.get());
-    let jobs = if upscale.is_some() {
+    // An embedded original is per image, not a batch-wide source path.
+    let jobs = if upscale.is_some() || options.embed_original_raw {
         1
     } else {
         options.jobs.map_or(cores, |n| (n as usize).min(cores))
     };
     for (wave, chunk) in paths.chunks(jobs).enumerate() {
+        let settings = ExportSettings {
+            original_raw: options.embed_original_raw.then(|| chunk[0].clone()),
+            ..settings.clone()
+        };
         if cancel.is_cancelled() {
             break;
         }

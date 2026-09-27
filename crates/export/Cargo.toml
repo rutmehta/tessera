@@ -20,6 +20,8 @@ sidecar = { path = "../sidecar" }
 image = { workspace = true, features = ["png"] }
 serde = { workspace = true }
 fontdue = "0.9.4"
+flate2 = "1"
+libc = "0.2"
 color-mgmt = { path = "../color-mgmt" }
 png = { workspace = true }
 tempfile = { workspace = true }

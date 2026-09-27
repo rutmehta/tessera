@@ -1,5 +1,7 @@
 use export::{ExportImage, ExportSettings, Format, Metadata, export_one};
 use pipeline_cpu::{Image, RenderSource};
+#[path = "support/dng_tags.rs"]
+mod dng_tags;
 
 #[test]
 fn developed_float_dng_matches_linear_render() {
@@ -32,6 +34,49 @@ fn developed_float_dng_matches_linear_render() {
     )
     .unwrap();
     assert_eq!(path.extension().unwrap(), "dng");
+    let tags = dng_tags::read(&path);
+    assert_eq!(
+        tags[&50706].2,
+        [1, 6, 0, 0],
+        "developed exports declare DNG 1.6"
+    );
+    // Audit the complete minimal DNG 1.6 LinearRaw tag set, not just the
+    // version byte. Optional crop/scale/black/exposure tags use spec defaults.
+    let expected_tags = [
+        (254, 4, 1),
+        (256, 4, 1),
+        (257, 4, 1),
+        (258, 3, 3),
+        (259, 3, 1),
+        (262, 3, 1),
+        (273, 4, 1),
+        (274, 3, 1),
+        (277, 3, 1),
+        (278, 4, 1),
+        (279, 4, 1),
+        (284, 3, 1),
+        (339, 3, 3),
+        (50706, 1, 4),
+        (50707, 1, 4),
+        (50708, 2, 15),
+        (50717, 4, 3),
+        (50721, 10, 9),
+        (50728, 5, 3),
+        (50778, 3, 1),
+    ];
+    assert_eq!(
+        tags.keys().copied().collect::<Vec<_>>(),
+        expected_tags.map(|t| t.0)
+    );
+    for (tag, kind, count) in expected_tags {
+        assert_eq!((tags[&tag].0, tags[&tag].1), (kind, count), "tag {tag}");
+    }
+    assert_eq!(tags[&50707].2, [1, 4, 0, 0]);
+    assert_eq!(tags[&262].2, 34892u16.to_le_bytes());
+    assert_eq!(tags[&258].2, [32u16.to_le_bytes(); 3].concat());
+    assert_eq!(tags[&339].2, [3u16.to_le_bytes(); 3].concat());
+    assert_eq!(tags[&50717].2, [1u32.to_le_bytes(); 3].concat());
+    assert_eq!(tags[&50778].2, 21u16.to_le_bytes());
     let decoded = raw_decode::linear_dng::read(&mut std::fs::File::open(&path).unwrap()).unwrap();
     assert_eq!((decoded.width, decoded.height), (32, 24));
     assert_eq!(decoded.pixels.as_flattened(), expected.as_raw());

@@ -6,6 +6,41 @@ use std::sync::{Arc, Mutex};
 use tessera_ffi::*;
 
 #[test]
+fn dng_embedded_original_option_roundtrips_and_exports() {
+    let input = r#"{"format":"dng","bit_depth":32,"embed_original_raw":true}"#;
+    let normalized: serde_json::Value =
+        serde_json::from_str(&normalize_export_settings(input.into()).unwrap()).unwrap();
+    assert_eq!(normalized["embed_original_raw"], true);
+    for extra in [
+        serde_json::json!({"format":"jpeg"}),
+        serde_json::json!({"metadata":"none"}),
+        serde_json::json!({"remove_location":true}),
+    ] {
+        let mut value: serde_json::Value = serde_json::from_str(input).unwrap();
+        for (k, v) in extra.as_object().unwrap() {
+            value[k] = v.clone();
+        }
+        assert!(normalize_export_settings(value.to_string()).is_err());
+    }
+    let f = fixture();
+    let out = f.dir.path().join("embedded");
+    let report = f
+        .engine
+        .export_batch(
+            ExportTarget::Images {
+                image_ids: vec![f.ids[0].clone()],
+            },
+            settings(&out, serde_json::from_str(input).unwrap()),
+            None,
+            None,
+        )
+        .unwrap();
+    assert_eq!((report.exported, report.failed), (1, 0), "{report:?}");
+    let bytes = std::fs::read(out.join("a.dng")).unwrap();
+    assert!(bytes.windows(6).any(|v| v == b"a.jpg\0"));
+}
+
+#[test]
 fn original_export_keeps_embedded_only_dng_edits() {
     let dir = tempfile::tempdir().unwrap();
     let photos = dir.path().join("photos");
