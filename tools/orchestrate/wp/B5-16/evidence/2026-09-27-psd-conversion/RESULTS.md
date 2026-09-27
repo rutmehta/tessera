@@ -24,9 +24,9 @@ and its tile boundaries, then into `export_mask`. Its complete failure log is
 retained. The next frozen gate `0cfe3c58d75e` passed private cancellation tests
 4/0 and placed private tests 2/0, then stopped at public-test compile exit 101:
 the new test imported the external `vector` crate from `compositor` root. The
-test-only import was corrected; its failure remains preserved. All four
+test-only import was corrected; its failure remains preserved. All three
 production source hashes are identical between `0cfe3c58d75e` and final
-`8adcc4d21e70`.
+`8adcc4d21e70`; the fourth manifest file is the changed test.
 
 Final `8adcc4d21e70` gates:
 
