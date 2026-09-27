@@ -1,0 +1,1 @@
+{"from": "B", "id": "d20e6e9b-33c2-486d-81d3-24791e998b80", "status": "accepted", "summary": "Validated exact B target/expiry and resource hold. Implementing approved filters.rs typed helpers/evaluator/collector tests only; RequestCancellation struct/accessor excluded. Formatting/diff checks only; A validates.", "to": "A", "updated_at": 1790549668, "version": 1}
