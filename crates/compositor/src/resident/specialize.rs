@@ -125,6 +125,7 @@ impl Cache {
         let spawned = std::thread::Builder::new()
             .name("resident specialization".into())
             .spawn(move || {
+                let _phase = gpu_core::diagnostics::span("specialization.worker");
                 let _ = tx.send(compile(&device, &key, depth, slabs));
             });
         if spawned.is_err() {

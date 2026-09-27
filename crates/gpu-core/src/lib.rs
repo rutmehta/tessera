@@ -10,6 +10,8 @@
 
 pub use color_mgmt;
 pub use color_mgmt::Lut3d;
+#[doc(hidden)]
+pub mod diagnostics;
 mod iosurface;
 mod precise;
 pub use iosurface::{SurfaceFormat, write_to_iosurface};

@@ -1187,6 +1187,8 @@ impl ResidentRenderer {
         level: u8,
         viewport: Option<Rect>,
     ) -> EngineResult<FrameReport> {
+        let _render = gpu_core::diagnostics::span("render_region");
+        let phase = gpu_core::diagnostics::span("render.reset_program_region");
         let state = doc.state();
 
         if level >= MAX_LEVEL {
@@ -1264,7 +1266,11 @@ impl ResidentRenderer {
             .ok_or_else(|| EngineError::ResourceExhausted {
                 resource: format!("level {level} viewport exceeds the storage binding limit"),
             })?;
+        drop(phase);
+        let phase = gpu_core::diagnostics::span("render.styles");
         let style_copies = self.prepare_styles(doc, level, region, &mut program)?;
+        drop(phase);
+        let phase = gpu_core::diagnostics::span("render.aux_resolve");
         let pixels = (le.width as usize)
             .checked_mul(le.height as usize)
             .ok_or_else(|| EngineError::invalid("canvas", "spatial size overflow"))?;
@@ -1312,6 +1318,8 @@ impl ResidentRenderer {
         self.children.retain(|id, _| self.layers.contains_key(id));
 
         // Phase 2: pages for new nodes, uploads and mip jobs.
+        drop(phase);
+        let phase = gpu_core::diagnostics::span("render.materialize");
         let mut encoder = match self.materialize() {
             Ok(e) => e,
             Err(e) => {
@@ -1320,6 +1328,8 @@ impl ResidentRenderer {
             }
         };
 
+        drop(phase);
+        let phase = gpu_core::diagnostics::span("render.output_damage_blocks");
         // A block-aligned, compact output window. Copy overlapping pixels before
         // discarding the old window; only copied blocks may remain valid.
         if self.levels.get(&level).is_none_or(|st| st.region != region) {
@@ -1433,8 +1443,11 @@ impl ResidentRenderer {
         let nblocks = if full { total } else { list.len() as u32 };
         self.report.blocks = nblocks;
 
+        drop(phase);
+        let phase = gpu_core::diagnostics::span("render.encoding");
         let mut encoder = encoder;
         if nblocks > 0 {
+            let specialization = gpu_core::diagnostics::span("render.specialization_request");
             let pipeline = if self.specialization && !spatial {
                 self.specialized.pipeline(
                     &self.device,
@@ -1446,6 +1459,7 @@ impl ResidentRenderer {
                 None
             }
             .unwrap_or_else(|| self.pipes.doc.clone());
+            drop(specialization);
             let pages: Vec<u32> = nodes.iter().map(|id| self.page(*id)).collect();
             let steps = bytemuck::cast_slice(&program.steps);
             let (device, queue) = (self.device.clone(), self.queue.clone());
@@ -1556,7 +1570,10 @@ impl ResidentRenderer {
                 }
             }
         }
+        drop(phase);
+        let phase = gpu_core::diagnostics::span("render.submit");
         self.queue.submit([encoder.finish()]);
+        drop(phase);
         if let Some(st) = self.levels.get_mut(&level) {
             st.valid = valid;
             // Remember the last known node of every entry, including
@@ -1832,6 +1849,7 @@ impl ResidentRenderer {
 
     /// Blocks until all submitted GPU work has completed.
     pub fn wait(&self) -> EngineResult<()> {
+        let _phase = gpu_core::diagnostics::span("render.final_wait");
         self.device
             .poll(wgpu::PollType::wait_indefinitely())
             .map_err(internal)?;

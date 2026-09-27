@@ -79,10 +79,12 @@ fn twenty_mp_five_styles_1368x912_l1_timing() {
     let start = Instant::now();
     cpu_view(&cpu, &doc, 1, view);
     let cpu_cold = start.elapsed();
+    let cold_span = gpu_core::diagnostics::span("MEASURED_COLD");
     let start = Instant::now();
     let cold_frame = resident.render_viewport(&doc, 1, view, 0).unwrap();
     resident.wait().unwrap();
     let gpu_cold = start.elapsed();
+    drop(cold_span);
     assert!(cold_frame.blocks > 0, "cold measurement must dispatch work");
     assert_eq!(resident.style_evaluations(), 5);
     assert_eq!(resident.filter_fallbacks(), 0);
@@ -98,6 +100,7 @@ fn twenty_mp_five_styles_1368x912_l1_timing() {
     let warm_frame = resident.render_viewport(&doc, 1, view, 0).unwrap();
     resident.wait().unwrap();
     let gpu_warm = start.elapsed();
+    gpu_core::diagnostics::emit();
     assert!(warm_frame.blocks > 0, "warm measurement must dispatch work");
     assert_eq!(
         resident.style_evaluations(),
@@ -139,10 +142,12 @@ fn twenty_mp_five_styles_1368x912_l1_unique_ids_timing() {
     let start = Instant::now();
     cpu_view(&cpu, &doc, 1, view);
     let cpu_cold = start.elapsed();
+    let cold_span = gpu_core::diagnostics::span("MEASURED_COLD");
     let start = Instant::now();
     let cold_frame = resident.render_viewport(&doc, 1, view, 0).unwrap();
     resident.wait().unwrap();
     let gpu_cold = start.elapsed();
+    drop(cold_span);
     assert!(cold_frame.blocks > 0, "cold measurement must dispatch work");
     assert_eq!(resident.style_evaluations(), 5);
     assert_eq!(resident.filter_fallbacks(), 0);
@@ -158,6 +163,7 @@ fn twenty_mp_five_styles_1368x912_l1_unique_ids_timing() {
     let warm_frame = resident.render_viewport(&doc, 1, view, 0).unwrap();
     resident.wait().unwrap();
     let gpu_warm = start.elapsed();
+    gpu_core::diagnostics::emit();
     assert!(warm_frame.blocks > 0, "warm measurement must dispatch work");
     assert_eq!(
         resident.style_evaluations(),

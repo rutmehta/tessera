@@ -60,6 +60,8 @@ pub fn precise_compute_pipeline(
     workgroup: (u32, u32, u32),
     entries: &[wgpu::BindGroupLayoutEntry],
 ) -> EngineResult<PrecisePipeline> {
+    let _whole = crate::diagnostics::span(label);
+    let phase = crate::diagnostics::span("pipeline.layout");
     let mut entries = entries.to_vec();
     entries.sort_by_key(|e| e.binding);
     let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -71,12 +73,16 @@ pub fn precise_compute_pipeline(
         bind_group_layouts: &[Some(&layout)],
         immediate_size: 0,
     });
+    drop(phase);
     let passthrough = device
         .features()
         .contains(wgpu::Features::PASSTHROUGH_SHADERS)
         && cfg!(target_os = "macos");
     let (module, entry_name, precision) = if passthrough {
+        let phase = crate::diagnostics::span("pipeline.translate");
         let (msl, name) = translate(wgsl, entry, &entries)?;
+        drop(phase);
+        let _phase = crate::diagnostics::span("pipeline.module");
         let desc = wgpu::ShaderModuleDescriptorPassthrough {
             label: Some(label),
             entry_points: Cow::Owned(vec![wgpu::PassthroughShaderEntryPoint {
@@ -106,6 +112,7 @@ pub fn precise_compute_pipeline(
         };
         (module, entry.to_string(), Precision::Relaxed)
     };
+    let _phase = crate::diagnostics::span("pipeline.create_compute");
     let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
         label: Some(label),
         layout: Some(&pipeline_layout),

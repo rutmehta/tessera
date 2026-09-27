@@ -173,6 +173,8 @@ impl ResidentRenderer {
         let extent = state.canvas;
         let limit = self.device.limits().max_storage_buffer_binding_size;
         for (step_index, layer) in &program.styles {
+            let _layer = gpu_core::diagnostics::span("style.layer");
+            let phase = gpu_core::diagnostics::span("style.key");
             layer.props.styles.validate()?;
             state.global_light.validate()?;
             let region = halo_region(viewport, extent, level, &layer.props.styles);
@@ -197,6 +199,7 @@ impl ResidentRenderer {
             ))
             .map_err(|e| EngineError::invalid("style cache key", e.to_string()))?;
             let key = *blake3::hash(&bytes).as_bytes();
+            drop(phase);
             let cached = if let Some(cached) = self.styles.get(&key) {
                 if !reserved_sources.contains(&cached.source) {
                     reserve_words(&mut reserved_words, cached.source.size(), limit)?;
@@ -218,6 +221,7 @@ impl ResidentRenderer {
                 source_state.root = vec![Arc::new(source)];
                 let source_doc = Document::new(source_state);
                 if source_renderer.is_none() {
+                    let _phase = gpu_core::diagnostics::span("style.child_construct");
                     let mut child = Self::with_budget(&self.gpu, self.budget)?;
                     if let Some(fonts) = self.live.text_renderer_snapshot() {
                         child.set_text_renderer(fonts);
@@ -233,7 +237,9 @@ impl ResidentRenderer {
                 let child = source_renderer
                     .as_mut()
                     .expect("source renderer initialized");
+                let phase = gpu_core::diagnostics::span("style.source_render");
                 let frame = child.render_viewport(&source_doc, level, region, 0)?;
+                drop(phase);
                 let region = child.levels[&level].region;
                 let local = Extent::new(region.width() as u32, region.height() as u32);
                 // Reserve the complete expansion before converting the source or
@@ -261,7 +267,9 @@ impl ResidentRenderer {
                 let source = if let Some(last) = reusable {
                     last.source.clone()
                 } else {
+                    let phase = gpu_core::diagnostics::span("style.convert");
                     let source = self.convert(output, local, 0)?;
+                    drop(phase);
                     reserved_sources.push(source.clone());
                     previous_source = Some(ConvertedSource {
                         level,
@@ -273,8 +281,10 @@ impl ResidentRenderer {
                 };
 
                 if self.styles.gpu.is_none() {
+                    let _phase = gpu_core::diagnostics::span("style.pipeline_init");
                     self.styles.gpu = Some(StylesGpu::new(&self.device)?);
                 }
+                let phase = gpu_core::diagnostics::span("style.effects_encode_submit");
                 let planes = self
                     .styles
                     .gpu
@@ -290,6 +300,7 @@ impl ResidentRenderer {
                         [region.x0 as u32, region.y0 as u32],
                         level,
                     )?;
+                drop(phase);
                 debug_assert_eq!(planes.len(), StylesGpu::plane_count(&settings));
                 let value = Arc::new(Cached {
                     source,

@@ -397,6 +397,7 @@ impl StylesGpu {
 impl Render<'_> {
     fn submit(&mut self) {
         if let Some(encoder) = self.encoder.take() {
+            let _phase = gpu_core::diagnostics::span("effects.submit");
             self.queue.submit([encoder.finish()]);
         }
     }
