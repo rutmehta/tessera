@@ -713,6 +713,62 @@ impl Compositor {
         unpremultiply(&self.render_tile_premultiplied(doc, coord)?)
     }
 
+    /// Straight-alpha full tiles intersecting a signed half-open region in
+    /// pixels of `level`, ordered by tile row then column. The region is clipped
+    /// to the level canvas; edge tiles retain their full canvas-edge extent.
+    /// One render call shares a bounded smart-filter pass across all its tiles.
+    pub fn render_region(
+        &self,
+        doc: &Document,
+        level: u8,
+        region: Rect,
+        cancel: &CancellationToken,
+    ) -> EngineResult<Vec<Tile>> {
+        cancel.check()?;
+        if level >= MAX_LEVEL {
+            return Err(EngineError::invalid(
+                "coord",
+                format!("level {level} outside document"),
+            ));
+        }
+        let extent = doc.state().canvas.at_level(level);
+        let clipped = region.intersect(&Rect::of_extent(extent));
+        if clipped.is_empty() {
+            cancel.check()?;
+            return Ok(Vec::new());
+        }
+        // Clipping makes every edge nonnegative and at most the u32 canvas
+        // extent. Only now is subtracting one from an exclusive edge safe.
+        let tile_size = i64::from(TILE_SIZE);
+        let first_x = (clipped.x0 / tile_size) as u32;
+        let first_y = (clipped.y0 / tile_size) as u32;
+        let last_x = ((clipped.x1 - 1) / tile_size) as u32;
+        let last_y = ((clipped.y1 - 1) / tile_size) as u32;
+
+        let filtered = has_enabled_smart_filters(&doc.state().root);
+        cancel.check()?;
+        let pass = filtered.then(|| smart_filters::FilterPass::new(self.filter_pass_limits));
+        let mut tiles = Vec::new();
+        for y in first_y..=last_y {
+            for x in first_x..=last_x {
+                cancel.check()?;
+                let coord = TileCoord::new(level, x, y);
+                let premult = self.render_tile_premultiplied_in_pass(
+                    doc,
+                    coord,
+                    pass.as_ref(),
+                    Some(cancel),
+                )?;
+                cancel.check()?;
+                let straight = unpremultiply(&premult)?;
+                cancel.check()?;
+                tiles.push(straight);
+            }
+        }
+        cancel.check()?;
+        Ok(tiles)
+    }
+
     /// Every tile of `level`, in raster order. Cold and large frames render in
     /// parallel; small warm live viewports avoid thread-pool fanout contention.
     pub fn render_level(
