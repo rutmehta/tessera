@@ -44,7 +44,10 @@ use compositor::{
     Adjustment, Affine, BlendMode, Compositor, DocOp, DocState, Document, Layer, LayerId,
     LayerKind, PaintTarget, Raster, Rect, SmartFilter, SmartObject, TileDelta, blend::blend_pixel,
 };
-use engine_api::tile::{Extent, TILE_SIZE, TileCoord};
+use engine_api::{
+    jobs::CancellationToken,
+    tile::{Extent, TILE_SIZE, TileCoord},
+};
 use filters::{
     Effect, Filter, FilterParams, Halo,
     registry::{self, ParamValue},
@@ -56,6 +59,25 @@ use std::{
         atomic::{AtomicBool, Ordering},
     },
 };
+
+/// One request's live cancellation sources. Effects retain their existing atomic
+/// API; native compositor work receives the same request's clonable token.
+#[derive(Default)]
+struct RequestCancellation {
+    effect: AtomicBool,
+    native: CancellationToken,
+}
+
+impl RequestCancellation {
+    fn cancel(&self) {
+        self.native.cancel();
+        self.effect.store(true, Ordering::Release);
+    }
+
+    fn is_cancelled(&self) -> bool {
+        self.native.is_cancelled() || self.effect.load(Ordering::Acquire)
+    }
+}
 
 // ─────────────────────────────── records ───────────────────────────────
 
@@ -575,7 +597,36 @@ pub(super) fn compositor_stack(l: &Layer) -> bool {
 /// The layer rendered alone at `level` through the compositor, its stack
 /// `nodes` evaluated natively (transform stages by the compositor, menu
 /// filters through `NativeFilterEvaluator`), placed in the parent canvas.
-fn native_stack(base: &DocState, layer: &Layer, nodes: &[Node], level: u8) -> Result<Img> {
+fn native_stack(
+    base: &DocState,
+    layer: &Layer,
+    nodes: &[Node],
+    level: u8,
+    cancel: Option<&Arc<RequestCancellation>>,
+) -> Result<Img> {
+    let cancel = cancel.cloned().unwrap_or_default();
+    cancel.native.check()?;
+    native_stack_with_evaluator(
+        base,
+        layer,
+        nodes,
+        level,
+        &cancel,
+        Arc::new(NativeFilterEvaluator {
+            cancel: cancel.clone(),
+        }),
+    )
+}
+
+fn native_stack_with_evaluator(
+    base: &DocState,
+    layer: &Layer,
+    nodes: &[Node],
+    level: u8,
+    cancel: &Arc<RequestCancellation>,
+    evaluator: Arc<dyn compositor::render::smart_filters::SmartFilterEvaluator>,
+) -> Result<Img> {
+    cancel.native.check()?;
     let neutral = solo(base, layer);
     let mut l = (*neutral.state().root[0]).clone();
     l.kind = layer.kind.clone();
@@ -588,24 +639,11 @@ fn native_stack(base: &DocState, layer: &Layer, nodes: &[Node], level: u8) -> Re
     state.next_id = base.next_id;
     state.root.push(Arc::new(l));
     let mut comp = super::fonts::compositor(64 << 20); // B5-10b
-    comp.set_filter_evaluator(Arc::new(NativeFilterEvaluator));
+    comp.set_filter_evaluator(evaluator);
     let doc = Document::new(state);
-    // Evaluate the stack once from this (non-rayon) thread before the parallel
-    // tile render: the compositor holds its filter-cache lock while a stack
-    // evaluates (itself on rayon), and tile workers blocking on that lock can
-    // deadlock the pool (NEEDS.md). One tile touching the layer warms the cache.
-    if let Some(b) = doc.state().root[0]
-        .affected_bounds()
-        .map(|b| b.intersect(&Rect::of_extent(base.canvas)))
-        .filter(|b| !b.is_empty())
-    {
-        let ts = i64::from(TILE_SIZE) << level;
-        comp.render_tile(
-            &doc,
-            TileCoord::new(level, (b.x0 / ts) as u32, (b.y0 / ts) as u32),
-        )?;
-    }
-    let (e, px) = comp.render_level_rgba(&doc, level)?;
+    // RES-01 serializes first touch and retains results for the full-level pass.
+    // A direct-tile prewarm would bypass both that pass and caller cancellation.
+    let (e, px) = comp.render_level_rgba_with_cancel(&doc, level, &cancel.native)?;
     Ok(Img {
         rect: Rect::of_extent(e),
         px,
@@ -618,7 +656,7 @@ pub(super) fn rasterize_smart_stack(base: &DocState, layer: &Layer) -> Result<Ra
     let LayerKind::SmartObject(so) = &layer.kind else {
         return Err(failure("not a smart object"));
     };
-    let img = native_stack(base, layer, &nodes_of(so)?, 0)?;
+    let img = native_stack(base, layer, &nodes_of(so)?, 0, None)?;
     raster_from_rgba(base.canvas, base.depth, &img.px, true)
 }
 
@@ -1274,6 +1312,24 @@ struct BakeJob {
     region: Option<Rect>,
 }
 
+struct ActiveBake {
+    layer: u64,
+    key: String,
+    level: u8,
+    region: Option<Rect>,
+    cancel: Arc<RequestCancellation>,
+}
+
+impl ActiveBake {
+    fn matches(&self, job: &BakeJob) -> bool {
+        self.layer == job.layer
+            && self.key == job.key
+            && self.level == job.level
+            && self.region == job.region
+            && !self.cancel.is_cancelled()
+    }
+}
+
 /// A smart object's filtered pixels.
 struct Baked {
     key: String,
@@ -1290,7 +1346,8 @@ struct Inner {
     busy: bool,
     generation: u64,
     preview_job: Option<PreviewJob>,
-    running: Option<Arc<AtomicBool>>,
+    running: Option<Arc<RequestCancellation>>,
+    running_bake: Option<ActiveBake>,
     preview: Option<(u64, PreviewShown)>,
     bake_jobs: BTreeMap<u64, BakeJob>,
     bakes: HashMap<u64, Baked>,
@@ -1300,6 +1357,43 @@ struct Inner {
     imgs: Vec<(String, Arc<Img>)>,
     presented: Option<(String, Arc<Document>)>,
     last_error: Option<String>,
+}
+
+impl Inner {
+    fn cancel_active(&self) {
+        if let Some(cancel) = &self.running {
+            cancel.cancel();
+        }
+        if let Some(active) = &self.running_bake {
+            active.cancel.cancel();
+        }
+    }
+
+    fn finish_preview(&mut self, generation: u64, cancel: &Arc<RequestCancellation>) -> bool {
+        let owns = self
+            .running
+            .as_ref()
+            .is_some_and(|c| Arc::ptr_eq(c, cancel));
+        if owns {
+            self.running = None;
+        }
+        owns && !self.stop && self.generation == generation && !cancel.is_cancelled()
+    }
+
+    fn finish_bake(&mut self, job: &BakeJob, cancel: &Arc<RequestCancellation>) -> bool {
+        let owns = self
+            .running_bake
+            .as_ref()
+            .is_some_and(|active| Arc::ptr_eq(&active.cancel, cancel));
+        let current = self
+            .running_bake
+            .as_ref()
+            .is_some_and(|active| active.matches(job));
+        if owns {
+            self.running_bake = None;
+        }
+        owns && current && !self.stop && !cancel.is_cancelled()
+    }
 }
 
 struct Queue {
@@ -1353,9 +1447,9 @@ impl FilterState {
         {
             let mut i = self.q.lock();
             i.stop = true;
-            if let Some(c) = &i.running {
-                c.store(true, Ordering::Relaxed);
-            }
+            i.cancel_active();
+            i.preview_job = None;
+            i.bake_jobs.clear();
         }
         self.q.cv.notify_all();
         if let Some(w) = self.worker.lock().unwrap_or_else(|e| e.into_inner()).take()
@@ -1445,7 +1539,9 @@ fn source(
 
 /// Bridge legacy menu JSON while letting the compositor own child coordinates,
 /// placement, shared filter masks and per-node blending for native stacks.
-struct NativeFilterEvaluator;
+struct NativeFilterEvaluator {
+    cancel: Arc<RequestCancellation>,
+}
 impl compositor::render::smart_filters::SmartFilterEvaluator for NativeFilterEvaluator {
     fn evaluate(
         &self,
@@ -1453,11 +1549,19 @@ impl compositor::render::smart_filters::SmartFilterEvaluator for NativeFilterEva
         filter: &SmartFilter,
         context: &compositor::render::smart_filters::FilterContext,
     ) -> engine_api::EngineResult<Raster> {
+        self.cancel.native.check()?;
         if adapter_id(&filter.name) && filter.params.get("filter").is_none() {
-            return filters::CompositorFilters.evaluate(input, filter, context);
+            let result = filters::CompositorFilters.evaluate(input, filter, context);
+            self.cancel.native.check()?;
+            return result;
         }
-        let convert =
-            |e: crate::BridgeError| engine_api::EngineError::invalid("smart filter", e.to_string());
+        let convert = |e: crate::BridgeError| {
+            if self.cancel.is_cancelled() {
+                engine_api::EngineError::Cancelled
+            } else {
+                engine_api::EngineError::invalid("smart filter", e.to_string())
+            }
+        };
         let mut node = Node::of(filter).map_err(convert)?;
         node.opacity = 1.0;
         node.blend = BlendMode::Normal;
@@ -1471,14 +1575,22 @@ impl compositor::render::smart_filters::SmartFilterEvaluator for NativeFilterEva
             context.level as u8,
             context.canvas,
             context.profile.clone(),
-            &AtomicBool::new(false),
+            &self.cancel.effect,
         )
         .map_err(convert)?;
         raster_from_rgba(input.extent(), compositor::Depth::F32, &out.px, false).map_err(convert)
     }
 }
 
-fn native_filtered(base: &DocState, layer: &Layer, nodes: &[Node], unplaced: bool) -> Result<Img> {
+fn native_filtered(
+    base: &DocState,
+    layer: &Layer,
+    nodes: &[Node],
+    unplaced: bool,
+    cancel: Option<&Arc<RequestCancellation>>,
+) -> Result<Img> {
+    let cancel = cancel.cloned().unwrap_or_default();
+    cancel.native.check()?;
     let neutral = solo(base, layer);
     let mut l = (*neutral.state().root[0]).clone();
     l.kind = layer.kind.clone();
@@ -1498,8 +1610,10 @@ fn native_filtered(base: &DocState, layer: &Layer, nodes: &[Node], unplaced: boo
     state.next_id = base.next_id;
     state.root.push(Arc::new(l));
     let mut comp = super::fonts::compositor(64 << 20); // B5-10b
-    comp.set_filter_evaluator(Arc::new(NativeFilterEvaluator));
-    let (_, px) = comp.render_level_rgba(&Document::new(state), 0)?;
+    comp.set_filter_evaluator(Arc::new(NativeFilterEvaluator {
+        cancel: cancel.clone(),
+    }));
+    let (_, px) = comp.render_level_rgba_with_cancel(&Document::new(state), 0, &cancel.native)?;
     Ok(Img {
         rect: Rect::of_extent(canvas),
         px,
@@ -1520,6 +1634,21 @@ fn filtered(
     region: Rect,
     cancel: &AtomicBool,
 ) -> Result<Img> {
+    filtered_with_cancel(q, comp, base, layer, nodes, level, region, cancel, None)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn filtered_with_cancel(
+    q: &Queue,
+    comp: &Compositor,
+    base: &DocState,
+    layer: &Layer,
+    nodes: &[Node],
+    level: u8,
+    region: Rect,
+    cancel: &AtomicBool,
+    request: Option<&Arc<RequestCancellation>>,
+) -> Result<Img> {
     if full_resolution(nodes) && matches!(layer.kind, LayerKind::SmartObject(_)) {
         if level != 0 {
             return Err(failure("native retouch stacks require level 0"));
@@ -1527,7 +1656,7 @@ fn filtered(
         if cancel.load(Ordering::Relaxed) {
             return Err(failure("cancelled"));
         }
-        let image = native_filtered(base, layer, nodes, false)?;
+        let image = native_filtered(base, layer, nodes, false, request)?;
         if cancel.load(Ordering::Relaxed) {
             return Err(failure("cancelled"));
         }
@@ -1540,7 +1669,7 @@ fn filtered(
         if cancel.load(Ordering::Relaxed) {
             return Err(failure("cancelled"));
         }
-        let image = native_stack(base, layer, nodes, level)?;
+        let image = native_stack(base, layer, nodes, level, request)?;
         if cancel.load(Ordering::Relaxed) {
             return Err(failure("cancelled"));
         }
@@ -1619,8 +1748,8 @@ fn edited_stack(layer: &Layer, edit: &StackEdit) -> Result<Vec<Node>> {
 fn worker_loop(q: Arc<Queue>, comp: Arc<Compositor>, shared: Weak<Shared>) {
     loop {
         enum Job {
-            Preview(PreviewJob, Arc<AtomicBool>),
-            Bake(BakeJob),
+            Preview(PreviewJob, Arc<RequestCancellation>),
+            Bake(BakeJob, Arc<RequestCancellation>),
         }
         let job = {
             let mut i = q.lock();
@@ -1629,12 +1758,23 @@ fn worker_loop(q: Arc<Queue>, comp: Arc<Compositor>, shared: Weak<Shared>) {
                     return;
                 }
                 if let Some(p) = i.preview_job.take() {
-                    let cancel = Arc::new(AtomicBool::new(false));
+                    let cancel = Arc::new(RequestCancellation::default());
                     i.running = Some(cancel.clone());
+                    i.busy = true;
                     break Job::Preview(p, cancel);
                 }
                 if let Some(id) = i.bake_jobs.keys().next().copied() {
-                    break Job::Bake(i.bake_jobs.remove(&id).expect("bake job"));
+                    let job = i.bake_jobs.remove(&id).expect("bake job");
+                    let cancel = Arc::new(RequestCancellation::default());
+                    i.running_bake = Some(ActiveBake {
+                        layer: job.layer,
+                        key: job.key.clone(),
+                        level: job.level,
+                        region: job.region,
+                        cancel: cancel.clone(),
+                    });
+                    i.busy = true;
+                    break Job::Bake(job, cancel);
                 }
                 let (g, _) =
                     q.cv.wait_timeout(i, std::time::Duration::from_millis(500))
@@ -1645,7 +1785,6 @@ fn worker_loop(q: Arc<Queue>, comp: Arc<Compositor>, shared: Weak<Shared>) {
                 }
             }
         };
-        q.lock().busy = true;
         // B5-14 (P17): previews and bakes count as interactive pressure, so
         // photo export yields to them (bounded by its maximum yield).
         let _pressure = super::render::Pressure::begin(super::render::PressureKind::Filters);
@@ -1655,10 +1794,19 @@ fn worker_loop(q: Arc<Queue>, comp: Arc<Compositor>, shared: Weak<Shared>) {
                     .map_err(|e| e.to_string())
                     .and_then(|layer| {
                         let nodes = edited_stack(layer, &p.edit).map_err(|e| e.to_string())?;
-                        let img = filtered(
-                            &q, &comp, &p.base, layer, &nodes, p.level, p.region, &cancel,
+                        let img = filtered_with_cancel(
+                            &q,
+                            &comp,
+                            &p.base,
+                            layer,
+                            &nodes,
+                            p.level,
+                            p.region,
+                            &cancel.effect,
+                            Some(&cancel),
                         )
                         .map_err(|e| e.to_string())?;
+                        cancel.native.check().map_err(|e| e.to_string())?;
                         // The layer's own pixels outside the region; the preview inside.
                         let under = match &layer.kind {
                             LayerKind::Pixel(r) => Some(r),
@@ -1668,8 +1816,7 @@ fn worker_loop(q: Arc<Queue>, comp: Arc<Compositor>, shared: Weak<Shared>) {
                             .map_err(|e| e.to_string())
                     });
                 let mut i = q.lock();
-                i.running = None;
-                if i.generation == p.generation && !cancel.load(Ordering::Relaxed) {
+                if i.finish_preview(p.generation, &cancel) {
                     match result {
                         Ok(raster) => {
                             i.preview = Some((
@@ -1682,16 +1829,18 @@ fn worker_loop(q: Arc<Queue>, comp: Arc<Compositor>, shared: Weak<Shared>) {
                     }
                 }
             }
-            Job::Bake(b) => {
-                let result = bake(&q, &comp, &b);
+            Job::Bake(b, cancel) => {
+                let result = bake(&q, &comp, &b, &cancel);
                 let mut i = q.lock();
-                match result {
-                    Ok(Some(baked)) => {
-                        i.bakes.insert(b.layer, baked);
-                        i.bake_serial += 1;
+                if i.finish_bake(&b, &cancel) {
+                    match result {
+                        Ok(Some(baked)) => {
+                            i.bakes.insert(b.layer, baked);
+                            i.bake_serial += 1;
+                        }
+                        Ok(None) => {}
+                        Err(e) => i.last_error = Some(e.to_string()),
                     }
-                    Ok(None) => {}
-                    Err(e) => i.last_error = Some(e.to_string()),
                 }
             }
         }
@@ -1706,13 +1855,18 @@ fn worker_loop(q: Arc<Queue>, comp: Arc<Compositor>, shared: Weak<Shared>) {
     }
 }
 
-fn bake(q: &Queue, comp: &Compositor, b: &BakeJob) -> Result<Option<Baked>> {
+fn bake(
+    q: &Queue,
+    comp: &Compositor,
+    b: &BakeJob,
+    cancel: &Arc<RequestCancellation>,
+) -> Result<Option<Baked>> {
+    cancel.native.check()?;
     let layer = find(&b.base, b.layer)?;
     let LayerKind::SmartObject(so) = &layer.kind else {
         return Ok(None);
     };
     let nodes = nodes_of(so)?;
-    let cancel = AtomicBool::new(false);
     let canvas = b.base.canvas;
     let previous = {
         let i = q.lock();
@@ -1723,7 +1877,17 @@ fn bake(q: &Queue, comp: &Compositor, b: &BakeJob) -> Result<Option<Baked>> {
     };
     match b.region {
         Some(r0) => {
-            let img = filtered(q, comp, &b.base, layer, &nodes, 0, r0, &cancel)?;
+            let img = filtered_with_cancel(
+                q,
+                comp,
+                &b.base,
+                layer,
+                &nodes,
+                0,
+                r0,
+                &cancel.effect,
+                Some(cancel),
+            )?;
             let (under, level, mut fine) =
                 previous.map_or((None, 8, Vec::new()), |(r, l, f)| (Some(r), l, f));
             let raster = upsampled(&img, 0, canvas, b.base.depth, under.as_ref())?;
@@ -1737,7 +1901,17 @@ fn bake(q: &Queue, comp: &Compositor, b: &BakeJob) -> Result<Option<Baked>> {
         }
         None => {
             let full = Rect::of_extent(canvas.at_level(b.level));
-            let img = filtered(q, comp, &b.base, layer, &nodes, b.level, full, &cancel)?;
+            let img = filtered_with_cancel(
+                q,
+                comp,
+                &b.base,
+                layer,
+                &nodes,
+                b.level,
+                full,
+                &cancel.effect,
+                Some(cancel),
+            )?;
             Ok(Some(Baked {
                 key: b.key.clone(),
                 raster: upsampled(&img, b.level, canvas, b.base.depth, None)?,
@@ -1836,6 +2010,15 @@ pub(crate) fn presented(
     // B5-12: geometric transform stacks are rendered by the session renderer.
     let sos: Vec<&Layer> = sos.into_iter().filter(|l| !compositor_stack(l)).collect();
     let mut i = fs.q.lock();
+    i.bake_jobs
+        .retain(|id, job| sos.iter().any(|l| l.id.0 == *id && bake_key(l) == job.key));
+    if let Some(active) = &i.running_bake
+        && !sos
+            .iter()
+            .any(|l| l.id.0 == active.layer && bake_key(l) == active.key)
+    {
+        active.cancel.cancel();
+    }
     if sos.is_empty() && i.preview.is_none() {
         i.presented = None;
         return None;
@@ -1879,9 +2062,20 @@ pub(crate) fn presented(
             let queued = i.bake_jobs.get(&id).is_some_and(|j| {
                 j.key == job.key && j.level == job.level && j.region == job.region
             });
-            if !queued {
-                i.bake_jobs.insert(id, job);
-                spawn = true;
+            let running = i
+                .running_bake
+                .as_ref()
+                .is_some_and(|active| active.matches(&job));
+            if !running {
+                if let Some(active) = &i.running_bake
+                    && active.layer == id
+                {
+                    active.cancel.cancel();
+                }
+                if !queued {
+                    i.bake_jobs.insert(id, job);
+                    spawn = true;
+                }
             }
         }
         if let Some(b) = i.bakes.get(&id) {
@@ -2074,7 +2268,7 @@ impl DocumentSession {
             let mut i = fs.q.lock();
             i.generation += 1;
             if let Some(c) = &i.running {
-                c.store(true, Ordering::Relaxed);
+                c.cancel();
             }
             let generation = i.generation;
             i.preview_job = Some(PreviewJob {
@@ -2201,7 +2395,7 @@ impl DocumentSession {
         i.generation += 1;
         i.preview_job = None;
         if let Some(c) = &i.running {
-            c.store(true, Ordering::Relaxed);
+            c.cancel();
         }
         i.preview.take().is_some()
     }
@@ -2335,7 +2529,7 @@ impl DocumentSession {
             i.generation += 1;
             i.preview_job = None;
             if let Some(c) = &i.running {
-                c.store(true, Ordering::Relaxed);
+                c.cancel();
             }
             let g = i.generation;
             i.preview = Some((g, PreviewShown::ClippedAdjustment(layer, adj)));
@@ -2367,7 +2561,7 @@ impl DocumentSession {
             .unwrap_or_else(|e| e.into_inner())
             .store(true, Ordering::Relaxed);
         if let Some(c) = &fs.q.lock().running {
-            c.store(true, Ordering::Relaxed);
+            c.cancel();
         }
     }
 
@@ -2505,7 +2699,7 @@ impl DocumentSession {
         };
         let cancel = AtomicBool::new(false);
         let img = if matches!(l.kind, LayerKind::SmartObject(_)) {
-            native_filtered(&base, l, &nodes, true)?
+            native_filtered(&base, l, &nodes, true, None)?
         } else {
             filtered(
                 &self.shared.filters.q,
@@ -2911,5 +3105,209 @@ mod tests {
         assert!(Spec::parse(r#"{"id":"twirl","params":{"center":[0.2,0.7]}}"#).is_ok());
         let n = Node::new(s);
         assert_eq!(Node::of(&n.store()).unwrap(), n);
+    }
+}
+
+/// SOURCE-ONLY regressions: UNRUN on B. Tiny rasters, explicit rendezvous,
+/// bounded channel waits; no sleeps, GPU work or image fixtures.
+#[cfg(test)]
+mod request_cancellation_tests {
+    use super::*;
+    use compositor::render::smart_filters::{FilterContext, SmartFilterEvaluator};
+    use std::sync::{atomic::AtomicUsize, mpsc};
+    use std::time::Duration;
+
+    struct GatedEvaluator {
+        entered: mpsc::Sender<()>,
+        release: Mutex<mpsc::Receiver<()>>,
+        calls: AtomicUsize,
+    }
+
+    impl SmartFilterEvaluator for GatedEvaluator {
+        fn evaluate(
+            &self,
+            input: &Raster,
+            _: &SmartFilter,
+            _: &FilterContext,
+        ) -> engine_api::EngineResult<Raster> {
+            self.calls.fetch_add(1, Ordering::SeqCst);
+            self.entered.send(()).expect("notify first stage");
+            self.release
+                .lock()
+                .unwrap()
+                .recv_timeout(Duration::from_secs(5))
+                .expect("release first stage within watchdog");
+            Ok(input.clone())
+        }
+    }
+
+    fn fixture() -> (DocState, Layer, Vec<Node>) {
+        let extent = Extent::new(3, 2);
+        let mut child = DocState::new(extent, compositor::Depth::F32);
+        child.root.push(Arc::new(Layer::new(
+            "fill",
+            LayerKind::Fill(compositor::document::Fill::Solid {
+                color: [0.2, 0.4, 0.6],
+            }),
+        )));
+        let layer = Layer::new(
+            "smart",
+            LayerKind::SmartObject(SmartObject::new(child, Affine::IDENTITY)),
+        );
+        let mut base = DocState::new(extent, compositor::Depth::F32);
+        base.root.push(Arc::new(layer.clone()));
+        let node =
+            Node::new(Spec::parse(r#"{"id":"gaussian_blur","params":{"radius":1}}"#).unwrap());
+        (base, layer, vec![node.clone(), node])
+    }
+
+    #[test]
+    fn native_request_cancel_during_first_stage_stops_next_stage_and_publication() {
+        for closing in [false, true] {
+            let (base, layer, nodes) = fixture();
+            let cancel = Arc::new(RequestCancellation::default());
+            let (entered_tx, entered_rx) = mpsc::channel();
+            let (release_tx, release_rx) = mpsc::channel();
+            let evaluator = Arc::new(GatedEvaluator {
+                entered: entered_tx,
+                release: Mutex::new(release_rx),
+                calls: AtomicUsize::new(0),
+            });
+            let worker_cancel = cancel.clone();
+            let worker_evaluator = evaluator.clone();
+            let worker = std::thread::spawn(move || {
+                native_stack_with_evaluator(
+                    &base,
+                    &layer,
+                    &nodes,
+                    0,
+                    &worker_cancel,
+                    worker_evaluator,
+                )
+                .is_err()
+            });
+            entered_rx
+                .recv_timeout(Duration::from_secs(5))
+                .expect("first stage entered");
+            let fresh = Arc::new(RequestCancellation::default());
+            let mut inner = Inner {
+                generation: 1,
+                running: Some(cancel.clone()),
+                ..Default::default()
+            };
+            if closing {
+                inner.stop = true;
+            }
+            inner.cancel_active();
+            if !closing {
+                inner.generation = 2;
+                inner.running = Some(fresh.clone());
+            }
+            release_tx.send(()).unwrap();
+            assert!(worker.join().unwrap());
+            assert_eq!(evaluator.calls.load(Ordering::SeqCst), 1);
+            assert!(cancel.effect.load(Ordering::Acquire));
+            assert!(!inner.finish_preview(1, &cancel));
+            assert!(inner.preview.is_none());
+            assert!(inner.last_error.is_none());
+            if !closing {
+                assert!(inner.finish_preview(2, &fresh));
+            }
+            assert!(!fresh.is_cancelled());
+        }
+    }
+
+    #[test]
+    fn native_precancel_skips_work_and_fresh_request_survives() {
+        let (base, layer, nodes) = fixture();
+        let cancelled = Arc::new(RequestCancellation::default());
+        cancelled.cancel();
+        assert!(native_stack(&base, &layer, &nodes, 0, Some(&cancelled)).is_err());
+        let fresh = Arc::new(RequestCancellation::default());
+        assert!(!fresh.is_cancelled());
+        assert!(native_stack(&base, &layer, &nodes, 0, Some(&fresh)).is_ok());
+        assert!(native_filtered(&base, &layer, &nodes, false, Some(&cancelled)).is_err());
+        assert!(native_filtered(&base, &layer, &nodes, false, Some(&fresh)).is_ok());
+    }
+
+    #[test]
+    fn preview_old_completion_cannot_clear_fresh_owner() {
+        let old = Arc::new(RequestCancellation::default());
+        let fresh = Arc::new(RequestCancellation::default());
+        let mut inner = Inner {
+            generation: 1,
+            running: Some(old.clone()),
+            ..Default::default()
+        };
+        inner.cancel_active();
+        inner.generation = 2;
+        inner.running = Some(fresh.clone());
+        assert!(!inner.finish_preview(1, &old));
+        assert!(Arc::ptr_eq(inner.running.as_ref().unwrap(), &fresh));
+        assert!(inner.finish_preview(2, &fresh));
+        assert!(!fresh.is_cancelled());
+    }
+
+    fn bake_job(key: &str) -> BakeJob {
+        BakeJob {
+            key: key.into(),
+            base: Arc::new(DocState::new(Extent::new(3, 2), compositor::Depth::F32)),
+            layer: 1,
+            level: 0,
+            region: None,
+        }
+    }
+
+    fn active(job: &BakeJob, cancel: Arc<RequestCancellation>) -> ActiveBake {
+        ActiveBake {
+            layer: job.layer,
+            key: job.key.clone(),
+            level: job.level,
+            region: job.region,
+            cancel,
+        }
+    }
+
+    #[test]
+    fn bake_supersession_preserves_new_owner_and_rejects_stale_key() {
+        let old_job = bake_job("old");
+        let fresh_job = bake_job("new");
+        let old = Arc::new(RequestCancellation::default());
+        let fresh = Arc::new(RequestCancellation::default());
+        let mut inner = Inner {
+            running_bake: Some(active(&old_job, old.clone())),
+            ..Default::default()
+        };
+        inner.cancel_active();
+        inner.running_bake = Some(active(&fresh_job, fresh.clone()));
+        assert!(!inner.finish_bake(&old_job, &old));
+        assert!(Arc::ptr_eq(
+            &inner.running_bake.as_ref().unwrap().cancel,
+            &fresh
+        ));
+        assert!(inner.finish_bake(&fresh_job, &fresh));
+        assert!(!fresh.is_cancelled());
+    }
+
+    #[test]
+    fn shutdown_cancels_both_request_channels_and_rejects_completion() {
+        let preview = Arc::new(RequestCancellation::default());
+        let bake = Arc::new(RequestCancellation::default());
+        let job = bake_job("current");
+        let mut inner = Inner {
+            generation: 1,
+            running: Some(preview.clone()),
+            running_bake: Some(active(&job, bake.clone())),
+            ..Default::default()
+        };
+        inner.stop = true;
+        inner.cancel_active();
+        for source in [&preview, &bake] {
+            assert!(source.native.is_cancelled());
+            assert!(source.effect.load(Ordering::Acquire));
+        }
+        assert!(!inner.finish_preview(1, &preview));
+        assert!(!inner.finish_bake(&job, &bake));
+        assert!(inner.last_error.is_none());
     }
 }
