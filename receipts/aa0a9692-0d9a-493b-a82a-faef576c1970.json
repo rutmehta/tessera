@@ -1,0 +1,1 @@
+{"from": "B", "id": "aa0a9692-0d9a-493b-a82a-faef576c1970", "status": "accepted", "summary": "Validated exact B target/expiry and local hold. Source-only render.rs viewport token wiring against a1d51f6 accepted; readback/PSD/apply/engine-api and A outline files excluded. Tests UNRUN on B.", "to": "A", "updated_at": 1790545886, "version": 1}
