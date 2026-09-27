@@ -2,7 +2,8 @@
 
 This is a durable transport for the existing Machine A and Machine B Codex chats.
 It never evaluates message text, launches Codex, wakes a chat, or installs a service.
-Both coordinator chats have active five-minute heartbeats. The installed CLI
+Machine A has an active five-minute heartbeat. Machine B paused its heartbeat
+for the user-requested resource hold; do not restart it or launch B workloads. The installed CLI
 also delivered a queued message to B’s existing desktop writer over SSH; see
 [verified routing](../../docs/coordination/MACHINE-B-SSH-ROUTING.md). A successful
 `send` means published; `accepted` means the receiving chat began handling it;
@@ -89,6 +90,10 @@ information requires it. A receipt never starts work. This is durable deduplicat
 and explicit recovery, **not exactly-once side effects**.
 
 ## B-side wakeup requirement
+
+Current state: B's heartbeat is **paused for its resource hold**. The following
+bootstrap instructions describe initial setup, not authorization to resume B.
+Use the verified existing-session queue for authorized low-impact coordination.
 
 A's heartbeat cannot create a wakeup on an unconnected Mac. In B's existing Codex
 chat, inspect its scheduled tasks and create/update **one** same-chat heartbeat
