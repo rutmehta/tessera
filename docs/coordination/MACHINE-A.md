@@ -4,6 +4,23 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## Fixed preview open; PSD native resumed — 2026-09-27 23:39 UTC
+
+Source65fa6a33/currentFFI2f241fe7 passed504XCTest/1skip/0fail+5, directexit0.
+TinyJPEG actual export/reimport neutral controls/XMP passed; copiedSonyRAW
++0.10EV/5132K survived relaunch. Root independently verified archive and package
+hashes/signatures, logs, actual output image and source/output metadata. Current
+normal preview is open empty at betterSSD/tessera-validation/editing-export-preview/
+Tessera-Editing-Preview-65fa6a33.app, separate Tessera Editing Preview support,
+no test args; fixture app closed. Not fullproject/performance/broadcamera/macOS15
+acceptance. Portable evidence pending publication; report/manifest already local.
+
+B result45d3595b and SSHqueue01a0e53c-917e-76c2-b216-56ee3b2c0d3a published,
+new peer receipt pending. Previous update confirmed peer cursor13. Engine Sol
+now runs exact5326f2f PSDnativegate, preserving firstfailure; resource Sol102bce66
+UX03 tests remain UNRUN waitingRED. Luna packages evidence and follows up visible
+Load20,000StubItems diagnostic affordance in ordinary emptyLibrary. Bhold remains.
+
 ## Export fix merged; current preview validation — 2026-09-27 23:19 UTC
 
 Main65fa6a33 integrates exact0473a87e/evidence79db6cfe. Root reviewed metadata

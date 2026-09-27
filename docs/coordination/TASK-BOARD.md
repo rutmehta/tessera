@@ -1,6 +1,6 @@
 # Tessera task board — Machine A coordinator
 
-Updated: 2026-09-27 23:19 UTC
+Updated: 2026-09-27 23:39 UTC
 
 User mandate: autonomously advance UI/UX redesign **and** the recovered engine
 queue, using parallel GPT-6 Astra/Luna agents; coordinate Machine B and keep
@@ -38,31 +38,36 @@ Machine A as sole main integrator. Do useful work while other tasks wait.
 
 ## Ready / next
 
-**Priority: validate the fixed editing preview.** Rendered-export metadata fix is
-DONE on main `65fa6a33`, exact product `0473a87e` and evidence `79db6cfe`.
-Root verified all four frozen hashes and direct successful exits: 9 focused tests.
-The RED preserves embedded exposure 1.0 instead of neutral 0.0. All baked output
-now strips development XMP while preserving exact custom marks; Original-copy
-and copyright-only controls pass. Existing preview remains unfixed; do not use
-its exported JPEGs as a validated re-edit workflow. B confirmed receipt of the
-prior readiness correction through its existing chat (cursor12).
+**Fixed editing preview available on A.** Source main65fa6a33 with current FFI
+2f241fe7 passed full504XCTest/1skip/0fail plus5SwiftTesting. Actual GUI tinyJPEG
+export/reimport returns Unedited/Exposure+0.00; embedded and adjacent XMP omit
+baked development. Copied16.2MP Sony RAW +0.10EV/5132K persists across relaunch.
+Root checked logs/directexit, source/archive/package hashes, code signatures and
+output metadata/image. No pixel-identity, broad cameras, PSD, large catalog or
+performance acceptance. macOS15 compatibility unverified (dependency warning).
 
-1. **Luna — exclusive compiler/desktop:** rebuild main65fa6a33 in reused clean
-   review-ownership checkout, separate current FFI and betterSSD artifacts, full
-   Swift suite, then actual export/reimport and saved-original editing check.
-   Preserve historical archives/apps. Package a distinct usable editing preview;
-   no fake planner in ordinary launch. No current app acceptance until gates pass.
-2. **Resource Sol — source only:** review the smallest shared-writer/revision
-   contract slice for UX03. Pure draft DONE main4f7813d2, 10focused+8adjacent pass;
-   executor/UI remain blocked on complete revision, writer exclusion, run/revert.
-3. **Engine Sol — source only:** PSD operation99f27d4c fixes two legacy error
-   conversions exposed by the preserved first compilefailure. Native rerun,
-   new independent FFI/bindings and Swift acceptance are held until preview slot
-   release. Never overwrite historical19f archive in export-integration.
-4. **B — resource hold:** no builds/apps/benchmarks/heartbeat restart. Pending
-   typed-error receipts b7294f0e and ccb9e8f1 remain accepted, not completed,
-   because combined PSD validation has not passed. Latest peer source463922c read;
-   mailbox has no new actionable messages. A alone owns main merges.
+User preview is open empty at
+`/Volumes/betterSSD/tessera-validation/editing-export-preview/Tessera-Editing-Preview-65fa6a33.app`
+with separate `~/Library/Application Support/Tessera Editing Preview`, no test
+arguments. Earlier preview remains unfixed historical evidence. Report/manifest
+in the new package parent/evidence; portable Git evidence is being packaged.
+B result45d3595b published; SSHqueue01a0e53c-917e-76c2-b216-56ee3b2c0d3a accepted,
+peer receipt pending. Earlier export-fix update confirmed at peer cursor13.
+
+1. **Engine Sol — exclusive heavy slot:** current-main PSD operation5326f2f
+   native gate running, exact25file freeze. Preserve prior compilefailure and
+   correction99f. Only after native pass build independent FFI/bindings/Swift;
+   never overwrite historical19f archive in export-integration.
+2. **Luna — source/evidence only:** publish portable preview evidence, then hide
+   fresh-Library Load20,000StubItems affordance unless explicit diagnostic mode.
+   Preserve open user preview; validation app is closed. No compiler overlap.
+3. **Resource Sol — waiting RED slot:** UNRUN102bce66 tests for raw complete
+   revision and shared destination gate, only two Engine writer adopters. Uses
+   valid equal render hashes and deterministic contention observer. Batch Apply
+   remains blocked on other writer/lease/run/revert contracts. Pure draft DONE.
+4. **B — resource hold:** no workloads/heartbeat restart. Typed-error results
+   b7294f0e and ccb9e8f1 remain accepted pending actual combined PSD acceptance.
+   A alone merges main; no threshold waivers or missing-evidence passes.
 
 Review persistence DONE main7adc4fa2 (494XCTest/1skip/0fail+5 and tinyGUI).
 PSD primitive DONE mainebe7b043 (66tests/strict); current preview99ba predates it.
