@@ -34,7 +34,7 @@ struct ExtendedAdjustmentEditor: View {
         case .auto(let m): auto(m)
         case .matchColor(let m): matchColor(m)
         case .replaceColor(let c, let fz, let h, let s, let l): replaceColor(c, fz, h, s, l)
-        case .colorLookup(let size, let data): colorLookup(size, data)
+        case .colorLookup(let size, let data, _, _): colorLookup(size, data)
         case .shadowsHighlights(let m): shadowsHighlights(m)
         case .hdrToning(let m): hdrToning(m)
         default: EmptyView()

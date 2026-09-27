@@ -334,7 +334,7 @@ struct StubCompositor: Sendable {
                 let w: Float = radius <= 0 ? (dist <= 1e-7 ? 1 : 0) : min(max(1 - dist / radius, 0), 1)
                 let o = Adjust(.hueSaturation(hue: hue, saturation: sat, lightness: light, colorize: false)).apply(c)
                 return c + w * (o - c)
-            case .colorLookup(let size, let data):
+            case .colorLookup(let size, let data, _, _):
                 guard size >= 2, data.count == 3 * size * size * size else { return c }
                 let n = size, x = simd_clamp(c, .zero, .one) * Float(n - 1)
                 let lo = SIMD3<Int>(min(Int(x.x), n - 2), min(Int(x.y), n - 2), min(Int(x.z), n - 2))
