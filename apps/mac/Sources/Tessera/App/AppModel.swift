@@ -265,6 +265,7 @@ final class AppModel {
         let task: Task<Void, Never>
     }
     @ObservationIgnored private var pendingDevelopCloses: [DevelopCloseKey: PendingDevelopClose] = [:]
+    @ObservationIgnored private var pendingDevelopOpens: [DevelopCloseKey: PendingDevelopClose] = [:]
     @ObservationIgnored private var undoDomain = UndoDomain.cull
     @ObservationIgnored private var pendingReadout: String?
     @ObservationIgnored private var developSelfTestRan = false
@@ -1435,12 +1436,19 @@ final class AppModel {
         developStatus = .loading
         let generation = loadGeneration
         let owner = engineLibrary
-        let pendingClose = owner.flatMap {
-            pendingDevelopCloses[DevelopCloseKey(owner: ObjectIdentifier($0), imageID: ref.imageID)]?.task
-        }
-        developTask = Task { [weak self] in
+        let key = owner.map { DevelopCloseKey(owner: ObjectIdentifier($0), imageID: ref.imageID) }
+        let pendingClose = key.flatMap { pendingDevelopCloses[$0]?.task }
+        let pendingOpen = key.flatMap { pendingDevelopOpens[$0]?.task }
+        let token = UUID()
+        let task = Task { [weak self] in
+            defer {
+                if let key, self?.pendingDevelopOpens[key]?.token == token {
+                    self?.pendingDevelopOpens.removeValue(forKey: key)
+                }
+            }
             do {
-                // A reopened photo must read the recipe after its previous session saves.
+                // Cancelled opens can still produce a controller; await their cleanup as well.
+                await pendingOpen?.value
                 await pendingClose?.value
                 guard !Task.isCancelled else { return }
                 let controller = try await DevelopController.open(ref, itemID: item.id)
@@ -1455,6 +1463,10 @@ final class AppModel {
                       self.focusedItem?.id == item.id else { return }
                 self.developStatus = .unavailable(error.localizedDescription)
             }
+        }
+        developTask = task
+        if let owner, let key {
+            pendingDevelopOpens[key] = PendingDevelopClose(owner: owner, token: token, task: task)
         }
     }
 
@@ -1531,11 +1543,16 @@ final class AppModel {
             closeDevelop()
         }
         let ownerID = ObjectIdentifier(owner)
-        let barriers = pendingDevelopCloses.compactMap { key, close in
+        let closes = pendingDevelopCloses.compactMap { key, close in
             key.owner == ownerID && imageIDs.contains(key.imageID) ? close.task : nil
         }
+        let opens = pendingDevelopOpens.compactMap { key, open in
+            key.owner == ownerID && imageIDs.contains(key.imageID) ? open.task : nil
+        }
+        // Do not cancel another library's currently opening photo.
+        for open in opens { open.cancel() }
         return Task {
-            for barrier in barriers { await barrier.value }
+            for barrier in opens + closes { await barrier.value }
         }
     }
 
