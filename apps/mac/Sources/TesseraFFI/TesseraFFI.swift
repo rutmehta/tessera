@@ -4721,20 +4721,6 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
     func booleanShapePaths(layer: UInt64, operands: [UInt64], operation: ShapePathOperation) throws  -> DocumentUpdate
     
     /**
-     * Drops a pending shape or vector-mask draft with no history change
-     * (Esc). Other pending drags are rebuilt on a fresh scratch.
-     * B5-11 temporary: replace with B5-10 cancel_source_preview.
-     */
-    func cancelShapePreview() throws  -> DocumentUpdate
-    
-    /**
-     * Layer ▸ Rasterize ▸ Shape: pixels at document depth in one node,
-     * keeping id, properties, styles and both masks; undo restores the live
-     * shape. B5-11 temporary: replace with B5-10 convert_to_pixels.
-     */
-    func convertShapeToPixels(layer: UInt64) throws  -> DocumentUpdate
-    
-    /**
      * A Pen / Direct Selection edit of the shape's path in local pixels:
      * one command object or an array of them (`{"op":"move_anchor",
      * "subpath":0,"anchor":2,"x":10,"y":4}`, `set_handle` with `handle`
@@ -6885,35 +6871,6 @@ open func booleanShapePaths(layer: UInt64, operands: [UInt64], operation: ShapeP
         FfiConverterUInt64.lower(layer),
         FfiConverterSequenceUInt64.lower(operands),
         FfiConverterTypeShapePathOperation_lower(operation),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * Drops a pending shape or vector-mask draft with no history change
-     * (Esc). Other pending drags are rebuilt on a fresh scratch.
-     * B5-11 temporary: replace with B5-10 cancel_source_preview.
-     */
-open func cancelShapePreview()throws  -> DocumentUpdate  {
-    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_cancel_shape_preview(
-            self.uniffiCloneHandle(),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * Layer ▸ Rasterize ▸ Shape: pixels at document depth in one node,
-     * keeping id, properties, styles and both masks; undo restores the live
-     * shape. B5-11 temporary: replace with B5-10 convert_to_pixels.
-     */
-open func convertShapeToPixels(layer: UInt64)throws  -> DocumentUpdate  {
-    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_convert_shape_to_pixels(
-            self.uniffiCloneHandle(),
-        FfiConverterUInt64.lower(layer),uniffiCallStatus
     )
 })
 }
@@ -33192,12 +33149,6 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_boolean_shape_paths() != 18956) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_cancel_shape_preview() != 58884) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_convert_shape_to_pixels() != 2733) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_edit_shape_path() != 62412) {

@@ -150,7 +150,7 @@ fn shape_rows_report_shape_kind_not_fill() {
     // Other kinds are refused by the shape reads and conversion helper.
     let pixel = rows[1].id;
     assert!(s.shape_layer(pixel).is_err());
-    assert!(s.convert_shape_to_pixels(pixel).is_err());
+    assert!(s.convert_to_pixels(pixel).is_err());
     // Rendered pixels (fill inside, transparent outside).
     s.wait_idle();
     assert_eq!(px(&s, 30, 20), RED);
@@ -889,7 +889,7 @@ fn drafts_commit_once_and_cancel_leaves_history_unchanged() {
             .unwrap();
     }
     assert_eq!(s.shape_layer(id).unwrap().transform, translate(15., 0.));
-    s.cancel_shape_preview().unwrap();
+    s.cancel_source_preview().unwrap();
     assert_eq!(s.info().unwrap().history_head, head);
     assert_eq!(history(&s), n);
     assert_eq!(s.shape_layer(id).unwrap().transform, IDENTITY);
@@ -901,7 +901,7 @@ fn drafts_commit_once_and_cancel_leaves_history_unchanged() {
     )
     .unwrap();
     assert_eq!(s.shape_layer(id).unwrap().live_kind, None);
-    s.cancel_shape_preview().unwrap();
+    s.cancel_source_preview().unwrap();
     assert_eq!(
         s.shape_layer(id).unwrap().live_kind.as_deref(),
         Some("rectangle")
@@ -922,7 +922,7 @@ fn drafts_commit_once_and_cancel_leaves_history_unchanged() {
         .unwrap()
         .id;
     s.set_opacity(pixel, 0.25, true).unwrap();
-    s.cancel_shape_preview().unwrap();
+    s.cancel_source_preview().unwrap();
     assert_eq!(s.layer(pixel).unwrap().opacity, 0.25);
     s.commit("Opacity".into()).unwrap();
     assert_eq!(history(&s), n + 1);
@@ -1020,7 +1020,7 @@ fn invalid_inputs_and_locks_fail_without_history() {
         )
         .is_err()
     );
-    assert!(s.convert_shape_to_pixels(id).is_err());
+    assert!(s.convert_to_pixels(id).is_err());
     assert!(
         s.set_vector_mask(id, Some(mask_rect(0., 0., 5., 5.)), false)
             .is_err()
@@ -1075,9 +1075,9 @@ fn conversion_to_pixels_is_exact_and_undo_restores_the_source() {
     let before = s.read_level(0).unwrap().2;
     let source = model(&s, id);
     let n = history(&s);
-    s.convert_shape_to_pixels(id).unwrap();
+    s.convert_to_pixels(id).unwrap();
     assert_eq!(history(&s), n + 1);
-    assert_eq!(head_label(&s), "Rasterize Shape");
+    assert_eq!(head_label(&s), "Convert to Pixels");
     let row = s.layer(id).unwrap();
     assert_eq!(row.kind, DocLayerKind::Pixel, "same id, now pixels");
     assert!(row.has_mask);

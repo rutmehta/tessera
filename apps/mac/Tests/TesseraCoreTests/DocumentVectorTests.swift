@@ -359,7 +359,7 @@ final class DocumentVectorTests: XCTestCase {
         // A drag previews; Esc leaves history and source unchanged.
         for x in [5.0, 10, 15] { _ = try v.setShapeLayer(id, source: rect, transform: .translation(x, 0), interactive: true) }
         XCTAssertEqual(try v.shapeLayer(id).transform, .translation(15, 0))
-        _ = try v.cancelShapePreview()
+        _ = try v.cancelSourcePreview()
         XCTAssertEqual(try v.shapeLayer(id).transform, .identity)
         XCTAssertEqual(try doc.historyItems().count, base)
         // The final value is one node; a skewed transform hits through its inverse.
@@ -405,7 +405,7 @@ final class DocumentVectorTests: XCTestCase {
             XCTAssertTrue(e.localizedDescription.contains("closed path"), e.localizedDescription)
         }
         let source = try v.shapeLayer(id).source
-        _ = try v.convertShapeToPixels(id)
+        _ = try v.convertToPixels(id: id)
         XCTAssertEqual(try doc.layer(id: id).kind, .pixel)
         XCTAssertNotNil(try v.vectorMask(id), "masks survive conversion")
         _ = try doc.undo()

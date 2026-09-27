@@ -697,7 +697,11 @@ enum Pending {
 impl Pending {
     /// Drafts of editable live sources: `cancel_source_preview` drops only these.
     fn is_source(self) -> bool {
-        matches!(self, Pending::Text(_))
+        // B5-11: shape and vector-mask drafts are live-source drafts too.
+        matches!(
+            self,
+            Pending::Text(_) | Pending::Shape(_) | Pending::VectorMask(_)
+        )
     }
 }
 

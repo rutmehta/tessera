@@ -5,9 +5,7 @@ import TesseraFFI
 // same name (crates/tessera-ffi/src/document/vector.rs). Models cross as the vector crate's JSON; the
 // transform crosses as `TransformMatrix` (row-major, the same layout as `AffineTransform2D`).
 
-extension AffineTransform2D {
-    init(_ m: TransformMatrix) { self.init(a: m.a, b: m.b, c: m.c, d: m.d, e: m.e, f: m.f) }
-}
+// `AffineTransform2D.init(_: TransformMatrix)` is B5-10's (Text/DocumentTextBackend.swift).
 
 extension VectorMaskInfo {
     init(_ r: VectorMaskRecord) throws {
@@ -89,11 +87,7 @@ extension EngineDocumentBackend: DocumentVectorBackend {
         try change { try session.setVectorMask(layer: layer, mask: mask?.ffi, interactive: interactive) }
     }
 
-    public func cancelShapePreview() throws -> DocumentChange { try change { try session.cancelShapePreview() } }
-
-    public func convertShapeToPixels(_ layer: DocLayerID) throws -> DocumentChange {
-        try change { try session.convertShapeToPixels(layer: layer) }
-    }
+    // `cancelSourcePreview()` and `convertToPixels(id:)` are B5-10's (DocumentTextBackend.swift).
 }
 
 /// The engine's primitive path for a live shape (`shape_primitive_path`), for checks against

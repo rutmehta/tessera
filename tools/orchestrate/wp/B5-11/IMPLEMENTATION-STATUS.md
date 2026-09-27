@@ -47,19 +47,19 @@ open paths (clear error, which the engine would otherwise only hit at render tim
 - Geometry is local level-0 pixels; vector masks and gradient / pattern coordinates are document pixels. The linked
   gesture moves the mask by `new ∘ old⁻¹`.
 
-## Temporary conversion / cancel helper (B5-10 plumbing)
+## Conversion / cancel: B5-10 plumbing (after merging wp/B5-10b, HEAD 70e33dc)
 
-`vector.rs` block `// B5-11 temporary: replace with B5-10 convert_to_pixels …`:
-- `shape_source_edit` mirrors B5-10's `source_edit` (only one gesture owns the scratch; other keys' pending drags
-  commit first; the scratch is rebuilt from the committed base + the complete draft; a failing final call restores
-  the previous draft). Shape ops are absolute, so at merge it becomes `source_edit` with
-  `SourceOps { preview: op.clone(), commit: Some(op) }`.
-- `cancel_shape_preview()` drops only `Pending::Shape` / `Pending::VectorMask` drafts and rebuilds other pending drags.
-  At merge: add both keys to B5-10's `Pending::is_source` and delegate to `cancel_source_preview`.
-- `convert_shape_to_pixels(layer)` = `DocOp::ConvertToPixels`, label "Rasterize Shape", shape layers only. At merge:
-  delegate to B5-10's `convert_to_pixels`.
-- `document.rs` edits are all in `// B5-11` blocks: module / re-exports, `DocLayerKind::Shape`, the `kind_of` arm and
-  the two `Pending` keys.
+The temporary helpers are gone. `shape_source_edit` in vector.rs is a thin wrapper over B5-10's `source_edit`
+(`SourceOps { preview: op.clone(), commit: Some(op) }`, shape ops being absolute) that adds the node's history label
+after a final call. `Pending::Shape` / `Pending::VectorMask` are in `Pending::is_source`, so B5-10's
+`cancel_source_preview` drops shape and mask drafts (and only live-source drafts). Conversion is B5-10's
+`convert_to_pixels` (history "Convert to Pixels"). Swift: `DocumentVectorBackend` requires B5-10's
+`cancelSourcePreview()` / `convertToPixels(id:)`, implemented once in `DocumentTextBackend.swift`; the duplicate
+`AffineTransform2D` CG / TransformMatrix conversions the merge produced were removed from the vector files in favour of
+B5-10's (identical layout). vector.rs constructs no compositor, so there is nothing to route through
+`fonts::compositor` / `fonts::install` (conversion's own renderer is engine-owned, see B5-10b's NEEDS).
+`document.rs` B5-11 edits: module / re-exports, `DocLayerKind::Shape`, the `kind_of` arm, the two `Pending` keys and
+their `is_source` arm.
 
 ## Mac
 
@@ -73,27 +73,30 @@ DocumentTools, ToolsPalette, ToolOverlayView, PropertiesPanel, LayersOutline, Do
 Vector Mask, Combine Shapes, Rasterize Shape), KeyRouter (doc comment), DocumentKeyMap, EditorTools, the two
 backend kind mappings. ⌘T on a shape layer switches to Path Selection's affine box.
 
-## Tests
+## Tests (after the merge, HEAD 70e33dc + this commit)
 
 - Rust `crates/tessera-ffi/tests/document_vector_ui.rs`: **17** named cases —
-  `test result: ok. 17 passed; 0 failed; 0 ignored` (plus 1 unit test in `vector.rs`).
+  `test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out` (plus 1 unit test in `vector.rs`).
 - Swift `DocumentVectorTests`: **16** cases — `Executed 16 tests, with 0 failures (0 unexpected)`.
-- Gate (worktree, with the local build fix below): `git diff --check` 0; `cargo test --locked --release -p vector -p
-  compositor -p psd -p tessera-ffi` 0 (87 test binaries, 514 passed, 0 failed, 18 ignored); clippy `-D warnings` 0;
-  `cargo fmt --check` 0; `build-ffi.sh` 0 (regenerated bindings identical to the committed ones); `swift build` 0;
-  `swift test`: `Executed 263 tests, with 0 failures (0 unexpected)` and `Test run with 5 tests in 2 suites passed`;
-  xcodebuild `** BUILD SUCCEEDED **`; `make-app.sh debug` 0; `codesign --verify --deep --strict` 0.
-- `--vector-selftest` (evidence/vector-selftest.log): 67 checks ok, `done, 0 failure(s)`, 27 own-window captures.
+- Gate: `git diff --check` 0; `cargo test --locked --release -p vector -p compositor -p psd -p tessera-ffi` 0
+  (90 test binaries, 554 passed, 0 failed, 20 ignored); clippy `-D warnings` 0; `cargo fmt --check` 0;
+  `build-ffi.sh` 0; `swift build` 0; `swift test`: `Executed 311 tests, with 0 failures (0 unexpected)` and
+  `✔ Test run with 5 tests in 2 suites passed`; xcodebuild `** BUILD SUCCEEDED **`; `make-app.sh debug` 0;
+  `codesign --verify --deep --strict` 0.
+- `--vector-selftest` (evidence/vector-selftest.log): 71 checks ok, `done, 0 failure(s)`, 27 own-window captures;
+  step 379 now adds B5-07 Drop Shadow + Stroke to a shape (two nodes, still a live Shape, styles kept through Convert to
+  Pixels, undo restores the styled shape): `vector-27-379-inspector-1440-styles.png`.
 
 ## Measured drag latency (20 MP, 5472 × 3648, 8-bit, Metal M4 Max, fit view, debug build)
 
 Latency = synthesized pointer event → first presented frame whose epoch includes that preview.
-- Fill-only ellipse, Path Selection handle drag (60 events at 60 Hz): 51 previews → 50 frames; **median 517 ms,
-  p90 581 ms, max 860 ms**. Engine preview calls ≈ 0.3 ms (150–180 ms when waiting for a render in progress); frame
-  `render_ms` 190–350 ms (CPU rasterization + conservative full-canvas damage).
-- Dashed 18 px Inside-stroked custom shape: **≈ 5.5 s** per preview frame (one preview per drag; `render_ms` 5.4 s).
-- The host overlay (box, path, anchors) is drawn from host geometry at pointer rate; pixels lag as above. Engine
-  costs are NEEDS.md item 3. No GPU curve rendering is claimed.
+- Before the merge: fill-only ellipse handle drag **median 517 ms, p90 581 ms, max 860 ms** (51 previews → 50 frames);
+  dashed Inside-stroked custom shape ≈ 5.5 s per frame.
+- After the merge (this commit): fill-only **median 541 ms, p90 591 ms, max 975 ms** (52 previews → 34 frames);
+  dashed stroked shape ≈ 13.3 s for its single preview frame (the document then renders on the CPU compositor because
+  B5-07 styles on the document require it, per the engine's log line).
+- Engine preview calls ≈ 0.3 ms; the cost is frame rendering (CPU rasterization, full-canvas damage). The host overlay
+  follows the pointer; pixels lag (NEEDS.md 3).
 
 ## Limitations
 
@@ -117,9 +120,9 @@ Latency = synthesized pointer event → first presented frame whose epoch includ
 - `apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift` (not in the allow-list): one line adds `.shape` to
   the list of FFI kinds; `testEnumsRoundTripEveryValue` asserts that list covers every `LayerKindTag`, so the mandated
   new case would otherwise fail it.
-- Local base lacks origin/main `bc9c925` (Swift 6.2.4 `ambiguous use of 'cos'` in `Export/ExportWatermarkViews.swift`).
-  All Swift gates above ran with that one-line upstream change applied in the working tree only; it is NOT committed
-  here (outside the allow-list; main already has it).
+- The Swift 6.2.4 watermark fix is in the merged base; nothing was applied by hand.
 - ACCEPTANCE section titled per the coordinator's correction (no section letter).
-- B5-07 styles (step 379) are not in this base; to verify after integration.
+- Evidence caveat: `vector-26-378-psd-reopened.png` shows the session saved as `VectorSelfTest.psd` (opening a path a
+  session already saved to returns that session); the PSD round trip itself is verified through a separate engine
+  (`.psd: shapes reopen as Shape rows`, `rectangle source and mask intact`).
 - `tools/orchestrate/wp/B5-11/run-vector-selftest.sh` added (evidence runner).

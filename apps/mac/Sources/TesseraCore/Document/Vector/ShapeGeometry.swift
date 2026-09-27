@@ -14,15 +14,9 @@ import Foundation
 ///   `(a·x + b·y + c, d·x + e·y + f)`;
 /// * `CGAffineTransform(a, b, c, d, tx, ty)`: `(a·x + c·y + tx, b·x + d·y + ty)`;
 /// * `kurbo::Affine([a, b, c, d, e, f])`: `(a·x + c·y + e, b·x + d·y + f)`.
+/// (`cgAffineTransform`, `init(_: CGAffineTransform)` and `isFiniteAndInvertible` are B5-10's, in
+/// Text/TextSourceModel.swift; this file adds the kurbo layout.)
 extension AffineTransform2D {
-    public var cgAffineTransform: CGAffineTransform {
-        CGAffineTransform(a: CGFloat(a), b: CGFloat(d), c: CGFloat(b), d: CGFloat(e), tx: CGFloat(c), ty: CGFloat(f))
-    }
-
-    public init(_ t: CGAffineTransform) {
-        self.init(a: Double(t.a), b: Double(t.c), c: Double(t.tx), d: Double(t.b), e: Double(t.d), f: Double(t.ty))
-    }
-
     /// `kurbo::Affine` coefficients (the vector crate's own layout).
     public var kurboCoefficients: [Double] { [a, d, b, e, c, f] }
 
@@ -43,7 +37,6 @@ extension AffineTransform2D {
     }
     /// Rotation of the x axis in degrees (clockwise on the y-down canvas).
     public var rotationDegrees: Double { atan2(d, a) * 180 / .pi }
-    public var isFiniteAndInvertible: Bool { [a, b, c, d, e, f].allSatisfy(\.isFinite) && inverse != nil }
 }
 
 // MARK: - Primitive paths

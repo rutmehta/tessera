@@ -9,7 +9,7 @@ import TesseraCore
 /// History: a shape drag, Pen path, anchor / handle drag or affine handle drag is ONE node. While the
 /// pointer moves, edits go to the engine as interactive drafts (coalesced: one call in flight, the
 /// newest waiting); mouse-up sends the final value, which records the net edit. Esc during a drag
-/// cancels the draft (`cancelShapePreview`) with no history change. Overlays are drawn from the
+/// cancels the draft (`cancelSourcePreview`) with no history change. Overlays are drawn from the
 /// host's own copy of the geometry, so they track the pointer without waiting for the engine.
 @MainActor @Observable
 final class DocumentVector {
@@ -204,7 +204,7 @@ final class DocumentVector {
         draft = nil
         affine = affine.map { FreeTransformModel(bounds: $0.bounds) }
         livePath = nil
-        send(doc, final: true, label: "Cancel") { try b.cancelShapePreview() }
+        send(doc, final: true, label: "Cancel") { try b.cancelSourcePreview() }
         say("Cancelled: the shape and history are unchanged")
         redraw()
     }
@@ -334,7 +334,7 @@ final class DocumentVector {
             let to = from + (inv.apply(ShapePoint(v.canvasPoint(e))) - grab)
             let id = i.layer
             if to == from {
-                send(doc, final: true, label: "Select Anchor") { try b.cancelShapePreview() }
+                send(doc, final: true, label: "Select Anchor") { try b.cancelSourcePreview() }
             } else {
                 send(doc, final: true, label: "Move Anchor Point") { try b.editShapePath(id, commands: [.moveAnchor(r, to: to)], interactive: false) }
             }
@@ -495,7 +495,7 @@ final class DocumentVector {
     private func pushAffine(_ doc: DocumentController, final: Bool, start: TimeInterval?) {
         guard let b = backend(doc), let id = affineLayer, let i = info, i.layer == id, let t = affine else { return }
         if final, t.isIdentity {
-            send(doc, final: true, label: "Transform") { try b.cancelShapePreview() }
+            send(doc, final: true, label: "Transform") { try b.cancelSourcePreview() }
             return
         }
         let m = t.matrix.concatenating(after: affineBase)
@@ -572,7 +572,7 @@ final class DocumentVector {
     /// Layer ▸ Rasterize ▸ Shape (one node; undo restores the live shape).
     func convertToPixels() {
         guard let doc = document, let p = doc.primary, p.kind == .shape, let b = backend(doc) else { return }
-        send(doc, final: true, label: "Rasterize Shape") { try b.convertShapeToPixels(p.id) }
+        send(doc, final: true, label: "Rasterize Shape") { try b.convertToPixels(id: p.id) }
     }
 
     // MARK: Keys

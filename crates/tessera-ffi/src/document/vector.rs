@@ -17,7 +17,7 @@
 //! One successful call is one history node. With `interactive: true` the
 //! call previews on the session scratch (rebuilt from the committed document
 //! plus the complete draft) and records nothing; the next final call of the
-//! same layer records the net edit once, and [`cancel_shape_preview`] drops
+//! same layer records the net edit once, and [`cancel_source_preview`] drops
 //! it with no history change. Commands of [`edit_shape_path`] are absolute
 //! (move an anchor TO a point) and are evaluated against the committed base,
 //! so replaying a drag never compounds. Arbitrary path edits and booleans
@@ -32,7 +32,7 @@
 //! masks, opacity or rendered alpha; that would be visible-alpha hit testing,
 //! which this is not.
 //!
-//! [`cancel_shape_preview`]: DocumentSession::cancel_shape_preview
+//! [`cancel_source_preview`]: DocumentSession::cancel_source_preview
 //! [`edit_shape_path`]: DocumentSession::edit_shape_path
 //! [`shape_hit_test`]: DocumentSession::shape_hit_test
 
@@ -554,125 +554,48 @@ fn apply_command(path: &mut VPath, c: PathCommand) -> Result<&'static str> {
     })
 }
 
-// ─────────────────── B5-11 temporary: source-draft lifecycle ───────────────────
-// B5-11 temporary: replace with B5-10 convert_to_pixels / source_edit /
-// cancel_source_preview. At merge, `shape_source_edit` becomes B5-10's
-// `source_edit` (with `SourceOps { preview: op.clone(), commit: Some(op) }`,
-// shape ops being absolute), `Pending::Shape` / `Pending::VectorMask` join
-// `Pending::is_source`, and the two exported helpers below delegate to
-// `cancel_source_preview` / `convert_to_pixels`.
+// ─────────────────── source-draft lifecycle (B5-10 plumbing) ───────────────────
 
 impl DocumentSession {
-    /// A shape / mask draft under `key` (B5-10 `source_edit` semantics).
-    /// Only one gesture owns the scratch: pending edits of other keys are
-    /// committed first as their own node. `make` sees the COMMITTED base and
-    /// returns the complete op (or `None`: the draft equals the base).
+    /// A shape / mask draft under `key` through B5-10's shared `source_edit`
+    /// (one gesture owns the scratch; the scratch is rebuilt from the
+    /// committed base plus the complete draft; `cancel_source_preview` drops
+    /// it). `make` sees the committed base and returns the complete absolute
+    /// op with its history label, or `None` when the draft equals the base.
+    /// The final call labels the one node it records.
     fn shape_source_edit(
         &self,
         key: Pending,
         interactive: bool,
         make: impl FnOnce(&DocState) -> Result<Option<(DocOp, String)>>,
     ) -> Result<DocumentUpdate> {
-        let mut st = self.shared.lock()?;
-        st.open()?;
-        let before = st.live().state().clone();
-        if st.pending.iter().any(|(k, _)| *k != key) {
-            st.pending.retain(|(k, _)| *k != key);
-            self.commit_pending(&mut st, None)?;
-        }
-        let made = make(st.doc.state())?;
-        let had = st.pending.iter().any(|(k, _)| *k == key);
-        if interactive {
-            let Some((op, _)) = made else {
-                if had {
-                    st.pending.retain(|(k, _)| *k != key);
-                    st.scratch = None;
+        let mut label = None;
+        let head = self.shared.lock()?.doc.history().current();
+        let update = self.source_edit(key, interactive, |s| {
+            let made = make(s)?;
+            Ok(match made {
+                Some((op, l)) => {
+                    label = Some(l);
+                    SourceOps {
+                        preview: op.clone(),
+                        commit: Some(op),
+                    }
                 }
-                return Ok(self.update(&mut st, &before, None, false));
-            };
-            let mut scratch = st.doc.clone();
-            scratch.set_max_states(2);
-            let applied = scratch.apply(op.clone())?;
-            st.scratch = Some(scratch);
-            st.pending.retain(|(k, _)| *k != key);
-            st.pending.push((key, op));
-            return Ok(self.update(&mut st, &before, Some(&applied), false));
-        }
-        let saved_scratch = st.scratch.take();
-        let saved_pending = std::mem::take(&mut st.pending);
-        let Some((op, label)) = made else {
-            return Ok(self.update(&mut st, &before, None, had));
-        };
-        match st.doc.apply(op) {
-            Ok(applied) => {
-                st.labels.insert(applied.node, label);
-                Ok(self.update(&mut st, &before, Some(&applied), true))
-            }
-            Err(e) => {
-                st.scratch = saved_scratch;
-                st.pending = saved_pending;
-                Err(e.into())
-            }
-        }
-    }
-}
-
-fn is_shape_draft(k: &Pending) -> bool {
-    matches!(k, Pending::Shape(_) | Pending::VectorMask(_))
-}
-
-#[uniffi::export]
-impl DocumentSession {
-    /// Drops a pending shape or vector-mask draft with no history change
-    /// (Esc). Other pending drags are rebuilt on a fresh scratch.
-    /// B5-11 temporary: replace with B5-10 cancel_source_preview.
-    pub fn cancel_shape_preview(&self) -> Result<DocumentUpdate> {
-        let mut st = self.shared.lock()?;
-        st.open()?;
-        let before = st.live().state().clone();
-        if !st.pending.iter().any(|(k, _)| is_shape_draft(k)) {
-            return Ok(DocumentUpdate {
-                layers_changed: Vec::new(),
-                created: Vec::new(),
-                history_head: st.doc.history().current(),
-                dirty_rect: None,
-                epoch: st.epoch,
-                dirty: st.dirty(),
-            });
-        }
-        st.pending.retain(|k| !is_shape_draft(&k.0));
-        st.scratch = None;
-        if !st.pending.is_empty() {
-            let mut scratch = st.doc.clone();
-            scratch.set_max_states(2);
-            let mut kept = Vec::new();
-            for (k, op) in std::mem::take(&mut st.pending) {
-                if scratch.apply(op.clone()).is_ok() {
-                    kept.push((k, op));
-                }
-            }
-            st.pending = kept;
-            st.scratch = Some(scratch);
-        }
-        Ok(self.update(&mut st, &before, None, false))
-    }
-
-    /// Layer ▸ Rasterize ▸ Shape: pixels at document depth in one node,
-    /// keeping id, properties, styles and both masks; undo restores the live
-    /// shape. B5-11 temporary: replace with B5-10 convert_to_pixels.
-    pub fn convert_shape_to_pixels(&self, layer: u64) -> Result<DocumentUpdate> {
+                None => SourceOps {
+                    preview: DocOp::Batch(Vec::new()),
+                    commit: None,
+                },
+            })
+        })?;
+        if !interactive
+            && update.history_head != head
+            && let Some(l) = label
         {
-            let st = self.shared.lock()?;
-            let l = find(st.live().state(), layer)?;
-            shape_of(l)?;
+            self.shared.lock()?.labels.insert(update.history_head, l);
         }
-        self.edit(
-            DocOp::ConvertToPixels { id: LayerId(layer) },
-            Some("Rasterize Shape"),
-        )
+        Ok(update)
     }
 }
-// ─────────────────── B5-11 temporary end ───────────────────
 
 #[uniffi::export]
 impl DocumentSession {

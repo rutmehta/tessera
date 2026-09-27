@@ -592,15 +592,35 @@ final class VectorSelfTest {
             await mark("378-psd-reopened", d2)
         }
 
-        // 379. 1440-pt inspector; the Remove tool (B5-09) still works; B5-07 styles are not in this base.
+        // 379. 1440-pt inspector; B5-07 layer styles on a shape (kept through Convert to Pixels and its undo);
+        // the Remove tool (B5-09) still works.
         if let d = ws.current {
             let w = d.viewport?.window?.frame.width ?? 0
             check("window is 1440 pt wide", abs(w - 1440) < 1, "\(w)")
             DocumentRetouch.shared.activate()
             check("Remove tool still selectable", DocumentRetouch.shared.removeActive)
             DocumentRetouch.shared.deactivate()
-            if let s = d.layers.first(where: { $0.kind == .shape }) { d.select(s.id) }
-            await mark("379-inspector-1440", d)
+            tools.select(.pathSelect)
+            if let s = d.layers.first(where: { $0.kind == .shape && $0.name.hasPrefix("Star") })
+                ?? d.layers.first(where: { $0.kind == .shape }) {
+                d.select(s.id)
+                let styles = DocumentStyles.shared
+                let n = d.history.count
+                styles.addEffect(d, s.id, .dropShadow)
+                styles.addEffect(d, s.id, .stroke)
+                let effects = styles.model(d, s.id)?.effects.map(\.kind) ?? []
+                check("B5-07 styles on a shape: two nodes", d.history.count == n + 2 && Set(effects) == [.dropShadow, .stroke],
+                      "\(effects) \(d.history.map(\.label).suffix(3))")
+                check("styled layer is still a live shape", d.node(s.id)?.kind == .shape && vector.info(for: d, layer: s.id) != nil)
+                await mark("379-inspector-1440-styles", d)
+                vector.convertToPixels()
+                await vector.idle()
+                check("Convert to Pixels keeps the styles", d.node(s.id)?.kind == .pixel && styles.model(d, s.id)?.effects.count == 2,
+                      "\(String(describing: d.node(s.id)?.kind))")
+                d.undo()
+                vector.invalidate()
+                check("undo restores the styled live shape", d.node(s.id)?.kind == .shape && styles.model(d, s.id)?.effects.count == 2)
+            }
         }
         finish()
     }

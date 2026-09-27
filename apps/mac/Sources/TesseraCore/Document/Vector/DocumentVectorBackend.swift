@@ -3,7 +3,7 @@ import Foundation
 // Live shapes, Pen / Direct Selection and vector masks (WP B5-11): the protocol document backends
 // adopt. It mirrors crates/tessera-ffi/src/document/vector.rs. Every mutation returns a
 // `DocumentChange`; `interactive` edits preview only and the next final call of the same layer records
-// the net edit as one history node; `cancelShapePreview` (Esc) drops a draft with no history change.
+// the net edit as one history node; B5-10's shared `cancelSourcePreview` (Esc) drops a draft with no history change.
 
 /// A shape layer's document-space vector mask (FFI `VectorMaskRecord`).
 public struct VectorMaskInfo: Equatable, Sendable {
@@ -82,6 +82,8 @@ public protocol DocumentVectorBackend: AnyObject, Sendable {
     func transformShapeWithMask(_ layer: DocLayerID, transform: AffineTransform2D, interactive: Bool) throws -> DocumentChange
     func booleanShapes(_ layer: DocLayerID, operands: [DocLayerID], operation: ShapeOperation) throws -> DocumentChange
     func setVectorMask(_ layer: DocLayerID, mask: VectorMaskInfo?, interactive: Bool) throws -> DocumentChange
-    func cancelShapePreview() throws -> DocumentChange
-    func convertShapeToPixels(_ layer: DocLayerID) throws -> DocumentChange
+    /// B5-10's shared live-source cancellation (text, shape and vector-mask drafts).
+    func cancelSourcePreview() throws -> DocumentChange
+    /// B5-10's shared Convert to Pixels (text and shape layers; undo restores the live source).
+    func convertToPixels(id: DocLayerID) throws -> DocumentChange
 }

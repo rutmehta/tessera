@@ -1979,15 +1979,17 @@ captures are in `tools/orchestrate/wp/B5-11/evidence/`. Known gaps: tools/orches
      changes. Lock position only: moving fails (`position is locked`), recolouring works. Select the line and choose
      Align ▸ Outside: `Inside and Outside alignment need a closed path; …`.
 377. **Convert.** Layer ▸ Rasterize Shape (or Properties ▸ Convert to Pixels) on the masked shape: the row becomes a
-     pixel layer with both masks still applied once (appearance unchanged); ⌘Z restores the live shape exactly.
+     pixel layer with both masks still applied once (appearance unchanged), history row **Convert to Pixels** (B5-10's
+     shared conversion); ⌘Z restores the live shape exactly.
 378. **Reopen.** Save As `.tessera-doc` and `.psd` into a scratch folder, close, reopen each: every shape is a Shape row
      with its live controls (rectangle radii, star, line, custom paths, dashes) and its vector mask. Properties ▸
      Interchange states that in a PSD the extra vector mask is a raster user mask plus Tessera's private tvMk record
      (other apps see the combined raster mask). A shape with an imported pattern fill shows the warning that PSD save
      does not support pattern shape fills, and Save As `.psd` fails with that reason (native save works).
 379. **Inspector and neighbours.** At 1440 pt window width 📸 the shape Properties (Shape, Fill, Stroke, Vector Mask,
-     Interchange) scroll inside the Properties pane; the Remove tool (⇧J) still activates and deactivates. B5-07 layer
-     styles are not in this base (verify after integration).
+     Interchange) scroll inside the Properties pane; the Remove tool (⇧J) still activates and deactivates. Add B5-07
+     layer styles (Drop Shadow, Stroke) to a shape: two history rows, the row shows FX and its effects, the layer stays
+     a live Shape; Convert to Pixels keeps the styles and ⌘Z restores the styled live shape.
 
 ## Verdict (B5-11 shapes, Pen and vector masks)
 
