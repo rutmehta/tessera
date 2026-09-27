@@ -1,0 +1,29 @@
+2026-09-27 06:56:07.039 Tessera[17987:23523179] Sparkle updates not configured for this build
+background-run: no scene window; hosting the shell in window 18253
+tools-selftest: document 5212 × 3468 px, 16-bit, Metal (Apple M4 Max)
+tools-selftest: step 1 edit-in-layers window 0 429 960 652
+tools-selftest: brush stroke: 361 dabs; engine stroke_points n 181, median 1.84 ms, p90 2.42 ms, max 8.22 ms; frame render n 169, median 2.22 ms, p90 3.83 ms, max 81.23 ms
+tools-selftest: check brush stroke is one history row ok
+tools-selftest: check stroke visible ok
+tools-selftest: check dab frames under 16 ms (median) ok
+tools-selftest: step 2 brush-stroke window 0 429 960 652
+tools-selftest: check undo removes the stroke ok
+tools-selftest: step 3 brush-undo window 0 429 960 652
+tools-selftest: check eraser row ok
+tools-selftest: check erased to transparency ok
+tools-selftest: step 4 eraser window 0 429 960 652
+tools-selftest: check wand selection ok
+tools-selftest: check wand outline ok
+tools-selftest: wand: selection 2240 × 1325, outline 691 loops, 4049 points
+tools-selftest: step 5 wand window 0 429 960 652
+tools-selftest: check subject selection ok
+tools-selftest: subject: Select Subject → 3884 × 3030 (16.07 s)
+tools-selftest: step 6 subject window 0 429 960 652
+tools-selftest: check transform began ok
+tools-selftest: step 7 transform-preview window 0 429 960 652
+tools-selftest: check transform committed ok
+tools-selftest: step 8 transform-commit window 0 429 960 652
+tools-selftest: check save PSD ok
+tools-selftest: check PSD reopens with the layers ok
+tools-selftest: step 9 psd-reopen window 0 429 960 652
+tools-selftest: done, 0 failure(s)

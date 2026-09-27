@@ -2,10 +2,15 @@ import SwiftUI
 import TesseraCore
 
 /// History panel: the document's states (the current one highlighted, click = checkout), the
-/// snapshots with New Snapshot and restore, and the memory the states hold.
+/// snapshots with New Snapshot and restore, and the memory the states hold. B5-16 (H2): states and
+/// snapshots share one scroller that takes the pane's height; New Snapshot and the memory line stay
+/// below it.
 struct DocumentHistoryPanel: View {
     let document: DocumentController
     let workspace: DocumentWorkspace
+
+    /// Two rows of the scroller plus the New Snapshot row.
+    static let minimumHeight: CGFloat = Theme.Height.row * 2 + Theme.Height.large + Theme.Space.xs
 
     var body: some View {
         let items = document.history
@@ -21,26 +26,29 @@ struct DocumentHistoryPanel: View {
                                 dimmed: !onPath.contains(item.id), index: i + 1) { document.checkout(item.id) }
                                 .id(item.id)
                         }
+                        SubHeader("Snapshots")
+                        if document.snapshots.isEmpty {
+                            Hint("None yet")
+                        }
+                        ForEach(Array(document.snapshots.enumerated()), id: \.element) { i, snap in
+                            HStack(spacing: Theme.Space.s) {
+                                Image(systemName: "camera").font(Theme.Fonts.iconSmall).foregroundStyle(Theme.textTertiary)
+                                Text(snap).font(Theme.Fonts.caption).foregroundStyle(Theme.textPrimary)
+                                    .lineLimit(1).truncationMode(.middle).help(snap)
+                                Spacer(minLength: 0)
+                                Button("Restore") { document.restoreSnapshot(snap) }
+                                    .buttonStyle(.theme(.borderless, height: Theme.Height.small))
+                                    .accessibilityIdentifier("document.history.snapshot.\(i).restore")
+                            }
+                            .frame(height: Theme.Height.row)
+                            .accessibilityIdentifier("document.history.snapshot.\(i)")
+                        }
                     }
+                    .padding(.bottom, Theme.Space.xs)
                 }
-                .frame(height: Theme.Height.row * 6)
+                .scrollIndicators(.automatic)
+                .frame(minHeight: Theme.Height.row * 2, maxHeight: .infinity)
                 .onChange(of: document.info.historyHead) { _, head in if head != 0 { proxy.scrollTo(head) } }
-            }
-            SubHeader("Snapshots")
-            if document.snapshots.isEmpty {
-                Hint("None yet")
-            }
-            ForEach(Array(document.snapshots.enumerated()), id: \.element) { i, snap in
-                HStack(spacing: Theme.Space.s) {
-                    Image(systemName: "camera").font(Theme.Fonts.iconSmall).foregroundStyle(Theme.textTertiary)
-                    Text(snap).font(Theme.Fonts.caption).foregroundStyle(Theme.textPrimary).lineLimit(1)
-                    Spacer(minLength: 0)
-                    Button("Restore") { document.restoreSnapshot(snap) }
-                        .buttonStyle(.theme(.borderless, height: Theme.Height.small))
-                        .accessibilityIdentifier("document.history.snapshot.\(i).restore")
-                }
-                .frame(height: Theme.Height.row)
-                .accessibilityIdentifier("document.history.snapshot.\(i)")
             }
             HStack(spacing: Theme.Space.s) {
                 Button("New Snapshot…") { workspace.promptSnapshot() }
@@ -48,9 +56,12 @@ struct DocumentHistoryPanel: View {
                     .accessibilityIdentifier("document.history.newSnapshot")
                 Spacer(minLength: 0)
                 Text(memoryText).font(Theme.Fonts.captionNumeric).foregroundStyle(Theme.textTertiary)
+                    .lineLimit(1)
                     .accessibilityIdentifier("document.history.memory")
             }
-            .padding(.top, Theme.Space.s)
+            .frame(height: Theme.Height.large)
+            .padding(.bottom, Theme.Space.xs)
+            .inspectorProbe("historyFooter")
         }
     }
 

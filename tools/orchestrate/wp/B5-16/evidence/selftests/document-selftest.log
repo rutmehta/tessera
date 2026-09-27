@@ -1,0 +1,41 @@
+2026-09-27 06:55:23.487 Tessera[16990:23517494] Sparkle updates not configured for this build
+background-run: no scene window; hosting the shell in window 18241
+document-selftest: edit in layers: 5.25 s to first frame
+document-selftest: check engine backend ok
+document-selftest: check one pixel layer ok
+document-selftest: check source image ok
+document-selftest: document 5212 × 3468 px, 16-bit, Metal (Apple M4 Max), title sample
+document-selftest: check first frame ok
+document-selftest: step 1 edit-in-layers window 0 429 960 652 window-id 18241
+document-selftest: check B5-16 ⌃2 shows Properties ok
+document-selftest: step 2 inspector-properties window 0 429 960 652 window-id 18241
+document-selftest: check B5-16 ⌃3 shows Channels ok
+document-selftest: step 3 inspector-channels window 0 429 960 652 window-id 18241
+document-selftest: check B5-16 ⌃1 shows Stack ok
+document-selftest: step 4 inspector-stack window 0 429 960 652 window-id 18241
+document-selftest: check adjustment layer added ok
+document-selftest: exposure drag: frames 21, render median 1.38 ms, p90 1.47 ms, max 12.53 ms
+document-selftest: check exposure committed as one row ok
+document-selftest: step 5 adjustment window 0 429 960 652 window-id 18241
+document-selftest: opacity drag: frames 61, render median 1.02 ms, p90 1.13 ms, max 7.76 ms, levels [2], viewport L2 1303 × 867
+document-selftest: opacity drag: main-thread call frames 61, median 1.03 ms, p90 1.13 ms, max 1.29 ms
+document-selftest: check opacity 40 % ok
+document-selftest: check one history row for the drag ok
+document-selftest: check opacity frame median < 16 ms ok
+document-selftest: step 6 opacity-drag window 0 429 960 652 window-id 18241
+document-selftest: check undo restores opacity ok
+document-selftest: step 7 undo window 0 429 960 652 window-id 18241
+document-selftest: check save .tessera-doc ok
+document-selftest: step 8 saved window 0 429 960 652 window-id 18241
+document-selftest: check reopen layers ok
+document-selftest: check reopen adjustment ok
+document-selftest: check reopen title ok
+document-selftest: step 9 reopened window 0 429 960 652 window-id 18241
+document-selftest: check export flat PNG ok
+document-selftest: step 10 exported window 0 429 960 652 window-id 18241
+document-selftest: check save as PSD ok
+document-selftest: check PSD layers ok
+document-selftest: check PSD adjustment kind ok
+document-selftest: step 11 psd-open window 0 429 960 652 window-id 18241
+document-selftest: call cost (ms, median of 10): setOpacity(interactive) 0.06, layers 0.05, info 0.02, historyItems 0.01, snapshots 0.00, historyMemoryBytes 0.02, layerThumbnail(after a property change) 0.03, reloadModel 0.13, reloadHistory 0.06
+document-selftest: done, 0 failure(s)

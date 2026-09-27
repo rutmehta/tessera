@@ -25,10 +25,12 @@ struct ChannelsPanel: View {
                 }
             }
             .scrollIndicators(.automatic)
-            .frame(height: rowHeight * CGFloat(min(rows.count, 8)))
+            // B5-16 (H3): the Channels tab gives the list the column's height (at least four rows).
+            .frame(minHeight: rowHeight * CGFloat(min(rows.count, 4)), maxHeight: .infinity, alignment: .top)
             .accessibilityIdentifier("document.channels.list")
             Hairline()
             footer
+                .inspectorProbe("channelsFooter")
         }
         .task(id: RefreshKey(doc: document.id, epoch: document.info.epoch, head: document.info.historyHead)) {
             channels.reload(document)

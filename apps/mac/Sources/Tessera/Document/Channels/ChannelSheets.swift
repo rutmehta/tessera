@@ -111,6 +111,7 @@ struct SaveSelectionChannelSheet: View {
                 }
             }
             .padding(Theme.Space.l)
+            .documentSheetBody()
         } leading: {
             EmptyView()
         } actions: {
@@ -118,7 +119,7 @@ struct SaveSelectionChannelSheet: View {
                 channels.saveSelection(form)
             }
         }
-        .frame(width: Theme.Width.inspectorMax + Theme.Space.xxl, height: Theme.Width.sidebarMax)
+        .documentSheetFrame(width: Theme.Width.inspectorMax + Theme.Space.xxl, height: Theme.Width.sidebarMax)
         .onAppear {
             form.name = ChannelsPanelModel.nextName("Alpha", existing: channels.records)
         }
@@ -154,12 +155,13 @@ struct LoadSelectionChannelSheet: View {
                 }
             }
             .padding(Theme.Space.l)
+            .documentSheetBody()
         } leading: {
             EmptyView()
         } actions: {
             footerButtons(disabled: form.request == nil, dismiss: dismiss) { channels.loadSelection(form) }
         }
-        .frame(width: Theme.Width.inspectorMax + Theme.Space.xxl, height: Theme.Width.sidebarMax)
+        .documentSheetFrame(width: Theme.Width.inspectorMax + Theme.Space.xxl, height: Theme.Width.sidebarMax)
         .onAppear {
             form = LoadSelectionForm(channel: channels.selectedChannel ?? channels.records.first?.id,
                                      hasSelection: channels.document?.marquee != nil)
@@ -245,6 +247,7 @@ struct ChannelOptionsSheet: View {
                 }
             }
             .padding(Theme.Space.l)
+            .documentSheetBody()
         } leading: {
             EmptyView()
         } actions: {
@@ -253,7 +256,7 @@ struct ChannelOptionsSheet: View {
                                       indicatesSelected: indicatesSelected)
             }
         }
-        .frame(width: Theme.Width.inspectorMax + Theme.Space.xxl, height: Theme.Width.sidebarMax)
+        .documentSheetFrame(width: Theme.Width.inspectorMax + Theme.Space.xxl, height: Theme.Width.sidebarMax)
         .onAppear {
             guard let doc = channels.document, let r = channels.records.first(where: { $0.id == id }) else { return }
             name = r.name
@@ -303,6 +306,7 @@ struct NewSpotChannelSheet: View {
                 SpotNote()
             }
             .padding(Theme.Space.l)
+            .documentSheetBody()
         } leading: {
             EmptyView()
         } actions: {
@@ -311,7 +315,7 @@ struct NewSpotChannelSheet: View {
                                  fromSelection: fromSelection && hasSelection)
             }
         }
-        .frame(width: Theme.Width.inspectorMax + Theme.Space.xxl, height: Theme.Width.sidebarMax)
+        .documentSheetFrame(width: Theme.Width.inspectorMax + Theme.Space.xxl, height: Theme.Width.sidebarMax)
         .onAppear {
             name = ChannelsPanelModel.nextName("Spot Color", existing: channels.records)
             fromSelection = hasSelection

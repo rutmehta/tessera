@@ -214,7 +214,7 @@ final class DocumentStyles {
                 GlobalLightPanel(styles: self)
             }
         }
-        lightWindow?.makeKeyAndOrderFront(nil)
+        present(lightWindow)
     }
 
     func closeInspector() {
@@ -237,7 +237,19 @@ final class DocumentStyles {
                 LayerStyleInspector(styles: self)
             }
         }
-        inspectorWindow?.makeKeyAndOrderFront(nil)
+        present(inspectorWindow)
+    }
+
+    /// B5-16: a background run (`--nonactivating`) orders the panel in behind everything instead of
+    /// making it key (a non-activating panel would otherwise take the keyboard from the app in front).
+    private func present(_ panel: NSPanel?) {
+        guard let panel else { return }
+        if BackgroundRun.active {
+            panel.hidesOnDeactivate = false
+            panel.orderBack(nil)
+        } else {
+            panel.makeKeyAndOrderFront(nil)
+        }
     }
 
     private func panel<V: View>(title: String, size: NSSize, identifier: String, @ViewBuilder _ root: () -> V) -> NSPanel {

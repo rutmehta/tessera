@@ -212,6 +212,7 @@ final class TextSelfTest {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         for p in ["Properties", "History", "Channels", "Color", "Brushes"] { UserDefaults.standard.set(true, forKey: "InspectorPanel." + p) }
         workspace.app?.showInspector = true
+        workspace.inspectorTab = .properties   // B5-16: Character / Paragraph live in the Properties sub-tab
         await setWindowWidth(1440)
         await pause(1.5)
         let W = Double(doc.info.width), H = Double(doc.info.height)

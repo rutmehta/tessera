@@ -1098,8 +1098,9 @@ Hue/Saturation 1), rendered on the CPU. Part 1 runs on the stub; part 2 repeats 
 131. 📸 Expect: the toolbar's view control on **Layers**, a tab `Untitled-1` (`document.tabs.0`) in the toolbar, the window
      subtitle `6 layers`; the viewport (`document.viewport`) shows a dusk landscape inside an ellipse on warm paper, a
      checkerboard in the transparent margin around the paper, and the canvas surround beyond it; the zoom chip
-     (`document.zoomHUD`) briefly shows the fit zoom. The inspector shows **Properties** (`Grade`, `Group · Pass
-     Through`), **Layers** and **History** (`Opened`, highlighted; `0 states · Zero KB`). The Layers outline lists, top to
+     (`document.zoomHUD`) briefly shows the fit zoom. The inspector (B5-16) shows the sub-tabs **Stack · Properties ·
+     Channels** with Stack chosen, and **History** below (`Opened`, highlighted; `0 states · Zero KB`); ⌃2 shows
+     **Properties** (`Grade`, `Group · Pass Through`), ⌃1 returns to Stack. The Layers outline (Stack) lists, top to
      bottom: `Grade` (folder glyph, expanded) with `Hue/Saturation 1` and `Curves 1` indented, `Vignette` with the clipping
      glyph and a drop glyph, `Landscape` with a link glyph and a white ellipse mask thumbnail, `Paper` with a lock glyph.
      The status bar reads `2400 × 1600 px · 8-bit · sRGB IEC61966-2.1 | <zoom> | Move (V)`.
@@ -1358,6 +1359,7 @@ PASS when steps 151–160 meet their expectations and the brush frames' median r
 | `document.layers.add` · `document.layers.addMask` · `document.layers.addAdjustment` · `document.layers.group` · `document.layers.delete` | Layers footer |
 | `document.properties` · `document.properties.name` · `.kind` · `.bounds` · `.groupMode` · `.channel` · `.levels.*` · `.curves.editor` · `.curves.reset` · `.hueSaturation.*` · `.exposure.*` · `.posterize.levels` · `.threshold.level` · `.channelMixer.*` · `.fill.*` · `.editContents` | Properties panel |
 | `document.history` · `document.history.row.<index>` (0 = Opened) · `document.history.snapshot.<n>` · `document.history.snapshot.<n>.restore` · `document.history.newSnapshot` · `document.history.memory` | History panel |
+| `document.inspector.tabs` · `document.inspector.stack` · `document.properties` · `document.channels` · `document.inspector.shortcut.{stack,properties,channels}` · `document.history.toggle` · `document.history.resize` · `document.tabs.overflow` | Inspector sub-tabs, their contents, ⌃1–⌃3, History header and resize handle, tab overflow (B5-16) |
 | `document.new.*` · `document.export.*` · `document.empty.new` · `document.empty.open` · `document.status.*` | Sheets, empty state, status bar |
 | `document.tools` · `document.tool.<tool>` · `document.colors` · `document.optionsBar` · `document.option.*` · `document.transform.commit` · `document.colorPanel` · `document.color.{foreground,background}` · `document.brushes` · `document.brushes.import` · `document.brush.*` · `document.status.stroke` | Tools palette, options bar, Color and Brushes (B5-04) |
 | `document.filter.<id>.<key>` (e.g. `document.filter.gaussian_blur.radius`, `.dial` for angles) · `document.filter.<id>.detail` · `.preview` · `.reset` · `.cancel` · `.ok` | Filter dialogs (B5-05) |
@@ -1444,7 +1446,8 @@ the remaining engine gaps (Refine brushes, Constrain Crop) as known limitations,
 ## Y. Persistent alpha and spot channels (B5-08)
 
 Engine backend (not `--stub-library`), a scratch copy of `fixtures/raw/sample.dng` in `$SCR/shoot`, opened with
-Library ▸ Edit in Layers (⌘E). Open the inspector's **Channels** section (between Layers and History).
+Library ▸ Edit in Layers (⌘E). Choose the inspector's **Channels** sub-tab (⌃3; B5-16, formerly a section between
+Layers and History).
 
 168. **Panel.** Channels lists RGB, Red, Green, Blue (read-only: lock glyph, thumbnails from the composite) and nothing
      else for a new document. Hiding RGB turns the canvas to the ink backdrop; hiding only Green shows the composite
@@ -1491,7 +1494,7 @@ colour / opacity and channel visibility are session preferences, not saved.
 
 | Identifier | Element |
 | --- | --- |
-| `document.channels` · `document.channels.list` | Channels section, its row list |
+| `document.channels` · `document.channels.list` | Channels sub-tab (B5-16), its row list |
 | `document.channels.rgb` · `document.channels.component.{0,1,2}` · `document.channels.channel.<id>` | Rows (`….eye`, `….swatch`, `….rename`) |
 | `document.channels.load` · `document.channels.save` · `document.channels.quickMask` · `document.channels.add` · `document.channels.delete` | Footer |
 | `document.channels.save.{channel,name,operation}` · `document.channels.load.{channel,invert,operation}` | Save / Load Selection sheets |
@@ -1880,11 +1883,13 @@ PASS when steps 300–314 meet their expectations. Frame times on styled documen
 Engine backend (not `--stub-library`), a 20 MP scratch image (`sips -s format png fixtures/raw/sample.dng --out
 src.png && sips -z 3648 5472 src.png --out photo20mp.png`, a copy, never the fixture) opened with
 `apps/mac/build/Tessera.app --app-dir "$SCR/appdir" --open-document "$SCR/photo20mp.png"`. Inspector shown, the
-Properties, Layers, Channels and History sections expanded. Fonts are the installed system fonts (Helvetica).
+History expanded; the Properties sub-tab chosen unless a step names another (B5-16). Fonts are the installed system
+fonts (Helvetica).
 
 340. **Inspector at 1440 pt.** Window 1440 × 850 pt (also 1280, 1366, 1512): the sidebar's left edge and the
-     inspector's right edge are inside the window; Properties (Name field, Character), Layers (Opacity and Fill values,
-     filter field), Channels (lock glyphs) and History rows are fully visible or reachable by scrolling Properties.
+     inspector's right edge are inside the window; Properties (Name field, Character; scrolling the Properties
+     sub-tab), Stack (⌃1: Opacity and Fill values, filter field), Channels (⌃3: lock glyphs) and History rows are fully
+     visible or reachable by scrolling their own tab or pane.
      No right edge is clipped. The inspector column keeps its 288 pt minimum; the canvas shrinks instead.
 341. **Point text.** Press T (or click the palette's Aa): the options bar shows the font, size, alignment and the hint.
      Click the canvas: a caret appears with its baseline at the click; type `Hello World`; Enter (keypad) or ⌘Return
@@ -2032,7 +2037,7 @@ captures are in `tools/orchestrate/wp/B5-11/evidence/`. Known gaps: tools/orches
      (other apps see the combined raster mask). A shape with an imported pattern fill shows the warning that PSD save
      does not support pattern shape fills, and Save As `.psd` fails with that reason (native save works).
 379. **Inspector and neighbours.** At 1440 pt window width 📸 the shape Properties (Shape, Fill, Stroke, Vector Mask,
-     Interchange) scroll inside the Properties pane; the Remove tool (⇧J) still activates and deactivates. Add B5-07
+     Interchange) scroll inside the Properties sub-tab; the Remove tool (⇧J) still activates and deactivates. Add B5-07
      layer styles (Drop Shadow, Stroke) to a shape: two history rows, the row shows FX and its effects, the layer stays
      a live Shape; Convert to Pixels keeps the styles and ⌘Z restores the styled live shape.
 
@@ -2072,3 +2077,62 @@ recorded, not failures of the host.
 | `document.shape.stroke.kind` · `stroke.color` · `stroke.width` · `stroke.alignment` · `stroke.cap` · `stroke.join` · `stroke.miter` · `stroke.dashes` · `stroke.dashOffset` | Stroke |
 | `document.shape.mask.add` · `mask.enabled` · `mask.density` · `mask.feather` · `mask.linked` · `mask.delete` | Vector mask |
 | `document.option.fillColor` · `document.option.strokeColor` · `document.option.width` · `document.option.radius` · `document.option.sides` · `document.option.weight` | Options bar |
+
+## B5-16. Document inspector layout
+
+Engine or stub backend, one document open (`--new-document`; the stub adds sample layers), inspector shown. Run each
+step at 960 × 600, 1280 × 800, 1440 × 900 and 1728 × 1117 (window content size) unless it names one; check light and
+dark once. Scripted in `ShellLayoutTests` (`testDocumentInspectorEveryTabAndHistoryStateAtEverySize`,
+`testManyDocumentTabsStayCapped`, `testInspectorTabShortcuts`) and the document self-test's `B5-16 ⌃n` checks; evidence
+in `tools/orchestrate/wp/B5-16/evidence/`.
+
+420. **Tabs.** 📸 The inspector's top row is a segmented control **Stack · Properties · Channels** (`document.inspector.tabs`),
+     neutral (the chosen segment raised, no accent), below the toolbar at every size. Nothing else sits above it.
+421. **Stack.** Stack shows the blend mode pop-up, Opacity and Fill (each on its own row at the default 288–296 pt
+     inspector; side by side when the inspector is wide enough for a 300 pt interior), Lock with four icons and the
+     dimmed Filter field, the outline and the footer (add, mask, adjustment, FX; group, delete). The footer is whole
+     at 960 × 600 with History open.
+422. **Outline scrolls.** Add 12 adjustment layers: the outline scrolls; the controls above and the footer stay put.
+423. **Properties.** Click **Properties** (or ⌃2): the selected layer's Name, Kind, Bounds and editor, then Color (and
+     Brushes with a painting tool) scroll inside the tab. A Curves layer's editor and Reset are reachable at 960 × 600.
+424. **Channels.** Click **Channels** (or ⌃3): RGB, Red, Green, Blue (and saved channels) fill the tab; the footer
+     (load, save, Quick Mask, new, delete) is whole at the tab's bottom.
+425. **Shortcuts.** ⌃1 / ⌃2 / ⌃3 switch the tabs from the canvas, the Layers list or a Properties slider; the chosen
+     tab is remembered after a relaunch. Letters still choose tools; ⌘ shortcuts are unchanged.
+426. **History open.** History sits under every tab: its 32 pt header (`document.history.toggle`), the states and
+     snapshots in one scroller, New Snapshot… and the memory line (`12 states · 48 KB`) at its bottom, whole.
+427. **History resize.** Drag the hairline above the History header (row-resize pointer) up and down: History grows
+     until the tab content reaches its minimum (Stack still shows its controls, four outline rows and its footer) and
+     shrinks to about two rows plus New Snapshot. Double-click the hairline: the default height returns. The height
+     is remembered.
+428. **History collapsed.** Click the History header: the pane closes to its header at the column's bottom and the tab
+     content takes the height; click again to open it.
+429. **Many snapshots.** Make six snapshots: they scroll with the states; New Snapshot… stays visible; Restore works.
+430. **No clipping.** 📸 At 960 × 600 with each tab and History open and closed, nothing in the inspector is cut off at
+     its bottom edge, no header draws over another (the old "Color / Layers" and "FX / Channels" overlaps are gone),
+     and no control is under the toolbar.
+431. **Status bar.** Narrow the window to 960 pt with a selection and Debug ▸ Show Render Timing on: the status bar
+     switches to its compact row (canvas size, zoom, tool name, selection size, message, `n open`); the full strings
+     are in the help tags. It never widens the window.
+432. **Tabs cap.** Open eight documents. At 1280 pt and wider the toolbar shows three tabs (always the current one)
+     and a `+5` pull-down listing the others (choosing one makes it current and a tab); below 1280 pt one tab and `+7`.
+     The strip never drops into the toolbar's overflow chevron.
+433. **Close slot.** Hover an unselected tab: its close glyph appears in place; the title does not move.
+434. **Zoom chip.** Zoom (⌘=, ⌘−): the percentage chip appears at the bottom of the canvas for about a second; the
+     canvas and the tools palette do not move when it appears or fades.
+435. **Tools palette.** At 960 × 600 with a progress strip showing (e.g. an export running) the palette's top tool
+     (Move) is below the toolbar and the swatches are reachable by scrolling the palette (no indicator shown).
+436. **Filter sheet.** Filter ▸ Blur ▸ Gaussian Blur…: header and Preview / Reset / Cancel / OK stay fixed; the sheet
+     is at least its former 560 × 300 and the body scrolls if its controls or an error outgrow it. The same holds
+     for Neural Filters (the list and the detail scroll separately), Image ▸ Adjustments, Blending Options, Select
+     and Mask, Color Range, Modify Selection, Fill, the Channels sheets and New / Export Flat / Save As.
+437. **Accessibility.** VoiceOver reads the tab control as "Inspector" with three buttons, the History header as
+     "History, expanded/collapsed", and the existing `document.*` identifiers (appendix B5-02) are unchanged.
+438. **Light appearance.** Repeat 420 and 430 in light: same structure, no new colours.
+439. **Self-tests.** `--document-selftest`, `--tools-selftest`, `--filter-selftest`, `--retouch-selftest=`,
+     `--styles-selftest`, `--vector-selftest=`, `TESSERA_CHANNELS_SELFTEST` and `TESSERA_TEXT_SELFTEST` each end with
+     `done, 0 failure(s)` when launched in the background (`open -g -n … --nonactivating`).
+
+## Verdict (B5-16 document inspector layout)
+
+PASS when steps 420–439 meet their expectations at the four sizes.

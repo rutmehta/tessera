@@ -376,19 +376,38 @@ Layered documents reuse the system above; nothing here adds a colour, size or fo
   navigation area holds the **document tabs**: a `well` track with a hairline like
   `SegmentedPicker`; the current tab is raised with the 1 pt shadow, 11 pt title (medium when
   current), a 6 pt `textSecondary` dot for unsaved changes, and an `xmark` close glyph on the
-  current or hovered tab; a `+` opens New Document.
+  current or hovered tab; a `+` opens New Document. B5-16: at most three tabs (one in a compact
+  toolbar, below 1280 pt), always including the current document; the rest are in a `+n` pull-down
+  (11 pt tabular, a small chevron, `textSecondary`) before the `+`. The strip is not `fixedSize()`:
+  titles truncate in the middle when the toolbar gives it less. The close glyph on an unselected,
+  unhovered tab is `opacity(0)`, not removed: this is the one documented exception to "rows remove
+  optional parts" (§3.5), so the title does not shift sideways when the pointer enters the tab.
 * **Viewport**: the `canvas` surround; the transparency checkerboard alternates `checkerLight`
   (`thumb`) and `checkerDark` (`plotText`), aliases of existing tokens, in 8 pt squares, light
   in both appearances as in every image editor. The marquee's marching ants are the on-image
   pair (`OnImage.text` under `OnImage.ink` dashes, 4 / 4, 30 fps). Tools (Move, Rectangular
   Marquee) sit in a top-left HUD bar of 28 pt `IconButton`s; the zoom percentage appears in a
-  HUD chip at the bottom for 1.2 s after each zoom change.
-* **Inspector**: Properties (a `PanelSection` in its own scroll view), Layers (fixed 32 pt
-  header, then the panel), History (`PanelSection`). The Layers panel: blend mode as a 20 pt
-  `ThemeMenuStyle` pop-up (the 27 modes in Photoshop's six groups with dividers, Pass Through
-  first for groups), Opacity and Fill `ValueSlider`s side by side, 20 pt lock `IconButton`s
-  (on = accent glyph over `accentSubtle`), a dimmed filter field placeholder; the outline;
-  a 28 pt footer of icon buttons (add, mask, adjustment left; group, delete right).
+  HUD chip at the bottom for 1.2 s after each zoom change (B5-16: an overlay of the viewport, taking
+  no layout height).
+* **Inspector** (B5-16, replacing the stacked Properties / Layers / Channels / History column): a 32 pt
+  header row holding a 20 pt `SegmentedPicker` with the sub-tabs **Stack · Properties · Channels**
+  (⌃1 / ⌃2 / ⌃3), a hairline, the tab's content, then **History** as a collapsible pane at the bottom.
+  Stack is the Layers panel (its outline scrolls; controls above and footer below stay); Properties is
+  the selected layer's editor at the 12 pt gutter, a hairline, then the Color and Brushes
+  `PanelSection`s, in one scroll view; Channels is the Channels panel with its list taking the height.
+  History: a 32 pt header like `PanelSection`'s (12 pt semibold, a turning chevron; its open state is
+  the old `InspectorPanel.History` key), and when open a body whose height the person sets by dragging
+  the hairline above the header (row-resize pointer; double-click restores 168 pt); states and
+  snapshots share one scroller, New Snapshot and the memory line stay under it. **Budget**: tab bar 32
+  + hairlines 2 + the Stack tab's minimum 290 + History header 32 + History body minimum 80 = 436 pt,
+  inside the 548 pt column of a 960 × 600 window; the History body never takes the tab content below
+  its minimum (`DocumentInspectorBudget`). No new colour, size or font. The Layers panel: blend mode
+  as a 20 pt `ThemeMenuStyle` pop-up (the 27 modes in Photoshop's six groups with dividers, Pass
+  Through first for groups), Opacity and Fill `ValueSlider`s side by side when the panel's interior
+  is at least 300 pt wide, else one per row, 20 pt lock `IconButton`s (on = accent glyph over
+  `accentSubtle`), a dimmed filter field placeholder (48–96 pt; an icon pull-down when even 48 pt
+  does not fit); the outline; a 28 pt footer of icon buttons (add, mask, adjustment left; group,
+  delete right).
 * **Layer rows** (`NSOutlineView`, 32 pt, 12 pt indentation per level): eye (secondary; slashed
   and tertiary when hidden, the name tertiary too), the clipping glyph for clipped layers,
   24 pt thumbnail on the checkerboard at radius 4 with a `hairlineStrong` outline (adjustment
@@ -399,16 +418,23 @@ Layered documents reuse the system above; nothing here adds a colour, size or fo
   states in tertiary ink; snapshots below with borderless Restore; the memory line in tertiary
   tabular type.
 * **Status bar** in document mode: canvas size · depth · profile | zoom | tool | selection size,
-  then the message.
+  then the message. B5-16: a compact row when the full one does not fit (§3.5): canvas size only,
+  the tool without its key, the selection as `W × H`, no stroke or render readouts (full strings in
+  help); the message has ideal width 0.
 * **Tools (WP B5-04)**: the tools palette is a vertical HUD column of 28 pt `IconButton`s at the canvas's top left, one
   slot per tool group in Photoshop's order, then the foreground / background swatches (user colours, radius 4,
-  `hairlineStrong` outline) with swap and default. The options bar is a HUD bar beside it (scrolls sideways when
+  `hairlineStrong` outline) with swap and default. B5-16: when the canvas is shorter than the column, the column
+  scrolls vertically inside the HUD (indicators hidden) instead of running under the toolbar or the status bar. The options bar is a HUD bar beside it (scrolls sideways when
   narrow): the tool's icon and name, then compact small native fields with 11 pt captions, checkboxes, the neutral
   selection-mode `SegmentedPicker` (icons) and borderless actions. On-canvas feedback uses only the on-image set:
   marching ants (`OnImage.text` under `OnImage.ink` 4 / 4 dashes), brush outline and guides in `OnImage.guide` over
   `OnImage.shadow`, hardness ring and symmetry guides in `OnImage.guideFaint`, square transform handles in
   `OnImage.text` with `OnImage.ink`, and the HUD readout as a scrim chip. Select and Mask previews tint outside the
   selection with `OnImage.reject` at 50 % (Overlay), `OnImage.ink` (On Black) or `OnImage.text` (On White).
+* **Document sheets** (B5-16, audit L4): every document sheet keeps its header and footer fixed and scrolls its body
+  (`documentSheetBody()`, or the grouped `Form`'s own scroller); its former fixed height is now its minimum and
+  ideal height (`documentSheetFrame(width:height:)`), so extra schema controls, notes or errors never push the
+  footer's actions out.
 * **Filter dialogs** (WP B5-05) are `SheetScaffold` sheets: the filter name as title, the layer as
   subtitle; content is a 180 pt 1:1 detail pane on `plotWell` (radius 4, a `1:1` chip in the
   on-image pair) left of the controls generated from the filter's schema: `ValueSlider` rows for
@@ -421,7 +447,8 @@ Layered documents reuse the system above; nothing here adds a colour, size or fo
   eye (tertiary when off, name tertiary too), a 20 pt mask thumbnail on the checkerboard, 11 pt
   name (with mode and opacity when not Normal 100 %), and a blending-options glyph; double-click
   re-opens the filter dialog. They are not selectable as layers.
-* **Channels (WP B5-08)** is a collapsible `PanelSection` between Layers and History. Rows are 32 pt like layer rows:
+* **Channels (WP B5-08)** is the inspector's Channels sub-tab (B5-16; it was a collapsible `PanelSection` between
+  Layers and History). Rows are 32 pt like layer rows:
   eye (secondary; slashed and tertiary when hidden), a 24 pt thumbnail at radius 4 with a `hairlineStrong` outline
   (grey planes; the RGB row shows the composite), 12 pt name (double-click renames in place), and on the right a
   tertiary lock glyph on the read-only RGB / Red / Green / Blue rows or, on spot rows, a 12 pt ink swatch (the user's

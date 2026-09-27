@@ -1,5 +1,6 @@
 import AppKit
 import ImageIO
+import SwiftUI
 import TesseraCore
 
 /// `--document-selftest <dir>` (test aid, WP B5-03): ACCEPTANCE §U part 2 through the same controller
@@ -10,6 +11,37 @@ import TesseraCore
 /// step prints `document-selftest: step <n> <name> window <x> <y> <w> <h>` (screen points, top-left
 /// origin, for `screencapture -R`) and holds `hold` seconds; checks print `check <name> ok|FAIL`; the
 /// opacity drag prints the listener's frame timing. Quits at the end.
+/// B5-16: a `--nonactivating` run (the Mac is in use) never floats or fronts a window; its steps are
+/// captured with `screencapture -x -o -l <window>` instead.
+enum BackgroundRun {
+    static let active = ProcessInfo.processInfo.arguments.contains("--nonactivating")
+
+    @MainActor private static var hostWindow: NSWindow?
+
+    /// A background run whose SwiftUI `Window` scene did not open a window (seen while another
+    /// instance of the app was running) hosts the shell in its own window, ordered to the back and
+    /// never made key, so the document self-tests still have a viewport. Checked 5 s after launch.
+    @MainActor static func ensureWindow(_ model: AppModel) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+            MainActor.assumeIsolated {
+                guard hostWindow == nil,
+                      !NSApp.windows.contains(where: { !($0 is NSPanel) && $0.isVisible && $0.contentViewController != nil })
+                else { return }
+                let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1440, height: 900),
+                                 styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+                                 backing: .buffered, defer: false)
+                w.isReleasedWhenClosed = false
+                w.toolbarStyle = .unified
+                w.title = "Tessera"
+                w.contentViewController = NSHostingController(rootView: ContentView.root(model: model))
+                w.orderBack(nil)
+                hostWindow = w
+                FileHandle.standardError.write(Data("background-run: no scene window; hosting the shell in window \(w.windowNumber)\n".utf8))
+            }
+        }
+    }
+}
+
 @MainActor
 final class DocumentSelfTest {
     private let model: AppModel
@@ -49,12 +81,16 @@ final class DocumentSelfTest {
         await pause(0.8)
         var frame = ""
         if let w = model.mainWindow, let screen = NSScreen.screens.first {
-            // Above other apps' windows while the test runs, so `screencapture -R` sees only Tessera.
-            w.level = .floating
-            w.orderFrontRegardless()
+            // Above other apps' windows while the test runs, so `screencapture -R` sees only Tessera
+            // (not in a background run: B5-16).
+            if !BackgroundRun.active {
+                w.level = .floating
+                w.orderFrontRegardless()
+            }
             await pause(0.3)
             let f = w.frame
             frame = String(format: " window %.0f %.0f %.0f %.0f", f.minX, screen.frame.height - f.maxY, f.width, f.height)
+                + " window-id \(w.windowNumber)"
         }
         log("step \(step) \(name)\(frame)")
         await pause(hold)
@@ -88,7 +124,13 @@ final class DocumentSelfTest {
         guard await wait(120, { ws.current != nil && ws.opening == nil }), let doc = ws.current else {
             log("FAIL Edit in Layers opened nothing: \(model.statusMessage ?? "")"); return finish()
         }
-        _ = await wait(10) { doc.lastFrame != nil }
+        // B5-16: in a background run the viewport attaches when SwiftUI next updates the (unraised) window.
+        let attached = await wait(180) { doc.viewport != nil }
+        if !attached {
+            log("viewport not attached: mode \(model.viewMode) window \(model.mainWindow != nil) "
+                + "windows \(NSApp.windows.map { "\(type(of: $0)) \($0.isVisible)" })")
+        }
+        _ = await wait(20) { doc.lastFrame != nil }
         log(String(format: "edit in layers: %.2f s to first frame", Date().timeIntervalSince(t0)))
         check("engine backend", doc.backend is EngineDocumentBackend, "\(type(of: doc.backend))")
         check("one pixel layer", doc.layers.count == 1 && doc.layers.first?.kind == .pixel, "\(doc.layers.map(\.name))")
@@ -96,6 +138,28 @@ final class DocumentSelfTest {
         log("document \(doc.info.width) × \(doc.info.height) px, \(doc.info.depth.title), \(doc.info.backend), title \(doc.title)")
         check("first frame", doc.lastFrame != nil)
         await mark("edit-in-layers")
+
+        // B5-16: the inspector's sub-tabs switch with ⌃1 / ⌃2 / ⌃3 (the window's key equivalents), and
+        // History collapses and expands.
+        model.showInspector = true
+        await pause(0.3)
+        if let w = doc.viewport?.window {
+            let codes: [Character: UInt16] = ["1": 18, "2": 19, "3": 20]
+            for tab in [DocumentInspectorTab.properties, .channels, .stack] {
+                let c = String(tab.shortcutDigit)
+                if let e = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .control,
+                                            timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: w.windowNumber,
+                                            context: nil, characters: c, charactersIgnoringModifiers: c, isARepeat: false,
+                                            keyCode: codes[tab.shortcutDigit] ?? 0) {
+                    _ = w.performKeyEquivalent(with: e)
+                }
+                _ = await wait(2) { ws.inspectorTab == tab }
+                check("B5-16 ⌃\(c) shows \(tab.title)", ws.inspectorTab == tab, ws.inspectorTab.title)
+                await mark("inspector-\(tab.rawValue)")
+            }
+        } else {
+            check("B5-16 document window", false)
+        }
 
         guard let photo = doc.layers.first(where: { $0.kind == .pixel })?.id else { return finish() }
 

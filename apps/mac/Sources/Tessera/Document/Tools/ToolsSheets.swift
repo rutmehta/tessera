@@ -76,6 +76,7 @@ struct RefineEdgeSheet: View {
                 }
             }
             .padding(Theme.Space.l)
+            .documentSheetBody()
         } leading: {
             Text("Output: Selection")
         } actions: {
@@ -86,7 +87,7 @@ struct RefineEdgeSheet: View {
                 .buttonStyle(.theme(.primary, height: Theme.Height.large))
                 .keyboardShortcut(.defaultAction)
         }
-        .frame(width: Theme.Width.inspectorMax + Theme.Space.xxl, height: Theme.Width.inspectorMax + Theme.Space.xxl * 3)
+        .documentSheetFrame(width: Theme.Width.inspectorMax + Theme.Space.xxl, height: Theme.Width.inspectorMax + Theme.Space.xxl * 3)
         .onAppear { tools.refine = RefineEdgeSettings(); tools.refinePreview = .overlay }
         .onDisappear { if !applied { tools.refineFinish(apply: false) } }
     }
@@ -107,6 +108,7 @@ struct ColorRangeSheet: View {
                 Hint("Pick the colour with the Eyedropper (I) first; it becomes the foreground colour.")
             }
             .padding(Theme.Space.l)
+            .documentSheetBody()
         } leading: {
             EmptyView()
         } actions: {
@@ -114,7 +116,7 @@ struct ColorRangeSheet: View {
             Button("OK") { tools.colorRange(tools.colors.foreground, fuzziness: Float(fuzziness)); dismiss() }
                 .buttonStyle(.theme(.primary, height: Theme.Height.large)).keyboardShortcut(.defaultAction)
         }
-        .frame(width: Theme.Width.inspectorMax, height: Theme.Width.sidebarIdeal)
+        .documentSheetFrame(width: Theme.Width.inspectorMax, height: Theme.Width.sidebarIdeal)
     }
 }
 
@@ -132,6 +134,7 @@ struct ModifySelectionSheet: View {
                             : kind == .expand ? "Expand By" : "Contract By",
                         value: $amount, range: 0...500, unit: "pixels", fractionDigits: 1)
                 .padding(Theme.Space.l)
+            .documentSheetBody()
         } leading: {
             EmptyView()
         } actions: {
@@ -139,7 +142,7 @@ struct ModifySelectionSheet: View {
             Button("OK") { tools.modify(kind, px: Float(amount)); dismiss() }
                 .buttonStyle(.theme(.primary, height: Theme.Height.large)).keyboardShortcut(.defaultAction)
         }
-        .frame(width: Theme.Width.inspectorMax, height: Theme.Height.filmstrip * 2 + Theme.Space.xl)
+        .documentSheetFrame(width: Theme.Width.inspectorMax, height: Theme.Height.filmstrip * 2 + Theme.Space.xl)
     }
 }
 
@@ -161,6 +164,7 @@ struct FillSheet: View {
                 OptionField(title: "Opacity", value: $opacity, range: 0...100, unit: "%")
             }
             .padding(Theme.Space.l)
+            .documentSheetBody()
         } leading: {
             EmptyView()
         } actions: {
@@ -173,6 +177,6 @@ struct FillSheet: View {
             }
             .buttonStyle(.theme(.primary, height: Theme.Height.large)).keyboardShortcut(.defaultAction)
         }
-        .frame(width: Theme.Width.inspectorMax, height: Theme.Width.sidebarIdeal)
+        .documentSheetFrame(width: Theme.Width.inspectorMax, height: Theme.Width.sidebarIdeal)
     }
 }

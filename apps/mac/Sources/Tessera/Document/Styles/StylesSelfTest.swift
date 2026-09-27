@@ -66,13 +66,13 @@ final class StylesSelfTest {
         await pause(0.8)
         var frame = ""
         if let main = model.mainWindow {
-            main.orderFrontRegardless()
+            if !BackgroundRun.active { main.orderFrontRegardless() }   // B5-16
             frame = " window " + rect(main)
         }
         let panels = NSApp.windows.filter { $0 is NSPanel && $0.isVisible }
         let panel = panels.first { $0.title == "Global Light" } ?? panels.first { $0.title == "Layer Style" }
         if let panel {
-            panel.orderFrontRegardless()
+            if !BackgroundRun.active { panel.orderFrontRegardless() }
             frame += " panel " + rect(panel)
         }
         await pause(0.3)

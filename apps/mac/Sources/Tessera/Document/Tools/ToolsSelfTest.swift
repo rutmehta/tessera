@@ -46,8 +46,10 @@ final class ToolsSelfTest {
         await pause(0.8)
         var frame = ""
         if let w = model.mainWindow, let screen = NSScreen.screens.first {
-            w.level = .floating
-            w.orderFrontRegardless()
+            if !BackgroundRun.active {   // B5-16: never float or front a background run
+                w.level = .floating
+                w.orderFrontRegardless()
+            }
             await pause(0.3)
             let f = w.frame
             frame = String(format: " window %.0f %.0f %.0f %.0f", f.minX, screen.frame.height - f.maxY, f.width, f.height)

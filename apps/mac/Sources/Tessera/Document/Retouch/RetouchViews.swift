@@ -189,13 +189,16 @@ struct NeuralFiltersSheet: View {
         SheetScaffold(title: model.title, subtitle: model.subtitle) {
             EmptyView()
         } content: {
+            // B5-16 (H12): the list and the detail scroll on their own; header and footer stay.
             HStack(alignment: .top, spacing: 0) {
-                list
+                ScrollView(.vertical) { list }
+                    .scrollIndicators(.automatic)
                     .frame(width: 220)
                 Hairline(vertical: true)
                 detail
                     .padding(Theme.Space.l)
-                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                    .documentSheetBody()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
         } leading: {
             if model.busy {
@@ -224,7 +227,7 @@ struct NeuralFiltersSheet: View {
                           || phase.isDownloading || { if case .downloadsOff = phase { true } else { false } }())
                 .accessibilityIdentifier("document.neural.apply")
         }
-        .frame(width: 680, height: 460)
+        .documentSheetFrame(width: 680, height: 460)
     }
 
     private var list: some View {

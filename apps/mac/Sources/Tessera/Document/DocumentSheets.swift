@@ -2,6 +2,24 @@ import AppKit
 import SwiftUI
 import TesseraCore
 
+// B5-16 (H12, layout audit L4): document sheets keep their header and footer outside a scrolling
+// body, and take their old height as a minimum (and ideal) instead of a fixed height.
+extension View {
+    /// The sheet's envelope: a fixed width, `height` as the minimum height and `ideal` (default:
+    /// `height`) as the height it opens at.
+    func documentSheetFrame(width: CGFloat, height: CGFloat, ideal: CGFloat? = nil) -> some View {
+        frame(width: width).frame(minHeight: height, idealHeight: max(height, ideal ?? height), maxHeight: .infinity)
+    }
+
+    /// A sheet body that scrolls when its controls, notes or errors outgrow the sheet.
+    func documentSheetBody() -> some View {
+        ScrollView(.vertical) {
+            frame(maxWidth: .infinity, alignment: .topLeading)
+        }
+        .scrollIndicators(.automatic)
+    }
+}
+
 /// File ▸ New Document…: size, depth and colour profile.
 struct NewDocumentSheet: View {
     @Bindable var workspace: DocumentWorkspace
@@ -54,7 +72,7 @@ struct NewDocumentSheet: View {
             .disabled(!settings.isValid)
             .accessibilityIdentifier("document.new.create")
         }
-        .frame(width: 460, height: 400)
+        .documentSheetFrame(width: 460, height: 400)   // the grouped Form scrolls
         .onAppear { settings = workspace.newSettings }
     }
 }
@@ -109,7 +127,7 @@ struct ExportFlatSheet: View {
             .disabled(workspace.current == nil)
             .accessibilityIdentifier("document.export.start")
         }
-        .frame(width: 460, height: 320)
+        .documentSheetFrame(width: 460, height: 320)   // the grouped Form scrolls
         .onAppear { settings = workspace.exportSettings }
     }
 }
@@ -222,7 +240,7 @@ struct SaveAsSheet: View {
                 .disabled(!request.isValid)
                 .accessibilityIdentifier("document.saveAs.save")
         }
-        .frame(width: 520, height: 330)
+        .documentSheetFrame(width: 520, height: 330)   // the grouped Form scrolls
         .onAppear {
             // The field takes the keyboard as the sheet opens (after SwiftUI installs it).
             DispatchQueue.main.async { MainActor.assumeIsolated { nameFocused = true } }

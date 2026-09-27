@@ -31,6 +31,7 @@ struct FilterSheet: View {
                 .frame(maxWidth: .infinity, alignment: .topLeading)
             }
             .padding(Theme.Space.l)
+            .documentSheetBody()
         } leading: {
             Toggle("Preview", isOn: $model.preview)
                 .toggleStyle(.checkbox)
@@ -49,7 +50,7 @@ struct FilterSheet: View {
                 .sheetButton(primary: true)
                 .accessibilityIdentifier("\(ident).ok")
         }
-        .frame(width: 560, height: 300)
+        .documentSheetFrame(width: 560, height: 300, ideal: 348)   // opens with the 180 pt detail pane whole
         .onAppear { model.start() }
     }
 }
@@ -264,7 +265,7 @@ struct AdjustmentSheet: View {
                 .sheetButton(primary: true)
                 .accessibilityIdentifier("\(ident).ok")
         }
-        .frame(width: 380, height: model.model.kind == .curves ? 560 : 420)
+        .documentSheetFrame(width: 380, height: model.model.kind == .curves ? 560 : 420)
         .onAppear { model.start() }
     }
 }
@@ -296,6 +297,7 @@ struct SmartFilterBlendingSheet: View {
                     .frame(height: Theme.Height.slider)
             }
             .padding(Theme.Space.l)
+            .documentSheetBody()
         } leading: {
             EmptyView()
         } actions: {
@@ -307,7 +309,7 @@ struct SmartFilterBlendingSheet: View {
                 .sheetButton(primary: true)
                 .accessibilityIdentifier("document.smartFilter.blending.ok")
         }
-        .frame(width: 360, height: 200)
+        .documentSheetFrame(width: 360, height: 200)
     }
 }
 

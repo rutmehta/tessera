@@ -594,6 +594,7 @@ final class VectorSelfTest {
 
         // 379. 1440-pt inspector; B5-07 layer styles on a shape (kept through Convert to Pixels and its undo);
         // the Remove tool (B5-09) still works.
+        ws.inspectorTab = .properties   // B5-16: the shape Properties scroll inside the Properties sub-tab
         if let d = ws.current {
             let w = d.viewport?.window?.frame.width ?? 0
             check("window is 1440 pt wide", abs(w - 1440) < 1, "\(w)")
@@ -685,6 +686,7 @@ final class VectorSelfTest {
         await mark("11b-02-stroke-visible", doc)
 
         // 3 + 7. Keyboard steps on the real dash-offset slider: one node; U / ⇧U while it has the keyboard.
+        ws.inspectorTab = .properties   // B5-16: the shape controls are in the Properties sub-tab
         _ = await wait(5) { self.find(ValueSlider.self, "document.shape.stroke.dashOffset", in: w.contentView) != nil }
         if let slider = find(ValueSlider.self, "document.shape.stroke.dashOffset", in: w.contentView) {
             let n = doc.history.count
@@ -714,6 +716,8 @@ final class VectorSelfTest {
         } else {
             check("11b-3 dash-offset slider found", false)
         }
+        ws.inspectorTab = .stack   // B5-16: the Layers list is the Stack sub-tab
+        _ = await wait(3) { w.contentView.flatMap({ self.find(LayersOutlineView.self, "document.layers.outline", in: $0) }) != nil }
         if let outline = w.contentView.flatMap({ find(LayersOutlineView.self, "document.layers.outline", in: $0) }) {
             _ = w.makeFirstResponder(outline)
             let z = keyEvent(6, "z", in: w).map { router.handle($0) } ?? false
@@ -764,6 +768,7 @@ final class VectorSelfTest {
         await mark("11b-08-path-deselected", doc)
 
         // 6. Locked recolour: the colour well returns to the model colour.
+        ws.inspectorTab = .properties   // B5-16
         doc.toggleLock(.pixels)
         await pause(0.3)
         if let well = find(NSColorWell.self, "document.shape.fill.color", in: w.contentView) {

@@ -60,13 +60,18 @@ final class FilterSelfTest {
         await pause(0.8)
         var frame = ""
         // A dialog is a sheet: report its parent window (the canvas preview shows around it).
-        if let key = model.mainWindow, let screen = NSScreen.screens.first {
+        // B5-16: in a background run there is no key or main window; use the visible document window.
+        let host = model.mainWindow ?? NSApp.windows.first { !($0 is NSPanel) && $0.isVisible && $0.sheetParent == nil }
+        if let key = host, let screen = NSScreen.screens.first {
             let w = key.sheetParent ?? key
-            w.level = .floating
-            w.orderFrontRegardless()
+            if !BackgroundRun.active {   // B5-16: never float or front a background run
+                w.level = .floating
+                w.orderFrontRegardless()
+            }
             await pause(0.3)
             let f = w.frame
             frame = String(format: " window %.0f %.0f %.0f %.0f", f.minX, screen.frame.height - f.maxY, f.width, f.height)
+                + " window-id \(w.attachedSheet?.windowNumber ?? w.windowNumber)"   // B5-16: the sheet when one is open
         }
         log("step \(step) \(name)\(frame)")
         await pause(hold)

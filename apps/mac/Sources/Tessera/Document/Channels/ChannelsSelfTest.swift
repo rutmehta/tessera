@@ -56,7 +56,7 @@ final class ChannelsSelfTest {
         await pause(0.8)
         var frame = ""
         if let w = workspace.current?.viewport?.window, let screen = NSScreen.screens.first {
-            w.orderFrontRegardless()
+            if !BackgroundRun.active { w.orderFrontRegardless() }   // B5-16
             await pause(0.3)
             let f = w.frame
             frame = String(format: " window %.0f %.0f %.0f %.0f", f.minX, screen.frame.height - f.maxY, f.width, f.height)
@@ -73,6 +73,7 @@ final class ChannelsSelfTest {
             log("no document"); log("done, 1 failure(s)"); return
         }
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        workspace.inspectorTab = .channels   // B5-16: the Channels sub-tab
         let panelKey = "InspectorPanel.Channels"
         let wasExpanded = UserDefaults.standard.object(forKey: panelKey)
         UserDefaults.standard.set(true, forKey: panelKey)
