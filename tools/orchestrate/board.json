@@ -1198,5 +1198,21 @@
     "status": "merged",
     "attempts": 0,
     "notes": "machine B; wp/B5-09 merged with main 9a6f25f; document/retouch.rs; 240 XCTest; no weights on this Mac, missing-model paths verified; Remove 7.3 s on 18 MP (PatchMatch)"
+  },
+  {
+    "id": "M2-45b",
+    "owner": "astra",
+    "title": "Export completeness part 2 (metadata, sharpening, HDR, workflow)",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-46",
+    "owner": "opus",
+    "title": "Export dialog: AVIF/JXL/DNG, size limit, watermark",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
