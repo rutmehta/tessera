@@ -2,7 +2,9 @@
 
 This is a durable transport for the existing Machine A and Machine B Codex chats.
 It never evaluates message text, launches Codex, wakes a chat, or installs a service.
-A same-chat heartbeat on each Mac must supply the wakeup; B is not yet confirmed. A successful
+Both coordinator chats have active five-minute heartbeats. The installed CLI
+also delivered a queued message to B’s existing desktop writer over SSH; see
+[verified routing](../../docs/coordination/MACHINE-B-SSH-ROUTING.md). A successful
 `send` means published; `accepted` means the receiving chat began handling it;
 `completed` means it reported a result. None substitutes for review or passing gates.
 
@@ -64,7 +66,7 @@ python3 tools/coordination/mailbox.py \
   --remote "$(git remote get-url origin)" \
   --cache "$HOME/.local/state/tessera-mailbox-a" --machine A send \
   --id '12345678-1234-4234-8234-123456789abc' \
-  --target-chat 'reusme tessera machine B work' \
+  --target-chat '01a0e323-c018-7fa3-9605-999a2dea6b32' \
   --body-file /tmp/tessera-message.txt
 ```
 
@@ -98,11 +100,15 @@ Do not create a duplicate if B already has an equivalent heartbeat. The Mac must
 remain awake/online with Codex running. A bootstrap message waiting in Git does
 not establish that this scheduler exists.
 
-Current discovery on 2026-09-27: Machine A app tools show only its local host;
-Computer Use refuses to control Codex itself. Bonjour resolves the likely B Mac
-at `Ruts-MacBook-Pro.local`, but an existing-auth-only SSH probe to port 22 was
-refused. No pairing, authentication changes, or listener setup were attempted.
-Native transport can replace polling after an actual two-way receipt test.
+Verified on 2026-09-27: authenticated SSH alias `tessera-machine-b` reaches B.
+Its coordinator chat is `Resume Tessera Machine B work`, UUID
+`01a0e323-c018-7fa3-9605-999a2dea6b32`. Native history reads work; native send
+conflicts with the existing desktop writer. The installed `codex queue --thread`
+route delivered to that writer without takeover, confirmed by a reply and Git
+receipts. Record queue IDs, confirm receipt, and avoid duplicate sends. The
+separate SSH server's `notLoaded`/`interrupted` status does not prove the desktop
+chat is idle. B confirmed its single heartbeat active; its first scheduled wakeup
+has not yet been observed. Preserve writer processes and ownership boundaries.
 
 ## Verification
 
