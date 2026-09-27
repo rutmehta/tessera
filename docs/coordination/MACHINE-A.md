@@ -16,7 +16,9 @@ First fixture/setup and obsolete DNG expectation failures remain in evidence:
 tools/orchestrate/wp/INT-45/evidence/2026-09-27-integration/.
 
 UX02a navigation is separate: frozen4fcb802 passed43focused tests with zero failures.
-Offscreen layout captures now run; independent review found a stale Saving status
+32 offscreen layout captures passed but show loading states: the synchronous
+harness blocks async preview work. Ready-preview validation is still required.
+Independent review found a stale Saving status
 on canceled handoff, which remains queued for a bounded repair and verification. A is also fixing
 preview and first rendered-copy handoff save ordering. No B Document/FFI edits;
 existing-copy disclosure remains truthful. UX02b relaunch persistence is pending.
@@ -27,7 +29,9 @@ A gain-map gate completed: four passed, one failed. The four-stop resize/sharpen
 case decodes natively to peak7.9837623 versus16; independent reconstruction passed.
 Preserve this failure while isolating decoder/context behavior; no relaxed checks.
 Short artifact capture completed with unchanged failure. Decoder/context probes
-found default target0, luma-off and allow-float unchanged; cause remains unresolved.
+found default target0, luma-off and allow-float unchanged. Software CoreImage
+reconstructs the identical file to16 while the ImageIO path produces8; supplemental
+readback tests are being prepared, preserving the original failed assertion.
 B core compilation passed,
 but four native auxiliary-discovery assertions failed. Both independent Skia ISO
 controls also lack HDR reconstruction through the same B macOS26.1 path; this is
