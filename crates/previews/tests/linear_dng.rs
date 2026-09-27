@@ -1,5 +1,70 @@
 #[path = "../../image-core/tests/support/linear_dng.rs"]
 mod support;
+
+#[test]
+fn linear_dng_cancels_after_read_decode_and_render_without_publishing() {
+    use engine_api::{EngineError, jobs::CancellationToken};
+    use previews::{PreviewError, PreviewKey};
+    for edited in [false, true] {
+        // Known stage boundaries: after source read, after RGB decode,
+        // and after CPU render (before fitting/writing the pyramid).
+        for (stop, renders) in [(4, 0), (6, 0), (7, 1)] {
+            let dir = tempfile::tempdir().unwrap();
+            let path = dir.path().join("cancel.dng");
+            std::fs::write(&path, support::fixture(32, 6, &[[0.2, 0.3, 0.1]; 6])).unwrap();
+            let cache = dir.path().join("cache");
+            let store = PreviewStore::new(&cache, u64::MAX).unwrap();
+            let mut recipe = engine_api::recipe::Recipe::default();
+            if edited {
+                recipe.settings.tone.exposure = 1.0;
+            }
+            let token = CancellationToken::new();
+            let calls = std::cell::Cell::new(0);
+            let check = || {
+                calls.set(calls.get() + 1);
+                if calls.get() == stop {
+                    token.cancel();
+                }
+                token.check()
+            };
+            let result = if edited {
+                store.from_raw_settings_cancellable(
+                    &path,
+                    32,
+                    &recipe.settings,
+                    recipe.recipe_hash().0.0,
+                    &check,
+                )
+            } else {
+                store
+                    .from_raw_cancellable(&path, 32, &check)
+                    .map(|(key, _)| key)
+            };
+            assert!(
+                matches!(result, Err(PreviewError::Render(EngineError::Cancelled))),
+                "edited={edited}, stage={stop}"
+            );
+            assert_eq!(calls.get(), stop);
+            assert_eq!(store.render_count(), renders);
+            let revision = PreviewKey::for_source(&path, 32, 0, recipe.recipe_hash().0.0).unwrap();
+            assert!(store.get(&revision, Level::Full).is_none());
+            assert!(
+                std::fs::read_dir(&cache)
+                    .unwrap()
+                    .all(|entry| entry.unwrap().file_name() == ".preview.lock")
+            );
+            let key = if edited {
+                store
+                    .from_raw_settings(&path, 32, &recipe.settings, recipe.recipe_hash().0.0)
+                    .unwrap()
+            } else {
+                store.from_raw(&path, 32).unwrap().0
+            };
+            assert!(Jpeg.decode(&store.get(&key, Level::Full).unwrap()).is_ok());
+        }
+    }
+}
+
 use previews::{Codec, Jpeg, Level, PreviewSource, PreviewStore};
 #[test]
 fn linear_dng_grid_and_edited_previews_share_upright_rgb_path() {

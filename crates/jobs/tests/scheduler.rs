@@ -293,8 +293,17 @@ fn run_batch(n: usize) {
 
 #[test]
 fn random_submit_cancel_from_four_threads() {
+    random_batch(ThreadPoolScheduler::new(4));
+}
+
+#[test]
+fn reserved_pool_random_submit_cancel_has_no_lost_completions() {
+    random_batch(ThreadPoolScheduler::with_interactive_reservation(3));
+}
+
+fn random_batch(pool: ThreadPoolScheduler) {
     use std::sync::{Arc, Barrier};
-    let pool = Arc::new(ThreadPoolScheduler::new(4));
+    let pool = Arc::new(pool);
     let barrier = Arc::new(Barrier::new(4));
     let (tx, rx) = mpsc::channel();
     let threads: Vec<_> = (1..=4)
@@ -408,6 +417,153 @@ fn throughput_100k_noop_jobs() {
         pool.worker_count(),
         100_000.0 / elapsed.as_secs_f64()
     );
+}
+
+// Channel-gated previews model arbitrarily slow, non-preemptible work without
+// relying on sleeps to arrange saturation. Release before asserting on latency.
+#[test]
+fn three_slow_previews_leave_viewport_capacity() {
+    let pool = ThreadPoolScheduler::with_interactive_reservation(3);
+    let (started, ready) = mpsc::channel();
+    let mut releases = Vec::new();
+    let mut ids = Vec::new();
+    for _ in 0..3 {
+        let started = started.clone();
+        let (release, blocked) = mpsc::channel();
+        releases.push(release);
+        ids.push(
+            pool.submit(
+                Box::new(Task(Priority::Preview, move |_: &JobContext| {
+                    started.send(()).unwrap();
+                    blocked.recv_timeout(Duration::from_secs(10)).unwrap();
+                    Ok(())
+                })),
+                None,
+            )
+            .id,
+        );
+    }
+    for _ in 0..2 {
+        ready.recv_timeout(Duration::from_secs(10)).unwrap();
+    }
+    let third_started = ready.recv_timeout(Duration::from_millis(20)).is_ok();
+    let (started, interactive) = mpsc::channel();
+    let submitted = Instant::now();
+    let viewport = pool.submit(
+        Box::new(Task(Priority::Viewport, move |_: &JobContext| {
+            started.send(submitted.elapsed()).unwrap();
+            Ok(())
+        })),
+        None,
+    );
+    let latency = interactive.recv_timeout(Duration::from_millis(100));
+    for release in releases {
+        release.send(()).unwrap();
+    }
+    for id in ids.into_iter().chain([viewport.id]) {
+        assert_eq!(wait(&pool, id), JobStatus::Succeeded);
+    }
+    assert!(!third_started, "background work occupied reserved capacity");
+    let latency = latency.expect("viewport blocked behind three previews");
+    eprintln!("viewport admission latency: {latency:?}");
+    assert!(latency < Duration::from_millis(5), "{latency:?}");
+}
+
+#[test]
+fn reserved_pool_background_progress_is_bounded_under_ui_backlog() {
+    let pool = ThreadPoolScheduler::with_interactive_reservation(2);
+    let (started, ready) = mpsc::channel();
+    let mut releases = Vec::new();
+    for index in 0..2 {
+        let started = started.clone();
+        let (release, blocked) = mpsc::channel();
+        releases.push(release);
+        pool.submit(
+            task(move |_| {
+                started
+                    .send((index, thread::current().name() == Some("jobs-0")))
+                    .unwrap();
+                blocked.recv_timeout(Duration::from_secs(10)).unwrap();
+                Ok(())
+            }),
+            None,
+        );
+    }
+    let occupied: Vec<_> = (0..2)
+        .map(|_| ready.recv_timeout(Duration::from_secs(10)).unwrap())
+        .collect();
+    let (done, completed) = mpsc::channel();
+    let background_done = done.clone();
+    let background = pool.submit(
+        Box::new(Task(Priority::Export, move |_: &JobContext| {
+            background_done.send(false).unwrap();
+            Ok(())
+        })),
+        None,
+    );
+    let mut ids = vec![background.id];
+    for _ in 0..32 {
+        let done = done.clone();
+        ids.push(
+            pool.submit(
+                task(move |_| {
+                    done.send(true).unwrap();
+                    Ok(())
+                }),
+                None,
+            )
+            .id,
+        );
+    }
+    let shared = occupied.iter().find(|(_, reserved)| !reserved).unwrap().0;
+    releases[shared].send(()).unwrap();
+    let order: Vec<_> = (0..33)
+        .map(|_| completed.recv_timeout(Duration::from_secs(10)).unwrap())
+        .collect();
+    releases[1 - shared].send(()).unwrap();
+    for id in ids {
+        assert_eq!(wait(&pool, id), JobStatus::Succeeded);
+    }
+    assert!(
+        order.iter().position(|ui| !ui).unwrap() <= 8,
+        "background starved: {order:?}"
+    );
+}
+
+#[test]
+#[should_panic(expected = "at least two workers")]
+fn reservation_rejects_single_worker() {
+    ThreadPoolScheduler::with_interactive_reservation(1);
+}
+
+#[test]
+fn promotion_wakes_reserved_worker_while_background_is_blocked() {
+    let pool = ThreadPoolScheduler::with_interactive_reservation(2);
+    let (started, ready) = mpsc::channel();
+    let (release, blocked) = mpsc::channel();
+    let background = pool.submit(
+        Box::new(Task(Priority::Preview, move |_: &JobContext| {
+            started.send(()).unwrap();
+            blocked.recv_timeout(Duration::from_secs(10)).unwrap();
+            Ok(())
+        })),
+        None,
+    );
+    ready.recv_timeout(Duration::from_secs(10)).unwrap();
+    let (started, ready) = mpsc::channel();
+    let promoted = pool.submit(
+        Box::new(Task(Priority::Preview, move |_: &JobContext| {
+            started.send(()).unwrap();
+            Ok(())
+        })),
+        None,
+    );
+    pool.reprioritize(JobTarget::Job(promoted.id), Priority::Viewport);
+    let result = ready.recv_timeout(Duration::from_secs(1));
+    release.send(()).unwrap();
+    result.unwrap();
+    assert_eq!(wait(&pool, background.id), JobStatus::Succeeded);
+    assert_eq!(wait(&pool, promoted.id), JobStatus::Succeeded);
 }
 
 struct Task<F>(Priority, F);
