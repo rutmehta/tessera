@@ -76,43 +76,13 @@ fn exact_fixture(a: Adjustment, hdr: bool) {
 }
 
 #[test]
-fn unsupported_lookup_dither_and_match_neutralize_are_explicit() {
+fn lookup_dither_and_match_neutralize_are_exact() {
     use serde_json::json;
-    let gpu = GpuCompositor::new().expect("requires GPU");
-    for (case, option) in [
-        (
-            json!({"kind":"color_lookup","size":2,"data":vec![[0.5; 3]; 8],"dither":true}),
-            "dither",
-        ),
-        (
-            json!({"kind":"match_color","source_layer":1,"source_mean":[50,5,-10],"source_std":[15,15,15],"target_mean":[50,0,0],"target_std":[20,20,20],"luminance":100,"color_intensity":100,"fade":0,"neutralize":true}),
-            "neutralize",
-        ),
+    for case in [
+        json!({"kind":"color_lookup","size":2,"data":vec![[0.5; 3]; 8],"dither":true}),
+        json!({"kind":"match_color","source_layer":1,"source_mean":[50,5,-10],"source_std":[15,15,15],"target_mean":[50,0,0],"target_std":[20,20,20],"luminance":100,"color_intensity":100,"fade":0,"neutralize":true}),
     ] {
-        for specialized in [false, true] {
-            let e = Extent::new(2, 2);
-            let mut d = doc(e, Depth::F32);
-            add(
-                &mut d,
-                None,
-                layer_fn("pixels", e, Depth::F32, |_, _| [0.4, 0.3, 0.2, 1.0]),
-            );
-            add(
-                &mut d,
-                None,
-                Layer::new(
-                    "adjustment",
-                    LayerKind::Adjustment(serde_json::from_value(case.clone()).unwrap()),
-                ),
-            );
-            let mut r = ResidentRenderer::new(&gpu).unwrap();
-            r.set_specialization(specialized);
-            let err = match r.render(&d, 0) {
-                Err(err) => err,
-                Ok(_) => panic!("unsupported option must not silently misrender"),
-            };
-            assert!(err.to_string().contains(option), "{err}");
-        }
+        exact_fixture(serde_json::from_value(case).unwrap(), true);
     }
 }
 
@@ -344,6 +314,25 @@ fn pointwise_edge_cases_exact() {
 #[test]
 fn gradient_spatial_dither_multitile_exact() {
     use compositor::adjust::GradientMethod;
+    spatial_dither_multitile_exact(Adjustment::GradientMap {
+        stops: vec![],
+        dither: true,
+        reverse: false,
+        method: GradientMethod::Classic,
+    });
+}
+
+#[test]
+fn lookup_spatial_dither_multitile_exact() {
+    spatial_dither_multitile_exact(Adjustment::ColorLookup {
+        size: 2,
+        data: vec![[0.5; 3]; 8],
+        source_filename: None,
+        dither: true,
+    });
+}
+
+fn spatial_dither_multitile_exact(adjustment: Adjustment) {
     let gpu = GpuCompositor::new().expect("spatial dither requires a real GPU");
     // Both L0 and L2 cross a 256-pixel tile boundary.
     let e = Extent::new(1040, 16);
@@ -370,15 +359,7 @@ fn gradient_spatial_dither_multitile_exact() {
         add(
             &mut d,
             None,
-            Layer::new(
-                "dither",
-                LayerKind::Adjustment(Adjustment::GradientMap {
-                    stops: vec![],
-                    dither: true,
-                    reverse: false,
-                    method: GradientMethod::Classic,
-                }),
-            ),
+            Layer::new("dither", LayerKind::Adjustment(adjustment.clone())),
         );
         let cpu = Compositor::new(32 << 20);
         let mut r = ResidentRenderer::new(&gpu).unwrap();

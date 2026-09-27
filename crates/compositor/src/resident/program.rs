@@ -383,26 +383,7 @@ impl Compiler<'_> {
 
     fn adjustment(&mut self, s: &mut Step, adj: &Adjustment) -> EngineResult<()> {
         adj.validate()?;
-        // The shared interpreter shader has neither of these operations. Do not
-        // silently drop them (or implement only specialization: its first frame
-        // and fallback still run through the interpreter).
-        match adj {
-            Adjustment::ColorLookup { dither: true, .. } => {
-                return Err(EngineError::invalid(
-                    "color_lookup",
-                    "resident GPU does not support ColorLookup dither; use the CPU compositor",
-                ));
-            }
-            Adjustment::MatchColor {
-                neutralize: true, ..
-            } => {
-                return Err(EngineError::invalid(
-                    "match_color",
-                    "resident GPU does not support MatchColor neutralize; use the CPU compositor",
-                ));
-            }
-            _ => {}
-        }
+
         if matches!(adj, Adjustment::BrightnessContrast { legacy: false, .. })
             && let Compiled::Channels(ch) = adj.compile()
         {
@@ -493,6 +474,7 @@ impl Compiler<'_> {
                 luminance,
                 color_intensity,
                 fade,
+                neutralize,
                 ..
             } => {
                 s.adj = 18;
@@ -507,10 +489,12 @@ impl Compiler<'_> {
                     (luminance / 100.0).clamp(0.0, 2.0),
                     (color_intensity / 100.0).clamp(0.0, 2.0),
                     (fade / 100.0).clamp(0.0, 1.0),
-                    0.0,
+                    if *neutralize { 1.0 } else { 0.0 },
                 ];
             }
-            Adjustment::ColorLookup { size, data, .. } => {
+            Adjustment::ColorLookup {
+                size, data, dither, ..
+            } => {
                 if !(2..=256).contains(size)
                     || (*size as usize).checked_pow(3) != Some(data.len())
                     || data.iter().flatten().any(|v| !v.is_finite())
@@ -518,6 +502,7 @@ impl Compiler<'_> {
                     return Err(EngineError::invalid("color_lookup", "invalid cube"));
                 }
                 s.adj = 19;
+                s.p[0][0] = if *dither { 1.0 } else { 0.0 };
                 s.aux = self.aux_offset();
                 s.aux_n = *size;
                 for row in data {

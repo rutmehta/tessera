@@ -99,7 +99,7 @@ impl Rng {
         (self.next() % n as u64) as usize
     }
 }
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
 struct Match {
     x: i32,
     y: i32,
@@ -109,9 +109,13 @@ struct Match {
 struct Donors {
     runs: Vec<(usize, usize, usize)>,
     total: usize,
+    cached: Vec<(i32, i32)>,
 }
 impl Donors {
     fn get(&self, index: usize, t: usize) -> Match {
+        if let Some(&(x, y)) = self.cached.get(index) {
+            return Match { x, y, t };
+        }
         let run = self.runs.partition_point(|&(_, _, end)| end <= index);
         let (x, y, _) = self.runs[run];
         let before = if run == 0 { 0 } else { self.runs[run - 1].2 };
@@ -187,6 +191,7 @@ pub fn fill(
     checkpoint(cancel)?;
     let src = Buffer::read(input, cancel)?;
     validate_mask(mask, src.pixels.len())?;
+
     let ts = transforms(params)?;
     if params.patch_radius == 0
         || params.patch_radius > 16
@@ -284,6 +289,19 @@ pub fn fill(
             }
         }
     }
+    // Small ROI searches repeatedly draw millions of donors. Cache their exact
+    // run expansion to avoid a binary search on every draw. Cap aggregate extra
+    // storage at 8 MiB; full-frame/large-transform CAF retains compact runs.
+    for list in &mut donors {
+        if list.total <= 1_048_576 / ts.len() {
+            list.cached = (0..list.total)
+                .map(|i| {
+                    let q = list.get(i, 0);
+                    (q.x, q.y)
+                })
+                .collect();
+        }
+    }
     let available: Vec<usize> = (0..ts.len()).filter(|&t| donors[t].total > 0).collect();
     if available.is_empty() {
         return Err(EngineError::invalid(
@@ -291,6 +309,7 @@ pub fn fill(
             "no complete unselected source patch",
         ));
     }
+
     let mut rng = Rng(params.seed);
     let mut bounds = [w, h, 0, 0];
     for (i, &m) in mask.iter().enumerate() {
@@ -345,15 +364,27 @@ pub fn fill(
             ..q
         }
     };
+    // Gather known target samples once per pixel, not once per donor. Keep
+    // scan order and scalar SSD arithmetic unchanged for exact search results.
+    let offsets: Vec<Vec<isize>> = footprints
+        .iter()
+        .map(|f| {
+            f.iter()
+                .map(|&(x, y)| y as isize * w as isize + x as isize)
+                .collect()
+        })
+        .collect();
+    let mut target = Vec::with_capacity(footprints[0].len());
     for &i in &order {
         checkpoint(cancel)?;
+        gather_patch(&dst, &known, i, r, &mut target);
         let mut best = donors[available[0]].get(0, available[0]);
         let mut cost = f32::INFINITY;
         let mut consider = |q: Match| {
             if cost == 0.0 {
                 return true;
             }
-            let e = patch_cost(&src, &dst, &known, i, q, (r, &footprints[q.t]), cost);
+            let e = candidate_cost(&src, &target, q, &offsets[q.t], cost);
             if e < cost {
                 cost = e;
                 best = q;
@@ -373,7 +404,7 @@ pub fn fill(
             'random: for &t in &available {
                 for _ in 0..64 {
                     let q = donors[t].get(rng.index(donors[t].total), t);
-                    let e = patch_cost(&src, &dst, &known, i, q, (r, &footprints[q.t]), cost);
+                    let e = candidate_cost(&src, &target, q, &offsets[q.t], cost);
                     if e < cost {
                         cost = e;
                         best = q;
@@ -390,6 +421,7 @@ pub fn fill(
     }
     // Raster forward/backward propagation, then shrinking random search. The
     // NNF stores translation AND transform, propagated in source coordinates.
+
     order.sort_unstable();
     for iteration in 0..params.iterations {
         for k in 0..order.len() {
@@ -400,23 +432,16 @@ pub fn fill(
                 order.len() - 1 - k
             }];
             let mut best = nnf[local(i)];
-            let mut cost = patch_cost(
-                &src,
-                &dst,
-                &known,
-                i,
-                best,
-                (r, &footprints[best.t]),
-                f32::INFINITY,
-            );
+            gather_patch(&dst, &known, i, r, &mut target);
+            let mut cost = candidate_cost(&src, &target, best, &offsets[best.t], f32::INFINITY);
             if cost == 0.0 {
                 continue;
             }
             for n in neighbours(i, w, h) {
                 if mask[n] > 0.0 {
                     let q = shifted(nnf[local(n)], i, n);
-                    if valid(q) {
-                        let e = patch_cost(&src, &dst, &known, i, q, (r, &footprints[q.t]), cost);
+                    if q != best && valid(q) {
+                        let e = candidate_cost(&src, &target, q, &offsets[q.t], cost);
                         if e < cost {
                             best = q;
                             cost = e;
@@ -431,10 +456,16 @@ pub fn fill(
                     y: best.y + rng.index((2 * radius + 1) as usize) as i32 - radius,
                     t: best.t,
                 };
-                for t in [best.t, available[rng.index(available.len())]] {
+                // Consume the same RNG draw, but do not score the identical
+                // candidate twice when random and current transforms coincide.
+                let choices = [best.t, available[rng.index(available.len())]];
+                for (choice, t) in choices.into_iter().enumerate() {
+                    if choice == 1 && t == choices[0] {
+                        continue;
+                    }
                     let q = Match { t, ..q };
-                    if valid(q) {
-                        let e = patch_cost(&src, &dst, &known, i, q, (r, &footprints[q.t]), cost);
+                    if q != best && valid(q) {
+                        let e = candidate_cost(&src, &target, q, &offsets[q.t], cost);
                         if e < cost {
                             best = q;
                             cost = e;
@@ -447,6 +478,7 @@ pub fn fill(
             dst.pixels[i] = src.at(best.x, best.y);
         }
     }
+
     if params.colour_adaptation != ColourAdaptation::None {
         let mut guide = dst.clone();
         let edge = (bounds[1].saturating_sub(1)..(bounds[3] + 1).min(h)).flat_map(|y| {
@@ -704,72 +736,133 @@ pub(crate) fn finish(
         new_layer: layer,
     })
 }
-fn patch_cost(
-    src: &Buffer,
+fn gather_patch(
     dst: &Buffer,
     known: &[bool],
     i: usize,
-    q: Match,
-    patch: (i32, &[(i32, i32)]),
-    limit: f32,
-) -> f32 {
-    let (r, footprint) = patch;
-    // A conservative denominator bounds the final normalized SSD even when
-    // the target crosses the canvas or has not-yet-known pixels. Reject only
-    // strictly worse candidates; accepted costs retain their original order.
-    let cutoff = limit * (3 * footprint.len()) as f32;
-    let mut sum = 0.0;
-    let mut count = 0.0;
-    let (x, y) = ((i % src.w) as i32, (i / src.w) as i32);
-    // Interior translation is the usual Remove case. Walk contiguous rows,
-    // avoiding per-sample transformed coordinates and repeated edge tests.
-    if q.t == 0 && x >= r && y >= r && x + r < src.w as i32 && y + r < src.h as i32 {
-        let width = (2 * r + 1) as usize;
-        for dy in -r..=r {
-            let target = (y + dy) as usize * src.w + (x - r) as usize;
-            let donor = (q.y + dy) as usize * src.w + (q.x - r) as usize;
-            let row = dst.pixels[target..target + width]
-                .iter()
-                .zip(&src.pixels[donor..donor + width])
-                .zip(&known[target..target + width]);
-            for (dx, ((a, b), &known)) in row.enumerate() {
-                if !known || (dy == 0 && dx == r as usize) {
-                    continue;
-                }
-                for c in 0..3 {
-                    sum += (a[c] - b[c]).powi(2);
-                }
-                if sum > cutoff {
-                    return f32::INFINITY;
-                }
-                count += 3.0;
-            }
-        }
-        return if count == 0.0 { 0.0 } else { sum / count };
-    }
+    r: i32,
+    target: &mut Vec<(usize, [f32; 4])>,
+) {
+    target.clear();
+    let (x, y) = ((i % dst.w) as i32, (i / dst.w) as i32);
     for dy in -r..=r {
         for dx in -r..=r {
             let (tx, ty) = (x + dx, y + dy);
-            if tx < 0 || ty < 0 || tx >= src.w as i32 || ty >= src.h as i32 || (dx == 0 && dy == 0)
+            if tx < 0 || ty < 0 || tx >= dst.w as i32 || ty >= dst.h as i32 || (dx == 0 && dy == 0)
             {
                 continue;
             }
-            let j = ty as usize * src.w + tx as usize;
+            let j = ty as usize * dst.w + tx as usize;
             if !known[j] {
                 continue;
             }
-            let (sx, sy) = footprint[((dy + r) * (2 * r + 1) + dx + r) as usize];
-            let a = dst.pixels[j];
-            // valid() already checked every donor footprint coordinate.
-            let b = src.pixels[(q.y + sy) as usize * src.w + (q.x + sx) as usize];
-            for c in 0..3 {
-                sum += (a[c] - b[c]).powi(2);
-            }
-            if sum > cutoff {
-                return f32::INFINITY;
-            }
-            count += 3.0;
+            target.push((((dy + r) * (2 * r + 1) + dx + r) as usize, dst.pixels[j]));
         }
     }
-    if count == 0.0 { 0.0 } else { sum / count }
+}
+
+fn candidate_cost(
+    src: &Buffer,
+    target: &[(usize, [f32; 4])],
+    q: Match,
+    offsets: &[isize],
+    limit: f32,
+) -> f32 {
+    let count = (3 * target.len()) as f32;
+    // One extra sample conservatively covers rounding in early rejection.
+    let cutoff = limit * (count + 3.0);
+    let origin = q.y as usize * src.w + q.x as usize;
+    let mut sum = 0.0;
+    for &(index, a) in target {
+        // valid() already checked every transformed donor coordinate.
+        let b = src.pixels[origin.wrapping_add_signed(offsets[index])];
+        for c in 0..3 {
+            sum += (a[c] - b[c]).powi(2);
+        }
+        if sum > cutoff {
+            return f32::INFINITY;
+        }
+    }
+    if target.is_empty() { 0.0 } else { sum / count }
+}
+
+#[cfg(test)]
+mod cost_tests {
+    use super::*;
+    use engine_api::tile::Extent;
+
+    #[test]
+    fn cached_cost_matches_scalar_reference_at_edges_and_transforms() {
+        let extent = Extent::new(65, 65);
+        let mut raster = Raster::new(extent, 4, Depth::F32, 0.0);
+        raster
+            .edit_region(Rect::of_extent(extent), 1, |x, y, p| {
+                *p = [
+                    (x % 13) as f32 / 13.0,
+                    (y % 17) as f32 / 17.0,
+                    ((x * y) % 19) as f32 / 19.0,
+                    1.0,
+                ];
+            })
+            .unwrap();
+        let src = Buffer::read(&raster, &AtomicBool::new(false)).unwrap();
+        let known: Vec<_> = (0..65 * 65).map(|i| i % 5 != 0).collect();
+        let transforms = transforms(&FillParams {
+            rotation_radians: 0.5,
+            scale_range: [0.5, 1.25],
+            mirror: true,
+            ..Default::default()
+        })
+        .unwrap();
+        for r in [1, 3, 16] {
+            for i in [0, 64, 65 * 64, 65 * 32 + 32] {
+                let mut target = Vec::new();
+                gather_patch(&src, &known, i, r, &mut target);
+                for (t, transform) in transforms.iter().enumerate() {
+                    let footprint: Vec<_> = (-r..=r)
+                        .flat_map(|y| (-r..=r).map(move |x| transform.offset(x, y)))
+                        .collect();
+                    let offsets: Vec<_> = footprint
+                        .iter()
+                        .map(|&(x, y)| y as isize * 65 + x as isize)
+                        .collect();
+                    let q = Match { x: 32, y: 32, t };
+                    let mut sum = 0.0;
+                    let mut count = 0.0;
+                    for dy in -r..=r {
+                        for dx in -r..=r {
+                            let x = (i % 65) as i32 + dx;
+                            let y = (i / 65) as i32 + dy;
+                            if !(0..65).contains(&x)
+                                || !(0..65).contains(&y)
+                                || (dx == 0 && dy == 0)
+                            {
+                                continue;
+                            }
+                            let j = y as usize * 65 + x as usize;
+                            if !known[j] {
+                                continue;
+                            }
+                            let (sx, sy) = transform.offset(dx, dy);
+                            let a = src.pixels[j];
+                            let b = src.pixels[(32 + sy) as usize * 65 + (32 + sx) as usize];
+                            for c in 0..3 {
+                                sum += (a[c] - b[c]).powi(2);
+                            }
+                            count += 3.0;
+                        }
+                    }
+                    let reference: f32 = if count == 0.0 { 0.0 } else { sum / count };
+                    for limit in [f32::INFINITY, reference, reference * 0.5] {
+                        let cost = candidate_cost(&src, &target, q, &offsets, limit);
+                        if cost.is_infinite() {
+                            assert!(reference > limit);
+                        } else {
+                            assert_eq!(cost.to_bits(), reference.to_bits());
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

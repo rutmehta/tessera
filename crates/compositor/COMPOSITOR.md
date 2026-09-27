@@ -304,9 +304,10 @@ Match Color `neutralize` (false), and Auto `shadow_clip`/`highlight_clip`
 Color Lookup maps filename and dither through Photoshop's `LUT3DFileName`
 and `Dthr` descriptor fields. CPU lookup dither is spatial; CPU neutralization
 uses gray-world Lab chroma removal. Photoshop numerical equivalence has not
-been established. Resident rendering explicitly rejects enabled lookup dither
-and Match Color neutralization pending shared-shader integration; it must not
-silently ignore those options.
+been established. Resident interpreter and specialization implement both options
+with bit-exact CPU parity on Metal. Lookup dither adds the same spatial noise as
+Gradient Map to the sampled output RGB, then clamps to [0,1]. Neutralization
+removes the matched source's mean Lab chroma before intensity and fade controls.
 
 Named alpha channels can persist explicit RGB, opacity and selected-area
 polarity through `ChannelKind::AlphaDisplay`; legacy `Alpha` remains red at

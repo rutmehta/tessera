@@ -13,6 +13,7 @@ use std::sync::{Mutex, OnceLock};
 // underneath compositor caches. Model sessions serialize their own inference.
 static COLORIZE: OnceLock<ml_filters::Colorize> = OnceLock::new();
 static JPEG: OnceLock<ml_filters::JpegArtifactRemoval> = OnceLock::new();
+static RESTORATION: OnceLock<ml_filters::PhotoRestoration> = OnceLock::new();
 static REMOVE: OnceLock<Mutex<crate::remove::OnnxInpainter>> = OnceLock::new();
 
 fn missing_weights(name: &str) -> EngineError {
@@ -82,6 +83,7 @@ fn neural_params(node: &SmartFilter) -> EngineResult<ml_filters::Params> {
         "neural/skin_smoothing" => 0,
         "neural/colorize" => 1,
         "neural/jpeg_artifact_removal" => 2,
+        "neural/photo_restoration" => 3,
         _ => {
             return Err(EngineError::Unsupported {
                 what: node.name.clone(),
@@ -125,6 +127,7 @@ fn neural_params(node: &SmartFilter) -> EngineResult<ml_filters::Params> {
             "artifact_reduction" => p.artifact_reduction = value,
             "saturation" => p.saturation = value,
             "strength" => p.strength = value,
+            "photo_enhancement" => p.photo_enhancement = value,
             _ => unreachable!(),
         }
     }
@@ -144,6 +147,9 @@ fn neural(input: &Raster, node: &SmartFilter) -> EngineResult<Raster> {
         "neural/skin_smoothing" => &ml_filters::SkinSmoothing,
         "neural/colorize" => COLORIZE.get().ok_or_else(|| missing_weights(&node.name))?,
         "neural/jpeg_artifact_removal" => JPEG.get().ok_or_else(|| missing_weights(&node.name))?,
+        "neural/photo_restoration" => RESTORATION
+            .get()
+            .ok_or_else(|| missing_weights(&node.name))?,
         _ => {
             return Err(EngineError::Unsupported {
                 what: node.name.clone(),
@@ -307,7 +313,10 @@ impl CompositorFilters {
     ) -> EngineResult<()> {
         if !matches!(
             name,
-            "remove" | "neural/colorize" | "neural/jpeg_artifact_removal"
+            "remove"
+                | "neural/colorize"
+                | "neural/jpeg_artifact_removal"
+                | "neural/photo_restoration"
         ) {
             return Err(EngineError::invalid("model", "unknown model-backed filter"));
         }
@@ -332,6 +341,14 @@ impl CompositorFilters {
                         }
                     })?;
                 let _ = JPEG.set(model);
+            }
+            "neural/photo_restoration" if RESTORATION.get().is_none() => {
+                let model = ml_filters::PhotoRestoration::load(registry, options).map_err(|e| {
+                    EngineError::Unsupported {
+                        what: format!("{name} weights/model unavailable: {e}"),
+                    }
+                })?;
+                let _ = RESTORATION.set(model);
             }
             "remove" if REMOVE.get().is_none() => {
                 let model = crate::remove::OnnxInpainter::load(registry, options)?;
