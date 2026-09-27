@@ -1,0 +1,13 @@
+{
+  "head": "36868135d5d2cfa4bab3f5030928ac92a4acf5aa",
+  "files": {
+    "apps/mac/Sources/Tessera/Agent/AgentController.swift": "2045700657c71ca87cb5d8d56cf5fe079a5d2d83d58dcd1aaf3f9da9e042476c",
+    "apps/mac/Sources/Tessera/Agent/AgentPanels.swift": "b91f4ed66f77b2738141d1dbc8a1e216706c00af1e5455737494eb2c5f7834c7",
+    "apps/mac/Sources/Tessera/Agent/AgentReviewSheet.swift": "3cd08507bcc29ceda2b6f4b775554dc4b3c229c6cf48a0f0b80b548fa7f8384b",
+    "apps/mac/Sources/Tessera/App/AppModel.swift": "25dfd713446e743353f0f24f5b063ba92d8364258b78bf103bd45b6dc0c1f8ba",
+    "apps/mac/Sources/TesseraCore/DevelopController.swift": "9b922e113f8bcdcef41a09ae5cff1f21ed37b11c5cbe6a73ead3fcf2e3b6fa8e",
+    "apps/mac/Tests/TesseraCoreTests/AgentReviewOwnershipTests.swift": "a5f9d50bce430804381a044247347ffdd14c55e2e8183caab8ee99806e72911d"
+  },
+  "aggregate_sha256": "730938e186434c112262e64fd38b2d2f947ce46082c3f4ed8994d87983b894ff",
+  "aggregate_definition": "SHA256 of compact, sorted-key JSON file-path to SHA256 map"
+}

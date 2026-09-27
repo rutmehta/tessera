@@ -1,0 +1,18 @@
+{
+  "branch_base": "1995f7534747ada0d2bd9ce57cd3c89711f43e32",
+  "source_archive": "/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/build/ffi/libtessera_ffi.a",
+  "archive_sha256": "417f990ad8a3e6ce9cacb484411341f16aca90199e15b8fa0a0f05becff5cab7",
+  "archive_link": "/Users/rutmehta/.codex/worktrees/review-ownership/tessera/apps/mac/build/ffi/libtessera_ffi.a",
+  "bindings_sha256": {
+    "apps/mac/Sources/TesseraFFI/TesseraFFI.swift": "0ece5bfe1e7ed612395296b17723e24accedf88079240bec9a1946d7c2fa3cc3",
+    "apps/mac/Sources/CTesseraFFI/CTesseraFFI.h": "6439d9239cee419564b81f8eff1f4d93ae79db81de79d7664c3827778c343fb2",
+    "apps/mac/Sources/CTesseraFFI/module.modulemap": "efda206de8cf8eb6c092c29fd32f286b9a46d9d7c4c150e6e9b66941dc43d6bd"
+  },
+  "rust_source_equal_refs": [
+    "c0d4535",
+    "98ce45065c219da95ec3085d4507f60de562e583",
+    "e3f6e484464fe561122239407e056e34f0c62384"
+  ],
+  "scratch_path": "/Volumes/betterSSD/tessera-cache/swift/review-ownership",
+  "validation": "Source comparison and byte hashes only; no build executed. Archive carries existing blake3 26.5 versus 15.0 deployment-target warning."
+}

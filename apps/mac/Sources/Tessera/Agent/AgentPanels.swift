@@ -16,6 +16,7 @@ struct AgentGroupSection: View {
     @State private var redoOpen = false
 
     var body: some View {
+        let target = redoTarget
         VStack(alignment: .leading, spacing: Theme.Space.xxs) {
             HStack(spacing: Theme.Space.xs) {
                 Chip(text: "AI", color: Theme.accent, style: .outlined, height: Theme.Height.chip)
@@ -38,17 +39,17 @@ struct AgentGroupSection: View {
                     TextField("e.g. “warmer, keep the sky”", text: $instruction)
                         .textFieldStyle(.roundedBorder)
                         .controlSize(.small)
-                        .onSubmit(redo)
+                        .onSubmit { redo(target) }
                         .accessibilityIdentifier("agent-group-instruction")
-                    Button("Redo", action: redo)
+                    Button("Redo") { redo(target) }
                         .buttonStyle(.theme(.bordered, height: Theme.Height.small))
-                        .disabled(instruction.trimmingCharacters(in: .whitespaces).isEmpty || model.agent.isRunning)
+                        .disabled(instruction.trimmingCharacters(in: .whitespaces).isEmpty || model.agent.isRunning || !model.agent.busy.isEmpty)
                 }
                 Hint("Redo changes only the controls the instruction names (warmth, tint, exposure, contrast) as a new group.")
             } else {
                 Button("Redo with Instruction…") { redoOpen = true }
                     .buttonStyle(.theme(.borderless, height: Theme.Height.small))
-                    .disabled(model.agent.isRunning)
+                    .disabled(model.agent.isRunning || !model.agent.busy.isEmpty)
                     .accessibilityIdentifier("agent-group-redo")
             }
         }
@@ -57,9 +58,17 @@ struct AgentGroupSection: View {
         .accessibilityIdentifier("agent-group")
     }
 
-    private func redo() {
-        guard let item = model.focusedItem else { return }
-        model.agent.redo([item.id], instruction: instruction)
+    private var redoTarget: AgentController.ReviewTarget? {
+        guard let lib = model.engineLibrary, let item = model.focusedItem,
+              let ref = item.engineImage else { return nil }
+        let entry = AgentReviewEntry(imageID: ref.imageID, name: item.name,
+                                     groupID: group.groupId, confidence: 0)
+        return model.agent.reviewTarget(entry, library: lib)
+    }
+
+    private func redo(_ target: AgentController.ReviewTarget?) {
+        guard let target else { return }
+        model.agent.redo(target, instruction: instruction)
         instruction = ""
         redoOpen = false
     }
@@ -138,13 +147,17 @@ private struct AmountSlider: NSViewRepresentable {
 struct AgentEditPanel: View {
     let model: AppModel
     @State private var provenance: AgentProvenance?
+    @State private var target: AgentController.ReviewTarget?
     @State private var instruction = ""
 
     var body: some View {
-        let key = "\(model.focusedItem?.id ?? -1)|\(model.agentRevision)|\(model.developHistory?.entries ?? 0)|\(model.agent.queue.summary)"
+        let owner = model.engineLibrary.map { String(describing: ObjectIdentifier($0)) } ?? ""
+        let key = "\(owner)|\(model.focusedItem?.engineImage?.imageID ?? "")|\(model.agentRevision)|\(model.developHistory?.entries ?? 0)|\(model.agent.queue.summary)|\(model.agent.reviewGeneration)"
         VStack(alignment: .leading, spacing: Theme.Space.xs) {
-            if let p = provenance, let item = model.focusedItem {
-                let entry = AgentReviewEntry(p.item, itemID: item.id)
+            if let p = provenance, let target,
+               model.focusedItem?.engineImage?.imageID == target.entry.imageID,
+               model.agent.currentItem(for: target) != nil {
+                let entry = target.entry
                 HStack(spacing: Theme.Space.xs) {
                     Chip(text: p.provenance, color: Theme.accent, style: .outlined)
                         .accessibilityIdentifier("agent-provenance")
@@ -163,10 +176,10 @@ struct AgentEditPanel: View {
                     }
                 }
                 HStack(spacing: Theme.Space.xs) {
-                    Button("Accept") { model.agent.accept(entry) }
+                    Button("Accept") { model.agent.accept(target) }
                         .buttonStyle(.theme(.bordered, height: Theme.Height.small))
                         .disabled(entry.status == .accepted)
-                    Button("Revert") { model.agent.revert(entry) }
+                    Button("Revert") { model.agent.revert(target) }
                         .buttonStyle(.theme(.destructive, height: Theme.Height.small))
                         .disabled(entry.status == .reverted || entry.groupID == nil)
                 }
@@ -174,29 +187,33 @@ struct AgentEditPanel: View {
                     TextField("Redo with instruction…", text: $instruction)
                         .textFieldStyle(.roundedBorder)
                         .controlSize(.small)
-                        .onSubmit { redo(item.id) }
-                    Button("Redo") { redo(item.id) }
+                        .onSubmit { redo(target) }
+                    Button("Redo") { redo(target) }
                         .buttonStyle(.theme(.bordered, height: Theme.Height.small))
-                        .disabled(instruction.trimmingCharacters(in: .whitespaces).isEmpty || model.agent.isRunning)
+                        .disabled(instruction.trimmingCharacters(in: .whitespaces).isEmpty || model.agent.isRunning || !model.agent.busy.isEmpty)
                 }
             } else {
                 Hint(model.isEngineBacked ? "No agent edit on this photo. Develop ▸ Auto Edit… (⇧⌘A) makes one."
                      : "Auto Edit needs a folder opened on the engine.")
                 Button("Auto Edit…") { model.agent.present() }
                     .buttonStyle(.theme(.bordered, height: Theme.Height.small))
-                    .disabled(!model.isEngineBacked || model.agent.isRunning)
+                    .disabled(!model.isEngineBacked || model.agent.isRunning || !model.agent.busy.isEmpty)
             }
         }
         .task(id: key) { load() }
     }
 
     private func load() {
-        guard let item = model.focusedItem, let ref = item.engineImage else { provenance = nil; return }
-        provenance = (try? ref.engine.agentProvenance(imageId: ref.imageID)) ?? nil
+        provenance = nil
+        target = nil
+        guard let lib = model.engineLibrary, let item = model.focusedItem, let ref = item.engineImage,
+              let p = try? ref.engine.agentProvenance(imageId: ref.imageID) else { return }
+        provenance = p
+        target = model.agent.reviewTarget(AgentReviewEntry(p.item, itemID: item.id), library: lib)
     }
 
-    private func redo(_ id: Int) {
-        model.agent.redo([id], instruction: instruction)
+    private func redo(_ target: AgentController.ReviewTarget) {
+        model.agent.redo(target, instruction: instruction)
         instruction = ""
     }
 }

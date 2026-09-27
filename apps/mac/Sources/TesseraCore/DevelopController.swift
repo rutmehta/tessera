@@ -110,6 +110,7 @@ public final class DevelopController {
     public let timingSession = UUID().uuidString
     private var timingInput: UInt64 = 0
     private(set) var closed = false
+    private var closeTask: Task<Void, Never>?
 
     // Masking (see DevelopController+Masks.swift): changes coalesced like the sliders.
     var pendingMaskParams: [MaskParamKey: Float] = [:]
@@ -153,15 +154,24 @@ public final class DevelopController {
 
     /// Stops rendering and writes pending edits (off the main actor). Idempotent.
     public func close() async {
+        if let closeTask {
+            await closeTask.value
+            return
+        }
         guard !closed else { return }
-        closed = true
+        // The pending flush itself rejects closed controllers. Finish submitting
+        // their coalesced patches before closing the backend session.
         _ = flushPending()
+        closed = true
         session.setListener(listener: nil)
         session.setMaskListener(listener: nil)
         let session = session
-        await Task.detached(priority: .utility) {
+        let task = Task.detached(priority: .utility) { () -> Void in
             try? session.close()
-        }.value
+        }
+        closeTask = task
+        await task.value
+        closeTask = nil
     }
 
     // MARK: Surfaces
