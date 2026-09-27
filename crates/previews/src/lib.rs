@@ -1,10 +1,11 @@
 //! Content-addressed JPEG preview pyramids.
+mod disk;
 pub mod masks;
 mod raw;
+mod revision;
 use image::{RgbImage, imageops::FilterType};
 pub use raw::PreviewSource;
 use std::{
-    collections::HashMap,
     fs,
     path::{Path, PathBuf},
     sync::Mutex,
@@ -85,21 +86,21 @@ impl Codec for Jpeg {
 }
 
 pub struct PreviewStore {
-    io: Mutex<()>,
+    disk: std::sync::Arc<disk::Disk>,
     renders: std::sync::atomic::AtomicU64,
+    source_work: std::sync::atomic::AtomicU64,
     root: PathBuf,
     cap: u64,
-    access: Mutex<HashMap<PathBuf, u64>>,
 }
 impl PreviewStore {
     pub fn new(root: impl AsRef<Path>, cap_bytes: u64) -> Result<Self> {
         fs::create_dir_all(root.as_ref())?;
         Ok(Self {
-            root: root.as_ref().to_owned(),
-            io: Mutex::new(()),
+            root: fs::canonicalize(root.as_ref())?,
+            disk: disk::Disk::shared(root.as_ref(), cap_bytes)?,
             renders: std::sync::atomic::AtomicU64::new(0),
+            source_work: std::sync::atomic::AtomicU64::new(0),
             cap: cap_bytes,
-            access: Mutex::new(HashMap::new()),
         })
     }
     fn path(&self, key: &PreviewKey, level: Level) -> PathBuf {
@@ -108,20 +109,10 @@ impl PreviewStore {
             .join(format!("{}.jpg", level.divisor()))
     }
     pub fn get(&self, key: &PreviewKey, level: Level) -> Option<Bytes> {
-        let _io = self.io.lock().ok()?;
-        let p = self.path(key, level);
-        let bytes = fs::read(&p).ok()?;
-        self.access.lock().ok()?.insert(p, tick());
-        Some(bytes)
+        self.disk.get(&self.path(key, level))
     }
     pub fn put(&self, key: &PreviewKey, level: Level, bytes: &[u8]) -> Result<()> {
-        let _io = self.io.lock().unwrap_or_else(|e| e.into_inner());
-        let p = self.path(key, level);
-        fs::create_dir_all(p.parent().unwrap())?;
-        fs::write(&p, bytes)?;
-        self.access.lock().unwrap().insert(p, tick());
-        self.evict()?;
-        Ok(())
+        self.disk.put(&self.path(key, level), bytes, self.cap)
     }
     pub fn ensure(
         &self,
@@ -176,39 +167,8 @@ impl PreviewStore {
         }
         Ok(key)
     }
-    fn evict(&self) -> Result<()> {
-        let mut files = Vec::new();
-        let mut total = 0u64;
-        for dir in fs::read_dir(&self.root)? {
-            let dir = dir?;
-            if !dir.file_type()?.is_dir() {
-                continue;
-            }
-            for f in fs::read_dir(dir.path())? {
-                let f = f?;
-                let n = f.metadata()?.len();
-                total += n;
-                let stamp = self
-                    .access
-                    .lock()
-                    .unwrap()
-                    .get(&f.path())
-                    .copied()
-                    .unwrap_or(0);
-                files.push((stamp, f.path(), n));
-            }
-        }
-        files.sort_by_key(|x| x.0);
-        for (_, path, size) in files {
-            if total <= self.cap {
-                break;
-            }
-            fs::remove_file(&path)?;
-            total -= size;
-        }
-        Ok(())
-    }
 }
+#[cfg(test)]
 fn tick() -> u64 {
     use std::time::{SystemTime, UNIX_EPOCH};
     SystemTime::now()
@@ -232,6 +192,92 @@ fn orient(img: RgbImage, orientation: u8) -> RgbImage {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn restart_recovers_cap_and_abandoned_writes() {
+        let (p, s) = store(u64::MAX);
+        let k = PreviewKey::new(b"restart", 1, [0; 32]);
+        s.put(&k, Level::Full, &[1; 40]).unwrap();
+        fs::write(s.path(&k, Level::Full).with_extension("tmp"), [0; 100]).unwrap();
+        drop(s);
+        let s = PreviewStore::new(&p, 20).unwrap();
+        assert!(s.get(&k, Level::Full).is_none());
+        assert!(!s.path(&k, Level::Full).with_extension("tmp").exists());
+        fs::remove_dir_all(p).unwrap();
+    }
+
+    #[test]
+    #[ignore = "M2-55 repeatable measurement"]
+    fn cache_80k_measurement() {
+        let (p, s) = store(u64::MAX);
+        drop(s);
+        for i in 0_u64..20_000 {
+            let k = PreviewKey::new(&i.to_le_bytes(), 1, [0; 32]);
+            let dir = p.join(k.directory());
+            fs::create_dir(&dir).unwrap();
+            for level in Level::ALL {
+                fs::write(dir.join(format!("{}.jpg", level.divisor())), [0; 32]).unwrap();
+            }
+        }
+        let start = std::time::Instant::now();
+        let s = PreviewStore::new(&p, u64::MAX).unwrap();
+        assert_eq!(s.disk.accounted_bytes(), 80_000 * 32);
+        println!(
+            "80k startup_ms={:.3}",
+            start.elapsed().as_secs_f64() * 1000.
+        );
+        let k = PreviewKey::new(b"measurement", 1, [0; 32]);
+        let mut times = Vec::new();
+        for _ in 0..20 {
+            let start = std::time::Instant::now();
+            s.put(&k, Level::Full, &[1; 32]).unwrap();
+            assert_eq!(s.get(&k, Level::Full).unwrap(), [1; 32]);
+            times.push(start.elapsed().as_secs_f64() * 1000.);
+        }
+        times.sort_by(f64::total_cmp);
+        println!("80k put_get_p95_ms={:.3}", times[18]);
+        assert_eq!(s.disk.accounted_bytes(), 80_001 * 32);
+        // Force real bounded eviction at the seeded occupancy. Reader lock
+        // independence is exercised separately with the writer mutex held.
+        let start = std::time::Instant::now();
+        s.disk
+            .put(&s.path(&k, Level::Full), &[2; 2048], 80_000 * 32)
+            .unwrap();
+        println!(
+            "80k maintenance_ms={:.3} reader_mutex_hold_ms=0 (no reader mutex)",
+            start.elapsed().as_secs_f64() * 1000.
+        );
+        assert!(s.disk.accounted_bytes() <= 80_000 * 32);
+        fs::remove_dir_all(p).unwrap();
+    }
+
+    #[test]
+    #[ignore = "M2-55 baseline JPEG measurement"]
+    fn jpeg_baseline_measurement() {
+        let (p, s) = store(u64::MAX);
+        let path = p.join("source.jpg");
+        let img = RgbImage::from_fn(1536, 1024, |x, y| {
+            image::Rgb([x as u8, y as u8, (x + y) as u8])
+        });
+        fs::write(&path, Jpeg.encode(&img).unwrap()).unwrap();
+        let mut times = Vec::new();
+        for _ in 0..101 {
+            let start = std::time::Instant::now();
+            let decoded = Jpeg.decode(&fs::read(&path).unwrap()).unwrap();
+            let scaled = image::DynamicImage::ImageRgb8(decoded)
+                .thumbnail(384, 384)
+                .to_rgb8();
+            let jpeg = Jpeg.encode(&scaled).unwrap();
+            let k = PreviewKey::new(&jpeg, 1, [0; 32]);
+            if s.get(&k, Level::Full).is_none() {
+                s.from_embedded_jpeg(&jpeg, 1, [0; 32]).unwrap();
+            }
+            times.push(start.elapsed().as_secs_f64() * 1000.);
+        }
+        times.remove(0);
+        times.sort_by(f64::total_cmp);
+        println!("JPEG baseline warm_p95_ms={:.3}", times[94]);
+        fs::remove_dir_all(p).unwrap();
+    }
     #[test]
     fn all_exif_orientations() {
         let im = RgbImage::from_fn(2, 3, |x, y| image::Rgb([(y * 2 + x + 1) as u8; 3]));
