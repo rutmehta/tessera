@@ -119,5 +119,44 @@ final class BatchSettingsDraftTests: XCTestCase {
                                                     sourceSettingsJSON: "not JSON")) {
             XCTAssertEqual($0 as? BatchSettingsDraftError, .invalidSourceSettings)
         }
+        XCTAssertThrowsError(try BatchSettingsDraft(libraryID: "lib-1", focusedImageID: "source",
+                                                    selectedImageIDs: ["source", "target"],
+                                                    sourceSettingsJSON: "[]")) {
+            XCTAssertEqual($0 as? BatchSettingsDraftError, .invalidSourceSettings)
+        }
+    }
+
+    func testValidSourceWithoutSelectedPathsCannotClaimASettingsCopy() throws {
+        for json in ["{}", "{\"geometry\":{\"crop\":{\"left\":0.2}},\"masks\":[{\"id\":\"person\"}]"] {
+            XCTAssertThrowsError(try BatchSettingsDraft(libraryID: "lib-1", focusedImageID: "source",
+                                                        selectedImageIDs: ["source", "target"],
+                                                        sourceSettingsJSON: json)) {
+                XCTAssertEqual($0 as? BatchSettingsDraftError, .noSettings)
+            }
+        }
+        let draft = try BatchSettingsDraft(libraryID: "lib-1", focusedImageID: "source",
+                                           selectedImageIDs: ["source", "target"],
+                                           sourceSettingsJSON: "{\"tone\":{\"exposure\":0.2}}")
+        XCTAssertThrowsError(try draft.selecting([.detail])) {
+            XCTAssertEqual($0 as? BatchSettingsDraftError, .noSettings)
+        }
+    }
+
+    func testEmptyOpaqueIDsAreRejectedAtDraftBoundary() {
+        XCTAssertThrowsError(try BatchSettingsDraft(libraryID: "", focusedImageID: "source",
+                                                    selectedImageIDs: ["source", "target"],
+                                                    sourceSettingsJSON: sourceSettings)) {
+            XCTAssertEqual($0 as? BatchSettingsDraftError, .invalidIdentity)
+        }
+        XCTAssertThrowsError(try BatchSettingsDraft(libraryID: "lib-1", focusedImageID: "",
+                                                    selectedImageIDs: ["", "target"],
+                                                    sourceSettingsJSON: sourceSettings)) {
+            XCTAssertEqual($0 as? BatchSettingsDraftError, .invalidIdentity)
+        }
+        XCTAssertThrowsError(try BatchSettingsDraft(libraryID: "lib-1", focusedImageID: "source",
+                                                    selectedImageIDs: ["source", ""],
+                                                    sourceSettingsJSON: sourceSettings)) {
+            XCTAssertEqual($0 as? BatchSettingsDraftError, .invalidIdentity)
+        }
     }
 }
