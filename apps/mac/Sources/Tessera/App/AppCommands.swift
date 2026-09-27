@@ -230,8 +230,10 @@ struct AppCommands: Commands {
                                                        set: { model.showRenderReadout = $0 }))
                 .keyboardShortcut("t", modifiers: [.command, .option])
             Divider()
-            Button("Load 20,000 Stub Items") { model.loadStubItems(count: 20_000) }
-                .shortcut(!docMode, "n", [.command, .shift])
+            if StubLibraryDiagnostics.isEnabled {
+                Button("Load 20,000 Stub Items") { model.loadStubItems(count: 20_000) }
+                    .shortcut(!docMode, "n", [.command, .shift])
+            }
             Button("Run Grid Scroll Benchmark") { model.requestScrollBenchmark() }
                 .shortcut(!docMode, "b", [.command, .shift])   // ⇧⌘B is Image ▸ Auto Color in document mode (B5-06)
         }
