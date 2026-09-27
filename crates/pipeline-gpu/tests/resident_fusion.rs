@@ -29,7 +29,9 @@ fn resident_capability_matches_extended_settings_and_backend() {
     assert!(renderer.can_render_resident(&image, &s).unwrap());
     assert!(!cpu.can_render_resident(&image, &s).unwrap());
     s.geometry.crop.angle = 2.;
-    assert!(!renderer.can_render_resident(&image, &s).unwrap());
+    // M2-49 composes rotated crops into the resident geometry map.
+    assert!(renderer.can_render_resident(&image, &s).unwrap());
+    assert!(!cpu.can_render_resident(&image, &s).unwrap());
 }
 
 #[test]

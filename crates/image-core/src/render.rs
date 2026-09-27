@@ -247,10 +247,26 @@ impl Default for RendererConfig {
     }
 }
 
+type LensResolutionMemo = Option<(
+    engine_api::id::ImageId,
+    ParamHash,
+    pipeline_cpu::ResolvedLens,
+)>;
+
+type GeometryAnalysisMemo = Option<(
+    engine_api::id::ImageId,
+    ParamHash,
+    pipeline_cpu::UprightAnalysis,
+)>;
+
 /// Pulls output tiles through the stage graph with memoized upstream tiles.
 /// `Send + Sync`: share one renderer (and its cache) between jobs.
 #[derive(Clone)]
 pub struct Renderer {
+    geometry_analysis: Arc<Mutex<GeometryAnalysisMemo>>,
+    lens_resolution: Arc<Mutex<LensResolutionMemo>>,
+    pub(crate) depth: Option<Arc<crate::depth::DepthProvider>>,
+    pub(crate) depth_visualisation: bool,
     ops: Arc<dyn StageOp>,
     native_ops: Arc<dyn StageOp>,
     dcp: Option<(Arc<pipeline_adobe::dcp::DcpProfile>, ParamHash)>,
@@ -281,8 +297,11 @@ struct Resolved<'a> {
     algorithm: DemosaicAlgorithm,
     profile: ColorMatrix3,
     wb: ColorMatrix3,
-    /// Resident export lens stages (never set for viewport renders).
+    /// Resolved lens and composed geometry stages.
     lens: Option<&'a pipeline_cpu::LensPlan>,
+    /// Interactive plans are resolved from this image and recipe, so Lens-chain
+    /// hashes safely identify their WB and Detail checkpoints.
+    cache_lens: bool,
 }
 
 impl Renderer {
@@ -304,6 +323,10 @@ impl Renderer {
             ops
         };
         Self {
+            geometry_analysis: Arc::new(Mutex::new(None)),
+            lens_resolution: Arc::new(Mutex::new(None)),
+            depth: None,
+            depth_visualisation: false,
             ops,
             native_ops,
             dcp: None,
@@ -344,6 +367,7 @@ impl Renderer {
         next.native_ops = ops;
         // CPU f32 checkpoints belong to the selected backend arithmetic.
         next.rgb_memo = Arc::new(Mutex::new(Default::default()));
+        next.geometry_analysis = Arc::new(Mutex::new(None));
         next.for_process_version(self.config.process_version)
     }
 
@@ -387,6 +411,11 @@ impl Renderer {
     }
 
     fn validate_settings(&self, settings: &DevelopSettings) -> EngineResult<()> {
+        let mut checked_depth = settings.clone();
+        if self.depth.is_some() {
+            checked_depth.effects.lens_blur = None;
+        }
+        let settings = &checked_depth;
         if self.is_adobe() {
             if !(3..=6).contains(&self.config.process_version.revision) {
                 return Err(EngineError::invalid(
@@ -540,12 +569,18 @@ impl Renderer {
         sink: &mut dyn FnMut(Tile),
     ) -> EngineResult<()> {
         cancel.check()?;
-        let r = self.resolve(image, settings)?;
+        let lens = self.interactive_lens_plan(image, settings, cancel)?;
+        let mut r = self.resolve(image, settings)?;
+        r.lens = lens.as_ref();
+        r.cache_lens = true;
         let level = coords.first().map(|c| c.level);
         if let Some(prepared) = self.prepare_dcp(image, settings)? {
             return prepared.render_tiles(image, settings, coords, output, cancel, sink);
         }
-        if (self.is_adobe() || has_m2_settings(settings)) && !self.supports_resident(&r, level) {
+        if (lens.is_none() && !crate::resident_export_lens_supported(&settings.lens))
+            || ((self.is_adobe() || has_m2_settings(settings) || self.depth_visualisation)
+                && !self.supports_resident(&r, level))
+        {
             self.run_m2(image, settings, coords, output, cancel, sink)
         } else {
             self.run(&r, coords, output, cancel, sink)
@@ -570,15 +605,19 @@ impl Renderer {
                 format!("need finest <= coarsest <= {MAX_LEVEL}"),
             ));
         }
-        let r = self.resolve(image, settings)?;
+        let lens = self.interactive_lens_plan(image, settings, cancel)?;
+        let mut r = self.resolve(image, settings)?;
+        r.lens = lens.as_ref();
+        r.cache_lens = true;
         if let Some(prepared) = self.prepare_dcp(image, settings)? {
             return prepared.render_progressive(image, settings, viewport, output, cancel, sink);
         }
         for level in (viewport.finest_level..=viewport.coarsest_level).rev() {
             let extent = Self::output_extent(image, settings, level)?;
             let coords = Self::tiles_in_extent(extent, level, viewport.rect.at_level(level));
-            if (self.is_adobe() || has_m2_settings(settings))
-                && !self.supports_resident(&r, Some(level))
+            if (lens.is_none() && !crate::resident_export_lens_supported(&settings.lens))
+                || ((self.is_adobe() || has_m2_settings(settings) || self.depth_visualisation)
+                    && !self.supports_resident(&r, Some(level)))
             {
                 self.run_m2(image, settings, &coords, output, cancel, sink)?;
             } else {
@@ -609,31 +648,13 @@ impl Renderer {
         ))
     }
 
-    fn run_m2(
+    fn develop_before_geometry(
         &self,
         image: &RawImage,
         settings: &DevelopSettings,
-        coords: &[TileCoord],
-        output: RenderOutput,
+        level: u8,
         cancel: &CancellationToken,
-        sink: &mut dyn FnMut(Tile),
-    ) -> EngineResult<()> {
-        cancel.check()?;
-        let Some(first) = coords.first() else {
-            return Ok(());
-        };
-        let level = first.level;
-        let extent = Self::output_extent(image, settings, level)?;
-        let grid = extent.tile_grid(TILE_SIZE);
-        if coords
-            .iter()
-            .any(|c| c.level != level || c.x >= grid.0 || c.y >= grid.1)
-        {
-            return Err(EngineError::invalid(
-                "tiles",
-                "coordinates must share one level and lie inside cropped output",
-            ));
-        }
+    ) -> EngineResult<pipeline_cpu::Image> {
         // Reuse the existing memoized sensor/WB path. At L0 this is the full
         // active area; previews do expensive M2 work only at preview resolution.
         let mut base = settings.clone();
@@ -645,30 +666,72 @@ impl Renderer {
         base.locals = Default::default();
         base.effects = Default::default();
         base.geometry = Default::default();
+        let mut lens = self
+            .resolve_interactive_lens(image, &base)?
+            .plan(&base, image.metadata())?;
+        let mapped_optics = lens.as_ref().is_some_and(|plan| plan.map.is_some());
+        if let Some(plan) = &mut lens {
+            plan.map = None;
+        }
         let mut r = self.resolve(image, &base)?;
+        r.lens = lens.as_ref();
+        r.cache_lens = true;
         // Local EV can amplify resident f16 checkpoints beyond the linear
         // tolerance. Keep this barrier's upstream in-flight computation f32.
         r.allow_resident = settings.locals.adjustments.is_empty();
         let e = image.level_extent(level);
         let all = Self::tiles_for(image, level, PixelRect::full(e));
-        let mut wb =
-            pipeline_cpu::Image::new(e.width, e.height, vec![vec![0.; e.area() as usize]; 3])?;
-        let mut error = None;
-        self.run(&r, &all, RenderOutput::SceneLinear, cancel, &mut |t| {
-            let result = Tile::from_samples(
-                TileCoord::new(0, t.coord().x, t.coord().y),
-                t.layout(),
-                t.samples::<f32>().expect("scene-linear tile").to_vec(),
-            )
-            .and_then(|t| wb.put(&t));
-            if let Err(e) = result {
-                error = Some(e);
+        let scalar_optics = !self.is_adobe()
+            && (!r.allow_resident || !self.supports_resident(&r, Some(level)))
+            && (mapped_optics
+                || lens
+                    .as_ref()
+                    .is_none_or(|p| p.ca.is_some() || p.vignette.is_some()));
+        let wb = if scalar_optics {
+            // Keep optics before Detail while deferring common distortion to the
+            // composed final map. The reference prefix handles embedded gains,
+            // sensor CA and defringe that resident operators cannot represent.
+            // Warped optics also need this f32 prefix: WB checkpoint rounding
+            // is amplified by resampling and EDR gamut mapping.
+            let mut prefix = base.clone();
+            prefix.lens.manual_distortion = 0.;
+            prefix.lens.distortion_scale = 0.;
+            pipeline_cpu::render_linear_scaled_with_denoise(
+                &prefix,
+                &match image.rgb() {
+                    Some(rgb) => pipeline_cpu::RenderSource::Rgb(rgb.pixels()),
+                    None => pipeline_cpu::RenderSource::Cfa {
+                        image: image.cfa(),
+                        metadata: image.metadata(),
+                    },
+                },
+                1 << level,
+                &Default::default(),
+                self.denoiser.as_deref(),
+            )?
+        } else {
+            let mut wb =
+                pipeline_cpu::Image::new(e.width, e.height, vec![vec![0.; e.area() as usize]; 3])?;
+            let mut error = None;
+            self.run(&r, &all, RenderOutput::SceneLinear, cancel, &mut |t| {
+                let result = Tile::from_samples(
+                    TileCoord::new(0, t.coord().x, t.coord().y),
+                    t.layout(),
+                    t.samples::<f32>().expect("scene-linear tile").to_vec(),
+                )
+                .and_then(|t| wb.put(&t));
+                if let Err(e) = result {
+                    error = Some(e);
+                }
+            })?;
+            if let Some(e) = error {
+                return Err(e);
             }
-        })?;
-        if let Some(e) = error {
-            return Err(e);
-        }
+            wb
+        };
         let mut developed = wb;
+        let mut point_effects = settings.effects.clone();
+        point_effects.lens_blur = None;
         for (stage, op) in [
             (StageId::Detail, Op::Detail(&settings.detail)),
             (StageId::Tone, Op::Tone(&settings.tone)),
@@ -676,11 +739,17 @@ impl Renderer {
             (StageId::Color, Op::Color(&settings.color)),
             (
                 StageId::Effects,
-                Op::EffectsInCrop(&settings.effects, e, &settings.geometry.crop),
+                Op::EffectsInCrop(&point_effects, e, &settings.geometry.crop),
             ),
-            (StageId::Geometry, Op::Geometry(&settings.geometry)),
         ] {
-            developed = self.ops.run_image(stage, &op, developed, cancel)?;
+            if stage == StageId::Effects
+                && (settings.effects.lens_blur.is_some() || self.depth_visualisation)
+            {
+                developed = self.apply_depth_effects(&developed, settings)?;
+            }
+            if !(stage == StageId::Effects && self.depth_visualisation) {
+                developed = self.ops.run_image(stage, &op, developed, cancel)?;
+            }
             if stage == StageId::Color && !settings.locals.adjustments.is_empty() {
                 let upstream = self.stage_chain(settings)[StageId::Color.index()].1;
                 let base = developed;
@@ -713,6 +782,52 @@ impl Renderer {
                 cancel.check()?;
             }
         }
+        Ok(developed)
+    }
+
+    fn run_m2(
+        &self,
+        image: &RawImage,
+        settings: &DevelopSettings,
+        coords: &[TileCoord],
+        output: RenderOutput,
+        cancel: &CancellationToken,
+        sink: &mut dyn FnMut(Tile),
+    ) -> EngineResult<()> {
+        cancel.check()?;
+        let Some(first) = coords.first() else {
+            return Ok(());
+        };
+        let level = first.level;
+        let extent = Self::output_extent(image, settings, level)?;
+        let grid = extent.tile_grid(TILE_SIZE);
+        if coords
+            .iter()
+            .any(|c| c.level != level || c.x >= grid.0 || c.y >= grid.1)
+        {
+            return Err(EngineError::invalid(
+                "tiles",
+                "coordinates must share one level and lie inside cropped output",
+            ));
+        }
+        let developed = self.develop_before_geometry(image, settings, level, cancel)?;
+        let resolved = self.resolve_interactive_lens(image, settings)?;
+        let geometry_only = resolved
+            .plan(settings, image.metadata())?
+            .is_some_and(|p| p.map.as_ref().is_none_or(|m| m.lens.is_none()));
+        let analyzed = self.interactive_upright_analysis(image, settings, cancel)?;
+        let developed = if let Some(analyzed) = analyzed {
+            resolved.apply_geometry_with_upright(&developed, settings, &analyzed)?
+        } else if geometry_only {
+            self.ops.run_image(
+                StageId::Geometry,
+                &Op::Geometry(&settings.geometry),
+                developed,
+                cancel,
+            )?
+        } else {
+            resolved.apply_geometry(&developed, settings)?
+        };
         let mut seen = HashSet::new();
         for &coord in coords {
             cancel.check()?;
@@ -721,7 +836,20 @@ impl Renderer {
             }
             let mut t = developed.tile(TileCoord::new(0, coord.x, coord.y), 0, 1)?;
             cancel.check()?;
-            if let Some(display) = output.display_op(settings.output.gamut_mapping) {
+            if self.depth_visualisation {
+                t = if output == RenderOutput::Display {
+                    Tile::from_samples(
+                        coord,
+                        t.layout(),
+                        t.samples::<f32>()?
+                            .iter()
+                            .map(|v| (v.clamp(0., 1.) * 255.).round() as u8)
+                            .collect(),
+                    )?
+                } else {
+                    Tile::from_samples(coord, t.layout(), t.samples::<f32>()?.to_vec())?
+                };
+            } else if let Some(display) = output.display_op(settings.output.gamut_mapping) {
                 t = self.ops.run(StageId::Output, &display, t)?;
                 t = if display.is_encoded_display() {
                     Tile::from_samples(coord, t.layout(), t.samples::<u8>()?.to_vec())?
@@ -810,6 +938,7 @@ impl Renderer {
             profile,
             wb,
             lens: None,
+            cache_lens: false,
         })
     }
 
@@ -827,7 +956,7 @@ impl Renderer {
             return Ok(());
         };
         let level = first.level;
-        let grid = r.image.level_extent(level).tile_grid(TILE_SIZE);
+        let grid = Self::lens_output_extent(r.image, level, r.lens).tile_grid(TILE_SIZE);
         if level > MAX_LEVEL
             || coords
                 .iter()
@@ -1116,6 +1245,10 @@ impl Renderer {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "render_review_tests.rs"]
+mod review_tests;
 
 // Share default-detail activation with the scalar reference.
 fn has_m2_settings(s: &DevelopSettings) -> bool {

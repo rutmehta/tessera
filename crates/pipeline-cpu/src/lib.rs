@@ -25,7 +25,7 @@ mod lens_plan;
 mod lens_resolve;
 pub use lens_plan::{
     CaPlan, EmbeddedGain, EmbeddedWarp, LensMap, LensPlan, MAX_EMBEDDED, MapPlan, ProfileVignette,
-    SampleMap, TransformPlan, VignettePlan,
+    SampleMap, TransformPlan, UprightAnalysis, VignettePlan,
 };
 mod optics;
 mod render;
@@ -40,10 +40,10 @@ pub use lens_resolve::{
     resolve_lens_sensor,
 };
 pub use render::{
-    RenderSource, Rgb8Image, has_m2_settings, render, render_linear_scaled,
-    render_linear_scaled_resolved, render_linear_scaled_with_denoise,
-    render_linear_scaled_with_depth, render_linear_scaled_with_lens, render_scaled,
-    validate_settings,
+    RenderSource, Rgb8Image, has_m2_settings, render, render_linear_before_geometry,
+    render_linear_scaled, render_linear_scaled_resolved, render_linear_scaled_with_denoise,
+    render_linear_scaled_with_depth, render_linear_scaled_with_hooks,
+    render_linear_scaled_with_lens, render_scaled, validate_settings,
 };
 mod mosaic;
 pub use color::{

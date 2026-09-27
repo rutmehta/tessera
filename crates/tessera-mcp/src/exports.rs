@@ -70,6 +70,14 @@ impl Console {
             ));
         }
         let format = match settings.format {
+            ExportFormat::Dng => export::Format::Dng,
+            ExportFormat::JpegXl { quality: 100 } => export::Format::JpegXl { bits: 8 },
+            ExportFormat::Avif {
+                quality: quality @ 1..=100,
+            } => export::Format::Avif(export::AvifOptions {
+                quality,
+                ..Default::default()
+            }),
             ExportFormat::Jpeg { quality: 1..=100 } => {
                 if let ExportFormat::Jpeg { quality } = settings.format {
                     export::Format::Jpeg { quality }
@@ -87,7 +95,7 @@ impl Console {
             }
             _ => {
                 return Err(unsupported(
-                    "export supports JPEG quality 1..=100, PNG 8-bit, TIFF 8/16-bit",
+                    "export supports JPEG/AVIF quality 1..=100, PNG 8-bit, TIFF 8/16-bit, lossless JPEG XL quality 100, and developed float32 DNG",
                 ));
             }
         };
@@ -113,11 +121,7 @@ impl Console {
             },
             ..Default::default()
         };
-        let extension = match format {
-            export::Format::Jpeg { .. } => "jpg",
-            export::Format::Png => "png",
-            export::Format::Tiff { .. } => "tif",
-        };
+        let extension = format.extension();
         let mut pending = Vec::new();
         let mut names = BTreeSet::new();
         for image in images.iter().copied().collect::<BTreeSet<_>>() {

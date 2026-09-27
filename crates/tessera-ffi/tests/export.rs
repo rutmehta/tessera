@@ -75,6 +75,101 @@ fn files(dir: &Path) -> Vec<String> {
 }
 
 #[test]
+fn dng_settings_select_float_linear_export() {
+    let json = normalize_export_settings(r#"{"format":"dng","bit_depth":32}"#.into()).unwrap();
+    let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(value["format"], "dng");
+    assert_eq!(value["bit_depth"], 32);
+    assert!(normalize_export_settings(r#"{"format":"dng","bit_depth":16}"#.into()).is_err());
+}
+
+#[test]
+fn jpeg_xl_settings_support_lossless_depths_and_reject_false_profiles() {
+    for bits in [8, 16] {
+        let json = format!(r#"{{"format":"jpeg_xl","bit_depth":{bits}}}"#);
+        let value: serde_json::Value =
+            serde_json::from_str(&normalize_export_settings(json).unwrap()).unwrap();
+        assert_eq!(value["format"], "jpeg_xl");
+        assert_eq!(value["bit_depth"], bits);
+    }
+    for extra in [r#""bit_depth":12"#, r#""color_space":"display_p3""#] {
+        assert!(normalize_export_settings(format!(r#"{{"format":"jpeg_xl",{extra}}}"#)).is_err());
+    }
+}
+
+#[test]
+fn avif_settings_are_backward_compatible_and_validate_depth_and_speed() {
+    for bits in [8, 10, 12] {
+        let json = format!(r#"{{"format":"avif","bit_depth":{bits},"avif_speed":8}}"#);
+        let value: serde_json::Value =
+            serde_json::from_str(&normalize_export_settings(json).unwrap()).unwrap();
+        assert_eq!(value["bit_depth"], bits);
+        assert_eq!(value["avif_speed"], 8);
+    }
+    for json in [
+        r#"{"format":"avif","bit_depth":16}"#,
+        r#"{"format":"avif","avif_speed":0}"#,
+        r#"{"format":"avif","avif_speed":11}"#,
+        r#"{"format":"avif","max_file_bytes":1000}"#,
+    ] {
+        assert!(normalize_export_settings(json.into()).is_err(), "{json}");
+    }
+    assert!(normalize_export_settings("{}".into()).is_ok());
+}
+
+#[test]
+fn jpeg_xl_batch_encodes_each_depth_and_keeps_metadata_sidecar() {
+    let f = fixture();
+    for bits in [8, 16] {
+        let out = f.dir.path().join(format!("jxl-{bits}"));
+        let report = f
+            .engine
+            .export_batch(
+                ExportTarget::Images {
+                    image_ids: vec![f.ids[0].clone()],
+                },
+                settings(
+                    &out,
+                    serde_json::json!({"format":"jpeg_xl", "bit_depth":bits}),
+                ),
+                None,
+                None,
+            )
+            .unwrap();
+        assert_eq!((report.exported, report.failed), (1, 0), "{report:?}");
+        let data = std::fs::read(out.join("a.jxl")).unwrap();
+        assert_eq!(&data[4..12], b"JXL \r\n\x87\n");
+        assert!(out.join("a.jxl.xmp").is_file());
+    }
+}
+
+#[test]
+fn avif_batch_encodes_each_depth_and_keeps_metadata_sidecar() {
+    let f = fixture();
+    for bits in [8, 10, 12] {
+        let out = f.dir.path().join(format!("avif-{bits}"));
+        let report = f
+            .engine
+            .export_batch(
+                ExportTarget::Images {
+                    image_ids: vec![f.ids[0].clone()],
+                },
+                settings(
+                    &out,
+                    serde_json::json!({"format":"avif", "bit_depth":bits, "avif_speed":10}),
+                ),
+                None,
+                None,
+            )
+            .unwrap();
+        assert_eq!((report.exported, report.failed), (1, 0), "{report:?}");
+        let data = std::fs::read(out.join("a.avif")).unwrap();
+        assert_eq!(&data[4..12], b"ftypavif");
+        assert!(out.join("a.avif.xmp").is_file());
+    }
+}
+
+#[test]
 fn settings_json_is_validated_and_normalized() {
     let normalized =
         normalize_export_settings(r#"{"format":"tiff","bit_depth":16}"#.into()).unwrap();
@@ -83,6 +178,14 @@ fn settings_json_is_validated_and_normalized() {
     assert_eq!(value["color_space"], "srgb");
     assert_eq!(value["resize"]["mode"], "none");
     assert_eq!(value["on_conflict"], "unique");
+    assert!(value["max_file_bytes"].is_null());
+    assert!(value["watermark"].is_null());
+    let options = ExportOptions::from_json(r#"{"max_file_bytes":4096,"watermark":{"kind":"text","text":"Copyright","font":"font.ttf","size":0.05,"color":[1,1,1],"opacity":0.5,"anchor":"bottom_right","inset":0.02,"rotation":0}}"#).unwrap();
+    assert_eq!(options.max_file_bytes, Some(4096));
+    assert_eq!(
+        ExportOptions::from_json(&options.to_json()).unwrap(),
+        options
+    );
     for bad in [
         r#"{"quality":0}"#,
         r#"{"format":"jpeg","bit_depth":16}"#,
@@ -91,6 +194,9 @@ fn settings_json_is_validated_and_normalized() {
         r#"{"naming":"{unknown}"}"#,
         r#"{"resize":{"mode":"long_edge","long_edge":0}}"#,
         r#"{"surprise":true}"#,
+        r#"{"max_file_bytes":0}"#,
+        r#"{"format":"png","max_file_bytes":4096}"#,
+        r#"{"watermark":{"kind":"graphic","path":"a.png","scale":0,"opacity":1,"anchor":"center","inset":0}}"#,
     ] {
         assert!(normalize_export_settings(bad.into()).is_err(), "{bad}");
     }
@@ -481,7 +587,8 @@ fn print_renders_fit_the_box_in_the_chosen_colour_handling() {
     assert!(managed.icc.len() > 100);
 
     let profile_path = f.dir.path().join("printer.icc");
-    std::fs::write(&profile_path, output_profile()).unwrap();
+    let profile_bytes = output_profile();
+    std::fs::write(&profile_path, &profile_bytes).unwrap();
     let described = describe_printer_profile(profile_path.to_string_lossy().into_owned()).unwrap();
     assert_eq!(described.color_space, "RGB");
     let app = f
@@ -502,7 +609,9 @@ fn print_renders_fit_the_box_in_the_chosen_colour_handling() {
         )
         .unwrap();
     assert_eq!((app.width, app.height, app.channels), (40, 60, 3));
-    assert_eq!(app.icc, output_profile());
+    // Creating another profile can cross a second boundary and change its
+    // ICC creation timestamp. Require the exact bytes of the input fixture.
+    assert_eq!(app.icc, profile_bytes);
 
     let cmyk = PathBuf::from("/System/Library/ColorSync/Profiles/Generic CMYK Profile.icc");
     if cmyk.exists() {

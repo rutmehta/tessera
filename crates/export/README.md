@@ -16,6 +16,35 @@ Processing order: float render including shared `color_mgmt::Transform` (relativ
 
 The TIFF16 integration regression checks exact equality to the managed float render followed by final quantization, including a saturated wide-gamut sample and distinguishable sub-8-bit differences. ExportSettings still has no custom ICC/intent fields and does not claim printer/CMYK or HDR export. Shared transforms are built per render; cross-export registry/transform caching is not implemented.
 
+## Developed DNG (M2-45, partial DNG milestone)
+
+`Format::Dng` writes an uncompressed float32 LinearRaw DNG using
+`merge::dng::write`. The recipe is baked by the CPU full-resolution output-linear
+renderer, including its tone mapping, then orientation/resize/sharpening are
+applied. Samples are linear Rec.2020 D65, not ICC-encoded document RGB. The
+document colour-space and render-scale hints do not apply to this format.
+ColorMatrix1 describes XYZ D65 to Rec.2020; AsShotNeutral is unity because white
+balance is already baked. The writer retains its DNG 1.4 compatibility version
+and 64 Mi-pixel limit. This is not a scene-referred HDR export.
+
+CLI: `tessera export input.nef --out /absolute/out --format dng --bit-depth 32`.
+FFI settings JSON: `{"format":"dng","bit_depth":32}`. MCP's existing DNG format
+now selects the same codec. Unsupported bit depths are rejected. Watermarks are
+rejected for DNG until document-encoded watermark colours have a linear-space
+conversion. Descriptive XMP is rebuilt through the sidecar metadata model,
+discarding foreign/development properties so an editor cannot reapply baked
+Camera Raw adjustments. The selected metadata policy still applies.
+
+Tests check exact float pixel round trips through `raw_decode::linear_dng`,
+LibRaw open/unpack acceptance, metadata removal and CLI/FFI/MCP selection.
+LibRaw's current Rust wrapper exposes only CFA sample buffers, so these tests do
+not claim a pixel-by-pixel RGB round trip through LibRaw.
+
+Still pending for the full DNG milestone: original + XMP copy, embedded original,
+DNG 1.6 tags, and independent LibRaw RGB sample comparison. No lossy DNG or 16-bit
+DNG option is exposed. The separate metadata-policy, sharpening-strength, HDR,
+and export-workflow milestones are not completed by this slice.
+
 ## AI local masks
 
 Active Subject, Sky, Background and Object (box/click) components are segmented

@@ -1,0 +1,124 @@
+Exact gate:
+cargo test -p export -p tessera-ffi -p tessera-cli -p tessera-mcp --release && cargo clippy -p export -p tessera-ffi -p tessera-cli -p tessera-mcp --all-targets -- -D warnings && cargo fmt --check && cargo deny check licenses && (cd apps/mac && ./build-ffi.sh && swift build)
+
+CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/M2-45
+
+Verbatim selected output (full local log: round2-gate.log):
+    Finished `release` profile [optimized] target(s) in 4.23s
+     Running unittests src/lib.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/export-ef249ee4ef117fa4)
+test result: ok. 16 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 2.68s
+     Running tests/ai_masks.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/ai_masks-c3ccfffd33a78d31)
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+     Running tests/avif.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/avif-3a4d68c5efbdc261)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+     Running tests/avif_precision.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/avif_precision-551fcd5350e43cde)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+     Running tests/batch.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/batch-5b712c030e6af78d)
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 5.64s
+     Running tests/errors.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/errors-7532534a0c5f02fc)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+     Running tests/export.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/export-fe0bccce2cf3d110)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.51s
+     Running tests/gpu_bench.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/gpu_bench-01c81b93c5f96c37)
+test result: ok. 0 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/lens_analysis.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/lens_analysis-6f1f659d7b813c58)
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/managed.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/managed-cb2495a0e8ffa9de)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+     Running tests/orientation.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/orientation-29b44bb81d3c98cf)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+     Running tests/resize.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/resize-ed8fd7cba1e126e3)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s
+     Running tests/size_limit.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/size_limit-a3b19f27fa18fdfd)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+     Running tests/staged.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/staged-1d0b327b94fc7d12)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests/upscale.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/upscale-98d5f2073a3b772d)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/watermark.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/watermark-2ddcfef4914f6678)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+     Running unittests src/main.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/tessera-3612206e8844c724)
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+     Running tests/actions.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/actions-ab3e5b01b271e65f)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+     Running tests/adobe_cli.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/adobe_cli-851ee967b30a1e87)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+     Running tests/agent.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/agent-8684554ca6b4a67f)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+     Running tests/cli.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/cli-4282fb7b2857a2ce)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+     Running tests/export.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/export-0f4202b1da1c89f8)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s
+     Running tests/import_models.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/import_models-e6e37fce3633d771)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+     Running tests/mcp.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/mcp-66c067a92a8c65c5)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+     Running tests/raw_workflow.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/raw_workflow-4f821456152da3b1)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.75s
+     Running tests/understanding.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/understanding-5eee3202887553e4)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+     Running unittests src/lib.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/tessera_ffi-0208c4307c7008ab)
+test result: ok. 40 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+     Running unittests src/bin/uniffi-bindgen.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/uniffi_bindgen-bb93ee76418a0e4f)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/api.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/api-13094bd6ebe1c42c)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+     Running tests/assist.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/assist-40e32477a0061f49)
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.65s
+     Running tests/changes.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/changes-c9a1130a2bc00ad9)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.76s
+     Running tests/develop.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/develop-5a463306c1a777ea)
+test result: ok. 9 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 13.02s
+     Running tests/errors.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/errors-8f82b1ff64f00995)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+     Running tests/export.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/export-108eab2b6d8f47c9)
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.88s
+     Running tests/fallback.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/fallback-124823a17967f1fa)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.46s
+     Running tests/hdr.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/hdr-6fb2d9ed9c06f6b7)
+test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.83s
+     Running tests/library.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/library-6fc49d4025df0b21)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+     Running tests/lrcat.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/lrcat-5bd0d6360a01f441)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.61s
+     Running tests/masks.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/masks-25203505a939f5c5)
+test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 9.96s
+     Running tests/session.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/session-d627152883ce82ca)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s
+     Running tests/tether.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/tether-46fe600405f1cb72)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.91s
+     Running tests/understanding.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/understanding-657c5c1937e575d9)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+     Running unittests src/lib.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/tessera_mcp-42a8d6ef4809fd08)
+test result: ok. 27 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s
+     Running unittests src/main.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/tessera_mcp-4b74ab6a478c0277)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/channels.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/channels-993f9168e75b2670)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+     Running tests/console.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/console-37c1d473dc58b876)
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.53s
+     Running tests/document_color.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/document_color-6703073e96de2c9a)
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+     Running tests/document_protocol.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/document_protocol-28a053730667ccee)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+     Running tests/documents.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/documents-6a0bd51d3df06aba)
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+     Running tests/people.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/people-24fb1998d24a0d45)
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+     Running tests/protocol.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/protocol-39e8d02fbba29d67)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.44s
+     Running tests/wiring.rs (/Volumes/betterSSD/tessera-cache/target/M2-45/release/deps/wiring-99e6ecd099635df7)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+   Doc-tests export
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   Doc-tests tessera_ffi
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   Doc-tests tessera_mcp
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.99s
+licenses ok
+    Finished `release` profile [optimized] target(s) in 6m 35s
+    Finished `release` profile [optimized] target(s) in 1.27s
+     Running `/Volumes/betterSSD/tessera-cache/target/M2-45/release/uniffi-bindgen generate --library /Volumes/betterSSD/tessera-cache/target/M2-45/release/libtessera_ffi.dylib --language swift --out-dir /Users/rutmehta/Developer/tessera/.worktrees/M2-45/apps/mac/build/ffi`
+Build complete! (51.65s)
+GATE_EXIT=0

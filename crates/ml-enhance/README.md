@@ -138,6 +138,11 @@ model reference. Chroma-only is already present but is not implemented here.
 True CFA joint inference and learned Raw Details need separate trained models;
 capture-sharpening deconvolution is not supplied by these restoration weights.
 
+Raw Details is explicitly out of scope for M2-47: no supported Apache/MIT
+learned-demosaic model is available. The FFI retains `raw_details` for binding
+compatibility but rejects `true` with a clear error before scheduling work.
+Ordinary demosaic and restoration weights are not advertised as Raw Details.
+
 ## Tests
 
 Run the work-package gate from the workspace with CARGO_TARGET_DIR outside it:

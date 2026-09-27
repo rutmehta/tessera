@@ -1,4 +1,6 @@
 //! On-device image enhancement.
+mod color;
+pub use color::CameraSrgb;
 mod cfa;
 mod packing;
 pub use cfa::{CfaDenoiser, CfaNoise, denoise_cfa_with};

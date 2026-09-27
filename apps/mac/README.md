@@ -7,7 +7,7 @@ Thumbnails and camera previews come from the Rust embedded-JPEG fast path. RAWs 
 developed by the engine (`DevelopSession`), which writes into IOSurfaces the Metal loupe presents;
 no pixel buffers cross UniFFI.
 
-Requirements: macOS 15+, Xcode 26 / Swift 6.3. `xcodegen` is not installed on this machine, so the
+Requirements: macOS 15+, Xcode 26.3+ / Swift 6.2.4+ (CI and the primary machine use Xcode 26.6 / Swift 6.3; the second development machine builds with 26.3, so code must compile on both — in particular, keep `CGFloat` vs `Double` explicit in arithmetic and trig calls, which Swift 6.2.4 cannot disambiguate). `xcodegen` is not installed on this machine, so the
 project is a Swift package (Xcode opens `Package.swift` directly; there is no checked-in `.xcodeproj`).
 
 ## Build

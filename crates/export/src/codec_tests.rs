@@ -1,6 +1,102 @@
 use super::*;
 
 #[test]
+fn jpeg_xl_rejects_invalid_input_without_writing() {
+    for (w, h, bits, space, sample) in [
+        (0, 2, 8, ColorSpace::Srgb, 0.5),
+        (1, 2, 8, ColorSpace::Srgb, 0.5),
+        (2, 1, 8, ColorSpace::Srgb, 0.5),
+        (2, 2, 12, ColorSpace::Srgb, 0.5),
+        (2, 2, 8, ColorSpace::DisplayP3, 0.5),
+        (2, 2, 8, ColorSpace::Rec2020, 0.5),
+        (2, 2, 8, ColorSpace::ProPhoto, 0.5),
+        (2, 2, 8, ColorSpace::Srgb, f32::NAN),
+    ] {
+        let mut out = std::io::Cursor::new(Vec::new());
+        let rgb = image::Rgb32FImage::from_pixel(w, h, image::Rgb([sample; 3]));
+        assert!(
+            encode(
+                &mut out,
+                &rgb,
+                Encoding {
+                    format: Format::JpegXl { bits },
+                    space,
+                    dpi: None
+                },
+                None,
+                &CancellationToken::new()
+            )
+            .is_err()
+        );
+        assert!(out.into_inner().is_empty());
+    }
+    let rgb = image::Rgb32FImage::new(2, 2);
+    let cancel = CancellationToken::new();
+    cancel.cancel();
+    let mut out = std::io::Cursor::new(Vec::new());
+    assert!(
+        encode(
+            &mut out,
+            &rgb,
+            Encoding {
+                format: Format::JpegXl { bits: 8 },
+                space: ColorSpace::Srgb,
+                dpi: None
+            },
+            None,
+            &cancel
+        )
+        .is_err()
+    );
+    assert!(out.into_inner().is_empty());
+}
+
+#[test]
+fn jpeg_xl_round_trips_quantized_srgb_at_both_depths() {
+    for bits in [8, 16] {
+        for (w, h) in [(2, 2), (17, 13), (257, 3)] {
+            let max = if bits == 8 { 255.0 } else { 65535.0 };
+            let rgb = image::Rgb32FImage::from_fn(w, h, |x, y| {
+                image::Rgb([((x * 317 + y * 19) % 65536) as f32 / 65535.0, 0.5, 1.0])
+            });
+            let mut out = std::io::Cursor::new(Vec::new());
+            encode(
+                &mut out,
+                &rgb,
+                Encoding {
+                    format: Format::JpegXl { bits },
+                    space: ColorSpace::Srgb,
+                    dpi: None,
+                },
+                Some("<test>copyright</test>"),
+                &CancellationToken::new(),
+            )
+            .unwrap();
+            let data = out.into_inner();
+            assert!(
+                data.windows(b"<test>copyright</test>".len())
+                    .any(|v| v == b"<test>copyright</test>")
+            );
+            let decoded = jxl_oxide::JxlImage::read_with_defaults(data.as_slice()).unwrap();
+            assert_eq!((decoded.width(), decoded.height()), (w, h));
+            assert_eq!(decoded.rendered_cicp(), Some([1, 13, 0, 1]));
+            let rendered = decoded.render_frame(0).unwrap();
+            let mut samples = vec![0.0f32; rgb.as_raw().len()];
+            assert_eq!(
+                rendered.stream().write_to_buffer(&mut samples),
+                samples.len()
+            );
+            for (actual, expected) in samples.iter().zip(rgb.as_raw()) {
+                assert_eq!(
+                    (actual * max).round() as u16,
+                    (expected * max).round() as u16
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn shared_profiles_are_reused_and_tiff_quantizes_target_encoded_pixels() {
     use color_mgmt::{Builtin, Registry, Transform, TransformOptions};
     let mut registry = Registry::new();

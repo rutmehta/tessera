@@ -30,6 +30,23 @@ impl Denoiser {
             id: DENOISE_MODEL_ID.into(),
             version: DENOISE_VERSION.into(),
         })?;
+        Self::from_handle(handle, options)
+    }
+
+    /// Strict cache-only load: never re-enters a downloading resolver.
+    pub fn load_cached(registry: &ModelRegistry, options: SessionOptions) -> Result<Self> {
+        let handle = registry
+            .resolve_cached_ref(&ModelRef {
+                id: DENOISE_MODEL_ID.into(),
+                version: DENOISE_VERSION.into(),
+            })?
+            .ok_or_else(|| {
+                anyhow::anyhow!("missing DRUNet weights (offline); enable model downloads")
+            })?;
+        Self::from_handle(handle, options)
+    }
+
+    fn from_handle(handle: ml_runtime::ModelHandle, options: SessionOptions) -> Result<Self> {
         ensure!(
             handle.spec().sha256 == DENOISE_SHA256,
             "unexpected DRUNet weights"

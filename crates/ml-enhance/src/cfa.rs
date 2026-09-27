@@ -89,6 +89,78 @@ pub struct CfaNoise {
     pub read: [f32; 4],
 }
 
+impl CfaNoise {
+    /// Dark-frame-free estimate in normalized, canonical RGGB sensor units.
+    /// Nonoverlapping 8x8 same-site patches use a mixed second difference
+    /// (a-b-c+d)/2, which cancels constant and linear scene gradients and has
+    /// unit noise energy. The flattest three quarters reject textured patches.
+    /// A nonnegative variance-versus-mean fit separates shot/read noise only
+    /// when the surviving signal range exceeds 0.05; otherwise read variance
+    /// represents the observed noise at that signal. This is an estimate, not
+    /// a camera calibration, and may overestimate noise in textured scenes.
+    pub fn estimate(packed: &Tensor) -> Result<Self> {
+        let [_, channels, h, w] = packed.shape();
+        ensure!(
+            channels == 4 && w >= 8 && h >= 8,
+            "noise estimate needs four 8x8 CFA planes"
+        );
+        ensure!(
+            packed.data().iter().all(|v| v.is_finite()),
+            "nonfinite CFA samples"
+        );
+        let mut result = Self {
+            shot: [0.; 4],
+            read: [0.; 4],
+        };
+        for c in 0..4 {
+            let plane = &packed.data()[c * w * h..(c + 1) * w * h];
+            let mut patches = Vec::new();
+            for y in (0..h - 7).step_by(8) {
+                for x in (0..w - 7).step_by(8) {
+                    let (mut sum, mut variance, mut gradient) = (0.0f64, 0.0f64, 0.0f64);
+                    for dy in (0..8).step_by(2) {
+                        for dx in (0..8).step_by(2) {
+                            let i = (y + dy) * w + x + dx;
+                            let [a, b, c, d] =
+                                [plane[i], plane[i + 1], plane[i + w], plane[i + w + 1]]
+                                    .map(f64::from);
+                            sum += a + b + c + d;
+                            variance += (a - b - c + d).powi(2) / 4.0;
+                            gradient += (a + b - c - d).powi(2) + (a + c - b - d).powi(2);
+                        }
+                    }
+                    patches.push((gradient, sum / 64.0, variance / 16.0));
+                }
+            }
+            patches.sort_by(|a, b| a.0.total_cmp(&b.0));
+            patches.truncate((patches.len() * 3 / 4).max(1));
+            let n = patches.len() as f64;
+            let mean = patches.iter().map(|p| p.1).sum::<f64>() / n;
+            let variance = patches.iter().map(|p| p.2).sum::<f64>() / n;
+            let spread = patches.iter().map(|p| (p.1 - mean).powi(2)).sum::<f64>();
+            let lo = patches.iter().map(|p| p.1).fold(f64::INFINITY, f64::min);
+            let hi = patches
+                .iter()
+                .map(|p| p.1)
+                .fold(f64::NEG_INFINITY, f64::max);
+            let shot = if hi - lo > 0.05 && spread > 0.0 {
+                (patches
+                    .iter()
+                    .map(|p| (p.1 - mean) * (p.2 - variance))
+                    .sum::<f64>()
+                    / spread)
+                    .max(0.0)
+                    .min(variance / mean.max(1e-12))
+            } else {
+                0.0
+            };
+            result.shot[c] = shot.min(f32::MAX as f64) as f32;
+            result.read[c] = (variance - shot * mean).clamp(0.0, f32::MAX as f64) as f32;
+        }
+        Ok(result)
+    }
+}
+
 /// Blend in packed sensor coordinates. The optional mask is FOUR planes,
 /// packed/rotated exactly like the sensor, not one averaged 2x2 mask sample.
 /// The callback receives eight planes: R,G1,G2,B and their estimated sigmas.
@@ -163,4 +235,42 @@ pub fn denoise_cfa_with(
             })
             .collect(),
     )
+}
+
+#[cfg(test)]
+mod automatic_noise_tests {
+    use super::*;
+
+    #[test]
+    fn estimate_recovers_independent_flat_site_variances() {
+        let (w, h) = (64, 64);
+        let mut seed = 7u32;
+        let mut data = Vec::new();
+        for c in 0..4 {
+            let amplitude = 0.002 * (c + 1) as f32;
+            for _ in 0..w * h {
+                seed = seed.wrapping_mul(1664525).wrapping_add(1013904223);
+                let u = (seed >> 8) as f32 / 16777216.0;
+                data.push(0.25 + amplitude * (2.0 * u - 1.0));
+            }
+        }
+        let input = Tensor::new(4, h, w, data).unwrap();
+        let estimated = CfaNoise::estimate(&input).unwrap();
+        for c in 0..4 {
+            let expected = (0.002 * (c + 1) as f32).powi(2) / 3.0;
+            let actual = estimated.read[c] + estimated.shot[c] * 0.25;
+            assert!(
+                (actual / expected - 1.0).abs() < 0.3,
+                "site {c}: {actual} vs {expected}"
+            );
+        }
+    }
+
+    #[test]
+    fn estimate_rejects_invalid_input_and_keeps_noiseless_flat_zero() {
+        assert!(CfaNoise::estimate(&Tensor::new(3, 16, 16, vec![0.2; 768]).unwrap()).is_err());
+        let noise = CfaNoise::estimate(&Tensor::new(4, 16, 16, vec![0.2; 1024]).unwrap()).unwrap();
+        assert_eq!(noise.shot, [0.; 4]);
+        assert_eq!(noise.read, [0.; 4]);
+    }
 }

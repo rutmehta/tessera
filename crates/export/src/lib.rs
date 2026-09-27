@@ -1,12 +1,18 @@
 //! Full-resolution image export.
 mod ai_masks;
 mod batch;
+mod depth;
 /// Shared preview/export segmentation implementation.
 pub use mask_ai;
+mod avif;
 mod codec;
+mod jxl;
+pub use avif::{AvifOptions, encode_avif};
+mod watermark;
 pub use batch::{
     BatchReport, ExportItem, Progress, export_batch, export_batch_upscaled, export_batch_with_jobs,
 };
+pub use watermark::{Anchor, Watermark, apply_watermark};
 mod filter;
 mod gpu;
 use engine_api::{EngineError, EngineResult};
@@ -28,24 +34,43 @@ pub struct ExportImage<'a> {
 
 #[derive(Clone, Copy, Debug)]
 pub enum Format {
-    Jpeg { quality: u8 },
+    Jpeg {
+        quality: u8,
+    },
     Png,
-    Tiff { bits: u8 },
+    /// Developed float32 LinearRaw DNG in linear Rec.2020 (D65).
+    Dng,
+    Tiff {
+        bits: u8,
+    },
+    Avif(AvifOptions),
+    /// Lossless sRGB JPEG XL, 8 or 16 bits per channel.
+    JpegXl {
+        bits: u8,
+    },
 }
 impl Format {
-    fn extension(self) -> &'static str {
+    pub fn extension(self) -> &'static str {
         match self {
             Self::Jpeg { .. } => "jpg",
             Self::Png => "png",
+            Self::Dng => "dng",
             Self::Tiff { .. } => "tif",
+            Self::Avif(_) => "avif",
+            Self::JpegXl { .. } => "jxl",
         }
     }
     fn validate(self) -> EngineResult<()> {
         match self {
-            Self::Jpeg { quality: 1..=100 } | Self::Png | Self::Tiff { bits: 8 | 16 } => Ok(()),
+            Self::Avif(options) => options.validate(),
+            Self::Jpeg { quality: 1..=100 }
+            | Self::Png
+            | Self::Dng
+            | Self::Tiff { bits: 8 | 16 }
+            | Self::JpegXl { bits: 8 | 16 } => Ok(()),
             _ => Err(EngineError::invalid(
                 "format",
-                "JPEG quality must be 1..=100; TIFF bits must be 8 or 16",
+                "JPEG quality must be 1..=100; TIFF/JPEG XL bits must be 8 or 16",
             )),
         }
     }
@@ -85,6 +110,11 @@ pub struct ExportSettings {
     /// a scale that still covers the output size. Ignored with AI masks or
     /// super-resolution (both need full resolution).
     pub render_scale: u32,
+    /// JPEG byte budget including embedded metadata. An impossible budget
+    /// fails without publishing output. Quality is an upper bound.
+    pub max_file_bytes: Option<u64>,
+    /// Composited in document-encoded RGB after output sharpening.
+    pub watermark: Option<Watermark>,
 }
 impl Default for ExportSettings {
     fn default() -> Self {
@@ -99,6 +129,8 @@ impl Default for ExportSettings {
             dpi: None,
             apply_orientation: false,
             render_scale: 1,
+            max_file_bytes: None,
+            watermark: None,
         }
     }
 }
@@ -378,6 +410,7 @@ fn prepare_with_segmenter(
 /// An owned output frame. Send it to an encoder thread while rendering the
 /// next image. No source pixels, model sessions, or GPU allocations are held.
 pub struct RenderedExport {
+    warnings: Vec<String>,
     used_gpu: bool,
     rgb: image::Rgb32FImage,
     packet: Option<XmpPacket>,
@@ -387,6 +420,11 @@ pub struct RenderedExport {
 }
 
 impl RenderedExport {
+    /// Recoverable rendering omissions, also persisted beside a committed output.
+    pub fn warnings(&self) -> &[String] {
+        &self.warnings
+    }
+
     /// True only when this frame actually completed resident GPU rendering.
     pub fn used_gpu(&self) -> bool {
         self.used_gpu
@@ -401,7 +439,8 @@ impl RenderedExport {
     }
 }
 
-/// The render half of [`export_one_cancellable`], with no filesystem writes.
+/// The render half of [`export_one_cancellable`], with no destination writes.
+/// Model manifests and derived depth caches may be populated in app support.
 /// Callers must bound admission (one encoder plus one renderer is sufficient).
 pub fn render_one_cancellable(
     image: &ExportImage<'_>,
@@ -414,6 +453,22 @@ pub fn render_one_cancellable(
     cancel.check()?;
     recipe.validate()?;
     settings.format.validate()?;
+    if matches!(settings.format, Format::Dng) && settings.watermark.is_some() {
+        return Err(encode_error(
+            "DNG watermark compositing in linear colour is not supported",
+        ));
+    }
+    if let Some(mark) = &settings.watermark {
+        mark.validate()?;
+    }
+    if settings.max_file_bytes.is_some()
+        && (!matches!(settings.format, Format::Jpeg { .. }) || settings.max_file_bytes == Some(0))
+    {
+        return Err(EngineError::invalid(
+            "max_file_bytes",
+            "positive JPEG-only byte budget required",
+        ));
+    }
     let path = settings.output_dir.join(filename(
         &settings.naming,
         image.name,
@@ -422,6 +477,12 @@ pub fn render_one_cancellable(
         settings.format.extension(),
     )?);
     let side_path = Sidecar::paths(&path).xmp;
+    if warning_path(&path).try_exists().map_err(encode_error)? {
+        return Err(EngineError::invalid(
+            "output",
+            "destination warning report already exists",
+        ));
+    }
     if path
         .try_exists()
         .map_err(|e| EngineError::io_at(&path, &e))?
@@ -431,7 +492,11 @@ pub fn render_one_cancellable(
     {
         return Err(EngineError::invalid("output", "destination already exists"));
     }
-    let gpu_pixels = if upscale.is_none()
+    let needs_hooks = depth::active(&image.source, &recipe.settings);
+    let mut warnings = Vec::new();
+    let gpu_pixels = if !matches!(settings.format, Format::Dng)
+        && upscale.is_none()
+        && !needs_hooks
         && !ai_masks::active(&recipe.settings)
         && std::env::var("TESSERA_EXPORT_BACKEND").as_deref() != Ok("cpu")
     {
@@ -456,9 +521,56 @@ pub fn render_one_cancellable(
         None
     };
     let already_resized = gpu_pixels.is_some();
+    let mut used_gpu = already_resized;
     let started = std::time::Instant::now();
-    let rgb = if let Some(rgb) = gpu_pixels {
+    let rgb = if matches!(settings.format, Format::Dng) {
+        let rgb = if ai_masks::active(&recipe.settings) {
+            ai_masks::render(&image.source, &recipe.settings, segmenter)?
+        } else {
+            render_full_float(image, recipe)?
+        };
+        match upscale {
+            Some(model) => upscale_rgb(rgb, model)?,
+            None => rgb,
+        }
+    } else if let Some(rgb) = gpu_pixels {
         rgb
+    } else if needs_hooks {
+        if !matches!(settings.render_scale, 1 | 2 | 4 | 8) {
+            return Err(EngineError::invalid("render_scale", "must be 1, 2, 4 or 8"));
+        }
+        let scale = if upscale.is_some() || ai_masks::active(&recipe.settings) {
+            1
+        } else {
+            settings.render_scale
+        };
+        let resident =
+            if recipe.process_version == engine_api::recipe::ProcessVersion::NATIVE_CURRENT {
+                depth::try_resident(&image.source, &recipe.settings, scale, cancel)?
+            } else {
+                None
+            };
+        let (rgb, notices) = match resident {
+            Some(rgb) => {
+                used_gpu = true;
+                (rgb, Vec::new())
+            }
+            None => depth::render(
+                &image.source,
+                &recipe.settings,
+                scale,
+                &depth::support()?,
+                segmenter,
+                None,
+            )?,
+        };
+        warnings = notices;
+        cancel.check()?;
+        let rgb = match upscale {
+            Some(model) => upscale_rgb(rgb, model)?,
+            None => rgb,
+        };
+        encode_output_profile(rgb, recipe, settings.color_space)?
     } else if ai_masks::active(&recipe.settings) {
         let rgb = ai_masks::render(&image.source, &recipe.settings, segmenter)?;
         cancel.check()?;
@@ -488,11 +600,31 @@ pub fn render_one_cancellable(
     } else {
         filter::resize(rgb, settings.resize, cancel)?
     };
-    let rgb = filter::sharpen(rgb, settings.sharpen_for, cancel)?;
+    let mut rgb = filter::sharpen(rgb, settings.sharpen_for, cancel)?;
+    if let Some(mark) = &settings.watermark {
+        apply_watermark(&mut rgb, mark, cancel)?;
+    }
     let packet = metadata_packet(image, recipe, settings.metadata)?;
+    // A developed DNG must not carry source development instructions, which
+    // another raw editor could apply a second time. Rebuild descriptive XMP.
+    let packet = if matches!(settings.format, Format::Dng) {
+        packet
+            .map(|p| {
+                let preset = MarkPreset::lightroom();
+                XmpPacket::from_selection(&recipe.selection, &preset).with_metadata(
+                    &p.selection()?,
+                    &p.metadata()?,
+                    &preset,
+                )
+            })
+            .transpose()?
+    } else {
+        packet
+    };
     gpu::trace("CPU render/orient/resize/sharpen", started);
     Ok(RenderedExport {
-        used_gpu: already_resized,
+        warnings,
+        used_gpu,
         rgb,
         packet,
         settings: settings.clone(),
@@ -507,6 +639,7 @@ fn encode_rendered(
 ) -> EngineResult<PreparedExport> {
     cancel.check()?;
     let RenderedExport {
+        warnings,
         rgb,
         packet,
         settings,
@@ -517,7 +650,7 @@ fn encode_rendered(
     fs::create_dir_all(&settings.output_dir)
         .map_err(|e| EngineError::io_at(&settings.output_dir, &e))?;
     let mut temp = new_output_temp(&settings.output_dir)?;
-    codec::encode(
+    codec::encode_limited(
         temp.as_file_mut(),
         &rgb,
         codec::Encoding {
@@ -527,6 +660,7 @@ fn encode_rendered(
         },
         packet.as_ref().map(XmpPacket::serialize),
         cancel,
+        settings.max_file_bytes,
     )?;
     temp.as_file().sync_all().map_err(encode_error)?;
     let side_temp = if let Some(packet) = &packet {
@@ -538,10 +672,22 @@ fn encode_rendered(
     } else {
         None
     };
+    let warning_temp = if warnings.is_empty() {
+        None
+    } else {
+        let mut temp = new_output_temp(&settings.output_dir)?;
+        for warning in &warnings {
+            writeln!(temp, "{warning}").map_err(encode_error)?;
+        }
+        temp.as_file().sync_all().map_err(encode_error)?;
+        Some(temp)
+    };
     cancel.check()?;
     Ok(PreparedExport {
         temp,
         side_temp,
+        warning_temp,
+        warning_path: warning_path(&path),
         path,
         side_path,
     })
@@ -597,11 +743,38 @@ fn upscale_rgb(
     ))
 }
 
+fn warning_path(path: &std::path::Path) -> PathBuf {
+    let mut name = path.as_os_str().to_owned();
+    name.push(".tessera-warnings.txt");
+    PathBuf::from(name)
+}
+
+impl BatchReport {
+    /// Recoverable warnings for successfully committed results, in input order.
+    /// Reports are stored beside each image as `<filename>.tessera-warnings.txt`.
+    /// An unreadable existing report is an error, never an empty warning list.
+    pub fn warnings(&self) -> EngineResult<Vec<(usize, Vec<String>)>> {
+        let mut warnings = Vec::new();
+        for (index, result) in self.results.iter().enumerate() {
+            let Ok(path) = result else { continue };
+            let report = warning_path(path);
+            match fs::read_to_string(&report) {
+                Ok(text) => warnings.push((index, text.lines().map(str::to_owned).collect())),
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => return Err(EngineError::io_at(&report, &error)),
+            }
+        }
+        Ok(warnings)
+    }
+}
+
 struct PreparedExport {
     temp: tempfile::NamedTempFile,
     side_temp: Option<tempfile::NamedTempFile>,
+    warning_temp: Option<tempfile::NamedTempFile>,
     path: PathBuf,
     side_path: PathBuf,
+    warning_path: PathBuf,
 }
 impl PreparedExport {
     fn commit(self, cancel: &CancellationToken) -> EngineResult<PathBuf> {
@@ -609,16 +782,31 @@ impl PreparedExport {
         let Self {
             temp,
             side_temp,
+            warning_temp,
             path,
             side_path,
+            warning_path,
         } = self;
+        let has_warning = warning_temp.is_some();
         let has_sidecar = side_temp.is_some();
         // Deliberately non-cancellable commit. Publish the image last,
         // rolling back our sidecar on failure. Never overwrite user files.
-        if let Some(temp) = side_temp {
-            temp.persist_noclobber(&side_path).map_err(encode_error)?;
+        if let Some(temp) = warning_temp {
+            temp.persist_noclobber(&warning_path)
+                .map_err(encode_error)?;
+        }
+        if let Some(temp) = side_temp
+            && let Err(error) = temp.persist_noclobber(&side_path)
+        {
+            if has_warning {
+                fs::remove_file(&warning_path).map_err(encode_error)?;
+            }
+            return Err(encode_error(error));
         }
         if let Err(e) = temp.persist_noclobber(&path) {
+            if has_warning {
+                fs::remove_file(&warning_path).map_err(encode_error)?;
+            }
             if has_sidecar {
                 fs::remove_file(&side_path).map_err(|e| EngineError::io_at(&side_path, &e))?;
             }
@@ -705,6 +893,70 @@ pub fn filename(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn warning_publication_collision_never_overwrites_existing_report() {
+        use super::*;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("out.png");
+        let warnings = warning_path(&path);
+        fs::write(&warnings, b"existing").unwrap();
+        let mut temp = new_output_temp(dir.path()).unwrap();
+        temp.write_all(b"image").unwrap();
+        let mut warning_temp = new_output_temp(dir.path()).unwrap();
+        warning_temp.write_all(b"new warning").unwrap();
+        let prepared = PreparedExport {
+            temp,
+            side_temp: None,
+            warning_temp: Some(warning_temp),
+            path: path.clone(),
+            side_path: dir.path().join("out.xmp"),
+            warning_path: warnings.clone(),
+        };
+        assert!(prepared.commit(&CancellationToken::new()).is_err());
+        assert!(!path.exists());
+        assert_eq!(fs::read(warnings).unwrap(), b"existing");
+    }
+
+    #[test]
+    fn warning_report_survives_commit_and_preserves_success() {
+        use super::*;
+        let pixels = pipeline_cpu::Image::new(8, 6, vec![vec![0.18; 48]; 3]).unwrap();
+        let image = ExportImage {
+            source: RenderSource::Rgb(&pixels),
+            name: "warning",
+            sequence: 1,
+            date: "",
+            metadata: None,
+        };
+        let dir = tempfile::tempdir().unwrap();
+        let settings = ExportSettings {
+            output_dir: dir.path().into(),
+            format: Format::Png,
+            metadata: Metadata::None,
+            ..Default::default()
+        };
+        let token = CancellationToken::new();
+        let mut rendered =
+            render_one_cancellable(&image, &Recipe::default(), &settings, &token, None, None)
+                .unwrap();
+        rendered
+            .warnings
+            .push("Lens Blur skipped: depth model is not cached".into());
+        assert_eq!(rendered.warnings().len(), 1);
+        let path = rendered.finish(&token).unwrap();
+        assert!(path.exists());
+        let report = BatchReport {
+            results: vec![Ok(path)],
+        };
+        assert_eq!(
+            report.warnings().unwrap(),
+            vec![(
+                0,
+                vec!["Lens Blur skipped: depth model is not cached".to_string()]
+            )]
+        );
+        assert!(report.remaining().is_empty());
+    }
     #[test]
     fn ai_subject_export_changes_pixels() {
         use super::*;

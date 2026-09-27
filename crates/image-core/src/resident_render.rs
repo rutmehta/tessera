@@ -96,7 +96,13 @@ impl Renderer {
     ) -> EngineResult<Option<crate::resident::OutputMetrics>> {
         cancel.check()?;
         self.validate_settings(settings)?;
-        let r = self.resolve(image, settings)?;
+        let lens = self.interactive_lens_plan(image, settings, cancel)?;
+        if lens.is_none() && !crate::resident_export_lens_supported(&settings.lens) {
+            return Ok(None);
+        }
+        let mut r = self.resolve(image, settings)?;
+        r.lens = lens.as_ref().filter(|plan| !plan.is_identity());
+        r.cache_lens = true;
         if !r.allow_resident || !self.supports_resident(&r, Some(0)) || self.is_adobe() {
             return Ok(None);
         }
@@ -106,7 +112,8 @@ impl Renderer {
         if !batch.enable_metrics() {
             return Ok(None);
         }
-        let coords = Self::tiles_for(image, 0, PixelRect::full(image.level_extent(0)));
+        let extent = Self::lens_output_extent(image, 0, r.lens);
+        let coords = Self::tiles_in_extent(extent, 0, PixelRect::full(extent));
         Ok(self
             .run_resident(&r, &coords, RenderOutput::Display, cancel, batch, None)?
             .metrics)
@@ -431,7 +438,14 @@ impl Renderer {
         settings: &DevelopSettings,
     ) -> EngineResult<bool> {
         self.validate_settings(settings)?;
-        Ok(self.supports_resident(&self.resolve(image, settings)?, None))
+        let lens = self.interactive_lens_plan(image, settings, &CancellationToken::new())?;
+        if lens.is_none() && !crate::resident_export_lens_supported(&settings.lens) {
+            return Ok(false);
+        }
+        let mut r = self.resolve(image, settings)?;
+        r.lens = lens.as_ref();
+        r.cache_lens = true;
+        Ok(self.supports_resident(&r, None))
     }
 
     /// `level`: the level to render, when known. Texture/Clarity/Dehaze need a
@@ -443,9 +457,11 @@ impl Renderer {
             // Local adjustment operators/rasterization use the whole-image
             // nonresident path until all local kernels are resident-capable.
             || !s.locals.adjustments.is_empty()
+            || s.effects.lens_blur.is_some()
+            || self.depth_visualisation
             // Geometry is resident only through an export lens plan's map.
             || (s.geometry != Default::default()
-                && r.lens.and_then(|l| l.map.as_ref()).is_none())
+                && r.lens.is_none())
         {
             return false;
         }
@@ -503,6 +519,110 @@ impl Renderer {
         Ok(true)
     }
 
+    pub(super) fn resolve_interactive_lens(
+        &self,
+        image: &RawImage,
+        settings: &DevelopSettings,
+    ) -> EngineResult<pipeline_cpu::ResolvedLens> {
+        let key = ParamHash::of(
+            StageId::Lens,
+            &(&settings.lens, &settings.demosaic, &settings.linearize),
+        );
+        let cached = self
+            .lens_resolution
+            .lock()
+            .map_err(|_| engine_api::EngineError::internal("lens resolution cache poisoned"))?
+            .clone();
+        if let Some((id, hash, lens)) = cached
+            && id == image.id()
+            && hash == key
+        {
+            return Ok(lens);
+        }
+        let lens = if let Some(rgb) = image.rgb() {
+            pipeline_cpu::resolve_lens(rgb.pixels(), &settings.lens, None, &Default::default())?
+        } else {
+            pipeline_cpu::resolve_lens_sensor(
+                image.cfa().pyramid().pixels(),
+                image.metadata(),
+                settings,
+                &Default::default(),
+            )?
+        };
+        *self
+            .lens_resolution
+            .lock()
+            .map_err(|_| engine_api::EngineError::internal("lens resolution cache poisoned"))? =
+            Some((image.id(), key, lens.clone()));
+        Ok(lens)
+    }
+
+    /// Resolve the same composed lens map used by resident export.
+    pub(super) fn interactive_lens_plan(
+        &self,
+        image: &RawImage,
+        settings: &DevelopSettings,
+        cancel: &CancellationToken,
+    ) -> EngineResult<Option<pipeline_cpu::LensPlan>> {
+        cancel.check()?;
+        if crate::resident_export_lens_supported(&settings.lens)
+            && settings.geometry == Default::default()
+        {
+            return Ok(None);
+        }
+        let resolved = self.resolve_interactive_lens(image, settings)?;
+        if let Some(analyzed) = self.interactive_upright_analysis(image, settings, cancel)? {
+            return resolved.plan_with_upright(settings, image.metadata(), &analyzed);
+        }
+        resolved.plan(settings, image.metadata())
+    }
+
+    /// Cache L0 Upright independently of whether the optics have a resident plan.
+    pub(super) fn interactive_upright_analysis(
+        &self,
+        image: &RawImage,
+        settings: &DevelopSettings,
+        cancel: &CancellationToken,
+    ) -> EngineResult<Option<pipeline_cpu::UprightAnalysis>> {
+        cancel.check()?;
+        use engine_api::recipe::settings::UprightMode;
+        if !matches!(
+            settings.geometry.upright.mode,
+            UprightMode::Off | UprightMode::Guided
+        ) {
+            let mut analysis_settings = settings.clone();
+            // Manual geometry is downstream of the image used to detect lines.
+            analysis_settings.geometry.transform = Default::default();
+            let key = ParamHash::of(
+                StageId::Geometry,
+                &(
+                    self.stage_chain(&analysis_settings)[StageId::Effects.index()].1,
+                    self.depth_visualisation,
+                    self.depth.as_ref().map(|p| Arc::as_ptr(p) as usize),
+                    &analysis_settings,
+                ),
+            );
+            let cached = *self.geometry_analysis.lock().map_err(|_| {
+                engine_api::EngineError::internal("geometry analysis cache poisoned")
+            })?;
+            if let Some((id, hash, analyzed)) = cached
+                && id == image.id()
+                && hash == key
+            {
+                return Ok(Some(analyzed));
+            }
+            let analysis = self.develop_before_geometry(image, settings, 0, cancel)?;
+            let resolved = self.resolve_interactive_lens(image, settings)?;
+            let analyzed = resolved.analyze_upright(settings, &analysis)?;
+            cancel.check()?;
+            *self.geometry_analysis.lock().map_err(|_| {
+                engine_api::EngineError::internal("geometry analysis cache poisoned")
+            })? = Some((image.id(), key, analyzed));
+            return Ok(Some(analyzed));
+        }
+        Ok(None)
+    }
+
     /// Direct surface presentation with only a 4 KiB histogram readback.
     pub fn render_surface(
         &self,
@@ -542,14 +662,21 @@ impl Renderer {
             ));
         }
         cancel.check()?;
-        let r = self.resolve(image, settings)?;
+        let lens = self.interactive_lens_plan(image, settings, cancel)?;
+        if lens.is_none() && !crate::resident_export_lens_supported(&settings.lens) {
+            return Ok(None);
+        }
+        let mut r = self.resolve(image, settings)?;
+        r.lens = lens.as_ref();
+        r.cache_lens = true;
         if level > MAX_LEVEL || !self.supports_resident(&r, Some(level)) {
             return Ok(None);
         }
         let Some(batch) = self.ops.begin_resident() else {
             return Ok(None);
         };
-        let coords = Self::tiles_for(image, level, PixelRect::full(image.level_extent(level)));
+        let extent = Self::output_extent(image, settings, level)?;
+        let coords = Self::tiles_in_extent(extent, level, PixelRect::full(extent));
         self.run_resident(
             &r,
             &coords,
@@ -581,9 +708,16 @@ impl Renderer {
         let cache = |batch: &mut dyn ResidentBatch, key, tile: &crate::resident::ResidentTile| {
             batch.cache_exact(key, tile)
         };
-        // Lens stages are not part of the memo chain: never cache around them.
-        let cache_dem = self.config.graph.node(StageId::Demosaic).cacheable && r.lens.is_none();
-        let cache_wb = self.config.graph.node(StageId::WhiteBalance).cacheable && r.lens.is_none();
+        // Explicit export plans can come from external calibrations. Interactive
+        // plans use the recipe Lens hash; CA-corrected demosaic checkpoints
+        // still precede that hash and remain uncached.
+        let cache_dem = self.config.graph.node(StageId::Demosaic).cacheable
+            && r.lens
+                .is_none_or(|p| p.ca.is_none() && p.vignette.is_none());
+        let cache_wb = self.config.graph.node(StageId::WhiteBalance).cacheable
+            && (r.cache_lens
+                || r.lens
+                    .is_none_or(|p| p.ca.is_none() && p.vignette.is_none()));
         let ca = r.lens.and_then(|l| l.ca.as_ref());
         let ca_halo = match ca {
             Some(plan) => ca_halo(plan, r.sensor)?,
@@ -762,8 +896,14 @@ impl Renderer {
             );
             k
         };
-        let cache_wb = self.config.graph.node(StageId::WhiteBalance).cacheable && r.lens.is_none();
-        let cache_detail = self.config.graph.node(StageId::Detail).cacheable && r.lens.is_none();
+        let cache_wb = self.config.graph.node(StageId::WhiteBalance).cacheable
+            && (r.cache_lens
+                || r.lens
+                    .is_none_or(|p| p.ca.is_none() && p.vignette.is_none()));
+        let cache_detail = self.config.graph.node(StageId::Detail).cacheable
+            && (r.cache_lens
+                || r.lens
+                    .is_none_or(|p| p.ca.is_none() && p.vignette.is_none()));
         let detail_key = level_key(StageId::Detail, 0);
         let developed = if cache_detail && let Some(t) = batch.cached(&detail_key)? {
             t
@@ -816,13 +956,27 @@ impl Renderer {
             Op::Color(&r.settings.color),
             Op::EffectsInCrop(&r.settings.effects, frame, &r.settings.geometry.crop),
         ]);
-        if let Some(display) = output.display_op(r.settings.output.gamut_mapping) {
+        let map = r.lens.and_then(|p| p.map.as_ref());
+        if map.is_none()
+            && let Some(display) = output.display_op(r.settings.output.gamut_mapping)
+        {
             chain.push(display);
         }
         // Previews develop in their own pixel domain (grain scale), as below.
         t.coord.level = 0;
         let mut t = batch.run_chain(&chain, &t)?;
         t.coord = lc;
+        let frame = if let Some(map) = map {
+            let (w, h) = map.output_extent(frame.width, frame.height);
+            let out = Extent::new(w, h);
+            t = batch.remap_rows(frame, &t, (0, frame.height), map, out, 0..h)?;
+            if let Some(display) = output.display_op(r.settings.output.gamut_mapping) {
+                t = batch.run(&display, &t)?;
+            }
+            out
+        } else {
+            frame
+        };
         if batch.metrics_enabled() && level == 0 && r.lens.is_none() {
             t = batch.cache_exact(metrics_output_key(r), &t)?;
         }
@@ -891,9 +1045,52 @@ impl Renderer {
             }
             // `coords` are unique tiles of one level: whole-level requests
             // (every surface frame) run as one level-sized tile.
-            if coords.len() == all.len() && batch.supports_level(frame, LEVEL_PAD) {
+            if (coords.len() == all.len() || r.lens.and_then(|p| p.map.as_ref()).is_some())
+                && batch.supports_level(frame, LEVEL_PAD)
+            {
                 return self.run_resident_level(r, &all, coords, output, cancel, batch, surface);
             }
+        }
+        if let Some(map) = r.lens.and_then(|p| p.map.as_ref()) {
+            let Some(first) = coords.first() else {
+                return batch.finish(Vec::new(), output == RenderOutput::Display, surface, cancel);
+            };
+            let frame = r.image.level_extent(first.level);
+            let (w, h) = map.output_extent(frame.width, frame.height);
+            let out = Extent::new(w, h);
+            let all = Self::tiles_for(r.image, first.level, PixelRect::full(frame));
+            let developed =
+                self.develop_tiles(r, &all, RenderOutput::SceneLinear, cancel, &mut *batch)?;
+            let tiles = developed.into_iter().map(|t| (t.coord, t)).collect();
+            let mut mapped = batch.remap(
+                frame,
+                &tiles,
+                (0, frame.height),
+                map,
+                out,
+                0..h,
+                TileCoord::new(first.level, 0, 0),
+            )?;
+            if let Some(display) = output.display_op(r.settings.output.gamut_mapping) {
+                mapped = batch.run(&display, &mapped)?;
+            }
+            let finished = if surface.is_some() {
+                vec![mapped]
+            } else {
+                coords
+                    .iter()
+                    .map(|&c| {
+                        let (x, y) = c.pixel_origin(TILE_SIZE);
+                        batch.crop(
+                            &mapped,
+                            c,
+                            (x, y),
+                            Extent::new((w - x).min(TILE_SIZE), (h - y).min(TILE_SIZE)),
+                        )
+                    })
+                    .collect::<EngineResult<Vec<_>>>()?
+            };
+            return batch.finish(finished, output == RenderOutput::Display, surface, cancel);
         }
         let mut finished = self.develop_tiles(r, coords, output, cancel, &mut *batch)?;
         if batch.metrics_enabled()
@@ -930,7 +1127,10 @@ impl Renderer {
         let cache = |batch: &mut dyn ResidentBatch, key, tile: &crate::resident::ResidentTile| {
             batch.cache_exact(key, tile)
         };
-        let cache_detail = self.config.graph.node(StageId::Detail).cacheable && r.lens.is_none();
+        let cache_detail = self.config.graph.node(StageId::Detail).cacheable
+            && (r.cache_lens
+                || r.lens
+                    .is_none_or(|p| p.ca.is_none() && p.vignette.is_none()));
         let halo = pipeline_cpu::detail_halo(&r.settings.detail);
         let presence = has_presence(&r.settings.tone);
         // Texture/Clarity/Dehaze read neighbourhoods and global statistics of

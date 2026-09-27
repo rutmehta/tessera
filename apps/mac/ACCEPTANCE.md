@@ -1366,65 +1366,80 @@ PASS when steps 151–160 meet their expectations and the brush frames' median r
 | `document.properties.<kind>.<control>`: `brightnessContrast.{brightness,contrast,legacy}` · `vibrance.{vibrance,saturation}` · `colorBalance.{tone,red,green,blue,preserveLuminosity}` · `blackWhite.{auto,default,reds,yellows,greens,cyans,blues,magentas,tint,tintColor}` · `photoFilter.{preset,color,density,preserveLuminosity}` · `gradientMap.{gradientPreview,stop.<i>.{color,position,remove},addStop,method,dither,reverse}` · `selectiveColor.{colors,cyan,magenta,yellow,black,method}` · `equalize.analyze` · `auto.{mode,clip,black,white,gamma,analyze}` · `matchColor.{source,luminance,colorIntensity,fade,neutralize}` · `replaceColor.{color,useForeground,fuzziness,hue,saturation,lightness}` · `colorLookup.{file,load,reset}` · `shadowsHighlights.{shadowsAmount,shadowsTone,shadowsRadius,highlightsAmount,highlightsTone,highlightsRadius,color,midtone,blackClip,whiteClip}` · `hdrToning.{method,radius,strength,gamma,exposure,detail,shadows,highlights,vibrance,saturation,curve,analyze}` | Properties editors of the M5-26 / M5-28 adjustments (B5-06) |
 | `document.layers.smartFilter.<layer>.<index>` · `.visibility` · `.mask` · `.name` · `.blending` · `document.smartFilter.blending.{mode,opacity,ok}` | Smart filter rows and their blending options |
 
-## X. Develop: AI Denoise, Transform / Upright, Lens Blur (M2-48)
+## X. Develop: AI Denoise, Transform / Upright, Lens Blur (M2-48, M2-51)
 
 Engine backend, a scratch copy of `fixtures/raw` in `$SCR/raw` (step 2). Select **sony-arw.ARW** and press **Return**
 (loupe). The three controls live in DETAIL (AI Denoise, top of Noise Reduction), TRANSFORM (between Detail and Effects)
-and LENS BLUR (after Effects). Known engine gaps (tools/orchestrate/wp/M2-48/REPORT.md): the develop viewport does not
-draw Upright/Transform (export does), and AI Denoise and Lens Blur cannot be rendered or exported by this engine build,
-so their controls are shown disabled with the reason. Screenshots of each panel: `tools/orchestrate/wp/M2-48/evidence/`.
+and LENS BLUR (after Effects). Since M2-49 / M2-51 the viewport draws Upright/Transform, and AI Denoise and Lens Blur are
+enabled: each acquires its pinned model on first use with inline progress (section AC). Remaining engine gaps, shown
+disabled with the reason: the Lens Blur Refine brushes and Constrain Crop. Model weights may be absent on a test Mac;
+then the expected result is the inline failure with its reason (tools/orchestrate/wp/M2-51/REPORT.md). Screenshots:
+`tools/orchestrate/wp/M2-48/evidence/`, `tools/orchestrate/wp/M2-51/evidence/`.
 
-170. **Detail ▸ AI Denoise.** Open DETAIL. 📸 Expect under **Noise Reduction** an **AI Denoise** checkbox and an **Amount**
-     slider (both dimmed) with a warning line starting `AI Denoise needs an engine denoiser this build does not install`;
-     the classic Luminance / Detail / Contrast and Color / Color Detail / Smoothness sliders below are unchanged and still
-     work (Luminance 40 smooths the 1:1 preview; History `Luminance NR 40`). If the photo's recipe already has AI Denoise
-     (e.g. from another build) the checkbox is enabled and ticked, and unticking it records `AI Denoise Off`.
+170. **Detail ▸ AI Denoise.** Open DETAIL. 📸 Expect under **Noise Reduction** an enabled **AI Denoise** checkbox, a dimmed
+     **Amount** slider and the hint `First use downloads the denoise model; the loupe refines when it is ready.` Tick
+     AI Denoise: the checkbox stays ticked while an inline bar under it reads `AI Denoise model: Queued…` then
+     `Downloading … of …` (or goes straight to Ready from the cache). On **Ready** the History lists `AI Denoise On`,
+     Amount enables and the loupe refines. If the model cannot be acquired (e.g. the CFA artifact is not packaged on this
+     Mac) the box unticks, nothing is recorded, and a warning line `AI Denoise model: <reason>` with **Retry** appears. The
+     classic Luminance / Detail / Contrast and Color / Color Detail / Smoothness sliders below are unchanged (Luminance 40
+     smooths the 1:1 preview; History `Luminance NR 40`). Unticking a ticked AI Denoise records `AI Denoise Off`.
 171. **Upright buttons.** Open TRANSFORM. 📸 Expect an **Upright** sub-header with a borderless **Reset**, a six-segment bar
      (Off · Auto · Guided · Level · Vertical · Full; the chosen one shows its name, the others their icon, help tags name
      each), a one-line description of the chosen mode, then **Transform** with its own **Reset**, the sliders Vertical,
-     Horizontal, Rotate, Aspect, Scale (100%), Offset X, Offset Y and a **Constrain Crop** checkbox. Click **Auto**: History
-     lists `Upright: Auto` and a warning line reads `The loupe does not draw Upright or Transform yet (engine); they are
-     saved and applied on export.` Click **Vertical**, then **Off**: one history step each (`Upright: Vertical`, `Upright: Off`).
+     Horizontal, Rotate, Aspect, Scale (100%), Offset X, Offset Y and a dimmed **Constrain Crop** checkbox with the warning
+     `Constrain Crop is not rendered by the engine yet…`. Click **Auto**: History lists `Upright: Auto` and the loupe
+     redraws the corrected photo (no "does not draw" warning). Click **Vertical**, then **Off**: one history step each
+     (`Upright: Vertical`, `Upright: Off`), the loupe following each.
 172. **Manual transform.** Drag **Vertical** to +20 and release: exactly one History row `Transform Vertical +20` (not one
-     per drag frame). Drag **Rotate** (one decimal, `°`) and **Scale** (`%`, 50–150); double-click a slider to reset it.
-     Click the Transform **Reset**: all seven sliders return to neutral in one step `Reset Transform`; Upright is untouched.
-     Tick **Constrain Crop**: History `Constrain Crop On`. ⌘Z undoes each step.
-173. **Guided Upright.** Click **Guided** (the loupe must be showing the photo). Expect a hint at the bottom of the loupe
-     `Guided Upright · draw 2 more guides …`, the panel line `0 of 4 guides` with **Clear** and **Done**, and a crosshair
-     cursor over the photo. Drag along a vertical edge: a white guide with square ends appears (dashed while drawing).
-     Nothing is recorded yet. Draw a second guide: History lists `Upright: Guided (2 guides)` and the hint reads
-     `… 2 of 4 guides …`. 📸 Drag an end of the first guide (cursor ✋): on release one step `Upright: Guided (2 guides)`.
-     Click a guide's line: it turns amber (selected); press **⌫**: it disappears and, with one guide left, History records
-     `Upright: Off`. A fifth guide is refused with a status message. **Return** (or **Done**/**Esc**) leaves the tool;
-     culling keys do nothing while it is armed, ⌘Z still works. Reopening Guided shows the stored guides.
-174. **Lens Blur.** Open LENS BLUR. 📸 Expect the warning `Lens Blur needs a depth map the engine does not compute here yet…`,
-     a dimmed **Apply** checkbox, **Blur Amount** slider, **Bokeh** segmented control (Circle · Hexagon · Octagon), the
-     **Focal Range** strip (dark scope well, near → far ramp, `Near` / `Far` labels, the in-focus band with two handles),
-     the hint `No depth map from the engine yet: …`, dimmed **Visualize Depth** and **Subject-aware focus** checkboxes and
-     a **Refine** row with Focus / Blur brush buttons and a `Later` chip. Nothing in the panel is clickable, except Apply
-     when a recipe already carries a lens blur (unticking records `Lens Blur Off`).
+     per drag frame) and the loupe shows the keystone. Drag **Rotate** (one decimal, `°`) and **Scale** (`%`, 50–150);
+     double-click a slider to reset it. Click the Transform **Reset**: all seven sliders return to neutral in one step
+     `Reset Transform`; Upright is untouched. **Constrain Crop** cannot be ticked (engine gap); on a recipe that already
+     has it on it is enabled so it can be unticked (`Constrain Crop Off`). ⌘Z undoes each step.
+173. **Guided Upright.** Set Vertical to +20 first. Click **Guided** (the loupe must be showing the photo). Expect the loupe
+     to switch to the **uncorrected** photo (no keystone, no crop) while the tool is armed, a hint at the bottom of the
+     loupe `Guided Upright · draw 2 more guides …`, the panel line `0 of 4 guides` with **Clear** and **Done**, the hint
+     `The loupe shows the uncorrected photo while you place guides…`, and a crosshair cursor over the photo. Drag along
+     a vertical edge: a white guide with square ends appears (dashed while drawing). Nothing is recorded yet. Draw a
+     second guide: History lists `Upright: Guided (2 guides)` and the hint reads `… 2 of 4 guides …`. 📸 Drag an end of
+     the first guide (cursor ✋): on release one step `Upright: Guided (2 guides)`. Click a guide's line: it turns amber
+     (selected); press **⌫**: it disappears and, with one guide left, History records `Upright: Off`. A fifth guide is
+     refused with a status message. **Return** (or **Done**/**Esc**) leaves the tool and the loupe returns to the
+     corrected picture; culling keys do nothing while it is armed, ⌘Z still works. Reopening Guided shows the stored
+     guides on the uncorrected photo, where they were drawn.
+174. **Lens Blur.** Open LENS BLUR. 📸 Expect an enabled **Apply** checkbox, a dimmed **Blur Amount** slider, a **Bokeh**
+     pop-up (Circle · Bubble · 5-Blade · Hexagon · Octagon · Ring · Cat Eye · Oval), the **Focal Range** strip (dark scope
+     well, near → far ramp, `Near` / `Far` labels, the in-focus band with two handles), a **Visualize Depth** checkbox and a
+     **Subject** button (dimmed until Apply), and a **Refine** row with Focus / Blur brush buttons, a `Later` chip and the
+     warning `Focus / Blur refine brushes come later…` (always dimmed: no engine brush). Tick **Apply**: the depth weights
+     are acquired first (inline `Depth model: …` bar); on Ready History lists `Lens Blur On`, `Estimating depth…` shows,
+     then the depth histogram is drawn in the strip. Without weights (downloads off or offline) Apply stays unticked
+     and a warning `Depth model: <reason>` line with **Retry** appears. See section AC for the depth tools.
 175. **Keyboard focus (M2-27 rules).** Tab to a Transform slider: amber focus outline, arrows nudge it without moving the
      loupe selection, Return/Esc commit and blur (one history step per burst).
 176. **Export applies Upright.** With Upright **Auto** set, export the ARW (File ▸ Export…, PNG, long edge 640) and
      compare with an export at **Off**: the Auto file's verticals are corrected (the Swift test
-     `TransformSessionTests.testUprightAutoChangesTheRenderedFrame` asserts the frames differ).
+     `TransformSessionTests.testUprightAutoChangesTheRenderedFrame` asserts the frames differ). The loupe matches the
+     export.
 
 ## Verdict (AI Denoise, Transform, Lens Blur)
 
-PASS when steps 170–176 meet their expectations. Record the engine gaps listed in the M2-48 report as known limitations,
-not failures.
+PASS when steps 170–176 meet their expectations. Record missing model weights (an inline failure with its reason) and
+the remaining engine gaps (Refine brushes, Constrain Crop) as known limitations, not failures.
 
-## Appendix: accessibility identifiers (M2-48)
+## Appendix: accessibility identifiers (M2-48, M2-51)
 
 | Identifier | Element |
 | --- | --- |
-| `detail-ai-denoise` · `detail-ai-denoise-amount` · `detail-ai-denoise-unavailable` · `detail-ai-denoise-ignored` | Detail ▸ Noise Reduction ▸ AI Denoise toggle, Amount, engine-gap line, "kept but not drawn" line |
+| `detail-ai-denoise` · `detail-ai-denoise-amount` · `detail-ai-denoise-model` · `detail-ai-denoise-model-retry` · `detail-ai-denoise-ignored` | Detail ▸ Noise Reduction ▸ AI Denoise toggle, Amount, model progress / failure row and its Retry, "kept but not drawn" line |
 | `transform-upright` · `transform-upright-{off,auto,guided,level,vertical,full}` · `transform-upright-reset` | Transform ▸ Upright bar, its six buttons and group Reset |
-| `transform-guides-count` · `transform-guides-clear` · `transform-guides-done` | Guided Upright status row (while the loupe tool is armed) |
+| `transform-guides-count` · `transform-guides-clear` · `transform-guides-done` · `transform-guides-uncorrected` | Guided Upright status row (while the loupe tool is armed); the "uncorrected photo" hint |
 | `transform-vertical` · `transform-horizontal` · `transform-rotate` · `transform-aspect` · `transform-scale` · `transform-offset-x` · `transform-offset-y` · `transform-reset` | Transform ▸ manual sliders and group Reset |
-| `transform-constrain-crop` · `transform-preview-note` | Constrain Crop checkbox; the "loupe does not draw Upright/Transform yet" warning |
-| `lensblur-unavailable` · `lensblur-apply` · `lensblur-amount` · `lensblur-bokeh` · `lensblur-focal-range` | Lens Blur ▸ engine-gap line, Apply, Blur Amount, Bokeh picker, Focal Range strip |
-| `lensblur-visualize-depth` · `lensblur-subject` · `lensblur-refine-focus` · `lensblur-refine-blur` | Visualize Depth, Subject-aware focus, Refine brushes (disabled: engine gaps) |
+| `transform-constrain-crop` · `transform-constrain-crop-unavailable` · `transform-preview-note` | Constrain Crop checkbox, its engine-gap hint; the "kept but not drawn" warning |
+| `lensblur-apply` · `lensblur-amount` · `lensblur-bokeh` · `lensblur-focal-range` | Lens Blur ▸ Apply, Blur Amount, Bokeh pop-up, Focal Range strip (with the depth histogram) |
+| `lensblur-model` · `lensblur-busy` · `lensblur-error` | Depth / subject model progress row, "Estimating depth…" / "Finding the subject…", inline error |
+| `lensblur-visualize-depth` · `lensblur-subject` | Visualize Depth checkbox, Subject button |
+| `lensblur-refine-focus` · `lensblur-refine-blur` · `lensblur-refine-unavailable` | Refine brushes (disabled: engine gap) and the reason |
 
 ## Y. Persistent alpha and spot channels (B5-08)
 
@@ -1481,6 +1496,341 @@ colour / opacity and channel visibility are session preferences, not saved.
 | `document.channels.load` · `document.channels.save` · `document.channels.quickMask` · `document.channels.add` · `document.channels.delete` | Footer |
 | `document.channels.save.{channel,name,operation}` · `document.channels.load.{channel,invert,operation}` | Save / Load Selection sheets |
 | `document.channels.options.{name,kind,indicates,color,opacity}` · `document.channels.spot.{name,color,solidity,fromSelection}` · `document.channels.spotNote` · `document.channels.sheet.ok` | Channel Options, New Spot Channel |
+## Z. Remove tool, Content-Aware Fill and neural filters (B5-09)
+
+Engine backend (not `--stub-library`), a scratch copy of `fixtures/raw/sample.dng` in `$SCR/shoot`, opened with
+Library ▸ Edit in Layers (⌘E), the photo layer selected. Model weights are never downloaded by these steps: with no
+weights installed (the default), expect the missing-model messages below; where a model is installed by hand in
+`<app support>/models/cache/<sha256>.onnx` (Settings do not offer a download), expect the result instead.
+
+320. **Remove tool.** Press ⇧J (or click the palette slot under the Healing Brush, icon `eraser.line.dashed`): the slot
+     turns amber, the options bar reads `Remove` with Size, the Auto · PatchMatch · LaMa picker, Expand, Remove
+     Selection and Remove Distractions…; the status bar reads `Remove (⇧J)`. Without LaMa installed the bar shows
+     `LaMa not installed` (its help names `remove/lama`, the Hugging Face URL and the cache path). [ ] change the size.
+321. **Remove an object by a stroke.** Size about 1/40 of the long edge, Auto. Drag over a small object: a translucent
+     red band at brush width follows the pointer (📸 `retouch-01-remove-stroke.png`). On release the options bar shows a
+     spinner, the elapsed seconds and Cancel; then the object is filled from its surroundings, History gains exactly one
+     `Remove` row and the status bar reads `Remove: PatchMatch, N s (LaMa (remove/lama) is not installed, so Auto used
+     PatchMatch)` (📸 `retouch-02-remove-applied.png`). With LaMa installed it reads `Remove: LaMa, …`.
+322. **Undo, redo, reopen.** ⌘Z restores the object (one step; 📸 `retouch-03-remove-undone.png`), ⇧⌘Z removes it
+     again. File ▸ Save As… a `.tessera-doc`, close it, open it again: the removal is there (📸 `retouch-04-reopened.png`).
+323. **Remove with LaMa, weights missing.** Choose LaMa and stroke again: nothing changes, no History row, and the options
+     bar shows the warning `Remove needs a model that is not installed`; its help (and the status bar) name `remove/lama`,
+     `https://huggingface.co/Carve/LaMa-ONNX/…` and the expected cache file. Nothing is downloaded.
+324. **Remove Selection.** Make a marquee around an object, click Remove Selection: one `Remove` row; outside the
+     selection nothing changes.
+325. **Edit ▸ Content-Aware Fill.** Make a small marquee, Edit ▸ Content-Aware Fill (disabled without a selection or on
+     an adjustment layer): the selection is filled from its surroundings; one `Content-Aware Fill` row
+     (📸 `retouch-05-content-aware-fill.png`).
+326. **Start and cancel a slow job.** PatchMatch, marquee most of the image, Remove Selection: the options bar shows the
+     spinner, a counting `Removing… N s` and Cancel (📸 `retouch-06-slow-job-running.png`). Click Cancel (or press Esc):
+     the bar returns to the options, the status bar reads `Remove cancelled`, History and the pixels are unchanged
+     (📸 `retouch-07-slow-job-cancelled.png`).
+327. **Remove Distractions: review first.** Deselect (⌘D), click Remove Distractions…: boxes appear over the canvas, one per
+     suggestion, with chips `Wire-like line` / `Face box`; the bar reads `N of N suggestions selected`, All, None, the note
+     `geometric suggestions, not person segmentation`, Cancel and Remove Selected.
+     No History row yet. Click a box: it turns dashed and its chip reads `(kept)`. Remove Selected (or Return) removes only
+     the boxes still selected: one `Remove Distractions` row. Esc cancels the review. Without the face detector weights
+     (`opencv/yunet`) no face boxes are suggested, and `sample.dng` has no thin straight wire, so there the bar reads
+     `Nothing found` and the status bar names the missing face model (📸 `retouch-08-distractions-review.png`).
+328. **Neural Filters: Colorize.** Filter ▸ Neural Filters…: a sheet lists Skin Smoothing, Colorize and JPEG Artifact
+     Removal (the last two with a `No model` chip when their weights are missing). Choose Colorize: its
+     Saturation / Artifact Reduction sliders, the Output picker, the note `CPU-only DDColor; …`, and the warning
+     `Colorize needs the filters/ddcolor model, which is not installed.` with the Hugging Face URL and cache path; Apply is
+     disabled (📸 `retouch-09-neural-colorize.png`). With the model installed: Apply colorizes as one `Colorize` row.
+329. **Neural Filters: JPEG Artifact Removal.** Same, naming `enhance/drunet-color` (📸 `retouch-10-neural-jpegArtifactRemoval.png`).
+330. **Neural Filters: Skin Smoothing.** Needs no weights. Without a selection and without the face detector the sheet says
+     `The face detector (opencv/yunet) is not installed: select a face first …` (📸 `retouch-11-neural-skin-no-faces.png`);
+     Apply then fails with `Skin Smoothing needs face boxes …` and records nothing. Cancel, make an elliptical marquee
+     around a face, reopen, Output **New layer**, Apply: a new layer `<layer> (Skin Smoothing)` above the photo, one
+     `Skin Smoothing` row (📸 `retouch-12-neural-skin-new-layer.png`).
+331. **Outputs.** On a pixel layer Output offers Current layer, New layer and Smart filter (Smart filter only without a
+     selection; the sheet lists why an output is unavailable). **Smart filter** converts the layer into a smart object
+     with the filter in the same single History row; the filter appears under the layer in the Layers panel.
+     Double-click that row: the Neural Filters sheet reopens on the same filter with its values (Output fixed to Smart
+     filter); OK records `Edit Smart Filter`. On a smart object, New layer is unavailable.
+332. **Outline after deselect.** Make a large wand selection and press ⌘D immediately: the marching ants disappear and do
+     not come back when the outline computation finishes.
+333. **Scripted run.**
+     ```sh
+     open -n --stderr "$SCR/retouch.log" apps/mac/build/Tessera.app --args --folder "$SCR/shoot" \
+       --app-dir "$SCR/appdir" --front --retouch-selftest="$SCR/out"; grep retouch-selftest "$SCR/retouch.log" 2>&1 | grep retouch-selftest
+     ```
+     Expect the step lines above, every `check … ok`, the measured `remove stroke: backend … engine … ms` and
+     `done, 0 failure(s)`.
+
+## Verdict (Remove tool and neural filters)
+
+PASS when steps 320–333 meet their expectations: every apply is one History row, cancel and every error leave History
+unchanged, missing models are named with their source, and nothing is downloaded or simulated.
+
+## Appendix: accessibility identifiers (B5-09)
+
+| Identifier | Element |
+| --- | --- |
+| `document.tool.remove` | Remove tool palette slot |
+| `document.remove.size` · `document.remove.backend` · `document.remove.dilation` | Options bar: Size, backend picker, Expand |
+| `document.remove.selection` · `document.remove.distractions` · `document.remove.cancel` · `document.remove.error` | Remove Selection, Remove Distractions…, Cancel (while busy), error line |
+| `document.remove.review.summary` · `document.remove.review.apply` · `document.remove.review.cancel` | Distraction review bar |
+| `document.neural.filter.<kind>` · `document.neural.<kind>.<key>` · `document.neural.output` | Neural Filters list rows, sliders, Output picker |
+| `document.neural.missing` · `document.neural.error` · `document.neural.apply` · `document.neural.cancel` · `document.neural.reset` | Missing-model block, error block, footer buttons |
+
+## AA. Export: AVIF, JPEG XL, DNG, file size limit and watermarks (M2-46)
+
+Continues section O (engine backend, `$SCR/raw3` open, three photos selected, File ▸ Export… open). Only what the
+engine writes today is offered; the rest is shown disabled with the reason. Known gaps: tools/orchestrate/wp/M2-46/REPORT.md.
+
+500. **Tests.**
+     ```sh
+     (cd apps/mac && swift test --filter 'ExportFormatsWatermarkTests|ExportPrintTests|ThemeLintTests' 2>&1 | grep Executed)
+     ```
+     Expect `Executed 7 tests, with 0 failures`, `Executed 9 tests, with 0 failures` and `Executed 1 test, with 0 failures`
+     (real AVIF / JPEG XL / DNG exports, size-limit convergence, text and graphic watermarks, preset round trips).
+501. **Formats.** 📸 File Settings ▸ Format shows six segments: **JPEG · PNG · TIFF · AVIF · JPEG XL · DNG**. Choose
+     **AVIF**: Quality, Bit depth **8-bit · 10-bit · 12-bit** and Speed (1–10) appear; a dimmed **HDR output** checkbox
+     with the hint `HDR output (PQ / HLG, gain maps) is not available yet…`. The summary reads `… AVIF <q> 8-bit …`.
+502. **JPEG XL.** Choose **JPEG XL**: Compression reads **Lossless** (no Quality slider), Bit depth **8-bit · 16-bit**, the
+     hint `Lossy JPEG XL is not available yet…`; Colour space is dimmed on **sRGB** with `Lossless JPEG XL is written in
+     sRGB only.`
+503. **DNG.** Choose **DNG**: Data reads **Linear 32-bit float** with the *baked edits* explanation; Colour space is
+     dimmed (`DNG is always linear Rec. 2020…`); the Watermark control is dimmed with the warning `Watermarks are not
+     available for DNG…`. Summary: `… DNG linear float · Linear Rec. 2020 …`.
+504. **JPEG size limit.** Choose **JPEG**: under Quality, tick **Limit file size to** and type `300` **KB**. The summary
+     shows `JPEG <q> ≤ 300 KB`. Switch to PNG and back: the limit is off (only JPEG has one), and ticking it again restores 300. Choose a folder `$SCR/m246`
+     and export: every `.jpg` is at most 300,000 bytes (`stat -f %z "$SCR"/m246/*.jpg`).
+505. **Text watermark.** Watermark ▸ **Text**. 📸 Expect Text (`© `), Font (a pop-up of installed .ttf / .otf fonts,
+     Arial by default, and **Other…**), Size %, Colour, Rotation °, then Opacity %, Position (3 × 3 grid, bottom right
+     chosen), Inset %, and the **Preview** well: a 3:2 placement preview with the chip `Placement preview`. Type
+     `© Tessera`, set Size 10 %, move Position to top left, Rotation −20: the preview text follows each change.
+506. **Engine preview.** Click **Render with Engine**: a spinner, then the well shows the first photo rendered by the
+     engine at 480 px with the watermark (chip `Rendered by the engine`). Change the opacity: the well returns to the
+     placement preview until rendered again.
+507. **Graphic watermark.** Watermark ▸ **Graphic**, **Choose…** a PNG (e.g. a logo with transparency), Scale 25 %,
+     Position centre. Switch to **Text** and back: both kinds keep their fields. Export PNG to `$SCR/m246-mark`: the
+     graphic is burned into the centre of every file, the same size relative to the short edge.
+508. **Presets.** Preset menu ▸ **Save as Preset…** `Marked AVIF` (AVIF 10-bit, text watermark). Choose **Web 2048
+     sRGB**, then **Marked AVIF**: every field returns. Quit and relaunch: still there. The four shipped presets and any
+     preset saved before M2-46 load unchanged (no watermark, no size limit).
+509. **Other formats on disk.** Export once each as AVIF, JPEG XL and DNG to `$SCR/m246-fmt`. Expect `.avif`, `.jxl`
+     and `.dng` files; Preview.app opens the AVIF and the JPEG XL; the DNG opens in a raw editor such as Lightroom or
+     darktable (Apple's Preview cannot decode this linear float DNG).
+
+## Verdict (export formats and watermarks)
+
+PASS when steps 500–509 meet their expectations. Disabled controls with their reasons are expected, not failures.
+
+## Appendix: accessibility identifiers (M2-46)
+
+| Identifier | Element |
+| --- | --- |
+| `export-format` · `export-quality` · `export-bit-depth` · `export-avif-speed` · `export-jxl-lossless` · `export-dng-note` | File Settings: format bar, Quality, Bit depth, AVIF Speed, JPEG XL "Lossless", DNG explanation |
+| `export-color-space` · `export-color-space-note` · `export-hdr` | Colour space pop-up, its "does not apply" hint, the disabled HDR checkbox |
+| `export-size-limit` · `export-size-limit-kb` | JPEG "Limit file size to" checkbox and KB field |
+| `export-watermark-kind` · `export-watermark-unavailable` | None / Text / Graphic control; the DNG warning |
+| `export-watermark-text` · `export-watermark-font` · `export-watermark-size` · `export-watermark-color` · `export-watermark-rotation` | Text watermark fields |
+| `export-watermark-graphic` · `export-watermark-choose` · `export-watermark-scale` | Graphic watermark file, Choose…, Scale |
+| `export-watermark-opacity` · `export-watermark-anchor` · `export-watermark-anchor-<top_left…bottom_right>` · `export-watermark-inset` | Shared: Opacity, Position grid and its nine cells, Inset |
+| `export-watermark-preview` · `export-watermark-render` · `export-watermark-problem` | Preview well, Render with Engine, problem line |
+
+## AB. Photo Merge (HDR, Panorama, HDR Panorama) and Enhance (M2-50)
+
+Continues section O (engine backend, a fresh `--app-dir`, `$SCR/raw3` open in the grid). For the merges you also need
+one real bracket and one real panorama from a single camera: `$BRACKETS` (3 exposures of one scene, ±2 EV) and
+`$PANO` (3 overlapping frames). Engine limits (preview is a camera-channel approximation, stage-level model download
+progress, no Raw Details, no enhance preview call): tools/orchestrate/wp/M2-50/REPORT.md.
+
+540. **Tests.**
+     ```sh
+     (cd apps/mac && swift test --filter 'PhotoMergeEnhanceTests|ThemeLintTests' 2>&1 | grep Executed)
+     ```
+     Expect `Executed 12 tests, with 0 failures` and `Executed 1 test, with 0 failures`. The last PhotoMergeEnhanceTests
+     case writes three bracketed LinearRaw DNGs, merges them through the app into `bracket-1-HDR.dng`, checks it is
+     selected in the grid, stacked with its three sources, and opens in Develop.
+541. **Menu and shortcuts.** 📸 The menu bar has **Photo** between Library and Develop: **Photo Merge ▸ HDR… ⌃H ·
+     Panorama… ⌃M · HDR Panorama…**, **Enhance… ⌃⌥I**, and a dimmed **Cancel Photo Merge**. With one photo selected:
+     HDR and Panorama are dimmed, Enhance is enabled. Select all three (⌘A): HDR and Panorama enable; HDR Panorama stays
+     dimmed until four or more are selected. In Layered Documents, the People view or a stub library every item is dimmed.
+542. **Warnings.** With the three `raw3` photos (different cameras and scenes) selected, press **⌃M**. 📸 The sheet
+     `Panorama Merge Preview` (subtitle `3 photos · …`) shows the preview well on the left (a spinner in the header while
+     the engine works) and, under it, the engine's warning that the frames could not be registered (insufficient
+     overlap / no geometry) with no image. Options: Projection **Auto · Spherical · Cylindrical · Perspective**,
+     Boundary Warp (0–100), Fill Edges, Auto Settings, Create Stack. Choose **Spherical**: a Focal length field appears
+     and the footer reads `Spherical needs the focal length in pixels`, Merge dimmed. **Cancel**.
+543. **HDR.** Open `$BRACKETS`, select its three photos, **⌃H**. 📸 `HDR Merge Preview`: the merged preview (≤ 512 px,
+     chip `Engine preview · W × H`), options Auto Align, Deghost Amount **None · Low · Medium · High** (Medium), Auto
+     Settings, Create Stack (both on), and the hint that the preview is an approximation. Change Deghost to High: the
+     preview re-renders (dimmed while it works). Select three frames with the *same* exposure instead: a warning
+     `Exposures differ by 0.0 EV: HDR adds little range…`.
+544. **Merge in the background.** With the bracket, click **Merge**. The sheet closes at once; above the status bar a
+     strip `HDR · <name> and 2 more` shows the stage (Reading photos → Merging → Writing DNG) with counts and **Cancel**.
+     The grid stays usable. When it ends: the toast `HDR merge: created <first>-HDR.dng` with `Stacked with 3 source
+     photos`; the new DNG appears in the grid, selected (also when a filter would have hidden it). Press **E**: it
+     opens in Develop and responds to Exposure. The file sits next to the first source; a second merge makes `-HDR-2.dng`.
+545. **Cancel.** Start another HDR merge and click **Cancel** in the strip (or Photo ▸ Cancel HDR merge): the strip
+     disappears, the toast reads `HDR merge cancelled`, and no new file appears in the folder.
+546. **Panorama.** Open `$PANO`, select the frames, **⌃M**: the preview shows the stitched panorama and the hint
+     `Projection chosen: …`. Set Boundary Warp 60 and tick Fill Edges: the preview edges change. Merge: `<first>-Pano.dng`
+     appears selected. Untick **Create Stack** before a second merge: the toast has no `Stacked with…` line.
+547. **HDR Panorama.** Select six frames (two brackets of three, in order), Photo ▸ Photo Merge ▸ **HDR Panorama…**:
+     `Frames per bracket` offers **2 · 3** with `2 brackets of 3, in selection order…`; choose 2 with a count that does
+     not divide and the footer explains why Merge is dimmed. Merge with 3: `<first>-HDR-Pano.dng`.
+548. **Enhance, offline.** Select two `raw3` photos, **⌃⌥I**. 📸 `Enhance`: Denoise (on) with Amount 50, Super
+     Resolution (off), a dimmed **Raw Details** with `Not available…`, **Download missing models** (off) with the model
+     note, and the Preview note that the engine has no before / after preview call. Click **Enhance** with downloads off
+     on a fresh app dir: the strip appears, then the toast `Enhance failed: The enhancement model … is not on this Mac
+     and downloads are off. Turn on “Download missing models”…`. Reopen Enhance: the same message shows as `Last run: …`.
+     Untick both Denoise and Super Resolution: Enhance dims with `Choose Denoise, Super Resolution or both`.
+549. **Enhance with download.** Tick **Download missing models**, Enhance: the strip shows `Downloading denoise model…`
+     (an indeterminate bar: the engine reports only start and verified-ready), then Denoising per photo with counts.
+     Each photo gets `<name>-Enhanced-NR.dng`, stacked with it, and the results are selected; select one with its source
+     and press **C** to compare. Amount 0 writes an unchanged copy without loading a model.
+
+## Verdict (Photo Merge and Enhance)
+
+PASS when steps 540–549 meet their expectations. Engine warnings, dimmed options with their reason and the missing-model
+error with downloads off are expected, not failures.
+
+## Appendix: accessibility identifiers (M2-50)
+
+| Identifier | Element |
+| --- | --- |
+| `photo-merge-sheet` · `photo-merge-preview` · `photo-merge-preview-busy` · `photo-merge-preview-error` · `photo-merge-warnings` | Merge sheet, preview well, header spinner, preview problem, warning list |
+| `photo-merge-auto-align` · `photo-merge-deghost` · `photo-merge-auto-tone` · `photo-merge-create-stack` | HDR options, Auto Settings, Create Stack |
+| `photo-merge-projection` · `photo-merge-focal` · `photo-merge-boundary-warp` · `photo-merge-fill-edges` · `photo-merge-bracket-size` | Panorama options, HDR Panorama bracket size |
+| `photo-merge-problem` · `photo-merge-error` · `photo-merge-output` · `photo-merge-cancel` · `photo-merge-start` | Footer: why Merge is dimmed, start error, output name, Cancel, Merge |
+| `enhance-sheet` · `enhance-denoise` · `enhance-denoise-amount` · `enhance-super-resolution` · `enhance-raw-details` · `enhance-allow-download` | Enhance sheet and options |
+| `enhance-preview-note` · `enhance-last-error` · `enhance-problem` · `enhance-error` · `enhance-output` · `enhance-cancel` · `enhance-start` | Notes, errors, footer and actions |
+| `photo-job-progress` · `photo-job-cancel` | Activity strip for a running merge / enhance and its Cancel |
+
+## AC. Develop: model downloads, Lens Blur depth tools, Guided uncorrected view, export warnings (M2-51)
+
+Continues section X (engine backend, `$SCR/raw`, **sony-arw.ARW** in the loupe). Models land in
+`<support>/models/cache` (the cache the loupe and export read). The CFA denoise entry is a local artifact that does not
+resolve from the engine's copied catalog; with `TESSERA_MODEL_MANIFEST=<checkout>/crates/ml-runtime/models.toml` and the
+artifact present it installs, otherwise its failure reason is the expected result. Known limits:
+tools/orchestrate/wp/M2-51/REPORT.md.
+
+520. **Tests.**
+     ```sh
+     (cd apps/mac && swift test --filter 'ModelAcquisitionTests|LensBlurDepthModelTests|UncorrectedPlacementTests|ExportWarningsTests|LensBlurExportWarningTests|TransformLensBlurTests|ThemeLintTests' 2>&1 | grep Executed)
+     ```
+     Expect every line `with 0 failures` (download progress states, depth histogram binding, Visualize Depth, Subject,
+     Guided enter/exit, export warnings from stubs and one real export).
+521. **Settings ▸ AI.** ⌘, ▸ AI. 📸 A **Develop models** section with **Allow model downloads** (on by default) and the
+     hint `AI Denoise and Lens Blur fetch their pinned, checksum-verified models the first time you use them…`. Quit and
+     relaunch: the setting is kept.
+522. **Downloads off.** Untick Allow model downloads, move `<support>/models/cache` aside, then in LENS BLUR tick
+     **Apply**: a warning line `Depth model: … (model downloads are off in Settings ▸ AI)` with **Retry**; nothing is
+     recorded in History. DETAIL ▸ AI Denoise shows `Model downloads are off (Settings ▸ AI)…` before first use.
+523. **Download progress.** Tick Allow model downloads again (failures are forgotten) and click **Retry** (or tick Apply):
+     📸 the inline bar goes `Queued…` → `Downloading 12 MB of 99 MB` (determinate) → Lens Blur applies (`Lens Blur On`).
+     A second photo reuses the cache: no progress, Apply is immediate.
+524. **Depth histogram.** With Lens Blur applied, 📸 the Focal Range strip shows the 256-bin near → far depth histogram
+     behind the band; the band's handles still drag (one history step per drag, `Focal Range 20–45`). Switching to
+     another photo with Lens Blur recomputes it; a photo without Lens Blur shows the plain ramp.
+525. **Visualize Depth.** Tick **Visualize Depth**: the loupe shows the grayscale depth map (near is light) instead of
+     the photo; nothing is added to History and the recipe is unchanged. Untick: the photo returns. Switching photos
+     turns it off.
+526. **Subject.** Click **Subject**: `Finding the subject…` (plus the segmentation models' progress on first use), then
+     the focal range band moves around the main subject in one History step `Focal Range: Subject 30–45` (numbers vary);
+     ⌘Z restores the previous band. With the segmentation weights missing: a warning line with the reason; the band and
+     History are unchanged.
+527. **Apertures.** Choose each **Bokeh** entry: History `Bokeh: Cat Eye`, etc.; the loupe's out-of-focus highlights
+     change shape (5-Blade pentagons, Ring outlines, Oval stretched, Cat Eye clipped near the corners).
+528. **Guided on a corrected photo.** Covered by step 173: with a keystone or crop set, Guided shows the uncorrected full
+     frame while armed and restores the corrected view on Done / Esc / switching photo.
+529. **Export warnings.** Move the depth weights out of `<support>/models/cache`, keep Lens Blur applied and export PNG
+     to `$SCR/m251`. 📸 The completion toast headline ends `; 1 with warnings` and its details list
+     `sony-arw.ARW: Lens Blur skipped: Lens Blur depth model is not cached; download depth/anything-v2-small …`; the file is written (unblurred) and
+     `<exported file>.tessera-warnings.txt` (written by the engine) sits beside it.
+
+## Verdict (model downloads, depth tools, export warnings)
+
+PASS when steps 520–529 meet their expectations. A model that cannot be acquired on the test Mac is PASS when the panel
+shows the inline failure with its reason and nothing is recorded.
+
+## Appendix: accessibility identifiers (M2-51)
+
+| Identifier | Element |
+| --- | --- |
+| `ai-allow-model-downloads` | Settings ▸ AI ▸ Develop models ▸ Allow model downloads |
+| `detail-ai-denoise-model` · `lensblur-model` (and `-retry`) | Inline model progress / failure rows |
+| `lensblur-visualize-depth` · `lensblur-subject` · `lensblur-error` · `lensblur-busy` | Lens Blur depth tools |
+| `transform-guides-uncorrected` | Guided Upright's uncorrected-view hint |
+
+## AD. Layer styles and Global Light (B5-07)
+
+Setup: an engine build (`Support/make-app.sh`), a scratch folder `$SCR` with an empty `shoot` folder, and a small
+document. Styled layers are composited on the CPU (the Metal resident renderer does not draw effects yet), so a
+1000 × 700 document redraws in about 0.5–1 s per change; larger documents are slow, and above 16.7 million
+pixels (canvas plus effect padding) styled frames fail with "style alpha canvas exceeds CPU pixel limit"
+(IMPLEMENTATION-STATUS.md of WP B5-07). Steps 300–312 use File ▸ New Document at 1000 × 700.
+
+300. **Two shapes.** On the first layer, Select ▸ All, Edit ▸ Fill… with a light grey, deselect. Add two pixel
+     layers, *Shape A* and *Shape B*, each with a filled rectangular selection (orange), well apart.
+301. **Drop Shadow.** Select Shape A, Layer ▸ Layer Style ▸ Drop Shadow…. The Layer Style panel opens (title
+     *Layer Style*, subtitle *Shape A*) with Drop Shadow checked and selected; a shadow appears down-right of the
+     shape (Global Light 120°). History gains one *Drop Shadow* row. The Layers panel shows an fx glyph on
+     Shape A and, under it, a *Drop Shadow* row with an eye.
+302. **Live drag, one node.** Drag Distance to about 28 px and Size to about 12 px: the canvas follows the drag;
+     each release adds exactly one *Drop Shadow* history row.
+303. **Stroke.** Check Stroke in the panel's list: a 3 px black stroke appears outside the edge. Set Size 6 px and
+     the colour well to blue. Stroke is listed above Drop Shadow (the engine's stacking order), in the panel and
+     under Shape A in the Layers panel.
+304. **Repeat an effect.** Click "+" on the Stroke row: a second Stroke appears above the first (both listed);
+     the "−"/trash button removes the selected one. Bevel & Emboss, Satin, the glows and Pattern Overlay have no
+     "+" beyond one instance of the non-repeatable kinds.
+305. **Fill 0 %, effects stay.** Select Blending Options in the panel and drag Fill Opacity to 0 %: the orange
+     interior disappears while the stroke and shadow stay (the shadow shows through the empty interior: the
+     engine has no "Layer Knocks Out Drop Shadow" yet). The Properties panel lists *Stroke* and *Drop Shadow*
+     under Layer Style.
+306. **Second shape.** Double-click Shape B's row away from its name: the panel switches to Shape B (Blending
+     Options). Check Drop Shadow; set Distance 28 px.
+307. **Global Light across two layers.** Layer ▸ Layer Style ▸ Global Light…: the panel says "2 layers use it".
+     Drag the dial (or Angle) from 120° to 30°: both shadows swing to the lower left together; one *Global Light*
+     history row on release. In the Layer Style panel both shadows show *Angle (global)* 30°.
+308. **Local angle.** On Shape B's Drop Shadow, uncheck Use Global Light (the angle stays 30°), then set its Angle
+     to 90°: only Shape B's shadow moves. Undo twice to return it to the global light.
+309. **Undo / redo.** ⌘Z undoes *Global Light*: both shadows return to 120°. ⇧⌘Z redoes it.
+310. **Copy / paste / clear.** With Shape A selected, Layer ▸ Layer Style ▸ Copy Layer Style; select Shape B,
+     Paste Layer Style (one *Paste Layer Style* row; Shape B gets Stroke and Drop Shadow); Clear Layer Style
+     (one row); undo.
+311. **Locked and unstyleable layers.** Lock All on Shape A: the panel shows a *Locked* chip and its controls are
+     disabled; Layer ▸ Layer Style's effect items and Clear Layer Style are disabled, and a style edit
+     from anywhere else reports that the layer is locked. On an adjustment layer, the effects are disabled with a
+     warning line. Unlock.
+312. **Save PSD, reopen.** File ▸ Save As… `Styles.psd`, close the document, open `Styles.psd`: Shape A has
+     Stroke and Drop Shadow with Fill 0 %, Shape B its Drop Shadow, Global Light 30° (Layer ▸ Layer Style ▸
+     Global Light…). Effects PSD cannot store (bevel, satin, gradient / pattern overlays, repeated effects,
+     gradient strokes) make Save As PSD fail with a message instead of being dropped; `.tessera-doc` keeps
+     everything.
+313. **Metadata only.** Open a PSD whose effects have contours: the effect's editor lists *Contour* (and for
+     Bevel & Emboss *Texture*) under "Kept, not rendered"; no working controls for them. Saving keeps them.
+314. **Scripted run.**
+     ```sh
+     apps/mac/build/Tessera.app/Contents/MacOS/Tessera --folder "$SCR/shoot" --app-dir "$SCR/appdir" \
+       --styles-selftest "$SCR/out" 2>&1 | grep styles-selftest
+     ```
+     Runs 300–312 through the controller (shapes, drop shadow + stroke with a one-node drag, Fill 0 %, a second
+     shadow, Global Light 120° → 30°, undo, redo, save `.tessera-doc` and PSD, close, reopen the PSD) and prints
+     `step <n> <name> window … panel …` for `screencapture -R`. Expect 15 `check … ok` and `done, 0 failure(s)`.
+
+## Verdict (layer styles)
+
+PASS when steps 300–314 meet their expectations. Frame times on styled documents are recorded, not gated
+(the CPU fallback is a stopgap until effects render on the GPU).
+
+## Appendix: accessibility identifiers (B5-07)
+
+| Identifier | Element |
+| --- | --- |
+| `document.layerStyle` (panel) · `document.layerStyle.list` · `.detail` · `.done` · `.addMenu` · `.delete` · `.globalLight` | Layer Style panel |
+| `document.layerStyle.row.blending` · `document.layerStyle.row.<kind>[.<index>]` · `document.layerStyle.enable.<kind>[.<index>]` · `document.layerStyle.add.<kind>.<index>` | Effect list (kind = serde name, e.g. `drop_shadow`) |
+| `document.layerStyle.<kind>.<key>` (e.g. `document.layerStyle.drop_shadow.distance`, `.dial` for angles, `.fill.color`) · `document.layerStyle.editor.<kind>` · `document.layerStyle.<kind>.metadata.<key>` | Effect editors |
+| `document.layerStyle.opacity` · `.fill` · `.scale` | Blending Options |
+| `document.globalLight` (panel) · `document.globalLight.dial` · `.angle` · `.altitude` · `.done` | Global Light panel |
+| `document.layers.addStyle` · `document.layers.fx.<layer>` · `document.layers.effect.<layer>.<index>` · `.visibility` · `.name` | Layers panel fx button, glyph and effect rows |
+| `document.properties.style.<index>` · `document.properties.style.edit` | Properties summary |
 
 ## B5-10. Type tool and text layers
 

@@ -1,0 +1,13 @@
+[package]
+name = "mask-store"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+description = "Lossless f32 AI mask rasters and their on-disk store (split out of previews to keep ML crates off the preview graph)."
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+blake3 = "1"
+tempfile = { workspace = true }

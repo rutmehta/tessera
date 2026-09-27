@@ -76,12 +76,80 @@ impl RgbSource {
         })
     }
 
+    /// Calibrated LinearRaw camera samples to working RGB, without clipping.
+    /// Infer scene white from AsShotNeutral in XYZ and Bradford-adapt to D65;
+    /// do not apply per-channel WB again or normalize calibrated matrix rows.
+    pub fn from_linear_dng(dng: raw_decode::linear_dng::LinearDng) -> EngineResult<Self> {
+        use engine_api::color::{ChromaticAdaptation, ColorMatrix3, WhitePoint, WorkingSpace};
+        if dng.width == 0
+            || dng.height == 0
+            || dng.width > u32::MAX as usize
+            || dng.height > u32::MAX as usize
+            || dng.width.checked_mul(dng.height) != Some(dng.pixels.len())
+            || !(1..=8).contains(&dng.orientation)
+        {
+            return Err(EngineError::invalid(
+                "DNG pixels",
+                "invalid dimensions or orientation",
+            ));
+        }
+        let camera_xyz = ColorMatrix3(dng.color_matrix).inverse()?;
+        let white = camera_xyz.apply(dng.as_shot_neutral);
+        if white.iter().any(|v| !v.is_finite() || *v <= 0.) {
+            return Err(EngineError::invalid(
+                "DNG calibration",
+                "invalid scene white",
+            ));
+        }
+        let sum: f64 = white.iter().sum();
+        let adapt = ChromaticAdaptation::Bradford.matrix(
+            WhitePoint::new(white[0] / sum, white[1] / sum),
+            WhitePoint::D65,
+        )?;
+        let transform = WorkingSpace::LinearRec2020.to_xyz().inverse()? * adapt * camera_xyz;
+        let (w, h) = (dng.width, dng.height);
+        let (out_w, out_h) = if dng.orientation >= 5 { (h, w) } else { (w, h) };
+        let mut planes = vec![vec![0.; dng.pixels.len()]; 3];
+        // Transform and orient directly into the final planes: no full-size
+        // interleaved/rotated scratch copies for large HDR panoramas.
+        for (i, pixel) in dng.pixels.into_iter().enumerate() {
+            let (x, y) = (i % w, i / w);
+            let (x, y) = match dng.orientation {
+                2 => (w - 1 - x, y),
+                3 => (w - 1 - x, h - 1 - y),
+                4 => (x, h - 1 - y),
+                5 => (y, x),
+                6 => (h - 1 - y, x),
+                7 => (h - 1 - y, w - 1 - x),
+                8 => (y, w - 1 - x),
+                _ => (x, y),
+            };
+            for (plane, value) in planes.iter_mut().zip(transform.apply(pixel.map(f64::from))) {
+                plane[y * out_w + x] = value as f32;
+            }
+        }
+        Self::from_linear_rec2020(pipeline_cpu::Image::new(
+            out_w as u32,
+            out_h as u32,
+            planes,
+        )?)
+    }
+
     /// Decode JPEG, PNG or TIFF without reducing integer/float sample precision.
     /// EXIF orientation is consumed here exactly once, before renderer geometry.
     /// HEIC/HEIF uses ImageIO on macOS when the `imageio` feature is enabled.
     pub fn open(path: impl AsRef<Path>) -> EngineResult<Self> {
         let path = path.as_ref();
         let bytes = std::fs::read(path).map_err(|e| EngineError::io_at(path, &e))?;
+        let mut input = std::io::Cursor::new(&bytes);
+        if raw_decode::linear_dng::is_linear_dng(&mut input)
+            .map_err(|e| EngineError::io_at(path, &e))?
+        {
+            return Self::from_linear_dng(
+                raw_decode::linear_dng::read(&mut input)
+                    .map_err(|e| EngineError::io_at(path, &e))?,
+            );
+        }
         let heic = path
             .extension()
             .and_then(|s| s.to_str())
@@ -165,6 +233,15 @@ impl RgbSource {
         self.pixels
     }
     pub fn recognizes(path: impl AsRef<Path>) -> bool {
+        // DNG is not inherently RGB: inspect the photometric tag so CFA DNGs
+        // keep using the RAW path. Also used by export and catalog ingestion.
+        if std::fs::File::open(path.as_ref())
+            .ok()
+            .and_then(|mut file| raw_decode::linear_dng::is_linear_dng(&mut file).ok())
+            == Some(true)
+        {
+            return true;
+        }
         path.as_ref()
             .extension()
             .and_then(|s| s.to_str())

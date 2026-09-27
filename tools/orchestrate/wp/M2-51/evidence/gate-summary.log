@@ -1,0 +1,49 @@
+Test Case '-[TesseraCoreTests.ExportWarningsTests testWarningFilesAreReadAndSurfacedInTheToast]' started.
+Test Case '-[TesseraCoreTests.ExportWarningsTests testWarningFilesAreReadAndSurfacedInTheToast]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.LensBlurDepthModelTests testHistogramBindsTheEngineBinsNormalised]' started.
+Test Case '-[TesseraCoreTests.LensBlurDepthModelTests testHistogramBindsTheEngineBinsNormalised]' passed (0.003 seconds).
+Test Case '-[TesseraCoreTests.LensBlurDepthModelTests testMissingWeightsAreAnInlineErrorAndNoEngineCall]' started.
+Test Case '-[TesseraCoreTests.LensBlurDepthModelTests testMissingWeightsAreAnInlineErrorAndNoEngineCall]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.LensBlurDepthModelTests testSubjectAcquiresSegmentationAndAppliesTheEngineRange]' started.
+Test Case '-[TesseraCoreTests.LensBlurDepthModelTests testSubjectAcquiresSegmentationAndAppliesTheEngineRange]' passed (0.002 seconds).
+Test Case '-[TesseraCoreTests.LensBlurDepthModelTests testVisualizeToggleDrivesTheSessionOverlay]' started.
+Test Case '-[TesseraCoreTests.LensBlurDepthModelTests testVisualizeToggleDrivesTheSessionOverlay]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.LensBlurExportWarningTests testLensBlurWithoutDepthWeightsExportsWithAWarning]' started.
+Test Case '-[TesseraCoreTests.LensBlurExportWarningTests testLensBlurWithoutDepthWeightsExportsWithAWarning]' passed (12.929 seconds).
+Test Case '-[TesseraCoreTests.ModelAcquisitionTests testAllowDownloadsSettingPersistsAndReopensTheDownloader]' started.
+Test Case '-[TesseraCoreTests.ModelAcquisitionTests testAllowDownloadsSettingPersistsAndReopensTheDownloader]' passed (0.003 seconds).
+Test Case '-[TesseraCoreTests.ModelAcquisitionTests testDownloaderThatCannotOpenFailsWithTheReason]' started.
+Test Case '-[TesseraCoreTests.ModelAcquisitionTests testDownloaderThatCannotOpenFailsWithTheReason]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.ModelAcquisitionTests testDownloadProgressQueuedBytesReady]' started.
+Test Case '-[TesseraCoreTests.ModelAcquisitionTests testDownloadProgressQueuedBytesReady]' passed (0.014 seconds).
+Test Case '-[TesseraCoreTests.ModelAcquisitionTests testFailureCarriesTheReasonAndRetryRequestsAgain]' started.
+Test Case '-[TesseraCoreTests.ModelAcquisitionTests testFailureCarriesTheReasonAndRetryRequestsAgain]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.ModelAcquisitionTests testStandardPathsUseTheSupportModelsFolder]' started.
+Test Case '-[TesseraCoreTests.ModelAcquisitionTests testStandardPathsUseTheSupportModelsFolder]' passed (0.002 seconds).
+Test Case '-[TesseraCoreTests.ModelAcquisitionTests testStatesFollowTheEngineEvents]' started.
+Test Case '-[TesseraCoreTests.ModelAcquisitionTests testStatesFollowTheEngineEvents]' passed (0.002 seconds).
+Test Case '-[TesseraCoreTests.ThemeLintTests testViewsUseThemeTokensOnly]' started.
+Test Case '-[TesseraCoreTests.ThemeLintTests testViewsUseThemeTokensOnly]' passed (0.164 seconds).
+Test Case '-[TesseraCoreTests.TransformLensBlurTests testAIDenoiseTogglesTheNeuralModeAndAmount]' started.
+Test Case '-[TesseraCoreTests.TransformLensBlurTests testAIDenoiseTogglesTheNeuralModeAndAmount]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.TransformLensBlurTests testGuidedEditorKeepsTwoToFourGuidesInTheImage]' started.
+Test Case '-[TesseraCoreTests.TransformLensBlurTests testGuidedEditorKeepsTwoToFourGuidesInTheImage]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.TransformLensBlurTests testLensBlurApplyBokehAndFocalRange]' started.
+Test Case '-[TesseraCoreTests.TransformLensBlurTests testLensBlurApplyBokehAndFocalRange]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.TransformLensBlurTests testTransformSlidersWriteTheirPatchesAndResetPerGroup]' started.
+Test Case '-[TesseraCoreTests.TransformLensBlurTests testTransformSlidersWriteTheirPatchesAndResetPerGroup]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.TransformLensBlurTests testUprightButtonsWriteTheirModeAndClearGuides]' started.
+Test Case '-[TesseraCoreTests.TransformLensBlurTests testUprightButtonsWriteTheirModeAndClearGuides]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.TransformSessionTests testTransformDragsAndUprightButtonsAreOneHistoryStepEach]' started.
+Test Case '-[TesseraCoreTests.TransformSessionTests testTransformDragsAndUprightButtonsAreOneHistoryStepEach]' passed (7.244 seconds).
+Test Case '-[TesseraCoreTests.TransformSessionTests testUprightAutoChangesTheRenderedFrame]' started.
+Test Case '-[TesseraCoreTests.TransformSessionTests testUprightAutoChangesTheRenderedFrame]' passed (53.476 seconds).
+Test Case '-[TesseraCoreTests.UncorrectedPlacementTests testGuidedEnterAndExitToggleTheUncorrectedView]' started.
+Test Case '-[TesseraCoreTests.UncorrectedPlacementTests testGuidedEnterAndExitToggleTheUncorrectedView]' passed (0.004 seconds).
+lensblur-export-warning: ["sony-arw.ARW: Lens Blur skipped: Lens Blur depth model is not cached; download depth/anything-v2-small in Models"]
+✔ Test decisionsGradesMarksBasket() passed after 0.005 seconds.
+✔ Suite CullStoreTests passed after 0.005 seconds.
+✔ Test syntheticLibraryIsGroupedAndSorted() passed after 0.087 seconds.
+✔ Suite GroupingTests passed after 0.087 seconds.
+✔ Test run with 5 tests in 2 suites passed after 0.087 seconds.
+GATE_EXIT 0

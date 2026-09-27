@@ -9,6 +9,14 @@ allow = ["MIT", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "ISC", "Zlib", "Un
 allow = ["LGPL-2.1-only", "LGPL-2.1-or-later"]
 name = "lcms2"
 
+# rav1e's cfg(fuzzing)-only runtime, included by cargo-deny's all-target graph.
+# NCSA is permissive (notice retention and non-endorsement), not copyleft.
+# This runtime is absent from normal/build dependency trees of the app.
+[[licenses.exceptions]]
+name = "libfuzzer-sys"
+version = "=0.4.13"
+allow = ["NCSA"]
+
 [bans]
 multiple-versions = "warn"
 wildcards = "allow"

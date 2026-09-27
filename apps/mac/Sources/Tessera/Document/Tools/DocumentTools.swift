@@ -136,7 +136,8 @@ final class DocumentTools {
     @ObservationIgnored private var strokeOpen = false
     @ObservationIgnored private var strokeTimes: [Double] = []
     @ObservationIgnored private var opacityKeys = BrushHUDMath.OpacityKeys()
-    @ObservationIgnored private var outlineToken = 0
+    /// Outline requests are generation-counted (B5-09): a clear or a newer request makes older results stale.
+    @ObservationIgnored private var outlineGate = OutlineRequestGate()
     @ObservationIgnored private var outlineKey: (String, UInt64, Int)?
     @ObservationIgnored private var transformPush = (inFlight: false, dirty: false)
     @ObservationIgnored private var busy = 0
@@ -193,6 +194,7 @@ final class DocumentTools {
 
     func select(_ tool: DocumentTool) {
         guard let doc = document else { return }
+        DocumentRetouch.shared.toolSelected(tool)   // B5-09: another tool ends the Remove tool
         if transform != nil, tool != doc.tool { commitTransform() }
         if case .polygon = gesture { gesture = nil }
         if case .magnetic = gesture { gesture = nil }
@@ -259,6 +261,9 @@ final class DocumentTools {
         let flags = e.modifierFlags
         pointer = v.convert(e.locationInWindow, from: nil)
         if transform != nil { return transformMouseDown(e, in: v) }
+        // B5-09 begin: the Remove tool takes the canvas while it is on.
+        if DocumentRetouch.shared.removeActive { return DocumentRetouch.shared.mouseDown(e, in: v) }
+        // B5-09 end
         // ⌃-click with a painting tool: the brush HUD (size ↔, hardness ↕).
         if flags.contains(.control), doc.tool.paints || doc.tool == .quickSelect {
             let b = currentBrush
@@ -314,6 +319,7 @@ final class DocumentTools {
 
     func mouseDragged(_ e: NSEvent, in v: DocumentViewportView) {
         guard let doc = document else { return }
+        if gesture == nil, DocumentRetouch.shared.mouseDragged(e, in: v) { return }   // B5-09
         // B5-10 begin
         if doc.tool == .type, gesture == nil, transform == nil { DocumentText.shared.mouseDragged(e, in: v); return }
         // B5-10 end
@@ -370,6 +376,7 @@ final class DocumentTools {
 
     func mouseUp(_ e: NSEvent, in v: DocumentViewportView) {
         guard let doc = document else { gesture = nil; return }
+        if gesture == nil, DocumentRetouch.shared.mouseUp(e, in: v) { return }   // B5-09
         // B5-10 begin
         if doc.tool == .type, gesture == nil, transform == nil { DocumentText.shared.mouseUp(e, in: v); return }
         // B5-10 end
@@ -642,19 +649,20 @@ final class DocumentTools {
         let key = (doc.id, doc.info.epoch, lvl)
         if let k = outlineKey, k == key { return }
         outlineKey = key
+        // Every refresh starts a generation, the clear included, so a request still in flight when the
+        // selection is cleared can no longer bring its ants back.
+        let token = outlineGate.begin()
         guard doc.marquee != nil else {
             if !outline.isEmpty { outline = [] }
             redraw()
             return
         }
-        outlineToken += 1
-        let token = outlineToken
         outlineQueue.async {
             let o = (try? t.selectionOutline(level: UInt8(max(0, min(lvl, 6))))) ?? []
             DispatchQueue.main.async {
                 MainActor.assumeIsolated {
                     let tools = DocumentTools.shared
-                    guard token == tools.outlineToken else { return }
+                    guard tools.outlineGate.accepts(token) else { return }
                     tools.outline = o
                     tools.redraw()
                 }
@@ -903,6 +911,7 @@ final class DocumentTools {
     /// whether the key was used.
     func handleKey(_ event: NSEvent) -> Bool {
         guard let doc = document else { return false }
+        if DocumentRetouch.shared.handleKey(event) { return true }   // B5-09: ⇧J, and Remove's keys
         if event.keyCode == 51 || event.keyCode == 117 {
             let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
             return mods.isEmpty && clearSelection()

@@ -220,3 +220,167 @@ fn bench_interactive_per_operator() {
         }
     }
 }
+
+/// M2-17b keeps L2 under a 12 ms steady-state budget and drops resolution
+/// only above 16 ms. M2-22 retains the 12 ms budget. Use the real 36 MP NEF
+/// (approximately 1845x1231 at L2), never the small synthetic parity fixture.
+///
+/// cargo test -p pipeline-gpu --release --test interactive_performance \
+///   bench_l2_composed_geometry_budget -- --ignored --nocapture --test-threads=1
+#[test]
+#[ignore = "requires a real >=30 MP NEF, Metal and release build; asserts geometry drag budget"]
+// This ignored benchmark compiles in debug but its runtime contract requires release.
+#[allow(clippy::assertions_on_constants)]
+fn bench_l2_composed_geometry_budget() {
+    use engine_api::recipe::settings::{GuideLine, LensProfileSource, NormalizedRect, UprightMode};
+    assert!(!cfg!(debug_assertions), "latency gate requires --release");
+    let path = std::env::var_os("PIPELINE_BENCH_NEF")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            fixtures().into_iter().find(|p| p.extension().is_some_and(|e| e.eq_ignore_ascii_case("nef")))
+                .expect("real NEF required in PIPELINE_RAW_FIXTURES or fixtures/raw; no synthetic fallback")
+        });
+    let raw = RawImage::open(ImageId(249), &path).expect("decode real NEF");
+    assert!(
+        raw.active_extent().area() >= 30_000_000,
+        "use the full-resolution >=30 MP NEF fixture"
+    );
+    let context = Arc::new(GpuContext::new().expect("Metal adapter required"));
+    eprintln!(
+        "GEOMETRY_BENCH fixture={} adapter={:?} sensor={}x{} level=2",
+        path.display(),
+        context.adapter_info.name,
+        raw.active_extent().width,
+        raw.active_extent().height
+    );
+    let gpu = Arc::new(GpuStageOp::new(context));
+    let config = RendererConfig::default();
+    let renderer = Renderer::with_ops(
+        gpu.clone(),
+        Arc::new(TileCache::new(config.cache_budget_bytes)),
+        config,
+    );
+    let cancel = CancellationToken::new();
+    let mut settings = DevelopSettings::default();
+    settings.lens.profile = LensProfileSource::None;
+    settings.lens.remove_chromatic_aberration = false;
+    settings.lens.manual_distortion = 18.;
+    settings.lens.manual_vignetting = 35.;
+    settings.geometry.crop.rect = NormalizedRect {
+        left: 0.05,
+        top: 0.05,
+        right: 0.95,
+        bottom: 0.95,
+    };
+    let extent = Renderer::output_extent(&raw, &settings, 2).unwrap();
+    let target = surface(extent.width, extent.height);
+    let samples: usize = std::env::var("INTERACTIVE_BENCH_SAMPLES")
+        .map(|v| v.parse().unwrap())
+        .unwrap_or(40);
+    assert!(
+        samples >= 30,
+        "at least 30 measured frames required for p90"
+    );
+    let patches: [(&str, Patch); 4] = [
+        ("vertical", |s, v| {
+            s.geometry.transform.vertical = -20. + 40. * v
+        }),
+        ("horizontal", |s, v| {
+            s.geometry.transform.horizontal = -20. + 40. * v
+        }),
+        ("rotate", |s, v| s.geometry.transform.rotate = -4. + 8. * v),
+        ("scale", |s, v| s.geometry.transform.scale = 95. + 10. * v),
+    ];
+    let mut latency_failures = Vec::new();
+    for mode in [UprightMode::Guided, UprightMode::Auto] {
+        settings.geometry.upright.mode = mode;
+        settings.geometry.upright.guides = if mode == UprightMode::Guided {
+            vec![
+                GuideLine {
+                    start: [0.2, 0.1],
+                    end: [0.3, 0.9],
+                },
+                GuideLine {
+                    start: [0.8, 0.1],
+                    end: [0.7, 0.9],
+                },
+            ]
+        } else {
+            Vec::new()
+        };
+        let cold = Instant::now();
+        assert!(
+            renderer
+                .render_surface(&raw, &settings, 2, target.id(), &cancel)
+                .unwrap()
+                .is_some(),
+            "composed geometry must present resident; tile fallback is not this benchmark"
+        );
+        eprintln!(
+            "GEOMETRY_BENCH_COLD mode={mode:?} extent={}x{} ms={:.2}",
+            extent.width,
+            extent.height,
+            cold.elapsed().as_secs_f64() * 1e3
+        );
+        for (name, patch) in patches {
+            let mut times = Vec::with_capacity(samples);
+            let mut steady = None;
+            for i in 0..samples + 3 {
+                let mut frame_settings = settings.clone();
+                patch(
+                    &mut frame_settings,
+                    (i % samples) as f32 / (samples - 1) as f32,
+                );
+                let start = Instant::now();
+                let histogram = renderer
+                    .render_surface(&raw, &frame_settings, 2, target.id(), &cancel)
+                    .unwrap();
+                let elapsed = start.elapsed().as_secs_f64() * 1e3;
+                assert!(
+                    histogram.is_some(),
+                    "geometry surface path disappeared during drag"
+                );
+                std::hint::black_box(histogram);
+                if i == 2 {
+                    steady = Some(gpu.stats());
+                }
+                if i >= 3 {
+                    times.push(elapsed);
+                }
+            }
+            let before = steady.unwrap();
+            let after = gpu.stats();
+            assert_eq!(
+                after.uploads, before.uploads,
+                "warm transform re-uploaded upstream pixels"
+            );
+            assert_eq!(
+                after.pixel_readback_bytes, before.pixel_readback_bytes,
+                "warm transform read back full pixels"
+            );
+            times.sort_by(f64::total_cmp);
+            let p50 = percentile(&times, 0.5);
+            let p90 = percentile(&times, 0.9);
+            let max = *times.last().unwrap();
+            eprintln!(
+                "GEOMETRY_BENCH mode={mode:?} op={name} path=surface level=2 extent={}x{} p50_ms={p50:.2} p90_ms={p90:.2} max_ms={max:.2} budget_ms=12 drop_threshold_ms=16 samples={times:.2?}",
+                extent.width, extent.height
+            );
+            if p90 >= 12. {
+                latency_failures.push(format!(
+                    "{mode:?}/{name}: L2 p90 {p90:.2} ms exceeds the existing 12 ms budget"
+                ));
+            }
+            if max >= 16. {
+                latency_failures.push(format!(
+                    "{mode:?}/{name}: frame {max:.2} ms crosses the 16 ms adaptive downgrade threshold"
+                ));
+            }
+        }
+    }
+    assert!(
+        latency_failures.is_empty(),
+        "geometry drag latency failures:\n{}",
+        latency_failures.join("\n")
+    );
+}

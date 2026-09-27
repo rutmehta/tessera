@@ -17,6 +17,16 @@ pub(crate) fn geometry_mapped(
     lens_active: bool,
     lookup: impl Fn([f64; 2], usize) -> Option<[f64; 2]>,
 ) -> EngineResult<crate::Image> {
+    geometry_mapped_with_upright(image, s, lens_active, lookup, None)
+}
+
+pub(crate) fn geometry_mapped_with_upright(
+    image: &crate::Image,
+    s: &GeometrySettings,
+    lens_active: bool,
+    lookup: impl Fn([f64; 2], usize) -> Option<[f64; 2]>,
+    analyzed: Option<lens::Homography>,
+) -> EngineResult<crate::Image> {
     let r = s.crop.rect;
     if !r.is_valid()
         || !s.crop.angle.is_finite()
@@ -33,7 +43,10 @@ pub(crate) fn geometry_mapped(
             what: "EXIF orientation and constrain-crop are not implemented".into(),
         });
     }
-    let upright = crate::upright::inverse(image, s, &lookup)?;
+    let upright = match analyzed {
+        Some(upright) => upright,
+        None => crate::upright::inverse(image, s, &lookup)?,
+    };
     let upright_active = upright != lens::Homography::IDENTITY;
     let lens_active = lens_active || upright_active;
     let t = &s.transform;
