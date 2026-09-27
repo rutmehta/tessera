@@ -2760,13 +2760,7 @@ fn export_nodes_with_checkpoint(
             cancel,
         )?;
         cancel.check()?;
-        vector::export_bridge(
-            layer,
-            &mut original,
-            imported.canvas,
-            imported.depth,
-            cancel,
-        )?;
+        vector::export_bridge(layer, &mut original, imported.canvas, imported.depth)?;
         cancel.check()?;
         vector::export_mask(
             layer.vector_mask.as_ref(),

@@ -1,0 +1,18 @@
+{
+  "base_head": "78492f7fef5963a72af5577a2ecc5a1c69f423ca",
+  "source_id": "4aa71a620bb7",
+  "files": {
+    "crates/compositor/src/psd.rs": {
+      "sha256": "bb12397fb309448fa8e827c17c4eebf555b1e90de4578f3494fa1afb2b6254e0",
+      "bytes": 111769
+    },
+    "crates/compositor/src/psd/placed.rs": {
+      "sha256": "83eb1f8dd86fae1c0e2e475349f616f7487cf1a300c6657f84df05d6e41ff089",
+      "bytes": 14433
+    },
+    "crates/compositor/tests/psd_cancellation.rs": {
+      "sha256": "95d4ab586927bf35b9378234449189fb820fe594947c6d623c1df9ed1709d271",
+      "bytes": 3340
+    }
+  }
+}
