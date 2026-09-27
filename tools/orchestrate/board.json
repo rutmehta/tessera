@@ -1235,7 +1235,7 @@
     "id": "M2-51",
     "owner": "opus",
     "title": "Enable AI Denoise + Lens Blur, downloads, Guided uncorrected, export warnings",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
