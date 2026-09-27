@@ -300,5 +300,42 @@ fn export_is_unchanged_by_the_gpu_route() {
         ExportColor::Srgb,
     )
     .unwrap();
-    assert_eq!(std::fs::read(a).unwrap(), std::fs::read(b).unwrap());
+    same_png(&a, &b);
+}
+
+/// Two PNG exports are the same: identical pixels and ICC profiles, except
+/// the profile header's creation time (bytes 24..36), which the built-in
+/// profiles stamp when they are created (NEEDS.md 7).
+fn same_png(a: &std::path::Path, b: &std::path::Path) {
+    fn read(p: &std::path::Path) -> (Vec<u8>, Vec<u8>) {
+        let dec = png::Decoder::new(std::io::BufReader::new(std::fs::File::open(p).unwrap()));
+        let mut r = dec.read_info().unwrap();
+        let mut icc = r
+            .info()
+            .icc_profile
+            .as_ref()
+            .map(|c| c.to_vec())
+            .unwrap_or_default();
+        if icc.len() >= 36 {
+            icc[24..36].fill(0);
+        }
+        let mut buf = vec![0u8; r.output_buffer_size()];
+        let n = r.next_frame(&mut buf).unwrap().buffer_size();
+        buf.truncate(n);
+        (buf, icc)
+    }
+    let (pa, ia) = read(a);
+    let (pb, ib) = read(b);
+    assert!(
+        pa == pb,
+        "pixels differ: {} vs {}",
+        a.display(),
+        b.display()
+    );
+    assert!(
+        ia == ib,
+        "ICC profiles differ: {} vs {}",
+        a.display(),
+        b.display()
+    );
 }

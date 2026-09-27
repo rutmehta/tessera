@@ -547,7 +547,7 @@ fn render_rgba(
         drop(tx);
         let mut done = 0usize;
         let mut first_err = None;
-        for r in rx.iter() {
+        for r in rx {
             match r {
                 Ok(t) => {
                     interleave_tile(e, &t, &mut out)?;

@@ -3568,7 +3568,11 @@ impl DocumentSession {
     /// back as straight f32 RGBA.
     #[doc(hidden)]
     pub fn read_presented_level(&self, level: u8) -> Result<(u32, u32, Vec<f32>)> {
-        for _ in 0..8 {
+        // B5-15: until presenting schedules nothing and the worker is idle
+        // (a bake at the view level can be followed by a level-0 refinement),
+        // with a generous deadline that fails instead of reading a stale bake.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(300);
+        loop {
             let pending = {
                 let st = self.shared.lock()?;
                 let full = Rect::of_extent(st.live().state().canvas.at_level(level));
@@ -3578,6 +3582,11 @@ impl DocumentSession {
             };
             if !pending {
                 break;
+            }
+            if std::time::Instant::now() > deadline {
+                return Err(failure(
+                    "smart filter bakes and previews did not finish within 300 s",
+                ));
             }
             self.wait_filters_idle();
         }

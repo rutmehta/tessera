@@ -25,6 +25,12 @@ final class DocumentExportFlatTests: XCTestCase {
         return backend
     }
 
+    private func pixels(_ path: String) throws -> Data {
+        let src = try XCTUnwrap(CGImageSourceCreateWithURL(URL(fileURLWithPath: path) as CFURL, nil))
+        let image = try XCTUnwrap(CGImageSourceCreateImageAtIndex(src, 0, nil))
+        return try XCTUnwrap(image.dataProvider?.data as Data?)
+    }
+
     private final class Log: @unchecked Sendable {
         let lock = NSLock()
         var values: [(Double, String)] = []
@@ -43,7 +49,8 @@ final class DocumentExportFlatTests: XCTestCase {
         _ = try backend.setVisible(id: top, visible: false)
         let log = Log()
         try await Task.detached { try job.run { log.add($0, $1) } }.value
-        XCTAssertEqual(try Data(contentsOf: URL(fileURLWithPath: path)), try Data(contentsOf: URL(fileURLWithPath: sync)))
+        // Same pixels (file bytes differ in the built-in profile's creation time).
+        XCTAssertEqual(try pixels(path), try pixels(sync))
         let values = log.lock.withLock { log.values }
         XCTAssertEqual(values.last?.0, 1)
         XCTAssertEqual(values.last?.1, "Done")

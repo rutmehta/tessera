@@ -128,7 +128,7 @@ fn background_export_is_the_cpu_composite_with_monotonic_progress() {
         ExportColor::Document,
     )
     .unwrap();
-    assert_eq!(std::fs::read(&sync).unwrap(), std::fs::read(&out).unwrap());
+    same_png(&sync, &out);
 }
 
 /// Cancelling mid-composite stops the export with an error, leaves the file
@@ -279,4 +279,41 @@ fn begin_is_cheap_and_edits_continue_during_run() {
     eprintln!("begin {begin:?}; slowest edit during the export {worst:?}");
     assert!(worst < Duration::from_millis(50), "edit took {worst:?}");
     assert!(out.exists());
+}
+
+/// Two PNG exports are the same: identical pixels and ICC profiles, except
+/// the profile header's creation time (bytes 24..36), which the built-in
+/// profiles stamp when they are created (NEEDS.md 7).
+fn same_png(a: &std::path::Path, b: &std::path::Path) {
+    fn read(p: &std::path::Path) -> (Vec<u8>, Vec<u8>) {
+        let dec = png::Decoder::new(std::io::BufReader::new(std::fs::File::open(p).unwrap()));
+        let mut r = dec.read_info().unwrap();
+        let mut icc = r
+            .info()
+            .icc_profile
+            .as_ref()
+            .map(|c| c.to_vec())
+            .unwrap_or_default();
+        if icc.len() >= 36 {
+            icc[24..36].fill(0);
+        }
+        let mut buf = vec![0u8; r.output_buffer_size()];
+        let n = r.next_frame(&mut buf).unwrap().buffer_size();
+        buf.truncate(n);
+        (buf, icc)
+    }
+    let (pa, ia) = read(a);
+    let (pb, ib) = read(b);
+    assert!(
+        pa == pb,
+        "pixels differ: {} vs {}",
+        a.display(),
+        b.display()
+    );
+    assert!(
+        ia == ib,
+        "ICC profiles differ: {} vs {}",
+        a.display(),
+        b.display()
+    );
 }
