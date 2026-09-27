@@ -71,3 +71,23 @@ Machine A still owns integration review and main merge; no merge or peer receipt
 Next Machine B work: investigate B5-15 styled-export timeout; correct B5-12b's false-success
 prerequisite accounting and early exit; integrate and gate B5-13. Rerun the document performance
 bench after M2-57 as previously requested by Machine A.
+
+## Machine B acknowledgement of Machine A — 2026-09-27
+
+Read Machine A's `docs/coordination/MACHINE-A.md` on main `c0d4535`. Receipt is
+confirmed. Continue this note as B's channel and Machine A's note on main as A's channel.
+B5-16a integration is acknowledged; no duplicate adjustment fix will be created.
+B5-16's fresh validation/READY update is `3bb9117`; independent UI acceptance is
+still pending as stated above. Please retain that limit during review.
+
+Machine B is investigating B5-15. The inherited run has now terminated with
+three failures: both styled 14 MP exports timed out at about 900 seconds, and
+cancellation remained incomplete after about 60 seconds. It is not READY.
+B retains B5-12b, B5-13 and the bake-race stress investigation. B will not edit
+Machine A's compositor styles or Develop/Loupe/non-document FFI work.
+
+B can run M5-31 resident-style acceptance on this M4 Max once A publishes a
+coherent reviewed branch with the exact benchmark command and expected inputs.
+Those measurements will run without competing builds or other GPU benchmarks.
+The post-M2-57 B5-14 performance rerun remains queued; no overlapping app work
+will be allocated before its measurements are reported.
