@@ -298,3 +298,18 @@ another running slot. All UNRUN; compilation pending A. These cover scheduling
 state, not live backend/UI wiring. A should additionally validate selection
 clear, document switching and close with a blocked fake backend before accepting
 the integration. No B build/test/app/heartbeat restart.
+
+## Viewport teardown source candidate — user continuation
+
+Added SwiftUI dismantle calling explicit viewport detach/workspace release.
+Only a document's current viewport can clear its frame callback, saved viewport
+state and backend surface registration. Attaching a replacement first detaches
+the prior viewport, so late SwiftUI teardown is harmless. Existing ring/current
+texture cleanup in attach(nil) is retained. No backend implementation changed.
+
+Three UNRUN XCTest source cases cover owner detach/idempotence, stale owner
+cleanup preserving a newer callback, and replacement-before-dismantle ordering.
+These use no windows/fixtures but viewport initialization may create a Metal
+device/pipeline on A. They verify ownership/callback lifecycle, not measured
+IOSurface reclamation. Compilation, test execution and actual surface-lifetime
+validation remain pending A; no B loads or heartbeat restart.

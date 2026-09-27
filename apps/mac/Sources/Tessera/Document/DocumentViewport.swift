@@ -200,12 +200,15 @@ final class DocumentViewportView: NSView {
 
     func attach(_ doc: DocumentController?) {
         guard doc !== controller else { return }
-        if let old = controller {
+        if let old = controller, old.viewport === self {
             old.viewState = math
             old.onFrame = nil
-            if old.viewport === self { old.viewport = nil }
+            old.viewport = nil
             old.backend.detachSurfaces()
         }
+        // SwiftUI may construct a replacement before dismantling the old view.
+        // Transfer ownership explicitly so late old teardown cannot detach this ring.
+        if let previous = doc?.viewport, previous !== self { previous.attach(nil) }
         controller = doc
         ring.removeAll()
         ringSize = (0, 0)
@@ -225,6 +228,11 @@ final class DocumentViewportView: NSView {
         selectionDidChange()
         pushViewport()
         render()
+    }
+
+    func detachFromWorkspace() {
+        attach(nil)
+        workspace = nil
     }
 
     private var drawableSize: CGSize { CGSize(width: max(bounds.width * scale, 1), height: max(bounds.height * scale, 1)) }
@@ -550,6 +558,10 @@ struct DocumentViewportRepresentable: NSViewRepresentable {
         let v = DocumentViewportView(frame: .zero)
         v.workspace = workspace
         return v
+    }
+
+    static func dismantleNSView(_ v: DocumentViewportView, coordinator: ()) {
+        v.detachFromWorkspace()
     }
 
     func updateNSView(_ v: DocumentViewportView, context: Context) {

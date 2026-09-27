@@ -333,3 +333,12 @@ Per direct user instruction to continue, drafted one-running/one-newest outline
 scheduler with clear/switch/close invalidation. Four deterministic tests UNRUN;
 compilation and integrated backend checks pending A. Timer correction7a58b48 is
 accepted for A validation, not yet reported passed. B resource hold remains.
+
+### Continued source work: viewport ownership teardown
+
+Added representable dismantle and ownership-guarded surface/callback detach;
+replacement attach explicitly releases previous viewport first. Three UNRUN
+source regressions, compile and live surface accounting pending A. No B loads.
+Remaining: A timer/outline/teardown validation, engine mask/cancellation bridge,
+global CPU/GPU memory admission, runtime allocation-lifetime evidence, then
+bounded responsiveness acceptance before any B workload resumption.
