@@ -1,6 +1,6 @@
 # Tessera task board — Machine A coordinator
 
-Updated: 2026-09-27 17:28 UTC
+Updated: 2026-09-27 17:34 UTC
 
 User mandate: autonomously advance UI/UX redesign **and** the recovered engine
 queue, using parallel GPT-6 Astra/Luna agents; coordinate Machine B and keep
@@ -40,6 +40,21 @@ exit and verifying Library Loupe zoom restoration. ENG-31's new guard exposed
 duplicate layer IDs in the inherited timing fixture. The proposed source reuse
 must demonstrate benefit with valid distinct IDs before shipping; the original
 cold failure remains open. EXP-45 is actively assigned, not waiting for B.
+
+Build-slot handoff: UX-01 now owns the heavy slot; ENG-31 is preparing tests and
+seed semantics source-only. Root prepared INT-45 in the managed worktree
+`/Users/rutmehta/.codex/worktrees/export-integration/tessera`, branch
+`codex/export-integration`: main d5366d7 plus a clean **uncommitted merge** of
+wp/M2-45d69bcd3e. Candidate tree9fe7a245e2bc070e65fb3f4c0a4301f233ee473d;
+formatting and source whitespace checks pass. Preserve the merge state. Full
+five-package Rust/strict checks, licenses, workspace and FFI/Swift validation
+wait for the build slot; no main merge yet.
+
+EXP-45 diagnostic progress: independently sourced Skia ISO fixtures and the
+preserved Tessera prototype now yield actual SDR/HDR pixels in a small ImageIO
+probe. The agent is isolating decode options and verifying reconstruction before
+proposing a production change. This is diagnostic evidence, not completed export
+interoperability or a shipped feature.
 
 | ID | Work | Owner / branch | Entry condition / acceptance |
 | --- | --- | --- | --- |

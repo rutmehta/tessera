@@ -6,6 +6,15 @@ Recovered Claude chat: `Multi-model execution plan (fork)`, session
 
 ## Active implementation review — 17:28 UTC
 
+17:34 update: UX has the heavy build slot; engine work continues source-only.
+Root prepared an isolated, uncommitted clean M2-45d integration on
+`codex/export-integration` (managed worktree of that name), with formatting and
+source whitespace checks passed. Full integration gates remain queued. EXP-45
+obtained independent ISO fixtures and actual SDR/HDR decode pixels, including
+the preserved Tessera prototype; decode-option and numerical reconstruction
+checks are underway before any restoration of the encoder. No product merge or
+gain-map acceptance is claimed.
+
 Three parallel Astra agents are active: UX-01 implementation, ENG-31 real-document
 source reuse investigation, and EXP-45 independent ISO gain-map controls. UX source
 and tests await the serialized Swift build slot; review found pointer tools must
