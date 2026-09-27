@@ -1,4 +1,5 @@
 //! Editable text engine.
+mod cache;
 mod geometry;
 mod interop;
 pub use geometry::TextPath;

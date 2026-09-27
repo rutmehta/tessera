@@ -13,6 +13,16 @@ pub struct ChannelId(pub u64);
 pub enum ChannelKind {
     /// Saved selection or general purpose mask.
     Alpha,
+    /// Saved mask with explicit preview properties. Legacy `Alpha` means red,
+    /// 50% opacity, masked areas. This metadata never changes stored samples.
+    AlphaDisplay {
+        /// Finite normalized display RGB.
+        color: [f32; 3],
+        /// Finite normalized overlay opacity.
+        opacity: f32,
+        /// Show selected (true) rather than masked (false) areas.
+        selected: bool,
+    },
     /// Spot ink, not included in RGB rendering.
     Spot {
         /// Normalized display RGB.
@@ -44,15 +54,20 @@ impl DocumentChannel {
                 "must be canvas-sized and single-channel",
             ));
         }
-        if let ChannelKind::Spot { color, solidity } = &self.kind
+        let values = match &self.kind {
+            ChannelKind::Alpha => None,
+            ChannelKind::AlphaDisplay { color, opacity, .. } => Some((color, opacity)),
+            ChannelKind::Spot { color, solidity } => Some((color, solidity)),
+        };
+        if let Some((color, opacity)) = values
             && color
                 .iter()
-                .chain(std::iter::once(solidity))
+                .chain(std::iter::once(opacity))
                 .any(|v| !v.is_finite() || !(0.0..=1.0).contains(v))
         {
             return Err(EngineError::invalid(
                 "channel",
-                "spot values must be finite within 0..=1",
+                "display values must be finite within 0..=1",
             ));
         }
         Ok(())

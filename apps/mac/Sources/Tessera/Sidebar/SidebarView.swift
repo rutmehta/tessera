@@ -596,6 +596,12 @@ final class SidebarCell: NSTableCellView {
     private let detail = NSTextField(labelWithString: "")
     private let count = NSTextField(labelWithString: "")
     private var leading: NSLayoutConstraint?
+    /// M2-56 (audit D10): the detail and badge slots (and their gaps) collapse to zero when hidden,
+    /// so an unbadged row gives that width back to the title and its parent-folder detail.
+    private var detailGap: NSLayoutConstraint?
+    private var badgeGap: NSLayoutConstraint?
+    private var badgeWidth: NSLayoutConstraint?
+    private var countGap: NSLayoutConstraint?
 
     init() {
         super.init(frame: .zero)
@@ -630,6 +636,11 @@ final class SidebarCell: NSTableCellView {
         badge.setContentCompressionResistancePriority(.required, for: .horizontal)
         let leading = swatch.leadingAnchor.constraint(equalTo: leadingAnchor, constant: Theme.Space.xxs)
         self.leading = leading
+        let detailGap = detail.leadingAnchor.constraint(equalTo: title.trailingAnchor, constant: Theme.Space.xs)
+        let badgeGap = badge.leadingAnchor.constraint(equalTo: detail.trailingAnchor, constant: Theme.Space.xs)
+        let badgeWidth = badge.widthAnchor.constraint(equalToConstant: Theme.Height.chip)
+        let countGap = count.leadingAnchor.constraint(greaterThanOrEqualTo: badge.trailingAnchor, constant: Theme.Space.xs)
+        (self.detailGap, self.badgeGap, self.badgeWidth, self.countGap) = (detailGap, badgeGap, badgeWidth, countGap)
         NSLayoutConstraint.activate([
             leading,
             swatch.centerYAnchor.constraint(equalTo: centerYAnchor),
@@ -637,13 +648,13 @@ final class SidebarCell: NSTableCellView {
             swatch.heightAnchor.constraint(equalToConstant: Theme.Space.s),
             title.leadingAnchor.constraint(equalTo: swatch.trailingAnchor, constant: Theme.Space.s),
             title.centerYAnchor.constraint(equalTo: centerYAnchor),
-            detail.leadingAnchor.constraint(equalTo: title.trailingAnchor, constant: Theme.Space.xs),
+            detailGap,
             detail.firstBaselineAnchor.constraint(equalTo: title.firstBaselineAnchor),
-            badge.leadingAnchor.constraint(equalTo: detail.trailingAnchor, constant: Theme.Space.xs),
+            badgeGap,
             badge.centerYAnchor.constraint(equalTo: centerYAnchor),
-            badge.widthAnchor.constraint(equalToConstant: Theme.Height.chip),
+            badgeWidth,
             badge.heightAnchor.constraint(equalToConstant: Theme.Height.chip),
-            count.leadingAnchor.constraint(greaterThanOrEqualTo: badge.trailingAnchor, constant: Theme.Space.xs),
+            countGap,
             count.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -Theme.Space.s),
             count.firstBaselineAnchor.constraint(equalTo: title.firstBaselineAnchor),
         ])
@@ -677,6 +688,10 @@ final class SidebarCell: NSTableCellView {
         badge.stringValue = row.badge ?? ""
         badge.isHidden = row.badge == nil
         badge.layer?.borderWidth = row.badge == "⌂" ? 0 : Theme.Space.hairline
+        detailGap?.constant = row.detail == nil ? 0 : Theme.Space.xs
+        badgeGap?.constant = row.badge == nil ? 0 : Theme.Space.xs
+        badgeWidth?.constant = row.badge == nil ? 0 : Theme.Height.chip
+        countGap?.constant = row.badge == nil && row.count == nil ? 0 : Theme.Space.xs
         badge.layer?.borderColor = Theme.Palette.hairlineStrong.cgColor(for: self)
         count.stringValue = row.count.map { $0.formatted() } ?? ""
         toolTip = row.tooltip

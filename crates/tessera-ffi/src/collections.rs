@@ -581,6 +581,17 @@ impl LibraryStore {
     }
 
     pub fn search(&self, request: SearchRequest) -> Result<SearchResult> {
+        self.search_snapshot(request, true)
+    }
+
+    /// Optional sidebar enrichment does not need the potentially unbounded ID vector.
+    pub fn search_facets(&self, request: SearchRequest) -> Result<SearchResult> {
+        self.search_snapshot(request, false)
+    }
+}
+
+impl LibraryStore {
+    fn search_snapshot(&self, request: SearchRequest, include_ids: bool) -> Result<SearchResult> {
         let library = self.read()?;
         let mut diag = None;
         let text = if request.text.trim().is_empty() {
@@ -695,7 +706,11 @@ impl LibraryStore {
             .unwrap_or_default();
         let c = self.engine.lock()?;
         let full = query(clauses(None))?;
-        let mut found = c.index.search(&full)?;
+        let mut found = if include_ids {
+            c.index.search(&full)?
+        } else {
+            Vec::new()
+        };
         if let Some(order) = album_order {
             let rank: std::collections::HashMap<_, _> =
                 order.iter().enumerate().map(|(n, id)| (*id, n)).collect();

@@ -76,7 +76,9 @@ impl NeuralFilter for PhotoRestoration {
             input,
             p.photo_enhancement * 100.0,
             cancel,
-            self.denoiser.as_ref().context("DRUNet not loaded")?,
+            self.denoiser.as_ref().context(
+                "Photo Restoration: DRUNet model weights are not loaded; explicitly load the model before applying; evaluation never downloads weights",
+            )?,
         )
     }
 }

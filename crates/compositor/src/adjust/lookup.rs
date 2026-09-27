@@ -105,6 +105,8 @@ impl Adjustment {
         Ok(Self::ColorLookup {
             size: n as u32,
             data: reordered,
+            source_filename: None,
+            dither: false,
         })
     }
 
@@ -160,6 +162,11 @@ impl Adjustment {
         if !valid(size, &data) {
             return Err(invalid("cube entry count does not match size cubed"));
         }
-        Ok(Self::ColorLookup { size, data })
+        Ok(Self::ColorLookup {
+            size,
+            data,
+            source_filename: None,
+            dither: false,
+        })
     }
 }

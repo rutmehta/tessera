@@ -1,6 +1,0 @@
-The Tessera rename is in place in M0-08. `bash ci.sh`, `swift build`, `swift test`, the Tessera Xcode scheme build, and the signed `build/Tessera.app` all passed. The legacy-name scan also passes when scoped to this worktree.
-
-The exact requested command fails only at its final grep: from the worktree root, `..` searches sibling worktrees that still contain the old names. I left those untouched as required.
-
-RESULT: FAIL exact final grep scans sibling worktrees outside M0-08
-tside the allowed paths

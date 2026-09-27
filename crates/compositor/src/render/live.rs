@@ -4,26 +4,42 @@ use super::{
     cache::{NodeKey, Part, RenderCache},
 };
 use crate::{Affine, Depth, Layer, LayerKind, Raster};
+use crate::{Rect, text_vector::memo::Memo};
 use engine_api::tile::{Extent, TILE_SIZE, Tile, TileCoord, TileLayout};
 use engine_api::{EngineError, EngineResult};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 pub(super) struct LiveRuntime {
     fonts: Mutex<Option<typography::TextRenderer>>,
     cache: RenderCache,
+    coverage: RenderCache,
+    prepared: Mutex<Memo<Prepared>>,
+    pub(super) frames: Mutex<Memo<super::live_damage::Snapshot>>,
 }
 impl LiveRuntime {
     pub fn new(budget: usize) -> Self {
         Self {
             fonts: Mutex::new(None),
+            frames: Mutex::new(Memo::new(budget / 8)),
             cache: RenderCache::new(budget),
+            coverage: RenderCache::new(budget / 2),
+            prepared: Mutex::new(Memo::new((budget / 4).max(1 << 20))),
         }
     }
     pub fn clear(&self) {
+        self.frames
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
         self.cache.retain(|_| false);
+        self.coverage.retain(|_| false);
+        self.prepared
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
     }
 }
-fn invalid(e: impl std::fmt::Display) -> EngineError {
+pub(super) fn invalid(e: impl std::fmt::Display) -> EngineError {
     EngineError::invalid("live layer", e.to_string())
 }
 fn affine(a: Affine) -> vector::Affine {
@@ -58,12 +74,79 @@ fn key(bytes: &[u8], canvas: Extent, depth: Depth, coord: TileCoord, mask: bool)
         coord,
     }
 }
-fn over(dst: &mut [[f32; 4]], src: &[[f32; 4]]) {
-    for (d, s) in dst.iter_mut().zip(src) {
-        for c in 0..4 {
-            d[c] = s[c] + d[c] * (1. - s[3]);
+pub(super) struct Primitive {
+    path: vector::Path,
+    fill: vector::Fill,
+    pub bounds: Rect,
+    pub identity: [u8; 32],
+    coverage_key: [u8; 32],
+}
+pub(super) struct Prepared {
+    pub items: Vec<Primitive>,
+}
+impl Primitive {
+    fn new(path: vector::Path, fill: vector::Fill) -> EngineResult<Self> {
+        path.validate().map_err(invalid)?;
+        // Runtime-only identity: hash the exact coordinates rather than format
+        // thousands of stroke vertices as decimal JSON on every pointer edit.
+        let mut geometry = blake3::Hasher::new();
+        geometry.update(&[match path.fill_rule {
+            vector::FillRule::EvenOdd => 0,
+            vector::FillRule::NonZero => 1,
+        }]);
+        for subpath in &path.subpaths {
+            geometry.update(&(subpath.anchors.len() as u64).to_le_bytes());
+            geometry.update(&[u8::from(subpath.closed)]);
+            for a in &subpath.anchors {
+                geometry.update(bytemuck::cast_slice(&[
+                    a.point.x,
+                    a.point.y,
+                    a.incoming.x,
+                    a.incoming.y,
+                    a.outgoing.x,
+                    a.outgoing.y,
+                ]));
+            }
         }
+        let coverage_key = *geometry.finalize().as_bytes();
+        let mut h = blake3::Hasher::new();
+        h.update(&coverage_key);
+        h.update(&serde_json::to_vec(&fill).map_err(invalid)?);
+        let b = path.bounds();
+        // Outward rounding and a document-pixel guard cover normalization's
+        // finite precision. Empty contours never contribute.
+        let bounds = if path.subpaths.is_empty() {
+            Rect::default()
+        } else {
+            Rect::new(
+                (b.x0.floor() as i64).saturating_sub(1),
+                (b.y0.floor() as i64).saturating_sub(1),
+                (b.x1.ceil() as i64).saturating_add(1),
+                (b.y1.ceil() as i64).saturating_add(1),
+            )
+        };
+        Ok(Self {
+            path,
+            fill,
+            bounds,
+            identity: *h.finalize().as_bytes(),
+            coverage_key,
+        })
     }
+}
+impl Prepared {
+    pub fn identity(&self, rect: Rect) -> [u8; 32] {
+        let mut h = blake3::Hasher::new();
+        for p in &self.items {
+            if p.bounds.intersects(&rect) {
+                h.update(&p.identity);
+            }
+        }
+        *h.finalize().as_bytes()
+    }
+}
+fn key_for_coverage(p: &Primitive, canvas: Extent, coord: TileCoord) -> NodeKey {
+    key(&p.coverage_key, canvas, Depth::F32, coord, false)
 }
 fn glyph_path(path: &lyon_path::Path) -> EngineResult<vector::Path> {
     use std::fmt::Write;
@@ -107,22 +190,7 @@ impl Compositor {
         *self.live.fonts.lock().unwrap_or_else(|e| e.into_inner()) = Some(renderer);
         self.clear();
     }
-    pub(crate) fn live_tile(
-        &self,
-        layer: &Layer,
-        canvas: Extent,
-        depth: Depth,
-        coord: TileCoord,
-    ) -> EngineResult<Tile> {
-        match &layer.kind {
-            LayerKind::Text { model, transform } => {
-                crate::text_vector::validate_text(model, *transform)?
-            }
-            LayerKind::Shape { model, transform } => {
-                crate::text_vector::validate_shape(model, *transform)?
-            }
-            _ => {}
-        }
+    pub(super) fn prepare_live(&self, layer: &Layer) -> EngineResult<Arc<Prepared>> {
         let bytes = match &layer.kind {
             LayerKind::Text { model, transform } => serde_json::to_vec(&("text", model, transform)),
             LayerKind::Shape { model, transform } => {
@@ -131,35 +199,36 @@ impl Compositor {
             _ => return Err(invalid("expected text or shape")),
         }
         .map_err(invalid)?;
-        let key = key(&bytes, canvas, depth, coord, false);
-        if let Some(t) = self.live.cache.get(&key) {
-            return Ok(t);
+        let id = *blake3::hash(&bytes).as_bytes();
+        let mut memo = self.live.prepared.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(p) = memo.get(&id) {
+            return Ok(p);
         }
         self.stats
-            .live
+            .live_preparations
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        let view = viewport(canvas, coord);
-        let n = (view.width * view.height) as usize;
-        let renderer = vector::VectorRenderer { tolerance: 0.02 };
-        let mut pixels = vec![[0.; 4]; n];
+        let mut items = Vec::new();
         match &layer.kind {
             LayerKind::Shape { model, transform } => {
-                let path = model.path.affine(affine(*transform));
+                crate::text_vector::validate_shape(model, *transform)?;
                 if let Some(fill) = &model.fill {
-                    pixels = renderer.rgba(&path, fill, view).map_err(invalid)?.data;
+                    items.push(Primitive::new(
+                        model.path.affine(affine(*transform)),
+                        fill.clone(),
+                    )?);
                 }
                 if let Some((stroke, fill)) = &model.stroke {
-                    let outline = stroke
-                        .outline(&model.path, 0.02)
-                        .map_err(invalid)?
-                        .affine(affine(*transform));
-                    over(
-                        &mut pixels,
-                        &renderer.rgba(&outline, fill, view).map_err(invalid)?.data,
-                    );
+                    items.push(Primitive::new(
+                        stroke
+                            .outline(&model.path, 0.02)
+                            .map_err(invalid)?
+                            .affine(affine(*transform)),
+                        fill.clone(),
+                    )?);
                 }
             }
             LayerKind::Text { model, transform } => {
+                crate::text_vector::validate_text(model, *transform)?;
                 let mut guard = self.live.fonts.lock().unwrap_or_else(|e| e.into_inner());
                 let fonts = guard.get_or_insert_with(|| {
                     let mut f = typography::TextRenderer::new();
@@ -177,18 +246,122 @@ impl Compositor {
                     fonts.layout(model).map_err(invalid)?
                 };
                 for outline in fonts.outlines(model, &layout).map_err(invalid)? {
-                    let path = glyph_path(&outline.path)?.affine(affine(*transform));
-                    let color = outline.color.map(|v| f32::from(v) / 255.);
-                    over(
-                        &mut pixels,
-                        &renderer
-                            .rgba(&path, &vector::Fill::Solid(color), view)
-                            .map_err(invalid)?
-                            .data,
-                    );
+                    items.push(Primitive::new(
+                        glyph_path(&outline.path)?.affine(affine(*transform)),
+                        vector::Fill::Solid(outline.color.map(|v| f32::from(v) / 255.)),
+                    )?);
                 }
             }
             _ => unreachable!(),
+        }
+        let size = items
+            .iter()
+            .map(|p| {
+                p.path
+                    .subpaths
+                    .iter()
+                    .map(|s| s.anchors.len() * std::mem::size_of::<vector::Anchor>())
+                    .sum::<usize>()
+                    + serde_json::to_vec(&p.fill).map_or(0, |b| b.len())
+                    + std::mem::size_of::<Primitive>()
+            })
+            .sum::<usize>()
+            + bytes.len();
+        let prepared = Arc::new(Prepared { items });
+        memo.insert(id, prepared.clone(), size);
+        Ok(prepared)
+    }
+    pub(crate) fn live_intersects(
+        &self,
+        layer: &Layer,
+        canvas: Extent,
+        coord: TileCoord,
+    ) -> EngineResult<bool> {
+        let rect = Rect::of_tile(coord, canvas.at_level(coord.level)).to_level0(coord.level);
+        Ok(self
+            .prepare_live(layer)?
+            .items
+            .iter()
+            .any(|p| p.bounds.intersects(&rect)))
+    }
+    pub(crate) fn live_tile(
+        &self,
+        layer: &Layer,
+        canvas: Extent,
+        depth: Depth,
+        coord: TileCoord,
+    ) -> EngineResult<Tile> {
+        let prepared = self.prepare_live(layer)?;
+        let tr = Rect::of_tile(coord, canvas.at_level(coord.level));
+        let identity = prepared.identity(tr.to_level0(coord.level));
+        let key = key(&identity, canvas, depth, coord, false);
+        if let Some(t) = self.live.cache.get(&key) {
+            return Ok(t);
+        }
+        let view = viewport(canvas, coord);
+        let n = (view.width * view.height) as usize;
+        let mut pixels = vec![[0.; 4]; n];
+        let mut occupied = false;
+        for p in &prepared.items {
+            let rect = p
+                .bounds
+                .intersect(&tr.to_level0(coord.level))
+                .to_level(coord.level);
+            if rect.is_empty() {
+                continue;
+            }
+            occupied = true;
+            let ck = key_for_coverage(p, canvas, coord);
+            let coverage = if let Some(t) = self.live.coverage.get(&ck) {
+                t
+            } else {
+                self.stats
+                    .live_coverages
+                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                // Retain the original tile origin for boolean normalization and
+                // area arithmetic: changing origins can change rounding at seams.
+                let full = vector::VectorRenderer { tolerance: 0.02 }
+                    .coverage(&p.path, view)
+                    .map_err(invalid)?;
+                let mut data = Vec::with_capacity(rect.area() as usize);
+                for y in rect.y0..rect.y1 {
+                    let a = ((y - tr.y0) * i64::from(view.width) + rect.x0 - tr.x0) as usize;
+                    data.extend_from_slice(&full.data[a..a + rect.width() as usize]);
+                }
+                let t = Tile::from_samples(
+                    coord,
+                    TileLayout {
+                        extent: Extent::new(rect.width() as u32, rect.height() as u32),
+                        halo: 0,
+                        channels: 1,
+                    },
+                    data,
+                )?;
+                self.live.coverage.insert(ck, t.clone());
+                t
+            };
+            let coverage = coverage.samples::<f32>()?;
+            for y in rect.y0..rect.y1 {
+                for x in rect.x0..rect.x1 {
+                    let i = ((y - rect.y0) * rect.width() + x - rect.x0) as usize;
+                    let color = p.fill.sample(vector::Point::new(
+                        (x as f64 + 0.5) * view.pixel_size(),
+                        (y as f64 + 0.5) * view.pixel_size(),
+                    ));
+                    let alpha = color[3] * coverage[i];
+                    let src = [color[0] * alpha, color[1] * alpha, color[2] * alpha, alpha];
+                    let dst =
+                        &mut pixels[((y - tr.y0) * i64::from(view.width) + x - tr.x0) as usize];
+                    for c in 0..4 {
+                        dst[c] = src[c] + dst[c] * (1. - src[3]);
+                    }
+                }
+            }
+        }
+        if occupied {
+            self.stats
+                .live
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         }
         let mut planar = vec![0.; n * 4];
         for (i, p) in pixels.iter().enumerate() {
@@ -207,7 +380,9 @@ impl Compositor {
             depth,
             &planar,
         )?;
-        self.live.cache.insert(key, tile.clone());
+        if occupied {
+            self.live.cache.insert(key, tile.clone());
+        }
         Ok(tile)
     }
     pub(crate) fn vector_mask_tile(
@@ -360,4 +535,112 @@ pub fn rasterize_layer(layer: &Layer, canvas: Extent, level: u8) -> EngineResult
         }
     }
     Ok(raster)
+}
+
+#[cfg(test)]
+mod sparse_parity_tests {
+    use super::*;
+    fn fonts() -> typography::TextRenderer {
+        let mut f = typography::TextRenderer::new();
+        f.fonts_mut().load_font_data(
+            include_bytes!("../../../typography/tests/fonts/NotoSans-Regular.ttf").to_vec(),
+        );
+        f
+    }
+    #[test]
+    fn sparse_source_matches_legacy_full_tile_arithmetic() {
+        let comp = Compositor::new(16 << 20);
+        comp.set_text_renderer(fonts());
+        let mut model = typography::TextModel::point("ffi AV e\u{301}", "Noto Sans", 83.);
+        model.runs[0].color = [172, 23, 130, 177];
+        model.warp.amount = 0.12;
+        let text = Layer::new(
+            "text",
+            LayerKind::Text {
+                model,
+                transform: Affine {
+                    m: [1.1, -0.21, 211.75, 0.12, 0.97, 19.25],
+                },
+            },
+        );
+        let shape = Layer::new(
+            "shape",
+            LayerKind::Shape {
+                model: vector::ShapeModel {
+                    path: vector::Shape::Ellipse {
+                        center: vector::Point::new(250., 100.),
+                        radii: vector::Vec2::new(130., 83.),
+                    }
+                    .path()
+                    .unwrap(),
+                    fill: Some(vector::Fill::Solid([0.8, 0.2, 0.1, 0.7])),
+                    stroke: Some((
+                        vector::Stroke {
+                            width: 13.,
+                            dashes: vec![21., 7.],
+                            ..Default::default()
+                        },
+                        vector::Fill::Solid([0.1, 0.4, 0.9, 0.6]),
+                    )),
+                    ..Default::default()
+                },
+                transform: Affine {
+                    m: [0.9, 0.2, 5.5, -0.1, 1.0, 20.75],
+                },
+            },
+        );
+        let canvas = Extent::new(531, 259);
+        for layer in [text, shape] {
+            let prepared = comp.prepare_live(&layer).unwrap();
+            for level in [0, 1, 2, 3] {
+                let (cols, rows) = canvas.at_level(level).tile_grid(TILE_SIZE);
+                for y in 0..rows {
+                    for x in 0..cols {
+                        let coord = TileCoord::new(level, x, y);
+                        let view = viewport(canvas, coord);
+                        let n = (view.width * view.height) as usize;
+                        let mut pixels = vec![[0.; 4]; n];
+                        // Legacy algorithm: every outline across the complete tile,
+                        // without culling, sparse coverage, or source memoization.
+                        for p in &prepared.items {
+                            let src = vector::VectorRenderer { tolerance: 0.02 }
+                                .rgba(&p.path, &p.fill, view)
+                                .unwrap();
+                            for (d, s) in pixels.iter_mut().zip(src.data) {
+                                for c in 0..4 {
+                                    d[c] = s[c] + d[c] * (1. - s[3]);
+                                }
+                            }
+                        }
+                        let mut planar = vec![0.; n * 4];
+                        for (i, p) in pixels.iter().enumerate() {
+                            for c in 0..3 {
+                                planar[c * n + i] = if p[3] > 0. { p[c] / p[3] } else { 0. };
+                            }
+                            planar[3 * n + i] = p[3];
+                        }
+                        for depth in [Depth::F32, Depth::U8, Depth::U16] {
+                            let actual = comp.live_tile(&layer, canvas, depth, coord).unwrap();
+                            let expected = crate::raster::tile_from_normalized(
+                                coord,
+                                actual.layout(),
+                                depth,
+                                &planar,
+                            )
+                            .unwrap();
+                            let mut a = vec![0.; n * 4];
+                            let mut b = a.clone();
+                            crate::raster::load_normalized(&actual, &mut a).unwrap();
+                            crate::raster::load_normalized(&expected, &mut b).unwrap();
+                            assert_eq!(
+                                a.iter().map(|v| v.to_bits()).collect::<Vec<_>>(),
+                                b.iter().map(|v| v.to_bits()).collect::<Vec<_>>(),
+                                "{coord:?} {depth:?}"
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

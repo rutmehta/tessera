@@ -18,8 +18,8 @@ pub struct Options {
     query: Option<String>,
     #[arg(long)]
     out: PathBuf,
-    /// Output format. JXL is lossless sRGB; DNG is developed linear Rec.2020.
-    #[arg(long, value_parser = ["jpeg", "png", "tiff", "avif", "jxl", "dng"])]
+    /// Output format. Original copies bytes + recipe XMP; DNG develops linear Rec.2020.
+    #[arg(long, value_parser = ["jpeg", "png", "tiff", "avif", "jxl", "dng", "original"])]
     format: String,
     /// AVIF 8/10/12, TIFF/JPEG XL 8/16, DNG 32-bit float per channel.
     #[arg(long, default_value_t = 8)]
@@ -49,8 +49,17 @@ pub struct Options {
     /// Output pixel density; paper sharpening uses 300 ppi when omitted.
     #[arg(long, value_parser = clap::value_parser!(u32).range(1..=9600))]
     ppi: Option<u32>,
-    #[arg(long, default_value = "all", value_parser = ["all", "copyright", "none"])]
+    #[arg(long, default_value = "all", value_parser = ["all", "copyright", "copyright-and-contact", "all-except-camera", "none"])]
     metadata: String,
+    /// Remove XMP face regions and their associated person keywords.
+    #[arg(long)]
+    remove_person_info: bool,
+    /// Remove XMP GPS and IPTC location properties.
+    #[arg(long)]
+    remove_location: bool,
+    /// Retain Lightroom keyword paths, or omit the hierarchy with false.
+    #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
+    keywords_as_hierarchy: bool,
     #[arg(long, default_value = "{name}-{seq}")]
     name: String,
     #[arg(long, value_parser = clap::value_parser!(u32).range(1..))]
@@ -120,6 +129,21 @@ fn is_image(path: &Path) -> bool {
 }
 
 fn settings(options: &Options) -> Result<ExportSettings> {
+    if options.format == "original" {
+        ensure!(
+            options.metadata == "all"
+                && !options.remove_person_info
+                && !options.remove_location
+                && options.keywords_as_hierarchy
+                && options.long_edge.is_none()
+                && options.fit.is_none()
+                && options.sharpen.is_none()
+                && options.watermark.is_none()
+                && options.upscale.is_none()
+                && options.max_file_bytes.is_none(),
+            "original + XMP retains original metadata and pixels; privacy filters and output transforms are not supported"
+        );
+    }
     ensure!(
         options.format != "jxl" || options.color_space == "srgb",
         "lossless JPEG XL currently supports only sRGB"
@@ -153,7 +177,8 @@ fn settings(options: &Options) -> Result<ExportSettings> {
                 quality: options.quality,
             },
             "png" => Format::Png,
-            "dng" => Format::Dng,
+            // Original is handled before decoding; this placeholder is never rendered.
+            "dng" | "original" => Format::Dng,
             "jxl" => Format::JpegXl {
                 bits: options.bit_depth,
             },
@@ -175,8 +200,13 @@ fn settings(options: &Options) -> Result<ExportSettings> {
         metadata: match options.metadata.as_str() {
             "none" => Metadata::None,
             "copyright" => Metadata::CopyrightOnly,
+            "copyright-and-contact" => Metadata::CopyrightAndContact,
+            "all-except-camera" => Metadata::AllExceptCamera,
             _ => Metadata::All,
         },
+        remove_person_info: options.remove_person_info,
+        remove_location: options.remove_location,
+        keywords_as_hierarchy: options.keywords_as_hierarchy,
         resize,
         sharpen_for: match options.sharpen.as_deref() {
             Some("screen") => SharpenFor::Screen,
@@ -298,6 +328,9 @@ pub fn run(index: &Index, app_dir: &Path, options: &Options) -> Result<Value> {
     let cancel = CancellationToken::new();
     let signal = cancel.clone();
     ctrlc::set_handler(move || signal.cancel()).context("install Ctrl-C handler")?;
+    if options.format == "original" {
+        return originals(&paths, options, &actions, &cancel);
+    }
     let mut upscale = if let Some(factor) = &options.upscale {
         preflight_upscale(&paths, &settings, &cancel)?;
         let manifest = app_dir.join("models.toml");
@@ -406,6 +439,72 @@ pub fn run(index: &Index, app_dir: &Path, options: &Options) -> Result<Value> {
     )
 }
 
+fn originals(
+    paths: &[PathBuf],
+    options: &Options,
+    actions: &export::AfterExportActions,
+    cancel: &CancellationToken,
+) -> Result<Value> {
+    let mut names = std::collections::HashSet::new();
+    let mut plans = Vec::new();
+    for (i, source) in paths.iter().enumerate() {
+        cancel.check()?;
+        let name = source
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .context("original filename must be UTF-8")?;
+        let extension = source
+            .extension()
+            .and_then(|s| s.to_str())
+            .context("original source requires an extension")?;
+        let date = if options.name.contains("{date}")
+            && !matches!(
+                extension.to_ascii_lowercase().as_str(),
+                "jpg" | "jpeg" | "png" | "tif" | "tiff"
+            ) {
+            let metadata = raw_decode::RawSource::open(source)?.metadata();
+            chrono::DateTime::from_timestamp(metadata.capture_time, 0)
+                .map(|time| time.format("%Y%m%d").to_string())
+                .unwrap_or_default()
+        } else {
+            String::new()
+        };
+        let filename = export::filename(&options.name, name, i + 1, &date, extension)?;
+        ensure!(
+            names.insert(filename.to_lowercase()),
+            "duplicate original output names"
+        );
+        let destination = options.out.join(filename);
+        ensure!(
+            destination.symlink_metadata().is_err()
+                && Sidecar::paths(&destination).xmp.symlink_metadata().is_err(),
+            "original output already exists"
+        );
+        plans.push(destination);
+    }
+    let mut outputs = Vec::new();
+    for (source, destination) in paths.iter().zip(plans) {
+        cancel.check()?;
+        let recipe = crate::catalog::document(source)?.recipe;
+        let packet = packet(source)?;
+        outputs.push(export::export_original(
+            source,
+            &destination,
+            (Sidecar::paths(source).recipe.try_exists()? || packet.is_some()).then_some(&recipe),
+            packet.as_ref(),
+            cancel,
+        )?);
+    }
+    let absolute = outputs
+        .iter()
+        .map(std::path::absolute)
+        .collect::<std::io::Result<Vec<_>>>()?;
+    let workflow_errors = export::run_after_export(actions, &absolute, cancel);
+    Ok(
+        json!({"total":paths.len(),"completed":outputs.len(),"outputs":outputs,"errors":[],"workflow_errors":workflow_errors,"cancelled":cancel.is_cancelled()}),
+    )
+}
+
 enum Pixels {
     Rgb(Image),
     Cfa(raw_decode::CfaImage, Box<raw_decode::RawMetadata>),
@@ -457,6 +556,33 @@ mod tests {
     use clap::Parser;
 
     #[test]
+    fn original_format_rejects_lossy_settings() {
+        for extras in [
+            vec![],
+            vec!["--remove-location"],
+            vec!["--metadata", "none"],
+            vec!["--long-edge", "100"],
+            vec!["--sharpen", "screen"],
+        ] {
+            let mut args = vec![
+                "tessera",
+                "export",
+                "input.nef",
+                "--out",
+                "out",
+                "--format",
+                "original",
+            ];
+            args.extend(&extras);
+            let parsed = crate::Cli::try_parse_from(args).unwrap();
+            let crate::Command::Export(options) = parsed.command else {
+                panic!("export")
+            };
+            assert_eq!(super::settings(&options).is_ok(), extras.is_empty());
+        }
+    }
+
+    #[test]
     fn sharpening_strength_and_density_flags() {
         let parsed = crate::Cli::try_parse_from([
             "tessera",
@@ -504,6 +630,42 @@ mod tests {
             super::settings(&options).unwrap().format,
             export::Format::Dng
         ));
+    }
+
+    #[test]
+    fn metadata_flags_reach_export_settings() {
+        for policy in ["copyright-and-contact", "all-except-camera"] {
+            let parsed = crate::Cli::try_parse_from([
+                "tessera",
+                "export",
+                "input.png",
+                "--out",
+                "out",
+                "--format",
+                "png",
+                "--metadata",
+                policy,
+                "--remove-person-info",
+                "--remove-location",
+                "--keywords-as-hierarchy",
+                "false",
+            ])
+            .unwrap();
+            let crate::Command::Export(options) = parsed.command else {
+                panic!("export")
+            };
+            let settings = super::settings(&options).unwrap();
+            assert!(settings.remove_person_info);
+            assert!(settings.remove_location);
+            assert!(!settings.keywords_as_hierarchy);
+            assert!(matches!(
+                (policy, settings.metadata),
+                (
+                    "copyright-and-contact",
+                    export::Metadata::CopyrightAndContact
+                ) | ("all-except-camera", export::Metadata::AllExceptCamera)
+            ));
+        }
     }
 
     #[test]

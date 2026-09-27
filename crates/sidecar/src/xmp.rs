@@ -34,6 +34,25 @@ const METADATA: &[(&str, &str)] = &[
     (PRIVATE, "MarkLabel"),
 ];
 impl XmpPacket {
+    /// Update selection without round-tripping descriptive metadata. In
+    /// particular, retain language alternatives and qualified keyword values.
+    pub fn with_selection(&self, selection: &Selection, preset: &MarkPreset) -> EngineResult<Self> {
+        let tree = Tree::parse(&self.xml)?;
+        let owned = [
+            (XMP, "Rating"),
+            (XMP, "Label"),
+            (DM, "pick"),
+            (DM, "good"),
+            (PRIVATE, "Mark"),
+            (PRIVATE, "MarkLabel"),
+        ];
+        Self::parse(tree.replace(
+            &self.xml,
+            &owned,
+            &metadata_body(selection, &Metadata::default(), preset),
+        )?)
+    }
+
     pub fn metadata(&self) -> EngineResult<Metadata> {
         let t = Tree::parse(&self.xml)?;
         Ok(Metadata {

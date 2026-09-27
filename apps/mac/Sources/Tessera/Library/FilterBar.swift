@@ -13,70 +13,8 @@ struct FilterBar: View {
     var body: some View {
         let facets = library.facets
         VStack(alignment: .leading, spacing: Theme.Space.s) {
-            HStack(spacing: Theme.Space.s) {
-                FieldContainer(symbol: "magnifyingglass", invalid: library.diagnostic != nil) {
-                    RuleTextField(text: $library.filter.text, diagnostic: library.diagnostic,
-                                  placeholder: "Search or rule, e.g. beach rating>=2 NOT decision:reject",
-                                  onSubmit: {}, plain: true)
-                }
-                .frame(minWidth: 180, maxWidth: 400)
-                .help("Words search names, captions (yours and generated), text in images and keywords. "
-                      + "Fields: text: keyword: camera: lens: rating>= "
-                      + "decision: mark: date: album: (none / any / name), combined with AND, OR, NOT and ( )")
-                if let d = library.diagnostic {
-                    Text(d.message)
-                        .font(Theme.Fonts.caption)
-                        .foregroundStyle(Theme.reject)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                        .help(d.message)
-                        .accessibilityIdentifier("filterDiagnostic")
-                }
-                Spacer(minLength: Theme.Space.xs)
-                if let n = library.matchCount, !library.filter.isEmpty, model.people.facet.isEmpty {
-                    Text("\(n.formatted()) match\(n == 1 ? "" : "es")")
-                        .font(Theme.Fonts.captionNumeric)
-                        .foregroundStyle(Theme.textSecondary)
-                        .fixedSize()
-                        .accessibilityIdentifier("filterMatchCount")
-                }
-                if !model.people.facet.isEmpty {
-                    Text("\(model.visibleCount.formatted()) match\(model.visibleCount == 1 ? "" : "es")")
-                        .font(Theme.Fonts.captionNumeric)
-                        .foregroundStyle(Theme.textSecondary)
-                        .fixedSize()
-                        .accessibilityIdentifier("filterMatchCount")
-                }
-                if !library.filter.isEmpty || !model.people.facet.isEmpty {
-                    Button("Clear") { library.clearFilter(); model.setPersonFacet([]) }
-                        .buttonStyle(.themeBorderless)
-                        .fixedSize()
-                        .help("Remove all filters (⌥⌘L)")
-                }
-                Button("Save as Smart Album…") { library.saveFilterAsSmartAlbum() }
-                    .buttonStyle(.themeBorderless)
-                    .fixedSize()
-                    .disabled(library.composedRule.isEmpty || library.diagnostic != nil)
-                    .help(library.composedRule.isEmpty ? "Set a filter (or open an album) first"
-                          : "Save “\(library.composedRule)” as a smart album")
-            }
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: Theme.Space.xs) {
-                    facetMenu("Decision", \.decisions, values: ["keep", "undecided", "reject"].map { v in
-                        (v, v.capitalized, count(facets?.decisions, v))
-                    })
-                    facetMenu("Grade", \.grades, values: ["1", "2", "3"].map { g in
-                        (g, "\(g) · \(CullState.gradeNames[Int(g)!])", count(facets?.grades, g))
-                    })
-                    facetMenu("Mark", \.marks, values: markValues(facets))
-                    facetMenu("Camera", \.cameras, values: listed(facets?.cameras, selected: library.filter.cameras))
-                    facetMenu("Lens", \.lenses, values: listed(facets?.lenses, selected: library.filter.lenses))
-                    facetMenu("Keyword", \.keywords, values: listed(facets?.keywords, selected: library.filter.keywords))
-                    personMenu
-                    dateButton
-                    albumMenu(facets)
-                }
-            }
+            ruleRow
+            facetRow(facets)
         }
         .font(Theme.Fonts.caption)
         .padding(.horizontal, Theme.Space.gutter)
@@ -84,6 +22,93 @@ struct FilterBar: View {
         .background(Theme.panel)
         .overlay(alignment: .bottom) { Hairline() }
         .disabled(!library.isAvailable)
+    }
+
+    private var ruleRow: some View {
+        HStack(spacing: Theme.Space.s) {
+            FieldContainer(symbol: "magnifyingglass", invalid: library.diagnostic != nil) {
+                RuleTextField(text: $library.filter.text, diagnostic: library.diagnostic,
+                              placeholder: "Search or rule, e.g. beach rating>=2 NOT decision:reject",
+                              onSubmit: {}, plain: true)
+            }
+            .frame(minWidth: 180, maxWidth: 400)
+            .help("Words search names, captions (yours and generated), text in images and keywords. "
+                  + "Fields: text: keyword: camera: lens: rating>= "
+                  + "decision: mark: date: album: (none / any / name), combined with AND, OR, NOT and ( )")
+            if let d = library.diagnostic {
+                Text(d.message)
+                    .font(Theme.Fonts.caption)
+                    .foregroundStyle(Theme.reject)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .help(d.message)
+                    .accessibilityIdentifier("filterDiagnostic")
+            }
+            Spacer(minLength: Theme.Space.xs)
+            // M2-56 (L3): the actions with titles when they fit, else as icons (titles in help and
+            // accessibility). Only this group switches, so the rule field keeps its focus.
+            ViewThatFits(in: .horizontal) {
+                actions(compact: false)
+                actions(compact: true)
+            }
+        }
+    }
+
+    private func actions(compact: Bool) -> some View {
+        HStack(spacing: Theme.Space.s) {
+            if let n = library.matchCount, !library.filter.isEmpty, model.people.facet.isEmpty {
+                Text("\(n.formatted()) match\(n == 1 ? "" : "es")")
+                    .font(Theme.Fonts.captionNumeric)
+                    .foregroundStyle(Theme.textSecondary)
+                    .fixedSize()
+                    .accessibilityIdentifier("filterMatchCount")
+            }
+            if !model.people.facet.isEmpty {
+                Text("\(model.visibleCount.formatted()) match\(model.visibleCount == 1 ? "" : "es")")
+                    .font(Theme.Fonts.captionNumeric)
+                    .foregroundStyle(Theme.textSecondary)
+                    .fixedSize()
+                    .accessibilityIdentifier("filterMatchCount")
+            }
+            if !library.filter.isEmpty || !model.people.facet.isEmpty {
+                Button { library.clearFilter(); model.setPersonFacet([]) } label: {
+                    if compact { Image(systemName: "xmark.circle") } else { Text("Clear") }
+                }
+                    .buttonStyle(.theme(.borderless, square: compact))
+                    .accessibilityLabel("Clear")
+                    .fixedSize()
+                    .help("Remove all filters (⌥⌘L)")
+            }
+            Button { library.saveFilterAsSmartAlbum() } label: {
+                if compact { Image(systemName: "rectangle.stack.badge.plus") } else { Text("Save as Smart Album…") }
+            }
+                .buttonStyle(.theme(.borderless, square: compact))
+                .accessibilityLabel("Save as Smart Album…")
+                .fixedSize()
+                .disabled(library.composedRule.isEmpty || library.diagnostic != nil)
+                .help(library.composedRule.isEmpty ? "Set a filter (or open an album) first"
+                      : "Save “\(library.composedRule)” as a smart album")
+        }
+    }
+
+    private func facetRow(_ facets: SearchFacets?) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: Theme.Space.xs) {
+                facetMenu("Decision", \.decisions, values: ["keep", "undecided", "reject"].map { v in
+                    (v, v.capitalized, count(facets?.decisions, v))
+                })
+                facetMenu("Grade", \.grades, values: ["1", "2", "3"].map { g in
+                    (g, "\(g) · \(CullState.gradeNames[Int(g)!])", count(facets?.grades, g))
+                })
+                facetMenu("Mark", \.marks, values: markValues(facets))
+                facetMenu("Camera", \.cameras, values: listed(facets?.cameras, selected: library.filter.cameras))
+                facetMenu("Lens", \.lenses, values: listed(facets?.lenses, selected: library.filter.lenses))
+                facetMenu("Keyword", \.keywords, values: listed(facets?.keywords, selected: library.filter.keywords))
+                personMenu
+                dateButton
+                albumMenu(facets)
+            }
+        }
     }
 
     private func count(_ list: [FacetCount]?, _ value: String) -> Int {

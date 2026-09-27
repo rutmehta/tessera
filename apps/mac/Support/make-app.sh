@@ -2,15 +2,27 @@
 # Builds the Tessera executable with SwiftPM and wraps it into apps/mac/build/Tessera.app
 # (bundle id dev.tessera.app), with Sparkle and inside-out code signing.
 #
-#   Support/make-app.sh            # debug build
-#   Support/make-app.sh release    # optimised build (use this for the 20k-item scroll benchmark)
+#   Support/make-app.sh            # optimized release build with provenance
+#   Support/make-app.sh debug      # explicit debug package (not benchmark eligible)
 set -euo pipefail
 cd "$(dirname "$0")/.."
-CONFIG="${1:-debug}"
+CONFIG="${1:-release}"
 case "$CONFIG" in debug|release) ;; *) echo "Usage: $0 [debug|release]" >&2; exit 2;; esac
-swift build -c "$CONFIG" --product Tessera
-BIN_DIR="$(swift build -c "$CONFIG" --show-bin-path)"
+ROOT="$(cd ../.. && pwd)"
+# Preserve caller isolation; build-ffi.sh uses the same default when unset.
+export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$HOME/.cache/tessera-target/mac-ffi}"
+mkdir -p build
+# A new Swift scratch tree guarantees a fresh link of the just-built archive.
+# Keep it for provenance verification; everyday .build debug tooling is untouched.
+SCRATCH="$(mktemp -d "$(pwd)/build/provenance-swift.XXXXXX")"
+SNAPSHOT="$SCRATCH/source-snapshot.json"
+python3 Support/provenance.py snapshot --root "$ROOT" --snapshot "$SNAPSHOT"
+bash ./build-ffi.sh
+python3 Support/provenance.py ffi --root "$ROOT" --target "$CARGO_TARGET_DIR" --snapshot "$SNAPSHOT"
+swift build --scratch-path "$SCRATCH" -c "$CONFIG" --product Tessera
+BIN_DIR="$(swift build --scratch-path "$SCRATCH" -c "$CONFIG" --show-bin-path)"
 APP="build/Tessera.app"
+rm -f "$APP.provenance.json"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Frameworks"
 cp "$BIN_DIR/Tessera" "$APP/Contents/MacOS/Tessera"
@@ -25,6 +37,9 @@ fi
 ditto "$BIN_DIR/Sparkle.framework" "$APP/Contents/Frameworks/Sparkle.framework"
 install_name_tool -add_rpath '@executable_path/../Frameworks' "$APP/Contents/MacOS/Tessera"
 printf 'APPL????' > "$APP/Contents/PkgInfo"
+# Hash the packaged executable after install_name_tool, before bundle signing.
+python3 Support/provenance.py record --root "$ROOT" --app "$APP" \
+  --bin-dir "$BIN_DIR" --configuration "$CONFIG" --target "$CARGO_TARGET_DIR" --snapshot "$SNAPSHOT"
 IDENTITY="${CODESIGN_IDENTITY:--}"
 SIGN=(--force --sign "$IDENTITY" --options runtime)
 ENTITLEMENTS=Support/release/Tessera.entitlements
@@ -45,4 +60,12 @@ done
 codesign "${SIGN[@]}" "$FRAMEWORK"
 codesign "${SIGN[@]}" --entitlements "$ENTITLEMENTS" "$APP"
 codesign --verify --deep --strict "$APP"
+# codesign mutates the Mach-O. Seal its final bytes OUTSIDE the bundle to avoid
+# changing signed resources and creating a circular signing/hash dependency.
+python3 Support/provenance.py seal --app "$APP"
+if [[ "$CONFIG" == debug ]]; then
+  python3 Support/provenance.py verify --root "$ROOT" --app "$APP" --allow-debug
+else
+  python3 Support/provenance.py verify --root "$ROOT" --app "$APP"
+fi
 echo "Built $(pwd)/$APP"

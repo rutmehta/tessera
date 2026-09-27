@@ -24,6 +24,31 @@ pub enum PaintTarget {
     Content,
     /// The layer mask.
     Mask,
+    /// Saved alpha or spot plane. The separate layer ID is ignored.
+    Channel(crate::channels::ChannelId),
+}
+
+impl PaintTarget {
+    /// Resolve a destination without changing state. Channel targets ignore `id`.
+    /// Missing layer masks are errors; hosts can create a reveal-all mask in the
+    /// same atomic batch as the stroke when appropriate.
+    pub fn raster(self, state: &DocState, id: LayerId) -> EngineResult<&Raster> {
+        if let Self::Channel(channel) = self {
+            return state
+                .channels
+                .iter()
+                .find(|c| c.id == channel)
+                .map(|c| &c.raster)
+                .ok_or_else(|| EngineError::not_found("channel", channel.0));
+        }
+        let layer = state.find(id).ok_or_else(|| not_found(id))?;
+        match self {
+            Self::Content => layer.raster(),
+            Self::Mask => layer.mask.as_ref().map(|m| &m.raster),
+            Self::Channel(_) => unreachable!("handled above"),
+        }
+        .ok_or_else(|| EngineError::invalid("layer", "no raster for paint target"))
+    }
 }
 
 /// One replaced tile of a paint op (`None` erases to the default value).
@@ -875,6 +900,19 @@ fn apply_op(
             tiles,
             dirty,
         } => {
+            if let PaintTarget::Channel(channel_id) = target {
+                let channel = s
+                    .channels
+                    .iter_mut()
+                    .find(|c| c.id == channel_id)
+                    .ok_or_else(|| EngineError::not_found("channel", channel_id.0))?;
+                for d in tiles {
+                    let tile = d.tile.map(|t| retag(t, d.tx, d.ty)).transpose()?;
+                    channel.raster.set_slot(d.tx, d.ty, tile, rev)?;
+                }
+                // Saved planes are display-only and cannot invalidate RGB caches.
+                return Ok(Rect::default());
+            }
             let layer = s.find(id).ok_or_else(|| not_found(id))?;
             if layer.props.locks.pixels || layer.props.locks.all {
                 return Err(EngineError::invalid("layer", "pixels are locked"));
@@ -884,6 +922,7 @@ fn apply_op(
                 let r = match target {
                     PaintTarget::Content => l.raster_mut(),
                     PaintTarget::Mask => l.mask.as_mut().map(|m| &mut m.raster),
+                    PaintTarget::Channel(_) => unreachable!("handled above"),
                 }
                 .ok_or_else(|| EngineError::invalid("layer", "no raster for paint target"))?;
                 for d in tiles {
@@ -1714,13 +1753,9 @@ pub fn paint_op(
     rect: Rect,
     f: impl FnMut(u32, u32, &mut [f32; 4]),
 ) -> EngineResult<DocOp> {
-    let layer = state.find(id).ok_or_else(|| not_found(id))?;
-    let raster = match target {
-        PaintTarget::Content => layer.raster(),
-        PaintTarget::Mask => layer.mask.as_ref().map(|m| &m.raster),
-    }
-    .ok_or_else(|| EngineError::invalid("layer", "no raster for paint target"))?;
-    let lock_alpha = target == PaintTarget::Content && layer.props.locks.transparency;
+    let raster = target.raster(state, id)?;
+    let lock_alpha = target == PaintTarget::Content
+        && state.find(id).is_some_and(|l| l.props.locks.transparency);
     let mut f = f;
     let tiles = raster.render_region(rect, |x, y, p| {
         let a = p[3];

@@ -199,7 +199,19 @@ fn import_channels(source: &PsdDocument, state: &mut DocState) -> EngineResult<(
                     solidity: info.opacity as f32 / 100.0,
                 }
             }
-            _ => ChannelKind::Alpha,
+            Some(info) => {
+                if info.color_space != 0 {
+                    return Err(error(
+                        "alpha display colors currently require RGB color space",
+                    ));
+                }
+                ChannelKind::AlphaDisplay {
+                    color: std::array::from_fn(|c| info.color[c] as f32 / 65535.0),
+                    opacity: info.opacity as f32 / 100.0,
+                    selected: info.mode == 1,
+                }
+            }
+            None => ChannelKind::Alpha,
         };
         state.channels.push(DocumentChannel {
             id: ChannelId((i + 1) as u64),
@@ -236,6 +248,11 @@ fn export_channels(
     for (i, channel) in channels.iter().enumerate() {
         let (color, solidity, mode) = match &channel.kind {
             ChannelKind::Alpha => ([1.0, 0.0, 0.0], 0.5, 0),
+            ChannelKind::AlphaDisplay {
+                color,
+                opacity,
+                selected,
+            } => (*color, *opacity, u8::from(*selected)),
             ChannelKind::Spot { color, solidity } => (*color, *solidity, 2),
         };
         if color
@@ -711,9 +728,16 @@ mod lookup_interop {
                 return Ok(None);
             }
         }
-        if d.get(b"Dthr").is_some() && adjustment_interop::boolean(&d, b"Dthr")? {
-            return Ok(None);
-        }
+        let dither = if d.get(b"Dthr").is_some() {
+            adjustment_interop::boolean(&d, b"Dthr")?
+        } else {
+            false
+        };
+        let source_filename = match d.get(b"LUT3DFileName") {
+            Some(V::Text(name)) => Some(name.clone()),
+            None => None,
+            _ => return Err(error("invalid clrL LUT3DFileName")),
+        };
         let text = match d.get(b"LUT3DFileData") {
             Some(V::Raw(data)) => {
                 std::str::from_utf8(data).map_err(|_| error("invalid clrL CUBE text"))?
@@ -756,10 +780,25 @@ mod lookup_interop {
                 }
             }
         }
-        Ok(Some(crate::Adjustment::color_lookup_from_cube(text)?))
+        let mut adjustment = crate::Adjustment::color_lookup_from_cube(text)?;
+        if let crate::Adjustment::ColorLookup {
+            source_filename: filename,
+            dither: enabled,
+            ..
+        } = &mut adjustment
+        {
+            *filename = source_filename;
+            *enabled = dither;
+        }
+        Ok(Some(adjustment))
     }
 
-    pub(super) fn write(size: u32, data: &[[f32; 3]]) -> EngineResult<Vec<u8>> {
+    pub(super) fn write(
+        size: u32,
+        data: &[[f32; 3]],
+        source_filename: Option<&str>,
+        dither: bool,
+    ) -> EngineResult<Vec<u8>> {
         use std::fmt::Write;
         if !(2..=256).contains(&size)
             || data.len() != (size as usize).pow(3)
@@ -773,7 +812,7 @@ mod lookup_interop {
             writeln!(cube, "{r} {g} {b}").expect("writing to String");
         }
         let mut bytes = 1u16.to_be_bytes().to_vec();
-        bytes.extend(adjustment_interop::encode(vec![
+        let mut fields: Vec<(&[u8], V<'_>)> = vec![
             (
                 b"lookupType",
                 V::Enum {
@@ -802,10 +841,13 @@ mod lookup_interop {
                     value: b"rgbOrder",
                 },
             ),
-            (b"Dthr", V::Bool(false)),
-            (b"LUT3DFileName", V::Text("Tessera.cube".into())),
+            (b"Dthr", V::Bool(dither)),
             (b"LUT3DFileData", V::Raw(cube.as_bytes())),
-        ]));
+        ];
+        if let Some(name) = source_filename {
+            fields.push((b"LUT3DFileName", V::Text(name.into())));
+        }
+        bytes.extend(adjustment_interop::encode(fields));
         Ok(bytes)
     }
 }
@@ -1103,7 +1145,15 @@ fn export_adjustment(a: &crate::Adjustment, layer: &mut ::psd::Layer) -> EngineR
     // Remove stale modern brightness data when changing type or legacy mode.
     layer.additional.retain(|b| b.key != *b"CgEd");
     let (key, data) = match a {
-        A::ColorLookup { size, data } => (*b"clrL", lookup_interop::write(*size, data)?),
+        A::ColorLookup {
+            size,
+            data,
+            source_filename,
+            dither,
+        } => (
+            *b"clrL",
+            lookup_interop::write(*size, data, source_filename.as_deref(), *dither)?,
+        ),
         A::GradientMap {
             stops,
             dither,

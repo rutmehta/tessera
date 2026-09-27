@@ -11,6 +11,15 @@ use engine_api::{
 fn kind(value: &ChannelKind) -> compositor::channels::ChannelKind {
     match value {
         ChannelKind::Alpha => compositor::channels::ChannelKind::Alpha,
+        ChannelKind::AlphaDisplay {
+            display_rgb,
+            opacity,
+            selected,
+        } => compositor::channels::ChannelKind::AlphaDisplay {
+            color: *display_rgb,
+            opacity: *opacity,
+            selected: *selected,
+        },
         ChannelKind::Spot {
             display_rgb,
             solidity,
@@ -31,6 +40,15 @@ pub(super) fn summaries(state: &DocState) -> EngineResult<Vec<ChannelSummary>> {
                 name: c.name.clone(),
                 kind: match c.kind {
                     compositor::channels::ChannelKind::Alpha => ChannelKind::Alpha,
+                    compositor::channels::ChannelKind::AlphaDisplay {
+                        color,
+                        opacity,
+                        selected,
+                    } => ChannelKind::AlphaDisplay {
+                        display_rgb: color,
+                        opacity,
+                        selected,
+                    },
                     compositor::channels::ChannelKind::Spot { color, solidity } => {
                         ChannelKind::Spot {
                             display_rgb: color,

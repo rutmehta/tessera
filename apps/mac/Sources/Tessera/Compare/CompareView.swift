@@ -176,6 +176,7 @@ final class ComparePaneView: NSView {
         if suggestedBest { parts.append("Suggested") }
         badge.stringValue = parts.joined(separator: " · ")
         badge.textColor = state.decision == .undecided ? Theme.Palette.keep : state.decision.color
+        needsLayout = true   // the badge's width sets the caption partition
         self.active = active
         caption.textColor = active ? Theme.Palette.textPrimary : Theme.Palette.textSecondary
         updateLayer()
@@ -243,8 +244,24 @@ final class ComparePaneView: NSView {
                                   width: displayedSize.width, height: displayedSize.height)
         CATransaction.commit()
         let lineY = bounds.height - Self.captionHeight + (Self.captionHeight - Theme.Height.chip) / 2 - Theme.Space.xxs
-        caption.frame = NSRect(x: Theme.Space.m, y: lineY, width: bounds.width * 0.6, height: Theme.Height.chip + Theme.Space.xxs)
-        badge.frame = NSRect(x: bounds.width * 0.6, y: lineY + 1, width: bounds.width * 0.4 - Theme.Space.m, height: Theme.Height.chip)
+        let split = Self.captionPartition(width: bounds.width, badgeWidth: ceil(badge.intrinsicContentSize.width))
+        caption.frame = NSRect(x: split.caption.lowerBound, y: lineY, width: split.caption.upperBound - split.caption.lowerBound,
+                               height: Theme.Height.chip + Theme.Space.xxs)
+        badge.frame = NSRect(x: split.badge.lowerBound, y: lineY + 1, width: split.badge.upperBound - split.badge.lowerBound,
+                             height: Theme.Height.chip)
+    }
+
+    /// M2-56 (audit D04): one partition of the caption line. The usable span (pane minus both
+    /// insets and the gap) is split once: the badge gets its measured width up to 40 %, the file
+    /// name the rest, so the two fields never share a strip (they overlapped by 12 pt at every
+    /// width when the inset was added to the name's origin but not taken from its width).
+    static func captionPartition(width: CGFloat, badgeWidth: CGFloat) -> (caption: ClosedRange<CGFloat>, badge: ClosedRange<CGFloat>) {
+        let inset = Theme.Space.m, gap = Theme.Space.s
+        let usable = max(0, width - 2 * inset - gap)
+        let badgeW = badgeWidth > 0 ? min(badgeWidth, usable * 0.4) : 0
+        let captionEnd = inset + usable - badgeW
+        let badgeStart = badgeW > 0 ? captionEnd + gap : captionEnd
+        return (inset...captionEnd, badgeStart...max(badgeStart, width - inset))
     }
 
     override func layout() {

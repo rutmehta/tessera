@@ -127,7 +127,13 @@ impl DocumentSession {
         self.state()
             .channels
             .iter()
-            .filter(|c| matches!(c.kind, compositor::channels::ChannelKind::Alpha))
+            .filter(|c| {
+                matches!(
+                    c.kind,
+                    compositor::channels::ChannelKind::Alpha
+                        | compositor::channels::ChannelKind::AlphaDisplay { .. }
+                )
+            })
             .map(|c| SavedSelection {
                 id: SelectionId(c.id.0),
                 name: c.name.clone(),
@@ -426,7 +432,11 @@ impl Documents {
                 let channel = match call {
                     DocumentToolCall::AddChannel { .. } => {
                         let c = session.state().channels.last().expect("inserted channel");
-                        if matches!(c.kind, compositor::channels::ChannelKind::Alpha) {
+                        if matches!(
+                            c.kind,
+                            compositor::channels::ChannelKind::Alpha
+                                | compositor::channels::ChannelKind::AlphaDisplay { .. }
+                        ) {
                             selection = Some(SelectionId(c.id.0));
                         }
                         Some(engine_api::id::ChannelId(c.id.0))
@@ -781,7 +791,11 @@ impl Documents {
         target: StrokeTarget,
     ) -> EngineResult<DocOp> {
         let state = session.state();
-        let layer = session.layer(id)?;
+        let layer = if matches!(target, StrokeTarget::Channel(_)) {
+            None
+        } else {
+            Some(session.layer(id)?)
+        };
         if points.is_empty() {
             return Err(EngineError::invalid("points", "at least one point"));
         }
@@ -813,7 +827,12 @@ impl Documents {
             return Err(EngineError::invalid("brush.color", "must be finite"));
         }
         let (paint_target, mut prelude) = match target {
+            StrokeTarget::Channel(channel) => (
+                PaintTarget::Channel(compositor::channels::ChannelId(channel.0)),
+                Vec::new(),
+            ),
             StrokeTarget::Pixels => {
+                let layer = layer.expect("validated layer target");
                 if layer.raster().is_none() {
                     return Err(EngineError::invalid(
                         "layer",
@@ -823,6 +842,7 @@ impl Documents {
                 (PaintTarget::Content, Vec::new())
             }
             StrokeTarget::Mask => {
+                let layer = layer.expect("validated layer target");
                 let ops = if layer.mask.is_none() {
                     vec![DocOp::SetMask {
                         id,
@@ -836,8 +856,15 @@ impl Documents {
         };
         let base_mask = Mask::reveal_all(state.canvas, state.depth);
         let base = match paint_target {
-            PaintTarget::Content => layer.raster().expect("validated pixel layer"),
-            PaintTarget::Mask => &layer.mask.as_ref().unwrap_or(&base_mask).raster,
+            PaintTarget::Content | PaintTarget::Channel(_) => paint_target.raster(state, id)?,
+            PaintTarget::Mask => {
+                &layer
+                    .expect("validated layer target")
+                    .mask
+                    .as_ref()
+                    .unwrap_or(&base_mask)
+                    .raster
+            }
         };
         if let Some((dirty, tiles)) =
             self.brush
@@ -903,27 +930,16 @@ impl Documents {
                     }
                 })?
             }
-            PaintTarget::Mask => {
-                // The mask may not exist yet: paint onto a reveal-all one.
-                let base;
-                let raster = match &layer.mask {
-                    Some(m) => &m.raster,
-                    None => {
-                        base = Mask::reveal_all(state.canvas, state.depth).raster;
-                        &base
-                    }
-                };
-                DocOp::PaintTiles {
-                    id,
-                    target: PaintTarget::Mask,
-                    tiles: dense::deltas(raster, rect, |x, y, p| {
-                        let a = alpha_at(x, y);
-                        let v = if erase { 0.0 } else { luma };
-                        p[0] += (v - p[0]) * a;
-                    })?,
-                    dirty: rect,
-                }
-            }
+            PaintTarget::Mask | PaintTarget::Channel(_) => DocOp::PaintTiles {
+                id,
+                target: paint_target,
+                tiles: dense::deltas(base, rect, |x, y, p| {
+                    let a = alpha_at(x, y);
+                    let v = if erase { 0.0 } else { luma };
+                    p[0] += (v - p[0]) * a;
+                })?,
+                dirty: rect,
+            },
         };
         if prelude.is_empty() {
             Ok(op)

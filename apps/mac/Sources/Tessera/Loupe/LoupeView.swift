@@ -44,6 +44,8 @@ final class LoupeController: LibraryObserver {
             let proof = SoftProof.shared
             view?.setSoftProof(proof.lut, warning: proof.warningRGB)
         }
+        // A background launch can finish loading/selecting before SwiftUI mounts this observer.
+        selectionDidChange(scrollToFocus: false)
     }
 
     func libraryDidReload() {

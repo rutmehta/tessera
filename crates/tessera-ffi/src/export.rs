@@ -28,6 +28,8 @@ pub enum FileFormat {
     Avif,
     JpegXl,
     Dng,
+    /// Copy original bytes and merge the recipe into XMP, without rendering.
+    Original,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -121,6 +123,8 @@ pub enum MetadataPolicy {
     #[default]
     All,
     Copyright,
+    CopyrightAndContact,
+    AllExceptCamera,
     None,
 }
 
@@ -156,6 +160,9 @@ pub struct ExportOptions {
     pub sharpening: OutputSharpening,
     pub sharpening_amount: export::SharpenAmount,
     pub metadata: MetadataPolicy,
+    pub remove_person_info: bool,
+    pub remove_location: bool,
+    pub keywords_as_hierarchy: bool,
     /// Tokens: `{name}` file name without extension, `{seq}` 1-based position,
     /// `{date}` capture date `YYYY-MM-DD`.
     pub naming: String,
@@ -184,6 +191,9 @@ impl Default for ExportOptions {
             sharpening: OutputSharpening::None,
             sharpening_amount: export::SharpenAmount::Standard,
             metadata: MetadataPolicy::All,
+            remove_person_info: false,
+            remove_location: false,
+            keywords_as_hierarchy: true,
             naming: "{name}".into(),
             upscale: 1,
             destination: String::new(),
@@ -212,11 +222,28 @@ impl ExportOptions {
             FileFormat::Avif => "avif",
             FileFormat::JpegXl => "jxl",
             FileFormat::Dng => "dng",
+            // Placeholder for template validation only. Real names use the source suffix.
+            FileFormat::Original => "raw",
         }
     }
     /// Everything but the destination (checked when a batch runs).
     pub fn validate(&self) -> Result<()> {
         self.after_export.validate()?;
+        if self.format == FileFormat::Original
+            && (self.metadata != MetadataPolicy::All
+                || self.remove_person_info
+                || self.remove_location
+                || !self.keywords_as_hierarchy
+                || self.resize.mode != ResizeMode::None
+                || self.sharpening != OutputSharpening::None
+                || self.watermark.is_some()
+                || self.upscale != 1
+                || self.max_file_bytes.is_some())
+        {
+            return Err(failure(
+                "original + XMP retains original metadata and pixels; privacy filters and output transforms are not supported",
+            ));
+        }
         if self.format == FileFormat::JpegXl && self.color_space != DocumentSpace::Srgb {
             return Err(failure("lossless JPEG XL currently supports only sRGB"));
         }
@@ -296,7 +323,8 @@ impl ExportOptions {
                     quality: self.quality,
                 },
                 FileFormat::Png => export::Format::Png,
-                FileFormat::Dng => export::Format::Dng,
+                // Original is handled before rendering in export_batch_unremembered.
+                FileFormat::Dng | FileFormat::Original => export::Format::Dng,
                 FileFormat::JpegXl => export::Format::JpegXl {
                     bits: self.bit_depth,
                 },
@@ -313,8 +341,13 @@ impl ExportOptions {
             metadata: match self.metadata {
                 MetadataPolicy::All => export::Metadata::All,
                 MetadataPolicy::Copyright => export::Metadata::CopyrightOnly,
+                MetadataPolicy::CopyrightAndContact => export::Metadata::CopyrightAndContact,
+                MetadataPolicy::AllExceptCamera => export::Metadata::AllExceptCamera,
                 MetadataPolicy::None => export::Metadata::None,
             },
+            remove_person_info: self.remove_person_info,
+            remove_location: self.remove_location,
+            keywords_as_hierarchy: self.keywords_as_hierarchy,
             resize: self.pixel_resize()?,
             sharpen_for: self.sharpening.into(),
             sharpen_amount: self.sharpening_amount,
@@ -982,12 +1015,19 @@ impl Engine {
         let mut plans = Vec::with_capacity(pending.len());
         for (i, item) in pending.iter().enumerate() {
             let name = stem(&item.path)?;
+            let extension = if options.format == FileFormat::Original {
+                item.path
+                    .extension()
+                    .and_then(|s| s.to_str())
+                    .ok_or_else(|| failure("original source requires an extension"))?
+            } else {
+                options.extension()
+            };
             let sequence = i + 1;
             let mut naming = options.naming.clone();
             let mut n = 1;
             let plan = loop {
-                let file =
-                    export::filename(&naming, &name, sequence, &item.date, options.extension())?;
+                let file = export::filename(&naming, &name, sequence, &item.date, extension)?;
                 let key = file.to_lowercase();
                 let path = destination.join(&file);
                 let exists = path.exists() || sidecar::Sidecar::paths(&path).xmp.exists();
@@ -1077,6 +1117,34 @@ impl Engine {
                 break;
             }
             notify(&report, file_name(&item.path));
+            if options.format == FileFormat::Original {
+                let result = plan.map_err(failure).and_then(|naming| {
+                    let (recipe, packet) = self.recipe_and_xmp(item)?;
+                    let extension = item
+                        .path
+                        .extension()
+                        .and_then(|s| s.to_str())
+                        .ok_or_else(|| failure("original source requires an extension"))?;
+                    let path = destination.join(export::filename(
+                        &naming,
+                        &name,
+                        i + 1,
+                        &item.date,
+                        extension,
+                    )?);
+                    Ok(export::export_original(
+                        &item.path,
+                        &path,
+                        (sidecar::Sidecar::paths(&item.path).recipe.try_exists()?
+                            || packet.is_some())
+                        .then_some(&recipe),
+                        packet.as_ref(),
+                        &cancel,
+                    )?)
+                });
+                complete(&mut report, i, result);
+                continue;
+            }
             let result = plan.map_err(failure).and_then(|naming| {
                 let (recipe, packet) = self.recipe_and_xmp(item)?;
                 let source = Source::open(&item.path, item.orientation)?;

@@ -283,6 +283,12 @@ impl<'a> TileJob<'a> {
                 what: "layer styles require CPU compositing".into(),
             }),
             Src::Live(layer) => {
+                if !self
+                    .comp
+                    .live_intersects(layer, self.doc.state.canvas, self.coord)?
+                {
+                    return Ok(false);
+                }
                 let tile = self.comp.live_tile(
                     layer,
                     self.doc.state.canvas,
