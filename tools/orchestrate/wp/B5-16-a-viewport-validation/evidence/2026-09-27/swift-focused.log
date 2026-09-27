@@ -1,0 +1,138 @@
+[0/1] Planning build
+Building for production...
+[0/6] Write sources
+[2/6] Write swift-version--58304C5D6DBC2206.txt
+[4/7] Compiling Tessera AISettingsView.swift
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Sources/Tessera/Document/AdjustmentEditors.swift:55:55: warning: passing non-Sendable parameter 'change' to function expecting a '@Sendable' closure
+ 52 |     }
+ 53 | 
+ 54 |     private func checkbox(_ title: String, _ on: Bool, _ key: String, _ change: @escaping (Bool) -> Void) -> some View {
+    |                                                                         `- note: parameter 'change' is implicitly non-Sendable
+ 55 |         Toggle(title, isOn: Binding(get: { on }, set: change))
+    |                                                       `- warning: passing non-Sendable parameter 'change' to function expecting a '@Sendable' closure
+ 56 |             .toggleStyle(.checkbox)
+ 57 |             .font(Theme.Fonts.caption)
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Sources/Tessera/Document/Transforms/DocumentTransforms.swift:676:21: warning: 'where' only applies to the second pattern match in this 'case'
+674 |         let mods = e.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.numericPad, .function, .capsLock])
+675 |         switch e.keyCode {
+676 |         case 36, 76 where mods.isEmpty || mods == [.command]: apply(); return true
+    |              |   |  `- warning: 'where' only applies to the second pattern match in this 'case'
+    |              |   `- note: disambiguate by adding a line break between them if this is desired
+    |              `- note: duplicate the 'where' on both patterns to check both patterns
+677 |         case 53 where mods.isEmpty: cancel(); return true
+678 |         case 51, 117 where mods.isEmpty:
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Sources/Tessera/Document/Transforms/DocumentTransforms.swift:678:22: warning: 'where' only applies to the second pattern match in this 'case'
+676 |         case 36, 76 where mods.isEmpty || mods == [.command]: apply(); return true
+677 |         case 53 where mods.isEmpty: cancel(); return true
+678 |         case 51, 117 where mods.isEmpty:
+    |              |   |   `- warning: 'where' only applies to the second pattern match in this 'case'
+    |              |   `- note: disambiguate by adding a line break between them if this is desired
+    |              `- note: duplicate the 'where' on both patterns to check both patterns
+679 |             if case .puppet = session?.op, selectedPin != nil { removeSelectedPin(); return true }
+680 |             return false
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Sources/Tessera/Document/Transforms/TransformSelfTest.swift:460:16: warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+458 | 
+459 |         // 395: position lock rejects geometry.
+460 |         if let id = doc?.primary?.id {
+    |                `- warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+461 |             doc?.toggleLock(.position)
+462 |             await settle()
+[4/8] Write Objects.LinkFileList
+ld: warning: object file (/Users/rutmehta/.codex/worktrees/export-integration/tessera/apps/mac/build/ffi/libtessera_ffi.a[2845](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[5/8] Linking Tessera
+[7/9] Compiling TesseraCoreTests AgentReviewLayoutTests.swift
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentOverlayAnimationTests.swift:72:18: warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 70 |     func testReleasedOwnerInvalidatesRetainedTimerWithoutTicks() {
+ 71 |         var view: Overlay? = makeOverlay()
+ 72 |         weak var weakView = view
+    |                  `- warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 73 |         view?.updateAnimation()
+ 74 |         let timer = view?.animationTimer
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/DocumentViewportOwnershipTests.swift:32:18: warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+30 |     func testControllerReleasedBeforeDismantleStillClearsLocalResources() throws {
+31 |         var doc: DocumentController? = try document()
+32 |         weak var released = doc
+   |                  `- warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+33 |         let view = DocumentViewportView(frame: .zero)
+34 |         view.attach(doc)
+
+/Users/rutmehta/.codex/worktrees/render-resource-bounds/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[#WeakMutability]: <https://docs.swift.org/compiler/documentation/diagnostics/weak-mutability>
+[8/10] Compiling TesseraPackageTests runner.swift
+[8/10] Write Objects.LinkFileList
+ld: warning: object file (/Users/rutmehta/.codex/worktrees/export-integration/tessera/apps/mac/build/ffi/libtessera_ffi.a[2845](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[9/10] Linking TesseraPackageTests
+Build complete! (96.11s)
+Test Suite 'Selected tests' started at 2026-09-27 18:07:36.354.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-27 18:07:36.355.
+Test Suite 'DocumentOutlineLifecycleTests' started at 2026-09-27 18:07:36.355.
+Test Case '-[TesseraCoreTests.DocumentOutlineLifecycleTests testClearDropsPendingAndCannotResurrectOldOutline]' started.
+Test Case '-[TesseraCoreTests.DocumentOutlineLifecycleTests testClearDropsPendingAndCannotResurrectOldOutline]' passed (0.007 seconds).
+Test Case '-[TesseraCoreTests.DocumentOutlineLifecycleTests testCloseRejectsRunningResultAndDropsPendingWork]' started.
+Test Case '-[TesseraCoreTests.DocumentOutlineLifecycleTests testCloseRejectsRunningResultAndDropsPendingWork]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentOutlineLifecycleTests testSwitchDiscardsOldOutlineAndRunsOnlyNewestPendingDocument]' started.
+Test Case '-[TesseraCoreTests.DocumentOutlineLifecycleTests testSwitchDiscardsOldOutlineAndRunsOnlyNewestPendingDocument]' passed (0.000 seconds).
+Test Suite 'DocumentOutlineLifecycleTests' passed at 2026-09-27 18:07:36.363.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.008 (0.008) seconds
+Test Suite 'DocumentOverlayAnimationTests' started at 2026-09-27 18:07:36.363.
+Test Case '-[TesseraCoreTests.DocumentOverlayAnimationTests testConcreteOverlaysNeverScheduleWhileDetached]' started.
+Test Case '-[TesseraCoreTests.DocumentOverlayAnimationTests testConcreteOverlaysNeverScheduleWhileDetached]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentOverlayAnimationTests testHideUnhideAndWindowDetachHooksReconcileTimer]' started.
+Test Case '-[TesseraCoreTests.DocumentOverlayAnimationTests testHideUnhideAndWindowDetachHooksReconcileTimer]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentOverlayAnimationTests testReleasedOwnerInvalidatesRetainedTimerWithoutTicks]' started.
+Test Case '-[TesseraCoreTests.DocumentOverlayAnimationTests testReleasedOwnerInvalidatesRetainedTimerWithoutTicks]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentOverlayAnimationTests testRepeatedUpdatesDoNotDuplicateTimerAndRestartOnce]' started.
+Test Case '-[TesseraCoreTests.DocumentOverlayAnimationTests testRepeatedUpdatesDoNotDuplicateTimerAndRestartOnce]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.DocumentOverlayAnimationTests testTickRechecksVisibilityAndOwnershipBeforeDrawing]' started.
+Test Case '-[TesseraCoreTests.DocumentOverlayAnimationTests testTickRechecksVisibilityAndOwnershipBeforeDrawing]' passed (0.000 seconds).
+Test Suite 'DocumentOverlayAnimationTests' passed at 2026-09-27 18:07:36.364.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'DocumentViewportOwnershipTests' started at 2026-09-27 18:07:36.364.
+Test Case '-[TesseraCoreTests.DocumentViewportOwnershipTests testControllerReleasedBeforeDismantleStillClearsLocalResources]' started.
+Test Case '-[TesseraCoreTests.DocumentViewportOwnershipTests testControllerReleasedBeforeDismantleStillClearsLocalResources]' passed (0.083 seconds).
+Test Case '-[TesseraCoreTests.DocumentViewportOwnershipTests testDetachClearsCurrentOwnerAndFrameCallback]' started.
+Test Case '-[TesseraCoreTests.DocumentViewportOwnershipTests testDetachClearsCurrentOwnerAndFrameCallback]' passed (0.002 seconds).
+Test Case '-[TesseraCoreTests.DocumentViewportOwnershipTests testReplacementDetachesPriorOwnerBeforeOldViewDismantles]' started.
+Test Case '-[TesseraCoreTests.DocumentViewportOwnershipTests testReplacementDetachesPriorOwnerBeforeOldViewDismantles]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.DocumentViewportOwnershipTests testStaleOwnerCannotClearNewOwnerCallback]' started.
+Test Case '-[TesseraCoreTests.DocumentViewportOwnershipTests testStaleOwnerCannotClearNewOwnerCallback]' passed (0.001 seconds).
+Test Suite 'DocumentViewportOwnershipTests' passed at 2026-09-27 18:07:36.451.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.087 (0.087) seconds
+Test Suite 'LatestRequestBufferTests' started at 2026-09-27 18:07:36.451.
+Test Case '-[TesseraCoreTests.LatestRequestBufferTests testBurstRunsOnlyFirstAndLatest]' started.
+Test Case '-[TesseraCoreTests.LatestRequestBufferTests testBurstRunsOnlyFirstAndLatest]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.LatestRequestBufferTests testClearDropsPendingButKeepsRunningSlotUntilCompletion]' started.
+Test Case '-[TesseraCoreTests.LatestRequestBufferTests testClearDropsPendingButKeepsRunningSlotUntilCompletion]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.LatestRequestBufferTests testCloseRejectsLateResultWithoutStartingOldPendingWork]' started.
+Test Case '-[TesseraCoreTests.LatestRequestBufferTests testCloseRejectsLateResultWithoutStartingOldPendingWork]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.LatestRequestBufferTests testDuplicateCompletionCannotReleaseAnotherRunningRequest]' started.
+Test Case '-[TesseraCoreTests.LatestRequestBufferTests testDuplicateCompletionCannotReleaseAnotherRunningRequest]' passed (0.000 seconds).
+Test Suite 'LatestRequestBufferTests' passed at 2026-09-27 18:07:36.452.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-09-27 18:07:36.452.
+	 Executed 16 tests, with 0 failures (0 unexpected) in 0.096 (0.097) seconds
+Test Suite 'Selected tests' passed at 2026-09-27 18:07:36.452.
+	 Executed 16 tests, with 0 failures (0 unexpected) in 0.096 (0.098) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
