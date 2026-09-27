@@ -1238,5 +1238,21 @@
     "status": "running",
     "attempts": 0,
     "notes": ""
+  },
+  {
+    "id": "M2-52",
+    "owner": "astra",
+    "title": "AI Denoise works on a normal install (DRUNet fallback)",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M5-32",
+    "owner": "astra",
+    "title": "Compositor/retouch follow-ups from Machine B",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
   }
 ]
