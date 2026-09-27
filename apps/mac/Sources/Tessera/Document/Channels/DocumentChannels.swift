@@ -48,6 +48,7 @@ final class DocumentChannels {
     func attach(_ workspace: DocumentWorkspace) {
         guard self.workspace !== workspace else { return }
         self.workspace = workspace
+        ChannelsSelfTest.startIfRequested(workspace)
     }
 
     func backend(_ doc: DocumentController) -> (any DocumentChannelsBackend)? {

@@ -49,7 +49,7 @@ private struct ChannelMenu: View {
         }
         .labelsHidden()
         .controlSize(.small)
-        .frame(maxWidth: Theme.Width.inspectorMin)
+        .fixedSize()
         .accessibilityIdentifier(identifier)
     }
 }
@@ -253,7 +253,7 @@ struct ChannelOptionsSheet: View {
                                       indicatesSelected: indicatesSelected)
             }
         }
-        .frame(width: Theme.Width.inspectorMax + Theme.Space.xxl, height: Theme.Width.sidebarMax + Theme.Space.xxl)
+        .frame(width: Theme.Width.inspectorMax + Theme.Space.xxl, height: Theme.Width.sidebarMax)
         .onAppear {
             guard let doc = channels.document, let r = channels.records.first(where: { $0.id == id }) else { return }
             name = r.name
