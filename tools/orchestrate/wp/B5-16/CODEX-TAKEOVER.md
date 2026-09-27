@@ -342,3 +342,13 @@ source regressions, compile and live surface accounting pending A. No B loads.
 Remaining: A timer/outline/teardown validation, engine mask/cancellation bridge,
 global CPU/GPU memory admission, runtime allocation-lifetime evidence, then
 bounded responsiveness acceptance before any B workload resumption.
+
+### Cancellation route plan and A timer result
+
+A request7e842a6c reports corrected timer five lifecycle+14related tests passed
+(source079092e8/evidence main11fc339); GUI follow-up pending. Accepted validated
+source-only request and published CANCELLATION-ROUTE-PLAN.md: preview atomic flag
+is dropped before native_stack; bake/frame/copy routes lack externally owned
+request tokens. Plan covers shared live signal, removal of obsolete direct-tile
+prewarm on RES01 base, A cancellable region API, and a distinct copy-operation
+handle. No cancellation caller product edits until A reviews route.
