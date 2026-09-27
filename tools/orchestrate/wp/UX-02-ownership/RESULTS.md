@@ -31,3 +31,12 @@ The prior focused GREEN above applies to `e886888` only. Subsequent source revie
 Queue actions still require exact owner identity. Session exclusion additionally recognizes a newly opened EngineLibrary or same-file alias: each registered mutation captures a canonical source/resource key (device/inode when available, canonical URL fallback). Availability queries cache source resolution only for the lifetime of active mutations, avoiding repeated filesystem work in SwiftUI rendering. This is within-process exclusion, not cross-process locking or compare-and-swap.
 
 Five additional real-engine regressions are prepared for run/accept/revert open refusal, fresh committed recipe reopening, unrelated-library allowance, same-folder/new-owner plus symbolic/hard-linked source aliases, and cancellation release (23 ownership tests total). They have **not compiled or run** at this checkpoint. `mutation-exclusion-pending-source.json` records source hashes; `git diff --check` passed. The coordinator will merge this checkpoint with the isolated INT45 candidate and its DNG contract correction, then run one combined full Swift gate. No independent follow-up build or GREEN claim is made here.
+
+## Coordinator final gate
+
+Combined with the validated export slice/current UI at b82fe333, the final full
+Swift release suite passed436XCTest cases (one existing skip), zero failures,
+plus5SwiftTesting cases. All23 ownership regressions are included. Logs and exact
+source/FFI hashes: tools/orchestrate/wp/INT-45/evidence/2026-09-27-integration/.
+The earlier checkpoint-only status above is historical; mutation exclusion is now
+validated. General Review navigation/resume persistence remains separate.
