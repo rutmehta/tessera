@@ -1,0 +1,54 @@
+    Blocking waiting for file lock on build directory
+   Compiling ml-runtime v0.1.0 (/Users/rutmehta/Developer/tessera/.worktrees/M2-49/crates/ml-runtime)
+   Compiling ml-enhance v0.1.0 (/Users/rutmehta/Developer/tessera/.worktrees/M2-49/crates/ml-enhance)
+    Finished `release` profile [optimized] target(s) in 5m 09s
+     Running unittests src/lib.rs (/Volumes/betterSSD/tessera-cache/target/M2-49/release/deps/ml_enhance-8a25de9e17e10ce6)
+
+running 2 tests
+test cfa::automatic_noise_tests::estimate_rejects_invalid_input_and_keeps_noiseless_flat_zero ... ok
+test cfa::automatic_noise_tests::estimate_recovers_independent_flat_site_variances ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/blend.rs (/Volumes/betterSSD/tessera-cache/target/M2-49/release/deps/blend-65b3c29248b43c9b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/cfa.rs (/Volumes/betterSSD/tessera-cache/target/M2-49/release/deps/cfa-d74e9c95dd12382c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/cfa_model.rs (/Volumes/betterSSD/tessera-cache/target/M2-49/release/deps/cfa_model-881cdbd84922c11e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/denoiser.rs (/Volumes/betterSSD/tessera-cache/target/M2-49/release/deps/denoiser-85234b1aaa605364)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+
+     Running tests/model_seams.rs (/Volumes/betterSSD/tessera-cache/target/M2-49/release/deps/model_seams-9811a851c210e6f1)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/models.rs (/Volumes/betterSSD/tessera-cache/target/M2-49/release/deps/models-afcfbce73066eb90)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/tiling.rs (/Volumes/betterSSD/tessera-cache/target/M2-49/release/deps/tiling-bfe5fba7547f571f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+

@@ -11,7 +11,7 @@ pub struct LensBlurOptions {
     pub layers: usize,
     /// Specular gain, 0..=100 percent, applied above linear luminance 1.
     pub boost: f32,
-    /// Reserved cat-eye strength. Only zero is supported; nonzero returns an error.
+    /// Radial cat-eye clipping strength, finite 0..=1. Zero disables clipping.
     pub cat_eye: f32,
 }
 impl Default for LensBlurOptions {
@@ -29,7 +29,8 @@ impl Default for LensBlurOptions {
 ///
 /// `focus_range` is inclusive: its pixels retain their exact input bits. Amount
 /// zero (or maximum radius zero) is an exact clone, after input validation.
-/// Supported bokeh IDs are `circle`/`disc`, `hexagon`, and `octagon`.
+/// Supported IDs: `circle`/`disc`, `bubble`, `5-blade`/`five-blade`/`pentagon`,
+/// `ring`, `cat-eye`/`cat_eye`/`cat eye`, `oval`/`anamorphic`, `hexagon`, `octagon`.
 /// `depth_model` is provenance only; this function never invokes inference.
 ///
 /// Layers composite far-to-near using normalized masked colors and coverage;
@@ -54,10 +55,23 @@ pub fn lens_blur(
         || !bounded(options.max_radius, 0., 128.)
         || !(2..=64).contains(&options.layers)
         || !bounded(options.boost, 0., 100.)
-        || options.cat_eye != 0.
+        || !bounded(options.cat_eye, 0., 1.)
         || !matches!(
             settings.bokeh.as_str(),
-            "circle" | "disc" | "hexagon" | "octagon"
+            "circle"
+                | "disc"
+                | "hexagon"
+                | "octagon"
+                | "bubble"
+                | "5-blade"
+                | "five-blade"
+                | "pentagon"
+                | "ring"
+                | "cat-eye"
+                | "cat_eye"
+                | "cat eye"
+                | "oval"
+                | "anamorphic"
         )
     {
         return Err(engine_api::EngineError::invalid(
@@ -107,12 +121,17 @@ pub fn lens_blur(
         for dy in -r..=r {
             for dx in -r..=r {
                 let blades = match settings.bokeh.as_str() {
+                    "5-blade" | "five-blade" | "pentagon" => 5,
                     "hexagon" => 6,
                     "octagon" => 8,
                     _ => 0,
                 };
-                let inside = if blades == 0 {
-                    (dx as f32).hypot(dy as f32) <= radius
+                let radial = (dx as f32).hypot(dy as f32);
+                let inside = if matches!(settings.bokeh.as_str(), "oval" | "anamorphic") {
+                    (dx as f32 * 2.).hypot(dy as f32) <= radius
+                } else if blades == 0 {
+                    radial <= radius
+                        && (settings.bokeh != "ring" || radial >= radius * 0.7 || radius < 1.)
                 } else {
                     let apothem = radius * (std::f32::consts::PI / blades as f32).cos();
                     (0..blades).all(|b| {
@@ -121,7 +140,12 @@ pub fn lens_blur(
                     })
                 };
                 if inside {
-                    kernel.push((dx, dy));
+                    let weight = if settings.bokeh == "bubble" && radial < radius * 0.75 {
+                        0.2
+                    } else {
+                        1.
+                    };
+                    kernel.push((dx, dy, weight));
                 }
             }
         }
@@ -130,20 +154,45 @@ pub fn lens_blur(
                 continue;
             }
             let mut sum = [0_f64; 3];
-            let mut count = 0;
-            let mut support = 0;
-            for &(dx, dy) in &kernel {
+            let mut count = 0.;
+            let mut support = 0.;
+            // The optical axis has a circular pupil; clipping increases toward
+            // corners and is oriented radially, producing the cat-eye outline.
+            let cat_eye = if matches!(settings.bokeh.as_str(), "cat-eye" | "cat_eye" | "cat eye") {
+                options.cat_eye.max(0.75)
+            } else {
+                options.cat_eye
+            };
+            let nx = if w > 1 {
+                2. * (i % w) as f32 / (w - 1) as f32 - 1.
+            } else {
+                0.
+            };
+            let ny = if h > 1 {
+                2. * (i / w) as f32 / (h - 1) as f32 - 1.
+            } else {
+                0.
+            };
+            let shift = cat_eye * radius * 0.5;
+            for &(dx, dy, weight) in &kernel {
+                if cat_eye > 0.
+                    && (dx != 0 || dy != 0)
+                    && ((dx as f32 + nx * shift).hypot(dy as f32 + ny * shift) > radius
+                        || (dx as f32 - nx * shift).hypot(dy as f32 - ny * shift) > radius)
+                {
+                    continue;
+                }
                 let x = (i % w) as i64 + i64::from(dx);
                 let y = (i / w) as i64 + i64::from(dy);
                 if x < 0 || y < 0 || x >= w as i64 || y >= h as i64 {
                     continue;
                 }
-                support += 1;
+                support += weight;
                 let j = y as usize * w + x as usize;
                 if membership[j] != Some(layer) {
                     continue;
                 }
-                count += 1;
+                count += weight;
                 let y = 0.2627 * image.planes()[0][j] as f64
                     + 0.6780 * image.planes()[1][j] as f64
                     + 0.0593 * image.planes()[2][j] as f64;
@@ -153,17 +202,17 @@ pub fn lens_blur(
                     1.
                 };
                 for (c, s) in sum.iter_mut().enumerate() {
-                    *s += image.planes()[c][j] as f64 * gain;
+                    *s += image.planes()[c][j] as f64 * gain * weight;
                 }
             }
-            if count == 0 {
+            if count == 0. {
                 continue;
             }
             // Normalize color by occupied taps, coverage by the in-image kernel.
             // Over-composite premultiplied color back-to-front, not a flat gather.
-            let a = count as f64 / support as f64;
+            let a = count / support;
             for (c, s) in sum.iter().enumerate() {
-                colors[i][c] = s / count as f64 * a + colors[i][c] * (1. - a);
+                colors[i][c] = s / count * a + colors[i][c] * (1. - a);
             }
             alpha[i] = a + alpha[i] * (1. - a);
         }

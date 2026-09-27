@@ -11,6 +11,7 @@ mod export;
 mod lrcat;
 mod lrcat_fidelity;
 mod metadata;
+mod models;
 mod preview;
 mod proof;
 mod session;

@@ -1,0 +1,28 @@
+   Compiling ml-runtime v0.1.0 (/Users/rutmehta/Developer/tessera/.worktrees/M2-49/crates/ml-runtime)
+    Finished `release` profile [optimized] target(s) in 20.83s
+     Running unittests src/lib.rs (/Volumes/betterSSD/tessera-cache/target/M2-49/release/deps/ml_runtime-d612043d2304d247)
+
+running 2 tests
+test registry::download_tests::explicit_download_policy_and_progress_verify_cache ... ok
+test registry::download_tests::adapter_policy_prevents_implicit_downloads ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/registry.rs (/Volumes/betterSSD/tessera-cache/target/M2-49/release/deps/registry-b240fba0ac0c6d80)
+
+running 2 tests
+test registry_resolves_version_and_rejects_corruption ... ok
+test cached_resolution_never_fetches_and_still_verifies ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/registry_validation.rs (/Volumes/betterSSD/tessera-cache/target/M2-49/release/deps/registry_validation-ef6f8de7374fd3d1)
+
+running 4 tests
+test bad_download_never_enters_cache ... ok
+test multiple_versions_require_explicit_reference ... ok
+test malformed_and_duplicate_manifests_are_rejected ... ok
+test local_source_is_hash_verified_without_network ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

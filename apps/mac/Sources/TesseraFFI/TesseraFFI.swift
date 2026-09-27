@@ -2404,6 +2404,12 @@ public protocol DevelopSessionProtocol: AnyObject, Sendable {
     func configureCfaDenoise(config: CfaDenoiseConfig) throws 
     
     /**
+     * 256 near-to-far bins for the current recipe's pre-geometry image.
+     * Reuses the content-addressed depth cache. This is a blocking worker API.
+     */
+    func depthHistogram() throws  -> [UInt64]
+    
+    /**
      * Releases every surface. Renders continue (histogram only) until a new
      * surface is attached.
      */
@@ -2413,6 +2419,12 @@ public protocol DevelopSessionProtocol: AnyObject, Sendable {
      * Writes pending changes now and waits for the save to finish.
      */
     func flush() throws 
+    
+    /**
+     * Focus the inclusive range around the segmented subject's depth. Uses
+     * cached models only and leaves all controls unchanged on failure.
+     */
+    func focusLensBlurOnSubject() throws  -> [Float]
     
     /**
      * Histogram of the last completed frame (empty before the first one).
@@ -2521,6 +2533,18 @@ public protocol DevelopSessionProtocol: AnyObject, Sendable {
      * Switch operator sets as a persisted undo step. Pending sliders commit first.
      */
     func setProcessVersion(json: String) throws  -> Bool
+    
+    /**
+     * Session-only grayscale depth overlay. Missing weights surface through
+     * render_failed just like other rendering errors; this never downloads.
+     */
+    func setRenderDepthVisualisation(enabled: Bool) throws 
+    
+    /**
+     * Session-only uncorrected image for Guided Upright placement. Saved
+     * lens, Upright, manual transform and crop controls remain intact.
+     */
+    func setRenderUncorrected(enabled: Bool) throws 
     
     /**
      * Merges an RFC 7386 JSON patch into the live settings and renders.
@@ -2808,6 +2832,19 @@ open func configureCfaDenoise(config: CfaDenoiseConfig)throws   {try rustCallWit
 }
     
     /**
+     * 256 near-to-far bins for the current recipe's pre-geometry image.
+     * Reuses the content-addressed depth cache. This is a blocking worker API.
+     */
+open func depthHistogram()throws  -> [UInt64]  {
+    return try  FfiConverterSequenceUInt64.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_depth_histogram(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * Releases every surface. Renders continue (histogram only) until a new
      * surface is attached.
      */
@@ -2828,6 +2865,19 @@ open func flush()throws   {try rustCallWithError(FfiConverterTypeBridgeError_lif
             self.uniffiCloneHandle(),uniffiCallStatus
     )
 }
+}
+    
+    /**
+     * Focus the inclusive range around the segmented subject's depth. Uses
+     * cached models only and leaves all controls unchanged on failure.
+     */
+open func focusLensBlurOnSubject()throws  -> [Float]  {
+    return try  FfiConverterSequenceFloat.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_focus_lens_blur_on_subject(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
 }
     
     /**
@@ -3092,6 +3142,32 @@ open func setProcessVersion(json: String)throws  -> Bool  {
         FfiConverterString.lower(json),uniffiCallStatus
     )
 })
+}
+    
+    /**
+     * Session-only grayscale depth overlay. Missing weights surface through
+     * render_failed just like other rendering errors; this never downloads.
+     */
+open func setRenderDepthVisualisation(enabled: Bool)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_set_render_depth_visualisation(
+            self.uniffiCloneHandle(),
+        FfiConverterBool.lower(enabled),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Session-only uncorrected image for Guided Upright placement. Saved
+     * lens, Upright, manual transform and crop controls remain intact.
+     */
+open func setRenderUncorrected(enabled: Bool)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_set_render_uncorrected(
+            self.uniffiCloneHandle(),
+        FfiConverterBool.lower(enabled),uniffiCallStatus
+    )
+}
 }
     
     /**
@@ -6026,7 +6102,10 @@ public protocol EngineProtocol: AnyObject, Sendable {
     /**
      * Opens a develop session on an indexed RAW or rendered RGB image.
      * Blocking decode: call off the main thread. One session per visible image.
+     * Blocking depth histogram for an indexed image using its saved recipe.
      */
+    func depthHistogram(imageId: String) throws  -> [UInt64]
+    
     func openDevelopSession(imageId: String) throws  -> DevelopSession
     
     /**
@@ -6552,7 +6631,18 @@ open func openLibrary(path: String)throws  -> LibraryStore  {
     /**
      * Opens a develop session on an indexed RAW or rendered RGB image.
      * Blocking decode: call off the main thread. One session per visible image.
+     * Blocking depth histogram for an indexed image using its saved recipe.
      */
+open func depthHistogram(imageId: String)throws  -> [UInt64]  {
+    return try  FfiConverterSequenceUInt64.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_depth_histogram(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(imageId),uniffiCallStatus
+    )
+})
+}
+    
 open func openDevelopSession(imageId: String)throws  -> DevelopSession  {
     return try  FfiConverterTypeDevelopSession_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
         uniffiCallStatus in
@@ -8713,6 +8803,354 @@ public func FfiConverterTypeMaskListener_lift(_ handle: UInt64) throws -> MaskLi
 #endif
 public func FfiConverterTypeMaskListener_lower(_ value: MaskListener) -> UInt64 {
     return FfiConverterTypeMaskListener.lower(value)
+}
+
+
+
+
+
+
+/**
+ * Events for one request arrive in order on its worker thread. No engine or
+ * registry locks are held during callbacks. Retained until the terminal event.
+ */
+public protocol ModelDownloadListener: AnyObject, Sendable {
+    
+    func onEvent(event: ModelDownloadEvent) 
+    
+}
+/**
+ * Events for one request arrive in order on its worker thread. No engine or
+ * registry locks are held during callbacks. Retained until the terminal event.
+ */
+open class ModelDownloadListenerImpl: ModelDownloadListener, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_tessera_ffi_fn_clone_modeldownloadlistener(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_tessera_ffi_fn_free_modeldownloadlistener(handle, $0) }
+    }
+
+    
+
+    
+open func onEvent(event: ModelDownloadEvent)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_modeldownloadlistener_on_event(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeModelDownloadEvent_lower(event),uniffiCallStatus
+    )
+}
+}
+    
+
+    
+}
+
+
+
+// Put the implementation in a struct so we don't pollute the top-level namespace
+fileprivate struct UniffiCallbackInterfaceModelDownloadListener {
+
+    // Create the VTable using a series of closures.
+    // Swift automatically converts these into C callback functions.
+    //
+    // Store the vtable directly.
+    static let vtable: UniffiVTableCallbackInterfaceModelDownloadListener = UniffiVTableCallbackInterfaceModelDownloadListener(
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            do {
+                try FfiConverterTypeModelDownloadListener.handleMap.remove(handle: uniffiHandle)
+            } catch {
+                print("Uniffi callback interface ModelDownloadListener: handle missing in uniffiFree")
+            }
+        },
+        uniffiClone: { (uniffiHandle: UInt64) -> UInt64 in
+            do {
+                return try FfiConverterTypeModelDownloadListener.handleMap.clone(handle: uniffiHandle)
+            } catch {
+                fatalError("Uniffi callback interface ModelDownloadListener: handle missing in uniffiClone")
+            }
+        },
+        onEvent: { (
+            uniffiHandle: UInt64,
+            event: RustBuffer,
+            uniffiOutReturn: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> () in
+                guard let uniffiObj = try? FfiConverterTypeModelDownloadListener.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.onEvent(
+                     event: try FfiConverterTypeModelDownloadEvent_lift(event)
+                )
+            }
+
+            
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        }
+    )
+
+    // Rust stores this pointer for future callback invocations, so it must live
+    // for the process lifetime (not just for the init function call).
+    //
+    // `nonisolated(unsafe)` is needed under Swift 6 strict concurrency.
+    // This is safe because the pointee is initialized once during static init
+    // and never mutated by either side of the FFI.  Its fields are C function pointers.
+    nonisolated(unsafe) static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceModelDownloadListener> = {
+        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceModelDownloadListener>.allocate(capacity: 1)
+        ptr.initialize(to: vtable)
+        return UnsafePointer(ptr)
+    }()
+}
+
+private func uniffiCallbackInitModelDownloadListener() {
+    uniffi_tessera_ffi_fn_init_callback_vtable_modeldownloadlistener(UniffiCallbackInterfaceModelDownloadListener.vtablePtr)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeModelDownloadListener: FfiConverter {
+    fileprivate static let handleMap = UniffiHandleMap<ModelDownloadListener>()
+
+    typealias FfiType = UInt64
+    typealias SwiftType = ModelDownloadListener
+
+    public static func lift(_ handle: UInt64) throws -> ModelDownloadListener {
+        if ((handle & 1) == 0) {
+            // Rust-generated handle, construct a new class that uses the handle to implement the
+            // interface
+            return ModelDownloadListenerImpl(unsafeFromHandle: handle)
+        } else {
+            // Swift-generated handle, get the object from the handle map
+            return try handleMap.remove(handle: handle)
+        }
+    }
+
+    public static func lower(_ value: ModelDownloadListener) -> UInt64 {
+         if let rustImpl = value as? ModelDownloadListenerImpl {
+             // Rust-implemented object.  Clone the handle and return it
+            return rustImpl.uniffiCloneHandle()
+         } else {
+            // Swift object, generate a new vtable handle and return that.
+            return handleMap.insert(obj: value)
+         }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ModelDownloadListener {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: ModelDownloadListener, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeModelDownloadListener_lift(_ handle: UInt64) throws -> ModelDownloadListener {
+    return try FfiConverterTypeModelDownloadListener.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeModelDownloadListener_lower(_ value: ModelDownloadListener) -> UInt64 {
+    return FfiConverterTypeModelDownloadListener.lower(value)
+}
+
+
+
+
+
+
+public protocol ModelDownloadsProtocol: AnyObject, Sendable {
+    
+    /**
+     * Returns after scheduling. Each accepted request emits Queued, zero or
+     * more Downloading events, then exactly one Ready or Failed. A cache hit
+     * is digest-verified even when downloads are disabled. Dropping this
+     * object does not cancel accepted requests. Use a listener per request.
+     */
+    func request(id: String, version: String, listener: ModelDownloadListener) throws 
+    
+}
+open class ModelDownloads: ModelDownloadsProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_tessera_ffi_fn_clone_modeldownloads(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_tessera_ffi_fn_free_modeldownloads(handle, $0) }
+    }
+
+    
+public static func `open`(manifestPath: String, cachePath: String, allowDownloads: Bool)throws  -> ModelDownloads  {
+    return try  FfiConverterTypeModelDownloads_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_constructor_modeldownloads_open(
+        FfiConverterString.lower(manifestPath),
+        FfiConverterString.lower(cachePath),
+        FfiConverterBool.lower(allowDownloads),uniffiCallStatus
+    )
+})
+}
+    
+
+    
+    /**
+     * Returns after scheduling. Each accepted request emits Queued, zero or
+     * more Downloading events, then exactly one Ready or Failed. A cache hit
+     * is digest-verified even when downloads are disabled. Dropping this
+     * object does not cancel accepted requests. Use a listener per request.
+     */
+open func request(id: String, version: String, listener: ModelDownloadListener)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_modeldownloads_request(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
+        FfiConverterString.lower(version),
+        FfiConverterTypeModelDownloadListener_lower(listener),uniffiCallStatus
+    )
+}
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeModelDownloads: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = ModelDownloads
+
+    public static func lift(_ handle: UInt64) throws -> ModelDownloads {
+        return ModelDownloads(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: ModelDownloads) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ModelDownloads {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: ModelDownloads, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeModelDownloads_lift(_ handle: UInt64) throws -> ModelDownloads {
+    return try FfiConverterTypeModelDownloads.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeModelDownloads_lower(_ value: ModelDownloads) -> UInt64 {
+    return FfiConverterTypeModelDownloads.lower(value)
 }
 
 
@@ -22172,6 +22610,96 @@ public func FfiConverterTypeMaskInit_lower(_ value: MaskInit) -> RustBuffer {
 
 
 
+
+public enum ModelDownloadEvent: Equatable, Hashable {
+    
+    case queued
+    case downloading(bytes: UInt64, total: UInt64?
+    )
+    case ready(path: String
+    )
+    case failed(reason: String
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension ModelDownloadEvent: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeModelDownloadEvent: FfiConverterRustBuffer {
+    typealias SwiftType = ModelDownloadEvent
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ModelDownloadEvent {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .queued
+        
+        case 2: return .downloading(bytes: try FfiConverterUInt64.read(from: &buf), total: try FfiConverterOptionUInt64.read(from: &buf)
+        )
+        
+        case 3: return .ready(path: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 4: return .failed(reason: try FfiConverterString.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: ModelDownloadEvent, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .queued:
+            writeInt(&buf, Int32(1))
+        
+        
+        case let .downloading(bytes,total):
+            writeInt(&buf, Int32(2))
+            FfiConverterUInt64.write(bytes, into: &buf)
+            FfiConverterOptionUInt64.write(total, into: &buf)
+            
+        
+        case let .ready(path):
+            writeInt(&buf, Int32(3))
+            FfiConverterString.write(path, into: &buf)
+            
+        
+        case let .failed(reason):
+            writeInt(&buf, Int32(4))
+            FfiConverterString.write(reason, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeModelDownloadEvent_lift(_ buf: RustBuffer) throws -> ModelDownloadEvent {
+    return try FfiConverterTypeModelDownloadEvent.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeModelDownloadEvent_lower(_ value: ModelDownloadEvent) -> RustBuffer {
+    return FfiConverterTypeModelDownloadEvent.lower(value)
+}
+
+
+
 /**
  * New layer content for [`DocumentSession::add_layer`].
  */
@@ -26564,7 +27092,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_engine_open_library() != 50227) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_engine_open_develop_session() != 50243) {
+    if (uniffi_tessera_ffi_checksum_method_engine_depth_histogram() != 18154) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_open_develop_session() != 14391) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_engine_document_ids() != 48705) {
@@ -26789,10 +27320,16 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_developsession_configure_cfa_denoise() != 26853) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tessera_ffi_checksum_method_developsession_depth_histogram() != 62695) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_tessera_ffi_checksum_method_developsession_detach_surfaces() != 32727) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_developsession_flush() != 25039) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_focus_lens_blur_on_subject() != 48954) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_developsession_get_histogram() != 57752) {
@@ -26856,6 +27393,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_developsession_set_process_version() != 30220) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_set_render_depth_visualisation() != 13210) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_set_render_uncorrected() != 57292) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_developsession_set_settings() != 54630) {
@@ -27296,6 +27839,12 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_lrcatprogresslistener_on_progress() != 48396) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tessera_ffi_checksum_method_modeldownloadlistener_on_event() != 30552) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_modeldownloads_request() != 17138) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_tessera_ffi_checksum_method_cullsession_assign_person_face() != 63718) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -27485,6 +28034,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_constructor_cancelflag_new() != 985) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tessera_ffi_checksum_constructor_modeldownloads_open() != 33877) {
+        return InitializationResult.apiChecksumMismatch
+    }
 
     uniffiCallbackInitAgentRunListener()
     uniffiCallbackInitDevelopListener()
@@ -27493,6 +28045,7 @@ private let initializationResult: InitializationResult = {
     uniffiCallbackInitExportProgressListener()
     uniffiCallbackInitLrcatProgressListener()
     uniffiCallbackInitMaskListener()
+    uniffiCallbackInitModelDownloadListener()
     uniffiCallbackInitTetherEventListener()
     return InitializationResult.ok
 }()

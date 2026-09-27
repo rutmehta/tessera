@@ -18,8 +18,10 @@
 #![forbid(unsafe_code)]
 
 mod adobe;
+pub use ml_depth;
 pub mod cache;
 pub mod cfa;
+pub mod depth;
 pub use adobe::AdobeStageOp;
 pub use pipeline_adobe;
 pub mod graph;

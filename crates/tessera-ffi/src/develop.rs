@@ -299,6 +299,8 @@ struct State {
     closed: bool,
     /// Crop tool active: render without geometry.
     crop_editing: bool,
+    render_uncorrected: bool,
+    render_depth_visualisation: bool,
     /// Show the sharpening edge mask instead of the image.
     masking_preview: bool,
     /// Levels coarser than the screen level that interactive renders of
@@ -412,7 +414,14 @@ impl DragLevel {
 impl State {
     /// Settings the viewport draws for the live state.
     fn drawn(&self) -> DevelopSettings {
-        session_renderable(&self.live, !self.crop_editing, self.cfa_configured)
+        let mut drawn = session_renderable(&self.live, !self.crop_editing, self.cfa_configured);
+        if self.render_uncorrected {
+            drawn.geometry = Default::default();
+            drawn.lens = Default::default();
+            drawn.lens.profile = engine_api::recipe::settings::LensProfileSource::None;
+            drawn.lens.remove_chromatic_aberration = false;
+        }
+        drawn
     }
 
     /// Whether the attached ring is the EDR (RGBA16F) contract.
@@ -490,6 +499,10 @@ pub(crate) struct Shared {
     image: RawImage,
     renderer: Arc<Renderer>,
     cfa_denoiser: Mutex<Option<Arc<image_core::MlCfaDenoise>>>,
+    depth_provider: Arc<image_core::depth::DepthProvider>,
+    model_registry: Arc<ml_runtime::ModelRegistry>,
+    automatic_cfa: Mutex<Option<(engine_api::id::ModelRef, Arc<image_core::MlCfaDenoise>)>>,
+    rgb_denoiser: Arc<image_core::MlPostDemosaicDenoise>,
     backend: String,
     state: Mutex<State>,
     // Held through GPU completion and publication: cancelled jobs cannot
@@ -518,14 +531,15 @@ pub struct DevelopSession {
 fn session_renderable(
     s: &DevelopSettings,
     geometry: bool,
-    denoiser_configured: bool,
+    _denoiser_configured: bool,
 ) -> DevelopSettings {
     let mut drawn = renderable_with(s, geometry);
-    // A saved recipe does not contain measured noise or runtime policy. Keep
-    // the prior unconfigured-session preview fallback until explicitly installed.
-    if denoiser_configured && pipeline_cpu::validate_denoise(&s.denoise).is_ok() {
+    // Runtime adapters estimate raw noise automatically. Missing weights are a
+    // render error for the panel, never a silently discarded denoise request.
+    if pipeline_cpu::validate_denoise(&s.denoise).is_ok() {
         drawn.denoise = s.denoise.clone();
     }
+    drawn.effects.lens_blur = s.effects.lens_blur.clone();
     drawn
 }
 
@@ -648,6 +662,23 @@ pub fn renderable_with(s: &DevelopSettings, geometry: bool) -> DevelopSettings {
         r.geometry.crop.angle = crop.angle;
     }
 
+    // Native composed optics/geometry are now shared with export. Validate
+    // before retaining controls so malformed imported parameters do not leak
+    // into the sanitized interactive recipe.
+    let mut optics = r.clone();
+    optics.lens = s.lens.clone();
+    if pipeline_cpu::validate_settings(&optics).is_ok() {
+        r.lens = optics.lens;
+    }
+    if geometry {
+        let mut composed = r.clone();
+        composed.geometry = s.geometry.clone();
+        composed.geometry.crop = r.geometry.crop.clone();
+        if pipeline_cpu::validate_settings(&composed).is_ok() {
+            r.geometry = composed.geometry;
+        }
+    }
+
     r.output.gamut_mapping = s.output.gamut_mapping;
     r.locals = masks::renderable_locals(&s.locals);
     r
@@ -760,6 +791,11 @@ fn stage_name(stage: StageId) -> String {
 impl Engine {
     /// Opens a develop session on an indexed RAW or rendered RGB image.
     /// Blocking decode: call off the main thread. One session per visible image.
+    /// Blocking depth histogram for an indexed image using its saved recipe.
+    pub fn depth_histogram(self: Arc<Self>, image_id: String) -> Result<Vec<u64>> {
+        self.open_develop_session(image_id)?.depth_histogram()
+    }
+
     pub fn open_develop_session(self: Arc<Self>, image_id: String) -> Result<Arc<DevelopSession>> {
         let id = parse_id(&image_id)?;
         let path = {
@@ -780,6 +816,14 @@ impl Engine {
             .mask_cache()
             .set_hooks(Some(Arc::new(masks::Hooks(masks.clone()))));
         let screen_level = default_level(&image);
+        let model_registry = Arc::new(
+            ml_runtime::ModelRegistry::from_support(
+                self.db
+                    .parent()
+                    .ok_or_else(|| failure("missing support directory"))?,
+            )
+            .map_err(failure)?,
+        );
         let shared = Arc::new(Shared {
             engine: Arc::downgrade(&self),
             image_id,
@@ -787,6 +831,17 @@ impl Engine {
             image,
             renderer,
             cfa_denoiser: Mutex::new(None),
+            automatic_cfa: Mutex::new(None),
+            rgb_denoiser: Arc::new(image_core::MlPostDemosaicDenoise::new(
+                model_registry.clone(),
+                Default::default(),
+            )),
+            model_registry,
+            depth_provider: Arc::new(image_core::depth::DepthProvider::from_support(
+                self.db
+                    .parent()
+                    .ok_or_else(|| failure("missing support directory"))?,
+            )?),
             backend,
             state: Mutex::new(State {
                 live: recipe.settings.clone(),
@@ -803,6 +858,8 @@ impl Engine {
                 frame: None,
                 closed: false,
                 crop_editing: false,
+                render_uncorrected: false,
+                render_depth_visualisation: false,
                 masking_preview: false,
                 // Heavy drags start coarser and adapt from there.
                 drag: [DragLevel::starting_at(0), DragLevel::starting_at(2)],
@@ -881,21 +938,79 @@ fn default_level(image: &RawImage) -> u8 {
 // ─────────────────────────────── session ───────────────────────────────
 
 impl Shared {
-    fn renderer_snapshot(&self) -> Renderer {
-        let renderer = (*self.renderer).clone();
-        match self
+    fn renderer_snapshot(&self, settings: &DevelopSettings) -> Renderer {
+        let renderer = (*self.renderer)
+            .clone()
+            .with_depth(self.depth_provider.clone());
+        if let Some(adapter) = self
             .cfa_denoiser
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .as_ref()
         {
-            Some(adapter) => renderer.with_cfa_denoise(adapter.clone()),
-            None => renderer,
+            return renderer.with_cfa_denoise(adapter.clone());
         }
+        if pipeline_cpu::cfa_denoise_selected(&settings.denoise)
+            && let engine_api::recipe::settings::DenoiseMethod::Neural { model, .. } =
+                &settings.denoise.method
+        {
+            let mut slot = self.automatic_cfa.lock().unwrap_or_else(|e| e.into_inner());
+            if slot.as_ref().is_none_or(|(key, _)| key != model) {
+                *slot = Some((
+                    model.clone(),
+                    Arc::new(image_core::MlCfaDenoise::automatic(
+                        self.model_registry.clone(),
+                        Default::default(),
+                        model.clone(),
+                    )),
+                ));
+            }
+            return renderer.with_cfa_denoise(slot.as_ref().expect("installed above").1.clone());
+        }
+        renderer.with_post_demosaic_denoise(self.rgb_denoiser.clone())
     }
 
     fn lock(&self) -> Result<MutexGuard<'_, State>> {
         self.state.lock().map_err(failure)
+    }
+
+    fn depth_input(&self) -> Result<pipeline_cpu::Image> {
+        let (mut settings, process_version) = {
+            let state = self.lock()?;
+            (state.drawn(), state.recipe.process_version)
+        };
+        settings.effects = Default::default();
+        settings.geometry = Default::default();
+        settings.lens.distortion_scale = 0.0;
+        settings.lens.manual_distortion = 0.0;
+        let level = (0..=MAX_LEVEL)
+            .find(|&l| {
+                let e = self.image.level_extent(l);
+                e.width.max(e.height) <= 1024
+            })
+            .unwrap_or(MAX_LEVEL);
+        let e = self.image.level_extent(level);
+        let tiles = self
+            .renderer_snapshot(&settings)
+            .for_process_version(process_version)
+            .render_region_as(
+                &self.image,
+                &settings,
+                level,
+                PixelRect::full(e),
+                RenderOutput::SceneLinear,
+            )?;
+        let mut image =
+            pipeline_cpu::Image::new(e.width, e.height, vec![vec![0.; e.area() as usize]; 3])?;
+        for t in tiles {
+            let coord = engine_api::tile::TileCoord::new(0, t.coord().x, t.coord().y);
+            image.put(&Tile::from_samples(
+                coord,
+                t.layout(),
+                t.samples::<f32>()?.to_vec(),
+            )?)?;
+        }
+        Ok(image)
     }
 
     fn listener(&self) -> Option<Arc<dyn DevelopListener>> {
@@ -947,7 +1062,11 @@ impl Shared {
             return;
         }
         let settings = st.drawn();
-        let renderer = Arc::new(self.renderer_snapshot().for_recipe(&st.recipe));
+        let renderer = Arc::new(
+            self.renderer_snapshot(&settings)
+                .for_recipe(&st.recipe)
+                .with_depth_visualisation(st.render_depth_visualisation),
+        );
         masks::ensure_ai_jobs(self, &settings);
         let dirty = match &st.rendered {
             Some(prev) => prev.first_dirty_stage(&settings),
@@ -1098,7 +1217,8 @@ impl Shared {
             .upgrade()
             .ok_or_else(|| failure("engine closed"))?;
         let hash = engine.save_develop(&self.image_id, &self.path, &recipe)?;
-        if let Some(frame) = frame.filter(|f| f.settings == renderable(&recipe.settings))
+        if let Some(frame) =
+            frame.filter(|f| f.settings == session_renderable(&recipe.settings, true, false))
             && let Err(e) = self.store_previews(&engine, &recipe, &frame)
         {
             eprintln!("develop: edited preview not stored: {e}");
@@ -1133,7 +1253,7 @@ impl Shared {
         let mut rgb = image::RgbImage::new(e.width, e.height);
         // Pixel consumers render the immutable recipe, never a mutable surface ring.
         let tiles = frame.pixels(|settings, level| {
-            self.renderer_snapshot()
+            self.renderer_snapshot(settings)
                 .for_process_version(recipe.process_version)
                 .render_region(&self.image, settings, level, PixelRect::full(e))
         })?;
@@ -1286,6 +1406,7 @@ impl LevelSink {
             None => (extent.width, extent.height),
         };
         let [r, g, b, y] = hist;
+        let is_overlay;
         {
             let Ok(mut st) = shared.state.lock() else {
                 return;
@@ -1296,14 +1417,17 @@ impl LevelSink {
             if let Some(surface) = &done.surface {
                 st.next_surface.published(surface.id());
             }
-            st.histogram = Histogram {
-                red: r.to_vec(),
-                green: g.to_vec(),
-                blue: b.to_vec(),
-                luminance: y.to_vec(),
-                level: done.level,
-                generation: self.generation,
-            };
+            is_overlay = st.render_depth_visualisation;
+            if !is_overlay {
+                st.histogram = Histogram {
+                    red: r.to_vec(),
+                    green: g.to_vec(),
+                    blue: b.to_vec(),
+                    luminance: y.to_vec(),
+                    level: done.level,
+                    generation: self.generation,
+                };
+            }
             st.rendered_level = Some(done.level);
             if let Some(class) = self.adapt.filter(|_| done.level == self.finest_level) {
                 st.drag[class as usize].record(render_ms);
@@ -1314,11 +1438,15 @@ impl LevelSink {
             // Pixel consumers (previews) take SDR tiles: EDR frames are
             // materialized again through the SDR Output stage on demand.
             let sdr_tiles = !lazy_pixels && self.output == RenderOutput::Display;
-            st.frame = Some(Arc::new(Frame {
-                level: done.level,
-                settings: self.settings.clone(),
-                tiles: if sdr_tiles { Some(done.tiles) } else { None },
-            }));
+            st.frame = if is_overlay {
+                None
+            } else {
+                Some(Arc::new(Frame {
+                    level: done.level,
+                    settings: self.settings.clone(),
+                    tiles: if sdr_tiles { Some(done.tiles) } else { None },
+                }))
+            };
         }
         if let Some(listener) = shared.listener() {
             listener.frame_ready(FrameInfo {
@@ -1333,10 +1461,12 @@ impl LevelSink {
                 dirty_stage: self.dirty.clone(),
                 display_width: display.width,
                 display_height: display.height,
-                is_overlay: false,
+                is_overlay,
             });
         }
-        masks::publish_overlay(shared, &self.settings, done.level, self.generation);
+        if !is_overlay {
+            masks::publish_overlay(shared, &self.settings, done.level, self.generation);
+        }
     }
 }
 
@@ -1622,7 +1752,8 @@ impl DevelopSession {
         }
         let registry = Arc::new(
             ml_runtime::ModelRegistry::open(config.manifest_path, config.cache_path)
-                .map_err(failure)?,
+                .map_err(failure)?
+                .with_downloads_allowed(false),
         );
         if !registry.models().iter().any(|s| {
             s.id == model.id.as_str()
@@ -1872,7 +2003,8 @@ impl DevelopSession {
     pub fn ignored_settings(&self) -> Result<Vec<String>> {
         let st = self.shared.lock()?;
         let mut ignored = ignored_settings(&st.live);
-        if st.cfa_configured && pipeline_cpu::validate_denoise(&st.live.denoise).is_ok() {
+        ignored.retain(|path| !path.starts_with("/effects/lens_blur"));
+        if pipeline_cpu::validate_denoise(&st.live.denoise).is_ok() {
             ignored.retain(|path| !path.starts_with("/denoise"));
         }
         Ok(ignored)
@@ -1979,6 +2111,58 @@ impl DevelopSession {
             self.shared.render(&mut st, false);
         }
         Ok(())
+    }
+
+    /// Session-only uncorrected image for Guided Upright placement. Saved
+    /// lens, Upright, manual transform and crop controls remain intact.
+    pub fn set_render_uncorrected(&self, enabled: bool) -> Result<()> {
+        let mut st = self.shared.lock()?;
+        if st.render_uncorrected != enabled {
+            st.render_uncorrected = enabled;
+            st.rendered = None;
+            st.frame = None;
+            self.shared.render(&mut st, false);
+        }
+        Ok(())
+    }
+
+    /// Session-only grayscale depth overlay. Missing weights surface through
+    /// render_failed just like other rendering errors; this never downloads.
+    pub fn set_render_depth_visualisation(&self, enabled: bool) -> Result<()> {
+        let mut st = self.shared.lock()?;
+        if st.render_depth_visualisation != enabled {
+            st.render_depth_visualisation = enabled;
+            st.rendered = None;
+            st.frame = None;
+            self.shared.render(&mut st, false);
+        }
+        Ok(())
+    }
+
+    /// 256 near-to-far bins for the current recipe's pre-geometry image.
+    /// Reuses the content-addressed depth cache. This is a blocking worker API.
+    pub fn depth_histogram(&self) -> Result<Vec<u64>> {
+        let input = self.shared.depth_input()?;
+        // The provider's latest result can belong to an older recipe while a
+        // new render is pending. Return this snapshot's estimate directly.
+        Ok(self
+            .shared
+            .depth_provider
+            .estimate(&input)?
+            .histogram()
+            .to_vec())
+    }
+
+    /// Focus the inclusive range around the segmented subject's depth. Uses
+    /// cached models only and leaves all controls unchanged on failure.
+    pub fn focus_lens_blur_on_subject(&self) -> Result<Vec<f32>> {
+        let input = self.shared.depth_input()?;
+        let range = self.shared.depth_provider.subject_focus(&input)?;
+        self.set_settings(
+            serde_json::json!({"effects":{"lens_blur":{"focus_range":range}}}).to_string(),
+            false,
+        )?;
+        Ok(range.to_vec())
     }
 
     /// Shows the sharpening Masking gate (white = sharpened) instead of the
@@ -2150,7 +2334,7 @@ impl DevelopSession {
             (window_image(&s.image, wx, wy, ww, wh)?, x - wx, y - wy)
         };
         let tiles = s
-            .renderer_snapshot()
+            .renderer_snapshot(&settings)
             .for_process_version(version)
             .render_region(&window, &settings, 0, PixelRect::new(ox, oy, w, h))?;
         surface
@@ -2253,7 +2437,7 @@ impl MaskSource {
         cancel: &engine_api::jobs::CancellationToken,
     ) -> engine_api::EngineResult<Self> {
         let e = shared.image.level_extent(level);
-        let tiles = shared.renderer_snapshot().render_region_as(
+        let tiles = shared.renderer_snapshot(upstream).render_region_as(
             &shared.image,
             upstream,
             level,
@@ -2882,7 +3066,7 @@ mod tests {
     }
 
     #[test]
-    fn unconfigured_session_falls_back_without_discarding_saved_denoise() {
+    fn unconfigured_session_uses_automatic_noise_without_discarding_saved_denoise() {
         let mut settings = DevelopSettings::default();
         settings.denoise.method = engine_api::recipe::settings::DenoiseMethod::Neural {
             model: engine_api::id::ModelRef {
@@ -2891,7 +3075,7 @@ mod tests {
             },
             joint_demosaic: false,
         };
-        assert!(!pipeline_cpu::denoise_active(
+        assert!(pipeline_cpu::denoise_active(
             &session_renderable(&settings, true, false).denoise
         ));
         assert_eq!(
@@ -3364,5 +3548,236 @@ mod tests {
         assert_eq!(MaskSource::gate(0.01, 50.0), 0, "flat areas are masked out");
         assert_eq!(MaskSource::gate(1.0, 50.0), 255, "edges are sharpened");
         assert!(MaskSource::gate(0.1, 50.0) > MaskSource::gate(0.08, 50.0));
+    }
+}
+
+#[cfg(test)]
+mod m2_49_geometry_tests {
+    #[test]
+    fn session_keeps_manual_transform_and_lens_controls() {
+        let mut settings = engine_api::recipe::DevelopSettings::default();
+        settings.geometry.transform.vertical = 24.0;
+        settings.geometry.transform.rotate = 2.0;
+        settings.lens.manual_distortion = 12.0;
+        let rendered = super::renderable(&settings);
+        assert_eq!(rendered.geometry.transform, settings.geometry.transform);
+        assert_eq!(rendered.lens, settings.lens);
+    }
+}
+
+#[cfg(test)]
+mod m2_49_blur_tests {
+    #[test]
+    fn session_keeps_requested_lens_blur_for_depth_hook() {
+        let mut settings = engine_api::recipe::DevelopSettings::default();
+        settings.effects.lens_blur = Some(Default::default());
+        assert_eq!(
+            super::session_renderable(&settings, true, false)
+                .effects
+                .lens_blur,
+            settings.effects.lens_blur
+        );
+    }
+}
+
+#[cfg(test)]
+mod m2_49_session_option_tests {
+    #[test]
+    fn guided_and_depth_options_are_session_only() {
+        let dir = tempfile::tempdir().unwrap();
+        image::RgbImage::from_pixel(32, 24, image::Rgb([180, 90, 40]))
+            .save(dir.path().join("one.jpg"))
+            .unwrap();
+        let engine =
+            crate::Engine::open(dir.path().join("db").to_string_lossy().into_owned()).unwrap();
+        engine
+            .index_folder(dir.path().to_string_lossy().into_owned())
+            .unwrap();
+        let row = engine
+            .list_images(crate::ImageQuery::default())
+            .unwrap()
+            .remove(0);
+        let session = engine.open_develop_session(row.id).unwrap();
+        session
+            .set_settings(
+                r#"{"geometry":{"transform":{"vertical":24}}}"#.into(),
+                false,
+            )
+            .unwrap();
+        session.set_render_uncorrected(true).unwrap();
+        assert_eq!(
+            session.shared.lock().unwrap().drawn().geometry,
+            Default::default()
+        );
+        assert_eq!(
+            session
+                .shared
+                .lock()
+                .unwrap()
+                .live
+                .geometry
+                .transform
+                .vertical,
+            24.0
+        );
+        session.set_render_uncorrected(false).unwrap();
+        assert_eq!(
+            session
+                .shared
+                .lock()
+                .unwrap()
+                .drawn()
+                .geometry
+                .transform
+                .vertical,
+            24.0
+        );
+        session.set_render_depth_visualisation(true).unwrap();
+        assert!(session.shared.lock().unwrap().render_depth_visualisation);
+        session.set_render_depth_visualisation(false).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod m2_49_overlay_tests {
+    use super::*;
+    #[test]
+    fn depth_overlay_is_not_saved_as_a_recipe_preview() {
+        let dir = tempfile::tempdir().unwrap();
+        image::RgbImage::from_pixel(32, 24, image::Rgb([180, 90, 40]))
+            .save(dir.path().join("one.jpg"))
+            .unwrap();
+        let engine = Engine::open(dir.path().join("db").to_string_lossy().into_owned()).unwrap();
+        engine
+            .index_folder(dir.path().to_string_lossy().into_owned())
+            .unwrap();
+        let row = engine
+            .list_images(crate::ImageQuery::default())
+            .unwrap()
+            .remove(0);
+        let session = engine.open_develop_session(row.id).unwrap();
+        let (generation, settings) = {
+            let mut st = session.shared.lock().unwrap();
+            st.render_depth_visualisation = true;
+            st.histogram.red = vec![7; 256];
+            (st.generation, st.drawn())
+        };
+        let sink = LevelSink {
+            output: RenderOutput::Display,
+            surface: Default::default(),
+            shared: Arc::downgrade(&session.shared),
+            generation,
+            started: Instant::now(),
+            first_level: 0,
+            finest_level: 0,
+            expected: vec![],
+            settings,
+            dirty: None,
+            current: None,
+            screen_level: 0,
+            adapt: None,
+        };
+        sink.publish(
+            &session.shared,
+            LevelWriter {
+                level: 0,
+                surface: None,
+                remaining: 0,
+                tiles: vec![],
+            },
+            [[0; 256]; 4],
+            false,
+        );
+        let st = session.shared.lock().unwrap();
+        assert!(
+            st.frame.is_none(),
+            "depth overlay must never be cached under a normal recipe hash"
+        );
+        assert_eq!(
+            st.histogram.red,
+            vec![7; 256],
+            "depth overlay must preserve the image histogram"
+        );
+    }
+}
+
+#[cfg(test)]
+mod m2_49_depth_process_tests {
+    #[test]
+    fn depth_input_does_not_silently_substitute_native_process() {
+        let dir = tempfile::tempdir().unwrap();
+        image::RgbImage::from_pixel(32, 24, image::Rgb([180, 90, 40]))
+            .save(dir.path().join("one.jpg"))
+            .unwrap();
+        let engine =
+            crate::Engine::open(dir.path().join("db").to_string_lossy().into_owned()).unwrap();
+        engine
+            .index_folder(dir.path().to_string_lossy().into_owned())
+            .unwrap();
+        let row = engine
+            .list_images(crate::ImageQuery::default())
+            .unwrap()
+            .remove(0);
+        let session = engine.open_develop_session(row.id).unwrap();
+        // Even an unsupported imported version must be rejected by depth input,
+        // rather than quietly creating a depth cache from native-process pixels.
+        session.shared.lock().unwrap().recipe.process_version =
+            engine_api::recipe::ProcessVersion {
+                family: engine_api::recipe::ProcessFamily::Adobe,
+                revision: 99,
+            };
+        assert!(session.shared.depth_input().is_err());
+    }
+}
+
+#[cfg(test)]
+mod m2_49_depth_histogram_freshness_tests {
+    #[test]
+    fn cached_histogram_does_not_bypass_current_process_validation() {
+        let dir = tempfile::tempdir().unwrap();
+        image::RgbImage::from_pixel(32, 24, image::Rgb([180, 90, 40]))
+            .save(dir.path().join("one.jpg"))
+            .unwrap();
+        let engine =
+            crate::Engine::open(dir.path().join("db").to_string_lossy().into_owned()).unwrap();
+        engine
+            .index_folder(dir.path().to_string_lossy().into_owned())
+            .unwrap();
+        let row = engine
+            .list_images(crate::ImageQuery::default())
+            .unwrap()
+            .remove(0);
+        let support = engine.db.parent().unwrap();
+        let session = engine.clone().open_develop_session(row.id).unwrap();
+        let input = session.shared.depth_input().unwrap();
+        let rgb = image_core::depth::model_input(&input).unwrap();
+        let depth = image_core::ml_depth::DepthMap::from_prediction(
+            input.width(),
+            input.height(),
+            vec![0.; input.width() as usize * input.height() as usize],
+        )
+        .unwrap();
+        let store =
+            image_core::ml_depth::DepthStore::new(support.join("previews/depth-cache"), 1 << 20)
+                .unwrap();
+        depth
+            .store(
+                &store,
+                &image_core::ml_depth::cache_key(&rgb, image_core::ml_depth::MODEL_VERSION),
+            )
+            .unwrap();
+        session.shared.depth_provider.estimate(&input).unwrap();
+        assert!(session.shared.depth_provider.histogram().is_ok());
+        // A previous render has populated the histogram, but the current
+        // recipe is different and has not yet produced a replacement frame.
+        session.shared.lock().unwrap().recipe.process_version =
+            engine_api::recipe::ProcessVersion {
+                family: engine_api::recipe::ProcessFamily::Adobe,
+                revision: 99,
+            };
+        assert!(
+            session.depth_histogram().is_err(),
+            "cached histogram must not bypass the current recipe's process validation"
+        );
     }
 }

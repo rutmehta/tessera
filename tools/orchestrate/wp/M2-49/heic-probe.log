@@ -1,0 +1,8 @@
+Error: Unable to write image to file /var/folders/_f/grgzfz9j7c1bq0m39nwqz9mm0000gn/T/50D2A7B4-37B3-4C9B-859F-A4FF88669AF1
+Error 13: an unknown error occurred
+Try 'sips --help' for help using this tool
+/Users/rutmehta/Developer/tessera/.worktrees/M2-49/crates/image-core/tests/fixtures/rgb.heic
+  /private/tmp/m2-49-heic-probe.png
+Independent ImageIO finalize: True
+Independent ImageIO pixels: RGB (32, 24) ((0, 0), (0, 0), (0, 0)) (0, 0, 0)
+Independent ffmpeg software decode: RGB (32, 24) ((180, 180), (90, 90), (40, 40)) (180, 90, 40)

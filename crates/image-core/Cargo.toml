@@ -13,6 +13,7 @@ imageio = ["color-mgmt/imageio"]
 ml-denoise = ["dep:ml-enhance", "dep:ml-runtime"]
 
 [dependencies]
+ml-depth = { path = "../ml-depth" }
 ml-enhance = { path = "../ml-enhance", optional = true }
 ml-runtime = { path = "../ml-runtime", optional = true }
 engine-api = { path = "../engine-api" }

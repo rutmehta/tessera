@@ -50,42 +50,7 @@ pub(crate) fn inverse(
         return Ok(Homography::IDENTITY);
     }
     let result = if s.upright.mode == UprightMode::Guided {
-        if !(2..=4).contains(&s.upright.guides.len()) {
-            return Err(EngineError::invalid(
-                "upright",
-                "two to four guides required",
-            ));
-        }
-        let guides = s
-            .upright
-            .guides
-            .iter()
-            .map(|g| {
-                if g.start
-                    .iter()
-                    .chain(g.end.iter())
-                    .any(|v| !v.is_finite() || !(0.0..=1.0).contains(v))
-                {
-                    return None;
-                }
-                let start = undistort(g.start.map(|v| 2. * v as f64 - 1.), map)?;
-                let end = undistort(g.end.map(|v| 2. * v as f64 - 1.), map)?;
-                // Engine schema has no explicit guide axis; infer dominant pixel direction.
-                let axis = if (end[0] - start[0]).abs() * image.width() as f64
-                    >= (end[1] - start[1]).abs() * image.height() as f64
-                {
-                    GuideAxis::Horizontal
-                } else {
-                    GuideAxis::Vertical
-                };
-                Some(Guide { start, end, axis })
-            })
-            .collect::<Option<Vec<_>>>()
-            .ok_or_else(|| EngineError::invalid("upright", "invalid or noninvertible guide"))?;
-        Some(
-            lens::guided_upright(&guides)
-                .ok_or_else(|| EngineError::invalid("upright", "degenerate guide configuration"))?,
-        )
+        return guided_inverse(image.width(), image.height(), s, map);
     } else {
         if !s.upright.guides.is_empty() {
             return Err(EngineError::invalid(
@@ -118,4 +83,48 @@ pub(crate) fn inverse(
     Ok(result
         .and_then(|r| r.homography.inverse())
         .unwrap_or(Homography::IDENTITY))
+}
+
+/// Guided correction uses dimensions and guide coordinates, without pixel analysis.
+pub(crate) fn guided_inverse(
+    width: u32,
+    height: u32,
+    s: &GeometrySettings,
+    map: &impl Fn([f64; 2], usize) -> Option<[f64; 2]>,
+) -> EngineResult<Homography> {
+    if !(2..=4).contains(&s.upright.guides.len()) {
+        return Err(EngineError::invalid(
+            "upright",
+            "two to four guides required",
+        ));
+    }
+    let guides = s
+        .upright
+        .guides
+        .iter()
+        .map(|g| {
+            if g.start
+                .iter()
+                .chain(g.end.iter())
+                .any(|v| !v.is_finite() || !(0.0..=1.0).contains(v))
+            {
+                return None;
+            }
+            let start = undistort(g.start.map(|v| 2. * v as f64 - 1.), map)?;
+            let end = undistort(g.end.map(|v| 2. * v as f64 - 1.), map)?;
+            // Engine schema has no explicit guide axis; infer dominant pixel direction.
+            let axis = if (end[0] - start[0]).abs() * width as f64
+                >= (end[1] - start[1]).abs() * height as f64
+            {
+                GuideAxis::Horizontal
+            } else {
+                GuideAxis::Vertical
+            };
+            Some(Guide { start, end, axis })
+        })
+        .collect::<Option<Vec<_>>>()
+        .ok_or_else(|| EngineError::invalid("upright", "invalid or noninvertible guide"))?;
+    lens::guided_upright(&guides)
+        .and_then(|r| r.homography.inverse())
+        .ok_or_else(|| EngineError::invalid("upright", "degenerate guide configuration"))
 }

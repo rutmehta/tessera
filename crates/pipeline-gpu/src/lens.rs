@@ -206,7 +206,8 @@ impl Batch<'_> {
         let (cx, cy) = ((r.left + r.right) * iw / 2., (r.top + r.bottom) * ih / 2.);
         let (sin, cos) = plan.angle.to_radians().sin_cos();
         let sample = lens.and_then(|l| l.sample.as_ref());
-        let flags = u32::from(plan.transform.is_some())
+        let flags = 8
+            | u32::from(plan.transform.is_some())
             | u32::from(lens.is_some()) << 1
             | u32::from(sample.is_some()) << 2;
         let mut p = vec![
@@ -237,6 +238,9 @@ impl Batch<'_> {
         p.extend(bits(&[sample.map_or(0., |s| s.amount)]));
         p.extend(bits(&[lens.map_or(0., |l| l.distortion)]));
         p.extend(bits(&lens.map_or([0., 0., 1., 1.], |l| l.embedded_crop)));
+        p.extend(bits(
+            &plan.upright.0.into_iter().flatten().collect::<Vec<_>>(),
+        ));
         for warp in lens.map_or(&[][..], |l| &l.embedded[..]) {
             p.extend(bits(&warp.k));
             p.extend(bits(&warp.center));

@@ -1,9 +1,11 @@
 //! Relative inverse depth, not metric distance.
+mod cached;
 mod model;
 use anyhow::{Result, ensure};
+pub use cached::CachedDepthEstimator;
 use ml_segment::MaskRaster;
 pub use ml_segment::MaskStore as DepthStore;
-pub use model::{DepthEstimator, MODEL_ID, MODEL_SHA256, MODEL_VERSION};
+pub use model::{DepthEstimator, MISSING_MODEL_MESSAGE, MODEL_ID, MODEL_SHA256, MODEL_VERSION};
 
 /// Normalized relative inverse depth: 1 is near, 0 is far.
 #[derive(Clone, Debug, PartialEq)]
@@ -48,6 +50,54 @@ impl DepthMap {
             .collect();
         Ok(Self(MaskRaster::new(width, height, data)?))
     }
+    /// Histogram in the recipe's near=0, far=1 convention, including both endpoints.
+    pub fn histogram(&self) -> [u64; 256] {
+        let mut bins = [0; 256];
+        for &inverse in self.inverse_depth() {
+            bins[(((1.0 - inverse) * 256.0) as usize).min(255)] += 1;
+        }
+        bins
+    }
+
+    /// Grayscale inverse depth: white is near, black is far.
+    pub fn visualisation(&self) -> image::RgbImage {
+        image::RgbImage::from_fn(self.width(), self.height(), |x, y| {
+            image::Rgb(
+                [(self.inverse_depth()[(y * self.width() + x) as usize] * 255.).round() as u8; 3],
+            )
+        })
+    }
+
+    /// Alpha-weighted 5th–95th depth percentiles select the main subject while
+    /// rejecting isolated mask/depth outliers. Output uses near=0, far=1.
+    pub fn focus_range_for_subject(&self, subject: &MaskRaster) -> Result<[f32; 2]> {
+        ensure!(
+            (self.width(), self.height()) == (subject.width(), subject.height()),
+            "subject/depth dimensions differ"
+        );
+        let mut samples: Vec<_> = self
+            .inverse_depth()
+            .iter()
+            .zip(subject.data())
+            .filter(|(_, alpha)| **alpha > 0.)
+            .map(|(&d, &a)| (1. - d, a as f64))
+            .collect();
+        ensure!(!samples.is_empty(), "no subject selected");
+        samples.sort_by(|a, b| a.0.total_cmp(&b.0));
+        let total: f64 = samples.iter().map(|s| s.1).sum();
+        let percentile = |fraction: f64| {
+            let mut sum = 0.;
+            for &(d, a) in &samples {
+                sum += a;
+                if sum >= total * fraction {
+                    return d;
+                }
+            }
+            samples.last().unwrap().0
+        };
+        Ok([percentile(0.05), percentile(0.95)])
+    }
+
     pub fn width(&self) -> u32 {
         self.0.width()
     }
@@ -79,5 +129,19 @@ mod tests {
                 .inverse_depth(),
             &[0.; 2]
         );
+    }
+}
+
+#[cfg(test)]
+mod m2_49_tests {
+    #[test]
+    fn histogram_counts_near_to_far_including_endpoints() {
+        let depth = super::DepthMap::from_prediction(4, 1, vec![0., 1., 2., 2.]).unwrap();
+        let bins = depth.histogram();
+        assert_eq!(bins.len(), 256);
+        assert_eq!(bins.iter().sum::<u64>(), 4);
+        assert_eq!(bins[0], 2);
+        assert_eq!(bins[128], 1);
+        assert_eq!(bins[255], 1);
     }
 }

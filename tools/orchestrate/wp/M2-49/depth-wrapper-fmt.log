@@ -1,0 +1,11 @@
+Diff in /Users/rutmehta/Developer/tessera/.worktrees/M2-49/crates/image-core/src/lib.rs:19:
+ 
+ mod adobe;
+ pub use ml_depth;
+-pub mod depth;
+ pub mod cache;
+ pub mod cfa;
++pub mod depth;
+ pub use adobe::AdobeStageOp;
+ pub use pipeline_adobe;
+ pub mod graph;

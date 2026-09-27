@@ -334,6 +334,13 @@ typedef void (*UniffiCallbackInterfaceLrcatProgressListenerMethod0)(uint64_t, Ru
     );
 
 #endif
+#ifndef UNIFFI_FFIDEF_CALLBACK_INTERFACE_MODEL_DOWNLOAD_LISTENER_METHOD0
+#define UNIFFI_FFIDEF_CALLBACK_INTERFACE_MODEL_DOWNLOAD_LISTENER_METHOD0
+typedef void (*UniffiCallbackInterfaceModelDownloadListenerMethod0)(uint64_t, RustBuffer, void* _Nonnull, 
+        RustCallStatus *_Nonnull uniffiCallStatus
+    );
+
+#endif
 #ifndef UNIFFI_FFIDEF_CALLBACK_INTERFACE_TETHER_EVENT_LISTENER_METHOD0
 #define UNIFFI_FFIDEF_CALLBACK_INTERFACE_TETHER_EVENT_LISTENER_METHOD0
 typedef void (*UniffiCallbackInterfaceTetherEventListenerMethod0)(uint64_t, RustBuffer, void* _Nonnull, 
@@ -408,6 +415,15 @@ typedef struct UniffiVTableCallbackInterfaceLrcatProgressListener {
     UniffiCallbackInterfaceClone _Nonnull uniffiClone;
     UniffiCallbackInterfaceLrcatProgressListenerMethod0 _Nonnull onProgress;
 } UniffiVTableCallbackInterfaceLrcatProgressListener;
+
+#endif
+#ifndef UNIFFI_FFIDEF_V_TABLE_CALLBACK_INTERFACE_MODEL_DOWNLOAD_LISTENER
+#define UNIFFI_FFIDEF_V_TABLE_CALLBACK_INTERFACE_MODEL_DOWNLOAD_LISTENER
+typedef struct UniffiVTableCallbackInterfaceModelDownloadListener {
+    UniffiCallbackInterfaceFree _Nonnull uniffiFree;
+    UniffiCallbackInterfaceClone _Nonnull uniffiClone;
+    UniffiCallbackInterfaceModelDownloadListenerMethod0 _Nonnull onEvent;
+} UniffiVTableCallbackInterfaceModelDownloadListener;
 
 #endif
 #ifndef UNIFFI_FFIDEF_V_TABLE_CALLBACK_INTERFACE_TETHER_EVENT_LISTENER
@@ -532,6 +548,11 @@ uint32_t uniffi_tessera_ffi_fn_method_engine_forget_missing(uint64_t ptr, RustBu
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_OPEN_LIBRARY
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_OPEN_LIBRARY
 uint64_t uniffi_tessera_ffi_fn_method_engine_open_library(uint64_t ptr, RustBuffer path, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_DEPTH_HISTOGRAM
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_DEPTH_HISTOGRAM
+RustBuffer uniffi_tessera_ffi_fn_method_engine_depth_histogram(uint64_t ptr, RustBuffer image_id, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_OPEN_DEVELOP_SESSION
@@ -974,6 +995,11 @@ int8_t uniffi_tessera_ffi_fn_method_developsession_commit_group_amount(uint64_t 
 void uniffi_tessera_ffi_fn_method_developsession_configure_cfa_denoise(uint64_t ptr, RustBuffer config, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_DEPTH_HISTOGRAM
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_DEPTH_HISTOGRAM
+RustBuffer uniffi_tessera_ffi_fn_method_developsession_depth_histogram(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_DETACH_SURFACES
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_DETACH_SURFACES
 void uniffi_tessera_ffi_fn_method_developsession_detach_surfaces(uint64_t ptr, RustCallStatus *_Nonnull out_status
@@ -982,6 +1008,11 @@ void uniffi_tessera_ffi_fn_method_developsession_detach_surfaces(uint64_t ptr, R
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_FLUSH
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_FLUSH
 void uniffi_tessera_ffi_fn_method_developsession_flush(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_FOCUS_LENS_BLUR_ON_SUBJECT
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_FOCUS_LENS_BLUR_ON_SUBJECT
+RustBuffer uniffi_tessera_ffi_fn_method_developsession_focus_lens_blur_on_subject(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_GET_HISTOGRAM
@@ -1087,6 +1118,16 @@ void uniffi_tessera_ffi_fn_method_developsession_set_masking_preview(uint64_t pt
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_SET_PROCESS_VERSION
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_SET_PROCESS_VERSION
 int8_t uniffi_tessera_ffi_fn_method_developsession_set_process_version(uint64_t ptr, RustBuffer json, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_SET_RENDER_DEPTH_VISUALISATION
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_SET_RENDER_DEPTH_VISUALISATION
+void uniffi_tessera_ffi_fn_method_developsession_set_render_depth_visualisation(uint64_t ptr, int8_t enabled, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_SET_RENDER_UNCORRECTED
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_SET_RENDER_UNCORRECTED
+void uniffi_tessera_ffi_fn_method_developsession_set_render_uncorrected(uint64_t ptr, int8_t enabled, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_SET_SETTINGS
@@ -1915,6 +1956,46 @@ void uniffi_tessera_ffi_fn_init_callback_vtable_lrcatprogresslistener(const Unif
 void uniffi_tessera_ffi_fn_method_lrcatprogresslistener_on_progress(uint64_t ptr, RustBuffer progress, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_CLONE_MODELDOWNLOADLISTENER
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_CLONE_MODELDOWNLOADLISTENER
+uint64_t uniffi_tessera_ffi_fn_clone_modeldownloadlistener(uint64_t handle, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_FREE_MODELDOWNLOADLISTENER
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_FREE_MODELDOWNLOADLISTENER
+void uniffi_tessera_ffi_fn_free_modeldownloadlistener(uint64_t handle, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_INIT_CALLBACK_VTABLE_MODELDOWNLOADLISTENER
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_INIT_CALLBACK_VTABLE_MODELDOWNLOADLISTENER
+void uniffi_tessera_ffi_fn_init_callback_vtable_modeldownloadlistener(const UniffiVTableCallbackInterfaceModelDownloadListener* _Nonnull vtable
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_MODELDOWNLOADLISTENER_ON_EVENT
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_MODELDOWNLOADLISTENER_ON_EVENT
+void uniffi_tessera_ffi_fn_method_modeldownloadlistener_on_event(uint64_t ptr, RustBuffer event, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_CLONE_MODELDOWNLOADS
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_CLONE_MODELDOWNLOADS
+uint64_t uniffi_tessera_ffi_fn_clone_modeldownloads(uint64_t handle, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_FREE_MODELDOWNLOADS
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_FREE_MODELDOWNLOADS
+void uniffi_tessera_ffi_fn_free_modeldownloads(uint64_t handle, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_CONSTRUCTOR_MODELDOWNLOADS_OPEN
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_CONSTRUCTOR_MODELDOWNLOADS_OPEN
+uint64_t uniffi_tessera_ffi_fn_constructor_modeldownloads_open(RustBuffer manifest_path, RustBuffer cache_path, int8_t allow_downloads, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_MODELDOWNLOADS_REQUEST
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_MODELDOWNLOADS_REQUEST
+void uniffi_tessera_ffi_fn_method_modeldownloads_request(uint64_t ptr, RustBuffer id, RustBuffer version, uint64_t listener, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_CLONE_CULLSESSION
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_CLONE_CULLSESSION
 uint64_t uniffi_tessera_ffi_fn_clone_cullsession(uint64_t handle, RustCallStatus *_Nonnull out_status
@@ -2739,6 +2820,12 @@ uint16_t uniffi_tessera_ffi_checksum_method_engine_open_library(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_DEPTH_HISTOGRAM
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_DEPTH_HISTOGRAM
+uint16_t uniffi_tessera_ffi_checksum_method_engine_depth_histogram(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_OPEN_DEVELOP_SESSION
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_OPEN_DEVELOP_SESSION
 uint16_t uniffi_tessera_ffi_checksum_method_engine_open_develop_session(void
@@ -3189,6 +3276,12 @@ uint16_t uniffi_tessera_ffi_checksum_method_developsession_configure_cfa_denoise
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_DEPTH_HISTOGRAM
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_DEPTH_HISTOGRAM
+uint16_t uniffi_tessera_ffi_checksum_method_developsession_depth_histogram(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_DETACH_SURFACES
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_DETACH_SURFACES
 uint16_t uniffi_tessera_ffi_checksum_method_developsession_detach_surfaces(void
@@ -3198,6 +3291,12 @@ uint16_t uniffi_tessera_ffi_checksum_method_developsession_detach_surfaces(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_FLUSH
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_FLUSH
 uint16_t uniffi_tessera_ffi_checksum_method_developsession_flush(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_FOCUS_LENS_BLUR_ON_SUBJECT
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_FOCUS_LENS_BLUR_ON_SUBJECT
+uint16_t uniffi_tessera_ffi_checksum_method_developsession_focus_lens_blur_on_subject(void
     
 );
 #endif
@@ -3324,6 +3423,18 @@ uint16_t uniffi_tessera_ffi_checksum_method_developsession_set_masking_preview(v
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_SET_PROCESS_VERSION
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_SET_PROCESS_VERSION
 uint16_t uniffi_tessera_ffi_checksum_method_developsession_set_process_version(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_SET_RENDER_DEPTH_VISUALISATION
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_SET_RENDER_DEPTH_VISUALISATION
+uint16_t uniffi_tessera_ffi_checksum_method_developsession_set_render_depth_visualisation(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_SET_RENDER_UNCORRECTED
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_SET_RENDER_UNCORRECTED
+uint16_t uniffi_tessera_ffi_checksum_method_developsession_set_render_uncorrected(void
     
 );
 #endif
@@ -4203,6 +4314,18 @@ uint16_t uniffi_tessera_ffi_checksum_method_lrcatprogresslistener_on_progress(vo
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_MODELDOWNLOADLISTENER_ON_EVENT
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_MODELDOWNLOADLISTENER_ON_EVENT
+uint16_t uniffi_tessera_ffi_checksum_method_modeldownloadlistener_on_event(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_MODELDOWNLOADS_REQUEST
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_MODELDOWNLOADS_REQUEST
+uint16_t uniffi_tessera_ffi_checksum_method_modeldownloads_request(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_ASSIGN_PERSON_FACE
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_ASSIGN_PERSON_FACE
 uint16_t uniffi_tessera_ffi_checksum_method_cullsession_assign_person_face(void
@@ -4578,6 +4701,12 @@ uint16_t uniffi_tessera_ffi_checksum_constructor_engine_open(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_CONSTRUCTOR_CANCELFLAG_NEW
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_CONSTRUCTOR_CANCELFLAG_NEW
 uint16_t uniffi_tessera_ffi_checksum_constructor_cancelflag_new(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_CONSTRUCTOR_MODELDOWNLOADS_OPEN
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_CONSTRUCTOR_MODELDOWNLOADS_OPEN
+uint16_t uniffi_tessera_ffi_checksum_constructor_modeldownloads_open(void
     
 );
 #endif

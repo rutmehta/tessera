@@ -1,0 +1,30 @@
+error[E0599]: no associated function or constant named `estimate` found for struct `cfa::CfaNoise` in the current scope
+   --> crates/ml-enhance/src/cfa.rs:186:35
+    |
+ 87 | pub struct CfaNoise {
+    | ------------------- associated function or constant `estimate` not found for this struct
+...
+186 |         let estimated = CfaNoise::estimate(&input).unwrap();
+    |                                   ^^^^^^^^ associated function or constant not found in `cfa::CfaNoise`
+
+error[E0599]: no associated function or constant named `estimate` found for struct `cfa::CfaNoise` in the current scope
+   --> crates/ml-enhance/src/cfa.rs:196:27
+    |
+ 87 | pub struct CfaNoise {
+    | ------------------- associated function or constant `estimate` not found for this struct
+...
+196 |         assert!(CfaNoise::estimate(&Tensor::new(3, 16, 16, vec![0.2; 768]).unwrap()).is_err());
+    |                           ^^^^^^^^ associated function or constant not found in `cfa::CfaNoise`
+
+error[E0599]: no associated function or constant named `estimate` found for struct `cfa::CfaNoise` in the current scope
+   --> crates/ml-enhance/src/cfa.rs:197:31
+    |
+ 87 | pub struct CfaNoise {
+    | ------------------- associated function or constant `estimate` not found for this struct
+...
+197 |         let noise = CfaNoise::estimate(&Tensor::new(4, 16, 16, vec![0.2; 1024]).unwrap()).unwrap();
+    |                               ^^^^^^^^ associated function or constant not found in `cfa::CfaNoise`
+
+error: aborting due to 3 previous errors
+
+For more information about this error, try `rustc --explain E0599`.

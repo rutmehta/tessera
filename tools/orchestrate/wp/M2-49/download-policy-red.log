@@ -1,0 +1,17 @@
+    Blocking waiting for file lock on build directory
+   Compiling ml-runtime v0.1.0 (/Users/rutmehta/Developer/tessera/.worktrees/M2-49/crates/ml-runtime)
+error[E0599]: no method named `with_downloads_allowed` found for struct `registry::ModelRegistry` in the current scope
+   --> crates/ml-runtime/src/registry.rs:276:14
+    |
+ 78 |   pub struct ModelRegistry {
+    |   ------------------------ method `with_downloads_allowed` not found for this struct
+...
+275 |           let registry = ModelRegistry::open(concat!(env!("CARGO_MANIFEST_DIR"), "/models.toml"), cache.path())?
+    |  ________________________-
+276 | |             .with_downloads_allowed(false);
+    | |             -^^^^^^^^^^^^^^^^^^^^^^ method not found in `registry::ModelRegistry`
+    | |_____________|
+    |
+
+For more information about this error, try `rustc --explain E0599`.
+error: could not compile `ml-runtime` (lib test) due to 1 previous error
