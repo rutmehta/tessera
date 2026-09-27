@@ -1,5 +1,6 @@
 import AppKit
 import Observation
+import SwiftUI
 import TesseraCore
 import struct TesseraFFI.HistoryState
 import struct TesseraFFI.QueueDelta
@@ -74,6 +75,9 @@ struct Toast: Identifiable, Equatable {
     func itemsDidChange(_ positions: IndexSet)
     func selectionDidChange(scrollToFocus: Bool)
     func thumbnailSizeDidChange()
+    func workspaceWillEnterPhotoEdit()
+    func workspaceWillLeavePhotoEdit()
+    func workspaceDidReturnToLibrary()
     /// The items' previews changed (a saved edit); cells should request them again.
     func thumbnailsDidChange(_ positions: IndexSet)
     /// `AppModel.develop` was opened, replaced or closed.
@@ -98,6 +102,9 @@ struct VisibleChange {
 extension LibraryObserver {
     func libraryDidUpdate(_ change: VisibleChange) {}
     func thumbnailSizeDidChange() {}
+    func workspaceWillEnterPhotoEdit() {}
+    func workspaceWillLeavePhotoEdit() {}
+    func workspaceDidReturnToLibrary() {}
     func thumbnailsDidChange(_ positions: IndexSet) {}
     func developDidChange() {}
     func developDidRender(_ frame: DevelopFrame, controller: DevelopController) {}
@@ -169,9 +176,30 @@ final class AppModel {
     let tether = TetherController()
     /// Layered documents (WP B5-02): open documents, tabs, New / Open / Save.
     let documents = DocumentWorkspace()
+    private(set) var photoEditing = false
+    var photoInspectorTab: PhotoInspectorTab = .develop
+    var layeredCopyRequest: LayeredCopyRequest?
+    @ObservationIgnored private var workspaceTransition = false
+    @ObservationIgnored private var libraryReturnState: LibraryReturnState?
+    private struct LibraryReturnState {
+        let selection: WorkspaceSelectionBookmark
+        let view: ViewMode
+        let compareKeys: [String]?
+        let compareActive: Int
+        let compareZoom: Int
+        let modeBeforeCompare: ViewMode
+        let sidebarVisibility: NavigationSplitViewVisibility
+    }
+
     var viewMode: ViewMode = .grid {
         didSet {
             guard viewMode != oldValue else { return }
+            if !workspaceTransition, viewMode != .loupe, photoEditing {
+                liveObservers.forEach { $0.workspaceWillLeavePhotoEdit() }
+                photoEditing = false
+                if let saved = libraryReturnState { documents.columnVisibility = saved.sidebarVisibility }
+                libraryReturnState = nil
+            }
             if viewMode == .compare, compare == nil {
                 // Chosen from the toolbar: build a pair, or refuse.
                 viewMode = oldValue
@@ -183,7 +211,7 @@ final class AppModel {
                 modeBeforeCompare = viewMode == .document ? .grid : viewMode
             }
             if oldValue == .document { documents.didLeaveDocumentMode() }
-            notifySelection(scroll: true)
+            if !workspaceTransition { notifySelection(scroll: true) }
         }
     }
     var autoAdvance = true
@@ -315,6 +343,7 @@ final class AppModel {
 
     /// `then` runs after the load (success or failure; the tether session restores its view on reloads).
     func openFolder(_ url: URL, message: String? = nil, then: (@MainActor (AppModel, _ loaded: Bool) -> Void)? = nil) {
+        leavePhotoEditForLibraryChange()
         // The open folder again (a catalog import into it, reopening it): rescan in the
         // background and apply the changes in place, keeping history, filters and selection.
         if let lib = engineLibrary, let folder = lib.folder, !isLoading,
@@ -378,6 +407,11 @@ final class AppModel {
     }
 
     func install(_ lib: any PhotoLibrary, snapshot: CullController.InitialSnapshot? = nil) {
+        if photoEditing { liveObservers.forEach { $0.workspaceWillLeavePhotoEdit() } }
+        if let saved = libraryReturnState { documents.columnVisibility = saved.sidebarVisibility }
+        photoEditing = false
+        libraryReturnState = nil
+        layeredCopyRequest = nil
         loader.removeAll()
         (library as? EngineLibrary)?.onCatalogChange(nil)
         syncWaiters.removeAll()
@@ -463,6 +497,7 @@ final class AppModel {
     }
 
     func setSource(_ s: LibrarySource) {
+        leavePhotoEditForLibraryChange()
         let opening = s == .people && source != .people
         refreshVisible {
             source = s
@@ -504,15 +539,18 @@ final class AppModel {
     }
 
     func togglePersonFacet(_ id: String) {
+        leavePhotoEditForLibraryChange()
         refreshVisible { people.toggleFacet(id) }
     }
 
     func setPersonFacet(_ ids: Set<String>) {
+        leavePhotoEditForLibraryChange()
         refreshVisible { people.setFacet(ids) }
     }
 
     /// People ▸ Show Photos: All Photos with the Person facet set to this person.
     func showPhotos(of id: String) {
+        leavePhotoEditForLibraryChange()
         refreshVisible {
             people.setFacet([id])
             source = .all
@@ -748,6 +786,103 @@ final class AppModel {
     func item(id: Int) -> PhotoItem { library.items[id] }
     func state(id: Int) -> CullState { cull[id] }
 
+    // MARK: Library / Photo Edit workspace
+
+    var isPhotoEditing: Bool { photoEditing && viewMode != .document }
+    var editTarget: PhotoItem? { isPhotoEditing ? focusedItem : nil }
+    var canEnterPhotoEdit: Bool { focusedItem != nil && source != .people && viewMode != .document }
+    /// Empty panels describe the actual session state instead of sending Edit back to Loupe.
+    var photoEditAvailabilityHint: String {
+        switch developStatus {
+        case .none: "Choose an editable photo and enter Photo Edit (D)"
+        case .loading: "Opening photo…"
+        case .unavailable(let reason): reason
+        case .ready: ""
+        }
+    }
+
+    var workspaceScope: String {
+        if isPhotoEditing {
+            guard let item = editTarget else { return "No photo selected" }
+            return item.kind == .synthetic ? "Preview only · STUB" : "Editing 1 photo · \(item.kind.rawValue)"
+        }
+        if source == .people { return "People directory" }
+        if compare != nil { return "Active candidate · decisions apply to 1 photo" }
+        let count = focus.map { selection.contains($0) ? selectionCount : 1 } ?? 0
+        if count == 0 { return "No photos selected" }
+        return count == 1 ? "Decisions apply to 1 photo" : "\(count) selected · decisions apply to \(count) photos"
+    }
+
+    func workspaceKey(for item: PhotoItem) -> String {
+        item.engineImage?.imageID ?? item.url?.standardizedFileURL.path ?? "stub:\(item.seed):\(item.id)"
+    }
+
+    func requestLayeredCopy() {
+        guard source != .people, viewMode != .document, let item = focusedItem else { return }
+        layeredCopyRequest = LayeredCopyRequest(item: item)
+    }
+
+    func createRequestedLayeredCopy() {
+        guard let item = layeredCopyRequest?.item else { return }
+        layeredCopyRequest = nil
+        returnToLibrary()
+        documents.editInLayers(item)
+    }
+
+    func enterPhotoEdit() {
+        guard canEnterPhotoEdit, !isPhotoEditing else { return }
+        let keys = visible.map { workspaceKey(for: library.items[$0]) }
+        func key(_ position: Int?) -> String? { position.flatMap { keys.indices.contains($0) ? keys[$0] : nil } }
+        libraryReturnState = LibraryReturnState(
+            selection: WorkspaceSelectionBookmark(order: keys, selected: Set(selection.compactMap { key($0) }),
+                                                   focus: key(focus), anchor: key(anchor)),
+            view: viewMode, compareKeys: compare?.ids.map { workspaceKey(for: library.items[$0]) },
+            compareActive: compare?.active ?? 0, compareZoom: compare?.zoomToggles ?? 0,
+            modeBeforeCompare: modeBeforeCompare,
+            sidebarVisibility: documents.columnVisibility)
+        liveObservers.forEach { $0.workspaceWillEnterPhotoEdit() }
+        workspaceTransition = true
+        photoEditing = true
+        documents.columnVisibility = .detailOnly
+        viewMode = .loupe
+        workspaceTransition = false
+        notifySelection(scroll: false)
+    }
+
+    func returnToLibrary(grid: Bool = false) {
+        guard isPhotoEditing, let saved = libraryReturnState else { return }
+        liveObservers.forEach { $0.workspaceWillLeavePhotoEdit() }
+        workspaceTransition = true
+        photoEditing = false
+        documents.columnVisibility = saved.sidebarVisibility
+        libraryReturnState = nil
+        let keys = visible.map { workspaceKey(for: library.items[$0]) }
+        let restored = saved.selection.resolve(in: keys)
+        relinking = true
+        selection = restored.selected
+        focus = restored.focus
+        anchor = restored.anchor
+        if !grid, saved.view == .compare, let pair = saved.compareKeys {
+            let ids = pair.compactMap { key in keys.firstIndex(of: key).map { visible[$0] } }
+            compare = ids.count == 2 ? ComparePair(ids: ids, active: saved.compareActive, zoomToggles: saved.compareZoom) : nil
+            viewMode = compare == nil ? .loupe : .compare
+        } else {
+            viewMode = grid ? .grid : saved.view
+        }
+        modeBeforeCompare = saved.modeBeforeCompare
+        relinking = false
+        workspaceTransition = false
+        refreshFocusSummary()
+        notifySelection(scroll: false)
+        liveObservers.forEach { $0.workspaceDidReturnToLibrary() }
+        if restored.usedFallback { statusMessage = "The original photo left this view; returned to its nearest available neighbor" }
+    }
+
+    /// Source/filter changes are explicit Library navigation, never a hidden edit-scope mutation.
+    func leavePhotoEditForLibraryChange() {
+        if isPhotoEditing { returnToLibrary() }
+    }
+
     // MARK: Selection
 
     /// From mouse interaction in a collection view.
@@ -869,6 +1004,7 @@ final class AppModel {
     // MARK: Culling
 
     func perform(_ action: CullAction) {
+        guard !isPhotoEditing else { return }
         if let pair = compare {
             run { try self.cull.apply(action, to: [pair.activeID]) }
             return
@@ -937,8 +1073,8 @@ final class AppModel {
     }
 
     /// Edit ▸ Undo / Redo titles: the People view names the engine's people edit.
-    var undoMenuTitle: String { viewMode != .document && source == .people ? people.undoTitle : "Undo" }
-    var redoMenuTitle: String { viewMode != .document && source == .people ? people.redoTitle : "Redo" }
+    var undoMenuTitle: String { isPhotoEditing ? "Undo Photo Edit" : viewMode != .document && source == .people ? people.undoTitle : "Undo" }
+    var redoMenuTitle: String { isPhotoEditing ? "Redo Photo Edit" : viewMode != .document && source == .people ? people.redoTitle : "Redo" }
 
     func undo() {
         if viewMode == .document {
@@ -949,6 +1085,11 @@ final class AppModel {
         if source == .people {
             people.undo()
             reportPeople()
+            return
+        }
+        if isPhotoEditing {
+            guard let d = develop, d.itemID == focusedItem?.id, d.history.canUndo else { return }
+            developHistoryMove("Undo", label: d.history.headLabel) { try d.undo() }
             return
         }
         if let d = develop, d.history.canUndo, undoDomain == .develop || !cull.canUndo {
@@ -977,6 +1118,11 @@ final class AppModel {
         if source == .people {
             people.redo()
             reportPeople()
+            return
+        }
+        if isPhotoEditing {
+            guard let d = develop, d.itemID == focusedItem?.id, d.history.canRedo else { return }
+            developHistoryMove("Redo", label: nil) { try d.redo() }
             return
         }
         if let d = develop, d.history.canRedo, undoDomain == .develop || !cull.canRedo {
@@ -1100,6 +1246,7 @@ final class AppModel {
     /// just to discard everything after the first 500.
     func targetIDs(limit: Int) -> [Int] {
         guard limit > 0 else { return [] }
+        if isPhotoEditing { return focusedItem.map { [$0.id] } ?? [] }
         if let pair = compare { return [pair.activeID] }
         guard let f = focus else { return [] }
         let positions = selection.contains(f) ? selection : IndexSet(integer: f)
@@ -1307,9 +1454,11 @@ final class AppModel {
         controller.onFailure = { [weak self] message in self?.statusMessage = "Develop: \(message)" }
         if ProcessInfo.processInfo.arguments.contains("--develop-selftest"), !developSelfTestRan {
             developSelfTestRan = true
+            enterPhotoEdit()
             runDevelopSelfTest(controller)
         } else if ProcessInfo.processInfo.arguments.contains("--hdr-selftest"), !developSelfTestRan {
             developSelfTestRan = true
+            enterPhotoEdit()
             runHDRSelfTest(controller)
         }
         if !controller.ignoredSettings.isEmpty {

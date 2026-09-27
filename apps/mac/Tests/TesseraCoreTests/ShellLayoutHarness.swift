@@ -14,7 +14,7 @@ import TesseraFFI
 /// never made key, and captures use `screencapture -l <window> -x` (never the screen).
 @MainActor
 enum ShellHarness {
-    enum State: String, CaseIterable { case library, raw, document }
+    enum State: String, CaseIterable { case library, raw, document, photoEditDevelop, photoEditMasks }
 
     static let sizes: [CGSize] = [CGSize(width: 960, height: 600), CGSize(width: 1280, height: 800),
                                   CGSize(width: 1440, height: 900), CGSize(width: 1728, height: 1117)]
@@ -43,6 +43,10 @@ enum ShellHarness {
             let raw = scratch.appendingPathComponent("raw")
             try FileManager.default.copyItem(at: repoRoot.appendingPathComponent("fixtures/raw"), to: raw)
             model.install(try EngineLibrary.scan(folder: raw, appSupport: scratch.appendingPathComponent("support")))
+        case .photoEditDevelop, .photoEditMasks:
+            model.install(StubLibrary.synthetic(count: 40))
+            model.enterPhotoEdit()
+            model.photoInspectorTab = state == .photoEditMasks ? .masks : .develop
         case .document:
             model.install(StubLibrary.synthetic(count: 40))
             model.documents.policy = .stub
@@ -53,7 +57,7 @@ enum ShellHarness {
 
     /// The app's window (unified toolbar, full-size content) at `size` outer points.
     static func window(_ model: AppModel, size: CGSize, dark: Bool) -> (NSWindow, NSView) {
-        model.documents.columnVisibility = .all   // each window starts like a fresh launch
+        model.documents.columnVisibility = model.isPhotoEditing ? .detailOnly : .all
         let appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
         let controller = NSHostingController(rootView: ContentView.root(model: model))
         let window = NSWindow(contentRect: NSRect(origin: .zero, size: size),

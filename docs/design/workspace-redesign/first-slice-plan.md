@@ -1,6 +1,6 @@
 # First redesign slice: Library and Photo Edit
 
-Prepared 2026-09-27 for root execution in an isolated managed worktree; no product edits performed. Source recovery: `/tmp/tessera-redesign-ux-scope.md`. Provisional current visual direction: Precision Graphite, selected by coordinator; historical design approval is not asserted.
+Prepared 2026-09-27 before product implementation in an isolated managed worktree. Implementation and validation now live in `tools/orchestrate/wp/UX-01/RESULTS.md`; the original planning checkpoint was read-only. Source recovery: `/tmp/tessera-redesign-ux-scope.md`. Provisional current visual direction: Precision Graphite, selected by coordinator; historical design approval is not asserted.
 
 ## Concrete interaction design
 
@@ -26,7 +26,7 @@ Back to Library restores the previous Library view and source/filter/facet, orig
 
 Keep `ViewMode.document`, `DocumentWorkspace`, `DocumentView`, `DocumentInspector`, tabs, undo/save/dirty state and document keyboard code intact. A current document renders a distinct **Layered document: title** context through its existing shell branch. Library/Edit controls must not imply that the current raw became that document by navigation.
 
-Rename only the Library-side handoff label/help to **Create layered copy from rendered photo…**. A lightweight pre-action explanation names the source, says current raw adjustments become pixels in a new layered document and the original/raw recipe stays separate, and offers Create layered copy / Cancel. Invoke existing `documents.editInLayers` after confirmation; do not change B's API or implementation. This is a transformation disclosure, not an extra confirmation for ordinary navigation. Coordinate shared menu/KeyRouter label hunks with B. Retain current Cmd-E routing until the broader shortcut migration is explicitly implemented; no silent destructive remap.
+Use **Open in Layers…** for the Library-side handoff. Explain that first open makes a rendered copy; an already-open copy reopens with existing pixels and layer edits, without refreshing from later photo adjustments. Original/RAW settings and document saves remain separate. Keep Open in Layers / Cancel and invoke existing `documents.editInLayers`; do not change B's API. Source review found the engine deduplicates source image sessions, so the initially proposed universal “Create new/current adjustments” wording was incorrect. Retain Cmd-E routing; no destructive remap.
 
 ## State design and integration constraints
 

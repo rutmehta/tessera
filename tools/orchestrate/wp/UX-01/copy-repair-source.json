@@ -1,0 +1,32 @@
+{
+  "captured_utc": "2026-09-27T17:44:35Z",
+  "aggregate_sha256": "df34f9f9a1a60718174199e571912bf78695b0ab7d0cfa1180594a2b907b0123",
+  "files": {
+    "apps/mac/ACCEPTANCE.md": "e03dd730c8b5c9f554af1f1d6e9f10a758a94819440b0364265256c6a6775290",
+    "apps/mac/DESIGN.md": "795746053cb34bc6de2f8c234aa0bd63d8266b23a5060b7f6bd77a1cb0da6e76",
+    "apps/mac/Sources/Tessera/App/AppCommands.swift": "1685ef639848e1bc4afc335d6231f57b5c2488744a08356cbfebd377bfa7e120",
+    "apps/mac/Sources/Tessera/App/AppModel.swift": "d1eb5989a52633b13013bb3f31e5540596d95ed70d6c4ff38a5d87df20bba354",
+    "apps/mac/Sources/Tessera/App/DevelopTools.swift": "93168ec82b564a9d7f71a451a39e56b746cd0f9be8d57a436973405f7ea9746b",
+    "apps/mac/Sources/Tessera/App/KeyRouter.swift": "2febd0f6c40cf712bd526cac1bdf3ec9dbc99c8b7db174cb14f36632807e57a0",
+    "apps/mac/Sources/Tessera/App/MaskTools.swift": "f7cde6492ded97526f5cb66522658cc1d24bd99f99c7bf8d4b7194edaab7f3e1",
+    "apps/mac/Sources/Tessera/Grid/ThumbnailBrowser.swift": "4cda4b399aed74386e2135a24ff7f87eaae57b8b62fa9cf7d27ff1bfe6798cf2",
+    "apps/mac/Sources/Tessera/Inspector/DevelopPanels.swift": "4221333f7741e6fc82750751b5d9242043f9477bc543dfcbf93682f909ee9037",
+    "apps/mac/Sources/Tessera/Inspector/HistogramView.swift": "1d6204e96c142146f69ce533b58be44d62aa61e2583c986a14993376aa162cd8",
+    "apps/mac/Sources/Tessera/Inspector/InspectorView.swift": "60bcd1294a24972a8f88574fc58770c4894b3997e87a8e44d0a38f71cae858e8",
+    "apps/mac/Sources/Tessera/Inspector/MasksPanel.swift": "44e01b479a3b62180719b4c6fe7640c17d7821e3e9d28bba4153e6aab54c4111",
+    "apps/mac/Sources/Tessera/Inspector/PhotoEditInspectorView.swift": "e2b2c50bc9e408473b12c8adbc96948e8f10861ad0c4589e1c601a7660bbecc3",
+    "apps/mac/Sources/Tessera/Inspector/TransformPanel.swift": "6a13fd27e58ca51ace7342a999be308776af5e449334ba076f53d23c088e35f4",
+    "apps/mac/Sources/Tessera/Library/LibraryModel.swift": "be39060852746e41333fa8523640a9f4709b3181133f6259f0d2edd257300cf4",
+    "apps/mac/Sources/Tessera/Loupe/LoupeToolOverlay.swift": "62584272d74ace59245490c50b5dafbca39965209b9ca5ddeeb0249ed39521d9",
+    "apps/mac/Sources/Tessera/Loupe/LoupeView.swift": "87b39d14016eeaef93419cf430dbe7d02d2cddea1c0c276e497010e77efb00b8",
+    "apps/mac/Sources/Tessera/Shell/ContentView.swift": "54c28ff0ccbf052ac948c35f826ab83541f0636bbccae37e3b8dd7d95665fc1f",
+    "apps/mac/Sources/Tessera/Shell/WorkspaceHeader.swift": "8403da5f986b5a1f2581e9589e677af82763b32f884e0946e0de845ec4861a5e",
+    "apps/mac/Sources/TesseraCore/Workspace/PhotoWorkspaceState.swift": "fe2a331292b852926bc0928c61a5953503e8f8079e1a44abd697cfe4d6f6663f",
+    "apps/mac/Tests/TesseraCoreTests/DocumentKeyRoutingTests.swift": "560ac251ec0e747e4b37944d88a1de9081808b473fc112c5575977f778cafa4a",
+    "apps/mac/Tests/TesseraCoreTests/KeyFocusTests.swift": "47541c857b43f7789ed968786a99c2dd4203965199a06c3475e53a832b52dcf4",
+    "apps/mac/Tests/TesseraCoreTests/ShellLayoutHarness.swift": "d252c4f9cb3a4c1a35e94410612147337c0a59cbd20c20724b4f6d2f7186d5df",
+    "apps/mac/Tests/TesseraCoreTests/ShellLayoutTests.swift": "1be3d7014da6852c05a47fb74139477e640c2fc81220e4b54cab86215719bb1a",
+    "apps/mac/Tests/TesseraCoreTests/WorkspaceBrowserRestoreTests.swift": "21eb2a90e6f20df79fecc66694b38322d3ef1d045b9f88df1c7668f1b38214d9",
+    "apps/mac/Tests/TesseraCoreTests/WorkspaceNavigationTests.swift": "5bedced4a281c8daf0d0a77f99661d55c57bd182e6b3f27bbb5f381dfc2d3e2c"
+  }
+}

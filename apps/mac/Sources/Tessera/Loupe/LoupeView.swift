@@ -63,6 +63,8 @@ final class LoupeController: LibraryObserver {
         selectionDidChange(scrollToFocus: false)
     }
 
+    func workspaceWillLeavePhotoEdit() { view.toolOverlay.endWorkspaceInteraction() }
+
     func itemsDidChange(_ positions: IndexSet) {}
 
     func selectionDidChange(scrollToFocus: Bool) {

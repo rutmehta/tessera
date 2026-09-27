@@ -1,0 +1,42 @@
+[
+  {
+    "log": "swift-focused.log",
+    "command": "swift test --package-path apps/mac --scratch-path /Volumes/betterSSD/tessera-cache/swift/workspace-redesign -c release -Xswiftc -enable-testing --filter 'Workspace|KeyFocusTests|DocumentKeyRoutingTests|ThemeLintTests|ShellLayoutTests'",
+    "exit_code": 1,
+    "phase": "compile failure"
+  },
+  {
+    "log": "swift-focused-repair.log",
+    "command": "swift test --package-path apps/mac --scratch-path /Volumes/betterSSD/tessera-cache/swift/workspace-redesign -c release -Xswiftc -enable-testing --filter 'Workspace|KeyFocusTests|DocumentKeyRoutingTests|ThemeLintTests|ShellLayoutTests'",
+    "exit_code": 1,
+    "phase": "27tests, 1layout smoke-assumption failure"
+  },
+  {
+    "log": "swift-focused-final.log",
+    "command": "swift test --package-path apps/mac --scratch-path /Volumes/betterSSD/tessera-cache/swift/workspace-redesign -c release -Xswiftc -enable-testing --filter 'Workspace|KeyFocusTests|DocumentKeyRoutingTests|ThemeLintTests'",
+    "exit_code": 0,
+    "tests": 26
+  },
+  {
+    "log": "swift-full.log",
+    "command": "TESSERA_LAYOUT_CAPTURE=/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-20260927 swift test --package-path apps/mac --scratch-path /Volumes/betterSSD/tessera-cache/swift/workspace-redesign -c release -Xswiftc -enable-testing",
+    "exit_code": 0,
+    "xctest_count": 411,
+    "skipped": 1,
+    "swift_testing_count": 5
+  },
+  {
+    "log": "swift-copy-repair.log",
+    "command": "TESSERA_LAYOUT_CAPTURE=/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-final-20260927 swift test --package-path apps/mac --scratch-path /Volumes/betterSSD/tessera-cache/swift/workspace-redesign -c release -Xswiftc -enable-testing --filter 'Workspace|KeyFocusTests|DocumentKeyRoutingTests|ThemeLintTests|ShellLayoutTests'",
+    "exit_code": 0,
+    "tests": 28,
+    "seconds": 54.998
+  },
+  {
+    "log": "swift-ready-raw.log",
+    "command": "TESSERA_LAYOUT_CAPTURE=/Volumes/betterSSD/tessera-cache/evidence/UX-01-layout-ready-raw-20260927 swift test --package-path apps/mac --scratch-path /Volumes/betterSSD/tessera-cache/swift/workspace-redesign -c release -Xswiftc -enable-testing --filter WorkspaceReadyPhotoTests",
+    "exit_code": 0,
+    "tests": 1,
+    "seconds": 5.478
+  }
+]
