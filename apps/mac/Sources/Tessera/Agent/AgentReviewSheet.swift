@@ -25,8 +25,9 @@ struct AgentReviewSheet: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 List(agent.queue.entries) { entry in
-                    ReviewRow(agent: agent, model: model, entry: entry, redoing: $redoing, instruction: $instruction) {
-                        if let item = entry.itemID {
+                    let target = agent.queueTarget(entry)
+                    ReviewRow(agent: agent, model: model, entry: entry, target: target, redoing: $redoing, instruction: $instruction) {
+                        if let target, let item = agent.currentItem(for: target) {
                             dismiss()
                             model.showInLoupe(item)
                         }
@@ -51,6 +52,7 @@ private struct ReviewRow: View {
     let agent: AgentController
     let model: AppModel
     let entry: AgentReviewEntry
+    let target: AgentController.ReviewTarget?
     @Binding var redoing: String?
     @Binding var instruction: String
     let show: () -> Void
@@ -94,7 +96,7 @@ private struct ReviewRow: View {
                         .accessibilityIdentifier("agent-review-instruction")
                     Button("Redo", action: redo)
                         .buttonStyle(.theme(.bordered, height: Theme.Height.small))
-                        .disabled(instruction.trimmingCharacters(in: .whitespaces).isEmpty || agent.isRunning)
+                        .disabled(instruction.trimmingCharacters(in: .whitespaces).isEmpty || agent.isRunning || !agent.busy.isEmpty)
                     Button("Cancel") { redoing = nil }
                         .buttonStyle(.theme(.borderless, height: Theme.Height.small))
                 }
@@ -123,38 +125,41 @@ private struct ReviewRow: View {
 
     @ViewBuilder private var actions: some View {
         let busy = agent.busy.contains(entry.imageID)
+        let available = target.flatMap { agent.currentItem(for: $0) } != nil
         HStack(spacing: Theme.Space.xs) {
             if busy { ProgressView().controlSize(.small) }
             Button("Show") { show() }
                 .buttonStyle(.theme(.borderless, height: Theme.Height.small))
-                .disabled(entry.itemID == nil)
-            Button("Accept") { agent.accept(entry) }
+                .disabled(!available)
+            Button("Accept") { if let target { agent.accept(target) } }
                 .buttonStyle(.theme(.bordered, height: Theme.Height.small))
-                .disabled(busy || entry.error != nil || entry.groupID == nil || entry.status == .accepted)
+                .disabled(!available || busy || entry.error != nil || entry.groupID == nil || entry.status == .accepted)
                 .accessibilityIdentifier("agent-review-accept")
             Button("Redo…") { instruction = ""; redoing = entry.imageID }
                 .buttonStyle(.theme(.bordered, height: Theme.Height.small))
-                .disabled(busy || entry.itemID == nil || agent.isRunning)
+                .disabled(!available || busy || entry.itemID == nil || agent.isRunning || !agent.busy.isEmpty)
                 .accessibilityIdentifier("agent-review-redo")
-            Button("Revert") { agent.revert(entry) }
+            Button("Revert") { if let target { agent.revert(target) } }
                 .buttonStyle(.theme(.destructive, height: Theme.Height.small))
-                .disabled(busy || entry.groupID == nil || entry.status == .reverted)
+                .disabled(!available || busy || entry.groupID == nil || entry.status == .reverted)
                 .accessibilityIdentifier("agent-review-revert")
         }
     }
 
     private func redo() {
-        guard let item = entry.itemID else { return }
-        agent.redo([item], instruction: instruction)
+        guard let target else { return }
+        agent.redo(target, instruction: instruction)
         redoing = nil
     }
 
     private func loadThumbnail() {
-        guard let id = entry.itemID else { return }
+        guard let target, let id = agent.currentItem(for: target) else { return }
         let item = model.item(id: id)
         thumbnail = model.loader.cached(item, tier: .thumbnail)
         if thumbnail == nil {
-            _ = model.loader.request(item, tier: .thumbnail, priority: .normal) { image in thumbnail = image }
+            _ = model.loader.request(item, tier: .thumbnail, priority: .normal) { image in
+                if agent.currentItem(for: target) != nil { thumbnail = image }
+            }
         }
     }
 }
