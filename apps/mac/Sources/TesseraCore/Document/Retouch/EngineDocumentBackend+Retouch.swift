@@ -73,7 +73,7 @@ extension EngineDocumentBackend: DocumentRetouchBackend {
     public func retouchModels() throws -> [RetouchModelInfo] {
         try bridged { try session.retouchModels() }.map {
             RetouchModelInfo(modelId: $0.modelId, usedBy: $0.usedBy, installed: $0.installed, cachePath: $0.cachePath,
-                             sourceURL: $0.sourceUrl)
+                             sourceURL: $0.sourceUrl, version: $0.version)
         }
     }
 

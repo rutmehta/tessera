@@ -62,9 +62,8 @@ struct RemoveOptionsBar: View {
             }, height: Theme.Height.small, fill: false)
             .fixedSize()
             .accessibilityIdentifier("document.remove.backend")
-            if retouch.options.engine != .patchMatch && !retouch.lamaInstalled {
-                Text("LaMa not installed").font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary).fixedSize()
-                    .help(lamaHelp)
+            if retouch.options.engine != .patchMatch {
+                RemoveModelStatus(retouch: retouch)
             }
             OptionField(title: "Expand", value: Binding(get: { Double(retouch.options.dilation) },
                                                         set: { retouch.options.dilation = Int($0) }),
@@ -80,6 +79,25 @@ struct RemoveOptionsBar: View {
                 .help("Finds thin wire-like lines and face boxes, shows them for review, then removes only the ones you keep selected")
                 .accessibilityIdentifier("document.remove.distractions")
         }
+        if retouch.busy == nil, let a = retouch.jobs.abandoned {
+            // B5-09b: the bar is idle; the cancelled job is still stopping in the engine.
+            separator
+            TimelineView(.periodic(from: .now, by: 0.5)) { _ in
+                Text(String(format: "Stopping the cancelled %@… %.0f s", a.operation, retouch.busySeconds))
+                    .font(Theme.Fonts.captionNumeric).foregroundStyle(Theme.textTertiary).fixedSize()
+            }
+            .help("New removals wait until the engine has stopped it")
+            .accessibilityIdentifier("document.remove.stopping")
+        }
+        if let n = retouch.notice {
+            separator
+            StatusLine(text: n, kind: .warning)
+                .lineLimit(1).truncationMode(.tail)
+                .frame(maxWidth: 420, alignment: .leading)
+                .help(n)
+                .onTapGesture { retouch.clearNotice() }
+                .accessibilityIdentifier("document.remove.notice")
+        }
         if let e = retouch.error {
             separator
             StatusLine(text: e.title, kind: e.isMissingWeights ? .warning : .error)
@@ -89,11 +107,48 @@ struct RemoveOptionsBar: View {
                 .accessibilityIdentifier("document.remove.error")
         }
     }
+}
 
-    private var lamaHelp: String {
-        guard let m = retouch.models.first(where: { $0.modelId == "remove/lama" }) else { return "LaMa is not installed" }
-        return "Auto uses PatchMatch until the LaMa model is installed. It is never downloaded automatically: "
-            + "the file comes from \(m.sourceURL) and belongs at \(m.cachePath)."
+/// The LaMa model in the Remove options bar (B5-09b): not installed with Download, downloads off with a link
+/// to Settings ▸ AI, inline download progress (and what runs when it completes), or the failure with Retry.
+struct RemoveModelStatus: View {
+    @Bindable var retouch: DocumentRetouch
+    @Environment(\.openSettings) private var openSettings
+
+    var body: some View {
+        let m = retouch.model("remove/lama")
+        let phase = retouch.downloads.phase(m)
+        switch phase {
+        case .installed:
+            EmptyView()
+        case .available(let m):
+            Text("LaMa not installed").font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary).fixedSize()
+                .help(help(m))
+            Button("Download LaMa") { retouch.downloadModel(m.modelId) }
+                .buttonStyle(.theme(.borderless, height: Theme.Height.small))
+                .help("Downloads the pinned, checksum-verified \(m.modelId) model into \(m.cachePath). Choosing LaMa and removing also downloads it first.")
+                .accessibilityIdentifier("document.remove.download")
+        case .downloadsOff(let m):
+            StatusLine(text: "LaMa not installed · model downloads are off", kind: .warning).fixedSize()
+                .help(help(m) + " Model downloads are off in Settings ▸ AI, so nothing is downloaded.")
+                .accessibilityIdentifier("document.remove.downloads-off")
+            Button("Settings ▸ AI…") { openSettings() }
+                .buttonStyle(.theme(.borderless, height: Theme.Height.small))
+                .accessibilityIdentifier("document.remove.settings")
+        case .downloading(let m, _), .failed(let m, _):
+            ModelProgressRow(title: "LaMa model", state: phase.progress,
+                             id: "document.remove.model") { retouch.downloadModel(m.modelId) }
+                .frame(width: 300)
+            if let op = retouch.downloads.waiting[m.modelId] {
+                Text("\(op) runs when it is ready").font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary).fixedSize()
+                    .accessibilityIdentifier("document.remove.waiting")
+            }
+        }
+    }
+
+    private func help(_ m: RetouchModelInfo) -> String {
+        "Auto uses PatchMatch until the LaMa model (\(m.modelId)) is installed. It comes from \(m.sourceURL) and belongs, "
+            + "hash-verified, at \(m.cachePath)."
     }
 }
 
@@ -103,9 +158,9 @@ struct RetouchEditMenuItems: View {
     private var retouch: DocumentRetouch { DocumentRetouch.shared }
 
     var body: some View {
-        let target = doc?.primary.map { $0.kind == .pixel || $0.kind == .smartObject } ?? false
         Button("Content-Aware Fill") { retouch.contentAwareFill() }
-            .disabled(!target || doc?.marquee == nil || retouch.busy != nil)
+            .disabled(!RetouchMenuState.contentAwareFillEnabled(layerKind: doc?.primary?.kind, hasSelection: doc?.marquee != nil,
+                                                                 jobRunning: retouch.jobs.isBusy))
     }
 }
 
@@ -148,6 +203,9 @@ struct NeuralFiltersSheet: View {
                     ProgressView().controlSize(.small)
                     Text("Applying…").font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
                 }
+            } else if let a = retouch.jobs.abandoned {
+                Text("Stopping the cancelled \(a.operation)…").font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary)
+                    .accessibilityIdentifier("document.neural.stopping")
             }
         } actions: {
             Button("Reset") { model.reset() }
@@ -158,10 +216,12 @@ struct NeuralFiltersSheet: View {
                 .keyboardShortcut(.cancelAction)
                 .sheetButton()
                 .accessibilityIdentifier("document.neural.cancel")
-            Button(model.state.smartIndex == nil ? "Apply" : "OK") { model.apply() }
+            let phase = retouch.downloads.phase(model.missingModel)
+            Button(applyTitle(phase)) { model.apply() }
                 .keyboardShortcut(.defaultAction)
                 .sheetButton(primary: true)
-                .disabled(model.busy || model.missingModel != nil || !model.state.allowed(model.state.output))
+                .disabled(model.busy || model.waitingForModel || !model.state.allowed(model.state.output)
+                          || phase.isDownloading || { if case .downloadsOff = phase { true } else { false } }())
                 .accessibilityIdentifier("document.neural.apply")
         }
         .frame(width: 680, height: 460)
@@ -229,15 +289,9 @@ struct NeuralFiltersSheet: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 if let m = model.missingModel {
-                    VStack(alignment: .leading, spacing: Theme.Space.xs) {
-                        StatusLine(text: "\(s.name) needs the \(m.modelId) model, which is not installed.", kind: .warning)
-                        Text("Tessera never downloads model weights on its own. The file comes from \(m.sourceURL) and belongs, hash-verified, at \(m.cachePath).")
-                            .font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
-                            .textSelection(.enabled)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .padding(.top, Theme.Space.xs)
-                    .accessibilityIdentifier("document.neural.missing")
+                    NeuralModelStatus(model: model, info: m, filter: s.name)
+                        .padding(.top, Theme.Space.xs)
+                        .accessibilityIdentifier("document.neural.missing")
                 }
                 if let e = model.error {
                     VStack(alignment: .leading, spacing: Theme.Space.xs) {
@@ -254,6 +308,14 @@ struct NeuralFiltersSheet: View {
         }
     }
 
+    private func applyTitle(_ phase: RetouchDownloadPhase) -> String {
+        if model.state.smartIndex != nil { return "OK" }
+        switch phase {
+        case .available, .failed: return "Download and Apply"
+        default: return "Apply"
+        }
+    }
+
     private func modelId(_ k: NeuralKind) -> String {
         switch k {
         case .skinSmoothing: ""
@@ -263,11 +325,58 @@ struct NeuralFiltersSheet: View {
     }
 }
 
+/// The chosen neural filter's missing model (B5-09b): Apply downloads it first when Settings ▸ AI allows model
+/// downloads (inline progress, then the filter applies by itself); with downloads off the sheet says so and
+/// links to the setting; a failed download shows its reason with Retry.
+struct NeuralModelStatus: View {
+    @Bindable var model: NeuralSheetModel
+    let info: RetouchModelInfo
+    let filter: String
+    @Environment(\.openSettings) private var openSettings
+    private var retouch: DocumentRetouch { DocumentRetouch.shared }
+
+    var body: some View {
+        let phase = retouch.downloads.phase(info)
+        VStack(alignment: .leading, spacing: Theme.Space.xs) {
+            switch phase {
+            case .installed:
+                EmptyView()
+            case .available:
+                StatusLine(text: "\(filter) needs the \(info.modelId) model, which is not installed.", kind: .warning)
+                note("Download and Apply fetches the pinned, checksum-verified file from \(info.sourceURL) into \(info.cachePath), then applies \(filter).")
+            case .downloadsOff:
+                StatusLine(text: "\(filter) needs the \(info.modelId) model, which is not installed, and model downloads are off.", kind: .warning)
+                HStack(spacing: Theme.Space.s) {
+                    note("Nothing is downloaded. Allow model downloads in Settings ▸ AI, or install the file from \(info.sourceURL) at \(info.cachePath).")
+                    Button("Settings ▸ AI…") { openSettings() }
+                        .buttonStyle(.theme(.bordered, height: Theme.Height.small))
+                        .accessibilityIdentifier("document.neural.settings")
+                }
+            case .downloading, .failed:
+                ModelProgressRow(title: "\(filter) model", state: phase.progress,
+                                 id: "document.neural.model") { model.apply() }
+                if model.waitingForModel {
+                    note("\(filter) applies when the download completes.")
+                }
+            }
+        }
+    }
+
+    private func note(_ t: String) -> some View {
+        Text(t).font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
+            .textSelection(.enabled)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
 /// The retouch sheets, hung off the document view.
 struct RetouchSheets: ViewModifier {
     @Bindable var retouch: DocumentRetouch
 
     func body(content: Content) -> some View {
-        content.sheet(item: $retouch.neuralSheet) { NeuralFiltersSheet(model: $0) }
+        // B5-09b: also the self-test's start in a background launch (`open -g … --new-document`), where the
+        // menu bar is never built because the app is never activated.
+        let _ = RetouchSelfTest.startIfRequested()
+        return content.sheet(item: $retouch.neuralSheet) { NeuralFiltersSheet(model: $0) }
     }
 }

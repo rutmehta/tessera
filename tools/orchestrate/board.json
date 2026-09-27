@@ -1318,5 +1318,13 @@
     "status": "pass",
     "attempts": 0,
     "notes": "machine B; wp/B5-10b = wp/B5-10 + fonts.rs helper; black thumbnails = missing-font error swallowed by try?; engine font gaps in NEEDS.md"
+  },
+  {
+    "id": "B5-09b",
+    "owner": "opus",
+    "title": "Retouch model downloads, non-blocking cancel, CAF enablement",
+    "status": "pass",
+    "attempts": 0,
+    "notes": "machine B; wp/B5-09b merged with main 1cd02b3; 287 XCTest; real downloads (steps 334/335/337) left for Sol"
   }
 ]

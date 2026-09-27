@@ -8,8 +8,11 @@ import TesseraCore
 /// `DocumentTools` forwards the viewport's mouse and keys here (small marked hooks): a drag paints the
 /// removal mask engine-side (`begin_remove_stroke` …), the release removes it as one history node.
 /// "Remove Distractions" first shows the detector's suggestions over the canvas for review and removes only
-/// the accepted ones. Long applies run off the main thread with a Cancel button; errors name the missing
-/// model and where its file comes from, and nothing is ever downloaded or simulated.
+/// the accepted ones. Long applies run off the main thread with a Cancel button (`RetouchJobs`, B5-09b: Cancel
+/// returns to idle at once, the late result is discarded, a new job waits until the cancelled one stopped).
+/// LaMa, DDColor and DRUNet are downloaded through the app's model downloads (`RetouchModelDownloads`, the
+/// M2-51 flow) only when asked and only if Settings ▸ AI allows it; the operation that asked runs when the
+/// download completes. Nothing is simulated.
 @MainActor @Observable
 final class DocumentRetouch {
     static let shared = DocumentRetouch()
@@ -21,9 +24,16 @@ final class DocumentRetouch {
     /// The Remove tool is the current tool (the document's tool reads Healing Brush meanwhile).
     private(set) var removeActive = false
     var options = RemoveToolOptions() { didSet { syncBrush() } }
+    /// One apply at a time; cancel never waits (B5-09b).
+    let jobs = RetouchJobs()
+    /// LaMa / DDColor / DRUNet through the app's model downloads (B5-09b). Replaceable for the self-test.
+    var downloads = RetouchModelDownloads(acquisition: .shared)
     /// "Removing…" while an apply runs.
-    private(set) var busy: String?
-    @ObservationIgnored private var busyStarted = Date()
+    var busy: String? { jobs.running?.title }
+    /// A refusal or a download note for the options bar (B5-09b).
+    private(set) var notice: String?
+    /// A Remove stroke painted with LaMa, waiting for the LaMa download (B5-09b).
+    private(set) var strokeWaitingForModel = false
     /// Suggestions under review.
     private(set) var review: DistractionReview?
     /// The last error (options bar and sheets show it).
@@ -41,6 +51,8 @@ final class DocumentRetouch {
     @ObservationIgnored private let queue = DispatchQueue(label: "dev.tessera.document-retouch", qos: .userInitiated)
     /// Called after each finished apply (self-test).
     @ObservationIgnored var onFinished: ((Result<RetouchOutcome, Error>) -> Void)?
+    /// Called when a cancelled (abandoned) apply finally returns (self-test).
+    @ObservationIgnored var onDiscarded: ((Result<RetouchOutcome, Error>) -> Void)?
 
     private init() {}
 
@@ -56,6 +68,50 @@ final class DocumentRetouch {
         models = (try? Self.backend(document)?.retouchModels()) ?? []
     }
 
+    func model(_ id: String?) -> RetouchModelInfo? { id.flatMap { id in models.first { $0.modelId == id } } }
+
+    // MARK: Model downloads (B5-09b)
+
+    /// Runs `run` once the model `id` is installed: at once when it is (or none is needed); after the download
+    /// when downloads are allowed (inline progress where the model is shown); never when they are off (the
+    /// options bar / sheet says so and links to Settings ▸ AI) or when the download fails — then `abandon`.
+    func withModel(_ id: String?, operation: String, run: @escaping @MainActor () -> Void,
+                   abandon: @escaping @MainActor () -> Void = {}) {
+        guard let m = model(id), !m.installed else { run(); return }
+        let outcome = downloads.request(m, for: operation) { [weak self] r in
+            guard let self else { return }
+            self.refreshModels()
+            switch r {
+            case .success:
+                self.notice = nil
+                self.say("\(m.modelId) downloaded; running \(operation)")
+                run()
+            case .failure(let e):
+                self.notice = e.localizedDescription
+                self.say("\(operation): \(e.localizedDescription)")
+                abandon()
+            }
+        }
+        switch outcome {
+        case .ready:
+            refreshModels()
+            run()
+        case .started:
+            notice = nil
+            say("\(operation) needs \(m.modelId): downloading it first; \(operation) runs when it is ready")
+        case .downloadsOff:
+            let why = "\(operation) needs \(m.modelId), which is not installed, and model downloads are off (Settings ▸ AI). Nothing was downloaded."
+            notice = why
+            say(why)
+            abandon()
+        }
+    }
+
+    /// Options bar ▸ Download (no operation waits).
+    func downloadModel(_ id: String) {
+        withModel(id, operation: "Download") { [weak self] in self?.say("\(id) is installed") }
+    }
+
     // MARK: Tool
 
     /// Palette slot, ⇧J: the Remove tool on.
@@ -69,6 +125,7 @@ final class DocumentRetouch {
         if savedHeal == nil { savedHeal = tools.brushes[.heal] }
         syncBrush()
         overlay(doc)?.needsDisplay = true
+        notice = nil
         say("Remove: paint over what to remove; release removes it. \(options.engine == .auto && !lamaInstalled ? "LaMa is not installed, so Auto uses PatchMatch." : "")")
     }
 
@@ -111,6 +168,8 @@ final class DocumentRetouch {
             return true
         }
         guard busy == nil else { say("\(busy ?? "") Esc or Cancel stops it"); return true }
+        if let why = jobs.refusal { notice = why; say(why); return true }
+        if strokeWaitingForModel { say("Remove: waiting for the LaMa download (Esc forgets the stroke)"); return true }
         beginStroke(doc, at: c)
         return true
     }
@@ -187,6 +246,8 @@ final class DocumentRetouch {
     }
 
     func cancelStroke() {
+        if strokeWaitingForModel { downloads.forgetWaiting("remove/lama") }
+        strokeWaitingForModel = false
         strokeOpen = false
         strokePoints = []
         pending = []
@@ -200,15 +261,33 @@ final class DocumentRetouch {
         strokeOpen = false
         let rest = pending
         pending.removeAll()
+        if !rest.isEmpty { queue.async { _ = try? b.removeStrokePoints(rest) } }
+        if let why = jobs.refusal {
+            notice = why
+            say(why)
+            cancelStroke()
+            return
+        }
+        // LaMa not installed: keep the stroke (engine-side mask and band) until the download completes.
+        strokeWaitingForModel = true
+        withModel(RetouchModelDownloads.modelId(for: options.engine), operation: "Remove", run: { [weak self] in
+            guard let self, self.strokeWaitingForModel else { return }
+            self.strokeWaitingForModel = false
+            self.finishStroke(doc, b)
+        }, abandon: { [weak self] in
+            guard let self, self.strokeWaitingForModel else { return }
+            self.cancelStroke()
+        })
+    }
+
+    private func finishStroke(_ doc: DocumentController, _ b: any DocumentRetouchBackend) {
         let params = options.paramsJson
         let q = queue
         start("Removing…", doc) {
-            try b.sync(on: q) {
-                if !rest.isEmpty { _ = try b.removeStrokePoints(rest) }
-                return try b.endRemoveStroke(paramsJson: params)
-            }
+            try b.sync(on: q) { try b.endRemoveStroke(paramsJson: params) }
         } done: { [weak self] _ in
             self?.strokePoints = []
+            if let doc = self?.document { self?.overlay(doc)?.needsDisplay = true }
         }
     }
 
@@ -219,7 +298,9 @@ final class DocumentRetouch {
         guard let doc = document, let layer = strokeLayer(doc), let b = Self.backend(doc) else { return }
         guard doc.marquee != nil else { say("Remove Selection: make a selection first"); return }
         let (engine, params) = (options.engine, options.paramsJson)
-        start("Removing…", doc) { try b.removeSelection(layer: layer, engine: engine, paramsJson: params) }
+        withModel(RetouchModelDownloads.modelId(for: engine), operation: "Remove") { [weak self] in
+            self?.start("Removing…", doc) { try b.removeSelection(layer: layer, engine: engine, paramsJson: params) }
+        }
     }
 
     /// Edit ▸ Content-Aware Fill.
@@ -239,28 +320,27 @@ final class DocumentRetouch {
         guard let doc = document, let b = Self.backend(doc) else { return }
         guard let l = doc.primary, l.kind == .pixel else { say("Remove Distractions: select a pixel layer"); return }
         guard doc.marquee == nil else { say("Remove Distractions works on the whole layer: deselect first (⌘D)"); return }
-        guard busy == nil else { return }
         error = nil
-        busy = "Finding distractions…"
-        busyStarted = Date()
         let layer = l.id
-        Task { @MainActor [weak self] in
-            let r = await Task.detached(priority: .userInitiated) {
-                Result { try b.detectDistractions(layer: layer, paramsJson: "{}") }
-            }.value
+        let refused = jobs.start("Finding distractions…", operation: "Remove Distractions",
+                                 { try b.detectDistractions(layer: layer, paramsJson: "{}") }) { [weak self] end in
             guard let self else { return }
-            self.busy = nil
-            switch r {
-            case .success(let scan):
+            switch end {
+            case .finished(.success(let scan)):
                 self.review = DistractionReview(layer: layer, scan: scan)
                 let n = scan.candidates.count
                 self.say(n == 0 ? "Remove Distractions: nothing found (faces: \(scan.faces))"
                          : "Remove Distractions: \(n) suggestion\(n == 1 ? "" : "s"). Click one to keep it; Remove Selected removes the rest.")
-            case .failure(let e):
+            case .finished(.failure(let e)):
                 self.fail("Remove Distractions", e)
+            case .discarded:
+                b.clearDistractions()
+                self.notice = nil
+                self.say("Remove Distractions cancelled")
             }
             if let doc = self.document { self.overlay(doc)?.needsDisplay = true }
         }
+        if let refused { notice = refused; say(refused) }
     }
 
     func toggleSuggestion(_ id: UInt32) {
@@ -285,10 +365,12 @@ final class DocumentRetouch {
     func applyReview() {
         guard let doc = document, let b = Self.backend(doc), let r = review, r.canApply else { return }
         let (ids, engine, params, layer) = (r.acceptedIds, options.engine, options.paramsJson, r.layer)
-        start("Removing distractions…", doc, operation: "Remove Distractions") {
-            try b.removeDistractions(layer: layer, accepted: ids, engine: engine, paramsJson: params)
-        } done: { [weak self] ok in
-            if ok { self?.review = nil }
+        withModel(RetouchModelDownloads.modelId(for: engine), operation: "Remove Distractions") { [weak self] in
+            self?.start("Removing distractions…", doc, operation: "Remove Distractions") {
+                try b.removeDistractions(layer: layer, accepted: ids, engine: engine, paramsJson: params)
+            } done: { [weak self] ok in
+                if ok { self?.review = nil }
+            }
         }
     }
 
@@ -316,44 +398,65 @@ final class DocumentRetouch {
 
     // MARK: Running applies
 
-    /// Runs a blocking apply off the main thread; one history node on success.
+    /// Runs a blocking apply off the main thread; one history node on success. Refused (with a message)
+    /// while another apply runs or a cancelled one is still stopping.
     func start(_ what: String, _ doc: DocumentController, operation: String = "Remove",
                _ body: @escaping @Sendable () throws -> RetouchOutcome,
                done: (@MainActor (Bool) -> Void)? = nil) {
-        guard busy == nil else { return }
-        busy = what
-        busyStarted = Date()
         error = nil
-        say(what)
-        Task { @MainActor [weak self] in
-            let r = await Task.detached(priority: .userInitiated) { Result { try body() } }.value
+        let refused = jobs.start(what, operation: operation, body) { [weak self] end in
             guard let self else { return }
-            self.busy = nil
-            switch r {
-            case .success(let o):
-                doc.run(operation) { o.change }
-                var msg = String(format: "%@: %@, %.1f s", operation, o.backend, o.millis / 1000)
-                if let n = o.note { msg += " (\(n))" }
-                self.say(msg)
-                done?(true)
-            case .failure(let e):
-                self.fail(operation, e)
+            switch end {
+            case .finished(let r):
+                switch r {
+                case .success(let o):
+                    doc.run(operation) { o.change }
+                    var msg = String(format: "%@: %@, %.1f s", operation, o.backend, o.millis / 1000)
+                    if let n = o.note { msg += " (\(n))" }
+                    self.say(msg)
+                    done?(true)
+                case .failure(let e):
+                    self.fail(operation, e)
+                    done?(false)
+                }
+                self.onFinished?(r)
+            case .discarded(let r):
+                self.discard(r, operation: operation, doc: doc)
                 done?(false)
+                self.onDiscarded?(r)
             }
             self.overlay(doc)?.needsDisplay = true
-            self.onFinished?(r)
+        }
+        if let refused {
+            notice = refused
+            say(refused)
+            done?(false)
+        } else {
+            notice = nil
+            say(what)
         }
     }
 
-    /// Seconds the running apply has taken.
-    var busySeconds: Double { Date().timeIntervalSince(busyStarted) }
+    /// A cancelled apply returned: nothing of it is kept. When the engine had already committed it before it
+    /// saw the cancel, that step is undone so the document is what the user saw when they cancelled.
+    private func discard(_ r: Result<RetouchOutcome, Error>, operation: String, doc: DocumentController) {
+        if case .success = r {
+            _ = doc.run("Undo cancelled \(operation)") { try doc.backend.undo() }
+        }
+        if notice?.hasPrefix("The cancelled") == true { notice = nil }
+        say("\(operation) cancelled; the engine job has stopped")
+    }
 
-    /// Cancel button, Esc.
+    /// Seconds the running apply has taken.
+    var busySeconds: Double { jobs.seconds }
+
+    /// Cancel button, Esc: back to idle at once (the engine stops in the background).
     func cancel() {
-        if strokeOpen { cancelStroke(); return }
-        guard busy != nil else { return }
-        Self.backend(document)?.cancelRetouch()
-        say("Cancelling…")
+        if strokeOpen || strokeWaitingForModel { cancelStroke(); return }
+        let b = Self.backend(document)
+        guard let job = jobs.cancel(stop: { b?.cancelRetouch() }) else { return }
+        error = nil
+        say("\(job.operation) cancelled")
     }
 
     func fail(_ operation: String, _ e: Error) {
@@ -363,6 +466,7 @@ final class DocumentRetouch {
     }
 
     func clearError() { error = nil }
+    func clearNotice() { notice = nil }
 
     // MARK: Keys (from DocumentTools)
 
@@ -420,9 +524,13 @@ final class NeuralSheetModel: Identifiable {
     let layer: LayerRecord
     var state: NeuralSheetState
     private(set) var revision = 0
-    private(set) var busy = false
+    /// This sheet's apply is running (B5-09b: through `RetouchJobs`).
+    private(set) var applying = false
+    var busy: Bool { applying }
+    /// Apply was asked for and waits for the model download.
+    private(set) var waitingForModel = false
     private(set) var error: RetouchErrorPresentation?
-    @ObservationIgnored private weak var owner: DocumentRetouch?
+    @ObservationIgnored private(set) weak var owner: DocumentRetouch?
 
     init(doc: DocumentController, layer: LayerRecord, state: NeuralSheetState, owner: DocumentRetouch) {
         self.doc = doc
@@ -470,51 +578,98 @@ final class NeuralSheetModel: Identifiable {
         revision += 1
     }
 
+    /// Footer Cancel: while applying, stops the job and returns the sheet to idle at once (B5-09b); while
+    /// waiting for a model download, forgets the pending apply (the download continues); otherwise closes.
     func cancel() {
-        if busy { owner?.cancelBusy(); return }
+        if applying {
+            applying = false
+            owner?.cancel()
+            error = nil
+            doc.report?("\(state.spec?.name ?? "Neural Filter") cancelled")
+            return
+        }
+        if waitingForModel, let id = requiredModelId {
+            owner?.downloads.forgetWaiting(id)
+            waitingForModel = false
+            return
+        }
         owner?.neuralSheet = nil
     }
 
+    /// The model the chosen filter needs (installed or not).
+    var requiredModelId: String? { RetouchModelDownloads.modelId(for: state.kind) }
+
+    /// Apply: first the model when it is missing (download when allowed, then apply automatically), then the
+    /// filter off the main thread through `RetouchJobs`.
     func apply() {
-        guard !busy else { return }
+        guard !busy, !waitingForModel, let owner else { return }
+        let name = state.spec?.name ?? "Neural Filter"
+        if let why = owner.jobs.refusal {
+            error = RetouchErrorPresentation(operation: name, message: why)
+            return
+        }
+        error = nil
+        waitingForModel = owner.model(requiredModelId).map { !$0.installed } ?? false
+        owner.withModel(requiredModelId, operation: name, run: { [weak self] in
+            guard let self, self.owner?.neuralSheet === self else { return }
+            self.waitingForModel = false
+            self.run()
+        }, abandon: { [weak self] in
+            self?.waitingForModel = false
+        })
+    }
+
+    private func run() {
+        guard let owner else { return }
         let st = state, layer = layer.id, doc = doc
         let name = st.spec?.name ?? "Neural Filter"
-        busy = true
-        error = nil
         let smart = st.smartIndex
         let filters = doc.backend as? any DocumentFiltersBackend
         let retouch = DocumentRetouch.backend(doc)
-        doc.report?("Applying \(name)…")
-        Task { @MainActor [weak self] in
-            let r: Result<(DocumentChange, String), Error> = await Task.detached(priority: .userInitiated) {
-                Result {
-                    if let i = smart {
-                        guard let f = filters else { throw DocumentError.unsupported("smart filters need the engine") }
-                        return (try f.setSmartFilter(layer: layer, index: i, change: .params(json: st.filterJson)), "Edit Smart Filter")
-                    }
-                    guard let b = retouch else { throw DocumentError.unsupported("neural filters need the engine") }
-                    let o = try b.neuralFilter(layer: layer, kind: st.kind, paramsJson: st.paramsJson, output: st.output)
-                    return (o.change, String(format: "%@ applied (%@, %.1f s)%@", name, o.backend, o.millis / 1000,
-                                             o.note.map { " — \($0)" } ?? ""))
-                }
-            }.value
-            guard let self else { return }
-            self.busy = false
-            switch r {
-            case .success(let (change, message)):
-                doc.run(name) { change }
-                doc.report?(message)
-                self.owner?.neuralSheet = nil
-            case .failure(let e):
-                let p = RetouchErrorPresentation(operation: name, message: e.localizedDescription)
-                self.error = p
-                doc.report?(p.statusLine)
+        let refused = owner.jobs.start("Applying \(name)…", operation: name, { () throws -> NeuralApplied in
+            if let i = smart {
+                guard let f = filters else { throw DocumentError.unsupported("smart filters need the engine") }
+                return NeuralApplied(change: try f.setSmartFilter(layer: layer, index: i, change: .params(json: st.filterJson)),
+                                     message: "Edit Smart Filter")
             }
+            guard let b = retouch else { throw DocumentError.unsupported("neural filters need the engine") }
+            let o = try b.neuralFilter(layer: layer, kind: st.kind, paramsJson: st.paramsJson, output: st.output)
+            return NeuralApplied(change: o.change, message: String(format: "%@ applied (%@, %.1f s)%@", name, o.backend, o.millis / 1000,
+                                                                   o.note.map { " — \($0)" } ?? ""))
+        }) { [weak self] end in
+            switch end {
+            case .finished(.success(let a)):
+                doc.run(name) { a.change }
+                doc.report?(a.message)
+                self?.applying = false
+                if self?.owner?.neuralSheet === self { self?.owner?.neuralSheet = nil }
+            case .finished(.failure(let e)):
+                self?.applying = false
+                let p = RetouchErrorPresentation(operation: name, message: e.localizedDescription)
+                self?.error = p.isCancel ? nil : p
+                doc.report?(p.statusLine)
+            case .discarded(let r):
+                // Cancelled from the sheet: nothing of it is kept.
+                if case .success = r { _ = doc.run("Undo cancelled \(name)") { try doc.backend.undo() } }
+                doc.report?("\(name) cancelled; the engine job has stopped")
+            }
+        }
+        if let refused {
+            error = RetouchErrorPresentation(operation: name, message: refused)
+        } else {
+            applying = true
+            doc.report?("Applying \(name)…")
         }
     }
 }
 
+/// What a neural apply returns to the main actor.
+struct NeuralApplied: Sendable {
+    let change: DocumentChange
+    let message: String
+}
+
 extension DocumentRetouch {
     /// Cancel from a sheet.
-    func cancelBusy() { Self.backend(document)?.cancelRetouch() }
+    func cancelBusy() { cancel() }
 }
