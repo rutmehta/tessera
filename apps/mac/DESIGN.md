@@ -288,6 +288,18 @@ set: 1.5 pt `OnImage.guide` over a 3 pt `OnImage.shadow`, dashed (4 / 3) while d
 guide in the accent, 7 pt square ends in `OnImage.text` with an `OnImage.ink` outline, and the
 bottom scrim hint.
 
+**Model acquisition, Lens Blur depth tools** (M2-51) add no colour, size or font. A control that needs pinned
+weights acquires them on first use and shows the state inline under itself (`ModelProgressRow`): a small linear
+`ProgressView` (determinate once the size is known) over a `captionNumeric` line in `textSecondary`
+(`Depth model: Downloading 12 MB of 99 MB`); a missing / unobtainable model is a warning `StatusLine` with the
+reason and a borderless 20 pt **Retry**. The recipe changes only once the model is ready. Settings ▸ AI has a
+**Develop models** section with **Allow model downloads** (default on). Lens Blur's eight apertures use a
+`MenuPicker` pop-up (too many for a `SegmentedPicker`); the depth histogram is drawn in the Focal Range scope well as
+`plotLine` bars at 35 % behind the band; **Subject** is a bordered 20 pt button beside the **Visualize Depth**
+checkbox; a busy estimate is a mini spinner with a caption. While Guided Upright is armed the loupe shows the
+uncorrected frame (session only) with a `Hint` saying so. Remaining gaps (Refine brushes, Constrain Crop) keep the
+disabled-with-`StatusLine` rule above.
+
 ## 6. Motion
 
 * 150–200 ms ease-out for things that appear (toast, popovers); `Theme.Motion.appear`.

@@ -18,7 +18,8 @@ enum GuideDrag {
 extension LoupeToolOverlay {
     private var guideSpace: MaskSpace? {
         guard let d = guideTool.develop else { return nil }
-        return MaskSpace(orientation: Int(d.info.orientation), crop: tools.storedCrop())
+        // The uncorrected view (M2-51) shows the whole uncropped frame.
+        return MaskSpace(orientation: Int(d.info.orientation), crop: guideTool.showsUncorrected ? nil : tools.storedCrop())
     }
 
     private func toImage(_ p: CGPoint) -> (x: Double, y: Double)? {
