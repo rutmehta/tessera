@@ -399,3 +399,13 @@ Layered documents reuse the system above; nothing here adds a colour, size or fo
   listed in tertiary with the reason), face-box and limitation notes in caption type, and for a missing model a
   warning `StatusLine` naming the model with its source URL and cache path in selectable text. Footer: Reset, Cancel,
   Apply (primary, disabled while the model is missing). Nothing offers a download.
+* **Shapes, Pen and vector masks (WP B5-11)** add no colour, size or font. Palette: Pen, Path / Direct Selection and a
+  shape slot (Rectangle, Ellipse, Polygon, Line) as 28 pt `IconButton`s. Options bar: fill / stroke checkboxes with
+  small colour wells, compact fields (Width, Radius, Sides, Inset, Weight), and a tertiary caption with the modifier
+  keys; Path Selection adds the "Move vector mask with shape" checkbox and a Combine pull-down. On the canvas only the
+  on-image set: paths and the affine box as `OnImage.guide` over `OnImage.shadow`, anchors as 7 pt squares (hollow
+  `OnImage.text`, filled `OnImage.guide` when selected, `OnImage.ink` outline), direction points as 6 pt circles on
+  guide lines, the vector mask outline dashed in `OnImage.guideFaint`. Properties for a shape: `SubHeader` groups
+  (Live <kind> or Custom Path, Fill, Stroke, Vector Mask, Interchange) of `DocSlider` rows, neutral `SegmentedPicker`s
+  (paint kind, alignment, caps, fill rule), `ThemeMenuStyle` pop-ups (gradient style, corners), a dash field, `Hint`s
+  for behaviour and warning `StatusLine`s for the engine's interchange and colour limitations.
