@@ -45,25 +45,27 @@ checks passed. M2-58 actual presentation acceptance remains pending the measurem
 conditions in M2-58-PRESENTATION-PLAN.md. A's five-minute heartbeat is active and
 polls the durable mailbox; SSH now exposes B’s coordinator for reading; direct messaging currently returns an active-writer conflict (see checkpoint below).
 
-## Direct SSH verification allocation — 2026-09-27 18:12 UTC
+## Direct SSH verification outcome — 2026-09-27 18:13 UTC
 
-A is running the M5-31 six-sample timing repeat directly on B over authenticated
-SSH. This is A-run remote verification, not a message receipt or work performed
-by B’s chat. The clean completed `/Users/rutmehta/Developer/lightroom/.worktrees/B5-16a`
-checkout is now detached at `441da3e3f83f46ee04536fa8b6248c2519d6d619`; the
-`wp/B5-16a` branch reference is unchanged. B: do not reuse this checkout or the
-`/Users/rutmehta/.cache/tessera-target/B5-15` build cache until the run finishes.
-Ownership is recorded in `/tmp/tessera-machine-a-benchmark-owner.txt` on B.
-Compile separately, then three original and three unique-ID fresh-process runs;
-all exits, thresholds, host load and thermal evidence are retained. Existing
-background CPU activity is recorded and left untouched. Results are pending.
+A completed the exact M5-31 six-sample repeat directly on B. Product441da3e:
+first original resident cold106.084084ms fails100ms; original2/3 and all three
+unique-ID samples pass. All CPU/warm limits pass. No sample replaced or excused.
+Complete verified logs, host snapshots, commands and manifests are published on
+wp/M5-31 at97eb4ca under tools/orchestrate/wp/M5-31/evidence/2026-09-27-machine-b-441da3e/.
+A investigates the remaining cold cost; main integration remains held.
 
-A’s first INT-45 gate failed because its new worktree lacked the ignored RAW
-fixture set. The failure is preserved, existing fixtures are linked and hashed,
-and the full gate is rerunning in session39983. No source failure was inferred
-from that setup error. UX02a RED confirms four Library-state violations; source
-work now includes an owner/image-keyed Develop-close barrier shared with the
-review safety fix. Fourteen ownership/save-order tests are prepared, not GREEN.
+B’s heavy slot is released. The completed B5-16a checkout remains clean detached
+at441da3e, original branch reference unchanged. No B Document source was edited.
+This was A-run remote verification, not a chat receipt. Result mailbox7fc92eb5
+supersedes execution of timing request4820486e; B should reconcile before retrying.
+
+A’s first INT-45 gate failed on missing ignored RAW fixtures in the new worktree.
+That failure remains preserved. After linking and hashing the existing fixtures,
+the full retry passed564tests/0fail/21ignored; strictClippy and workspace checks
+also pass. FFI/Swift builds run in session39983. UX02a RED confirms four Library
+state violations. The AppModel owner/image save barrier is committed4b52933 and
+integrated in the ownership branch; fifteen ownership/save-order regressions are
+prepared, not yet GREEN. UI navigation source work continues independently.
 
 ## SSH discovery checkpoint — 2026-09-27
 
@@ -75,7 +77,9 @@ History and compact status reads succeeded. Direct native messaging failed:
 `notLoaded` and an older completed turn; neither proves the desktop writer is
 idle or safe to replace. Existing B app-server processes are preserved.
 No direct-message delivery, new B work, mailbox receipt or B heartbeat is claimed.
-Use this exact UUID for new mailbox addressing; the earlier spelling remains an
+Supported-routing investigation is recorded in MACHINE-B-SSH-ROUTING.md.
+SSH discovery reaches a separate app-server; no supported route into the existing
+desktop writer was verified. Use this exact UUID for new mailbox addressing; the earlier spelling remains an
 agreed bootstrap alias. A continues its ready queue while this conflict remains.
 
 ## Mailbox handshake published

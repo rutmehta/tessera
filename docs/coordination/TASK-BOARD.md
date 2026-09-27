@@ -28,7 +28,7 @@ Machine A as sole main integrator. Do useful work while other tasks wait.
 | ID | Work | Owner / location | Next action and acceptance |
 | --- | --- | --- | --- |
 | UX-01 | Library / Photo Edit workspace and split inspector | A root; main `4925677` | DONE first bounded workspace slice; sourcecommitc417229 merged/pushed. Full411+5 checkpoint, final28targeted/0,40layouts,1readyRAW passed; rootvisualreview accepted. Interactive/performance gates remain separate; existing overlay/wrapping polish goesUX04. |
-| ENG-31 | M5-31 source reuse and cold timing | A root; published wp/M5-31 `441da3e` | Local326pass/0fail/14ignored plus6fresh timing samples andstrictchecks pass. A is now running the exact six-sample repeat directly over authenticated SSH on B’s free completed checkout; mailbox request remains unreceipted; prior B125.855125ms failure remains recorded. Main integration pending. |
+| ENG-31 | M5-31 source reuse and cold timing | A root; wp/M5-31 `97eb4ca`, product `441da3e` | A local326tests and6timings pass. Direct SSH six-sample repeat on B FAILED first original cold106.084084ms/100ms; remaining5pass. All evidence retained in branch; no main merge. `cross_machine_research` investigates residual cold cost, no threshold changes or replacement samples. B chat receipt still unconfirmed; result7fc92eb5 supersedes benchmark request execution. |
 | COM-01 | Establish usable authenticated Machine A ↔ B communication | A root | SSH authenticated and native remote chat discovered: `Resume Tessera Machine B work`, UUID `01a0e323-c018-7fa3-9605-999a2dea6b32`, host `remote-ssh-discovered:tessera-machine-b`. Reads succeed; native send rejects active writer. Preserve B desktop session; no duplicate writer. Git mailbox integrated, A heartbeat active, two requests published; B receipts/heartbeat still unconfirmed. Next: resolve routing to existing writer or receive B mailbox acknowledgement. |
 | OPS-01 | Persistent autonomous coordinator | Root; current chat | Heartbeat `tessera-machine-a-coordinator` ACTIVE every5minutes, created2026-09-27. Check running work before duplicate launches. Read/advance board; stay quiet unless meaningful outcome/blocker. Local execution requires awake host/app and available service limits. |
 
@@ -38,7 +38,7 @@ UX-02 safety prerequisite is now assigned to `b516_review`: isolate review queue
 owner/engine/image identities across folder switches and asynchronous completions.
 Scope is AgentController and focused tests on a separate main-based worktree;
 new Review navigation/resume persistence remains planned in UX-02-PLAN.md.
-M5-31 candidate is validated locally and published; B repeat is pending. INT-45 license check also passed (existing unused-license
+M5-31 candidate is validated locally and published; direct B repeat failed, retained at97eb4ca. INT-45 license check also passed (existing unused-license
 allowance warnings only); reproducible gated script is
 `/tmp/tessera-export-integration-gate.sh`; first run stopped on missing fixture,
 retry running after restoring and hashing the existing fixture set.
@@ -54,7 +54,8 @@ late Accept overwrote new-folder status, and old-run completion updated/presente
 foreign queue state. INT-45 first gate stopped at a missing ignored RAW fixture in its new worktree;
 source fixture symlink and SHA-256 manifest are now restored, failure retained.
 UX02a RED compiled and failed its four expected Library-preservation assertions.
-Root INT-45 full retry now owns A’s heavy slot (session39983).
+Root INT-45 retry passed564tests/0fail/21ignored, strictClippy andworkspace checks.
+FFI/Swift gates now own A’s heavy slot (session39983).
 Gain-map source is ready and waits for live-output/host validation. B mailbox remains absent. Benchmark repeat request4820486e and exact-UUID SSH status70405bbf are published; receipt remains unconfirmed.
 Root prepared INT-45 in the managed worktree
 `/Users/rutmehta/.codex/worktrees/export-integration/tessera`, branch
