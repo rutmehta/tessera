@@ -1,0 +1,99 @@
+2026-09-27 15:17:17.824 Tessera[85807:26422672] Sparkle updates not configured for this build
+document: frames on the Viewport path (L1, requested Rect { x0: 0, y0: 0, x1: 1200, y1: 800 })
+background-run: no scene window; hosting the shell in window 20667
+text-selftest: waiting for a document
+text-selftest: check 341 T selects Type ok
+text-selftest: check 341 click starts a session ok
+text-selftest: check 341 point text layer created ok
+text-selftest: check 341 text ok
+text-selftest: check 340 split view fits the 1440 pt window ok
+text-selftest: shot 340-inspector-1440 window 20667 1440 × 850
+text-selftest: shot 341-point-text window 20667 1440 × 850
+text-selftest: check 342 drag starts an area session ok
+text-selftest: check 342 wraps ok
+text-selftest: shot 342-area-text window 20667 1440 × 850
+text-selftest: check 343 drag selects ok
+text-selftest: check 344 three nodes ok
+text-selftest: check 344 styled run ok
+text-selftest: check 344 untouched runs ok
+text-selftest: check 343 edit across runs ok
+text-selftest: check 343 styled run intact ok
+text-selftest: shot 343-344-mixed-styles window 20667 1440 × 850
+text-selftest: check 345 one node per control edit ok
+text-selftest: check 345 labels ok
+text-selftest: check 346 runs kept ok
+text-selftest: check 346 box kept ok
+text-selftest: check 346 paragraph ok
+text-selftest: shot 345-346-character-paragraph window 20667 1440 × 850
+text-selftest: check 347 box resized ok
+text-selftest: check 347 rewraps or overflows ok
+text-selftest: check 347 same glyph size ok
+text-selftest: shot 347-resized-box window 20667 1440 × 850
+text-selftest: check B5-10c 347 keyboard back on the text ok
+text-selftest: check B5-10c 347 ⌘Return applies after a handle drag ok
+text-selftest: check B5-10c ⌘Return applies with the viewport focused ok
+text-selftest: check B5-10c hint for point text ok
+text-selftest: check 348 rotated ok
+text-selftest: check 348 caret maps at fit ok
+text-selftest: shot 348-caret-fit window 20667 1440 × 850
+text-selftest: check 348 caret maps at 100 ok
+text-selftest: shot 348-caret-100 window 20667 1440 × 850
+text-selftest: check 348 caret maps at 200 ok
+text-selftest: shot 348-caret-200 window 20667 1440 × 850
+text-selftest: check 349 text ok
+text-selftest: check 349 ⌫ removes the whole emoji ok
+text-selftest: check 349 no stop inside a mark or a scalar ok
+text-selftest: shot 349-clusters window 20667 1440 × 850
+text-selftest: check 350 RTL glyphs ok
+text-selftest: check 350 visual hit ok
+text-selftest: check 350 replacement ok
+text-selftest: shot 350-bidi window 20667 1440 × 850
+text-selftest: check 351 marked ok
+text-selftest: shot 351-marked-text window 20667 1440 × 850
+text-selftest: check 351 cancel ok
+text-selftest: check 351 one node ok
+text-selftest: check 351 committed ok
+text-selftest: check 351 one undo ok
+text-selftest: check 352 letters typed ok
+text-selftest: check 352 tool unchanged ok
+text-selftest: check 352 layers unchanged ok
+text-selftest: check 352 colours unchanged ok
+text-selftest: check 352 opacity unchanged ok
+text-selftest: check 352 ⌘A ⌘C ⌘V pasted twice ok
+text-selftest: check 352 ⌘Z reverts typing ok
+text-selftest: shot 352-keys window 20667 1440 × 850
+text-selftest: check B5-10c hint after a cancel ok
+text-selftest: check 353 one group ok
+text-selftest: check 353 undo exact ok
+text-selftest: check 353 redo exact ok
+text-selftest: check B5-10c click right of the last glyph resumes ok
+text-selftest: check B5-10c caret at the end ok
+text-selftest: check B5-10c no new layer ok
+text-selftest: check 356 converted ok
+text-selftest: shot 356-converted window 20667 1440 × 850
+text-selftest: check 356 one node ok
+text-selftest: check 356 undo restores text ok
+text-selftest: check 355 pixel lock rejects content ok
+text-selftest: check 355 position lock rejects moves ok
+text-selftest: check 355 position lock allows content ok
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 2400, y1: 1600 })
+text-selftest: check 357 text layers survive ok
+text-selftest: check 358 converted stays pixels (tessera-doc) ok
+text-selftest: check 357 editable after reopen ok
+text-selftest: shot 357-reopened-tessera-doc window 20667 1440 × 850
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 2400, y1: 1600 })
+text-selftest: check 358 text layers survive ok
+text-selftest: check 358 converted stays pixels (psd) ok
+text-selftest: check 358 editable after reopen ok
+text-selftest: shot 358-reopened-psd window 20667 1440 × 850
+text-selftest: check 354 draft shows ok
+text-selftest: check 354 cancel: no layer, no node ok
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 2400, y1: 1600 })
+text-selftest: check 354 no stale session ok
+text-selftest: shot 354-cancel-switch window 20667 1440 × 850
+text-selftest: check 359 warp caret disabled ok
+text-selftest: shot 359-warp-limitation-1440 window 20667 1440 × 850
+text-selftest: check 359 missing font explicit ok
+text-selftest: shot 359-missing-font-1440 window 20667 1440 × 850
+text-selftest: latency Keystroke → rendered frame: median 35.7 ms · p95 157.4 ms (121 keys, wall clock)
+text-selftest: done, 0 failure(s)

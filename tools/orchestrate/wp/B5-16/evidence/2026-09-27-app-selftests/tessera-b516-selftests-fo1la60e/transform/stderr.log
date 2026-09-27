@@ -1,0 +1,37 @@
+2026-09-27 15:43:39.014 Tessera[97894:26540379] Sparkle updates not configured for this build
+transform-selftest: waiting for the workspace
+document: frames on the Viewport path (L1, requested Rect { x0: 0, y0: 0, x1: 1200, y1: 800 })
+background-run: no scene window; hosting the shell in window 20670
+transform-selftest: document 2400 × 1600, Metal (Apple M4 Max)
+transform-selftest: check 380 Edit ▸ Transform items ok
+transform-selftest: check 381 pixel target needs consent ok
+transform-selftest: shot 381-warp-preview-pixel window 20670 1440 × 900
+transform-selftest: check 381 cancel keeps Pixel ok
+transform-selftest: check 381 cancel leaves history ok
+transform-selftest: check 381 Apply asks before converting ok
+transform-selftest: shot 381-convert-alert window 20670 1440 × 900
+transform-selftest: check 381 committed ok
+transform-selftest: check 381 smart object after consent ok
+transform-selftest: check 381 one node ok
+transform-selftest: check 381 label ok
+transform-selftest: check 382 re-edit opens the stage ok
+transform-selftest: check 382 anchor follows the drag ok
+transform-selftest: shot 382-warp-drag window 20670 1440 × 900
+transform-selftest: 382 latency Preview median 482 ms · p95 685 ms (30)
+transform-selftest: check 383 split adds a column and a row ok
+transform-selftest: shot 383-warp-split window 20670 1440 × 900
+transform-selftest: check 384 zero bend is identity ok
+transform-selftest: shot 384-warp-flag-bend window 20670 1440 × 900
+transform-selftest: check 392 Return applies one node ok
+transform-selftest: check 394 re-edit kept one stage ok
+transform-selftest: check 392 undo steps back once ok
+transform-selftest: check 392 redo restores the stage ok
+transform-selftest: check 385 two linked planes ok
+transform-selftest: check 385 shared vertex moved once for both planes ok
+transform-selftest: shot 385-perspective-linked window 20670 1440 × 900
+transform-selftest: check 386 crossing quad rejected ok
+transform-selftest: check 386 status explains ok
+transform-selftest: shot 386-perspective-rejected window 20670 1440 × 900
+transform-selftest: check 385 applied ok
+transform-selftest: Puppet Warp did not start: Puppet Warp: the layer is empty: puppet warp needs visible pixels
+transform-selftest: done, 0 failure(s)

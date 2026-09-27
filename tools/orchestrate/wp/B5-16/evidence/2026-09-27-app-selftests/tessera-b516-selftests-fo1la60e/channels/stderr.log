@@ -1,0 +1,28 @@
+2026-09-27 15:02:17.620 Tessera[78924:26353460] Sparkle updates not configured for this build
+document: frames on the Viewport path (L1, requested Rect { x0: 0, y0: 0, x1: 1200, y1: 800 })
+background-run: no scene window; hosting the shell in window 20660
+channels-selftest: waiting for a document
+channels-selftest: check save selection ok
+channels-selftest: check save is a history node ok
+channels-selftest: check spot channel ok
+channels-selftest: check undo / redo spot channel ok
+channels-selftest: step 1 panel-overlay window 0 429 960 652
+channels-selftest: step 2 save-sheet window 0 429 960 652
+channels-selftest: step 3 load-sheet window 0 429 960 652
+channels-selftest: step 4 spot-options-sheet window 0 429 960 652
+channels-selftest: step 5 alpha-only window 0 429 960 652
+channels-selftest: check quick mask on ok
+channels-selftest: step 6 quick-mask window 0 429 960 652
+channels-selftest: check quick mask off ok
+channels-selftest: check quick mask restores the selection ok
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 2400, y1: 1600 })
+channels-selftest: check reopen tessera-doc keeps channels ok
+channels-selftest: check reopen tessera-doc keeps the spot ink ok
+channels-selftest: check load tessera-doc channel back ok
+channels-selftest: step 7 reopened-tessera-doc window 0 429 960 652
+channels-selftest: check reopen psd keeps channels ok
+channels-selftest: check reopen psd keeps the spot ink ok
+channels-selftest: check load psd channel back ok
+document: frames on the Viewport path (L0, requested Rect { x0: 0, y0: 0, x1: 2400, y1: 1600 })
+channels-selftest: step 8 reopened-psd window 0 429 960 652
+channels-selftest: done, 0 failure(s)

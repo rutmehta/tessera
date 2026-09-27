@@ -1,0 +1,30 @@
+2026-09-27 14:59:36.310 Tessera[77270:26337665] Sparkle updates not configured for this build
+document: frames on the Viewport path (L2, requested Rect { x0: 0, y0: 0, x1: 1303, y1: 867 })
+background-run: no scene window; hosting the shell in window 20649
+filter-selftest: document 5212 × 3468 px, 16-bit, Metal (Apple M4 Max)
+filter-selftest: check filter menu ok
+filter-selftest: gaussian preview latency (value → frame, viewport 5212 × 3468 at L2): n 12, median 58.9 ms, p90 380.9 ms, max 431.0 ms
+filter-selftest: check preview frames ok
+filter-selftest: check preview records no history ok
+filter-selftest: check detail pane ok
+filter-selftest: step 1 gaussian-dialog window 0 429 960 652 window-id 20650
+filter-selftest: gaussian apply at full resolution: 0.83 s
+filter-selftest: check apply is one history row ok
+filter-selftest: step 2 gaussian-applied window 0 429 960 652 window-id 20649
+filter-selftest: check undo ok
+filter-selftest: step 3 gaussian-undone window 0 429 960 652 window-id 20649
+filter-selftest: step 4 levels-dialog window 0 429 960 652 window-id 20651
+filter-selftest: check levels applied ok
+filter-selftest: step 5 levels-applied window 0 429 960 652 window-id 20649
+filter-selftest: check smart object ok
+filter-selftest: check smart filter listed ok
+filter-selftest: step 6 smart-filter-on window 0 429 960 652 window-id 20649
+filter-selftest: smart filter off → frame 88 ms
+filter-selftest: check smart filter off ok
+filter-selftest: step 7 smart-filter-off window 0 429 960 652 window-id 20649
+filter-selftest: smart filter on → first frame 91 ms
+filter-selftest: check smart filter on ok
+filter-selftest: step 8 smart-filter-on-again window 0 429 960 652 window-id 20649
+filter-selftest: check history rows ok
+filter-selftest: check save ok
+filter-selftest: done, 0 failure(s)

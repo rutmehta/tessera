@@ -1,0 +1,14 @@
+[document] PASS: /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/tools/orchestrate/wp/B5-16/evidence/2026-09-27-app-selftests/tessera-b516-selftests-fo1la60e/document
+[tools] PASS: /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/tools/orchestrate/wp/B5-16/evidence/2026-09-27-app-selftests/tessera-b516-selftests-fo1la60e/tools
+[filter] PASS: /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/tools/orchestrate/wp/B5-16/evidence/2026-09-27-app-selftests/tessera-b516-selftests-fo1la60e/filter
+[retouch] PASS: /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/tools/orchestrate/wp/B5-16/evidence/2026-09-27-app-selftests/tessera-b516-selftests-fo1la60e/retouch
+[styles] PASS: /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/tools/orchestrate/wp/B5-16/evidence/2026-09-27-app-selftests/tessera-b516-selftests-fo1la60e/styles
+[channels] FAIL: /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/tools/orchestrate/wp/B5-16/evidence/2026-09-27-app-selftests/tessera-b516-selftests-fo1la60e/channels
+timeout: child did not finish within its deadline
+child exit -15
+[text] FAIL: /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/tools/orchestrate/wp/B5-16/evidence/2026-09-27-app-selftests/tessera-b516-selftests-fo1la60e/text
+timeout: child did not finish within its deadline
+child exit -15
+[vector] PASS: /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/tools/orchestrate/wp/B5-16/evidence/2026-09-27-app-selftests/tessera-b516-selftests-fo1la60e/vector
+[transform] FAIL: /Users/rutmehta/Developer/lightroom/.worktrees/B5-16/tools/orchestrate/wp/B5-16/evidence/2026-09-27-app-selftests/tessera-b516-selftests-fo1la60e/transform
+transform-selftest: Puppet Warp did not start: Puppet Warp: the layer is empty: puppet warp needs visible pixels

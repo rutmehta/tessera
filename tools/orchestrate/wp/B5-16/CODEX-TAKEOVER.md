@@ -238,3 +238,15 @@ First packaged result: **Document PASS**, exact `done, 0 failure(s)`, child exit
 11 successful owned-window captures. Native save/reopen, PNG export and layered
 PSD reopen checks passed. Remaining eight tests are still running; do not infer
 their outcomes from this first result. Runner source checkpoint `0ce9eb4`.
+
+### Original suite collected after interruption — 2026-09-27
+
+PID76603 finished; tool session50559 returned **exit1**. Six passes: Document,
+Tools, Filter, Retouch, Styles, Vector. Channels and Text reached zero-failure
+summaries but their source never exits; strict runner reported timeout and child
+exit-15. Transform stopped at Puppet Warp after Perspective Warp with an empty
+layer; the runner rejected that prerequisite failure despite the old zero count.
+Full original evidence is preserved in the same run directory. No restart or
+benchmark occurred. Mailbox result `e6634ca4` reports these outcomes to A.
+Next: repair Channels/Text process exit, rerun only those tests, diagnose the
+Transform failure without weakening the prerequisite gate. B5-16 stays NOT READY.

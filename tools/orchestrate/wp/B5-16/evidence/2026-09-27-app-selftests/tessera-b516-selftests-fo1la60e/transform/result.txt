@@ -1,0 +1,2 @@
+FAIL
+transform-selftest: Puppet Warp did not start: Puppet Warp: the layer is empty: puppet warp needs visible pixels
