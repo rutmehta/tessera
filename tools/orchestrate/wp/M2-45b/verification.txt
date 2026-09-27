@@ -1,0 +1,39 @@
+M2-45b output-sharpening checkpoint verification
+
+Exact requested gate executed in /Users/rutmehta/Developer/tessera/.worktrees/M2-45b:
+
+cargo test -p export -p tessera-ffi -p tessera-cli -p tessera-mcp --release && cargo clippy -p export -p tessera-ffi -p tessera-cli -p tessera-mcp --all-targets -- -D warnings && cargo fmt --check && cargo deny check licenses && (cd apps/mac && ./build-ffi.sh && swift build)
+
+CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/M2-45b
+GATE_EXIT=0
+
+Parsed from gate.log: 65 Rust test result summaries, 328 passed, 0 failed,
+15 ignored. Ignored tests are not claimed as executed. Fixture-aware tests
+may themselves skip absent optional assets as in the existing suite.
+
+Selected actual gate output:
+    Finished `release` profile [optimized] target(s) in 5m 07s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2m 57s
+licenses ok
+    Finished `release` profile [optimized] target(s) in 2m 13s
+    Finished `release` profile [optimized] target(s) in 0.76s
+Build complete! (37.95s)
+GATE_EXIT=0
+
+New tests all passed:
+filter::tests::output_sharpening_chart_strength_density_and_determinism
+export_sharpens_after_resize_with_selected_strength_and_ppi
+export::tests::sharpening_strength_and_density_flags
+sharpening_amount_json_defaults_and_roundtrip
+sharpening_amount_reaches_exported_pixels_and_preset
+
+Clippy with warnings denied, formatting, license audit, FFI generation and
+Swift build all passed. Existing native LibRaw compiler warnings and Swift
+concurrency warnings remain in the full local log, not hidden as warning-free.
+No generated binding changes were produced (configuration uses settings JSON).
+
+git diff --check passed. Programmatic changed/untracked-path allow-list check
+found no out-of-scope paths. No target directory is added to the checkout.
+
+This green gate verifies the sharpening checkpoint, not the unfinished whole
+M2-45b work package. See CHECKPOINT.md for the precise remaining scope.

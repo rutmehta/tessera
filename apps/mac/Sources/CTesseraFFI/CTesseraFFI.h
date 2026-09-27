@@ -616,9 +616,19 @@ void uniffi_tessera_ffi_fn_method_engine_delete_export_preset(uint64_t ptr, Rust
 RustBuffer uniffi_tessera_ffi_fn_method_engine_export_batch(uint64_t ptr, RustBuffer target, RustBuffer settings_json, RustBuffer listener, RustBuffer cancel, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_EXPORT_MULTIPLE
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_EXPORT_MULTIPLE
+RustBuffer uniffi_tessera_ffi_fn_method_engine_export_multiple(uint64_t ptr, RustBuffer target, RustBuffer settings_jsons, RustBuffer listener, RustBuffer cancel, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_EXPORT_PRESETS
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_EXPORT_PRESETS
 RustBuffer uniffi_tessera_ffi_fn_method_engine_export_presets(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_EXPORT_WITH_PREVIOUS
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_EXPORT_WITH_PREVIOUS
+RustBuffer uniffi_tessera_ffi_fn_method_engine_export_with_previous(uint64_t ptr, RustBuffer target, RustBuffer listener, RustBuffer cancel, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_RENAME_EXPORT_PRESET
@@ -3150,9 +3160,21 @@ uint16_t uniffi_tessera_ffi_checksum_method_engine_export_batch(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_EXPORT_MULTIPLE
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_EXPORT_MULTIPLE
+uint16_t uniffi_tessera_ffi_checksum_method_engine_export_multiple(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_EXPORT_PRESETS
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_EXPORT_PRESETS
 uint16_t uniffi_tessera_ffi_checksum_method_engine_export_presets(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_EXPORT_WITH_PREVIOUS
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_EXPORT_WITH_PREVIOUS
+uint16_t uniffi_tessera_ffi_checksum_method_engine_export_with_previous(void
     
 );
 #endif

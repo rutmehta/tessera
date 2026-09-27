@@ -43,6 +43,12 @@ pub struct Options {
     color_space: String,
     #[arg(long, value_parser = ["screen", "matte", "glossy"])]
     sharpen: Option<String>,
+    /// Output sharpening strength (after resize, before watermark).
+    #[arg(long, default_value = "standard", value_parser = ["low", "standard", "high"])]
+    sharpen_amount: String,
+    /// Output pixel density; paper sharpening uses 300 ppi when omitted.
+    #[arg(long, value_parser = clap::value_parser!(u32).range(1..=9600))]
+    ppi: Option<u32>,
     #[arg(long, default_value = "all", value_parser = ["all", "copyright", "none"])]
     metadata: String,
     #[arg(long, default_value = "{name}-{seq}")]
@@ -52,6 +58,18 @@ pub struct Options {
     /// Apply x2/x4 super-resolution before resize/sharpen (serial; ignores --jobs).
     #[arg(long, value_parser = ["2", "4"])]
     upscale: Option<String>,
+    /// Reveal successful exports in Finder (macOS).
+    #[arg(long)]
+    reveal: bool,
+    /// Open successful exports in this absolute app path (macOS).
+    #[arg(long)]
+    open_in_app: Option<PathBuf>,
+    /// Execute this absolute script path with output paths as separate arguments.
+    #[arg(long)]
+    after_export_script: Option<PathBuf>,
+    /// Timeout for each post-export child process.
+    #[arg(long, default_value_t = 60, value_parser = clap::value_parser!(u32).range(1..=3600))]
+    after_export_timeout: u32,
 }
 
 fn paths(index: &Index, options: &Options) -> Result<Vec<PathBuf>> {
@@ -167,6 +185,12 @@ fn settings(options: &Options) -> Result<ExportSettings> {
             _ => SharpenFor::None,
         },
         naming: options.name.clone(),
+        sharpen_amount: match options.sharpen_amount.as_str() {
+            "low" => export::SharpenAmount::Low,
+            "high" => export::SharpenAmount::High,
+            _ => export::SharpenAmount::Standard,
+        },
+        dpi: options.ppi,
         output_dir: options.out.clone(),
         max_file_bytes: options.max_file_bytes,
         watermark: options
@@ -261,6 +285,13 @@ fn preflight_upscale(
 }
 
 pub fn run(index: &Index, app_dir: &Path, options: &Options) -> Result<Value> {
+    let actions = export::AfterExportActions {
+        reveal: options.reveal,
+        open_in_app: options.open_in_app.clone(),
+        run_script: options.after_export_script.clone(),
+        timeout_seconds: options.after_export_timeout,
+    };
+    actions.validate()?;
     let settings = settings(options)?;
     let paths = paths(index, options)?;
     ensure!(!paths.is_empty(), "no images matched export input");
@@ -365,7 +396,14 @@ pub fn run(index: &Index, app_dir: &Path, options: &Options) -> Result<Value> {
     if !errors.is_empty() {
         bail!("export failed: {}", errors[0]["error"]);
     }
-    Ok(json!({"total":paths.len(),"completed":completed,"outputs":outputs,"errors":errors}))
+    let absolute_outputs = outputs
+        .iter()
+        .map(std::path::absolute)
+        .collect::<std::io::Result<Vec<_>>>()?;
+    let workflow_errors = export::run_after_export(&actions, &absolute_outputs, &cancel);
+    Ok(
+        json!({"total":paths.len(),"completed":completed,"outputs":outputs,"errors":errors,"workflow_errors":workflow_errors,"cancelled":cancel.is_cancelled()}),
+    )
 }
 
 enum Pixels {
@@ -417,6 +455,33 @@ fn load(path: &Path) -> Result<Loaded> {
 #[cfg(test)]
 mod tests {
     use clap::Parser;
+
+    #[test]
+    fn sharpening_strength_and_density_flags() {
+        let parsed = crate::Cli::try_parse_from([
+            "tessera",
+            "export",
+            "input.png",
+            "--out",
+            "out",
+            "--format",
+            "png",
+            "--sharpen",
+            "matte",
+            "--sharpen-amount",
+            "high",
+            "--ppi",
+            "240",
+        ])
+        .unwrap();
+        let crate::Command::Export(options) = parsed.command else {
+            panic!("export")
+        };
+        let settings = super::settings(&options).unwrap();
+        assert!(matches!(settings.sharpen_for, export::SharpenFor::Matte));
+        assert_eq!(settings.sharpen_amount, export::SharpenAmount::High);
+        assert_eq!(settings.dpi, Some(240));
+    }
 
     #[test]
     fn dng_flags_select_float_linear_export() {
