@@ -186,6 +186,7 @@ final class AppModel {
     var photoInspectorTab: PhotoInspectorTab = .develop
     var layeredCopyRequest: LayeredCopyRequest?
     @ObservationIgnored private var pendingLayeredCopyRequestID: UUID?
+    @ObservationIgnored private var layeredCopyStatusOwner: UUID?
     @ObservationIgnored private var workspaceTransition = false
     @ObservationIgnored private var libraryReturnState: LibraryReturnState?
     private struct LibraryReturnState {
@@ -895,11 +896,17 @@ final class AppModel {
         let source = self.source
         let view = viewMode
         let barrier = pendingDevelopSaveBarrier(imageID: imageID, library: owner)
-        statusMessage = "Saving photo before opening Layers…"
+        let savingMessage = "Saving photo before opening Layers…"
+        layeredCopyStatusOwner = request.id
+        statusMessage = savingMessage
         Task { [weak self] in
             await barrier.value
             guard let self else { return }
             defer {
+                if self.layeredCopyStatusOwner == request.id {
+                    if self.statusMessage == savingMessage { self.statusMessage = nil }
+                    self.layeredCopyStatusOwner = nil
+                }
                 if self.pendingLayeredCopyRequestID == request.id { self.pendingLayeredCopyRequestID = nil }
             }
             guard self.pendingLayeredCopyRequestID == request.id, self.engineLibrary === owner,

@@ -253,7 +253,7 @@ final class AgentReviewNavigationTests: XCTestCase {
     }
 
     func testLayeredHandoffCancelsWhenSelectionOrOwnerChangesBeforeSaveWaitReturns() async throws {
-        for changeOwner in [false, true] {
+        for (changeOwner, laterStatus) in [(false, false), (true, false), (false, true)] {
             let model = try await reviewedModel()
             model.select(position: 0)
             let item = try XCTUnwrap(model.focusedItem)
@@ -268,11 +268,14 @@ final class AgentReviewNavigationTests: XCTestCase {
             model.createRequestedLayeredCopy()
             if changeOwner { model.loadStubItems(count: 2) }
             else { model.select(position: 1) }
+            if laterStatus { model.statusMessage = "A newer operation completed" }
             await model.pendingDevelopSaveBarrier(imageID: try XCTUnwrap(item.engineImage?.imageID), library: owner).value
             // Drain the handoff continuation after its captured barrier settles.
             try await Task.sleep(for: .milliseconds(40))
             XCTAssertTrue(model.documents.documents.isEmpty)
             XCTAssertNotEqual(model.viewMode, .document)
+            if laterStatus { XCTAssertEqual(model.statusMessage, "A newer operation completed") }
+            else { XCTAssertNotEqual(model.statusMessage, "Saving photo before opening Layers…") }
             await controller.close()
         }
     }

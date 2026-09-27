@@ -1,0 +1,90 @@
+[0/1] Planning build
+Building for production...
+[0/5] Write sources
+[2/5] Write swift-version--58304C5D6DBC2206.txt
+[4/6] Compiling Tessera AISettingsView.swift
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/Tessera/Document/AdjustmentEditors.swift:55:55: warning: passing non-Sendable parameter 'change' to function expecting a '@Sendable' closure
+ 52 |     }
+ 53 | 
+ 54 |     private func checkbox(_ title: String, _ on: Bool, _ key: String, _ change: @escaping (Bool) -> Void) -> some View {
+    |                                                                         `- note: parameter 'change' is implicitly non-Sendable
+ 55 |         Toggle(title, isOn: Binding(get: { on }, set: change))
+    |                                                       `- warning: passing non-Sendable parameter 'change' to function expecting a '@Sendable' closure
+ 56 |             .toggleStyle(.checkbox)
+ 57 |             .font(Theme.Fonts.caption)
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/Tessera/Document/Transforms/DocumentTransforms.swift:676:21: warning: 'where' only applies to the second pattern match in this 'case'
+674 |         let mods = e.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.numericPad, .function, .capsLock])
+675 |         switch e.keyCode {
+676 |         case 36, 76 where mods.isEmpty || mods == [.command]: apply(); return true
+    |              |   |  `- warning: 'where' only applies to the second pattern match in this 'case'
+    |              |   `- note: disambiguate by adding a line break between them if this is desired
+    |              `- note: duplicate the 'where' on both patterns to check both patterns
+677 |         case 53 where mods.isEmpty: cancel(); return true
+678 |         case 51, 117 where mods.isEmpty:
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/Tessera/Document/Transforms/DocumentTransforms.swift:678:22: warning: 'where' only applies to the second pattern match in this 'case'
+676 |         case 36, 76 where mods.isEmpty || mods == [.command]: apply(); return true
+677 |         case 53 where mods.isEmpty: cancel(); return true
+678 |         case 51, 117 where mods.isEmpty:
+    |              |   |   `- warning: 'where' only applies to the second pattern match in this 'case'
+    |              |   `- note: disambiguate by adding a line break between them if this is desired
+    |              `- note: duplicate the 'where' on both patterns to check both patterns
+679 |             if case .puppet = session?.op, selectedPin != nil { removeSelectedPin(); return true }
+680 |             return false
+
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Sources/Tessera/Document/Transforms/TransformSelfTest.swift:460:16: warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+458 | 
+459 |         // 395: position lock rejects geometry.
+460 |         if let id = doc?.primary?.id {
+    |                `- warning: value 'id' was defined but never used; consider replacing with boolean test [#no-usage]
+461 |             doc?.toggleLock(.position)
+462 |             await settle()
+[4/8] Write Objects.LinkFileList
+ld: warning: object file (/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/build/ffi/libtessera_ffi.a[2845](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[5/8] Linking Tessera
+[7/9] Compiling TesseraCoreTests AgentReviewLayoutTests.swift
+/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:190:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+188 |         let done = expectation(description: "delivered")
+189 |         DispatchQueue.global().async {
+190 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+191 |             DispatchQueue.main.async { done.fulfill() }
+192 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[8/10] Compiling TesseraPackageTests runner.swift
+[8/10] Write Objects.LinkFileList
+ld: warning: object file (/Users/rutmehta/.codex/worktrees/workspace-redesign/tessera/apps/mac/build/ffi/libtessera_ffi.a[2845](a1edd97dd51cd48d-blake3_neon.o)) was built for newer 'macOS' version (26.5) than being linked (15.0)
+[9/10] Linking TesseraPackageTests
+Build complete! (85.10s)
+Test Suite 'Selected tests' started at 2026-09-27 15:00:57.437.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-09-27 15:00:57.438.
+Test Suite 'AgentReviewLayoutTests' started at 2026-09-27 15:00:57.438.
+Test Case '-[TesseraCoreTests.AgentReviewLayoutTests testReviewEmptyAndRealQueueAtEverySizeAndAppearance]' started.
+Test Case '-[TesseraCoreTests.AgentReviewLayoutTests testReviewEmptyAndRealQueueAtEverySizeAndAppearance]' passed (38.251 seconds).
+Test Suite 'AgentReviewLayoutTests' passed at 2026-09-27 15:01:35.689.
+	 Executed 1 test, with 0 failures (0 unexpected) in 38.251 (38.251) seconds
+Test Suite 'AgentReviewNavigationTests' started at 2026-09-27 15:01:35.689.
+Test Case '-[TesseraCoreTests.AgentReviewNavigationTests testLayeredHandoffCancelsWhenSelectionOrOwnerChangesBeforeSaveWaitReturns]' started.
+develop L2 calibration [first, tone, WB] ms: CPU [12.551792, 0.342791, 0.416292]; GPU [14.898709, 0.879792, 1.0276249999999998]
+develop L2 calibration [first, tone, WB] ms: CPU [12.428917, 0.371416, 0.439458]; GPU [13.372625000000001, 0.8640829999999999, 1.010625]
+develop L2 calibration [first, tone, WB] ms: CPU [12.260042, 0.364917, 0.444584]; GPU [13.480708, 1.0354999999999999, 1.0012079999999999]
+Test Case '-[TesseraCoreTests.AgentReviewNavigationTests testLayeredHandoffCancelsWhenSelectionOrOwnerChangesBeforeSaveWaitReturns]' passed (2.022 seconds).
+Test Suite 'AgentReviewNavigationTests' passed at 2026-09-27 15:01:37.711.
+	 Executed 1 test, with 0 failures (0 unexpected) in 2.022 (2.022) seconds
+Test Suite 'TesseraPackageTests.xctest' passed at 2026-09-27 15:01:37.711.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 40.273 (40.273) seconds
+Test Suite 'Selected tests' passed at 2026-09-27 15:01:37.711.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 40.273 (40.274) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

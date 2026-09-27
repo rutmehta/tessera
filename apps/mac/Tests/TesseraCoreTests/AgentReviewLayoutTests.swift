@@ -41,11 +41,41 @@ final class AgentReviewLayoutTests: XCTestCase {
         model.selectReviewPhoto(long.imageID)
         XCTAssertNotNil(model.reviewTargetItem)
         try check(model, state: "reviewPopulatedLongName")
+        try await checkReadyPreview(model)
         try checkBusyPresentation(model, entry: long)
         let failure = try XCTUnwrap(model.agent.queue.entries.first { $0.imageID == missing.engineImage?.imageID })
         XCTAssertNotNil(failure.error, "The failure state must come from the real missing-file run")
         model.selectReviewPhoto(failure.imageID)
         try check(model, state: "reviewFailedPhoto")
+    }
+
+    /// Let the real view's save barrier and loader callback run on MainActor. Cache insertion and
+    /// callback delivery are synchronous in ThumbnailLoader.deliver, so observing a newly cached
+    /// preview on this actor proves delivery; the background capture then checks rendered pixels.
+    private func checkReadyPreview(_ model: AppModel) async throws {
+        let item = try XCTUnwrap(model.reviewTargetItem)
+        model.toast = nil // Same action as the visible Dismiss button; retain the prior loading captures.
+        for (size, dark) in [(CGSize(width: 960, height: 600), false), (CGSize(width: 1440, height: 900), true)] {
+            model.loader.invalidate(item)
+            XCTAssertNil(model.loader.cached(item, tier: .preview))
+            let (window, host) = ShellHarness.window(model, size: size, dark: dark)
+            defer { window.orderOut(nil); window.contentViewController = nil }
+            let deadline = Date().addingTimeInterval(15)
+            while model.loader.cached(item, tier: .preview) == nil, Date() < deadline {
+                try await Task.sleep(for: .milliseconds(20))
+            }
+            let loaded = try XCTUnwrap(model.loader.cached(item, tier: .preview), "Real Review view must deliver its preview before capture")
+            XCTAssertGreaterThan(loaded.width, 0)
+            XCTAssertGreaterThan(loaded.height, 0)
+            XCTAssertNil(model.toast)
+            XCTAssertFalse(NSApp.isActive)
+            ShellHarness.settle(window, size: size)
+            XCTAssertTrue(ShellLayoutAudit.containmentViolations(in: host, columnContent: true).isEmpty)
+            if let directory = ProcessInfo.processInfo.environment["TESSERA_LAYOUT_CAPTURE"] {
+                let tag = "reviewReady-\(Int(size.width))x\(Int(size.height))-\(dark ? "dark" : "light")"
+                try ShellHarness.capture(window, to: URL(fileURLWithPath: directory).appendingPathComponent("\(tag).png"))
+            }
+        }
     }
 
     /// Synthetic presentation only: no operation is started or represented as completed.
