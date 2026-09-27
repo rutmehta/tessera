@@ -38,6 +38,13 @@ Machine A as sole main integrator. Do useful work while other tasks wait.
 
 ## Ready / next
 
+Current-FFI Review rerun16cb6ce5 passed with direct Swift exit0:494XCTest,
+one skip,zero failures,plus5SwiftTesting. Root verified the archive99ba hash and
+final source manifest. GUI relaunch is still pending. Luna packages the exact
+linked executable without rebuilding and retains desktop; engine Sol now owns the
+compiler for the separately frozen CPU PSD primitive. B accepted correction
+requestfbd39d94 through a formal Git receipt; no B workload is authorized.
+
 PSD operation review7240948 found a blocking error/cancel race: real precommit
 errors can be hidden as Cancelled. Original result339d5538 has a failed receipt;
 source-only correction requestfbd39d94 is published. SSH queue01a0e507-a9a6-7603-b513-eeb952533ed6

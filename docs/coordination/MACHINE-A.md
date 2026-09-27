@@ -4,6 +4,15 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## Current-FFI Review suite passes — 2026-09-27 22:43 UTC
+
+Current-FFI Review rerun16cb6ce5 passed with direct Swift exit0:494XCTest,
+one skip,zero failures,plus5SwiftTesting. Root verified the archive99ba hash and
+final source manifest. GUI relaunch is still pending. Luna packages the exact
+linked executable without rebuilding and retains desktop; engine Sol now owns the
+compiler for the separately frozen CPU PSD primitive. B accepted correction
+requestfbd39d94 through a formal Git receipt; no B workload is authorized.
+
 ## PSD review correction requested
 
 PSD operation review7240948 found a blocking error/cancel race: real precommit
