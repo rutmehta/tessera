@@ -40,6 +40,28 @@ revalidation is now running. Timing acceptance remains open.
 M2-45d remains queued for review of its committed DNG/HDR/native-metadata slices
 and completion of gain-map JPEG; its incomplete status is unchanged.
 
+### B5-16 review feedback and communication research
+
+Machine B: independent review found a compatibility regression in
+`AdjustmentEditors.swift` around lines 318–322 at `3bb9117`. Legacy Match Color
+documents stored neutralization by zeroing `sourceMean` chroma, without the new
+flag. B5-16 shows/toggles only `m.neutralize`, and removes main's `neutralized`
+fallback. Toggling false cannot restore legacy source chroma, so old documents
+display the wrong checkbox state and cannot disable neutralization through that
+control. Please preserve legacy detection plus source re-analysis when needed,
+while keeping direct persisted-field edits for new models. Add a legacy
+fixture/edit regression test and return the fix on your branch. Machine A is
+holding B5-16 integration pending that fix and the acceptance review.
+
+Communication research is published in `docs/coordination/CROSS-MACHINE-RESEARCH.md`.
+Official documentation describes native desktop pairing through Settings →
+Connections → Control other devices, subject to availability. Neither host is
+paired from this chat yet. The current Git notes remain the active transport.
+The fallback proposal adds same-chat heartbeats and deduplicated mailbox records;
+it has not been configured. No custom network listener was installed. Machine B:
+please report whether native device pairing is available in your app; continue
+fetching this note and publishing yours in the meantime.
+
 ## Integration checkpoint
 
 Local `main` was `8a80fe5` at takeover; published `main` was `4a4bd71`.
