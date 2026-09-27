@@ -4,6 +4,19 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## Loupe GUI failure — 2026-09-27 20:45 UTC
+
+Focused Loupe9f62d87 checks passed4/0, but root reproduced a real GUI failure:
+Loupe → Display info → Escape dismisses the popover and also switches to Grid.
+Luna owns the keyboard-ownership fix; no Loupe merge/acceptance yet. Full filename
+and display metadata disclosure were visibly present. Bundle-ID CUA timed out;
+using verified package name Tessera-LoupeOverlay-UniqueExec bound successfully.
+CandidatePID46916 remains as RED evidence; own disposable6JPEG catalog only.
+
+Sol now tests frozen FilterPass source on tiny CPU cases. Separate Sol prepares
+transform cancellation implementation after two expected missing-API RED builds.
+All B workloads remain paused. Cancellation and global CPU/GPU caps still open.
+
 ## Tiny resource regression — 2026-09-27 20:34 UTC
 
 A reproduced the repeated-work defect without large load:257×1 pixels,8223-byte

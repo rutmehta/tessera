@@ -60,7 +60,7 @@ Evidence: tools/orchestrate/wp/UX-02a/combined-integration-20260927/.
 Luna's isolated a54044f GUI checks remain separately scoped: Library/Edit/back,
 selected-fixture AutoEdit, Review/Edit/back, draft focus and single-entry accept.
 Multiple betterSSD builds/catalogs are authorized; serialize desktop control.
-Loupe2c65ddc remains separate; Luna rebases its integration on verified main without builds.
+Loupe9f62d87 focused4/0 passed, but actual GUI found Escape on Display info also switches Loupe to Grid. Root reproduced; Luna repairs keyboard ownership before merge. The isolated candidate remains available as RED evidence.
 
 Gain-map CI supplemental and CLI/FFI/MCP targeted checks passed after preserved
 fixture repairs. Original ImageIO4pass/1fail remains unresolved. Evidence-only
@@ -92,7 +92,7 @@ separate evidence; no threshold was weakened or failed sample replaced.
 | INT-45 | Integrate validated DNG/PQ-HLG/native metadata slice | A root; main fb7c604 | DONE bounded slice. 564Rust/0fail/21ignored, strictchecks, FFI, final436XCTest/1existing skip/0fail +5SwiftTesting. DNG1.6/backward1.4 contract verified. Gain-map JPEG separate. |
 | UX-02 | Navigable Review and resume persistence | A root; Review workspace merged b2757c7 | Ownership/save barriers and mutation exclusion DONE:23regressions included in full436+5 gate. UX02a source4fcb802 passed43focused tests; 34captures include real ready pixels; recovered2-test status/ready gate passed. Checkpoint a54044f and isolated hands-on checks passed; fe0ff9e full455+5 passed and merged mainb2757c7. UX02b relaunch persistence still pending. |
 | UX-03 | Selective batch editing and source/target clarity | A; after UX-01/02 contract | Preserve source/target snapshots and settings selection; define undo/review semantics, verify no unseen batch action from a single-key shortcut. |
-| UX-04 | Visual/accessibility refinement | A b516_review implementation; B agreed split | Masks slice041778b passed populated 288/380-point light/dark checks and ThemeLint (2/2), with root visual review; merged mainb2757c7 after full455+5 gate. Loupe disclosure source2c65ddc is separate and untested. No Document/global-theme edits. |
+| UX-04 | Visual/accessibility refinement | A b516_review implementation; B agreed split | Masks slice041778b passed populated 288/380-point light/dark checks and ThemeLint (2/2), with root visual review; merged mainb2757c7 after full455+5 gate. Loupe9f62d87 focused4/0 passed; GUI Escape leaked to Grid, now held for fix/retest. No Document/global-theme edits. |
 | UX-05 | True live-RAW/layer continuity | A engine+B document contract | Separate substantial dependency: current transition is rendered copy. Define graph/persistence/version contract and release scenario before making live-raw claims. |
 
 ## Machine B / integration dependencies
