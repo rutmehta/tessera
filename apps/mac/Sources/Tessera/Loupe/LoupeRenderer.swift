@@ -1,6 +1,7 @@
 import Metal
 import QuartzCore
 import simd
+import TesseraCore
 
 /// Where the image sits in the loupe: an affine map from drawable pixels (top-left origin) to
 /// displayed-image uv (after EXIF orientation, [0, 1] across the whole picture). The normal view is
@@ -31,11 +32,21 @@ struct LoupePlacement {
 }
 
 /// Minimal Metal presenter: maps one frame onto the drawable through a `LoupePlacement`, applying
-/// the EXIF orientation and the frame's valid sub-rectangle. The shader is compiled from source at
-/// startup so the SwiftPM build needs no metallib step. All develop math happens in the engine;
+/// the EXIF orientation and the frame's valid sub-rectangle. Resources are compiled lazily on a
+/// worker, retained for the process, and never compiled while building the first grid.
+/// All develop math happens in the engine;
 /// this only samples.
-@MainActor
-final class LoupeRenderer {
+final class LoupeRenderer: @unchecked Sendable {
+    let createdOnMainThread = Thread.isMainThread
+    // Immutable Metal resources are safe to create off-main. Presentation stays on MainActor.
+    @MainActor private static var preparation: Task<LoupeRenderer?, Never>?
+
+    @MainActor static func prepared() async -> LoupeRenderer? {
+        if preparation == nil {
+            preparation = Task.detached(priority: .userInitiated) { LoupeRenderer() }
+        }
+        return await preparation?.value
+    }
     let device: MTLDevice
     private let queue: MTLCommandQueue
     private let pipeline: MTLRenderPipelineState
@@ -159,6 +170,8 @@ final class LoupeRenderer {
     """
 
     init?() {
+        let span = PerformanceTrace.shared.begin("loupe_resources")
+        defer { PerformanceTrace.shared.end(span) }
         guard let device = MTLCreateSystemDefaultDevice(), let queue = device.makeCommandQueue() else { return nil }
         self.device = device
         self.queue = queue
@@ -210,8 +223,11 @@ final class LoupeRenderer {
 
     /// Encodes and presents one frame. `placement` nil = aspect fit. Returns the CPU encode time.
     @discardableResult
-    func draw(in layer: CAMetalLayer, texture: MTLTexture?, frame: LoupeFrame?, placement: LoupePlacement?,
-              background: Float, dim: Float = 0.35, overlay: MaskOverlay? = nil, proof: ProofLUT? = nil) -> Double {
+    @MainActor func draw(in layer: CAMetalLayer, texture: MTLTexture?, frame: LoupeFrame?, placement: LoupePlacement?,
+              background: Float, dim: Float = 0.35, overlay: MaskOverlay? = nil, proof: ProofLUT? = nil,
+              timing: FrameTiming? = nil) -> Double {
+        let span = PerformanceTrace.shared.begin("drawable_encode", session: timing?.session)
+        defer { PerformanceTrace.shared.end(span) }
         let t0 = CACurrentMediaTime()
         let size = layer.drawableSize
         guard size.width >= 1, size.height >= 1, let drawable = layer.nextDrawable(),
@@ -248,6 +264,17 @@ final class LoupeRenderer {
             enc.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4)
         }
         enc.endEncoding()
+        if let timing, PerformanceTrace.shared.enabled {
+            drawable.addPresentedHandler { presented in
+                // presentedTime is the actual presentation timestamp, not callback delivery time.
+                if presented.presentedTime > 0 {
+                    timing.record("drawable_presented", time: presented.presentedTime)
+                } else {
+                    timing.record("drawable_presentation_unavailable")
+                }
+            }
+            timing.record("drawable_submission")
+        }
         cmd.present(drawable)
         cmd.commit()
         return CACurrentMediaTime() - t0

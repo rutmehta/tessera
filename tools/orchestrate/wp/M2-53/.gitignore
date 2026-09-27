@@ -1,0 +1,6 @@
+# Local measurement executables, copied RAWs and cache state are not deliverables.
+/check-build/
+/trace-checks
+/*/foreground-probe
+/*/fixture/
+/*/state/

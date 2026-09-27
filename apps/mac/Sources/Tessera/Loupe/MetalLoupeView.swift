@@ -20,13 +20,18 @@ extension NSScreen: EDRScreen {
 /// develop session is attached, a display link sends coalesced slider changes once per frame.
 @MainActor
 final class MetalLoupeView: NSView {
-    private let renderer = LoupeRenderer()
+    private var renderer: LoupeRenderer?
+    private(set) var preparationStarted = false
+    private let loadingLabel = NSTextField(labelWithString: "Preparing loupe…")
+    private var pendingProof: (SoftProofLut?, SIMD4<Float>)?
+    private var pendingOverlay: MaskOverlayFrame?
     private var metalLayer: CAMetalLayer? { layer as? CAMetalLayer }
 
     /// Source kept so the frame can be re-rasterised when the screen (and so the working space) changes.
     private var sourceImage: CGImage?
     private var sourceIsFinal = false
     private var currentFrame: LoupeFrame?
+    private var currentTiming: FrameTiming?
     private var texture: MTLTexture?
     private var rasterGeneration = 0
     private(set) var workingColorSpace: CGColorSpace = CGColorSpace(name: CGColorSpace.extendedLinearDisplayP3)!
@@ -66,6 +71,13 @@ final class MetalLoupeView: NSView {
         toolOverlay.autoresizingMask = [.width, .height]
         toolOverlay.loupe = self
         addSubview(toolOverlay)
+        loadingLabel.isHidden = true
+        loadingLabel.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(loadingLabel)
+        NSLayoutConstraint.activate([
+            loadingLabel.centerXAnchor.constraint(equalTo: centerXAnchor),
+            loadingLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
+        ])
     }
 
     required init?(coder: NSCoder) { fatalError() }
@@ -193,8 +205,31 @@ final class MetalLoupeView: NSView {
 
     // MARK: Content
 
+    /// A hidden, empty grid loupe never starts this work. Keep the latest frame while loading.
+    private func prepareRenderer() {
+        guard !preparationStarted else { return }
+        preparationStarted = true
+        loadingLabel.isHidden = false
+        Task { @MainActor [weak self] in
+            let renderer = await LoupeRenderer.prepared()
+            guard let self else { return }
+            self.renderer = renderer
+            guard let renderer else {
+                self.loadingLabel.stringValue = "Metal loupe unavailable"
+                return
+            }
+            self.metalLayer?.device = renderer.device
+            self.texture = self.currentFrame?.makeTexture(device: renderer.device)
+            self.loadingLabel.isHidden = true
+            if let (lut, warning) = self.pendingProof { self.setSoftProof(lut, warning: warning) }
+            self.present(maskOverlay: self.pendingOverlay)
+            self.render()
+        }
+    }
+
     /// Stub path: present a CGImage (embedded preview). Rasterised off the main thread into an IOSurface.
     func present(image: CGImage?, isFinal: Bool) {
+        currentTiming = nil
         sourceImage = image
         sourceIsFinal = isFinal
         guard let image else {
@@ -204,11 +239,14 @@ final class MetalLoupeView: NSView {
             render()
             return
         }
+        prepareRenderer()
         rasterize(image, isFinal: isFinal)
     }
 
     /// Engine path: present a surface rendered elsewhere, in the frame's colour space.
-    func present(frame: LoupeFrame) {
+    func present(frame: LoupeFrame, timing: FrameTiming? = nil) {
+        currentTiming = timing
+        prepareRenderer()
         rasterGeneration += 1
         sourceImage = nil
         currentFrame = frame
@@ -226,6 +264,7 @@ final class MetalLoupeView: NSView {
         develop?.onPresentationChange = nil
         develop = controller
         maskOverlay = nil
+        pendingOverlay = nil
         guard let controller else {
             flushLink?.isPaused = true
             headroomTimer?.invalidate()
@@ -254,7 +293,9 @@ final class MetalLoupeView: NSView {
         guard controller === develop, let surface = controller.surface(f.surfaceID) else { return }
         present(frame: LoupeFrame(engineSurface: surface, contentWidth: f.width, contentHeight: f.height,
                                   fullWidth: f.displayWidth, fullHeight: f.displayHeight,
-                                  orientation: Int(controller.info.orientation)))
+                                  orientation: Int(controller.info.orientation)),
+                timing: FrameTiming(session: controller.timingSession, generation: f.generation,
+                                    width: f.width, height: f.height, level: f.level, backend: controller.info.backend))
         toolOverlay.frameDidArrive()
         // A crop (or its undo) changes the picture's aspect: re-plan the surface level.
         let shape = (f.displayWidth, f.displayHeight)
@@ -321,11 +362,13 @@ final class MetalLoupeView: NSView {
         // EDR frames proof their SDR range (a print has no headroom): the shader clamps to 1.0.
         let proof = currentFrame?.isEngineFrame == true ? proofLUT : nil
         lastEncodeTime = renderer.draw(in: metalLayer, texture: texture, frame: currentFrame, placement: placement,
-                                       background: Theme.loupeBackgroundLinear, overlay: overlay, proof: proof)
+                                       background: Theme.loupeBackgroundLinear, overlay: overlay, proof: proof,
+                                       timing: currentTiming)
     }
 
     /// Shows (or, with nil, stops) soft proofing with `lut`; `warning.w` > 0 paints out-of-gamut colours.
     func setSoftProof(_ lut: SoftProofLut?, warning: SIMD4<Float>) {
+        pendingProof = (lut, warning)
         guard let lut, let renderer else {
             proofLUT = nil
             proofKey = nil
@@ -343,6 +386,7 @@ final class MetalLoupeView: NSView {
 
     /// Shows (or clears) the selected mask's overlay plane from the attached session.
     func present(maskOverlay f: MaskOverlayFrame?) {
+        pendingOverlay = f
         guard let f, let develop, let surface = develop.maskOverlaySurface(f.surfaceId), let renderer else {
             if maskOverlay != nil { maskOverlay = nil; render() }
             return

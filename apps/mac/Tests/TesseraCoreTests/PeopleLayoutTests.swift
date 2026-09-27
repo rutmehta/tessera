@@ -20,7 +20,8 @@ final class PeopleLayoutTests: XCTestCase {
                               styleMask: [.titled, .resizable], backing: .buffered, defer: false)
         let host = NSHostingView(rootView: ContentView(model: model))
         window.contentView = host
-        window.makeKeyAndOrderFront(nil)
+        // Layout does not require a key or frontmost window. Keep the full suite background-safe.
+        window.setFrame(window.frame, display: false)
         host.layoutSubtreeIfNeeded()
         RunLoop.main.run(until: Date().addingTimeInterval(0.1))
         host.layoutSubtreeIfNeeded()

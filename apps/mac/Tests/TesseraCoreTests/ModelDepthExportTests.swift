@@ -351,7 +351,7 @@ final class ExportWarningsTests: XCTestCase {
         try "Lens Blur skipped: depth model is not cached\n\n".write(toFile: ExportWarnings.path(for: a), atomically: true, encoding: .utf8)
         XCTAssertEqual(ExportWarnings.path(for: a), a + ".tessera-warnings.txt")
         let report = ExportReport(destination: dir.path, items: [item("A.ARW", a), item("B.ARW", b), item("C.ARW", nil, error: "decode failed")],
-                                  exported: 2, failed: 1, cancelled: false, seconds: 1.25)
+                                  exported: 2, failed: 1, cancelled: false, seconds: 1.25, workflowErrors: [])
         let w = ExportWarnings.read(report)
         XCTAssertEqual(w.items, [.init(name: "A.ARW", warnings: ["Lens Blur skipped: depth model is not cached"])])
         XCTAssertEqual(w.lines, ["A.ARW: Lens Blur skipped: depth model is not cached"])
@@ -359,11 +359,11 @@ final class ExportWarningsTests: XCTestCase {
         XCTAssertEqual(toast.headline, "Exported 2 photos to \(dir.lastPathComponent); 1 failed; 1 with warnings")
         XCTAssertEqual(toast.details, ["C.ARW: decode failed", "A.ARW: Lens Blur skipped: depth model is not cached"])
 
-        let clean = ExportReport(destination: dir.path, items: [item("B.ARW", b)], exported: 1, failed: 0, cancelled: false, seconds: 0.5)
+        let clean = ExportReport(destination: dir.path, items: [item("B.ARW", b)], exported: 1, failed: 0, cancelled: false, seconds: 0.5, workflowErrors: [])
         XCTAssertTrue(ExportWarnings.read(clean).isEmpty)
         XCTAssertEqual(ExportWarnings.toastLines(clean, warnings: ExportWarnings.read(clean)).headline,
                        "Exported 1 photo to \(dir.lastPathComponent) in 0.5 s")
-        XCTAssertEqual(ExportWarnings.toastLines(ExportReport(destination: dir.path, items: [], exported: 0, failed: 0, cancelled: false, seconds: 0),
+        XCTAssertEqual(ExportWarnings.toastLines(ExportReport(destination: dir.path, items: [], exported: 0, failed: 0, cancelled: false, seconds: 0, workflowErrors: []),
                                                  warnings: ExportWarnings()).headline, "Nothing was exported")
     }
 }
