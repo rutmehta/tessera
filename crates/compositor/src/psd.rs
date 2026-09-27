@@ -3,6 +3,8 @@
 //! The editable state uses canvas-clipped rasters. Source records retain
 //! off-canvas pixels and metadata that the compositor cannot interpret.
 mod placed;
+mod text;
+mod vector;
 
 use crate::channels::{ChannelId, ChannelKind, DocumentChannel};
 use crate::{Depth, DocState, Layer, LayerId, LayerKind, Raster, Rect};
@@ -1397,34 +1399,11 @@ fn import_kind(layer: &::psd::Layer, canvas: Extent, depth: Depth) -> EngineResu
         return Ok(LayerKind::Adjustment(a));
     }
     let proxy = raster(layer, canvas, depth)?;
-    if let Some(block) = layer.info(b"TySh") {
-        let parsed = ::psd::metadata::parse_text(&block.data).ok();
-        return Ok(LayerKind::Text(crate::TextLayer {
-            text: parsed
-                .as_ref()
-                .and_then(|p| p.text())
-                .unwrap_or("")
-                .to_owned(),
-            font: parsed
-                .as_ref()
-                .and_then(|p| {
-                    p.style_runs()
-                        .first()
-                        .and_then(|r| r.font_name().map(str::to_owned))
-                })
-                .unwrap_or_default(),
-            size: parsed
-                .as_ref()
-                .and_then(|p| {
-                    p.style_runs()
-                        .first()
-                        .and_then(|r| r.size())
-                        .and_then(|v| v.number())
-                })
-                .unwrap_or(0.0) as f32,
-            color: [0.0; 3],
-            proxy,
-        }));
+    if let Some(text) = text::import(layer) {
+        return Ok(text);
+    }
+    if let Some(shape) = vector::import_shape(layer, canvas)? {
+        return Ok(shape);
     }
     if [b"SoLd", b"SoLE", b"PlLd", b"plLd"]
         .iter()
@@ -1482,6 +1461,17 @@ fn import_mask(
         return Ok(None);
     };
     let (id, b, flags, default) = mask_coordinates(layer, mask)?;
+    if !layer.channels.iter().any(|c| c.id == id)
+        && default == 255
+        && mask.parameters.is_some_and(|p| {
+            p.user_density.is_none()
+                && p.user_feather.is_none()
+                && (p.vector_density.is_some() || p.vector_feather.is_some())
+        })
+    {
+        return Ok(None);
+    }
+
     let (w, h) = b.dimensions().map_err(error)?;
     let invert = |v: f32| if flags & 4 != 0 { 1.0 - v } else { v };
     let mut raster = Raster::new(canvas, 1, depth, invert(default as f32 / 255.0));
@@ -1666,6 +1656,19 @@ fn import_nodes(
         let mut layer = Layer::new("", layer_kind);
         layer.props = props(original)?;
         layer.mask = import_mask(original, imported.canvas, imported.depth)?;
+        if let Some((vector_mask, raster_mask)) =
+            vector::restore_bridge(original, imported.canvas, imported.depth)?
+        {
+            layer.vector_mask = Some(vector_mask);
+            layer.mask = raster_mask;
+        }
+        if !matches!(layer.kind, LayerKind::Shape { .. }) {
+            layer.vector_mask = vector::import_mask(original, imported.canvas)
+                .ok()
+                .flatten();
+        } else if layer.vector_mask.is_none() && vector::needs_shape_mask(original) {
+            layer.vector_mask = vector::import_mask(original, imported.canvas)?;
+        }
         if crate::BlendMode::from_psd_key(&original.blend_mode).is_none()
             && original.blend_mode != *b"pass"
         {
@@ -1676,18 +1679,23 @@ fn import_nodes(
         }
         for block in &original.additional {
             let warning = match &block.key {
-                b"vmsk" | b"vsms" => Some("vector mask is retained but not rasterized"),
+                b"vmsk" | b"vsms"
+                    if layer.vector_mask.is_none()
+                        && !matches!(layer.kind, LayerKind::Shape { .. }) =>
+                {
+                    Some("unsupported vector mask retained as opaque data")
+                }
                 b"lfx2" => Some(
                     "basic solid layer styles are rendered approximately; unsupported effect fields remain retained",
                 ),
                 b"lrFX" => Some("legacy layer styles are retained but not rendered"),
-                b"TySh" => {
-                    Some("text is rendered from the stored raster proxy; descriptors are retained")
+                b"TySh" if !matches!(layer.kind, LayerKind::Text { .. }) => {
+                    Some("unsupported text retained with raster proxy")
                 }
                 b"SoLd" | b"SoLE" | b"PlLd" | b"plLd" => Some(
                     "smart object uses the stored raster proxy; embedded/linked originals are retained, not reopened",
                 ),
-                b"SoCo" | b"GdFl" | b"PtFl" => {
+                b"SoCo" | b"GdFl" | b"PtFl" if !matches!(layer.kind, LayerKind::Shape { .. }) => {
                     Some("fill descriptor is retained; rendering uses the stored raster proxy")
                 }
                 _ if ::psd::metadata::adjustment(block.key, &block.data).is_some()
@@ -2541,11 +2549,41 @@ fn export_nodes(
             .get(&layer.id)
             .cloned()
             .unwrap_or_default();
+        // Conversion changes layer semantics: remove only descriptors that we
+        // successfully decoded as editable source before any mask mutation.
+        if matches!(layer.kind, LayerKind::Pixel(_)) {
+            match import_kind(&original, imported.canvas, imported.depth)? {
+                LayerKind::Text { .. } => original
+                    .additional
+                    .retain(|b| !matches!(&b.key, b"TySh" | b"tvTx")),
+                LayerKind::Shape { .. } => original.additional.retain(|b| {
+                    !matches!(
+                        &b.key,
+                        b"SoCo"
+                            | b"GdFl"
+                            | b"vstk"
+                            | b"vogk"
+                            | b"vmsk"
+                            | b"vsms"
+                            | b"tvSh"
+                            | b"tvMk"
+                    )
+                }),
+                _ => {}
+            }
+        }
         export_mask(
             layer.mask.as_ref(),
             &mut original,
             imported.canvas,
             imported.depth,
+        )?;
+        vector::export_bridge(layer, &mut original, imported.canvas, imported.depth)?;
+        vector::export_mask(
+            layer.vector_mask.as_ref(),
+            &mut original,
+            imported.canvas,
+            matches!(layer.kind, LayerKind::Shape { .. }),
         )?;
         if let LayerKind::Group { mode, children } = &layer.kind {
             let key = if *mode == crate::GroupMode::PassThrough {
@@ -2586,22 +2624,15 @@ fn export_nodes(
         let rendered;
         let r = match &layer.kind {
             LayerKind::Pixel(r) => r,
-            LayerKind::Text(t) => {
-                let LayerKind::Text(before) =
-                    import_kind(&original, imported.canvas, imported.depth)?
-                else {
-                    return Err(error("new text requires a PSD text descriptor"));
-                };
-                if t.text != before.text
-                    || t.font != before.font
-                    || t.size != before.size
-                    || t.color != before.color
-                {
-                    return Err(error(
-                        "text descriptor edits are not supported; rasterize explicitly",
-                    ));
-                }
-                &t.proxy
+            LayerKind::Text { model, transform } => {
+                text::export(model, *transform, &mut original)?;
+                rendered = crate::rasterize_layer(layer, imported.canvas, 0)?;
+                &rendered
+            }
+            LayerKind::Shape { model, transform } => {
+                vector::export_shape(model, *transform, &mut original, imported.canvas)?;
+                rendered = crate::rasterize_layer(layer, imported.canvas, 0)?;
+                &rendered
             }
             LayerKind::SmartObject(so) => {
                 if so.filters.iter().any(|f| f.enabled) {

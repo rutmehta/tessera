@@ -38,13 +38,14 @@ than silently ignoring it. They do not gain implicit model inference.
 ## Controls and validation
 
 - Recipe amount: finite 0..=100; focus range: ordered inclusive 0..=1.
-- Bokeh IDs: `circle` (recipe default) or `disc`, `hexagon` (6 blades), `octagon`
-  (8 blades). Unknown IDs are errors, including when amount is zero.
+- Bokeh IDs: `circle` (recipe default)/`disc`, `hexagon`, `octagon`, `bubble`,
+  `5-blade`/`five-blade`/`pentagon`, `ring`, `cat-eye`/`cat_eye`/`cat eye`,
+  `oval`/`anamorphic`. Unknown IDs are errors, including when amount is zero.
 - `LensBlurOptions.max_radius`: finite 0..=128 input pixels, default 16.
 - `LensBlurOptions.layers`: 2..=64 uniform depth bins, default 16.
 - `LensBlurOptions.boost`: finite 0..=100 percent, default 0.
-- `LensBlurOptions.cat_eye`: reserved placeholder, default 0. Nonzero and
-  nonfinite values are rejected, not silently accepted as a rendered effect.
+- `LensBlurOptions.cat_eye`: finite 0..=1 radial clipping strength, default 0.
+  The cat-eye shape applies at least 0.75; other shapes use the requested strength.
 - Depth must have the exact image pixel count, with every sample finite in 0..=1.
   Monochrome/nonfinite RGB is rejected. Inputs are immutable; errors are atomic.
 - Amount zero or maximum radius zero returns an exact clone **after validation**,
@@ -63,13 +64,17 @@ radius = max_radius * amount/100 * mean(d in layer)
 ```
 
 The discrete kernel samples integer pixel offsets inside a disc or regular
-6-/8-sided polygon with that circumradius. Polygon edges have outward normals
-at angles `2*pi*k/blades`; apothem is `radius*cos(pi/blades)`. Kernels always
-include the origin. Subpixel radii may therefore be identity kernels.
+5-/6-/8-sided polygon with that circumradius. Polygon edges have outward normals
+at angles `2*pi*k/blades`; apothem is `radius*cos(pi/blades)`. Oval/anamorphic
+uses half-width horizontal radius; bubble weights the inner 75% radius at 0.2
+and the rim at 1; ring uses only the outer 30% radius (falling back to a disc
+below one pixel). Cat-eye intersects two radius-sized pupils offset in opposite
+radial directions by `strength * radius / 2 * normalized image position`.
+Clipping preserves the origin when present. Subpixel radii may be identity kernels.
 
-At each destination, layer color is divided by the count of same-layer taps,
-not by the full aperture. Layer alpha is occupied taps divided by in-image
-aperture taps; image boundaries use truncated, renormalized support. Process
+At each destination, layer color is divided by the weight of same-layer taps,
+not by the full aperture. Layer alpha is occupied weight divided by in-image
+aperture weight; image boundaries use truncated, renormalized support. Process
 layers **far-to-near**, compositing premultiplied color and alpha with `over`.
 Divide final premultiplied color by final coverage. This avoids black fringes
 from empty/occluded layer samples and dark image borders, without leaking sharp
@@ -87,13 +92,14 @@ This deterministic scalar full-image reference uses O(pixels) scratch and
 O(pixels * occupied_layers * radius²) work. It is not a real-time full-resolution
 implementation. It approximates depth with bins and a mean radius per bin; it
 does not synthesize hidden background, antialias aperture edges, smoothly
-interpolate depth bins, or simulate cat-eye optics. Exact focus protection takes
+interpolate depth bins, or physically simulate lens optics. Cat-eye is a
+radial pupil-clipping approximation; oval has a fixed 2:1 aspect ratio. Exact focus protection takes
 priority over physically correct foreground bokeh covering an in-focus pixel.
 Tiles must be assembled before applying it, avoiding tile-edge seams.
 
 `tests/lens_blur.rs` covers two-plane checkerboard background contrast reduction
 >50% with exact focus; disabled signed-zero/HDR identity; invalid inputs/options;
-distinct normalized aperture impulse footprints; boost and reserved cat-eye;
+distinct normalized aperture impulse footprints; boost and radial cat-eye;
 constant/HDR edge normalization and sharp-foreground isolation; analytical
 far-to-near coverage order; inclusive focus boundaries, tiny images and cross-tile
 support; explicit-render ordering, missing depth, and absent-blur compatibility.

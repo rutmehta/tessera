@@ -2404,6 +2404,12 @@ public protocol DevelopSessionProtocol: AnyObject, Sendable {
     func configureCfaDenoise(config: CfaDenoiseConfig) throws 
     
     /**
+     * 256 near-to-far bins for the current recipe's pre-geometry image.
+     * Reuses the content-addressed depth cache. This is a blocking worker API.
+     */
+    func depthHistogram() throws  -> [UInt64]
+    
+    /**
      * Releases every surface. Renders continue (histogram only) until a new
      * surface is attached.
      */
@@ -2413,6 +2419,12 @@ public protocol DevelopSessionProtocol: AnyObject, Sendable {
      * Writes pending changes now and waits for the save to finish.
      */
     func flush() throws 
+    
+    /**
+     * Focus the inclusive range around the segmented subject's depth. Uses
+     * cached models only and leaves all controls unchanged on failure.
+     */
+    func focusLensBlurOnSubject() throws  -> [Float]
     
     /**
      * Histogram of the last completed frame (empty before the first one).
@@ -2521,6 +2533,18 @@ public protocol DevelopSessionProtocol: AnyObject, Sendable {
      * Switch operator sets as a persisted undo step. Pending sliders commit first.
      */
     func setProcessVersion(json: String) throws  -> Bool
+    
+    /**
+     * Session-only grayscale depth overlay. Missing weights surface through
+     * render_failed just like other rendering errors; this never downloads.
+     */
+    func setRenderDepthVisualisation(enabled: Bool) throws 
+    
+    /**
+     * Session-only uncorrected image for Guided Upright placement. Saved
+     * lens, Upright, manual transform and crop controls remain intact.
+     */
+    func setRenderUncorrected(enabled: Bool) throws 
     
     /**
      * Merges an RFC 7386 JSON patch into the live settings and renders.
@@ -2808,6 +2832,19 @@ open func configureCfaDenoise(config: CfaDenoiseConfig)throws   {try rustCallWit
 }
     
     /**
+     * 256 near-to-far bins for the current recipe's pre-geometry image.
+     * Reuses the content-addressed depth cache. This is a blocking worker API.
+     */
+open func depthHistogram()throws  -> [UInt64]  {
+    return try  FfiConverterSequenceUInt64.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_depth_histogram(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * Releases every surface. Renders continue (histogram only) until a new
      * surface is attached.
      */
@@ -2828,6 +2865,19 @@ open func flush()throws   {try rustCallWithError(FfiConverterTypeBridgeError_lif
             self.uniffiCloneHandle(),uniffiCallStatus
     )
 }
+}
+    
+    /**
+     * Focus the inclusive range around the segmented subject's depth. Uses
+     * cached models only and leaves all controls unchanged on failure.
+     */
+open func focusLensBlurOnSubject()throws  -> [Float]  {
+    return try  FfiConverterSequenceFloat.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_focus_lens_blur_on_subject(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
 }
     
     /**
@@ -3092,6 +3142,32 @@ open func setProcessVersion(json: String)throws  -> Bool  {
         FfiConverterString.lower(json),uniffiCallStatus
     )
 })
+}
+    
+    /**
+     * Session-only grayscale depth overlay. Missing weights surface through
+     * render_failed just like other rendering errors; this never downloads.
+     */
+open func setRenderDepthVisualisation(enabled: Bool)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_set_render_depth_visualisation(
+            self.uniffiCloneHandle(),
+        FfiConverterBool.lower(enabled),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Session-only uncorrected image for Guided Upright placement. Saved
+     * lens, Upright, manual transform and crop controls remain intact.
+     */
+open func setRenderUncorrected(enabled: Bool)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_set_render_uncorrected(
+            self.uniffiCloneHandle(),
+        FfiConverterBool.lower(enabled),uniffiCallStatus
+    )
+}
 }
     
     /**
@@ -4102,6 +4178,66 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
     func ungroupLayer(id: UInt64) throws  -> DocumentUpdate
     
     /**
+     * Channel `id` as a grey RGBA8 IOSurface (white = selected / full ink),
+     * at most `max_px` on the long edge (box-filtered). Cached per channel
+     * samples: the id stays valid until a newer thumbnail of the same
+     * channel and size replaces it or the session closes.
+     */
+    func channelThumbnail(id: UInt64, maxPx: UInt32) throws  -> UInt32
+    
+    func deleteDocumentChannel(id: UInt64) throws  -> DocumentUpdate
+    
+    /**
+     * Saved alpha and spot channels in panel / PSD order.
+     */
+    func documentChannels() throws  -> [ChannelRecord]
+    
+    /**
+     * A copy of channel `id` named "<name> copy", appended last.
+     */
+    func duplicateDocumentChannel(id: UInt64) throws  -> ChannelUpdate
+    
+    /**
+     * Select ▸ Load Selection: channel `id` (inverted when `invert`)
+     * combined with the current selection by `op`. One history node.
+     */
+    func loadSelectionChannel(id: UInt64, op: SelectionOp, invert: Bool) throws  -> DocumentUpdate
+    
+    /**
+     * A new empty alpha channel: all masked (black), or all selected
+     * (white) when `selected` (Quick Mask without a selection).
+     */
+    func newAlphaChannel(name: String, selected: Bool) throws  -> ChannelUpdate
+    
+    /**
+     * New Spot Channel: an ink plane from the selection (`from_selection`)
+     * or empty. Preview metadata only: the RGB composite is unchanged.
+     */
+    func newSpotChannel(name: String, color: PaintColor, solidity: Float, fromSelection: Bool) throws  -> ChannelUpdate
+    
+    func renameDocumentChannel(id: UInt64, name: String) throws  -> DocumentUpdate
+    
+    /**
+     * Select ▸ Save Selection: the selection as a new alpha channel `name`
+     * (`target` `None`; `op` is then ignored), or combined by `op` into
+     * existing channel `target` (Replace, Add, Subtract, Intersect). One
+     * history node; fails without a selection.
+     */
+    func saveSelectionChannel(name: String, target: UInt64?, op: SelectionOp) throws  -> ChannelUpdate
+    
+    /**
+     * Shows or hides channel `id` in the host's preview overlay (session
+     * state: not saved, not a history node).
+     */
+    func setChannelVisible(id: UInt64, visible: Bool) throws 
+    
+    /**
+     * Channel Options for a spot channel (an alpha channel becomes one):
+     * display colour and solidity, each within 0…1. Preview metadata only.
+     */
+    func setSpotChannel(id: UInt64, color: PaintColor, solidity: Float) throws  -> DocumentUpdate
+    
+    /**
      * Image ▸ Adjustments: `adjustment_json` (`compositor::Adjustment`, the
      * JSON of the adjustment layer of the same kind) applied to a pixel
      * layer's pixels inside the selection, as one history node.
@@ -4202,55 +4338,79 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
     func smartFilters(layer: UInt64) throws  -> [SmartFilterRecord]
     
     /**
-     * Whether Copy Layer Style has something to paste.
+     * Starts a Remove stroke on `layer` with a hard round brush of
+     * diameter `size` (canvas pixels). A stroke already open is dropped.
      */
-    func canPasteLayerStyles()  -> Bool
+    func beginRemoveStroke(layer: UInt64, size: Float, backend: RemoveBackend) throws 
     
     /**
-     * Clear Layer Style: removes every effect (Scale Effects back to 100 %)
-     * as one history node.
+     * Drops the open Remove stroke (no history).
      */
-    func clearLayerStyles(layer: UInt64) throws  -> DocumentUpdate
+    func cancelRemoveStroke() 
     
     /**
-     * Copy Layer Style: remembers the layer's effects and Scale Effects
-     * (application-wide). Records no history.
+     * Cancels a running retouch or neural apply (and any filter apply).
      */
-    func copyLayerStyles(from: UInt64) throws 
+    func cancelRetouch() 
     
     /**
-     * The document's Global Light (live state).
+     * Forgets the suggestions of the last scan.
      */
-    func globalLight() throws  -> GlobalLightRecord
+    func clearDistractionSuggestions() 
     
     /**
-     * Every layer with at least one effect, in `layers()` order.
+     * Edit ▸ Content-Aware Fill: fills the selection of `layer` (one node).
+     * `params_json` is the adapter's `fill` object (`{}` for defaults).
      */
-    func layerStyleSummaries() throws  -> [LayerStyleSummary]
+    func contentAwareFillSelection(layer: UInt64, paramsJson: String) throws  -> RetouchResult
     
     /**
-     * The layer's styles as `LayerStyles` JSON (live state: shows a drag).
+     * Runs the geometric distraction detector on `layer` and keeps its
+     * suggestions for review (no history). `params_json`: `{"wires":bool,
+     * "faces_as_people":bool,"faces":[[x,y,w,h]]}`, all optional; without
+     * `faces`, the face detector's boxes when its weights are installed.
      */
-    func layerStylesJson(layer: UInt64) throws  -> String
+    func detectDistractions(layer: UInt64, paramsJson: String) throws  -> DistractionScan
     
     /**
-     * Paste Layer Style onto every layer of `to`: one history node.
+     * Removes what the stroke covered (inside the selection, if any): one
+     * node. `params_json` as for `remove_with_selection`. Blocking.
      */
-    func pasteLayerStyles(to: [UInt64]) throws  -> DocumentUpdate
+    func endRemoveStroke(paramsJson: String) throws  -> RetouchResult
     
     /**
-     * Layer ▸ Layer Style ▸ Global Light: every effect with Use Global Light
-     * follows it. `interactive` as for `set_layer_styles_json`.
+     * Applies a neural filter (one node). `params_json` uses the keys of
+     * `neural_filters()`; Skin Smoothing's `faces` default to the face
+     * detector's boxes (installed weights) or the selection's bounds.
      */
-    func setGlobalLight(angle: Float, altitude: Float, interactive: Bool) throws  -> DocumentUpdate
+    func neuralFilter(layer: UInt64, kind: NeuralFilterKind, paramsJson: String, destination: NeuralDestination) throws  -> RetouchResult
     
     /**
-     * Replaces the layer's styles (`LayerStyles` JSON), keeping every other
-     * property. `interactive`: live only, no history node until `commit`
-     * (an inspector slider drag). Refused on locked (Lock All) layers,
-     * adjustment layers and pass-through groups.
+     * Removes the accepted suggestions of the last scan (one node).
      */
-    func setLayerStylesJson(layer: UInt64, json: String, interactive: Bool) throws  -> DocumentUpdate
+    func removeDistractionSuggestions(layer: UInt64, accepted: [UInt32], backend: RemoveBackend, paramsJson: String) throws  -> RetouchResult
+    
+    /**
+     * Bounds of the open Remove stroke's mask (canvas pixels).
+     */
+    func removeStrokeBounds()  -> DocRect?
+    
+    /**
+     * Adds points (level-0 canvas pixels) to the Remove stroke; returns the
+     * canvas rectangle the new dabs covered.
+     */
+    func removeStrokePoints(points: [ToolPoint]) throws  -> DocRect?
+    
+    /**
+     * Remove inside the selection (one node). `params_json`: the adapter's
+     * Remove options (`dilation`, `fill`); `backend` picks the inpainter.
+     */
+    func removeWithSelection(layer: UInt64, backend: RemoveBackend, paramsJson: String) throws  -> RetouchResult
+    
+    /**
+     * Model files retouching can use, and whether each is installed.
+     */
+    func retouchModels() throws  -> [RetouchModel]
     
     /**
      * Starts a stroke of `tool` on `layer`'s pixels or mask with `brush` and
@@ -4307,7 +4467,7 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
     func fillSelection(layer: UInt64, fill: SelectionFill, opacity: Float) throws  -> DocumentUpdate
     
     /**
-     * Select ▸ Load Selection from channel `name`, combined by `op`.
+     * Select ▸ Load Selection from the first channel named `name`, combined by `op`.
      */
     func loadSelection(name: String, op: SelectionOp) throws  -> DocumentUpdate
     
@@ -4339,8 +4499,8 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
     func sampleColor(x: Float, y: Float, sampleAll: Bool, layer: UInt64?, radius: UInt32) throws  -> PaintColor
     
     /**
-     * Select ▸ Save Selection as channel `name` (replacing one of that
-     * name). Session state: channels are not written to files yet.
+     * Select ▸ Save Selection as alpha channel `name` (replacing the first
+     * alpha channel of that name). Saved with the document.
      */
     func saveSelection(name: String) throws 
     
@@ -4407,7 +4567,7 @@ public protocol DocumentSessionProtocol: AnyObject, Sendable {
     func selectWand(x: Float, y: Float, tolerance: Float, contiguous: Bool, sampleAll: Bool, antialias: Bool, op: SelectionOp) throws  -> DocumentUpdate
     
     /**
-     * Saved selection channels, by name.
+     * Saved channel names in panel order (see `document_channels` for ids).
      */
     func selectionChannels() throws  -> [String]
     
@@ -5215,6 +5375,165 @@ open func ungroupLayer(id: UInt64)throws  -> DocumentUpdate  {
 }
     
     /**
+     * Channel `id` as a grey RGBA8 IOSurface (white = selected / full ink),
+     * at most `max_px` on the long edge (box-filtered). Cached per channel
+     * samples: the id stays valid until a newer thumbnail of the same
+     * channel and size replaces it or the session closes.
+     */
+open func channelThumbnail(id: UInt64, maxPx: UInt32)throws  -> UInt32  {
+    return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_channel_thumbnail(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),
+        FfiConverterUInt32.lower(maxPx),uniffiCallStatus
+    )
+})
+}
+    
+open func deleteDocumentChannel(id: UInt64)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_delete_document_channel(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Saved alpha and spot channels in panel / PSD order.
+     */
+open func documentChannels()throws  -> [ChannelRecord]  {
+    return try  FfiConverterSequenceTypeChannelRecord.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_document_channels(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * A copy of channel `id` named "<name> copy", appended last.
+     */
+open func duplicateDocumentChannel(id: UInt64)throws  -> ChannelUpdate  {
+    return try  FfiConverterTypeChannelUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_duplicate_document_channel(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Select ▸ Load Selection: channel `id` (inverted when `invert`)
+     * combined with the current selection by `op`. One history node.
+     */
+open func loadSelectionChannel(id: UInt64, op: SelectionOp, invert: Bool)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_load_selection_channel(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),
+        FfiConverterTypeSelectionOp_lower(op),
+        FfiConverterBool.lower(invert),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * A new empty alpha channel: all masked (black), or all selected
+     * (white) when `selected` (Quick Mask without a selection).
+     */
+open func newAlphaChannel(name: String, selected: Bool)throws  -> ChannelUpdate  {
+    return try  FfiConverterTypeChannelUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_new_alpha_channel(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(name),
+        FfiConverterBool.lower(selected),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * New Spot Channel: an ink plane from the selection (`from_selection`)
+     * or empty. Preview metadata only: the RGB composite is unchanged.
+     */
+open func newSpotChannel(name: String, color: PaintColor, solidity: Float, fromSelection: Bool)throws  -> ChannelUpdate  {
+    return try  FfiConverterTypeChannelUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_new_spot_channel(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(name),
+        FfiConverterTypePaintColor_lower(color),
+        FfiConverterFloat.lower(solidity),
+        FfiConverterBool.lower(fromSelection),uniffiCallStatus
+    )
+})
+}
+    
+open func renameDocumentChannel(id: UInt64, name: String)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_rename_document_channel(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),
+        FfiConverterString.lower(name),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Select ▸ Save Selection: the selection as a new alpha channel `name`
+     * (`target` `None`; `op` is then ignored), or combined by `op` into
+     * existing channel `target` (Replace, Add, Subtract, Intersect). One
+     * history node; fails without a selection.
+     */
+open func saveSelectionChannel(name: String, target: UInt64?, op: SelectionOp)throws  -> ChannelUpdate  {
+    return try  FfiConverterTypeChannelUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_save_selection_channel(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(name),
+        FfiConverterOptionUInt64.lower(target),
+        FfiConverterTypeSelectionOp_lower(op),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Shows or hides channel `id` in the host's preview overlay (session
+     * state: not saved, not a history node).
+     */
+open func setChannelVisible(id: UInt64, visible: Bool)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_set_channel_visible(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),
+        FfiConverterBool.lower(visible),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Channel Options for a spot channel (an alpha channel becomes one):
+     * display colour and solidity, each within 0…1. Preview metadata only.
+     */
+open func setSpotChannel(id: UInt64, color: PaintColor, solidity: Float)throws  -> DocumentUpdate  {
+    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_set_spot_channel(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(id),
+        FfiConverterTypePaintColor_lower(color),
+        FfiConverterFloat.lower(solidity),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * Image ▸ Adjustments: `adjustment_json` (`compositor::Adjustment`, the
      * JSON of the adjustment layer of the same kind) applied to a pixel
      * layer's pixels inside the selection, as one history node.
@@ -5455,124 +5774,183 @@ open func smartFilters(layer: UInt64)throws  -> [SmartFilterRecord]  {
 }
     
     /**
-     * Whether Copy Layer Style has something to paste.
+     * Starts a Remove stroke on `layer` with a hard round brush of
+     * diameter `size` (canvas pixels). A stroke already open is dropped.
      */
-open func canPasteLayerStyles() -> Bool  {
-    return try!  FfiConverterBool.lift(try! rustCall() {
+open func beginRemoveStroke(layer: UInt64, size: Float, backend: RemoveBackend)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
         uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_can_paste_layer_styles(
-            self.uniffiCloneHandle(),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * Clear Layer Style: removes every effect (Scale Effects back to 100 %)
-     * as one history node.
-     */
-open func clearLayerStyles(layer: UInt64)throws  -> DocumentUpdate  {
-    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_clear_layer_styles(
-            self.uniffiCloneHandle(),
-        FfiConverterUInt64.lower(layer),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * Copy Layer Style: remembers the layer's effects and Scale Effects
-     * (application-wide). Records no history.
-     */
-open func copyLayerStyles(from: UInt64)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_copy_layer_styles(
-            self.uniffiCloneHandle(),
-        FfiConverterUInt64.lower(from),uniffiCallStatus
-    )
-}
-}
-    
-    /**
-     * The document's Global Light (live state).
-     */
-open func globalLight()throws  -> GlobalLightRecord  {
-    return try  FfiConverterTypeGlobalLightRecord_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_global_light(
-            self.uniffiCloneHandle(),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * Every layer with at least one effect, in `layers()` order.
-     */
-open func layerStyleSummaries()throws  -> [LayerStyleSummary]  {
-    return try  FfiConverterSequenceTypeLayerStyleSummary.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_layer_style_summaries(
-            self.uniffiCloneHandle(),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * The layer's styles as `LayerStyles` JSON (live state: shows a drag).
-     */
-open func layerStylesJson(layer: UInt64)throws  -> String  {
-    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_layer_styles_json(
-            self.uniffiCloneHandle(),
-        FfiConverterUInt64.lower(layer),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * Paste Layer Style onto every layer of `to`: one history node.
-     */
-open func pasteLayerStyles(to: [UInt64])throws  -> DocumentUpdate  {
-    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_paste_layer_styles(
-            self.uniffiCloneHandle(),
-        FfiConverterSequenceUInt64.lower(to),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * Layer ▸ Layer Style ▸ Global Light: every effect with Use Global Light
-     * follows it. `interactive` as for `set_layer_styles_json`.
-     */
-open func setGlobalLight(angle: Float, altitude: Float, interactive: Bool)throws  -> DocumentUpdate  {
-    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_set_global_light(
-            self.uniffiCloneHandle(),
-        FfiConverterFloat.lower(angle),
-        FfiConverterFloat.lower(altitude),
-        FfiConverterBool.lower(interactive),uniffiCallStatus
-    )
-})
-}
-    
-    /**
-     * Replaces the layer's styles (`LayerStyles` JSON), keeping every other
-     * property. `interactive`: live only, no history node until `commit`
-     * (an inspector slider drag). Refused on locked (Lock All) layers,
-     * adjustment layers and pass-through groups.
-     */
-open func setLayerStylesJson(layer: UInt64, json: String, interactive: Bool)throws  -> DocumentUpdate  {
-    return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
-        uniffiCallStatus in
-    uniffi_tessera_ffi_fn_method_documentsession_set_layer_styles_json(
+    uniffi_tessera_ffi_fn_method_documentsession_begin_remove_stroke(
             self.uniffiCloneHandle(),
         FfiConverterUInt64.lower(layer),
-        FfiConverterString.lower(json),
-        FfiConverterBool.lower(interactive),uniffiCallStatus
+        FfiConverterFloat.lower(size),
+        FfiConverterTypeRemoveBackend_lower(backend),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Drops the open Remove stroke (no history).
+     */
+open func cancelRemoveStroke()  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_cancel_remove_stroke(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Cancels a running retouch or neural apply (and any filter apply).
+     */
+open func cancelRetouch()  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_cancel_retouch(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Forgets the suggestions of the last scan.
+     */
+open func clearDistractionSuggestions()  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_clear_distraction_suggestions(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Edit ▸ Content-Aware Fill: fills the selection of `layer` (one node).
+     * `params_json` is the adapter's `fill` object (`{}` for defaults).
+     */
+open func contentAwareFillSelection(layer: UInt64, paramsJson: String)throws  -> RetouchResult  {
+    return try  FfiConverterTypeRetouchResult_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_content_aware_fill_selection(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),
+        FfiConverterString.lower(paramsJson),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Runs the geometric distraction detector on `layer` and keeps its
+     * suggestions for review (no history). `params_json`: `{"wires":bool,
+     * "faces_as_people":bool,"faces":[[x,y,w,h]]}`, all optional; without
+     * `faces`, the face detector's boxes when its weights are installed.
+     */
+open func detectDistractions(layer: UInt64, paramsJson: String)throws  -> DistractionScan  {
+    return try  FfiConverterTypeDistractionScan_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_detect_distractions(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),
+        FfiConverterString.lower(paramsJson),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Removes what the stroke covered (inside the selection, if any): one
+     * node. `params_json` as for `remove_with_selection`. Blocking.
+     */
+open func endRemoveStroke(paramsJson: String)throws  -> RetouchResult  {
+    return try  FfiConverterTypeRetouchResult_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_end_remove_stroke(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(paramsJson),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Applies a neural filter (one node). `params_json` uses the keys of
+     * `neural_filters()`; Skin Smoothing's `faces` default to the face
+     * detector's boxes (installed weights) or the selection's bounds.
+     */
+open func neuralFilter(layer: UInt64, kind: NeuralFilterKind, paramsJson: String, destination: NeuralDestination)throws  -> RetouchResult  {
+    return try  FfiConverterTypeRetouchResult_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_neural_filter(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),
+        FfiConverterTypeNeuralFilterKind_lower(kind),
+        FfiConverterString.lower(paramsJson),
+        FfiConverterTypeNeuralDestination_lower(destination),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Removes the accepted suggestions of the last scan (one node).
+     */
+open func removeDistractionSuggestions(layer: UInt64, accepted: [UInt32], backend: RemoveBackend, paramsJson: String)throws  -> RetouchResult  {
+    return try  FfiConverterTypeRetouchResult_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_remove_distraction_suggestions(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),
+        FfiConverterSequenceUInt32.lower(accepted),
+        FfiConverterTypeRemoveBackend_lower(backend),
+        FfiConverterString.lower(paramsJson),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Bounds of the open Remove stroke's mask (canvas pixels).
+     */
+open func removeStrokeBounds() -> DocRect?  {
+    return try!  FfiConverterOptionTypeDocRect.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_remove_stroke_bounds(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Adds points (level-0 canvas pixels) to the Remove stroke; returns the
+     * canvas rectangle the new dabs covered.
+     */
+open func removeStrokePoints(points: [ToolPoint])throws  -> DocRect?  {
+    return try  FfiConverterOptionTypeDocRect.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_remove_stroke_points(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceTypeToolPoint.lower(points),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Remove inside the selection (one node). `params_json`: the adapter's
+     * Remove options (`dilation`, `fill`); `backend` picks the inpainter.
+     */
+open func removeWithSelection(layer: UInt64, backend: RemoveBackend, paramsJson: String)throws  -> RetouchResult  {
+    return try  FfiConverterTypeRetouchResult_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_remove_with_selection(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(layer),
+        FfiConverterTypeRemoveBackend_lower(backend),
+        FfiConverterString.lower(paramsJson),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Model files retouching can use, and whether each is installed.
+     */
+open func retouchModels()throws  -> [RetouchModel]  {
+    return try  FfiConverterSequenceTypeRetouchModel.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_documentsession_retouch_models(
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
@@ -5705,7 +6083,7 @@ open func fillSelection(layer: UInt64, fill: SelectionFill, opacity: Float)throw
 }
     
     /**
-     * Select ▸ Load Selection from channel `name`, combined by `op`.
+     * Select ▸ Load Selection from the first channel named `name`, combined by `op`.
      */
 open func loadSelection(name: String, op: SelectionOp)throws  -> DocumentUpdate  {
     return try  FfiConverterTypeDocumentUpdate_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
@@ -5785,8 +6163,8 @@ open func sampleColor(x: Float, y: Float, sampleAll: Bool, layer: UInt64?, radiu
 }
     
     /**
-     * Select ▸ Save Selection as channel `name` (replacing one of that
-     * name). Session state: channels are not written to files yet.
+     * Select ▸ Save Selection as alpha channel `name` (replacing the first
+     * alpha channel of that name). Saved with the document.
      */
 open func saveSelection(name: String)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
         uniffiCallStatus in
@@ -5969,7 +6347,7 @@ open func selectWand(x: Float, y: Float, tolerance: Float, contiguous: Bool, sam
 }
     
     /**
-     * Saved selection channels, by name.
+     * Saved channel names in panel order (see `document_channels` for ids).
      */
 open func selectionChannels()throws  -> [String]  {
     return try  FfiConverterSequenceString.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
@@ -6200,7 +6578,10 @@ public protocol EngineProtocol: AnyObject, Sendable {
     /**
      * Opens a develop session on an indexed RAW or rendered RGB image.
      * Blocking decode: call off the main thread. One session per visible image.
+     * Blocking depth histogram for an indexed image using its saved recipe.
      */
+    func depthHistogram(imageId: String) throws  -> [UInt64]
+    
     func openDevelopSession(imageId: String) throws  -> DevelopSession
     
     /**
@@ -6235,6 +6616,12 @@ public protocol EngineProtocol: AnyObject, Sendable {
      * orientation, 16-bit sRGB. Blocking (decodes and renders the RAW).
      */
     func openDocumentFromImage(imageId: String, developed: Bool) throws  -> DocumentSession
+    
+    /**
+     * Each selected photo produces its own float LinearRaw DNG, stacked with
+     * that source. SR doubles each dimension. Zero NR is a bit-exact bypass.
+     */
+    func enhance(imageIds: [String], options: EnhanceOptions, listener: PhotoJobListener) throws  -> PhotoJob
     
     func deleteExportPreset(name: String) throws 
     
@@ -6278,6 +6665,18 @@ public protocol EngineProtocol: AnyObject, Sendable {
      * Reads (a temporary copy of) the catalog. Blocking: call off the main thread.
      */
     func openLrcat(path: String) throws  -> LrcatImport
+    
+    /**
+     * Synchronous preview command, run off the main actor. Does not write files.
+     */
+    func mergePreview(imageIds: [String], options: MergeOptions) throws  -> MergePreview
+    
+    func photoMerge(imageIds: [String], options: MergeOptions, listener: PhotoJobListener) throws  -> PhotoJob
+    
+    /**
+     * Derived image first, followed by sources; persistent across engine reopen.
+     */
+    func photoStack(imageId: String) throws  -> [String]
     
     /**
      * Recursive folder queue over already-indexed images (call `index_folder`
@@ -6726,7 +7125,18 @@ open func openLibrary(path: String)throws  -> LibraryStore  {
     /**
      * Opens a develop session on an indexed RAW or rendered RGB image.
      * Blocking decode: call off the main thread. One session per visible image.
+     * Blocking depth histogram for an indexed image using its saved recipe.
      */
+open func depthHistogram(imageId: String)throws  -> [UInt64]  {
+    return try  FfiConverterSequenceUInt64.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_depth_histogram(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(imageId),uniffiCallStatus
+    )
+})
+}
+    
 open func openDevelopSession(imageId: String)throws  -> DevelopSession  {
     return try  FfiConverterTypeDevelopSession_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
         uniffiCallStatus in
@@ -6809,6 +7219,22 @@ open func openDocumentFromImage(imageId: String, developed: Bool)throws  -> Docu
             self.uniffiCloneHandle(),
         FfiConverterString.lower(imageId),
         FfiConverterBool.lower(developed),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Each selected photo produces its own float LinearRaw DNG, stacked with
+     * that source. SR doubles each dimension. Zero NR is a bit-exact bypass.
+     */
+open func enhance(imageIds: [String], options: EnhanceOptions, listener: PhotoJobListener)throws  -> PhotoJob  {
+    return try  FfiConverterTypePhotoJob_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_enhance(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceString.lower(imageIds),
+        FfiConverterTypeEnhanceOptions_lower(options),
+        FfiConverterTypePhotoJobListener_lower(listener),uniffiCallStatus
     )
 })
 }
@@ -6916,6 +7342,45 @@ open func openLrcat(path: String)throws  -> LrcatImport  {
     uniffi_tessera_ffi_fn_method_engine_open_lrcat(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(path),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Synchronous preview command, run off the main actor. Does not write files.
+     */
+open func mergePreview(imageIds: [String], options: MergeOptions)throws  -> MergePreview  {
+    return try  FfiConverterTypeMergePreview_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_merge_preview(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceString.lower(imageIds),
+        FfiConverterTypeMergeOptions_lower(options),uniffiCallStatus
+    )
+})
+}
+    
+open func photoMerge(imageIds: [String], options: MergeOptions, listener: PhotoJobListener)throws  -> PhotoJob  {
+    return try  FfiConverterTypePhotoJob_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_photo_merge(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceString.lower(imageIds),
+        FfiConverterTypeMergeOptions_lower(options),
+        FfiConverterTypePhotoJobListener_lower(listener),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Derived image first, followed by sources; persistent across engine reopen.
+     */
+open func photoStack(imageId: String)throws  -> [String]  {
+    return try  FfiConverterSequenceString.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_photo_stack(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(imageId),uniffiCallStatus
     )
 })
 }
@@ -8894,6 +9359,696 @@ public func FfiConverterTypeMaskListener_lower(_ value: MaskListener) -> UInt64 
 
 
 
+/**
+ * Events for one request arrive in order on its worker thread. No engine or
+ * registry locks are held during callbacks. Retained until the terminal event.
+ */
+public protocol ModelDownloadListener: AnyObject, Sendable {
+    
+    func onEvent(event: ModelDownloadEvent) 
+    
+}
+/**
+ * Events for one request arrive in order on its worker thread. No engine or
+ * registry locks are held during callbacks. Retained until the terminal event.
+ */
+open class ModelDownloadListenerImpl: ModelDownloadListener, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_tessera_ffi_fn_clone_modeldownloadlistener(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_tessera_ffi_fn_free_modeldownloadlistener(handle, $0) }
+    }
+
+    
+
+    
+open func onEvent(event: ModelDownloadEvent)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_modeldownloadlistener_on_event(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeModelDownloadEvent_lower(event),uniffiCallStatus
+    )
+}
+}
+    
+
+    
+}
+
+
+
+// Put the implementation in a struct so we don't pollute the top-level namespace
+fileprivate struct UniffiCallbackInterfaceModelDownloadListener {
+
+    // Create the VTable using a series of closures.
+    // Swift automatically converts these into C callback functions.
+    //
+    // Store the vtable directly.
+    static let vtable: UniffiVTableCallbackInterfaceModelDownloadListener = UniffiVTableCallbackInterfaceModelDownloadListener(
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            do {
+                try FfiConverterTypeModelDownloadListener.handleMap.remove(handle: uniffiHandle)
+            } catch {
+                print("Uniffi callback interface ModelDownloadListener: handle missing in uniffiFree")
+            }
+        },
+        uniffiClone: { (uniffiHandle: UInt64) -> UInt64 in
+            do {
+                return try FfiConverterTypeModelDownloadListener.handleMap.clone(handle: uniffiHandle)
+            } catch {
+                fatalError("Uniffi callback interface ModelDownloadListener: handle missing in uniffiClone")
+            }
+        },
+        onEvent: { (
+            uniffiHandle: UInt64,
+            event: RustBuffer,
+            uniffiOutReturn: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> () in
+                guard let uniffiObj = try? FfiConverterTypeModelDownloadListener.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.onEvent(
+                     event: try FfiConverterTypeModelDownloadEvent_lift(event)
+                )
+            }
+
+            
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        }
+    )
+
+    // Rust stores this pointer for future callback invocations, so it must live
+    // for the process lifetime (not just for the init function call).
+    //
+    // `nonisolated(unsafe)` is needed under Swift 6 strict concurrency.
+    // This is safe because the pointee is initialized once during static init
+    // and never mutated by either side of the FFI.  Its fields are C function pointers.
+    nonisolated(unsafe) static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceModelDownloadListener> = {
+        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceModelDownloadListener>.allocate(capacity: 1)
+        ptr.initialize(to: vtable)
+        return UnsafePointer(ptr)
+    }()
+}
+
+private func uniffiCallbackInitModelDownloadListener() {
+    uniffi_tessera_ffi_fn_init_callback_vtable_modeldownloadlistener(UniffiCallbackInterfaceModelDownloadListener.vtablePtr)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeModelDownloadListener: FfiConverter {
+    fileprivate static let handleMap = UniffiHandleMap<ModelDownloadListener>()
+
+    typealias FfiType = UInt64
+    typealias SwiftType = ModelDownloadListener
+
+    public static func lift(_ handle: UInt64) throws -> ModelDownloadListener {
+        if ((handle & 1) == 0) {
+            // Rust-generated handle, construct a new class that uses the handle to implement the
+            // interface
+            return ModelDownloadListenerImpl(unsafeFromHandle: handle)
+        } else {
+            // Swift-generated handle, get the object from the handle map
+            return try handleMap.remove(handle: handle)
+        }
+    }
+
+    public static func lower(_ value: ModelDownloadListener) -> UInt64 {
+         if let rustImpl = value as? ModelDownloadListenerImpl {
+             // Rust-implemented object.  Clone the handle and return it
+            return rustImpl.uniffiCloneHandle()
+         } else {
+            // Swift object, generate a new vtable handle and return that.
+            return handleMap.insert(obj: value)
+         }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ModelDownloadListener {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: ModelDownloadListener, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeModelDownloadListener_lift(_ handle: UInt64) throws -> ModelDownloadListener {
+    return try FfiConverterTypeModelDownloadListener.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeModelDownloadListener_lower(_ value: ModelDownloadListener) -> UInt64 {
+    return FfiConverterTypeModelDownloadListener.lower(value)
+}
+
+
+
+
+
+
+public protocol ModelDownloadsProtocol: AnyObject, Sendable {
+    
+    /**
+     * Returns after scheduling. Each accepted request emits Queued, zero or
+     * more Downloading events, then exactly one Ready or Failed. A cache hit
+     * is digest-verified even when downloads are disabled. Dropping this
+     * object does not cancel accepted requests. Use a listener per request.
+     */
+    func request(id: String, version: String, listener: ModelDownloadListener) throws 
+    
+}
+open class ModelDownloads: ModelDownloadsProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_tessera_ffi_fn_clone_modeldownloads(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_tessera_ffi_fn_free_modeldownloads(handle, $0) }
+    }
+
+    
+public static func `open`(manifestPath: String, cachePath: String, allowDownloads: Bool)throws  -> ModelDownloads  {
+    return try  FfiConverterTypeModelDownloads_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_constructor_modeldownloads_open(
+        FfiConverterString.lower(manifestPath),
+        FfiConverterString.lower(cachePath),
+        FfiConverterBool.lower(allowDownloads),uniffiCallStatus
+    )
+})
+}
+    
+
+    
+    /**
+     * Returns after scheduling. Each accepted request emits Queued, zero or
+     * more Downloading events, then exactly one Ready or Failed. A cache hit
+     * is digest-verified even when downloads are disabled. Dropping this
+     * object does not cancel accepted requests. Use a listener per request.
+     */
+open func request(id: String, version: String, listener: ModelDownloadListener)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_modeldownloads_request(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
+        FfiConverterString.lower(version),
+        FfiConverterTypeModelDownloadListener_lower(listener),uniffiCallStatus
+    )
+}
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeModelDownloads: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = ModelDownloads
+
+    public static func lift(_ handle: UInt64) throws -> ModelDownloads {
+        return ModelDownloads(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: ModelDownloads) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ModelDownloads {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: ModelDownloads, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeModelDownloads_lift(_ handle: UInt64) throws -> ModelDownloads {
+    return try FfiConverterTypeModelDownloads.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeModelDownloads_lower(_ value: ModelDownloads) -> UInt64 {
+    return FfiConverterTypeModelDownloads.lower(value)
+}
+
+
+
+
+
+
+public protocol PhotoJobProtocol: AnyObject, Sendable {
+    
+    func cancel() 
+    
+    func status()  -> PhotoJobStatus
+    
+    /**
+     * Blocking; Swift must not call on the main actor or inside a job callback.
+     */
+    func wait()  -> PhotoJobStatus
+    
+}
+open class PhotoJob: PhotoJobProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_tessera_ffi_fn_clone_photojob(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_tessera_ffi_fn_free_photojob(handle, $0) }
+    }
+
+    
+
+    
+open func cancel()  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_photojob_cancel(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+}
+}
+    
+open func status() -> PhotoJobStatus  {
+    return try!  FfiConverterTypePhotoJobStatus_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_photojob_status(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Blocking; Swift must not call on the main actor or inside a job callback.
+     */
+open func wait() -> PhotoJobStatus  {
+    return try!  FfiConverterTypePhotoJobStatus_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_photojob_wait(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePhotoJob: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = PhotoJob
+
+    public static func lift(_ handle: UInt64) throws -> PhotoJob {
+        return PhotoJob(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: PhotoJob) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PhotoJob {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: PhotoJob, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePhotoJob_lift(_ handle: UInt64) throws -> PhotoJob {
+    return try FfiConverterTypePhotoJob.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePhotoJob_lower(_ value: PhotoJob) -> UInt64 {
+    return FfiConverterTypePhotoJob.lower(value)
+}
+
+
+
+
+
+
+public protocol PhotoJobListener: AnyObject, Sendable {
+    
+    func onProgress(progress: PhotoProgress) 
+    
+}
+open class PhotoJobListenerImpl: PhotoJobListener, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_tessera_ffi_fn_clone_photojoblistener(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_tessera_ffi_fn_free_photojoblistener(handle, $0) }
+    }
+
+    
+
+    
+open func onProgress(progress: PhotoProgress)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_photojoblistener_on_progress(
+            self.uniffiCloneHandle(),
+        FfiConverterTypePhotoProgress_lower(progress),uniffiCallStatus
+    )
+}
+}
+    
+
+    
+}
+
+
+
+// Put the implementation in a struct so we don't pollute the top-level namespace
+fileprivate struct UniffiCallbackInterfacePhotoJobListener {
+
+    // Create the VTable using a series of closures.
+    // Swift automatically converts these into C callback functions.
+    //
+    // Store the vtable directly.
+    static let vtable: UniffiVTableCallbackInterfacePhotoJobListener = UniffiVTableCallbackInterfacePhotoJobListener(
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            do {
+                try FfiConverterTypePhotoJobListener.handleMap.remove(handle: uniffiHandle)
+            } catch {
+                print("Uniffi callback interface PhotoJobListener: handle missing in uniffiFree")
+            }
+        },
+        uniffiClone: { (uniffiHandle: UInt64) -> UInt64 in
+            do {
+                return try FfiConverterTypePhotoJobListener.handleMap.clone(handle: uniffiHandle)
+            } catch {
+                fatalError("Uniffi callback interface PhotoJobListener: handle missing in uniffiClone")
+            }
+        },
+        onProgress: { (
+            uniffiHandle: UInt64,
+            progress: RustBuffer,
+            uniffiOutReturn: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> () in
+                guard let uniffiObj = try? FfiConverterTypePhotoJobListener.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.onProgress(
+                     progress: try FfiConverterTypePhotoProgress_lift(progress)
+                )
+            }
+
+            
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        }
+    )
+
+    // Rust stores this pointer for future callback invocations, so it must live
+    // for the process lifetime (not just for the init function call).
+    //
+    // `nonisolated(unsafe)` is needed under Swift 6 strict concurrency.
+    // This is safe because the pointee is initialized once during static init
+    // and never mutated by either side of the FFI.  Its fields are C function pointers.
+    nonisolated(unsafe) static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfacePhotoJobListener> = {
+        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfacePhotoJobListener>.allocate(capacity: 1)
+        ptr.initialize(to: vtable)
+        return UnsafePointer(ptr)
+    }()
+}
+
+private func uniffiCallbackInitPhotoJobListener() {
+    uniffi_tessera_ffi_fn_init_callback_vtable_photojoblistener(UniffiCallbackInterfacePhotoJobListener.vtablePtr)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePhotoJobListener: FfiConverter {
+    fileprivate static let handleMap = UniffiHandleMap<PhotoJobListener>()
+
+    typealias FfiType = UInt64
+    typealias SwiftType = PhotoJobListener
+
+    public static func lift(_ handle: UInt64) throws -> PhotoJobListener {
+        if ((handle & 1) == 0) {
+            // Rust-generated handle, construct a new class that uses the handle to implement the
+            // interface
+            return PhotoJobListenerImpl(unsafeFromHandle: handle)
+        } else {
+            // Swift-generated handle, get the object from the handle map
+            return try handleMap.remove(handle: handle)
+        }
+    }
+
+    public static func lower(_ value: PhotoJobListener) -> UInt64 {
+         if let rustImpl = value as? PhotoJobListenerImpl {
+             // Rust-implemented object.  Clone the handle and return it
+            return rustImpl.uniffiCloneHandle()
+         } else {
+            // Swift object, generate a new vtable handle and return that.
+            return handleMap.insert(obj: value)
+         }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PhotoJobListener {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: PhotoJobListener, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePhotoJobListener_lift(_ handle: UInt64) throws -> PhotoJobListener {
+    return try FfiConverterTypePhotoJobListener.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePhotoJobListener_lower(_ value: PhotoJobListener) -> UInt64 {
+    return FfiConverterTypePhotoJobListener.lower(value)
+}
+
+
+
+
+
+
 public protocol TetherEventListener: AnyObject, Sendable {
     
     func onFrame(frame: TetherFrame) 
@@ -10619,6 +11774,188 @@ public func FfiConverterTypeChangedFields_lower(_ value: ChangedFields) -> RustB
 
 
 /**
+ * One saved channel, as the Channels panel lists it.
+ */
+public struct ChannelRecord: Equatable, Hashable {
+    /**
+     * Stable within the document (and across save / reopen).
+     */
+    public var id: UInt64
+    public var kind: DocChannelKind
+    /**
+     * Display name; names may repeat (as in PSD).
+     */
+    public var name: String
+    /**
+     * Spot: the ink's display colour. Alpha: the default overlay colour
+     * (red), which PSD also records for alpha channels.
+     */
+    public var color: PaintColor
+    /**
+     * Spot: solidity. Alpha: the default overlay opacity (0.5).
+     */
+    public var opacity: Float
+    /**
+     * Shown by the host's preview overlay (session state, not saved).
+     */
+    public var visible: Bool
+    /**
+     * Position in the panel and in the PSD channel list (0 = first).
+     */
+    public var index: UInt32
+    /**
+     * Changes whenever the channel's samples change (thumbnail cache key).
+     */
+    public var revision: UInt64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Stable within the document (and across save / reopen).
+         */id: UInt64, kind: DocChannelKind, 
+        /**
+         * Display name; names may repeat (as in PSD).
+         */name: String, 
+        /**
+         * Spot: the ink's display colour. Alpha: the default overlay colour
+         * (red), which PSD also records for alpha channels.
+         */color: PaintColor, 
+        /**
+         * Spot: solidity. Alpha: the default overlay opacity (0.5).
+         */opacity: Float, 
+        /**
+         * Shown by the host's preview overlay (session state, not saved).
+         */visible: Bool, 
+        /**
+         * Position in the panel and in the PSD channel list (0 = first).
+         */index: UInt32, 
+        /**
+         * Changes whenever the channel's samples change (thumbnail cache key).
+         */revision: UInt64) {
+        self.id = id
+        self.kind = kind
+        self.name = name
+        self.color = color
+        self.opacity = opacity
+        self.visible = visible
+        self.index = index
+        self.revision = revision
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ChannelRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeChannelRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ChannelRecord {
+        return
+            try ChannelRecord(
+                id: FfiConverterUInt64.read(from: &buf), 
+                kind: FfiConverterTypeDocChannelKind.read(from: &buf), 
+                name: FfiConverterString.read(from: &buf), 
+                color: FfiConverterTypePaintColor.read(from: &buf), 
+                opacity: FfiConverterFloat.read(from: &buf), 
+                visible: FfiConverterBool.read(from: &buf), 
+                index: FfiConverterUInt32.read(from: &buf), 
+                revision: FfiConverterUInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ChannelRecord, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.id, into: &buf)
+        FfiConverterTypeDocChannelKind.write(value.kind, into: &buf)
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterTypePaintColor.write(value.color, into: &buf)
+        FfiConverterFloat.write(value.opacity, into: &buf)
+        FfiConverterBool.write(value.visible, into: &buf)
+        FfiConverterUInt32.write(value.index, into: &buf)
+        FfiConverterUInt64.write(value.revision, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeChannelRecord_lift(_ buf: RustBuffer) throws -> ChannelRecord {
+    return try FfiConverterTypeChannelRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeChannelRecord_lower(_ value: ChannelRecord) -> RustBuffer {
+    return FfiConverterTypeChannelRecord.lower(value)
+}
+
+
+/**
+ * A channel edit that names the channel it made or changed.
+ */
+public struct ChannelUpdate: Equatable, Hashable {
+    public var channelId: UInt64
+    public var update: DocumentUpdate
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(channelId: UInt64, update: DocumentUpdate) {
+        self.channelId = channelId
+        self.update = update
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ChannelUpdate: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeChannelUpdate: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ChannelUpdate {
+        return
+            try ChannelUpdate(
+                channelId: FfiConverterUInt64.read(from: &buf), 
+                update: FfiConverterTypeDocumentUpdate.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ChannelUpdate, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.channelId, into: &buf)
+        FfiConverterTypeDocumentUpdate.write(value.update, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeChannelUpdate_lift(_ buf: RustBuffer) throws -> ChannelUpdate {
+    return try FfiConverterTypeChannelUpdate.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeChannelUpdate_lower(_ value: ChannelUpdate) -> RustBuffer {
+    return FfiConverterTypeChannelUpdate.lower(value)
+}
+
+
+/**
  * Burst / near-duplicate group. Members follow queue order.
  */
 public struct CullGroup: Equatable, Hashable {
@@ -11156,6 +12493,156 @@ public func FfiConverterTypeDistractionRemovalResult_lift(_ buf: RustBuffer) thr
 #endif
 public func FfiConverterTypeDistractionRemovalResult_lower(_ value: DistractionRemovalResult) -> RustBuffer {
     return FfiConverterTypeDistractionRemovalResult.lower(value)
+}
+
+
+/**
+ * Result of `detect_distractions`.
+ */
+public struct DistractionScan: Equatable, Hashable {
+    public var suggestions: [DistractionSuggestion]
+    /**
+     * Where face boxes came from (`caller`, `face detector`, or why none).
+     */
+    public var faces: String
+    /**
+     * What the detector is (and is not).
+     */
+    public var limitation: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(suggestions: [DistractionSuggestion], 
+        /**
+         * Where face boxes came from (`caller`, `face detector`, or why none).
+         */faces: String, 
+        /**
+         * What the detector is (and is not).
+         */limitation: String) {
+        self.suggestions = suggestions
+        self.faces = faces
+        self.limitation = limitation
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension DistractionScan: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDistractionScan: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DistractionScan {
+        return
+            try DistractionScan(
+                suggestions: FfiConverterSequenceTypeDistractionSuggestion.read(from: &buf), 
+                faces: FfiConverterString.read(from: &buf), 
+                limitation: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: DistractionScan, into buf: inout [UInt8]) {
+        FfiConverterSequenceTypeDistractionSuggestion.write(value.suggestions, into: &buf)
+        FfiConverterString.write(value.faces, into: &buf)
+        FfiConverterString.write(value.limitation, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDistractionScan_lift(_ buf: RustBuffer) throws -> DistractionScan {
+    return try FfiConverterTypeDistractionScan.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDistractionScan_lower(_ value: DistractionScan) -> RustBuffer {
+    return FfiConverterTypeDistractionScan.lower(value)
+}
+
+
+/**
+ * One suggestion of `detect_distractions`.
+ */
+public struct DistractionSuggestion: Equatable, Hashable {
+    public var id: UInt32
+    public var kind: DistractionKind
+    /**
+     * Bounds in level-0 canvas pixels.
+     */
+    public var bounds: DocRect
+    /**
+     * Pixels the suggestion covers.
+     */
+    public var pixels: UInt64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: UInt32, kind: DistractionKind, 
+        /**
+         * Bounds in level-0 canvas pixels.
+         */bounds: DocRect, 
+        /**
+         * Pixels the suggestion covers.
+         */pixels: UInt64) {
+        self.id = id
+        self.kind = kind
+        self.bounds = bounds
+        self.pixels = pixels
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension DistractionSuggestion: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDistractionSuggestion: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DistractionSuggestion {
+        return
+            try DistractionSuggestion(
+                id: FfiConverterUInt32.read(from: &buf), 
+                kind: FfiConverterTypeDistractionKind.read(from: &buf), 
+                bounds: FfiConverterTypeDocRect.read(from: &buf), 
+                pixels: FfiConverterUInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: DistractionSuggestion, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.id, into: &buf)
+        FfiConverterTypeDistractionKind.write(value.kind, into: &buf)
+        FfiConverterTypeDocRect.write(value.bounds, into: &buf)
+        FfiConverterUInt64.write(value.pixels, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDistractionSuggestion_lift(_ buf: RustBuffer) throws -> DistractionSuggestion {
+    return try FfiConverterTypeDistractionSuggestion.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDistractionSuggestion_lower(_ value: DistractionSuggestion) -> RustBuffer {
+    return FfiConverterTypeDistractionSuggestion.lower(value)
 }
 
 
@@ -11791,6 +13278,82 @@ public func FfiConverterTypeDocumentUpdate_lift(_ buf: RustBuffer) throws -> Doc
 #endif
 public func FfiConverterTypeDocumentUpdate_lower(_ value: DocumentUpdate) -> RustBuffer {
     return FfiConverterTypeDocumentUpdate.lower(value)
+}
+
+
+public struct EnhanceOptions: Equatable, Hashable {
+    public var denoiseAmount: UInt8?
+    public var superResolution: Bool
+    /**
+     * Reserved for compatibility. True is rejected: no supported Apache/MIT
+     * learned-demosaic model is available; Raw Details is out of scope.
+     */
+    public var rawDetails: Bool
+    /**
+     * Explicit consent; cache-only by default.
+     */
+    public var allowModelDownload: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(denoiseAmount: UInt8?, superResolution: Bool, 
+        /**
+         * Reserved for compatibility. True is rejected: no supported Apache/MIT
+         * learned-demosaic model is available; Raw Details is out of scope.
+         */rawDetails: Bool, 
+        /**
+         * Explicit consent; cache-only by default.
+         */allowModelDownload: Bool) {
+        self.denoiseAmount = denoiseAmount
+        self.superResolution = superResolution
+        self.rawDetails = rawDetails
+        self.allowModelDownload = allowModelDownload
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension EnhanceOptions: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEnhanceOptions: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EnhanceOptions {
+        return
+            try EnhanceOptions(
+                denoiseAmount: FfiConverterOptionUInt8.read(from: &buf), 
+                superResolution: FfiConverterBool.read(from: &buf), 
+                rawDetails: FfiConverterBool.read(from: &buf), 
+                allowModelDownload: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: EnhanceOptions, into buf: inout [UInt8]) {
+        FfiConverterOptionUInt8.write(value.denoiseAmount, into: &buf)
+        FfiConverterBool.write(value.superResolution, into: &buf)
+        FfiConverterBool.write(value.rawDetails, into: &buf)
+        FfiConverterBool.write(value.allowModelDownload, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEnhanceOptions_lift(_ buf: RustBuffer) throws -> EnhanceOptions {
+    return try FfiConverterTypeEnhanceOptions.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEnhanceOptions_lower(_ value: EnhanceOptions) -> RustBuffer {
+    return FfiConverterTypeEnhanceOptions.lower(value)
 }
 
 
@@ -12749,64 +14312,6 @@ public func FfiConverterTypeFrameInfo_lift(_ buf: RustBuffer) throws -> FrameInf
 #endif
 public func FfiConverterTypeFrameInfo_lower(_ value: FrameInfo) -> RustBuffer {
     return FfiConverterTypeFrameInfo.lower(value)
-}
-
-
-/**
- * The document's light: `angle` in degrees (0 lights from the right, 90
- * from above), `altitude` (elevation) in `0…90` degrees.
- */
-public struct GlobalLightRecord: Equatable, Hashable {
-    public var angle: Float
-    public var altitude: Float
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(angle: Float, altitude: Float) {
-        self.angle = angle
-        self.altitude = altitude
-    }
-
-    
-
-    
-}
-
-#if compiler(>=6)
-extension GlobalLightRecord: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeGlobalLightRecord: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> GlobalLightRecord {
-        return
-            try GlobalLightRecord(
-                angle: FfiConverterFloat.read(from: &buf), 
-                altitude: FfiConverterFloat.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: GlobalLightRecord, into buf: inout [UInt8]) {
-        FfiConverterFloat.write(value.angle, into: &buf)
-        FfiConverterFloat.write(value.altitude, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeGlobalLightRecord_lift(_ buf: RustBuffer) throws -> GlobalLightRecord {
-    return try FfiConverterTypeGlobalLightRecord.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeGlobalLightRecord_lower(_ value: GlobalLightRecord) -> RustBuffer {
-    return FfiConverterTypeGlobalLightRecord.lower(value)
 }
 
 
@@ -14634,64 +16139,6 @@ public func FfiConverterTypeLayerPropsRecord_lift(_ buf: RustBuffer) throws -> L
 #endif
 public func FfiConverterTypeLayerPropsRecord_lower(_ value: LayerPropsRecord) -> RustBuffer {
     return FfiConverterTypeLayerPropsRecord.lower(value)
-}
-
-
-/**
- * The effects of one styled layer in the engine's stacking order, **top
- * first** (the order the Layers panel and the inspector list them).
- */
-public struct LayerStyleSummary: Equatable, Hashable {
-    public var layer: UInt64
-    public var effects: [StyleEffectSummary]
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(layer: UInt64, effects: [StyleEffectSummary]) {
-        self.layer = layer
-        self.effects = effects
-    }
-
-    
-
-    
-}
-
-#if compiler(>=6)
-extension LayerStyleSummary: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeLayerStyleSummary: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LayerStyleSummary {
-        return
-            try LayerStyleSummary(
-                layer: FfiConverterUInt64.read(from: &buf), 
-                effects: FfiConverterSequenceTypeStyleEffectSummary.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: LayerStyleSummary, into buf: inout [UInt8]) {
-        FfiConverterUInt64.write(value.layer, into: &buf)
-        FfiConverterSequenceTypeStyleEffectSummary.write(value.effects, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeLayerStyleSummary_lift(_ buf: RustBuffer) throws -> LayerStyleSummary {
-    return try FfiConverterTypeLayerStyleSummary.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeLayerStyleSummary_lower(_ value: LayerStyleSummary) -> RustBuffer {
-    return FfiConverterTypeLayerStyleSummary.lower(value)
 }
 
 
@@ -17007,6 +18454,184 @@ public func FfiConverterTypeMaskThumbnail_lower(_ value: MaskThumbnail) -> RustB
 }
 
 
+public struct MergeOptions: Equatable, Hashable {
+    public var kind: MergeKind
+    public var autoAlign: Bool
+    public var autoTone: Bool
+    public var deghost: MergeDeghost
+    public var projection: MergeProjection
+    public var boundaryWarp: UInt8
+    public var fillEdges: Bool
+    public var createStack: Bool
+    /**
+     * Optional calibrated focal length in source pixels, required for curved projections.
+     */
+    public var focalPixels: Double?
+    /**
+     * HDR panorama: explicit sequential bracket lengths. Never infer groups from names.
+     */
+    public var bracketSizes: [UInt32]
+    /**
+     * Optional positive sensor exposure values, in input order. Otherwise read EXIF.
+     * Useful for LinearRaw DNGs without exposure tags. No assumed equal exposures.
+     */
+    public var exposureValues: [Double]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(kind: MergeKind, autoAlign: Bool, autoTone: Bool, deghost: MergeDeghost, projection: MergeProjection, boundaryWarp: UInt8, fillEdges: Bool, createStack: Bool, 
+        /**
+         * Optional calibrated focal length in source pixels, required for curved projections.
+         */focalPixels: Double?, 
+        /**
+         * HDR panorama: explicit sequential bracket lengths. Never infer groups from names.
+         */bracketSizes: [UInt32], 
+        /**
+         * Optional positive sensor exposure values, in input order. Otherwise read EXIF.
+         * Useful for LinearRaw DNGs without exposure tags. No assumed equal exposures.
+         */exposureValues: [Double]) {
+        self.kind = kind
+        self.autoAlign = autoAlign
+        self.autoTone = autoTone
+        self.deghost = deghost
+        self.projection = projection
+        self.boundaryWarp = boundaryWarp
+        self.fillEdges = fillEdges
+        self.createStack = createStack
+        self.focalPixels = focalPixels
+        self.bracketSizes = bracketSizes
+        self.exposureValues = exposureValues
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension MergeOptions: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMergeOptions: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MergeOptions {
+        return
+            try MergeOptions(
+                kind: FfiConverterTypeMergeKind.read(from: &buf), 
+                autoAlign: FfiConverterBool.read(from: &buf), 
+                autoTone: FfiConverterBool.read(from: &buf), 
+                deghost: FfiConverterTypeMergeDeghost.read(from: &buf), 
+                projection: FfiConverterTypeMergeProjection.read(from: &buf), 
+                boundaryWarp: FfiConverterUInt8.read(from: &buf), 
+                fillEdges: FfiConverterBool.read(from: &buf), 
+                createStack: FfiConverterBool.read(from: &buf), 
+                focalPixels: FfiConverterOptionDouble.read(from: &buf), 
+                bracketSizes: FfiConverterSequenceUInt32.read(from: &buf), 
+                exposureValues: FfiConverterSequenceDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: MergeOptions, into buf: inout [UInt8]) {
+        FfiConverterTypeMergeKind.write(value.kind, into: &buf)
+        FfiConverterBool.write(value.autoAlign, into: &buf)
+        FfiConverterBool.write(value.autoTone, into: &buf)
+        FfiConverterTypeMergeDeghost.write(value.deghost, into: &buf)
+        FfiConverterTypeMergeProjection.write(value.projection, into: &buf)
+        FfiConverterUInt8.write(value.boundaryWarp, into: &buf)
+        FfiConverterBool.write(value.fillEdges, into: &buf)
+        FfiConverterBool.write(value.createStack, into: &buf)
+        FfiConverterOptionDouble.write(value.focalPixels, into: &buf)
+        FfiConverterSequenceUInt32.write(value.bracketSizes, into: &buf)
+        FfiConverterSequenceDouble.write(value.exposureValues, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMergeOptions_lift(_ buf: RustBuffer) throws -> MergeOptions {
+    return try FfiConverterTypeMergeOptions.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMergeOptions_lower(_ value: MergeOptions) -> RustBuffer {
+    return FfiConverterTypeMergeOptions.lower(value)
+}
+
+
+public struct MergePreview: Equatable, Hashable {
+    /**
+     * JPEG, at most 512 pixels per edge; absent if geometry could not be solved.
+     */
+    public var bytes: Data?
+    public var width: UInt32
+    public var height: UInt32
+    public var warnings: [String]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * JPEG, at most 512 pixels per edge; absent if geometry could not be solved.
+         */bytes: Data?, width: UInt32, height: UInt32, warnings: [String]) {
+        self.bytes = bytes
+        self.width = width
+        self.height = height
+        self.warnings = warnings
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension MergePreview: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMergePreview: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MergePreview {
+        return
+            try MergePreview(
+                bytes: FfiConverterOptionData.read(from: &buf), 
+                width: FfiConverterUInt32.read(from: &buf), 
+                height: FfiConverterUInt32.read(from: &buf), 
+                warnings: FfiConverterSequenceString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: MergePreview, into buf: inout [UInt8]) {
+        FfiConverterOptionData.write(value.bytes, into: &buf)
+        FfiConverterUInt32.write(value.width, into: &buf)
+        FfiConverterUInt32.write(value.height, into: &buf)
+        FfiConverterSequenceString.write(value.warnings, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMergePreview_lift(_ buf: RustBuffer) throws -> MergePreview {
+    return try FfiConverterTypeMergePreview.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMergePreview_lower(_ value: MergePreview) -> RustBuffer {
+    return FfiConverterTypeMergePreview.lower(value)
+}
+
+
 public struct MetadataField: Equatable, Hashable {
     public var group: String
     public var name: String
@@ -17062,6 +18687,166 @@ public func FfiConverterTypeMetadataField_lift(_ buf: RustBuffer) throws -> Meta
 #endif
 public func FfiConverterTypeMetadataField_lower(_ value: MetadataField) -> RustBuffer {
     return FfiConverterTypeMetadataField.lower(value)
+}
+
+
+/**
+ * A neural filter of the Neural Filters panel.
+ */
+public struct NeuralFilterInfo: Equatable, Hashable {
+    public var kind: NeuralFilterKind
+    /**
+     * Adapter id (`neural/colorize`).
+     */
+    public var filterId: String
+    public var name: String
+    public var params: [NeuralParam]
+    public var requiresWeights: Bool
+    public var limitation: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(kind: NeuralFilterKind, 
+        /**
+         * Adapter id (`neural/colorize`).
+         */filterId: String, name: String, params: [NeuralParam], requiresWeights: Bool, limitation: String?) {
+        self.kind = kind
+        self.filterId = filterId
+        self.name = name
+        self.params = params
+        self.requiresWeights = requiresWeights
+        self.limitation = limitation
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension NeuralFilterInfo: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNeuralFilterInfo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NeuralFilterInfo {
+        return
+            try NeuralFilterInfo(
+                kind: FfiConverterTypeNeuralFilterKind.read(from: &buf), 
+                filterId: FfiConverterString.read(from: &buf), 
+                name: FfiConverterString.read(from: &buf), 
+                params: FfiConverterSequenceTypeNeuralParam.read(from: &buf), 
+                requiresWeights: FfiConverterBool.read(from: &buf), 
+                limitation: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: NeuralFilterInfo, into buf: inout [UInt8]) {
+        FfiConverterTypeNeuralFilterKind.write(value.kind, into: &buf)
+        FfiConverterString.write(value.filterId, into: &buf)
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterSequenceTypeNeuralParam.write(value.params, into: &buf)
+        FfiConverterBool.write(value.requiresWeights, into: &buf)
+        FfiConverterOptionString.write(value.limitation, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNeuralFilterInfo_lift(_ buf: RustBuffer) throws -> NeuralFilterInfo {
+    return try FfiConverterTypeNeuralFilterInfo.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNeuralFilterInfo_lower(_ value: NeuralFilterInfo) -> RustBuffer {
+    return FfiConverterTypeNeuralFilterInfo.lower(value)
+}
+
+
+/**
+ * One control of a neural filter.
+ */
+public struct NeuralParam: Equatable, Hashable {
+    /**
+     * JSON key (`strength`).
+     */
+    public var key: String
+    /**
+     * Label (`Strength`).
+     */
+    public var label: String
+    public var min: Float
+    public var max: Float
+    public var defaultValue: Float
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * JSON key (`strength`).
+         */key: String, 
+        /**
+         * Label (`Strength`).
+         */label: String, min: Float, max: Float, defaultValue: Float) {
+        self.key = key
+        self.label = label
+        self.min = min
+        self.max = max
+        self.defaultValue = defaultValue
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension NeuralParam: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNeuralParam: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NeuralParam {
+        return
+            try NeuralParam(
+                key: FfiConverterString.read(from: &buf), 
+                label: FfiConverterString.read(from: &buf), 
+                min: FfiConverterFloat.read(from: &buf), 
+                max: FfiConverterFloat.read(from: &buf), 
+                defaultValue: FfiConverterFloat.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: NeuralParam, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.key, into: &buf)
+        FfiConverterString.write(value.label, into: &buf)
+        FfiConverterFloat.write(value.min, into: &buf)
+        FfiConverterFloat.write(value.max, into: &buf)
+        FfiConverterFloat.write(value.defaultValue, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNeuralParam_lift(_ buf: RustBuffer) throws -> NeuralParam {
+    return try FfiConverterTypeNeuralParam.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNeuralParam_lower(_ value: NeuralParam) -> RustBuffer {
+    return FfiConverterTypeNeuralParam.lower(value)
 }
 
 
@@ -17906,6 +19691,238 @@ public func FfiConverterTypePersonInfo_lower(_ value: PersonInfo) -> RustBuffer 
 }
 
 
+public struct PhotoJobError: Equatable, Hashable {
+    public var stage: String
+    public var message: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(stage: String, message: String) {
+        self.stage = stage
+        self.message = message
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension PhotoJobError: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePhotoJobError: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PhotoJobError {
+        return
+            try PhotoJobError(
+                stage: FfiConverterString.read(from: &buf), 
+                message: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PhotoJobError, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.stage, into: &buf)
+        FfiConverterString.write(value.message, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePhotoJobError_lift(_ buf: RustBuffer) throws -> PhotoJobError {
+    return try FfiConverterTypePhotoJobError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePhotoJobError_lower(_ value: PhotoJobError) -> RustBuffer {
+    return FfiConverterTypePhotoJobError.lower(value)
+}
+
+
+public struct PhotoJobStatus: Equatable, Hashable {
+    public var state: PhotoJobState
+    public var outputs: [PhotoOutput]
+    public var error: PhotoJobError?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(state: PhotoJobState, outputs: [PhotoOutput], error: PhotoJobError?) {
+        self.state = state
+        self.outputs = outputs
+        self.error = error
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension PhotoJobStatus: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePhotoJobStatus: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PhotoJobStatus {
+        return
+            try PhotoJobStatus(
+                state: FfiConverterTypePhotoJobState.read(from: &buf), 
+                outputs: FfiConverterSequenceTypePhotoOutput.read(from: &buf), 
+                error: FfiConverterOptionTypePhotoJobError.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PhotoJobStatus, into buf: inout [UInt8]) {
+        FfiConverterTypePhotoJobState.write(value.state, into: &buf)
+        FfiConverterSequenceTypePhotoOutput.write(value.outputs, into: &buf)
+        FfiConverterOptionTypePhotoJobError.write(value.error, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePhotoJobStatus_lift(_ buf: RustBuffer) throws -> PhotoJobStatus {
+    return try FfiConverterTypePhotoJobStatus.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePhotoJobStatus_lower(_ value: PhotoJobStatus) -> RustBuffer {
+    return FfiConverterTypePhotoJobStatus.lower(value)
+}
+
+
+public struct PhotoOutput: Equatable, Hashable {
+    public var imageId: String
+    public var path: String
+    public var sourceIds: [String]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(imageId: String, path: String, sourceIds: [String]) {
+        self.imageId = imageId
+        self.path = path
+        self.sourceIds = sourceIds
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension PhotoOutput: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePhotoOutput: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PhotoOutput {
+        return
+            try PhotoOutput(
+                imageId: FfiConverterString.read(from: &buf), 
+                path: FfiConverterString.read(from: &buf), 
+                sourceIds: FfiConverterSequenceString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PhotoOutput, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.imageId, into: &buf)
+        FfiConverterString.write(value.path, into: &buf)
+        FfiConverterSequenceString.write(value.sourceIds, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePhotoOutput_lift(_ buf: RustBuffer) throws -> PhotoOutput {
+    return try FfiConverterTypePhotoOutput.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePhotoOutput_lower(_ value: PhotoOutput) -> RustBuffer {
+    return FfiConverterTypePhotoOutput.lower(value)
+}
+
+
+public struct PhotoProgress: Equatable, Hashable {
+    public var stage: String
+    public var done: UInt32
+    public var total: UInt32
+    public var status: PhotoJobStatus
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(stage: String, done: UInt32, total: UInt32, status: PhotoJobStatus) {
+        self.stage = stage
+        self.done = done
+        self.total = total
+        self.status = status
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension PhotoProgress: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePhotoProgress: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PhotoProgress {
+        return
+            try PhotoProgress(
+                stage: FfiConverterString.read(from: &buf), 
+                done: FfiConverterUInt32.read(from: &buf), 
+                total: FfiConverterUInt32.read(from: &buf), 
+                status: FfiConverterTypePhotoJobStatus.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PhotoProgress, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.stage, into: &buf)
+        FfiConverterUInt32.write(value.done, into: &buf)
+        FfiConverterUInt32.write(value.total, into: &buf)
+        FfiConverterTypePhotoJobStatus.write(value.status, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePhotoProgress_lift(_ buf: RustBuffer) throws -> PhotoProgress {
+    return try FfiConverterTypePhotoProgress.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePhotoProgress_lower(_ value: PhotoProgress) -> RustBuffer {
+    return FfiConverterTypePhotoProgress.lower(value)
+}
+
+
 public struct PreviewResponse: Equatable, Hashable {
     public var bytes: Data?
     public var pending: Bool
@@ -18528,6 +20545,188 @@ public func FfiConverterTypeRefineEdgeParams_lift(_ buf: RustBuffer) throws -> R
 #endif
 public func FfiConverterTypeRefineEdgeParams_lower(_ value: RefineEdgeParams) -> RustBuffer {
     return FfiConverterTypeRefineEdgeParams.lower(value)
+}
+
+
+/**
+ * A model file retouching can use, and whether it is installed locally.
+ */
+public struct RetouchModel: Equatable, Hashable {
+    /**
+     * Registry id (`remove/lama`).
+     */
+    public var modelId: String
+    /**
+     * What needs it (`Remove (LaMa)`).
+     */
+    public var usedBy: String
+    public var installed: Bool
+    /**
+     * Where the verified file is (or would be) cached.
+     */
+    public var cachePath: String
+    /**
+     * Where the file comes from (never fetched implicitly).
+     */
+    public var sourceUrl: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Registry id (`remove/lama`).
+         */modelId: String, 
+        /**
+         * What needs it (`Remove (LaMa)`).
+         */usedBy: String, installed: Bool, 
+        /**
+         * Where the verified file is (or would be) cached.
+         */cachePath: String, 
+        /**
+         * Where the file comes from (never fetched implicitly).
+         */sourceUrl: String) {
+        self.modelId = modelId
+        self.usedBy = usedBy
+        self.installed = installed
+        self.cachePath = cachePath
+        self.sourceUrl = sourceUrl
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension RetouchModel: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRetouchModel: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RetouchModel {
+        return
+            try RetouchModel(
+                modelId: FfiConverterString.read(from: &buf), 
+                usedBy: FfiConverterString.read(from: &buf), 
+                installed: FfiConverterBool.read(from: &buf), 
+                cachePath: FfiConverterString.read(from: &buf), 
+                sourceUrl: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: RetouchModel, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.modelId, into: &buf)
+        FfiConverterString.write(value.usedBy, into: &buf)
+        FfiConverterBool.write(value.installed, into: &buf)
+        FfiConverterString.write(value.cachePath, into: &buf)
+        FfiConverterString.write(value.sourceUrl, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRetouchModel_lift(_ buf: RustBuffer) throws -> RetouchModel {
+    return try FfiConverterTypeRetouchModel.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRetouchModel_lower(_ value: RetouchModel) -> RustBuffer {
+    return FfiConverterTypeRetouchModel.lower(value)
+}
+
+
+/**
+ * What one retouch apply did.
+ */
+public struct RetouchResult: Equatable, Hashable {
+    public var update: DocumentUpdate
+    /**
+     * The backend that actually ran: `PatchMatch`, `LaMa`, `Content-Aware
+     * Fill`, `Skin Smoothing (CPU)`, `DDColor`, `DRUNet`, or `none` (an
+     * empty mask).
+     */
+    public var backend: String
+    /**
+     * Why the backend differs from the request (Auto without LaMa), how
+     * face boxes were found, …
+     */
+    public var note: String?
+    /**
+     * Engine time, milliseconds.
+     */
+    public var millis: Double
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(update: DocumentUpdate, 
+        /**
+         * The backend that actually ran: `PatchMatch`, `LaMa`, `Content-Aware
+         * Fill`, `Skin Smoothing (CPU)`, `DDColor`, `DRUNet`, or `none` (an
+         * empty mask).
+         */backend: String, 
+        /**
+         * Why the backend differs from the request (Auto without LaMa), how
+         * face boxes were found, …
+         */note: String?, 
+        /**
+         * Engine time, milliseconds.
+         */millis: Double) {
+        self.update = update
+        self.backend = backend
+        self.note = note
+        self.millis = millis
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension RetouchResult: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRetouchResult: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RetouchResult {
+        return
+            try RetouchResult(
+                update: FfiConverterTypeDocumentUpdate.read(from: &buf), 
+                backend: FfiConverterString.read(from: &buf), 
+                note: FfiConverterOptionString.read(from: &buf), 
+                millis: FfiConverterDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: RetouchResult, into buf: inout [UInt8]) {
+        FfiConverterTypeDocumentUpdate.write(value.update, into: &buf)
+        FfiConverterString.write(value.backend, into: &buf)
+        FfiConverterOptionString.write(value.note, into: &buf)
+        FfiConverterDouble.write(value.millis, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRetouchResult_lift(_ buf: RustBuffer) throws -> RetouchResult {
+    return try FfiConverterTypeRetouchResult.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRetouchResult_lower(_ value: RetouchResult) -> RustBuffer {
+    return FfiConverterTypeRetouchResult.lower(value)
 }
 
 
@@ -19580,79 +21779,6 @@ public func FfiConverterTypeStrokeSample_lift(_ buf: RustBuffer) throws -> Strok
 #endif
 public func FfiConverterTypeStrokeSample_lower(_ value: StrokeSample) -> RustBuffer {
     return FfiConverterTypeStrokeSample.lower(value)
-}
-
-
-/**
- * One effect of a styled layer, for the Layers panel's effect rows.
- */
-public struct StyleEffectSummary: Equatable, Hashable {
-    /**
-     * Index into the layer's `effects` (the JSON array).
-     */
-    public var index: UInt32
-    /**
-     * Serde kind name (`drop_shadow`, `stroke`, …).
-     */
-    public var kind: String
-    public var enabled: Bool
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(
-        /**
-         * Index into the layer's `effects` (the JSON array).
-         */index: UInt32, 
-        /**
-         * Serde kind name (`drop_shadow`, `stroke`, …).
-         */kind: String, enabled: Bool) {
-        self.index = index
-        self.kind = kind
-        self.enabled = enabled
-    }
-
-    
-
-    
-}
-
-#if compiler(>=6)
-extension StyleEffectSummary: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeStyleEffectSummary: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> StyleEffectSummary {
-        return
-            try StyleEffectSummary(
-                index: FfiConverterUInt32.read(from: &buf), 
-                kind: FfiConverterString.read(from: &buf), 
-                enabled: FfiConverterBool.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: StyleEffectSummary, into buf: inout [UInt8]) {
-        FfiConverterUInt32.write(value.index, into: &buf)
-        FfiConverterString.write(value.kind, into: &buf)
-        FfiConverterBool.write(value.enabled, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeStyleEffectSummary_lift(_ buf: RustBuffer) throws -> StyleEffectSummary {
-    return try FfiConverterTypeStyleEffectSummary.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeStyleEffectSummary_lower(_ value: StyleEffectSummary) -> RustBuffer {
-    return FfiConverterTypeStyleEffectSummary.lower(value)
 }
 
 
@@ -21040,6 +23166,156 @@ public func FfiConverterTypeDecision_lift(_ buf: RustBuffer) throws -> Decision 
 #endif
 public func FfiConverterTypeDecision_lower(_ value: Decision) -> RustBuffer {
     return FfiConverterTypeDecision.lower(value)
+}
+
+
+
+/**
+ * Kind of distraction suggestion.
+ */
+
+public enum DistractionKind: Equatable, Hashable {
+    
+    /**
+     * A thin straight ridge or valley (geometric wire proxy).
+     */
+    case wire
+    /**
+     * A face box dilated by half its size on each side (not a person mask).
+     */
+    case faceBox
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension DistractionKind: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDistractionKind: FfiConverterRustBuffer {
+    typealias SwiftType = DistractionKind
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DistractionKind {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .wire
+        
+        case 2: return .faceBox
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: DistractionKind, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .wire:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .faceBox:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDistractionKind_lift(_ buf: RustBuffer) throws -> DistractionKind {
+    return try FfiConverterTypeDistractionKind.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDistractionKind_lower(_ value: DistractionKind) -> RustBuffer {
+    return FfiConverterTypeDistractionKind.lower(value)
+}
+
+
+
+/**
+ * What a saved channel is.
+ */
+
+public enum DocChannelKind: Equatable, Hashable {
+    
+    /**
+     * A saved selection or general-purpose mask.
+     */
+    case alpha
+    /**
+     * A spot ink plane (preview metadata only: never in the RGB composite).
+     */
+    case spot
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension DocChannelKind: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDocChannelKind: FfiConverterRustBuffer {
+    typealias SwiftType = DocChannelKind
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DocChannelKind {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .alpha
+        
+        case 2: return .spot
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: DocChannelKind, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .alpha:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .spot:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDocChannelKind_lift(_ buf: RustBuffer) throws -> DocChannelKind {
+    return try FfiConverterTypeDocChannelKind.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDocChannelKind_lower(_ value: DocChannelKind) -> RustBuffer {
+    return FfiConverterTypeDocChannelKind.lower(value)
 }
 
 
@@ -22535,6 +24811,491 @@ public func FfiConverterTypeMaskInit_lower(_ value: MaskInit) -> RustBuffer {
 
 
 
+
+public enum MergeDeghost: Equatable, Hashable {
+    
+    case none
+    case low
+    case medium
+    case high
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension MergeDeghost: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMergeDeghost: FfiConverterRustBuffer {
+    typealias SwiftType = MergeDeghost
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MergeDeghost {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .none
+        
+        case 2: return .low
+        
+        case 3: return .medium
+        
+        case 4: return .high
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: MergeDeghost, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .none:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .low:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .medium:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .high:
+            writeInt(&buf, Int32(4))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMergeDeghost_lift(_ buf: RustBuffer) throws -> MergeDeghost {
+    return try FfiConverterTypeMergeDeghost.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMergeDeghost_lower(_ value: MergeDeghost) -> RustBuffer {
+    return FfiConverterTypeMergeDeghost.lower(value)
+}
+
+
+
+
+public enum MergeKind: Equatable, Hashable {
+    
+    case hdr
+    case panorama
+    case hdrPanorama
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension MergeKind: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMergeKind: FfiConverterRustBuffer {
+    typealias SwiftType = MergeKind
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MergeKind {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .hdr
+        
+        case 2: return .panorama
+        
+        case 3: return .hdrPanorama
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: MergeKind, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .hdr:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .panorama:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .hdrPanorama:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMergeKind_lift(_ buf: RustBuffer) throws -> MergeKind {
+    return try FfiConverterTypeMergeKind.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMergeKind_lower(_ value: MergeKind) -> RustBuffer {
+    return FfiConverterTypeMergeKind.lower(value)
+}
+
+
+
+
+public enum MergeProjection: Equatable, Hashable {
+    
+    case auto
+    case spherical
+    case cylindrical
+    case perspective
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension MergeProjection: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMergeProjection: FfiConverterRustBuffer {
+    typealias SwiftType = MergeProjection
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MergeProjection {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .auto
+        
+        case 2: return .spherical
+        
+        case 3: return .cylindrical
+        
+        case 4: return .perspective
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: MergeProjection, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .auto:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .spherical:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .cylindrical:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .perspective:
+            writeInt(&buf, Int32(4))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMergeProjection_lift(_ buf: RustBuffer) throws -> MergeProjection {
+    return try FfiConverterTypeMergeProjection.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMergeProjection_lower(_ value: MergeProjection) -> RustBuffer {
+    return FfiConverterTypeMergeProjection.lower(value)
+}
+
+
+
+
+public enum ModelDownloadEvent: Equatable, Hashable {
+    
+    case queued
+    case downloading(bytes: UInt64, total: UInt64?
+    )
+    case ready(path: String
+    )
+    case failed(reason: String
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension ModelDownloadEvent: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeModelDownloadEvent: FfiConverterRustBuffer {
+    typealias SwiftType = ModelDownloadEvent
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ModelDownloadEvent {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .queued
+        
+        case 2: return .downloading(bytes: try FfiConverterUInt64.read(from: &buf), total: try FfiConverterOptionUInt64.read(from: &buf)
+        )
+        
+        case 3: return .ready(path: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 4: return .failed(reason: try FfiConverterString.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: ModelDownloadEvent, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .queued:
+            writeInt(&buf, Int32(1))
+        
+        
+        case let .downloading(bytes,total):
+            writeInt(&buf, Int32(2))
+            FfiConverterUInt64.write(bytes, into: &buf)
+            FfiConverterOptionUInt64.write(total, into: &buf)
+            
+        
+        case let .ready(path):
+            writeInt(&buf, Int32(3))
+            FfiConverterString.write(path, into: &buf)
+            
+        
+        case let .failed(reason):
+            writeInt(&buf, Int32(4))
+            FfiConverterString.write(reason, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeModelDownloadEvent_lift(_ buf: RustBuffer) throws -> ModelDownloadEvent {
+    return try FfiConverterTypeModelDownloadEvent.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeModelDownloadEvent_lower(_ value: ModelDownloadEvent) -> RustBuffer {
+    return FfiConverterTypeModelDownloadEvent.lower(value)
+}
+
+
+
+/**
+ * Where a neural filter's result goes.
+ */
+
+public enum NeuralDestination: Equatable, Hashable {
+    
+    /**
+     * The layer's own pixels (inside the selection); on a smart object, a
+     * smart filter (the adapter's behaviour).
+     */
+    case currentLayer
+    /**
+     * A new pixel layer above a pixel layer (the layer is unchanged).
+     */
+    case newLayer
+    /**
+     * A smart filter; a pixel layer becomes a smart object in the same step.
+     */
+    case smartFilter
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension NeuralDestination: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNeuralDestination: FfiConverterRustBuffer {
+    typealias SwiftType = NeuralDestination
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NeuralDestination {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .currentLayer
+        
+        case 2: return .newLayer
+        
+        case 3: return .smartFilter
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: NeuralDestination, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .currentLayer:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .newLayer:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .smartFilter:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNeuralDestination_lift(_ buf: RustBuffer) throws -> NeuralDestination {
+    return try FfiConverterTypeNeuralDestination.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNeuralDestination_lower(_ value: NeuralDestination) -> RustBuffer {
+    return FfiConverterTypeNeuralDestination.lower(value)
+}
+
+
+
+/**
+ * Neural filters M5-29 exposes (adapter ids `neural/skin_smoothing`, …).
+ */
+
+public enum NeuralFilterKind: Equatable, Hashable {
+    
+    case skinSmoothing
+    case colorize
+    case jpegArtifactRemoval
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension NeuralFilterKind: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNeuralFilterKind: FfiConverterRustBuffer {
+    typealias SwiftType = NeuralFilterKind
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NeuralFilterKind {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .skinSmoothing
+        
+        case 2: return .colorize
+        
+        case 3: return .jpegArtifactRemoval
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: NeuralFilterKind, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .skinSmoothing:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .colorize:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .jpegArtifactRemoval:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNeuralFilterKind_lift(_ buf: RustBuffer) throws -> NeuralFilterKind {
+    return try FfiConverterTypeNeuralFilterKind.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNeuralFilterKind_lower(_ value: NeuralFilterKind) -> RustBuffer {
+    return FfiConverterTypeNeuralFilterKind.lower(value)
+}
+
+
+
 /**
  * New layer content for [`DocumentSession::add_layer`].
  */
@@ -22759,6 +25520,86 @@ public func FfiConverterTypePaintSymmetry_lift(_ buf: RustBuffer) throws -> Pain
 #endif
 public func FfiConverterTypePaintSymmetry_lower(_ value: PaintSymmetry) -> RustBuffer {
     return FfiConverterTypePaintSymmetry.lower(value)
+}
+
+
+
+
+public enum PhotoJobState: Equatable, Hashable {
+    
+    case running
+    case completed
+    case cancelled
+    case failed
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension PhotoJobState: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePhotoJobState: FfiConverterRustBuffer {
+    typealias SwiftType = PhotoJobState
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PhotoJobState {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .running
+        
+        case 2: return .completed
+        
+        case 3: return .cancelled
+        
+        case 4: return .failed
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: PhotoJobState, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .running:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .completed:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .cancelled:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .failed:
+            writeInt(&buf, Int32(4))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePhotoJobState_lift(_ buf: RustBuffer) throws -> PhotoJobState {
+    return try FfiConverterTypePhotoJobState.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePhotoJobState_lower(_ value: PhotoJobState) -> RustBuffer {
+    return FfiConverterTypePhotoJobState.lower(value)
 }
 
 
@@ -23016,6 +25857,91 @@ public func FfiConverterTypeRasterFilterOperation_lift(_ buf: RustBuffer) throws
 #endif
 public func FfiConverterTypeRasterFilterOperation_lower(_ value: RasterFilterOperation) -> RustBuffer {
     return FfiConverterTypeRasterFilterOperation.lower(value)
+}
+
+
+
+/**
+ * Which inpainting backend Remove asks for.
+ */
+
+public enum RemoveBackend: Equatable, Hashable {
+    
+    /**
+     * LaMa when its weights are installed, PatchMatch otherwise.
+     */
+    case auto
+    /**
+     * CPU PatchMatch (no weights).
+     */
+    case patchMatch
+    /**
+     * LaMa only; an error when its weights are not installed.
+     */
+    case lama
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension RemoveBackend: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRemoveBackend: FfiConverterRustBuffer {
+    typealias SwiftType = RemoveBackend
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RemoveBackend {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .auto
+        
+        case 2: return .patchMatch
+        
+        case 3: return .lama
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: RemoveBackend, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .auto:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .patchMatch:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .lama:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRemoveBackend_lift(_ buf: RustBuffer) throws -> RemoveBackend {
+    return try FfiConverterTypeRemoveBackend.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRemoveBackend_lower(_ value: RemoveBackend) -> RustBuffer {
+    return FfiConverterTypeRemoveBackend.lower(value)
 }
 
 
@@ -24794,6 +27720,30 @@ fileprivate struct FfiConverterOptionTypePersonFace: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypePhotoJobError: FfiConverterRustBuffer {
+    typealias SwiftType = PhotoJobError?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypePhotoJobError.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypePhotoJobError.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypePrintProfile: FfiConverterRustBuffer {
     typealias SwiftType = PrintProfile?
 
@@ -25110,6 +28060,31 @@ fileprivate struct FfiConverterSequenceFloat: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceDouble: FfiConverterRustBuffer {
+    typealias SwiftType = [Double]
+
+    public static func write(_ value: [Double], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterDouble.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [Double] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [Double]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterDouble.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceString: FfiConverterRustBuffer {
     typealias SwiftType = [String]
 
@@ -25285,6 +28260,31 @@ fileprivate struct FfiConverterSequenceTypeBrushTipInfo: FfiConverterRustBuffer 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeChannelRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [ChannelRecord]
+
+    public static func write(_ value: [ChannelRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeChannelRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ChannelRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ChannelRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeChannelRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeCullGroup: FfiConverterRustBuffer {
     typealias SwiftType = [CullGroup]
 
@@ -25377,6 +28377,31 @@ fileprivate struct FfiConverterSequenceTypeDefectThreshold: FfiConverterRustBuff
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeDefectThreshold.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeDistractionSuggestion: FfiConverterRustBuffer {
+    typealias SwiftType = [DistractionSuggestion]
+
+    public static func write(_ value: [DistractionSuggestion], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeDistractionSuggestion.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [DistractionSuggestion] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [DistractionSuggestion]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeDistractionSuggestion.read(from: &buf))
         }
         return seq
     }
@@ -25860,31 +28885,6 @@ fileprivate struct FfiConverterSequenceTypeLayerNode: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-fileprivate struct FfiConverterSequenceTypeLayerStyleSummary: FfiConverterRustBuffer {
-    typealias SwiftType = [LayerStyleSummary]
-
-    public static func write(_ value: [LayerStyleSummary], into buf: inout [UInt8]) {
-        let len = Int32(value.count)
-        writeInt(&buf, len)
-        for item in value {
-            FfiConverterTypeLayerStyleSummary.write(item, into: &buf)
-        }
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [LayerStyleSummary] {
-        let len: Int32 = try readInt(&buf)
-        var seq = [LayerStyleSummary]()
-        seq.reserveCapacity(Int(len))
-        for _ in 0 ..< len {
-            seq.append(try FfiConverterTypeLayerStyleSummary.read(from: &buf))
-        }
-        return seq
-    }
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
 fileprivate struct FfiConverterSequenceTypeLibraryChange: FfiConverterRustBuffer {
     typealias SwiftType = [LibraryChange]
 
@@ -26310,6 +29310,56 @@ fileprivate struct FfiConverterSequenceTypeMetadataField: FfiConverterRustBuffer
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeNeuralFilterInfo: FfiConverterRustBuffer {
+    typealias SwiftType = [NeuralFilterInfo]
+
+    public static func write(_ value: [NeuralFilterInfo], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeNeuralFilterInfo.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [NeuralFilterInfo] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [NeuralFilterInfo]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeNeuralFilterInfo.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeNeuralParam: FfiConverterRustBuffer {
+    typealias SwiftType = [NeuralParam]
+
+    public static func write(_ value: [NeuralParam], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeNeuralParam.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [NeuralParam] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [NeuralParam]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeNeuralParam.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeOcrRegionInfo: FfiConverterRustBuffer {
     typealias SwiftType = [OcrRegionInfo]
 
@@ -26460,6 +29510,31 @@ fileprivate struct FfiConverterSequenceTypePersonInfo: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypePhotoOutput: FfiConverterRustBuffer {
+    typealias SwiftType = [PhotoOutput]
+
+    public static func write(_ value: [PhotoOutput], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypePhotoOutput.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [PhotoOutput] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [PhotoOutput]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypePhotoOutput.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypePrinterProfile: FfiConverterRustBuffer {
     typealias SwiftType = [PrinterProfile]
 
@@ -26477,6 +29552,31 @@ fileprivate struct FfiConverterSequenceTypePrinterProfile: FfiConverterRustBuffe
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypePrinterProfile.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeRetouchModel: FfiConverterRustBuffer {
+    typealias SwiftType = [RetouchModel]
+
+    public static func write(_ value: [RetouchModel], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeRetouchModel.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [RetouchModel] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [RetouchModel]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeRetouchModel.read(from: &buf))
         }
         return seq
     }
@@ -26577,31 +29677,6 @@ fileprivate struct FfiConverterSequenceTypeStrokeSample: FfiConverterRustBuffer 
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeStrokeSample.read(from: &buf))
-        }
-        return seq
-    }
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-fileprivate struct FfiConverterSequenceTypeStyleEffectSummary: FfiConverterRustBuffer {
-    typealias SwiftType = [StyleEffectSummary]
-
-    public static func write(_ value: [StyleEffectSummary], into buf: inout [UInt8]) {
-        let len = Int32(value.count)
-        writeInt(&buf, len)
-        for item in value {
-            FfiConverterTypeStyleEffectSummary.write(item, into: &buf)
-        }
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [StyleEffectSummary] {
-        let len: Int32 = try readInt(&buf)
-        var seq = [StyleEffectSummary]()
-        seq.reserveCapacity(Int(len))
-        for _ in 0 ..< len {
-            seq.append(try FfiConverterTypeStyleEffectSummary.read(from: &buf))
         }
         return seq
     }
@@ -26778,20 +29853,12 @@ public func listFilters() -> [FilterInfo]  {
 })
 }
 /**
- * The effect kinds `LayerStyles` JSON may hold, their fields (JSON keys of
- * `settings`) with UI ranges, defaults and flags, top first in the engine's
- * stacking order. Field `type`s: `number` (`min`/`max` in stored units,
- * shown × `display_scale` with `unit`), `angle` (degrees), `bool`, `color`
- * (straight RGBA), `blend_mode` (a `blend_mode_names()` name), `enum`
- * (`options`), `fill` (`compositor::Fill` JSON). `metadata` fields are
- * preserved but not rendered. `repeatable` kinds may appear more than once;
- * `global_light` kinds follow Use Global Light; `psd` kinds survive a PSD
- * save (solid fills only, one of each).
+ * The neural filters M5-29 registers, with their controls.
  */
-public func styleEffectsSchemaJson() -> String  {
-    return try!  FfiConverterString.lift(try! rustCall() {
+public func neuralFilters() -> [NeuralFilterInfo]  {
+    return try!  FfiConverterSequenceTypeNeuralFilterInfo.lift(try! rustCall() {
         uniffiCallStatus in
-    uniffi_tessera_ffi_fn_func_style_effects_schema_json(uniffiCallStatus
+    uniffi_tessera_ffi_fn_func_neural_filters(uniffiCallStatus
     )
 })
 }
@@ -26911,7 +29978,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_func_list_filters() != 15632) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_func_style_effects_schema_json() != 46429) {
+    if (uniffi_tessera_ffi_checksum_func_neural_filters() != 17162) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_func_brush_tip_preview() != 21691) {
@@ -26998,7 +30065,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_engine_open_library() != 50227) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_engine_open_develop_session() != 50243) {
+    if (uniffi_tessera_ffi_checksum_method_engine_depth_histogram() != 18154) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_open_develop_session() != 14391) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_engine_document_ids() != 48705) {
@@ -27014,6 +30084,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_engine_open_document_from_image() != 20023) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_enhance() != 12673) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_engine_delete_export_preset() != 3289) {
@@ -27038,6 +30111,15 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_engine_open_lrcat() != 51145) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_merge_preview() != 31761) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_photo_merge() != 21505) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_photo_stack() != 59182) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_engine_open_cull_session() != 42664) {
@@ -27223,10 +30305,16 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_developsession_configure_cfa_denoise() != 26853) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tessera_ffi_checksum_method_developsession_depth_histogram() != 62695) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_tessera_ffi_checksum_method_developsession_detach_surfaces() != 32727) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_developsession_flush() != 25039) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_focus_lens_blur_on_subject() != 48954) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_developsession_get_histogram() != 57752) {
@@ -27290,6 +30378,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_developsession_set_process_version() != 30220) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_set_render_depth_visualisation() != 13210) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_set_render_uncorrected() != 57292) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_developsession_set_settings() != 54630) {
@@ -27559,6 +30653,39 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_documentsession_ungroup_layer() != 16163) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_channel_thumbnail() != 33848) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_delete_document_channel() != 25172) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_document_channels() != 11113) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_duplicate_document_channel() != 42170) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_load_selection_channel() != 62039) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_new_alpha_channel() != 35156) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_new_spot_channel() != 26033) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_rename_document_channel() != 51295) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_save_selection_channel() != 16390) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_set_channel_visible() != 38870) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_set_spot_channel() != 59239) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_tessera_ffi_checksum_method_documentsession_apply_adjustment() != 62065) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -27607,31 +30734,43 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_documentsession_smart_filters() != 21975) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_can_paste_layer_styles() != 15469) {
+    if (uniffi_tessera_ffi_checksum_method_documentsession_begin_remove_stroke() != 41520) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_clear_layer_styles() != 11243) {
+    if (uniffi_tessera_ffi_checksum_method_documentsession_cancel_remove_stroke() != 46597) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_copy_layer_styles() != 40526) {
+    if (uniffi_tessera_ffi_checksum_method_documentsession_cancel_retouch() != 4599) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_global_light() != 15945) {
+    if (uniffi_tessera_ffi_checksum_method_documentsession_clear_distraction_suggestions() != 64743) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_layer_style_summaries() != 13617) {
+    if (uniffi_tessera_ffi_checksum_method_documentsession_content_aware_fill_selection() != 63614) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_layer_styles_json() != 13000) {
+    if (uniffi_tessera_ffi_checksum_method_documentsession_detect_distractions() != 50030) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_paste_layer_styles() != 44262) {
+    if (uniffi_tessera_ffi_checksum_method_documentsession_end_remove_stroke() != 24853) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_set_global_light() != 38883) {
+    if (uniffi_tessera_ffi_checksum_method_documentsession_neural_filter() != 16222) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_set_layer_styles_json() != 39086) {
+    if (uniffi_tessera_ffi_checksum_method_documentsession_remove_distraction_suggestions() != 10060) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_remove_stroke_bounds() != 40469) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_remove_stroke_points() != 53278) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_remove_with_selection() != 40234) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_documentsession_retouch_models() != 9959) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_begin_stroke() != 7153) {
@@ -27661,7 +30800,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_documentsession_fill_selection() != 4888) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_load_selection() != 11776) {
+    if (uniffi_tessera_ffi_checksum_method_documentsession_load_selection() != 46299) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_magnetic_path() != 59164) {
@@ -27676,7 +30815,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_documentsession_sample_color() != 13847) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_save_selection() != 20804) {
+    if (uniffi_tessera_ffi_checksum_method_documentsession_save_selection() != 43148) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_select_all() != 13304) {
@@ -27712,7 +30851,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_documentsession_select_wand() != 8868) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_documentsession_selection_channels() != 23976) {
+    if (uniffi_tessera_ffi_checksum_method_documentsession_selection_channels() != 40011) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_documentsession_selection_outline() != 17836) {
@@ -27755,6 +30894,24 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_lrcatprogresslistener_on_progress() != 48396) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_photojob_cancel() != 46969) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_photojob_status() != 22560) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_photojob_wait() != 46980) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_photojoblistener_on_progress() != 20721) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_modeldownloadlistener_on_event() != 30552) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_modeldownloads_request() != 17138) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_cullsession_assign_person_face() != 63718) {
@@ -27946,6 +31103,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_constructor_cancelflag_new() != 985) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tessera_ffi_checksum_constructor_modeldownloads_open() != 33877) {
+        return InitializationResult.apiChecksumMismatch
+    }
 
     uniffiCallbackInitAgentRunListener()
     uniffiCallbackInitDevelopListener()
@@ -27954,6 +31114,8 @@ private let initializationResult: InitializationResult = {
     uniffiCallbackInitExportProgressListener()
     uniffiCallbackInitLrcatProgressListener()
     uniffiCallbackInitMaskListener()
+    uniffiCallbackInitModelDownloadListener()
+    uniffiCallbackInitPhotoJobListener()
     uniffiCallbackInitTetherEventListener()
     return InitializationResult.ok
 }()

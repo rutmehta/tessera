@@ -48,10 +48,19 @@ pub use tools::*;
 // Filters, Image ▸ Adjustments and smart filters (WP B5-05).
 #[path = "document/filters.rs"]
 mod filtering;
+// B5-08 begin: persistent alpha and spot channels.
+#[path = "document/channels.rs"]
+mod channels;
+pub use channels::{ChannelRecord, ChannelUpdate, DocChannelKind};
+// B5-08 end
 pub use filtering::{
     DistractionRemovalResult, FilterDetail, FilterInfo, RasterFilterOperation, RasterFilterRequest,
     SmartFilterEdit, SmartFilterRecord, list_filters,
 };
+// Remove tool, Content-Aware Fill and neural filters for the app (WP B5-09).
+#[path = "document/retouch.rs"]
+mod retouch;
+pub use retouch::*;
 // Layer styles and Global Light (WP B5-07).
 #[path = "document/styles.rs"]
 mod styles;
@@ -772,7 +781,7 @@ fn layer_revision(l: &Layer) -> u64 {
     }
     match &l.kind {
         LayerKind::Pixel(raster) => r.max(raster.max_rev()),
-        LayerKind::Text(t) => r.max(t.proxy.max_rev()),
+        LayerKind::Text { .. } | LayerKind::Shape { .. } => r,
         LayerKind::Group { children, .. } => children
             .iter()
             .fold(r, |a, c| a.max(c.props_rev).max(layer_revision(c))),
@@ -788,7 +797,9 @@ fn kind_of(l: &Layer) -> DocLayerKind {
         LayerKind::Fill(_) => DocLayerKind::Fill,
         LayerKind::Group { .. } => DocLayerKind::Group,
         LayerKind::SmartObject(_) => DocLayerKind::SmartObject,
-        LayerKind::Text(_) => DocLayerKind::Text,
+        LayerKind::Text { .. } => DocLayerKind::Text,
+        // Compatibility until Machine B introduces the shape-specific host ABI.
+        LayerKind::Shape { .. } => DocLayerKind::Fill,
     }
 }
 
@@ -2033,7 +2044,8 @@ fn adjustment_title(a: &Adjustment) -> &'static str {
         Adjustment::Auto { .. } => "Auto",
         Adjustment::MatchColor { .. } => "Match Color",
         Adjustment::ReplaceColor { .. } => "Replace Color",
-        _ => "Adjustment",
+        Adjustment::Desaturate => "Desaturate",
+        Adjustment::HdrToning { .. } => "HDR Toning",
     }
 }
 

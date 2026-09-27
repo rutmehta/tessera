@@ -216,7 +216,7 @@ struct AppCommands: Commands {
             Button("Load 20,000 Stub Items") { model.loadStubItems(count: 20_000) }
                 .shortcut(!docMode, "n", [.command, .shift])
             Button("Run Grid Scroll Benchmark") { model.requestScrollBenchmark() }
-                .keyboardShortcut("b", modifiers: [.command, .shift])
+                .shortcut(!docMode, "b", [.command, .shift])   // ⇧⌘B is Image ▸ Auto Color in document mode (B5-06)
         }
     }
 
@@ -252,6 +252,9 @@ struct AppCommands: Commands {
             if docMode {
                 Divider()
                 EditToolsMenuItems(doc: doc, docMode: docMode)
+                // B5-09 begin
+                RetouchEditMenuItems(doc: doc)
+                // B5-09 end
             }
         }
     }
@@ -269,7 +272,11 @@ struct LayerMenu: View {
                 .keyboardShortcut("n", modifiers: [.command, .shift])
             Button("Group") { doc?.addLayer(.group(mode: .passThrough)) }
             Menu("Adjustment Layer") {
-                ForEach(AdjustmentModel.Kind.allCases) { k in Button(k.title) { doc?.addAdjustment(k) } }
+                // Photoshop's order and groups, then the native-only kinds (WP B5-06).
+                ForEach(Array(AdjustmentModel.Kind.layerMenuSections.enumerated()), id: \.offset) { i, section in
+                    if i > 0 { Divider() }
+                    ForEach(section) { k in Button(k.title) { doc?.addAdjustment(k) } }
+                }
             }
             Menu("Fill Layer") {
                 ForEach(FillModel.Kind.allCases) { k in Button(k.title) { doc?.addFill(k) } }
@@ -313,7 +320,7 @@ struct LayerMenu: View {
         // B5-07 end
         Divider()
         Button("Merge Down") { doc?.mergeDown() }
-            .keyboardShortcut("e", modifiers: .command)
+            .shortcut(doc != nil, "e", .command)   // ⌘E is Edit in Layers outside document mode (B5-06)
             .disabled(primary == nil)
         Button("Flatten Image") { doc?.flatten() }
             .disabled(!on)

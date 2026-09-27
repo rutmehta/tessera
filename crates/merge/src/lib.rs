@@ -29,6 +29,19 @@ pub fn hdr_panorama(
     hdr_options: &hdr::HdrOptions,
     pano_options: &pano::PanoramaOptions,
 ) -> Result<HdrPanoramaResult> {
+    hdr_panorama_with_fill(groups, hdr_options, pano_options, |_, _| {
+        Err("fill_edges requires a filters::caf adapter via hdr_panorama_with_fill".into())
+    })
+}
+
+/// HDR panorama with the same content-aware fill adapter as
+/// [`pano::panorama_with_fill`]. Bracket masks stay in reference coordinates.
+pub fn hdr_panorama_with_fill(
+    groups: &[Vec<hdr::BracketFrame>],
+    hdr_options: &hdr::HdrOptions,
+    pano_options: &pano::PanoramaOptions,
+    fill: impl FnOnce(&LinearImage, &[bool]) -> Result<Vec<[f32; 3]>>,
+) -> Result<HdrPanoramaResult> {
     if groups.is_empty() || groups.len() > 128 {
         return Err("HDR panorama requires 1..128 brackets".into());
     }
@@ -54,7 +67,7 @@ pub fn hdr_panorama(
         masks.push(merged.deghost_mask);
     }
     Ok(HdrPanoramaResult {
-        panorama: pano::panorama(&images, pano_options)?,
+        panorama: pano::panorama_with_fill(&images, pano_options, fill)?,
         bracket_masks: masks,
     })
 }

@@ -2,6 +2,8 @@
 //! level, per-layer tile caches, dirty-rect recompositing.
 
 mod cache;
+mod live;
+pub use live::rasterize_layer;
 mod effects;
 pub(crate) mod exec;
 pub(crate) mod pixel;
@@ -46,6 +48,7 @@ pub(crate) struct Counters {
     root_partial: AtomicU64,
     root_reused: AtomicU64,
     smart: AtomicU64,
+    live: AtomicU64,
     blends: AtomicU64,
 }
 
@@ -77,6 +80,8 @@ pub struct CompositorStats {
     pub root_reused: u64,
     /// Smart-object tiles resampled.
     pub smart_tiles: u64,
+    /// Live text/shape source tiles rasterized after a source-cache miss.
+    pub live_tiles: u64,
     /// Layer blend operations executed (one per layer per tile/region).
     pub blends: u64,
     /// Resident cache bytes.
@@ -90,6 +95,7 @@ pub struct CompositorStats {
 /// Renders documents tile by tile with caching. Thread-safe; share one per
 /// process (or per window).
 pub struct Compositor {
+    live: live::LiveRuntime,
     filter_runtime: smart_filters::FilterRuntime,
     cache: RenderCache,
     pub(crate) stats: Counters,
@@ -102,6 +108,7 @@ impl Compositor {
     /// A compositor with a cache budget in bytes.
     pub fn new(cache_budget: usize) -> Self {
         Self {
+            live: live::LiveRuntime::new(cache_budget),
             filter_runtime: smart_filters::FilterRuntime::new(cache_budget),
             cache: RenderCache::new(cache_budget),
             stats: Counters::default(),
@@ -123,6 +130,7 @@ impl Compositor {
             root_partial: l(&s.root_partial),
             root_reused: l(&s.root_reused),
             smart_tiles: l(&s.smart),
+            live_tiles: l(&s.live),
             blends: l(&s.blends),
             cache_bytes: self.cache.bytes(),
             cache_entries: self.cache.len(),
@@ -142,6 +150,7 @@ impl Compositor {
             &s.root_partial,
             &s.root_reused,
             &s.smart,
+            &s.live,
             &s.blends,
         ] {
             a.store(0, Ordering::Relaxed);
@@ -160,6 +169,7 @@ impl Compositor {
 
     /// Drops everything.
     pub fn clear(&self) {
+        self.live.clear();
         self.filter_runtime.clear();
         self.cache.retain(|_| false);
         self.latest

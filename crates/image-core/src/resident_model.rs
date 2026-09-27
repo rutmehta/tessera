@@ -28,6 +28,10 @@ struct Batch<'a> {
     owner: &'a Model,
     pending: HashMap<MemoKey, Tile>,
 }
+struct ModelFrame {
+    samples: Vec<f32>,
+    encoded: bool,
+}
 fn resident(tile: Tile) -> ResidentTile {
     ResidentTile {
         coord: tile.coord(),
@@ -161,6 +165,51 @@ impl ResidentBatch for Batch<'_> {
         Ok(resident(tile.clone()))
     }
     fn run(&mut self, op: &Op<'_>, tile: &ResidentTile) -> EngineResult<ResidentTile> {
+        if tile.storage.is::<ModelFrame>() {
+            // Resident bands can exceed the engine Tile limit. Execute each
+            // CPU point operator on legal tiles and retain a separate band.
+            let layout = tile.layout;
+            let mut samples = vec![0.; layout.len()];
+            let mut encoded = false;
+            for y in 0..layout.extent.height.div_ceil(256) {
+                for x in 0..layout.extent.width.div_ceil(256) {
+                    let origin = (x * 256, y * 256);
+                    let extent = Extent::new(
+                        (layout.extent.width - origin.0).min(256),
+                        (layout.extent.height - origin.1).min(256),
+                    );
+                    let part = self.crop(tile, TileCoord::new(0, x, y), origin, extent)?;
+                    let output = self.run(op, &part)?;
+                    let output = cpu(&output);
+                    let values = if let Ok(values) = output.samples::<f32>() {
+                        values.to_vec()
+                    } else {
+                        encoded = true;
+                        output
+                            .samples::<u8>()?
+                            .iter()
+                            .map(|&v| f32::from(v))
+                            .collect()
+                    };
+                    for c in 0..layout.channels {
+                        for py in 0..extent.height {
+                            for px in 0..extent.width {
+                                let src = output.layout().index(c, px as i32, py as i32).unwrap();
+                                let dst = layout
+                                    .index(c, (origin.0 + px) as i32, (origin.1 + py) as i32)
+                                    .unwrap();
+                                samples[dst] = values[src];
+                            }
+                        }
+                    }
+                }
+            }
+            return Ok(ResidentTile {
+                coord: tile.coord,
+                layout,
+                storage: Arc::new(ModelFrame { samples, encoded }),
+            });
+        }
         if matches!(op, Op::Matrix(_)) {
             self.owner.matrix_pixels.fetch_add(
                 tile.layout.extent.area(),
@@ -235,6 +284,114 @@ impl ResidentBatch for Batch<'_> {
             }
         }
         Ok(resident(t))
+    }
+    fn remap(
+        &mut self,
+        frame: Extent,
+        tiles: &HashMap<TileCoord, ResidentTile>,
+        _source: (u32, u32),
+        plan: &pipeline_cpu::MapPlan,
+        output: Extent,
+        rows: std::ops::Range<u32>,
+        coord: TileCoord,
+    ) -> EngineResult<ResidentTile> {
+        // Model the GPU contract on the CPU: assemble the developed input,
+        // sample the resolved map once, then return the requested output band.
+        let mut image = pipeline_cpu::Image::new(
+            frame.width,
+            frame.height,
+            vec![vec![0.; frame.area() as usize]; 3],
+        )?;
+        for (&c, tile) in tiles {
+            let tile = cpu(tile);
+            image.put(&Tile::from_samples(
+                TileCoord::new(0, c.x, c.y),
+                tile.layout(),
+                tile.samples::<f32>()?.to_vec(),
+            )?)?;
+        }
+        let mapped = plan.apply(&image)?;
+        assert_eq!(
+            (mapped.width(), mapped.height()),
+            (output.width, output.height)
+        );
+        let layout = engine_api::tile::TileLayout {
+            extent: Extent::new(output.width, rows.end - rows.start),
+            halo: 0,
+            channels: 3,
+        };
+        let data = mapped
+            .planes()
+            .iter()
+            .flat_map(|p| {
+                p[rows.start as usize * output.width as usize
+                    ..rows.end as usize * output.width as usize]
+                    .iter()
+                    .copied()
+            })
+            .collect();
+        Ok(ResidentTile {
+            coord,
+            layout,
+            storage: Arc::new(ModelFrame {
+                samples: data,
+                encoded: false,
+            }),
+        })
+    }
+    fn crop(
+        &mut self,
+        tile: &ResidentTile,
+        coord: TileCoord,
+        origin: (u32, u32),
+        extent: Extent,
+    ) -> EngineResult<ResidentTile> {
+        let input = tile.layout;
+        let layout = engine_api::tile::TileLayout {
+            extent,
+            halo: 0,
+            channels: input.channels,
+        };
+        let mut indexes = Vec::with_capacity(layout.len());
+        for c in 0..input.channels {
+            for y in 0..extent.height {
+                for x in 0..extent.width {
+                    indexes.push(
+                        input
+                            .index(c, (origin.0 + x) as i32, (origin.1 + y) as i32)
+                            .ok_or_else(|| {
+                                EngineError::internal("resident model crop outside input")
+                            })?,
+                    );
+                }
+            }
+        }
+        if let Some(frame) = tile.storage.downcast_ref::<ModelFrame>() {
+            return if frame.encoded {
+                Tile::from_samples(
+                    coord,
+                    layout,
+                    indexes.iter().map(|&i| frame.samples[i] as u8).collect(),
+                )
+                .map(resident)
+            } else {
+                Tile::from_samples(
+                    coord,
+                    layout,
+                    indexes.iter().map(|&i| frame.samples[i]).collect(),
+                )
+                .map(resident)
+            };
+        }
+        let tile = cpu(tile);
+        if let Ok(data) = tile.samples::<f32>() {
+            Tile::from_samples(coord, layout, indexes.iter().map(|&i| data[i]).collect())
+                .map(resident)
+        } else {
+            let data = tile.samples::<u8>()?;
+            Tile::from_samples(coord, layout, indexes.iter().map(|&i| data[i]).collect())
+                .map(resident)
+        }
     }
     fn finish(
         self: Box<Self>,

@@ -19,7 +19,7 @@ fn cached_model_fixture_and_partition() {
     } else {
         SessionOptions::cpu()
     };
-    let mut model = DepthEstimator::load(&registry, options, store).unwrap();
+    let mut model = DepthEstimator::load_cached(&registry, options, store).unwrap();
     let image =
         image::RgbImage::from_fn(64, 48, |x, y| image::Rgb([x as u8 * 3, y as u8 * 4, 128]));
     let depth = model.estimate(&image).unwrap();

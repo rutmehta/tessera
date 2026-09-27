@@ -153,3 +153,84 @@ fn all_zero_site_mask_never_loads_weights_for_odd_rotations() {
         );
     }
 }
+
+#[test]
+fn automatic_noise_backend_preserves_zero_amount_without_weights() {
+    let dir = tempfile::tempdir().unwrap();
+    let registry = Arc::new(
+        ModelRegistry::open(
+            concat!(env!("CARGO_MANIFEST_DIR"), "/../ml-runtime/models.toml"),
+            dir.path(),
+        )
+        .unwrap(),
+    );
+    let model = ModelRef {
+        id: "enhance/cfa-unet-fp32".into(),
+        version: "0".repeat(64),
+    };
+    let adapter = image_core::MlCfaDenoise::automatic(registry, Default::default(), model.clone());
+    let settings = DenoiseSettings {
+        method: DenoiseMethod::Neural {
+            model,
+            joint_demosaic: false,
+        },
+        amount: 0.0,
+        ..Default::default()
+    };
+    let input = Image::new(32, 32, vec![vec![0.2; 1024]]).unwrap();
+    let out = adapter
+        .denoise_raw(
+            &input,
+            raw_decode::CfaLayout::Bayer([[0, 1], [3, 2]]),
+            &settings,
+        )
+        .unwrap();
+    assert_eq!(out.planes(), input.planes());
+    assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 0);
+}
+
+#[test]
+fn estimate_available_raw_fixtures_without_weights() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/raw");
+    let mut tested = 0;
+    for entry in std::fs::read_dir(root).into_iter().flatten().flatten() {
+        let path = entry.path();
+        let ext = path
+            .extension()
+            .and_then(|x| x.to_str())
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        if !["dng", "nef", "arw", "cr3", "raf"].contains(&ext.as_str()) {
+            continue;
+        }
+        let raw =
+            image_core::RawImage::open(engine_api::id::ImageId(4900 + tested), &path).unwrap();
+        let Some(turns) = image_core::cfa::bayer_turns(raw.metadata().cfa_layout) else {
+            continue;
+        };
+        let image = pipeline_cpu::Image::from_pyramid(raw.cfa().pyramid()).unwrap();
+        let packed =
+            ml_enhance::BayerPacking::new(image.width() as usize, image.height() as usize, turns)
+                .unwrap()
+                .pack(&image.planes()[0])
+                .unwrap();
+        let noise = ml_enhance::CfaNoise::estimate(&packed).unwrap();
+        assert!(
+            noise
+                .shot
+                .iter()
+                .chain(&noise.read)
+                .all(|x| x.is_finite() && *x >= 0.0)
+        );
+        eprintln!(
+            "raw noise {} shot={:?} read={:?}",
+            path.display(),
+            noise.shot,
+            noise.read
+        );
+        tested += 1;
+    }
+    if tested == 0 {
+        eprintln!("SKIP raw noise fixtures: no Bayer raw fixtures available");
+    }
+}

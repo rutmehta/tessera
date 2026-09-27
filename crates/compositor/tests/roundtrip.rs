@@ -98,19 +98,24 @@ fn rich_doc() -> Document {
         None,
         Layer::new(
             "text",
-            LayerKind::Text(TextLayer {
-                text: "Hello".into(),
-                font: "Inter".into(),
-                size: 24.0,
-                color: [1.0, 1.0, 1.0],
-                proxy: Raster::new(e, 4, Depth::U16, 0.0),
-            }),
+            LayerKind::Text {
+                model: typography::TextModel::point("Hello", "sans-serif", 24.0),
+                transform: Affine::IDENTITY,
+            },
         ),
     );
     let mut vm = Layer::pixel("vm", e, Depth::U16);
     vm.vector_mask = Some(VectorMask {
         enabled: true,
-        path: serde_json::json!([[0, 0], [10, 0], [10, 10]]),
+        path: vector::Path::polyline(
+            &[
+                vector::Point::new(0., 0.),
+                vector::Point::new(10., 0.),
+                vector::Point::new(10., 10.),
+            ],
+            true,
+        ),
+        ..VectorMask::default()
     });
     add(&mut d, None, vm);
     // Erase a tile to leave a tombstone.

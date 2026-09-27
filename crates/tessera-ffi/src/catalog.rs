@@ -83,6 +83,17 @@ pub(crate) struct EmbeddedMetadata;
 impl MetadataProvider for EmbeddedMetadata {
     fn read(&self, path: &Path) -> EngineResult<Metadata> {
         if !image_core::RgbSource::recognizes(path) {
+            // Native float LinearRaw is mosaic-free and cannot use decode_cfa.
+            if path
+                .extension()
+                .is_some_and(|e| e.eq_ignore_ascii_case("dng"))
+                && raw_decode::linear_dng::read(&mut std::fs::File::open(path)?).is_ok()
+            {
+                return Ok(Metadata {
+                    values: vec![("orientation".into(), "1".into())],
+                    ..Default::default()
+                });
+            }
             let source = raw_decode::RawSource::open(path)?;
             let m = source.metadata();
             return Ok(Metadata {
@@ -107,6 +118,59 @@ impl MetadataProvider for EmbeddedMetadata {
             ..Default::default()
         })
     }
+}
+
+/// FFI-owned persistent stacks; index has no stack model. Existing intersecting
+/// groups are unioned, never destroyed when enhancing a member a second time.
+pub(crate) fn stack_photos(db: &Path, derived: &str, sources: &[String]) -> crate::Result<()> {
+    let mut conn = rusqlite::Connection::open(db)?;
+    conn.execute_batch(
+        "PRAGMA foreign_keys=ON;
+        CREATE TABLE IF NOT EXISTS photo_stack_member(
+            image_id TEXT PRIMARY KEY REFERENCES image(id) ON DELETE CASCADE,
+            stack_id TEXT NOT NULL, position INTEGER NOT NULL);
+        CREATE INDEX IF NOT EXISTS photo_stack_group ON photo_stack_member(stack_id,position);",
+    )?;
+    let tx = conn.transaction()?;
+    let mut members = vec![derived.to_owned()];
+    for id in sources {
+        if !members.contains(id) {
+            members.push(id.clone());
+        }
+    }
+    for id in sources {
+        let mut stmt = tx.prepare("SELECT image_id FROM photo_stack_member WHERE stack_id=(SELECT stack_id FROM photo_stack_member WHERE image_id=?) ORDER BY position")?;
+        for member in stmt.query_map([id], |r| r.get::<_, String>(0))? {
+            let member = member?;
+            if !members.contains(&member) {
+                members.push(member);
+            }
+        }
+    }
+    for (position, id) in members.iter().enumerate() {
+        tx.execute("INSERT INTO photo_stack_member(image_id,stack_id,position) VALUES(?,?,?) ON CONFLICT(image_id) DO UPDATE SET stack_id=excluded.stack_id,position=excluded.position", rusqlite::params![id, derived, position as i64])?;
+        // Existing metadata change triggers make the source's grid row refresh.
+        tx.execute("INSERT INTO metadata(image_id,key,value) VALUES(?,'photo_stack',?) ON CONFLICT(image_id,key) DO UPDATE SET value=excluded.value", rusqlite::params![id, derived])?;
+    }
+    tx.commit()?;
+    Ok(())
+}
+
+pub(crate) fn photo_stack(db: &Path, id: &str) -> crate::Result<Vec<String>> {
+    let conn =
+        rusqlite::Connection::open_with_flags(db, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+    let exists: bool = conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name='photo_stack_member')",
+        [],
+        |r| r.get(0),
+    )?;
+    if !exists {
+        return Ok(vec![]);
+    }
+    let mut stmt = conn.prepare("SELECT image_id FROM photo_stack_member WHERE stack_id=(SELECT stack_id FROM photo_stack_member WHERE image_id=?) ORDER BY position")?;
+    Ok(stmt
+        .query_map([id], |r| r.get(0))?
+        .collect::<rusqlite::Result<Vec<_>>>()?)
 }
 
 #[cfg(test)]

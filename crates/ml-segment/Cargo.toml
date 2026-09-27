@@ -10,9 +10,10 @@ image = { workspace = true }
 blake3 = { workspace = true }
 ml-runtime = { path = "../ml-runtime" }
 engine-api = { path = "../engine-api" }
-previews = { path = "../previews" }
+mask-store = { path = "../mask-store" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 
 [dev-dependencies]
+previews = { path = "../previews" }
 tempfile = { workspace = true }

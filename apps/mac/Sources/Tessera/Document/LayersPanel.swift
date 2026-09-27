@@ -84,8 +84,11 @@ struct LayersPanel: View {
             .disabled(document.primary == nil || document.primary?.hasMask == true)
             .accessibilityIdentifier("document.layers.addMask")
             Menu {
-                ForEach(AdjustmentModel.Kind.allCases) { k in
-                    Button { document.addAdjustment(k) } label: { Label(k.title, systemImage: k.symbol) }
+                ForEach(Array(AdjustmentModel.Kind.layerMenuSections.enumerated()), id: \.offset) { i, section in
+                    if i > 0 { Divider() }
+                    ForEach(section) { k in
+                        Button { document.addAdjustment(k) } label: { Label(k.title, systemImage: k.symbol) }
+                    }
                 }
             } label: { Image(systemName: "circle.lefthalf.filled") }
                 .menuStyle(IconMenuStyle())

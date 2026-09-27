@@ -963,34 +963,162 @@ impl Text<'_> {
         self.engine_data().map(parse_engine_styles).transpose()
     }
 }
-#[derive(Debug)]
-enum EngineValue<'a> {
+#[derive(Clone, Debug, PartialEq)]
+pub enum EngineValue<'a> {
     Dict(Vec<(&'a [u8], EngineValue<'a>)>),
     Array(Vec<EngineValue<'a>>),
     String(Vec<u8>),
     Number(f64),
-    Other,
+    Name(Vec<u8>),
+    Bool(bool),
+    Null,
 }
 impl<'a> EngineValue<'a> {
-    fn get(&self, name: &[u8]) -> Option<&Self> {
+    pub fn dict() -> Self {
+        Self::Dict(Vec::new())
+    }
+    pub fn put(&mut self, key: &'a [u8], value: Self) {
+        if let Self::Dict(items) = self {
+            if let Some((_, old)) = items.iter_mut().find(|(k, _)| *k == key) {
+                *old = value;
+            } else {
+                items.push((key, value));
+            }
+        }
+    }
+    pub fn get_mut(&mut self, name: &[u8]) -> Option<&mut Self> {
+        match self {
+            Self::Dict(d) => d.iter_mut().find(|(k, _)| *k == name).map(|(_, v)| v),
+            _ => None,
+        }
+    }
+    /// Dictionary entry, inserting an empty dictionary when absent.
+    pub fn entry(&mut self, name: &'a [u8]) -> &mut Self {
+        if !matches!(self, Self::Dict(_)) {
+            *self = Self::dict();
+        }
+        if self.get(name).is_none() {
+            self.put(name, Self::dict());
+        }
+        self.get_mut(name).expect("entry requires a dictionary")
+    }
+    pub fn boolean(&self) -> Option<bool> {
+        if let Self::Bool(v) = self {
+            Some(*v)
+        } else {
+            None
+        }
+    }
+    pub fn string(&self) -> Result<String> {
+        let Self::String(bytes) = self else {
+            return Err(error("engine string expected"));
+        };
+        if bytes.starts_with(&[0xfe, 0xff]) {
+            if !bytes.len().is_multiple_of(2) {
+                return Err(error("odd engine UTF-16 string"));
+            }
+            String::from_utf16(
+                &bytes[2..]
+                    .as_chunks::<2>()
+                    .0
+                    .iter()
+                    .map(|b| u16::from_be_bytes([b[0], b[1]]))
+                    .collect::<Vec<_>>(),
+            )
+            .map_err(|_| error("invalid engine UTF-16"))
+        } else {
+            String::from_utf8(bytes.clone()).map_err(|_| error("invalid engine string"))
+        }
+    }
+    pub fn unicode(text: &str) -> Self {
+        let mut bytes = vec![0xfe, 0xff];
+        for unit in text.encode_utf16() {
+            bytes.extend(unit.to_be_bytes());
+        }
+        Self::String(bytes)
+    }
+    /// Write Adobe's dictionary syntax. String bytes are escaped losslessly.
+    pub fn encode(&self) -> Result<Vec<u8>> {
+        fn emit(value: &EngineValue<'_>, out: &mut Vec<u8>, depth: usize) -> Result<()> {
+            if depth > MAX_DEPTH {
+                return Err(error("engine nesting limit"));
+            }
+            match value {
+                EngineValue::Dict(items) => {
+                    out.extend(b"<< ");
+                    for (key, v) in items {
+                        out.push(b'/');
+                        out.extend(*key);
+                        out.push(b' ');
+                        emit(v, out, depth + 1)?;
+                        out.push(b' ');
+                    }
+                    out.extend(b">>");
+                }
+                EngineValue::Array(items) => {
+                    out.extend(b"[ ");
+                    for v in items {
+                        emit(v, out, depth + 1)?;
+                        out.push(b' ');
+                    }
+                    out.push(b']');
+                }
+                EngineValue::String(bytes) => {
+                    out.push(b'(');
+                    for b in bytes {
+                        if matches!(*b, b'(' | b')' | b'\\') {
+                            out.push(b'\\');
+                        }
+                        out.push(*b);
+                    }
+                    out.push(b')');
+                }
+                EngineValue::Number(n) => {
+                    if !n.is_finite() {
+                        return Err(error("nonfinite engine number"));
+                    }
+                    out.extend(n.to_string().bytes());
+                }
+                EngineValue::Name(name) => {
+                    out.push(b'/');
+                    out.extend(name);
+                }
+                EngineValue::Bool(v) => out.extend(if *v {
+                    b"true".as_slice()
+                } else {
+                    b"false".as_slice()
+                }),
+                EngineValue::Null => out.extend(b"null"),
+            }
+            if out.len() > 16 * 1024 * 1024 {
+                return Err(error("engine data limit exceeded"));
+            }
+            Ok(())
+        }
+        let mut out = Vec::new();
+        emit(self, &mut out, 0)?;
+        Ok(out)
+    }
+
+    pub fn get(&self, name: &[u8]) -> Option<&Self> {
         match self {
             Self::Dict(d) => d.iter().find(|(k, _)| *k == name).map(|(_, v)| v),
             _ => None,
         }
     }
-    fn array(&self) -> Option<&[Self]> {
+    pub fn array(&self) -> Option<&[Self]> {
         match self {
             Self::Array(a) => Some(a),
             _ => None,
         }
     }
-    fn number(&self) -> Option<f64> {
+    pub fn number(&self) -> Option<f64> {
         match self {
             Self::Number(n) => Some(*n),
             _ => None,
         }
     }
-    fn index(&self) -> Option<usize> {
+    pub fn index(&self) -> Option<usize> {
         let n = self.number()?;
         if n >= 0.0 && n < usize::MAX as f64 && n.fract() == 0.0 {
             Some(n as usize)
@@ -1136,12 +1264,15 @@ impl<'a> EngineParser<'a> {
         }
         if self.starts(b"/") {
             self.c.take(1)?;
-            self.token()?;
-            return Ok(EngineValue::Other);
+            return Ok(EngineValue::Name(self.token()?.to_vec()));
         }
         let token = self.token()?;
         if matches!(token, b"true" | b"false" | b"null") {
-            return Ok(EngineValue::Other);
+            return Ok(match token {
+                b"true" => EngineValue::Bool(true),
+                b"false" => EngineValue::Bool(false),
+                _ => EngineValue::Null,
+            });
         }
         let number = std::str::from_utf8(token)
             .ok()
@@ -1153,7 +1284,7 @@ impl<'a> EngineParser<'a> {
 }
 /// Bounded syntax parser for dictionary/array/literal-string/numeric EngineData.
 /// Unsupported syntax returns an error rather than scanning for apparent keys.
-pub fn parse_engine_styles(data: &[u8]) -> Result<EngineStyles> {
+pub fn parse_engine_data(data: &[u8]) -> Result<EngineValue<'_>> {
     if data.len() > 16 * 1024 * 1024 {
         return Err(error("engine data limit exceeded"));
     }
@@ -1166,6 +1297,11 @@ pub fn parse_engine_styles(data: &[u8]) -> Result<EngineStyles> {
     if !matches!(root, EngineValue::Dict(_)) {
         return Err(error("engine root dictionary expected"));
     }
+    Ok(root)
+}
+
+pub fn parse_engine_styles(data: &[u8]) -> Result<EngineStyles> {
+    let root = parse_engine_data(data)?;
     let mut font_names = Vec::new();
     if let Some(fonts) = root
         .get(b"ResourceDict")

@@ -254,7 +254,28 @@ square (keep ink when confirmed) and a `panel` **Move to** column of 28 pt drop-
 plain toolbar button. The sampled-clustering footnote is a 24 pt tertiary caption with an info glyph.
 
 **Scopes** (`HistogramView`, `CurveEditorView`, `DetailPreviewView`): `plotWell`, radius 4,
-channel colours composited additively.
+channel colours composited additively. The Lens Blur **focal range strip** (`FocalRangeStrip`) is a scope
+too: `plotWell`, a near → far ramp from `plotGuide` to `plotGrid`, the in-focus band in `accentSubtle`
+(it is a selection) between two 2 pt `plotLine` handles, `Near` / `Far` in 11 pt `plotText`.
+
+**Export sheet additions** (M2-46): no new colour, size or font. The format bar is the sheet's 24 pt
+`SegmentedPicker` with six segments; format-specific rows (Quality, Bit depth, AVIF Speed, JPEG XL "Lossless", DNG
+"Linear 32-bit float") follow it, and anything the engine cannot do is a disabled native control with a `Hint` giving
+the reason (HDR, lossy JPEG XL, colour space for JPEG XL / DNG) or a warning `StatusLine` (no watermark on DNG). The
+Watermark section uses a None / Text / Graphic `SegmentedPicker`, native fields, `ColorPicker` (the user's colour is
+data) and the **anchor grid** (`AnchorPicker`): a `well` track with a hairline, 3 × 3 cells, the chosen cell raised
+with the 1 pt shadow and a `textPrimary` dot, the others a `textTertiary` dot (neutral, like segmented controls). The
+**placement preview** is a 240 × 160 scope well (`plotWell`, radius 4, `plotGuide` hairline frame) with the watermark
+drawn in its own font and colour, or the engine's 480 px render once requested, and an on-image scrim chip naming which.
+
+**Transform / Lens Blur panels** (M2-48): the Upright bar (`UprightModeBar`) is a 20 pt
+`SegmentedPicker`-look track with six icon segments; the chosen segment adds its name (the only way six
+modes fit the 288 pt inspector). Per-group resets are borderless 20 pt **Reset** buttons on the
+`SubHeader` line (`GroupHeader`). Controls the engine cannot render yet stay visible but disabled
+(40 %) with a `StatusLine` warning naming the gap. Guided Upright guides in the loupe use the on-image
+set: 1.5 pt `OnImage.guide` over a 3 pt `OnImage.shadow`, dashed (4 / 3) while drawing, the selected
+guide in the accent, 7 pt square ends in `OnImage.text` with an `OnImage.ink` outline, and the
+bottom scrim hint.
 
 ## 6. Motion
 
@@ -352,6 +373,32 @@ Layered documents reuse the system above; nothing here adds a colour, size or fo
   eye (tertiary when off, name tertiary too), a 20 pt mask thumbnail on the checkerboard, 11 pt
   name (with mode and opacity when not Normal 100 %), and a blending-options glyph; double-click
   re-opens the filter dialog. They are not selectable as layers.
+* **Channels (WP B5-08)** is a collapsible `PanelSection` between Layers and History. Rows are 32 pt like layer rows:
+  eye (secondary; slashed and tertiary when hidden), a 24 pt thumbnail at radius 4 with a `hairlineStrong` outline
+  (grey planes; the RGB row shows the composite), 12 pt name (double-click renames in place), and on the right a
+  tertiary lock glyph on the read-only RGB / Red / Green / Blue rows or, on spot rows, a 12 pt ink swatch (the user's
+  colour, radius 4, `hairlineStrong`). The highlighted channel is the list-row fill (`accentSubtle`, radius 6); the
+  Quick Mask channel carries an outlined `Temporary` chip. Footer (28 pt): load as selection, save selection, Quick
+  Mask (an `IconButton`, on while active), then new channel / spot channel and delete. The Save / Load Selection,
+  Channel Options and New Spot Channel sheets are `SheetScaffold` forms with the 72 pt label column, a small native
+  channel pop-up and native radio groups for the operation; spot controls always carry the `Hint` that spot colour is
+  preview-only. The canvas preview uses the user's channel colours (alpha default red 50 % over masked areas, spot
+  ink at its solidity) and `OnImage.ink` behind a single visible channel when the colour components are hidden.
+* **Remove tool and neural filters** (WP B5-09) add no colour, size or font. The Remove tool is a 28 pt palette
+  `IconButton` directly under the Healing Brush (⇧J switches between them). Its options bar follows the tools bar:
+  Size and Expand fields, a neutral `SegmentedPicker` for Auto / PatchMatch / LaMa (a tertiary "LaMa not installed"
+  caption when Auto or LaMa cannot use it), borderless Remove Selection and Remove Distractions…; while an apply runs,
+  a small spinner, the elapsed seconds and a bordered Cancel; errors are an inline `StatusLine` (warning for a missing
+  model, error otherwise). On the canvas only the on-image set: the stroke in progress is an `OnImage.reject` band at
+  55 % and brush width; distraction suggestions under review are boxes, accepted ones a 1.5 pt `OnImage.guide` over a
+  3 pt `OnImage.shadow` with a 22 % reject tint inside, kept ones a dashed `OnImage.guideFaint`, each with a scrim
+  chip naming it ("Wire-like line", "Face box"). The review bar says what the detector is: geometric suggestions, not
+  person segmentation. **Neural Filters…** is a `SheetScaffold` sheet: a 220 pt list of filters (the chosen one on
+  `accentSubtle`, an outlined warning chip "No model" where weights are missing), a hairline, then the
+  chosen filter's `ValueSlider` rows, an Output `SegmentedPicker` with only the outputs the layer allows (the others
+  listed in tertiary with the reason), face-box and limitation notes in caption type, and for a missing model a
+  warning `StatusLine` naming the model with its source URL and cache path in selectable text. Footer: Reset, Cancel,
+  Apply (primary, disabled while the model is missing). Nothing offers a download.
 * **Layer Style** (WP B5-07) is a floating panel (`NSPanel`, utility style), not a modal sheet: edits apply live
   and each gesture is one history node, so there is no Cancel. Its content uses `SheetScaffold` (title *Layer
   Style*, the layer as subtitle, a `Locked` outlined warning chip when Lock All is on; footer: effect count left,

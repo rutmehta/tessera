@@ -37,14 +37,16 @@ struct SelectMenuItems: View {
         }
         .disabled(!hasSelection)
         Divider()
-        Button("Save Selection…") { tools.sheet = .saveSelection }
+        // B5-08 begin: persistent channels (Channels/ChannelSheets.swift) and Quick Mask.
+        Button("Save Selection…") { DocumentChannels.shared.sheet = .save }
             .disabled(!hasSelection)
-        Menu("Load Selection") {
-            ForEach(tools.channels(), id: \.self) { name in
-                Button(name) { tools.loadSelection(name) }
-            }
+        Button("Load Selection…") { DocumentChannels.shared.sheet = .load }
+            .disabled(!on)
+        Button(DocumentChannels.shared.isQuickMask(doc) ? "Exit Quick Mask Mode    (Q)" : "Edit in Quick Mask Mode    (Q)") {
+            DocumentChannels.shared.toggleQuickMask()
         }
         .disabled(!on)
+        // B5-08 end
         Divider()
         ForEach([DocumentTool.marquee, .ellipseMarquee, .lasso, .polygonLasso, .magneticLasso, .quickSelect, .wand, .objectSelect],
                 id: \.self) { t in

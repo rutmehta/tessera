@@ -18,6 +18,7 @@ import TesseraCore
 ///   F screen modes · ⌫ delete layer; no culling key fires. ⌘ shortcuts are Layer / Select / View menu items.
 ///   Document tools (B5-04, `ToolKeyMap`): V M L W B E S J G C T I H Z (⇧ cycles M / L / W), [ ] size,
 ///   ⇧[ ⇧] hardness, 0–9 opacity, X swap / D default colours, Return / Esc, ⌫ clears the selection.
+///   Channels (B5-08): Q toggles Quick Mask.
 /// First responders that own their keyboard input. The local monitor must leave their events
 /// untouched even when they do not handle a particular key themselves.
 @MainActor protocol KeyOwningControl: AnyObject {}
@@ -42,12 +43,28 @@ final class KeyRouter {
     }
 
     private func shouldIgnore(_ event: NSEvent) -> Bool {
-        guard let window = event.window else { return true }
-        if window is NSPanel || window.attachedSheet != nil || window.sheetParent != nil || NSApp.modalWindow != nil { return true }
-        if window.firstResponder is NSText || window.firstResponder is NSTextField ||
-            window.firstResponder is KeyOwningControl { return true }
+        if isBusyWindow(event) { return true }
         let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         return mods.contains(.command) || mods.contains(.control)
+    }
+
+    /// No window, a panel / sheet / modal is up, or a text field or key-owning control has focus.
+    private func isBusyWindow(_ event: NSEvent) -> Bool {
+        guard let window = event.window else { return true }
+        if window is NSPanel || window.attachedSheet != nil || window.sheetParent != nil || NSApp.modalWindow != nil { return true }
+        return window.firstResponder is NSText || window.firstResponder is NSTextField || window.firstResponder is KeyOwningControl
+    }
+
+    /// ⌘E outside document mode is Library ▸ Edit in Layers (B5-v step 144). It is routed here rather than
+    /// left to the menu: the menu's ⌘E is also Layer ▸ Merge Down, and SwiftUI swaps the key equivalent
+    /// between the two items when the mode changes; a stale menu item left ⌘E doing nothing in the grid.
+    func handleEditInLayers(_ event: NSEvent) -> Bool {
+        guard model.viewMode != .document, model.source != .people, !isBusyWindow(event),
+              event.modifierFlags.intersection([.command, .shift, .option, .control]) == .command,
+              event.charactersIgnoringModifiers?.lowercased() == "e" else { return false }
+        guard model.documents.opening == nil else { return true }
+        model.documents.editInLayers(model.focusedItem)
+        return true
     }
 
     /// Space released: the document viewport stops panning.
@@ -59,6 +76,7 @@ final class KeyRouter {
     }
 
     func handle(_ event: NSEvent) -> Bool {
+        if handleEditInLayers(event) { return true }
         if shouldIgnore(event) { return false }
         if model.viewMode == .document { return handleDocument(event) }
         // The People view owns its keys (name fields, Esc); culling keys would act on a hidden photo.
@@ -124,6 +142,14 @@ final class KeyRouter {
         // WP B5-04: tool letters (⇧ cycles a group), [ ] / ⇧[ ⇧] brush size and hardness, 0–9 opacity,
         // X / D colours, Return / Esc (transform, polygon lasso), ⌫ clears a pixel selection.
         if DocumentTools.shared.handleKey(event) { return true }
+        // B5-08 begin: Q toggles Quick Mask (a temporary channel that becomes the selection on exit).
+        if event.charactersIgnoringModifiers?.lowercased() == "q",
+           event.modifierFlags.intersection([.shift, .option, .command, .control]).isEmpty,
+           model.documents.current != nil {
+            DocumentChannels.shared.toggleQuickMask()
+            return true
+        }
+        // B5-08 end
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         var mods: DocumentKeyMap.Mods = []
         if flags.contains(.shift) { mods.insert(.shift) }

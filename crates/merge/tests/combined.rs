@@ -38,6 +38,37 @@ fn group(offset: f64, scale: f64) -> Vec<BracketFrame> {
         .collect()
 }
 #[test]
+fn hdr_panorama_supports_caf_adapter() {
+    let result = merge::hdr_panorama_with_fill(
+        &[group(0., 1.)],
+        &HdrOptions {
+            auto_align: false,
+            ..Default::default()
+        },
+        &PanoramaOptions {
+            projection: merge::pano::Projection::Spherical,
+            focal_pixels: 100.,
+            auto_crop: false,
+            fill_edges: true,
+            ..Default::default()
+        },
+        |image, coverage| {
+            assert!(coverage.iter().any(|v| !v));
+            Ok(vec![[2.; 3]; image.pixels.len()])
+        },
+    )
+    .unwrap();
+    assert!(
+        result
+            .panorama
+            .coverage
+            .iter()
+            .enumerate()
+            .all(|(i, c)| *c || result.panorama.image.pixels[i] == [2.; 3])
+    );
+}
+
+#[test]
 fn hdr_panorama_normalizes_bracket_reference_exposures_and_writes_dng() {
     let groups = vec![group(0., 1.), group(85., 0.8), group(170., 1.2)];
     let out = merge::hdr_panorama(

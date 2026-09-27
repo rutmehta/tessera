@@ -1,0 +1,33 @@
+M2-45 JPEG XL checkpoint verification
+
+Full command executed in this worktree:
+cargo test -p export -p tessera-ffi -p tessera-cli -p tessera-mcp --release && cargo clippy -p export -p tessera-ffi -p tessera-cli -p tessera-mcp --all-targets -- -D warnings && cargo fmt --check && cargo deny check licenses && (cd apps/mac && ./build-ffi.sh && swift build)
+
+Observed terminal process proc_8994e68be6dc: exit_code 0.
+Final output: Build complete! (22.00s)
+Bindings regenerated successfully, no tracked binding changes (settings use JSON).
+Existing LibRaw warnings and blake3 macOS deployment-target linker warning remain nonfatal.
+CARGO_TARGET_DIR=/Volumes/betterSSD/tessera-cache/target/M2-45 throughout.
+
+Supplemental final orientation test, after adding the JPEG XL decode case:
+MACOSX_DEPLOYMENT_TARGET=15.0 cargo test -p export --release --test orientation
+Observed terminal process proc_883dcd279249: exit_code 0.
+test render_pixels_orients_resizes_and_bins ... ok
+test apply_orientation_rotates_raw_exports_only_when_asked ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+
+TDD observations (ignored full logs retained locally):
+jxl-red.log: FFI settings failed for unknown jpeg_xl variant.
+jxl-settings-green.log: same settings regression passed.
+jxl-codec-red.log: pixel round trip failed with missing JPEG XL encoder.
+jxl-codec-green.log: 8/16-bit independent decoder round trip passed.
+jxl-cli-red.log: CLI rejected jxl before parser support.
+jxl-mcp-red.log: MCP returned unsupported for quality 100 before wiring.
+Full release gate subsequently passed these CLI/MCP cases and actual FFI batch exports.
+
+Actual executable help captured in jxl-cli-help.txt, includes jxl and --bit-depth.
+git diff --check: exit 0.
+Programmatic changed/untracked path allow-list check: no violations.
+
+Gate PASS does not mean work-package PASS. See JPEG-XL.md for sRGB-only
+JPEG XL limits and unimplemented priorities 3-6. Overall RESULT: FAIL.

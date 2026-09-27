@@ -116,6 +116,10 @@ struct AdjustmentEditor: View {
                     set(.threshold(level: v / 255), f)
                 }
             case .channelMixer(let m, let k, let mono): mixer(m, k, mono)
+            default:
+                // WP B5-06: the M5-26 / M5-28 kinds (AdjustmentEditors.swift).
+                ExtendedAdjustmentEditor(document: document, id: id, model: model, revision: revision,
+                                         inSheet: onEdit != nil, set: set)
             }
         }
     }
@@ -273,53 +277,8 @@ struct FillEditor: View {
             .init(value: false, title: "Linear"), .init(value: true, title: "Radial"),
         ], height: Theme.Height.small)
         .accessibilityIdentifier("document.properties.fill.gradientKind")
-        LinearGradient(stops: sorted.map { .init(color: documentColor($0.color), location: $0.position) },
-                       startPoint: .leading, endPoint: .trailing)
-            .frame(height: Theme.Height.small)
-            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.chip))
-            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.chip).strokeBorder(Theme.hairlineStrong, lineWidth: Theme.Space.hairline))
-            .padding(.vertical, Theme.Space.xs)
-            .accessibilityIdentifier("document.properties.fill.gradientPreview")
-        ForEach(Array(sorted.enumerated()), id: \.offset) { i, stop in
-            HStack(spacing: Theme.Space.s) {
-                DocColorWell(rgb: stop.color, identifier: "document.properties.fill.stop.\(i).color") { rgb in
-                    var s = sorted
-                    s[i].color = rgb + [s[i].color.count > 3 ? s[i].color[3] : 1]
-                    apply(s, radial, true)
-                }
-                .frame(width: Theme.Height.large, height: Theme.Height.small)
-                DocSlider(title: "Stop \(i + 1)", value: stop.position * 100, range: 0...100, defaultValue: i == 0 ? 0 : 100,
-                          format: "%.0f %%", identifier: "document.properties.fill.stop.\(i).position",
-                          revision: document.revision) { v, final in
-                    var s = sorted
-                    s[i].position = v / 100
-                    apply(s, radial, final)
-                }
-                .frame(height: Theme.Height.slider)
-                IconButton(symbol: "minus", help: "Remove this stop", size: Theme.Height.small) {
-                    var s = sorted
-                    s.remove(at: i)
-                    apply(s, radial, true)
-                }
-                .disabled(sorted.count <= 2)
-                .accessibilityIdentifier("document.properties.fill.stop.\(i).remove")
-            }
-        }
-        HStack(spacing: Theme.Space.xs) {
-            Button("Add Stop") {
-                var s = sorted
-                let mid = s.count >= 2 ? (s[0].position + s[1].position) / 2 : 0.5
-                s.append(.init(position: mid, color: s.first?.color ?? [0.5, 0.5, 0.5, 1]))
-                apply(s, radial, true)
-            }
-            .buttonStyle(.theme(.bordered, height: Theme.Height.small))
-            .accessibilityIdentifier("document.properties.fill.addStop")
-            Button("Reverse") {
-                apply(sorted.map { .init(position: 1 - $0.position, color: $0.color) }, radial, true)
-            }
-            .buttonStyle(.theme(.bordered, height: Theme.Height.small))
-            .accessibilityIdentifier("document.properties.fill.reverse")
-            Spacer()
+        GradientStopsEditor(stops: sorted, identifier: "document.properties.fill", revision: document.revision) { s, final in
+            apply(s, radial, final)
         }
     }
 }

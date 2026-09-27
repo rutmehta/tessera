@@ -130,14 +130,53 @@ impl Mask {
     }
 }
 
-/// Vector mask placeholder: the path data is preserved but not rasterized.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+/// Document-space vector mask, rasterized at the requested output level.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct VectorMask {
     /// Whether the mask is enabled.
     pub enabled: bool,
-    /// Opaque path payload (e.g. PSD `vmsk` records) for round trip.
-    pub path: serde_json::Value,
+    /// Closed paths in level-zero document coordinates.
+    #[serde(deserialize_with = "deserialize_vector_path")]
+    pub path: vector::Path,
+    /// Feather radius in level-zero pixels.
+    pub feather: f32,
+    /// Effective mask is `1 - density * (1 - coverage)`.
+    pub density: f32,
+}
+impl Default for VectorMask {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            path: vector::Path::default(),
+            feather: 0.0,
+            density: 1.0,
+        }
+    }
+}
+
+// Early native files stored simple polygon arrays instead of typed paths.
+fn deserialize_vector_path<'de, D: serde::Deserializer<'de>>(
+    d: D,
+) -> Result<vector::Path, D::Error> {
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum StoredPath {
+        Typed(vector::Path),
+        Polygon(Vec<[f64; 2]>),
+        Empty(()),
+    }
+    Ok(match StoredPath::deserialize(d)? {
+        StoredPath::Typed(path) => path,
+        StoredPath::Polygon(points) => vector::Path::polyline(
+            &points
+                .into_iter()
+                .map(|p| vector::Point::new(p[0], p[1]))
+                .collect::<Vec<_>>(),
+            true,
+        ),
+        StoredPath::Empty(()) => vector::Path::default(),
+    })
 }
 
 /// How a group composites its children.
@@ -350,23 +389,10 @@ impl SmartObject {
     }
 }
 
-/// A text layer placeholder: the text model is stored; pixels come from a
-/// rasterized proxy supplied by the (future) type engine.
-#[derive(Debug, Clone)]
-pub struct TextLayer {
-    /// The text.
-    pub text: String,
-    /// Font name.
-    pub font: String,
-    /// Size in pixels.
-    pub size: f32,
-    /// Straight RGB.
-    pub color: [f32; 3],
-    /// Rasterized proxy (straight RGBA).
-    pub proxy: Raster,
-}
-
 /// What a layer is.
+// Layers already live behind Arc; retain by-value source models rather than
+// adding a second allocation to each editable node.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone)]
 pub enum LayerKind {
     /// Tiled straight-RGBA pixels.
@@ -384,8 +410,20 @@ pub enum LayerKind {
     },
     /// Smart object.
     SmartObject(SmartObject),
-    /// Text placeholder.
-    Text(TextLayer),
+    /// Editable text, transformed from local to document coordinates.
+    Text {
+        /// Runs, paragraph geometry and effects.
+        model: typography::TextModel,
+        /// Local-to-document affine map.
+        transform: Affine,
+    },
+    /// Editable vector geometry and paint.
+    Shape {
+        /// Geometry, fill, stroke and live construction parameters.
+        model: vector::ShapeModel,
+        /// Local-to-document affine map.
+        transform: Affine,
+    },
 }
 
 /// One node of the layer tree.
@@ -402,7 +440,7 @@ pub struct Layer {
     pub content_rev: u64,
     /// Raster mask.
     pub mask: Option<Mask>,
-    /// Vector mask placeholder.
+    /// Document-space vector mask.
     pub vector_mask: Option<VectorMask>,
     /// Kind and payload.
     pub kind: LayerKind,
@@ -465,7 +503,6 @@ impl Layer {
     pub fn raster(&self) -> Option<&Raster> {
         match &self.kind {
             LayerKind::Pixel(r) => Some(r),
-            LayerKind::Text(t) => Some(&t.proxy),
             _ => None,
         }
     }
@@ -474,7 +511,6 @@ impl Layer {
     pub fn raster_mut(&mut self) -> Option<&mut Raster> {
         match &mut self.kind {
             LayerKind::Pixel(r) => Some(r),
-            LayerKind::Text(t) => Some(&mut t.proxy),
             _ => None,
         }
     }
@@ -502,7 +538,7 @@ impl Layer {
         }
         match &self.kind {
             LayerKind::Pixel(r) => s.max(r.footprint_rev(level, tx, ty)),
-            LayerKind::Text(t) => s.max(t.proxy.footprint_rev(level, tx, ty)),
+            LayerKind::Text { .. } | LayerKind::Shape { .. } => s,
             LayerKind::Group { children, .. } => children
                 .iter()
                 .fold(s, |a, c| a.max(c.stamp(level, tx, ty))),
@@ -519,7 +555,7 @@ impl Layer {
         }
         match &self.kind {
             LayerKind::Pixel(r) => Some(r.bounds().unwrap_or_default()),
-            LayerKind::Text(t) => Some(t.proxy.bounds().unwrap_or_default()),
+            LayerKind::Text { .. } | LayerKind::Shape { .. } => None,
             LayerKind::Group { children, .. } => {
                 let mut r = Rect::default();
                 for c in children {

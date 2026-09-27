@@ -2,7 +2,8 @@ import SwiftUI
 import TesseraCore
 
 /// The tools' sheets (WP B5-04): Select and Mask (Refine Edge, live preview in the chosen view mode),
-/// Color Range, Modify ▸ Border / Smooth / Expand / Contract / Feather, Fill, Save Selection.
+/// Color Range, Modify ▸ Border / Smooth / Expand / Contract / Feather, Fill, Save Selection (B5-08: the
+/// persistent channel sheet in Channels/ChannelSheets.swift).
 struct ToolSheetsModifier: ViewModifier {
     @Bindable var tools: DocumentTools
 
@@ -13,7 +14,7 @@ struct ToolSheetsModifier: ViewModifier {
             case .colorRange: ColorRangeSheet(tools: tools)
             case .modify(let kind): ModifySelectionSheet(tools: tools, kind: kind)
             case .fill: FillSheet(tools: tools)
-            case .saveSelection: SaveSelectionSheet(tools: tools)
+            case .saveSelection: SaveSelectionChannelSheet(channels: DocumentChannels.shared)   // B5-08
             }
         }
     }
@@ -173,31 +174,5 @@ struct FillSheet: View {
             .buttonStyle(.theme(.primary, height: Theme.Height.large)).keyboardShortcut(.defaultAction)
         }
         .frame(width: Theme.Width.inspectorMax, height: Theme.Width.sidebarIdeal)
-    }
-}
-
-struct SaveSelectionSheet: View {
-    @Bindable var tools: DocumentTools
-    @Environment(\.dismiss) private var dismiss
-    @State private var name = "Alpha 1"
-
-    var body: some View {
-        SheetScaffold(title: "Save Selection", subtitle: "Saved as a channel for this session") {
-            EmptyView()
-        } content: {
-            HStack(spacing: Theme.Space.s) {
-                Text("Name").font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
-                TextField("Name", text: $name).textFieldStyle(.roundedBorder).controlSize(.small)
-            }
-            .padding(Theme.Space.l)
-        } leading: {
-            EmptyView()
-        } actions: {
-            Button("Cancel") { dismiss() }.buttonStyle(.theme(.bordered, height: Theme.Height.large)).keyboardShortcut(.cancelAction)
-            Button("OK") { tools.saveSelection(name); dismiss() }
-                .buttonStyle(.theme(.primary, height: Theme.Height.large)).keyboardShortcut(.defaultAction)
-                .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
-        }
-        .frame(width: Theme.Width.inspectorMax, height: Theme.Height.filmstrip * 2)
     }
 }

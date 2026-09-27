@@ -440,7 +440,7 @@ fn text_and_smart_originals_remain_available_with_raster_proxies() {
             vec![tag(&key, vec![1, 2, 3, 4]), tag(b"lnk2", vec![9, 8, 7])];
         let imported = from_psd(&source).unwrap();
         if key == *b"TySh" {
-            assert!(matches!(imported.root[0].kind, LayerKind::Text(_)));
+            assert!(matches!(imported.root[0].kind, LayerKind::Pixel(_)));
         } else {
             assert!(matches!(imported.root[0].kind, LayerKind::SmartObject(_)));
         }
@@ -536,14 +536,14 @@ fn unsupported_text_edits_and_invalid_inputs_fail_explicitly() {
     source.layer_section.layers[0]
         .additional
         .push(tag(b"TySh", vec![1, 2, 3]));
-    let mut imported = from_psd(&source).unwrap();
-    let LayerKind::Text(text) = &mut std::sync::Arc::make_mut(&mut imported.root[0]).kind else {
-        panic!("text")
-    };
-    text.text = "new text".into();
-    assert!(
-        to_psd(&imported).is_err(),
-        "do not silently export obsolete text descriptors"
+    let imported = from_psd(&source).unwrap();
+    assert!(matches!(imported.root[0].kind, LayerKind::Pixel(_)));
+    assert_eq!(
+        to_psd(&imported).unwrap().layer_section.layers[0]
+            .info(b"TySh")
+            .unwrap()
+            .data,
+        vec![1, 2, 3]
     );
     source.color_mode = ColorMode::Cmyk;
     assert!(from_psd(&source).is_err());

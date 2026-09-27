@@ -5,6 +5,7 @@ edition = "2024"
 license = "Apache-2.0"
 
 [dependencies]
+merge = { path = "../merge" }
 mask-ai = { path = "../mask-ai" }
 image-core = { path = "../image-core" }
 pipeline-gpu = { path = "../pipeline-gpu" }
@@ -16,14 +17,22 @@ pipeline-cpu = { path = "../pipeline-cpu" }
 ml-enhance = { path = "../ml-enhance" }
 ml-runtime = { path = "../ml-runtime" }
 sidecar = { path = "../sidecar" }
-image = { workspace = true }
+image = { workspace = true, features = ["png"] }
+serde = { workspace = true }
+fontdue = "0.9.4"
 color-mgmt = { path = "../color-mgmt" }
 png = { workspace = true }
 tempfile = { workspace = true }
 rayon = "1.11"
 tiff = "0.10"
 jpeg-encoder = "0.6"
+rav1e = { version = "0.8.1", default-features = false, features = ["threading"] }
+zune-jpegxl = { version = "0.5.2", default-features = false, features = ["std"] }
+zune-core = "0.5.3"
 
 [dev-dependencies]
+libraw-ffi = { path = "../libraw-ffi" }
+jxl-oxide = { version = "0.12.6", default-features = false }
+color-mgmt = { path = "../color-mgmt", features = ["imageio"] }
 lcms2 = { workspace = true }
 lens = { path = "../lens" }

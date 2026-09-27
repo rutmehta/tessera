@@ -1067,9 +1067,9 @@
     "id": "M2-45",
     "owner": "astra",
     "title": "Export completeness (AVIF/JXL/DNG/watermark/HDR)",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
-    "notes": ""
+    "notes": "merged: AVIF 8/10/12, lossless JXL, float DNG, size limit, watermark; rest -> M2-45b"
   },
   {
     "id": "M5-28",
@@ -1132,6 +1132,110 @@
     "owner": "astra",
     "title": "Wire retouch + neural filters into document tools/FFI",
     "status": "merged",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M5-30",
+    "owner": "astra",
+    "title": "Editable text + vector layers contract (engine-api 1.5)",
+    "status": "merged",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-47",
+    "owner": "astra",
+    "title": "FFI: Photo Merge + Enhance",
+    "status": "merged",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-48",
+    "owner": "opus",
+    "title": "Develop panels: AI Denoise, Upright, Lens Blur",
+    "status": "merged",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M5-31",
+    "owner": "astra",
+    "title": "GPU-resident layer styles",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-49",
+    "owner": "astra",
+    "title": "Engine: Upright in loupe, AI Denoise + Lens Blur end to end",
+    "status": "merged",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "B5-06",
+    "owner": "opus",
+    "title": "B5-v fixes and editors for the new adjustment layers",
+    "status": "merged",
+    "attempts": 0,
+    "notes": "machine B; wp/B5-06 merged with main 923aad8; 224 XCTest; grid \u2318E hardened (not reproduced); own Save As sheet with document.saveAs.name"
+  },
+  {
+    "id": "B5-08",
+    "owner": "opus",
+    "title": "Persistent alpha and spot Channels panel",
+    "status": "merged",
+    "attempts": 0,
+    "notes": "machine B; wp/B5-08 on main 923aad8; channels persist native+PSD; 193 XCTest; Quick Mask not paintable yet"
+  },
+  {
+    "id": "B5-09",
+    "owner": "opus",
+    "title": "Remove tool and neural filters in the app",
+    "status": "merged",
+    "attempts": 0,
+    "notes": "machine B; wp/B5-09 merged with main 9a6f25f; document/retouch.rs; 240 XCTest; no weights on this Mac, missing-model paths verified; Remove 7.3 s on 18 MP (PatchMatch)"
+  },
+  {
+    "id": "M2-45b",
+    "owner": "astra",
+    "title": "Export completeness part 2 (metadata, sharpening, HDR, workflow)",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-46",
+    "owner": "opus",
+    "title": "Export dialog: AVIF/JXL/DNG, size limit, watermark",
+    "status": "merged",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "B5-09v",
+    "owner": "sol",
+    "title": "Verify Remove/CAF/Neural UI with real models",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-50",
+    "owner": "opus",
+    "title": "Photo Merge + Enhance UI",
+    "status": "running",
+    "attempts": 0,
+    "notes": ""
+  },
+  {
+    "id": "M2-51",
+    "owner": "opus",
+    "title": "Enable AI Denoise + Lens Blur, downloads, Guided uncorrected, export warnings",
+    "status": "running",
     "attempts": 0,
     "notes": ""
   }
