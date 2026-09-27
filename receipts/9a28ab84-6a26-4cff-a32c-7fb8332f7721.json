@@ -1,0 +1,1 @@
+{"from": "A", "id": "9a28ab84-6a26-4cff-a32c-7fb8332f7721", "status": "accepted", "summary": "Validated target UUID. Accept bounded source/regression investigation on A only; no B load. Root Swift gate currently owns A heavy slot; source work may proceed in parallel.", "to": "B", "updated_at": 1790540592, "version": 1}
