@@ -4,6 +4,26 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## Frame/cache integrated; current application gate active — 2026-09-27 22:21 UTC
+
+Main `78492f7f` integrates exact corrected `544e8a13` Rust/Cargo with evidence
+`8693b7b7`. Thirty-three tests and strict FFI lint passed; the original replaced-ring
+failure remains preserved and the unchanged assertion now passes. Root verified
+12 source hashes and complete crates/Cargo identity. Frame/cache result receipts
+are completed. No global memory or actual application latency claim follows.
+
+Luna owns the compiler and desktop for rebuilt current FFI, full Swift suite,
+then two-JPEG Review quit/relaunch. Review is still isolated; the warning addition
+has not yet run. Historical archive19f is preserved instead of overwritten through
+the old symlink. Engine Sol and resource Sol do source-only PSD conversion and
+pure batch draft work respectively while this gate runs.
+
+B design8363c8a is reviewed. Request `547433be` authorizes source-only operation/
+host implementation with running-cancel admission retained until unwind; SSH queue
+`01a0e4f1-a68a-7563-bb4d-9caff6d9b9c5` is accepted, peer receipt not yet observed.
+A's separate compositor API scope is in PSD-CONVERSION-CANCELLATION-PLAN.md.
+No B workloads or heartbeat restart; destination and encoder limits stay explicit.
+
 ## Combined engine gate found a telemetry regression — 2026-09-27 22:16 UTC
 
 Frozen `bb020485` passed frame5, cache7, preview5, filters12 (one ignored) and
