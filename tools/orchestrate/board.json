@@ -1243,7 +1243,7 @@
     "id": "M2-52",
     "owner": "astra",
     "title": "AI Denoise works on a normal install (DRUNet fallback)",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
