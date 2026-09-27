@@ -11,6 +11,30 @@ fn request(value: serde_json::Value) -> ToolRequest {
 }
 
 #[test]
+fn jpeg_xl_export_accepts_only_lossless_quality() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("source.png");
+    image::RgbImage::from_pixel(17, 13, image::Rgb([70, 100, 180]))
+        .save(&path)
+        .unwrap();
+    let mut console = Console::open(dir.path().join("app")).unwrap();
+    let id = console.open_image(&path).unwrap();
+    for quality in [90, 100] {
+        let out = dir.path().join(format!("out-{quality}"));
+        let response = console.execute(request(json!({"tool":"export","images":[id],"settings":{"destination":out,"format":{"format":"jpeg_xl","quality":quality}}})));
+        assert_eq!(
+            matches!(
+                response,
+                ToolResponse::Ok(ToolOutput::ExportQueued { images: 1, .. })
+            ),
+            quality == 100,
+            "{response:?}"
+        );
+        assert_eq!(out.join("source.jxl").exists(), quality == 100);
+    }
+}
+
+#[test]
 fn avif_export_uses_the_shared_codec() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("source.jpg");

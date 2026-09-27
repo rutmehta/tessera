@@ -140,6 +140,14 @@ fn encode_inner(
     cancel: &CancellationToken,
 ) -> EngineResult<()> {
     let Encoding { format, space, dpi } = encoding;
+    if let Format::JpegXl { bits } = format {
+        if !matches!(space, ColorSpace::Srgb) {
+            return Err(encode_error(
+                "lossless JPEG XL currently supports only sRGB",
+            ));
+        }
+        return crate::jxl::encode(writer, rgb, bits, xmp, cancel);
+    }
     let dpi = dpi.filter(|d| (1..=u32::from(u16::MAX)).contains(d));
     // render_full supplies destination-encoded float RGB. Quantize only here;
     // a second CMM conversion would double-encode the document colour space.
@@ -170,6 +178,7 @@ fn encode_inner(
             .collect::<Vec<_>>()
     };
     match format {
+        Format::JpegXl { .. } => unreachable!("JPEG XL returned before quantization"),
         Format::Avif(options) => {
             let rgba = image::Rgba32FImage::from_fn(rgb.width(), rgb.height(), |x, y| {
                 let [r, g, b] = rgb.get_pixel(x, y).0;

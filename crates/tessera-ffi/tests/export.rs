@@ -75,6 +75,20 @@ fn files(dir: &Path) -> Vec<String> {
 }
 
 #[test]
+fn jpeg_xl_settings_support_lossless_depths_and_reject_false_profiles() {
+    for bits in [8, 16] {
+        let json = format!(r#"{{"format":"jpeg_xl","bit_depth":{bits}}}"#);
+        let value: serde_json::Value =
+            serde_json::from_str(&normalize_export_settings(json).unwrap()).unwrap();
+        assert_eq!(value["format"], "jpeg_xl");
+        assert_eq!(value["bit_depth"], bits);
+    }
+    for extra in [r#""bit_depth":12"#, r#""color_space":"display_p3""#] {
+        assert!(normalize_export_settings(format!(r#"{{"format":"jpeg_xl",{extra}}}"#)).is_err());
+    }
+}
+
+#[test]
 fn avif_settings_are_backward_compatible_and_validate_depth_and_speed() {
     for bits in [8, 10, 12] {
         let json = format!(r#"{{"format":"avif","bit_depth":{bits},"avif_speed":8}}"#);
@@ -92,6 +106,32 @@ fn avif_settings_are_backward_compatible_and_validate_depth_and_speed() {
         assert!(normalize_export_settings(json.into()).is_err(), "{json}");
     }
     assert!(normalize_export_settings("{}".into()).is_ok());
+}
+
+#[test]
+fn jpeg_xl_batch_encodes_each_depth_and_keeps_metadata_sidecar() {
+    let f = fixture();
+    for bits in [8, 16] {
+        let out = f.dir.path().join(format!("jxl-{bits}"));
+        let report = f
+            .engine
+            .export_batch(
+                ExportTarget::Images {
+                    image_ids: vec![f.ids[0].clone()],
+                },
+                settings(
+                    &out,
+                    serde_json::json!({"format":"jpeg_xl", "bit_depth":bits}),
+                ),
+                None,
+                None,
+            )
+            .unwrap();
+        assert_eq!((report.exported, report.failed), (1, 0), "{report:?}");
+        let data = std::fs::read(out.join("a.jxl")).unwrap();
+        assert_eq!(&data[4..12], b"JXL \r\n\x87\n");
+        assert!(out.join("a.jxl.xmp").is_file());
+    }
 }
 
 #[test]

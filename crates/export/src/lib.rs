@@ -5,6 +5,7 @@ mod batch;
 pub use mask_ai;
 mod avif;
 mod codec;
+mod jxl;
 pub use avif::{AvifOptions, encode_avif};
 mod watermark;
 pub use batch::{
@@ -32,10 +33,18 @@ pub struct ExportImage<'a> {
 
 #[derive(Clone, Copy, Debug)]
 pub enum Format {
-    Jpeg { quality: u8 },
+    Jpeg {
+        quality: u8,
+    },
     Png,
-    Tiff { bits: u8 },
+    Tiff {
+        bits: u8,
+    },
     Avif(AvifOptions),
+    /// Lossless sRGB JPEG XL, 8 or 16 bits per channel.
+    JpegXl {
+        bits: u8,
+    },
 }
 impl Format {
     pub fn extension(self) -> &'static str {
@@ -44,15 +53,19 @@ impl Format {
             Self::Png => "png",
             Self::Tiff { .. } => "tif",
             Self::Avif(_) => "avif",
+            Self::JpegXl { .. } => "jxl",
         }
     }
     fn validate(self) -> EngineResult<()> {
         match self {
             Self::Avif(options) => options.validate(),
-            Self::Jpeg { quality: 1..=100 } | Self::Png | Self::Tiff { bits: 8 | 16 } => Ok(()),
+            Self::Jpeg { quality: 1..=100 }
+            | Self::Png
+            | Self::Tiff { bits: 8 | 16 }
+            | Self::JpegXl { bits: 8 | 16 } => Ok(()),
             _ => Err(EngineError::invalid(
                 "format",
-                "JPEG quality must be 1..=100; TIFF bits must be 8 or 16",
+                "JPEG quality must be 1..=100; TIFF/JPEG XL bits must be 8 or 16",
             )),
         }
     }

@@ -18,9 +18,10 @@ pub struct Options {
     query: Option<String>,
     #[arg(long)]
     out: PathBuf,
-    #[arg(long, value_parser = ["jpeg", "png", "tiff", "avif"])]
+    /// Output format. JPEG XL (jxl) is always lossless and sRGB-only.
+    #[arg(long, value_parser = ["jpeg", "png", "tiff", "avif", "jxl"])]
     format: String,
-    /// AVIF 8/10/12 or TIFF 8/16 bits per channel.
+    /// AVIF 8/10/12 or TIFF/JPEG XL 8/16 bits per channel.
     #[arg(long, default_value_t = 8)]
     bit_depth: u8,
     /// AVIF encoding speed, 1 (slow) through 10 (fast).
@@ -102,9 +103,13 @@ fn is_image(path: &Path) -> bool {
 
 fn settings(options: &Options) -> Result<ExportSettings> {
     ensure!(
+        options.format != "jxl" || options.color_space == "srgb",
+        "lossless JPEG XL currently supports only sRGB"
+    );
+    ensure!(
         match options.format.as_str() {
             "avif" => matches!(options.bit_depth, 8 | 10 | 12),
-            "tiff" => matches!(options.bit_depth, 8 | 16),
+            "tiff" | "jxl" => matches!(options.bit_depth, 8 | 16),
             _ => options.bit_depth == 8,
         },
         "unsupported bit depth for format"
@@ -129,6 +134,9 @@ fn settings(options: &Options) -> Result<ExportSettings> {
                 quality: options.quality,
             },
             "png" => Format::Png,
+            "jxl" => Format::JpegXl {
+                bits: options.bit_depth,
+            },
             "avif" => Format::Avif(export::AvifOptions {
                 quality: options.quality,
                 bits: options.bit_depth,
@@ -407,6 +415,29 @@ fn load(path: &Path) -> Result<Loaded> {
 #[cfg(test)]
 mod tests {
     use clap::Parser;
+
+    #[test]
+    fn jpeg_xl_flags_select_lossless_16_bit() {
+        let parsed = crate::Cli::try_parse_from([
+            "tessera",
+            "export",
+            "input.png",
+            "--out",
+            "out",
+            "--format",
+            "jxl",
+            "--bit-depth",
+            "16",
+        ])
+        .unwrap();
+        let crate::Command::Export(options) = parsed.command else {
+            panic!("export")
+        };
+        assert!(matches!(
+            super::settings(&options).unwrap().format,
+            export::Format::JpegXl { bits: 16 }
+        ));
+    }
 
     #[test]
     fn avif_flags_reach_encoder_settings() {

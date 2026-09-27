@@ -34,6 +34,9 @@ fn formats_profiles_and_privacy() {
                 let path = export_one(&source, &recipe, &settings).unwrap();
                 let (icc, xmp) = match format {
                     Format::Avif(_) => unreachable!("AVIF profiles tested in avif.rs"),
+                    Format::JpegXl { .. } => {
+                        unreachable!("JPEG XL is sRGB-only; tested separately")
+                    }
                     Format::Tiff { bits } => {
                         let mut decoder =
                             tiff::decoder::Decoder::new(fs::File::open(&path).unwrap()).unwrap();

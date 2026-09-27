@@ -26,6 +26,7 @@ pub enum FileFormat {
     Png,
     Tiff,
     Avif,
+    JpegXl,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -138,14 +139,14 @@ pub enum OnConflict {
 #[serde(default, deny_unknown_fields)]
 pub struct ExportOptions {
     pub format: FileFormat,
-    /// JPEG/AVIF quality 1–100.
+    /// JPEG/AVIF quality 1–100. JPEG XL is always lossless, ignoring quality.
     pub quality: u8,
     /// AVIF encoding speed: 1 (slow) through 10 (fast).
     pub avif_speed: u8,
     /// JPEG byte budget including the embedded ICC and XMP packets.
     pub max_file_bytes: Option<u64>,
     pub watermark: Option<export::Watermark>,
-    /// AVIF 8/10/12, TIFF 8/16 (PNG and JPEG are 8-bit).
+    /// AVIF 8/10/12, TIFF/JPEG XL 8/16 (PNG and JPEG are 8-bit).
     pub bit_depth: u8,
     pub color_space: DocumentSpace,
     pub resize: ResizeOptions,
@@ -203,10 +204,14 @@ impl ExportOptions {
             FileFormat::Png => "png",
             FileFormat::Tiff => "tif",
             FileFormat::Avif => "avif",
+            FileFormat::JpegXl => "jxl",
         }
     }
     /// Everything but the destination (checked when a batch runs).
     pub fn validate(&self) -> Result<()> {
+        if self.format == FileFormat::JpegXl && self.color_space != DocumentSpace::Srgb {
+            return Err(failure("lossless JPEG XL currently supports only sRGB"));
+        }
         if let Some(mark) = &self.watermark {
             mark.validate()?;
         }
@@ -225,7 +230,7 @@ impl ExportOptions {
         }
         if !match self.format {
             FileFormat::Avif => matches!(self.bit_depth, 8 | 10 | 12),
-            FileFormat::Tiff => matches!(self.bit_depth, 8 | 16),
+            FileFormat::Tiff | FileFormat::JpegXl => matches!(self.bit_depth, 8 | 16),
             _ => self.bit_depth == 8,
         } {
             return Err(failure("unsupported bit depth for format"));
@@ -282,6 +287,9 @@ impl ExportOptions {
                     quality: self.quality,
                 },
                 FileFormat::Png => export::Format::Png,
+                FileFormat::JpegXl => export::Format::JpegXl {
+                    bits: self.bit_depth,
+                },
                 FileFormat::Avif => export::Format::Avif(export::AvifOptions {
                     quality: self.quality,
                     bits: self.bit_depth,
