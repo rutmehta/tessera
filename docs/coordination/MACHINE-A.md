@@ -4,6 +4,23 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## RES-01 merged — 2026-09-27 21:04 UTC
+
+Main d2ac1226 contains per-frame smart-filter reuse and retained-result admission.
+Merged crates/Cargo bytes match reviewed/tested resource head e5bfbd5c. Final gates:
+8 focused,60 library (1 ignored benchmark; small Metal tests exercised),48 selected
+CPU integration, strict Clippy/format. Initial fixture-ID failure and repair retained.
+Evidence: tools/orchestrate/wp/RES-01/evidence/2026-09-27/followup/README.md.
+This bounds retained unmasked results per frame, not total memory or GPU use.
+B source review673e2a7/result0926ae38 confirms receipt and identifies remaining
+full-image mask blending. A accepted that as RES-03; investigation continues.
+
+Transform primitive610ca001/evidenced946b460 passed66 tests; strict checks and
+compositor caller bridge next. Luna owns compiler for explicit native-popover
+Escape dismissal after the prior fix's GUI failure. No Loupe acceptance yet.
+B source-only timer requestbac04a31 queued01a0e4ad-008a-7f31-a8ec-f53e64afee8a;
+receipt not yet checked. No B builds/tests/app launch or heartbeat restart.
+
 ## Active checkpoint — 2026-09-27 20:57 UTC
 
 RES-01 product0e58792d and evidencec10b4eea are pushed on
