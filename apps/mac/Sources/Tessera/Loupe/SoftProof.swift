@@ -160,9 +160,12 @@ struct SoftProofPanel: View {
                 MenuPicker(selection: Binding(get: { proof.profilePath ?? "" },
                                               set: { proof.profilePath = $0.isEmpty ? nil : $0 }),
                            options: proof.profiles.isEmpty ? [("", "None")] : proof.profiles.map { ($0.path, $0.name) })
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .help("Printer / press profile to simulate")
+                    .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+                    .help(proof.profiles.first { $0.path == proof.profilePath }.map { "\($0.name): printer / press profile to simulate" }
+                          ?? "Printer / press profile to simulate")
+                // M2-56: the menu (which truncates a long profile name) gives way, never Other….
                 Button("Other…") { proof.chooseProfileFile() }.buttonStyle(.theme(.bordered, height: Theme.Height.small))
+                    .fixedSize()
             }
             HStack(spacing: Theme.Space.s) {
                 Text("Intent").foregroundStyle(Theme.textSecondary).frame(width: Theme.Width.label - Theme.Space.l, alignment: .leading)

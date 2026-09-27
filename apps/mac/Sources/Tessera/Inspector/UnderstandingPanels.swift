@@ -88,6 +88,7 @@ private struct SuggestionChipView: View {
                     }
                     Text(suggestion.keyword)
                         .foregroundStyle(strong ? Theme.textPrimary : Theme.textSecondary)
+                        .lineLimit(1).truncationMode(.middle)   // M2-56: an oversized chip truncates in its FlowRow
                     if selectionCount > 1, suggestion.images < selectionCount {
                         Text("\(suggestion.images)").font(Theme.Fonts.captionNumeric).foregroundStyle(Theme.textTertiary)
                     }
@@ -108,6 +109,7 @@ private struct SuggestionChipView: View {
             .help("Reject: not suggested again for these photos")
             .accessibilityLabel("Reject \(suggestion.keyword)")
             .accessibilityIdentifier("keyword-suggestion-reject-\(suggestion.keyword)")
+            .fixedSize()
         }
         .padding(.horizontal, Theme.Space.s - Theme.Space.xxs)
         .frame(height: Theme.Height.small)

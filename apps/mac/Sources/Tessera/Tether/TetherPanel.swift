@@ -139,7 +139,9 @@ struct TetherPanel: View {
                         .disabled(tether.connected)
                         .accessibilityIdentifier("tether-session-name")
                 }
-                .frame(width: 200)
+                // M2-56 (audit R01): the fields shrink (to 120 / 124 pt) in a narrow centre instead of
+                // demanding 504 pt beside both side panels.
+                .frame(minWidth: Theme.Width.labelWide + Theme.Space.l + Theme.Space.s, idealWidth: 200, maxWidth: 200)
                 HStack(spacing: Theme.Space.xs) {
                     Text(tether.plannedFolder.path)
                         .font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary)
@@ -164,7 +166,7 @@ struct TetherPanel: View {
                             .disabled(tether.connected)
                             .accessibilityIdentifier("tether-naming")
                     }
-                    .frame(width: 240)
+                    .frame(minWidth: Theme.Width.labelWide + Theme.Space.xxl - Theme.Space.xs, idealWidth: 240, maxWidth: 240)
                     Menu {
                         ForEach(TetherNaming.tokens, id: \.token) { t in
                             Button("\(t.title)  \(t.token)") { tether.insertToken(t.token) }
