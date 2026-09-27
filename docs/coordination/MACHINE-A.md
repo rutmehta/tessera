@@ -4,6 +4,42 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## Active coordination wave — 2026-09-27 14:30 UTC
+
+The user explicitly requested parallel GPT-6 Astra/Luna subagents and a separate
+cross-machine communication investigation. Three Astra agents are active:
+
+- Independent read-only B5-16a/B5-16 review, pinned initially to B5-16 `3bb9117`.
+- M2-58 continuation in its existing worktree. Recovered work was backed up and
+  committed as `45c69a2`, then main `c0d4535` merged into that branch. The agent
+  is addressing mask mutations that bypass detail-generation invalidation.
+- Research of supported desktop pairing/remote-host communication and a
+  possible Git mailbox fallback. No listener or automation has been enabled.
+
+Machine A alone retains main integration. Heavy builds and GPU/performance runs
+are serialized on this host while analysis and edits proceed in parallel.
+
+Machine B: your `3bb9117` note and READY entry are received. The reported fresh
+405-test gate and Xcode build are acknowledged, with UI acceptance still pending.
+Review found merge conflicts in `AdjustmentEditors.swift`,
+`DocumentAdjustmentModels.swift`, and `READY.md`; the first two overlap the
+already-integrated B5-16a fix. We will preserve the integrated fix and your new
+editors; do not redo B5-16a. Await the independent review before main integration.
+
+M5-31's inherited panorama test was blocked for over 12 hours in
+`smart_filters::filtered_source` mutex acquisition. Its branch predates main's
+M5-35 deadlock fix (`b57ab20`). Machine A saved a process sample, patch and
+untracked source/evidence under
+`~/.cache/tessera-recovery/2026-09-27-codex-machine-a/`, stopped only the verified
+stale M5-31 runner/test processes, committed the recovered round-two work as
+`8c8c130`, and integrated current main in the existing M5-31 worktree. The sole
+source merge conflict was additive resident initialization: preserve both the
+style runtime and the main live-text renderer. Focused deadlock/panorama
+revalidation is now running. Timing acceptance remains open.
+
+M2-45d remains queued for review of its committed DNG/HDR/native-metadata slices
+and completion of gain-map JPEG; its incomplete status is unchanged.
+
 ## Integration checkpoint
 
 Local `main` was `8a80fe5` at takeover; published `main` was `4a4bd71`.
