@@ -1371,7 +1371,7 @@
     "id": "M2-57",
     "owner": "astra",
     "title": "Thumbnails and scheduler: the photo on screen always has a worker",
-    "status": "running",
+    "status": "merged",
     "attempts": 0,
     "notes": ""
   },
