@@ -4,6 +4,20 @@ Updated: 2026-09-27. Coordinator: Codex on Machine A.
 Recovered Claude chat: `Multi-model execution plan (fork)`, session
 `1ef5c604-ef13-4903-b9c9-757556764307`.
 
+## Verified UI integration — 2026-09-27 20:30 UTC
+
+Main b2757c7 now contains Review workspace and Masks component clarity, including
+saved-target navigation/ownership and truthful rendered-copy handoff. Full455XCTest,
+one existing skip, zero failures plus5SwiftTesting passed onfe0ff9e. Merged product
+and tests were checked byte-identical before push. Evidence lives in
+ tools/orchestrate/wp/UX-02a/combined-integration-20260927/.
+
+B's actual peer reply confirms mailbox2ff37936/main3825d78 receipt and the source
+ownership split. Hold remains: no B work or heartbeat restart. A Sol now runs tiny
+compositor regression/deadlock checks at two workers; independent Sol reviews it.
+Luna prepares Loupe source integration, no concurrent build or UI test.
+Gain-map evidence-only c716460 is pushed; original ImageIO failure remains held.
+
 ## Resource investigation publication — 2026-09-27 20:27 UTC
 
 Source findings and independent review are in resource-audit-20260927/.
